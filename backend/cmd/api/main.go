@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/infra"
@@ -423,6 +424,15 @@ func main() {
 	reservationHandler.RegisterRoutes(protected)
 	// LIFF 公開 API（JWT 認証なし・LINE ID トークン認証・rate limit store は appCtx で cleanup）
 	reservationHandler.RegisterLiffRoutes(r)
+
+	// billing domain（BE9-2C B①〜）: 会計系 master routes
+	billingHandler := billing.NewHandler(
+		billing.NewInsuranceHandler(svcs.Insurance),
+		billing.NewCampaignHandler(svcs.Campaign),
+		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
+		h.RequirePermission,
+	)
+	billingHandler.RegisterRoutes(protected)
 
 	// HTTPサーバー設定
 	server := &http.Server{

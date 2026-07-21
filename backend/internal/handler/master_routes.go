@@ -48,12 +48,6 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// directly in cmd/api/main.go, ADR-006 aggregator 非経由). See internal/medicalrecord/routes.go.
 
 	// Insurances
-	masters.GET("/insurances", perm(model.ResourceMasterInsurance, "view"), h.ListInsurances)
-	masters.POST("/insurances", perm(model.ResourceMasterInsurance, "create"), h.CreateInsurance)
-	masters.PATCH("/insurances/reorder", perm(model.ResourceMasterInsurance, "edit"), h.ReorderInsurances)
-	masters.GET("/insurances/:id", perm(model.ResourceMasterInsurance, "view"), h.GetInsurance)
-	masters.PATCH("/insurances/:id", perm(model.ResourceMasterInsurance, "edit"), h.UpdateInsurance)
-	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
 	// Reservation Category Groups
 
@@ -96,12 +90,6 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourseType)
 
 	// Campaigns (#81 割引キャンペーンマスタ。会計割引マスタのため ResourceAccounting 権限)
-	masters.GET("/campaigns", perm(model.ResourceAccounting, "view"), h.ListCampaigns)
-	masters.POST("/campaigns", perm(model.ResourceAccounting, "create"), h.CreateCampaign)
-	masters.PATCH("/campaigns/reorder", perm(model.ResourceAccounting, "edit"), h.ReorderCampaigns)
-	masters.GET("/campaigns/:id", perm(model.ResourceAccounting, "view"), h.GetCampaign)
-	masters.PATCH("/campaigns/:id", perm(model.ResourceAccounting, "edit"), h.UpdateCampaign)
-	masters.DELETE("/campaigns/:id", perm(model.ResourceAccounting, "delete"), h.DeleteCampaign)
 
 	// Examination Types / Diagnosis Categories / Diagnosis Names: moved to
 	// internal/medicalrecord.Handler.RegisterRoutes (BE9-2C master-CRUD slice — composed

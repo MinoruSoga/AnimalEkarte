@@ -324,17 +324,7 @@ func TestValidateCageType(t *testing.T) {
 	assert.Error(t, validateCageType("invalid_cage_type"))
 }
 
-func TestValidateCoverageRate(t *testing.T) {
-	assert.NoError(t, validateCoverageRate(50))
-	assert.Error(t, validateCoverageRate(-1))
-	assert.Error(t, validateCoverageRate(101))
-}
 
-func TestValidateOptionalCoverageRate(t *testing.T) {
-	assert.NoError(t, validateOptionalCoverageRate(nil))
-	val := 50
-	assert.NoError(t, validateOptionalCoverageRate(&val))
-}
 
 func TestValidateCageSize(t *testing.T) {
 	assert.NoError(t, validateCageSize(""))

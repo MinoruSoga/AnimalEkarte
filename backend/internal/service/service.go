@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
@@ -31,7 +32,7 @@ type Services struct {
 	StaffCore                      StaffCoreService
 	StaffAccount                   StaffAccountService
 	StaffPermission                StaffPermissionService
-	Insurance                      InsuranceService
+	Insurance                      billing.InsuranceService
 	ReservationType                reservation.ReservationTypeCoreService
 	ReservationTypeUnavailableTime reservation.ReservationTypeUnavailableTimeService
 	ReservationTypeAvailableSlot   reservation.ReservationTypeAvailableSlotService
@@ -63,9 +64,9 @@ type Services struct {
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
-	PaymentMethodMaster PaymentMethodMasterService
+	PaymentMethodMaster billing.PaymentMethodMasterService
 	TrimmingCourseType  TrimmingCourseTypeService
-	Campaign            CampaignService
+	Campaign            billing.CampaignService
 	CashRegister        CashRegisterService
 	AccountingReport    AccountingReportService
 
@@ -243,7 +244,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		StaffCore:                      staffSvc,
 		StaffAccount:                   staffSvc,
 		StaffPermission:                staffSvc,
-		Insurance:                      NewInsuranceService(repos.Insurance),
+		Insurance:                      billing.NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,
 		ReservationTypeUnavailableTime: reservationTypeSvc,
 		ReservationTypeAvailableSlot:   reservationTypeSvc,
@@ -271,9 +272,9 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		ReservationNotifier: notifier,
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:     closingSettingsSvc,
-		PaymentMethodMaster: NewPaymentMethodMasterService(repos.PaymentMethodMaster),
+		PaymentMethodMaster: billing.NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:  NewTrimmingCourseTypeService(repos.TrimmingCourseType),
-		Campaign:            NewCampaignService(repos.Campaign, repos.MerchandiseItem),
+		Campaign:            billing.NewCampaignService(repos.Campaign, repos.MerchandiseItem),
 		CashRegister:        NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:    NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting: reservation.NewLineReservationSettingService(repos.LineReservationSetting,

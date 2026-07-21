@@ -13,8 +13,6 @@ DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefi
 DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id DeleteConditionTagMapping
 DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeTagPrefix
 DELETE /api/v1/masters/animal-species/:id DeleteAnimalSpecies
-DELETE /api/v1/masters/campaigns/:id DeleteCampaign
-DELETE /api/v1/masters/insurances/:id DeleteInsurance
 DELETE /api/v1/masters/merchandise-items/:id DeleteMerchandiseItem
 DELETE /api/v1/masters/occupations/:id DeleteOccupation
 DELETE /api/v1/masters/permission-groups/:id DeletePermissionGroup
@@ -25,7 +23,6 @@ DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption
 DELETE /api/v1/owners/:id DeleteOwner
 DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
-DELETE /api/v1/payment-methods/:id DeletePaymentMethod
 DELETE /api/v1/pets/:id DeletePet
 DELETE /api/v1/pets/:id/chronic-conditions/:cc_id DeleteChronicCondition
 DELETE /api/v1/pets/:id/death DeletePetDeath
@@ -85,10 +82,6 @@ GET /api/v1/lstep/tag-summary GetLstepTagSummary
 GET /api/v1/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/masters/animal-species ListAnimalSpecies
 GET /api/v1/masters/animal-species/:id GetAnimalSpecies
-GET /api/v1/masters/campaigns ListCampaigns
-GET /api/v1/masters/campaigns/:id GetCampaign
-GET /api/v1/masters/insurances ListInsurances
-GET /api/v1/masters/insurances/:id GetInsurance
 GET /api/v1/masters/merchandise-items ListMerchandiseItems
 GET /api/v1/masters/merchandise-items/:id GetMerchandiseItem
 GET /api/v1/masters/occupations ListOccupations
@@ -114,8 +107,6 @@ GET /api/v1/owners/:id GetOwner
 GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs
 GET /api/v1/owners/:id/lstep/tags GetOwnerLstepTags
-GET /api/v1/payment-methods ListPaymentMethods
-GET /api/v1/payment-methods/:id GetPaymentMethod
 GET /api/v1/pets ListPets
 GET /api/v1/pets/:id GetPet
 GET /api/v1/pets/:id/chronic-conditions ListChronicConditions
@@ -154,10 +145,6 @@ PATCH /api/v1/lstep-settings UpdateLstepSettings
 PATCH /api/v1/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/masters/animal-species/:id UpdateAnimalSpecies
 PATCH /api/v1/masters/animal-species/reorder ReorderAnimalSpecies
-PATCH /api/v1/masters/campaigns/:id UpdateCampaign
-PATCH /api/v1/masters/campaigns/reorder ReorderCampaigns
-PATCH /api/v1/masters/insurances/:id UpdateInsurance
-PATCH /api/v1/masters/insurances/reorder ReorderInsurances
 PATCH /api/v1/masters/merchandise-items/:id UpdateMerchandiseItem
 PATCH /api/v1/masters/merchandise-items/reorder ReorderMerchandiseItems
 PATCH /api/v1/masters/occupations/:id UpdateOccupation
@@ -180,8 +167,6 @@ PATCH /api/v1/owners/:id/line-id-confirm UpdateOwnerLineIDConfirm
 PATCH /api/v1/owners/:id/line-user-id UpdateOwnerLineUserID
 PATCH /api/v1/owners/:id/lstep/opt-out PatchOwnerLstepOptOut
 PATCH /api/v1/owners/:id/transfer-status UpdateOwnerTransferStatus
-PATCH /api/v1/payment-methods/:id UpdatePaymentMethod
-PATCH /api/v1/payment-methods/reorder ReorderPaymentMethods
 PATCH /api/v1/pets/:id UpdatePet
 PATCH /api/v1/pets/:id/chronic-conditions/:cc_id UpdateChronicCondition
 PATCH /api/v1/pets/:id/death UpdatePetDeath
@@ -218,8 +203,6 @@ POST /api/v1/lstep-tag-config/auto-managed-prefixes CreateAutoManagedPrefix
 POST /api/v1/lstep-tag-config/condition-tag-mappings CreateConditionTagMapping
 POST /api/v1/lstep-tag-config/send-purpose-tag-prefixes CreateSendPurposeTagPrefix
 POST /api/v1/masters/animal-species CreateAnimalSpecies
-POST /api/v1/masters/campaigns CreateCampaign
-POST /api/v1/masters/insurances CreateInsurance
 POST /api/v1/masters/merchandise-items CreateMerchandiseItem
 POST /api/v1/masters/occupations CreateOccupation
 POST /api/v1/masters/permission-groups CreatePermissionGroup
@@ -235,7 +218,6 @@ POST /api/v1/owners/:id/line/send SendLineMessage
 POST /api/v1/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/owners/:id/lstep/send SendLineMessage
 POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
-POST /api/v1/payment-methods CreatePaymentMethod
 POST /api/v1/pets CreatePet
 POST /api/v1/pets/:id/chronic-conditions CreateChronicCondition
 POST /api/v1/shared-files UploadSharedFile

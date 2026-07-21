@@ -117,7 +117,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterClosingSettingsRoutes(protected)
 	h.RegisterCashRegisterRoutes(protected)
 	h.RegisterAccountingReportRoutes(protected)
-	h.RegisterPaymentMethodMasterRoutes(protected)
+	// 支払方法マスタ routes は internal/billing.RegisterRoutes へ移動（BE9-2C B①）
 
 	// BE9-2D sub-batch③: /lab-imports and /lab-reports moved to
 	// internal/medicalrecord.Handler.RegisterRoutes (composed in cmd/api/main.go, ADR-006

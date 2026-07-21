@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	billingdom "github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -145,7 +146,7 @@ type BillingItemService interface {
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
 	// campaignRepo 未配線の場合は飼主割引のみ。
-	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
+	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]billingdom.DiscountSuggestion, error)
 }
 
 // UngroupedSameDaySummary は #77 取り残し警告用の未会計対象化件数サマリ。
@@ -217,7 +218,7 @@ func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clini
 
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
 // campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
-// 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
+// 飼主割引と高い方を採用する(billingdom.CalculateItemCampaignDiscount)。
 func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput) int64 {
 	if s.campaignRepo == nil {
 		return 0
@@ -235,7 +236,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}
 	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
-	return CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
+	return billingdom.CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -454,7 +455,7 @@ func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
 }
 
 // GetDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。
-func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error) {
+func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]billingdom.DiscountSuggestion, error) {
 	item, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find billing item")
@@ -473,7 +474,7 @@ func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicI
 		}
 	}
 	itemSubtotal := int64(float64(item.UnitPrice) * item.Quantity)
-	return BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
+	return billingdom.BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する

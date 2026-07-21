@@ -32,22 +32,6 @@ func validateCageType(cageType string) error {
 	return sharedkernel.ValidateCageType(cageType)
 }
 
-// validateNonNegativePrice は価格フィールドが 0 以上かを検証する（nil の場合はスキップ）(BUG-380)
-func validateCoverageRate(rate int) error {
-	if rate < 0 || rate > 100 {
-		return apperrors.WrapInvalidInput("補償率は0〜100の範囲で入力してください")
-	}
-	return nil
-}
-
-// validateOptionalCoverageRate は nil 許容の保険補償率バリデーション (BUG-398)
-func validateOptionalCoverageRate(rate *int) error {
-	if rate == nil {
-		return nil
-	}
-	return validateCoverageRate(*rate)
-}
-
 // validatePassword はパスワード複雑性を検証する（BUG-139）。
 // 8文字以上、英字1文字以上、数字1文字以上が必須。
 func validateCageSize(cageSize string) error {

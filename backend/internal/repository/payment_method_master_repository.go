@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/paymentmethod"
+	"github.com/animal-ekarte/backend/internal/billing"
 )
 
-// PaymentMethodMasterRepository is a stable facade alias for the paymentmethod
-// domain package. Service/handler imports keep using repository.* so the first
-// domain split does not churn all importers.
-type PaymentMethodMasterRepository = paymentmethod.Repository
+// PaymentMethodMasterRepository は internal/billing への移行facade（BE9-2C B①・BE9-2F削除予定）。
+type PaymentMethodMasterRepository = billing.PaymentMethodMasterRepository
 
-// NewPaymentMethodMasterRepository constructs the payment-method master repository.
+// NewPaymentMethodMasterRepository は internal/billing の実装を返す（BE9-2C B① facade）。
 func NewPaymentMethodMasterRepository(db *gorm.DB) PaymentMethodMasterRepository {
-	return paymentmethod.New(db)
+	return billing.NewPaymentMethodMasterRepository(db)
 }

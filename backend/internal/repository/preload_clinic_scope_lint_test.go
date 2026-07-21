@@ -24,10 +24,10 @@ package repository
 // anywhere under internal/ (any depth, any top-level package) is caught by all three gates.
 //
 // Key-format backward compatibility: lintscan keys are relative to internal/ (e.g.
-// "repository/foo.go", "repository/paymentmethod/repository.go", "service/vaccination_service.go").
+// "repository/foo.go", "repository/shiftentry/repository.go", "service/vaccination_service.go").
 // legacyLintKey (below) strips the "repository/" prefix before the key reaches
 // analyzeFilePreloads, so a repository root file is still keyed "foo.go" and a repository
-// subpackage file is still keyed "paymentmethod/repository.go" — byte-for-byte the same shape the
+// subpackage file is still keyed "shiftentry/repository.go" — byte-for-byte the same shape the
 // old repoSourceFS walk produced — which keeps every existing preloadClinicScopeSiteExceptions
 // entry matching. Any OTHER top-level internal/ package keeps its full lintscan key unchanged
 // (e.g. "service/vaccination_service.go"); those have no legacy site-exception entries, so a new,
@@ -400,7 +400,7 @@ func isInSet(set map[string]struct{}, key string) bool {
 // moduleInternalSource returns every production .go file across the WHOLE module's internal/
 // tree (internal/repository, internal/service, internal/model, ...) via
 // lintscan.WalkInternalTreeT(t). Keys are lintscan's raw path relative to internal/ (e.g.
-// "repository/foo.go", "repository/paymentmethod/repository.go", "service/vaccination_service.go").
+// "repository/foo.go", "repository/shiftentry/repository.go", "service/vaccination_service.go").
 // preload / audit-tx / dbortx (this file, audit_tx_inventory_lint_test.go,
 // dbortx_inventory_lint_test.go) all share this single discovery step (BE9-1) so a violation
 // planted anywhere under internal/ — not only internal/repository — is caught by all three gates.
@@ -414,7 +414,7 @@ func moduleInternalSource(t *testing.T) map[string][]byte {
 // every existing site-exception / allowlist entry keeps matching byte-for-byte:
 //
 //	"repository/foo.go"                      -> "foo.go"                      (root file)
-//	"repository/paymentmethod/repository.go" -> "paymentmethod/repository.go" (1-level subpkg)
+//	"repository/shiftentry/repository.go" -> "shiftentry/repository.go" (1-level subpkg)
 //	"repository/a/b/c.go"                    -> "a/b/c.go"                    (N-level nested)
 //
 // Any OTHER top-level internal/ package (service/, model/, ...) keeps its full lintscan key
@@ -449,7 +449,7 @@ func assertDiscoversFileFromDifferentTopLevelPackage(t *testing.T, tree map[stri
 // underlying moduleInternalSource is not artificially limited to 1-level subpackages. This uses a
 // synthetic t.TempDir() tree rather than the real repository because, as of this writing, no real
 // internal/ package nests 2+ levels deep (the deepest today is exactly 1-level, e.g.
-// repository/paymentmethod/repository.go) — the CAPABILITY, not today's real depth, is what BE9-1
+// repository/shiftentry/repository.go) — the CAPABILITY, not today's real depth, is what BE9-1
 // requires proven. See lintscan.WalkInternalTree's own doc comment: "walking arbitrarily deep is
 // what makes it agnostic to however many subpackage levels exist today or are added later".
 func assertLintscanReachesTwoOrMoreNestingLevels(t *testing.T) {
@@ -687,18 +687,18 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 func TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
 	tree := moduleInternalSource(t)
 
-	foundPaymentMethod := false
+	foundNestedSubpackageCanary := false
 	nestedRepositorySubpackages := 0
 	for n := range tree {
-		if n == "repository/paymentmethod/repository.go" {
-			foundPaymentMethod = true
+		if n == "repository/shiftentry/repository.go" {
+			foundNestedSubpackageCanary = true
 		}
 		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
 			nestedRepositorySubpackages++
 		}
 	}
-	if !foundPaymentMethod {
-		t.Fatal("module-wide discovery does not include repository/paymentmethod/repository.go; " +
+	if !foundNestedSubpackageCanary {
+		t.Fatal("module-wide discovery does not include repository/shiftentry/repository.go; " +
 			"lintscan's walk may have narrowed and would silently drop 1-level domain subpackages " +
 			"from preload/audit-tx/dbortx clinical-safety coverage without any other test catching it")
 	}

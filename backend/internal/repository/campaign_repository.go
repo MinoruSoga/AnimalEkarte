@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/campaign"
+	"github.com/animal-ekarte/backend/internal/billing"
 )
 
-// CampaignRepository is a stable facade alias for the campaign domain
-// package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
-type CampaignRepository = campaign.Repository
+// CampaignRepository は internal/billing への移行facade（BE9-2C B①・BE9-2F削除予定）。
+type CampaignRepository = billing.CampaignRepository
 
-// NewCampaignRepository constructs the campaign repository.
+// NewCampaignRepository は internal/billing の実装を返す（BE9-2C B① facade）。
 func NewCampaignRepository(db *gorm.DB) CampaignRepository {
-	return campaign.New(db)
+	return billing.NewCampaignRepository(db)
 }

@@ -103,9 +103,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing_item_repository.go|billingItemRepository.Update":              {},
 	"billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
 	// campaign
-	"campaign/repository.go|repository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
-	"campaign/repository.go|repository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
-	"campaign/repository.go|repository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
+	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
+	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
+	"billing/campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
 	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
@@ -577,12 +577,12 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 
 	// paymentmethod.Reorder must keep delegating to the DBOrTx-aware reorder helper
 	// (not r.db.WithContext Transaction).
-	pmSrc, ok := tree["repository/paymentmethod/repository.go"]
+	pmSrc, ok := tree["billing/payment_method_master_repository.go"]
 	if !ok {
-		t.Fatal("repository/paymentmethod/repository.go not found in module-wide discovery set")
+		t.Fatal("billing/payment_method_master_repository.go not found in module-wide discovery set")
 	}
 	pmFset := token.NewFileSet()
-	pmF, err := parser.ParseFile(pmFset, "paymentmethod/repository.go", pmSrc, 0)
+	pmF, err := parser.ParseFile(pmFset, "billing/payment_method_master_repository.go", pmSrc, 0)
 	if err != nil {
 		t.Fatalf("parse paymentmethod: %v", err)
 	}

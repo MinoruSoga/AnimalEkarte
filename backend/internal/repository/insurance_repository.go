@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/insurance"
+	"github.com/animal-ekarte/backend/internal/billing"
 )
 
-// InsuranceRepository is a stable facade alias for the insurance domain package.
-type InsuranceRepository = insurance.Repository
+// InsuranceRepository は internal/billing への移行facade（BE9-2C B①・BE9-2F削除予定）。
+type InsuranceRepository = billing.InsuranceRepository
 
-// NewInsuranceRepository constructs the insurance repository.
+// NewInsuranceRepository は internal/billing の実装を返す（BE9-2C B① facade）。
 func NewInsuranceRepository(db *gorm.DB) InsuranceRepository {
-	return insurance.New(db)
+	return billing.NewInsuranceRepository(db)
 }
