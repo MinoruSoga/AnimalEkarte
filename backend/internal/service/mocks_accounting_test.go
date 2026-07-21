@@ -141,7 +141,7 @@ func (m *mockAccountingRepository) GetCloseAggregate(ctx context.Context, input 
 	return &repository.CloseAggregateResult{
 		PaymentRows:    []repository.PaymentAggregateRow{},
 		CategoryRows:   []repository.CategoryAggregateRow{},
-		BillingDetails: []repository.CloseBillingDetail{},
+		BillingDetails: []repository.CloseBillingDetailRow{},
 		TaxBreakdown:   []repository.TaxBreakdownRow{},
 	}, nil
 }

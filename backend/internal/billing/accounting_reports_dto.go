@@ -39,7 +39,7 @@ type CloseAggregateResult struct {
 	PaymentRows    []PaymentAggregateRow
 	CategoryRows   []CategoryAggregateRow
 	TotalRefund    int64
-	BillingDetails []CloseBillingDetail
+	BillingDetails []CloseBillingDetailRow
 	TaxBreakdown   []TaxBreakdownRow `json:"-"`
 }
 
@@ -68,8 +68,8 @@ type CategoryAggregateRow struct {
 	Amount   int64
 }
 
-// CloseBillingDetail は個別会計一覧の1レコード
-type CloseBillingDetail struct {
+// CloseBillingDetailRow は個別会計一覧の1レコード
+type CloseBillingDetailRow struct {
 	BillingID         uint64    `json:"billing_id"`
 	PaidAt            time.Time `json:"paid_at"`
 	OwnerName         string    `json:"owner_name"`

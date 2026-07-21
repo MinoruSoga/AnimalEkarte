@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"context"
@@ -11,54 +11,52 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock AccountingReportService ----
 
 type mockAccountingReportService struct {
-	getMonthlyFn               func(ctx context.Context, clinicID uint64, year, month int) (*service.MonthlyReportResponse, error)
-	getMonthlyByPeriodFn       func(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyReportResponse, error)
-	exportMonthlyCSVFn         func(ctx context.Context, clinicID uint64, year, month int) (*service.MonthlyCSVResult, error)
-	exportMonthlyCSVByPeriodFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyCSVResult, error)
+	getMonthlyFn               func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
+	getMonthlyByPeriodFn       func(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyReportResponse, error)
+	exportMonthlyCSVFn         func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error)
+	exportMonthlyCSVByPeriodFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error)
 }
 
-func (m *mockAccountingReportService) GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*service.MonthlyReportResponse, error) {
+func (m *mockAccountingReportService) GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error) {
 	return m.getMonthlyFn(ctx, clinicID, year, month)
 }
 
-func (m *mockAccountingReportService) GetMonthlyByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyReportResponse, error) {
+func (m *mockAccountingReportService) GetMonthlyByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyReportResponse, error) {
 	return m.getMonthlyByPeriodFn(ctx, clinicID, startDate, endDate)
 }
 
-func (m *mockAccountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*service.MonthlyCSVResult, error) {
+func (m *mockAccountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error) {
 	return m.exportMonthlyCSVFn(ctx, clinicID, year, month)
 }
 
-func (m *mockAccountingReportService) ExportMonthlyCSVByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyCSVResult, error) {
+func (m *mockAccountingReportService) ExportMonthlyCSVByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error) {
 	return m.exportMonthlyCSVByPeriodFn(ctx, clinicID, startDate, endDate)
 }
 
-var _ service.AccountingReportService = (*mockAccountingReportService)(nil)
+var _ AccountingReportService = (*mockAccountingReportService)(nil)
 
-func newHandlerWithAccountingReportSvc(svc service.AccountingReportService) *Handler {
-	return &Handler{svc: &service.Services{AccountingReport: svc}}
+func newHandlerWithAccountingReportSvc(svc AccountingReportService) *AccountingReportHandler {
+	return NewAccountingReportHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
-func sampleMonthlyReportResponse() *service.MonthlyReportResponse {
-	return &service.MonthlyReportResponse{
+func sampleMonthlyReportResponse() *MonthlyReportResponse {
+	return &MonthlyReportResponse{
 		Year:      2026,
 		Month:     4,
 		StartDate: "2026-04-01",
 		EndDate:   "2026-04-30",
-		Summary: service.MonthlyReportSummary{
+		Summary: MonthlyReportSummary{
 			WorkingDays:   20,
 			TotalBillings: 100,
 			TotalAmount:   500000,
 			NetAmount:     490000,
 		},
-		DailyDetails: []service.DailyReportDetail{
+		DailyDetails: []DailyReportDetail{
 			{Date: "2026-04-01", Weekday: "水", AMCount: 1, DayNet: 1000},
 		},
 	}
@@ -82,7 +80,7 @@ func TestGetMonthlyReport(t *testing.T) {
 			query:    "year=2026&month=4",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				getMonthlyFn: func(_ context.Context, clinicID uint64, year, month int) (*service.MonthlyReportResponse, error) {
+				getMonthlyFn: func(_ context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 2026, year)
 					assert.Equal(t, 4, month)
@@ -97,7 +95,7 @@ func TestGetMonthlyReport(t *testing.T) {
 			query:    "start_date=2026-04-01&end_date=2026-04-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				getMonthlyByPeriodFn: func(_ context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyReportResponse, error) {
+				getMonthlyByPeriodFn: func(_ context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyReportResponse, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "2026-04-01", startDate.Format("2006-01-02"))
 					assert.Equal(t, "2026-04-30", endDate.Format("2006-01-02"))
@@ -133,7 +131,7 @@ func TestGetMonthlyReport(t *testing.T) {
 			query:    "year=2026&month=4",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				getMonthlyFn: func(_ context.Context, _ uint64, _, _ int) (*service.MonthlyReportResponse, error) {
+				getMonthlyFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResponse, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -144,7 +142,7 @@ func TestGetMonthlyReport(t *testing.T) {
 			query:    "start_date=2026-04-01&end_date=2026-04-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				getMonthlyByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*service.MonthlyReportResponse, error) {
+				getMonthlyByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*MonthlyReportResponse, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -186,11 +184,11 @@ func TestExportMonthlyCSV(t *testing.T) {
 			query:    "year=2026&month=4",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				exportMonthlyCSVFn: func(_ context.Context, clinicID uint64, year, month int) (*service.MonthlyCSVResult, error) {
+				exportMonthlyCSVFn: func(_ context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 2026, year)
 					assert.Equal(t, 4, month)
-					return &service.MonthlyCSVResult{Filename: "monthly_report_202604.csv", Data: []byte("a,b\n1,2\n")}, nil
+					return &MonthlyCSVResult{Filename: "monthly_report_202604.csv", Data: []byte("a,b\n1,2\n")}, nil
 				},
 			},
 			wantStatus:   http.StatusOK,
@@ -201,9 +199,9 @@ func TestExportMonthlyCSV(t *testing.T) {
 			query:    "start_date=2026-04-01&end_date=2026-04-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				exportMonthlyCSVByPeriodFn: func(_ context.Context, clinicID uint64, startDate, endDate time.Time) (*service.MonthlyCSVResult, error) {
+				exportMonthlyCSVByPeriodFn: func(_ context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					return &service.MonthlyCSVResult{Filename: "monthly_report_20260401_20260430.csv", Data: []byte("a,b\n1,2\n")}, nil
+					return &MonthlyCSVResult{Filename: "monthly_report_20260401_20260430.csv", Data: []byte("a,b\n1,2\n")}, nil
 				},
 			},
 			wantStatus:   http.StatusOK,
@@ -235,7 +233,7 @@ func TestExportMonthlyCSV(t *testing.T) {
 			query:    "year=2026&month=4",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				exportMonthlyCSVFn: func(_ context.Context, _ uint64, _, _ int) (*service.MonthlyCSVResult, error) {
+				exportMonthlyCSVFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyCSVResult, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -246,7 +244,7 @@ func TestExportMonthlyCSV(t *testing.T) {
 			query:    "start_date=2026-04-01&end_date=2026-04-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingReportService{
-				exportMonthlyCSVByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*service.MonthlyCSVResult, error) {
+				exportMonthlyCSVByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*MonthlyCSVResult, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -275,12 +273,12 @@ func TestExportMonthlyCSV(t *testing.T) {
 
 func TestToMonthlyReportResponse(t *testing.T) {
 	t.Run("maps all fields including tax breakdown and daily details", func(t *testing.T) {
-		resp := toMonthlyReportResponse(&service.MonthlyReportResponse{
+		resp := toMonthlyReportResponse(&MonthlyReportResponse{
 			Year:      2026,
 			Month:     4,
 			StartDate: "2026-04-01",
 			EndDate:   "2026-04-30",
-			Summary: service.MonthlyReportSummary{
+			Summary: MonthlyReportSummary{
 				WorkingDays:     20,
 				TotalBillings:   100,
 				TotalAmount:     500000,
@@ -288,12 +286,12 @@ func TestToMonthlyReportResponse(t *testing.T) {
 				NetAmount:       499000,
 				ByPaymentMethod: map[string]int64{"現金": 100000},
 				ByCategory:      map[string]int64{"診療": 200000},
-				TaxBreakdown: service.TaxBreakdownSummary{
-					Standard: service.TaxBreakdownEntry{TaxableAmount: 400000, TaxAmount: 40000},
-					Reduced:  service.TaxBreakdownEntry{TaxableAmount: 100000, TaxAmount: 8000},
+				TaxBreakdown: TaxBreakdownSummary{
+					Standard: TaxBreakdownEntry{TaxableAmount: 400000, TaxAmount: 40000},
+					Reduced:  TaxBreakdownEntry{TaxableAmount: 100000, TaxAmount: 8000},
 				},
 			},
-			DailyDetails: []service.DailyReportDetail{
+			DailyDetails: []DailyReportDetail{
 				{
 					Date:      "2026-04-01",
 					Weekday:   "水",
@@ -341,7 +339,7 @@ func TestToMonthlyReportResponse(t *testing.T) {
 	})
 
 	t.Run("handles empty daily details", func(t *testing.T) {
-		resp := toMonthlyReportResponse(&service.MonthlyReportResponse{
+		resp := toMonthlyReportResponse(&MonthlyReportResponse{
 			Year:         2026,
 			Month:        4,
 			StartDate:    "2026-04-01",

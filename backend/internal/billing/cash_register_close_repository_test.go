@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // cash_register_close_repository_test.go — CashRegisterCloseRepository 統合テスト。
 //
@@ -20,14 +20,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupCashRegisterCloseTestDB は cash_register_closes と ClosedByStaff Preload に必要な
 // staffs テーブルを用意する。
 func setupCashRegisterCloseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db

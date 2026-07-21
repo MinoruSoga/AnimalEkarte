@@ -20,8 +20,8 @@ func lastHandlerSegment(fullName string) string {
 }
 
 // TestRegisterRoutes_Snapshot は billing 側の BE9-2C route-snapshot 回帰チェック
-// （manualarticle/medicalrecord/reservation の先例を踏襲）。B①〜B④ で
-// internal/handler/testdata/route_snapshot.golden から 44 route（insurances 6 +
+// （manualarticle/medicalrecord/reservation の先例を踏襲）。B①〜B⑤ で
+// internal/handler/testdata/route_snapshot.golden から 50 route（insurances 6 +
 // campaigns 6 + payment-methods 6+見積5+会計医師確認3+明細6+返金2+会計10）を drop し、本 package の RegisterRoutes が登録する。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -38,6 +38,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewBillingItemHandler(nil, noopPermission),
 		NewRefundHandler(nil, noopPermission),
 		NewAccountingHandler(nil, nil, func(_ *gin.Context, _, _ string) bool { return true }),
+		NewCashRegisterHandler(nil, noopPermission),
+		NewAccountingReportHandler(nil, noopPermission),
 		noopPermission,
 	)
 
@@ -68,6 +70,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/billing-items/:id/discount-suggestions GetBillingItemDiscountSuggestions\n" +
 		"GET /api/v1/billing-items/unbilled GetUnbilledItems\n" +
 		"GET /api/v1/billing-items/ungrouped-same-day GetUngroupedSameDay\n" +
+		"GET /api/v1/cash-register/closes ListCashRegisterCloses\n" +
+		"GET /api/v1/cash-register/closes/:id GetCashRegisterClose\n" +
+		"GET /api/v1/cash-register/preview GetCashRegisterPreview\n" +
 		"GET /api/v1/estimates ListEstimates\n" +
 		"GET /api/v1/estimates/:id GetEstimate\n" +
 		"GET /api/v1/masters/campaigns ListCampaigns\n" +
@@ -77,6 +82,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/medical-records/:id/billing-confirmation GetBillingConfirmation\n" +
 		"GET /api/v1/payment-methods ListPaymentMethods\n" +
 		"GET /api/v1/payment-methods/:id GetPaymentMethod\n" +
+		"GET /api/v1/reports/monthly GetMonthlyReport\n" +
+		"GET /api/v1/reports/monthly/csv ExportMonthlyCSV\n" +
 		"PATCH /api/v1/accountings/:id UpdateAccounting\n" +
 		"PATCH /api/v1/billing-items/:id UpdateBillingItem\n" +
 		"PATCH /api/v1/estimates/:id UpdateEstimate\n" +
@@ -91,6 +98,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/accountings/:id/credit-correction CorrectCreditPayment\n" +
 		"POST /api/v1/accountings/:id/refunds CreateRefund\n" +
 		"POST /api/v1/billing-items CreateBillingItem\n" +
+		"POST /api/v1/cash-register/closes CloseCashRegister\n" +
 		"POST /api/v1/estimates CreateEstimate\n" +
 		"POST /api/v1/masters/campaigns CreateCampaign\n" +
 		"POST /api/v1/masters/insurances CreateInsurance\n" +

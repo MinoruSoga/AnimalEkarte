@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"bytes"
@@ -9,10 +9,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
@@ -100,7 +99,7 @@ func isReducedTaxRate(rowRate int64, rates accountingReportTaxRates) bool {
 func buildMonthlyReportResponse(
 	year, month int,
 	startDate, endDate time.Time,
-	raw *repository.MonthlyReportResult,
+	raw *MonthlyReportResult,
 	payMethodNames map[uint64]string,
 	holidaySet map[string]bool,
 	taxRates accountingReportTaxRates,
@@ -248,7 +247,7 @@ func buildMonthlyReportResponse(
 // パッケージスコープで定義する。M-7(#191): 固定閾値 `>8` を廃止し月次レポート経路と分類規則を統一。
 // 軽減税率と一致しない税率（0% 非課税を含む）は標準へ分類する（月次 #191 と同一規則）。
 // 保存済みの過去の締め記録（category_breakdown スナップショット）は再計算しない。
-func buildTaxBreakdown(rows []repository.TaxBreakdownRow, rates accountingReportTaxRates) TaxBreakdownSummary {
+func buildTaxBreakdown(rows []TaxBreakdownRow, rates accountingReportTaxRates) TaxBreakdownSummary {
 	var summary TaxBreakdownSummary
 	for _, tr := range rows {
 		if isReducedTaxRate(tr.TaxRate, rates) {
@@ -284,18 +283,18 @@ type AccountingReportService interface {
 // ---- サービス実装 ----
 
 type accountingReportService struct {
-	repo          repository.AccountingRepository
-	payMethodRepo repository.PaymentMethodMasterRepository
-	holidayRepo   repository.ClinicHolidayRepository
-	clinicRepo    repository.ClinicRepository
+	repo          AccountingRepository
+	payMethodRepo PaymentMethodMasterRepository
+	holidayRepo   billingHolidayReader
+	clinicRepo    billingClinicReader
 }
 
 // NewAccountingReportService は AccountingReportService を初期化して返す
 func NewAccountingReportService(
-	repo repository.AccountingRepository,
-	payMethodRepo repository.PaymentMethodMasterRepository,
-	holidayRepo repository.ClinicHolidayRepository,
-	clinicRepo repository.ClinicRepository,
+	repo AccountingRepository,
+	payMethodRepo PaymentMethodMasterRepository,
+	holidayRepo billingHolidayReader,
+	clinicRepo billingClinicReader,
 ) AccountingReportService {
 	return &accountingReportService{
 		repo:          repo,
@@ -357,7 +356,7 @@ func (s *accountingReportService) buildReportResponse(
 	clinicID uint64,
 	year, month int,
 	startDate, endDate time.Time,
-	raw *repository.MonthlyReportResult,
+	raw *MonthlyReportResult,
 ) (*MonthlyReportResponse, error) {
 	// 支払方法マスタを取得してID→名前マップを構築
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)

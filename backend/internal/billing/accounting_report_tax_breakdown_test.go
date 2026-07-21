@@ -1,11 +1,9 @@
-package service
+package billing
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // TestBuildTaxBreakdown_ClinicRates は M-7(#191) の回帰テスト。
@@ -17,7 +15,7 @@ func TestBuildTaxBreakdown_ClinicRates(t *testing.T) {
 	defaultRates := accountingReportTaxRates{StandardPercent: 10, ReducedPercent: 8}
 
 	t.Run("既定(標準10/軽減8): 10%→標準・8%→軽減で旧分類と一致", func(t *testing.T) {
-		rows := []repository.TaxBreakdownRow{
+		rows := []TaxBreakdownRow{
 			{TaxRate: 10, TaxableAmount: 1000, TaxAmount: 100},
 			{TaxRate: 8, TaxableAmount: 500, TaxAmount: 40},
 		}
@@ -29,7 +27,7 @@ func TestBuildTaxBreakdown_ClinicRates(t *testing.T) {
 	})
 
 	t.Run("軽減9%クリニック: 9%→軽減・10%→標準（旧閾値>8では9%が標準へ誤分類）", func(t *testing.T) {
-		rows := []repository.TaxBreakdownRow{
+		rows := []TaxBreakdownRow{
 			{TaxRate: 10, TaxableAmount: 1000, TaxAmount: 100},
 			{TaxRate: 9, TaxableAmount: 400, TaxAmount: 36},
 		}
@@ -41,7 +39,7 @@ func TestBuildTaxBreakdown_ClinicRates(t *testing.T) {
 	})
 
 	t.Run("0%(非課税)は標準へ分類（月次#191と同一規則）", func(t *testing.T) {
-		rows := []repository.TaxBreakdownRow{
+		rows := []TaxBreakdownRow{
 			{TaxRate: 0, TaxableAmount: 300, TaxAmount: 0},
 			{TaxRate: 8, TaxableAmount: 500, TaxAmount: 40},
 		}

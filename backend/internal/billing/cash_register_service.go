@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/billing"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
@@ -65,7 +64,7 @@ type CloseBillingDetail struct {
 // payment_method_id=NULL の行（旧 seed/レガシーデータの現金 split）は現金 system_key に計上する。
 // calcTheoreticalCash と同じ「NULL=現金」判定（#128 後方互換）に揃えないと、category_breakdown の合計が
 // totalPayment（NULL 行を含む）と一致しなくなる。
-func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
+func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, taxRows []TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
 	idToKey := make(map[uint64]string, len(payMethods))
 	for i := range payMethods {
 		m := &payMethods[i]
@@ -75,7 +74,7 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
 		}
 	}
-	cashKey := billing.PaymentMethodSystemKeys[model.PaymentMethodCash]
+	cashKey := PaymentMethodSystemKeys[model.PaymentMethodCash]
 
 	var totalPayment int64
 	for _, pm := range payRows {
@@ -122,12 +121,12 @@ type CashRegisterService interface {
 
 // periodAggregate は集計処理の共通結果型
 type periodAggregate struct {
-	Schedule        *DaySchedule
-	PaymentRows     []repository.PaymentAggregateRow
-	CategoryRows    []repository.CategoryAggregateRow
+	Schedule        *sharedkernel.DaySchedule
+	PaymentRows     []PaymentAggregateRow
+	CategoryRows    []CategoryAggregateRow
 	TotalRefund     int64
-	BillingDetails  []repository.CloseBillingDetail
-	TaxBreakdown    []repository.TaxBreakdownRow
+	BillingDetails  []CloseBillingDetailRow
+	TaxBreakdown    []TaxBreakdownRow
 	TheoreticalCash int64
 	PeriodStart     time.Time
 	PeriodEnd       time.Time
@@ -138,20 +137,20 @@ type periodAggregate struct {
 }
 
 type cashRegisterService struct {
-	closeRepo      repository.CashRegisterCloseRepository
-	accountingRepo repository.AccountingRepository
-	closingsSvc    ClosingSettingsService
-	payMethodRepo  repository.PaymentMethodMasterRepository
-	clinicRepo     repository.ClinicRepository
+	closeRepo      CashRegisterCloseRepository
+	accountingRepo AccountingRepository
+	closingsSvc    closingScheduleResolver
+	payMethodRepo  PaymentMethodMasterRepository
+	clinicRepo     billingClinicReader
 }
 
 // NewCashRegisterService は CashRegisterService を初期化して返す
 func NewCashRegisterService(
-	closeRepo repository.CashRegisterCloseRepository,
-	accountingRepo repository.AccountingRepository,
-	closingsSvc ClosingSettingsService,
-	payMethodRepo repository.PaymentMethodMasterRepository,
-	clinicRepo repository.ClinicRepository,
+	closeRepo CashRegisterCloseRepository,
+	accountingRepo AccountingRepository,
+	closingsSvc closingScheduleResolver,
+	payMethodRepo PaymentMethodMasterRepository,
+	clinicRepo billingClinicReader,
 ) CashRegisterService {
 	return &cashRegisterService{
 		closeRepo:      closeRepo,
@@ -186,7 +185,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
-	aggregate, err := s.accountingRepo.GetCloseAggregate(ctx, repository.GetCloseAggregateInput{
+	aggregate, err := s.accountingRepo.GetCloseAggregate(ctx, GetCloseAggregateInput{
 		ClinicID:    clinicID,
 		PeriodStart: periodStart,
 		PeriodEnd:   periodEnd,
@@ -399,11 +398,11 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 	return closed, nil
 }
 
-// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す。
+// resolvePeriodRange は period（"am"/"pm"/"emg"）と sharedkernel.DaySchedule から集計期間（JST）を返す。
 // 集計クエリ（GetCloseAggregate）は completed_at >= start AND < end の終端排他なので、
 // AM=[am_start, boundary) / PM=[boundary, pmEnd) / EMG=[pmEnd, 翌日 am_start) は
 // 連続・非重複で24時間を被覆する（#215: 深夜 0:00〜am_start の会計は前日 EMG に帰属）。
-func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
+func resolvePeriodRange(dateJST time.Time, period string, schedule *sharedkernel.DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_pm_boundary の形式が正しくありません")
@@ -465,7 +464,7 @@ func parseHHMM(s string) (h, m int, err error) {
 // system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。
 // 現金マスタが存在しない場合は内部エラーを返す（migration 009 で必ず backfill 済み）。
 func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
-	cashKey := billing.PaymentMethodSystemKeys[model.PaymentMethodCash]
+	cashKey := PaymentMethodSystemKeys[model.PaymentMethodCash]
 	for i := range methods {
 		if methods[i].SystemKey != nil && *methods[i].SystemKey == cashKey {
 			return methods[i].ID, nil
@@ -480,7 +479,7 @@ func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
 // 集計クエリ（accounting_repository_reports_close.go）は payment_method_id で GROUP BY し method ENUM を
 // 射影しないため、NULL 行の元 method は判定できない。月次レポート側 resolvePaymentMethodName も NULL→"現金"
 // 扱いのため、締め理論現金と月次レポート現金を一致させるにはここでも NULL を現金に含める（bug.md H-3）。
-func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID uint64) int64 {
+func calcTheoreticalCash(payRows []PaymentAggregateRow, totalRefund int64, cashMethodID uint64) int64 {
 	var cashTotal int64
 	for _, r := range payRows {
 		if r.PaymentMethodID == nil || *r.PaymentMethodID == cashMethodID {
@@ -489,3 +488,7 @@ func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund i
 	}
 	return cashTotal - totalRefund
 }
+
+// defaultClosingAmStart は AM 開始時刻の既定値（#215・service/closing_settings_service.go の
+// 同名 const の複製。migration 011 の DB default と一致）。
+const defaultClosingAmStart = "09:00"

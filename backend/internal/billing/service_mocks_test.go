@@ -17,8 +17,8 @@ type mockMerchandiseItemRepository struct {
 	countUsageByMerchandiseItemFn func(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
 	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
-	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockMerchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
@@ -135,7 +135,6 @@ type mockReservationRepository struct {
 	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
-	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
@@ -143,6 +142,7 @@ type mockReservationRepository struct {
 	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
+	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -383,7 +383,7 @@ func (m *mockAccountingRepository) GetCloseAggregate(ctx context.Context, input 
 	return &CloseAggregateResult{
 		PaymentRows:    []PaymentAggregateRow{},
 		CategoryRows:   []CategoryAggregateRow{},
-		BillingDetails: []CloseBillingDetail{},
+		BillingDetails: []CloseBillingDetailRow{},
 		TaxBreakdown:   []TaxBreakdownRow{},
 	}, nil
 }
@@ -531,4 +531,25 @@ func (m *mockLstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID,
 		return m.syncCPMStageTagFn(ctx, clinicID, ownerID)
 	}
 	return nil
+}
+
+// mockClinicHolidayRepository — billingHolidayReader view（FindAllByYearMonth のみ）の最小モック。
+type mockClinicHolidayRepository struct {
+	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
+}
+
+func (m *mockClinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+	return m.findByYearMonthFn(ctx, clinicID, yearMonth)
+}
+
+// mockClinicRepository — billingClinicReader view（FindByID のみ）の最小モック。
+type mockClinicRepository struct {
+	findByIDFn func(ctx context.Context, id uint64) (*model.Clinic, error)
+}
+
+func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
+	return &model.Clinic{ID: id}, nil
 }

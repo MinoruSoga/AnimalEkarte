@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"bytes"
@@ -16,24 +16,23 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock CashRegisterService ----
 
 type mockCashRegisterService struct {
-	getPreviewFn   func(ctx context.Context, clinicID uint64, dateStr, period string) (*service.CashRegisterPreview, error)
-	closeFn        func(ctx context.Context, clinicID uint64, input service.CloseRegisterInput) (*model.CashRegisterClose, error)
+	getPreviewFn   func(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
+	closeFn        func(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
 	listFn         func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	getByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	isDateClosedFn func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
 }
 
-func (m *mockCashRegisterService) GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*service.CashRegisterPreview, error) {
+func (m *mockCashRegisterService) GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error) {
 	return m.getPreviewFn(ctx, clinicID, dateStr, period)
 }
 
-func (m *mockCashRegisterService) Close(ctx context.Context, clinicID uint64, input service.CloseRegisterInput) (*model.CashRegisterClose, error) {
+func (m *mockCashRegisterService) Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
 	return m.closeFn(ctx, clinicID, input)
 }
 
@@ -54,8 +53,8 @@ func (m *mockCashRegisterService) IsDateClosed(ctx context.Context, clinicID uin
 
 // ---- helper ----
 
-func newHandlerWithCashRegisterSvc(svc service.CashRegisterService) *Handler {
-	return &Handler{svc: &service.Services{CashRegister: svc}}
+func newHandlerWithCashRegisterSvc(svc CashRegisterService) *CashRegisterHandler {
+	return NewCashRegisterHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- GetCashRegisterPreview ----
@@ -76,11 +75,11 @@ func TestGetCashRegisterPreview(t *testing.T) {
 			query:    "date=2026-05-28&period=am",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCashRegisterService{
-				getPreviewFn: func(_ context.Context, clinicID uint64, dateStr, period string) (*service.CashRegisterPreview, error) {
+				getPreviewFn: func(_ context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "2026-05-28", dateStr)
 					assert.Equal(t, "am", period)
-					return &service.CashRegisterPreview{Date: dateStr, Period: period}, nil
+					return &CashRegisterPreview{Date: dateStr, Period: period}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -97,7 +96,7 @@ func TestGetCashRegisterPreview(t *testing.T) {
 			query:    "date=2026-05-28&period=am",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCashRegisterService{
-				getPreviewFn: func(_ context.Context, _ uint64, _, _ string) (*service.CashRegisterPreview, error) {
+				getPreviewFn: func(_ context.Context, _ uint64, _, _ string) (*CashRegisterPreview, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -148,7 +147,7 @@ func TestCloseCashRegister(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockCashRegisterService{
-				closeFn: func(_ context.Context, clinicID uint64, input service.CloseRegisterInput) (*model.CashRegisterClose, error) {
+				closeFn: func(_ context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "am", input.Period)
 					assert.NotNil(t, input.ClosedBy)
@@ -192,7 +191,7 @@ func TestCloseCashRegister(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockCashRegisterService{
-				closeFn: func(_ context.Context, _ uint64, _ service.CloseRegisterInput) (*model.CashRegisterClose, error) {
+				closeFn: func(_ context.Context, _ uint64, _ CloseRegisterInput) (*model.CashRegisterClose, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

@@ -1,8 +1,4 @@
-package handler
-
-import (
-	"github.com/animal-ekarte/backend/internal/service"
-)
+package billing
 
 // monthlyTaxBreakdownEntryResponse は税率別の課税対象額・税額
 type monthlyTaxBreakdownEntryResponse struct {
@@ -53,22 +49,10 @@ type monthlyReportResponse struct {
 	DailyDetails []dailyReportDetailResponse  `json:"daily_details"`
 }
 
-func toMonthlyReportResponse(r *service.MonthlyReportResponse) monthlyReportResponse {
+func toMonthlyReportResponse(r *MonthlyReportResponse) monthlyReportResponse {
 	dailyDetails := make([]dailyReportDetailResponse, 0, len(r.DailyDetails))
 	for _, d := range r.DailyDetails {
-		dailyDetails = append(dailyDetails, dailyReportDetailResponse{
-			Date:      d.Date,
-			Weekday:   d.Weekday,
-			AMCount:   d.AMCount,
-			AMNet:     d.AMNet,
-			PMCount:   d.PMCount,
-			PMNet:     d.PMNet,
-			DayNet:    d.DayNet,
-			Refund:    d.Refund,
-			AMClosed:  d.AMClosed,
-			PMClosed:  d.PMClosed,
-			IsHoliday: d.IsHoliday,
-		})
+		dailyDetails = append(dailyDetails, dailyReportDetailResponse(d))
 	}
 	return monthlyReportResponse{
 		Year:      r.Year,

@@ -67,8 +67,8 @@ type Services struct {
 	PaymentMethodMaster billing.PaymentMethodMasterService
 	TrimmingCourseType  TrimmingCourseTypeService
 	Campaign            billing.CampaignService
-	CashRegister        CashRegisterService
-	AccountingReport    AccountingReportService
+	CashRegister        billing.CashRegisterService
+	AccountingReport    billing.AccountingReportService
 
 	// LINE予約
 	LineReservationSetting    reservation.LineReservationSettingService
@@ -275,8 +275,8 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		PaymentMethodMaster: billing.NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:  NewTrimmingCourseTypeService(repos.TrimmingCourseType),
 		Campaign:            billing.NewCampaignService(repos.Campaign, repos.MerchandiseItem),
-		CashRegister:        NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
-		AccountingReport:    NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
+		CashRegister:        billing.NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
+		AccountingReport:    billing.NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting: reservation.NewLineReservationSettingService(repos.LineReservationSetting,
 			func(value string) (string, error) { return encryptLineCredential(cipher, value) },
 			func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) }),

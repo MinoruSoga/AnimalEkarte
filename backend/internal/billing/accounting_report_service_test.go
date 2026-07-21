@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"bytes"
@@ -10,10 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- ヘルパー ----
@@ -37,7 +36,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 		name               string
 		year               int
 		month              int
-		getMonthlyReportFn func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
+		getMonthlyReportFn func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
 		findAllPayMethodFn func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 		findByYearMonthFn  func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 		wantErr            bool
@@ -62,12 +61,12 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "正常: モックデータで MonthlyReportResponse の shape を確認",
 			year:  2026,
 			month: 4,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{
-					PaymentRows: []repository.MonthlyPaymentRow{
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{
+					PaymentRows: []MonthlyPaymentRow{
 						{Date: "2026-04-01", PaymentMethodID: nil, Amount: 10000},
 					},
-					CategoryRows: []repository.MonthlyCategoryRow{
+					CategoryRows: []MonthlyCategoryRow{
 						{Date: "2026-04-01", Category: "診察", Amount: 10000},
 					},
 					DailyBillingCount: map[string]int64{"2026-04-01": 2},
@@ -75,7 +74,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 					ClosedPM:          map[string]bool{},
 					GrandTotal:        10000,
 					BillingCount:      2,
-					TaxBreakdown: []repository.TaxBreakdownRow{
+					TaxBreakdown: []TaxBreakdownRow{
 						{TaxRate: 10, TaxableAmount: 9090, TaxAmount: 910},
 					},
 				}, nil
@@ -109,8 +108,8 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "正常: 空データ → 全日付分の DailyDetails を返す",
 			year:  2026,
 			month: 2,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{}, nil
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{}, nil
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
 				return []model.PaymentMethodMaster{}, nil
@@ -130,7 +129,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "エラー: GetMonthlyReport がエラーを返す",
 			year:  2026,
 			month: 4,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
 				return nil, errors.New("db error")
 			},
 			wantErr: true,
@@ -139,8 +138,8 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "エラー: FindAll（支払方法）がエラーを返す",
 			year:  2026,
 			month: 4,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{}, nil
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{}, nil
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
 				return nil, errors.New("db error")
@@ -151,8 +150,8 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "エラー: FindAllByYearMonth（休診日）がエラーを返す",
 			year:  2026,
 			month: 4,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{}, nil
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{}, nil
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
 				return []model.PaymentMethodMaster{}, nil
@@ -166,9 +165,9 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "正常: 3種混在支払い → ByPaymentMethod が支払方法別に正しく集計される",
 			year:  2026,
 			month: 5,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{
-					PaymentRows: []repository.MonthlyPaymentRow{
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{
+					PaymentRows: []MonthlyPaymentRow{
 						{Date: "2026-05-01", PaymentMethodID: nil, Amount: 5000},
 						{Date: "2026-05-01", PaymentMethodID: ptrUint64(1), Amount: 3000},
 						{Date: "2026-05-02", PaymentMethodID: ptrUint64(2), Amount: 2000},
@@ -198,9 +197,9 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 			name:  "正常: 軽減税率（8%）データ → Reduced に集計される",
 			year:  2026,
 			month: 4,
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{
-					TaxBreakdown: []repository.TaxBreakdownRow{
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{
+					TaxBreakdown: []TaxBreakdownRow{
 						{TaxRate: 8, TaxableAmount: 5000, TaxAmount: 400},
 					},
 				}, nil
@@ -256,9 +255,9 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 
 func TestAccountingReportService_GetMonthly_UsesClinicTaxRates(t *testing.T) {
 	repo := &mockAccountingRepository{
-		getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-			return &repository.MonthlyReportResult{
-				TaxBreakdown: []repository.TaxBreakdownRow{
+		getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+			return &MonthlyReportResult{
+				TaxBreakdown: []TaxBreakdownRow{
 					{TaxRate: 12, TaxableAmount: 12000, TaxAmount: 1440},
 					{TaxRate: 10, TaxableAmount: 10000, TaxAmount: 1000},
 				},
@@ -291,10 +290,10 @@ func TestAccountingReportService_GetMonthlyByPeriod(t *testing.T) {
 	var gotStart time.Time
 	var gotEnd time.Time
 	repo := &mockAccountingRepository{
-		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, start, end time.Time) (*repository.MonthlyReportResult, error) {
+		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, start, end time.Time) (*MonthlyReportResult, error) {
 			gotStart = start
 			gotEnd = end
-			return &repository.MonthlyReportResult{
+			return &MonthlyReportResult{
 				DailyBillingCount: map[string]int64{"2026-04-30": 1, "2026-05-01": 2},
 				GrandTotal:        3000,
 				BillingCount:      3,
@@ -402,7 +401,7 @@ func TestAccountingReportService_GetMonthlyByPeriod_ValidationError(t *testing.T
 
 func TestAccountingReportService_GetMonthlyByPeriod_RepoError(t *testing.T) {
 	repo := &mockAccountingRepository{
-		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
+		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*MonthlyReportResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -496,8 +495,8 @@ func TestBuildMonthlyCSV(t *testing.T) {
 func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
 	t.Run("正常: CSV を出力する", func(t *testing.T) {
 		repo := &mockAccountingRepository{
-			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{GrandTotal: 1000, BillingCount: 1}, nil
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{GrandTotal: 1000, BillingCount: 1}, nil
 			},
 		}
 		svc := newAccountingReportService(
@@ -536,8 +535,8 @@ func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
 func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
 	t.Run("正常: 期間指定で CSV を出力する", func(t *testing.T) {
 		repo := &mockAccountingRepository{
-			getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
-				return &repository.MonthlyReportResult{GrandTotal: 500, BillingCount: 1}, nil
+			getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*MonthlyReportResult, error) {
+				return &MonthlyReportResult{GrandTotal: 500, BillingCount: 1}, nil
 			},
 		}
 		svc := newAccountingReportService(

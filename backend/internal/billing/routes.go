@@ -21,6 +21,8 @@ type Handler struct {
 	billingItem         *BillingItemHandler
 	refund              *RefundHandler
 	accounting          *AccountingHandler
+	cashRegister        *CashRegisterHandler
+	accountingReport    *AccountingReportHandler
 	requirePermission   PermissionMiddleware
 }
 
@@ -34,6 +36,8 @@ func NewHandler(
 	billingItem *BillingItemHandler,
 	refund *RefundHandler,
 	accounting *AccountingHandler,
+	cashRegister *CashRegisterHandler,
+	accountingReport *AccountingReportHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -45,6 +49,8 @@ func NewHandler(
 		billingItem:         billingItem,
 		refund:              refund,
 		accounting:          accounting,
+		cashRegister:        cashRegister,
+		accountingReport:    accountingReport,
 		requirePermission:   requirePermission,
 	}
 }
@@ -128,4 +134,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// 返金 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③・/accountings group は gin path merge で共存）
 	accountings.GET("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "view"), h.refund.ListRefunds)
 	accountings.POST("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "create"), h.refund.CreateRefund)
+
+	// レジ締め・月次レポート（旧 cash_register_handler.go / accounting_report_handler.go 逐語）
+	cr := rg.Group("/cash-register")
+	cr.GET("/preview", h.requirePermission(string(model.ResourceCashRegisterClose), "view"), h.cashRegister.GetCashRegisterPreview)
+	cr.POST("/closes", h.requirePermission(string(model.ResourceCashRegisterClose), "create"), h.cashRegister.CloseCashRegister)
+	cr.GET("/closes", h.requirePermission(string(model.ResourceCashRegisterClose), "view"), h.cashRegister.ListCashRegisterCloses)
+	cr.GET("/closes/:id", h.requirePermission(string(model.ResourceCashRegisterClose), "view"), h.cashRegister.GetCashRegisterClose)
+
+	reports := rg.Group("/reports")
+	reports.GET("/monthly", h.requirePermission(string(model.ResourceAccountingReports), "view"), h.accountingReport.GetMonthlyReport)
+	reports.GET("/monthly/csv", h.requirePermission(string(model.ResourceAccountingReports), "view"), h.accountingReport.ExportMonthlyCSV)
 }

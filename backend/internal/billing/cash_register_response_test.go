@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func TestToCashRegisterCloseResponse(t *testing.T) {
@@ -83,14 +82,14 @@ func TestToCashRegisterCloseResponse_NilClosedBy(t *testing.T) {
 
 func TestToCashRegisterPreviewResponse(t *testing.T) {
 	paymentMethodID := uint64(3)
-	preview := &service.CashRegisterPreview{
+	preview := &CashRegisterPreview{
 		Date:            "2026-05-28",
 		Period:          "am",
 		PeriodStart:     "2026-05-28T09:00:00+09:00",
 		PeriodEnd:       "2026-05-28T13:00:00+09:00",
 		IsAlreadyClosed: true,
 		IsHoliday:       false,
-		Aggregate: service.CloseAggregateSummary{
+		Aggregate: CloseAggregateSummary{
 			Categories: map[string]map[string]int64{
 				"exam": {"cash": 1000},
 			},
@@ -98,12 +97,12 @@ func TestToCashRegisterPreviewResponse(t *testing.T) {
 				{ID: 1, ClinicID: 2, Name: "現金", DisplayOrder: 1, IsActive: true},
 			},
 			TheoreticalCash: 5000,
-			TaxBreakdown: service.TaxBreakdownSummary{
-				Standard: service.TaxBreakdownEntry{TaxableAmount: 1000, TaxAmount: 100},
-				Reduced:  service.TaxBreakdownEntry{TaxableAmount: 500, TaxAmount: 40},
+			TaxBreakdown: TaxBreakdownSummary{
+				Standard: TaxBreakdownEntry{TaxableAmount: 1000, TaxAmount: 100},
+				Reduced:  TaxBreakdownEntry{TaxableAmount: 500, TaxAmount: 40},
 			},
 		},
-		BillingDetails: []service.CloseBillingDetail{
+		BillingDetails: []CloseBillingDetail{
 			{
 				BillingID:         10,
 				PaidAt:            "2026-05-28T10:00:00+09:00",
@@ -165,7 +164,7 @@ func TestToCashRegisterPreviewResponse(t *testing.T) {
 }
 
 func TestToCashRegisterPreviewResponse_EmptySlices(t *testing.T) {
-	preview := &service.CashRegisterPreview{
+	preview := &CashRegisterPreview{
 		Date:   "2026-05-28",
 		Period: "pm",
 	}

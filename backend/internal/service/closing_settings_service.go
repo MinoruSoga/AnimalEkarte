@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -48,14 +49,8 @@ type ClosingSettingsResponse struct {
 // defaultClosingAmStart は AM 開始時刻の既定値（#215）。migration 011 の DB default と一致させる。
 const defaultClosingAmStart = "09:00"
 
-// DaySchedule は指定日の締め時間スケジュール
-type DaySchedule struct {
-	AmPmBoundary string `json:"am_pm_boundary"`
-	PmEnd        string `json:"pm_end"`
-	// AmStart は AM 開始時刻（#215）。空の場合は既定 09:00 として扱う（resolvePeriodRange 側でフォールバック）。
-	AmStart   string `json:"am_start"`
-	IsHoliday bool   `json:"is_holiday"`
-}
+// DaySchedule は指定日の締め時間スケジュール（実装は sharedkernel へ昇格・B⑤）。
+type DaySchedule = sharedkernel.DaySchedule
 
 // amStartOrDefault は設定の AM 開始時刻を返す。未設定（migration 011 以前のデータ・zero-value）は既定 09:00。
 func amStartOrDefault(settings *model.ClinicSettings) string {
@@ -384,4 +379,22 @@ func validateSpecialPeriodTimes(boundary, pmEnd string) error {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("PM締め終了時刻(%s)は境界時刻(%s)より後に設定してください", pmEnd, boundary))
 	}
 	return nil
+}
+
+// parseHHMM は "HH:MM" を時分へ分解する純関数（billing/cash_register_service.go の同名helperの
+// 複製。clinic domain 移行時に片側へ統合）。
+func parseHHMM(s string) (h, m int, err error) {
+	// PostgreSQL time 型は "HH:MM:SS" で返るので秒部分を除去する
+	if len(s) == 8 && s[2] == ':' && s[5] == ':' {
+		s = s[:5]
+	}
+	if len(s) != 5 || s[2] != ':' {
+		return 0, 0, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
+	}
+	var hh, mm int
+	_, parseErr := fmt.Sscanf(s, "%d:%d", &hh, &mm)
+	if parseErr != nil {
+		return 0, 0, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
+	}
+	return hh, mm, nil
 }

@@ -3,7 +3,9 @@ package repository
 import "github.com/animal-ekarte/backend/internal/billing"
 
 // BE9-2C B④ transitional aliases — 会計レポート DTO は internal/billing へ移動済み。
-// 残留 consumer（cash_register=B⑤等）互換のための alias。REMOVE: B⑤移動時。
+// B⑤完了時点の実残留 consumer は internal/service の lstep 系テスト
+// （lstep_tag_sync_visit_{cpm,ltv}_test.go / perf_n1_regression_test.go / mocks_accounting_test.go
+// が mockAccountingRepository 経由で参照）のみ。REMOVE: lstep domain 移行時。
 type (
 	DailySummaryResult     = billing.DailySummaryResult
 	PaymentMethodTotal     = billing.PaymentMethodTotal
@@ -13,7 +15,7 @@ type (
 	MonthlyReportResult    = billing.MonthlyReportResult
 	PaymentAggregateRow    = billing.PaymentAggregateRow
 	CategoryAggregateRow   = billing.CategoryAggregateRow
-	CloseBillingDetail     = billing.CloseBillingDetail
+	CloseBillingDetailRow  = billing.CloseBillingDetailRow
 	TaxBreakdownRow        = billing.TaxBreakdownRow
 	MonthlyPaymentRow      = billing.MonthlyPaymentRow
 	MonthlyCategoryRow     = billing.MonthlyCategoryRow

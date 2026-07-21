@@ -28,9 +28,6 @@ DELETE /api/v1/shared-files/:id DeleteSharedFile
 DELETE /api/v1/shift-templates/:id DeleteShiftTemplate
 DELETE /api/v1/shifts/:id DeleteShiftEntry
 DELETE /api/v1/trimmings/:id DeleteTrimming
-GET /api/v1/cash-register/closes ListCashRegisterCloses
-GET /api/v1/cash-register/closes/:id GetCashRegisterClose
-GET /api/v1/cash-register/preview GetCashRegisterPreview
 GET /api/v1/clinic-holidays ListClinicHolidays
 GET /api/v1/clinics ListClinics
 GET /api/v1/clinics/:clinic_id GetClinic
@@ -96,8 +93,6 @@ GET /api/v1/pets ListPets
 GET /api/v1/pets/:id GetPet
 GET /api/v1/pets/:id/chronic-conditions ListChronicConditions
 GET /api/v1/pets/:id/first-visit GetPetFirstVisit
-GET /api/v1/reports/monthly GetMonthlyReport
-GET /api/v1/reports/monthly/csv ExportMonthlyCSV
 GET /api/v1/shared-files ListSharedFiles
 GET /api/v1/shared-files/:id/signed-url GetSharedFileSignedURL
 GET /api/v1/shift-templates ListShiftTemplates
@@ -160,7 +155,6 @@ POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/auth/forgot-password ForgotPassword
 POST /api/v1/auth/refresh RefreshToken
 POST /api/v1/auth/reset-password ResetPassword
-POST /api/v1/cash-register/closes CloseCashRegister
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
 POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection

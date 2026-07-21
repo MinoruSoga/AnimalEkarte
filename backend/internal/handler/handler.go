@@ -115,8 +115,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterLineReservationRoutes(protected)
 	// FEAT-368: 集計・締め機能
 	h.RegisterClosingSettingsRoutes(protected)
-	h.RegisterCashRegisterRoutes(protected)
-	h.RegisterAccountingReportRoutes(protected)
+	// レジ締め・月次レポート routes は internal/billing.RegisterRoutes へ移動（BE9-2C B⑤）
 	// 支払方法マスタ routes は internal/billing.RegisterRoutes へ移動（BE9-2C B①）
 
 	// BE9-2D sub-batch③: /lab-imports and /lab-reports moved to

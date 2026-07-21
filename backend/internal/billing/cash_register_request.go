@@ -1,11 +1,9 @@
-package handler
+package billing
 
 import (
 	"fmt"
 	"net/url"
 	"time"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listCashRegisterClosesQuery struct {
@@ -60,13 +58,13 @@ type closeCashRegisterRequest struct {
 	Memo       string `json:"memo"`
 }
 
-func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (service.CloseRegisterInput, error) {
+func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (CloseRegisterInput, error) {
 	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
-		return service.CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
+		return CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
 	}
 
-	return service.CloseRegisterInput{
+	return CloseRegisterInput{
 		Date:       date,
 		Period:     r.Period,
 		ActualCash: r.ActualCash,

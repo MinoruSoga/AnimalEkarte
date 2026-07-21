@@ -38,3 +38,14 @@ func parseOptionalDateQueryFilter(value, field string) (*string, error) {
 	}
 	return &value, nil
 }
+
+func parseOptionalDateTimeQueryFilter(value, field string) (*time.Time, error) {
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := time.ParseInLocation(time.DateOnly, value, time.Local)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", field))
+	}
+	return &parsed, nil
+}

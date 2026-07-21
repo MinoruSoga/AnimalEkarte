@@ -91,3 +91,17 @@ type billingHospitalizationFinder interface {
 type cpmTagSyncer interface {
 	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
 }
+
+// billingClinicReader / billingHolidayReader は clinic domain（未移行）のレポート用最小view。
+type billingClinicReader interface {
+	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
+}
+
+type billingHolidayReader interface {
+	FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
+}
+
+// closingScheduleResolver は締め時間スケジュール解決（clinic domain 未移行 service）の最小view。
+type closingScheduleResolver interface {
+	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*sharedkernel.DaySchedule, error)
+}

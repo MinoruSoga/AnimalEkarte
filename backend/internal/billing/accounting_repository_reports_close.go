@@ -123,9 +123,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		return nil, apperrors.Wrap(err, "failed to get billing details for close")
 	}
 
-	details := make([]CloseBillingDetail, 0, len(detailRows))
+	details := make([]CloseBillingDetailRow, 0, len(detailRows))
 	for _, d := range detailRows {
-		details = append(details, CloseBillingDetail{
+		details = append(details, CloseBillingDetailRow{
 			BillingID:         d.BillingID,
 			PaidAt:            d.PaidAt,
 			OwnerName:         d.OwnerName,

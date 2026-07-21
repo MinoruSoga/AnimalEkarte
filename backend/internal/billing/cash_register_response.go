@@ -1,11 +1,11 @@
-package handler
+package billing
 
 import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type cashRegisterCloseResponse struct {
@@ -28,7 +28,7 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 	return cashRegisterCloseResponse{
 		ID:                r.ID,
 		ClinicID:          r.ClinicID,
-		CloseDate:         localTime(r.CloseDate),
+		CloseDate:         httpapi.LocalTime(r.CloseDate),
 		Period:            r.Period,
 		TheoreticalCash:   r.TheoreticalCash,
 		ActualCash:        r.ActualCash,
@@ -36,9 +36,9 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 		CategoryBreakdown: r.CategoryBreakdown,
 		Memo:              r.Memo,
 		ClosedBy:          r.ClosedBy,
-		ClosedAt:          localTime(r.ClosedAt),
-		CreatedAt:         localTime(r.CreatedAt),
-		UpdatedAt:         localTime(r.UpdatedAt),
+		ClosedAt:          httpapi.LocalTime(r.ClosedAt),
+		CreatedAt:         httpapi.LocalTime(r.CreatedAt),
+		UpdatedAt:         httpapi.LocalTime(r.UpdatedAt),
 	}
 }
 
@@ -54,7 +54,7 @@ type cashRegisterTaxBreakdownResponse struct {
 
 type cashRegisterAggregateSummaryResponse struct {
 	Categories      map[string]map[string]int64      `json:"categories"`
-	PaymentMethods  []paymentMethodResponse          `json:"payment_methods"`
+	PaymentMethods  []PaymentMethodResponse          `json:"payment_methods"`
 	TheoreticalCash int64                            `json:"theoretical_cash"`
 	TaxBreakdown    cashRegisterTaxBreakdownResponse `json:"tax_breakdown"`
 }
@@ -84,10 +84,10 @@ type cashRegisterPreviewResponse struct {
 	BillingDetails  []cashRegisterBillingDetailResponse  `json:"billing_details"`
 }
 
-func toCashRegisterPreviewResponse(p *service.CashRegisterPreview) cashRegisterPreviewResponse {
-	pms := make([]paymentMethodResponse, 0, len(p.Aggregate.PaymentMethods))
+func toCashRegisterPreviewResponse(p *CashRegisterPreview) cashRegisterPreviewResponse {
+	pms := make([]PaymentMethodResponse, 0, len(p.Aggregate.PaymentMethods))
 	for i := range p.Aggregate.PaymentMethods {
-		pms = append(pms, toPaymentMethodResponse(&p.Aggregate.PaymentMethods[i]))
+		pms = append(pms, ToPaymentMethodResponse(&p.Aggregate.PaymentMethods[i]))
 	}
 
 	details := make([]cashRegisterBillingDetailResponse, 0, len(p.BillingDetails))
