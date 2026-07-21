@@ -202,7 +202,8 @@ export const C = {
   borderLight:   "border-[#E6E6E6]",
   borderLight50: "border-[#E6E6E6]/50",
   borderMediumLight: "border-[rgba(0,0,0,0.12)]",
-  borderMedium:  "border-[rgba(0,0,0,0.16)]",
+  /** DESIGN.md text-input border 1px rgb(221,221,221)（FE11-F3 字義化。design-system.md §2.6 と一致） */
+  borderMedium:  "border-[#DDDDDD]",
   borderDivider: "border-[rgba(0,0,0,0.06)]",
   borderPrimary: "border-[#000000]",
   borderPrimary20: "border-[#000000]/20",
@@ -679,7 +680,7 @@ export const STYLE = {
   btnDanger:
     `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-xs shadow-btn transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-md shadow-btn transition-colors`,
 
   /* ── Table ── */
   tableContainer:
@@ -748,9 +749,9 @@ export const STYLE = {
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
-  iconBtn32: `size-8 flex items-center justify-center rounded-xxs transition-colors`,
+  iconBtn32: `size-8 flex items-center justify-center rounded-md transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
-  iconBtn28: `size-7 flex items-center justify-center rounded-xxs transition-colors`,
+  iconBtn28: `size-7 flex items-center justify-center rounded-md transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
   iconBtn20: `size-5 flex items-center justify-center rounded-xxs transition-colors`,
   sidePeekBody:
