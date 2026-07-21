@@ -20,9 +20,9 @@ func lastHandlerSegment(fullName string) string {
 }
 
 // TestRegisterRoutes_Snapshot は billing 側の BE9-2C route-snapshot 回帰チェック
-// （manualarticle/medicalrecord/reservation の先例を踏襲）。B①〜B③ で
-// internal/handler/testdata/route_snapshot.golden から 34 route（insurances 6 +
-// campaigns 6 + payment-methods 6+見積5+会計医師確認3+明細6+返金2）を drop し、本 package の RegisterRoutes が登録する。
+// （manualarticle/medicalrecord/reservation の先例を踏襲）。B①〜B④ で
+// internal/handler/testdata/route_snapshot.golden から 44 route（insurances 6 +
+// campaigns 6 + payment-methods 6+見積5+会計医師確認3+明細6+返金2+会計10）を drop し、本 package の RegisterRoutes が登録する。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -37,6 +37,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewBillingConfirmationHandler(nil, noopPermission),
 		NewBillingItemHandler(nil, noopPermission),
 		NewRefundHandler(nil, noopPermission),
+		NewAccountingHandler(nil, nil, func(_ *gin.Context, _, _ string) bool { return true }),
 		noopPermission,
 	)
 
@@ -57,7 +58,13 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/campaigns/:id DeleteCampaign\n" +
 		"DELETE /api/v1/masters/insurances/:id DeleteInsurance\n" +
 		"DELETE /api/v1/payment-methods/:id DeletePaymentMethod\n" +
+		"GET /api/v1/accountings ListAccountings\n" +
+		"GET /api/v1/accountings/:id GetAccounting\n" +
 		"GET /api/v1/accountings/:id/refunds ListRefunds\n" +
+		"GET /api/v1/accountings/daily-summary GetDailySummary\n" +
+		"GET /api/v1/accountings/unpaid ListUnpaidBillings\n" +
+		"GET /api/v1/accountings/unpaid-balance GetOwnerUnpaidBalance\n" +
+		"GET /api/v1/accountings/unpaid-monthly GetUnpaidMonthlySummary\n" +
 		"GET /api/v1/billing-items/:id/discount-suggestions GetBillingItemDiscountSuggestions\n" +
 		"GET /api/v1/billing-items/unbilled GetUnbilledItems\n" +
 		"GET /api/v1/billing-items/ungrouped-same-day GetUngroupedSameDay\n" +
@@ -70,6 +77,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/medical-records/:id/billing-confirmation GetBillingConfirmation\n" +
 		"GET /api/v1/payment-methods ListPaymentMethods\n" +
 		"GET /api/v1/payment-methods/:id GetPaymentMethod\n" +
+		"PATCH /api/v1/accountings/:id UpdateAccounting\n" +
 		"PATCH /api/v1/billing-items/:id UpdateBillingItem\n" +
 		"PATCH /api/v1/estimates/:id UpdateEstimate\n" +
 		"PATCH /api/v1/masters/campaigns/:id UpdateCampaign\n" +
@@ -78,6 +86,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/insurances/reorder ReorderInsurances\n" +
 		"PATCH /api/v1/payment-methods/:id UpdatePaymentMethod\n" +
 		"PATCH /api/v1/payment-methods/reorder ReorderPaymentMethods\n" +
+		"POST /api/v1/accountings CreateAccounting\n" +
+		"POST /api/v1/accountings/:id/cancel CancelAccounting\n" +
+		"POST /api/v1/accountings/:id/credit-correction CorrectCreditPayment\n" +
 		"POST /api/v1/accountings/:id/refunds CreateRefund\n" +
 		"POST /api/v1/billing-items CreateBillingItem\n" +
 		"POST /api/v1/estimates CreateEstimate\n" +

@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/timeutil"
 )
@@ -74,7 +75,7 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
 		}
 	}
-	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
+	cashKey := billing.PaymentMethodSystemKeys[model.PaymentMethodCash]
 
 	var totalPayment int64
 	for _, pm := range payRows {
@@ -464,7 +465,7 @@ func parseHHMM(s string) (h, m int, err error) {
 // system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。
 // 現金マスタが存在しない場合は内部エラーを返す（migration 009 で必ず backfill 済み）。
 func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
-	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
+	cashKey := billing.PaymentMethodSystemKeys[model.PaymentMethodCash]
 	for i := range methods {
 		if methods[i].SystemKey != nil && *methods[i].SystemKey == cashKey {
 			return methods[i].ID, nil

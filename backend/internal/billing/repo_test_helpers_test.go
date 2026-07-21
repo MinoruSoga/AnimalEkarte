@@ -23,21 +23,6 @@ func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.
 
 func ptrU64(v uint64) *uint64 { return &v }
 
-// makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。
-func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
-	t.Helper()
-	species := &model.AnimalSpecies{Name: "犬"}
-	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
-	pet := &model.Pet{
-		ClinicID:        clinicID,
-		OwnerID:         ownerID,
-		AnimalSpeciesID: species.ID,
-		Name:            petName,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
-	return pet
-}
-
 // testTransactorImpl は repository.Transactor.WithTx を repohelpers ベースで再現する
 // （repository import は facade 経由の循環になるため不可・reservation/prescription 先例）。
 type testTransactorImpl struct{ db *gorm.DB }
@@ -65,8 +50,6 @@ func makeReservationType(t *testing.T, db *gorm.DB, clinicID uint64) *model.Rese
 }
 
 func ptrUint64(v uint64) *uint64 { return &v }
-
-func ptrInt64(v int64) *int64 { return &v }
 
 func ptrFloat64(v float64) *float64 { return &v }
 

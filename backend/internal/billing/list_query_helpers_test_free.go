@@ -4,7 +4,9 @@ package billing
 // （残留consumer多数のため原本残置・reservation 先例・B④〜⑥で統合判断）。
 
 import (
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -25,4 +27,14 @@ func optionalStringQueryFilter(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+func parseOptionalDateQueryFilter(value, field string) (*string, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if _, err := time.ParseInLocation(time.DateOnly, value, time.Local); err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", field))
+	}
+	return &value, nil
 }

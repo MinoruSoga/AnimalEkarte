@@ -96,7 +96,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// 予約 CRUD routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R③）
 	h.registerMedicalRecordRoutesWithAuth(protected)
 	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
-	h.registerAccountingRoutesWithAuth(protected)
+	// 会計 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B④）
 	h.registerTrimmingRoutesWithAuth(protected)
 	// examinations 系 route: BE9-2D ⑦ で internal/medicalrecord の RegisterRoutes へ移動。
 	// BE9-2D: /vaccinations moved to internal/medicalrecord.Handler.RegisterRoutes
@@ -232,28 +232,6 @@ func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
 	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
 	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
-}
-
-// registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
-	accountings := rg.Group("/accountings")
-	accountings.GET("", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListAccountings)
-	// BUG-370: 月末未納者一覧
-	accountings.GET("/unpaid", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListUnpaidBillings)
-	// #182: 会計画面表示用 飼主未納残高
-	accountings.GET("/unpaid-balance", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetOwnerUnpaidBalance)
-	// #114: 月次未納繰越集計
-	accountings.GET("/unpaid-monthly", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetUnpaidMonthlySummary)
-	// BUG-368: レジ締め日次集計
-	accountings.GET("/daily-summary", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetDailySummary)
-	accountings.GET("/:id", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetAccounting)
-	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
-	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
-	// #189: 確定済みカード金額の確定後訂正（専用フロー）。確定/締め後訂正の既存権限 accounting-post-close-edit:edit を再利用。
-	accountings.POST("/:id/credit-correction", h.RequirePermission(string(model.ResourceAccountingPostCloseEdit), "edit"), h.CorrectCreditPayment)
-	// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。
-	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccountingCancel), "edit"), h.CancelAccounting)
-	// 返金 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③・/accountings group は gin path merge で共存）
 }
 
 // registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

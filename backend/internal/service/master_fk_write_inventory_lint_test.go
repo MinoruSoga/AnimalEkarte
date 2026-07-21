@@ -238,7 +238,7 @@ type masterFKWriteEntry struct {
 // REMINDER: status is a human review record. The gate does NOT verify it (see file header).
 var masterFKWriteAllowlist = []masterFKWriteEntry{
 	// ── guarded (FindByID ownership check covers every master FK; most have runtime isolation tests) ──
-	{"accountingService.Update", statusGuarded, []string{"PaymentMethodID"}, "resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID"},
+	{"accountingService.Update", statusGuarded, []string{"PaymentMethodID"}, "(moved to internal/billing in B④): resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID"},
 	{"campaignService.Create", statusGuarded, []string{"TargetItemIDs"}, "campaign_service.go: validateOwnedMerchandiseItemIDs loops merchandiseItemRepo.FindByID(ctx, clinicID, id) over every TargetItemIDs entry (X-5); test: TestCampaignService_Create_RejectsCrossClinicTargetItemFK"},
 	{"campaignService.Update", statusGuarded, []string{"TargetItemIDs"}, "as Create — validateOwnedMerchandiseItemIDs guards *input.TargetItemIDs before ReplaceTargets (X-5); test: TestCampaignService_Update_RejectsCrossClinicTargetItemFK"},
 	{"carePlanItemService.Create", statusGuarded, []string{"HospitalizationPlanID", "MedicineID", "ProcedureID"}, "internal/medicalrecord/care_plan_item_service.go (BE9-2D ⑤, moved from internal/service): validateMasterFKs now covers all three — medicine/procedure (pre-existing) plus hospPlanRepo.FindByID(ctx, clinicID, HospitalizationPlanID) (X-14); test: TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK"},

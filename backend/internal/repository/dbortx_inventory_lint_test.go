@@ -83,12 +83,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"account/repository.go|repository.Update":      {}, // BE8-4 batch23: moved from account_repository.go
 	// accounting (R1-1 money-path atomicity; Create/CompleteAccountingAppointments added for
 	// BE-refactor.md X-12 billing-complete-appt-post-tx atomicity fix)
-	"accounting_repository.go|accountingRepository.CompleteAccountingAppointments": {},
-	"accounting_repository.go|accountingRepository.Create":                         {},
-	"accounting_repository.go|accountingRepository.LockAndFindByID":                {},
-	"accounting_repository.go|accountingRepository.SavePayment":                    {},
-	"accounting_repository.go|accountingRepository.SavePaymentSplits":              {},
-	"accounting_repository.go|accountingRepository.Update":                         {},
+	"billing/accounting_repository.go|accountingRepository.CompleteAccountingAppointments": {},
+	"billing/accounting_repository.go|accountingRepository.Create":                         {},
+	"billing/accounting_repository.go|accountingRepository.LockAndFindByID":                {},
+	"billing/accounting_repository.go|accountingRepository.SavePayment":                    {},
+	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":              {},
+	"billing/accounting_repository.go|accountingRepository.Update":                         {},
 	// audit (#211 tx-internal)
 	"audit/repository.go|repository.CreateTx": {}, // BE8-4 batch22: moved from audit_repository.go
 	// billing_confirmation (SD-2 系ガード監査: 会計医師確認 Confirm/Return が確定済みカルテ書込
@@ -621,7 +621,7 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 
 // TestDBOrTxInventory_GateDetectsViolations freezes the gate's failure modes.
 func TestDBOrTxInventory_GateDetectsViolations(t *testing.T) {
-	base := map[string]struct{}{"accounting_repository.go|accountingRepository.SavePayment": {}}
+	base := map[string]struct{}{"billing/accounting_repository.go|accountingRepository.SavePayment": {}}
 
 	t.Run("clean baseline reports nothing", func(t *testing.T) {
 		if v := reconcileDBOrTxInventory(base, base); len(v) != 0 {
@@ -630,8 +630,8 @@ func TestDBOrTxInventory_GateDetectsViolations(t *testing.T) {
 	})
 	t.Run("new unlisted dbOrTx method fails", func(t *testing.T) {
 		found := map[string]struct{}{
-			"accounting_repository.go|accountingRepository.SavePayment": {},
-			"new_repository.go|newRepository.DoTx":                      {},
+			"billing/accounting_repository.go|accountingRepository.SavePayment": {},
+			"new_repository.go|newRepository.DoTx":                              {},
 		}
 		v := reconcileDBOrTxInventory(found, base)
 		if len(v) != 1 || !strings.Contains(v[0], "newly uses dbOrTx") {

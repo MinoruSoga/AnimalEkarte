@@ -25,7 +25,7 @@ type Services struct {
 	// medicalrecord 型 field として残置し cmd/api/main.go が構築後に代入する（⑤ Hospitalization 先例。
 	// 削除 = reservation domain 移行時）。
 	MedicalRecord                  medicalrecord.MedicalRecordService
-	Accounting                     AccountingService
+	Accounting                     billing.AccountingService
 	Trimming                       TrimmingService
 	Inventory                      InventoryService
 	Staff                          StaffService
@@ -227,7 +227,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
 		Reservation:           reservation.NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		Accounting:            NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
+		Accounting:            billing.NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, billingAuditTxAdapter{inner: auditTxLogger}, repos.PaymentMethodMaster),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,

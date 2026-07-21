@@ -81,3 +81,13 @@ type trimmingOptionFinder interface {
 type billingOwnerReader interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
+
+// billingHospitalizationFinder は入院（medicalrecord=topo下流・import不可）のFK検証最小view（AUD-002）。
+type billingHospitalizationFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+}
+
+// cpmTagSyncer は CPM ステージタグ同期（lstep=topo下流・import不可）の最小view（best-effort）。
+type cpmTagSyncer interface {
+	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
+}

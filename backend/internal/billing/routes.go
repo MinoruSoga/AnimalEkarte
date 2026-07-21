@@ -20,6 +20,7 @@ type Handler struct {
 	billingConfirmation *BillingConfirmationHandler
 	billingItem         *BillingItemHandler
 	refund              *RefundHandler
+	accounting          *AccountingHandler
 	requirePermission   PermissionMiddleware
 }
 
@@ -32,6 +33,7 @@ func NewHandler(
 	billingConfirmation *BillingConfirmationHandler,
 	billingItem *BillingItemHandler,
 	refund *RefundHandler,
+	accounting *AccountingHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -42,6 +44,7 @@ func NewHandler(
 		billingConfirmation: billingConfirmation,
 		billingItem:         billingItem,
 		refund:              refund,
+		accounting:          accounting,
 		requirePermission:   requirePermission,
 	}
 }
@@ -104,8 +107,25 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	items.DELETE("/:id", h.requirePermission(string(model.ResourceAccounting), "delete"), h.billingItem.DeleteBillingItem)
 	items.GET("/:id/discount-suggestions", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetBillingItemDiscountSuggestions)
 
-	// 返金（旧 handler.go accountings group 逐語・/accountings group は gin path merge で共存）
+	// 会計（旧 handler.go registerAccountingRoutesWithAuth 逐語）+ 返金
 	accountings := rg.Group("/accountings")
+	accountings.GET("", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.ListAccountings)
+	// BUG-370: 月末未納者一覧
+	accountings.GET("/unpaid", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.ListUnpaidBillings)
+	// #182: 会計画面表示用 飼主未納残高
+	accountings.GET("/unpaid-balance", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetOwnerUnpaidBalance)
+	// #114: 月次未納繰越集計
+	accountings.GET("/unpaid-monthly", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetUnpaidMonthlySummary)
+	// BUG-368: レジ締め日次集計
+	accountings.GET("/daily-summary", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetDailySummary)
+	accountings.GET("/:id", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetAccounting)
+	accountings.POST("", h.requirePermission(string(model.ResourceAccounting), "create"), h.accounting.CreateAccounting)
+	accountings.PATCH("/:id", h.requirePermission(string(model.ResourceAccounting), "edit"), h.accounting.UpdateAccounting)
+	// #189: 確定済みカード金額の確定後訂正（専用フロー）。確定/締め後訂正の既存権限 accounting-post-close-edit:edit を再利用。
+	accountings.POST("/:id/credit-correction", h.requirePermission(string(model.ResourceAccountingPostCloseEdit), "edit"), h.accounting.CorrectCreditPayment)
+	// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。
+	accountings.POST("/:id/cancel", h.requirePermission(string(model.ResourceAccountingCancel), "edit"), h.accounting.CancelAccounting)
+	// 返金 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③・/accountings group は gin path merge で共存）
 	accountings.GET("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "view"), h.refund.ListRefunds)
 	accountings.POST("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "create"), h.refund.CreateRefund)
 }

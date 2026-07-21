@@ -171,3 +171,7 @@ func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.C
 func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
 	return 0, nil
 }
+
+func ptrString(v string) *string { return &v }
+
+func ptrInt64(v int64) *int64 { return &v }

@@ -91,11 +91,24 @@ func (m *mockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, cli
 
 // mockAuditService — billingAuditLogger view の最小モック。
 type mockAuditService struct {
-	logEntryErr    error
-	logEntryCalled bool
-	logEntryFn     func(ctx context.Context, entry *AuditEntry) error
-	entries        []*AuditEntry
-	lastLogEntry   *AuditEntry
+	logEntryErr      error
+	logEntryCalled   bool
+	logEntryTxInput  *AuditEntry
+	logEntryTxCalled bool
+	logEntryTxErr    error
+	logEntryFn       func(ctx context.Context, entry *AuditEntry) error
+	entries          []*AuditEntry
+	lastLogEntry     *AuditEntry
+}
+
+// LogEntryTx は billingAuditTxLogger 面（fail-closed 経路のテスト共用）。
+func (m *mockAuditService) LogEntryTx(ctx context.Context, entry *AuditEntry) error {
+	m.logEntryTxInput = entry
+	m.logEntryTxCalled = true
+	if m.logEntryTxErr != nil {
+		return m.logEntryTxErr
+	}
+	return m.LogEntry(ctx, entry)
 }
 
 func (m *mockAuditService) LogEntry(ctx context.Context, entry *AuditEntry) error {
@@ -247,29 +260,171 @@ func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ ui
 	return nil, nil
 }
 
-// mockAccountingRepository — accountingBillingView（FindByID/LockAndFindByID）の最小view mock
-// （def残存=accounting系はB④・再宣言規約）。
 type mockAccountingRepository struct {
-	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	lockAndFindByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	savePaymentFn       func(ctx context.Context, payment *model.Payment) error
+	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
+	completeApptsFn     func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
+	// #120: start_date/end_date 2引数バリアント
+	findUnpaidByBillingFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
+	findUnpaidByOwnerFn   func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	// #182: 飼主未納残高
+	sumUnpaidByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
+	// #114: 月次未納繰越集計
+	findMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	// 以下4フィールドは F-4 統合で追加（旧 ForReport/ForClose/ForLstepVisit が個別に持っていたフック）。
+	// 未設定時は各旧モックのデフォルトと同じ値を返す（挙動不変）。
+	getCloseAggregateFn        func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
+	getMonthlyReportFn         func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
+	getMonthlyReportByPeriodFn func(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
+	sumPaidByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+}
+
+func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	}
+	return nil, 0, nil
+}
+
+func (m *mockAccountingRepository) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+	return nil, 0, nil
 }
 
 func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.Billing{ID: id, ClinicID: clinicID}, nil
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
+	return nil, nil
 }
 
 func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	if m.lockAndFindByIDFn != nil {
-		return m.lockAndFindByIDFn(ctx, clinicID, id)
-	}
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.Billing{ID: id, ClinicID: clinicID}, nil
+	return nil, nil
 }
+
+func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, accounting)
+	}
+	return nil
+}
+
+func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, billingID, fields)
+	}
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) SavePayment(ctx context.Context, payment *model.Payment) error {
+	if m.savePaymentFn != nil {
+		return m.savePaymentFn(ctx, payment)
+	}
+	return nil
+}
+
+func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
+	if m.savePaymentSplitsFn != nil {
+		return m.savePaymentSplitsFn(ctx, splits)
+	}
+	return nil
+}
+
+func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	if m.completeApptsFn != nil {
+		return m.completeApptsFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
+	}
+	return 0, nil
+}
+
+func (m *mockAccountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
+	if m.findUnpaidByBillingFn != nil {
+		return m.findUnpaidByBillingFn(ctx, clinicID, startDate, endDate, page, limit)
+	}
+	return nil, 0, nil
+}
+
+func (m *mockAccountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
+	if m.findUnpaidByOwnerFn != nil {
+		return m.findUnpaidByOwnerFn(ctx, clinicID, startDate, endDate, page, limit)
+	}
+	return nil, 0, UnpaidSummary{}, nil
+}
+
+func (m *mockAccountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error) {
+	if m.sumUnpaidByOwnerFn != nil {
+		return m.sumUnpaidByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return OwnerUnpaidBalance{}, nil
+}
+
+func (m *mockAccountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error) {
+	if m.getDailySummaryFn != nil {
+		return m.getDailySummaryFn(ctx, clinicID, date)
+	}
+	return &DailySummaryResult{PaymentTotals: []PaymentMethodTotal{}, CategoryTotals: []CategoryTotal{}}, nil
+}
+
+func (m *mockAccountingRepository) GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error) {
+	if m.getCloseAggregateFn != nil {
+		return m.getCloseAggregateFn(ctx, input)
+	}
+	return &CloseAggregateResult{
+		PaymentRows:    []PaymentAggregateRow{},
+		CategoryRows:   []CategoryAggregateRow{},
+		BillingDetails: []CloseBillingDetail{},
+		TaxBreakdown:   []TaxBreakdownRow{},
+	}, nil
+}
+
+func (m *mockAccountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
+	if m.getMonthlyReportFn != nil {
+		return m.getMonthlyReportFn(ctx, clinicID, year, month)
+	}
+	return &MonthlyReportResult{}, nil
+}
+
+func (m *mockAccountingRepository) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error) {
+	if m.getMonthlyReportByPeriodFn != nil {
+		return m.getMonthlyReportByPeriodFn(ctx, clinicID, start, end)
+	}
+	return &MonthlyReportResult{}, nil
+}
+
+func (m *mockAccountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	if m.sumPaidByOwnerFn != nil {
+		return m.sumPaidByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
+}
+
+func (m *mockAccountingRepository) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockAccountingRepository) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]OwnerAnnualRevenue, error) {
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
+	if m.findMonthlyUnpaidCarryoverFn != nil {
+		return m.findMonthlyUnpaidCarryoverFn(ctx, clinicID, firstDay, lastDay, page, limit)
+	}
+	return nil, 0, MonthlyUnpaidSummary{}, nil
+}
+
+// （def残存=accounting系はB④・再宣言規約）。
 
 // mockTransactor / okTrimming* — service/reservation 側同名テストヘルパの複製（def残存→再宣言規約）。
 type mockTransactor struct {
@@ -352,4 +507,28 @@ func rejectTrimmingOptionRepo(ownedID uint64) trimmingOptionFinder {
 		}
 		return &model.TrimmingOption{ID: id, IsActive: true}, nil
 	}}
+}
+
+// mockHospitalizationRepository — billingHospitalizationFinder view の最小モック（AUD-002）。
+type mockHospitalizationRepository struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+}
+
+func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
+}
+
+// mockLstepTagSyncService — cpmTagSyncer view の最小モック（best-effort CPM同期）。
+type mockLstepTagSyncService struct {
+	syncCPMStageTagFn func(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+func (m *mockLstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncCPMStageTagFn != nil {
+		return m.syncCPMStageTagFn(ctx, clinicID, ownerID)
+	}
+	return nil
 }
