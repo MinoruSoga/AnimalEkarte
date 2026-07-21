@@ -1,6 +1,4 @@
-package handler
-
-import "github.com/animal-ekarte/backend/internal/service"
+package billing
 
 // confirmBillingConfirmationRequest は会計医師確認のバインド struct
 type confirmBillingConfirmationRequest struct {
@@ -8,8 +6,8 @@ type confirmBillingConfirmationRequest struct {
 	Memo        string `json:"memo"`
 }
 
-func (r confirmBillingConfirmationRequest) toServiceInput() *service.ConfirmBillingConfirmationInput {
-	return &service.ConfirmBillingConfirmationInput{
+func (r confirmBillingConfirmationRequest) toServiceInput() *ConfirmBillingConfirmationInput {
+	return &ConfirmBillingConfirmationInput{
 		ConfirmedBy: r.ConfirmedBy,
 		Memo:        r.Memo,
 	}
@@ -22,8 +20,8 @@ type returnBillingConfirmationRequest struct {
 	Memo         string `json:"memo"`
 }
 
-func (r returnBillingConfirmationRequest) toServiceInput() *service.ReturnBillingConfirmationInput {
-	return &service.ReturnBillingConfirmationInput{
+func (r returnBillingConfirmationRequest) toServiceInput() *ReturnBillingConfirmationInput {
+	return &ReturnBillingConfirmationInput{
 		ReturnedBy:   r.ReturnedBy,
 		ReturnReason: r.ReturnReason,
 		Memo:         r.Memo,

@@ -146,7 +146,7 @@ type BillingItemService interface {
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
 	// campaignRepo 未配線の場合は飼主割引のみ。
-	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]billingdom.DiscountSuggestion, error)
+	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
 }
 
 // UngroupedSameDaySummary は #77 取り残し警告用の未会計対象化件数サマリ。
@@ -455,7 +455,7 @@ func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
 }
 
 // GetDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。
-func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]billingdom.DiscountSuggestion, error) {
+func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error) {
 	item, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find billing item")

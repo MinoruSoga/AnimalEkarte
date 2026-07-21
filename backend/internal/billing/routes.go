@@ -16,6 +16,8 @@ type Handler struct {
 	insurance           *InsuranceHandler
 	campaign            *CampaignHandler
 	paymentMethodMaster *PaymentMethodMasterHandler
+	estimate            *EstimateHandler
+	billingConfirmation *BillingConfirmationHandler
 	requirePermission   PermissionMiddleware
 }
 
@@ -24,12 +26,16 @@ func NewHandler(
 	insurance *InsuranceHandler,
 	campaign *CampaignHandler,
 	paymentMethodMaster *PaymentMethodMasterHandler,
+	estimate *EstimateHandler,
+	billingConfirmation *BillingConfirmationHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
 		insurance:           insurance,
 		campaign:            campaign,
 		paymentMethodMaster: paymentMethodMaster,
+		estimate:            estimate,
+		billingConfirmation: billingConfirmation,
 		requirePermission:   requirePermission,
 	}
 }
@@ -66,4 +72,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	pm.GET("/:id", h.requirePermission(string(model.ResourcePaymentMethod), "view"), h.paymentMethodMaster.GetPaymentMethod)
 	pm.PATCH("/:id", h.requirePermission(string(model.ResourcePaymentMethod), "edit"), h.paymentMethodMaster.UpdatePaymentMethod)
 	pm.DELETE("/:id", h.requirePermission(string(model.ResourcePaymentMethod), "delete"), h.paymentMethodMaster.DeletePaymentMethod)
+
+	// 見積（旧 handler.go 逐語）
+	estimates := rg.Group("/estimates")
+	estimates.GET("", h.requirePermission(string(model.ResourceEstimates), "view"), h.estimate.ListEstimates)
+	estimates.GET("/:id", h.requirePermission(string(model.ResourceEstimates), "view"), h.estimate.GetEstimate)
+	estimates.POST("", h.requirePermission(string(model.ResourceEstimates), "create"), h.estimate.CreateEstimate)
+	estimates.PATCH("/:id", h.requirePermission(string(model.ResourceEstimates), "edit"), h.estimate.UpdateEstimate)
+	estimates.DELETE("/:id", h.requirePermission(string(model.ResourceEstimates), "delete"), h.estimate.DeleteEstimate)
+
+	// 会計医師確認（旧 billing_confirmation_handler.go RegisterBillingConfirmationRoutes 逐語・
+	// /medical-records group は gin path merge で medicalrecord 側と共存）
+	records := rg.Group("/medical-records")
+	permEdit := h.requirePermission(string(model.ResourceAccounting), "edit")
+	records.GET("/:id/billing-confirmation", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingConfirmation.GetBillingConfirmation)
+	records.POST("/:id/billing-confirmation/confirm", permEdit, h.billingConfirmation.ConfirmBillingConfirmation)
+	records.POST("/:id/billing-confirmation/return", permEdit, h.billingConfirmation.ReturnBillingConfirmation)
 }

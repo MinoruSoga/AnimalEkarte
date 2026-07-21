@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // estimate_repository_test.go
 // estimate_repository.go の実 DB 結合テスト（#212: internal/repository カバレッジ向上）。
@@ -14,13 +14,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupEstimateRepoTestDB は estimate_repository のテストに必要なテーブルを整備する。
 func setupEstimateRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Estimate{}, &model.EstimateItem{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Estimate{}, &model.EstimateItem{}))
 	db.Exec("TRUNCATE TABLE estimate_items CASCADE")
 	db.Exec("TRUNCATE TABLE estimates CASCADE")
 	return db
@@ -58,7 +59,7 @@ func TestEstimateRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "見積飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "見積飼主")
 
 	t.Run("作成した見積書をOwner/Items付きで取得できる", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -94,8 +95,8 @@ func TestEstimateRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeTestOwner(t, db, clinicA, "A飼主")
-	ownerB := makeTestOwner(t, db, clinicB, "B飼主")
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "A飼主")
+	ownerB := repotest.MakeTestOwner(t, db, clinicB, "B飼主")
 	makeEstimate(t, db, clinicA, ownerA.ID, model.EstimateStatusDraft)
 	makeEstimate(t, db, clinicA, ownerA.ID, model.EstimateStatusSent)
 	makeEstimate(t, db, clinicB, ownerB.ID, model.EstimateStatusDraft)
@@ -137,7 +138,7 @@ func TestEstimateRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "更新飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "更新飼主")
 
 	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -173,7 +174,7 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicA, "UpdateIfNotLocked飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "UpdateIfNotLocked飼主")
 
 	t.Run("draft status は更新に成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -241,7 +242,7 @@ func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "DeleteIfNotLocked飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "DeleteIfNotLocked飼主")
 
 	t.Run("draft status は削除に成功する（ソフトデリート）", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -365,7 +366,7 @@ func TestEstimateRepository_CountItemsByEstimateID_ExcludesSoftDeleted(t *testin
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicA, "件数飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "件数飼主")
 	e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 	makeEstimateItem(t, db, e.ID, "項目1")
 	makeEstimateItem(t, db, e.ID, "項目2")

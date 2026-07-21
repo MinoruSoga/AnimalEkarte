@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"net/url"

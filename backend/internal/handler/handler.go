@@ -221,7 +221,7 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	// BE9-2D ⑦: カルテ本体 CRUD/recommendation-reason/addenda は internal/medicalrecord の
 	// RegisterRoutes へ移動。billing-confirmation（billing 残留 domain）のみここに残る
 	// （/medical-records group は gin path merge で共存）。
-	h.RegisterBillingConfirmationRoutes(records)
+	_ = records // billing-confirmation routes は internal/billing.RegisterRoutes へ移動（BE9-2C B②・/medical-records group は gin path merge で共存）
 }
 
 // registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
@@ -269,10 +269,5 @@ func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
-	estimates := rg.Group("/estimates")
-	estimates.GET("", h.RequirePermission(string(model.ResourceEstimates), "view"), h.ListEstimates)
-	estimates.GET("/:id", h.RequirePermission(string(model.ResourceEstimates), "view"), h.GetEstimate)
-	estimates.POST("", h.RequirePermission(string(model.ResourceEstimates), "create"), h.CreateEstimate)
-	estimates.PATCH("/:id", h.RequirePermission(string(model.ResourceEstimates), "edit"), h.UpdateEstimate)
-	estimates.DELETE("/:id", h.RequirePermission(string(model.ResourceEstimates), "delete"), h.DeleteEstimate)
+	// 見積 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B②）
 }

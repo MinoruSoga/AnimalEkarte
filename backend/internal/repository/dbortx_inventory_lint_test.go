@@ -94,7 +94,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// billing_confirmation (SD-2 系ガード監査: 会計医師確認 Confirm/Return が確定済みカルテ書込
 	// ガード対象と判明。billingConfirmationService.Confirm/Return の LockByIDForUpdate ambient tx
 	// に参加させる)
-	"billing_confirmation_repository.go|billingConfirmationRepository.Update": {},
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update": {},
 	// billing_item (R1-1)
 	"billing_item_repository.go|billingItemRepository.Create":              {},
 	"billing_item_repository.go|billingItemRepository.Delete":              {},
@@ -121,11 +121,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
 	// estimateService の LockByIDForUpdate ambient tx に参加させる。FindByID は
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
-	"estimate_repository.go|estimateRepository.Create":                 {},
-	"estimate_repository.go|estimateRepository.FindByID":               {},
-	"estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
-	"estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
-	"estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},
+	"billing/estimate_repository.go|estimateRepository.Create":                 {},
+	"billing/estimate_repository.go|estimateRepository.FindByID":               {},
+	"billing/estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
+	"billing/estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
+	"billing/estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for

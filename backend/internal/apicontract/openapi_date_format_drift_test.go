@@ -56,7 +56,7 @@ const (
 // openapi_route_drift_test.go's migratedDomainRoutePackages — when a domain package gains
 // migrated *_response.go files, add its dir here in the same commit. driftKey is basename-keyed
 // (filepath.Base), so a moved file's allowlist entry stays valid as long as its filename is kept.
-var responseScanDirs = []string{handlerResponseDir, "../medicalrecord"}
+var responseScanDirs = []string{handlerResponseDir, "../medicalrecord", "../billing"}
 
 // knownDateFormatDrifts は現 HEAD に存在する「openapi format:date ↔ handler time.Time」drift を
 // (file, json名) → 出現数 で固定する。値は response 側の time.Time/*time.Time フィールド数。

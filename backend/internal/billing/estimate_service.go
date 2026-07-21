@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---- EstimateService ----
@@ -102,12 +102,12 @@ type EstimateService interface {
 }
 
 type estimateService struct {
-	repo              repository.EstimateRepository
-	medicalRecordRepo repository.MedicalRecordRepository
-	reservationRepo   repository.ReservationRepository
+	repo              EstimateRepository
+	medicalRecordRepo billingMedicalRecordLocker
+	reservationRepo   reservation.ReservationRepository
 	staffClinicRepo   staffClinicMembershipCounter
-	auditService      AuditService
-	transactor        repository.Transactor
+	auditService      billingAuditLogger
+	transactor        Transactor
 }
 
 // medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
@@ -117,12 +117,12 @@ type estimateService struct {
 // 紐付く「カルテ配下データ」— docs/architecture/erd.md）の書込を LockByIDForUpdate の行ロックと
 // 同一トランザクションに収める目的で注入する（SD-2 系ガード監査で発見された欠落）。
 func NewEstimateService(
-	repo repository.EstimateRepository,
-	medicalRecordRepo repository.MedicalRecordRepository,
-	reservationRepo repository.ReservationRepository,
+	repo EstimateRepository,
+	medicalRecordRepo billingMedicalRecordLocker,
+	reservationRepo reservation.ReservationRepository,
 	staffClinicRepo staffClinicMembershipCounter,
-	auditService AuditService,
-	transactor repository.Transactor,
+	auditService billingAuditLogger,
+	transactor Transactor,
 ) EstimateService {
 	return &estimateService{
 		repo:              repo,
@@ -135,7 +135,7 @@ func NewEstimateService(
 }
 
 // logEstimateChangeBestEffort は見積の監査ログを LogEntry で記録する（best-effort）。
-// AuditService インターフェースは広げず resource="estimate" で medical_record と同型の動詞を使う。
+// billingAuditLogger インターフェースは広げず resource="estimate" で medical_record と同型の動詞を使う。
 func (s *estimateService) logEstimateChangeBestEffort(
 	ctx context.Context,
 	clinicID uint64,
@@ -147,10 +147,10 @@ func (s *estimateService) logEstimateChangeBestEffort(
 	if s.auditService == nil {
 		return
 	}
-	if err := s.auditService.LogEntry(ctx, &AuditLogInput{
+	if err := s.auditService.LogEntry(ctx, &AuditEntry{
 		ClinicID:   &clinicID,
 		ActorID:    actorID,
-		ActorType:  auditActorTypeFor(actorID),
+		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
 		Action:     action,
 		Resource:   "estimate",
 		ResourceID: &estimateID,
@@ -191,7 +191,7 @@ func (s *estimateService) validateEstimateRelatedFKs(
 	}
 
 	if mr != nil {
-		if err := assertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
+		if err := AssertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
 			return err
 		}
 	}
@@ -283,7 +283,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書追加を拒否。見積は
 		// medical_record_id 任意（カルテに紐付かない独立見積も許容）のため、指定時のみガードする。
 		if input.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *input.MedicalRecordID,
+			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *input.MedicalRecordID,
 				"failed to find medical record", "確定済みカルテに見積書を追加できません"); err != nil {
 				return err
 			}
@@ -354,7 +354,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
 		if existing.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
+			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
 				"failed to find medical record", "確定済みカルテの見積書は編集できません"); err != nil {
 				return err
 			}
@@ -403,7 +403,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書削除を拒否。
 		if existing.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
+			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
 				"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
 				return err
 			}

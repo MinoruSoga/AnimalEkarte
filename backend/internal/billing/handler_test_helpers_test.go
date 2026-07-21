@@ -9,3 +9,14 @@ import (
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
 }
+
+// setStaffID / setNonSystemAdmin — internal/handler/clinic_handler_test.go の同名ヘルパーの複製。
+func setStaffID(c *gin.Context) {
+	c.Set("user_id", "1")
+}
+
+func setNonSystemAdmin(c *gin.Context) {
+	c.Set("is_system_admin", false)
+	c.Set("user_id", "1")
+	c.Set("clinic_id", "1")
+}

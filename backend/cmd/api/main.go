@@ -430,6 +430,8 @@ func main() {
 		billing.NewInsuranceHandler(svcs.Insurance),
 		billing.NewCampaignHandler(svcs.Campaign),
 		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
+		billing.NewEstimateHandler(svcs.Estimate, h.HasPermission),
+		billing.NewBillingConfirmationHandler(svcs.BillingConfirmation, h.RequirePermission),
 		h.RequirePermission,
 	)
 	billingHandler.RegisterRoutes(protected)

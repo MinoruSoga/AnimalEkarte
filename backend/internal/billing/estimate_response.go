@@ -1,8 +1,9 @@
-package handler
+package billing
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -65,7 +66,7 @@ func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 		DiscountAmount:        item.DiscountAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
 		SortOrder:             item.SortOrder,
-		CreatedAt:             localTime(item.CreatedAt),
+		CreatedAt:             httpapi.LocalTime(item.CreatedAt),
 	}
 }
 
@@ -93,7 +94,7 @@ func toEstimateResponse(e *model.Estimate) estimateResponse {
 		Notes:           e.Notes,
 		CreatedBy:       e.CreatedBy,
 		Items:           items,
-		CreatedAt:       localTime(e.CreatedAt),
-		UpdatedAt:       localTime(e.UpdatedAt),
+		CreatedAt:       httpapi.LocalTime(e.CreatedAt),
+		UpdatedAt:       httpapi.LocalTime(e.UpdatedAt),
 	}
 }

@@ -45,7 +45,7 @@ type Services struct {
 	Company                        CompanyService
 	PermissionGroup                PermissionGroupService
 	EffectivePermission            EffectivePermissionService
-	BillingConfirmation            BillingConfirmationService
+	BillingConfirmation            billing.BillingConfirmationService
 	ShiftEntry                     ShiftEntryService
 	ShiftTemplate                  ShiftTemplateService
 	ClinicHoliday                  ClinicHolidayService
@@ -53,7 +53,7 @@ type Services struct {
 	// とも internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 	// で直接構築し medicalrecord.NewHandler へ合成するため、Services には保持しない
 	// （treatment-plan / daily-record / estimate は internal/service に残る）。
-	Estimate EstimateService
+	Estimate billing.EstimateService
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
 	// package). No longer constructed here; see cmd/api/main.go.
 	MerchandiseItem     MerchandiseItemService
@@ -257,14 +257,14 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		Company:                        NewCompanyService(repos.Company),
 		PermissionGroup:                permissionGroupSvc,
 		EffectivePermission:            permissionGroupSvc,
-		BillingConfirmation:            NewBillingConfirmationService(repos.BillingConfirmation, repos.MedicalRecord, tx),
+		BillingConfirmation:            billing.NewBillingConfirmationService(repos.BillingConfirmation, repos.MedicalRecord, tx),
 		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry),
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
 		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
 		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 		// で直接構築する（Services には保持しない）。
-		Estimate:            NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
+		Estimate:            billing.NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, billingAuditAdapter{inner: auditSvc}, tx),
 		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:         NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
 		Refund:              NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),

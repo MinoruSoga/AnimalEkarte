@@ -1,4 +1,4 @@
-package service
+package billing
 
 // estimate_fk_clinic_isolation_test.go — AUD-005
 // Create の medical_record_id / owner_id clinic 所有確認・MR-Owner 整合・created_by 所属検証・拒否時非副作用を検証する。

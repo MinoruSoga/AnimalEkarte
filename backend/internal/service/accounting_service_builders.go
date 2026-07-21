@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	billingdom "github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
@@ -312,14 +313,10 @@ func (s *accountingService) validateAccountingRelatedFKs(
 	return nil
 }
 
+// assertBillingLinksMatchMedicalRecord は billing.AssertBillingLinksMatchMedicalRecord への
+// delegate（BE9-2C B②・accounting=B④移動時に解消）。
 func assertBillingLinksMatchMedicalRecord(mr *model.MedicalRecord, ownerID, petID *uint64) error {
-	if ownerID != nil && mr.OwnerID != nil && *ownerID != *mr.OwnerID {
-		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", mr.ID))
-	}
-	if petID != nil && mr.PetID != nil && *petID != *mr.PetID {
-		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", mr.ID))
-	}
-	return nil
+	return billingdom.AssertBillingLinksMatchMedicalRecord(mr, ownerID, petID)
 }
 
 func assertBillingLinksMatchHospitalization(h *model.Hospitalization, ownerID, petID *uint64) error {

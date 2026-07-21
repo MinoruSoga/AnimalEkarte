@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // estimate_owner_preload_clinic_isolation_test.go — AUD-005
 // 汚染された Owner FK を持つ見積から、別 clinic の飼主情報が Preload されないことを検証する。
@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 func setupEstimateOwnerPreloadDB(t *testing.T) *gorm.DB {
@@ -30,7 +31,7 @@ func TestEstimateRepository_FindByID_FindAll_DoesNotPreloadForeignOwner(t *testi
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeTestOwner(t, db, clinicB, "医院Bの飼主")
+	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
 	ownerBID := ownerB.ID
 	contaminated := &model.Estimate{
 		ClinicID: clinicA,

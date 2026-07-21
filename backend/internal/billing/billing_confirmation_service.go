@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ConfirmBillingConfirmationInput は会計医師確認の入力DTO
@@ -31,15 +31,15 @@ type BillingConfirmationService interface {
 }
 
 type billingConfirmationService struct {
-	repo       repository.BillingConfirmationRepository
-	medRec     repository.MedicalRecordRepository
-	transactor repository.Transactor
+	repo       BillingConfirmationRepository
+	medRec     billingMedicalRecordLocker
+	transactor Transactor
 }
 
 // NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す。transactor は
 // BE-refactor.md X-11（確定と子書込の競合防止）のため、Confirm/Return の書込を LockByIDForUpdate の
 // 行ロックと同一トランザクションに収める目的で注入する（SD-2 系ガード監査で発見された欠落）。
-func NewBillingConfirmationService(repo repository.BillingConfirmationRepository, medRec repository.MedicalRecordRepository, transactor repository.Transactor) BillingConfirmationService {
+func NewBillingConfirmationService(repo BillingConfirmationRepository, medRec billingMedicalRecordLocker, transactor Transactor) BillingConfirmationService {
 	return &billingConfirmationService{repo: repo, medRec: medRec, transactor: transactor}
 }
 
@@ -97,7 +97,7 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の変更を拒否。
 		// LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の会計確認変更が
 		// 確定済みカルテに混入する競合を防ぐ（examination_service.go Update 同型）。
-		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
+		if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
 			"failed to find medical record", "確定済みカルテの会計確認は変更できません"); err != nil {
 			return err
 		}
@@ -143,7 +143,7 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の差し戻しを拒否。
-		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
+		if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
 			"failed to find medical record", "確定済みカルテの会計確認は差し戻しできません"); err != nil {
 			return err
 		}

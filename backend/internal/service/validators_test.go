@@ -324,8 +324,6 @@ func TestValidateCageType(t *testing.T) {
 	assert.Error(t, validateCageType("invalid_cage_type"))
 }
 
-
-
 func TestValidateCageSize(t *testing.T) {
 	assert.NoError(t, validateCageSize(""))
 	assert.NoError(t, validateCageSize(string(model.CageSizeSmall)))

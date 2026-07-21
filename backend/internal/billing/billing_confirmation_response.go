@@ -1,9 +1,10 @@
-package handler
+package billing
 
 import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -26,12 +27,12 @@ func toBillingConfirmationResponse(r *model.BillingConfirmation) billingConfirma
 		ID:              strconv.FormatUint(r.ID, 10),
 		MedicalRecordID: strconv.FormatUint(r.MedicalRecordID, 10),
 		Status:          string(r.Status),
-		ConfirmedAt:     localTimePtr(r.ConfirmedAt),
-		ReturnedAt:      localTimePtr(r.ReturnedAt),
+		ConfirmedAt:     httpapi.LocalTimePtr(r.ConfirmedAt),
+		ReturnedAt:      httpapi.LocalTimePtr(r.ReturnedAt),
 		ReturnReason:    r.ReturnReason,
 		Memo:            r.Memo,
-		CreatedAt:       localTime(r.CreatedAt),
-		UpdatedAt:       localTime(r.UpdatedAt),
+		CreatedAt:       httpapi.LocalTime(r.CreatedAt),
+		UpdatedAt:       httpapi.LocalTime(r.UpdatedAt),
 	}
 	if r.ConfirmedBy != nil {
 		s := strconv.FormatUint(*r.ConfirmedBy, 10)

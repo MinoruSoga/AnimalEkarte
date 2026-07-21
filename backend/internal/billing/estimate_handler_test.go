@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"bytes"
@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestEstimateHandlerCompiles verifies estimate_handler.go compiles
@@ -28,8 +28,8 @@ func TestEstimateHandlerCompiles(t *testing.T) {
 type mockEstimateService struct {
 	listFn   func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	getFn    func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
-	createFn func(ctx context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error)
-	updateFn func(ctx context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error)
+	createFn func(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
+	updateFn func(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
 	deleteFn func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -41,11 +41,11 @@ func (m *mockEstimateService) GetByID(ctx context.Context, clinicID, id uint64) 
 	return m.getFn(ctx, clinicID, id)
 }
 
-func (m *mockEstimateService) Create(ctx context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+func (m *mockEstimateService) Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 	return m.createFn(ctx, clinicID, input)
 }
 
-func (m *mockEstimateService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+func (m *mockEstimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
@@ -53,8 +53,8 @@ func (m *mockEstimateService) Delete(ctx context.Context, clinicID, id uint64, a
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func newHandlerWithEstimateSvc(svc service.EstimateService) *Handler {
-	return &Handler{svc: &service.Services{Estimate: svc}}
+func newHandlerWithEstimateSvc(svc EstimateService) *EstimateHandler {
+	return NewEstimateHandler(svc, func(_ *gin.Context, _, _ string) bool { return true })
 }
 
 // ---- ListEstimates ----
@@ -234,14 +234,14 @@ func TestCreateEstimate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		body       any
-		bodyRaw    string
-		setupCtx   func(c *gin.Context)
-		svc        *mockEstimateService
-		permSvc    *mockEffectivePermissionService
-		wantStatus int
-		wantHeader string
+		name          string
+		body          any
+		bodyRaw       string
+		setupCtx      func(c *gin.Context)
+		svc           *mockEstimateService
+		hasPermission httpapi.PermissionChecker
+		wantStatus    int
+		wantHeader    string
 	}{
 		{
 			name: "creates estimate successfully",
@@ -253,7 +253,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "新規見積", input.Title)
 					require.NotNil(t, input.CreatedBy)
@@ -275,7 +275,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, _ uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, model.EstimateStatusDraft, input.Status)
 					return &model.Estimate{ID: 12, Title: input.Title, Status: input.Status}, nil
 				},
@@ -294,7 +294,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, _ uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, model.EstimateStatusSent, input.Status)
 					return &model.Estimate{ID: 13, Title: input.Title, Status: input.Status}, nil
 				},
@@ -310,7 +310,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
 					t.Fatal("Create must not be called when status binding rejects approved")
 					return nil, nil
 				},
@@ -325,7 +325,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
 					t.Fatal("Create must not be called when status binding rejects rejected")
 					return nil, nil
 				},
@@ -370,7 +370,7 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -388,21 +388,19 @@ func TestCreateEstimate(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
 			svc:      &mockEstimateService{},
-			permSvc: &mockEffectivePermissionService{
-				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-					return []model.PermissionGroupRule{}, nil
-				},
-			},
-			wantStatus: http.StatusForbidden,
+			// 旧mockEffectivePermissionService(rules空)=deny写像（BE9-2D⑥先例）
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusForbidden,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := newHandlerWithEstimateSvc(tt.svc)
-			if tt.permSvc != nil {
-				h.svc.EffectivePermission = tt.permSvc
+			checker := httpapi.PermissionChecker(func(_ *gin.Context, _, _ string) bool { return true })
+			if tt.hasPermission != nil {
+				checker = tt.hasPermission
 			}
+			h := NewEstimateHandler(tt.svc, checker)
 
 			var bodyBytes []byte
 			if tt.bodyRaw != "" {
@@ -433,7 +431,7 @@ func TestCreateEstimate_AuthStaffIDWinsOverBodyCreatedBy(t *testing.T) {
 	// AUD-005: body created_by must be ignored; extractStaffID wins.
 	gin.SetMode(gin.TestMode)
 	h := newHandlerWithEstimateSvc(&mockEstimateService{
-		createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+		createFn: func(_ context.Context, _ uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 			require.NotNil(t, input.CreatedBy)
 			assert.Equal(t, uint64(1), *input.CreatedBy, "auth staff must win over body created_by")
 			return &model.Estimate{ID: 11, Title: input.Title, CreatedBy: input.CreatedBy}, nil
@@ -456,15 +454,15 @@ func TestUpdateEstimate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		paramID    string
-		body       any
-		bodyRaw    string
-		setupCtx   func(c *gin.Context)
-		svc        *mockEstimateService
-		permSvc    *mockEffectivePermissionService
-		wantStatus int
-		wantBody   string
+		name          string
+		paramID       string
+		body          any
+		bodyRaw       string
+		setupCtx      func(c *gin.Context)
+		svc           *mockEstimateService
+		hasPermission httpapi.PermissionChecker
+		wantStatus    int
+		wantBody      string
 	}{
 		{
 			name:     "updates estimate successfully without discount change",
@@ -472,7 +470,7 @@ func TestUpdateEstimate(t *testing.T) {
 			body:     map[string]any{"title": "更新後"},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					require.NotNil(t, input.Title)
@@ -491,7 +489,7 @@ func TestUpdateEstimate(t *testing.T) {
 			body:     map[string]any{"status": "approved"},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 					require.NotNil(t, input.Status)
 					assert.Equal(t, model.EstimateStatus("approved"), *input.Status)
 					return &model.Estimate{ID: 1, Status: model.EstimateStatusApproved}, nil
@@ -505,7 +503,7 @@ func TestUpdateEstimate(t *testing.T) {
 			body:     map[string]any{"status": "rejected"},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 					require.NotNil(t, input.Status)
 					assert.Equal(t, model.EstimateStatus("rejected"), *input.Status)
 					return &model.Estimate{ID: 1, Status: model.EstimateStatusRejected}, nil
@@ -522,7 +520,7 @@ func TestUpdateEstimate(t *testing.T) {
 				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
 					require.NotNil(t, input.DiscountAmount)
 					assert.Equal(t, int64(500), *input.DiscountAmount)
 					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
@@ -572,7 +570,7 @@ func TestUpdateEstimate(t *testing.T) {
 			body:     map[string]any{"title": "更新後"},
 			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateEstimateInput) (*model.Estimate, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateEstimateInput) (*model.Estimate, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -589,21 +587,19 @@ func TestUpdateEstimate(t *testing.T) {
 					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
 				},
 			},
-			permSvc: &mockEffectivePermissionService{
-				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-					return []model.PermissionGroupRule{}, nil
-				},
-			},
-			wantStatus: http.StatusForbidden,
+			// 旧mockEffectivePermissionService(rules空)=deny写像（BE9-2D⑥先例）
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusForbidden,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := newHandlerWithEstimateSvc(tt.svc)
-			if tt.permSvc != nil {
-				h.svc.EffectivePermission = tt.permSvc
+			checker := httpapi.PermissionChecker(func(_ *gin.Context, _, _ string) bool { return true })
+			if tt.hasPermission != nil {
+				checker = tt.hasPermission
 			}
+			h := NewEstimateHandler(tt.svc, checker)
 
 			var bodyBytes []byte
 			if tt.bodyRaw != "" {

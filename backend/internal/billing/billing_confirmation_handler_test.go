@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"bytes"
@@ -15,33 +15,32 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock BillingConfirmationService ----
 
 type mockBillingConfirmationService struct {
 	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
-	confirmFn     func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error)
-	returnFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error)
+	confirmFn     func(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error)
+	returnFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error)
 }
 
 func (m *mockBillingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	return m.getOrCreateFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockBillingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+func (m *mockBillingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	return m.confirmFn(ctx, clinicID, medicalRecordID, input)
 }
 
-func (m *mockBillingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+func (m *mockBillingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	return m.returnFn(ctx, clinicID, medicalRecordID, input)
 }
 
 // ---- test helper ----
 
-func newHandlerWithBillingConfirmationSvc(svc service.BillingConfirmationService) *Handler {
-	return &Handler{svc: &service.Services{BillingConfirmation: svc}}
+func newHandlerWithBillingConfirmationSvc(svc BillingConfirmationService) *BillingConfirmationHandler {
+	return NewBillingConfirmationHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- GetBillingConfirmation ----
@@ -141,7 +140,7 @@ func TestConfirmBillingConfirmation(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingConfirmationService{
-				confirmFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+				confirmFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), medicalRecordID)
 					assert.Equal(t, uint64(3), input.ConfirmedBy)
@@ -189,7 +188,7 @@ func TestConfirmBillingConfirmation(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingConfirmationService{
-				confirmFn: func(_ context.Context, _, _ uint64, _ *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+				confirmFn: func(_ context.Context, _, _ uint64, _ *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 					return nil, apperrors.WrapConflict("already confirmed")
 				},
 			},
@@ -248,7 +247,7 @@ func TestReturnBillingConfirmation(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingConfirmationService{
-				returnFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+				returnFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), medicalRecordID)
 					assert.Equal(t, uint64(3), input.ReturnedBy)
@@ -297,7 +296,7 @@ func TestReturnBillingConfirmation(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingConfirmationService{
-				returnFn: func(_ context.Context, _, _ uint64, _ *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+				returnFn: func(_ context.Context, _, _ uint64, _ *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

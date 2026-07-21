@@ -1,4 +1,4 @@
-package service
+package billing
 
 // estimate_audit_diff.go — BE9-2D ⑦: audit_diff.go の medicalrecord 移動に伴い、estimate（billing
 // 残留 domain）系 diff のみ本 package へ分離（単一実装・複製なし）。移設 = billing domain 移行時。

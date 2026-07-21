@@ -1,11 +1,10 @@
-package handler
+package billing
 
 import (
 	"net/url"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listEstimateQuery struct {
@@ -61,8 +60,8 @@ type createEstimateRequest struct {
 }
 
 // toServiceInput は認証済み staffID を created_by に設定する（body の created_by は受け取らない・AUD-005）。
-func (r *createEstimateRequest) toServiceInput(staffID uint64) *service.CreateEstimateInput {
-	input := &service.CreateEstimateInput{
+func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateInput {
+	input := &CreateEstimateInput{
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
 		OwnerID:         r.OwnerID,
@@ -97,8 +96,8 @@ type updateEstimateRequest struct {
 	Notes           *string    `json:"notes"`
 }
 
-func (r *updateEstimateRequest) toServiceInput(actorID uint64) *service.UpdateEstimateInput {
-	input := &service.UpdateEstimateInput{
+func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateInput {
+	input := &UpdateEstimateInput{
 		Title:           r.Title,
 		Subtotal:        r.Subtotal,
 		TaxTotal:        r.TaxTotal,
