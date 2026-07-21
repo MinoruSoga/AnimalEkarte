@@ -1,4 +1,4 @@
-package repository
+package lstep
 
 // lstep_tag_config_repository_test.go — LstepTagConfigRepository 統合テスト。
 //
@@ -18,14 +18,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupLstepTagConfigTestDB は lstep_auto_managed_prefixes / lstep_condition_tag_mappings /
 // lstep_send_purpose_tag_prefixes テーブルを用意する（いずれも clinic_id を持たないグローバルマスタ）。
 func setupLstepTagConfigTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.LstepAutoManagedPrefix{},
 		&model.LstepConditionTagMapping{},
 		&model.LstepSendPurposeTagPrefix{},

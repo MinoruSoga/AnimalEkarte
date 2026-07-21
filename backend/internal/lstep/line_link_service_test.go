@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -23,7 +23,9 @@ import (
 
 // --- mock: OwnerRepository (line_link 用の最小実装) ---
 
-type mockLineLinkOwnerRepo struct {
+// mockLstepOwnerRepo は lstepOwnerRepo view（5メソッド）の mock。
+// line_link/line_send/line_customer の 3 service が同一 view を共有する。
+type mockLstepOwnerRepo struct {
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	findAllByLineUserIDFn  func(ctx context.Context, lineUserID string) ([]model.Owner, error)
 	updateLineUserIDFn     func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
@@ -31,72 +33,35 @@ type mockLineLinkOwnerRepo struct {
 	updateLineBlockedAtFn  func(ctx context.Context, clinicID, id uint64, t time.Time) error
 }
 
-func (m *mockLineLinkOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+func (m *mockLstepOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
-func (m *mockLineLinkOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockLineLinkOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindByPhone(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindByNameAndPhone(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLineLinkOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
-	return nil
-}
-func (m *mockLineLinkOwnerRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
-}
-func (m *mockLineLinkOwnerRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockLineLinkOwnerRepo) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
-	if m.updateLineUserIDFn != nil {
-		return m.updateLineUserIDFn(ctx, clinicID, id, lineUserID)
-	}
-	return nil
-}
-func (m *mockLineLinkOwnerRepo) FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error) {
+func (m *mockLstepOwnerRepo) FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error) {
 	if m.findAllByLineUserIDFn != nil {
 		return m.findAllByLineUserIDFn(ctx, lineUserID)
 	}
 	return nil, nil
 }
-func (m *mockLineLinkOwnerRepo) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+func (m *mockLstepOwnerRepo) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
+	if m.updateLineUserIDFn != nil {
+		return m.updateLineUserIDFn(ctx, clinicID, id, lineUserID)
+	}
+	return nil
+}
+func (m *mockLstepOwnerRepo) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
 	if m.updateLineFollowedAtFn != nil {
 		return m.updateLineFollowedAtFn(ctx, clinicID, id, t)
 	}
 	return nil
 }
-func (m *mockLineLinkOwnerRepo) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+func (m *mockLstepOwnerRepo) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
 	if m.updateLineBlockedAtFn != nil {
 		return m.updateLineBlockedAtFn(ctx, clinicID, id, t)
 	}
 	return nil
-}
-func (m *mockLineLinkOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockLineLinkOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
-	return nil, nil
 }
 
 // --- mock: LineLinkTokenRepository ---
@@ -150,7 +115,7 @@ func (m *mockLineLinkSettingRepo) Save(_ context.Context, _ uint64, _ *model.Lin
 }
 
 func newTestLineLinkService(
-	ownerRepo *mockLineLinkOwnerRepo,
+	ownerRepo *mockLstepOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
 ) LineLinkService {
@@ -161,7 +126,7 @@ func newTestLineLinkService(
 
 func TestLineLinkService_GenerateLinkToken_Success(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{},
 	)
@@ -176,7 +141,7 @@ func TestLineLinkService_GenerateLinkToken_Success(t *testing.T) {
 
 func TestLineLinkService_GenerateLinkToken_OwnerNotFound(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 				return nil, apperrors.WrapNotFound("owner", "42")
 			},
@@ -190,7 +155,7 @@ func TestLineLinkService_GenerateLinkToken_OwnerNotFound(t *testing.T) {
 
 func TestLineLinkService_GenerateLinkToken_NoLiffID(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{
 			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -213,7 +178,7 @@ func makeLineSignature(body []byte, secret string) string {
 
 func TestLineLinkService_HandleWebhook_InvalidSignature(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{},
 	)
@@ -227,7 +192,7 @@ func TestLineLinkService_HandleWebhook_FollowEvent(t *testing.T) {
 	followedAt := false
 
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
 				return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
 			},
@@ -266,7 +231,7 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 
 	lineUserID := "Uabc123"
 	followedAt := false
-	ownerRepo := &mockLineLinkOwnerRepo{
+	ownerRepo := &mockLstepOwnerRepo{
 		findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
 			return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
 		},
@@ -304,7 +269,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent(t *testing.T) {
 	blockedAt := false
 
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
 				return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
 			},
@@ -339,7 +304,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_InvalidLineToken(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{},
 	)
@@ -392,7 +357,7 @@ func (errReadCloser) Read(_ []byte) (int, error) { return 0, errors.New("read er
 func (errReadCloser) Close() error               { return nil }
 
 func newTestLineLinkServiceFull(
-	ownerRepo *mockLineLinkOwnerRepo,
+	ownerRepo *mockLstepOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
 	auditSvc *mockAuditService,
@@ -487,7 +452,7 @@ func TestVerifyLineIDToken(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_TokenNotFound(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
 				return nil, errors.New("not found")
@@ -506,7 +471,7 @@ func TestLineLinkService_LinkAccount_TokenNotFound(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_ClinicMismatch(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 2, OwnerID: 10}, nil
@@ -525,7 +490,7 @@ func TestLineLinkService_LinkAccount_ClinicMismatch(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_OwnerNotFound(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 				return nil, errors.New("not found")
 			},
@@ -548,7 +513,7 @@ func TestLineLinkService_LinkAccount_OwnerNotFound(t *testing.T) {
 func TestLineLinkService_LinkAccount_AlreadyLinkedConflict(t *testing.T) {
 	existing := "Uold"
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 				return &model.Owner{ID: id, LineUserID: &existing}, nil
 			},
@@ -573,7 +538,7 @@ func TestLineLinkService_LinkAccount_ForceOverridesExisting(t *testing.T) {
 	existing := "Uold"
 	updateCalled := false
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 				return &model.Owner{ID: id, LineUserID: &existing}, nil
 			},
@@ -605,7 +570,7 @@ func TestLineLinkService_LinkAccount_ForceOverridesExisting(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			updateLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string) error {
 				return errors.New("db error")
 			},
@@ -627,7 +592,7 @@ func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_MarkUsedError(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
@@ -648,7 +613,7 @@ func TestLineLinkService_LinkAccount_MarkUsedError(t *testing.T) {
 
 func TestLineLinkService_LinkAccount_AuditLogFailureStillSucceeds(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
@@ -671,7 +636,7 @@ func TestLineLinkService_LinkAccount_AuditLogFailureStillSucceeds(t *testing.T) 
 
 func TestLineLinkService_LinkAccount_Success(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
@@ -694,7 +659,7 @@ func TestLineLinkService_LinkAccount_Success(t *testing.T) {
 
 func TestLineLinkService_GenerateLinkToken_CreateError(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
 			createFn: func(_ context.Context, _ *model.LineLinkToken) error {
 				return errors.New("db error")
@@ -708,7 +673,7 @@ func TestLineLinkService_GenerateLinkToken_CreateError(t *testing.T) {
 
 func TestLineLinkService_GenerateLinkToken_SettingRepoError(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{},
+		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{
 			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
@@ -723,7 +688,7 @@ func TestLineLinkService_GenerateLinkToken_SettingRepoError(t *testing.T) {
 // --- HandleWebhook additional branch tests ---
 
 func TestLineLinkService_HandleWebhook_InvalidBody(t *testing.T) {
-	svc := newTestLineLinkService(&mockLineLinkOwnerRepo{}, &mockLineLinkTokenRepo{}, &mockLineLinkSettingRepo{})
+	svc := newTestLineLinkService(&mockLstepOwnerRepo{}, &mockLineLinkTokenRepo{}, &mockLineLinkSettingRepo{})
 	body := []byte(`not-json`)
 	sig := makeLineSignature(body, "secret")
 
@@ -736,7 +701,7 @@ func TestLineLinkService_HandleWebhook_InvalidBody(t *testing.T) {
 func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 	handlerCalled := false
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
 				handlerCalled = true
 				return nil, nil
@@ -764,7 +729,7 @@ func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 
 func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnersErrorIsLoggedNotReturned(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
 				return nil, errors.New("db error")
 			},
@@ -790,7 +755,7 @@ func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnersErrorIsLoggedNotRet
 
 func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnersErrorIsLoggedNotReturned(t *testing.T) {
 	svc := newTestLineLinkService(
-		&mockLineLinkOwnerRepo{
+		&mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
 				return nil, errors.New("db error")
 			},
@@ -818,7 +783,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnersErrorIsLoggedNotR
 
 func TestHandleFollowEvent_UpdateErrorIsLoggedNotReturned(t *testing.T) {
 	svc := &lineLinkService{
-		ownerRepo: &mockLineLinkOwnerRepo{
+		ownerRepo: &mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
 				return []model.Owner{{ID: 1, ClinicID: 1}}, nil
 			},
@@ -835,7 +800,7 @@ func TestHandleFollowEvent_UpdateErrorIsLoggedNotReturned(t *testing.T) {
 
 func TestHandleUnfollowEvent_UpdateErrorIsLoggedNotReturned(t *testing.T) {
 	svc := &lineLinkService{
-		ownerRepo: &mockLineLinkOwnerRepo{
+		ownerRepo: &mockLstepOwnerRepo{
 			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
 				return []model.Owner{{ID: 1, ClinicID: 1}}, nil
 			},

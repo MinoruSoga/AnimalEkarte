@@ -1,4 +1,4 @@
-package repository
+package lstep
 
 // line_link_token_repository_test.go — LineLinkTokenRepository 統合テスト（BE-021）。
 //
@@ -18,13 +18,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupLineLinkTokenTestDB は line_link_tokens テーブルを整備する。
 func setupLineLinkTokenTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.LineLinkToken{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LineLinkToken{}))
 	db.Exec("TRUNCATE TABLE line_link_tokens CASCADE")
 	return db
 }

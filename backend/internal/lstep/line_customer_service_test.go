@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func (m *mockLineCustomerRepositoryFull) UpdateAdditionalFields(_ context.Contex
 }
 
 func TestNewLineCustomerService(t *testing.T) {
-	svc := NewLineCustomerService(&mockLineCustomerRepositoryFull{}, &mockLineLinkOwnerRepo{})
+	svc := NewLineCustomerService(&mockLineCustomerRepositoryFull{}, &mockLstepOwnerRepo{})
 	assert.NotNil(t, svc)
 }
 
@@ -91,7 +91,7 @@ func TestLineCustomerService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewLineCustomerService(repo, &mockLineLinkOwnerRepo{})
+			svc := NewLineCustomerService(repo, &mockLstepOwnerRepo{})
 
 			customers, err := svc.List(context.Background(), 1)
 
@@ -198,7 +198,7 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 					return tt.updateOwnerLinkErr
 				},
 			}
-			ownerRepo := &mockLineLinkOwnerRepo{
+			ownerRepo := &mockLstepOwnerRepo{
 				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
 					ownerLookupCalled = true
 					if tt.ownerFindByIDErr != nil {

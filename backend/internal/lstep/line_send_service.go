@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	lineinfra "github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 func purposeTagNameFromPrefixes(purpose string, t time.Time, prefixes []*model.LstepSendPurposeTagPrefix) string {
@@ -44,12 +43,12 @@ type LineSendService interface {
 
 type lineSendService struct {
 	lstepSettings LstepSettingsService
-	ownerRepo     repository.OwnerRepository
-	sharedFile    SharedFileService
-	tagCacheRepo  repository.LstepTagCacheRepository
-	auditSvc      AuditService
-	logRepo       repository.LineSendLogRepository
-	tagConfigRepo repository.LstepTagConfigRepository
+	ownerRepo     lstepOwnerRepo
+	sharedFile    lstepSharedFileService
+	tagCacheRepo  LstepTagCacheRepository
+	auditSvc      lstepAuditLogger
+	logRepo       LineSendLogRepository
+	tagConfigRepo LstepTagConfigRepository
 	// newLineClient は LINE Messaging API クライアントのファクトリ。
 	// 本番では lineinfra.NewMessagingClient（実際に外部 API へ通信する）で初期化される。
 	// テスト時にのみ差し替え可能にするためのテスト容易性シーム（振る舞いは変更しない）。
@@ -58,12 +57,12 @@ type lineSendService struct {
 
 func NewLineSendService(
 	lstepSettings LstepSettingsService,
-	ownerRepo repository.OwnerRepository,
-	sharedFile SharedFileService,
-	tagCacheRepo repository.LstepTagCacheRepository,
-	auditSvc AuditService,
-	logRepo repository.LineSendLogRepository,
-	tagConfigRepo repository.LstepTagConfigRepository,
+	ownerRepo lstepOwnerRepo,
+	sharedFile lstepSharedFileService,
+	tagCacheRepo LstepTagCacheRepository,
+	auditSvc lstepAuditLogger,
+	logRepo LineSendLogRepository,
+	tagConfigRepo LstepTagConfigRepository,
 ) LineSendService {
 	return &lineSendService{
 		lstepSettings: lstepSettings,

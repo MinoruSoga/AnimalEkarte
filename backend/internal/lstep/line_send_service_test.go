@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	lineinfra "github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- mock LineSendLogRepository ----
@@ -42,23 +41,11 @@ type mockSharedFileSvc struct {
 	getSignedURLFn func(ctx context.Context, clinicID, id uint64) (string, error)
 }
 
-func (m *mockSharedFileSvc) Upload(_ context.Context, _, _ uint64, _ *UploadSharedFileInput) (*SharedFileResponse, error) {
-	return nil, nil
-}
 func (m *mockSharedFileSvc) GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error) {
 	if m.getSignedURLFn != nil {
 		return m.getSignedURLFn(ctx, clinicID, id)
 	}
 	return "", nil
-}
-func (m *mockSharedFileSvc) FindAll(_ context.Context, _ uint64) ([]*SharedFileResponse, error) {
-	return nil, nil
-}
-func (m *mockSharedFileSvc) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockSharedFileSvc) CleanupExpired(_ context.Context) error {
-	return nil
 }
 
 // ---- mock lineinfra.MessagingClient ----
@@ -99,7 +86,7 @@ var _ lineinfra.MessagingClient = (*mockLineMessagingClient)(nil)
 
 // ---- helpers ----
 
-func newLineSendSvc(ownerRepo repository.OwnerRepository, logRepo repository.LineSendLogRepository) LineSendService {
+func newLineSendSvc(ownerRepo lstepOwnerRepo, logRepo LineSendLogRepository) LineSendService {
 	return NewLineSendService(
 		&mockLstepSettingsService{},
 		ownerRepo,
@@ -114,12 +101,12 @@ func newLineSendSvc(ownerRepo repository.OwnerRepository, logRepo repository.Lin
 // lineSendTestDeps は Send() の全依存関係を差し替え可能にするテスト用の構成一式。
 type lineSendTestDeps struct {
 	settings      *mockLstepSettingsService
-	ownerRepo     repository.OwnerRepository
+	ownerRepo     lstepOwnerRepo
 	sharedFile    *mockSharedFileSvc
 	tagCacheRepo  *mockLstepTagCacheRepository
-	auditSvc      AuditService
-	logRepo       repository.LineSendLogRepository
-	tagConfigRepo repository.LstepTagConfigRepository
+	auditSvc      lstepAuditLogger
+	logRepo       LineSendLogRepository
+	tagConfigRepo LstepTagConfigRepository
 	lineClient    lineinfra.MessagingClient
 }
 
@@ -130,7 +117,7 @@ func newLineSendSvcFull(d lineSendTestDeps) LineSendService {
 		d.settings = &mockLstepSettingsService{}
 	}
 	if d.ownerRepo == nil {
-		d.ownerRepo = &mockOwnerRepository{}
+		d.ownerRepo = &mockLstepOwnerRepo{}
 	}
 	if d.sharedFile == nil {
 		d.sharedFile = &mockSharedFileSvc{}
@@ -195,7 +182,7 @@ func TestGetSendLogs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newLineSendSvc(&mockOwnerRepository{}, tt.logRepo)
+			svc := newLineSendSvc(&mockLstepOwnerRepo{}, tt.logRepo)
 			logs, err := svc.GetSendLogs(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -208,7 +195,7 @@ func TestGetSendLogs(t *testing.T) {
 }
 
 func TestSend_OwnerNotFound(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return nil, errors.New("not found")
 		},
@@ -219,7 +206,7 @@ func TestSend_OwnerNotFound(t *testing.T) {
 }
 
 func TestSend_NoLineUserID(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return &model.Owner{ID: 1}, nil
 		},
@@ -230,7 +217,7 @@ func TestSend_NoLineUserID(t *testing.T) {
 }
 
 func TestSend_LstepOptOut(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return &model.Owner{ID: 1, LstepOptOut: true}, nil
 		},
@@ -241,7 +228,7 @@ func TestSend_LstepOptOut(t *testing.T) {
 }
 
 func TestSend_CredentialsError(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -258,7 +245,7 @@ func TestSend_CredentialsError(t *testing.T) {
 }
 
 func TestSend_InvalidMessageType(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -272,7 +259,7 @@ func TestSend_InvalidMessageType(t *testing.T) {
 }
 
 func TestSend_PdfUrlMissingFileID(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -287,7 +274,7 @@ func TestSend_PdfUrlMissingFileID(t *testing.T) {
 
 func TestSend_PdfUrlSignedURLError(t *testing.T) {
 	fileID := uint64(5)
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -304,7 +291,7 @@ func TestSend_PdfUrlSignedURLError(t *testing.T) {
 }
 
 func TestSend_TextSuccess(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -335,7 +322,7 @@ func TestSend_TextSuccess(t *testing.T) {
 }
 
 func TestSend_TextPushError(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -363,7 +350,7 @@ func TestSend_TextPushError(t *testing.T) {
 
 func TestSend_ImageURLSuccess(t *testing.T) {
 	fileID := uint64(5)
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -391,7 +378,7 @@ func TestSend_ImageURLSuccess(t *testing.T) {
 
 func TestSend_PdfURLSuccess_UsesFileNameAsAltText(t *testing.T) {
 	fileID := uint64(5)
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -419,7 +406,7 @@ func TestSend_PdfURLSuccess_UsesFileNameAsAltText(t *testing.T) {
 
 func TestSend_PdfURLSuccess_DefaultsAltTextWhenFileNameEmpty(t *testing.T) {
 	fileID := uint64(5)
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -445,7 +432,7 @@ func TestSend_PdfURLSuccess_DefaultsAltTextWhenFileNameEmpty(t *testing.T) {
 }
 
 func TestSend_WithPurposeTag(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -472,7 +459,7 @@ func TestSend_WithPurposeTag(t *testing.T) {
 }
 
 func TestSend_TagCacheUpsertErrorDoesNotFailSend(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -496,7 +483,7 @@ func TestSend_TagCacheUpsertErrorDoesNotFailSend(t *testing.T) {
 }
 
 func TestSend_PurposePrefixFetchErrorDoesNotFailSend(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -515,7 +502,7 @@ func TestSend_PurposePrefixFetchErrorDoesNotFailSend(t *testing.T) {
 }
 
 func TestSend_LogRepoCreateErrorDoesNotFailSend(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},
@@ -534,7 +521,7 @@ func TestSend_LogRepoCreateErrorDoesNotFailSend(t *testing.T) {
 }
 
 func TestSend_AuditLogErrorDoesNotFailSend(t *testing.T) {
-	ownerRepo := &mockOwnerRepository{
+	ownerRepo := &mockLstepOwnerRepo{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 			return ownerWithLineUserID(), nil
 		},

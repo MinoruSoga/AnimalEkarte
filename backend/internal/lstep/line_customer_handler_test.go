@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestLineCustomerHandlerCompiles verifies line_customer_handler.go compiles
@@ -46,8 +45,8 @@ func (m *mockLineCustomerService) LinkOwner(ctx context.Context, clinicID, id ui
 
 // ---- test helper ----
 
-func newHandlerWithLineCustomerSvc(svc service.LineCustomerService) *Handler {
-	return &Handler{svc: &service.Services{LineCustomer: svc}}
+func newHandlerWithLineCustomerSvc(svc LineCustomerService) *LineCustomerHandler {
+	return NewLineCustomerHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- ListLineCustomers ----

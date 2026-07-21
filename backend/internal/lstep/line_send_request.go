@@ -1,6 +1,4 @@
-package handler
-
-import "github.com/animal-ekarte/backend/internal/service"
+package lstep
 
 // normalizeMessageType は FE から送られる message_type エイリアスをサービス内部値に変換する（ISSUE-002）。
 func normalizeMessageType(t string) string {
@@ -22,13 +20,13 @@ type lineSendRequest struct {
 	Purpose     string  `json:"purpose"`
 }
 
-func (r lineSendRequest) toServiceInput(ownerID, staffID uint64) *service.SendLineMessageInput {
+func (r lineSendRequest) toServiceInput(ownerID, staffID uint64) *SendLineMessageInput {
 	purpose := r.Purpose
 	if purpose == "" {
 		purpose = "other"
 	}
 
-	return &service.SendLineMessageInput{
+	return &SendLineMessageInput{
 		OwnerID:     ownerID,
 		StaffID:     staffID,
 		MessageType: normalizeMessageType(r.MessageType),

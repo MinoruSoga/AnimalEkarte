@@ -1,9 +1,10 @@
-package handler
+package lstep
 
 import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -34,7 +35,7 @@ func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 		AdditionalFields: json.RawMessage(rc.AdditionalFields),
 		OwnerID:          rc.OwnerID,
 		OwnerName:        ownerName,
-		CreatedAt:        localTime(rc.CreatedAt),
-		UpdatedAt:        localTime(rc.UpdatedAt),
+		CreatedAt:        httpapi.LocalTime(rc.CreatedAt),
+		UpdatedAt:        httpapi.LocalTime(rc.UpdatedAt),
 	}
 }

@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -18,9 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/infra/line"
-	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // LinkTokenResult は GenerateLinkToken の返り値。
@@ -59,10 +57,10 @@ type LineLinkService interface {
 }
 
 type lineLinkService struct {
-	ownerRepo         repository.OwnerRepository
-	lineLinkTokenRepo repository.LineLinkTokenRepository
-	lineSettingRepo   repository.LineReservationSettingRepository
-	auditSvc          AuditService
+	ownerRepo         lstepOwnerRepo
+	lineLinkTokenRepo LineLinkTokenRepository
+	lineSettingRepo   lstepLineSettingReader
+	auditSvc          lstepAuditLogger
 	// cipher は Webhook 署名検証時に line_channel_secret を復号するために使う（H-4）。
 	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 	cipher *crypto.AESGCMCipher
@@ -74,10 +72,10 @@ type lineLinkService struct {
 // NewLineLinkService は LineLinkService を初期化して返す。
 // cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
 func NewLineLinkService(
-	ownerRepo repository.OwnerRepository,
-	lineLinkTokenRepo repository.LineLinkTokenRepository,
-	lineSettingRepo repository.LineReservationSettingRepository,
-	auditSvc AuditService,
+	ownerRepo lstepOwnerRepo,
+	lineLinkTokenRepo LineLinkTokenRepository,
+	lineSettingRepo lstepLineSettingReader,
+	auditSvc lstepAuditLogger,
 	cipher *crypto.AESGCMCipher,
 ) LineLinkService {
 	return &lineLinkService{
@@ -262,7 +260,7 @@ func (s *lineLinkService) verifySignatureAnyClinic(ctx context.Context, body []b
 	for i := range settings {
 		setting := &settings[i]
 		// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
-		secret := lstep.DecryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
+		secret := DecryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
 		if secret == "" {
 			continue
 		}
@@ -283,7 +281,7 @@ func verifyLineSignature(body []byte, signature, channelSecret string) bool {
 
 // verifyLineIDToken は LINE API でIDトークンを検証し LINE User ID を返す。
 // client は呼び出しに使う *http.Client（テスト容易性のためのシーム）。nil の場合は http.DefaultClient を使う。
-func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo repository.LineReservationSettingRepository, client *http.Client) (string, error) {
+func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo lstepLineSettingReader, client *http.Client) (string, error) {
 	setting, err := settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return "", apperrors.Wrap(err, "failed to get line channel id")

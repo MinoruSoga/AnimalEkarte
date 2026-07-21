@@ -1,6 +1,9 @@
-package handler
+package lstep
 
-import "github.com/animal-ekarte/backend/internal/model"
+import (
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
+)
 
 type lineSendResponse struct {
 	Sent     bool   `json:"sent"`
@@ -28,7 +31,7 @@ func toLineSendLogResponse(l *model.LineSendLog) lineSendLogResponse {
 		ContentSummary: l.ContentSummary,
 		Status:         l.Status,
 		ErrorMessage:   l.ErrorMessage,
-		SentAt:         localTimeRFC3339(l.SentAt),
+		SentAt:         httpapi.LocalTimeRFC3339(l.SentAt),
 	}
 }
 

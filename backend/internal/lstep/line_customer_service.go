@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // LineCustomerService は予約顧客のビジネスロジックインターフェース
@@ -16,11 +15,11 @@ type LineCustomerService interface {
 }
 
 type lineCustomerService struct {
-	repo      repository.LineCustomerRepository
-	ownerRepo repository.OwnerRepository
+	repo      LineCustomerRepository
+	ownerRepo lstepOwnerRepo
 }
 
-func NewLineCustomerService(repo repository.LineCustomerRepository, ownerRepo repository.OwnerRepository) LineCustomerService {
+func NewLineCustomerService(repo LineCustomerRepository, ownerRepo lstepOwnerRepo) LineCustomerService {
 	return &lineCustomerService{repo: repo, ownerRepo: ownerRepo}
 }
 

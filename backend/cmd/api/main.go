@@ -406,6 +406,9 @@ func main() {
 	// LIFF レートリミット store（cleanup goroutine は appCtx ライフタイム）
 	liffRateLimitStore := middleware.NewRateLimitStore(appCtx)
 
+	// lstep domain（BE9-2C L①〜）: LINE 紐付け handler は LIFF route 注入で reservation より先に構築する
+	lstepLineLinkHandler := lstep.NewLineLinkHandler(svcs.LineLink, handler.RespondLinkedOwner, h.RequirePermission)
+
 	// reservation domain（BE9-2C R①〜）: reservation_type 系 master routes
 	reservationHandler := reservation.NewHandler(
 		reservation.NewReservationTypeHandler(svcs.ReservationType, svcs.ReservationTypeUnavailableTime, svcs.ReservationTypeAvailableSlot, svcs.ReservationTypeOccupation),
@@ -419,7 +422,7 @@ func main() {
 		reservation.NewLiffHandler(svcs.Liff, svcs.StaffClinicAssignment),
 		middleware.LiffAuth(repos.LineCustomerMgr, repos.LineReservationSetting),
 		func(limit int) gin.HandlerFunc { return middleware.LiffRateLimit(liffRateLimitStore, limit) },
-		h.LinkLiffAccount,
+		lstepLineLinkHandler.LinkLiffAccount,
 		h.RequirePermission,
 	)
 	reservationHandler.RegisterRoutes(protected)
@@ -445,9 +448,14 @@ func main() {
 	// lstep domain（BE9-2C L①〜）
 	lstepHandler := lstep.NewHandler(
 		lstep.NewLstepSettingsHandler(svcs.LstepSettings, h.RequirePermission),
+		lstep.NewLineSendHandler(svcs.LineSend, h.RequirePermission),
+		lstepLineLinkHandler,
+		lstep.NewLineCustomerHandler(svcs.LineCustomer, h.RequirePermission),
 		h.RequirePermission,
 	)
 	lstepHandler.RegisterRoutes(protected)
+	// LINE Webhook（JWT 認証なし・HMAC 署名検証）
+	lstepHandler.RegisterWebhookRoutes(r)
 
 	// HTTPサーバー設定
 	server := &http.Server{

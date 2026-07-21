@@ -112,7 +112,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// BE9-2D: /checkups (+ /checkups/field-results) moved to
 	// internal/medicalrecord.Handler.RegisterRoutes (composed in cmd/api/main.go).
 	// 明細 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③）
-	h.RegisterLineReservationRoutes(protected)
+	// LINE 予約管理 routes は internal/reservation・internal/lstep へ完全移動済み（BE9-2C R①〜R⑥/L②）
 	// FEAT-368: 集計・締め機能
 	h.RegisterClosingSettingsRoutes(protected)
 	// レジ締め・月次レポート routes は internal/billing.RegisterRoutes へ移動（BE9-2C B⑤）
@@ -146,7 +146,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// LIFF 公開 API routes は internal/reservation.RegisterLiffRoutes へ移動（BE9-2C R⑤・main.go 配線）
 
 	// BE-021: LINE Webhook（JWT認証なし・HMAC-SHA256署名検証）
-	r.POST("/api/line/webhook", h.ReceiveLineWebhook)
+	// LINE Webhook は internal/lstep.RegisterWebhookRoutes へ移動（BE9-2C L②・main.go 配線）
 
 	return protected
 }
@@ -192,9 +192,7 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	// BE-013: LINE個別送信。owners側は /lstep/send・/lstep/send-history エイリアスを含む4ルート、
 	// co側はそのうち2ルートのみ（下記）— co側に2ルート無い理由は未文書化（現状維持）
-	h.RegisterLineSendRoutes(owners)
-	// BE-021: LINE User ID 自動取得・飼い主紐付けトークン発行。co側に無い理由は未文書化（現状維持）
-	owners.POST("/:id/line/link-token", h.RequirePermission(string(model.ResourceOwners), "edit"), h.GenerateLineLinkToken)
+	// LINE 個別送信 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
 
 	// ISSUE-001/ISSUE-002: FE が /clinics/:clinic_id/owners/:id/... プレフィックスで呼ぶルートのエイリアス
 	// extractClinicID は JWT コンテキストから clinic_id を取得するため :clinic_id URL パラムは無視される
@@ -208,8 +206,7 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
 	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
-	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.SendLineMessage)
-	co.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
+	// co側 LINE 個別送信 2ルートは internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
 	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
 }

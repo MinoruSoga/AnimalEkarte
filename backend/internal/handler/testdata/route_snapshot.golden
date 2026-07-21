@@ -29,7 +29,6 @@ DELETE /api/v1/trimmings/:id DeleteTrimming
 GET /api/v1/clinic-holidays ListClinicHolidays
 GET /api/v1/clinics ListClinics
 GET /api/v1/clinics/:clinic_id GetClinic
-GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats GetLstepMonthlyDeliveryStats
 GET /api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion GetLstepVisitConversionSummary
@@ -40,7 +39,6 @@ GET /api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary GetLstepDeliveryTr
 GET /api/v1/clinics/:clinic_id/lstep/owners SearchLstepOwnersByTag
 GET /api/v1/clinics/:clinic_id/lstep/tag-summary GetLstepTagSummary
 GET /api/v1/clinics/:clinic_id/lstep/trigger-priorities GetLstepTriggerPriorities
-GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes GetLstepOwnerFriendAttributes
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
@@ -82,8 +80,6 @@ GET /api/v1/masters/trimming-options/:id GetTrimmingOption
 GET /api/v1/me GetMe
 GET /api/v1/owners ListOwners
 GET /api/v1/owners/:id GetOwner
-GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
-GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs
 GET /api/v1/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/pets ListPets
 GET /api/v1/pets/:id GetPet
@@ -101,7 +97,6 @@ GET /health Health
 GET /uploads/*filepath func1
 HEAD /uploads/*filepath func1
 PATCH /api/v1/clinics/:clinic_id UpdateClinic
-PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
 PATCH /api/v1/clinics/:clinic_id/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-caution UpdateOwnerDeliveryCaution
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
@@ -145,7 +140,6 @@ PATCH /api/v1/shift-templates/:id UpdateShiftTemplate
 PATCH /api/v1/shift-templates/reorder ReorderShiftTemplates
 PATCH /api/v1/shifts/:id UpdateShiftEntry
 PATCH /api/v1/trimmings/:id UpdateTrimming
-POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/auth/forgot-password ForgotPassword
 POST /api/v1/auth/refresh RefreshToken
 POST /api/v1/auth/reset-password ResetPassword
@@ -153,7 +147,6 @@ POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
 POST /api/v1/clinics/:clinic_id/lstep/checkup-sync CreateCheckupSync
 POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepFriendAttributesCsv
-POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/closing-settings/holidays SetClinicHoliday
@@ -173,10 +166,7 @@ POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType
 POST /api/v1/masters/trimming-courses CreateTrimmingCourse
 POST /api/v1/masters/trimming-options CreateTrimmingOption
 POST /api/v1/owners CreateOwner
-POST /api/v1/owners/:id/line/link-token GenerateLineLinkToken
-POST /api/v1/owners/:id/line/send SendLineMessage
 POST /api/v1/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
-POST /api/v1/owners/:id/lstep/send SendLineMessage
 POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/pets CreatePet
 POST /api/v1/pets/:id/chronic-conditions CreateChronicCondition

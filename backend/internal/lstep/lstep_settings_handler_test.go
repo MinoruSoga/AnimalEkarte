@@ -23,6 +23,8 @@ type mockLstepSettingsService struct {
 	updateSettingsFn func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
 	deleteSettingsFn func(ctx context.Context, clinicID uint64, actorID *uint64) error
 	testConnectionFn func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
+	// getRawCredentialsFn は line_send_service_test の credential 失敗系で使う（BE9-2C L②）。
+	getRawCredentialsFn func(ctx context.Context, clinicID uint64) (string, string, string, error)
 }
 
 func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
@@ -49,7 +51,10 @@ func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID 
 	}
 	return &LstepConnectionTestResult{LstepOK: true, LineOK: true}, nil
 }
-func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (apiKey, baseURL, lineToken string, err error) {
+func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error) {
+	if m.getRawCredentialsFn != nil {
+		return m.getRawCredentialsFn(ctx, clinicID)
+	}
 	return "", "", "", nil
 }
 func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (bool, error) {

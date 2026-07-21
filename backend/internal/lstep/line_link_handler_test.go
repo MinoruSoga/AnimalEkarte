@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -14,24 +14,23 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock LineLinkService ----
 
 type mockLineLinkService struct {
-	generateLinkTokenFn func(ctx context.Context, clinicID, ownerID uint64) (*service.LinkTokenResult, error)
-	linkAccountFn       func(ctx context.Context, clinicID uint64, input service.LinkAccountInput) (*model.Owner, error)
+	generateLinkTokenFn func(ctx context.Context, clinicID, ownerID uint64) (*LinkTokenResult, error)
+	linkAccountFn       func(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error)
 	handleWebhookFn     func(ctx context.Context, body []byte, signature string) error
 }
 
-func (m *mockLineLinkService) GenerateLinkToken(ctx context.Context, clinicID, ownerID uint64) (*service.LinkTokenResult, error) {
+func (m *mockLineLinkService) GenerateLinkToken(ctx context.Context, clinicID, ownerID uint64) (*LinkTokenResult, error) {
 	if m.generateLinkTokenFn != nil {
 		return m.generateLinkTokenFn(ctx, clinicID, ownerID)
 	}
-	return &service.LinkTokenResult{Token: "tok123", LiffURL: "https://liff.example.com"}, nil
+	return &LinkTokenResult{Token: "tok123", LiffURL: "https://liff.example.com"}, nil
 }
-func (m *mockLineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input service.LinkAccountInput) (*model.Owner, error) {
+func (m *mockLineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error) {
 	if m.linkAccountFn != nil {
 		return m.linkAccountFn(ctx, clinicID, input)
 	}
@@ -46,11 +45,17 @@ func (m *mockLineLinkService) HandleWebhook(ctx context.Context, body []byte, si
 
 // ---- helpers ----
 
-func newHandlerWithLineLinkSvc(svc service.LineLinkService) *Handler {
-	return &Handler{svc: &service.Services{LineLink: svc}}
+// testRespondOwner は本番の handler.RespondLinkedOwner と同じ contract（200 + owner JSON）を持つ
+// test 用 OwnerResponder。owner DTO の形は internal/handler 側の test が担保する。
+func testRespondOwner(c *gin.Context, o *model.Owner) {
+	c.JSON(http.StatusOK, gin.H{"id": o.ID, "clinic_id": o.ClinicID})
 }
 
-func newPostGenerateLineLinkTokenRouter(svc service.LineLinkService, withClinicID bool) *gin.Engine {
+func newHandlerWithLineLinkSvc(svc LineLinkService) *LineLinkHandler {
+	return NewLineLinkHandler(svc, testRespondOwner, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
+}
+
+func newPostGenerateLineLinkTokenRouter(svc LineLinkService, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLineLinkSvc(svc)
 	if withClinicID {
@@ -61,14 +66,14 @@ func newPostGenerateLineLinkTokenRouter(svc service.LineLinkService, withClinicI
 	return r
 }
 
-func newPostLiffLinkAccountRouter(svc service.LineLinkService) *gin.Engine {
+func newPostLiffLinkAccountRouter(svc LineLinkService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLineLinkSvc(svc)
 	r.POST("/liff/:clinicId/link", h.LinkLiffAccount)
 	return r
 }
 
-func newPostReceiveLineWebhookRouter(svc service.LineLinkService) *gin.Engine {
+func newPostReceiveLineWebhookRouter(svc LineLinkService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLineLinkSvc(svc)
 	r.POST("/line/webhook", h.ReceiveLineWebhook)
@@ -107,7 +112,7 @@ func TestPostGenerateLineLinkToken(t *testing.T) {
 			name:    "404 owner not found",
 			ownerID: "99",
 			svc: &mockLineLinkService{
-				generateLinkTokenFn: func(_ context.Context, _, _ uint64) (*service.LinkTokenResult, error) {
+				generateLinkTokenFn: func(_ context.Context, _, _ uint64) (*LinkTokenResult, error) {
 					return nil, apperrors.WrapNotFound("owner", "99")
 				},
 			},
@@ -117,7 +122,7 @@ func TestPostGenerateLineLinkToken(t *testing.T) {
 			name:    "500 service error",
 			ownerID: "1",
 			svc: &mockLineLinkService{
-				generateLinkTokenFn: func(_ context.Context, _, _ uint64) (*service.LinkTokenResult, error) {
+				generateLinkTokenFn: func(_ context.Context, _, _ uint64) (*LinkTokenResult, error) {
 					return nil, errors.New("unexpected error")
 				},
 			},
@@ -184,7 +189,7 @@ func TestPostLiffLinkAccount(t *testing.T) {
 			clinicID: "1",
 			body:     validBody,
 			svc: &mockLineLinkService{
-				linkAccountFn: func(_ context.Context, _ uint64, _ service.LinkAccountInput) (*model.Owner, error) {
+				linkAccountFn: func(_ context.Context, _ uint64, _ LinkAccountInput) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "link_token")
 				},
 			},
@@ -195,7 +200,7 @@ func TestPostLiffLinkAccount(t *testing.T) {
 			clinicID: "1",
 			body:     validBody,
 			svc: &mockLineLinkService{
-				linkAccountFn: func(_ context.Context, _ uint64, _ service.LinkAccountInput) (*model.Owner, error) {
+				linkAccountFn: func(_ context.Context, _ uint64, _ LinkAccountInput) (*model.Owner, error) {
 					return nil, errors.New("unexpected error")
 				},
 			},

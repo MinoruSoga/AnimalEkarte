@@ -79,7 +79,7 @@ type Services struct {
 	ReservationStaffExclusion reservation.ReservationStaffExclusionService
 	ReservationSchedule       reservation.ReservationScheduleService
 	ReservationAdmin          reservation.ReservationAdminService
-	LineCustomer              LineCustomerService
+	LineCustomer              lstep.LineCustomerService
 	Liff                      reservation.LiffService
 
 	// LSTEP / LINE連携
@@ -93,7 +93,7 @@ type Services struct {
 	// LSTEP-BE-012: 慢性疾患フラグ
 	ChronicCondition ChronicConditionService
 	// LSTEP-BE-013: LINE個別送信
-	LineSend LineSendService
+	LineSend lstep.LineSendService
 	// LSTEP-BE-014: ノーショウ検知バッチ
 	LstepBatch LstepBatchService
 	// FEAT-383: 自動配信トリガー
@@ -105,7 +105,7 @@ type Services struct {
 	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
 	LstepTagConfig LstepTagConfigService
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	LineLink LineLinkService
+	LineLink lstep.LineLinkService
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	LstepTagSummary LstepTagSummaryService
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
@@ -134,7 +134,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	notifier := reservation.NewReservationNotificationService(notifCfg, repos.LineReservationSetting,
 		func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) },
 		func(channelToken string) reservation.LinePusher {
-			return NewLineMessagingService(channelToken)
+			return lstep.NewLineMessagingService(channelToken)
 		},
 		smtpSendAdapter)
 	auditSvc := NewAuditService(repos.Audit)
@@ -193,9 +193,9 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP-BE-012: 慢性疾患フラグ
 	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepTagSyncSvc)
 	// LSTEP-BE-013: LINE個別送信
-	lineSendSvc := NewLineSendService(lstepSettingsSvc, repos.Owner, sharedFileSvc, repos.LstepTagCache, auditSvc, repos.LineSendLog, repos.LstepTagConfig)
+	lineSendSvc := lstep.NewLineSendService(lstepSettingsSvc, repos.Owner, sharedFileSvc, repos.LstepTagCache, auditSvc, repos.LineSendLog, repos.LstepTagConfig)
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	lineLinkSvc := NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
+	lineLinkSvc := lstep.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	lstepTagSummarySvc := NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
@@ -287,7 +287,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       reservation.NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          reservation.NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
+		LineCustomer:              lstep.NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,

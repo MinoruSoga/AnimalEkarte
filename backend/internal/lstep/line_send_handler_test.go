@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -15,21 +15,20 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock LineSendService ----
 
 type mockLineSendService struct {
-	sendFn    func(ctx context.Context, clinicID uint64, input *service.SendLineMessageInput) (*service.SendLineMessageResult, error)
+	sendFn    func(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error)
 	getLogsFn func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error)
 }
 
-func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input *service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
+func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error) {
 	if m.sendFn != nil {
 		return m.sendFn(ctx, clinicID, input)
 	}
-	return &service.SendLineMessageResult{SentAt: time.Now()}, nil
+	return &SendLineMessageResult{SentAt: time.Now()}, nil
 }
 
 func (m *mockLineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error) {
@@ -39,8 +38,8 @@ func (m *mockLineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID
 	return nil, nil
 }
 
-func newHandlerWithLineSendSvc(ls service.LineSendService) *Handler {
-	return &Handler{svc: &service.Services{LineSend: ls}}
+func newHandlerWithLineSendSvc(ls LineSendService) *LineSendHandler {
+	return NewLineSendHandler(ls, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- TestPostLineSend ----
@@ -145,7 +144,7 @@ func TestPostLineSend(t *testing.T) {
 			},
 			body: bodyMap{"message_type": "text", "text": "hello"},
 			svc: &mockLineSendService{
-				sendFn: func(_ context.Context, _ uint64, _ *service.SendLineMessageInput) (*service.SendLineMessageResult, error) {
+				sendFn: func(_ context.Context, _ uint64, _ *SendLineMessageInput) (*SendLineMessageResult, error) {
 					return nil, apperrors.Wrap(assert.AnError, "send failed")
 				},
 			},
