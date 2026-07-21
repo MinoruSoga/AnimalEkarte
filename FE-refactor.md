@@ -11,9 +11,15 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 
 ## 決裁事項
 
-- **ink ランプ = 選択肢A（字義値へ集約）** を採用。ユーザー「完全遵守」指示に従う。実装の14段アルファ（`/90`〜`/15`・実使用 1664 箇所）を DESIGN.md の4段実値へ畳む。
-- **唯一の例外は据え置き**: §2.4 臨床 semantic 色（danger/死亡/RBAC 非活性/warning）。臨床安全（SPECIFICATION 2.1）が全原則に優先。
-- **G1-c/G6-d は裁定待ち**（下記「要裁定」節）。それ以外は字義が一意なので裁定不要で実施する。
+- **正本を軸で分割（FE11 確定・2026-07-21 曽我）**:
+  - **色 = `docs/spec/design-system.md`（製品判断）**。本システムの色は装飾ではなく業務・臨床の意味論（ステータス識別・危険/死亡・RBAC 非活性）を担うため、装飾用途を前提とする DESIGN.md の色規定をそのまま当てても遵守にならない。
+  - **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法 = DESIGN.md 字義**。業務意味論を持たないため値をそのまま適用する。
+- **色軸の確定事項**（design-system.md へ明文化済み）:
+  - brand `#0075DE` は**製品決定として据え置き確定**（FE10 の反転根拠を「DESIGN.md 字義」→「製品採用」へ置換。値は不変・再スイープ不要）
+  - DESIGN.md sticker palette 8色は**不採用**。業務ステータス色を維持
+  - nav-bar は **canvas-soft を維持**（白にすると図地関係が消えるため）
+  - ink ランプは DESIGN.md と**同値を採用**（可読性の階層であり製品要件を満たすため一致・F2 実装済み）
+- **臨床 semantic 色は据え置き**: §2.4（danger/死亡/RBAC 非活性/warning）。臨床安全（SPECIFICATION 2.1）が全原則に優先。
 
 ---
 
@@ -35,8 +41,8 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | G1-8 | ink-secondary | `#31302E` | `C.text90/80/70` = `#31302E`（F2 で写像） | ✅ F2 |
 | G1-9 | ink-muted | `#615D59` | `C.text65/60/55/50` = `#615D59`（実測: フォームラベル一致） | ✅ F2 |
 | G1-10 | ink-faint | `#A39E98` | `C.text45`以下 + placeholder = `#A39E98` | ✅ F2 |
-| G1-11 | **secondary** | `#213183` | **実装に0箇所**（hero-band 未使用のため） | △ |
-| G1-12〜19 | **sticker palette 8色**<br>sky `#62AEF0` / purple `#D6B6F6` / purple-deep `#391C57` / pink `#FF64C8` / orange `#DD5B00` / orange-deep `#793400` / teal `#2A9D99` / green `#1AAE39` / brown `#523410` | 装飾専用 | **全て実装に0箇所**。装飾/status は独自色（`#6940A5` purple・`#D9730D` orange・`bg-blue-500` 等） | △ **要裁定 G1-c** |
+| G1-11 | secondary `#213183` | hero-band 用 | 実装に0箇所（hero-band 未使用） | 🔒 不採用確定（色=本書正本・FE11） |
+| G1-12〜19 | sticker palette 8色 | 装飾専用 | 業務ステータス色（`#6940A5` 紫・`#D9730D` 橙・blue-500・emerald 等）を使用 | 🔒 **不採用確定**（FE11 裁定: DESIGN.md の8色は*装飾*規定であり、本システムの色は*業務識別子*。design-system.md §2.5 に明文化済み） |
 
 ## G2. typography（11ロール × size/weight/line-height/letter-spacing）
 
@@ -77,11 +83,11 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | G6-4 | button-utility | white / rounded-md / **padding 4px 14px** / hairline border | rounded-md ✅ ・padding は h-11 系で別値 | ❌ padding |
 | G6-5 | button-icon-circular | `rgba(0,0,0,0.05)` fill / full | アイコンボタンは透明+hover tint | ❌ fill 未一致 |
 | G6-6 | text-input | white / body-sm / **padding 6px** / rounded-xs / border `#DDDDDD` | rounded-xs ✅ ・border ✅ ・**padding は h-11 系** | ❌ padding |
-| G6-7 | badge-pill | white surface / **primary text** / eyebrow / pill / 4px 8px | `BADGE.*` は status 色ベース | ❌（要裁定 G6-d） |
+| G6-7 | badge-pill | white / primary text / eyebrow / pill | `BADGE.*` は status 色ベース | 🔒 **status 色ベースで確定**（G1-12〜19 に追従・色=本書正本） |
 | G6-8 | feature-card | white / rounded-lg / **padding 24px** / Level-0 | `STYLE.formCard` = rounded-lg + p-6(24px) | ✅ |
 | G6-9 | ex-data-table-cell | canvas-soft header / eyebrow / body-sm / hairline row | FE10 で全テーブル字義化 | ✅ |
 | G6-10 | ex-modal-card | rounded-xl / Level-2 / padding 24px | shadcn Dialog = rounded-xl + p-6 + shadow | ✅ |
-| G6-11 | nav-bar | **canvas(白)** / ink / body-sm / 16px | サイドバーは `C.bgPage`(canvas-soft) | ❌（要裁定 G6-d） |
+| G6-11 | nav-bar | canvas(白) | サイドバーは `C.bgPage`(canvas-soft) | 🔒 **canvas-soft 確定**（FE11 裁定: 白にすると本文カードとの図地が消える。§7.1 に明文化済み） |
 | G6-12 | hero-band / footer | marketing 専用 | アプリ本体に該当面なし | — |
 
 ---
@@ -200,29 +206,13 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | 1 | **F1 タイポ数値** | `--text-sm/xs/2xs--line-height` 定義・button 16px 化・tracking トークン新設と title/eyebrow への適用 | G2-1,3,4,5,6 / G6-1 | **✅済 2b20b1aab**（6ロール全てブラウザ実測で完全一致。インライン `tracking-wide` を7ファイルから除去＝字義値の上書きを排除） |
 | 2 | **F2 ink ランプ** | 14段アルファ → DESIGN.md 4段実値へ集約（明度最近傍で写像）。**臨床非活性(disabled/RBAC)の可読退行を必ず実測** | G1-8,9,10 | **✅済 27b483b64**（臨床非活性の退行なしを実測確認・placeholder も faint へ） |
 | 3 | **F3 コンポーネント寸法** | text-input padding 6px・button-utility padding 4px/14px・button-icon-circular fill | G6-4,5,6 | 未 |
-| 4 | **F4 未定義トークンの定義** | secondary・sticker palette 8色・display/heading 系をトークンとして定義（アプリ未使用でも語彙を揃える） | G1-11〜19 / G2-7〜11 | 未 |
+| 4 | **F4 未定義トークンの定義** | display/heading 系（G2-7〜11）を DESIGN.md 字義でトークン定義。**色系（secondary・sticker palette）は FE11 裁定により不採用確定のため対象外** | G2-7〜11 | 未 |
 | 5 | **F5 機械ガード追加** | 黒アルファ text 直値の再混入を audit で禁止（C12）・tracking/line-height の退行検知 | — | 未 |
-| 6 | **F6 文書同期** | `design-system.md` §2.6 の **Ink 行の虚偽 ✅ を訂正**・§3.1 に実装値を反映 | — | 未 |
+| 6 | **F6 文書同期** | 正本の軸分割を `design-system.md` へ反映（SSOT 表・§2.1/2.4/2.5/2.6・§3.4・§7.1）。Ink 行の虚偽 ✅ 訂正を含む | — | **✅済**（色の正本移管・sticker 不採用・nav-bar canvas-soft・ink 実値化を明文化） |
 | 7 | **P軸 全84ページ検証** | 上記波及後に P8/P9/P10 を全ページ実測（+ P1〜P7 の回帰確認） | — | 未 |
 
 ---
 
-# 要裁定（着手前にユーザー判断が必要な2件）
-
-## G1-c: スティッカーパレット8色をどう扱うか
-
-DESIGN.md は装飾色として8色を規定するが、実装は独自の status 色（`#6940A5` purple・`#D9730D` orange・`bg-blue-500`・emerald 等）を使っており**1色も一致しない**。ただしこれらは「装飾」ではなく**業務ステータスの識別子**として機能しており、スタッフは色で状態を読んでいる。
-
-- **案A（字義優先）**: status 色を DESIGN.md の8色へ全面置換。→ 完全遵守だが**現場の色記憶を壊す**。
-- **案B（現状維持＋明文化）**: status 色は §2.4 semantic と同じく「臨床/業務運用のための例外」として文書化。→ DESIGN.md との差分は残るが、業務影響ゼロ。
-- **推奨 = B**。DESIGN.md の sticker palette は「イラスト・カテゴリドット」という*装飾*用途の規定であり、業務状態の識別に色を使う本システムの用途とは前提が異なるため。
-
-## G6-d: nav-bar（サイドバー）と badge-pill
-
-- nav-bar: DESIGN.md は白 canvas を規定、実装は canvas-soft。→ 白にすると本文カードとの図地が消える（P1 と衝突）。**推奨 = 現状維持＋文書化**。
-- badge-pill: DESIGN.md は「白地＋primary 文字」、実装は status 色ベース。→ G1-c と同じ論点。**推奨 = G1-c の裁定に追従**。
-
----
 
 # 検証規約（FE10 の事故を踏まえた強化版）
 
