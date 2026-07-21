@@ -54,13 +54,6 @@
 - **修正方向**: tx 内 fail-closed 監査（`AuditTxLogger.LogEntryTx`・medicine/dose-param/treatment逸脱監査と同型）を DischargeWithBilling の tx 閉包末尾へ追加。Action 定数（例: `hospitalization.discharge_with_billing`）+ ResourceID=hospitalizationID + NewValue に billing_id/合計額。**機能追加=behavior変更のため BE9 の移動batchに混ぜない**（⑤ Phase2 移動後の別コミット、または medicalrecord 移行完了後）。
 - **発見**: 2026-07-21（BE9-2D ⑤ Phase1 敵対レビュー・clinic-isolation-auditor MEDIUM 指摘）。
 
-#### BUG-417:【LOW・潜在・BE9-2A監査で検出】billing_item_repository.go の Update/Delete が clinic 分離を実質担保していない（defense-in-depth 不全・現状は生きた漏洩ではない）
-
-- **症状**: `internal/repository/billing_item_repository.go`（BE9 target=billing）の Update/Delete が `.Joins("JOIN billings ON ...billings.clinic_id=?...")` を `.Updates()`/`.Delete()` へ連結する形式だが、**GORM の `Joins()` は UPDATE/DELETE SQL へ伝播しない**ため、repository 層の clinic 述語は実質 no-op。Treatment/ClinicalPlan 等が subquery 形式で正しく回避している同型の罠に、このファイルだけが該当（billing_confirmation/estimate は検証済みで正しい）。
-- **現状の安全性**: `billing_item_service.go` の UpdateItem/DeleteItem が事前に clinic-scoped `FindByID` で gate しているため**現時点で生きた漏洩ではない**。ただし事前 check を経由しない新規経路（admin 経路・background job 等）が repository method へ直接到達すると silent なクロステナント書き込み/削除が発生し得る。クロステナント分離 test も現状ゼロ。
-- **修正方向**: subquery 形式（`WHERE id IN (SELECT ... JOIN billings ... WHERE billings.clinic_id=?)`）への是正＋クロステナント分離 test 追加。**詳細の正本 = `docs/architecture/be9-2a-boundary-map.md` §7.4／ADR-006 未解決論点#6**。
-- **修正タイミング**: BE9-2C/2D の billing domain 着手時の**必須前提**（ADR-006 で着手前ゲート化済み）。ただし BE9 と無関係にこのファイルへ触れる修正が先に発生した場合も、その場での是正を必須とする。
-- **発見**: 2026-07-19（BE9-2A santa dual-review round 2・clinic-isolation-auditor。BE9-2A は measurement-only のため未修正のまま記録）。
 
 #### BUG-416:【LOW・healthcare-reviewer指摘】カルテ診断(diagnosis1/2)保存の残存リスク（BUG-410 backend/UI follow-up）— 残るのは①④のみ（②FE病名バリデーション欠如=修正済み 08c82490／③clinical_plan楽観ロック欠如=修正済み 797f4d2d）
 
