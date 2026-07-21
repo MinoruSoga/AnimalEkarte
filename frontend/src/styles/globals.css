@@ -91,6 +91,17 @@
   --text-sm--line-height: 1.33;  /* DESIGN.md body-sm 1.33（Tailwind 既定 1.43 を上書き） */
   --text-base--line-height: 1.5;  /* DESIGN.md body-md 1.5 */
   --text-xl--letter-spacing: -0.125px;  /* DESIGN.md title の負トラッキング（Inter 代替時は明示適用と規定） */
+  /* DESIGN.md heading ロール（FE11-F4）。Tailwind 既定の text-2xl/3xl/4xl(24/30/36px) は
+     DESIGN.md のスケールに存在しない値なので、描画箇所を以下のロールへ写像する。 */
+  --text-heading-3: 1.375rem;  /* 22px — カードタイトル */
+  --text-heading-3--line-height: 1.27;
+  --text-heading-3--letter-spacing: -0.25px;
+  --text-heading-2: 1.625rem;  /* 26px — サブセクション見出し */
+  --text-heading-2--line-height: 1.23;
+  --text-heading-2--letter-spacing: -0.625px;
+  --text-heading-1: 2.5rem;  /* 40px — ページ/セクション見出し */
+  --text-heading-1--line-height: 1.1;
+  --text-heading-1--letter-spacing: -1px;
   --tracking-compact: 0;
   --tracking-compact-sm: 0;
   --tracking-compact-xs: 0;
@@ -185,22 +196,26 @@
  */
 @layer base {
   :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    /* FE11-F4: DESIGN.md heading ロールへ整列（旧 text-2xl/xl/lg = 24/20/18px は DESIGN.md 非仕様値） */
     h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-heading-2);
+      font-weight: 700;
+      line-height: var(--text-heading-2--line-height);
+      letter-spacing: var(--text-heading-2--letter-spacing);
     }
 
     h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-heading-3);
+      font-weight: 700;
+      line-height: var(--text-heading-3--line-height);
+      letter-spacing: var(--text-heading-3--letter-spacing);
     }
 
     h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-xl);
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: var(--text-xl--letter-spacing);
     }
 
     h4 {

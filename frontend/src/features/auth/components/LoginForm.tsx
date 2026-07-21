@@ -167,7 +167,7 @@ export const LoginForm = memo(function LoginForm() {
         <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
           <Stethoscope className={`size-[26px] ${C.textWhite}`} />
         </div>
-        <h1 className={`text-2xl font-bold leading-tight ${C.text} mb-1`}>
+        <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
           ノア動物病院
         </h1>
         <p className={`text-base ${C.text50}`}>管理システムにログイン</p>

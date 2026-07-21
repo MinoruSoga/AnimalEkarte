@@ -54,7 +54,7 @@ export function ReceptionDialogHeader({
           >
             {appointment.visitType === "初診" ? "初" : "再"}
           </span>
-          <DialogTitle className={`text-lg font-bold ${C.text}`}>
+          <DialogTitle className={`text-xl font-bold ${C.text}`}>
             {appointment.reservationType}
           </DialogTitle>
         </div>

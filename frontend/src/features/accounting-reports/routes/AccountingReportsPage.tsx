@@ -237,7 +237,7 @@ export function AccountingReportsPage() {
 
             {/* ゾーン2: 日次明細（periodLabel を唯一のスケール強調見出しに） */}
             <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-              <h2 className={`text-lg font-semibold ${C.text} mb-4`}>
+              <h2 className={`text-xl font-semibold ${C.text} mb-4`}>
                 {periodLabel ? `${periodLabel} の日次明細` : "日次明細"}
               </h2>
               <DailyBreakdownTable

@@ -56,7 +56,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-4 flex flex-col gap-1`}>
       <span className={`text-sm ${C.text60}`}>{label}</span>
-      <span className={`text-2xl font-semibold ${C.text80}`}>{value}</span>
+      <span className={`text-heading-3 font-semibold ${C.text80}`}>{value}</span>
     </div>
   );
 }

@@ -145,7 +145,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
           return (
             <div key="clinic_header" className="flex justify-between items-end border-b pb-4">
               <div>
-                <h1 className="text-2xl font-bold mb-2">明細兼領収書</h1>
+                <h1 className="text-heading-3 font-bold mb-2">明細兼領収書</h1>
                 <p className={C.text60}>No. {accounting.id}</p>
                 <p className={C.text60}>発行日: {currentDate}</p>
               </div>
@@ -251,7 +251,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   </div>
                 ) : null}
 
-                <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
+                <div className="flex justify-between font-bold text-xl pt-2 border-t border-black">
                   <span>請求金額</span>
                   <span>{formatCurrency(paymentInfo.billingAmount)}</span>
                 </div>

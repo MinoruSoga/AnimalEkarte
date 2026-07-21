@@ -105,7 +105,7 @@ export const PaymentCard = memo(function PaymentCard({
       <CardContent className="p-6 space-y-6">
         <div className="text-center space-y-1">
           <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
-          <p className={`text-4xl font-bold ${C.text}`}>
+          <p className={`text-heading-1 font-bold ${C.text}`}>
             {formatCurrency(billingAmount)}
           </p>
         </div>
@@ -146,7 +146,7 @@ export const PaymentCard = memo(function PaymentCard({
                   <div className="space-y-1">
                     <Label className="text-xs">金額</Label>
                     <NumberInput
-                      className="h-12 text-lg font-bold"
+                      className="h-12 text-xl font-bold"
                       value={split.amount}
                       onChange={(v) => handleAmountChange(idx, v)}
                       suffix="円"
@@ -159,7 +159,7 @@ export const PaymentCard = memo(function PaymentCard({
                         <Label className="text-xs">お預かり金額</Label>
                         <NumberInput
                           id={idx === 0 ? "receivedAmount" : undefined}
-                          className="h-12 text-lg font-bold"
+                          className="h-12 text-xl font-bold"
                           value={split.receivedAmount}
                           onChange={(v) => handleReceivedChange(idx, v)}
                           suffix="円"
@@ -206,7 +206,7 @@ export const PaymentCard = memo(function PaymentCard({
                         {split.changeOverride ? (
                           <>
                             <NumberInput
-                              className="h-10 text-lg font-bold"
+                              className="h-10 text-xl font-bold"
                               value={split.changeAmount ?? ""}
                               onChange={(v) => handleChangeAmountChange(idx, v)}
                               suffix="円"
@@ -263,7 +263,7 @@ export const PaymentCard = memo(function PaymentCard({
 
         {canSubmit ? (
           <SubmitButton
-            className="w-full h-14 text-lg font-bold mt-4"
+            className="w-full h-14 text-xl font-bold mt-4"
             size="lg"
             disabled={isDisabled}
             loadingText="処理中..."

@@ -109,7 +109,7 @@ export function DeliverySummaryCards({ summary }: DeliverySummaryCardsProps) {
           data-testid={`summary-card-${key}`}
         >
           <p className={`text-xs ${C.text50} mb-1`}>{label}</p>
-          <p className={`text-3xl font-bold ${C.text}`}>{summary[key].toLocaleString("ja-JP")}</p>
+          <p className={`text-heading-2 font-bold ${C.text}`}>{summary[key].toLocaleString("ja-JP")}</p>
         </div>
       ))}
     </div>

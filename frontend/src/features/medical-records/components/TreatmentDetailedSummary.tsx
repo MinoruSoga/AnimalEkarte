@@ -91,7 +91,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}>
             ￥{tax.toLocaleString()}
           </div>
-          <div className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-lg`}>
+          <div className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-xl`}>
             ￥{total.toLocaleString()}
           </div>
         </div>

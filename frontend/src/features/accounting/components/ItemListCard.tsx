@@ -303,7 +303,7 @@ export const ItemListCard = memo(function ItemListCard({
       <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
         <span>税抜小計: ¥{subtotal.toLocaleString()}</span>
         <span>消費税: ¥{taxTotal.toLocaleString()}</span>
-        <span className="font-bold text-lg">
+        <span className="font-bold text-xl">
           合計: ¥{totalAmount.toLocaleString()}
         </span>
       </div>

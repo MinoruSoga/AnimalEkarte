@@ -169,7 +169,7 @@ export function UnpaidTab() {
       {groupBy !== "monthly" && summary ? (
         <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
-          <p className="text-2xl font-bold">{formatCurrency(summary.total_amount)}</p>
+          <p className="text-heading-3 font-bold">{formatCurrency(summary.total_amount)}</p>
           <p className={`text-xs ${C.text60} mt-1`}>
             {summary.billing_count}件 / {summary.owner_count}名
           </p>

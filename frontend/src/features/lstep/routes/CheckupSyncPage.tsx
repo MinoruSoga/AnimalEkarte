@@ -61,7 +61,7 @@ export function CheckupSyncPage() {
     <div className={`${STYLE.pageContent} max-w-5xl mx-auto`}>
       {/* ページヘッダー */}
       <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${C.text} leading-tight`}>
+        <h1 className={`text-heading-3 font-bold ${C.text} leading-tight`}>
           健診リマインダー抽出
         </h1>
         <p className={`mt-1.5 text-sm ${C.text60}`}>
