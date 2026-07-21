@@ -75,11 +75,14 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 	return nil
 }
 
+// Update は clinic 述語を EXISTS subquery で強制する（BUG-417: GORM の Joins() は
+// UPDATE/DELETE SQL へ伝播せず実質 no-op だった——service 層の事前 FindByID gate に
+// 依存しない repository 層 defense-in-depth を回復）。
 func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := dbOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.id = ?", id).
+		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
@@ -90,9 +93,10 @@ func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64,
 	return nil
 }
 
+// Delete は clinic 述語を EXISTS subquery で強制する（BUG-417・Update と同型）。
 func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := dbOrTx(ctx, r.db).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Delete(&model.BillingItem{}, "billing_items.id = ?", id)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
