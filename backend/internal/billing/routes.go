@@ -18,6 +18,8 @@ type Handler struct {
 	paymentMethodMaster *PaymentMethodMasterHandler
 	estimate            *EstimateHandler
 	billingConfirmation *BillingConfirmationHandler
+	billingItem         *BillingItemHandler
+	refund              *RefundHandler
 	requirePermission   PermissionMiddleware
 }
 
@@ -28,6 +30,8 @@ func NewHandler(
 	paymentMethodMaster *PaymentMethodMasterHandler,
 	estimate *EstimateHandler,
 	billingConfirmation *BillingConfirmationHandler,
+	billingItem *BillingItemHandler,
+	refund *RefundHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -36,6 +40,8 @@ func NewHandler(
 		paymentMethodMaster: paymentMethodMaster,
 		estimate:            estimate,
 		billingConfirmation: billingConfirmation,
+		billingItem:         billingItem,
+		refund:              refund,
 		requirePermission:   requirePermission,
 	}
 }
@@ -88,4 +94,18 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	records.GET("/:id/billing-confirmation", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingConfirmation.GetBillingConfirmation)
 	records.POST("/:id/billing-confirmation/confirm", permEdit, h.billingConfirmation.ConfirmBillingConfirmation)
 	records.POST("/:id/billing-confirmation/return", permEdit, h.billingConfirmation.ReturnBillingConfirmation)
+
+	// 明細（旧 billing_item_handler.go RegisterBillingItemRoutes 逐語）
+	items := rg.Group("/billing-items")
+	items.GET("/unbilled", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetUnbilledItems)
+	items.GET("/ungrouped-same-day", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetUngroupedSameDay)
+	items.POST("", h.requirePermission(string(model.ResourceAccounting), "create"), h.billingItem.CreateBillingItem)
+	items.PATCH("/:id", h.requirePermission(string(model.ResourceAccounting), "edit"), h.billingItem.UpdateBillingItem)
+	items.DELETE("/:id", h.requirePermission(string(model.ResourceAccounting), "delete"), h.billingItem.DeleteBillingItem)
+	items.GET("/:id/discount-suggestions", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetBillingItemDiscountSuggestions)
+
+	// 返金（旧 handler.go accountings group 逐語・/accountings group は gin path merge で共存）
+	accountings := rg.Group("/accountings")
+	accountings.GET("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "view"), h.refund.ListRefunds)
+	accountings.POST("/:id/refunds", h.requirePermission(string(model.ResourceAccounting), "create"), h.refund.CreateRefund)
 }

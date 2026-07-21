@@ -96,12 +96,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// に参加させる)
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update": {},
 	// billing_item (R1-1)
-	"billing_item_repository.go|billingItemRepository.Create":              {},
-	"billing_item_repository.go|billingItemRepository.Delete":              {},
-	"billing_item_repository.go|billingItemRepository.FindByBillingID":     {},
-	"billing_item_repository.go|billingItemRepository.FindByID":            {},
-	"billing_item_repository.go|billingItemRepository.Update":              {},
-	"billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
+	"billing/billing_item_repository.go|billingItemRepository.Create":              {},
+	"billing/billing_item_repository.go|billingItemRepository.Delete":              {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID":     {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByID":            {},
+	"billing/billing_item_repository.go|billingItemRepository.Update":              {},
+	"billing/billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -169,9 +169,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
 	// refund (R1-1 TOCTOU)
-	"refund/repository.go|repository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
-	"refund/repository.go|repository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
-	"refund/repository.go|repository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
+	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
+	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
+	"billing/refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
 	"reservation/reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
 	"reservation/reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001

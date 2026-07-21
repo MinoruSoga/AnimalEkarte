@@ -1,5 +1,5 @@
 // Package service provides shared billing calculation logic.
-package service
+package billing
 
 import (
 	"math"

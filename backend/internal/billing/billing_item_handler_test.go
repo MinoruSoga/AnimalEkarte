@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestBillingItemHandlerCompiles verifies billing_item_handler.go compiles
@@ -27,19 +26,19 @@ func TestBillingItemHandlerCompiles(t *testing.T) {
 // ---- mock BillingItemService ----
 
 type mockBillingItemService struct {
-	createItemFn                 func(ctx context.Context, input *service.CreateBillingItemInput) (*model.BillingItem, error)
-	updateItemFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateBillingItemInput) (*model.BillingItem, error)
+	createItemFn                 func(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	updateItemFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	deleteItemFn                 func(ctx context.Context, clinicID, id uint64) error
 	getUnbilledItemsFn           func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
-	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (service.UngroupedSameDaySummary, error)
-	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]service.DiscountSuggestion, error)
+	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
+	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
 }
 
-func (m *mockBillingItemService) CreateItem(ctx context.Context, input *service.CreateBillingItemInput) (*model.BillingItem, error) {
+func (m *mockBillingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
 	return m.createItemFn(ctx, input)
 }
 
-func (m *mockBillingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *service.UpdateBillingItemInput) (*model.BillingItem, error) {
+func (m *mockBillingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	return m.updateItemFn(ctx, clinicID, id, input)
 }
 
@@ -51,16 +50,16 @@ func (m *mockBillingItemService) GetUnbilledItems(ctx context.Context, clinicID,
 	return m.getUnbilledItemsFn(ctx, clinicID, petID)
 }
 
-func (m *mockBillingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (service.UngroupedSameDaySummary, error) {
+func (m *mockBillingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {
 	return m.getUngroupedSameDaySummaryFn(ctx, clinicID, petID, date)
 }
 
-func (m *mockBillingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]service.DiscountSuggestion, error) {
+func (m *mockBillingItemService) GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error) {
 	return m.getDiscountSuggestionsFn(ctx, clinicID, itemID)
 }
 
-func newHandlerWithBillingItemSvc(svc service.BillingItemService) *Handler {
-	return &Handler{svc: &service.Services{BillingItem: svc}}
+func newHandlerWithBillingItemSvc(svc BillingItemService) *BillingItemHandler {
+	return NewBillingItemHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- CreateBillingItem ----
@@ -90,7 +89,7 @@ func TestCreateBillingItem(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				createItemFn: func(_ context.Context, input *service.CreateBillingItemInput) (*model.BillingItem, error) {
+				createItemFn: func(_ context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
 					assert.Equal(t, uint64(1), input.ClinicID)
 					assert.Equal(t, uint64(10), input.BillingID)
 					return &model.BillingItem{ID: 5, BillingID: 10, Name: input.Name}, nil
@@ -124,7 +123,7 @@ func TestCreateBillingItem(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				createItemFn: func(_ context.Context, _ *service.CreateBillingItemInput) (*model.BillingItem, error) {
+				createItemFn: func(_ context.Context, _ *CreateBillingItemInput) (*model.BillingItem, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -170,7 +169,7 @@ func TestUpdateBillingItem(t *testing.T) {
 			body:     map[string]any{"unit_price": 1500},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				updateItemFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateBillingItemInput) (*model.BillingItem, error) {
+				updateItemFn: func(_ context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), id)
 					require.NotNil(t, input.UnitPrice)
@@ -210,7 +209,7 @@ func TestUpdateBillingItem(t *testing.T) {
 			body:     map[string]any{"unit_price": 100},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				updateItemFn: func(_ context.Context, _, _ uint64, _ *service.UpdateBillingItemInput) (*model.BillingItem, error) {
+				updateItemFn: func(_ context.Context, _, _ uint64, _ *UpdateBillingItemInput) (*model.BillingItem, error) {
 					return nil, apperrors.WrapNotFound("billing_item", "999")
 				},
 			},
@@ -240,7 +239,7 @@ func TestUpdateBillingItem(t *testing.T) {
 // newDeleteBillingItemRouter は c.Status(http.StatusNoContent) のみでボディ書き込みが
 // 無いハンドラのため、gin.Engine 経由 (router.ServeHTTP) でヘッダーを確実にフラッシュする。
 // (直接 h.DeleteBillingItem(c) 呼び出しだと WriteHeaderNow が走らず w.Code が 200 のままになる)
-func newDeleteBillingItemRouter(svc service.BillingItemService) *gin.Engine {
+func newDeleteBillingItemRouter(svc BillingItemService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithBillingItemSvc(svc)
 	r.DELETE("/billing-items/:id", func(c *gin.Context) {
@@ -397,13 +396,13 @@ func TestGetUngroupedSameDay(t *testing.T) {
 			query:    "pet_id=7&date=2026-06-01",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				getUngroupedSameDaySummaryFn: func(_ context.Context, clinicID, petID uint64, date time.Time) (service.UngroupedSameDaySummary, error) {
+				getUngroupedSameDaySummaryFn: func(_ context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(7), petID)
 					assert.Equal(t, 2026, date.Year())
 					assert.Equal(t, time.June, date.Month())
 					assert.Equal(t, 1, date.Day())
-					return service.UngroupedSameDaySummary{MedicalRecordCount: 2, TrimmingCount: 0}, nil
+					return UngroupedSameDaySummary{MedicalRecordCount: 2, TrimmingCount: 0}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -428,8 +427,8 @@ func TestGetUngroupedSameDay(t *testing.T) {
 			query:    "pet_id=7",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				getUngroupedSameDaySummaryFn: func(_ context.Context, _, _ uint64, _ time.Time) (service.UngroupedSameDaySummary, error) {
-					return service.UngroupedSameDaySummary{}, fmt.Errorf("db error")
+				getUngroupedSameDaySummaryFn: func(_ context.Context, _, _ uint64, _ time.Time) (UngroupedSameDaySummary, error) {
+					return UngroupedSameDaySummary{}, fmt.Errorf("db error")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -470,10 +469,10 @@ func TestGetBillingItemDiscountSuggestions(t *testing.T) {
 			paramID:  "5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				getDiscountSuggestionsFn: func(_ context.Context, clinicID, itemID uint64) ([]service.DiscountSuggestion, error) {
+				getDiscountSuggestionsFn: func(_ context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), itemID)
-					return []service.DiscountSuggestion{{Type: "owner", Name: "飼主割引", Amount: 100}}, nil
+					return []DiscountSuggestion{{Type: "owner", Name: "飼主割引", Amount: 100}}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -498,7 +497,7 @@ func TestGetBillingItemDiscountSuggestions(t *testing.T) {
 			paramID:  "5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockBillingItemService{
-				getDiscountSuggestionsFn: func(_ context.Context, _, _ uint64) ([]service.DiscountSuggestion, error) {
+				getDiscountSuggestionsFn: func(_ context.Context, _, _ uint64) ([]DiscountSuggestion, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -528,22 +527,22 @@ func TestGetBillingItemDiscountSuggestions(t *testing.T) {
 func TestToUngroupedSameDayResponse(t *testing.T) {
 	tests := []struct {
 		name             string
-		summary          service.UngroupedSameDaySummary
+		summary          UngroupedSameDaySummary
 		wantHasUngrouped bool
 	}{
 		{
 			name:             "both counts zero -> not ungrouped",
-			summary:          service.UngroupedSameDaySummary{MedicalRecordCount: 0, TrimmingCount: 0},
+			summary:          UngroupedSameDaySummary{MedicalRecordCount: 0, TrimmingCount: 0},
 			wantHasUngrouped: false,
 		},
 		{
 			name:             "medical record count positive -> ungrouped",
-			summary:          service.UngroupedSameDaySummary{MedicalRecordCount: 1, TrimmingCount: 0},
+			summary:          UngroupedSameDaySummary{MedicalRecordCount: 1, TrimmingCount: 0},
 			wantHasUngrouped: true,
 		},
 		{
 			name:             "trimming count positive -> ungrouped",
-			summary:          service.UngroupedSameDaySummary{MedicalRecordCount: 0, TrimmingCount: 1},
+			summary:          UngroupedSameDaySummary{MedicalRecordCount: 0, TrimmingCount: 1},
 			wantHasUngrouped: true,
 		},
 	}
@@ -562,7 +561,7 @@ func TestToUngroupedSameDayResponse(t *testing.T) {
 
 func TestToDiscountSuggestionsResponse(t *testing.T) {
 	t.Run("wraps suggestions slice", func(t *testing.T) {
-		suggestions := []service.DiscountSuggestion{{Type: "campaign", Name: "夏キャンペーン", Amount: 500}}
+		suggestions := []DiscountSuggestion{{Type: "campaign", Name: "夏キャンペーン", Amount: 500}}
 		resp := toDiscountSuggestionsResponse(suggestions)
 		assert.Equal(t, suggestions, resp.Suggestions)
 	})
@@ -628,7 +627,7 @@ func TestParseUngroupedDate(t *testing.T) {
 //    ✓ Source field: optional ENUM (manual, imported, calculated), defaults to manual
 //    ✓ SortOrder field: optional numeric for display ordering
 //    ✓ Created item includes generated id and timestamps
-//    ✓ Uses toBillingItemResponse() transformation
+//    ✓ Uses ToBillingItemResponse() transformation
 //    ✓ Returns 500 on database error
 //
 // 2. UpdateBillingItem (PATCH /billing-items/:id)
@@ -648,7 +647,7 @@ func TestParseUngroupedDate(t *testing.T) {
 //    ✓ Cannot update: category, name (immutable after creation)
 //    ✓ Cannot update: billing_id (immutable, belongs to specific billing)
 //    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Uses toBillingItemResponse() transformation
+//    ✓ Uses ToBillingItemResponse() transformation
 //    ✓ Returns 500 on database error
 //
 // 3. DeleteBillingItem (DELETE /billing-items/:id)
@@ -707,7 +706,7 @@ func TestParseUngroupedDate(t *testing.T) {
 //    - Insurance flag: for insurance claim processing
 //    - Immutable fields: category, name (prevent post-creation edits)
 //    - Recalculation: billing totals (subtotal, tax, total_amount) recalculate on update/delete
-//    - Transformations: toBillingItemResponse()
+//    - Transformations: ToBillingItemResponse()
 //    - RBAC: ResourceAccounting permission required
 //    - Soft delete: preserves billing history
 //
@@ -730,7 +729,7 @@ func TestParseUngroupedDate(t *testing.T) {
 //    - Test DeleteBillingItem soft delete behavior
 //    - Test DeleteBillingItem triggers billing total recalculation
 //    - Test DeleteBillingItem blocks if billing finalized (if enforced)
-//    - Test response transformation (toBillingItemResponse)
+//    - Test response transformation (ToBillingItemResponse)
 //    - Test permission checks (ResourceAccounting on all operations)
 //    - Test tax calculation (included vs excluded in totals)
 //

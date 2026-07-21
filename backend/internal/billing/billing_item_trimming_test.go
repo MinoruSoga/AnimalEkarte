@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // billing_item_trimming_test.go — G11-3 テスト負債解消
 //
@@ -23,12 +23,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 func setupBillingItemTrimmingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{},
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.TrimmingOption{},
@@ -132,7 +133,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("status=accountingのトリミング予約でコース+オプションが結合結果に出る", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主1")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主1")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット1")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 		appt := makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusAccounting)
@@ -170,7 +171,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("並び順はappointment_id→sort_order(コース0/オプション100+ato.sort_order)昇順", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主2")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主2")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット2")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 
@@ -202,7 +203,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("請求済み除外: 有効なbillingに同一appointment_id+course_idのbilling_itemがあると除外される", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主3")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主3")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット3")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 		appt := makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusAccounting)
@@ -220,7 +221,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("cancelled請求のみの場合は再取得対象になる", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主4")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主4")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット4")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 		appt := makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusAccounting)
@@ -239,7 +240,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("price=0/NULLのコース・オプションは除外", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主5")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主5")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット5")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 
@@ -269,13 +270,13 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	t.Run("クリニック/ペット/status/カテゴリ不一致は除外", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3飼主6")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3飼主6")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット6")
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
 		rtTrimming := makeTrimmingReservationType(t, db, clinicA)
 		rtGeneral := makeReservationType(t, db, clinicA) // カテゴリ: general（一般区分）
 
-		otherClinicOwner := makeTestOwner(t, db, clinicB, "別クリニック飼主")
+		otherClinicOwner := repotest.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
 		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherClinicOwner.ID, "別クリニックペット")
 		rtOtherClinic := makeTrimmingReservationType(t, db, clinicB)
 
@@ -313,7 +314,7 @@ func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing
 	t.Run("JST日付境界と対象status(accounting/completed/cancelled以外)の判定", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
-		owner := makeTestOwner(t, db, clinicA, "G11-3カウント飼主")
+		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-3カウント飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3カウントペット")
 		rt := makeTrimmingReservationType(t, db, clinicA)
 

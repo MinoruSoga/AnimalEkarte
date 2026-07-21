@@ -1,10 +1,10 @@
-package service_test
+package billing_test
 
 import (
 	"testing"
 
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func TestCalculateTaxAmount(t *testing.T) {
@@ -76,7 +76,7 @@ func TestCalculateTaxAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := service.CalculateTaxAmount(tt.unitPrice, tt.quantity, tt.taxType, tt.taxRate)
+			got := billing.CalculateTaxAmount(tt.unitPrice, tt.quantity, tt.taxType, tt.taxRate)
 			if got != tt.want {
 				t.Errorf("CalculateTaxAmount() = %d, want %d", got, tt.want)
 			}
@@ -168,7 +168,7 @@ func TestCalculateBillingTotals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotSubtotal, gotTaxTotal, gotTotalAmount := service.CalculateBillingTotals(tt.items)
+			gotSubtotal, gotTaxTotal, gotTotalAmount := billing.CalculateBillingTotals(tt.items)
 			if gotSubtotal != tt.wantSubtotal {
 				t.Errorf("subtotal = %d, want %d", gotSubtotal, tt.wantSubtotal)
 			}

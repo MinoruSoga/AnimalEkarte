@@ -1,4 +1,4 @@
-package handler
+package billing
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestRefundHandlerCompiles verifies refund_handler.go compiles
@@ -27,7 +26,7 @@ func TestRefundHandlerCompiles(t *testing.T) {
 
 type mockRefundService struct {
 	listByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
-	createFn          func(ctx context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error)
+	createFn          func(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error)
 }
 
 func (m *mockRefundService) ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
@@ -37,7 +36,7 @@ func (m *mockRefundService) ListByBillingID(ctx context.Context, clinicID, billi
 	return nil, nil
 }
 
-func (m *mockRefundService) Create(ctx context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+func (m *mockRefundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, clinicID, billingID, input)
 	}
@@ -46,8 +45,8 @@ func (m *mockRefundService) Create(ctx context.Context, clinicID, billingID uint
 
 // ---- test helper ----
 
-func newHandlerWithRefundSvc(svc service.RefundService) *Handler {
-	return &Handler{svc: &service.Services{Refund: svc}}
+func newHandlerWithRefundSvc(svc RefundService) *RefundHandler {
+	return NewRefundHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // setClinicAndStaff は clinic_id と user_id の両方をコンテキストに設定するヘルパー。
@@ -151,7 +150,7 @@ func TestCreateRefund(t *testing.T) {
 			body:     validBody(),
 			setupCtx: setClinicAndStaff,
 			svc: &mockRefundService{
-				createFn: func(_ context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+				createFn: func(_ context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), billingID)
 					require.NotNil(t, input.StaffID)
@@ -170,7 +169,7 @@ func TestCreateRefund(t *testing.T) {
 			body:     map[string]any{"amount": 500, "payment_method": "cash"},
 			setupCtx: setClinicAndStaff,
 			svc: &mockRefundService{
-				createFn: func(_ context.Context, _, _ uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+				createFn: func(_ context.Context, _, _ uint64, input CreateRefundInput) (*model.BillingRefund, error) {
 					require.NotNil(t, input.PaymentMethod)
 					assert.Equal(t, model.PaymentMethod("cash"), *input.PaymentMethod)
 					return &model.BillingRefund{ID: 6, Amount: input.Amount, PaymentMethod: input.PaymentMethod}, nil
@@ -224,7 +223,7 @@ func TestCreateRefund(t *testing.T) {
 			body:     validBody(),
 			setupCtx: setClinicAndStaff,
 			svc: &mockRefundService{
-				createFn: func(_ context.Context, _, _ uint64, _ service.CreateRefundInput) (*model.BillingRefund, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ CreateRefundInput) (*model.BillingRefund, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -236,7 +235,7 @@ func TestCreateRefund(t *testing.T) {
 			body:     validBody(),
 			setupCtx: setClinicAndStaff,
 			svc: &mockRefundService{
-				createFn: func(_ context.Context, _, _ uint64, _ service.CreateRefundInput) (*model.BillingRefund, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ CreateRefundInput) (*model.BillingRefund, error) {
 					return nil, apperrors.WrapNotFound("billing", "999")
 				},
 			},

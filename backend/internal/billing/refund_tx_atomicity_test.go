@@ -1,4 +1,4 @@
-package refund
+package billing
 
 // tx_atomicity_test.go — 返金 INSERT + 監査の tx 内原子性（DB-backed）
 //
@@ -67,7 +67,7 @@ func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := New(db)
+	repo := NewRefundRepository(db)
 
 	refund := &model.BillingRefund{
 		ClinicID:   clinicA,
@@ -100,7 +100,7 @@ func TestRefundRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := New(db)
+	repo := NewRefundRepository(db)
 
 	refund := &model.BillingRefund{
 		ClinicID:   clinicA,

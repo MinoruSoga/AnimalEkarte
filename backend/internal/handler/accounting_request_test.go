@@ -580,45 +580,6 @@ func TestCorrectCreditPaymentRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-// #127: 会計更新リクエスト（完了時の代表 payment_method）と返金リクエストの
-// payment_method oneof が bank_transfer を許可し、既存値・不正値の扱いを維持することを検証する。
-func TestPaymentMethodPointer_Binding_Oneof(t *testing.T) {
-	bankTransfer := string(model.PaymentMethodBankTransfer)
-	cash := string(model.PaymentMethodCash)
-	invalid := "paypay"
-
-	t.Run("updateAccountingRequest accepts bank_transfer", func(t *testing.T) {
-		req := updateAccountingRequest{PaymentMethod: &bankTransfer}
-		if err := binding.Validator.ValidateStruct(&req); err != nil {
-			t.Fatalf("ValidateStruct = %v, want nil for bank_transfer", err)
-		}
-	})
-	t.Run("updateAccountingRequest accepts nil (omitempty)", func(t *testing.T) {
-		req := updateAccountingRequest{}
-		if err := binding.Validator.ValidateStruct(&req); err != nil {
-			t.Fatalf("ValidateStruct = %v, want nil for nil payment_method", err)
-		}
-	})
-	t.Run("updateAccountingRequest rejects unknown method", func(t *testing.T) {
-		req := updateAccountingRequest{PaymentMethod: &invalid}
-		if err := binding.Validator.ValidateStruct(&req); err == nil {
-			t.Fatal("ValidateStruct = nil, want validation error for unknown payment_method")
-		}
-	})
-	t.Run("createRefundRequest accepts bank_transfer", func(t *testing.T) {
-		req := createRefundRequest{Amount: 1, PaymentMethod: &bankTransfer}
-		if err := binding.Validator.ValidateStruct(&req); err != nil {
-			t.Fatalf("ValidateStruct = %v, want nil for bank_transfer refund", err)
-		}
-	})
-	t.Run("createRefundRequest keeps existing cash valid", func(t *testing.T) {
-		req := createRefundRequest{Amount: 1, PaymentMethod: &cash}
-		if err := binding.Validator.ValidateStruct(&req); err != nil {
-			t.Fatalf("ValidateStruct = %v, want nil for cash refund", err)
-		}
-	})
-}
-
 func TestPaymentSplitRequest_ToServiceInput(t *testing.T) {
 	paymentMethodID := uint64(8)
 	req := paymentSplitRequest{
@@ -640,4 +601,29 @@ func TestPaymentSplitRequest_ToServiceInput(t *testing.T) {
 	if input.Amount != req.Amount {
 		t.Fatalf("Amount = %d, want %d", input.Amount, req.Amount)
 	}
+}
+
+// TestPaymentMethodPointer_Binding_Oneof は updateAccountingRequest の oneof binding を検証する
+// （返金分は internal/billing 側へ分離・B③）。
+func TestPaymentMethodPointer_Binding_Oneof(t *testing.T) {
+	bankTransfer := string(model.PaymentMethodBankTransfer)
+	invalid := "paypay"
+	t.Run("updateAccountingRequest accepts bank_transfer", func(t *testing.T) {
+		req := updateAccountingRequest{PaymentMethod: &bankTransfer}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for bank_transfer", err)
+		}
+	})
+	t.Run("updateAccountingRequest accepts nil (omitempty)", func(t *testing.T) {
+		req := updateAccountingRequest{}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			t.Fatalf("ValidateStruct = %v, want nil for nil payment_method", err)
+		}
+	})
+	t.Run("updateAccountingRequest rejects unknown method", func(t *testing.T) {
+		req := updateAccountingRequest{PaymentMethod: &invalid}
+		if err := binding.Validator.ValidateStruct(&req); err == nil {
+			t.Fatal("ValidateStruct = nil, want validation error for unknown payment_method")
+		}
+	})
 }

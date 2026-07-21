@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/refund"
+	"github.com/animal-ekarte/backend/internal/billing"
 )
 
-// RefundRepository is a stable facade alias for the refund domain
-// package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
-type RefundRepository = refund.Repository
+// RefundRepository は internal/billing への移行facade（BE9-2C B③・BE9-2F削除予定）。
+type RefundRepository = billing.RefundRepository
 
-// NewRefundRepository constructs the refund repository.
+// NewRefundRepository は internal/billing の実装を返す（BE9-2C B③ facade）。
 func NewRefundRepository(db *gorm.DB) RefundRepository {
-	return refund.New(db)
+	return billing.NewRefundRepository(db)
 }

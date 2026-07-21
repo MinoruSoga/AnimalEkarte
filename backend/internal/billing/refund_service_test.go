@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -19,10 +19,10 @@ type mockRefundRepo struct {
 	findByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
 }
 
-// noopAuditTxLogger は AuditTxLogger の noop 実装（テスト用）
+// noopAuditTxLogger は billingAuditTxLogger の noop 実装（テスト用）
 type noopAuditTxLogger struct{}
 
-func (n *noopAuditTxLogger) LogEntryTx(_ context.Context, _ *AuditLogInput) error { return nil }
+func (n *noopAuditTxLogger) LogEntryTx(_ context.Context, _ *AuditEntry) error { return nil }
 
 func (m *mockRefundRepo) Create(ctx context.Context, refund *model.BillingRefund) error {
 	return m.createFn(ctx, refund)
@@ -229,13 +229,13 @@ func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
 	}
 }
 
-// capturingAuditTxLogger は refund 監査テスト用の AuditTxLogger モック。LogEntryTx のみ capture する。
+// capturingAuditTxLogger は refund 監査テスト用の billingAuditTxLogger モック。LogEntryTx のみ capture する。
 type capturingAuditTxLogger struct {
-	lastInput *AuditLogInput
+	lastInput *AuditEntry
 	err       error
 }
 
-func (c *capturingAuditTxLogger) LogEntryTx(_ context.Context, input *AuditLogInput) error {
+func (c *capturingAuditTxLogger) LogEntryTx(_ context.Context, input *AuditEntry) error {
 	c.lastInput = input
 	if c.err != nil {
 		return c.err

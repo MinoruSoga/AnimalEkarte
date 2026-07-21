@@ -1,4 +1,4 @@
-package refund
+package billing
 
 // sum_tx_participation_test.go — BE-refactor.md R1-1 (D2) の DB-backed 原子性証明
 //
@@ -35,7 +35,7 @@ func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t 
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := New(db)
+	repo := NewRefundRepository(db)
 
 	err := withTx(ctx, db, func(txCtx context.Context) error {
 		refund := &model.BillingRefund{
@@ -61,7 +61,7 @@ func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t 
 	require.NoError(t, err)
 
 	// tx 成功でコミットされた後も、通常の読み取りで確認できる（回帰確認）。
-	committedSum, sumErr := New(db).SumByBillingID(ctx, clinicA, billing.ID)
+	committedSum, sumErr := NewRefundRepository(db).SumByBillingID(ctx, clinicA, billing.ID)
 	require.NoError(t, sumErr)
 	assert.EqualValues(t, 4000, committedSum)
 }
@@ -72,7 +72,7 @@ func TestRefundRepository_SumByBillingIDAndPaymentMethod_SeesUncommittedInsertWi
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := New(db)
+	repo := NewRefundRepository(db)
 
 	err := withTx(ctx, db, func(txCtx context.Context) error {
 		method := model.PaymentMethodCreditCard

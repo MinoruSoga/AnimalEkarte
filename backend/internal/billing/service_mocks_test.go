@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -244,4 +245,111 @@ func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Conte
 
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
+}
+
+// mockAccountingRepository — accountingBillingView（FindByID/LockAndFindByID）の最小view mock
+// （def残存=accounting系はB④・再宣言規約）。
+type mockAccountingRepository struct {
+	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	lockAndFindByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+}
+
+func (m *mockAccountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Billing{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	if m.lockAndFindByIDFn != nil {
+		return m.lockAndFindByIDFn(ctx, clinicID, id)
+	}
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Billing{ID: id, ClinicID: clinicID}, nil
+}
+
+// mockTransactor / okTrimming* — service/reservation 側同名テストヘルパの複製（def残存→再宣言規約）。
+type mockTransactor struct {
+	withTxErr error
+	withTxFn  func(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if m.withTxFn != nil {
+		return m.withTxFn(ctx, fn)
+	}
+	if m.withTxErr != nil {
+		return m.withTxErr
+	}
+	return fn(ctx)
+}
+
+type mockTrimmingCourseFinder struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
+}
+
+func (m *mockTrimmingCourseFinder) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockTrimmingCourseFinder) FindAll(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
+	return nil, nil
+}
+
+type mockTrimmingOptionFinder struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
+}
+
+func (m *mockTrimmingOptionFinder) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockTrimmingOptionFinder) FindAll(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
+	return nil, nil
+}
+
+func okTrimmingCourseRepo() trimmingCourseFinder {
+	return &mockTrimmingCourseFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
+	}}
+}
+
+func okTrimmingOptionRepo() trimmingOptionFinder {
+	return &mockTrimmingOptionFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+		return &model.TrimmingOption{ID: id, IsActive: true}, nil
+	}}
+}
+
+// mockOwnerRepository — billingOwnerReader（FindByID のみ）の最小view mock（#81 段階2b）。
+type mockOwnerRepository struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+}
+
+func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
+}
+
+// reject系builder — service側同名のview型版複製。
+func rejectTrimmingCourseRepo(ownedID uint64) trimmingCourseFinder {
+	return &mockTrimmingCourseFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("trimming_course", "foreign")
+		}
+		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
+	}}
+}
+
+func rejectTrimmingOptionRepo(ownedID uint64) trimmingOptionFinder {
+	return &mockTrimmingOptionFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("trimming_option", "foreign")
+		}
+		return &model.TrimmingOption{ID: id, IsActive: true}, nil
+	}}
 }

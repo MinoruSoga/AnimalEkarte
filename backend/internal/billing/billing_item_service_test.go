@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- BillingItem モック ----
@@ -96,27 +95,6 @@ func (m *mockTreatmentRepositoryForBilling) FindUnbilledByPetID(ctx context.Cont
 		return m.findUnbilledByPetIDFn(ctx, clinicID, petID)
 	}
 	return nil, nil
-}
-func (m *mockTreatmentRepositoryForBilling) FindByMedicalRecordID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
-	return nil, nil
-}
-func (m *mockTreatmentRepositoryForBilling) FindHistoryByPetID(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockTreatmentRepositoryForBilling) FindByID(_ context.Context, _, _ uint64) (*model.Treatment, error) {
-	return nil, nil
-}
-func (m *mockTreatmentRepositoryForBilling) Create(_ context.Context, _ *model.Treatment) error {
-	return nil
-}
-func (m *mockTreatmentRepositoryForBilling) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
-}
-func (m *mockTreatmentRepositoryForBilling) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockTreatmentRepositoryForBilling) BulkUpdateSortOrder(_ context.Context, _ []repository.TreatmentSortUpdate) error {
-	return nil
 }
 func (m *mockTreatmentRepositoryForBilling) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
 	if m.countFinalizedFn != nil {
@@ -579,7 +557,7 @@ func TestBillingItemService_ResolveOwnerDiscountRate(t *testing.T) {
 	tests := []struct {
 		name      string
 		ownerID   *uint64
-		ownerRepo repository.OwnerRepository // interface type: keeps the "nil ownerRepo" case a true nil interface, not a typed-nil *mockOwnerRepository
+		ownerRepo billingOwnerReader // interface type: keeps the "nil ownerRepo" case a true nil interface, not a typed-nil *mockOwnerRepository
 		want      float64
 	}{
 		{
@@ -647,7 +625,7 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		campaignRepo repository.CampaignRepository // interface type: keeps the "nil campaignRepo" case a true nil interface, not a typed-nil *mockCampaignRepository
+		campaignRepo CampaignRepository // interface type: keeps the "nil campaignRepo" case a true nil interface, not a typed-nil *mockCampaignRepository
 		billingRepo  *mockAccountingRepository
 		ownerRepo    *mockOwnerRepository
 		input        *CreateBillingItemInput
@@ -767,7 +745,7 @@ func TestBillingItemService_GetDiscountSuggestions(t *testing.T) {
 		name          string
 		itemFindFn    func(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 		billingFindFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-		campaignRepo  repository.CampaignRepository // interface type: keeps the "no campaignRepo" case a true nil interface, not a typed-nil *mockCampaignRepository
+		campaignRepo  CampaignRepository // interface type: keeps the "no campaignRepo" case a true nil interface, not a typed-nil *mockCampaignRepository
 		ownerRepo     *mockOwnerRepository
 		wantErr       bool
 		wantLen       int

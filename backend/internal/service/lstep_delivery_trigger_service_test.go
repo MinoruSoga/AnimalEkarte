@@ -311,7 +311,7 @@ func defaultOwnerExcluded(ownerID uint64) *model.Owner {
 }
 
 func defaultMockBillingItemRepoForDelivery() repository.BillingItemRepository {
-	return defaultMockBillingItemRepo()
+	return &mockBillingItemRepository{}
 }
 
 // enabledSettings は IsSyncEnabled=true、GetRawCredentials で有効な apiKey を返すモック。

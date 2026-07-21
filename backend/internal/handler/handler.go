@@ -111,7 +111,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterCompanyRoutes(protected)
 	// BE9-2D: /checkups (+ /checkups/field-results) moved to
 	// internal/medicalrecord.Handler.RegisterRoutes (composed in cmd/api/main.go).
-	h.RegisterBillingItemRoutes(protected)
+	// 明細 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③）
 	h.RegisterLineReservationRoutes(protected)
 	// FEAT-368: 集計・締め機能
 	h.RegisterClosingSettingsRoutes(protected)
@@ -247,14 +247,13 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	// BUG-368: レジ締め日次集計
 	accountings.GET("/daily-summary", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetDailySummary)
 	accountings.GET("/:id", h.RequirePermission(string(model.ResourceAccounting), "view"), h.GetAccounting)
-	accountings.GET("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "view"), h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
 	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
 	// #189: 確定済みカード金額の確定後訂正（専用フロー）。確定/締め後訂正の既存権限 accounting-post-close-edit:edit を再利用。
 	accountings.POST("/:id/credit-correction", h.RequirePermission(string(model.ResourceAccountingPostCloseEdit), "edit"), h.CorrectCreditPayment)
 	// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。
 	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccountingCancel), "edit"), h.CancelAccounting)
-	accountings.POST("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateRefund)
+	// 返金 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B③・/accountings group は gin path merge で共存）
 }
 
 // registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

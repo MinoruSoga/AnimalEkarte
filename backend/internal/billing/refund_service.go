@@ -1,4 +1,4 @@
-package service
+package billing
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // CreateRefundInput は返金作成の入力DTO。
@@ -25,14 +24,14 @@ type RefundService interface {
 }
 
 type refundService struct {
-	repo          repository.RefundRepository
-	accountRepo   repository.AccountingRepository
-	auditTxLogger AuditTxLogger // fail-closed: ambient tx に参加して監査を書く（#211）
-	transactor    repository.Transactor
+	repo          RefundRepository
+	accountRepo   accountingBillingView
+	auditTxLogger billingAuditTxLogger // fail-closed: ambient tx に参加して監査を書く（#211）
+	transactor    Transactor
 }
 
 // NewRefundService はRefundServiceを初期化して返す
-func NewRefundService(repo repository.RefundRepository, accountRepo repository.AccountingRepository, auditTxLogger AuditTxLogger, transactor repository.Transactor) RefundService {
+func NewRefundService(repo RefundRepository, accountRepo accountingBillingView, auditTxLogger billingAuditTxLogger, transactor Transactor) RefundService {
 	return &refundService{repo: repo, accountRepo: accountRepo, auditTxLogger: auditTxLogger, transactor: transactor}
 }
 
@@ -110,7 +109,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 			slog.Int64("amount", amount))
 
 		// 監査ログ記録（fail-closed: 失敗→tx ロールバック→返金無効）
-		if err := s.auditTxLogger.LogEntryTx(txCtx, &AuditLogInput{
+		if err := s.auditTxLogger.LogEntryTx(txCtx, &AuditEntry{
 			ClinicID:   &clinicID,
 			ActorID:    input.StaffID,
 			ActorType:  model.AuditActorTypeStaff,

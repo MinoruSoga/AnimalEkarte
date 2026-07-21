@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // billing_item_write_clinic_isolation_test.go — BUG-417（BE9-2A監査検出・billing着手前提）
 //
@@ -17,12 +17,13 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 func setupBillingItemIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Billing{}, &model.BillingItem{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Billing{}, &model.BillingItem{}))
 	db.Exec("TRUNCATE TABLE billing_items, billings CASCADE")
 	return db
 }

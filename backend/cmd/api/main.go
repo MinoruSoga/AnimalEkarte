@@ -432,6 +432,8 @@ func main() {
 		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
 		billing.NewEstimateHandler(svcs.Estimate, h.HasPermission),
 		billing.NewBillingConfirmationHandler(svcs.BillingConfirmation, h.RequirePermission),
+		billing.NewBillingItemHandler(svcs.BillingItem, h.RequirePermission),
+		billing.NewRefundHandler(svcs.Refund, h.RequirePermission),
 		h.RequirePermission,
 	)
 	billingHandler.RegisterRoutes(protected)

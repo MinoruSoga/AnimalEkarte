@@ -1,5 +1,5 @@
 // Package service provides business logic implementations for BillingItem entity.
-package service
+package billing
 
 import (
 	"context"
@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	billingdom "github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // --- DB column constants ---
@@ -93,7 +92,7 @@ func validateCreateBillingItemInput(input *CreateBillingItemInput) error {
 		return apperrors.WrapInvalidInput("商品名は必須です")
 	}
 	if input.UnitPrice < 0 {
-		return apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
 	}
 	if input.Quantity <= 0 {
 		return apperrors.WrapInvalidInput("数量は正の値である必要があります")
@@ -110,14 +109,14 @@ func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, f
 	// TaxType デフォルト設定とバリデーション
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
-		if err := validateTaxType(input.TaxType); err != nil {
+		if err := sharedkernel.ValidateTaxType(input.TaxType); err != nil {
 			return "", 0, "", apperrors.Wrap(err, "failed to validate tax type")
 		}
 		taxType = model.TaxType(input.TaxType)
 	}
 
 	// TaxRate デフォルト設定
-	taxRate := DefaultTaxRate
+	taxRate := sharedkernel.DefaultTaxRate
 	if input.TaxRate > 0 {
 		taxRate = input.TaxRate
 	}
@@ -156,14 +155,14 @@ type UngroupedSameDaySummary struct {
 }
 
 type billingItemService struct {
-	repo               repository.BillingItemRepository
-	billingRepo        repository.AccountingRepository
-	treatmentRepo      repository.TreatmentRepository
-	transactor         repository.Transactor
-	trimmingCourseRepo repository.TrimmingCourseRepository // X-4: クロステナント write 防止用の所有権検証
-	trimmingOptionRepo repository.TrimmingOptionRepository // X-4: クロステナント write 防止用の所有権検証
-	campaignRepo       repository.CampaignRepository       // #81 段階2b: nil の場合は自動割引なし
-	ownerRepo          repository.OwnerRepository          // #81 段階2b: 飼主割引取得用
+	repo               BillingItemRepository
+	billingRepo        accountingBillingView
+	treatmentRepo      treatmentBillingReader
+	transactor         Transactor
+	trimmingCourseRepo trimmingCourseFinder // X-4: クロステナント write 防止用の所有権検証
+	trimmingOptionRepo trimmingOptionFinder // X-4: クロステナント write 防止用の所有権検証
+	campaignRepo       CampaignRepository   // #81 段階2b: nil の場合は自動割引なし
+	ownerRepo          billingOwnerReader   // #81 段階2b: 飼主割引取得用
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -175,7 +174,7 @@ type ungroupedTrimmingCounter interface {
 }
 
 // NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
-func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
+func NewBillingItemServiceWithCampaign(repo BillingItemRepository, billingRepo accountingBillingView, treatmentRepo treatmentBillingReader, transactor Transactor, trimmingCourseRepo trimmingCourseFinder, trimmingOptionRepo trimmingOptionFinder, campaignRepo CampaignRepository, ownerRepo billingOwnerReader) BillingItemService {
 	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
 }
 
@@ -218,7 +217,7 @@ func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clini
 
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
 // campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
-// 飼主割引と高い方を採用する(billingdom.CalculateItemCampaignDiscount)。
+// 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
 func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput) int64 {
 	if s.campaignRepo == nil {
 		return 0
@@ -236,7 +235,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}
 	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
-	return billingdom.CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
+	return CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -309,7 +308,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
 	}
 	if input.Quantity != nil && *input.Quantity <= 0 {
 		return nil, apperrors.WrapInvalidInput("数量は正の値である必要があります")
@@ -433,7 +432,7 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		UnitPrice:             t.UnitPrice,
 		Quantity:              t.Quantity,
 		TaxType:               model.TaxTypeExcluded,
-		TaxRate:               DefaultTaxRate,
+		TaxRate:               sharedkernel.DefaultTaxRate,
 		IsInsuranceApplicable: t.IsInsurance,
 		Source:                model.ItemSourceMedicalRecord,
 		TreatmentID:           &treatmentID,
@@ -474,7 +473,7 @@ func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicI
 		}
 	}
 	itemSubtotal := int64(float64(item.UnitPrice) * item.Quantity)
-	return billingdom.BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
+	return BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する

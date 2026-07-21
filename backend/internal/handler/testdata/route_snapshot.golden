@@ -1,4 +1,3 @@
-DELETE /api/v1/billing-items/:id DeleteBillingItem
 DELETE /api/v1/clinic-holidays/:date DeleteClinicHoliday
 DELETE /api/v1/clinics/:clinic_id DeleteClinic
 DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
@@ -31,14 +30,10 @@ DELETE /api/v1/shifts/:id DeleteShiftEntry
 DELETE /api/v1/trimmings/:id DeleteTrimming
 GET /api/v1/accountings ListAccountings
 GET /api/v1/accountings/:id GetAccounting
-GET /api/v1/accountings/:id/refunds ListRefunds
 GET /api/v1/accountings/daily-summary GetDailySummary
 GET /api/v1/accountings/unpaid ListUnpaidBillings
 GET /api/v1/accountings/unpaid-balance GetOwnerUnpaidBalance
 GET /api/v1/accountings/unpaid-monthly GetUnpaidMonthlySummary
-GET /api/v1/billing-items/:id/discount-suggestions GetBillingItemDiscountSuggestions
-GET /api/v1/billing-items/unbilled GetUnbilledItems
-GET /api/v1/billing-items/ungrouped-same-day GetUngroupedSameDay
 GET /api/v1/cash-register/closes ListCashRegisterCloses
 GET /api/v1/cash-register/closes/:id GetCashRegisterClose
 GET /api/v1/cash-register/preview GetCashRegisterPreview
@@ -121,7 +116,6 @@ GET /health Health
 GET /uploads/*filepath func1
 HEAD /uploads/*filepath func1
 PATCH /api/v1/accountings/:id UpdateAccounting
-PATCH /api/v1/billing-items/:id UpdateBillingItem
 PATCH /api/v1/clinics/:clinic_id UpdateClinic
 PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
 PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
@@ -173,11 +167,9 @@ POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/accountings CreateAccounting
 POST /api/v1/accountings/:id/cancel CancelAccounting
 POST /api/v1/accountings/:id/credit-correction CorrectCreditPayment
-POST /api/v1/accountings/:id/refunds CreateRefund
 POST /api/v1/auth/forgot-password ForgotPassword
 POST /api/v1/auth/refresh RefreshToken
 POST /api/v1/auth/reset-password ResetPassword
-POST /api/v1/billing-items CreateBillingItem
 POST /api/v1/cash-register/closes CloseCashRegister
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic

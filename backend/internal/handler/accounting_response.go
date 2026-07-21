@@ -187,66 +187,6 @@ func toMonthlyUnpaidCarryoverResponse(items []repository.MonthlyUnpaidOwnerPet, 
 	}
 }
 
-type refundResponse struct {
-	ID             uint64    `json:"id"`
-	ClinicID       uint64    `json:"clinic_id"`
-	BillingID      uint64    `json:"billing_id"`
-	Amount         int64     `json:"amount"`
-	Reason         string    `json:"reason"`
-	RefundedBy     *uint64   `json:"refunded_by"`
-	RefundedByName string    `json:"refunded_by_name"`
-	PaymentMethod  *string   `json:"payment_method,omitempty"`
-	RefundedAt     time.Time `json:"refunded_at"`
-	CreatedAt      time.Time `json:"created_at"`
-}
-
-func toRefundResponse(r *model.BillingRefund) refundResponse {
-	var staffName string
-	if r.RefundedByStaff != nil {
-		staffName = r.RefundedByStaff.Name
-	}
-	var paymentMethod *string
-	if r.PaymentMethod != nil {
-		pm := string(*r.PaymentMethod)
-		paymentMethod = &pm
-	}
-	return refundResponse{
-		ID:             r.ID,
-		ClinicID:       r.ClinicID,
-		BillingID:      r.BillingID,
-		Amount:         r.Amount,
-		Reason:         r.Reason,
-		RefundedBy:     r.RefundedBy,
-		RefundedByName: staffName,
-		PaymentMethod:  paymentMethod,
-		RefundedAt:     localTime(r.RefundedAt),
-		CreatedAt:      localTime(r.CreatedAt),
-	}
-}
-
-type billingItemResponse struct {
-	ID                    uint64    `json:"id"`
-	BillingID             uint64    `json:"billing_id"`
-	Category              string    `json:"category"`
-	Name                  string    `json:"name"`
-	UnitPrice             int64     `json:"unit_price"`
-	Quantity              float64   `json:"quantity"`
-	DiscountRate          float64   `json:"discount_rate"`
-	DiscountAmount        int64     `json:"discount_amount"`
-	Subtotal              int64     `json:"subtotal"`
-	TaxType               string    `json:"tax_type"`
-	TaxRate               float64   `json:"tax_rate"`
-	TaxAmount             int64     `json:"tax_amount"`
-	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
-	Source                string    `json:"source"`
-	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
-	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
-	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
-	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
-	SortOrder             int       `json:"sort_order"`
-	CreatedAt             time.Time `json:"created_at"`
-}
-
 type paymentSplitResponse struct {
 	ID              uint64    `json:"id"`
 	ClinicID        uint64    `json:"clinic_id"`
@@ -318,34 +258,6 @@ type accountingResponse struct {
 	Refunds             []refundResponse        `json:"refunds,omitempty"`
 	CreatedAt           time.Time               `json:"created_at"`
 	UpdatedAt           time.Time               `json:"updated_at"`
-}
-
-func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
-	// #85: subtotal は割引後（単価×数量 − 割引額）。負値は 0 クランプ。
-	subtotal := max(int64(float64(item.UnitPrice)*item.Quantity)-item.DiscountAmount, 0)
-	taxAmount := item.CalculateTaxAmount()
-	return billingItemResponse{
-		ID:                    item.ID,
-		BillingID:             item.BillingID,
-		Category:              string(item.Category),
-		Name:                  item.Name,
-		UnitPrice:             item.UnitPrice,
-		Quantity:              item.Quantity,
-		DiscountRate:          item.DiscountRate,
-		DiscountAmount:        item.DiscountAmount,
-		Subtotal:              subtotal,
-		TaxType:               string(item.TaxType),
-		TaxRate:               item.TaxRate,
-		TaxAmount:             taxAmount,
-		IsInsuranceApplicable: item.IsInsuranceApplicable,
-		Source:                string(item.Source),
-		TreatmentID:           item.TreatmentID,
-		AppointmentID:         item.AppointmentID,
-		TrimmingCourseID:      item.TrimmingCourseID,
-		TrimmingOptionID:      item.TrimmingOptionID,
-		SortOrder:             item.SortOrder,
-		CreatedAt:             localTime(item.CreatedAt),
-	}
 }
 
 func toPaymentResponse(p *model.Payment) paymentResponse {

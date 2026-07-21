@@ -57,8 +57,8 @@ type Services struct {
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
 	// package). No longer constructed here; see cmd/api/main.go.
 	MerchandiseItem     MerchandiseItemService
-	BillingItem         BillingItemService
-	Refund              RefundService
+	BillingItem         billing.BillingItemService
+	Refund              billing.RefundService
 	PasswordReset       PasswordResetService
 	ReservationNotifier reservation.ReservationNotifier
 
@@ -266,8 +266,8 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		// で直接構築する（Services には保持しない）。
 		Estimate:            billing.NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, billingAuditAdapter{inner: auditSvc}, tx),
 		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:         NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
-		Refund:              NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
+		BillingItem:         billing.NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
+		Refund:              billing.NewRefundService(repos.Refund, repos.Accounting, billingAuditTxAdapter{inner: auditTxLogger}, tx),
 		PasswordReset:       NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		ReservationNotifier: notifier,
 		// FEAT-368: 集計・締め機能

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 type mockPaymentMethodMasterRepository struct {
@@ -112,79 +111,63 @@ func (m *mockInsuranceRepository) CountUsageByInsuranceID(ctx context.Context, c
 	return 0, nil
 }
 
-// mockCampaignRepository — B①移動test（campaign_service_test.go）由来のcarrier複製（billing_item用・B③で解消）。
-type mockCampaignRepository struct {
-	repository.CampaignRepository
-	findAllFn                  func(ctx context.Context, clinicID uint64) ([]model.Campaign, error)
-	findByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Campaign, error)
-	createFn                   func(ctx context.Context, m *model.Campaign) (*model.Campaign, error)
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error)
-	replaceTargetsFn           func(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error
-	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
-	reorderFn                  func(ctx context.Context, clinicID uint64, ids []uint64) error
-	findApplicableForItemFn    func(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error)
-	findAllApplicableForItemFn func(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error)
+// mockBillingItemRepository — B③移動test由来のcarrier複製（lstep_health_tag_sync_prevention用・lstep移行時に解消）。
+type mockBillingItemRepository struct {
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
+	findByBillingIDFn             func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
+	createFn                      func(ctx context.Context, item *model.BillingItem) error
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	hasFoodPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 }
 
-func (m *mockCampaignRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
-	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID)
-	}
-	return []model.Campaign{}, nil
+func (m *mockBillingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockCampaignRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.Campaign{ID: id, ClinicID: clinicID}, nil
+func (m *mockBillingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
+	return m.findByBillingIDFn(ctx, clinicID, billingID)
 }
 
-func (m *mockCampaignRepository) Create(ctx context.Context, campaign *model.Campaign) (*model.Campaign, error) {
-	if m.createFn != nil {
-		return m.createFn(ctx, campaign)
-	}
-	return campaign, nil
+func (m *mockBillingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
+	return m.createFn(ctx, item)
 }
 
-func (m *mockCampaignRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
-	}
-	return &model.Campaign{ID: id, ClinicID: clinicID}, nil
+func (m *mockBillingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockCampaignRepository) ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error {
-	if m.replaceTargetsFn != nil {
-		return m.replaceTargetsFn(ctx, campaignID, categories, itemIDs)
+func (m *mockBillingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockBillingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+	if m.updateBillingTotals != nil {
+		return m.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
 	}
 	return nil
 }
 
-func (m *mockCampaignRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, id)
+func (m *mockBillingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if m.hasItemByOwnerSinceFn != nil {
+		return m.hasItemByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
 	}
-	return nil
+	return false, nil
 }
 
-func (m *mockCampaignRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if m.reorderFn != nil {
-		return m.reorderFn(ctx, clinicID, ids)
+func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if m.hasFoodPurchaseByOwnerSinceFn != nil {
+		return m.hasFoodPurchaseByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
 	}
-	return nil
+	return false, nil
 }
 
-func (m *mockCampaignRepository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
-	if m.findApplicableForItemFn != nil {
-		return m.findApplicableForItemFn(ctx, clinicID, date, category, merchandiseItemID)
-	}
+func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 	return nil, nil
 }
 
-func (m *mockCampaignRepository) FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error) {
-	if m.findAllApplicableForItemFn != nil {
-		return m.findAllApplicableForItemFn(ctx, clinicID, date, category, merchandiseItemID)
-	}
-	return nil, nil
+func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
 }
