@@ -1,6 +1,4 @@
-package handler
-
-import "github.com/animal-ekarte/backend/internal/service"
+package lstep
 
 // updateLstepSettingsRequest はLステップ設定更新リクエスト。空文字=変更なし。
 type updateLstepSettingsRequest struct {
@@ -39,8 +37,8 @@ type updateLstepSettingsRequest struct {
 	VaccineDeadlineDays          *int `json:"vaccine_deadline_days"`
 }
 
-func (r *updateLstepSettingsRequest) toServiceInput() *service.UpdateLstepSettingsInput {
-	return &service.UpdateLstepSettingsInput{
+func (r *updateLstepSettingsRequest) toServiceInput() *UpdateLstepSettingsInput {
+	return &UpdateLstepSettingsInput{
 		LstepAPIKey:                  r.LstepAPIKey,
 		LstepBaseURL:                 r.LstepBaseURL,
 		LineChannelAccessToken:       r.LineChannelAccessToken,

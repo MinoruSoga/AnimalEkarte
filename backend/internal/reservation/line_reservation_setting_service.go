@@ -139,7 +139,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 
 	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
 	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値（DB 上は暗号文）を
-	// 復号して平文として保持する。decryptLineCredential はレガシー平文行もそのまま返す。
+	// 復号して平文として保持する。lstep.DecryptLineCredential はレガシー平文行もそのまま返す。
 	channelSecret := input.LineChannelSecret
 	accessToken := input.LineAccessToken
 	if existing != nil {

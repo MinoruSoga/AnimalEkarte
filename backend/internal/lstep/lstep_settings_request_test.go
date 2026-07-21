@@ -1,4 +1,7 @@
-package handler
+package lstep
+
+// lstep_settings_request_test.go — BE9-2C L①: handler/upsert_misc_request_test.go から
+// updateLstepSettingsRequest のテストを実装と同 package へ移動。
 
 import (
 	"testing"

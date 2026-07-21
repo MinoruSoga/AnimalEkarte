@@ -1,9 +1,9 @@
-package handler
+package lstep
 
 import (
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 // lstepSettingsResponse はGETレスポンス（センシティブ値はマスク済み）
@@ -54,7 +54,7 @@ type lstepConnectionTestResponse struct {
 	LineError  string `json:"line_error,omitempty"`
 }
 
-func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResponse {
+func toLstepSettingsResponse(s *LstepSettingsResponse) lstepSettingsResponse {
 	return lstepSettingsResponse{
 		LstepAPIKeyMasked:            s.LstepAPIKeyMasked,
 		LstepBaseURL:                 s.LstepBaseURL,
@@ -63,9 +63,9 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 		LiffID:                       s.LiffID,
 		LineAccountName:              s.LineAccountName,
 		IsConfigured:                 s.IsConfigured,
-		LastUpdatedAt:                localTimePtr(s.LastUpdatedAt),
+		LastUpdatedAt:                httpapi.LocalTimePtr(s.LastUpdatedAt),
 		IsSyncEnabled:                s.IsSyncEnabled,
-		SyncEnabledAt:                localTimePtr(s.SyncEnabledAt),
+		SyncEnabledAt:                httpapi.LocalTimePtr(s.SyncEnabledAt),
 		CPMVersion:                   s.CPMVersion,
 		DormantPrevention180Days:     s.DormantPrevention180Days,
 		DormantPrevention210Days:     s.DormantPrevention210Days,
@@ -93,7 +93,7 @@ func toLstepSettingsResponse(s *service.LstepSettingsResponse) lstepSettingsResp
 	}
 }
 
-func toLstepConnectionTestResponse(r *service.LstepConnectionTestResult) lstepConnectionTestResponse {
+func toLstepConnectionTestResponse(r *LstepConnectionTestResult) lstepConnectionTestResponse {
 	return lstepConnectionTestResponse{
 		LstepOK:    r.LstepOK,
 		LstepError: r.LstepError,

@@ -1,4 +1,4 @@
-package repository
+package lstep
 
 // lstep_sync_error_counter_repository_test.go — LstepSyncErrorCounterRepository 統合テスト。
 //
@@ -18,6 +18,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupLstepSyncErrorCounterTestDB は lstep_sync_error_counters テーブルを用意する。
@@ -26,8 +27,8 @@ import (
 // IncrementFailure の raw SQL ON CONFLICT を意味のある形で検証するため、明示的に追加する。
 func setupLstepSyncErrorCounterTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.LstepSyncErrorCounter{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepSyncErrorCounter{}))
 	db.Exec("TRUNCATE TABLE lstep_sync_error_counters CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_sync_error_counter_conflict
 		ON lstep_sync_error_counters (clinic_id, owner_id)`)

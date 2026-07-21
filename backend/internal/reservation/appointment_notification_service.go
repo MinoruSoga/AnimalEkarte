@@ -58,7 +58,7 @@ type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
 	settingRepo lineReservationSettingFinder
 	// 以下3本は lstep/auth 側実装の closure 注入（topo で reservation からの import 禁止のため。
-	// 具象は service 集約が旧実装（decryptLineCredential/NewLineMessagingService/sendSMTPMail）を包んで渡す）。
+	// 具象は service 集約が旧実装（lstep.DecryptLineCredential/NewLineMessagingService/sendSMTPMail）を包んで渡す）。
 	decryptCredential func(ctx context.Context, value string) string
 	newLineMessenger  func(channelToken string) LinePusher
 	sendMail          func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error

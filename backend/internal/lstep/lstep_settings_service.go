@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // LstepSettingsResponse はGETレスポンス用（マスク済み）
@@ -149,18 +148,18 @@ type LstepSettingsService interface {
 }
 
 type lstepSettingsService struct {
-	repo               repository.LstepSettingsRepository
-	syncSettingsRepo   repository.LstepSyncSettingsRepository
-	clinicSettingsRepo repository.ClinicSettingsRepository
+	repo               LstepSettingsRepository
+	syncSettingsRepo   LstepSyncSettingsRepository
+	clinicSettingsRepo lstepClinicSettingsRepo
 	cipher             *crypto.AESGCMCipher
-	auditSvc           AuditService
+	auditSvc           lstepAuditLogger
 }
 
 // NewLstepSettingsService は LstepSettingsService を初期化して返す。
 // cipher が nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // auditSvc が nil の場合は監査ログをスキップする（CLI ツール等での使用を想定）。
 // clinicSettingsRepo が nil の場合は clinic_settings の読み書きをスキップする。
-func NewLstepSettingsService(repo repository.LstepSettingsRepository, syncSettingsRepo repository.LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc AuditService, clinicSettingsRepo repository.ClinicSettingsRepository) LstepSettingsService {
+func NewLstepSettingsService(repo LstepSettingsRepository, syncSettingsRepo LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc lstepAuditLogger, clinicSettingsRepo lstepClinicSettingsRepo) LstepSettingsService {
 	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, clinicSettingsRepo: clinicSettingsRepo, cipher: cipher, auditSvc: auditSvc}
 }
 

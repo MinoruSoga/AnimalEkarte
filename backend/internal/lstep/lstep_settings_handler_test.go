@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -14,29 +14,28 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock LstepSettingsService ----
 
 type mockLstepSettingsService struct {
-	getSettingsFn    func(ctx context.Context, clinicID uint64) (*service.LstepSettingsResponse, error)
-	updateSettingsFn func(ctx context.Context, clinicID uint64, input *service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error)
+	getSettingsFn    func(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
+	updateSettingsFn func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
 	deleteSettingsFn func(ctx context.Context, clinicID uint64, actorID *uint64) error
-	testConnectionFn func(ctx context.Context, clinicID uint64) (*service.LstepConnectionTestResult, error)
+	testConnectionFn func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
 }
 
-func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*service.LstepSettingsResponse, error) {
+func (m *mockLstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
 	if m.getSettingsFn != nil {
 		return m.getSettingsFn(ctx, clinicID)
 	}
-	return &service.LstepSettingsResponse{}, nil
+	return &LstepSettingsResponse{}, nil
 }
-func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *service.UpdateLstepSettingsInput, actorID *uint64) (*service.LstepSettingsResponse, error) {
+func (m *mockLstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
 	if m.updateSettingsFn != nil {
 		return m.updateSettingsFn(ctx, clinicID, input, actorID)
 	}
-	return &service.LstepSettingsResponse{}, nil
+	return &LstepSettingsResponse{}, nil
 }
 func (m *mockLstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error {
 	if m.deleteSettingsFn != nil {
@@ -44,11 +43,11 @@ func (m *mockLstepSettingsService) DeleteSettings(ctx context.Context, clinicID 
 	}
 	return nil
 }
-func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*service.LstepConnectionTestResult, error) {
+func (m *mockLstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {
 	if m.testConnectionFn != nil {
 		return m.testConnectionFn(ctx, clinicID)
 	}
-	return &service.LstepConnectionTestResult{LstepOK: true, LineOK: true}, nil
+	return &LstepConnectionTestResult{LstepOK: true, LineOK: true}, nil
 }
 func (m *mockLstepSettingsService) GetRawCredentials(_ context.Context, _ uint64) (apiKey, baseURL, lineToken string, err error) {
 	return "", "", "", nil
@@ -74,11 +73,11 @@ func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Conte
 
 // ---- helpers ----
 
-func newHandlerWithLstepSettingsSvc(svc service.LstepSettingsService) *Handler {
-	return &Handler{svc: &service.Services{LstepSettings: svc}}
+func newHandlerWithLstepSettingsSvc(svc LstepSettingsService) *LstepSettingsHandler {
+	return NewLstepSettingsHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
-func newGetLstepSettingsRouter(svc service.LstepSettingsService, withClinicID bool) *gin.Engine {
+func newGetLstepSettingsRouter(svc LstepSettingsService, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLstepSettingsSvc(svc)
 	if withClinicID {
@@ -89,7 +88,7 @@ func newGetLstepSettingsRouter(svc service.LstepSettingsService, withClinicID bo
 	return r
 }
 
-func newPatchLstepSettingsRouter(svc service.LstepSettingsService, withClinicID bool) *gin.Engine {
+func newPatchLstepSettingsRouter(svc LstepSettingsService, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLstepSettingsSvc(svc)
 	if withClinicID {
@@ -100,7 +99,7 @@ func newPatchLstepSettingsRouter(svc service.LstepSettingsService, withClinicID 
 	return r
 }
 
-func newDeleteLstepSettingsRouter(svc service.LstepSettingsService, withClinicID bool) *gin.Engine {
+func newDeleteLstepSettingsRouter(svc LstepSettingsService, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLstepSettingsSvc(svc)
 	if withClinicID {
@@ -111,7 +110,7 @@ func newDeleteLstepSettingsRouter(svc service.LstepSettingsService, withClinicID
 	return r
 }
 
-func newPostLstepTestConnectionRouter(svc service.LstepSettingsService, withClinicID bool) *gin.Engine {
+func newPostLstepTestConnectionRouter(svc LstepSettingsService, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLstepSettingsSvc(svc)
 	if withClinicID {
@@ -144,7 +143,7 @@ func TestGetLstepSettings(t *testing.T) {
 		{
 			name: "500 service error",
 			svc: &mockLstepSettingsService{
-				getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
+				getSettingsFn: func(_ context.Context, _ uint64) (*LstepSettingsResponse, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -166,8 +165,8 @@ func TestGetLstepSettingsIncludesSyncFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	syncEnabledAt := time.Date(2026, 5, 1, 9, 0, 0, 0, time.UTC)
 	svc := &mockLstepSettingsService{
-		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
-			return &service.LstepSettingsResponse{
+		getSettingsFn: func(_ context.Context, _ uint64) (*LstepSettingsResponse, error) {
+			return &LstepSettingsResponse{
 				IsSyncEnabled: true,
 				SyncEnabledAt: &syncEnabledAt,
 			}, nil
@@ -216,7 +215,7 @@ func TestPatchLstepSettings(t *testing.T) {
 		{
 			name: "500 service error",
 			svc: &mockLstepSettingsService{
-				updateSettingsFn: func(_ context.Context, _ uint64, _ *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+				updateSettingsFn: func(_ context.Context, _ uint64, _ *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -240,9 +239,9 @@ func TestPatchLstepSettingsPassesSyncEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var got *bool
 	svc := &mockLstepSettingsService{
-		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+		updateSettingsFn: func(_ context.Context, _ uint64, input *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 			got = input.IsSyncEnabled
-			return &service.LstepSettingsResponse{IsSyncEnabled: true}, nil
+			return &LstepSettingsResponse{IsSyncEnabled: true}, nil
 		},
 	}
 
@@ -301,9 +300,9 @@ func TestPatchLstepSettingsPassesCPMVersion(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var got *string
 	svc := &mockLstepSettingsService{
-		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+		updateSettingsFn: func(_ context.Context, _ uint64, input *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 			got = input.CPMVersion
-			return &service.LstepSettingsResponse{
+			return &LstepSettingsResponse{
 				LstepAPIKeyMasked:            "",
 				LstepBaseURL:                 "",
 				LineChannelAccessTokenMasked: "",
@@ -343,12 +342,12 @@ func TestPatchLstepSettingsPassesDormantThresholds(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var got180, got210, got240, got365 *int
 	svc := &mockLstepSettingsService{
-		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+		updateSettingsFn: func(_ context.Context, _ uint64, input *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 			got180 = input.DormantPrevention180Days
 			got210 = input.DormantPrevention210Days
 			got240 = input.DormantPrevention240Days
 			got365 = input.DormantPrevention365Days
-			return &service.LstepSettingsResponse{
+			return &LstepSettingsResponse{
 				LstepAPIKeyMasked:            "",
 				LstepBaseURL:                 "",
 				LineChannelAccessTokenMasked: "",
@@ -404,8 +403,8 @@ func TestPatchLstepSettingsPassesDormantThresholds(t *testing.T) {
 func TestGetLstepSettingsIncludesNewFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &mockLstepSettingsService{
-		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
-			return &service.LstepSettingsResponse{
+		getSettingsFn: func(_ context.Context, _ uint64) (*LstepSettingsResponse, error) {
+			return &LstepSettingsResponse{
 				LstepAPIKeyMasked:            "",
 				LstepBaseURL:                 "",
 				LineChannelAccessTokenMasked: "",
@@ -455,8 +454,8 @@ func TestPostLstepTestConnection(t *testing.T) {
 		{
 			name: "200 partial failure still returns 200",
 			svc: &mockLstepSettingsService{
-				testConnectionFn: func(_ context.Context, _ uint64) (*service.LstepConnectionTestResult, error) {
-					return &service.LstepConnectionTestResult{LstepOK: false, LstepError: "invalid key"}, nil
+				testConnectionFn: func(_ context.Context, _ uint64) (*LstepConnectionTestResult, error) {
+					return &LstepConnectionTestResult{LstepOK: false, LstepError: "invalid key"}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -469,7 +468,7 @@ func TestPostLstepTestConnection(t *testing.T) {
 		{
 			name: "500 service error",
 			svc: &mockLstepSettingsService{
-				testConnectionFn: func(_ context.Context, _ uint64) (*service.LstepConnectionTestResult, error) {
+				testConnectionFn: func(_ context.Context, _ uint64) (*LstepConnectionTestResult, error) {
 					return nil, errors.New("network error")
 				},
 			},
@@ -492,10 +491,10 @@ func TestPatchLstepSettingsPassesCPMV1Thresholds(t *testing.T) {
 	var gotDormant *int
 	var gotNoahLTV *int64
 	svc := &mockLstepSettingsService{
-		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+		updateSettingsFn: func(_ context.Context, _ uint64, input *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 			gotDormant = input.CPMV1DormantDays
 			gotNoahLTV = input.CPMV1NoahLTV
-			return &service.LstepSettingsResponse{
+			return &LstepSettingsResponse{
 				CPMV1DormantDays: 300,
 				CPMV1NoahLTV:     90000,
 			}, nil
@@ -528,8 +527,8 @@ func TestPatchLstepSettingsPassesCPMV1Thresholds(t *testing.T) {
 func TestGetLstepSettingsIncludesHealthPreventionFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &mockLstepSettingsService{
-		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
-			return &service.LstepSettingsResponse{
+		getSettingsFn: func(_ context.Context, _ uint64) (*LstepSettingsResponse, error) {
+			return &LstepSettingsResponse{
 				HealthPreventionLookbackDays: 365,
 				VaccineDeadlineDays:          60,
 			}, nil
@@ -553,10 +552,10 @@ func TestPatchLstepSettingsPassesHealthPreventionThresholds(t *testing.T) {
 	var gotLookback *int
 	var gotVaccine *int
 	svc := &mockLstepSettingsService{
-		updateSettingsFn: func(_ context.Context, _ uint64, input *service.UpdateLstepSettingsInput, _ *uint64) (*service.LstepSettingsResponse, error) {
+		updateSettingsFn: func(_ context.Context, _ uint64, input *UpdateLstepSettingsInput, _ *uint64) (*LstepSettingsResponse, error) {
 			gotLookback = input.HealthPreventionLookbackDays
 			gotVaccine = input.VaccineDeadlineDays
-			return &service.LstepSettingsResponse{
+			return &LstepSettingsResponse{
 				HealthPreventionLookbackDays: 180,
 				VaccineDeadlineDays:          30,
 			}, nil
@@ -589,8 +588,8 @@ func TestPatchLstepSettingsPassesHealthPreventionThresholds(t *testing.T) {
 func TestGetLstepSettingsIncludesCPMV1Fields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &mockLstepSettingsService{
-		getSettingsFn: func(_ context.Context, _ uint64) (*service.LstepSettingsResponse, error) {
-			return &service.LstepSettingsResponse{
+		getSettingsFn: func(_ context.Context, _ uint64) (*LstepSettingsResponse, error) {
+			return &LstepSettingsResponse{
 				CPMV1DormantDays:      240,
 				CPMV1NoahDays:         365,
 				CPMV1NoahAnnualVisits: 3,

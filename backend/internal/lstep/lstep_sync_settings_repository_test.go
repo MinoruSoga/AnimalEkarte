@@ -1,4 +1,4 @@
-package repository
+package lstep
 
 // lstep_sync_settings_repository_test.go — LstepSyncSettingsRepository 統合テスト。
 //
@@ -19,6 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupLstepSyncSettingsTestDB は lstep_settings テーブルを用意する。
@@ -26,8 +27,8 @@ import (
 // UNIQUE(clinic_id) が再現され、Upsert の ON CONFLICT(clinic_id) をそのまま検証できる。
 func setupLstepSyncSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.LstepSettings{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepSettings{}))
 	db.Exec("TRUNCATE TABLE lstep_settings CASCADE")
 	return db
 }

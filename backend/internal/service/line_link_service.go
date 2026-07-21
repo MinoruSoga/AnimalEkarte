@@ -18,6 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/infra/line"
+	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -261,7 +262,7 @@ func (s *lineLinkService) verifySignatureAnyClinic(ctx context.Context, body []b
 	for i := range settings {
 		setting := &settings[i]
 		// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
-		secret := decryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
+		secret := lstep.DecryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
 		if secret == "" {
 			continue
 		}

@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
+	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
@@ -131,7 +132,7 @@ type Services struct {
 // lstep 連携と同一の cipher を再利用する。
 func NewServices(repos *repository.Repositories, notifCfg *reservation.ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
 	notifier := reservation.NewReservationNotificationService(notifCfg, repos.LineReservationSetting,
-		func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) },
+		func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) },
 		func(channelToken string) reservation.LinePusher {
 			return NewLineMessagingService(channelToken)
 		},
@@ -182,7 +183,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
 
 	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
-	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
+	lstepSettingsSvc := lstep.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, auditTxLogger)
 
@@ -278,8 +279,8 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		CashRegister:        billing.NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:    billing.NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting: reservation.NewLineReservationSettingService(repos.LineReservationSetting,
-			func(value string) (string, error) { return encryptLineCredential(cipher, value) },
-			func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) }),
+			func(value string) (string, error) { return lstep.EncryptLineCredential(cipher, value) },
+			func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) }),
 		ReservationTypeLiff:       reservation.NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,

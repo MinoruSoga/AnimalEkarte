@@ -175,3 +175,51 @@ func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ con
 func ptrString(v string) *string { return &v }
 
 func ptrInt64(v int64) *int64 { return &v }
+
+// mockLstepSettingsRepository — L①移動test由来のcarrier複製（cipher wiring test用・L②〜で解消）。
+type mockLstepSettingsRepository struct {
+	findByClinicAndServiceFn   func(ctx context.Context, clinicID uint64, svc string) ([]*model.ClinicIntegration, error)
+	upsertFn                   func(ctx context.Context, integration *model.ClinicIntegration) error
+	deleteByClinicAndServiceFn func(ctx context.Context, clinicID uint64, svc string) error
+}
+
+func (m *mockLstepSettingsRepository) FindByClinicAndService(ctx context.Context, clinicID uint64, svc string) ([]*model.ClinicIntegration, error) {
+	if m.findByClinicAndServiceFn != nil {
+		return m.findByClinicAndServiceFn(ctx, clinicID, svc)
+	}
+	return []*model.ClinicIntegration{}, nil
+}
+
+func (m *mockLstepSettingsRepository) Upsert(ctx context.Context, integration *model.ClinicIntegration) error {
+	if m.upsertFn != nil {
+		return m.upsertFn(ctx, integration)
+	}
+	return nil
+}
+
+func (m *mockLstepSettingsRepository) DeleteByClinicAndService(ctx context.Context, clinicID uint64, svc string) error {
+	if m.deleteByClinicAndServiceFn != nil {
+		return m.deleteByClinicAndServiceFn(ctx, clinicID, svc)
+	}
+	return nil
+}
+
+// mockLstepSyncSettingsRepository — L①移動test由来のcarrier複製（cipher wiring test用）。
+type mockLstepSyncSettingsRepository struct {
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LstepSettings, error)
+	upsertFn         func(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error)
+}
+
+func (m *mockLstepSyncSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LstepSettings, error) {
+	if m.findByClinicIDFn != nil {
+		return m.findByClinicIDFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockLstepSyncSettingsRepository) Upsert(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error) {
+	if m.upsertFn != nil {
+		return m.upsertFn(ctx, settings)
+	}
+	return settings, nil
+}

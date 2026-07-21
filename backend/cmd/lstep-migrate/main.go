@@ -14,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -87,7 +88,7 @@ func run() int {
 		}
 	}
 
-	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
+	settingsSvc := lstep.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
 	tagSyncSvc := service.NewLstepTagSyncFromRepos(repos, settingsSvc)
 
 	migCfg := Config{

@@ -1,4 +1,4 @@
-package repository
+package lstep
 
 // lstep_settings_repository_test.go — LstepSettingsRepository (clinic_integrations) 統合テスト。
 //
@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupLstepSettingsTestDB は clinic_integrations テーブルを用意する。
@@ -25,8 +26,8 @@ import (
 // ここで明示的に複合 UNIQUE を追加する（lstep_friend_attribute_snapshot_repository_test.go と同型）。
 func setupLstepSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ClinicIntegration{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ClinicIntegration{}))
 	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_clinic_integrations_conflict
 		ON clinic_integrations (clinic_id, service, key_name)`)

@@ -367,13 +367,13 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 }
 
 // testPlainEncrypt/testPlainDecrypt は旧 cipher=nil 挙動（暗号化なし素通し）を再現する
-// （service/line_credentials.go の encrypt/decryptLineCredential の nil-cipher 分岐と同一契約）。
+// （lstep/line_credentials.go の encrypt/lstep.DecryptLineCredential の nil-cipher 分岐と同一契約）。
 func testPlainEncrypt(value string) (string, error) { return value, nil }
 
 func testPlainDecrypt(_ context.Context, value string) string { return value }
 
 // testCipherEncrypt/testCipherDecrypt は production 注入 closure（service 集約が
-// service/line_credentials.go の encrypt/decryptLineCredential を包む）と同一契約の
+// lstep/line_credentials.go の encrypt/lstep.DecryptLineCredential を包む）と同一契約の
 // テスト側再現（nil/空文字素通し+実 cipher・H-4）。helper 本体の単体検証は
 // service/line_credentials_test.go が正本。
 func testCipherEncrypt(cipher *crypto.AESGCMCipher) func(string) (string, error) {

@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- mock LstepSettingsRepository ----
@@ -229,57 +228,6 @@ func TestSyncEnabledAtLifecycle(t *testing.T) {
 		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
 		assert.NoError(t, err)
 		assert.False(t, upsertCalled)
-	})
-}
-
-// TestAllClinicsFiltersBySyncEnabled: AllClinics バッチが is_sync_enabled=false のクリニックをスキップする
-func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
-	t.Run("RunNoShowCheckAllClinics skips disabled clinics", func(t *testing.T) {
-		processed := make([]uint64, 0)
-		clinicRepo := &mockClinicRepository{
-			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
-				return []model.Clinic{{ID: 1}, {ID: 2}}, nil
-			},
-		}
-		resRepo := &batchMockReservationRepo{
-			findNoShowCandidatesFn: func(_ context.Context, clinicID uint64) ([]model.Reservation, error) {
-				processed = append(processed, clinicID)
-				return nil, nil
-			},
-		}
-		settingsSvc := &mockLstepSettingsService{
-			isSyncEnabledFn: func(_ context.Context, clinicID uint64) (bool, error) {
-				return clinicID == 1, nil // clinic 1 のみ有効
-			},
-		}
-		svc := NewLstepBatchService(resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{}, &batchMockAuditService{}, settingsSvc, nil)
-		err := svc.RunNoShowCheckAllClinics(context.Background())
-		assert.NoError(t, err)
-		assert.Equal(t, []uint64{1}, processed)
-	})
-
-	t.Run("RunDormantDetectionAllClinics skips disabled clinics", func(t *testing.T) {
-		processed := make([]uint64, 0)
-		clinicRepo := &mockClinicRepository{
-			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
-				return []model.Clinic{{ID: 10}, {ID: 20}}, nil
-			},
-		}
-		medRepo := &batchMockMedRecordRepo{
-			findDormantCursorFn: func(_ context.Context, clinicID uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-				processed = append(processed, clinicID)
-				return nil, nil
-			},
-		}
-		settingsSvc := &mockLstepSettingsService{
-			isSyncEnabledFn: func(_ context.Context, clinicID uint64) (bool, error) {
-				return clinicID == 20, nil // clinic 20 のみ有効
-			},
-		}
-		svc := NewLstepBatchService(&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo, &batchMockAuditService{}, settingsSvc, nil)
-		err := svc.RunDormantDetectionAllClinics(context.Background())
-		assert.NoError(t, err)
-		assert.Equal(t, []uint64{20}, processed)
 	})
 }
 
@@ -614,4 +562,50 @@ func TestDeleteSettings_AuditLogFailureIsBestEffort(t *testing.T) {
 
 	err := svc.DeleteSettings(context.Background(), 1, nil)
 	assert.NoError(t, err, "監査ログ失敗は DeleteSettings 全体を失敗させない（best-effort）")
+}
+
+// mockClinicSettingsRepository — lstepClinicSettingsRepo view の最小モック
+// （service/closing_settings_service_test.go の同名 mock の view 型版複製）。
+type mockClinicSettingsRepository struct {
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+}
+
+func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+	if m.findByClinicIDFn != nil {
+		return m.findByClinicIDFn(ctx, clinicID)
+	}
+	return &model.ClinicSettings{ClinicID: clinicID}, nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateCPMVersion(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateCPMV1Thresholds(_ context.Context, _ uint64, _ model.CPMV1Thresholds) error {
+	return nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateCPMV2Thresholds(_ context.Context, _ uint64, _ model.CPMV2Thresholds) error {
+	return nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateDormantThresholds(_ context.Context, _ uint64, _ model.DormantThresholds) error {
+	return nil
+}
+
+func (m *mockClinicSettingsRepository) UpdateHealthPreventionThresholds(_ context.Context, _ uint64, _ model.HealthPreventionThresholds) error {
+	return nil
+}
+
+// mockAuditService — lstepAuditLogger view の最小モック。
+type mockAuditService struct {
+	logLstepOperationFn  func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error
+	logLstepOperationErr error
+}
+
+func (m *mockAuditService) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
+	if m.logLstepOperationFn != nil {
+		return m.logLstepOperationFn(ctx, clinicID, actorID, action, resource, resourceID)
+	}
+	return m.logLstepOperationErr
 }

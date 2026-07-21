@@ -123,7 +123,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// aggregator 非経由).
 
 	// LSTEP / LINE連携
-	h.RegisterLstepSettingsRoutes(protected)
+	// Lステップ設定 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L①）
 	h.RegisterSharedFileRoutes(protected)
 	h.RegisterAggregationRoutes(protected)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索

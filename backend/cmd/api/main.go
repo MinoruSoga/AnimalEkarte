@@ -17,6 +17,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
@@ -440,6 +441,13 @@ func main() {
 		h.RequirePermission,
 	)
 	billingHandler.RegisterRoutes(protected)
+
+	// lstep domain（BE9-2C L①〜）
+	lstepHandler := lstep.NewHandler(
+		lstep.NewLstepSettingsHandler(svcs.LstepSettings, h.RequirePermission),
+		h.RequirePermission,
+	)
+	lstepHandler.RegisterRoutes(protected)
 
 	// HTTPサーバー設定
 	server := &http.Server{

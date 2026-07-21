@@ -459,6 +459,7 @@ var migratedDomainRoutePackages = []struct {
 	{dir: "../medicalrecord", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "/api/v1"},
 	{dir: "../billing", prefix: "/api/v1"},
+	{dir: "../lstep", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
 }
 

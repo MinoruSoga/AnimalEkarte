@@ -1,12 +1,10 @@
 DELETE /api/v1/clinic-holidays/:date DeleteClinicHoliday
 DELETE /api/v1/clinics/:clinic_id DeleteClinic
-DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
 DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
 DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
 DELETE /api/v1/inventory/:id DeleteInventory
-DELETE /api/v1/lstep-settings DeleteLstepSettings
 DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefix
 DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id DeleteConditionTagMapping
 DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeTagPrefix
@@ -32,7 +30,6 @@ GET /api/v1/clinic-holidays ListClinicHolidays
 GET /api/v1/clinics ListClinics
 GET /api/v1/clinics/:clinic_id GetClinic
 GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
-GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats GetLstepMonthlyDeliveryStats
 GET /api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion GetLstepVisitConversionSummary
@@ -53,7 +50,6 @@ GET /api/v1/closing-settings/special-periods ListSpecialPeriods
 GET /api/v1/company GetCompany
 GET /api/v1/inventory ListInventory
 GET /api/v1/inventory/:id GetInventory
-GET /api/v1/lstep-settings GetLstepSettings
 GET /api/v1/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/lstep-tag-config/auto-managed-prefixes ListAutoManagedPrefixes
 GET /api/v1/lstep-tag-config/condition-tag-mappings ListConditionTagMappings
@@ -106,7 +102,6 @@ GET /uploads/*filepath func1
 HEAD /uploads/*filepath func1
 PATCH /api/v1/clinics/:clinic_id UpdateClinic
 PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
-PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
 PATCH /api/v1/clinics/:clinic_id/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-caution UpdateOwnerDeliveryCaution
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
@@ -118,7 +113,6 @@ PATCH /api/v1/closing-settings UpdateClosingSettings
 PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
 PATCH /api/v1/inventory/:id UpdateInventory
-PATCH /api/v1/lstep-settings UpdateLstepSettings
 PATCH /api/v1/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/masters/animal-species/:id UpdateAnimalSpecies
 PATCH /api/v1/masters/animal-species/reorder ReorderAnimalSpecies
@@ -157,7 +151,6 @@ POST /api/v1/auth/refresh RefreshToken
 POST /api/v1/auth/reset-password ResetPassword
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
-POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection
 POST /api/v1/clinics/:clinic_id/lstep/checkup-sync CreateCheckupSync
 POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepFriendAttributesCsv
 POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
@@ -168,7 +161,6 @@ POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/inventory CreateInventory
 POST /api/v1/login Login
 POST /api/v1/logout Logout
-POST /api/v1/lstep-settings/test-connection TestLstepConnection
 POST /api/v1/lstep-tag-config/auto-managed-prefixes CreateAutoManagedPrefix
 POST /api/v1/lstep-tag-config/condition-tag-mappings CreateConditionTagMapping
 POST /api/v1/lstep-tag-config/send-purpose-tag-prefixes CreateSendPurposeTagPrefix
