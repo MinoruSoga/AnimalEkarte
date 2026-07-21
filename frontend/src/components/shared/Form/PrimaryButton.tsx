@@ -13,8 +13,8 @@ interface PrimaryButtonProps extends ButtonProps {
 export function PrimaryButton({ className, colorVariant = "brand", ...props }: PrimaryButtonProps) {
   const baseClassName =
     colorVariant === "brand"
-      ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm shadow-none rounded-full border-transparent`
-      : `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 text-sm shadow-none border-transparent`;
+      ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-base shadow-none rounded-full border-transparent`
+      : `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 text-base shadow-none border-transparent`;
 
   return (
     <Button

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -175,7 +175,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
               <PawPrint className={`${ICON.xs} ${C.text40}`} />
-              <span className={`text-sm ${C.text50} tracking-wide`}>患者情報</span>
+              <span className={STYLE.sectionLabel}>患者情報</span>
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
@@ -201,7 +201,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
               <Stethoscope className={`${ICON.xs} ${C.text40}`} />
-              <span className={`text-sm ${C.text50} tracking-wide`}>診療詳細</span>
+              <span className={STYLE.sectionLabel}>診療詳細</span>
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="担当医">

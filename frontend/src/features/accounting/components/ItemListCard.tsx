@@ -204,7 +204,7 @@ export const ItemListCard = memo(function ItemListCard({
                     {filteredMerchandise.length > 0 ? (
                       <table className="w-full">
                         <thead>
-                          <tr className={`border-b ${C.bgPage} text-2xs font-semibold tracking-wide`}>
+                          <tr className={`border-b ${C.bgPage} text-2xs font-semibold`}>
                             <th className="px-3 py-2 text-left">品目名</th>
                             <th className="px-3 py-2 text-left w-[70px]">区分</th>
                             <th className="px-3 py-2 text-right w-[90px]">単価</th>

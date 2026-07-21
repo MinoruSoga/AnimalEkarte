@@ -668,7 +668,7 @@ export const STYLE = {
   tableHeaderRow:
     `border-b ${C.borderLight} ${C.bgPage} h-11`,
   tableHeaderCell:
-    `text-2xs font-semibold tracking-wide ${C.text55} h-11`,
+    `text-2xs font-semibold ${C.text55} h-11`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
@@ -751,7 +751,7 @@ export const STYLE = {
   /* ── Section heading / table header eyebrow (uppercase label) ── */
   /** FE10: DESIGN.md eyebrow 字義化（12px/600）。テーブルヘッダの de-facto トークン（ex-data-table-cell headerTypography）。旧 text-base(16px) は house 様式で撤回済み */
   sectionLabel:
-    `text-2xs font-semibold ${C.text55} uppercase tracking-wide select-none`,
+    `text-2xs font-semibold ${C.text55} uppercase select-none`,
 
   /* ── Ghost Danger (delete buttons in form headers) ── */
   btnDangerGhost:

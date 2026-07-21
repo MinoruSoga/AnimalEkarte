@@ -82,9 +82,15 @@
 
 @theme inline {
   --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* DESIGN.md 字義スケール（FE10）: xs=14px caption / sm=15px body-sm / 2xs=12px eyebrow */
+  /* ── DESIGN.md typography 字義スケール（FE11: size/line-height/letter-spacing の3属性を全ロールで一致させる）──
+     Tailwind v4 の type-scale namespace は --text-*--line-height / --text-*--letter-spacing を伴走させられるため、
+     呼び出し側のクラスを変えずに全域へ字義値を適用できる。 */
   --text-xs: 0.875rem;  /* 14px — DESIGN.md caption */
+  --text-xs--line-height: 1.43;  /* DESIGN.md caption 1.43（Tailwind 既定 1.33 を上書き） */
   --text-sm: 0.9375rem;  /* 15px — DESIGN.md body-sm */
+  --text-sm--line-height: 1.33;  /* DESIGN.md body-sm 1.33（Tailwind 既定 1.43 を上書き） */
+  --text-base--line-height: 1.5;  /* DESIGN.md body-md 1.5 */
+  --text-xl--letter-spacing: -0.125px;  /* DESIGN.md title の負トラッキング（Inter 代替時は明示適用と規定） */
   --tracking-compact: 0;
   --tracking-compact-sm: 0;
   --tracking-compact-xs: 0;
@@ -99,7 +105,8 @@
   /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
   --shadow-brand-glow: 0 0 8px rgba(0,117,222,0.5);
   --text-2xs: 0.75rem;  /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
-  --text-2xs--line-height: 1.45;
+  --text-2xs--line-height: 1.33;  /* DESIGN.md eyebrow 1.33（FE11: 製品値 1.45 を撤回） */
+  --text-2xs--letter-spacing: 0.125px;  /* DESIGN.md eyebrow +0.125px（FE11: tracking-wide=+0.3px 代用を撤回） */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

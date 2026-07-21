@@ -26,16 +26,16 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
       <table className="w-full text-base">
         <thead>
           <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>日付</th>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>曜日</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>午前件数</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>午前売上</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>午後件数</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>午後売上</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>日計</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>返金</th>
-            <th className={`text-center px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>AM締</th>
-            <th className={`text-center px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>PM締</th>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55}`}>日付</th>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55}`}>曜日</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>午前件数</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>午前売上</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>午後件数</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>午後売上</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>日計</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>返金</th>
+            <th className={`text-center px-3 py-2 text-2xs font-semibold ${C.text55}`}>AM締</th>
+            <th className={`text-center px-3 py-2 text-2xs font-semibold ${C.text55}`}>PM締</th>
           </tr>
         </thead>
         <tbody>

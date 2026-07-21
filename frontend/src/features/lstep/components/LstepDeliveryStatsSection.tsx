@@ -88,15 +88,15 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55} min-w-[180px]`}>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55} min-w-[180px]`}>
               トリガー種別
             </th>
             {STATS_STATUSES.map((status) => (
-              <th key={status} className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>
+              <th key={status} className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>
                 {STATUS_LABELS[status]}
               </th>
             ))}
-            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>合計</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>合計</th>
           </tr>
         </thead>
         <tbody>
@@ -113,7 +113,7 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
                   {row[status].toLocaleString()}
                 </td>
               ))}
-              <td className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55} tabular-nums`}>
+              <td className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55} tabular-nums`}>
                 {row.total.toLocaleString()}
               </td>
             </tr>
