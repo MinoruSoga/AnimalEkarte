@@ -32,7 +32,7 @@
 | R3 | テーブルヘッダ `ex-data-table-cell` 化: `STYLE.tableHeaderRow`（canvas-soft 帯）+ `tableHeaderCell`（eyebrow 型）一括反転（部分適用禁止 — 旧 §7.5） | ✅済 |
 | R4 | 機械ガード反転: audit C1 = `C.accent`/`#2383E2`/**`#038B94`/`#027078`**（teal を legacy 化・`#0075DE` を解禁）+ audit テスト追随 | ✅済 |
 | R5 | 文書同期: `docs/spec/design-system.md`（字義基準へ改訂・製品上書き撤回・臨床例外のみ残す）+ `ui-design-compliance.md` C1 行/注記 + `frontend/CLAUDE.md` | ✅済 |
-| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| **完了: 84 ルート中 82 面 ✅**。残 = B2 入院詳細/編集 2 面（⏸ 入院データ 0 件・投入後に形式確認）+ owner-report の brand tick ⚠ 1 件（他セッション未コミット変更の commit 後に裁定） |
+| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| **84 行中 81 行 ✅ / 2 行 ⏸ / 1 行 ⚠**。⏸ = 入院詳細・編集（**全4医院で入院データ 0 件を API 実測**・機械ガードと静的検査は clean。ピクセル確認のみ未了）／⚠ = owner-report の brand tick（別ワークストリームが現在も編集中＝未コミット16ファイル・衝突回避で保留） |
 
 ### 再開手順（次セッション向け）
 
@@ -77,8 +77,8 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 | B2 | /hospitalization | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | タブ active=brand 反映 ✓・空ケージ=dashed 空状態 idiom・リスト表示テーブル eyebrow 実測(12px/600) | ✅済 |
 | B2 | /hospitalization/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 死亡行=グレーアウト+選択不可(臨床非活性維持 ✓)・検索=brand pill | ✅済 |
 | B2 | /hospitalization/new | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 治療プラン表=eyebrow 様式 ✓・数値セル非 bold ✓ | ✅済 |
-| B2 | /hospitalization/:id（詳細+デイリー記録） | | | | | | | | | 入院データ0件（八王子）のため未実施。デモデータ汚染回避で作成せず — データ投入後に実施 | ⏸データ待ち |
-| B2 | /hospitalization/:id/edit | | | | | | — | | | 同上 | ⏸データ待ち |
+| B2 | /hospitalization/:id（詳細+デイリー記録） | | | | | 静✅ | 静✅ | | 静✅ | **全4医院で入院 0 件を API 実測**（UI「すべて」タブとも一致）＝描画不能。機械ガード C1〜C11 PASS + 静的検査 clean（旧値/ink フィル/非トークンヘッダ 0 件）。**残るはピクセル確認のみ**。テストデータ作成の許可があれば即完了可 | ⏸データ待ち |
+| B2 | /hospitalization/:id/edit | | | | | 静✅ | — | | 静✅ | 同上（HospitalizationForm は /new で実測済み・:id/edit は同一実体） | ⏸データ待ち |
 | B3 | /medical-records（一覧） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ヘッダ eyebrow 実測(12px/600)・作成中/確定済/会計/担当医⚠は status・semantic（sanctioned） | ✅済 |
 | B3 | /medical-records/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection（computed 全通過） | ✅済 |
 | B3 | /medical-records/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | MedicalRecordForm 同一実体（:id で実測） | ✅済 |
