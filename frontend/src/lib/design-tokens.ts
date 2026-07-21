@@ -367,7 +367,7 @@ export const C = {
   hoverBgPrimary10: "hover:bg-[#000000]/10",
   hoverBgPrimaryDark: "hover:bg-[#000000]/90",
   hoverText:     "hover:text-[#000000]",
-  hoverText60:   "hover:text-[#000000]/60",
+  hoverText60:   "hover:text-[#615D59]",
   hoverBorderPrimary30: "hover:border-[#000000]/30",
   hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
   hoverBgSubtle: "hover:bg-[#F6F5F4]",

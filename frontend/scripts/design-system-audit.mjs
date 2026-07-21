@@ -43,6 +43,11 @@ const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
 const C10_RE = /(?:^|[^-\w])shadow-(?:2xs|xs|sm|md|lg|xl|2xl)\b|shadow-\[/;
 const C11_RE = /text-\[[0-9.]+(?:px|rem)\]/;
+/** C12: DESIGN.md typography ロールに存在しないサイズ段（Tailwind 既定 18/24/30/36px 以上）の使用禁止（FE11-F4）。
+ *  許可されるのは text-2xs/xs/sm/base/xl と text-heading-1/2/3 のみ。 */
+const C12_RE = /(?:^|[^-\w])text-(?:lg|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)\b/;
+/** C13: ink は DESIGN.md 4段のみ。黒アルファ（text-[#000000]/NN）の再導入禁止（FE11-F2）。 */
+const C13_RE = /text-\[#000000\]\/[0-9]+|placeholder:text-\[rgba\(0,0,0/;
 
 /** C8: PageLayout/Master shell を持たない正当な routes ファイル（basename 15件） */
 export const C8_ALLOWLIST = new Set([
@@ -227,6 +232,40 @@ export function checkC11(text) {
   return violations;
 }
 
+/**
+ * checkC12 は DESIGN.md typography に存在しないサイズ段の使用を検出する（FE11-F4）。
+ * DESIGN.md のスケールは 12/14/15/16/20/22/26/40/54/64px。Tailwind 既定の
+ * text-lg(18) / text-2xl(24) / text-3xl(30) / text-4xl(36) 等は非仕様値なので、
+ * text-heading-1/2/3 または text-xl 以下のロールへ写像すること。
+ */
+export function checkC12(text, relPath = "") {
+  // LINE ミニアプリ（liff / line-reserve / 共有 shared-liff）は FE10/FE11 の DESIGN.md スイープ
+  // 対象外として明示宣言された別アプリ（対象=本体84ルート）。装飾絵文字に text-6xl 等を使うため除外する。
+  // ※ 黙って握り潰さないための明示 allowlist。本体へ適用範囲を広げる場合はここを外すこと。
+  if (/^(liff|line-reserve)[\\/]/.test(relPath) || relPath.includes("shared-liff")) return [];
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C12_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC13 は ink ランプの黒アルファ再導入を検出する（FE11-F2）。
+ * DESIGN.md ink は #000000 / #31302E / #615D59 / #A39E98 の4段のみ。
+ */
+export function checkC13(text) {
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C13_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
 async function walk(dir, exts, excludeNames) {
   let entries;
   try {
@@ -253,7 +292,7 @@ async function walk(dir, exts, excludeNames) {
  * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1/checkC3/checkC5/checkC6 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -296,6 +335,12 @@ export async function collectViolations(cwd) {
         }
         for (const v of checkC11(text)) {
           result.c11.push({ file: relPath, ...v });
+        }
+        for (const v of checkC12(text, relPath)) {
+          result.c12.push({ file: relPath, ...v });
+        }
+        for (const v of checkC13(text)) {
+          result.c13.push({ file: relPath, ...v });
         }
       }
 
@@ -346,9 +391,12 @@ async function main() {
   printGroup("C9 rounded 任意値", result.c9);
   printGroup("C10 shadow 既定/任意値", result.c10);
   printGroup("C11 font-size 任意値", result.c11);
+  printGroup("C12 非仕様サイズ段(text-lg/2xl+)", result.c12);
+  printGroup("C13 ink 黒アルファ", result.c13);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
-    + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length;
+    + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
+    + result.c12.length + result.c13.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);
