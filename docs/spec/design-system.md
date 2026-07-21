@@ -108,6 +108,18 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 - **brand（構造色）をステータスや装飾に使わない**。FE10 で legacy accent の値を brand へ統合した際、受付カンバンの「受付済」ドットが構造色の装飾使用になる事故が起きた（修正 `e73623ec9`）。値統合の際は消費者を構造/装飾で必ず仕分ける。
 - **外部ブランド例外**: LINE 公式グリーン `#06C755`（`PALETTE.lineGreen`）は外部ブランド識別のため構造色ルールの対象外。構造・CTA には使わない。
 
+### 2.7 適用範囲外（媒体が異なる面・FE11 明文化）
+
+本規約は**画面 UI（screen chrome）**を対象とする。以下は媒体が異なり要件も異なるため対象外とし、それぞれの内部で一貫していればよい:
+
+| 対象外の面 | 実体 | 理由 |
+|---|---|---|
+| **印刷帳票** | `PrintPortal` 配下（`MonthlyReportPrintArea` / `ClosePrintArea`）。raw Tailwind グレー 92 箇所 | 紙・モノクロプリンタ出力が要件。canvas-soft／hairline／ink ランプは画面の図地設計であり紙面には適用しない |
+| **マニュアル本文** | `ManualContent` の markdown レンダリング（`bg-black/5` ヘッダ等） | 文書レンダリングであり、アプリのデータテーブル規範（`ex-data-table-cell`）の対象外 |
+| **LINE ミニアプリ** | `liff/` `line-reserve/` `src/shared-liff/` | 別アプリ。FE10 でスイープ対象外を宣言済み（対象＝本体 84 ルート）。audit C12 も明示 allowlist で除外 |
+
+> 対象外にする場合は**必ず本節に列挙する**。列挙のない暗黙の除外は「対象ゼロ」を「全件合格」に見せかけるため禁止。
+
 ### 2.6 `design-tokens.ts` マッピング表
 
 | 役割 | DESIGN.md トークン | 字義値 | design-tokens.ts（FE10 反転済み） |

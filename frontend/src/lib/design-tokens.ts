@@ -115,8 +115,8 @@ export const C = {
    *   ink #000000 / ink-secondary #31302E / ink-muted #615D59 / ink-faint #A39E98
    * 従来の黒アルファ14段（/90〜/15）は DESIGN.md に無い値だったため、
    * **役割（DESIGN.md の用途記述）で4段へ写像**した。トークン名は呼び出し側 1664 箇所の
-   * 互換のため据え置き、値のみ字義化している。新規実装は text / textSecondary /
-   * textMuted / textFaint の4エイリアスを使うこと。
+   * 互換のため据え置き、値のみ字義化している。新規実装は textInk / textInkSecondary /
+   * textInkMuted / textInkFaint の4エイリアスを使うこと。
    *   ink          = 見出し・本文               → text
    *   ink-secondary= 二次本文・ラベル           → text90 / text80 / text70
    *   ink-muted    = 補助・muted コピー         → text65 / text60 / text55 / text50
@@ -124,13 +124,13 @@ export const C = {
    */
   text:          "text-[#000000]",
   /** DESIGN.md {colors.ink} — 見出し・本文 */
-  textInk:       "text-[#000000]",
+  textInk:          "text-[#000000]",
   /** DESIGN.md {colors.ink-secondary} — 二次本文 */
-  textSecondary: "text-[#31302E]",
+  textInkSecondary: "text-[#31302E]",
   /** DESIGN.md {colors.ink-muted} — 補助・muted */
-  textMuted:     "text-[#615D59]",
+  textInkMuted:     "text-[#615D59]",
   /** DESIGN.md {colors.ink-faint} — キャプション・メタ・placeholder */
-  textFaint:     "text-[#A39E98]",
+  textInkFaint:     "text-[#A39E98]",
 
   text90:        "text-[#31302E]",
   text80:        "text-[#31302E]",
