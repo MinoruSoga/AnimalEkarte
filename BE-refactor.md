@@ -270,6 +270,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
   - 全route移動で空になった`internal/handler/reservation_line_routes.go`を削除。service側transitional alias 6型はconsumerゼロ実測で削除。
   - 検証: **RBAC tuple 10本を`git show HEAD:`と機械突合**（route snapshotはmiddlewareを捕捉しないため必須）・`func Test`名89本1:1保存・移動fileのlogic差分ゼロ（narrow view型宣言のみ）・snapshot両側±10保存則・scoped lint 0件。
 - **L③ タグ同期コア**: lstep_tag_sync 群（tag_cache/tag_code_mapping/tag_config/trigger_priority repo + health_tag_sync 系 6file + CPM kernel）。**⑧checkup_sync（service 4+handler 3+repository/checkupsync）を本batchで合流**（論点#7）。
+  - **inventory 実測（2026-07-21・L② 完遂時点）= 89file**: service `lstep_tag*` 19+19 / `lstep_health*` 7+6 / `checkup_sync*` 4+3、handler `lstep_tag*` 12+6 / `checkup_sync*` 3+2、repository `lstep_tag*` 3+1 / `checkupsync/` 2（prod+test）。route 12本。**L② の 56file より大きい最大スライス**のため、A/B/C の 3batch を跨いで分割commitするか、tag系と checkup_sync を別スライスにするかを着手時に判断する（tag_cache/tag_config repo は L② で移動済みのため repo 側の残りは tag_code_mapping のみ）。
 - **L④ 配信トリガ・監視**: lstep_delivery_trigger 群（batch/client/methods/state/suppression/log）+ lstep_delivery_monitor + lstep_lifecycle。
 - **L⑤ バッチ・分析・CSV**: lstep_batch(+delivery/dormant/noshow/segmentation)/lstep_analytics/lstep_csv_import(+helpers)/lstep_friend_attribute_snapshot/aggregation。
 - **L⑥ 残置解消**: repository DTO alias（accounting_reports_dto_aliases.go=lstep系test consumer）・mock carrier群・Services field棚卸し。
