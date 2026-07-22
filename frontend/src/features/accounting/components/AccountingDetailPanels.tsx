@@ -52,9 +52,13 @@ export function AccountingHeaderActions({
 
 interface ReadOnlyAccountingBannerProps {
   show: boolean;
+  message?: string;
 }
 
-export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps) {
+export function ReadOnlyAccountingBanner({
+  show,
+  message = "閲覧専用 — 編集権限がないため変更できません",
+}: ReadOnlyAccountingBannerProps) {
   if (!show) return null;
 
   return (
@@ -64,7 +68,7 @@ export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps
       aria-label="閲覧専用モード"
     >
       <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
-      <span className="text-sm font-medium">閲覧専用 — 編集権限がないため変更できません</span>
+      <span className="text-sm font-medium">{message}</span>
     </div>
   );
 }

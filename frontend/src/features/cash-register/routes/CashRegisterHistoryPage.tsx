@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { formatCurrency } from "@/lib/format/number";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
@@ -207,22 +208,19 @@ export function CashRegisterHistoryPage() {
                     return (
                       <tr
                         key={close.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${close.closeDate} ${PERIOD_LABELS[close.period]} の締め詳細を表示`}
                         data-highlighted={isHighlighted ? "true" : undefined}
-                        onClick={() => setSelectedClose(close)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelectedClose(close);
-                          }
-                        }}
-                        className={`border-b ${C.borderLight} cursor-pointer ${
+                        className={`border-b ${C.borderLight} ${
                           isHighlighted ? C.bgBrandLight40 : STYLE.tableRow
                         }`}
                       >
-                        <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
+                        <td className={`px-4 py-3 ${C.text}`}>
+                          <DataTableRowButton
+                            aria-label={`締め詳細: ${close.closeDate} ${PERIOD_LABELS[close.period]} (ID ${close.id})`}
+                            onClick={() => setSelectedClose(close)}
+                          >
+                            {close.closeDate}
+                          </DataTableRowButton>
+                        </td>
                         <td className={`px-4 py-3 ${C.text}`}>
                           {PERIOD_LABELS[close.period]}
                         </td>

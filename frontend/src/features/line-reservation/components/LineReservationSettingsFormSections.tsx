@@ -88,6 +88,7 @@ export function BreakHoursEditor({ value, onChange }: BreakHoursEditorProps) {
         <div key={idx} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <Input
             type="time"
+            aria-label={`休憩時間 ${idx + 1} 開始`}
             value={toDisplayTime(item.start)}
             onChange={(event) => handleChange(idx, "start", event.target.value)}
             className="w-full sm:max-w-[120px]"
@@ -95,6 +96,7 @@ export function BreakHoursEditor({ value, onChange }: BreakHoursEditorProps) {
           <span className={`text-sm ${C.textMuted}`}>〜</span>
           <Input
             type="time"
+            aria-label={`休憩時間 ${idx + 1} 終了`}
             value={toDisplayTime(item.end)}
             onChange={(event) => handleChange(idx, "end", event.target.value)}
             className="w-full sm:max-w-[120px]"
@@ -151,6 +153,7 @@ export function ClosedDatesEditor({ value, onChange }: ClosedDatesEditorProps) {
           <div key={idx} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <Input
               type="date"
+              aria-label={`特定定休日 ${idx + 1}`}
               value={date}
               onChange={(event) => handleChange(idx, event.target.value)}
               className="w-full sm:max-w-[160px]"
@@ -204,6 +207,7 @@ export function WeekdayHoursEditor({
             <span className={`text-sm w-6 text-center font-medium ${C.text65}`}>{label}</span>
             <Input
               type="time"
+              aria-label={`${label}曜日 営業開始`}
               value={toDisplayTime(hours.start)}
               onChange={(event) => handleChange(day, "start", event.target.value)}
               className="w-full sm:max-w-[120px]"
@@ -211,6 +215,7 @@ export function WeekdayHoursEditor({
             <span className={`text-sm ${C.textMuted}`}>〜</span>
             <Input
               type="time"
+              aria-label={`${label}曜日 営業終了`}
               value={toDisplayTime(hours.end)}
               onChange={(event) => handleChange(day, "end", event.target.value)}
               className="w-full sm:max-w-[120px]"

@@ -101,6 +101,7 @@ export function OwnerBasicFields({
         <div className="flex items-center space-x-2 mb-2 h-10">
           <Switch
             id="dangerous"
+            aria-label="危険人物に該当する"
             checked={ownerData.isDangerous}
             onCheckedChange={(checked) => onChange("isDangerous", checked)}
             className="origin-left mr-2"

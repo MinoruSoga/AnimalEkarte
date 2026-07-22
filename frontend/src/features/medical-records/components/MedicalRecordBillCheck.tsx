@@ -114,7 +114,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
   const nextOrder = useMemo(
-    () => treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0,
+    () => treatments.reduce((maxOrder, treatment) => Math.max(maxOrder, treatment.sort_order), -1) + 1,
     [treatments],
   );
 

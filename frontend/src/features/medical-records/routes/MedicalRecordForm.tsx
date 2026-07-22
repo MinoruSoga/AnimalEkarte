@@ -1,5 +1,12 @@
 // React/Framework
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -167,6 +174,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+  const [isTabPending, startTabTransition] = useTransition();
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
 
@@ -198,12 +206,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    setMountedTabs((prev) => {
-      if (prev.has(tab)) return prev;
-      const next = new Set(prev);
-      next.add(tab);
-      return next;
+    startTabTransition(() => {
+      setActiveTab(tab);
+      setMountedTabs((prev) => {
+        if (prev.has(tab)) return prev;
+        const next = new Set(prev);
+        next.add(tab);
+        return next;
+      });
     });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
@@ -271,7 +281,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
-      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange} className={activeTab === "問診" ? "flex-1 min-h-0" : undefined}>
+      <UnifiedTabsRoot
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className={activeTab === "問診" ? "flex-1 min-h-0" : undefined}
+        ariaBusy={isTabPending}
+      >
       <MedicalRecordStickyHeader
         selectedPet={selectedPet}
         staffName={staffName}

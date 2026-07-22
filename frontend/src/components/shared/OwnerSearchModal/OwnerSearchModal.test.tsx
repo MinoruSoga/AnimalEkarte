@@ -88,6 +88,40 @@ describe("OwnerSearchModal", () => {
     expect(await screen.findByText("鈴木 花子")).toBeInTheDocument();
   });
 
+  it("行は選択せず、固有名の44px buttonだけが確認dialogを開く", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("*/v1/owners", () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: 42,
+              owner_name: "山田 太郎",
+              phone: "090-1111-2222",
+              address1: "東京都渋谷区",
+              address2: "",
+              discount_rate: 0,
+              membership_type: "",
+            },
+          ],
+        }),
+      ),
+    );
+    renderModal();
+    await search("山田");
+
+    await user.click(await screen.findByText("090-1111-2222"));
+    expect(screen.queryByRole("alertdialog", { name: "飼主変更の確認" })).not.toBeInTheDocument();
+
+    const selectButton = screen.getByRole("button", {
+      name: "選択: 飼主 山田 太郎 (ID 42)",
+    });
+    expect(selectButton.tagName).toBe("BUTTON");
+    expect(selectButton).toHaveClass("min-h-11", "min-w-11");
+    await user.click(selectButton);
+    expect(await screen.findByRole("alertdialog", { name: "飼主変更の確認" })).toBeInTheDocument();
+  });
+
   it("APIエラー時は検索結果0件として扱われ空状態を表示する", async () => {
     server.use(http.get("*/v1/owners", () => new HttpResponse(null, { status: 500 })));
     renderModal();

@@ -112,7 +112,7 @@ export const PaymentCard = memo(function PaymentCard({
 
         <Separator />
 
-        {canEdit ? (
+        {canSubmit ? (
           <div className="space-y-4">
             {paymentSplits.map((split, idx) => {
               const parsedAmount = parseInt(split.amount || "0", 10);
@@ -126,7 +126,7 @@ export const PaymentCard = memo(function PaymentCard({
                     {paymentSplits.length > 1 ? (
                       <DeleteIconButton
                         onClick={() => handleRemoveSplit(idx)}
-                        aria-label="この支払いを削除"
+                        aria-label={`支払${idx + 1}を削除`}
                       />
                     ) : null}
                   </div>
@@ -144,8 +144,11 @@ export const PaymentCard = memo(function PaymentCard({
                     ))}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">金額</Label>
+                    <Label htmlFor={`payment-split-${idx}-amount`} className="text-xs">
+                      支払{idx + 1}の金額
+                    </Label>
                     <NumberInput
+                      id={`payment-split-${idx}-amount`}
                       className="h-12 text-xl font-bold"
                       value={split.amount}
                       onChange={(v) => handleAmountChange(idx, v)}
@@ -156,9 +159,11 @@ export const PaymentCard = memo(function PaymentCard({
                   {split.method === "cash" ? (
                     <>
                       <div className="space-y-1">
-                        <Label className="text-xs">お預かり金額</Label>
+                        <Label htmlFor={`payment-split-${idx}-received`} className="text-xs">
+                          支払{idx + 1}のお預かり金額
+                        </Label>
                         <NumberInput
-                          id={idx === 0 ? "receivedAmount" : undefined}
+                          id={`payment-split-${idx}-received`}
                           className="h-12 text-xl font-bold"
                           value={split.receivedAmount}
                           onChange={(v) => handleReceivedChange(idx, v)}
@@ -198,7 +203,7 @@ export const PaymentCard = memo(function PaymentCard({
                           <button
                             type="button"
                             onClick={() => handleToggleChangeOverride(idx)}
-                            className={`text-xs underline ${C.text50} ${C.hoverText}`}
+                            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xs px-2 text-xs underline ${C.text50} ${C.hoverText}`}
                           >
                             {split.changeOverride ? "自動計算に戻す" : "手動修正"}
                           </button>

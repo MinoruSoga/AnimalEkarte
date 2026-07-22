@@ -11,11 +11,11 @@ import { queryKeys } from "@/lib/query-keys";
 
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
-import { createBillingItem } from "../api/create-billing-item";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
 import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
+import { createAccountingItemsSequentially } from "./create-accounting-items";
 
 interface AccountingCalculation {
   subtotal: number;
@@ -103,23 +103,7 @@ export function useAccountingCompletionAction({
             total_amount: calculation.totalAmount,
           });
 
-          for (const item of displayItems) {
-            await createBillingItem({
-              billing_id: Number(created.id),
-              category: item.category,
-              name: item.name,
-              unit_price: item.unitPrice,
-              quantity: item.quantity,
-              tax_type: item.taxType,
-              tax_rate: item.taxRate,
-              is_insurance_applicable: item.isInsuranceApplicable,
-              source: item.source,
-              treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
-              appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
-              trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
-              trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
-            });
-          }
+          await createAccountingItemsSequentially(created.id, displayItems);
 
           await updateAccounting(created.id, {
             status: "completed",

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
@@ -173,19 +174,24 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                     <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>飼主名</th>
                     <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>電話番号</th>
                     <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>住所</th>
+                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOwners.map((owner) => (
-                    <tr
-                      key={owner.id}
-                      onClick={() => handleRowClick(owner)}
-                      className={`border-b ${C.borderDivider} cursor-pointer ${C.hoverBgLight} transition-colors`}
-                    >
+                    <tr key={owner.id} className={`border-b ${C.borderDivider} ${C.hoverBgLight} transition-colors`}>
                       <td className={`px-3 py-2.5 text-sm ${C.text60} font-mono`}>{owner.id}</td>
                       <td className={`px-3 py-2.5 text-sm font-medium ${C.text}`}>{owner.name}</td>
                       <td className={`px-3 py-2.5 text-sm ${C.text}`}>{owner.phone || "-"}</td>
                       <td className={`px-3 py-2.5 text-sm ${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</td>
+                      <td className="px-3 py-2.5 text-sm">
+                        <DataTableRowButton
+                          aria-label={`選択: 飼主 ${owner.name} (ID ${owner.id})`}
+                          onClick={() => handleRowClick(owner)}
+                        >
+                          選択
+                        </DataTableRowButton>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

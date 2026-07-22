@@ -46,7 +46,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
                 onChange={(v) => setGlobalDiscount(parseInt(v) || 0)}
                 suffix="%"
                 align="right"
-                className={`w-16 h-10 ${H_STYLES.text.base}`}
+                className={`w-16 h-11 ${H_STYLES.text.base}`}
               />
             </div>
           </div>
@@ -65,7 +65,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
                 onChange={(v) => setGlobalDiscountAmount(parseInt(v) || 0)}
                 suffix="円"
                 align="right"
-                className={`w-20 h-10 ${H_STYLES.text.base}`}
+                className={`w-20 h-11 ${H_STYLES.text.base}`}
               />
             </div>
           </div>

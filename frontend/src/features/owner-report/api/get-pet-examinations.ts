@@ -26,7 +26,10 @@ const getPetExaminations = async (petId: string): Promise<PetExaminationHistoryR
     params: { pet_id: petId, limit: HISTORY_FETCH_LIMIT },
   });
   const rawRows = data.data ?? [];
-  const items = rawRows.map(transformExamination).filter((e) => !DRAFT_STATUS_LABELS.has(e.status));
+  const items = rawRows.flatMap((row) => {
+    const examination = transformExamination(row);
+    return DRAFT_STATUS_LABELS.has(examination.status) ? [] : [examination];
+  });
   const isTruncated = typeof data.total === "number" && data.total > rawRows.length;
   return { items, isTruncated };
 };

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
@@ -119,5 +119,33 @@ describe("EstimateDetail mobile-first layout", () => {
 
     const basicInfoGrid = screen.getByText("見積番号").parentElement?.parentElement;
     expect(basicInfoGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+  });
+});
+
+describe("EstimateDetail expiration state", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasPermission.mockImplementation(() => true);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T15:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("過去の有効期限は色だけでなく期限切れテキストを表示する", () => {
+    mockEstimate.current = { ...makeEstimate("sent"), validUntil: "2026-07-21" };
+    renderDetail();
+
+    expect(screen.getByRole("status", { name: "見積期限" })).toHaveTextContent("期限切れ");
+    expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
+  });
+
+  it.each(["2026-07-22", "2026-07-23"])("当日・未来期限 %s は期限切れにしない", (date) => {
+    mockEstimate.current = { ...makeEstimate("sent"), validUntil: date };
+    renderDetail();
+
+    expect(screen.queryByRole("status", { name: "見積期限" })).not.toBeInTheDocument();
   });
 });

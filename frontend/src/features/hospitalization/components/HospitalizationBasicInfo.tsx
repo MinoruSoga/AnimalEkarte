@@ -49,17 +49,19 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             <RadioGroupItem
               value="入院"
               id="type-hospitalization"
+              aria-label="入院タイプ: 入院"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hospitalization" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
+            <Label htmlFor="type-hospitalization" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
           </div>
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
               value="ホテル"
               id="type-hotel"
+              aria-label="入院タイプ: ホテル"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hotel" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
+            <Label htmlFor="type-hotel" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
           </div>
         </RadioGroup>
       </div>
@@ -70,7 +72,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           <Calendar className={ICON.action} />
           期間
         </Label>
-        <div className={`flex items-center ${H_STYLES.gap.default}`}>
+        <div className={`flex flex-col items-stretch ${H_STYLES.gap.default}`}>
           <DatePicker
             id="start_date"
             value={formData.displayDate}
@@ -78,7 +80,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             placeholder="開始日"
             className="flex-1"
           />
-          <span className={`${C.text40} text-sm`}>〜</span>
+          <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">〜</span>
           <DatePicker
             id="end_date"
             value={formData.endDate ?? ""}
@@ -113,6 +115,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         <div className="flex items-center gap-2 mb-1.5">
           <Checkbox
             id="is_insurance"
+            aria-label="保険適用"
+            touchTarget
             checked={formData.isInsurance}
             onCheckedChange={(checked) =>
               onChange({

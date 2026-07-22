@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { C } from "@/lib/design-tokens";
 
 import {
   BasicInfoSection,
@@ -59,5 +61,65 @@ describe("InventoryFormSections responsive layout", () => {
     );
 
     expectResponsiveTwoColumnGrid("仕入先情報");
+  });
+});
+
+describe("StockInfoSection clinical state and form surface", () => {
+  it("現在庫が最低在庫以下なら非色依存の在庫不足表示を出す", () => {
+    render(
+      <StockInfoSection
+        defaultQuantity={1}
+        defaultMinStockLevel={2}
+        defaultLocation="棚A"
+        resolvedExpiry=""
+        onExpiryChange={vi.fn()}
+        onMarkDirty={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status", { name: "在庫状態" })).toHaveTextContent(
+      "在庫不足（残少）— 現在庫数 1、最低在庫数 2",
+    );
+  });
+
+  it("現在庫0なら在庫切れを表示し、数量変更時に状態を再評価する", async () => {
+    const user = userEvent.setup();
+    render(
+      <StockInfoSection
+        defaultQuantity={0}
+        defaultMinStockLevel={50}
+        defaultLocation="棚A"
+        resolvedExpiry=""
+        onExpiryChange={vi.fn()}
+        onMarkDirty={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status", { name: "在庫状態" })).toHaveTextContent("在庫切れ");
+    const quantity = screen.getByRole("spinbutton", { name: /現在庫数/ });
+    await user.clear(quantity);
+    await user.type(quantity, "51");
+    expect(screen.queryByRole("status", { name: "在庫状態" })).not.toBeInTheDocument();
+  });
+
+  it("cardはhairline、入力はwhite/form border、エラーは入力へ関連付く", () => {
+    render(
+      <StockInfoSection
+        defaultQuantity={1}
+        defaultMinStockLevel={2}
+        defaultLocation="棚A"
+        resolvedExpiry=""
+        onExpiryChange={vi.fn()}
+        onMarkDirty={vi.fn()}
+        minStockLevelError="最低在庫数が不正です"
+      />,
+    );
+
+    const section = screen.getByRole("heading", { name: "在庫情報" }).parentElement;
+    expect(section).toHaveClass(C.bgWhite, C.borderLight);
+    const minStock = screen.getByRole("spinbutton", { name: /最低在庫数/ });
+    expect(minStock).toHaveClass(C.bgWhite, C.borderMedium);
+    expect(minStock).toHaveAttribute("aria-invalid", "true");
+    expect(minStock).toHaveAttribute("aria-describedby", "minStockLevel-error");
   });
 });

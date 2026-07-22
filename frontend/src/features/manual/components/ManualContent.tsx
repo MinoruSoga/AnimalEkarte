@@ -8,6 +8,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { memo } from "react";
 import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -88,7 +89,7 @@ function resolveImageSrc(src: string | undefined): string | undefined {
   return imageUrls[key] ?? src;
 }
 
-export function ManualContent({ article }: ManualContentProps) {
+export const ManualContent = memo(function ManualContent({ article }: ManualContentProps) {
   if (!article) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -247,4 +248,4 @@ export function ManualContent({ article }: ManualContentProps) {
       })()}
     </article>
   );
-}
+});

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
@@ -209,15 +210,12 @@ export const ItemListCard = memo(function ItemListCard({
                             <th className="px-3 py-2 text-left w-[70px]">区分</th>
                             <th className="px-3 py-2 text-right w-[90px]">単価</th>
                             <th className="px-3 py-2 text-right w-[60px]">税率</th>
+                            <th className="px-3 py-2 text-left w-[80px]">操作</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredMerchandise.map((item) => (
-                            <tr
-                              key={item.id}
-                              onClick={() => handleSelectMerchandise(item)}
-                              className={`border-b cursor-pointer ${C.hoverBgLight} transition-colors`}
-                            >
+                            <tr key={item.id} className={`border-b ${C.hoverBgLight} transition-colors`}>
                               <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
                               <td className={`px-3 py-2 text-sm ${C.text50}`}>
                                 {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
@@ -227,6 +225,14 @@ export const ItemListCard = memo(function ItemListCard({
                               </td>
                               <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
                                 {item.taxRate === DEFAULT_STANDARD_TAX_RATE ? "10%" : item.taxRate === DEFAULT_REDUCED_TAX_RATE ? "8%" : `${item.taxRate * 100}%`}
+                              </td>
+                              <td className="px-3 py-2 text-sm">
+                                <DataTableRowButton
+                                  aria-label={`追加: ${item.name} (ID ${item.id})`}
+                                  onClick={() => handleSelectMerchandise(item)}
+                                >
+                                  追加
+                                </DataTableRowButton>
                               </td>
                             </tr>
                           ))}

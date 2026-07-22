@@ -38,7 +38,11 @@ export const InsuranceCard = memo(function InsuranceCard({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CreditCard className={ICON.action} /> ペット保険（窓口精算）
           </CardTitle>
-          <Switch checked={useInsurance} onCheckedChange={onUseInsuranceChange} />
+          <Switch
+            checked={useInsurance}
+            onCheckedChange={onUseInsuranceChange}
+            aria-label="ペット保険を利用"
+          />
         </div>
       </CardHeader>
       {useInsurance ? (

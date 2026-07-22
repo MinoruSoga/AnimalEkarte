@@ -99,6 +99,8 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
                   id={`option-${option.id}`}
+                  aria-label={option.name}
+                  touchTarget
                   checked={optionIdSet.has(option.id)}
                   onCheckedChange={(checked) => {
                     if (checked) {

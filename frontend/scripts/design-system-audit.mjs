@@ -18,7 +18,7 @@
  *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
  *   C18 — Table primitive 呼び出し側で typography / padding を非仕様値へ上書きすることを禁止。
- *   C19 — DataTableRow / SortableDataTableRow の行全体クリックを禁止。
+ *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -73,7 +73,7 @@ const C18_TABLE_TYPE_SIZE_RE = /\btext-(?:2xs|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6
 const C18_TABLE_FONT_WEIGHT_RE = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/g;
 const C18_TABLE_VERTICAL_PADDING_RE = /\b(?:p|py|pt|pb)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
 const C18_TABLE_CELL_ALLOWED_WEIGHTS = new Set(["font-normal", "font-medium", "font-semibold"]);
-const C19_DATA_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow)\b/g;
+const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
 export const C8_PAGE_ALLOWLIST = new Set([
@@ -566,14 +566,14 @@ export function checkC18(text, relPath = "") {
 }
 
 /**
- * checkC19 は共有 DataTable row の opening tag を調べ、行全体へ onClick を付ける実装を検出する。
+ * checkC19 は table row の opening tag を調べ、行全体へ onClick を付ける実装を検出する。
  * 詳細遷移は cell 内の native link、編集・表示は native button を使う。test / 非 TSX は対象外。
  */
 export function checkC19(text, relPath = "") {
   if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
 
   const violations = [];
-  const openingTagRe = new RegExp(C19_DATA_TABLE_ROW_OPENING_TAG_START_RE.source, "g");
+  const openingTagRe = new RegExp(C19_TABLE_ROW_OPENING_TAG_START_RE.source, "g");
   let match;
   while ((match = openingTagRe.exec(text)) !== null) {
     if (isC18IgnoredOpeningTag(text, match.index)) continue;
@@ -794,7 +794,7 @@ async function main() {
   printGroup("C16 非仕様 spacing(*-5)", result.c16);
   printGroup("C17 CSS shadow 直書き", result.c17);
   printGroup("C18 Table primitive override", result.c18);
-  printGroup("C19 DataTable row onClick", result.c19);
+  printGroup("C19 table row onClick", result.c19);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length

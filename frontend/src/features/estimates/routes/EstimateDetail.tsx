@@ -2,7 +2,7 @@ import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from 'react-router';
-import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { useState, useCallback, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
@@ -14,6 +14,7 @@ import { useDeleteEstimate } from '../api/delete-estimate';
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceEstimates } from "@/types/generated/models";
 import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
+import { isEstimateExpired } from "../utils/is-estimate-expired";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,7 @@ export function EstimateDetail() {
   }
 
   const isLocked = isEstimateLockedStatus(estimate.status);
+  const isExpired = isEstimateExpired(estimate.validUntil);
   const showEdit = canEdit && !isLocked;
   const showDelete = canDelete && !isLocked;
 
@@ -56,7 +58,7 @@ export function EstimateDetail() {
             variant="outline"
             size="sm"
             onClick={() => navigate(paths.estimates.getHref())}
-            className="h-9 gap-1.5 text-sm"
+            className="gap-1.5 text-sm"
           >
             <ArrowLeft className={ICON.action} />
             一覧へ
@@ -66,7 +68,7 @@ export function EstimateDetail() {
               variant="outline"
               size="sm"
               onClick={() => id ? navigate(paths.estimates.edit.getHref(id)) : null}
-              className="h-9 gap-1.5 text-sm"
+              className="gap-1.5 text-sm"
             >
               <Pencil className={ICON.action} />
               編集
@@ -78,7 +80,7 @@ export function EstimateDetail() {
               size="sm"
               onClick={() => setShowDeleteDialog(true)}
               disabled={isDeleting || isDeletePending}
-              className={`h-9 gap-1.5 text-sm border ${C.borderDanger20}`}
+              className={`gap-1.5 text-sm border ${C.borderDanger20}`}
             >
               <Trash2 className={ICON.action} />
               削除
@@ -110,7 +112,19 @@ export function EstimateDetail() {
             {estimate.validUntil ? (
               <div>
                 <dt className={`${C.text50} mb-0.5`}>有効期限</dt>
-                <dd className={C.text}>{estimate.validUntil.slice(0, 10)}</dd>
+                <dd className={`flex flex-wrap items-center gap-2 ${C.text}`}>
+                  <span>{estimate.validUntil.slice(0, 10)}</span>
+                  {isExpired ? (
+                    <span
+                      role="status"
+                      aria-label="見積期限"
+                      className={`inline-flex items-center gap-1 font-medium ${C.danger}`}
+                    >
+                      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                      期限切れ
+                    </span>
+                  ) : null}
+                </dd>
               </div>
             ) : null}
             <div>

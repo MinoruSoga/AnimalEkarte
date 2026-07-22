@@ -18,9 +18,11 @@ function isValidISODate(value: string): boolean {
 export function countLatestExaminationAbnormalResults(
   examinations: ReadonlyArray<ExaminationForSummary>,
 ): number {
-  const latest = [...examinations]
-    .filter((examination) => isValidISODate(examination.date))
-    .sort((left, right) => right.date.localeCompare(left.date))[0];
+  let latest: ExaminationForSummary | undefined;
+  for (const examination of examinations) {
+    if (!isValidISODate(examination.date)) continue;
+    if (!latest || examination.date > latest.date) latest = examination;
+  }
 
   return latest?.items?.filter((item) => item.isAbnormal).length ?? 0;
 }
@@ -30,11 +32,12 @@ export function selectUpcomingVaccination<T extends VaccinationForSummary>(
   vaccinations: ReadonlyArray<T>,
   today: string = todayJSTISO(),
 ): T | undefined {
-  return [...vaccinations]
-    .filter((vaccination) => {
-      return isValidISODate(vaccination.nextDate) && vaccination.nextDate >= today;
-    })
-    .sort((left, right) => left.nextDate.localeCompare(right.nextDate))[0];
+  let upcoming: T | undefined;
+  for (const vaccination of vaccinations) {
+    if (!isValidISODate(vaccination.nextDate) || vaccination.nextDate < today) continue;
+    if (!upcoming || vaccination.nextDate < upcoming.nextDate) upcoming = vaccination;
+  }
+  return upcoming;
 }
 
 /** 未来予定がない場合に、最も直近で期限を過ぎた接種予定を選ぶ。 */
@@ -42,9 +45,10 @@ export function selectLatestOverdueVaccination<T extends VaccinationForSummary>(
   vaccinations: ReadonlyArray<T>,
   today: string = todayJSTISO(),
 ): T | undefined {
-  return [...vaccinations]
-    .filter((vaccination) => {
-      return isValidISODate(vaccination.nextDate) && vaccination.nextDate < today;
-    })
-    .sort((left, right) => right.nextDate.localeCompare(left.nextDate))[0];
+  let overdue: T | undefined;
+  for (const vaccination of vaccinations) {
+    if (!isValidISODate(vaccination.nextDate) || vaccination.nextDate >= today) continue;
+    if (!overdue || vaccination.nextDate > overdue.nextDate) overdue = vaccination;
+  }
+  return overdue;
 }

@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
   onMarkDirty,
 }: BasicInfoSectionProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -44,7 +45,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
             name="name"
             defaultValue={defaultName}
             placeholder="品名を入力"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
             required
           />
         </div>
@@ -59,7 +60,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
               onCategoryChange(value);
             }}
           >
-            <SelectTrigger className="mt-1">
+            <SelectTrigger className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}>
               <SelectValue placeholder="カテゴリを選択" />
             </SelectTrigger>
             <SelectContent>
@@ -80,7 +81,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
             name="unit"
             defaultValue={defaultUnit}
             placeholder="例: 錠, 本, 袋"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
             required
           />
         </div>
@@ -96,6 +97,7 @@ interface StockInfoSectionProps {
   resolvedExpiry: string;
   onExpiryChange: (value: string) => void;
   onMarkDirty: () => void;
+  quantityError?: string;
   minStockLevelError?: string;
 }
 
@@ -106,11 +108,32 @@ export const StockInfoSection = memo(function StockInfoSection({
   resolvedExpiry,
   onExpiryChange,
   onMarkDirty,
+  quantityError,
   minStockLevelError,
 }: StockInfoSectionProps) {
+  const [quantity, setQuantity] = useState(String(defaultQuantity ?? 0));
+  const [minStockLevel, setMinStockLevel] = useState(String(defaultMinStockLevel ?? 0));
+  const parsedQuantity = Number(quantity);
+  const parsedMinStockLevel = Number(minStockLevel);
+  const stockStatus = parsedQuantity <= 0
+    ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
+    : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
+      ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
+      : null;
+
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
+      {stockStatus ? (
+        <div
+          role="status"
+          aria-label="在庫状態"
+          className={`mb-4 flex items-center gap-2 text-sm font-medium ${C.danger}`}
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{stockStatus}</span>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
@@ -122,10 +145,17 @@ export const StockInfoSection = memo(function StockInfoSection({
             type="number"
             min="0"
             step="1"
-            defaultValue={defaultQuantity ?? 0}
-            className="mt-1"
+            value={quantity}
+            onChange={(event) => {
+              setQuantity(event.target.value);
+              onMarkDirty();
+            }}
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
+            aria-invalid={quantityError ? true : undefined}
+            aria-describedby={quantityError ? "quantity-error" : undefined}
             required
           />
+          <FormFieldError id="quantity-error" message={quantityError} />
         </div>
         <div>
           <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
@@ -137,8 +167,14 @@ export const StockInfoSection = memo(function StockInfoSection({
             type="number"
             min="0"
             step="1"
-            defaultValue={defaultMinStockLevel ?? 0}
-            className="mt-1"
+            value={minStockLevel}
+            onChange={(event) => {
+              setMinStockLevel(event.target.value);
+              onMarkDirty();
+            }}
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
+            aria-invalid={minStockLevelError ? true : undefined}
+            aria-describedby={minStockLevelError ? "minStockLevel-error" : undefined}
             required
           />
           <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
@@ -152,7 +188,7 @@ export const StockInfoSection = memo(function StockInfoSection({
             name="location"
             defaultValue={defaultLocation}
             placeholder="例: 薬品棚A-1"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
           />
         </div>
         <div>
@@ -168,7 +204,7 @@ export const StockInfoSection = memo(function StockInfoSection({
               onExpiryChange(value);
             }}
             placeholder="有効期限を選択…"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
           />
         </div>
       </div>
@@ -190,7 +226,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
   onMarkDirty,
 }: SupplierInfoSectionProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -202,7 +238,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
             name="supplier"
             defaultValue={defaultSupplier}
             placeholder="仕入先名"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
           />
         </div>
         <div>
@@ -218,7 +254,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
               onLastRestockedChange(value);
             }}
             placeholder="最終入荷日を選択…"
-            className="mt-1"
+            className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
           />
         </div>
       </div>

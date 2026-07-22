@@ -64,4 +64,60 @@ describe("MedicineCategoryHeaderRow", () => {
     expect(onToggleGroup).toHaveBeenCalledWith(CATEGORY.id);
     expect(onEdit).not.toHaveBeenCalled();
   });
+
+  it("行は非interactiveで、編集権限時だけ固有名の44px buttonを表示する", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <MedicineCategoryHeaderRow
+            parentId={CATEGORY.id}
+            header={CATEGORY}
+            itemCount={27}
+            isCollapsed={false}
+            canCreate={false}
+            canEdit={false}
+            onToggleGroup={vi.fn()}
+            onEdit={onEdit}
+            onCreate={vi.fn()}
+          />
+        </tbody>
+      </table>,
+    );
+
+    const categoryRow = screen.getByText("内用薬").closest("tr");
+    expect(categoryRow).not.toBeNull();
+    await user.click(categoryRow!);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "詳細: 薬剤カテゴリ 内用薬 (ID medicine-group-1)" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <table>
+        <tbody>
+          <MedicineCategoryHeaderRow
+            parentId={CATEGORY.id}
+            header={CATEGORY}
+            itemCount={27}
+            isCollapsed={false}
+            canCreate={false}
+            canEdit
+            onToggleGroup={vi.fn()}
+            onEdit={onEdit}
+            onCreate={vi.fn()}
+          />
+        </tbody>
+      </table>,
+    );
+
+    const editButton = screen.getByRole("button", {
+      name: "詳細: 薬剤カテゴリ 内用薬 (ID medicine-group-1)",
+    });
+    expect(editButton.tagName).toBe("BUTTON");
+    expect(editButton).toHaveClass("min-h-11", "min-w-11");
+    await user.click(editButton);
+    expect(onEdit).toHaveBeenCalledWith(CATEGORY);
+  });
 });

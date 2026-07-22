@@ -1,13 +1,11 @@
 import { memo } from "react";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
-import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatCurrencyOrDash } from "@/lib/format/number";
@@ -52,19 +50,14 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
   onCreate,
 }: MedicineCategoryHeaderRowProps) {
   return (
-    <TableRow
-      onClick={() => onEdit(header)}
-      className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
-    >
+    <TableRow className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}>
       <TableCell className="w-11 px-0">
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={(event) => event.stopPropagation()}
+        <span
+          aria-hidden="true"
           className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
         >
           <GripVertical className={ICON.action} />
-        </button>
+        </span>
       </TableCell>
 
       <TableCell className="pl-0 pr-2">
@@ -91,8 +84,8 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
           {canCreate ? (
             <button
               type="button"
-              onClick={(event) => {
-                event.stopPropagation();
+              aria-label={`追加: 薬剤カテゴリ ${header.name} (ID ${header.id})`}
+              onClick={() => {
                 onCreate(parentId);
               }}
               className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
@@ -108,21 +101,13 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
       <TableCell className="w-[110px] text-center">
         <StatusPill isActive={true} />
       </TableCell>
-      <TableCell className="w-[80px] text-center" onClick={(event) => event.stopPropagation()}>
+      <TableCell className="w-[80px] text-center">
         {canEdit ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
-              >
-                <MoreHorizontal className={ICON.action} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(header)}>編集</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RowActionButton
+            aria-label={`詳細: 薬剤カテゴリ ${header.name} (ID ${header.id})`}
+            onClick={() => onEdit(header)}
+            className="opacity-0 group-hover/header:opacity-100 focus-visible:opacity-100"
+          />
         ) : null}
       </TableCell>
     </TableRow>

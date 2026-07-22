@@ -83,7 +83,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={title}
           onChange={e => onChange('title', e.target.value)}
           placeholder="見積書タイトルを入力"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
         <FormFieldError message={titleError} />
       </div>
@@ -99,7 +99,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         >
           <SelectTrigger
             id="status"
-            className="h-9 text-sm w-full sm:w-[200px]"
+            className="h-11 text-sm w-full sm:w-[200px]"
             aria-describedby={statusError ? "status-error" : undefined}
           >
             <SelectValue />
@@ -161,7 +161,7 @@ const AmountSection = memo(function AmountSection({
           value={subtotal}
           onChange={v => onChange('subtotal', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -174,7 +174,7 @@ const AmountSection = memo(function AmountSection({
           value={taxTotal}
           onChange={v => onChange('taxTotal', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -187,7 +187,7 @@ const AmountSection = memo(function AmountSection({
           value={insuranceAmount}
           onChange={v => onChange('insuranceAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -201,7 +201,7 @@ const AmountSection = memo(function AmountSection({
           disabled={!canEditDiscount}
           onChange={v => onChange('discountAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
         {!canEditDiscount ? (
           <p className={`text-xs ${C.text50}`}>割引額の変更には権限が必要です</p>
@@ -217,7 +217,7 @@ const AmountSection = memo(function AmountSection({
           value={totalAmount}
           onChange={v => onChange('totalAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
     </div>
@@ -341,7 +341,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">
-          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-9 text-sm">
+          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-11 text-sm">
             キャンセル
           </Button>
           {canSubmit ? (
@@ -349,7 +349,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               size="sm"
               colorVariant="brand"
               disabled={!form.title.trim()}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {isEdit ? '更新' : '作成'}
             </SubmitButton>

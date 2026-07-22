@@ -8,6 +8,7 @@ import { server } from "@/testing/mocks/node";
 import { AuthContext } from "@/hooks/auth-context";
 import { AccountingDetail } from "./AccountingDetail";
 import type { ResourceAction } from "@/types/auth";
+import { ResourceCashRegisterClose } from "@/types/generated/models";
 
 const CLINIC_ID = "clinic-test-1";
 const ACCOUNTING_ID = "123";
@@ -82,16 +83,22 @@ function setupHandlers() {
     ),
     http.get("/api/v1/masters/merchandise-items", () =>
       HttpResponse.json([])
-    )
+    ),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
   );
 }
 
 // id あり: /accounting/:id ルートで描画
-async function renderWithIdAndWait(canEdit = true) {
+async function renderWithIdAndWait(
+  canEdit = true,
+  hasPermission = makeHasPermission(canEdit),
+) {
   setupHandlers();
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <AuthContext.Provider value={makeAuthCtx(canEdit)}>
+    <AuthContext.Provider value={{ ...makeAuthCtx(canEdit), hasPermission }}>
       <QueryClientProvider client={qc}>
         <MemoryRouter initialEntries={[`/accounting/${ACCOUNTING_ID}`]}>
           <Routes>
@@ -109,7 +116,10 @@ async function renderWithIdAndWait(canEdit = true) {
 // 新規作成モード: id なし (/accounting/new はパラメータなし)
 async function renderNewModeAndWait(canEdit = false) {
   server.use(
-    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([]))
+    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -231,6 +241,9 @@ function setupWaitingHandlers() {
     http.get("/api/v1/masters/merchandise-items", () =>
       HttpResponse.json([])
     ),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
     // Payment API handlers for Dialog test
     http.post(`/api/v1/accountings/${WAITING_ID}/payments`, () =>
       HttpResponse.json({ id: 999, ...waitingAccounting.payments?.[0] })
@@ -278,6 +291,28 @@ describe("AccountingDetail — B: 閲覧専用バナー (ReadOnly banner)", () =
   it("新規作成モード (id なし) + canEdit=false → バナーが表示されない", async () => {
     await renderNewModeAndWait(false);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("レジ締め状態を閲覧できない編集者はGETを送らずfail-closedで閲覧専用になる", async () => {
+    let closeGetCount = 0;
+    server.use(
+      http.get("/api/v1/cash-register/closes", () => {
+        closeGetCount += 1;
+        return HttpResponse.json({ data: [], total: 0 });
+      }),
+    );
+    const hasPermission = (resource: string, action: ResourceAction): boolean => {
+      if (resource === ResourceCashRegisterClose && action === "view") return false;
+      return true;
+    };
+
+    await renderWithIdAndWait(true, hasPermission);
+
+    expect(
+      screen.getByText(/レジ締め状態を確認する権限がないため変更できません/),
+    ).toBeInTheDocument();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(closeGetCount).toBe(0);
   });
 });
 
@@ -393,6 +428,9 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       ),
       http.get("/api/v1/masters/merchandise-items", () =>
         HttpResponse.json([])
+      ),
+      http.get("/api/v1/cash-register/closes", () =>
+        HttpResponse.json({ data: [], total: 0 })
       ),
       http.delete("/api/v1/billing-items/1", () => {
         deleteCalled = true;

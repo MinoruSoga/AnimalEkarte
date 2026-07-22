@@ -58,7 +58,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
         <button
           type="button"
           onClick={handleShowForm}
-          className={`flex min-h-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
           追加
@@ -163,7 +163,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 type="button"
                 onClick={() => handleDelete(period.id)}
                 aria-label={`${period.start_date}から${period.end_date}の特別期間を削除`}
-                className={`size-11 flex items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
+                className={`flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >
                 <Trash2 className="size-4" />
               </button>

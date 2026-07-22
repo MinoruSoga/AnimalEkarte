@@ -4,7 +4,7 @@ import { SortableDataTableRow } from "@/components/shared/DataTable/SortableData
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
-import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 
@@ -34,7 +34,9 @@ export function ReservationTypeGroupHeader({
           <button
             type="button"
             onClick={onToggle}
-            className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            aria-label={`${group.name}グループを${isCollapsed ? "展開" : "折りたたむ"}`}
+            aria-expanded={!isCollapsed}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}
@@ -98,7 +100,9 @@ export function ReservationTypeUncategorizedHeader({
           <button
             type="button"
             onClick={onToggle}
-            className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            aria-label={`未分類を${isCollapsed ? "展開" : "折りたたむ"}`}
+            aria-expanded={!isCollapsed}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}

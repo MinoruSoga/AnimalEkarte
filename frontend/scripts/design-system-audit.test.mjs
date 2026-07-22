@@ -864,6 +864,30 @@ test("checkC19: DataTableRow / SortableDataTableRow の single-line onClick を�
   assert.match(violations[1].text, /SortableDataTableRow/);
 });
 
+test("checkC19: raw TableRow / tr の行全体 onClick も検出する", () => {
+  assert.equal(typeof audit.checkC19, "function");
+
+  const text = [
+    "<TableRow onClick={onEdit}><TableCell>通常行</TableCell></TableRow>",
+    "<tr",
+    "  data-highlighted={isHighlighted}",
+    "  onClick={() => onSelect(item)}",
+    ">",
+    "  <td><button onClick={onAction}>子操作</button></td>",
+    "</tr>",
+    "<TableRow><TableCell><button onClick={onAction}>安全な子操作</button></TableCell></TableRow>",
+  ].join("\n");
+
+  const violations = audit.checkC19(
+    text,
+    path.join("src", "features", "widget", "components", "RawWidgetRows.tsx"),
+  );
+  assert.equal(violations.length, 2);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 4]);
+  assert.match(violations[0].text, /TableRow/);
+  assert.match(violations[1].text, /onClick/);
+});
+
 test("checkC19: multiline opening tag と arrow handler の onClick 実在行を返す", () => {
   assert.equal(typeof audit.checkC19, "function");
 

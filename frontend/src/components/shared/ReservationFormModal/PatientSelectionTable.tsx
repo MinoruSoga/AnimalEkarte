@@ -183,10 +183,9 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                   return (
                     <TableRow
                       key={pet.id}
-                      className={`transition-colors ${C.hoverBgLight} cursor-pointer h-9 ${
+                      className={`transition-colors ${C.hoverBgLight} h-12 ${
                         isSelected(pet) ? C.bgPage : ""
                       } ${isDeceased ? "opacity-50 grayscale-[0.5]" : ""}`}
-                      onClick={() => !isDeceased && onSelect(pet)}
                     >
                       <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
                       <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
@@ -201,15 +200,21 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                         <Button
                           size="sm"
                           disabled={isDeceased}
-                          className={`h-9 gap-1 text-sm px-2 transition-colors ${
+                          aria-label={
+                            isDeceased
+                              ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
+                              : isSelected(pet)
+                                ? `選択中: ${pet.name} (ID ${pet.id})`
+                                : `選択: ${pet.name} (ID ${pet.id})`
+                          }
+                          className={`h-11 min-w-11 gap-1 text-sm px-2 transition-colors ${
                             isDeceased
                               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
                               ? `${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand}`
                               : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
                           }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             if (!isDeceased) onSelect(pet);
                           }}
                         >

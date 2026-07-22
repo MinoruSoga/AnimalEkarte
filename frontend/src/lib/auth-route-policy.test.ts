@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { paths } from "@/config/paths";
 
-import { isPasswordRecoveryPublicPath } from "./auth-route-policy";
+import {
+  isAuthPublicPath,
+  isPasswordRecoveryPublicPath,
+} from "./auth-route-policy";
 
 describe("isPasswordRecoveryPublicPath", () => {
   it("derives both recovery routes from the centralized path config", () => {
@@ -10,6 +13,13 @@ describe("isPasswordRecoveryPublicPath", () => {
     expect(paths.auth.resetPassword.path).toBe("/reset-password");
     expect(isPasswordRecoveryPublicPath(paths.auth.forgotPassword.path)).toBe(true);
     expect(isPasswordRecoveryPublicPath(paths.auth.resetPassword.path)).toBe(true);
+  });
+
+  it("treats login and password recovery as public auth routes", () => {
+    expect(isAuthPublicPath(paths.auth.login.path)).toBe(true);
+    expect(isAuthPublicPath(paths.auth.forgotPassword.path)).toBe(true);
+    expect(isAuthPublicPath(paths.auth.resetPassword.path)).toBe(true);
+    expect(isAuthPublicPath(paths.home.path)).toBe(false);
   });
 
   it.each([

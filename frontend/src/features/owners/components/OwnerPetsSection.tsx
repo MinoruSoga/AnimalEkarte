@@ -2,6 +2,7 @@ import { memo } from "react";
 import { useNavigate } from "react-router";
 import { Bed, Calendar, CreditCard, Edit, FileText, MoreHorizontal, PawPrint, Plus, Scissors, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -33,12 +34,18 @@ const PetTableRow = memo(function PetTableRow({
     : paths.owners.getHref();
 
   return (
-    <TableRow
-      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${canEdit ? "cursor-pointer" : "cursor-default"}`}
-      onClick={canEdit ? () => onEdit(pet) : undefined}
-    >
+    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {canEdit ? (
+          <DataTableRowButton
+            aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
+            onClick={() => onEdit(pet)}
+          >
+            {pet.petName}
+          </DataTableRowButton>
+        ) : pet.petName}
+      </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
@@ -58,8 +65,7 @@ const PetTableRow = memo(function PetTableRow({
           <DropdownMenu>
             <DropdownMenuTrigger
               className={`inline-flex items-center justify-center rounded-xs cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
-              aria-label="操作メニューを開く"
-              onClick={(event) => event.stopPropagation()}
+              aria-label={`操作メニュー: ペット ${pet.petName} (ID ${pet.id})`}
             >
               <MoreHorizontal className={ICON.page} />
             </DropdownMenuTrigger>

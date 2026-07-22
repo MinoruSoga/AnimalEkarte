@@ -47,10 +47,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
               return (
                 <TableRow
                   key={pet.id}
-                  className={`transition-colors ${C.hoverBgMedium} cursor-pointer h-12 ${
+                  className={`transition-colors ${C.hoverBgMedium} h-12 ${
                     index < pets.length - 1 ? `border-b ${C.borderLight}` : "border-none"
                   } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
-                  onClick={() => !isDeceased && onSelect(pet)}
                 >
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerId}</TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerName}</TableCell>
@@ -75,13 +74,18 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.weight || "-"}</TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.environment || "-"}</TableCell>
                   <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{formatDate(pet.lastVisit)}</TableCell>
-                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="whitespace-nowrap">
                     <Button
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}
                       disabled={isDeceased}
+                      aria-label={
+                        isDeceased
+                          ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
+                          : `選択: ${pet.name} (ID ${pet.id})`
+                      }
                       // docs/spec/design-system.md button-primary: brand blue #0075DE + pill（FE10 字義リブランド）
-                      className={`h-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full`} text-sm px-4`}
+                      className={`h-11 min-w-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isDeceased ? (

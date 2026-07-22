@@ -63,7 +63,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     onChange={(e) =>
                       onUpdate(plan.id, "treatmentContent", e.target.value)
                     }
-                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
+                    className={`${H_STYLES.text.base} h-11 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
                     placeholder="治療内容を入力..."
                   />
                 </td>
@@ -73,7 +73,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     onChange={(e) =>
                       onUpdate(plan.id, "memo", e.target.value)
                     }
-                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
+                    className={`${H_STYLES.text.base} h-11 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
                     placeholder="メモ..."
                   />
                 </td>

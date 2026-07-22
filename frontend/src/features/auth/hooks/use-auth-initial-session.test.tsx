@@ -115,7 +115,7 @@ describe("AuthProvider initial session restoration", () => {
     });
   });
 
-  it("skips recovery routes and restores the session only once within the next protected mount", async () => {
+  it("skips all public auth routes and restores the session once on the next protected mount", async () => {
     setWindowLocation("/forgot-password/");
     const { AuthProvider } = await import("./use-auth");
 
@@ -142,21 +142,19 @@ describe("AuthProvider initial session restoration", () => {
       fireEvent.click(screen.getByRole("button", { name: "go-login" }));
     });
 
-    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(screen.getByTestId("pathname")).toHaveTextContent("/login"),
     );
+    expect(refreshTokenMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "go-protected" }));
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
     expect(screen.getByTestId("pathname")).toHaveTextContent("/");
-    expect(refreshTokenMock).toHaveBeenCalledOnce();
   });
 
   it("takes a fresh session snapshot after login when returning from recovery to a protected route", async () => {
     setWindowLocation("/login");
-    refreshTokenMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ user: AUTH_USER });
+    refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER });
     const { AuthProvider } = await import("./use-auth");
 
     render(
@@ -169,7 +167,7 @@ describe("AuthProvider initial session restoration", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(1));
+    expect(refreshTokenMock).not.toHaveBeenCalled();
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
 
     fireEvent.click(screen.getByRole("button", { name: "authenticate" }));
@@ -182,7 +180,7 @@ describe("AuthProvider initial session restoration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "go-protected" }));
 
-    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id),
     );

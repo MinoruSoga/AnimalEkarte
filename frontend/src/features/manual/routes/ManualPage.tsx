@@ -9,7 +9,14 @@
  * モバイル: サイドバーはドロワー化、ハンバーガーボタンで開閉。
  */
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useDeferredValue,
+  useRef,
+} from "react";
 import { Navigate, useParams } from "react-router";
 import { Menu, Printer, Edit2 } from "lucide-react";
 
@@ -88,8 +95,9 @@ export function ManualPage() {
     [screenArticles, workflowArticles],
   );
 
-  const filtered = useManualSearch(query, allMergedArticles);
-  const isSearching = query.trim().length > 0;
+  const deferredQuery = useDeferredValue(query);
+  const filtered = useManualSearch(deferredQuery, allMergedArticles);
+  const isSearching = deferredQuery.trim().length > 0;
 
   // React Hooks ルール: 全ての hooks を early return より前に呼び出す
   const article = useMemo(() => {

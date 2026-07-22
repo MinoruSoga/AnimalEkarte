@@ -146,6 +146,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           <div className="flex items-center gap-3">
             <Switch
               id="status-toggle"
+              aria-label="LINE予約受付"
               checked={status === "running"}
               onCheckedChange={handleStatusToggle}
             />
@@ -179,6 +180,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="祝日休診">
           <Switch
             id="national-holiday"
+            aria-label="祝日休診"
             checked={nationalHolidayClosed}
             onCheckedChange={setNationalHolidayClosed}
           />
@@ -192,6 +194,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           <div className="flex items-center gap-2">
             <Input
               type="time"
+              aria-label="通常営業時間 開始"
               value={toDisplayTime(businessHours.start)}
               onChange={(e) => handleBusinessHoursChange("start", e.target.value)}
               className="max-w-[120px]"
@@ -199,6 +202,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             <span className={`text-sm ${C.textMuted}`}>〜</span>
             <Input
               type="time"
+              aria-label="通常営業時間 終了"
               value={toDisplayTime(businessHours.end)}
               onChange={(e) => handleBusinessHoursChange("end", e.target.value)}
               className="max-w-[120px]"
@@ -211,6 +215,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             <div className="flex items-center gap-3">
               <Switch
                 id="weekday-hours-toggle"
+                aria-label="曜日別営業時間"
                 checked={enableWeekdayHours}
                 onCheckedChange={setEnableWeekdayHours}
               />
@@ -236,6 +241,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="最短予約受付（日前）">
           <Input
             name="booking_window_min_days"
+            aria-label="最短予約受付（日数）"
             type="number"
             min={0}
             defaultValue={setting.booking_window_min_days}
@@ -245,6 +251,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="最長予約受付（日前）">
           <Input
             name="booking_window_max_days"
+            aria-label="最長予約受付（日数）"
             type="number"
             min={1}
             defaultValue={setting.booking_window_max_days}
@@ -254,6 +261,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="表示カレンダー月数">
           <Input
             name="calendar_months"
+            aria-label="表示カレンダー月数"
             type="number"
             min={1}
             max={6}
@@ -272,6 +280,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="スロット間隔（分）">
           <Input
             name="time_slot_interval_minutes"
+            aria-label="スロット間隔（分）"
             type="number"
             min={5}
             step={5}

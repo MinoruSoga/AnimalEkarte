@@ -5,7 +5,10 @@ import { useLocation } from "react-router";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
 import { AuthContext } from "@/hooks/auth-context";
-import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
+import {
+  isAuthPublicPath,
+  isPasswordRecoveryPublicPath,
+} from "@/lib/auth-route-policy";
 import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
@@ -45,11 +48,17 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const { pathname } = useLocation();
-  const restoreSession = !isPasswordRecoveryPublicPath(pathname);
+  const passwordRecovery = isPasswordRecoveryPublicPath(pathname);
+  const restoreSession = !isAuthPublicPath(pathname);
+  const sessionKey = restoreSession
+    ? "session"
+    : passwordRecovery
+      ? "password-recovery"
+      : "login";
 
   return (
     <AuthProviderSession
-      key={restoreSession ? "session" : "password-recovery"}
+      key={sessionKey}
       restoreSession={restoreSession}
     >
       {children}

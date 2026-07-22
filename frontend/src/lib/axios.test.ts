@@ -6,6 +6,7 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "./axios";
+import { CURRENT_CLINIC_STORAGE_KEY } from "./current-clinic";
 
 const originalLocation = window.location;
 
@@ -78,7 +79,7 @@ describe("axios 401 route policy", () => {
     },
   );
 
-  it("keeps the existing login behavior without a forced redirect", async () => {
+  it("passes through a login 401 without session refresh or forced redirect", async () => {
     const refreshSpy = vi
       .spyOn(axios, "post")
       .mockRejectedValue(new AxiosError("refresh unauthorized"));
@@ -86,9 +87,9 @@ describe("axios 401 route policy", () => {
 
     await expect(
       axios.request({ adapter: unauthorizedAdapter, method: "post", url: "/v1/login" }),
-    ).rejects.toThrow("refresh unauthorized");
+    ).rejects.toThrow("request unauthorized");
 
-    expect(refreshSpy).toHaveBeenCalledWith("/v1/auth/refresh");
+    expect(refreshSpy).not.toHaveBeenCalled();
     expect(window.location.href).toBe(initialHref);
   });
 
@@ -145,5 +146,32 @@ describe("axios 401 route policy", () => {
 
     await rejection;
     expect(window.location.href).toBe(recoveryHref);
+  });
+});
+
+describe("axios clinic boundary", () => {
+  afterEach(() => {
+    localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+  });
+
+  it("reloadなしの医院切替後も次requestで最新のX-Clinic-IDを読む", async () => {
+    const receivedClinicIds: Array<string | undefined> = [];
+    const adapter: AxiosAdapter = async (config) => {
+      receivedClinicIds.push(config.headers.get("X-Clinic-ID")?.toString());
+      return {
+        config,
+        data: {},
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "clinic-1");
+    await axios.request({ adapter, method: "get", url: "/v1/example" });
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "clinic-2");
+    await axios.request({ adapter, method: "get", url: "/v1/example" });
+
+    expect(receivedClinicIds).toEqual(["clinic-1", "clinic-2"]);
   });
 });

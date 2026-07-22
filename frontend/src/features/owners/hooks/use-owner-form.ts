@@ -11,6 +11,7 @@ import type { PetMutations } from "@/types/pet";
 import type { OwnerData, PetFormData, MembershipTypeLabel } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
+import { runOwnerCreateFollowups } from "./owner-form-followups";
 import { usePetFormListState } from "./use-pet-form-list-state";
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
@@ -193,12 +194,9 @@ export function useOwnerForm(
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
           const newOwner = await createOwner(createData);
-          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
-
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
-          if (pendingPets.length > 0 && petMutations) {
-            const results = await Promise.allSettled(
-              pendingPets.map(pet =>
+          const createPets = petMutations
+            ? pendingPets.map((pet) => () =>
                 petMutations.createPetFn(
                   transformCreatePetRequest({
                     ownerId: newOwner.id,
@@ -224,11 +222,14 @@ export function useOwnerForm(
                   })
                 )
               )
-            );
-            const failedCount = results.filter(r => r.status === "rejected").length;
-            if (failedCount > 0) {
-              toast.warning(`${failedCount}件のペット追加に失敗しました`);
-            }
+            : [];
+          const results = await runOwnerCreateFollowups(
+            () => queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() }),
+            createPets,
+          );
+          const failedCount = results.filter(r => r.status === "rejected").length;
+          if (failedCount > 0) {
+            toast.warning(`${failedCount}件のペット追加に失敗しました`);
           }
 
           toast.success("飼主情報を登録しました");

@@ -98,4 +98,20 @@ describe("PatientSelectionTable — カナ混同検索", () => {
     expect(screen.getByText("ヤマダ タロウ")).toBeInTheDocument();
     expect(screen.getByText("タナカ ハナコ")).toBeInTheDocument();
   });
+
+  it("行は選択せず、固有名の44px buttonだけが患者を選択する", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<PatientSelectionTable onSelect={onSelect} selectedPets={[]} />);
+    await user.click(screen.getByRole("button", { name: /検索/ }));
+
+    await user.click(screen.getByText("ヤマダ タロウ"));
+    expect(onSelect).not.toHaveBeenCalled();
+
+    const selectButton = screen.getByRole("button", { name: "選択: ポチ (ID 1)" });
+    expect(selectButton.tagName).toBe("BUTTON");
+    expect(selectButton).toHaveClass("min-h-11", "min-w-11");
+    await user.click(selectButton);
+    expect(onSelect).toHaveBeenCalledWith(MOCK_PETS[0]);
+  });
 });

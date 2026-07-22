@@ -119,6 +119,7 @@ export function RevenueFilters({
       <div className="flex min-h-11 items-center gap-2">
         <Checkbox
           id="revenue-include-zero"
+          aria-label="0円を含む"
           touchTarget
           checked={params.include_zero === true}
           onCheckedChange={(checked) =>

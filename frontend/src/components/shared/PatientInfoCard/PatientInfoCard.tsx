@@ -189,9 +189,10 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Button
                 id={staffButtonId}
                 type="button"
+                aria-label={staffLabel ? `${staffLabel}${staffName}` : `担当者を選択: ${staffName}`}
                 variant="ghost"
                 size="sm"
-                className={`h-9 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${C.borderMedium}`}
+                className={`h-11 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${C.borderMedium}`}
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}

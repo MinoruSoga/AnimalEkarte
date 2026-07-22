@@ -8,6 +8,7 @@
 
 import { Link, useLocation } from "react-router";
 import { Search } from "lucide-react";
+import { memo, useMemo } from "react";
 
 import { C, PALETTE, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -29,6 +30,63 @@ interface ManualSidebarProps {
   isSearching: boolean;
 }
 
+interface ManualNavigationProps {
+  groups: ReturnType<typeof groupBySection>;
+  filteredCount: number;
+  isSearching: boolean;
+  viewMode: ManualCategory;
+}
+
+const ManualNavigation = memo(function ManualNavigation({
+  groups,
+  filteredCount,
+  isSearching,
+  viewMode,
+}: ManualNavigationProps) {
+  const location = useLocation();
+
+  return (
+    <nav aria-label="マニュアル目次" className="flex-1 overflow-y-auto px-2 py-2">
+      {isSearching && filteredCount === 0 ? (
+        <p className={`px-2 py-3 text-sm ${C.text50}`}>該当する項目が見つかりません</p>
+      ) : null}
+
+      {groups.map((group) => (
+        <div key={group.section} className="mb-3">
+          <p className={`px-2 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>
+            {group.section}
+          </p>
+          <ul className="space-y-0.5">
+            {group.items.map((article) => {
+              const href = paths.manual.article.getHref(article.category, article.slug);
+              const isActive = location.pathname === href;
+              return (
+                <li key={`${article.category}/${article.slug}`}>
+                  <Link
+                    to={href}
+                    className={`flex min-h-11 items-center px-2 py-1.5 rounded-xxs text-sm transition-colors ${
+                      isActive
+                        ? `${STYLE.sidebarItemActive} font-medium`
+                        : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`
+                    }`}
+                  >
+                    {article.title}
+                    {isSearching && article.category !== viewMode ? (
+                      <span className={`ml-1 text-2xs ${C.text40}`}>
+                        ({article.category === "screens" ? "画面" : "フロー"})
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+});
+
 export function ManualSidebar({
   viewMode,
   onChangeViewMode,
@@ -37,12 +95,10 @@ export function ManualSidebar({
   filteredArticles,
   isSearching,
 }: ManualSidebarProps) {
-  const location = useLocation();
-
   // 検索中は全カテゴリ横断結果、非検索時はビューモードに応じて分類表示
   const baseList = viewMode === "screens" ? screenArticles : workflowArticles;
   const displayList = isSearching ? filteredArticles : baseList;
-  const groups = groupBySection(displayList);
+  const groups = useMemo(() => groupBySection(displayList), [displayList]);
 
   return (
     <aside
@@ -94,45 +150,12 @@ export function ManualSidebar({
         </div>
       </div>
 
-      {/* TOC */}
-      <nav aria-label="マニュアル目次" className="flex-1 overflow-y-auto px-2 py-2">
-        {isSearching && filteredArticles.length === 0 ? (
-          <p className={`px-2 py-3 text-sm ${C.text50}`}>該当する項目が見つかりません</p>
-        ) : null}
-
-        {groups.map((g) => (
-          <div key={g.section} className="mb-3">
-            <p className={`px-2 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>
-              {g.section}
-            </p>
-            <ul className="space-y-0.5">
-              {g.items.map((a) => {
-                const href = paths.manual.article.getHref(a.category, a.slug);
-                const isActive = location.pathname === href;
-                return (
-                  <li key={`${a.category}/${a.slug}`}>
-                    <Link
-                      to={href}
-                      className={`flex min-h-11 items-center px-2 py-1.5 rounded-xxs text-sm transition-colors ${
-                        isActive
-                          ? `${STYLE.sidebarItemActive} font-medium`
-                          : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`
-                      }`}
-                    >
-                      {a.title}
-                      {isSearching && a.category !== viewMode ? (
-                        <span className={`ml-1 text-2xs ${C.text40}`}>
-                          ({a.category === "screens" ? "画面" : "フロー"})
-                        </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
+      <ManualNavigation
+        groups={groups}
+        filteredCount={filteredArticles.length}
+        isSearching={isSearching}
+        viewMode={viewMode}
+      />
     </aside>
   );
 }

@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { filterActiveOrSelectedMasterItems } from "./trimming-form-utils";
+import {
+  filterActiveOrSelectedMasterItems,
+  findDefaultTrimmingReservationTypeId,
+} from "./trimming-form-utils";
+
+describe("findDefaultTrimmingReservationTypeId", () => {
+  it("最小sort_orderの公開トリミング種別を返し、入力順を変更しない", () => {
+    const types = [
+      { id: 3, category: "trimming", is_internal: false, sort_order: 30 },
+      { id: 1, category: "medical", is_internal: false, sort_order: 1 },
+      { id: 2, category: "trimming", is_internal: false, sort_order: 20 },
+      { id: 4, category: "trimming", is_internal: true, sort_order: 10 },
+    ];
+    const originalOrder = types.map((type) => type.id);
+
+    expect(findDefaultTrimmingReservationTypeId([{ types }])).toBe(2);
+    expect(types.map((type) => type.id)).toEqual(originalOrder);
+  });
+});
 
 describe("filterActiveOrSelectedMasterItems", () => {
   it("active なアイテムのみを返す（未選択の無効アイテムは除外）", () => {

@@ -1,5 +1,8 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
-import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
+import {
+  isAuthPublicPath,
+  isPasswordRecoveryPublicPath,
+} from "@/lib/auth-route-policy";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import { sanitizeNullBytes } from "@/lib/sanitize";
@@ -103,11 +106,11 @@ axios.interceptors.response.use(
       }
     }
 
-    // Password recovery pages are intentionally public. Their API errors belong to
-    // each page's anti-enumeration/error handling and must not trigger session refresh.
+    // Public auth pages intentionally work without a session. Expected login/recovery
+    // 401s belong to the page and must not trigger a refresh request.
     if (
       error.response?.status === 401 &&
-      isPasswordRecoveryPublicPath(window.location.pathname)
+      isAuthPublicPath(window.location.pathname)
     ) {
       return Promise.reject(error);
     }
