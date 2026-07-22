@@ -548,7 +548,7 @@ func TestTrimmingCourseService_Create_RejectsCrossClinicCourseTypeBeforeWrite(t 
 		findByIDFn: func(_ context.Context, gotClinicID, gotID uint64) (*model.TrimmingCourseType, error) {
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, courseTypeID, gotID)
-			return nil, errors.New("course type belongs to another clinic")
+			return nil, apperrors.WrapNotFound("trimming course type", "5")
 		},
 	}
 	svc := NewTrimmingCourseService(courseRepo, courseTypeRepo)
