@@ -16,17 +16,6 @@ type ownerSummaryResponse struct {
 	OwnerName string `json:"name"`
 }
 
-// toOwnerSummary は *model.Owner を *ownerSummaryResponse に変換する。nilの場合はnilを返す。
-func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
-	if o == nil {
-		return nil
-	}
-	return &ownerSummaryResponse{
-		ID:        o.ID,
-		OwnerName: o.Name,
-	}
-}
-
 type petInOwnerResponse struct {
 	ID              uint64     `json:"id"`
 	OwnerID         uint64     `json:"owner_id"`
