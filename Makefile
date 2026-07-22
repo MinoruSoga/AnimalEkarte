@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -103,7 +103,48 @@ seed:
 	@echo "✓ Seed data applied"
 
 # ============================================================================
-# stage-import: animalekarte_stage -> 本テーブル (推奨経路 / replaces seed-old-db(archived))
+# F6 CSV import: old_db's immutable 19-table CSV hand-off -> AnimalEkarte
+# ============================================================================
+# Required variables:
+#   CSV_IMPORT_SOURCE_DIR (absolute host path), CSV_MANIFEST_SHA256,
+#   CLINIC_CODE, CLINIC_ORDINAL, MIGRATION_RUN_ID,
+#   TARGET_CLINIC_ID, FALLBACK_ANIMAL_SPECIES_ID, FALLBACK_EXAM_TYPE_ID,
+#   TRIMMING_RESERVATION_TYPE_ID.
+# Apply additionally requires TARGET_DB_NAME to exactly match DB_NAME from
+# .env.local. Reports contain aggregate counts only and are owner-only under
+# sensitive-local/. The source volume is read-only and no old_db network exists.
+CSV_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.csv-import.yml
+export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
+export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
+export TRIMMING_RESERVATION_TYPE_ID TARGET_DB_NAME
+CSV_IMPORT_COMMON_ARGS = \
+	--source-dir /migration-input \
+	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
+	--clinic-code "$${CLINIC_CODE}" \
+	--clinic-ordinal "$${CLINIC_ORDINAL}" \
+	--run-id "$${MIGRATION_RUN_ID}" \
+	--clinic-id "$${TARGET_CLINIC_ID}" \
+	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
+	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}"
+
+csv-import-preflight:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
+
+csv-import:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
+
+csv-import-verify:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+
+# ============================================================================
+# stage-import: legacy direct-DB compatibility path (not the F6 cutover route)
 # ============================================================================
 # 検証済みの old_db 3層パイプライン (legacy_raw -> legacy_canonical ->
 # animalekarte_stage) の stage スキーマを唯一の投入元として本テーブルへ取り込む。
@@ -295,9 +336,12 @@ help:
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
 	@echo ""
-	@echo "旧DB移行（推奨経路: animalekarte_stage -> 本テーブル）:"
-	@echo "  stage-import-dry-run      stage 取り込みの dry-run（件数表示・書き込み0）"
-	@echo "  stage-import              stage から本テーブルへ投入（破壊的・要 OLD_DB_POSTGRES_PASSWORD）"
+	@echo "旧DB移行（正式経路: 19表CSV + manifest -> 本テーブル）:"
+	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
+	@echo "  csv-import                19表CSVを単一transactionで投入（backup・target確認必須）"
+	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
+	@echo "  stage-import-dry-run      旧direct-DB互換経路のdry-run（F6では使用しない）"
+	@echo "  stage-import              旧direct-DB互換経路（F6では使用しない）"
 	@echo "  verify-stage-import       stage 投入後の検証（空clinic/orphan/collision等・exit 0でPASS）"
 	@echo "  stage-import-rollback-test rollback/read-only 安全性の統合テスト（要 実DB）"
 	@echo "  restart-api   API再起動"
