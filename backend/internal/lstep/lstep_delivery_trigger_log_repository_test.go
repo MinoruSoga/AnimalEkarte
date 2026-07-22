@@ -179,12 +179,15 @@ func TestLstepDeliveryTriggerLogRepository_CountByStatusAndDateRange(t *testing.
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	within := time.Date(2026, 6, 15, 9, 0, 0, 0, time.UTC)
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "集計対象飼主")
+	ownerB := repotest.MakeTestOwner(t, db, clinicB, "別医院飼主")
 
-	makeDeliveryTriggerLog(t, db, clinicA, 10, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 12, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 13, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, from.AddDate(0, -1, 0)) // 範囲外
-	makeDeliveryTriggerLog(t, db, clinicB, 14, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 別クリニック
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, from.AddDate(0, -1, 0)) // 範囲外
+	makeDeliveryTriggerLog(t, db, clinicB, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 別クリニック
+	makeDeliveryTriggerLog(t, db, clinicA, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 不整合owner参照
 
 	t.Run("トリガー種別指定なしは全種別を集計する", func(t *testing.T) {
 		counts, err := repo.CountByStatusAndDateRange(ctx, clinicA, from, to, "")
@@ -216,21 +219,26 @@ func TestLstepDeliveryTriggerLogRepository_CountExcludedReasonByDateRange(t *tes
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	within := time.Date(2026, 6, 15, 9, 0, 0, 0, time.UTC)
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "除外集計対象飼主")
+	ownerB := repotest.MakeTestOwner(t, db, 2, "別医院除外飼主")
 
 	reasonOptOut := "opted_out"
-	log1 := makeDeliveryTriggerLog(t, db, clinicA, 10, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
+	log1 := makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
 	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", log1.ID).
 		Update("excluded_reason", reasonOptOut).Error)
 
-	log2 := makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
+	log2 := makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
 	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", log2.ID).
 		Update("excluded_reason", reasonOptOut).Error)
 
 	// excluded_reason が NULL のまま除外されたログ（COALESCE で '' 集計になる）
-	makeDeliveryTriggerLog(t, db, clinicA, 12, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
 
 	// 除外ではないログは集計対象外
-	makeDeliveryTriggerLog(t, db, clinicA, 13, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	crossOwnerLog := makeDeliveryTriggerLog(t, db, clinicA, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
+	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", crossOwnerLog.ID).
+		Update("excluded_reason", reasonOptOut).Error)
 
 	counts, err := repo.CountExcludedReasonByDateRange(ctx, clinicA, from, to, "")
 	require.NoError(t, err)
@@ -247,15 +255,20 @@ func TestLstepDeliveryTriggerLogRepository_CountSuppressedByPriorityDateRange(t 
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	within := time.Date(2026, 6, 15, 9, 0, 0, 0, time.UTC)
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "抑制集計対象飼主")
+	ownerB := repotest.MakeTestOwner(t, db, 2, "別医院抑制飼主")
 
-	suppressed1 := makeDeliveryTriggerLog(t, db, clinicA, 10, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	suppressed1 := makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
 	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", suppressed1.ID).
 		Update("suppressed_by_priority", true).Error)
-	suppressed2 := makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeVaccineDeadline30, model.TriggerStatusFired, within)
+	suppressed2 := makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeVaccineDeadline30, model.TriggerStatusFired, within)
 	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", suppressed2.ID).
 		Update("suppressed_by_priority", true).Error)
 	// 通常配信ログ（suppressed_by_priority=false）は件数に含まれない
-	makeDeliveryTriggerLog(t, db, clinicA, 12, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	crossOwnerLog := makeDeliveryTriggerLog(t, db, clinicA, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", crossOwnerLog.ID).
+		Update("suppressed_by_priority", true).Error)
 
 	t.Run("トリガー種別指定なしは全種別を集計する（非ゼロ）", func(t *testing.T) {
 		count, err := repo.CountSuppressedByPriorityDateRange(ctx, clinicA, from, to, "")
@@ -287,39 +300,48 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 
 	owner := repotest.MakeTestOwner(t, db, clinicA, "山田花子")
 
-	// 新しい順に3件（DESC で返る想定）。owner が紐づくログは owner_name が JOIN される。
+	// 新しい順に3件（DESC で返る想定）。owner が同じ clinic に属するログだけが返る。
 	l1 := makeDeliveryTriggerLog(t, db, clinicA, owner.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC))
 	l2 := makeDeliveryTriggerLog(t, db, clinicA, owner.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 11, 9, 0, 0, 0, time.UTC))
-	l3 := makeDeliveryTriggerLog(t, db, clinicA, 99999, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, time.Date(2026, 6, 12, 9, 0, 0, 0, time.UTC)) // 存在しない owner_id
+	makeDeliveryTriggerLog(t, db, clinicA, 99999, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, time.Date(2026, 6, 12, 9, 0, 0, 0, time.UTC)) // 存在しない owner_id
 
-	t.Run("owner 名が JOIN される（存在しない owner は空文字）", func(t *testing.T) {
+	t.Run("owner 名が JOIN される（存在しない owner のログは除外）", func(t *testing.T) {
 		rows, total, err := repo.FindByDateRangeWithFilters(ctx, clinicA, from, to, "", "", 10, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(3), total)
-		require.Len(t, rows, 3)
-		// DESC 順: l3, l2, l1
-		assert.Equal(t, l3.ID, rows[0].ID)
-		assert.Equal(t, "", rows[0].OwnerName, "存在しない owner_id は COALESCE で空文字になるべき")
-		assert.Equal(t, l2.ID, rows[1].ID)
+		assert.Equal(t, int64(2), total)
+		require.Len(t, rows, 2)
+		// DESC 順: l2, l1（owner relation が不正な l3 は除外）
+		assert.Equal(t, l2.ID, rows[0].ID)
+		assert.Equal(t, owner.Name, rows[0].OwnerName)
+		assert.Equal(t, l1.ID, rows[1].ID)
 		assert.Equal(t, owner.Name, rows[1].OwnerName)
-		assert.Equal(t, l1.ID, rows[2].ID)
-		assert.Equal(t, owner.Name, rows[2].OwnerName)
 	})
 
 	t.Run("trigger_type と status で絞り込める", func(t *testing.T) {
 		rows, total, err := repo.FindByDateRangeWithFilters(ctx, clinicA, from, to, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, 10, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), total)
-		require.Len(t, rows, 1)
-		assert.Equal(t, l3.ID, rows[0].ID)
+		assert.Zero(t, total)
+		assert.Empty(t, rows)
 	})
 
 	t.Run("limit/offset でページングされる（total はページング前の総数）", func(t *testing.T) {
 		rows, total, err := repo.FindByDateRangeWithFilters(ctx, clinicA, from, to, "", "", 1, 1)
 		require.NoError(t, err)
-		assert.Equal(t, int64(3), total, "total はフィルタ後・ページング前の件数であるべき")
+		assert.Equal(t, int64(2), total, "total は所有関係・フィルタ適用後かつページング前の件数であるべき")
 		require.Len(t, rows, 1)
-		assert.Equal(t, l2.ID, rows[0].ID, "offset=1 の2番目の行が返るべき")
+		assert.Equal(t, l1.ID, rows[0].ID, "offset=1 の2番目の有効行が返るべき")
+	})
+
+	t.Run("別クリニック owner を指す不整合ログから owner 名を露出しない", func(t *testing.T) {
+		const clinicB = uint64(2)
+		otherClinicOwner := repotest.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
+		log := makeDeliveryTriggerLog(t, db, clinicA, otherClinicOwner.ID, "cross_clinic_owner", model.TriggerStatusScheduled, time.Date(2026, 6, 13, 9, 0, 0, 0, time.UTC))
+
+		rows, total, err := repo.FindByDateRangeWithFilters(ctx, clinicA, from, to, "cross_clinic_owner", model.TriggerStatusScheduled, 10, 0)
+		require.NoError(t, err)
+		assert.Zero(t, total)
+		assert.Empty(t, rows)
+		assert.NotZero(t, log.ID, "fixture must persist the malformed relation")
 	})
 }
 
@@ -332,11 +354,14 @@ func TestLstepDeliveryTriggerLogRepository_CountByTypeAndStatus(t *testing.T) {
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	within := time.Date(2026, 6, 15, 9, 0, 0, 0, time.UTC)
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "種別集計対象飼主")
+	ownerB := repotest.MakeTestOwner(t, db, 2, "別医院種別飼主")
 
-	makeDeliveryTriggerLog(t, db, clinicA, 10, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 12, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
-	makeDeliveryTriggerLog(t, db, clinicA, 13, model.TriggerTypeVaccineDeadline30, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusExcluded, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeVaccineDeadline30, model.TriggerStatusFired, within)
+	makeDeliveryTriggerLog(t, db, clinicA, ownerB.ID, "cross_owner", model.TriggerStatusFired, within)
 
 	rows, err := repo.CountByTypeAndStatus(ctx, clinicA, from, to)
 	require.NoError(t, err)
@@ -394,6 +419,17 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	require.NoError(t, db.Create(deletedRecord).Error)
 	require.NoError(t, db.Delete(deletedRecord).Error)
 
+	// T3: 医院Aの配信対象に対し、医院Bの不整合カルテが同じ owner_id を参照しても来院扱いにしない。
+	crossClinicRecordOwner := repotest.MakeTestOwner(t, db, clinicA, "別医院カルテ誤参照の飼主")
+	makeDeliveryTriggerLog(t, db, clinicA, crossClinicRecordOwner.ID, "T3", model.TriggerStatusFired, firedAt)
+	crossClinicOwnerID := crossClinicRecordOwner.ID
+	require.NoError(t, db.Create(&model.MedicalRecord{
+		ClinicID: clinicB,
+		RecordNo: "R-CROSS-CLINIC",
+		Date:     time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		OwnerID:  &crossClinicOwnerID,
+	}).Error)
+
 	// T1: 抑制されたログは delivered からも除外される
 	suppressedOwner := repotest.MakeTestOwner(t, db, clinicA, "抑制された飼主")
 	suppressedLog := makeDeliveryTriggerLog(t, db, clinicA, suppressedOwner.ID, "T1", model.TriggerStatusFired, firedAt)
@@ -407,6 +443,7 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	// 別クリニックのログは集計対象外
 	otherClinicOwner := repotest.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
 	makeDeliveryTriggerLog(t, db, clinicB, otherClinicOwner.ID, "T1", model.TriggerStatusFired, firedAt)
+	makeDeliveryTriggerLog(t, db, clinicA, otherClinicOwner.ID, "CROSS_OWNER", model.TriggerStatusFired, firedAt)
 
 	// makeDeliveryTriggerLog は scheduled_at のみ設定し fired_at は NULL のまま作成する
 	// （他の多数のテストがこの挙動に依存しているため共通ヘルパー自体は変更しない）。
@@ -431,6 +468,11 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	require.Contains(t, byType, "T2")
 	assert.Equal(t, int64(1), byType["T2"].DeliveredCount)
 	assert.Equal(t, int64(0), byType["T2"].VisitedCount, "ソフトデリート済みカルテは来院とみなさないべき")
+
+	require.Contains(t, byType, "T3")
+	assert.Equal(t, int64(1), byType["T3"].DeliveredCount)
+	assert.Equal(t, int64(0), byType["T3"].VisitedCount, "別医院の不整合カルテは来院とみなさないべき")
+	assert.NotContains(t, byType, "CROSS_OWNER", "別医院ownerを参照する不整合ログは分母から除外すべき")
 }
 
 func TestLstepDeliveryTriggerLogRepository_FindByOwnerAndDate(t *testing.T) {

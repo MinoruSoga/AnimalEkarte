@@ -6,7 +6,7 @@ package lstep
 //   - FindByClinicID は priority ASC 順で clinic_id 分離される。
 //   - UpsertBatch は (clinic_id, trigger_type) の UNIQUE 制約に対する ON CONFLICT DO UPDATE で、
 //     初回は新規作成、2回目以降は priority のみ更新する（重複行を作らない）。
-//   - UpsertBatch は渡された items の ClinicID を引数 clinicID で強制的に上書きする。
+//   - UpsertBatch は保存値の ClinicID を引数 clinicID で強制しつつ、入力を変更しない。
 //   - FindPriorityByTriggerType は該当なしで NotFound を返し、clinic_id で分離される。
 
 import (
@@ -100,12 +100,12 @@ func TestLstepTriggerPriorityRepository_UpsertBatch(t *testing.T) {
 		assert.Equal(t, 1, priority, "priorityは最新値に更新されるべき")
 	})
 
-	t.Run("渡されたitemsのClinicIDは引数clinicIDで強制上書きされる", func(t *testing.T) {
+	t.Run("保存時のClinicIDは引数clinicIDで強制し入力は変更しない", func(t *testing.T) {
 		items := []model.LstepTriggerPriority{
 			{ClinicID: 999, TriggerType: "override-check", Priority: 4}, // 意図的に別clinic_idを指定
 		}
 		require.NoError(t, repo.UpsertBatch(ctx, 3, items))
-		assert.Equal(t, uint64(3), items[0].ClinicID, "呼び出し元のスライス要素もclinicIDで上書きされる")
+		assert.Equal(t, uint64(999), items[0].ClinicID, "呼び出し元のスライス要素を変更してはならない")
 
 		var count int64
 		require.NoError(t, db.Model(&model.LstepTriggerPriority{}).Where("clinic_id = ? AND trigger_type = ?", 3, "override-check").Count(&count).Error)

@@ -233,6 +233,33 @@ func TestGetLstepDeliveryTriggerSummary(t *testing.T) {
 	}
 }
 
+func TestGetLstepDeliveryTriggerSummary_ClinicAliasUsesAuthenticatedClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	called := false
+	svc := &mockLstepDeliveryMonitorService{
+		getSummaryFn: func(_ context.Context, input GetDeliveryMonitorSummaryInput) (DeliveryTriggerSummary, error) {
+			called = true
+			assert.Equal(t, uint64(1), input.ClinicID)
+			return DeliveryTriggerSummary{}, nil
+		},
+	}
+	h := newHandlerWithLstepDeliveryMonitorSvc(svc)
+	r := gin.New()
+	r.GET("/clinics/:clinic_id/lstep/delivery-monitor/summary", func(c *gin.Context) {
+		c.Set("clinic_id", "1")
+	}, h.GetLstepDeliveryTriggerSummary)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/clinics/999/lstep/delivery-monitor/summary?from=2026-05-01&to=2026-05-31", http.NoBody)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, called)
+}
+
+// ---- GetLstepDeliveryTriggerLogs ----
+
 func TestGetLstepDeliveryTriggerLogs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

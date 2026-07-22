@@ -8,11 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinicID, ownerID uint64) (excluded bool, reason string, err error) {
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
-		return false, "", apperrors.Wrap(err, "failed to find owner")
-	}
+func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinicID, ownerID uint64, owner *model.Owner) (excluded bool, reason string, err error) {
 	if owner.DeliveryExcluded {
 		return true, "delivery_excluded_flag", nil
 	}

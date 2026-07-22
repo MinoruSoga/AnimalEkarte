@@ -271,6 +271,34 @@ func TestDeletePetDeath(t *testing.T) {
 	}
 }
 
+func TestDeletePetDeath_ClinicAliasUsesAuthenticatedClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	called := false
+	svc := &mockLstepLifecycleService{
+		handlePetRevivalFn: func(_ context.Context, clinicID, petID uint64, _ *uint64) error {
+			called = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(22), petID)
+			return nil
+		},
+	}
+	h := newHandlerWithLstepLifecycleSvc(svc, nil)
+	r := gin.New()
+	r.DELETE("/clinics/:clinic_id/pets/:id/death", func(c *gin.Context) {
+		c.Set("clinic_id", "1")
+	}, h.DeletePetDeath)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/clinics/999/pets/22/death", http.NoBody)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.True(t, called)
+}
+
+// ---- UpdateOwnerLstepOptOut ----
+
 func TestPostOwnerLstepOptOut(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

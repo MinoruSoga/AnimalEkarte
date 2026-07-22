@@ -83,12 +83,12 @@ func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("deleted_at IS NULL").
-		Select("owner_id").
-		Group("owner_id").
-		Having("MIN(date::date) = ?::date", target).
+		Table("medical_records AS mr").
+		Joins("JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
+		Select("mr.owner_id").
+		Group("mr.owner_id").
+		Having("MIN(mr.date::date) = ?::date", target).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d first_visit_date=%s", clinicID, target))
@@ -106,12 +106,12 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("deleted_at IS NULL").
-		Select("owner_id").
-		Group("owner_id").
-		Having("MAX(date::date) = ?::date", target).
+		Table("medical_records AS mr").
+		Joins("JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
+		Select("mr.owner_id").
+		Group("mr.owner_id").
+		Having("MAX(mr.date::date) = ?::date", target).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d last_visit_days=%d", clinicID, exactDays))
@@ -132,16 +132,20 @@ func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.C
 	var rows []row
 	// 飼い主ごとに最新カルテ（MAX(id)）を取得し、その next_visit_recommended_date が targetDate のものを抽出。
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT owner_id
-		FROM medical_records
-		WHERE clinic_id = ? AND deleted_at IS NULL
-		  AND id IN (
+		SELECT mr.owner_id
+		FROM medical_records AS mr
+		JOIN owners AS o
+		  ON o.id = mr.owner_id
+		 AND o.clinic_id = mr.clinic_id
+		 AND o.deleted_at IS NULL
+		WHERE mr.clinic_id = ? AND mr.deleted_at IS NULL
+		  AND mr.id IN (
 		      SELECT MAX(id)
 		      FROM medical_records
 		      WHERE clinic_id = ? AND deleted_at IS NULL
 		      GROUP BY owner_id
 		  )
-		  AND next_visit_recommended_date::date = ?::date
+		  AND mr.next_visit_recommended_date::date = ?::date
 	`, clinicID, clinicID, target).Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d next_visit_recommended=%s", clinicID, target))

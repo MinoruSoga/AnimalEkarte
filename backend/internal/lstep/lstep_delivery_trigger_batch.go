@@ -52,6 +52,12 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	triggerType, tagName string,
 	asOf time.Time,
 ) (bool, error) {
+	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "delivery trigger: failed to validate owner scope", "owner_id", ownerID, "error", err)
+		return false, apperrors.Wrap(err, "failed to find owner")
+	}
+
 	already, err := s.alreadyFiredToday(ctx, clinicID, ownerID, triggerType, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: alreadyFiredToday error", "owner_id", ownerID, "trigger", triggerType, "error", err)
@@ -85,7 +91,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, nil
 	}
 
-	excluded, reason, err := s.checkExclusion(ctx, clinicID, ownerID)
+	excluded, reason, err := s.checkExclusion(ctx, clinicID, ownerID, owner)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: checkExclusion error", "owner_id", ownerID, "error", err)
 		return false, err
@@ -102,12 +108,6 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 			slog.WarnContext(ctx, "failed to record trigger log excluded status (non-fatal)", "log_id", logID, "error", updateErr)
 		}
 		return false, nil
-	}
-
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger: failed to find owner for lineUserID", "owner_id", ownerID, "error", err)
-		return false, apperrors.Wrap(err, "failed to find owner")
 	}
 
 	if err := s.applyTagAndLog(ctx, clinicID, client, *owner.LineUserID, tagName, logID); err != nil {

@@ -43,6 +43,14 @@ type mockDeliveryTriggerLogRepoForBatch struct {
 	updateSuppressedFn   func(ctx context.Context, clinicID, logID uint64, reason string) error
 }
 
+func validOwnerRepoForDelivery() *mockOwnerRepoForDelivery {
+	return &mockOwnerRepoForDelivery{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+			return defaultOwnerWithLine(id), nil
+		},
+	}
+}
+
 func (m *mockDeliveryTriggerLogRepoForBatch) Create(ctx context.Context, log *model.LstepDeliveryTriggerLog) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, log)
@@ -120,6 +128,7 @@ func TestRunBatch_ClientNilIsNoop(t *testing.T) {
 
 func TestProcessSingleOwner_AlreadyFiredTodayError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
+		ownerRepo: validOwnerRepoForDelivery(),
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			existsTodayFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 				return false, errors.New("db error")
@@ -133,6 +142,7 @@ func TestProcessSingleOwner_AlreadyFiredTodayError(t *testing.T) {
 
 func TestProcessSingleOwner_ApplySuppressionError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
+		ownerRepo: validOwnerRepoForDelivery(),
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return nil, errors.New("db error")
@@ -145,9 +155,67 @@ func TestProcessSingleOwner_ApplySuppressionError(t *testing.T) {
 	assert.False(t, fired)
 }
 
+func TestProcessSingleOwner_ValidatesOwnerScopeBeforeSuppressionLog(t *testing.T) {
+	created := false
+	svc := &lstepDeliveryTriggerService{
+		ownerRepo: &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(10), ownerID)
+				return nil, errors.New("owner is outside clinic scope")
+			},
+		},
+		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
+			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepDeliveryTriggerLog) error {
+				created = true
+				return nil
+			},
+		},
+		prioritySvc: &mockLstepTriggerPriorityServiceForBatch{
+			getPriorityForFn: func(_ context.Context, _ uint64, triggerType string) (int, error) {
+				if triggerType == "higher_priority_trigger" {
+					return 1, nil
+				}
+				return 10, nil
+			},
+		},
+	}
+
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now())
+	assert.Error(t, err)
+	assert.False(t, fired)
+	assert.False(t, created)
+}
+
+func TestProcessSingleOwner_ValidatesOwnerScopeBeforeDuplicateLookup(t *testing.T) {
+	duplicateLookupCalled := false
+	svc := &lstepDeliveryTriggerService{
+		ownerRepo: &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return nil, errors.New("owner is outside clinic scope")
+			},
+		},
+		triggerLogRepo: &mockDeliveryTriggerLogRepository{
+			existsTodayFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+				duplicateLookupCalled = true
+				return false, nil
+			},
+		},
+	}
+
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now())
+	assert.Error(t, err)
+	assert.False(t, fired)
+	assert.False(t, duplicateLookupCalled)
+}
+
 func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 	var createdLog *model.LstepDeliveryTriggerLog
 	svc := &lstepDeliveryTriggerService{
+		ownerRepo: validOwnerRepoForDelivery(),
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -177,6 +245,7 @@ func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 
 func TestProcessSingleOwner_SuppressedLogCreateError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
+		ownerRepo: validOwnerRepoForDelivery(),
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -254,27 +323,22 @@ func TestProcessSingleOwner_ExcludedUpdateStatusFailureIsNonFatal(t *testing.T) 
 	assert.True(t, updateStatusCalled)
 }
 
-func TestProcessSingleOwner_SecondFindByIDFailureAfterExclusionCheck(t *testing.T) {
+func TestProcessSingleOwner_ReusesScopedOwnerLookup(t *testing.T) {
 	callCount := 0
 	svc := &lstepDeliveryTriggerService{
 		ownerRepo: &mockOwnerRepoForDelivery{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 				callCount++
-				if callCount == 1 {
-					// checkExclusion 用の1回目の呼び出しは成功させる
-					return defaultOwnerWithLine(id), nil
-				}
-				// processSingleOwner 直下の2回目の呼び出しで失敗させる
-				return nil, errors.New("db error on second lookup")
+				return defaultOwnerWithLine(id), nil
 			},
 		},
 		tagCacheRepo:   &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{},
 	}
 	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now())
-	assert.Error(t, err)
-	assert.False(t, fired)
-	assert.Equal(t, 2, callCount)
+	assert.NoError(t, err)
+	assert.True(t, fired)
+	assert.Equal(t, 1, callCount)
 }
 
 // applyTagAndLog エラー伝播（AddTag 失敗）は runBatch/processSingleOwner の呼び出し元まで

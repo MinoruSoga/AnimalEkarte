@@ -307,6 +307,18 @@ func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
 		assert.NotContains(t, got, ownerBID)
 	})
 
+	t.Run("clinic_id隔離: 医院Aのカルテが医院Bの飼い主を誤参照しても混入しない", func(t *testing.T) {
+		ownerB := makeTestOwner(t, db, clinicB, "不整合初回B")
+		ownerBID := ownerB.ID
+		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, OwnerID: &ownerBID, Date: target,
+		})
+
+		got, err := repo.FindOwnersByFirstVisitDate(ctx, clinicA, target)
+		require.NoError(t, err)
+		assert.NotContains(t, got, ownerBID)
+	})
+
 	t.Run("該当なし: targetDate に一致するカルテが無ければ空配列", func(t *testing.T) {
 		owner := makeTestOwner(t, db, clinicA, "初回不一致飼主")
 		ownerID := owner.ID
@@ -359,6 +371,18 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 		got, err := repo.FindOwnersByLastVisitDays(ctx, clinicA, exactDays, asOf)
 		require.NoError(t, err)
 		assert.Contains(t, got, ownerAID)
+		assert.NotContains(t, got, ownerBID)
+	})
+
+	t.Run("clinic_id隔離: 医院Aのカルテが医院Bの飼い主を誤参照しても混入しない", func(t *testing.T) {
+		ownerB := makeTestOwner(t, db, clinicB, "不整合最終B")
+		ownerBID := ownerB.ID
+		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, OwnerID: &ownerBID, Date: lastVisitDate,
+		})
+
+		got, err := repo.FindOwnersByLastVisitDays(ctx, clinicA, exactDays, asOf)
+		require.NoError(t, err)
 		assert.NotContains(t, got, ownerBID)
 	})
 
@@ -426,6 +450,19 @@ func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) 
 		require.NoError(t, err)
 		assert.Contains(t, gotB, ownerBID)
 		assert.NotContains(t, gotB, ownerAID)
+	})
+
+	t.Run("clinic_id隔離: 医院Aのカルテが医院Bの飼い主を誤参照しても混入しない", func(t *testing.T) {
+		ownerB := makeTestOwner(t, db, clinicB, "不整合推奨日B")
+		ownerBID := ownerB.ID
+		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, OwnerID: &ownerBID, Date: time.Now().In(time.Local),
+			NextVisitRecommendedDate: &target,
+		})
+
+		got, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicA, target)
+		require.NoError(t, err)
+		assert.NotContains(t, got, ownerBID)
 	})
 
 	t.Run("該当なし: targetDate に一致する最新カルテが無ければ空配列", func(t *testing.T) {

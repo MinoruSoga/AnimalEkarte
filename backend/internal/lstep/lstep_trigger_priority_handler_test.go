@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -203,4 +204,54 @@ func TestUpdateLstepTriggerPriorities(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestLstepTriggerPriorities_ClinicAliasUsesAuthenticatedClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("GET", func(t *testing.T) {
+		var gotClinicID uint64
+		svc := &mockLstepTriggerPriorityService{
+			getByClinicIDFn: func(_ context.Context, clinicID uint64) ([]model.LstepTriggerPriority, error) {
+				gotClinicID = clinicID
+				return []model.LstepTriggerPriority{}, nil
+			},
+		}
+		r := gin.New()
+		h := newHandlerWithTriggerPrioritySvc(svc)
+		r.GET("/clinics/:clinic_id/lstep/trigger-priorities", func(c *gin.Context) {
+			c.Set("clinic_id", "1")
+		}, h.GetLstepTriggerPriorities)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/clinics/999/lstep/trigger-priorities", http.NoBody)
+		r.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, uint64(1), gotClinicID)
+	})
+
+	t.Run("PATCH", func(t *testing.T) {
+		var gotClinicID uint64
+		svc := &mockLstepTriggerPriorityService{
+			updatePrioritiesFn: func(_ context.Context, clinicID uint64, _ UpdateTriggerPrioritiesInput) error {
+				gotClinicID = clinicID
+				return nil
+			},
+		}
+		r := gin.New()
+		h := newHandlerWithTriggerPrioritySvc(svc)
+		r.PATCH("/clinics/:clinic_id/lstep/trigger-priorities", func(c *gin.Context) {
+			c.Set("clinic_id", "1")
+		}, h.UpdateLstepTriggerPriorities)
+
+		body := bytes.NewBufferString(`{"items":[{"trigger_type":"dormant_365d","priority":1}]}`)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPatch, "/clinics/999/lstep/trigger-priorities", body)
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, uint64(1), gotClinicID)
+	})
 }

@@ -477,9 +477,13 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	ownerOtherClinic := makeTestOwner(t, db, clinicB, "別クリニック誕生日一致飼主")
 	makePetDetailed(t, db, clinicB, ownerOtherClinic.ID, speciesID, "別クリニックの誕生日一致ペット", &matchBirthday, nil)
 
+	ownerMismatched := makeTestOwner(t, db, clinicB, "不整合誕生日飼主")
+	makePetDetailed(t, db, clinicA, ownerMismatched.ID, speciesID, "医院Aから医院B飼主を誤参照", &matchBirthday, nil)
+
 	got, err := repo.FindOwnersByPetBirthday(ctx, clinicA, int(time.March), 15)
 	require.NoError(t, err)
 	assert.Contains(t, got, ownerMatch.ID)
+	assert.NotContains(t, got, ownerMismatched.ID)
 	assert.Len(t, got, 1, "重複排除・死亡除外・別クリニック除外・誕生日不一致除外")
 }
 

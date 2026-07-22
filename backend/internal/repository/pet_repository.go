@@ -274,11 +274,11 @@ func (r *petRepository) FindOwnersByPetBirthday(ctx context.Context, clinicID ui
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&model.Pet{}).
-		Scopes(clinicScope(clinicID)).
-		Where("deceased_at IS NULL AND deleted_at IS NULL").
-		Where("EXTRACT(month FROM birth_date) = ? AND EXTRACT(day FROM birth_date) = ?", month, day).
-		Distinct("owner_id").
+		Table("pets AS p").
+		Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL").
+		Where("p.clinic_id = ? AND p.deceased_at IS NULL AND p.deleted_at IS NULL", clinicID).
+		Where("EXTRACT(month FROM p.birth_date) = ? AND EXTRACT(day FROM p.birth_date) = ?", month, day).
+		Distinct("p.owner_id").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("clinic=%d birthday=%02d-%02d", clinicID, month, day))

@@ -110,12 +110,13 @@ func (r *lstepDeliveryTriggerLogRepository) CountByStatusAndDateRange(ctx contex
 		Count  int64  `gorm:"column:count"`
 	}
 	query := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_log").
-		Select("status, COUNT(*) AS count").
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, from, to).
-		Group("status")
+		Table("lstep_delivery_trigger_log AS l").
+		Select("l.status, COUNT(*) AS count").
+		Joins("INNER JOIN owners AS o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
+		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ?", clinicID, from, to).
+		Group("l.status")
 	if triggerType != "" {
-		query = query.Where("trigger_type = ?", triggerType)
+		query = query.Where("l.trigger_type = ?", triggerType)
 	}
 	var rows []row
 	if err := query.Scan(&rows).Error; err != nil {
@@ -134,12 +135,13 @@ func (r *lstepDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(ctx c
 		Count          int64  `gorm:"column:count"`
 	}
 	query := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_log").
-		Select("COALESCE(excluded_reason, '') AS excluded_reason, COUNT(*) AS count").
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ? AND status = ?", clinicID, from, to, model.TriggerStatusExcluded).
-		Group("excluded_reason")
+		Table("lstep_delivery_trigger_log AS l").
+		Select("COALESCE(l.excluded_reason, '') AS excluded_reason, COUNT(*) AS count").
+		Joins("INNER JOIN owners AS o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
+		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ? AND l.status = ?", clinicID, from, to, model.TriggerStatusExcluded).
+		Group("l.excluded_reason")
 	if triggerType != "" {
-		query = query.Where("trigger_type = ?", triggerType)
+		query = query.Where("l.trigger_type = ?", triggerType)
 	}
 	var rows []row
 	if err := query.Scan(&rows).Error; err != nil {
@@ -154,10 +156,11 @@ func (r *lstepDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(ctx c
 
 func (r *lstepDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (int64, error) {
 	query := r.db.WithContext(ctx).
-		Model(&model.LstepDeliveryTriggerLog{}).
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ? AND suppressed_by_priority = TRUE", clinicID, from, to)
+		Table("lstep_delivery_trigger_log AS l").
+		Joins("INNER JOIN owners AS o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
+		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ? AND l.suppressed_by_priority = TRUE", clinicID, from, to)
 	if triggerType != "" {
-		query = query.Where("trigger_type = ?", triggerType)
+		query = query.Where("l.trigger_type = ?", triggerType)
 	}
 	var count int64
 	if err := query.Count(&count).Error; err != nil {
@@ -167,26 +170,28 @@ func (r *lstepDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(c
 }
 
 func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx context.Context, clinicID uint64, from, to time.Time, triggerType, status string, limit, offset int) ([]DeliveryTriggerLogRow, int64, error) {
-	// count without join for efficiency
+	// Count through the same clinic-scoped owner join as the data query so the
+	// pagination total cannot include orphaned or cross-clinic owner references.
 	countQ := r.db.WithContext(ctx).
-		Model(&model.LstepDeliveryTriggerLog{}).
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, from, to)
+		Table("lstep_delivery_trigger_log l").
+		Joins("INNER JOIN owners o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
+		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ?", clinicID, from, to)
 	if triggerType != "" {
-		countQ = countQ.Where("trigger_type = ?", triggerType)
+		countQ = countQ.Where("l.trigger_type = ?", triggerType)
 	}
 	if status != "" {
-		countQ = countQ.Where("status = ?", status)
+		countQ = countQ.Where("l.status = ?", status)
 	}
 	var total int64
 	if err := countQ.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_find")
 	}
 
-	// data query with owner name join
+	// Data query with the clinic-scoped owner name join.
 	findQ := r.db.WithContext(ctx).
 		Table("lstep_delivery_trigger_log l").
 		Select("l.*, COALESCE(o.name, '') AS owner_name").
-		Joins("LEFT JOIN owners o ON o.id = l.owner_id").
+		Joins("INNER JOIN owners o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
 		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ?", clinicID, from, to)
 	if triggerType != "" {
 		findQ = findQ.Where("l.trigger_type = ?", triggerType)
@@ -208,11 +213,12 @@ func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx conte
 func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error) {
 	var rows []DeliveryStatsRow
 	err := r.db.WithContext(ctx).
-		Table("lstep_delivery_trigger_log").
-		Select("trigger_type, status, COUNT(*) AS count").
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, from, to).
-		Group("trigger_type, status").
-		Order("trigger_type, status").
+		Table("lstep_delivery_trigger_log AS l").
+		Select("l.trigger_type, l.status, COUNT(*) AS count").
+		Joins("INNER JOIN owners AS o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
+		Where("l.clinic_id = ? AND l.scheduled_at >= ? AND l.scheduled_at < ?", clinicID, from, to).
+		Group("l.trigger_type, l.status").
+		Order("l.trigger_type, l.status").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "count_by_type_status")
@@ -224,6 +230,7 @@ func (r *lstepDeliveryTriggerLogRepository) CountVisitConversionsByType(ctx cont
 	var rows []VisitConversionRow
 	err := r.db.WithContext(ctx).
 		Table("lstep_delivery_trigger_log l").
+		Joins("INNER JOIN owners AS o ON o.id = l.owner_id AND o.clinic_id = l.clinic_id").
 		Select(`
 			l.trigger_type,
 			COUNT(*) AS delivered_count,

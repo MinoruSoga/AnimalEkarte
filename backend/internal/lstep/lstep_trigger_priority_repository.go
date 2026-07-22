@@ -43,15 +43,17 @@ func (r *lstepTriggerPriorityRepository) UpsertBatch(ctx context.Context, clinic
 	if len(items) == 0 {
 		return nil
 	}
-	for i := range items {
-		items[i].ClinicID = clinicID
+	persistedItems := make([]model.LstepTriggerPriority, len(items))
+	copy(persistedItems, items)
+	for i := range persistedItems {
+		persistedItems[i].ClinicID = clinicID
 	}
 	if err := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "trigger_type"}},
 			DoUpdates: clause.AssignmentColumns([]string{"priority", "updated_at"}),
 		}).
-		Create(&items).Error; err != nil {
+		Create(&persistedItems).Error; err != nil {
 		return apperrors.FromGORM(err, "lstep_trigger_priority", fmt.Sprintf("clinic:%d upsert", clinicID))
 	}
 	return nil
