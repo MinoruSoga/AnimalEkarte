@@ -431,9 +431,10 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
 }
 
-// TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る は
-// perClinic が (0, errs) を返す全滅ケースでも audit が記録され、エラー本文がログに出ることを検証する（BE7-2）。
-func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る(t *testing.T) {
+// TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー本文は秘匿される は
+// perClinic が (0, errs) を返す全滅ケースでも audit が記録される一方、外部API由来の
+// エラー本文（LINE user ID 等を含み得る）はログへ出さないことを検証する。
+func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー本文は秘匿される(t *testing.T) {
 	var logBuf bytes.Buffer
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError})))
@@ -459,7 +460,7 @@ func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録さ�
 		"batch_test_wipeout",
 		nil,
 		func(_ context.Context, _ uint64) (int, []error) {
-			return 0, []error{errors.New("wipeout failure A"), errors.New("wipeout failure B")}
+			return 0, []error{errors.New("sensitive-line-user-id-U123"), errors.New("sensitive-owner-name")}
 		},
 	)
 	assert.NoError(t, err)
@@ -474,8 +475,9 @@ func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録さ�
 	assert.Equal(t, 2, meta["error_count"])
 
 	logOut := logBuf.String()
-	assert.Contains(t, logOut, "wipeout failure A")
-	assert.Contains(t, logOut, "wipeout failure B")
+	assert.Contains(t, logOut, `"error_count":2`)
+	assert.NotContains(t, logOut, "sensitive-line-user-id-U123")
+	assert.NotContains(t, logOut, "sensitive-owner-name")
 }
 
 // ---- RunHealthPreventionTagSyncAllClinics (FEAT-379) ----

@@ -44,6 +44,10 @@ func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, cl
 // 仕様 §6.4 により配信時刻は 10:00 JST 固定。
 func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Context) error {
 	nowHour := s.nowFn().In(config.JST).Hour()
+	if nowHour == deliveryTriggerHourJST && s.settingsSvc == nil {
+		slog.ErrorContext(ctx, "delivery trigger batch: settings service is not configured")
+		return apperrors.WrapInternalServerError("LSTEP settings service is not configured")
+	}
 
 	clinics, err := s.clinicRepo.FindAll(ctx)
 	if err != nil {
@@ -56,15 +60,13 @@ func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Contex
 		if nowHour != deliveryTriggerHourJST {
 			continue
 		}
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, "delivery trigger batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
+		enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
+		if syncErr != nil {
+			slog.ErrorContext(ctx, "delivery trigger batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
+			continue
+		}
+		if !enabled {
+			continue
 		}
 		count, errs := s.runDeliveryTriggersForClinic(ctx, clinic.ID)
 		if len(errs) > 0 {

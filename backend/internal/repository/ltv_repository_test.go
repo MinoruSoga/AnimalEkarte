@@ -519,13 +519,31 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 		t.Fatalf("failed to create payment: %v", err)
 	}
 
-	// Refund: 1000 円
+	// Refund: 同一医院の 1000 + 500 円。複数返金でも請求・支払いを重複集計しない。
 	refund := &model.BillingRefund{
+		ClinicID:  clinicID,
 		BillingID: billing.ID,
 		Amount:    1000,
 	}
 	if err := db.WithContext(ctx).Create(refund).Error; err != nil {
 		t.Fatalf("failed to create refund: %v", err)
+	}
+	secondRefund := &model.BillingRefund{
+		ClinicID:  clinicID,
+		BillingID: billing.ID,
+		Amount:    500,
+	}
+	if err := db.WithContext(ctx).Create(secondRefund).Error; err != nil {
+		t.Fatalf("failed to create second refund: %v", err)
+	}
+	// 壊れた外部参照があっても別医院の返金を医院1へ混入させない。
+	crossClinicRefund := &model.BillingRefund{
+		ClinicID:  2,
+		BillingID: billing.ID,
+		Amount:    99_999,
+	}
+	if err := db.WithContext(ctx).Create(crossClinicRefund).Error; err != nil {
+		t.Fatalf("failed to create cross-clinic refund: %v", err)
 	}
 
 	// Test 1: gross_total_amount (default)
@@ -556,7 +574,7 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Len(t, result3, 1)
-	assert.Equal(t, int64(7000), *result3[0].AnnualAmount, "net_paid_amount should be 8000 - 1000 = 7000")
+	assert.Equal(t, int64(6500), *result3[0].AnnualAmount, "net_paid_amount should be 8000 - 1500 = 6500")
 
 	// Test 4: 期間付き net_paid_amount の HAVING でも金額閾値をバインドして絞り込める
 	year := time.Now().Year()
@@ -569,10 +587,10 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 		IncludeZero:    true,
 	})
 	assert.NoError(t, err)
-	assert.Len(t, result4, 1)
-	assert.Equal(t, int64(7000), *result4[0].AnnualAmount)
+	require.Len(t, result4, 1)
+	assert.Equal(t, int64(6500), *result4[0].AnnualAmount)
 
-	minAmount = 7500
+	minAmount = 7000
 	result5, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID,
 		AmountBasis:    "net_paid_amount",
@@ -582,6 +600,44 @@ func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Len(t, result5, 0)
+}
+
+func TestFindOwnerLTV_ExcludesBillingOwnedByAnotherOwner(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := &model.Owner{ClinicID: clinicID, Name: "Owner A"}
+	otherOwner := &model.Owner{ClinicID: clinicID, Name: "Owner B"}
+	require.NoError(t, db.WithContext(ctx).Create(owner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(otherOwner).Error)
+
+	mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &owner.ID, Date: time.Now()}
+	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+	valid := &model.Billing{
+		ClinicID: clinicID, MedicalRecordID: &mr.ID, OwnerID: &owner.ID,
+		TotalAmount: 1_000, Status: model.BillingStatusCompleted,
+	}
+	malformedOwnerReference := &model.Billing{
+		ClinicID: clinicID, MedicalRecordID: &mr.ID, OwnerID: &otherOwner.ID,
+		TotalAmount: 99_000, Status: model.BillingStatusCompleted,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(valid).Error)
+	require.NoError(t, db.WithContext(ctx).Create(malformedOwnerReference).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID: clinicID, IncludeZero: true, IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	byOwner := make(map[uint64]OwnerLTVRow, len(rows))
+	for _, row := range rows {
+		byOwner[row.OwnerID] = row
+	}
+	assert.Equal(t, int64(1_000), byOwner[owner.ID].TotalAmount)
+	assert.Equal(t, int64(0), byOwner[otherOwner.ID].TotalAmount)
+	assert.Equal(t, int64(0), byOwner[otherOwner.ID].MaxSingleVisitAmount)
 }
 
 // TestFindOwnerLTV_OnlyCompletedBillings

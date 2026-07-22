@@ -11,6 +11,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+const maxVisitConversionDays = 365
+
 // MonthlyDeliveryStats はクリニック単位の月次配信集計 DTO。
 type MonthlyDeliveryStats struct {
 	YearMonth string             `json:"year_month"`
@@ -94,8 +96,8 @@ func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, cli
 }
 
 func (s *lstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, clinicID uint64, yearMonth string, days int) (*VisitConversionSummary, error) {
-	if days < 1 {
-		return nil, apperrors.WrapInvalidInput("days は 1 以上で指定してください")
+	if days < 1 || days > maxVisitConversionDays {
+		return nil, apperrors.WrapInvalidInput("days は 1 以上 365 以下で指定してください")
 	}
 	t, err := time.ParseInLocation("2006-01", yearMonth, config.JST)
 	if err != nil {

@@ -230,7 +230,7 @@ func TestLstepBatchService_RunNoShowCheckAllClinics(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("nil settingsSvc processes all clinics without the enabled check (legacy path)", func(t *testing.T) {
+	t.Run("nil settingsSvc fails closed", func(t *testing.T) {
 		clinicRepo := &dormantMockClinicRepository{
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
@@ -241,7 +241,7 @@ func TestLstepBatchService_RunNoShowCheckAllClinics(t *testing.T) {
 		}
 		svc := newNoShowBatchService(reservationRepo, clinicRepo, &mockAuditService{}, nil)
 		err := svc.RunNoShowCheckAllClinics(context.Background())
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 }
 

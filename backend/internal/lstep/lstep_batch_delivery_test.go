@@ -164,7 +164,7 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsOutsideFireHour(t *testing.T) {
 	assert.Empty(t, trigger.callCounts, "実行時刻外はトリガーを一切実行しない")
 }
 
-func TestRunDeliveryTriggerBatchAllClinics_SettingsSvcNilSkipsSyncCheck(t *testing.T) {
+func TestRunDeliveryTriggerBatchAllClinics_SettingsSvcNilFailsClosed(t *testing.T) {
 	trigger := &mockLstepDeliveryTriggerBatch{
 		triggerFn: func(_ string, _ uint64, _ time.Time) (int, []error) { return 1, nil },
 	}
@@ -182,8 +182,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SettingsSvcNilSkipsSyncCheck(t *testi
 	}
 
 	err := svc.RunDeliveryTriggerBatchAllClinics(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, 1, trigger.callCounts["TriggerFirstVisitFollowUp3D"], "settingsSvc が nil なら sync 確認をスキップして処理する")
+	require.Error(t, err)
+	assert.Empty(t, trigger.callCounts, "settingsSvc が nil ならトリガーを実行しない")
 }
 
 func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncCheckErrors(t *testing.T) {

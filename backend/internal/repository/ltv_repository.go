@@ -175,12 +175,36 @@ SELECT
       AND b2.owner_id = o.id
       AND b2.status = ?
       AND b2.deleted_at IS NULL
+      AND (
+        b2.medical_record_id IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM medical_records mr2
+          WHERE mr2.id = b2.medical_record_id
+            AND mr2.clinic_id = b2.clinic_id
+            AND mr2.owner_id = b2.owner_id
+            AND mr2.deleted_at IS NULL
+        )
+      )
   ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
-LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = ?
-LEFT JOIN payments p ON p.billing_id = b.id AND p.deleted_at IS NULL
-LEFT JOIN billing_refunds br ON br.billing_id = b.id
+LEFT JOIN billings b ON b.medical_record_id = mr.id
+  AND b.clinic_id = o.clinic_id
+  AND (b.owner_id IS NULL OR b.owner_id = o.id)
+  AND b.deleted_at IS NULL
+  AND b.status = ?
+LEFT JOIN (
+  SELECT billing_id, SUM(billing_amount) AS billing_amount
+  FROM payments
+  WHERE deleted_at IS NULL
+  GROUP BY billing_id
+) p ON p.billing_id = b.id
+LEFT JOIN (
+  SELECT billing_id, clinic_id, SUM(amount) AS amount
+  FROM billing_refunds
+  GROUP BY billing_id, clinic_id
+) br ON br.billing_id = b.id AND br.clinic_id = b.clinic_id
 WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s

@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -128,7 +129,10 @@ func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 	newer := time.Now().Add(-1 * time.Hour)
 
 	oldImp := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "old.csv", ImportedAt: &old}
-	newImp := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "new.csv", ImportedAt: &newer}
+	newImp := &model.LstepCsvImport{
+		ClinicID: clinicA, CsvType: "friend_attribute", FileName: "new.csv", ImportedAt: &newer,
+		ErrorLog: datatypes.JSON(`[{"row":2,"reason":"unknown_line_user_id"}]`),
+	}
 	pendingImp := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "pending.csv"} // imported_at NULL
 	otherClinicImp := &model.LstepCsvImport{ClinicID: clinicB, CsvType: "friend_attribute", FileName: "other.csv", ImportedAt: &newer}
 
@@ -144,6 +148,13 @@ func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 		assert.Equal(t, "new.csv", results[0].FileName, "最新の imported_at が先頭")
 		assert.Equal(t, "old.csv", results[1].FileName)
 		assert.Equal(t, "pending.csv", results[2].FileName, "imported_at NULL は最後")
+		for _, result := range results {
+			assert.Empty(t, result.ErrorLog, "履歴一覧では詳細エラーログを取得しない")
+		}
+
+		var stored model.LstepCsvImport
+		require.NoError(t, db.Where("id = ?", newImp.ID).First(&stored).Error)
+		assert.NotEmpty(t, stored.ErrorLog, "永続化済みのエラーログ自体は保持する")
 	})
 
 	t.Run("limit で件数を制限する", func(t *testing.T) {

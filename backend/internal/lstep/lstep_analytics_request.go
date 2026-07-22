@@ -40,8 +40,8 @@ func (q lstepVisitConversionQuery) toDays() (int, error) {
 		return 30, nil
 	}
 	days, err := strconv.Atoi(q.Days)
-	if err != nil || days < 1 {
-		return 0, apperrors.WrapInvalidInput("days は 1 以上の整数で指定してください")
+	if err != nil || days < 1 || days > maxVisitConversionDays {
+		return 0, apperrors.WrapInvalidInput("days は 1 以上 365 以下の整数で指定してください")
 	}
 	return days, nil
 }

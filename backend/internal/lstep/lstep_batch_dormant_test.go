@@ -206,6 +206,19 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("nil settingsSvc fails closed", func(t *testing.T) {
+		clinicRepo := &dormantMockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
+		}
+		medRecordRepo := &dormantMockMedicalRecordRepository{
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]medicalrecord.DormantOwnerEntry, error) {
+				return nil, nil
+			},
+		}
+		svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), clinicRepo, &mockAuditService{}, nil)
+		err := svc.RunDormantDetectionAllClinics(context.Background())
+		assert.Error(t, err)
+	})
 }
 
 // ---- DetectDormantOwners error propagation (exercised indirectly above, direct case here) ----
@@ -237,6 +250,26 @@ func TestLstepBatchService_DetectDormantOwners_ThresholdsError(t *testing.T) {
 	count, errs := svc.detectDormantOwners(context.Background(), 1)
 	assert.Equal(t, 0, count)
 	assert.NotEmpty(t, errs)
+}
+
+func TestLstepBatchService_DetectDormantOwners_NilSettingsFailsClosed(t *testing.T) {
+	tagSyncCalled := false
+	medRecordRepo := &dormantMockMedicalRecordRepository{
+		findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]medicalrecord.DormantOwnerEntry, error) {
+			return []medicalrecord.DormantOwnerEntry{{OwnerID: 1, DaysSince: 200}}, nil
+		},
+	}
+	tagSync := newDormantTagSyncWrapper(func(_ context.Context, _, _ uint64, _ int, _ model.DormantThresholds) error {
+		tagSyncCalled = true
+		return nil
+	})
+	svc := newDormantBatchService(medRecordRepo, tagSync, &dormantMockClinicRepository{}, &mockAuditService{}, nil)
+
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
+
+	assert.Zero(t, count)
+	assert.NotEmpty(t, errs)
+	assert.False(t, tagSyncCalled)
 }
 
 // TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages verifies

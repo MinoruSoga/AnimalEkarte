@@ -352,6 +352,15 @@ func TestLstepAnalyticsService_GetVisitConversionSummary(t *testing.T) {
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
+	t.Run("days が上限を超えたら InvalidInput", func(t *testing.T) {
+		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, &mockAnalyticsTriggerLogRepo{}, &mockAnalyticsSnapshotRepo{})
+
+		_, err := svc.GetVisitConversionSummary(context.Background(), 100, "2026-05", 366)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
 	t.Run("repo error は wrap されて返る", func(t *testing.T) {
 		triggerRepo := &mockAnalyticsTriggerLogRepo{
 			countVisitConvByTypeFn: func(_ context.Context, _ uint64, _, _ time.Time, _ int) ([]VisitConversionRow, error) {

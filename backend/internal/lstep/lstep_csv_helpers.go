@@ -1,35 +1,10 @@
 package lstep
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
-
-	"golang.org/x/text/encoding/japanese"
-	"golang.org/x/text/transform"
-
-	"github.com/animal-ekarte/backend/internal/apperrors"
 )
-
-// decodeCsvBytes は CSV のバイト列を文字コード判定して UTF-8 文字列に変換する。
-// 順序: UTF-8 BOM 除去 → UTF-8 valid なら raw → SJIS としてデコード。
-func decodeCsvBytes(raw []byte) (string, error) {
-	if bytes.HasPrefix(raw, []byte{0xEF, 0xBB, 0xBF}) {
-		raw = raw[3:]
-	}
-	if utf8.Valid(raw) {
-		return string(raw), nil
-	}
-	decoder := japanese.ShiftJIS.NewDecoder()
-	out, err := io.ReadAll(transform.NewReader(bytes.NewReader(raw), decoder))
-	if err != nil {
-		return "", apperrors.Wrap(err, "failed to read CSV content")
-	}
-	return string(out), nil
-}
 
 // csvColumnAliases は実ヘッダー名（大文字小文字・空白を許容）を内部 key にマップする。
 // 仕様未確定のため想定 alias で実装。実 CSV 取得後に Phase 4 テストで検証する。
@@ -89,10 +64,9 @@ func splitMultiValue(s string) []string {
 
 // csvImportErrorEntry は error_log の 1 エントリ。
 type csvImportErrorEntry struct {
-	Row        int    `json:"row"`
-	LineUserID string `json:"line_user_id,omitempty"`
-	Reason     string `json:"reason"`
-	Detail     string `json:"detail,omitempty"`
+	Row    int    `json:"row"`
+	Reason string `json:"reason"`
+	Detail string `json:"detail,omitempty"`
 }
 
 const (

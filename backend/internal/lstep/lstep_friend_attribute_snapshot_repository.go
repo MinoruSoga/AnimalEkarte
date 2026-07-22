@@ -34,8 +34,15 @@ func (r *lstepFriendAttributeSnapshotRepository) Create(ctx context.Context, sna
 func (r *lstepFriendAttributeSnapshotRepository) FindLatestByOwner(ctx context.Context, clinicID uint64, lineUserID string) (*model.LstepFriendAttributeSnapshot, error) {
 	var snapshot model.LstepFriendAttributeSnapshot
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
-		Order("snapshot_taken_at DESC").
+		Table("lstep_friend_attribute_snapshots AS snapshot").
+		Where("snapshot.clinic_id = ? AND snapshot.line_user_id = ?", clinicID, lineUserID).
+		Where(`snapshot.csv_import_id IS NULL OR EXISTS (
+			SELECT 1
+			FROM lstep_csv_imports AS csv_import
+			WHERE csv_import.id = snapshot.csv_import_id
+			  AND csv_import.clinic_id = snapshot.clinic_id
+		)`).
+		Order("snapshot.snapshot_taken_at DESC").
 		First(&snapshot).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lstep_friend_attribute_snapshot", lineUserID)

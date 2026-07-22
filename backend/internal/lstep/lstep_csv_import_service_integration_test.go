@@ -15,14 +15,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type csvImportTestOwnerRepository struct{ db *gorm.DB }
+type csvImportTestStaffRepository struct{ accountID uint64 }
 
-func (r *csvImportTestOwnerRepository) FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error) {
-	var owners []model.Owner
-	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND line_user_id IS NOT NULL AND line_user_id <> ? AND deleted_at IS NULL", clinicID, "").
-		Find(&owners).Error
-	return owners, err
+func (r *csvImportTestStaffRepository) FindByID(_ context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+	accountID := r.accountID
+	return &model.Staff{ID: staffID, ClinicID: clinicID, AccountID: &accountID}, nil
 }
 
 func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
@@ -43,7 +40,8 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 	svc := NewLstepCsvImportService(
 		db,
 		NewLstepCsvImportRepository(db),
-		&csvImportTestOwnerRepository{db: db},
+		NewLstepCSVImportOwnerLookup(),
+		&csvImportTestStaffRepository{accountID: 101},
 	)
 
 	csv := strings.Join([]string{
@@ -114,8 +112,68 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 	if len(errorLog) != 1 {
 		t.Fatalf("error log length = %d, want 1", len(errorLog))
 	}
-	if errorLog[0].Reason != csvErrorReasonUnknownLineUserID || errorLog[0].LineUserID != "U_unknown_999" {
+	if errorLog[0].Reason != csvErrorReasonUnknownLineUserID {
 		t.Fatalf("unexpected error log entry: %#v", errorLog[0])
+	}
+	if strings.Contains(string(persistedImport.ErrorLog), "U_unknown_999") {
+		t.Fatal("error log must not persist the unmatched LINE user ID")
+	}
+}
+
+func TestImportFriendAttributesCSV_Integration_BoundsOwnerLookupToCSVBatch(t *testing.T) {
+	db := setupLstepCsvImportServiceTestDB(t)
+	ctx := context.Background()
+	clinicID := seedLstepCsvImportClinic(t, db)
+	lookupBatchSizes := make([]int, 0, 2)
+	transactionIsolation := ""
+	lookup := &mockLstepImportOwnerLookup{
+		findExistingLineUserIDsFn: func(ctx context.Context, tx *gorm.DB, gotClinicID uint64, lineUserIDs []string) (map[string]struct{}, error) {
+			if gotClinicID != clinicID {
+				t.Fatalf("lookup clinic_id = %d, want %d", gotClinicID, clinicID)
+			}
+			if transactionIsolation == "" {
+				if err := tx.WithContext(ctx).Raw("SHOW transaction_isolation").Scan(&transactionIsolation).Error; err != nil {
+					t.Fatalf("failed to inspect transaction isolation: %v", err)
+				}
+			}
+			lookupBatchSizes = append(lookupBatchSizes, len(lineUserIDs))
+			matched := make(map[string]struct{}, len(lineUserIDs))
+			for _, lineUserID := range lineUserIDs {
+				matched[lineUserID] = struct{}{}
+			}
+			return matched, nil
+		},
+	}
+	svc := NewLstepCsvImportService(
+		db,
+		NewLstepCsvImportRepository(db),
+		lookup,
+		&csvImportTestStaffRepository{accountID: 101},
+	)
+	rows := []string{"line_user_id"}
+	for i := 0; i < csvSnapshotBatchSize+1; i++ {
+		rows = append(rows, fmt.Sprintf("U-batch-%03d", i))
+	}
+
+	imp, err := svc.ImportFriendAttributesCSV(
+		ctx,
+		clinicID,
+		"bounded-owner-lookup.csv",
+		strings.NewReader(strings.Join(rows, "\n")),
+		1,
+	)
+
+	if err != nil {
+		t.Fatalf("ImportFriendAttributesCSV returned error: %v", err)
+	}
+	if imp.SuccessCount != csvSnapshotBatchSize+1 {
+		t.Fatalf("success_count = %d, want %d", imp.SuccessCount, csvSnapshotBatchSize+1)
+	}
+	if fmt.Sprint(lookupBatchSizes) != fmt.Sprint([]int{csvSnapshotBatchSize, 1}) {
+		t.Fatalf("lookup batch sizes = %v, want [%d 1]", lookupBatchSizes, csvSnapshotBatchSize)
+	}
+	if transactionIsolation != "repeatable read" {
+		t.Fatalf("transaction isolation = %q, want repeatable read", transactionIsolation)
 	}
 }
 
@@ -127,7 +185,8 @@ func TestImportFriendAttributesCSV_Integration_InvalidHeaderCreatesFailedImport(
 	svc := NewLstepCsvImportService(
 		db,
 		NewLstepCsvImportRepository(db),
-		&csvImportTestOwnerRepository{db: db},
+		NewLstepCSVImportOwnerLookup(),
+		&csvImportTestStaffRepository{accountID: 101},
 	)
 
 	csv := "表示名,タグ\n山田太郎,tagA\n"

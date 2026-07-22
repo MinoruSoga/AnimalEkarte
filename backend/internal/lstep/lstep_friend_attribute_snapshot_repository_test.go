@@ -29,8 +29,9 @@ import (
 func setupLstepFriendAttributeSnapshotTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepFriendAttributeSnapshot{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepCsvImport{}, &model.LstepFriendAttributeSnapshot{}))
 	db.Exec("TRUNCATE TABLE lstep_friend_attribute_snapshots CASCADE")
+	db.Exec("TRUNCATE TABLE lstep_csv_imports CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_friend_snapshot_conflict
 		ON lstep_friend_attribute_snapshots (clinic_id, line_user_id, snapshot_taken_at)`)
 	return db
@@ -101,4 +102,34 @@ func TestLstepFriendAttributeSnapshotRepository_FindLatestByOwner(t *testing.T) 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
+}
+
+func TestLstepFriendAttributeSnapshotRepository_FindLatestByOwner_ValidatesImportClinic(t *testing.T) {
+	db := setupLstepFriendAttributeSnapshotTestDB(t)
+	repo := NewLstepFriendAttributeSnapshotRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	const lineUserID = "U-import-clinic-boundary"
+
+	importA := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "a.csv"}
+	importB := &model.LstepCsvImport{ClinicID: clinicB, CsvType: "friend_attribute", FileName: "b.csv"}
+	require.NoError(t, db.Create(importA).Error)
+	require.NoError(t, db.Create(importB).Error)
+
+	valid := &model.LstepFriendAttributeSnapshot{
+		ClinicID: clinicA, LineUserID: lineUserID,
+		SnapshotTakenAt: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		CsvImportID:     &importA.ID,
+	}
+	malformedCrossClinic := &model.LstepFriendAttributeSnapshot{
+		ClinicID: clinicA, LineUserID: lineUserID,
+		SnapshotTakenAt: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC),
+		CsvImportID:     &importB.ID,
+	}
+	require.NoError(t, db.Create(valid).Error)
+	require.NoError(t, db.Create(malformedCrossClinic).Error)
+
+	found, err := repo.FindLatestByOwner(ctx, clinicA, lineUserID)
+	require.NoError(t, err)
+	assert.Equal(t, valid.ID, found.ID)
 }

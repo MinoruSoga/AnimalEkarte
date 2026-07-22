@@ -166,12 +166,12 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	}
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("deleted_at IS NULL").
-		Select("owner_id, MAX(date) AS last_visit_at").
-		Group("owner_id").
-		Having("MAX(date) < ?", cutoff).
+		Table("medical_records AS mr").
+		Joins("INNER JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
+		Select("mr.owner_id, MAX(mr.date) AS last_visit_at").
+		Group("mr.owner_id").
+		Having("MAX(mr.date) < ?", cutoff).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant", clinicID))
@@ -198,13 +198,13 @@ func (r *medicalRecordRepository) FindDormantOwnerEntriesCursor(ctx context.Cont
 	}
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("deleted_at IS NULL AND owner_id > ?", afterOwnerID).
-		Select("owner_id, MAX(date) AS last_visit_at").
-		Group("owner_id").
-		Having("MAX(date) < ?", cutoff).
-		Order("owner_id ASC").
+		Table("medical_records AS mr").
+		Joins("INNER JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL AND mr.owner_id > ?", clinicID, afterOwnerID).
+		Select("mr.owner_id, MAX(mr.date) AS last_visit_at").
+		Group("mr.owner_id").
+		Having("MAX(mr.date) < ?", cutoff).
+		Order("mr.owner_id ASC").
 		Limit(limit).
 		Scan(&rows).Error
 	if err != nil {

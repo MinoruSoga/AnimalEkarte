@@ -75,6 +75,7 @@ func (r *lstepCsvImportRepository) FindByID(ctx context.Context, clinicID uint64
 func (r *lstepCsvImportRepository) FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	var imports []*model.LstepCsvImport
 	err := r.db.WithContext(ctx).
+		Omit("error_log").
 		Where("clinic_id = ?", clinicID).
 		Order("imported_at DESC NULLS LAST").
 		Limit(limit).

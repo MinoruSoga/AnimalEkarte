@@ -168,11 +168,11 @@ func TestSanitizeNullBytes(t *testing.T) {
 	}
 }
 
-func TestSanitizeNullBytes_ContentLength(t *testing.T) {
+func TestSanitizeNullBytes_StreamingBodyLengthBecomesUnknown(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// NULL バイト除去後に ContentLength が更新されることを確認
-	t.Run("ContentLength が除去後のバイト数に更新される", func(t *testing.T) {
+	// streamingでは除去後の長さを事前計算せず、未知長としてdownstreamへ渡す。
+	t.Run("ContentLength を未知長へ変更する", func(t *testing.T) {
 		originalBody := []byte("abc\x00def") // 8 バイト
 		expectedBody := "abcdef"             // 6 バイト
 
@@ -192,7 +192,7 @@ func TestSanitizeNullBytes_ContentLength(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, expectedBody, string(gotBytes))
-		assert.Equal(t, int64(len(expectedBody)), c.Request.ContentLength)
+		assert.Equal(t, int64(-1), c.Request.ContentLength)
 	})
 }
 
@@ -222,7 +222,8 @@ func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
 
 	req, err := http.NewRequest(http.MethodPost, "/medical-records/1/images/upload", bytes.NewReader(originalBody))
 	require.NoError(t, err)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	contentType := mw.FormDataContentType()
+	req.Header.Set("Content-Type", "Multipart/Form-Data"+contentType[len("multipart/form-data"):])
 	req.ContentLength = int64(len(originalBody))
 	c.Request = req
 
@@ -233,6 +234,33 @@ func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
 	require.NoError(t, readErr)
 
 	assert.Equal(t, wantBody, gotBody, "multipart body must pass through byte-exact (PNG signature must not be corrupted)")
+}
+
+func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := &countingSanitizerReader{reader: bytes.NewReader(bytes.Repeat([]byte("x"), 1024*1024))}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", body)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "text/plain")
+	req.ContentLength = -1
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+
+	assert.Zero(t, body.bytesRead, "global middleware must not pre-read request bodies")
+}
+
+type countingSanitizerReader struct {
+	reader    io.Reader
+	bytesRead int
+}
+
+func (r *countingSanitizerReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytesRead += n
+	return n, err
 }
 
 // X-1 (security review follow-up): allowlist 方式（application/json のみサニタイズ）だと、

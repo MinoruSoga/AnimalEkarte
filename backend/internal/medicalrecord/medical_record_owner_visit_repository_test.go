@@ -132,6 +132,43 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation(t
 	require.Len(t, got, 1, "自医院の休眠飼い主のみ返る")
 }
 
+func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSameClinic(t *testing.T) {
+	db := repotest.SetupTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	const minDaysSince = 180
+	oldDate := time.Now().In(time.Local).AddDate(0, 0, -200)
+
+	validOwner := makeTestOwner(t, db, clinicA, "有効な休眠飼主")
+	crossClinicOwner := makeTestOwner(t, db, clinicB, "別医院の誤参照飼主")
+	deletedOwner := makeTestOwner(t, db, clinicA, "削除済み飼主")
+	require.NoError(t, db.Delete(deletedOwner).Error)
+
+	for _, ownerID := range []*uint64{&validOwner.ID, &crossClinicOwner.ID, &deletedOwner.ID, nil} {
+		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
+			ClinicID: clinicA,
+			OwnerID:  ownerID,
+			Date:     oldDate,
+		})
+	}
+
+	want := []DormantOwnerEntry{{OwnerID: validOwner.ID}}
+	assertOnlyValidOwner := func(t *testing.T, got []DormantOwnerEntry) {
+		t.Helper()
+		require.Len(t, got, len(want))
+		assert.Equal(t, want[0].OwnerID, got[0].OwnerID)
+	}
+
+	got, err := repo.FindDormantOwnerEntries(ctx, clinicA, minDaysSince)
+	require.NoError(t, err)
+	assertOnlyValidOwner(t, got)
+
+	cursorGot, err := repo.FindDormantOwnerEntriesCursor(ctx, clinicA, minDaysSince, 0, 500)
+	require.NoError(t, err)
+	assertOnlyValidOwner(t, cursorGot)
+}
+
 // ---------------------------------------------------------------------------
 // 以下、FindLatestByOwner / FindOwnerVisitSummary / FindOwnersByFirstVisitDate /
 // FindOwnersByLastVisitDays / FindOwnersByNextVisitRecommended /

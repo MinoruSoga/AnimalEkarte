@@ -56,6 +56,7 @@ func toLstepCsvImportListResponse(imports []*model.LstepCsvImport) []lstepCsvImp
 	resp := make([]lstepCsvImportResponse, len(imports))
 	for i, imp := range imports {
 		resp[i] = toLstepCsvImportResponse(imp)
+		resp[i].ErrorLog = nil
 	}
 	return resp
 }
@@ -67,6 +68,11 @@ func (h *Handler) ImportLstepFriendAttributesCsv(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if c.Request.ContentLength > maxCSVUploadRequestBytes {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("CSV upload request exceeds size limit"))
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxCSVUploadRequestBytes)
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -111,6 +117,11 @@ func (h *Handler) ListLstepCsvImports(c *gin.Context) {
 // RegisterLstepCsvImportRoutes は FEAT-385 CSV インポートのルートを登録する。
 func (h *Handler) RegisterLstepCsvImportRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/clinics/:clinic_id/lstep/csv-imports")
-	g.POST("/friend-attributes", h.requirePermission(string(model.ResourceLstepCsvImport), "edit"), h.ImportLstepFriendAttributesCsv)
+	g.POST(
+		"/friend-attributes",
+		h.requirePermission(string(model.ResourceLstepCsvImport), "edit"),
+		newLstepCSVImportConcurrencyGate(maxConcurrentLstepCSVImports),
+		h.ImportLstepFriendAttributesCsv,
+	)
 	g.GET("", h.requirePermission(string(model.ResourceLstepCsvImport), "view"), h.ListLstepCsvImports)
 }

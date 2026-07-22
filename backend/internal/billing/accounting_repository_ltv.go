@@ -5,10 +5,25 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
+
+// validBillingOwnerMedicalRecordScope keeps direct billings, but excludes a
+// billing whose optional medical record belongs to a different owner or clinic.
+func validBillingOwnerMedicalRecordScope(db *gorm.DB) *gorm.DB {
+	return db.Where(`billings.medical_record_id IS NULL OR EXISTS (
+		SELECT 1
+		FROM medical_records AS mr
+		WHERE mr.id = billings.medical_record_id
+		  AND mr.clinic_id = billings.clinic_id
+		  AND mr.owner_id = billings.owner_id
+		  AND mr.deleted_at IS NULL
+	)`)
+}
 
 // SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
 func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
@@ -16,6 +31,7 @@ func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, own
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(validBillingOwnerMedicalRecordScope).
 		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
 		Select("COALESCE(SUM(total_amount), 0)").
 		Scan(&total).Error
@@ -31,6 +47,7 @@ func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, 
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(validBillingOwnerMedicalRecordScope).
 		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
 		Select("COALESCE(MAX(total_amount), 0)").
 		Scan(&maxAmount).Error
@@ -52,10 +69,15 @@ func (r *accountingRepository) FindOwnersByAnnualRevenue(ctx context.Context, cl
 	var results []OwnerAnnualRevenue
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("status = ? AND deleted_at IS NULL AND completed_at >= ? AND owner_id IS NOT NULL", model.BillingStatusCompleted, cutoff).
-		Select("owner_id, COALESCE(SUM(total_amount), 0) AS revenue").
-		Group("owner_id").
+		Joins(`INNER JOIN owners
+			ON owners.id = billings.owner_id
+			AND owners.clinic_id = billings.clinic_id
+			AND owners.deleted_at IS NULL`).
+		Where("billings.clinic_id = ?", clinicID).
+		Scopes(validBillingOwnerMedicalRecordScope).
+		Where("billings.status = ? AND billings.deleted_at IS NULL AND billings.completed_at >= ? AND billings.owner_id IS NOT NULL", model.BillingStatusCompleted, cutoff).
+		Select("billings.owner_id, COALESCE(SUM(billings.total_amount), 0) AS revenue").
+		Group("billings.owner_id").
 		Order("revenue DESC").
 		Scan(&results).Error
 	if err != nil {

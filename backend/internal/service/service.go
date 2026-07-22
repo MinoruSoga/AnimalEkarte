@@ -215,7 +215,12 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
 	lstepBatchSvc := lstep.NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
 	// FEAT-385: Lステップ CSV インポート・分析
-	lstepCsvImportSvc := lstep.NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.Owner)
+	lstepCsvImportSvc := lstep.NewLstepCsvImportService(
+		repos.DB(),
+		repos.LstepCsvImport,
+		lstep.NewLstepCSVImportOwnerLookup(),
+		repos.ReservationStaff,
+	)
 	lstepAnalyticsSvc := lstep.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
 
 	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)

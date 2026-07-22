@@ -21,56 +21,6 @@ func encodeShiftJIS(t *testing.T, s string) []byte {
 	return out
 }
 
-func TestDecodeCsvBytes(t *testing.T) {
-	sjisInput := encodeShiftJIS(t, "表示名,タグ")
-
-	cases := []struct {
-		name    string
-		input   []byte
-		want    string
-		wantErr bool
-	}{
-		{
-			name:  "UTF-8 BOM 除去",
-			input: append([]byte{0xEF, 0xBB, 0xBF}, []byte("hello,world")...),
-			want:  "hello,world",
-		},
-		{
-			name:  "UTF-8 BOM なし",
-			input: []byte("LINE ID,表示名"),
-			want:  "LINE ID,表示名",
-		},
-		{
-			name:  "SJIS fallback",
-			input: sjisInput,
-			want:  "表示名,タグ",
-		},
-		{
-			name:  "空入力",
-			input: []byte{},
-			want:  "",
-		},
-		{
-			// golang.org/x/text/encoding/japanese の SJIS デコーダは不正バイト列に対して
-			// エラーを返さず、U+FFFD（置換文字）に差し替えて処理を継続する（ライブラリの仕様）。
-			name:  "不正な SJIS バイト列は置換文字にフォールバックする（エラーにはならない）",
-			input: []byte{0x80, 0xFF, 0xFE, 0x81, 0xFF},
-			want:  "\u0080\uFFFD\uFFFD\uFFFD",
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := decodeCsvBytes(tc.input)
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("err = %v, wantErr = %v", err, tc.wantErr)
-			}
-			if got != tc.want {
-				t.Errorf("got %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestResolveCsvHeaders(t *testing.T) {
 	cases := []struct {
 		name     string

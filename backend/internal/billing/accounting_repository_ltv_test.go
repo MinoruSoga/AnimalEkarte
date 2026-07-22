@@ -174,4 +174,70 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testi
 	assert.Equal(t, int64(1_000), resultsA[0].Revenue)
 }
 
+func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwnerReference(t *testing.T) {
+	db := repotest.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	now := time.Now()
+
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	valid := &model.Billing{
+		ClinicID: clinicA, OwnerID: &ownerA.ID, TotalAmount: 1_000,
+		Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	malformedCrossClinic := &model.Billing{
+		ClinicID: clinicA, OwnerID: &ownerB.ID, TotalAmount: 99_000,
+		Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(valid).Error)
+	require.NoError(t, db.WithContext(ctx).Create(malformedCrossClinic).Error)
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicA)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, ownerA.ID, results[0].OwnerID)
+	assert.Equal(t, int64(1_000), results[0].Revenue)
+}
+
+func TestAccountingRepository_LTVAggregates_ExcludeMismatchedMedicalRecordOwnerAndAllowDirectBilling(t *testing.T) {
+	db := repotest.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now()
+
+	owner := repotest.MakeTestOwner(t, db, clinicID, "集計対象飼主")
+	otherOwner := repotest.MakeTestOwner(t, db, clinicID, "別飼主")
+	medicalRecord := &model.MedicalRecord{
+		ClinicID: clinicID, OwnerID: &otherOwner.ID, Date: now, RecordNo: "LTV-OWNER-MISMATCH",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(medicalRecord).Error)
+	direct := &model.Billing{
+		ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 1_000,
+		Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	mismatched := &model.Billing{
+		ClinicID: clinicID, OwnerID: &owner.ID, MedicalRecordID: &medicalRecord.ID, TotalAmount: 99_000,
+		Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(direct).Error)
+	require.NoError(t, db.WithContext(ctx).Create(mismatched).Error)
+
+	total, err := repo.SumPaidByOwner(ctx, clinicID, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1_000), total)
+
+	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1_000), maxAmount)
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, owner.ID, results[0].OwnerID)
+	assert.Equal(t, int64(1_000), results[0].Revenue)
+}
+
 func timePtr(t time.Time) *time.Time { return &t }

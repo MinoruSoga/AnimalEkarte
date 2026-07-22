@@ -82,7 +82,7 @@ func TestLstepVisitConversionQuery_ToDays(t *testing.T) {
 }
 
 func TestLstepVisitConversionQuery_ToDays_Invalid(t *testing.T) {
-	cases := []string{"0", "-1", "abc"}
+	cases := []string{"0", "-1", "366", "abc"}
 	for _, daysValue := range cases {
 		t.Run(daysValue, func(t *testing.T) {
 			days, err := (lstepVisitConversionQuery{Days: daysValue}).toDays()

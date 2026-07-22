@@ -3,14 +3,15 @@ package lstep
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -23,6 +24,17 @@ type mockLstepCsvImportRepo struct {
 	updateFn       func(ctx context.Context, imp *model.LstepCsvImport) error
 	findByIDFn     func(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
 	listByClinicFn func(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
+}
+
+type countingCSVReader struct {
+	reader    *strings.Reader
+	bytesRead int
+}
+
+func (r *countingCSVReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytesRead += n
+	return n, err
 }
 
 func (m *mockLstepCsvImportRepo) Create(ctx context.Context, imp *model.LstepCsvImport) error {
@@ -50,66 +62,41 @@ func (m *mockLstepCsvImportRepo) FindAllByClinicID(ctx context.Context, clinicID
 	return nil, nil
 }
 
-// ---- OwnerRepository モック（ImportFriendAttributesCSV の FindAllWithLineUserID 用） ----
+// ---- CSV内の候補だけを照合する Owner lookup モック ----
 
-type mockLstepImportOwnerRepo struct {
-	findAllWithLineUserIDFn func(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+type mockLstepImportOwnerLookup struct {
+	findExistingLineUserIDsFn func(ctx context.Context, db *gorm.DB, clinicID uint64, lineUserIDs []string) (map[string]struct{}, error)
 }
 
-func (m *mockLstepImportOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
-	return nil, 0, nil
+type mockLstepImportStaffRepo struct {
+	findByIDFn func(ctx context.Context, clinicID, staffID uint64) (*model.Staff, error)
 }
-func (m *mockLstepImportOwnerRepo) FindByID(_ context.Context, _, _ uint64) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByPhone(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByNameAndPhone(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error) {
-	if m.findAllWithLineUserIDFn != nil {
-		return m.findAllWithLineUserIDFn(ctx, clinicID)
+
+func (m *mockLstepImportStaffRepo) FindByID(ctx context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, staffID)
 	}
-	return nil, nil
+	return nil, errors.New("unexpected staff lookup")
 }
-func (m *mockLstepImportOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
-	return nil, nil
+
+func csvImportStaffRepoWithAccount(accountID uint64) *mockLstepImportStaffRepo {
+	return &mockLstepImportStaffRepo{
+		findByIDFn: func(_ context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+			return &model.Staff{ID: staffID, ClinicID: clinicID, AccountID: &accountID}, nil
+		},
+	}
 }
-func (m *mockLstepImportOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
-	return nil
-}
-func (m *mockLstepImportOwnerRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
-}
-func (m *mockLstepImportOwnerRepo) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
-	return nil
-}
-func (m *mockLstepImportOwnerRepo) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
-	return nil, nil
-}
-func (m *mockLstepImportOwnerRepo) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-func (m *mockLstepImportOwnerRepo) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-func (m *mockLstepImportOwnerRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockLstepImportOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockLstepImportOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
-	return nil, nil
+
+func (m *mockLstepImportOwnerLookup) FindExistingLineUserIDs(
+	ctx context.Context,
+	db *gorm.DB,
+	clinicID uint64,
+	lineUserIDs []string,
+) (map[string]struct{}, error) {
+	if m.findExistingLineUserIDsFn != nil {
+		return m.findExistingLineUserIDsFn(ctx, db, clinicID, lineUserIDs)
+	}
+	return map[string]struct{}{}, nil
 }
 
 // TestImportFriendAttributesCSV_FileTooLarge: 50MB+1 バイトの reader で WrapInvalidInput を返すことを確認。
@@ -119,7 +106,7 @@ func TestImportFriendAttributesCSV_FileTooLarge(t *testing.T) {
 	svc := &lstepCsvImportService{
 		db:            nil,
 		csvImportRepo: nil,
-		ownerRepo:     nil,
+		ownerLookup:   nil,
 	}
 	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "large.csv", bytes.NewReader(big), 1)
 	if err == nil {
@@ -136,7 +123,7 @@ func TestImportFriendAttributesCSV_EmptyFile(t *testing.T) {
 	svc := &lstepCsvImportService{
 		db:            nil,
 		csvImportRepo: nil,
-		ownerRepo:     nil,
+		ownerLookup:   nil,
 	}
 	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "empty.csv", strings.NewReader(""), 1)
 	if err == nil {
@@ -160,6 +147,134 @@ func TestImportFriendAttributesCSV_MismatchedFieldCount(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
+func TestImportFriendAttributesCSV_RejectsTooManyRowsBeforeActorLookup(t *testing.T) {
+	csv := "line_user_id\n" + strings.Repeat("U1\n", maxCSVDataRows+1)
+	svc := &lstepCsvImportService{}
+
+	_, err := svc.ImportFriendAttributesCSV(
+		context.Background(), 100, "too-many-rows.csv", strings.NewReader(csv), 7,
+	)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "row count exceeds")
+}
+
+func TestImportFriendAttributesCSV_RejectsOversizedCSVShapeBeforeActorLookup(t *testing.T) {
+	headers := make([]string, maxCSVColumns+1)
+	headers[0] = "line_user_id"
+	for i := 1; i < len(headers); i++ {
+		headers[i] = "extra"
+	}
+
+	tests := []struct {
+		name       string
+		csv        string
+		wantDetail string
+	}{
+		{
+			name:       "too many columns",
+			csv:        strings.Join(headers, ",") + "\n",
+			wantDetail: "column count exceeds",
+		},
+		{
+			name:       "cell too large",
+			csv:        "line_user_id\n" + strings.Repeat("x", maxCSVCellBytes+1) + "\n",
+			wantDetail: "cell exceeds",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &lstepCsvImportService{}
+			_, err := svc.ImportFriendAttributesCSV(
+				context.Background(), 100, "oversized.csv", strings.NewReader(tt.csv), 7,
+			)
+
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.Contains(t, err.Error(), tt.wantDetail)
+		})
+	}
+}
+
+func TestPreflightCSVShape_RejectsCommaBombBeforeReadingWholeRecord(t *testing.T) {
+	const bombBytes = 1024 * 1024
+	reader := &countingCSVReader{reader: strings.NewReader(strings.Repeat(",", bombBytes))}
+
+	err := preflightCSVShape(reader)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "column count exceeds")
+	assert.Less(t, reader.bytesRead, bombBytes/10, "preflight must stop before buffering the full record")
+}
+
+func TestCSVImportErrorCollector_CapsPersistedEntriesAndTracksTotal(t *testing.T) {
+	collector := newCSVImportErrorCollector()
+	for i := 0; i < maxCSVErrorLogEntries+5; i++ {
+		collector.Add(csvImportErrorEntry{Row: i + 2, Reason: csvErrorReasonUnknownLineUserID})
+	}
+
+	assert.Equal(t, maxCSVErrorLogEntries+5, collector.total)
+	assert.Len(t, collector.entries, maxCSVErrorLogEntries)
+	encoded, err := json.Marshal(collector.entries)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), `"line_user_id":`)
+}
+
+func TestImportFriendAttributesCSV_StoresResolvedAccountID(t *testing.T) {
+	const clinicID = uint64(100)
+	const staffID = uint64(7)
+	const accountID = uint64(9007)
+	var created *model.LstepCsvImport
+	repo := &mockLstepCsvImportRepo{
+		createFn: func(_ context.Context, imp *model.LstepCsvImport) error {
+			created = imp
+			return errors.New("stop after capture")
+		},
+	}
+	svc := &lstepCsvImportService{
+		csvImportRepo: repo,
+		staffRepo:     csvImportStaffRepoWithAccount(accountID),
+	}
+
+	_, err := svc.ImportFriendAttributesCSV(
+		context.Background(), clinicID, "valid.csv", strings.NewReader("line_user_id\nU1\n"), staffID,
+	)
+
+	require.Error(t, err)
+	require.NotNil(t, created)
+	assert.Equal(t, accountID, created.UploadedByUserID)
+}
+
+func TestImportFriendAttributesCSV_RejectsMissingActorDependency(t *testing.T) {
+	svc := &lstepCsvImportService{}
+	var err error
+
+	assert.NotPanics(t, func() {
+		_, err = svc.ImportFriendAttributesCSV(
+			context.Background(), 100, "valid.csv", strings.NewReader("line_user_id\nU1\n"), 7,
+		)
+	})
+	require.Error(t, err)
+}
+
+func TestImportFriendAttributesCSV_RejectsStaffWithoutAccount(t *testing.T) {
+	staffRepo := &mockLstepImportStaffRepo{
+		findByIDFn: func(_ context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+			return &model.Staff{ID: staffID, ClinicID: clinicID}, nil
+		},
+	}
+	svc := &lstepCsvImportService{staffRepo: staffRepo}
+
+	_, err := svc.ImportFriendAttributesCSV(
+		context.Background(), 100, "valid.csv", strings.NewReader("line_user_id\nU1\n"), 7,
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not linked to an account")
+}
+
 // TestImportFriendAttributesCSV_InvalidHeader_CreateFailedRecordError は、ヘッダー解析に失敗し
 // 失敗レコード作成の Create 自体もエラーになった場合でも、csvImportRepo.Create のエラーはログのみで
 // 呼び出し元には常にヘッダーエラー（InvalidInput）が返ることを確認する。
@@ -172,7 +287,7 @@ func TestImportFriendAttributesCSV_InvalidHeader_CreateFailedRecordError(t *test
 			return errors.New("db error")
 		},
 	}
-	svc := &lstepCsvImportService{csvImportRepo: repo}
+	svc := &lstepCsvImportService{csvImportRepo: repo, staffRepo: csvImportStaffRepoWithAccount(1)}
 	csv := "foo,bar\n1,2\n"
 
 	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "bad-header.csv", strings.NewReader(csv), 1)
@@ -190,7 +305,7 @@ func TestImportFriendAttributesCSV_ProcessingRecordCreateError(t *testing.T) {
 			return errors.New("db error")
 		},
 	}
-	svc := &lstepCsvImportService{csvImportRepo: repo}
+	svc := &lstepCsvImportService{csvImportRepo: repo, staffRepo: csvImportStaffRepoWithAccount(1)}
 	csv := "line_user_id\nU1\n"
 
 	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), 1)
@@ -199,9 +314,10 @@ func TestImportFriendAttributesCSV_ProcessingRecordCreateError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to create csv import record")
 }
 
-// TestImportFriendAttributesCSV_FindOwnersError は、飼主一覧取得 (ownerRepo.FindAllWithLineUserID) が
+// TestImportFriendAttributesCSV_FindOwnersError は、CSV内の飼主照合が
 // 失敗した場合、markImportFailed が呼ばれ（Status=failed で Update）、エラーを返すことを確認する。
 func TestImportFriendAttributesCSV_FindOwnersError(t *testing.T) {
+	db := setupLstepCsvImportServiceTestDB(t)
 	var markedFailed *model.LstepCsvImport
 	repo := &mockLstepCsvImportRepo{
 		createFn: func(_ context.Context, _ *model.LstepCsvImport) error {
@@ -212,12 +328,17 @@ func TestImportFriendAttributesCSV_FindOwnersError(t *testing.T) {
 			return nil
 		},
 	}
-	ownerRepo := &mockLstepImportOwnerRepo{
-		findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+	ownerLookup := &mockLstepImportOwnerLookup{
+		findExistingLineUserIDsFn: func(_ context.Context, _ *gorm.DB, _ uint64, _ []string) (map[string]struct{}, error) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := &lstepCsvImportService{csvImportRepo: repo, ownerRepo: ownerRepo}
+	svc := &lstepCsvImportService{
+		db:            db,
+		csvImportRepo: repo,
+		ownerLookup:   ownerLookup,
+		staffRepo:     csvImportStaffRepoWithAccount(1),
+	}
 	csv := "line_user_id\nU1\n"
 
 	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), 1)
@@ -259,7 +380,7 @@ func TestLstepCsvImportService_ListByClinic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepCsvImportService(nil, tt.repo, nil)
+			svc := NewLstepCsvImportService(nil, tt.repo, nil, nil)
 
 			got, err := svc.ListByClinic(context.Background(), 1, 20)
 

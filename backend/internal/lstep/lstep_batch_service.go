@@ -114,7 +114,7 @@ func NewLstepBatchService(
 }
 
 // runBatchAllClinics は「全クリニック走査 → IsSyncEnabled ゲート → 1 クリニック分の処理 →
-// 部分エラーログ（本文サンプル付き）→ 処理件数>0 またはエラーあり時に audit 記録」という
+// 部分エラーログ（件数のみ）→ 処理件数>0 またはエラーあり時に audit 記録」という
 // lstep cron バッチ共通骨格を集約する（G3-2, dup-lstep-batch-allclinics）。
 // ログ文言・audit operation 文字列・extraMeta は呼び出し側が指定した値をそのまま使う。
 func (s *lstepBatchService) runBatchAllClinics(
@@ -126,6 +126,10 @@ func (s *lstepBatchService) runBatchAllClinics(
 	extraMeta map[string]any,
 	perClinic func(ctx context.Context, clinicID uint64) (int, []error),
 ) error {
+	if s.settingsSvc == nil {
+		slog.ErrorContext(ctx, label+": settings service is not configured")
+		return apperrors.WrapInternalServerError("LSTEP settings service is not configured")
+	}
 	clinics, err := s.clinicRepo.FindAll(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, label+": failed to fetch clinics", "error", err)
@@ -134,28 +138,18 @@ func (s *lstepBatchService) runBatchAllClinics(
 
 	for i := range clinics {
 		clinic := &clinics[i]
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, label+": failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
+		enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
+		if syncErr != nil {
+			slog.ErrorContext(ctx, label+": failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
+			continue
+		}
+		if !enabled {
+			continue
 		}
 		count, errs := perClinic(ctx, clinic.ID)
 		if len(errs) > 0 {
-			sample := errs
-			if len(sample) > 3 {
-				sample = sample[:3]
-			}
-			msgs := make([]string, 0, len(sample))
-			for _, e := range sample {
-				msgs = append(msgs, e.Error())
-			}
 			slog.ErrorContext(ctx, label+": partial errors",
-				"clinic_id", clinic.ID, "error_count", len(errs), "errors", msgs)
+				"clinic_id", clinic.ID, "error_count", len(errs))
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, label+": "+syncedSuffix, "clinic_id", clinic.ID, "count", count)

@@ -1,6 +1,6 @@
 package lstep
 
-// perf_n1_regression_test.go — N+1 クエリ回帰テスト (PERF-2)
+// perf_n1_regression_test.go — N+1 クエリ回帰テスト (PERF-1 / PERF-2 / PERF-3)
 //
 // RED フェーズ: 現行実装に対してアサーションが失敗することを確認してから GREEN 化する。
 // 各テストは「呼び出し回数」だけを spy し、ビジネスロジックには触れない。
@@ -17,20 +17,19 @@ import (
 )
 
 // ─────────────────────────────────────────────
-// H-1 回帰テスト: settingsSvc == nil でも DetectDormantOwners がパニックしないこと
-// (PERF-2 fix で GetDormantThresholds を直接呼ぶようにしたため、nil ガードが必須)
+// PERF-1: SyncHealthPreventionTagsForClinic が
+//   GetHealthPreventionThresholds を N 回でなく 1 回だけ呼ぶこと
 // ─────────────────────────────────────────────
 
 func TestH1_DetectDormantOwners_NilSettingsSvc_DoesNotPanic(t *testing.T) {
 	const clinicID = uint64(99)
 
-	// settingsSvc=nil で構築（NewLstepBatchService の第6引数を nil に）
+	// settingsSvc=nil で構築（NewLstepBatchService の第6引数を nil に）。
+	// 設定取得を迂回してデフォルト同期しない（fail-closed）が、panicもしないことを固定する。
 	withThresholdsCallCount := 0
 	tagSyncSpy := &batchMockTagSyncSvc{
-		syncDormantTagsWithThresholdsFn: func(_ context.Context, _, _ uint64, _ int, thresholds model.DormantThresholds) error {
+		syncDormantTagsWithThresholdsFn: func(_ context.Context, _, _ uint64, _ int, _ model.DormantThresholds) error {
 			withThresholdsCallCount++
-			// デフォルト閾値が渡されていることを確認する
-			assert.Equal(t, 180, thresholds.Stage180, "nil settingsSvc は default Stage180=180 を使うべき")
 			return nil
 		},
 	}
@@ -57,12 +56,12 @@ func TestH1_DetectDormantOwners_NilSettingsSvc_DoesNotPanic(t *testing.T) {
 	// パニックしないことを assert.NotPanics で保証する
 	assert.NotPanics(t, func() {
 		count, errs := svc.detectDormantOwners(context.Background(), clinicID)
-		assert.Equal(t, 2, count)
-		assert.Empty(t, errs)
+		assert.Zero(t, count)
+		assert.NotEmpty(t, errs)
 	}, "settingsSvc=nil でも detectDormantOwners はパニックしてはならない")
 
-	assert.Equal(t, len(entries), withThresholdsCallCount,
-		"nil settingsSvc でも全エントリに SyncDormantTagsWithThresholds を呼ぶべき")
+	assert.Zero(t, withThresholdsCallCount,
+		"nil settingsSvc では SyncDormantTagsWithThresholds を呼んではならない")
 }
 
 // ─────────────────────────────────────────────
@@ -111,3 +110,9 @@ func TestPERF2_DetectDormantOwners_CallsSyncWithThresholds(t *testing.T) {
 	assert.Equal(t, int64(ownerCount), got,
 		"DetectDormantOwners は各オーナーに SyncDormantTagsWithThresholds を呼ぶべき (現在 %d 回)", got)
 }
+
+// ─────────────────────────────────────────────
+// PERF-FOLLOWUP-08 (対象1): SyncLTVTopPercent が
+//   tagCacheRepo.FindByOwner を owner ごとに呼ぶのではなく、
+//   FindByOwners を clinic 単位(非top owner分をまとめて)で1回だけ呼ぶこと。
+//   M1/M2 と同型の *WithMappings hoist パターンの回帰テスト。
