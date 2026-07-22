@@ -21,6 +21,7 @@ type Handler struct {
 	tagCodeMapping    LstepTagCodeMappingService
 	tagConfig         LstepTagConfigService
 	tagSummary        LstepTagSummaryService
+	checkupSync       CheckupSyncService
 	requirePermission PermissionMiddleware
 }
 
@@ -34,6 +35,7 @@ func NewHandler(
 	tagCodeMapping LstepTagCodeMappingService,
 	tagConfig LstepTagConfigService,
 	tagSummary LstepTagSummaryService,
+	checkupSync CheckupSyncService,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -45,6 +47,7 @@ func NewHandler(
 		tagCodeMapping:    tagCodeMapping,
 		tagConfig:         tagConfig,
 		tagSummary:        tagSummary,
+		checkupSync:       checkupSync,
 		requirePermission: requirePermission,
 	}
 }
@@ -118,8 +121,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	purposes.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateSendPurposeTagPrefix)
 	purposes.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSendPurposeTagPrefix)
 
-	// 顧客管理（旧 reservation_line_routes.go 逐語）
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携。
 	clinics := rg.Group("/clinics/:clinic_id")
+	clinics.GET("/lstep/checkup-sync/preview", h.requirePermission(string(model.ResourceOwners), "view"), h.GetCheckupSyncPreview)
+	clinics.POST("/lstep/checkup-sync", h.requirePermission(string(model.ResourceOwners), "edit"), h.CreateCheckupSync)
+
+	// 顧客管理（旧 reservation_line_routes.go 逐語）
 	customers := clinics.Group("/line-customers")
 	customers.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.lineCustomer.ListLineCustomers)
 	customers.PATCH("/:customerId/link-owner", h.requirePermission(string(model.ResourceOwners), "edit"), h.lineCustomer.LinkOwnerToLineCustomer)

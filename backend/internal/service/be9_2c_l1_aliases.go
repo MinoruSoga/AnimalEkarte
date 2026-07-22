@@ -80,7 +80,3 @@ func NewLstepTagSyncFromRepos(repos *repository.Repositories, settings LstepSett
 }
 
 const tagPrefixCheckupDone = lstep.TagPrefixCheckupDone
-
-func isSystemManagedTag(tagName string) bool {
-	return lstep.IsSystemManagedTag(tagName)
-}

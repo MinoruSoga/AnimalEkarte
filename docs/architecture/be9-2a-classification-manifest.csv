@@ -66,9 +66,9 @@ internal/handler/checkup_field_response.go,target:medicalrecord,prefix token='ch
 internal/handler/checkup_handler.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_request.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_response.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_handler.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_request.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_response.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_sync_handler.go,target:lstep,L③b: route/application dependency is lstep
+internal/handler/checkup_sync_request.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
+internal/handler/checkup_sync_response.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
 internal/handler/checkup_type_handler.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_type_request.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_type_response.go,target:medicalrecord,prefix token='checkup'
@@ -429,9 +429,9 @@ internal/repository/cash_register_close_repository.go,target:billing,prefix toke
 internal/repository/checkup/repository.go,target:medicalrecord,repository/checkup をdomain roll-up
 internal/repository/checkup_field_repository.go,target:medicalrecord,prefix token='checkup'
 internal/repository/checkup_repository.go,target:medicalrecord,prefix token='checkup'
-internal/repository/checkup_sync_repository.go,target:medicalrecord,prefix token='checkup'
+internal/repository/checkup_sync_repository.go,target:lstep,L③b: compatibility facade for lstep checkup sync repository
 internal/repository/checkup_type_repository.go,target:medicalrecord,prefix token='checkup'
-internal/repository/checkupsync/repository.go,target:medicalrecord,repository/checkupsync をdomain roll-up
+internal/repository/checkupsync/repository.go,target:lstep,L③b: cross-domain preview query owned by lstep checkup sync
 internal/repository/checkuptype/repository.go,target:medicalrecord,repository/checkuptype をdomain roll-up
 internal/repository/chief_complaint_repository.go,target:medicalrecord,prefix token='chief'
 internal/repository/chiefcomplaint/repository.go,target:medicalrecord,repository/chiefcomplaint をdomain roll-up
@@ -582,10 +582,10 @@ internal/service/care_plan_item_service.go,target:medicalrecord,prefix token='ca
 internal/service/cash_register_service.go,target:billing,prefix token='cash'
 internal/service/checkup_field_result_service.go,target:medicalrecord,prefix token='checkup'
 internal/service/checkup_service.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_create.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_metadata.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_preview.go,target:medicalrecord,prefix token='checkup'
+internal/service/checkup_sync_service.go,target:lstep,L③b: lstep checkup sync application service
+internal/service/checkup_sync_service_create.go,target:lstep,L③b: lstep tag application workflow
+internal/service/checkup_sync_service_metadata.go,target:lstep,L③b: lstep audit metadata
+internal/service/checkup_sync_service_preview.go,target:lstep,L③b: lstep checkup sync preview
 internal/service/checkup_type_service.go,target:medicalrecord,prefix token='checkup'
 internal/service/chief_complaint_service.go,target:medicalrecord,prefix token='chief'
 internal/service/chronic_condition_service.go,target:pet,prefix token='chronic'

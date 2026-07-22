@@ -3,25 +3,20 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/checkupsync"
+	"github.com/animal-ekarte/backend/internal/lstep"
 )
 
-// CheckupSyncPreviewRow is a stable facade alias for the checkupsync domain
-// package (BE8-4). Service/handler imports keep using repository.* so the
-// split does not churn all importers.
-type CheckupSyncPreviewRow = checkupsync.PreviewRow
+// CheckupSyncPreviewRow is a stable facade alias for the lstep domain package.
+// Remove the facade after residual repository-aggregate consumers are migrated.
+type CheckupSyncPreviewRow = lstep.CheckupSyncPreviewRow
 
-// FindCheckupSyncPreviewParams is a stable facade alias for the checkupsync
-// domain package (BE8-4). Service/handler imports keep using repository.* so
-// the split does not churn all importers.
-type FindCheckupSyncPreviewParams = checkupsync.FindPreviewParams
+// FindCheckupSyncPreviewParams is a stable facade alias for the lstep domain package.
+type FindCheckupSyncPreviewParams = lstep.FindCheckupSyncPreviewParams
 
-// CheckupSyncRepository is a stable facade alias for the checkupsync domain
-// package (BE8-4). Service/handler imports keep using repository.* so the
-// split does not churn all importers.
-type CheckupSyncRepository = checkupsync.Repository
+// CheckupSyncRepository is a stable facade alias for the lstep domain package.
+type CheckupSyncRepository = lstep.CheckupSyncRepository
 
 // NewCheckupSyncRepository constructs the checkup sync preview repository.
 func NewCheckupSyncRepository(db *gorm.DB) CheckupSyncRepository {
-	return checkupsync.New(db)
+	return lstep.NewCheckupSyncRepository(db)
 }

@@ -1,10 +1,8 @@
-package handler
+package lstep
 
 import (
 	"strconv"
 	"time"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // checkupSyncPreviewOwnerResponse はプレビュー一覧の1件レスポンス（ISSUE-005: 除外理由対応 / ISSUE-009: 追加フィルタ表示）。
@@ -47,7 +45,7 @@ type checkupSyncResultResponse struct {
 	FailedOwnerIDs []string `json:"failed_owner_ids"`
 }
 
-func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) checkupSyncPreviewOwnerResponse {
+func toCheckupSyncPreviewOwnerResponse(o *CheckupSyncPreviewOwner) checkupSyncPreviewOwnerResponse {
 	r := checkupSyncPreviewOwnerResponse{
 		OwnerID:             strconv.FormatUint(o.OwnerID, 10),
 		OwnerName:           o.OwnerName,
@@ -75,7 +73,7 @@ func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) check
 	return r
 }
 
-func toCheckupSyncPreviewResponse(result *service.PreviewCheckupSyncResult) checkupSyncPreviewResponse {
+func toCheckupSyncPreviewResponse(result *PreviewCheckupSyncResult) checkupSyncPreviewResponse {
 	owners := make([]checkupSyncPreviewOwnerResponse, 0, len(result.Owners))
 	for i := range result.Owners {
 		owners = append(owners, toCheckupSyncPreviewOwnerResponse(&result.Owners[i]))

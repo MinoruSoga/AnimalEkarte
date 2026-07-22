@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -13,27 +13,25 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock CheckupSyncService ----
 
 type mockCheckupSyncService struct {
-	previewCheckupSyncFn func(ctx context.Context, clinicID uint64, input *service.PreviewCheckupSyncInput, actorID *uint64) (*service.PreviewCheckupSyncResult, error)
-	createCheckupSyncFn  func(ctx context.Context, clinicID uint64, input service.CreateCheckupSyncInput, actorID *uint64) (*service.CreateCheckupSyncResult, error)
+	previewCheckupSyncFn func(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error)
+	createCheckupSyncFn  func(ctx context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error)
 }
 
-func (m *mockCheckupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input *service.PreviewCheckupSyncInput, actorID *uint64) (*service.PreviewCheckupSyncResult, error) {
+func (m *mockCheckupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
 	return m.previewCheckupSyncFn(ctx, clinicID, input, actorID)
 }
 
-func (m *mockCheckupSyncService) CreateCheckupSync(ctx context.Context, clinicID uint64, input service.CreateCheckupSyncInput, actorID *uint64) (*service.CreateCheckupSyncResult, error) {
+func (m *mockCheckupSyncService) CreateCheckupSync(ctx context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error) {
 	return m.createCheckupSyncFn(ctx, clinicID, input, actorID)
 }
 
-func newHandlerWithCheckupSyncSvc(svc service.CheckupSyncService) *Handler {
-	return &Handler{svc: &service.Services{CheckupSync: svc}}
+func newHandlerWithCheckupSyncSvc(svc CheckupSyncService) *Handler {
+	return &Handler{checkupSync: svc}
 }
 
 // ---- toCheckupSyncPreviewOwnerResponse ----
@@ -45,7 +43,7 @@ func TestToCheckupSyncPreviewOwnerResponse(t *testing.T) {
 		minAge := 2
 		maxAge := 10
 
-		o := &service.CheckupSyncPreviewOwner{
+		o := &CheckupSyncPreviewOwner{
 			OwnerID:             1,
 			OwnerName:           "田中太郎",
 			PetNames:            []string{"ポチ"},
@@ -58,7 +56,7 @@ func TestToCheckupSyncPreviewOwnerResponse(t *testing.T) {
 			MinPetAgeYears:      &minAge,
 			MaxPetAgeYears:      &maxAge,
 			HasChronicCondition: true,
-			CPMStage:            string(service.CPMStageCore),
+			CPMStage:            string(CPMStageCore),
 			TotalAmount:         10000,
 			AnnualVisitCount:    3,
 			LastCheckupDate:     &lastCheckup,
@@ -83,14 +81,14 @@ func TestToCheckupSyncPreviewOwnerResponse(t *testing.T) {
 		require.NotNil(t, resp.MaxPetAgeYears)
 		assert.Equal(t, 10, *resp.MaxPetAgeYears)
 		assert.True(t, resp.HasChronicCondition)
-		assert.Equal(t, string(service.CPMStageCore), resp.CPMStage)
+		assert.Equal(t, string(CPMStageCore), resp.CPMStage)
 		assert.Equal(t, int64(10000), resp.TotalAmount)
 		assert.Equal(t, int64(3), resp.AnnualVisitCount)
 	})
 
 	t.Run("nil date pointers and exclusion reason are preserved as nil", func(t *testing.T) {
 		reason := "Lステップ配信停止中"
-		o := &service.CheckupSyncPreviewOwner{
+		o := &CheckupSyncPreviewOwner{
 			OwnerID:         2,
 			OwnerName:       "鈴木花子",
 			ExclusionReason: &reason,
@@ -111,8 +109,8 @@ func TestToCheckupSyncPreviewOwnerResponse(t *testing.T) {
 
 func TestToCheckupSyncPreviewResponse(t *testing.T) {
 	t.Run("aggregates owners and counts", func(t *testing.T) {
-		result := &service.PreviewCheckupSyncResult{
-			Owners: []service.CheckupSyncPreviewOwner{
+		result := &PreviewCheckupSyncResult{
+			Owners: []CheckupSyncPreviewOwner{
 				{OwnerID: 1, OwnerName: "田中太郎"},
 				{OwnerID: 2, OwnerName: "鈴木花子"},
 			},
@@ -134,7 +132,7 @@ func TestToCheckupSyncPreviewResponse(t *testing.T) {
 	})
 
 	t.Run("empty owners produce empty (not nil) response slice", func(t *testing.T) {
-		result := &service.PreviewCheckupSyncResult{}
+		result := &PreviewCheckupSyncResult{}
 
 		resp := toCheckupSyncPreviewResponse(result)
 
@@ -162,13 +160,13 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 			query:    "checkup_type=annual",
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			svc: &mockCheckupSyncService{
-				previewCheckupSyncFn: func(_ context.Context, clinicID uint64, input *service.PreviewCheckupSyncInput, actorID *uint64) (*service.PreviewCheckupSyncResult, error) {
+				previewCheckupSyncFn: func(_ context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "annual", input.CheckupType)
 					require.NotNil(t, actorID)
 					assert.Equal(t, uint64(10), *actorID)
-					return &service.PreviewCheckupSyncResult{
-						Owners:     []service.CheckupSyncPreviewOwner{{OwnerID: 1, OwnerName: "田中太郎"}},
+					return &PreviewCheckupSyncResult{
+						Owners:     []CheckupSyncPreviewOwner{{OwnerID: 1, OwnerName: "田中太郎"}},
 						TotalCount: 1,
 					}, nil
 				},
@@ -188,9 +186,9 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 			query:    "checkup_type=annual",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupSyncService{
-				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *service.PreviewCheckupSyncInput, actorID *uint64) (*service.PreviewCheckupSyncResult, error) {
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
 					assert.Nil(t, actorID)
-					return &service.PreviewCheckupSyncResult{}, nil
+					return &PreviewCheckupSyncResult{}, nil
 				},
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -214,7 +212,7 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 			query:    "checkup_type=annual",
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			svc: &mockCheckupSyncService{
-				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *service.PreviewCheckupSyncInput, _ *uint64) (*service.PreviewCheckupSyncResult, error) {
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -238,8 +236,6 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 	}
 }
 
-// ---- CreateCheckupSync ----
-
 func TestCreateCheckupSync(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -262,13 +258,13 @@ func TestCreateCheckupSync(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			body:     validBody,
 			svc: &mockCheckupSyncService{
-				createCheckupSyncFn: func(_ context.Context, clinicID uint64, input service.CreateCheckupSyncInput, actorID *uint64) (*service.CreateCheckupSyncResult, error) {
+				createCheckupSyncFn: func(_ context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "annual", input.CheckupType)
 					assert.Equal(t, []uint64{1, 2}, input.OwnerIDs)
 					require.NotNil(t, actorID)
 					assert.Equal(t, uint64(10), *actorID)
-					return &service.CreateCheckupSyncResult{
+					return &CreateCheckupSyncResult{
 						SuccessCount:   2,
 						FailedOwnerIDs: []uint64{},
 					}, nil
@@ -282,8 +278,8 @@ func TestCreateCheckupSync(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			body:     validBody,
 			svc: &mockCheckupSyncService{
-				createCheckupSyncFn: func(_ context.Context, _ uint64, _ service.CreateCheckupSyncInput, _ *uint64) (*service.CreateCheckupSyncResult, error) {
-					return &service.CreateCheckupSyncResult{
+				createCheckupSyncFn: func(_ context.Context, _ uint64, _ CreateCheckupSyncInput, _ *uint64) (*CreateCheckupSyncResult, error) {
+					return &CreateCheckupSyncResult{
 						FailedCount:    1,
 						FailedOwnerIDs: []uint64{99},
 					}, nil
@@ -318,7 +314,7 @@ func TestCreateCheckupSync(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			body:     validBody,
 			svc: &mockCheckupSyncService{
-				createCheckupSyncFn: func(_ context.Context, _ uint64, _ service.CreateCheckupSyncInput, _ *uint64) (*service.CreateCheckupSyncResult, error) {
+				createCheckupSyncFn: func(_ context.Context, _ uint64, _ CreateCheckupSyncInput, _ *uint64) (*CreateCheckupSyncResult, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

@@ -99,3 +99,29 @@ type tagSummaryRepo interface {
 	TagSummary(ctx context.Context, clinicID uint64) ([]TagSummaryRow, int64, error)
 	FindOwnersByTag(ctx context.Context, clinicID uint64, tagName, nameQuery string, offset, limit int) ([]TagOwnerRow, int64, error)
 }
+
+// checkup-sync consumes only these batch-scoped views from owner/pet/tag cache.
+// Keeping the views local prevents the lstep package from depending on the
+// repository or service aggregators.
+type checkupSyncOwnerRepo interface {
+	FindByIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) ([]*model.Owner, error)
+}
+
+type checkupSyncPetRepo interface {
+	CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
+}
+
+type checkupSyncTagCacheRepo interface {
+	FindByOwners(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
+	UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
+}
+
+type checkupSyncSettingsService interface {
+	IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error)
+	GetRawCredentials(ctx context.Context, clinicID uint64) (apiKey, baseURL, lineToken string, err error)
+	GetCPMV1Thresholds(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error)
+}
+
+type checkupSyncAuditLogger interface {
+	LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
+}

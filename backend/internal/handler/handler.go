@@ -128,7 +128,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterAggregationRoutes(protected)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	h.RegisterCheckupSyncRoutes(protected)
 	// Q23: トリガー優先順位設定
 	h.RegisterLstepTriggerPriorityRoutes(protected)
 	// FEAT-379: タグコードマッピング設定

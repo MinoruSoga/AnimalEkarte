@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -11,18 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- CheckupSyncRepository モック ----
 
 type mockCheckupSyncRepository struct {
-	findCheckupSyncPreviewFn func(ctx context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error)
+	findCheckupSyncPreviewFn func(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error)
 }
 
-func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 	if m.findCheckupSyncPreviewFn != nil {
 		return m.findCheckupSyncPreviewFn(ctx, params)
 	}
@@ -32,9 +31,9 @@ func (m *mockCheckupSyncRepository) FindCheckupSyncPreview(ctx context.Context, 
 // ---- ヘルパー ----
 // ptrString は accounting_service_test.go で同パッケージ内に既に定義されているため再定義しない。
 
-func newCheckupSyncSvcForPreview(rows []repository.CheckupSyncPreviewRow) CheckupSyncService {
+func newCheckupSyncSvcForPreview(rows []CheckupSyncPreviewRow) CheckupSyncService {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			return rows, nil
 		},
 	}
@@ -86,7 +85,7 @@ func TestDeriveExclusionReason(t *testing.T) {
 
 func TestCheckupSyncService_PreviewCheckupSync_ExclusionAggregation(t *testing.T) {
 	lineID := "U1234567890"
-	rows := []repository.CheckupSyncPreviewRow{
+	rows := []CheckupSyncPreviewRow{
 		// 1) 送信可能（has_line && !opt_out && living_pet > 0）
 		{OwnerID: 1, OwnerName: "送信可能", LineUserID: &lineID, LstepOptOut: false, PetNamesCSV: "ポチ", LivingPetCount: 1},
 		// 2) opt-out: ExclusionReason="Lステップ配信停止中"
@@ -136,7 +135,7 @@ func TestCheckupSyncService_PreviewCheckupSync_ExclusionAggregation(t *testing.T
 // ---- PreviewCheckupSync: 空結果のサマリー ----
 
 func TestCheckupSyncService_PreviewCheckupSync_EmptyResult(t *testing.T) {
-	svc := newCheckupSyncSvcForPreview([]repository.CheckupSyncPreviewRow{})
+	svc := newCheckupSyncSvcForPreview([]CheckupSyncPreviewRow{})
 
 	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
 	assert.NoError(t, err)
@@ -332,6 +331,7 @@ func TestCheckupSyncService_CreateCheckupSync_NoLstepConfigured(t *testing.T) {
 // TestCheckupSyncService_CreateCheckupSync_AutoManagedTagRejected は
 // 自動管理タグの直接付与が拒否される既存挙動を保護する。
 func TestCheckupSyncService_CreateCheckupSync_AutoManagedTagRejected(t *testing.T) {
+	buildClientCalled := false
 	svc := NewCheckupSyncService(
 		&mockCheckupSyncRepository{},
 		&mockOwnerRepository{},
@@ -339,15 +339,22 @@ func TestCheckupSyncService_CreateCheckupSync_AutoManagedTagRejected(t *testing.
 		&mockLstepTagCacheRepository{},
 		&mockLstepSettingsService{},
 		&mockAuditService{},
-	)
+	).(*checkupSyncService)
+	svc.buildClientFn = func(_ context.Context, _ uint64) (lstepapi.Client, error) {
+		buildClientCalled = true
+		return &mockLstepAPIClient{}, nil
+	}
 
 	_, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
 		CheckupType: "annual",
 		OwnerIDs:    []uint64{1},
-		TagName:     "vaccine_rabies", // 自動管理タグ
+		TagName:     "CPM_CORE", // 固定プレフィックスの自動管理タグ
 	}, nil)
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	if assert.Error(t, err) {
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "自動管理タグ")
+	}
+	assert.False(t, buildClientCalled, "自動管理タグは外部クライアント構築前に拒否されること")
 }
 
 // ---- ISSUE-009: 追加フィルタ ----
@@ -355,10 +362,10 @@ func TestCheckupSyncService_CreateCheckupSync_AutoManagedTagRejected(t *testing.
 // TestCheckupSyncService_PreviewCheckupSync_PassesExtendedFiltersToRepo は
 // 追加クエリ（年齢/慢性疾患/累計診療費/年間来院/最終健診）が repository に正しく転送されることを検証する。
 func TestCheckupSyncService_PreviewCheckupSync_PassesExtendedFiltersToRepo(t *testing.T) {
-	var captured repository.FindCheckupSyncPreviewParams
+	var captured FindCheckupSyncPreviewParams
 
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, params *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			captured = *params
 			return nil, nil
 		},
@@ -433,7 +440,7 @@ func TestCheckupSyncService_PreviewCheckupSync_CPMStageFilter(t *testing.T) {
 	dormantLast := now.AddDate(-1, -6, 0) // 18 ヶ月前 → 240日超
 	dormantFirst := now.AddDate(-3, 0, 0)
 
-	rows := []repository.CheckupSyncPreviewRow{
+	rows := []CheckupSyncPreviewRow{
 		{
 			OwnerID: 1, OwnerName: "活発", LineUserID: &lineID, LstepOptOut: false,
 			PetNamesCSV: "ポチ", LivingPetCount: 1,
@@ -502,7 +509,7 @@ func TestCheckupSyncService_PreviewCheckupSync_ExposesAdditionalFields(t *testin
 	lastVisit := now.AddDate(0, 0, -5)
 	firstVisit := now.AddDate(-2, 0, 0)
 
-	rows := []repository.CheckupSyncPreviewRow{
+	rows := []CheckupSyncPreviewRow{
 		{
 			OwnerID: 1, OwnerName: "山田", LineUserID: &lineID, LstepOptOut: false,
 			PetNamesCSV: "ポチ", LivingPetCount: 1,
@@ -579,9 +586,9 @@ func (s *spyCheckupAuditService) LogLstepOperationWithMetadata(_ context.Context
 }
 
 // newCheckupSyncSvcForAudit は audit 検証用 spy を注入したサービスを返す。
-func newCheckupSyncSvcForAudit(rows []repository.CheckupSyncPreviewRow, spy *spyCheckupAuditService) CheckupSyncService {
+func newCheckupSyncSvcForAudit(rows []CheckupSyncPreviewRow, spy *spyCheckupAuditService) CheckupSyncService {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			return rows, nil
 		},
 	}
@@ -601,7 +608,7 @@ func newCheckupSyncSvcForAudit(rows []repository.CheckupSyncPreviewRow, spy *spy
 //     が記録される。
 func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata(t *testing.T) {
 	lineID := "U_test"
-	rows := []repository.CheckupSyncPreviewRow{
+	rows := []CheckupSyncPreviewRow{
 		{OwnerID: 1, OwnerName: "送信可能", LineUserID: &lineID, LstepOptOut: false, PetNamesCSV: "ポチ", LivingPetCount: 1},
 		{OwnerID: 2, OwnerName: "OPT-OUT", LineUserID: &lineID, LstepOptOut: true, PetNamesCSV: "タマ", LivingPetCount: 1},
 		{OwnerID: 3, OwnerName: "死亡のみ", LineUserID: &lineID, LstepOptOut: false, PetNamesCSV: "", LivingPetCount: 0},
@@ -656,7 +663,7 @@ func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata(t *testing.T) {
 // 任意フィルタが nil の場合、metadata.filter にそのキーが含まれないこと（誤った "" / 0 を残さない）を検証する。
 func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata_NilFilters(t *testing.T) {
 	spy := &spyCheckupAuditService{}
-	svc := newCheckupSyncSvcForAudit([]repository.CheckupSyncPreviewRow{}, spy)
+	svc := newCheckupSyncSvcForAudit([]CheckupSyncPreviewRow{}, spy)
 
 	_, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{
 		CheckupType: "annual",
@@ -770,7 +777,7 @@ func TestCheckupSyncService_buildClient(t *testing.T) {
 	t.Run("buildClientFn が設定されている場合はそれを使う（テスト注入経路）", func(t *testing.T) {
 		called := false
 		svc := &checkupSyncService{
-			buildClientFn: func(_ context.Context, clinicID uint64) (lstep.Client, error) {
+			buildClientFn: func(_ context.Context, clinicID uint64) (lstepapi.Client, error) {
 				called = true
 				assert.Equal(t, uint64(1), clinicID)
 				return nil, nil

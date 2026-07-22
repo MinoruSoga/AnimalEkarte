@@ -109,7 +109,7 @@ type Services struct {
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	LstepTagSummary LstepTagSummaryService
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	CheckupSync CheckupSyncService
+	CheckupSync lstep.CheckupSyncService
 	// FEAT-384: 自動配信トリガー監視
 	LstepDeliveryMonitor LstepDeliveryMonitorService
 	// FEAT-385: Lステップ CSV インポート・分析
@@ -199,7 +199,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	lstepTagSummarySvc := lstep.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	checkupSyncSvc := NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
+	checkupSyncSvc := lstep.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
 	// FEAT-384: 自動配信トリガー監視
 	lstepDeliveryMonitorSvc := NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
 	// Q23: トリガー優先順位設定

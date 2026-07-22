@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -7,14 +7,13 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input is nil")
 	}
-	rows, err := s.repo.FindCheckupSyncPreview(ctx, &repository.FindCheckupSyncPreviewParams{
+	rows, err := s.repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
 		ClinicID:            clinicID,
 		Species:             input.Species,
 		LastVisitBefore:     input.LastVisitBefore,
@@ -100,7 +99,7 @@ type checkupPreviewCounters struct {
 // 分類ループ本体の純粋抽出）。呼び出し元は CPM ステージフィルタで除外されなかった行のみを
 // 渡すこと（フィルタで除外された行はどのカウンタも増加させない、という元の挙動を保つため
 // フィルタ自体はこの関数の外で行う）。
-func buildPreviewOwner(row *repository.CheckupSyncPreviewRow, cpmStage CPMStage, tagCacheByOwner map[uint64][]*model.LstepTagCache) (CheckupSyncPreviewOwner, checkupPreviewCounters) {
+func buildPreviewOwner(row *CheckupSyncPreviewRow, cpmStage CPMStage, tagCacheByOwner map[uint64][]*model.LstepTagCache) (CheckupSyncPreviewOwner, checkupPreviewCounters) {
 	var counters checkupPreviewCounters
 
 	hasLine := row.LineUserID != nil && *row.LineUserID != ""

@@ -40,6 +40,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		noopPermission,
 	)
 
@@ -66,6 +67,7 @@ DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
 GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
 GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
+GET /api/v1/clinics/:clinic_id/lstep/checkup-sync/preview GetCheckupSyncPreview
 GET /api/v1/clinics/:clinic_id/lstep/owners SearchLstepOwnersByTag
 GET /api/v1/clinics/:clinic_id/lstep/tag-summary GetLstepTagSummary
 GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
@@ -85,6 +87,7 @@ PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
 PATCH /api/v1/lstep-settings UpdateLstepSettings
 POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection
+POST /api/v1/clinics/:clinic_id/lstep/checkup-sync CreateCheckupSync
 POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/lstep-settings/test-connection TestLstepConnection

@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // parseOptionalDateOnly は空文字なら (nil, nil) を、YYYY-MM-DD 形式でなければ
@@ -81,8 +80,8 @@ func newCheckupSyncPreviewQuery(values url.Values) checkupSyncPreviewQuery {
 	}
 }
 
-func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncInput, error) {
-	input := &service.PreviewCheckupSyncInput{
+func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, error) {
+	input := &PreviewCheckupSyncInput{
 		CheckupType: q.CheckupType,
 		Species:     q.Species,
 		CPMStage:    q.CPMStage,
@@ -127,12 +126,12 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 	}
 	if input.CPMStage != "" {
 		switch input.CPMStage {
-		case string(service.CPMStageEncounter),
-			string(service.CPMStageGrowing),
-			string(service.CPMStageCore),
-			string(service.CPMStageSpot),
-			string(service.CPMStageNoah),
-			string(service.CPMStageDormant):
+		case string(CPMStageEncounter),
+			string(CPMStageGrowing),
+			string(CPMStageCore),
+			string(CPMStageSpot),
+			string(CPMStageNoah),
+			string(CPMStageDormant):
 		default:
 			return nil, apperrors.WrapInvalidInput("cpm_stage は cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant のいずれかを指定してください")
 		}
@@ -148,21 +147,21 @@ type checkupSyncRequest struct {
 	TagName     string   `json:"tag_name"     binding:"required"`
 }
 
-func (r checkupSyncRequest) toServiceInput() (service.CreateCheckupSyncInput, error) {
-	if !tagNamePattern.MatchString(r.TagName) {
-		return service.CreateCheckupSyncInput{}, fmt.Errorf("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
+func (r checkupSyncRequest) toServiceInput() (CreateCheckupSyncInput, error) {
+	if !IsValidManualTagName(r.TagName) {
+		return CreateCheckupSyncInput{}, fmt.Errorf("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
 	}
 
 	ownerIDs := make([]uint64, 0, len(r.OwnerIDs))
 	for _, s := range r.OwnerIDs {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			return service.CreateCheckupSyncInput{}, fmt.Errorf("owner_ids の値が不正です: %s", s)
+			return CreateCheckupSyncInput{}, fmt.Errorf("owner_ids の値が不正です: %s", s)
 		}
 		ownerIDs = append(ownerIDs, id)
 	}
 
-	return service.CreateCheckupSyncInput{
+	return CreateCheckupSyncInput{
 		CheckupType: r.CheckupType,
 		OwnerIDs:    ownerIDs,
 		TagName:     r.TagName,

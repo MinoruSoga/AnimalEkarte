@@ -1,17 +1,15 @@
-package handler
+package lstep
 
 import (
 	"net/url"
 	"testing"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
 	input, err := (&checkupSyncPreviewQuery{
 		CheckupType:         "annual",
 		Species:             "dog",
-		CPMStage:            string(service.CPMStageCore),
+		CPMStage:            string(CPMStageCore),
 		LastVisitBefore:     "2026-05-01",
 		LastVisitAfter:      "2026-01-01",
 		MinAgeYears:         "2",

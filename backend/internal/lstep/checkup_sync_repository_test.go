@@ -1,4 +1,4 @@
-package checkupsync
+package lstep
 
 // repository_test.go — Repository（BE-004 / ISSUE-005 / ISSUE-009）の統合テスト。
 //
@@ -117,7 +117,7 @@ func makeSyncCheckup(t *testing.T, db *gorm.DB, clinicID, mrID, petID, checkupTy
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_NilParamsReturnsInvalidInput(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 
 	_, err := repo.FindCheckupSyncPreview(ctx, nil)
@@ -126,7 +126,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_NilParamsReturnsInvalidInp
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolationAndSpecies(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -146,7 +146,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	petB := makeSyncPet(t, db, clinicB, ownerB.ID, dogSpecies.ID, "同期ポチB", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicB, ownerB.ID, petB.ID, time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))
 
-	rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA})
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA})
 	require.NoError(t, err)
 	require.Len(t, rows, 1, "clinic A の飼主のみ返る")
 	row := rows[0]
@@ -156,15 +156,15 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	assert.Equal(t, int64(2), row.TotalVisitCount)
 
 	t.Run("種別フィルタは生存ペットのみで判定される", func(t *testing.T) {
-		rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, Species: "イヌ"})
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, Species: "イヌ"})
 		require.NoError(t, err)
 		assert.Len(t, rows, 0, "犬に一致しない種別名では該当なし")
 
-		rows, err = repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, Species: "犬"})
+		rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, Species: "犬"})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 
-		rows, err = repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, Species: "猫"})
+		rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, Species: "猫"})
 		require.NoError(t, err)
 		assert.Len(t, rows, 0, "唯一の猫は死亡しているため対象外")
 	})
@@ -172,7 +172,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_LastVisitDateRangeFilters(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -186,13 +186,13 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_LastVisitDateRangeFilters(
 	makeSyncMedicalRecord(t, db, clinicA, ownerRecent.ID, petRecent.ID, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 
 	before := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
-	rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, LastVisitBefore: &before})
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, LastVisitBefore: &before})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerEarly.ID, rows[0].OwnerID)
 
 	after := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
-	rows, err = repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, LastVisitAfter: &after})
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, LastVisitAfter: &after})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerRecent.ID, rows[0].OwnerID)
@@ -200,7 +200,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_LastVisitDateRangeFilters(
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_ChronicConditionFilter(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -218,14 +218,14 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_ChronicConditionFilter(t *
 	makeSyncMedicalRecord(t, db, clinicA, ownerHealthy.ID, petHealthy.ID, time.Now())
 
 	trueFlag := true
-	rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, HasChronicCondition: &trueFlag})
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, HasChronicCondition: &trueFlag})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerSick.ID, rows[0].OwnerID)
 	assert.True(t, rows[0].HasChronicCondition)
 
 	falseFlag := false
-	rows, err = repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, HasChronicCondition: &falseFlag})
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, HasChronicCondition: &falseFlag})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerHealthy.ID, rows[0].OwnerID)
@@ -233,7 +233,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_ChronicConditionFilter(t *
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitFilters(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -250,7 +250,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitF
 	makeBilling(t, db, clinicA, &ownerLow.ID, nil, 100, model.BillingStatusCompleted, time.Now())
 
 	minAmount := int64(5000)
-	rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, MinTotalAmount: &minAmount})
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, MinTotalAmount: &minAmount})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerHigh.ID, rows[0].OwnerID)
@@ -266,7 +266,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitF
 	makeSyncMedicalRecord(t, db, clinicA, ownerRare.ID, petRare.ID, time.Now().AddDate(-2, 0, 0)) // 2年前=年間対象外
 
 	minVisits := int64(2)
-	rows, err = repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, MinAnnualVisitCount: &minVisits})
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, MinAnnualVisitCount: &minVisits})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, ownerFrequent.ID, rows[0].OwnerID)
@@ -274,7 +274,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitF
 
 func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
-	repo := New(db)
+	repo := NewCheckupSyncRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -295,7 +295,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 
 	t.Run("MinAgeYears は高齢ペットのみヒット", func(t *testing.T) {
 		minAge := 5
-		rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, MinAgeYears: &minAge})
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, MinAgeYears: &minAge})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 		assert.Equal(t, ownerOld.ID, rows[0].OwnerID)
@@ -303,7 +303,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 
 	t.Run("MaxAgeYears は若齢ペットのみヒット", func(t *testing.T) {
 		maxAge := 3
-		rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, MaxAgeYears: &maxAge})
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, MaxAgeYears: &maxAge})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 		assert.Equal(t, ownerYoung.ID, rows[0].OwnerID)
@@ -311,7 +311,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 
 	t.Run("LastCheckupBefore は健診実施が古い飼主のみヒット", func(t *testing.T) {
 		checkupBefore := time.Now().AddDate(0, -6, 0)
-		rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, LastCheckupBefore: &checkupBefore})
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, LastCheckupBefore: &checkupBefore})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 		assert.Equal(t, ownerOld.ID, rows[0].OwnerID)
@@ -319,7 +319,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 
 	t.Run("LastCheckupAfter は健診実施が新しい飼主のみヒット", func(t *testing.T) {
 		checkupAfter := time.Now().AddDate(0, -6, 0)
-		rows, err := repo.FindCheckupSyncPreview(ctx, &FindPreviewParams{ClinicID: clinicA, LastCheckupAfter: &checkupAfter})
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, LastCheckupAfter: &checkupAfter})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 		assert.Equal(t, ownerYoung.ID, rows[0].OwnerID)

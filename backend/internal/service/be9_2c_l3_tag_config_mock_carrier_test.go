@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	infralstep "github.com/animal-ekarte/backend/internal/infra/lstep"
-
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -55,30 +53,6 @@ func (*mockLstepTagConfigRepository) CreateSendPurposeTagPrefix(context.Context,
 func (*mockLstepTagConfigRepository) DeleteSendPurposeTagPrefix(context.Context, uint64) error {
 	return nil
 }
-
-type mockLstepAPIClient struct {
-	addTagFn    func(context.Context, string, string) error
-	removeTagFn func(context.Context, string, string) error
-}
-
-func (m *mockLstepAPIClient) AddTag(ctx context.Context, userID, tag string) error {
-	if m.addTagFn != nil {
-		return m.addTagFn(ctx, userID, tag)
-	}
-	return nil
-}
-func (m *mockLstepAPIClient) RemoveTag(ctx context.Context, userID, tag string) error {
-	if m.removeTagFn != nil {
-		return m.removeTagFn(ctx, userID, tag)
-	}
-	return nil
-}
-func (*mockLstepAPIClient) GetUserTags(context.Context, string) ([]string, error) { return nil, nil }
-func (*mockLstepAPIClient) AddTagBulk(context.Context, []string, string) error    { return nil }
-func (*mockLstepAPIClient) GetUser(context.Context, string) (*infralstep.UserInfo, error) {
-	return nil, nil
-}
-func (*mockLstepAPIClient) SetProperty(context.Context, string, string, string) error { return nil }
 
 func ltvBracketTag(ltv int64) string {
 	switch {

@@ -1,13 +1,12 @@
-package service
+package lstep
 
 import (
 	"context"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ISSUE-005: 除外理由（優先度順）。複数該当する場合は上位を採用する。
@@ -110,24 +109,24 @@ type CheckupSyncService interface {
 }
 
 type checkupSyncService struct {
-	repo          repository.CheckupSyncRepository
-	ownerRepo     repository.OwnerRepository
-	petRepo       repository.PetRepository
-	tagCacheRepo  repository.LstepTagCacheRepository
-	settingsSvc   LstepSettingsService
-	auditSvc      AuditService
-	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error) // テスト注入用
+	repo          CheckupSyncRepository
+	ownerRepo     checkupSyncOwnerRepo
+	petRepo       checkupSyncPetRepo
+	tagCacheRepo  checkupSyncTagCacheRepo
+	settingsSvc   checkupSyncSettingsService
+	auditSvc      checkupSyncAuditLogger
+	buildClientFn func(ctx context.Context, clinicID uint64) (lstepapi.Client, error) // テスト注入用
 }
 
 // NewCheckupSyncService は CheckupSyncService を初期化して返す。
 // ISSUE-007: petRepo は CreateCheckupSync で生存ペット数の二重防御チェックに使用する。
 func NewCheckupSyncService(
-	repo repository.CheckupSyncRepository,
-	ownerRepo repository.OwnerRepository,
-	petRepo repository.PetRepository,
-	tagCacheRepo repository.LstepTagCacheRepository,
-	settingsSvc LstepSettingsService,
-	auditSvc AuditService,
+	repo CheckupSyncRepository,
+	ownerRepo checkupSyncOwnerRepo,
+	petRepo checkupSyncPetRepo,
+	tagCacheRepo checkupSyncTagCacheRepo,
+	settingsSvc checkupSyncSettingsService,
+	auditSvc checkupSyncAuditLogger,
 ) CheckupSyncService {
 	return &checkupSyncService{
 		repo:         repo,
@@ -139,7 +138,7 @@ func NewCheckupSyncService(
 	}
 }
 
-func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (lstepapi.Client, error) {
 	if s.buildClientFn != nil {
 		return s.buildClientFn(ctx, clinicID)
 	}
@@ -157,7 +156,7 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 	if apiKey == "" {
 		return nil, nil
 	}
-	return lstep.NewClient(apiKey, baseURL), nil
+	return lstepapi.NewClient(apiKey, baseURL), nil
 }
 
 // computeCPMStageFromRow は preview 行から CPM ステージを計算する（ISSUE-009）。
@@ -166,7 +165,7 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 // caller must pass non-nil row; panics on nil.
 //
 //nolint:gocritic // hugeParam: thresholds は CalculateCPMStage 側で値型を要求するため統一
-func computeCPMStageFromRow(row *repository.CheckupSyncPreviewRow, thresholds model.CPMV1Thresholds) CPMStage {
+func computeCPMStageFromRow(row *CheckupSyncPreviewRow, thresholds model.CPMV1Thresholds) CPMStage {
 	daysSince := -1
 	if row.LastVisitDate != nil {
 		daysSince = int(time.Since(*row.LastVisitDate).Hours() / 24)

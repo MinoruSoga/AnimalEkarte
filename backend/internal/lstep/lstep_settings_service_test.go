@@ -599,8 +599,16 @@ func (m *mockClinicSettingsRepository) UpdateHealthPreventionThresholds(_ contex
 
 // mockAuditService — lstepAuditLogger view の最小モック。
 type mockAuditService struct {
-	logLstepOperationFn  func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error
-	logLstepOperationErr error
+	logLstepOperationFn             func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error
+	logLstepOperationErr            error
+	logLstepOperationWithMetadataFn func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
+}
+
+func (m *mockAuditService) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error {
+	if m.logLstepOperationWithMetadataFn != nil {
+		return m.logLstepOperationWithMetadataFn(ctx, clinicID, actorID, action, resource, resourceID, metadata)
+	}
+	return m.logLstepOperationErr
 }
 
 func (m *mockAuditService) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error {

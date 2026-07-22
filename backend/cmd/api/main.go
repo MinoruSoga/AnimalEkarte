@@ -455,6 +455,7 @@ func main() {
 		svcs.LstepTagCodeMapping,
 		svcs.LstepTagConfig,
 		svcs.LstepTagSummary,
+		svcs.CheckupSync,
 		h.RequirePermission,
 	)
 	lstepHandler.RegisterRoutes(protected)

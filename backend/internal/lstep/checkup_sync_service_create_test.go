@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -198,7 +198,7 @@ func TestCheckupSyncService_CreateCheckupSync_AddTagFailureIsRecordedAsFailed(t 
 		tagCacheRepo:  &mockLstepTagCacheRepository{},
 		settingsSvc:   &mockLstepSettingsService{},
 		auditSvc:      &mockAuditService{},
-		buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		buildClientFn: func(_ context.Context, _ uint64) (lstepapi.Client, error) { return client, nil },
 	}
 	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
 		CheckupType: "annual",
@@ -244,7 +244,7 @@ func TestCheckupSyncService_CreateCheckupSync_SuccessUpsertsCache(t *testing.T) 
 		},
 		settingsSvc:   &mockLstepSettingsService{},
 		auditSvc:      &mockAuditService{},
-		buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		buildClientFn: func(_ context.Context, _ uint64) (lstepapi.Client, error) { return client, nil },
 	}
 	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
 		CheckupType: "annual",

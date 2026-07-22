@@ -1,7 +1,6 @@
-// Package checkupsync owns owner-level checkup sync preview aggregation queries
-// (BE8-4 batch17 — leaf domain, no persisted table of its own; reads across
-// owners/pets/medical_records/billings/checkups).
-package checkupsync
+// Checkup sync preview aggregation reads across owners, pets, medical records,
+// billings, and checkups without owning a persisted table of its own.
+package lstep
 
 import (
 	"context"
@@ -15,12 +14,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// PreviewRow はプレビュークエリの結果行。
+// CheckupSyncPreviewRow はプレビュークエリの結果行。
 // PetNamesCSV と LivingPetCount は生存ペット（pets.deceased_at IS NULL）のみを集計する。
 //
 // ISSUE-009 で追加された集計値は CPM ステージ判定（service層 CalculateCPMStage）に必要となる。
 // repository は SQL で済む絞り込みを担当し、CPM ステージ絞り込みは service 層で post-filter する。
-type PreviewRow struct {
+type CheckupSyncPreviewRow struct {
 	OwnerID        uint64     `gorm:"column:owner_id"`
 	OwnerName      string     `gorm:"column:owner_name"`
 	LineUserID     *string    `gorm:"column:line_user_id"`
@@ -41,11 +40,11 @@ type PreviewRow struct {
 	MaxSingleVisitAmount int64      `gorm:"column:max_single_visit_amount"` // CPM 用：単回最大支払額（cpm_spot 判定）
 }
 
-// FindPreviewParams はプレビュー検索パラメータ。
+// FindCheckupSyncPreviewParams はプレビュー検索パラメータ。
 //
 // ISSUE-009: 年齢／慢性疾患／累計診療費／年間来院回数／最終健診実施日の絞り込みを SQL 層で行う。
 // CPM ステージは集計値ベースで判定するため service 層で post-filter する。
-type FindPreviewParams struct {
+type FindCheckupSyncPreviewParams struct {
 	ClinicID        uint64
 	Species         string
 	LastVisitBefore *time.Time
@@ -61,21 +60,21 @@ type FindPreviewParams struct {
 	LastCheckupAfter    *time.Time // 最終健診実施日 >= この日
 }
 
-// Repository は健診同期プレビューのリポジトリインターフェース（BE-004）。
-type Repository interface {
-	FindCheckupSyncPreview(ctx context.Context, params *FindPreviewParams) ([]PreviewRow, error)
+// CheckupSyncRepository は健診同期プレビューのリポジトリインターフェース（BE-004）。
+type CheckupSyncRepository interface {
+	FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error)
 }
 
-type repository struct {
+type checkupSyncRepository struct {
 	db *gorm.DB
 }
 
-// New は Repository を初期化して返す。
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+// NewCheckupSyncRepository は CheckupSyncRepository を初期化して返す。
+func NewCheckupSyncRepository(db *gorm.DB) CheckupSyncRepository {
+	return &checkupSyncRepository{db: db}
 }
 
-func (r *repository) FindCheckupSyncPreview(ctx context.Context, params *FindPreviewParams) ([]PreviewRow, error) {
+func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 	if params == nil {
 		return nil, apperrors.WrapInvalidInput("params is nil")
 	}
@@ -132,7 +131,8 @@ SELECT
   (
     SELECT MAX(c.date) FROM checkups c
     INNER JOIN medical_records mrc ON mrc.id = c.medical_record_id AND mrc.deleted_at IS NULL
-    WHERE c.clinic_id = o.clinic_id AND c.deleted_at IS NULL AND mrc.owner_id = o.id
+    WHERE c.clinic_id = o.clinic_id AND c.deleted_at IS NULL
+      AND mrc.owner_id = o.id
   ) AS last_checkup_date
 FROM owners o
 LEFT JOIN pets p ON p.owner_id = o.id AND p.clinic_id = o.clinic_id AND p.deleted_at IS NULL
@@ -143,7 +143,7 @@ GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 ORDER BY MAX(mr.date) DESC NULLS LAST
 `, where, havingClause)
 
-	var rows []PreviewRow
+	var rows []CheckupSyncPreviewRow
 	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_sync_preview", "")
 	}
@@ -152,7 +152,7 @@ ORDER BY MAX(mr.date) DESC NULLS LAST
 
 // buildCheckupSyncWhere は WHERE 句の条件文字列とバインド引数を構築する
 // （BE-refactor.md E-13: FindCheckupSyncPreview の位置引数結合を隔離する純粋抽出）。
-func buildCheckupSyncWhere(params *FindPreviewParams) (where string, args []any) {
+func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (where string, args []any) {
 	where = "o.clinic_id = ? AND o.deleted_at IS NULL"
 	args = append(args, params.ClinicID)
 
@@ -174,7 +174,7 @@ func buildCheckupSyncWhere(params *FindPreviewParams) (where string, args []any)
 }
 
 // buildCheckupSyncHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-13）。
-func buildCheckupSyncHaving(params *FindPreviewParams) (having []string, args []any) {
+func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) (having []string, args []any) {
 	if params.LastVisitBefore != nil {
 		having = append(having, "MAX(mr.date) <= ?")
 		args = append(args, params.LastVisitBefore.Format(time.DateOnly))

@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // This file extends checkup_sync_service_test.go's PreviewCheckupSync coverage with branches not
@@ -26,7 +25,7 @@ func TestCheckupSyncService_PreviewCheckupSync_NilInput(t *testing.T) {
 
 func TestCheckupSyncService_PreviewCheckupSync_RepositoryError(t *testing.T) {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -48,7 +47,7 @@ func (m *thresholdsFailingSettingsService) GetCPMV1Thresholds(_ context.Context,
 
 func TestCheckupSyncService_PreviewCheckupSync_ThresholdsError(t *testing.T) {
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			return nil, nil
 		},
 	}
@@ -68,12 +67,12 @@ func TestCheckupSyncService_PreviewCheckupSync_ThresholdsError(t *testing.T) {
 func TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError(t *testing.T) {
 	lineID1 := "U_test_1"
 	lineID2 := "U_test_2"
-	rows := []repository.CheckupSyncPreviewRow{
+	rows := []CheckupSyncPreviewRow{
 		{OwnerID: 1, OwnerName: "line-linked-1", LineUserID: &lineID1, LstepOptOut: false, LivingPetCount: 1},
 		{OwnerID: 2, OwnerName: "line-linked-2", LineUserID: &lineID2, LstepOptOut: false, LivingPetCount: 1},
 	}
 	repo := &mockCheckupSyncRepository{
-		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
 			return rows, nil
 		},
 	}

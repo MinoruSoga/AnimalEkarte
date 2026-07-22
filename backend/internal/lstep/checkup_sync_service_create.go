@@ -1,16 +1,16 @@
-package service
+package lstep
 
 import (
 	"context"
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uint64, input CreateCheckupSyncInput, actorID *uint64) (*CreateCheckupSyncResult, error) {
-	if isSystemManagedTag(input.TagName) {
+	if IsSystemManagedTag(input.TagName) {
 		return nil, apperrors.WrapInvalidInput("tag_name は自動管理タグのため使用できません")
 	}
 
@@ -144,7 +144,7 @@ func partitionCheckupSyncTargets(ctx context.Context, owners []*model.Owner, req
 // applyCheckupTag は1オーナーへのタグ付与（AddTag→成功時UpsertTag）を実行する
 // （BE-refactor.md E-10）。AddTag 失敗時のみエラーを返す。UpsertTag 失敗は non-fatal
 // （キャッシュ更新のみ、ログ記録して継続、AddTag 自体は成功扱い）。
-func (s *checkupSyncService) applyCheckupTag(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID, tagName string) error {
+func (s *checkupSyncService) applyCheckupTag(ctx context.Context, client lstepapi.Client, clinicID, ownerID uint64, lineUserID, tagName string) error {
 	if addErr := client.AddTag(ctx, lineUserID, tagName); addErr != nil {
 		slog.ErrorContext(ctx, "checkup sync: failed to add lstep tag", "error", addErr, "owner_id", ownerID)
 		return addErr
