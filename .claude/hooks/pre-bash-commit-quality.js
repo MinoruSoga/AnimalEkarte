@@ -141,7 +141,12 @@ process.stdin.on('end', () => {
     // --- 4. Mirror sync (regenerate .agents/ and .codex/agents+commands) ---
     if (process.env.SYNC_MIRRORS_DISABLED !== '1') {
       const mirrorTriggerFiles = stagedFiles.filter(
-        f => f.startsWith('.claude/skills/') || f.startsWith('.claude/commands/') || f.startsWith('.claude/agents/') || f.startsWith('.claude/rules/')
+        f => f.startsWith('.claude/skills/')
+          || f.startsWith('.claude/commands/')
+          || f.startsWith('.claude/agents/')
+          || f.startsWith('.claude/rules/')
+          || f.startsWith('.claude/scripts/sync-codex-mirror')
+          || f === '.claude/scripts/test_sync_codex_mirror.py'
       );
       if (mirrorTriggerFiles.length > 0) {
         const logPath = path.join(projectDir, '.claude', 'logs', 'sync-mirrors.log');
