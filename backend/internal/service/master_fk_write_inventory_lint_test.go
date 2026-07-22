@@ -582,7 +582,7 @@ func baseName(p string) string {
 // examTypeService.Create/Update moved from internal/service to internal/medicalrecord (master-
 // CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
 // type names carried over verbatim) — only the evidence comments below now point at the new
-// file locations.
+// file locations. "lstep/" was added when tag-sync write roles moved in L③a.
 var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/"}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as

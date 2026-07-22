@@ -23,24 +23,6 @@ func TestUpdateTriggerPrioritiesRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-func TestLstepOwnersByTagQuery_ToServiceInput(t *testing.T) {
-	query := lstepOwnersByTagQuery{
-		TagName:   "tag",
-		NameQuery: "owner",
-		Page:      2,
-		PerPage:   50,
-	}
-
-	input := query.toServiceInput()
-
-	if input.TagName != query.TagName {
-		t.Errorf("TagName = %q, want %q", input.TagName, query.TagName)
-	}
-	if input.Page != query.Page {
-		t.Errorf("Page = %d, want %d", input.Page, query.Page)
-	}
-}
-
 func TestLstepDeliveryMonitorQuery_ToSummaryServiceInput(t *testing.T) {
 	from := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	to := from.AddDate(0, 0, 1)

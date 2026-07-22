@@ -303,20 +303,25 @@ func TestLstepTagCacheRepository_FindOwnerIDsByTag(t *testing.T) {
 	repo := NewLstepTagCacheRepository(db)
 	ctx := context.Background()
 
-	require.NoError(t, repo.UpsertTag(ctx, 1, 700, "dormant_365d", "auto", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 1, 701, "dormant_365d", "auto", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 2, 702, "dormant_365d", "auto", "")) // 別クリニック
+	ownerA1 := &model.Owner{ClinicID: 1, Name: "休眠A1"}
+	ownerA2 := &model.Owner{ClinicID: 1, Name: "休眠A2"}
+	ownerB := &model.Owner{ClinicID: 2, Name: "休眠B"}
+	require.NoError(t, db.WithContext(ctx).Create([]*model.Owner{ownerA1, ownerA2, ownerB}).Error)
+	require.NoError(t, repo.UpsertTag(ctx, 1, ownerA1.ID, "dormant_365d", "auto", ""))
+	require.NoError(t, repo.UpsertTag(ctx, 1, ownerA2.ID, "dormant_365d", "auto", ""))
+	require.NoError(t, repo.UpsertTag(ctx, 2, ownerB.ID, "dormant_365d", "auto", "")) // 別クリニック
+	require.NoError(t, repo.UpsertTag(ctx, 1, ownerB.ID, "dormant_365d", "auto", "")) // 不整合行
 
 	t.Run("該当タグを持つ飼い主IDを重複なく返す", func(t *testing.T) {
 		ids, err := repo.FindOwnerIDsByTag(ctx, 1, "dormant_365d")
 		require.NoError(t, err)
-		assert.ElementsMatch(t, []uint64{700, 701}, ids)
+		assert.ElementsMatch(t, []uint64{ownerA1.ID, ownerA2.ID}, ids)
 	})
 
 	t.Run("別クリニックのIDは含まれない", func(t *testing.T) {
 		ids, err := repo.FindOwnerIDsByTag(ctx, 2, "dormant_365d")
 		require.NoError(t, err)
-		assert.ElementsMatch(t, []uint64{702}, ids)
+		assert.ElementsMatch(t, []uint64{ownerB.ID}, ids)
 	})
 
 	t.Run("該当なしは空スライスを返す", func(t *testing.T) {

@@ -17,6 +17,10 @@ type Handler struct {
 	lineSend          *LineSendHandler
 	lineLink          *LineLinkHandler
 	lineCustomer      *LineCustomerHandler
+	tag               LstepTagService
+	tagCodeMapping    LstepTagCodeMappingService
+	tagConfig         LstepTagConfigService
+	tagSummary        LstepTagSummaryService
 	requirePermission PermissionMiddleware
 }
 
@@ -26,6 +30,10 @@ func NewHandler(
 	lineSend *LineSendHandler,
 	lineLink *LineLinkHandler,
 	lineCustomer *LineCustomerHandler,
+	tag LstepTagService,
+	tagCodeMapping LstepTagCodeMappingService,
+	tagConfig LstepTagConfigService,
+	tagSummary LstepTagSummaryService,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -33,6 +41,10 @@ func NewHandler(
 		lineSend:          lineSend,
 		lineLink:          lineLink,
 		lineCustomer:      lineCustomer,
+		tag:               tag,
+		tagCodeMapping:    tagCodeMapping,
+		tagConfig:         tagConfig,
+		tagSummary:        tagSummary,
 		requirePermission: requirePermission,
 	}
 }
@@ -68,6 +80,43 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	co := rg.Group("/clinics/:clinic_id/owners")
 	co.POST("/:id/line/send", h.requirePermission(string(model.ResourceOwners), "edit"), h.lineSend.SendLineMessage)
 	co.GET("/:id/line/send-logs", h.requirePermission(string(model.ResourceOwners), "view"), h.lineSend.GetLineSendLogs)
+
+	// BE-019: manual owner tag CRUD (canonical + clinic alias).
+	owners.GET("/:id/lstep/tags", h.requirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
+	owners.POST("/:id/lstep/tags", h.requirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
+	owners.DELETE("/:id/lstep/tags/:tag_name", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
+	co.GET("/:id/lstep/tags", h.requirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
+	co.POST("/:id/lstep/tags", h.requirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
+	co.DELETE("/:id/lstep/tags/:tag_name", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
+
+	// BE-020: tag analytics (canonical + clinic alias).
+	lstepRoutes := rg.Group("/lstep")
+	lstepRoutes.GET("/tag-summary", h.requirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepTagSummary)
+	lstepRoutes.GET("/owners", h.requirePermission(string(model.ResourceLstepAnalytics), "view"), h.SearchLstepOwnersByTag)
+	clinicLstep := rg.Group("/clinics/:clinic_id/lstep")
+	clinicLstep.GET("/tag-summary", h.requirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepTagSummary)
+	clinicLstep.GET("/owners", h.requirePermission(string(model.ResourceLstepAnalytics), "view"), h.SearchLstepOwnersByTag)
+
+	// FEAT-379: tag-code mapping settings (canonical + clinic alias).
+	rg.GET("/lstep-tag-code-mappings", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
+	rg.PUT("/lstep-tag-code-mappings/:tag_name", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
+	codeMappingAlias := rg.Group("/clinics/:clinic_id/lstep-tag-code-mappings")
+	codeMappingAlias.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
+	codeMappingAlias.PUT("/:tag_name", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
+
+	// Dynamic tag configuration (nine hospital-settings routes).
+	prefixes := rg.Group("/lstep-tag-config/auto-managed-prefixes")
+	prefixes.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListAutoManagedPrefixes)
+	prefixes.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateAutoManagedPrefix)
+	prefixes.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteAutoManagedPrefix)
+	conditions := rg.Group("/lstep-tag-config/condition-tag-mappings")
+	conditions.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListConditionTagMappings)
+	conditions.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateConditionTagMapping)
+	conditions.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteConditionTagMapping)
+	purposes := rg.Group("/lstep-tag-config/send-purpose-tag-prefixes")
+	purposes.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListSendPurposeTagPrefixes)
+	purposes.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateSendPurposeTagPrefix)
+	purposes.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSendPurposeTagPrefix)
 
 	// 顧客管理（旧 reservation_line_routes.go 逐語）
 	clinics := rg.Group("/clinics/:clinic_id")

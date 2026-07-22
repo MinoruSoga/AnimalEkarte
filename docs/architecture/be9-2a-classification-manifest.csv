@@ -669,9 +669,9 @@ internal/service/lstep_tag_sync_care.go,target:lstep,RE-CLASSIFIED (bm-medrecord
 internal/service/lstep_tag_sync_care_checkup.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
 internal/service/lstep_tag_sync_care_chronic.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
 internal/service/lstep_tag_sync_care_resync.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
-internal/service/lstep_tag_sync_pet.go,target:pet,prefix token='pet'
-internal/service/lstep_tag_sync_pet_basic.go,target:pet,prefix token='pet'
-internal/service/lstep_tag_sync_pet_exclusion.go,target:pet,prefix token='pet'
+internal/service/lstep_tag_sync_pet.go,target:lstep,RE-CLASSIFIED (L③a): receiver *lstepTagSyncService; pet-derived LSTEP tag protocol
+internal/service/lstep_tag_sync_pet_basic.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
+internal/service/lstep_tag_sync_pet_exclusion.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
 internal/service/lstep_tag_sync_service.go,target:lstep,prefix token='lstep'
 internal/service/lstep_tag_sync_vaccine.go,target:lstep,"RE-CLASSIFIED (bm-medrecord-a): receiver *lstepTagSyncService (same type as lstep_tag_sync_service.go), Go requires same-package methods"
 internal/service/lstep_tag_sync_visit.go,target:lstep,prefix token='lstep'

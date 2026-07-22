@@ -19,10 +19,14 @@ import (
 // ---- mock LstepSettingsService ----
 
 type mockLstepSettingsService struct {
-	getSettingsFn    func(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
-	updateSettingsFn func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
-	deleteSettingsFn func(ctx context.Context, clinicID uint64, actorID *uint64) error
-	testConnectionFn func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
+	getSettingsFn                   func(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
+	updateSettingsFn                func(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error)
+	deleteSettingsFn                func(ctx context.Context, clinicID uint64, actorID *uint64) error
+	testConnectionFn                func(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error)
+	isSyncEnabledFn                 func(ctx context.Context, clinicID uint64) (bool, error)
+	getDormantThresholdsFn          func(ctx context.Context, clinicID uint64) (model.DormantThresholds, error)
+	getHealthPreventionThresholdsFn func(ctx context.Context, clinicID uint64) (model.HealthPreventionThresholds, error)
+	getCPMV1ThresholdsFn            func(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error)
 	// getRawCredentialsFn は line_send_service_test の credential 失敗系で使う（BE9-2C L②）。
 	getRawCredentialsFn func(ctx context.Context, clinicID uint64) (string, string, string, error)
 }
@@ -57,22 +61,34 @@ func (m *mockLstepSettingsService) GetRawCredentials(ctx context.Context, clinic
 	}
 	return "", "", "", nil
 }
-func (m *mockLstepSettingsService) IsSyncEnabled(_ context.Context, _ uint64) (bool, error) {
-	return false, nil
+func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error) {
+	if m.isSyncEnabledFn != nil {
+		return m.isSyncEnabledFn(ctx, clinicID)
+	}
+	return true, nil
 }
 func (m *mockLstepSettingsService) GetCPMVersion(_ context.Context, _ uint64) (string, error) {
 	return "v1", nil
 }
-func (m *mockLstepSettingsService) GetDormantThresholds(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+func (m *mockLstepSettingsService) GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error) {
+	if m.getDormantThresholdsFn != nil {
+		return m.getDormantThresholdsFn(ctx, clinicID)
+	}
 	return model.DormantThresholds{}.WithDefaults(), nil
 }
 func (m *mockLstepSettingsService) GetCPMV2Thresholds(_ context.Context, _ uint64) (model.CPMV2Thresholds, error) {
 	return model.CPMV2Thresholds{}.WithDefaults(), nil
 }
-func (m *mockLstepSettingsService) GetCPMV1Thresholds(_ context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+func (m *mockLstepSettingsService) GetCPMV1Thresholds(ctx context.Context, clinicID uint64) (model.CPMV1Thresholds, error) {
+	if m.getCPMV1ThresholdsFn != nil {
+		return m.getCPMV1ThresholdsFn(ctx, clinicID)
+	}
 	return model.CPMV1Thresholds{}.WithDefaults(), nil
 }
-func (m *mockLstepSettingsService) GetHealthPreventionThresholds(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+func (m *mockLstepSettingsService) GetHealthPreventionThresholds(ctx context.Context, clinicID uint64) (model.HealthPreventionThresholds, error) {
+	if m.getHealthPreventionThresholdsFn != nil {
+		return m.getHealthPreventionThresholdsFn(ctx, clinicID)
+	}
 	return model.HealthPreventionThresholds{}.WithDefaults(), nil
 }
 

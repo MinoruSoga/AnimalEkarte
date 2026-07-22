@@ -197,7 +197,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
 	lineLinkSvc := lstep.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	lstepTagSummarySvc := NewLstepTagSummaryService(repos.LstepTagCache)
+	lstepTagSummarySvc := lstep.NewLstepTagSummaryService(repos.LstepTagCache)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	checkupSyncSvc := NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
 	// FEAT-384: 自動配信トリガー監視
@@ -292,15 +292,15 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,
-		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
+		LstepTag:                  lstep.NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
 		SharedFile:                sharedFileSvc,
 		ChronicCondition:          chronicConditionSvc,
 		LineSend:                  lineSendSvc,
 		LstepBatch:                lstepBatchSvc,
 		LstepDeliveryTrigger:      lstepDeliveryTriggerSvc,
 		LstepTriggerPriority:      lstepTriggerPrioritySvc,
-		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
-		LstepTagConfig:            NewLstepTagConfigService(repos.LstepTagConfig),
+		LstepTagCodeMapping:       lstep.NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
+		LstepTagConfig:            lstep.NewLstepTagConfigService(repos.LstepTagConfig),
 		LineLink:                  lineLinkSvc,
 		LstepTagSummary:           lstepTagSummarySvc,
 		CheckupSync:               checkupSyncSvc,

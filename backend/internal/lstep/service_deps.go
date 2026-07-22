@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/billing"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -44,4 +46,56 @@ type lstepLineSettingReader interface {
 // lstepSharedFileService は共有ファイル（未移行 service）の署名付きURL取得の最小view。
 type lstepSharedFileService interface {
 	GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error)
+}
+
+// tagOwnerFinder は手動タグ操作が必要とする飼主参照の最小view。
+type tagOwnerFinder interface {
+	FindByID(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+}
+
+// tagSyncOwnerRepo はタグ同期が必要とする飼主参照の最小view。
+type tagSyncOwnerRepo interface {
+	FindByID(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)
+}
+
+type tagSyncVaccinationRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
+	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
+}
+
+type tagSyncMedicalRecordRepo interface {
+	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*medicalrecord.OwnerVisitSummary, error)
+	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
+}
+
+type tagSyncAccountingRepo interface {
+	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]billing.OwnerAnnualRevenue, error)
+}
+
+type tagSyncPetRepo interface {
+	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
+	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+}
+
+type tagSyncPrescriptionRepo interface {
+	FindActiveByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error)
+}
+
+type tagSyncCheckupRepo interface {
+	FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
+}
+
+type tagSyncBillingItemRepo interface {
+	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+}
+
+type tagSummaryRepo interface {
+	TagSummary(ctx context.Context, clinicID uint64) ([]TagSummaryRow, int64, error)
+	FindOwnersByTag(ctx context.Context, clinicID uint64, tagName, nameQuery string, offset, limit int) ([]TagOwnerRow, int64, error)
 }

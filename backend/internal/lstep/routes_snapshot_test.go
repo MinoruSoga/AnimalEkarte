@@ -23,9 +23,8 @@ func lastHandlerSegment(fullName string) string {
 
 // TestRegisterRoutes_Snapshot は lstep 側の BE9-2C route-snapshot 回帰チェック
 // （medicalrecord/reservation/billing の先例を踏襲）。L① で
-// internal/handler/testdata/route_snapshot.golden から 8 route（lstep-settings 4 +
-// clinics エイリアス 4）を drop し、本 package の RegisterRoutes が登録する。L② で LINE
-// 送信・紐付け・顧客管理の 9 route（protected）と Webhook 1 route（engine 直下・認証なし）を追加。
+// internal/handler/testdata/route_snapshot.golden から移した route を保護する。L① は settings、
+// L② は LINE 送信・紐付け・顧客管理、L③a は tag-sync core の 23 route を追加した。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -37,6 +36,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewLineSendHandler(nil, noopPermission),
 		NewLineLinkHandler(nil, func(_ *gin.Context, _ *model.Owner) {}, noopPermission),
 		NewLineCustomerHandler(nil, noopPermission),
+		nil,
+		nil,
+		nil,
+		nil,
 		noopPermission,
 	)
 
@@ -53,25 +56,48 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	sort.Strings(lines)
 	got := strings.Join(lines, "\n") + "\n"
 
-	want := "" +
-		"DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings\n" +
-		"DELETE /api/v1/lstep-settings DeleteLstepSettings\n" +
-		"GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers\n" +
-		"GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings\n" +
-		"GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs\n" +
-		"GET /api/v1/lstep-settings GetLstepSettings\n" +
-		"GET /api/v1/owners/:id/line/send-logs GetLineSendLogs\n" +
-		"GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs\n" +
-		"PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer\n" +
-		"PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings\n" +
-		"PATCH /api/v1/lstep-settings UpdateLstepSettings\n" +
-		"POST /api/line/webhook ReceiveLineWebhook\n" +
-		"POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection\n" +
-		"POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage\n" +
-		"POST /api/v1/lstep-settings/test-connection TestLstepConnection\n" +
-		"POST /api/v1/owners/:id/line/link-token GenerateLineLinkToken\n" +
-		"POST /api/v1/owners/:id/line/send SendLineMessage\n" +
-		"POST /api/v1/owners/:id/lstep/send SendLineMessage\n"
+	want := `DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
+DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
+DELETE /api/v1/lstep-settings DeleteLstepSettings
+DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefix
+DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id DeleteConditionTagMapping
+DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeTagPrefix
+DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
+GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
+GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
+GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
+GET /api/v1/clinics/:clinic_id/lstep/owners SearchLstepOwnersByTag
+GET /api/v1/clinics/:clinic_id/lstep/tag-summary GetLstepTagSummary
+GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
+GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
+GET /api/v1/lstep-settings GetLstepSettings
+GET /api/v1/lstep-tag-code-mappings ListTagCodeMappings
+GET /api/v1/lstep-tag-config/auto-managed-prefixes ListAutoManagedPrefixes
+GET /api/v1/lstep-tag-config/condition-tag-mappings ListConditionTagMappings
+GET /api/v1/lstep-tag-config/send-purpose-tag-prefixes ListSendPurposeTagPrefixes
+GET /api/v1/lstep/owners SearchLstepOwnersByTag
+GET /api/v1/lstep/tag-summary GetLstepTagSummary
+GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
+GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs
+GET /api/v1/owners/:id/lstep/tags GetOwnerLstepTags
+PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
+PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
+PATCH /api/v1/lstep-settings UpdateLstepSettings
+POST /api/line/webhook ReceiveLineWebhook
+POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection
+POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
+POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
+POST /api/v1/lstep-settings/test-connection TestLstepConnection
+POST /api/v1/lstep-tag-config/auto-managed-prefixes CreateAutoManagedPrefix
+POST /api/v1/lstep-tag-config/condition-tag-mappings CreateConditionTagMapping
+POST /api/v1/lstep-tag-config/send-purpose-tag-prefixes CreateSendPurposeTagPrefix
+POST /api/v1/owners/:id/line/link-token GenerateLineLinkToken
+POST /api/v1/owners/:id/line/send SendLineMessage
+POST /api/v1/owners/:id/lstep/send SendLineMessage
+POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
+PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
+PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
+`
 
 	assert.Equal(t, want, got)
 }

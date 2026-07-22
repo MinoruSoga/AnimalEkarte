@@ -233,9 +233,10 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 func (r *lstepTagCacheRepository) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
 	type row struct{ OwnerID uint64 }
 	var rows []row
-	err := r.db.WithContext(ctx).Model(&model.LstepTagCache{}).
-		Where("clinic_id = ? AND tag_name = ?", clinicID, tagName).
-		Distinct("owner_id").
+	err := r.db.WithContext(ctx).Table("lstep_tag_cache AS c").
+		Joins("JOIN owners AS o ON o.id = c.owner_id AND o.clinic_id = c.clinic_id AND o.deleted_at IS NULL").
+		Where("c.clinic_id = ? AND c.tag_name = ?", clinicID, tagName).
+		Distinct("c.owner_id").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("clinic=%d tag=%s", clinicID, tagName))

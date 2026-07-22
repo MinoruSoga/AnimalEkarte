@@ -127,15 +127,12 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterSharedFileRoutes(protected)
 	h.RegisterAggregationRoutes(protected)
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	h.RegisterLstepTagSummaryRoutes(protected)
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	h.RegisterCheckupSyncRoutes(protected)
 	// Q23: トリガー優先順位設定
 	h.RegisterLstepTriggerPriorityRoutes(protected)
 	// FEAT-379: タグコードマッピング設定
-	h.RegisterLstepTagCodeMappingRoutes(protected)
 	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
-	h.RegisterLstepTagConfigRoutes(protected)
 	// FEAT-384: 自動配信トリガー監視
 	h.RegisterLstepDeliveryMonitorRoutes(protected)
 	// FEAT-385: Lステップ CSV インポート・分析
@@ -187,9 +184,6 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
 	// BE-019: Lステップタグ CRUD
-	owners.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
-	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
-	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	// BE-013: LINE個別送信。owners側は /lstep/send・/lstep/send-history エイリアスを含む4ルート、
 	// co側はそのうち2ルートのみ（下記）— co側に2ルート無い理由は未文書化（現状維持）
 	// LINE 個別送信 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
@@ -203,9 +197,6 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
 	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
-	co.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
-	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
-	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	// co側 LINE 個別送信 2ルートは internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
 	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)

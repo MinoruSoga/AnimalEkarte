@@ -451,6 +451,10 @@ func main() {
 		lstep.NewLineSendHandler(svcs.LineSend, h.RequirePermission),
 		lstepLineLinkHandler,
 		lstep.NewLineCustomerHandler(svcs.LineCustomer, h.RequirePermission),
+		svcs.LstepTag,
+		svcs.LstepTagCodeMapping,
+		svcs.LstepTagConfig,
+		svcs.LstepTagSummary,
 		h.RequirePermission,
 	)
 	lstepHandler.RegisterRoutes(protected)
