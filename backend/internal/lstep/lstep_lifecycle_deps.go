@@ -64,7 +64,7 @@ type lifecycleTransactor interface {
 }
 
 // LifecycleAuditEntry is the transaction-local audit contract owned by this domain.
-// internal/service adapts it to the shared audit service input at the composition boundary.
+// cmd/api adapts it to the shared audit service input at the composition boundary.
 type LifecycleAuditEntry struct {
 	ClinicID   *uint64
 	ActorID    *uint64

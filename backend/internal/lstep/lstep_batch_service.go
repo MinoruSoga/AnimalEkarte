@@ -100,7 +100,7 @@ type lstepBatchTransactor interface {
 }
 
 // NoShowAuditEntry is the semantic, transaction-local audit contract owned by lstep.
-// internal/service maps it to the shared audit log without leaking that service type here.
+// cmd/api maps it to the shared audit log without leaking that service type here.
 type NoShowAuditEntry struct {
 	ClinicID       uint64
 	AppointmentID  uint64

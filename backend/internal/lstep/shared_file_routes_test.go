@@ -1,7 +1,9 @@
 package lstep
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -49,4 +51,30 @@ func TestRegisterSharedFileRoutes_RBACTuples(t *testing.T) {
 	assert.Contains(t, routes, http.MethodPost+" /api/v1/shared-files")
 	assert.Contains(t, routes, http.MethodGet+" /api/v1/shared-files/:id/signed-url")
 	assert.Contains(t, routes, http.MethodDelete+" /api/v1/shared-files/:id")
+}
+
+func TestRegisterSharedFileRoutes_RejectsClinicAlias(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	serviceCalled := false
+	h := &Handler{
+		sharedFile: &mockSharedFileService{
+			findAllFn: func(_ context.Context, _ uint64) ([]*SharedFileResponse, error) {
+				serviceCalled = true
+				return nil, nil
+			},
+		},
+		requirePermission: func(_, _ string) gin.HandlerFunc {
+			return func(c *gin.Context) { c.Next() }
+		},
+		requireAnyPermission: noopPermissionAny,
+	}
+	r := gin.New()
+	h.RegisterSharedFileRoutes(r.Group("/api/v1"))
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/clinics/999/shared-files", http.NoBody))
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.False(t, serviceCalled)
 }

@@ -14,7 +14,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // Config はバッチ実行の設定。
@@ -53,12 +52,21 @@ type progressRow struct {
 
 func (progressRow) TableName() string { return "lstep_migration_progress" }
 
+type migrationTagSync interface {
+	SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
+}
+
 // Migrator はLステップ初回一括同期を実行する。
 type Migrator struct {
 	cfg     Config
 	db      *gorm.DB
 	owners  repository.OwnerRepository
-	tagSync service.LstepTagSyncService
+	tagSync migrationTagSync
 	logger  *slog.Logger
 	records []ProgressRecord
 	mu      sync.Mutex
@@ -69,7 +77,7 @@ func NewMigrator(
 	cfg Config,
 	db *gorm.DB,
 	owners repository.OwnerRepository,
-	tagSync service.LstepTagSyncService,
+	tagSync migrationTagSync,
 	logger *slog.Logger,
 ) *Migrator {
 	return &Migrator{cfg: cfg, db: db, owners: owners, tagSync: tagSync, logger: logger}
