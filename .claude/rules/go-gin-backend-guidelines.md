@@ -1,8 +1,12 @@
+---
+paths:
+  - "backend/**/*.go"
+---
 # Go/Gin Backend Guidelines
 
 > **正本**: Go/Gin バックエンドの一般規約はこの文書を正本とする。
 > `.agents/rules/` は `.claude/scripts/sync-agents-skills.sh` による生成物であり、直接編集しない。
-> 最終確認: 2026-07-19（Go 公式・Gin 公式の一次資料）
+> 最終確認: 2026-07-19（Go 公式・Gin 公式の一次資料）、2026-07-22（AnimalEkarte project decision）
 
 ## 1. 適用範囲と読み方
 
@@ -59,6 +63,26 @@ Go/Gin は次を規定しない。
 - request/response DTO の固定配置
 
 必要なら、実測した依存関係と変更単位を根拠に ADR で決める。
+
+### AnimalEkarte project decision（公式未規定）
+
+[`docs/product-philosophy.md`](../../docs/product-philosophy.md) は product の WHAT / WHY と判断順序を定める上位文書であり、folder tree を直接規定しない。本projectはその判断順序を実装へ落とすため、[ADR-006](../../docs/architecture/adr/006-backend-domain-package-boundaries.md) で **domain/capability-first の modular monolith** を採用する。
+
+- top-level package は `internal/<domain>` を基本とし、route、use case、transaction、persistence、testを業務能力ごとのvertical sliceとして変更できる境界にする。
+- BE9-2B以降、既存未移行codeの保守・安全修正と移動に必要なcompatibility変更を除き、新規production実装を`internal/handler`、`internal/service`、`internal/repository`へ追加しない。新規実装はADR-006のtarget domain packageへ置き、移行状況と例外期限は[`BE-refactor.md`](../../BE-refactor.md)で追跡する。
+- domain package内に`handler`、`service`、`repository` subpackageを機械的に作らない。同じ利用者・変更単位なら、責務を別file/型に分けた同一packageでよい。実際に独立したconsumer、依存方向、変更周期が生じた場合だけsubpackageへ分離する。
+- 1つのbusiness factには1つのsource of truthとwrite ownerを置く。`appointments`とそのlifecycleのwrite ownerは`reservation`とし、他domainはbusiness intentを表すconsumer-sideの最小interfaceまたは明示的なorchestrationを通じて操作する。owner外へ任意fieldを変更できるgeneric update APIを公開しない。`appointments`はBE9-2E-0で収束済みであり、実装状態と自動回帰gateは[`BE-refactor.md` BE9-2E-0](../../BE-refactor.md#be9-2e-0-write-owner)で追跡する。
+- appointmentに紐づく通常カルテは一般診療予約だけを対象とし、appointmentごとにactive recordを最大1件とする。カルテ日付は予約日時のJST日付から導出し、紐づいている間は独立変更させない。削除は対象カルテをlockしたtransaction内で見積依存を再確認してからdraft限定の原子的soft deleteを行い、見積作成・確定との競合を同じ親行lockで直列化する。先行した見積がある場合や非draftならConflictとし、削除が先行した場合は後続見積を拒否する。予約検証、重複確認、transaction依存の欠落や失敗を成功扱いにせずfail-closedにする。
+- cross-domain transactionは、write owner、transaction境界、失敗時のatomicityを明示する。別domainのtableへ独立実装から直接writeする経路を増やさない。
+- appointment、trimming detail、option等で1つのbusiness graphを構成するwriteは同じtransactionで全体を成功またはrollbackさせる。既存trimming appointmentのowner欠損はappointment fieldを変更しないdetail-only writeでも同じtransaction内で補完する。参照master・担当者・LINE顧客を検証する必須依存が欠ける場合はwrite前にfail-closedとし、LIFFで明示指定されたstaffにはclinic所属・対応可能種別に加えて`reservation_visible=true`を要求する。best-effortを採用する場合は、部分成功contract、再試行、補償、監査を明示する。
+- clinicalまたはfinancial integrityのためfail-closedと定めた監査はbusiness writeと同じtransactionへ参加させ、監査dependency欠落または監査write失敗時はbusiness writeもrollbackする。締め後の会計編集はこの対象とする。
+- write結果を返すための再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗応答へ反転させないcontractにする。
+- `FOR UPDATE`、`FOR SHARE`、transaction-scoped advisory lockに依存するoperationはambient transaction不在をfail-closedにする。request由来のclinic-scoped FKはwriteと同じtransactionで最終検証し、並行master変更で判定が無効になる場合は対象行をcommitまで固定する。
+- nested GORM `Preload`のpredicateは末尾associationだけへ適用される。clinic-ownedの中間associationも独立したclinic predicateでscopeし、破損FKを経由したcross-clinic detail復元を防ぐ。
+- migration中のcompatibility facadeは薄いdelegateまたはtype aliasに限定する。同じbusiness ruleやwrite処理を複製せず、consumer移行後の削除条件を持たせる。
+- 自動化は手動で安全に完結できる同じuse caseを基礎とし、停止手段、失敗通知、監査、手動fallback、重複実行を防ぐidempotencyまたは明示的retry policyを備える。
+- 自動status transitionは候補readだけを根拠にせず、write時のcompare-and-setでstatus・時刻・tenant・遷移を否定するbusiness evidenceを再評価する。resource単位の監査が必須なtransitionは、状態変更と監査を同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。
+- 効率化よりclinical safety、clinic isolation、authorization、auditabilityを優先する。package配置だけをこれらの成立根拠にしない。
 
 ## 3. Package API と interface
 
@@ -184,6 +208,8 @@ func RegisterUserRoutes(group *gin.RouterGroup, h *UserHandler) {
 - 正常系だけでなく、binding error、validation、authentication、authorization、not found、internal error を検証する。
 - cancellation/deadline、graceful shutdown、concurrent access は risk に応じて test する。
 - test から global state を漏らさず、subtest を並列化する場合は共有 state の安全性を確認する。
+
+AnimalEkarteではproject decisionとして、write ownerを変更するsliceにowner外の直接writeがないこと、許可された状態遷移、cross-domain transactionのrollbackを確認するtestを含める。write-ownerのAST gateは`FirstOrCreate`を含むmutation、typed parameter、free function/receiver method戻り値とcross-file factory、query変数、local/package constant、table alias、直接または変数代入した`TableName()`、静的string helper、generic appointment map mutatorを検出対象にする。自動処理を変更する場合は、停止、失敗通知、監査、手動fallback、重複実行またはretry時の安全性を変更riskに応じて検証する。
 
 coverage threshold、TDD 手順、unit/integration/E2E の必須構成は Go/Gin 公式では規定されない。project quality gate として採用する場合は別規約として扱う。
 
