@@ -2,19 +2,41 @@ package lstep
 
 import (
 	"context"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type lifecycleOwnerRepository interface {
 	FindByID(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
-	Update(ctx context.Context, clinicID, ownerID uint64, fields map[string]any) error
+}
+
+// OwnerLifecycleWriter exposes only the two owner lifecycle intents consumed by LSTEP.
+type OwnerLifecycleWriter interface {
+	RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error
+	ClearLstepOptOut(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+type lifecycleOwnerDependency interface {
+	lifecycleOwnerRepository
+	OwnerLifecycleWriter
 }
 
 type lifecyclePetRepository interface {
 	FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
-	Update(ctx context.Context, clinicID, petID uint64, fields map[string]any) error
+}
+
+// PetLifecycleWriter exposes only death/revival intents; generic field maps stay at the
+// composition adapter until the owner/pet domains migrate in BE9-2E.
+type PetLifecycleWriter interface {
+	RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error
+	ClearDeath(ctx context.Context, clinicID, petID uint64) error
+}
+
+type lifecyclePetDependency interface {
+	lifecyclePetRepository
+	PetLifecycleWriter
 }
 
 type lifecycleTagCacheRepository interface {
@@ -52,6 +74,6 @@ type LifecycleAuditEntry struct {
 	ResourceID *uint64
 }
 
-type lifecycleAuditTxLogger interface {
+type LifecycleAuditTxLogger interface {
 	LogEntryTx(ctx context.Context, entry *LifecycleAuditEntry) error
 }

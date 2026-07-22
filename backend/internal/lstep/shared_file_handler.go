@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"fmt"
@@ -7,19 +7,20 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListSharedFiles godoc
 // GET /api/v1/shared-files
 func (h *Handler) ListSharedFiles(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	files, err := h.svc.SharedFile.FindAll(c.Request.Context(), clinicID)
+	files, err := h.sharedFile.FindAll(c.Request.Context(), clinicID)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	resp := make([]sharedFileResponse, 0, len(files))
@@ -33,11 +34,11 @@ func (h *Handler) ListSharedFiles(c *gin.Context) {
 // POST /api/v1/shared-files
 // Content-Type: multipart/form-data
 func (h *Handler) UploadSharedFile(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	staffID, ok := extractStaffID(c)
+	staffID, ok := httpapi.ExtractStaffID(c)
 	if !ok {
 		return
 	}
@@ -47,29 +48,29 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("file field is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("file field is required"))
 		return
 	}
 	defer file.Close() //nolint:errcheck // multipart file close error is not actionable
 
 	meta, err := newSharedFileUploadMeta(header)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	var req uploadSharedFileRequest
 	if err := c.ShouldBind(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
-	resp, err := h.svc.SharedFile.Upload(c.Request.Context(), clinicID, staffID, req.toServiceInput(
+	resp, err := h.sharedFile.Upload(c.Request.Context(), clinicID, staffID, req.toServiceInput(
 		file,
 		meta,
 	))
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/shared-files/%d", resp.ID))
@@ -79,17 +80,17 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 // GetSharedFileSignedURL godoc
 // GET /api/v1/shared-files/:id/signed-url
 func (h *Handler) GetSharedFileSignedURL(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	url, err := h.svc.SharedFile.GetSignedURL(c.Request.Context(), clinicID, id)
+	url, err := h.sharedFile.GetSignedURL(c.Request.Context(), clinicID, id)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, sharedFileSignedURLResponse{SignedURL: url})
@@ -98,16 +99,16 @@ func (h *Handler) GetSharedFileSignedURL(c *gin.Context) {
 // DeleteSharedFile godoc
 // DELETE /api/v1/shared-files/:id
 func (h *Handler) DeleteSharedFile(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	if err := h.svc.SharedFile.Delete(c.Request.Context(), clinicID, id); err != nil {
-		RespondError(c, err)
+	if err := h.sharedFile.Delete(c.Request.Context(), clinicID, id); err != nil {
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -119,12 +120,12 @@ func (h *Handler) DeleteSharedFile(c *gin.Context) {
 // DELETE は管理用途のため hospital-settings:delete 権限で保護。
 func (h *Handler) RegisterSharedFileRoutes(rg *gin.RouterGroup) {
 	sf := rg.Group("/shared-files")
-	sf.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListSharedFiles)
-	sf.POST("", h.RequirePermissionAny(
-		struct{ Resource, Action string }{Resource: string(model.ResourceOwners), Action: "edit"},
-		struct{ Resource, Action string }{Resource: string(model.ResourceMedicalRecords), Action: "create"},
-		struct{ Resource, Action string }{Resource: string(model.ResourceMedicalRecords), Action: "edit"},
+	sf.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListSharedFiles)
+	sf.POST("", h.requireAnyPermission(
+		PermissionRequirement{Resource: string(model.ResourceOwners), Action: "edit"},
+		PermissionRequirement{Resource: string(model.ResourceMedicalRecords), Action: "create"},
+		PermissionRequirement{Resource: string(model.ResourceMedicalRecords), Action: "edit"},
 	), h.UploadSharedFile)
-	sf.GET("/:id/signed-url", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetSharedFileSignedURL)
-	sf.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSharedFile)
+	sf.GET("/:id/signed-url", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.GetSharedFileSignedURL)
+	sf.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSharedFile)
 }

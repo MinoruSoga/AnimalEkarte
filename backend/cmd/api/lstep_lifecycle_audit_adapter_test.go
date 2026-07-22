@@ -1,4 +1,4 @@
-package service
+package main
 
 import (
 	"context"
@@ -9,15 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/lstep"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type capturingLstepLifecycleAuditTxLogger struct {
 	ctx context.Context
-	got *AuditLogInput
+	got *service.AuditLogInput
 	err error
 }
 
-func (c *capturingLstepLifecycleAuditTxLogger) LogEntryTx(ctx context.Context, input *AuditLogInput) error {
+func (c *capturingLstepLifecycleAuditTxLogger) LogEntryTx(ctx context.Context, input *service.AuditLogInput) error {
 	c.ctx = ctx
 	c.got = input
 	return c.err

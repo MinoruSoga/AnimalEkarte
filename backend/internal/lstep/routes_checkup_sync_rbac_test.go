@@ -39,14 +39,16 @@ func TestRegisterRoutes_CheckupSyncRBACTuples(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		recordPermission,
+		noopPermissionAny,
 	)
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
 	// L①/L② register 15 tuples, L③a registers 23, and L③b inserts the
 	// two checkup-sync tuples before L④ and the final two line-customer tuples.
-	require.Len(t, calls, 64)
+	require.Len(t, calls, 67)
 	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceOwners), "edit"},

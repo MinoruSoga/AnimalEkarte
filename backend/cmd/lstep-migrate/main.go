@@ -16,7 +16,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func main() {
@@ -88,8 +87,28 @@ func run() int {
 		}
 	}
 
-	settingsSvc := lstep.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
-	tagSyncSvc := service.NewLstepTagSyncFromRepos(repos, settingsSvc)
+	settingsSvc := lstep.NewLstepSettingsService(
+		lstep.NewLstepSettingsRepository(db),
+		lstep.NewLstepSyncSettingsRepository(db),
+		cipher,
+		nil,
+		nil,
+	)
+	tagSyncSvc := lstep.NewLstepTagSyncService(
+		settingsSvc,
+		repos.Owner,
+		repos.Vaccination,
+		repos.MedicalRecord,
+		repos.Accounting,
+		lstep.NewLstepTagCacheRepository(db),
+		repos.Pet,
+		repos.Prescription,
+		repos.Checkup,
+		lstep.NewLstepSyncErrorCounterRepository(db),
+		lstep.NewLstepTagCodeMappingRepository(db),
+		repos.BillingItem,
+		lstep.NewLstepTagConfigRepository(db),
+	)
 
 	migCfg := Config{
 		ClinicID:        *clinicID,

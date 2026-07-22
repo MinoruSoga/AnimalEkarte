@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"bytes"
@@ -12,16 +12,26 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 type mockSharedFileRepository struct {
-	repository.SharedFileRepository
+	SharedFileRepository
 	createFn      func(ctx context.Context, f *model.SharedFile) error
 	findByIDFn    func(ctx context.Context, clinicID, id uint64) (*model.SharedFile, error)
 	findAllFn     func(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error)
 	deleteFn      func(ctx context.Context, clinicID, id uint64) error
 	findExpiredFn func(ctx context.Context, thresholdUnix int64) ([]*model.SharedFile, error)
+}
+
+type mockSharedFileOwnerRepository struct {
+	findByIDFn func(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+}
+
+func (m *mockSharedFileOwnerRepository) FindByID(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, ownerID)
+	}
+	return &model.Owner{ID: ownerID, ClinicID: clinicID}, nil
 }
 
 func (m *mockSharedFileRepository) Create(ctx context.Context, f *model.SharedFile) error {
@@ -91,7 +101,7 @@ func TestSharedFileService_Upload(t *testing.T) {
 
 	t.Run("success with owner verification", func(t *testing.T) {
 		ownerID := uint64(500)
-		ownerRepo := &mockOwnerRepository{
+		ownerRepo := &mockSharedFileOwnerRepository{
 			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
 				return &model.Owner{ID: id, ClinicID: clinicID}, nil
 			},
@@ -120,7 +130,7 @@ func TestSharedFileService_Upload(t *testing.T) {
 
 	t.Run("owner not found", func(t *testing.T) {
 		ownerID := uint64(500)
-		ownerRepo := &mockOwnerRepository{
+		ownerRepo := &mockSharedFileOwnerRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 				return nil, errors.New("not found")
 			},
@@ -134,7 +144,7 @@ func TestSharedFileService_Upload(t *testing.T) {
 	})
 
 	t.Run("storage upload error", func(t *testing.T) {
-		ownerRepo := &mockOwnerRepository{}
+		ownerRepo := &mockSharedFileOwnerRepository{}
 		storage := &mockFileStorage{
 			uploadFn: func(_ context.Context, _ string, _ io.Reader, _ string) error {
 				return errors.New("storage error")
@@ -149,7 +159,7 @@ func TestSharedFileService_Upload(t *testing.T) {
 	})
 
 	t.Run("db create error, rollback storage", func(t *testing.T) {
-		ownerRepo := &mockOwnerRepository{}
+		ownerRepo := &mockSharedFileOwnerRepository{}
 		storage := &mockFileStorage{
 			deleteFn: func(_ context.Context, key string) error {
 				assert.Contains(t, key, "shared/1/")
@@ -286,7 +296,7 @@ func TestSharedFileService_Delete(t *testing.T) {
 
 func TestSharedFileService_Upload_RollbackDeleteAlsoFails(t *testing.T) {
 	ctx := context.Background()
-	ownerRepo := &mockOwnerRepository{}
+	ownerRepo := &mockSharedFileOwnerRepository{}
 	rollbackCalled := false
 	storage := &mockFileStorage{
 		deleteFn: func(_ context.Context, _ string) error {

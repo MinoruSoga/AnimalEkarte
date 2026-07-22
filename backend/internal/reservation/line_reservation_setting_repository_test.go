@@ -1,10 +1,4 @@
-package repository
-
-// line_reservation_setting_repository_test.go — LineReservationSettingRepository 統合テスト。
-//
-// clinic_id 隔離の回帰テストは line_reservation_setting_clinic_isolation_test.go に既存のため、
-// 本ファイルでは FindAll（横断取得）と Save（upsert: create/update 両分岐）を対象とする。
-// setupLineSettingIsolationTestDB / makeLineReservationSetting は同ファイルで定義済みのものを再利用する。
+package reservation
 
 import (
 	"context"
@@ -29,14 +23,12 @@ func TestLineReservationSettingRepository_FindAll(t *testing.T) {
 	makeLineReservationSetting(t, db, clinicA)
 	makeLineReservationSetting(t, db, clinicB)
 
-	t.Run("returns settings across all clinics (webhook signature verification use case)", func(t *testing.T) {
-		got, err := repo.FindAll(ctx)
-		require.NoError(t, err)
-		require.Len(t, got, 2)
-		clinicIDs := []uint64{got[0].ClinicID, got[1].ClinicID}
-		assert.Contains(t, clinicIDs, clinicA)
-		assert.Contains(t, clinicIDs, clinicB)
-	})
+	got, err := repo.FindAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	clinicIDs := []uint64{got[0].ClinicID, got[1].ClinicID}
+	assert.Contains(t, clinicIDs, clinicA)
+	assert.Contains(t, clinicIDs, clinicB)
 }
 
 func TestLineReservationSettingRepository_Save(t *testing.T) {
@@ -67,7 +59,7 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("upserts (updates) the existing row instead of duplicating", func(t *testing.T) {
+	t.Run("updates the existing row without duplication", func(t *testing.T) {
 		updated := &model.LineReservationSetting{
 			ClinicID:         clinicA,
 			Status:           "active",
@@ -87,10 +79,10 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 
 		var count int64
 		require.NoError(t, db.Model(&model.LineReservationSetting{}).Where("clinic_id = ?", clinicA).Count(&count).Error)
-		assert.Equal(t, int64(1), count, "同一 clinic_id の行は1件のまま（重複作成されない）")
+		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("saving for one clinic does not affect another clinic's setting", func(t *testing.T) {
+	t.Run("does not affect another clinic", func(t *testing.T) {
 		const clinicB = uint64(2)
 		makeLineReservationSetting(t, db, clinicB)
 

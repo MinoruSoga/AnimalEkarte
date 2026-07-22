@@ -14,7 +14,6 @@ DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption
 DELETE /api/v1/owners/:id DeleteOwner
 DELETE /api/v1/pets/:id DeletePet
 DELETE /api/v1/pets/:id/chronic-conditions/:cc_id DeleteChronicCondition
-DELETE /api/v1/shared-files/:id DeleteSharedFile
 DELETE /api/v1/shift-templates/:id DeleteShiftTemplate
 DELETE /api/v1/shifts/:id DeleteShiftEntry
 DELETE /api/v1/trimmings/:id DeleteTrimming
@@ -54,8 +53,6 @@ GET /api/v1/pets ListPets
 GET /api/v1/pets/:id GetPet
 GET /api/v1/pets/:id/chronic-conditions ListChronicConditions
 GET /api/v1/pets/:id/first-visit GetPetFirstVisit
-GET /api/v1/shared-files ListSharedFiles
-GET /api/v1/shared-files/:id/signed-url GetSharedFileSignedURL
 GET /api/v1/shift-templates ListShiftTemplates
 GET /api/v1/shift-templates/:id GetShiftTemplate
 GET /api/v1/shifts ListShiftEntries
@@ -125,7 +122,6 @@ POST /api/v1/masters/trimming-options CreateTrimmingOption
 POST /api/v1/owners CreateOwner
 POST /api/v1/pets CreatePet
 POST /api/v1/pets/:id/chronic-conditions CreateChronicCondition
-POST /api/v1/shared-files UploadSharedFile
 POST /api/v1/shift-templates CreateShiftTemplate
 POST /api/v1/shifts CreateShiftEntry
 POST /api/v1/trimmings CreateTrimming

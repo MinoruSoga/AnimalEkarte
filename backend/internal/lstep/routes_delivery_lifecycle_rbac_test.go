@@ -39,7 +39,9 @@ func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		recordPermission,
+		noopPermissionAny,
 	)
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
@@ -47,7 +49,7 @@ func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
 	// L①〜L③b register 40 tuples before L④. L④ preserves the four owner
 	// lifecycle routes, four pet-death routes, four delivery-monitor routes, and
 	// four trigger-priority routes.
-	require.Len(t, calls, 64)
+	require.Len(t, calls, 67)
 	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "delete"},
 		{string(model.ResourceOwners), "edit"},

@@ -39,12 +39,14 @@ func TestRegisterRoutes_L5RBACTuples(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		recordPermission,
+		noopPermissionAny,
 	)
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	require.Len(t, calls, 64)
+	require.Len(t, calls, 67)
 	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceLstepCsvImport), "edit"},

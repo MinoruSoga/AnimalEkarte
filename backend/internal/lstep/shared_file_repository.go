@@ -1,5 +1,4 @@
-// Package sharedfile owns shared_files data access (BE8-4 batch16 — leaf domain).
-package sharedfile
+package lstep
 
 import (
 	"context"
@@ -12,8 +11,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
-// Repository は shared_files テーブルへのアクセスインターフェース。
-type Repository interface {
+// SharedFileRepository は shared_files テーブルへのアクセスインターフェース。
+type SharedFileRepository interface {
 	Create(ctx context.Context, f *model.SharedFile) error
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.SharedFile, error)
 	FindAll(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error)
@@ -22,21 +21,21 @@ type Repository interface {
 	FindExpired(ctx context.Context, thresholdUnix int64) ([]*model.SharedFile, error)
 }
 
-type repository struct{ db *gorm.DB }
+type sharedFileRepository struct{ db *gorm.DB }
 
-// New は Repository を初期化して返す。
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+// NewSharedFileRepository は SharedFileRepository を初期化して返す。
+func NewSharedFileRepository(db *gorm.DB) SharedFileRepository {
+	return &sharedFileRepository{db: db}
 }
 
-func (r *repository) Create(ctx context.Context, f *model.SharedFile) error {
+func (r *sharedFileRepository) Create(ctx context.Context, f *model.SharedFile) error {
 	if err := r.db.WithContext(ctx).Create(f).Error; err != nil {
 		return apperrors.FromGORM(err, "shared_file", "create")
 	}
 	return nil
 }
 
-func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.SharedFile, error) {
+func (r *sharedFileRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.SharedFile, error) {
 	var f model.SharedFile
 	err := r.db.WithContext(ctx).
 		Scopes(repohelpers.ClinicScope(clinicID)).
@@ -48,7 +47,7 @@ func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.
 	return &f, nil
 }
 
-func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error) {
+func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error) {
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
 		Scopes(repohelpers.ClinicScope(clinicID)).
@@ -60,7 +59,7 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]*model.Sha
 	return files, nil
 }
 
-func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *sharedFileRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("id = ?", id).
@@ -74,7 +73,7 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return nil
 }
 
-func (r *repository) FindExpired(ctx context.Context, thresholdUnix int64) ([]*model.SharedFile, error) {
+func (r *sharedFileRepository) FindExpired(ctx context.Context, thresholdUnix int64) ([]*model.SharedFile, error) {
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
 		Where("EXTRACT(EPOCH FROM created_at) < ?", thresholdUnix).

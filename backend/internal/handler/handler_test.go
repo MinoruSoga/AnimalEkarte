@@ -13,7 +13,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/infra"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -35,22 +34,15 @@ var _ infra.FileUploader = (*mockFileUploader)(nil)
 func TestNew(t *testing.T) {
 	cfg := &config.Config{JWTSecret: "test-secret"}
 	svc := &service.Services{}
-	// nil *gorm.DB は問題ない — このテストは identity 配線のみ検証し、メソッドは呼び出さない。
-	customerLookup := repository.NewLineCustomerRepository(nil)
-	settingLookup := repository.NewLineReservationSettingRepository(nil)
-	repos := &repository.Repositories{
-		LineCustomerMgr:        customerLookup,
-		LineReservationSetting: settingLookup,
-	}
+	lifecycle := &mockOwnerDeletionLifecycle{}
 	uploader := &mockFileUploader{}
 
-	h := New(cfg, svc, repos, uploader)
+	h := New(cfg, svc, lifecycle, uploader)
 
 	require.NotNil(t, h)
 	assert.Same(t, cfg, h.cfg)
 	assert.Same(t, svc, h.svc)
-	assert.Same(t, customerLookup, h.liffCustomerLookup)
-	assert.Same(t, settingLookup, h.liffSettingLookup)
+	assert.Same(t, lifecycle, h.ownerDeletionLifecycle)
 	assert.Same(t, uploader, h.uploader)
 }
 

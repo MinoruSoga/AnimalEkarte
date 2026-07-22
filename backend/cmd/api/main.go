@@ -167,10 +167,38 @@ func main() {
 		logger.Info("shared file storage: local filesystem")
 	}
 
-	// サービス初期化（G9-1: 旧・二段階DIを単一段階に統合。LstepLifecycle/LstepTag/SharedFile/
-	// ChronicCondition/LineSend/LineLink/LstepTagSummary/CheckupSync/LstepDeliveryMonitor/
-	// LstepTriggerPriority/LstepDeliveryTrigger/MedicalRecord/Checkup/LstepBatch/LstepCsvImport/
-	// LstepAnalytics はすべて service.NewServices 内で一括構築される）
+	// LSTEP production composition is owned by the target package. Cross-domain adapters stay
+	// at this composition root so internal/lstep never imports legacy aggregators.
+	auditSvc := service.NewAuditService(repos.Audit)
+	tx := repository.NewTransactor(repos.DB())
+	lineReservationSettings := reservation.NewLineReservationSettingRepository(db)
+	lstepApp := lstep.NewApplication(&lstep.Dependencies{
+		DB:                    db,
+		Cipher:                integrationCipher,
+		SharedFileStorage:     sharedStorage,
+		Owners:                repos.Owner,
+		OwnerLifecycle:        ownerLifecycleWriterAdapter{inner: repos.Owner},
+		Pets:                  repos.Pet,
+		PetLifecycle:          petLifecycleWriterAdapter{inner: repos.Pet},
+		Vaccinations:          repos.Vaccination,
+		MedicalRecords:        repos.MedicalRecord,
+		Accounting:            repos.Accounting,
+		Prescriptions:         repos.Prescription,
+		Checkups:              repos.Checkup,
+		BillingItems:          repos.BillingItem,
+		ClinicSettings:        repos.ClinicSettings,
+		ReservationSettings:   lineReservationSettings,
+		Reservations:          repos.Reservation,
+		Clinics:               repos.Clinic,
+		Staff:                 repos.ReservationStaff,
+		Audit:                 auditSvc,
+		Transactor:            tx,
+		LifecycleAuditTx:      lstepLifecycleAuditTxAdapter{inner: auditSvc},
+		NoShowAuditTx:         lstepNoShowAuditTxAdapter{inner: auditSvc},
+		AggregationRepository: lstepAggregationRepositoryAdapter{inner: repos.Ltv},
+	})
+
+	// Legacy services keep only real BE9-2E consumers and receive target-owned narrow ports.
 	svcs := service.NewServices(repos, &reservation.ReservationNotificationConfig{
 		SMTPHost:    cfg.SMTPHost,
 		SMTPPort:    cfg.SMTPPort,
@@ -178,7 +206,7 @@ func main() {
 		SMTPPass:    cfg.SMTPPass,
 		SMTPFrom:    cfg.SMTPFrom,
 		FrontendURL: cfg.FrontendURL,
-	}, integrationCipher, sharedStorage, cfg.JWTSecret)
+	}, integrationCipher, cfg.JWTSecret, auditSvc, lstepApp.TagSync, lstepApp.LineCustomers, lineReservationSettings)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader
@@ -204,7 +232,7 @@ func main() {
 	}
 
 	// ハンドラー初期化
-	h := handler.New(cfg, svcs, repos, uploader)
+	h := handler.New(cfg, svcs, lstepApp, uploader)
 
 	// アプリケーションライフタイムコンテキスト（バックグラウンドゴルーチン管理用）
 	appCtx, appCancel := context.WithCancel(context.Background())
@@ -217,14 +245,14 @@ func main() {
 		if !triggerHours[time.Now().Hour()] {
 			return nil
 		}
-		return svcs.LstepBatch.RunNoShowCheckAllClinics(ctx)
+		return lstepApp.Batch.RunNoShowCheckAllClinics(ctx)
 	})
 
 	// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
-	go runScheduled(appCtx, "dormant detection batch", dailyAt2AM, svcs.LstepBatch.RunDormantDetectionAllClinics)
+	go runScheduled(appCtx, "dormant detection batch", dailyAt2AM, lstepApp.Batch.RunDormantDetectionAllClinics)
 
 	// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
-	go runScheduled(appCtx, "delivery trigger batch", hourlyTick, svcs.LstepBatch.RunDeliveryTriggerBatchAllClinics)
+	go runScheduled(appCtx, "delivery trigger batch", hourlyTick, lstepApp.Batch.RunDeliveryTriggerBatchAllClinics)
 
 	// ルーター設定
 	r := gin.New()
@@ -276,23 +304,19 @@ func main() {
 	// rather than via svcs.* (their Services fields were removed — nothing else read them).
 	// Unlike the 2C master handlers (which never wrote audit entries), the 2D services need the
 	// same LSTEP tag-sync / delivery-trigger deps and tx/audit boundary the pre-move NewServices
-	// wired: the LSTEP deps come from svcs.LstepTagSync / svcs.LstepDeliveryTrigger (still
-	// constructed inside NewServices), tx from repository.NewTransactor(repos.DB()), and the
+	// wired: the LSTEP deps come from the target-owned application result, tx from
+	// repository.NewTransactor(repos.DB()), and the
 	// tx-internal audit logger via medicalRecordAuditTxAdapter (lab's best-effort non-tx audit
 	// uses labAuditAdapter). checkupSvc is kept in scope for its graceful-shutdown drain
 	// (checkupSvc.Wait() below, replacing the old svcs.Checkup.Wait()).
 	mrTx := repository.NewTransactor(repos.DB())
-	mrAuditTxLogger, ok := svcs.Audit.(service.AuditTxLogger)
-	if !ok {
-		logger.Error("DI wiring error: AuditService concrete does not implement AuditTxLogger (#211 tx-internal audit)")
-		os.Exit(1)
-	}
-	checkupSvc := medicalrecord.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, svcs.LstepDeliveryTrigger, svcs.LstepTagSync)
+	mrAuditTxLogger := service.AuditTxLogger(auditSvc)
+	checkupSvc := medicalrecord.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepApp.DeliveryTrigger, lstepApp.TagSync)
 	checkupFieldResultSvc := medicalrecord.NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
 	checkupTypeSvc := medicalrecord.NewCheckupTypeService(repos.CheckupType)
 	vaccineSvc := medicalrecord.NewVaccineService(repos.Vaccine)
-	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, svcs.LstepTagSync, repos.Reservation, repos.MedicalRecord, mrTx)
-	prescriptionSvc := medicalrecord.NewPrescriptionService(repos.Prescription, repos.MedicalRecord, svcs.LstepTagSync, mrTx)
+	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepApp.TagSync, repos.Reservation, repos.MedicalRecord, mrTx)
+	prescriptionSvc := medicalrecord.NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepApp.TagSync, mrTx)
 	inquirySvc := medicalrecord.NewInquiryService(repos.Inquiry, repos.ChiefComplaintType)
 	inquiryTemplateSvc := medicalrecord.NewInquiryTemplateService(repos.InquiryTemplate)
 
@@ -355,8 +379,8 @@ func main() {
 	// 無 adapter で直渡し（vitalAuditLogger 先例）。
 	medicalRecordSvc := medicalrecord.NewMedicalRecordService(
 		repos.MedicalRecord, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType,
-		repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation,
-		svcs.LstepDeliveryTrigger, svcs.Audit, mrTx, svcs.LstepTagSync)
+		repos.DiagnosisType, repos.DiagnosisName, lstepApp.LineCustomers, repos.Reservation,
+		lstepApp.DeliveryTrigger, svcs.Audit, mrTx, lstepApp.TagSync)
 	// reservation_handler（残置）が AutoCreateFromReservation 等に使うため Services へ注入。
 	svcs.MedicalRecord = medicalRecordSvc
 	medicalRecordAddendumSvc := medicalrecord.NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, svcs.Audit)
@@ -407,8 +431,14 @@ func main() {
 	// LIFF レートリミット store（cleanup goroutine は appCtx ライフタイム）
 	liffRateLimitStore := middleware.NewRateLimitStore(appCtx)
 
-	// lstep domain（BE9-2C L①〜）: LINE 紐付け handler は LIFF route 注入で reservation より先に構築する
-	lstepLineLinkHandler := lstep.NewLineLinkHandler(svcs.LineLink, handler.RespondLinkedOwner, h.RequirePermission)
+	// lstep domain（BE9-2C L①〜）: target-owned application composes the full HTTP graph.
+	// LINE 紐付け callback は reservation の LIFF route へ narrow method として注入する。
+	lstepHandler := lstepApp.NewHandler(lstep.HandlerDependencies{
+		OwnerLineLinker:      svcs.Owner,
+		RespondOwner:         handler.RespondLinkedOwner,
+		RequirePermission:    h.RequirePermission,
+		RequireAnyPermission: adaptPermissionAny(h.RequirePermissionAny),
+	})
 
 	// reservation domain（BE9-2C R①〜）: reservation_type 系 master routes
 	reservationHandler := reservation.NewHandler(
@@ -421,9 +451,9 @@ func main() {
 		reservation.NewReservationAdminHandler(svcs.ReservationAdmin, svcs.StaffClinicAssignment),
 		reservation.NewLineReservationSettingHandler(svcs.LineReservationSetting),
 		reservation.NewLiffHandler(svcs.Liff, svcs.StaffClinicAssignment),
-		middleware.LiffAuth(repos.LineCustomerMgr, repos.LineReservationSetting),
+		middleware.LiffAuth(lstepApp.LineCustomers, lineReservationSettings),
 		func(limit int) gin.HandlerFunc { return middleware.LiffRateLimit(liffRateLimitStore, limit) },
-		lstepLineLinkHandler.LinkLiffAccount,
+		lstepHandler.LinkLiffAccount,
 		h.RequirePermission,
 	)
 	reservationHandler.RegisterRoutes(protected)
@@ -447,25 +477,6 @@ func main() {
 	billingHandler.RegisterRoutes(protected)
 
 	// lstep domain（BE9-2C L①〜）
-	lstepHandler := lstep.NewHandler(
-		lstep.NewLstepSettingsHandler(svcs.LstepSettings, h.RequirePermission),
-		lstep.NewLineSendHandler(svcs.LineSend, h.RequirePermission),
-		lstepLineLinkHandler,
-		lstep.NewLineCustomerHandler(svcs.LineCustomer, h.RequirePermission),
-		svcs.LstepTag,
-		svcs.LstepTagCodeMapping,
-		svcs.LstepTagConfig,
-		svcs.LstepTagSummary,
-		svcs.CheckupSync,
-		svcs.LstepLifecycle,
-		svcs.LstepDeliveryMonitor,
-		svcs.LstepTriggerPriority,
-		svcs.Aggregation,
-		svcs.LstepCsvImport,
-		svcs.LstepAnalytics,
-		svcs.Owner,
-		h.RequirePermission,
-	)
 	lstepHandler.RegisterRoutes(protected)
 	// LINE Webhook（JWT 認証なし・HMAC 署名検証）
 	lstepHandler.RegisterWebhookRoutes(r)

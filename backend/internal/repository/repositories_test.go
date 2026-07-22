@@ -71,9 +71,9 @@ func TestRepositories_Transaction_CommitsOnSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	err := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		return txRepos.LstepSettings.Upsert(ctx, &model.ClinicIntegration{
+		return txRepos.DB().WithContext(ctx).Create(&model.ClinicIntegration{
 			ClinicID: 501, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "tx-committed",
-		})
+		}).Error
 	})
 	require.NoError(t, err)
 
@@ -89,9 +89,9 @@ func TestRepositories_Transaction_RollsBackOnError(t *testing.T) {
 
 	sentinel := errors.New("boom")
 	err := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		require.NoError(t, txRepos.LstepSettings.Upsert(ctx, &model.ClinicIntegration{
+		require.NoError(t, txRepos.DB().WithContext(ctx).Create(&model.ClinicIntegration{
 			ClinicID: 502, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "should-not-persist",
-		}))
+		}).Error)
 		return sentinel
 	})
 	require.Error(t, err)

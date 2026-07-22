@@ -28,6 +28,22 @@ func (m *mockOwnerRepository) Update(ctx context.Context, clinicID, ownerID uint
 	return nil
 }
 
+func (m *mockOwnerRepository) RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error {
+	return m.Update(ctx, clinicID, ownerID, map[string]any{
+		"lstep_opt_out":        true,
+		"lstep_opt_out_at":     at,
+		"lstep_opt_out_reason": reason,
+	})
+}
+
+func (m *mockOwnerRepository) ClearLstepOptOut(ctx context.Context, clinicID, ownerID uint64) error {
+	return m.Update(ctx, clinicID, ownerID, map[string]any{
+		"lstep_opt_out":        false,
+		"lstep_opt_out_at":     nil,
+		"lstep_opt_out_reason": nil,
+	})
+}
+
 func (m *mockOwnerRepository) FindByIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) ([]*model.Owner, error) {
 	if m.findByIDsFn != nil {
 		return m.findByIDsFn(ctx, clinicID, ownerIDs)
@@ -77,6 +93,22 @@ func (m *mockPetRepository) Update(ctx context.Context, clinicID, petID uint64, 
 		return m.updateFn(ctx, clinicID, petID, fields)
 	}
 	return nil
+}
+
+func (m *mockPetRepository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
+	return m.Update(ctx, clinicID, petID, map[string]any{
+		"deceased_at":     deceasedAt,
+		"deceased_reason": reason,
+		"status":          model.PetStatusDeceased,
+	})
+}
+
+func (m *mockPetRepository) ClearDeath(ctx context.Context, clinicID, petID uint64) error {
+	return m.Update(ctx, clinicID, petID, map[string]any{
+		"deceased_at":     nil,
+		"deceased_reason": nil,
+		"status":          model.PetStatusAlive,
+	})
 }
 
 func (m *mockPetRepository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error) {

@@ -1,4 +1,4 @@
-package service
+package lstep
 
 import (
 	"context"
@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // SharedFileResponse はGETレスポンス用
@@ -52,13 +50,25 @@ type SharedFileService interface {
 }
 
 type sharedFileService struct {
-	repo      repository.SharedFileRepository
-	ownerRepo repository.OwnerRepository
-	storage   infra.FileStorage
+	repo      SharedFileRepository
+	ownerRepo SharedFileOwnerFinder
+	storage   SharedFileStorage
+}
+
+// SharedFileOwnerFinder verifies that an optional owner belongs to the authenticated clinic.
+type SharedFileOwnerFinder interface {
+	FindByID(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+}
+
+// SharedFileStorage is the target-owned object-storage contract.
+type SharedFileStorage interface {
+	Upload(ctx context.Context, key string, content io.Reader, contentType string) error
+	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 // NewSharedFileService は SharedFileService を初期化して返す。
-func NewSharedFileService(repo repository.SharedFileRepository, ownerRepo repository.OwnerRepository, storage infra.FileStorage) SharedFileService {
+func NewSharedFileService(repo SharedFileRepository, ownerRepo SharedFileOwnerFinder, storage SharedFileStorage) SharedFileService {
 	return &sharedFileService{repo: repo, ownerRepo: ownerRepo, storage: storage}
 }
 

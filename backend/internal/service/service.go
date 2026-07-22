@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/billing"
-	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
@@ -79,42 +78,10 @@ type Services struct {
 	ReservationStaffExclusion reservation.ReservationStaffExclusionService
 	ReservationSchedule       reservation.ReservationScheduleService
 	ReservationAdmin          reservation.ReservationAdminService
-	LineCustomer              lstep.LineCustomerService
 	Liff                      reservation.LiffService
 
-	// LSTEP / LINE連携
-	LstepSettings  LstepSettingsService
-	LstepTagSync   LstepTagSyncService
-	LstepLifecycle lstep.LstepLifecycleService
-	LstepTag       LstepTagService
-	SharedFile     SharedFileService
-	// LSTEP-BE-010: LTV集計 → 顧客集計ドメインに統一
-	Aggregation lstep.AggregationService
-	// LSTEP-BE-012: 慢性疾患フラグ
+	// LSTEP-BE-012: 慢性疾患フラグ。BE9-2Eまでtarget TagSyncを注入して残置。
 	ChronicCondition ChronicConditionService
-	// LSTEP-BE-013: LINE個別送信
-	LineSend lstep.LineSendService
-	// LSTEP-BE-014: ノーショウ検知バッチ
-	LstepBatch lstep.LstepBatchService
-	// FEAT-383: 自動配信トリガー
-	LstepDeliveryTrigger lstep.LstepDeliveryTriggerService
-	// Q23: トリガー優先順位設定
-	LstepTriggerPriority lstep.LstepTriggerPriorityService
-	// FEAT-379: タグコードマッピング設定
-	LstepTagCodeMapping LstepTagCodeMappingService
-	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
-	LstepTagConfig LstepTagConfigService
-	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	LineLink lstep.LineLinkService
-	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	LstepTagSummary LstepTagSummaryService
-	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	CheckupSync lstep.CheckupSyncService
-	// FEAT-384: 自動配信トリガー監視
-	LstepDeliveryMonitor lstep.LstepDeliveryMonitorService
-	// FEAT-385: Lステップ CSV インポート・分析
-	LstepCsvImport lstep.LstepCsvImportService
-	LstepAnalytics lstep.LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
 	// 認証: JWT 発行・検証
@@ -130,23 +97,23 @@ type Services struct {
 // cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
 // nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // lstep 連携と同一の cipher を再利用する。
-func NewServices(repos *repository.Repositories, notifCfg *reservation.ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
-	notifier := reservation.NewReservationNotificationService(notifCfg, repos.LineReservationSetting,
+func NewServices(
+	repos *repository.Repositories,
+	notifCfg *reservation.ReservationNotificationConfig,
+	cipher *crypto.AESGCMCipher,
+	jwtSecret string,
+	auditSvc AuditKernel,
+	lstepTagSyncSvc LstepTagSyncService,
+	lineCustomers lstep.LineCustomerRepository,
+	lineReservationSettings reservation.LineReservationSettingRepository,
+) *Services {
+	notifier := reservation.NewReservationNotificationService(notifCfg, lineReservationSettings,
 		func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) },
 		func(channelToken string) reservation.LinePusher {
 			return lstep.NewLineMessagingService(channelToken)
 		},
 		smtpSendAdapter)
-	auditSvc := NewAuditService(repos.Audit)
-	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
-	// AuditService インターフェース自体は広げず（既存サービス/モックへ非波及）、tx 内監査を要する
-	// checkup のみ narrow な AuditTxLogger に依存させる。コンパイル時保証は audit_service.go の
-	// `var _ AuditTxLogger = (*auditService)(nil)`。配線時の comma-ok で、将来 NewAuditService が
-	// AuditTxLogger 非実装のラッパを返すよう変わった場合に原因の分かる panic を出す。
-	auditTxLogger, ok := auditSvc.(AuditTxLogger)
-	if !ok {
-		panic("DI wiring error: AuditService concrete does not implement AuditTxLogger (#211 tx-internal audit); check NewAuditService return type")
-	}
+	auditTxLogger := AuditTxLogger(auditSvc)
 	tx := repository.NewTransactor(repos.DB())
 	pwResetCfg := PasswordResetConfig{
 		SMTPHost:    notifCfg.SMTPHost,
@@ -182,56 +149,8 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
 	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
 
-	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
-	lstepSettingsSvc := lstep.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
-	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
-	lstepLifecycleSvc := lstep.NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, lstepLifecycleAuditTxAdapter{inner: auditTxLogger})
-
-	// G9-1: 旧 main.go 二段階DI（NewServices 呼び出し後の再構築ブロック）をここに統合。
-	// main.go 由来の元の構築順序をそのまま保持する。
-	sharedFileSvc := NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
 	// LSTEP-BE-012: 慢性疾患フラグ
 	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepTagSyncSvc)
-	// LSTEP-BE-013: LINE個別送信
-	lineSendSvc := lstep.NewLineSendService(lstepSettingsSvc, repos.Owner, sharedFileSvc, repos.LstepTagCache, auditSvc, repos.LineSendLog, repos.LstepTagConfig)
-	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	lineLinkSvc := lstep.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
-	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	lstepTagSummarySvc := lstep.NewLstepTagSummaryService(repos.LstepTagCache)
-	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	checkupSyncSvc := lstep.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
-	// FEAT-384: 自動配信トリガー監視
-	lstepDeliveryMonitorSvc := lstep.NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
-	// Q23: トリガー優先順位設定
-	lstepTriggerPrioritySvc := lstep.NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
-	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
-	lstepDeliveryTriggerSvc := lstep.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
-	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
-	// BE9-2D: checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
-	// inquiry-template/prescription services moved to internal/medicalrecord and are now
-	// constructed directly in cmd/api/main.go (ADR-006 aggregator 非経由) — no longer fields
-	// on Services. The LSTEP tag-sync / delivery-trigger deps they need are exposed to main.go
-	// via svcs.LstepTagSync / svcs.LstepDeliveryTrigger.
-	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
-	lstepBatchSvc := lstep.NewLstepBatchService(
-		repos.Reservation,
-		lstepTagSyncSvc,
-		repos.Clinic,
-		repos.MedicalRecord,
-		auditSvc,
-		lstepSettingsSvc,
-		lstepDeliveryTriggerSvc,
-		tx,
-		lstepNoShowAuditTxAdapter{inner: auditTxLogger},
-	)
-	// FEAT-385: Lステップ CSV インポート・分析
-	lstepCsvImportSvc := lstep.NewLstepCsvImportService(
-		repos.DB(),
-		repos.LstepCsvImport,
-		lstep.NewLstepCSVImportOwnerLookup(),
-		repos.ReservationStaff,
-	)
-	lstepAnalyticsSvc := lstep.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
 
 	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
 
@@ -293,7 +212,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		Campaign:            billing.NewCampaignService(repos.Campaign, repos.MerchandiseItem),
 		CashRegister:        billing.NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:    billing.NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
-		LineReservationSetting: reservation.NewLineReservationSettingService(repos.LineReservationSetting,
+		LineReservationSetting: reservation.NewLineReservationSettingService(lineReservationSettings,
 			func(value string) (string, error) { return lstep.EncryptLineCredential(cipher, value) },
 			func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) }),
 		ReservationTypeLiff:       reservation.NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.Reservation),
@@ -302,34 +221,15 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       reservation.NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          reservation.NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		LineCustomer:              lstep.NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
-		Aggregation:               lstep.NewAggregationService(lstepAggregationRepositoryAdapter{inner: repos.Ltv}, lstepSettingsSvc),
-		LstepSettings:             lstepSettingsSvc,
-		LstepTagSync:              lstepTagSyncSvc,
-		LstepLifecycle:            lstepLifecycleSvc,
-		LstepTag:                  lstep.NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
-		SharedFile:                sharedFileSvc,
 		ChronicCondition:          chronicConditionSvc,
-		LineSend:                  lineSendSvc,
-		LstepBatch:                lstepBatchSvc,
-		LstepDeliveryTrigger:      lstepDeliveryTriggerSvc,
-		LstepTriggerPriority:      lstepTriggerPrioritySvc,
-		LstepTagCodeMapping:       lstep.NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
-		LstepTagConfig:            lstep.NewLstepTagConfigService(repos.LstepTagConfig),
-		LineLink:                  lineLinkSvc,
-		LstepTagSummary:           lstepTagSummarySvc,
-		CheckupSync:               checkupSyncSvc,
-		LstepDeliveryMonitor:      lstepDeliveryMonitorSvc,
-		LstepCsvImport:            lstepCsvImportSvc,
-		LstepAnalytics:            lstepAnalyticsSvc,
 		Liff: reservation.NewLiffServiceWithType(
-			repos.LineReservationSetting,
+			lineReservationSettings,
 			repos.ReservationTypeLiff,
 			repos.ReservationType,
 			repos.ReservationStaff,
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,
-			repos.LineCustomerMgr,
+			lineCustomers,
 			repos.Owner,
 			tx,
 			repos.Reservation,

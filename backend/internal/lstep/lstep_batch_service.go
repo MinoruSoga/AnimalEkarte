@@ -60,7 +60,7 @@ type lstepBatchService struct {
 	settingsSvc          lstepBatchSettingsService
 	lstepDeliveryTrigger lstepBatchDeliveryTrigger
 	transactor           lstepBatchTransactor
-	noShowAuditTx        lstepNoShowAuditTxLogger
+	noShowAuditTx        NoShowAuditTxLogger
 	nowFn                func() time.Time
 }
 
@@ -74,7 +74,7 @@ func NewLstepBatchService(
 	settingsSvc lstepBatchSettingsService,
 	lstepDeliveryTrigger lstepBatchDeliveryTrigger,
 	transactor lstepBatchTransactor,
-	noShowAuditTx lstepNoShowAuditTxLogger,
+	noShowAuditTx NoShowAuditTxLogger,
 ) LstepBatchService {
 	return &lstepBatchService{
 		reservationRepo:      reservationRepo,
@@ -110,7 +110,7 @@ type NoShowAuditEntry struct {
 	BatchRunID     string
 }
 
-type lstepNoShowAuditTxLogger interface {
+type NoShowAuditTxLogger interface {
 	LogNoShowTransitionTx(ctx context.Context, entry *NoShowAuditEntry) error
 }
 

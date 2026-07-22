@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // uploadSharedFileRequest はPOST /shared-files のフォームパラメータ
@@ -40,13 +39,13 @@ func newSharedFileUploadMeta(header *multipart.FileHeader) (sharedFileUploadMeta
 	}, nil
 }
 
-func (r uploadSharedFileRequest) toServiceInput(content io.Reader, meta sharedFileUploadMeta) *service.UploadSharedFileInput {
+func (r uploadSharedFileRequest) toServiceInput(content io.Reader, meta sharedFileUploadMeta) *UploadSharedFileInput {
 	purpose := r.Purpose
 	if purpose == "" {
 		purpose = model.SharedFilePurposeOther
 	}
 
-	return &service.UploadSharedFileInput{
+	return &UploadSharedFileInput{
 		Content:     content,
 		FileName:    meta.fileName,
 		ContentType: meta.contentType,

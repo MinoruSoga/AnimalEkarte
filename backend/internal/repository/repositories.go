@@ -74,12 +74,10 @@ type Repositories struct {
 	Refund          RefundRepository
 	Audit           AuditRepository
 	// LINE予約
-	LineReservationSetting         LineReservationSettingRepository
 	ReservationTypeLiff            ReservationTypeLiffRepository
 	ReservationStaff               ReservationStaffRepository
 	ReservationSchedule            ReservationScheduleRepository
 	ReservationAdmin               ReservationAdminRepository
-	LineCustomerMgr                LineCustomerRepository
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeRepository
 	ReservationTypeAvailableSlot   ReservationTypeAvailableSlotRepository
 	ReservationTypeOccupation      ReservationTypeOccupationRepository
@@ -91,36 +89,12 @@ type Repositories struct {
 	TrimmingCourseType   TrimmingCourseTypeRepository
 	Campaign             CampaignRepository
 	CashRegisterClose    CashRegisterCloseRepository
-	// LSTEP / LINE連携
-	LstepSettings     LstepSettingsRepository
-	LstepSyncSettings LstepSyncSettingsRepository
-	SharedFile        SharedFileRepository
-	LstepTagCache     LstepTagCacheRepository
 	// LSTEP-BE-009: 処方薬記録
 	Prescription PrescriptionRepository
 	// LSTEP-BE-010: LTV集計
 	Ltv LtvRepository
 	// LSTEP-BE-012: 慢性疾患フラグ
 	ChronicCondition PetChronicConditionRepository
-	// LSTEP-BE-013: LINE個別送信ログ
-	LineSendLog LineSendLogRepository
-	// LSTEP-BE-021: LINE User ID 紐付けトークン
-	LineLinkToken LineLinkTokenRepository
-	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	CheckupSync CheckupSyncRepository
-	// FEAT-375: Lステップ連携エラーカウンター
-	LstepSyncErrorCounter LstepSyncErrorCounterRepository
-	// FEAT-379: per-clinic コード→タグ マッピング
-	LstepTagCodeMapping LstepTagCodeMappingRepository
-	// FEAT-383: 自動配信トリガーログ
-	LstepDeliveryTriggerLog LstepDeliveryTriggerLogRepository
-	// Q23: トリガー優先順位設定
-	LstepTriggerPriority LstepTriggerPriorityRepository
-	// FEAT-385: Lステップ CSV インポート・分析
-	LstepCsvImport               LstepCsvImportRepository
-	LstepFriendAttributeSnapshot LstepFriendAttributeSnapshotRepository
-	// 動的タグ設定 (B/C1/C2/C3 カテゴリ)
-	LstepTagConfig LstepTagConfigRepository
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistRepository
 	// lab import: BE9-2D sub-batch③ で internal/medicalrecord へ移動（leaf domain, no facade）。
@@ -188,12 +162,10 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingItem:                    NewBillingItemRepository(db),
 		Refund:                         NewRefundRepository(db),
 		Audit:                          NewAuditRepository(db),
-		LineReservationSetting:         NewLineReservationSettingRepository(db),
 		ReservationTypeLiff:            NewReservationTypeLiffRepository(db),
 		ReservationStaff:               NewReservationStaffRepository(db),
 		ReservationSchedule:            NewReservationScheduleRepository(db),
 		ReservationAdmin:               NewReservationAdminRepository(db),
-		LineCustomerMgr:                NewLineCustomerRepository(db),
 		ReservationTypeUnavailableTime: NewReservationTypeUnavailableTimeRepository(db),
 		ReservationTypeAvailableSlot:   NewReservationTypeAvailableSlotRepository(db),
 		ReservationTypeOccupation:      NewReservationTypeOccupationRepository(db),
@@ -205,25 +177,10 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		TrimmingCourseType:   NewTrimmingCourseTypeRepository(db),
 		Campaign:             NewCampaignRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
-		// LSTEP / LINE連携
-		LstepSettings:                NewLstepSettingsRepository(db),
-		LstepSyncSettings:            NewLstepSyncSettingsRepository(db),
-		SharedFile:                   NewSharedFileRepository(db),
-		LstepTagCache:                NewLstepTagCacheRepository(db),
-		Prescription:                 NewPrescriptionRepository(db),
-		Ltv:                          NewLtvRepository(db),
-		ChronicCondition:             NewPetChronicConditionRepository(db),
-		LineSendLog:                  NewLineSendLogRepository(db),
-		LineLinkToken:                NewLineLinkTokenRepository(db),
-		CheckupSync:                  NewCheckupSyncRepository(db),
-		LstepSyncErrorCounter:        NewLstepSyncErrorCounterRepository(db),
-		LstepTagCodeMapping:          NewLstepTagCodeMappingRepository(db),
-		LstepDeliveryTriggerLog:      NewLstepDeliveryTriggerLogRepository(db),
-		LstepTriggerPriority:         NewLstepTriggerPriorityRepository(db),
-		LstepCsvImport:               NewLstepCsvImportRepository(db),
-		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
-		LstepTagConfig:               NewLstepTagConfigRepository(db),
-		TokenBlacklist:               NewTokenBlacklistRepository(db),
+		Prescription:         NewPrescriptionRepository(db),
+		Ltv:                  NewLtvRepository(db),
+		ChronicCondition:     NewPetChronicConditionRepository(db),
+		TokenBlacklist:       NewTokenBlacklistRepository(db),
 		// lab import: BE9-2D sub-batch③ — moved to internal/medicalrecord (leaf domain, no facade).
 	}
 }

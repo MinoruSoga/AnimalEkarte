@@ -48,7 +48,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		noopPermission,
+		noopPermissionAny,
 	)
 
 	r := gin.New()
@@ -74,6 +76,7 @@ DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeT
 DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
 DELETE /api/v1/pets/:id/death DeletePetDeath
+DELETE /api/v1/shared-files/:id DeleteSharedFile
 GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
 GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
@@ -103,6 +106,8 @@ GET /api/v1/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs
 GET /api/v1/owners/:id/lstep/tags GetOwnerLstepTags
+GET /api/v1/shared-files ListSharedFiles
+GET /api/v1/shared-files/:id/signed-url GetSharedFileSignedURL
 PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
 PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
 PATCH /api/v1/clinics/:clinic_id/lstep/trigger-priorities UpdateLstepTriggerPriorities
@@ -127,6 +132,7 @@ POST /api/v1/owners/:id/line/send SendLineMessage
 POST /api/v1/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/owners/:id/lstep/send SendLineMessage
 POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
+POST /api/v1/shared-files UploadSharedFile
 PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 `

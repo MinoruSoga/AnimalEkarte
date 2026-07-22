@@ -8,7 +8,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -29,8 +28,8 @@ type LstepLifecycleService interface {
 
 type lstepLifecycleService struct {
 	settingsSvc   LstepSettingsService
-	ownerRepo     lifecycleOwnerRepository
-	petRepo       lifecyclePetRepository
+	ownerRepo     lifecycleOwnerDependency
+	petRepo       lifecyclePetDependency
 	tagCacheRepo  lifecycleTagCacheRepository
 	syncSvc       lifecycleTagSyncer
 	auditSvc      lifecycleOperationAuditor
@@ -39,21 +38,21 @@ type lstepLifecycleService struct {
 	// status/deceased_at 更新と一次監査ログ書込を同一 tx で束ね、監査失敗で status 更新も
 	// ロールバックする（#211 返金の fail-closed 先例と同型）。
 	transactor lifecycleTransactor
-	auditTx    lifecycleAuditTxLogger
+	auditTx    LifecycleAuditTxLogger
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
 // tagConfigRepo が nil の場合はペット由来タグ削除でフォールバック値を使用する。
 func NewLstepLifecycleService(
 	settingsSvc LstepSettingsService,
-	ownerRepo lifecycleOwnerRepository,
-	petRepo lifecyclePetRepository,
+	ownerRepo lifecycleOwnerDependency,
+	petRepo lifecyclePetDependency,
 	tagCacheRepo lifecycleTagCacheRepository,
 	syncSvc lifecycleTagSyncer,
 	auditSvc lifecycleOperationAuditor,
 	tagConfigRepo lifecycleTagConfigRepository,
 	transactor lifecycleTransactor,
-	auditTx lifecycleAuditTxLogger,
+	auditTx LifecycleAuditTxLogger,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
 		settingsSvc:   settingsSvc,
@@ -109,12 +108,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	// という設計判断そのものが本 BUG-407 修正の核心。旧実装の best-effort/WarnContext は廃止）。
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		fields := map[string]any{
-			"deceased_at":     deceasedAt,
-			"deceased_reason": reason,
-			"status":          model.PetStatusDeceased,
-		}
-		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+		if err := s.petRepo.RecordDeath(txCtx, clinicID, petID, deceasedAt, reason); err != nil {
 			slog.ErrorContext(txCtx, "failed to update pet deceased fields", "error", err)
 			return apperrors.Wrap(err, "failed to record pet death")
 		}
@@ -198,12 +192,7 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	// 原子化する。監査書込が失敗したら status 更新もロールバックする（HandlePetDeath と対称）。
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		fields := map[string]any{
-			"deceased_at":     nil,
-			"deceased_reason": nil,
-			"status":          model.PetStatusAlive,
-		}
-		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+		if err := s.petRepo.ClearDeath(txCtx, clinicID, petID); err != nil {
 			slog.ErrorContext(txCtx, "failed to clear pet deceased fields", "error", err)
 			return apperrors.Wrap(err, "failed to record pet revival")
 		}
@@ -251,12 +240,7 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 	}
 
 	now := time.Now()
-	fields := map[string]any{
-		"lstep_opt_out":        true,
-		"lstep_opt_out_at":     now,
-		"lstep_opt_out_reason": reason,
-	}
-	if err := s.ownerRepo.Update(ctx, clinicID, ownerID, fields); err != nil {
+	if err := s.ownerRepo.RecordLstepOptOut(ctx, clinicID, ownerID, now, reason); err != nil {
 		slog.ErrorContext(ctx, "failed to update owner opt-out fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-out")
 	}
@@ -281,12 +265,7 @@ func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
-	fields := map[string]any{
-		"lstep_opt_out":        false,
-		"lstep_opt_out_at":     nil,
-		"lstep_opt_out_reason": nil,
-	}
-	if err := s.ownerRepo.Update(ctx, clinicID, ownerID, fields); err != nil {
+	if err := s.ownerRepo.ClearLstepOptOut(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to update owner opt-in fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-in")
 	}

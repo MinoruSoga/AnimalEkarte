@@ -19,6 +19,10 @@ func testPermissionMiddleware(_, _ string) gin.HandlerFunc {
 	}
 }
 
+func noopPermissionAny(...PermissionRequirement) gin.HandlerFunc {
+	return func(c *gin.Context) { c.Next() }
+}
+
 // setClinicID は handler テスト用に clinic_id を gin.Context へ設定する
 // （medicalrecord/reservation/billing の同名ヘルパーの最小限の複製）。
 func setClinicID(c *gin.Context) {

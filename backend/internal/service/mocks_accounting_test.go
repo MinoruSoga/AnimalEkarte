@@ -8,14 +8,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// mockAccountingRepository は repository.AccountingRepository のテスト用モック実装（F-4統合正本）。
-// accounting_service_test.go の mockAccountingRepository を正本とし、
-// mockAccountingRepositoryForReport（accounting_report_service_test.go）・
-// mockAccountingRepositoryForClose（cash_register_service_test.go）・
-// mockAccountingRepoForLstepVisit（lstep_tag_sync_visit_test.go）の実際に検証されている
-// フックを統合する。FindAll/Create/Update は旧正本ではフック未設定時に nil 関数呼び出しで
-// panic する契約だったため、統合を機に nil ガードを追加した（3変種いずれもこの3メソッドを
-// 呼ばない対象サービスにのみ使われていたため、この変更で既存テストの挙動は変わらない）。
+// mockAccountingRepository は accounting_reports_dto_aliases.go の残留DTOを使う
+// compatibility carrier。L⑥のLSTEP移動対象ではないため維持し、service test整理（BE9-2E）
+// または最終compatibility cleanup（BE9-2F）でDTO aliasと同時に削除する。
 type mockAccountingRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)

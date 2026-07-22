@@ -258,7 +258,7 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 		return
 	}
 	// BE-017: 削除前に Lステップタグを全解除（best-effort、失敗しても削除は続行）
-	_ = h.svc.LstepLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
+	_ = h.ownerDeletionLifecycle.HandleOwnerDeletion(c.Request.Context(), clinicID, id)
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return

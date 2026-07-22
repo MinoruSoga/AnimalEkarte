@@ -12,29 +12,40 @@ import (
 // （他 domain と同型・composition root が具象を注入する）。
 type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
+// PermissionRequirement identifies one resource/action pair for an OR authorization gate.
+type PermissionRequirement struct {
+	Resource string
+	Action   string
+}
+
+// PermissionAnyMiddleware builds a Gin gate that allows any listed requirement.
+type PermissionAnyMiddleware func(...PermissionRequirement) gin.HandlerFunc
+
 // Handler composes this slice's per-entity handlers and registers their routes under a
 // single, package-unique RegisterRoutes entry point（openapi_route_drift_test.go 規約）。
 type Handler struct {
-	lstepSettings     *LstepSettingsHandler
-	lineSend          *LineSendHandler
-	lineLink          *LineLinkHandler
-	lineCustomer      *LineCustomerHandler
-	tag               LstepTagService
-	tagCodeMapping    LstepTagCodeMappingService
-	tagConfig         LstepTagConfigService
-	tagSummary        LstepTagSummaryService
-	checkupSync       CheckupSyncService
-	lifecycle         LstepLifecycleService
-	deliveryMonitor   LstepDeliveryMonitorService
-	triggerPriority   LstepTriggerPriorityService
-	aggregation       AggregationService
-	csvImport         LstepCsvImportService
-	analytics         LstepAnalyticsService
-	ownerLineLinker   ownerLineLinker
-	requirePermission PermissionMiddleware
+	lstepSettings        *LstepSettingsHandler
+	lineSend             *LineSendHandler
+	lineLink             *LineLinkHandler
+	lineCustomer         *LineCustomerHandler
+	tag                  LstepTagService
+	tagCodeMapping       LstepTagCodeMappingService
+	tagConfig            LstepTagConfigService
+	tagSummary           LstepTagSummaryService
+	checkupSync          CheckupSyncService
+	lifecycle            LstepLifecycleService
+	deliveryMonitor      LstepDeliveryMonitorService
+	triggerPriority      LstepTriggerPriorityService
+	aggregation          AggregationService
+	csvImport            LstepCsvImportService
+	analytics            LstepAnalyticsService
+	sharedFile           SharedFileService
+	ownerLineLinker      OwnerLineLinker
+	requirePermission    PermissionMiddleware
+	requireAnyPermission PermissionAnyMiddleware
 }
 
-type ownerLineLinker interface {
+type OwnerLineLinker interface {
 	LinkLineUserID(ctx context.Context, clinicID, ownerID uint64, lineUserID *string, actorID *uint64) error
 }
 
@@ -55,27 +66,31 @@ func NewHandler(
 	aggregation AggregationService,
 	csvImport LstepCsvImportService,
 	analytics LstepAnalyticsService,
-	ownerLineLinker ownerLineLinker,
+	sharedFile SharedFileService,
+	ownerLineLinker OwnerLineLinker,
 	requirePermission PermissionMiddleware,
+	requireAnyPermission PermissionAnyMiddleware,
 ) *Handler {
 	return &Handler{
-		lstepSettings:     lstepSettings,
-		lineSend:          lineSend,
-		lineLink:          lineLink,
-		lineCustomer:      lineCustomer,
-		tag:               tag,
-		tagCodeMapping:    tagCodeMapping,
-		tagConfig:         tagConfig,
-		tagSummary:        tagSummary,
-		checkupSync:       checkupSync,
-		lifecycle:         lifecycle,
-		deliveryMonitor:   deliveryMonitor,
-		triggerPriority:   triggerPriority,
-		aggregation:       aggregation,
-		csvImport:         csvImport,
-		analytics:         analytics,
-		ownerLineLinker:   ownerLineLinker,
-		requirePermission: requirePermission,
+		lstepSettings:        lstepSettings,
+		lineSend:             lineSend,
+		lineLink:             lineLink,
+		lineCustomer:         lineCustomer,
+		tag:                  tag,
+		tagCodeMapping:       tagCodeMapping,
+		tagConfig:            tagConfig,
+		tagSummary:           tagSummary,
+		checkupSync:          checkupSync,
+		lifecycle:            lifecycle,
+		deliveryMonitor:      deliveryMonitor,
+		triggerPriority:      triggerPriority,
+		aggregation:          aggregation,
+		csvImport:            csvImport,
+		analytics:            analytics,
+		sharedFile:           sharedFile,
+		ownerLineLinker:      ownerLineLinker,
+		requirePermission:    requirePermission,
+		requireAnyPermission: requireAnyPermission,
 	}
 }
 
@@ -179,6 +194,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	customers := clinics.Group("/line-customers")
 	customers.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.lineCustomer.ListLineCustomers)
 	customers.PATCH("/:customerId/link-owner", h.requirePermission(string(model.ResourceOwners), "edit"), h.lineCustomer.LinkOwnerToLineCustomer)
+
+	// SharedFile routes are canonical-only and derive clinic/staff identity from JWT context.
+	h.RegisterSharedFileRoutes(rg)
 }
 
 // RegisterWebhookRoutes は LINE Webhook（JWT 認証なし・HMAC-SHA256 署名検証）を engine 直下へ登録する

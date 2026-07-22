@@ -71,7 +71,7 @@ func (m *mockOwnerLineLinker) LinkLineUserID(ctx context.Context, clinicID, owne
 	return nil
 }
 
-func newHandlerWithLstepLifecycleSvc(lc LstepLifecycleService, ow ownerLineLinker) *Handler {
+func newHandlerWithLstepLifecycleSvc(lc LstepLifecycleService, ow OwnerLineLinker) *Handler {
 	if ow == nil {
 		ow = &mockOwnerLineLinker{}
 	}
@@ -125,7 +125,7 @@ func newPatchOwnerLstepOptOutRouter(lc LstepLifecycleService, withClinicID bool)
 	return r
 }
 
-func newDeleteOwnerLineRouter(ow ownerLineLinker, withClinicID bool) *gin.Engine {
+func newDeleteOwnerLineRouter(ow OwnerLineLinker, withClinicID bool) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithLstepLifecycleSvc(&mockLstepLifecycleService{}, ow)
 	if withClinicID {

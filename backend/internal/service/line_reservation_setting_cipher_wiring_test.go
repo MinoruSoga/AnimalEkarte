@@ -20,7 +20,7 @@ import (
 )
 
 type wiringLineSettingRepo struct {
-	repository.LineReservationSettingRepository
+	reservation.LineReservationSettingRepository
 	persisted *model.LineReservationSetting
 }
 
@@ -38,12 +38,17 @@ func TestNewServices_LineReservationSettingUsesInjectedCipherClosures(t *testing
 	require.NoError(t, err)
 
 	repo := &wiringLineSettingRepo{}
-	repos := &repository.Repositories{
-		LineReservationSetting: repo,
-		LstepSettings:          &mockLstepSettingsRepository{},
-		LstepSyncSettings:      &mockLstepSyncSettingsRepository{},
-	}
-	svcs := NewServices(repos, &reservation.ReservationNotificationConfig{}, cipher, nil, "test-jwt-secret")
+	repos := &repository.Repositories{}
+	svcs := NewServices(
+		repos,
+		&reservation.ReservationNotificationConfig{},
+		cipher,
+		"test-jwt-secret",
+		&mockAuditService{},
+		&mockLstepTagSyncService{},
+		nil,
+		repo,
+	)
 
 	_, _, err = svcs.LineReservationSetting.Save(context.Background(), 1, &reservation.UpsertLineReservationSettingInput{
 		LineChannelSecret: "plain-secret",

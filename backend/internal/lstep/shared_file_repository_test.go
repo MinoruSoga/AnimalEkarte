@@ -1,4 +1,4 @@
-package sharedfile
+package lstep
 
 // repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
 //
@@ -34,7 +34,7 @@ func setupSharedFileTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func makeSharedFile(t *testing.T, repo Repository, clinicID uint64, fileName string) *model.SharedFile {
+func makeSharedFile(t *testing.T, repo SharedFileRepository, clinicID uint64, fileName string) *model.SharedFile {
 	t.Helper()
 	f := &model.SharedFile{
 		ClinicID:   clinicID,
@@ -53,7 +53,7 @@ func makeSharedFile(t *testing.T, repo Repository, clinicID uint64, fileName str
 // TestSharedFileRepository_Create_FindByID は作成と単件取得（clinic_id 隔離・NotFound）を検証する。
 func TestSharedFileRepository_Create_FindByID(t *testing.T) {
 	db := setupSharedFileTestDB(t)
-	repo := New(db)
+	repo := NewSharedFileRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -96,7 +96,7 @@ func TestSharedFileRepository_Create_FindByID(t *testing.T) {
 // TestSharedFileRepository_FindAll は一覧取得（clinic_id 隔離・deleted_at 除外・降順ソート）を検証する。
 func TestSharedFileRepository_FindAll(t *testing.T) {
 	db := setupSharedFileTestDB(t)
-	repo := New(db)
+	repo := NewSharedFileRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -132,7 +132,7 @@ func TestSharedFileRepository_FindAll(t *testing.T) {
 // TestSharedFileRepository_Delete は削除の正常系・clinic_id 隔離を検証する。
 func TestSharedFileRepository_Delete(t *testing.T) {
 	db := setupSharedFileTestDB(t)
-	repo := New(db)
+	repo := NewSharedFileRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -165,7 +165,7 @@ func TestSharedFileRepository_Delete(t *testing.T) {
 // TestSharedFileRepository_FindExpired は created_at ベースの期限切れ抽出（clinic 横断・deleted_at 除外）を検証する。
 func TestSharedFileRepository_FindExpired(t *testing.T) {
 	db := setupSharedFileTestDB(t)
-	repo := New(db)
+	repo := NewSharedFileRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 

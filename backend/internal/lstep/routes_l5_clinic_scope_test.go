@@ -64,6 +64,7 @@ func TestRegisterRoutes_L5UsesAuthenticatedClinic(t *testing.T) {
 		requirePermission: func(_, _ string) gin.HandlerFunc {
 			return func(c *gin.Context) { c.Next() }
 		},
+		requireAnyPermission: noopPermissionAny,
 	}
 	r := gin.New()
 	r.Use(func(c *gin.Context) {

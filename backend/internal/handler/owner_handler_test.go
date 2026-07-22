@@ -103,10 +103,9 @@ func (m *mockOwnerService) ConfirmLineID(ctx context.Context, clinicID, id uint6
 func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 	return &Handler{
 		svc: &service.Services{
-			Owner:          svc,
-			LstepTagSync:   &mockLstepTagSyncService{},
-			LstepLifecycle: &mockLstepLifecycleService{},
+			Owner: svc,
 		},
+		ownerDeletionLifecycle: &mockOwnerDeletionLifecycle{},
 	}
 }
 
@@ -986,10 +985,9 @@ func newHandlerWithOwnerAndPermSvc(svc service.OwnerService, permSvc service.Eff
 	return &Handler{
 		svc: &service.Services{
 			Owner:               svc,
-			LstepTagSync:        &mockLstepTagSyncService{},
-			LstepLifecycle:      &mockLstepLifecycleService{},
 			EffectivePermission: permSvc,
 		},
+		ownerDeletionLifecycle: &mockOwnerDeletionLifecycle{},
 	}
 }
 
@@ -1221,10 +1219,8 @@ func TestListOwners_ViewPermissionDenied(t *testing.T) {
 
 	h := &Handler{svc: &service.Services{
 		Owner:               &mockOwnerService{},
-		LstepTagSync:        &mockLstepTagSyncService{},
-		LstepLifecycle:      &mockLstepLifecycleService{},
 		EffectivePermission: &mockEffectivePermissionService{},
-	}}
+	}, ownerDeletionLifecycle: &mockOwnerDeletionLifecycle{}}
 	r := gin.New()
 	r.GET("/owners",
 		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },

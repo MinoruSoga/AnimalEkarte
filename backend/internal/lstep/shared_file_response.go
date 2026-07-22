@@ -1,9 +1,9 @@
-package handler
+package lstep
 
 import (
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 // sharedFileResponse はGETレスポンス
@@ -25,7 +25,7 @@ type sharedFileSignedURLResponse struct {
 	SignedURL string `json:"signed_url"`
 }
 
-func toSharedFileResponse(r *service.SharedFileResponse) sharedFileResponse {
+func toSharedFileResponse(r *SharedFileResponse) sharedFileResponse {
 	return sharedFileResponse{
 		ID:         r.ID,
 		ClinicID:   r.ClinicID,
@@ -35,7 +35,7 @@ func toSharedFileResponse(r *service.SharedFileResponse) sharedFileResponse {
 		FileName:   r.FileName,
 		FileSize:   r.FileSize,
 		Purpose:    r.Purpose,
-		ExpiresAt:  localTimePtr(r.ExpiresAt),
-		CreatedAt:  localTime(r.CreatedAt),
+		ExpiresAt:  httpapi.LocalTimePtr(r.ExpiresAt),
+		CreatedAt:  httpapi.LocalTime(r.CreatedAt),
 	}
 }

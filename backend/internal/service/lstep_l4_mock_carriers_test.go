@@ -1,7 +1,7 @@
 package service
 
-// L④ moved the owning lstep tests into internal/lstep. These small carriers
-// keep residual L⑤/service tests on consumer-side contracts until their batch.
+// This tag-sync carrier has real owner/pet/chronic-condition test consumers. Delete it with
+// those production consumers in BE9-2E (BE9-2F compatibility backstop).
 
 import (
 	"context"
@@ -9,32 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type mockLstepSettingsService struct {
-	lstep.LstepSettingsService
-	isSyncEnabledFn        func(context.Context, uint64) (bool, error)
-	getDormantThresholdsFn func(context.Context, uint64) (model.DormantThresholds, error)
-}
-
-func (m *mockLstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error) {
-	if m.isSyncEnabledFn != nil {
-		return m.isSyncEnabledFn(ctx, clinicID)
-	}
-	return true, nil
-}
-
-func (m *mockLstepSettingsService) GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error) {
-	if m.getDormantThresholdsFn != nil {
-		return m.getDormantThresholdsFn(ctx, clinicID)
-	}
-	return model.DormantThresholds{}.WithDefaults(), nil
-}
-
-func (*mockLstepSettingsService) GetCPMV1Thresholds(context.Context, uint64) (model.CPMV1Thresholds, error) {
-	return model.CPMV1Thresholds{}.WithDefaults(), nil
-}
-
-type mockLstepTagCacheRepository struct{ lstep.LstepTagCacheRepository }
 
 type mockLstepTagSyncService struct {
 	lstep.LstepTagSyncService

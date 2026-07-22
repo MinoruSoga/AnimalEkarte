@@ -77,6 +77,13 @@ type AuditTxLogger interface {
 	LogEntryTx(ctx context.Context, input *AuditLogInput) error
 }
 
+// AuditKernel is the concrete composition contract for callers that need both regular and
+// transaction-local audit writes.
+type AuditKernel interface {
+	AuditService
+	AuditTxLogger
+}
+
 type AuditLogInput struct {
 	ClinicID   *uint64
 	ActorID    *uint64
@@ -136,7 +143,7 @@ func auditActorTypeFor(actorID *uint64) string {
 	return sharedkernel.AuditActorTypeFor(actorID)
 }
 
-func NewAuditService(repo repository.AuditRepository) AuditService {
+func NewAuditService(repo repository.AuditRepository) AuditKernel {
 	return &auditService{repo: repo}
 }
 

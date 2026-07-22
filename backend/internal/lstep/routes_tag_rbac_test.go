@@ -39,14 +39,16 @@ func TestRegisterRoutes_TagCoreRBACTuples(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		recordPermission,
+		noopPermissionAny,
 	)
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
 	// L①/L② register 15 tuples first. L③a's 23 tuples remain at the same
 	// positions; L③b/L④ append their tuples before the final line-customer pair.
-	require.Len(t, calls, 64)
+	require.Len(t, calls, 67)
 	tagCoreCalls := calls[15:38]
 	expected := []permissionTuple{
 		{string(model.ResourceOwners), "view"},

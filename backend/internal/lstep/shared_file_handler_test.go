@@ -1,4 +1,4 @@
-package handler
+package lstep
 
 import (
 	"bytes"
@@ -13,21 +13,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock SharedFileService ----
 
 type mockSharedFileService struct {
-	uploadFn         func(ctx context.Context, clinicID, uploadedBy uint64, input *service.UploadSharedFileInput) (*service.SharedFileResponse, error)
+	uploadFn         func(ctx context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error)
 	getSignedURLFn   func(ctx context.Context, clinicID, id uint64) (string, error)
-	findAllFn        func(ctx context.Context, clinicID uint64) ([]*service.SharedFileResponse, error)
+	findAllFn        func(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 	cleanupExpiredFn func(ctx context.Context) error
 }
 
-func (m *mockSharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uint64, input *service.UploadSharedFileInput) (*service.SharedFileResponse, error) {
+func (m *mockSharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error) {
 	return m.uploadFn(ctx, clinicID, uploadedBy, input)
 }
 
@@ -35,7 +33,7 @@ func (m *mockSharedFileService) GetSignedURL(ctx context.Context, clinicID, id u
 	return m.getSignedURLFn(ctx, clinicID, id)
 }
 
-func (m *mockSharedFileService) FindAll(ctx context.Context, clinicID uint64) ([]*service.SharedFileResponse, error) {
+func (m *mockSharedFileService) FindAll(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error) {
 	return m.findAllFn(ctx, clinicID)
 }
 
@@ -50,10 +48,10 @@ func (m *mockSharedFileService) CleanupExpired(ctx context.Context) error {
 	return nil
 }
 
-var _ service.SharedFileService = (*mockSharedFileService)(nil)
+var _ SharedFileService = (*mockSharedFileService)(nil)
 
-func newHandlerWithSharedFileSvc(svc service.SharedFileService) *Handler {
-	return &Handler{svc: &service.Services{SharedFile: svc}}
+func newHandlerWithSharedFileSvc(svc SharedFileService) *Handler {
+	return &Handler{sharedFile: svc}
 }
 
 // buildSharedFileMultipart はテスト用の multipart/form-data ボディを組み立てる。
@@ -91,9 +89,9 @@ func TestListSharedFiles(t *testing.T) {
 			name:     "returns list of shared files",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockSharedFileService{
-				findAllFn: func(_ context.Context, clinicID uint64) ([]*service.SharedFileResponse, error) {
+				findAllFn: func(_ context.Context, clinicID uint64) ([]*SharedFileResponse, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					return []*service.SharedFileResponse{{ID: 1, ClinicID: clinicID, FileName: "a.pdf"}}, nil
+					return []*SharedFileResponse{{ID: 1, ClinicID: clinicID, FileName: "a.pdf"}}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -109,7 +107,7 @@ func TestListSharedFiles(t *testing.T) {
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockSharedFileService{
-				findAllFn: func(_ context.Context, _ uint64) ([]*service.SharedFileResponse, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]*SharedFileResponse, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -153,15 +151,20 @@ func TestUploadSharedFile(t *testing.T) {
 			setupCtx:    func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			includeFile: true,
 			fileName:    "file.pdf",
-			formFields:  map[string]string{"purpose": "prescription", "owner_id": "10"},
+			formFields: map[string]string{
+				"purpose":     "prescription",
+				"owner_id":    "10",
+				"clinic_id":   "999",
+				"uploaded_by": "999",
+			},
 			svc: &mockSharedFileService{
-				uploadFn: func(_ context.Context, clinicID, uploadedBy uint64, input *service.UploadSharedFileInput) (*service.SharedFileResponse, error) {
+				uploadFn: func(_ context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), uploadedBy)
 					assert.Equal(t, "prescription", input.Purpose)
 					require.NotNil(t, input.OwnerID)
 					assert.Equal(t, uint64(10), *input.OwnerID)
-					return &service.SharedFileResponse{ID: 5, ClinicID: clinicID, FileName: "file.pdf"}, nil
+					return &SharedFileResponse{ID: 5, ClinicID: clinicID, FileName: "file.pdf"}, nil
 				},
 			},
 			wantStatus:   http.StatusCreated,
@@ -214,7 +217,7 @@ func TestUploadSharedFile(t *testing.T) {
 			includeFile: true,
 			fileName:    "file.pdf",
 			svc: &mockSharedFileService{
-				uploadFn: func(_ context.Context, _, _ uint64, _ *service.UploadSharedFileInput) (*service.SharedFileResponse, error) {
+				uploadFn: func(_ context.Context, _, _ uint64, _ *UploadSharedFileInput) (*SharedFileResponse, error) {
 					return nil, fmt.Errorf("upload failure")
 				},
 			},
@@ -228,7 +231,7 @@ func TestUploadSharedFile(t *testing.T) {
 			body, contentType := buildSharedFileMultipart(t, tt.includeFile, tt.fileName, []byte("dummy"), tt.formFields)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodPost, "/shared-files", body)
+			c.Request = httptest.NewRequest(http.MethodPost, "/shared-files?clinic_id=999&uploaded_by=999", body)
 			c.Request.Header.Set("Content-Type", contentType)
 			tt.setupCtx(c)
 			h.UploadSharedFile(c)
@@ -385,7 +388,7 @@ func TestToSharedFileResponse(t *testing.T) {
 	ownerID := uint64(3)
 
 	t.Run("maps all fields including expires_at", func(t *testing.T) {
-		resp := toSharedFileResponse(&service.SharedFileResponse{
+		resp := toSharedFileResponse(&SharedFileResponse{
 			ID:         1,
 			ClinicID:   2,
 			OwnerID:    &ownerID,
@@ -413,7 +416,7 @@ func TestToSharedFileResponse(t *testing.T) {
 	})
 
 	t.Run("handles nil owner_id and nil expires_at", func(t *testing.T) {
-		resp := toSharedFileResponse(&service.SharedFileResponse{
+		resp := toSharedFileResponse(&SharedFileResponse{
 			ID:         1,
 			ClinicID:   2,
 			OwnerID:    nil,

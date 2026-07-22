@@ -11,28 +11,36 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
-	cfg                *config.Config
-	svc                *service.Services
-	liffCustomerLookup middleware.LineCustomerLookup
-	liffSettingLookup  middleware.LineReservationSettingLookup
-	uploader           infra.FileUploader
+	cfg                    *config.Config
+	svc                    *service.Services
+	ownerDeletionLifecycle OwnerDeletionLifecycle
+	uploader               infra.FileUploader
+}
+
+// OwnerDeletionLifecycle is the narrow LSTEP lifecycle capability consumed by the legacy
+// owner deletion route. Delete this port when the owner HTTP surface moves in BE9-2E.
+type OwnerDeletionLifecycle interface {
+	HandleOwnerDeletion(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // New はHandlerを初期化して返す
-// consumer側narrow interface方針: repos は LiffAuth 用の narrow interface 2 件のみを抽出して保持する（全 repository 集約は保持しない）。
-func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
-	h := &Handler{cfg: cfg, svc: svc, uploader: uploader}
-	if repos != nil {
-		h.liffCustomerLookup = repos.LineCustomerMgr
-		h.liffSettingLookup = repos.LineReservationSetting
+func New(
+	cfg *config.Config,
+	svc *service.Services,
+	ownerDeletionLifecycle OwnerDeletionLifecycle,
+	uploader infra.FileUploader,
+) *Handler {
+	return &Handler{
+		cfg:                    cfg,
+		svc:                    svc,
+		ownerDeletionLifecycle: ownerDeletionLifecycle,
+		uploader:               uploader,
 	}
-	return h
 }
 
 // PaginatedResponse is a DEPRECATED facade (BE9-2C): moved to
@@ -124,7 +132,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 
 	// LSTEP / LINE連携
 	// Lステップ設定 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L①）
-	h.RegisterSharedFileRoutes(protected)
+	// SharedFile routes moved to internal/lstep (BE9-2C L⑥).
 	// Customer aggregation routes moved to internal/lstep (L⑤).
 	// LSTEP-BE-019/020: owner tag CRUD and tag summary routes moved to internal/lstep (L③a).
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携 routes moved to internal/lstep (L③b).
