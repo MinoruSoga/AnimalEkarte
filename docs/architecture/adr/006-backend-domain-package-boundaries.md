@@ -46,7 +46,7 @@ backend/internal/
 
 **Implementation status (2026-07-22)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[BE-refactor.md BE9-2E-0](../../../BE-refactor.md#be9-2e-0-write-owner)のruntime/AST gateで回帰を防ぐ。
 
-L⑥（`849c27524`）でLSTEPのproduction compositionをtarget package側のtyped `lstep.Application`へ収束した。`cmd/api`が`lstep.Dependencies`からapplicationを組み立て、旧`service.NewServices` / `service.Services`とroot `repository.Repositories`はLSTEP/SharedFileを所有しない。legacy domainへはtyped resultの必要最小限だけを渡し、owner/pet lifecycleはconsumer-side intent interface、legacy DTO/audit変換はcomposition root adapterで接続する。このcutoverでconsumer 0のroot facadeと旧service adapterを削除し、期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
+L⑥（core `849c27524` / final composition `962ce70e3`）でLSTEPのproduction compositionをtarget package側のtyped `lstep.Application`へ収束した。`cmd/api`が`lstep.Dependencies`からapplicationを組み立て、旧`service.NewServices` / `service.Services`とroot `repository.Repositories`はLSTEP/SharedFileを所有しない。legacy domainへはtyped resultの必要最小限だけを渡し、owner/pet lifecycleはconsumer-side intent interface、legacy DTO/audit変換はcomposition root adapterで接続する。このcutoverでconsumer 0のroot facadeと旧service adapterを削除し、期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
 
 SharedFileはroute・use case・persistence・testを単一`internal/lstep` vertical sliceへ移した。4 route、status、storage/error/OpenAPI contractを維持し、POST authorizationは`owners:edit` / `medical-records:create` / `medical-records:edit`のtyped OR要件とする。clinic/staff scopeはJWT由来のみを保存pathへ渡し、URL/body/query値を認可根拠にしない。package移動自体を安全性の根拠とせず、RBAC tuple、敵対clinic test、route snapshot、OpenAPI drift gateで固定する。
 
