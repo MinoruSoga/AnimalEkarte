@@ -66,11 +66,11 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 func setupPreloadTrimmingDetailTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupIsolatedTestDB(t)
-	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
-	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
-	db.Exec("TRUNCATE TABLE trimming_courses CASCADE")
-	db.Exec("TRUNCATE TABLE trimming_options CASCADE")
-	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
+	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE trimming_courses CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE trimming_options CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE reservation_types CASCADE").Error)
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.TrimmingOption{},

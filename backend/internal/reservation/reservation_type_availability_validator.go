@@ -6,12 +6,18 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
+// ReservationTypeUnavailableTimeView is the read-only capability required by availability validation.
+type ReservationTypeUnavailableTimeView interface {
+	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+}
+
 func ValidateReservationTypeAvailableTime(
 	ctx context.Context,
-	unavailableRepo ReservationTypeUnavailableTimeRepository,
+	unavailableRepo ReservationTypeUnavailableTimeView,
 	clinicID, reservationTypeID uint64,
 	start, end time.Time,
 ) error {

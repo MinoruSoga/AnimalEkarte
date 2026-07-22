@@ -158,14 +158,6 @@ type mockTrimmingReservationTypeRepository struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 }
 
-func (m *mockTrimmingReservationTypeRepository) FindAll(_ context.Context, _ uint64) ([]model.ReservationType, error) {
-	return nil, nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) FindAllWithChildren(_ context.Context, _ uint64) ([]model.ReservationType, error) {
-	return nil, nil
-}
-
 func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
@@ -176,34 +168,6 @@ func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, cl
 		Category: model.ReservationTypeCategoryTrimming,
 		IsActive: true,
 	}, nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) FindByIDWithChildren(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	return m.FindByID(ctx, clinicID, id)
-}
-
-func (m *mockTrimmingReservationTypeRepository) CountUsageByReservationTypeID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) Create(_ context.Context, _ *model.ReservationType) error {
-	return nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) Update(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
-	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockTrimmingReservationTypeRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
-	return nil
 }
 
 var _ ReservationTypeRepository = (*mockTrimmingReservationTypeRepository)(nil)
