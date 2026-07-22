@@ -1,6 +1,8 @@
 package lstep
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,7 +24,15 @@ type Handler struct {
 	tagConfig         LstepTagConfigService
 	tagSummary        LstepTagSummaryService
 	checkupSync       CheckupSyncService
+	lifecycle         LstepLifecycleService
+	deliveryMonitor   LstepDeliveryMonitorService
+	triggerPriority   LstepTriggerPriorityService
+	ownerLineLinker   ownerLineLinker
 	requirePermission PermissionMiddleware
+}
+
+type ownerLineLinker interface {
+	LinkLineUserID(ctx context.Context, clinicID, ownerID uint64, lineUserID *string, actorID *uint64) error
 }
 
 // NewHandler は lstep domain の routing composition を構築する。
@@ -36,6 +46,10 @@ func NewHandler(
 	tagConfig LstepTagConfigService,
 	tagSummary LstepTagSummaryService,
 	checkupSync CheckupSyncService,
+	lifecycle LstepLifecycleService,
+	deliveryMonitor LstepDeliveryMonitorService,
+	triggerPriority LstepTriggerPriorityService,
+	ownerLineLinker ownerLineLinker,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -48,6 +62,10 @@ func NewHandler(
 		tagConfig:         tagConfig,
 		tagSummary:        tagSummary,
 		checkupSync:       checkupSync,
+		lifecycle:         lifecycle,
+		deliveryMonitor:   deliveryMonitor,
+		triggerPriority:   triggerPriority,
+		ownerLineLinker:   ownerLineLinker,
 		requirePermission: requirePermission,
 	}
 }
@@ -125,6 +143,22 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:clinic_id")
 	clinics.GET("/lstep/checkup-sync/preview", h.requirePermission(string(model.ResourceOwners), "view"), h.GetCheckupSyncPreview)
 	clinics.POST("/lstep/checkup-sync", h.requirePermission(string(model.ResourceOwners), "edit"), h.CreateCheckupSync)
+
+	// BE-017 / ISSUE-001: lifecycle routes (canonical + clinic alias).
+	owners.DELETE("/:id/line", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
+	owners.POST("/:id/lstep-opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
+	owners.PATCH("/:id/lstep/opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
+	co.POST("/:id/lstep-opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
+	pets := rg.Group("/pets")
+	pets.PATCH("/:id/death", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdatePetDeath)
+	pets.DELETE("/:id/death", h.requirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
+	clinicPets := rg.Group("/clinics/:clinic_id/pets")
+	clinicPets.PATCH("/:id/death", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdatePetDeath)
+	clinicPets.DELETE("/:id/death", h.requirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
+
+	// FEAT-384 / Q23: delivery monitor and trigger priority settings.
+	h.RegisterLstepDeliveryMonitorRoutes(rg)
+	h.RegisterLstepTriggerPriorityRoutes(rg)
 
 	// 顧客管理（旧 reservation_line_routes.go 逐語）
 	customers := clinics.Group("/line-customers")

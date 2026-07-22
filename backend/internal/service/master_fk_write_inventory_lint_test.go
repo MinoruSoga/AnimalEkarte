@@ -189,6 +189,9 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// Every future BE9-2C/2D/2E domain package will hit this same qualifier once it merges
 	// handler code into role scope; no further per-domain qualifier addition should be needed.
 	"gin": {},
+	// lstep.LifecycleAuditEntry is a transaction-local audit adapter input.
+	// It is not a persistence write DTO carrying a clinic-scoped master FK.
+	"lstep": {},
 	// NOTE (BE9-2D sub-batch③): a "medicalrecord" qualifier was temporarily exempted in the
 	// Batch B middle state (labAuditAdapter.LogEntry(ctx, *medicalrecord.AuditEntry) in the now-
 	// deleted lab_middle_state.go). Batch C relocated lab construction — and that adapter — to

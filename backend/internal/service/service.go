@@ -85,7 +85,7 @@ type Services struct {
 	// LSTEP / LINE連携
 	LstepSettings  LstepSettingsService
 	LstepTagSync   LstepTagSyncService
-	LstepLifecycle LstepLifecycleService
+	LstepLifecycle lstep.LstepLifecycleService
 	LstepTag       LstepTagService
 	SharedFile     SharedFileService
 	// LSTEP-BE-010: LTV集計 → 顧客集計ドメインに統一
@@ -97,9 +97,9 @@ type Services struct {
 	// LSTEP-BE-014: ノーショウ検知バッチ
 	LstepBatch LstepBatchService
 	// FEAT-383: 自動配信トリガー
-	LstepDeliveryTrigger LstepDeliveryTriggerService
+	LstepDeliveryTrigger lstep.LstepDeliveryTriggerService
 	// Q23: トリガー優先順位設定
-	LstepTriggerPriority LstepTriggerPriorityService
+	LstepTriggerPriority lstep.LstepTriggerPriorityService
 	// FEAT-379: タグコードマッピング設定
 	LstepTagCodeMapping LstepTagCodeMappingService
 	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
@@ -111,7 +111,7 @@ type Services struct {
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	CheckupSync lstep.CheckupSyncService
 	// FEAT-384: 自動配信トリガー監視
-	LstepDeliveryMonitor LstepDeliveryMonitorService
+	LstepDeliveryMonitor lstep.LstepDeliveryMonitorService
 	// FEAT-385: Lステップ CSV インポート・分析
 	LstepCsvImport LstepCsvImportService
 	LstepAnalytics LstepAnalyticsService
@@ -185,7 +185,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
 	lstepSettingsSvc := lstep.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
-	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, auditTxLogger)
+	lstepLifecycleSvc := lstep.NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, lstepLifecycleAuditTxAdapter{inner: auditTxLogger})
 
 	// G9-1: 旧 main.go 二段階DI（NewServices 呼び出し後の再構築ブロック）をここに統合。
 	// main.go 由来の元の構築順序をそのまま保持する。
@@ -201,11 +201,11 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	checkupSyncSvc := lstep.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
 	// FEAT-384: 自動配信トリガー監視
-	lstepDeliveryMonitorSvc := NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
+	lstepDeliveryMonitorSvc := lstep.NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
 	// Q23: トリガー優先順位設定
-	lstepTriggerPrioritySvc := NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
+	lstepTriggerPrioritySvc := lstep.NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
 	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
-	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
+	lstepDeliveryTriggerSvc := lstep.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
 	// BE9-2D: checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
 	// inquiry-template/prescription services moved to internal/medicalrecord and are now

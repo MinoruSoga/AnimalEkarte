@@ -41,6 +41,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
+		nil,
 		noopPermission,
 	)
 
@@ -59,17 +63,23 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 
 	want := `DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
 DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
+DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
 DELETE /api/v1/lstep-settings DeleteLstepSettings
 DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefix
 DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id DeleteConditionTagMapping
 DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeTagPrefix
+DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
+DELETE /api/v1/pets/:id/death DeletePetDeath
 GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
 GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/clinics/:clinic_id/lstep/checkup-sync/preview GetCheckupSyncPreview
+GET /api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs GetLstepDeliveryTriggerLogs
+GET /api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary GetLstepDeliveryTriggerSummary
 GET /api/v1/clinics/:clinic_id/lstep/owners SearchLstepOwnersByTag
 GET /api/v1/clinics/:clinic_id/lstep/tag-summary GetLstepTagSummary
+GET /api/v1/clinics/:clinic_id/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/lstep-settings GetLstepSettings
@@ -77,18 +87,27 @@ GET /api/v1/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/lstep-tag-config/auto-managed-prefixes ListAutoManagedPrefixes
 GET /api/v1/lstep-tag-config/condition-tag-mappings ListConditionTagMappings
 GET /api/v1/lstep-tag-config/send-purpose-tag-prefixes ListSendPurposeTagPrefixes
+GET /api/v1/lstep/delivery-monitor/logs GetLstepDeliveryTriggerLogs
+GET /api/v1/lstep/delivery-monitor/summary GetLstepDeliveryTriggerSummary
 GET /api/v1/lstep/owners SearchLstepOwnersByTag
 GET /api/v1/lstep/tag-summary GetLstepTagSummary
+GET /api/v1/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/owners/:id/lstep/send-history GetLineSendLogs
 GET /api/v1/owners/:id/lstep/tags GetOwnerLstepTags
 PATCH /api/v1/clinics/:clinic_id/line-customers/:customerId/link-owner LinkOwnerToLineCustomer
 PATCH /api/v1/clinics/:clinic_id/lstep-settings UpdateLstepSettings
+PATCH /api/v1/clinics/:clinic_id/lstep/trigger-priorities UpdateLstepTriggerPriorities
+PATCH /api/v1/clinics/:clinic_id/pets/:id/death UpdatePetDeath
 PATCH /api/v1/lstep-settings UpdateLstepSettings
+PATCH /api/v1/lstep/trigger-priorities UpdateLstepTriggerPriorities
+PATCH /api/v1/owners/:id/lstep/opt-out PatchOwnerLstepOptOut
+PATCH /api/v1/pets/:id/death UpdatePetDeath
 POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/clinics/:clinic_id/lstep-settings/test-connection TestLstepConnection
 POST /api/v1/clinics/:clinic_id/lstep/checkup-sync CreateCheckupSync
 POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
+POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/lstep-settings/test-connection TestLstepConnection
 POST /api/v1/lstep-tag-config/auto-managed-prefixes CreateAutoManagedPrefix
@@ -96,6 +115,7 @@ POST /api/v1/lstep-tag-config/condition-tag-mappings CreateConditionTagMapping
 POST /api/v1/lstep-tag-config/send-purpose-tag-prefixes CreateSendPurposeTagPrefix
 POST /api/v1/owners/:id/line/link-token GenerateLineLinkToken
 POST /api/v1/owners/:id/line/send SendLineMessage
+POST /api/v1/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/owners/:id/lstep/send SendLineMessage
 POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
 PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag

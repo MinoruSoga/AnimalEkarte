@@ -456,6 +456,10 @@ func main() {
 		svcs.LstepTagConfig,
 		svcs.LstepTagSummary,
 		svcs.CheckupSync,
+		svcs.LstepLifecycle,
+		svcs.LstepDeliveryMonitor,
+		svcs.LstepTriggerPriority,
+		svcs.Owner,
 		h.RequirePermission,
 	)
 	lstepHandler.RegisterRoutes(protected)

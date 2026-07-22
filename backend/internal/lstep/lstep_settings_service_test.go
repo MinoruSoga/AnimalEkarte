@@ -602,6 +602,16 @@ type mockAuditService struct {
 	logLstepOperationFn             func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error
 	logLstepOperationErr            error
 	logLstepOperationWithMetadataFn func(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
+	logEntryTxErr                   error
+	entries                         []*LifecycleAuditEntry
+}
+
+func (m *mockAuditService) LogEntryTx(_ context.Context, entry *LifecycleAuditEntry) error {
+	if m.logEntryTxErr != nil {
+		return m.logEntryTxErr
+	}
+	m.entries = append(m.entries, entry)
+	return nil
 }
 
 func (m *mockAuditService) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error {

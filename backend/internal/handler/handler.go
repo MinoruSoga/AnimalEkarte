@@ -129,11 +129,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
 	// Q23: トリガー優先順位設定
-	h.RegisterLstepTriggerPriorityRoutes(protected)
 	// FEAT-379: タグコードマッピング設定
 	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
 	// FEAT-384: 自動配信トリガー監視
-	h.RegisterLstepDeliveryMonitorRoutes(protected)
 	// FEAT-385: Lステップ CSV インポート・分析
 	h.RegisterLstepCsvImportRoutes(protected)
 	h.RegisterLstepAnalyticsRoutes(protected)
@@ -171,11 +169,8 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	// ISSUE-001: FE統一エンドポイントのエイリアス。co側に無い理由は未文書化（現状維持）
 	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
 	// co側に無い理由は未文書化（現状維持）
-	owners.DELETE("/:id/line", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
 	// BE-017: Lステップオプトアウト（旧エンドポイント互換保持）
-	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
 	// ISSUE-001: 統合opt-outエンドポイント。co側に無い理由は未文書化（現状維持）
-	owners.PATCH("/:id/lstep/opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
 	// FEAT-381: 配信除外・転院・LINE ID確認
 	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryExclusion)
 	// FEAT-381-2: 配信注意フラグ
@@ -195,7 +190,6 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
 	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
-	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
 	// co側 LINE 個別送信 2ルートは internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
 	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)

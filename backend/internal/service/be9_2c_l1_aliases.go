@@ -38,15 +38,16 @@ type (
 
 	// L③a transitional aliases — tag-sync core now lives in internal/lstep.
 	// Residual service consumers are removed in L③b-L⑤. REMOVE: BE9-2F.
-	LstepTagSyncService        = lstep.LstepTagSyncService
-	LstepTagService            = lstep.LstepTagService
-	LstepTagCodeMappingService = lstep.LstepTagCodeMappingService
-	LstepTagConfigService      = lstep.LstepTagConfigService
-	LstepTagSummaryService     = lstep.LstepTagSummaryService
-	CPMStage                   = lstep.CPMStage
-	CPMStageV2                 = lstep.CPMStageV2
-	CPMData                    = lstep.CPMData
-	CPMStageV2Input            = lstep.CPMStageV2Input
+	LstepTagSyncService         = lstep.LstepTagSyncService
+	LstepDeliveryTriggerService = lstep.LstepDeliveryTriggerService
+	LstepTagService             = lstep.LstepTagService
+	LstepTagCodeMappingService  = lstep.LstepTagCodeMappingService
+	LstepTagConfigService       = lstep.LstepTagConfigService
+	LstepTagSummaryService      = lstep.LstepTagSummaryService
+	CPMStage                    = lstep.CPMStage
+	CPMStageV2                  = lstep.CPMStageV2
+	CPMData                     = lstep.CPMData
+	CPMStageV2Input             = lstep.CPMStageV2Input
 )
 
 //nolint:gocritic // by-value signature is the transitional API contract; changing it would break residual consumers before L③b/L⑤.
@@ -78,5 +79,3 @@ func NewLstepTagSyncFromRepos(repos *repository.Repositories, settings LstepSett
 		repos.LstepTagConfig,
 	)
 }
-
-const tagPrefixCheckupDone = lstep.TagPrefixCheckupDone

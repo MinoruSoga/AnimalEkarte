@@ -10,7 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestRegisterRoutes_TagCoreRBACTuples(t *testing.T) {
+func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
 	type permissionTuple struct {
 		resource string
 		action   string
@@ -41,34 +41,28 @@ func TestRegisterRoutes_TagCoreRBACTuples(t *testing.T) {
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	// L①/L② register 15 tuples first. L③a's 23 tuples remain at the same
-	// positions; L③b follows before the final line-customer pair.
+	// L①〜L③b register 40 tuples before L④. L④ preserves the four owner
+	// lifecycle routes, four pet-death routes, four delivery-monitor routes, and
+	// four trigger-priority routes.
 	require.Len(t, calls, 58)
-	tagCoreCalls := calls[15:38]
-	expected := []permissionTuple{
-		{string(model.ResourceOwners), "view"},
-		{string(model.ResourceOwners), "edit"},
+	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "delete"},
-		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "delete"},
+		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "edit"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
+	}, calls[40:52])
+	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceHospitalSettings), "view"},
 		{string(model.ResourceHospitalSettings), "edit"},
 		{string(model.ResourceHospitalSettings), "view"},
 		{string(model.ResourceHospitalSettings), "edit"},
-		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
-		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
-		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
-	}
-	assert.Equal(t, expected, tagCoreCalls)
+	}, calls[52:56])
 }

@@ -1,6 +1,5 @@
 DELETE /api/v1/clinic-holidays/:date DeleteClinicHoliday
 DELETE /api/v1/clinics/:clinic_id DeleteClinic
-DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
 DELETE /api/v1/inventory/:id DeleteInventory
@@ -13,10 +12,8 @@ DELETE /api/v1/masters/trimming-course-types/:id DeleteTrimmingCourseType
 DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse
 DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption
 DELETE /api/v1/owners/:id DeleteOwner
-DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/pets/:id DeletePet
 DELETE /api/v1/pets/:id/chronic-conditions/:cc_id DeleteChronicCondition
-DELETE /api/v1/pets/:id/death DeletePetDeath
 DELETE /api/v1/shared-files/:id DeleteSharedFile
 DELETE /api/v1/shift-templates/:id DeleteShiftTemplate
 DELETE /api/v1/shifts/:id DeleteShiftEntry
@@ -27,9 +24,6 @@ GET /api/v1/clinics/:clinic_id GetClinic
 GET /api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats GetLstepMonthlyDeliveryStats
 GET /api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion GetLstepVisitConversionSummary
 GET /api/v1/clinics/:clinic_id/lstep/csv-imports ListLstepCsvImports
-GET /api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs GetLstepDeliveryTriggerLogs
-GET /api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary GetLstepDeliveryTriggerSummary
-GET /api/v1/clinics/:clinic_id/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes GetLstepOwnerFriendAttributes
 GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
 GET /api/v1/closing-settings GetClosingSettings
@@ -38,9 +32,6 @@ GET /api/v1/closing-settings/special-periods ListSpecialPeriods
 GET /api/v1/company GetCompany
 GET /api/v1/inventory ListInventory
 GET /api/v1/inventory/:id GetInventory
-GET /api/v1/lstep/delivery-monitor/logs GetLstepDeliveryTriggerLogs
-GET /api/v1/lstep/delivery-monitor/summary GetLstepDeliveryTriggerSummary
-GET /api/v1/lstep/trigger-priorities GetLstepTriggerPriorities
 GET /api/v1/masters/animal-species ListAnimalSpecies
 GET /api/v1/masters/animal-species/:id GetAnimalSpecies
 GET /api/v1/masters/merchandise-items ListMerchandiseItems
@@ -80,18 +71,15 @@ GET /health Health
 GET /uploads/*filepath func1
 HEAD /uploads/*filepath func1
 PATCH /api/v1/clinics/:clinic_id UpdateClinic
-PATCH /api/v1/clinics/:clinic_id/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-caution UpdateOwnerDeliveryCaution
 PATCH /api/v1/clinics/:clinic_id/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
 PATCH /api/v1/clinics/:clinic_id/owners/:id/line-id-confirm UpdateOwnerLineIDConfirm
 PATCH /api/v1/clinics/:clinic_id/owners/:id/line-user-id UpdateOwnerLineUserID
 PATCH /api/v1/clinics/:clinic_id/owners/:id/transfer-status UpdateOwnerTransferStatus
-PATCH /api/v1/clinics/:clinic_id/pets/:id/death UpdatePetDeath
 PATCH /api/v1/closing-settings UpdateClosingSettings
 PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
 PATCH /api/v1/inventory/:id UpdateInventory
-PATCH /api/v1/lstep/trigger-priorities UpdateLstepTriggerPriorities
 PATCH /api/v1/masters/animal-species/:id UpdateAnimalSpecies
 PATCH /api/v1/masters/animal-species/reorder ReorderAnimalSpecies
 PATCH /api/v1/masters/merchandise-items/:id UpdateMerchandiseItem
@@ -114,11 +102,9 @@ PATCH /api/v1/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
 PATCH /api/v1/owners/:id/line UpdateOwnerLineUserID
 PATCH /api/v1/owners/:id/line-id-confirm UpdateOwnerLineIDConfirm
 PATCH /api/v1/owners/:id/line-user-id UpdateOwnerLineUserID
-PATCH /api/v1/owners/:id/lstep/opt-out PatchOwnerLstepOptOut
 PATCH /api/v1/owners/:id/transfer-status UpdateOwnerTransferStatus
 PATCH /api/v1/pets/:id UpdatePet
 PATCH /api/v1/pets/:id/chronic-conditions/:cc_id UpdateChronicCondition
-PATCH /api/v1/pets/:id/death UpdatePetDeath
 PATCH /api/v1/shift-templates/:id UpdateShiftTemplate
 PATCH /api/v1/shift-templates/reorder ReorderShiftTemplates
 PATCH /api/v1/shifts/:id UpdateShiftEntry
@@ -129,7 +115,6 @@ POST /api/v1/auth/reset-password ResetPassword
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
 POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepFriendAttributesCsv
-POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/inventory CreateInventory
@@ -144,7 +129,6 @@ POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType
 POST /api/v1/masters/trimming-courses CreateTrimmingCourse
 POST /api/v1/masters/trimming-options CreateTrimmingOption
 POST /api/v1/owners CreateOwner
-POST /api/v1/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/pets CreatePet
 POST /api/v1/pets/:id/chronic-conditions CreateChronicCondition
 POST /api/v1/shared-files UploadSharedFile
