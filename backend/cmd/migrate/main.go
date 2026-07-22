@@ -28,6 +28,11 @@ const migrationLockID = 7283946501
 // runSeedBundles so all three agree on the same root.
 const migrationsDir = "/app/migrations"
 
+// initialSchemaMigrationFilename is the only DDL file that may be baselined for
+// a legacy database with tables but no schema_migrations history. Append-only
+// incrementals must execute normally so their constraints are not silently skipped.
+const initialSchemaMigrationFilename = "001_init.sql"
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if err := run(logger); err != nil {
@@ -114,7 +119,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("baseline failed: %w", err)
 	}
 
-	// フェーズ1: DDL migration（直下の *.sql。現状は統合スキーマ 001_init.sql のみ）を適用
+	// フェーズ1: DDL migration（直下の *.sql）を昇順適用
 	if err := runSQLMigrations(db, logger); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
@@ -290,7 +295,7 @@ func legacyKeysAmong(appliedFilenames []string) []string {
 	return found
 }
 
-// baselineIfNeeded は既存DBへの初回適用時に全マイグレーションを「適用済み」として記録する
+// baselineIfNeeded は既存DBへの初回適用時に初期スキーマとseedを「適用済み」として記録する
 // 条件: schema_migrations が空 AND 既にアプリケーションテーブルが存在する
 //
 // seed バンドルも必ずこのタイミングで「適用済み」として記録する（*.sql の走査とは別に、
@@ -326,7 +331,8 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 		return nil
 	}
 
-	// 既存DB: 全マイグレーションファイルを適用済みとして記録
+	// 既存DB: 初期スキーマだけを適用済みとして記録する。002以降のappend-only
+	// incrementalまでbaselineすると、実DDLを実行せず制約等を欠落させるため除外する。
 	logger.Warn("⚠️ Existing database detected with no migration history — running baseline")
 
 	files, err := os.ReadDir(migrationsDir)
@@ -342,6 +348,9 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 	baselined := 0
 	for _, entry := range files {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
+			continue
+		}
+		if !shouldBaselineSQLMigration(entry.Name()) {
 			continue
 		}
 
@@ -393,6 +402,10 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 	return nil
 }
 
+func shouldBaselineSQLMigration(filename string) bool {
+	return filename == initialSchemaMigrationFilename
+}
+
 // isAlreadyApplied は指定ファイルが既に適用済みかチェックする
 // checksum が変更されている場合はエラーを返す（手動改変検出）
 func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
@@ -436,8 +449,8 @@ func fileChecksum(content []byte) string {
 }
 
 // runSQLMigrations はフェーズ1: 直下の *.sql migration ファイル（2026-07-17 に
-// incremental 002–011 を畳み込んだ統合スキーマ 001_init.sql のみ。将来 incremental が
-// 増えた場合も昇順）を順序通りに実行する（実行済みはスキップ）。CSV シードバンドルは
+// 旧 incremental 002–011 を畳み込んだ統合スキーマ 001_init.sql と、それ以降に追加した
+// append-only incremental）を昇順実行する（実行済みはスキップ）。CSV シードバンドルは
 // フェーズ2の runSeedBundles が別途扱う — このファイル群には seed データは一切含まれない。
 func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 	// ディレクトリが存在するか確認

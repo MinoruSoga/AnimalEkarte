@@ -41,19 +41,21 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用で、**統合スキーマ `001_init.sql` の 1 ファイルのみ**（2026-07-17 に upgrade path incremental 002–011 を 001 へ完全統合して削除済み）。fresh install はこの 1 ファイルで完結する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-17 に旧 incremental 002–011 を `001_init.sql` へ統合した後は、新しいスキーマ変更を append-only incremental として追加する。
 
-現行ファイル構成（2026-07-17 時点）:
+現行ファイル構成（2026-07-22 時点）:
 
 1. `001_init.sql` — 統合スキーマ（108 テーブル + 全インデックス/複合FK/RLS。旧増分の原文は末尾セクション7に番号順追記）
-2. `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない）
+2. `002_lstep_snapshot_import_clinic_fk.sql` — LSTEP属性スナップショットとCSVインポートのclinic整合性を複合FKで保証
+3. `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない）
 
 旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、および 2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）は全て削除済み。
 
-**no-reset アップグレード経路は存在しない**: 薄い/旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 の checksum 変更により migrate が fail する。適用経路は `DB_RESET=true`（スキーマ再構築・USER 手動）のみ。
+**旧統合前DBのno-resetアップグレード経路は存在しない**: 薄い/旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 の checksum 変更により migrate が fail する。適用経路は `DB_RESET=true`（スキーマ再構築・USER 手動）のみ。現行の統合済み001が適用済みのDBには、002以降のincrementalを通常どおり追記適用できる。
 
-- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（DDL: 現状 `001_init.sql` のみ）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
-- **schema_migrations の記録キー**: DDL は従来通り各ファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は、**直下 DDL ファイル数 + seed 3 バンドル**（2026-07-17 時点は DDL 1 + seed 3 = 4 行）
+- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（DDL）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
+- **schema_migrations の記録キー**: DDL は従来通り各ファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は、**直下 DDL ファイル数 + seed 3 バンドル**（2026-07-22 時点は DDL 2 + seed 3 = 5 行）
+- **既存DBのbaseline**: `schema_migrations`が空で`clinics`が既に存在する場合、初期スキーマ`001_init.sql`とseed 3バンドルだけをbaseline記録する。`002`以降のappend-only incrementalはbaselineせず、必ず`runSQLMigrations`で実DDLを適用する。
 - seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
 - COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）
 - **旧形式（stub SQL 時代）の seed キー**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB では `detectLegacySeedKeys` が現行の `seeds/<bundle>` キー全件を baseline 記録する（PR #186 P1-3 で fail-fast から translate 方式へ変更済み・CSV の再ロードはしない）。ただし DDL 側は上記の checksum mismatch により結局 `db_reset` が必要になる点は変わらない

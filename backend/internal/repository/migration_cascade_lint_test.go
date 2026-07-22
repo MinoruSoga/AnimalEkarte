@@ -121,15 +121,15 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
 //
-// Floor rationale (2026-07-17): DDL は 001_init.sql の単一統合スキーマのみ
-// （同日中に incremental 002–011 を 001 へ完全統合し削除済み）。
+// Floor rationale (2026-07-22): DDL は統合スキーマ 001_init.sql と、その後に追加した
+// append-only incremental 002_lstep_snapshot_import_clinic_fk.sql の2ファイル。
 // The floor tracks the current known minimum .sql file count, not an arbitrary buffer;
 // it must be revisited whenever migrations are consolidated/split or the directory's .sql
 // file count otherwise legitimately changes.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	const minDDLFiles = 1
+	const minDDLFiles = 2
 	if len(found) < minDDLFiles {
 		t.Fatalf("expected at least %d migration .sql file(s) under %s, found %d "+
 			"(directory read broken or files missing).", minDDLFiles, migrationsDir, len(found))

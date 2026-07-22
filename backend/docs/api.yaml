@@ -7862,8 +7862,19 @@ components:
         status:
           type: string
         error_log:
-          type: object
-          additionalProperties: true
+          type: array
+          maxItems: 100
+          description: インポート直後の応答に含まれる先頭100件までのエラー概要。履歴一覧では省略し、LINE user IDは含めない。
+          items:
+            type: object
+            required: [row, reason]
+            properties:
+              row:
+                type: integer
+              reason:
+                type: string
+              detail:
+                type: string
           nullable: true
         imported_at:
           type: string
@@ -22383,7 +22394,7 @@ paths:
     post:
       operationId: postLstepCsvImportFriendAttributes
       summary: 友だち属性 CSV インポート(FEAT-385)
-      description: lstep-csv-import edit 権限が必要。
+      description: lstep-csv-import edit 権限が必要。CSV本体は50MiB、100,000データ行、64列、1セル64KiBまで。1病院1件、APIプロセス全体で2件まで同時実行でき、いずれかの上限を超えた場合は本文を解析せず429を返す。
       tags: [LstepCsvImports]
       parameters:
         - name: clinic_id
@@ -22418,6 +22429,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: 病院単位またはAPIプロセス全体の同時実行上限に達している
         '500':
           $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/lstep/analytics/delivery-stats:
@@ -22477,6 +22490,9 @@ paths:
           description: 来院判定の集計日数窓(デフォルト30)
           schema:
             type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
       responses:
         '200':
           description: 来院率集計
