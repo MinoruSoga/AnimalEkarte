@@ -7,11 +7,39 @@ import (
 )
 
 func ValidateReservationStaffCapability(ctx context.Context, repo ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
-	if repo == nil || doctorID == nil || *doctorID == 0 || reservationTypeID == 0 {
+	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, false)
+}
+
+// ValidateLineReservationStaffCapability applies the public LIFF boundary in addition to
+// clinic assignment and reservation-type capability. Internal reservation workflows may assign
+// inactive or hidden staff, so public availability is intentionally enforced only here.
+func ValidateLineReservationStaffCapability(ctx context.Context, repo ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, true)
+}
+
+func validateReservationStaffCapability(
+	ctx context.Context,
+	repo ReservationStaffRepository,
+	clinicID uint64,
+	doctorID *uint64,
+	reservationTypeID uint64,
+	requireReservationVisible bool,
+) error {
+	if doctorID == nil || *doctorID == 0 {
 		return nil
 	}
-	if _, err := repo.FindByID(ctx, clinicID, *doctorID); err != nil {
+	if repo == nil {
+		return apperrors.WrapInternalServerError("reservation staff repository is required")
+	}
+	if reservationTypeID == 0 {
+		return apperrors.WrapInternalServerError("reservation type is required to verify staff capability")
+	}
+	staff, err := repo.FindByID(ctx, clinicID, *doctorID)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to verify reservation staff")
+	}
+	if requireReservationVisible && (!staff.IsActive || !staff.ReservationVisible) {
+		return apperrors.WrapInvalidInput("選択した担当者はLINE予約では指定できません")
 	}
 	supports, err := repo.SupportsReservationType(ctx, clinicID, *doctorID, reservationTypeID)
 	if err != nil {

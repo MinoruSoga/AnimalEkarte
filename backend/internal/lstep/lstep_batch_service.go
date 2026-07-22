@@ -9,9 +9,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// lstepDormantBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
+// lstepBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
 const lstepDormantBatchPageSize = 500
 
 // deliveryTriggerHourJST は仕様 §6.4 で固定された Lステップ自動配信バッチの実行時刻 (10:00 JST)。
@@ -50,9 +51,67 @@ type lstepBatchDeliveryTrigger interface {
 	TriggerFoodRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 }
 
+type lstepBatchService struct {
+	reservationRepo      lstepBatchReservationRepository
+	tagSyncSvc           lstepBatchTagSyncer
+	clinicRepo           lstepBatchClinicRepository
+	medRecordRepo        lstepBatchMedicalRecordRepository
+	auditSvc             lstepBatchAuditService
+	settingsSvc          lstepBatchSettingsService
+	lstepDeliveryTrigger lstepBatchDeliveryTrigger
+	transactor           lstepBatchTransactor
+	noShowAuditTx        lstepNoShowAuditTxLogger
+	nowFn                func() time.Time
+}
+
+// NewLstepBatchService は LstepBatchService を初期化して返す。
+func NewLstepBatchService(
+	reservationRepo lstepBatchReservationRepository,
+	tagSyncSvc lstepBatchTagSyncer,
+	clinicRepo lstepBatchClinicRepository,
+	medRecordRepo lstepBatchMedicalRecordRepository,
+	auditSvc lstepBatchAuditService,
+	settingsSvc lstepBatchSettingsService,
+	lstepDeliveryTrigger lstepBatchDeliveryTrigger,
+	transactor lstepBatchTransactor,
+	noShowAuditTx lstepNoShowAuditTxLogger,
+) LstepBatchService {
+	return &lstepBatchService{
+		reservationRepo:      reservationRepo,
+		tagSyncSvc:           tagSyncSvc,
+		clinicRepo:           clinicRepo,
+		medRecordRepo:        medRecordRepo,
+		auditSvc:             auditSvc,
+		settingsSvc:          settingsSvc,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		transactor:           transactor,
+		noShowAuditTx:        noShowAuditTx,
+		nowFn:                time.Now,
+	}
+}
+
 type lstepBatchReservationRepository interface {
 	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	MarkNoShow(ctx context.Context, clinicID, id uint64) (reservation.NoShowTransition, error)
+}
+
+type lstepBatchTransactor interface {
+	WithTx(ctx context.Context, fn func(context.Context) error) error
+}
+
+// NoShowAuditEntry is the semantic, transaction-local audit contract owned by lstep.
+// internal/service maps it to the shared audit log without leaking that service type here.
+type NoShowAuditEntry struct {
+	ClinicID       uint64
+	AppointmentID  uint64
+	PreviousStatus model.ReservationStatus
+	EvaluatedAt    time.Time
+	RuleVersion    string
+	BatchRunID     string
+}
+
+type lstepNoShowAuditTxLogger interface {
+	LogNoShowTransitionTx(ctx context.Context, entry *NoShowAuditEntry) error
 }
 
 type lstepBatchClinicRepository interface {
@@ -78,39 +137,6 @@ type lstepBatchSettingsService interface {
 
 type lstepBatchAuditService interface {
 	LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
-}
-
-type lstepBatchService struct {
-	reservationRepo      lstepBatchReservationRepository
-	tagSyncSvc           lstepBatchTagSyncer
-	clinicRepo           lstepBatchClinicRepository
-	medRecordRepo        lstepBatchMedicalRecordRepository
-	auditSvc             lstepBatchAuditService
-	settingsSvc          lstepBatchSettingsService
-	lstepDeliveryTrigger lstepBatchDeliveryTrigger
-	nowFn                func() time.Time
-}
-
-// NewLstepBatchService は LstepBatchService を初期化して返す。
-func NewLstepBatchService(
-	reservationRepo lstepBatchReservationRepository,
-	tagSyncSvc lstepBatchTagSyncer,
-	clinicRepo lstepBatchClinicRepository,
-	medRecordRepo lstepBatchMedicalRecordRepository,
-	auditSvc lstepBatchAuditService,
-	settingsSvc lstepBatchSettingsService,
-	lstepDeliveryTrigger lstepBatchDeliveryTrigger,
-) LstepBatchService {
-	return &lstepBatchService{
-		reservationRepo:      reservationRepo,
-		tagSyncSvc:           tagSyncSvc,
-		clinicRepo:           clinicRepo,
-		medRecordRepo:        medRecordRepo,
-		auditSvc:             auditSvc,
-		settingsSvc:          settingsSvc,
-		lstepDeliveryTrigger: lstepDeliveryTrigger,
-		nowFn:                time.Now,
-	}
 }
 
 // runBatchAllClinics は「全クリニック走査 → IsSyncEnabled ゲート → 1 クリニック分の処理 →

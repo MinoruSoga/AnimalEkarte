@@ -3,8 +3,10 @@ package trimmingcourse
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -38,7 +40,15 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.Trim
 }
 
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
-	return repohelpers.FindByIDScoped[model.TrimmingCourse](ctx, r.db, "trimming_course", clinicID, id)
+	var course model.TrimmingCourse
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := db.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&course).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
+	}
+	return &course, nil
 }
 
 func (r *repository) Create(ctx context.Context, course *model.TrimmingCourse) error {

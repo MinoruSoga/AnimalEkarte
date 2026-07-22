@@ -104,7 +104,7 @@ type EstimateService interface {
 type estimateService struct {
 	repo              EstimateRepository
 	medicalRecordRepo billingMedicalRecordLocker
-	reservationRepo   reservation.ReservationRepository
+	reservationRepo   sharedkernel.OwnerPetLinkVerifier
 	staffClinicRepo   staffClinicMembershipCounter
 	auditService      billingAuditLogger
 	transactor        Transactor
@@ -119,7 +119,7 @@ type estimateService struct {
 func NewEstimateService(
 	repo EstimateRepository,
 	medicalRecordRepo billingMedicalRecordLocker,
-	reservationRepo reservation.ReservationRepository,
+	reservationRepo sharedkernel.OwnerPetLinkVerifier,
 	staffClinicRepo staffClinicMembershipCounter,
 	auditService billingAuditLogger,
 	transactor Transactor,

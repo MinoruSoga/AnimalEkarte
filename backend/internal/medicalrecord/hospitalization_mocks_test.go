@@ -14,8 +14,9 @@ import (
 )
 
 type mockReservationRepository struct {
-	assertOwnerInClinicFn  func(ctx context.Context, clinicID, ownerID uint64) error
-	findPetOwnerInClinicFn func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertOwnerInClinicFn             func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn            func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertMedicalRecordDoctorInClinic func(ctx context.Context, clinicID, doctorID uint64) error
 }
 
 func (m *mockReservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
@@ -30,6 +31,13 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
 	}
 	return 0, nil
+}
+
+func (m *mockReservationRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
+	if m.assertMedicalRecordDoctorInClinic != nil {
+		return m.assertMedicalRecordDoctorInClinic(ctx, clinicID, doctorID)
+	}
+	return nil
 }
 
 type mockAccountingRepository struct {

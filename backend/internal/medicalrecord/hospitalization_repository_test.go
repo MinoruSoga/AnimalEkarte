@@ -5,6 +5,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -69,6 +70,57 @@ func makeHospitalizationFixture(t *testing.T, db *gorm.DB, clinicID, ownerID, pe
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(h).Error)
 	return h
+}
+
+func TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	repo := NewHospitalizationRepository(db)
+	const clinicID = uint64(90301)
+
+	owner := makeTestOwner(t, db, clinicID, "ambient tx 飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ambient tx ペット")
+	errRollback := errors.New("force hospitalization rollback")
+	var hospitalizationID uint64
+
+	err := withTx(context.Background(), db, func(txCtx context.Context) error {
+		now := time.Now().UTC().Truncate(24 * time.Hour)
+		hospitalization := &model.Hospitalization{
+			ClinicID:            clinicID,
+			OwnerID:             owner.ID,
+			PetID:               pet.ID,
+			HospitalizationType: model.HospitalizationTypeInpatient,
+			StartDate:           now,
+			EndDate:             now.AddDate(0, 0, 1),
+			Status:              model.HospitalizationStatusAdmitted,
+		}
+		if err := repo.Create(txCtx, hospitalization); err != nil {
+			return err
+		}
+		hospitalizationID = hospitalization.ID
+
+		created, err := repo.FindByID(txCtx, clinicID, hospitalizationID)
+		if err != nil {
+			return err
+		}
+		if created.ID != hospitalizationID {
+			t.Errorf("FindByID() ID = %d, want %d", created.ID, hospitalizationID)
+		}
+
+		updated, err := repo.Update(txCtx, clinicID, hospitalizationID, map[string]any{"memo": "tx update"})
+		if err != nil {
+			return err
+		}
+		if updated.Memo != "tx update" {
+			t.Errorf("Update() memo = %q, want %q", updated.Memo, "tx update")
+		}
+		return errRollback
+	})
+	require.ErrorIs(t, err, errRollback)
+	require.NotZero(t, hospitalizationID)
+
+	_, err = repo.FindByID(context.Background(), clinicID, hospitalizationID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "ambient transaction rollback must remove Create/Update: %v", err)
 }
 
 func TestHospitalizationRepository_FindAll(t *testing.T) {

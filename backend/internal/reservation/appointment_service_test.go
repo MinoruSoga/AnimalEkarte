@@ -50,7 +50,7 @@ func (m *mockReservationRepository) Create(ctx context.Context, reservation *mod
 	return m.createFn(ctx, reservation)
 }
 
-func (m *mockReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockReservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -145,6 +145,35 @@ func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Conte
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
+
+func (m *mockReservationRepository) CompleteForAccounting(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationRepository) AssertMedicalRecordDoctorInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockReservationRepository) BackfillForMedicalRecord(_ context.Context, _, _ uint64, _, _, _ *uint64) error {
+	return nil
+}
+
+func (m *mockReservationRepository) MarkNoShow(_ context.Context, _, _ uint64) (NoShowTransition, error) {
+	return NoShowTransition{}, nil
+}
+
+func (m *mockReservationRepository) CreateForTrimming(_ context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error) {
+	return &model.Reservation{ClinicID: clinicID, ReservationTypeID: input.ReservationTypeID}, nil
+}
+
+func (m *mockReservationRepository) UpdateForTrimming(_ context.Context, clinicID, id uint64, _ UpdateTrimmingReservationInput) (*model.Reservation, error) {
+	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockReservationRepository) DeleteForTrimming(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {

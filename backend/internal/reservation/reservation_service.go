@@ -161,7 +161,7 @@ func resolveFinalOwnerPet(current *model.Reservation, input *UpdateReservationIn
 // ValidateReservationOwnerPetLinksWithRepo は sharedkernel.ValidateReservationOwnerPetLinks への
 // 既存呼び出し面互換 delegate（実装正本は sharedkernel・BE9-2D ⑤ Batch B 昇格。
 // medicalrecord の hospitalization 系と恒久共有のため）。
-func ValidateReservationOwnerPetLinksWithRepo(ctx context.Context, repo ReservationRepository, clinicID uint64, ownerID, petID *uint64) error {
+func ValidateReservationOwnerPetLinksWithRepo(ctx context.Context, repo sharedkernel.OwnerPetLinkVerifier, clinicID uint64, ownerID, petID *uint64) error {
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, repo, clinicID, ownerID, petID)
 }
 
@@ -302,8 +302,14 @@ func validateTimeRange(startTime, endTime time.Time) error {
 // ※ WrapConflict はパッケージレベル変数として固定ポインタを保持するため errors.Is が機能する。
 var errNoDoctorsOnDuty = apperrors.WrapConflict("本日は医師が出勤していないため予約できません")
 
+type slotConflictChecker interface {
+	HasDoctorConflict(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
+	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
+	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
+}
+
 // checkDoctorSlotConflict は特定医師の時間枠重複をチェックする（SELECT FOR UPDATE）。
-func checkDoctorSlotConflict(ctx context.Context, repo ReservationRepository, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) error {
+func checkDoctorSlotConflict(ctx context.Context, repo slotConflictChecker, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) error {
 	conflict, err := repo.HasDoctorConflict(ctx, clinicID, doctorID, start, end, excludeID)
 	if err != nil {
 		return apperrors.Wrap(err, "check doctor slot conflict")
@@ -316,7 +322,7 @@ func checkDoctorSlotConflict(ctx context.Context, repo ReservationRepository, cl
 
 // checkCapacitySlotConflict は出勤医師数を上限として時間枠の空き確認をする（SELECT FOR UPDATE）。
 // 出勤医師が 0 人の場合は errNoDoctorsOnDuty を返す（LINE パスで RedirectStep を分岐するため）。
-func checkCapacitySlotConflict(ctx context.Context, repo ReservationRepository, clinicID uint64, start, end time.Time, excludeID *uint64) error {
+func checkCapacitySlotConflict(ctx context.Context, repo slotConflictChecker, clinicID uint64, start, end time.Time, excludeID *uint64) error {
 	doctorCount, err := repo.CountOnDutyDoctors(ctx, clinicID, start)
 	if err != nil {
 		return apperrors.Wrap(err, "count on-duty doctors")
@@ -342,7 +348,7 @@ func checkCapacitySlotConflict(ctx context.Context, repo ReservationRepository, 
 //
 // excludeID が非 nil の場合、その予約 ID を競合対象から除外する（Update 時の自己競合防止）。
 // 競合がある場合は apperrors.ErrConflict ラップエラーを返す。
-func CheckSlotConflict(ctx context.Context, repo ReservationRepository, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
+func CheckSlotConflict(ctx context.Context, repo slotConflictChecker, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
 	if doctorID != nil {
 		return checkDoctorSlotConflict(ctx, repo, clinicID, *doctorID, startTime, endTime, excludeID)
 	}
@@ -425,7 +431,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 			return err
 		}
 
-		updated, err := s.repo.Update(ctx, clinicID, id, fields)
+		updated, err := s.repo.update(ctx, clinicID, id, fields)
 		if err != nil {
 			return err
 		}
@@ -515,7 +521,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
 			}
-			u, err := s.repo.Update(ctx, clinicID, id, fields)
+			u, err := s.repo.update(ctx, clinicID, id, fields)
 			if err != nil {
 				return err
 			}
@@ -528,7 +534,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		updated = result
 	default:
 		// 時刻・医師・リンク変更なし: トランザクション不要
-		u, err := s.repo.Update(ctx, clinicID, id, fields)
+		u, err := s.repo.update(ctx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update reservation")
@@ -566,7 +572,7 @@ func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicI
 	} else {
 		routeValue = input.Route
 	}
-	reservation, err := s.repo.Update(ctx, clinicID, id, map[string]any{colReservationRoute: routeValue})
+	reservation, err := s.repo.update(ctx, clinicID, id, map[string]any{colReservationRoute: routeValue})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation_route", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation_route")

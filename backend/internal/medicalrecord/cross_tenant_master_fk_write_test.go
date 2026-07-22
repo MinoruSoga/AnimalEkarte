@@ -83,9 +83,16 @@ func TestVaccinationService_Create_RejectsCrossClinicVaccine(t *testing.T) {
 
 	newSvc := func(created *bool) VaccinationService {
 		repo := &mockVaccinationRepository{
-			createFn: func(_ context.Context, _ *model.Vaccination) error { *created = true; return nil },
+			createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+				*created = true
+				vaccination.ID = 1
+				return nil
+			},
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+				return &model.Vaccination{ID: id, ClinicID: clinicID, VaccineID: ownedVaccineID}, nil
+			},
 		}
-		return NewVaccinationService(repo, rejectVaccineRepo(ownedVaccineID), nil)
+		return newTestVaccinationService(repo, rejectVaccineRepo(ownedVaccineID), nil)
 	}
 
 	t.Run("rejects cross-clinic vaccine_id and does not persist", func(t *testing.T) {
@@ -122,7 +129,7 @@ func TestVaccinationService_Update_RejectsCrossClinicVaccine(t *testing.T) {
 				return &model.Vaccination{ID: 1}, nil
 			},
 		}
-		return NewVaccinationService(repo, rejectVaccineRepo(ownedVaccineID), nil)
+		return newTestVaccinationService(repo, rejectVaccineRepo(ownedVaccineID), nil)
 	}
 
 	t.Run("rejects cross-clinic vaccine_id on update and does not persist", func(t *testing.T) {

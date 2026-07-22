@@ -490,15 +490,20 @@ func TestDischargeWithBilling(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "discharges with billing successfully",
-			paramID:  "1",
-			body:     map[string]any{"discharge_date": "2026-05-28T00:00:00Z", "create_accounting": true},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "discharges with billing successfully",
+			paramID: "1",
+			body:    map[string]any{"discharge_date": "2026-05-28T00:00:00Z", "create_accounting": true},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "42")
+			},
 			svc: &mockHospitalizationService{
 				dischargeWithBillingFn: func(_ context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					assert.True(t, input.CreateAccounting)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(42), *input.ActorID)
 					accountingID := uint64(99)
 					return &DischargeWithBillingResult{
 						HospitalizationID: id,
@@ -519,34 +524,76 @@ func TestDischargeWithBilling(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for non-numeric id",
-			paramID:    "abc",
-			body:       map[string]any{"discharge_date": "2026-05-28T00:00:00Z"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockHospitalizationService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "returns 400 when discharge_date is missing",
+			name:       "returns 401 when user_id is missing",
 			paramID:    "1",
-			body:       map[string]any{},
+			body:       map[string]any{"discharge_date": "2026-05-28T00:00:00Z", "create_accounting": true},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:    "returns 400 when user_id has invalid type",
+			paramID: "1",
+			body:    map[string]any{"discharge_date": "2026-05-28T00:00:00Z", "create_accounting": true},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", uint64(42))
+			},
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 for malformed JSON",
-			paramID:    "1",
-			body:       "not-json",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 when user_id is zero",
+			paramID: "1",
+			body:    map[string]any{"discharge_date": "2026-05-28T00:00:00Z", "create_accounting": true},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "0")
+			},
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 500 on service error",
-			paramID:  "1",
-			body:     map[string]any{"discharge_date": "2026-05-28T00:00:00Z"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for non-numeric id",
+			paramID: "abc",
+			body:    map[string]any{"discharge_date": "2026-05-28T00:00:00Z"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "42")
+			},
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 400 when discharge_date is missing",
+			paramID: "1",
+			body:    map[string]any{},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "42")
+			},
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 400 for malformed JSON",
+			paramID: "1",
+			body:    "not-json",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "42")
+			},
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 500 on service error",
+			paramID: "1",
+			body:    map[string]any{"discharge_date": "2026-05-28T00:00:00Z"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("user_id", "42")
+			},
 			svc: &mockHospitalizationService{
 				dischargeWithBillingFn: func(_ context.Context, _, _ uint64, _ DischargeWithBillingInput) (*DischargeWithBillingResult, error) {
 					return nil, fmt.Errorf("db failure")

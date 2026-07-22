@@ -84,7 +84,7 @@ func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 	resA := makeReservation(t, db, clinicA)
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, resA.ID, map[string]any{"notes": "不正書き換え"})
+		_, err := repo.update(ctx, clinicB, resA.ID, map[string]any{"notes": "不正書き換え"})
 		require.Error(t, err, "clinic B から clinic A の予約を更新できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
@@ -97,7 +97,7 @@ func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 	})
 
 	t.Run("正しいクリニックIDからの Update は成功する", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, resA.ID, map[string]any{"notes": "正常更新"})
+		got, err := repo.update(ctx, clinicA, resA.ID, map[string]any{"notes": "正常更新"})
 		require.NoError(t, err)
 		assert.Equal(t, "正常更新", got.Notes)
 	})

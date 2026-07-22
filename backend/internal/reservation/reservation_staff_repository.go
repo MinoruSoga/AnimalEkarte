@@ -2,9 +2,11 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -69,8 +71,12 @@ func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint6
 // WithTx 閉包内で行う所有権確認がその ambient tx に参加する（確認〜更新の TOCTOU 窓を閉じる）。
 func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
+		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL", clinicID).
 		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
 		First(&staff).Error
 	if err != nil {
@@ -249,13 +255,20 @@ func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.C
 }
 
 func (r *reservationStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
-	var count int64
-	err := r.db.WithContext(ctx).
-		Model(&model.StaffReservationCapability{}).
+	var capability model.StaffReservationCapability
+	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.StaffReservationCapability{})
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
+		Select("id").
 		Where("clinic_id = ? AND staff_id = ? AND reservation_type_id = ?", clinicID, staffID, reservationTypeID).
-		Count(&count).Error
+		Take(&capability).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
 	if err != nil {
 		return false, apperrors.FromGORM(err, "staff_reservation_capability", "")
 	}
-	return count > 0, nil
+	return true, nil
 }

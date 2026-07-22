@@ -50,7 +50,6 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		PetID:            v.PetID,
 		VaccineID:        v.VaccineID,
 		Date:             httpapi.LocalTime(v.Date),
-		DoctorID:         v.DoctorID,
 		NextDate:         httpapi.LocalTimePtr(v.NextDate),
 		NextScheduleType: nextScheduleType,
 		Supplemental:     v.Supplemental,
@@ -63,6 +62,9 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		UpdatedAt:        httpapi.LocalTime(v.UpdatedAt),
 		Pet:              toPetSummary(v.Pet),
 		Doctor:           toStaffSummary(v.Doctor),
+	}
+	if v.DoctorID != nil && v.Doctor != nil && v.Doctor.ID == *v.DoctorID {
+		resp.DoctorID = v.DoctorID
 	}
 	if v.Vaccine != nil {
 		resp.Vaccine = &vaccineSummaryResponse{

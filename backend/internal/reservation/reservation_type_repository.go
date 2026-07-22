@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -62,7 +63,11 @@ func (r *reservationTypeRepository) FindAllWithChildren(ctx context.Context, cli
 
 func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
-	err := repohelpers.DBOrTx(ctx, r.db).
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
 		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Parent", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&st).Error

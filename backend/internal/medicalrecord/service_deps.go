@@ -74,6 +74,13 @@ type vaccinationTagSyncer interface {
 	ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error
 }
 
+// vaccinationRelationVerifier は接種記録の Pet→Owner と担当医の現在所属を検証する最小 view。
+// 具象は reservation domain の store だが、medicalrecord は consumer-side interface のみを持つ。
+type vaccinationRelationVerifier interface {
+	sharedkernel.OwnerPetLinkVerifier
+	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
+}
+
 // prescriptionTagSyncer は prescriptionService が使う LstepTagSyncService の最小 view。nil 許容。
 type prescriptionTagSyncer interface {
 	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
@@ -225,11 +232,13 @@ type mrLineCustomerRepo interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 }
 
-// mrReservationRepo は予約読取+ステータス更新 view（AutoCreateFromReservation/来院確定連携）。
+// mrReservationRepo は予約読取+カルテ作成時の欠損context補完 view。
 type mrReservationRepo interface {
 	sharedkernel.OwnerPetLinkVerifier
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
+	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
+	PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error
 }
 
 // mrDeliveryTrigger は初診ウェルカム配信トリガーの view（nil 許容）。

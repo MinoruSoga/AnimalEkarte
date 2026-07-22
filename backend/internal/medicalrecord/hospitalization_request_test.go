@@ -107,13 +107,16 @@ func TestDischargeWithBillingRequest_ToServiceInput(t *testing.T) {
 	input := (&dischargeWithBillingRequest{
 		DischargeDate:    dischargeDate,
 		CreateAccounting: true,
-	}).toServiceInput()
+	}).toServiceInput(42)
 
 	if input.DischargeDate != dischargeDate {
 		t.Fatalf("DischargeDate = %v, want %v", input.DischargeDate, dischargeDate)
 	}
 	if !input.CreateAccounting {
 		t.Fatalf("CreateAccounting = false, want true")
+	}
+	if input.ActorID == nil || *input.ActorID != 42 {
+		t.Fatalf("ActorID = %v, want 42", input.ActorID)
 	}
 }
 

@@ -28,9 +28,6 @@ type AccountingRepository interface {
 	SavePayment(ctx context.Context, payment *model.Payment) error
 	// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
-	// CompleteAccountingAppointments は会計完了に伴い対象 appointment を完了へ進める。
-	// (1) 同日同一ペットの会計待ち(accounting)予約、(2) billing.medical_record_id 経由の診察 appointment(status 非依存)。
-	CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
@@ -139,11 +136,11 @@ func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings 
 }
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)), []uint64{clinicID}, id)
+	return r.findBillingByIDWithScope(repohelpers.DBOrTx(ctx, r.db).Scopes(repohelpers.ClinicScope(clinicID)), []uint64{clinicID}, id)
 }
 
 func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(repohelpers.ClinicScopeIn(clinicIDs)), clinicIDs, id)
+	return r.findBillingByIDWithScope(repohelpers.DBOrTx(ctx, r.db).Scopes(repohelpers.ClinicScopeIn(clinicIDs)), clinicIDs, id)
 }
 
 // findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、返金合計を計算して返す。
@@ -199,7 +196,7 @@ func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id
 }
 
 // BE-refactor.md X-12: 会計完了(completed)時、Create は accounting_service_core.Create の
-// Transactor.WithTx から txCtx 付きで呼ばれ、後続の CompleteAccountingAppointments と単一 tx に
+// Transactor.WithTx から txCtx 付きで呼ばれ、後続の reservation.CompleteForAccounting と単一 tx に
 // 参加する（dbOrTx が無ければ従来どおり db.WithContext(ctx) と等価・挙動保存）。
 func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
@@ -304,47 +301,4 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 		return apperrors.Wrap(err, "failed to save payment splits")
 	}
 	return nil
-}
-
-// BE-refactor.md X-12: accounting_service_core.Create/Update の Transactor.WithTx から txCtx
-// 付きで呼ばれ、billing 本体の書込（Create/Update）と同一 tx に参加する。dbOrTx が無ければ
-// 従来どおり db.WithContext(ctx) と等価（挙動保存）。medical_record サブクエリも読み取り一貫性
-// のため dbOrTx に揃える（同一 tx 内の書込に対する読み取りを ambient tx から行う）。
-func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
-	var totalAffected int64
-
-	// (1) 同日同一ペットの会計待ち(accounting)予約を完了化する（トリミング + 受付カンバンで会計待ちに進めた診察）。
-	if ownerID != nil && petID != nil && !scheduledDate.IsZero() {
-		result := repohelpers.DBOrTx(ctx, r.db).
-			Model(&model.Reservation{}).
-			Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
-				clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
-			Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
-			Update("status", model.ReservationStatusCompleted)
-		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format(time.DateOnly)))
-		}
-		totalAffected += result.RowsAffected
-	}
-
-	// (2) billing.medical_record_id 経由で診察 appointment を直接完了化する（status 非依存・orphan 根絶）。
-	//     診察は billing_confirmation の医師確認だけで会計可能なため、受付カンバンで会計待ち(accounting)に
-	//     進めずに会計すると (1) の条件に合致せず、会計後も診察カードが受付ボードに残る。これを防ぐ。
-	if medicalRecordID != nil {
-		result := repohelpers.DBOrTx(ctx, r.db).
-			Model(&model.Reservation{}).
-			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
-			Where("status NOT IN ?", []model.ReservationStatus{model.ReservationStatusCompleted, model.ReservationStatusCancelled, model.ReservationStatusNoShow}).
-			Where("id IN (?)",
-				repohelpers.DBOrTx(ctx, r.db).Model(&model.MedicalRecord{}).
-					Select("appointment_id").
-					Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID)).
-			Update("status", model.ReservationStatusCompleted)
-		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d medical_record=%d", clinicID, *medicalRecordID))
-		}
-		totalAffected += result.RowsAffected
-	}
-
-	return totalAffected, nil
 }

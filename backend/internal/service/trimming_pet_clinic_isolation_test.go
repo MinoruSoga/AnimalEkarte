@@ -254,6 +254,7 @@ func TestTrimmingService_Update_AcceptsPetFromSameClinicAfterLock(t *testing.T) 
 		"update-appointment",
 		"find-detail",
 		"update-detail",
+		"find-detail",
 	}, events)
 }
 

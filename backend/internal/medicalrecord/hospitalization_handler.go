@@ -2,12 +2,12 @@ package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 // HospitalizationHandler serves the hospitalization HTTP boundary. Moved from internal/handler
@@ -141,6 +141,14 @@ func (h *HospitalizationHandler) DischargeWithBilling(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	if staffID == 0 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -152,7 +160,7 @@ func (h *HospitalizationHandler) DischargeWithBilling(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.DischargeWithBilling(c.Request.Context(), clinicID, id, req.toServiceInput())
+	result, err := h.service.DischargeWithBilling(c.Request.Context(), clinicID, id, req.toServiceInput(staffID))
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

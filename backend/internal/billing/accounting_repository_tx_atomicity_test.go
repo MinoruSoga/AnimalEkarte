@@ -36,6 +36,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // makeBillingForAccountingTx は payments/payment_splits 系テスト用の最小 Billing を作成する。
@@ -96,6 +97,89 @@ func TestAccountingRepository_Update_CommitsWithinAmbientTx(t *testing.T) {
 	var reloaded model.Billing
 	require.NoError(t, db.WithContext(ctx).First(&reloaded, billing.ID).Error)
 	assert.Equal(t, model.BillingStatusCancelled, reloaded.Status, "commit 後は status 変更が永続化される")
+}
+
+func TestAccountingRepository_FindByID_SeesAmbientTransactionState(t *testing.T) {
+	tests := []struct {
+		name string
+		find func(context.Context, AccountingRepository, uint64, uint64) (*model.Billing, error)
+	}{
+		{
+			name: "single clinic",
+			find: func(ctx context.Context, repo AccountingRepository, clinicID, billingID uint64) (*model.Billing, error) {
+				return repo.FindByID(ctx, clinicID, billingID)
+			},
+		},
+		{
+			name: "multiple clinics",
+			find: func(ctx context.Context, repo AccountingRepository, clinicID, billingID uint64) (*model.Billing, error) {
+				return repo.FindByIDForClinics(ctx, []uint64{clinicID}, billingID)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := repotest.SetupTestDB(t)
+			ctx := context.Background()
+			const clinicID = uint64(1)
+
+			billing := makeBillingForAccountingTx(t, db, clinicID)
+			repo := NewAccountingRepository(db)
+			memo := "ambient transaction reload"
+			payment := &model.Payment{
+				BillingID:     billing.ID,
+				TotalAmount:   8000,
+				BillingAmount: 8000,
+				Method:        model.PaymentMethodCash,
+			}
+
+			require.NoError(t, testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+				if _, err := repo.Update(txCtx, clinicID, billing.ID, map[string]any{"memo": memo}); err != nil {
+					return err
+				}
+				if err := repo.SavePayment(txCtx, payment); err != nil {
+					return err
+				}
+				got, err := tt.find(txCtx, repo, clinicID, billing.ID)
+				if err != nil {
+					return err
+				}
+				assert.Equal(t, memo, got.Memo, "commit前reloadは同じtxのbilling更新を読む")
+				require.Len(t, got.Payments, 1, "commit前reloadは同じtxのpayment作成を読む")
+				assert.Equal(t, int64(8000), got.Payments[0].BillingAmount)
+				return nil
+			}))
+		})
+	}
+}
+
+func TestAccountingService_Update_PostCloseMissingAuditDependencyRollsBack(t *testing.T) {
+	db := repotest.SetupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	billing := makeBillingForAccountingTx(t, db, clinicA)
+	originalMemo := billing.Memo
+	reason := "締め後訂正"
+	updatedMemo := "監査なしでは保存しない"
+	repo := NewAccountingRepository(db)
+	svc := NewAccountingService(repo, nil, nil, nil, nil, testNewTransactor(db), nil, nil)
+
+	got, err := svc.Update(ctx, &UpdateAccountingInput{
+		ID:              billing.ID,
+		ClinicID:        clinicA,
+		Memo:            &updatedMemo,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.ErrorContains(t, err, "audit")
+	var reloaded model.Billing
+	require.NoError(t, db.First(&reloaded, billing.ID).Error)
+	assert.Equal(t, originalMemo, reloaded.Memo, "監査依存欠落時は会計更新もrollbackする")
 }
 
 // ─── SavePayment ─────────────────────────────────────────────────────────────
@@ -204,19 +288,19 @@ func TestAccountingRepository_SavePaymentSplits_CommitsWithinAmbientTx(t *testin
 	assert.EqualValues(t, 1, count, "commit 後は payment_splits に行が永続化される")
 }
 
-// ─── CompleteAccountingAppointments（BE-refactor.md X-12: billing 確定と appointment ────
+// ─── reservation.CompleteForAccounting（BE-refactor.md X-12: billing 確定と appointment ────
 // 完了化の部分コミット修正） ──────────────────────────────────────────────
 
-// TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbientTxFails は、
-// billing の status 更新（Update）と appointment 完了化（CompleteAccountingAppointments）を
+// TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails は、
+// billing の status 更新（Update）と appointment 完了化（CompleteForAccounting）を
 // 同一 ambient tx 内で行った場合、後続失敗で両方がロールバックされることを検証する。
 //
-// バグ時（CompleteAccountingAppointments が r.db.WithContext(ctx) 直参照で dbOrTx 非参加）は
+// バグ時（CompleteForAccounting が r.db.WithContext(ctx) 直参照で dbOrTx 非参加）は
 // 別セッションで即コミットされるため、billing の Update はロールバックされても appointment の
 // 完了化だけは残ってしまう（このテストでは逆に、Update 側が正しく tx 参加している前提のもと
-// CompleteAccountingAppointments 側が非参加だと reloadAppointmentStatus が Completed のまま
+// CompleteForAccounting 側が非参加だと reloadAppointmentStatus が Completed のまま
 // FAIL する——旧 X-12 failure mode の反対方向だが、本質は同じ「一部だけ確定する部分コミット」）。
-func TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbientTxFails(t *testing.T) {
+func TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails(t *testing.T) {
 	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -236,13 +320,14 @@ func TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbien
 	mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-X12-rollback")
 
 	repo := NewAccountingRepository(db)
+	appointmentRepo := reservation.NewReservationRepository(db)
 	tx := testNewTransactor(db)
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
 		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
 			return err
 		}
-		if _, err := repo.CompleteAccountingAppointments(txCtx, clinicA, &mr.ID, nil, nil, time.Time{}); err != nil {
+		if _, err := appointmentRepo.CompleteForAccounting(txCtx, clinicA, &mr.ID, nil, nil, time.Time{}); err != nil {
 			return err
 		}
 		return errSentinelAccountingTx
@@ -256,12 +341,12 @@ func TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbien
 		"ambient tx 失敗時、billing の status 更新はロールバックされる")
 
 	assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, appt.ID),
-		"ambient tx 失敗時、CompleteAccountingAppointments による appointment 完了化もロールバックされる"+
+		"ambient tx 失敗時、CompleteForAccounting による appointment 完了化もロールバックされる"+
 			"（X-12 旧 failure mode = billing 確定済み・appointment 完了化のみ失敗の部分コミットが再現しないことの証明）。"+
 			"バグ時（r.db.WithContext(ctx) 直参照）は独立セッションで即コミットするため Completed のままとなり FAIL する")
 }
 
-func TestAccountingRepository_CompleteAccountingAppointments_CommitsWithinAmbientTx(t *testing.T) {
+func TestReservationRepository_CompleteForAccounting_CommitsWithinAmbientTx(t *testing.T) {
 	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -281,13 +366,14 @@ func TestAccountingRepository_CompleteAccountingAppointments_CommitsWithinAmbien
 	mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-X12-commit")
 
 	repo := NewAccountingRepository(db)
+	appointmentRepo := reservation.NewReservationRepository(db)
 	tx := testNewTransactor(db)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
 		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
 			return err
 		}
-		_, err := repo.CompleteAccountingAppointments(txCtx, clinicA, &mr.ID, nil, nil, time.Time{})
+		_, err := appointmentRepo.CompleteForAccounting(txCtx, clinicA, &mr.ID, nil, nil, time.Time{})
 		return err
 	}))
 
@@ -298,7 +384,7 @@ func TestAccountingRepository_CompleteAccountingAppointments_CommitsWithinAmbien
 }
 
 // TestAccountingRepository_Create_RollsBackWhenAmbientTxFails は、accounting_service_core.Create
-// の X-12 修正（repo.Create + CompleteAccountingAppointments を単一 tx で括る）の repo 側前提を検証する。
+// の X-12 修正（repo.Create + CompleteForAccounting を単一 tx で括る）の repo 側前提を検証する。
 // バグ時（Create が r.db.WithContext(ctx) 直参照で dbOrTx 非参加）は billing の INSERT が独立
 // セッションで即コミットされるため、後続失敗時も billing 行が残ってしまう（旧 X-12 Create failure mode:
 // medical_record_id が NULL の手動会計・トリミング会計はリトライで二重 billing を作りうる）。

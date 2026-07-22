@@ -92,7 +92,7 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadCl
 
 // --- (a3) reservation: FindAllByCategory ReservationType ---
 
-func TestReservationRepository_FindAllByCategory_ReservationTypePreloadClinicIsolation(t *testing.T) {
+func TestReservationRepository_FindAllByCategory_ReservationTypeJoinClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	// TRUNCATE first: 他テストが残した orphan 行を除去してから AutoMigrate（FK 検証を通すため）。
 	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
@@ -132,6 +132,5 @@ func TestReservationRepository_FindAllByCategory_ReservationTypePreloadClinicIso
 			break
 		}
 	}
-	require.NotNil(t, found, "clinic A の予約は取得できる")
-	assert.Nil(t, found.ReservationType, "別クリニックの診療区分マスタが Preload で混入してはならない")
+	assert.Nil(t, found, "別クリニックの診療区分マスタで clinic A の予約をカテゴリ分類してはならない")
 }

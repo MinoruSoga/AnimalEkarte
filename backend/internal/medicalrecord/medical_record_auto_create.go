@@ -95,7 +95,19 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 // DeleteDraftFromReservation は予約キャンセル時に、その予約に紐づく draft カルテを論理削除する (#83 Q10、best-effort)。
 // 診察開始済み(draft 以外)のカルテは削除しない。失敗してもキャンセル処理は止めない。
 func (s *medicalRecordService) DeleteDraftFromReservation(ctx context.Context, clinicID, reservationID uint64) {
-	if err := s.repo.DeleteDraftByAppointmentID(ctx, clinicID, reservationID); err != nil {
+	record, err := s.repo.FindByAppointmentID(ctx, clinicID, reservationID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to find draft medical record on reservation cancel (best-effort)",
+			slog.Uint64("reservation_id", reservationID),
+			slog.String("error", err.Error()))
+		return
+	}
+	if record == nil || record.Status != model.MedicalRecordStatusDraft {
+		return
+	}
+	// 通常の削除経路へ委譲し、row lock・draft再確認・見積参照確認・監査を迂回しない。
+	// Find後に状態が変わってもDelete側がtransaction内で再検証する。
+	if err := s.Delete(ctx, clinicID, record.ID); err != nil {
 		slog.WarnContext(ctx, "failed to delete draft medical record on reservation cancel (best-effort)",
 			slog.Uint64("reservation_id", reservationID),
 			slog.String("error", err.Error()))

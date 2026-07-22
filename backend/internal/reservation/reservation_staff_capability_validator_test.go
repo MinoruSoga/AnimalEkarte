@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -25,7 +26,7 @@ func (m *mockReservationStaffRepositoryForCapability) FindByID(ctx context.Conte
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.Staff{ID: id, ClinicID: clinicID}, nil
+	return &model.Staff{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
 }
 func (m *mockReservationStaffRepositoryForCapability) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
@@ -78,13 +79,15 @@ func TestValidateReservationStaffCapability(t *testing.T) {
 		reservationTypeID uint64
 		wantErr           bool
 		wantInvalidInput  bool
+		wantInternal      bool
 	}{
 		{
-			name:              "nil repo: noop",
+			name:              "nil repo: fail closed",
 			repo:              nil,
 			doctorID:          &doctorID,
 			reservationTypeID: 1,
-			wantErr:           false,
+			wantErr:           true,
+			wantInternal:      true,
 		},
 		{
 			name:              "nil doctorID: noop",
@@ -101,11 +104,12 @@ func TestValidateReservationStaffCapability(t *testing.T) {
 			wantErr:           false,
 		},
 		{
-			name:              "zero reservationTypeID: noop",
+			name:              "zero reservationTypeID: fail closed",
 			repo:              &mockReservationStaffRepositoryForCapability{},
 			doctorID:          &doctorID,
 			reservationTypeID: 0,
-			wantErr:           false,
+			wantErr:           true,
+			wantInternal:      true,
 		},
 		{
 			name: "staff not found: wrapped error",
@@ -161,6 +165,11 @@ func TestValidateReservationStaffCapability(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantInvalidInput {
 					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+				if tt.wantInternal {
+					var appErr *apperrors.AppError
+					require.ErrorAs(t, err, &appErr)
+					assert.Equal(t, "INTERNAL", appErr.Code)
 				}
 			} else {
 				assert.NoError(t, err)

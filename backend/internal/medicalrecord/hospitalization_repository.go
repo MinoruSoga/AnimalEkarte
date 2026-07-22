@@ -73,7 +73,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
-	err := r.db.WithContext(ctx).
+	err := repohelpers.DBOrTx(ctx, r.db).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet.AnimalSpecies").
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -109,7 +109,7 @@ func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clini
 }
 
 func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
-	err := r.db.WithContext(ctx).Create(hospitalization).Error
+	err := repohelpers.DBOrTx(ctx, r.db).Create(hospitalization).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("hospitalization", hospitalization.StartDate.String())
@@ -120,7 +120,7 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 }
 
 func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
-	result := r.db.WithContext(ctx).
+	result := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)

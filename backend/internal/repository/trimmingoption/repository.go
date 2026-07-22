@@ -3,8 +3,10 @@ package trimmingoption
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -38,7 +40,15 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.Trim
 }
 
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
-	return repohelpers.FindByIDScoped[model.TrimmingOption](ctx, r.db, "trimming_option", clinicID, id)
+	var option model.TrimmingOption
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := db.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&option).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
+	}
+	return &option, nil
 }
 
 func (r *repository) Create(ctx context.Context, option *model.TrimmingOption) error {

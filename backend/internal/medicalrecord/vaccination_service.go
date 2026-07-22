@@ -96,13 +96,26 @@ type VaccinationService interface {
 }
 
 type vaccinationService struct {
-	repo        VaccinationRepository
-	vaccineRepo VaccineRepository
-	tagSyncSvc  vaccinationTagSyncer
+	repo             VaccinationRepository
+	vaccineRepo      VaccineRepository
+	tagSyncSvc       vaccinationTagSyncer
+	relationVerifier vaccinationRelationVerifier
+	medicalRecords   medicalRecordLocker
+	transactor       Transactor
 }
 
-func NewVaccinationService(repo VaccinationRepository, vaccineRepo VaccineRepository, tagSyncSvc vaccinationTagSyncer) VaccinationService {
-	return &vaccinationService{repo: repo, vaccineRepo: vaccineRepo, tagSyncSvc: tagSyncSvc}
+func NewVaccinationService(
+	repo VaccinationRepository,
+	vaccineRepo VaccineRepository,
+	tagSyncSvc vaccinationTagSyncer,
+	relationVerifier vaccinationRelationVerifier,
+	medicalRecords medicalRecordLocker,
+	transactor Transactor,
+) VaccinationService {
+	return &vaccinationService{
+		repo: repo, vaccineRepo: vaccineRepo, tagSyncSvc: tagSyncSvc,
+		relationVerifier: relationVerifier, medicalRecords: medicalRecords, transactor: transactor,
+	}
 }
 
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
@@ -124,13 +137,14 @@ func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
 	if input.VaccineID == 0 {
 		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
 	}
-	// クロステナント write 防止: 別 clinic の vaccine を接種記録に紐付けると
-	// ワクチン名/種別/スケジュールが患者記録へ混入する（#125 同型）。所有権を明示検証する。
-	if _, err := s.vaccineRepo.FindByID(ctx, clinicID, input.VaccineID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to verify vaccine ownership")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
 	}
 	vaccination := &model.Vaccination{
 		ClinicID:         clinicID,
@@ -148,22 +162,31 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 		Lot4:             input.Lot4,
 		Remarks:          input.Remarks,
 	}
-	if err := s.repo.Create(ctx, vaccination); err != nil {
-		slog.ErrorContext(ctx, "failed to create vaccination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create vaccination")
+	var created *model.Vaccination
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateRelations(txCtx, clinicID, vaccination.MedicalRecordID, vaccination.PetID, vaccination.DoctorID, vaccination.VaccineID); err != nil {
+			return err
+		}
+		if err := s.repo.Create(txCtx, vaccination); err != nil {
+			slog.ErrorContext(txCtx, "failed to create vaccination", "error", err)
+			return apperrors.Wrap(err, "failed to create vaccination")
+		}
+		var err error
+		created, err = s.repo.FindByID(txCtx, clinicID, vaccination.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get vaccination after create", "error", err, "vaccination_id", vaccination.ID)
+			return apperrors.Wrap(err, "failed to read vaccination after create")
+		}
+		if created == nil {
+			return apperrors.WrapInternalServerError("vaccination not found after create")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "vaccination created",
 		slog.Uint64("vaccination_id", vaccination.ID),
 		slog.Uint64("clinic_id", vaccination.ClinicID))
-	created, err := s.repo.FindByID(ctx, clinicID, vaccination.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccination after create for vaccine tag sync", "error", err, "vaccination_id", vaccination.ID)
-		return vaccination, nil
-	}
-	if created == nil {
-		slog.WarnContext(ctx, "vaccination not found after create for vaccine tag sync", "vaccination_id", vaccination.ID)
-		return vaccination, nil
-	}
 	s.syncVaccineTag(ctx, clinicID, created)
 	return created, nil
 }
@@ -172,26 +195,50 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find vaccination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find vaccination")
-	}
-	// クロステナント write 防止: 貼り替え先の vaccine が caller の clinic に属することを検証する。
-	if err := validateOwnedMasterFK(ctx, "vaccine", clinicID, input.VaccineID,
-		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.vaccineRepo.FindByID(actx, cid, mid)
-			return err
-		}); err != nil {
-		return nil, err
-	}
 	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	vaccination, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update vaccination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update vaccination")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
+	}
+	var vaccination *model.Vaccination
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Resolve and lock parent/master relations before locking the child row. This keeps
+		// vaccination updates in the same parent-before-child order as create and master writes.
+		snapshot, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find vaccination", "error", err)
+			return apperrors.Wrap(err, "failed to find vaccination")
+		}
+		if snapshot == nil {
+			return apperrors.WrapInternalServerError("vaccination not found during update validation")
+		}
+		medicalRecordID, petID, doctorID, vaccineID := effectiveVaccinationRelations(snapshot, input)
+		if err := s.validateRelations(txCtx, clinicID, medicalRecordID, petID, doctorID, vaccineID); err != nil {
+			return err
+		}
+
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to lock vaccination", "error", err)
+			return apperrors.Wrap(err, "failed to lock vaccination")
+		}
+		lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID := effectiveVaccinationRelations(locked, input)
+		if !sameVaccinationRelations(
+			medicalRecordID, petID, doctorID, vaccineID,
+			lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID,
+		) {
+			return apperrors.WrapConflict("vaccination relations changed concurrently")
+		}
+		vaccination, err = s.repo.Update(txCtx, clinicID, id, fields)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to update vaccination", "error", err)
+			return apperrors.Wrap(err, "failed to update vaccination")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "vaccination updated",
 		slog.Uint64("vaccination_id", id),
@@ -216,21 +263,122 @@ func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (s *vaccinationService) syncVaccineTag(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) {
-	if s.tagSyncSvc == nil || vaccination == nil || vaccination.Pet == nil {
+	ownerID, ok := safeVaccinationOwnerID(clinicID, vaccination)
+	if s.tagSyncSvc == nil || !ok {
 		return
 	}
-	ownerID := vaccination.Pet.OwnerID
 	if err := s.tagSyncSvc.SyncVaccineTag(ctx, clinicID, ownerID, vaccination.ID); err != nil {
 		slog.ErrorContext(ctx, "failed to sync vaccine tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
 	}
 }
 
 func (s *vaccinationService) resyncOwnerVaccineTags(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) {
-	if s.tagSyncSvc == nil || vaccination == nil || vaccination.Pet == nil {
+	ownerID, ok := safeVaccinationOwnerID(clinicID, vaccination)
+	if s.tagSyncSvc == nil || !ok {
 		return
 	}
-	ownerID := vaccination.Pet.OwnerID
 	if err := s.tagSyncSvc.ResyncOwnerVaccineTags(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to resync owner vaccine tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
 	}
+}
+
+func effectiveVaccinationRelations(existing *model.Vaccination, input *UpdateVaccinationInput) (medicalRecordID, petID, doctorID *uint64, vaccineID uint64) {
+	medicalRecordID, petID, doctorID, vaccineID = existing.MedicalRecordID, existing.PetID, existing.DoctorID, existing.VaccineID
+	if input.MedicalRecordID != nil {
+		medicalRecordID = input.MedicalRecordID
+	}
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	if input.DoctorID != nil {
+		doctorID = input.DoctorID
+	}
+	if input.VaccineID != nil {
+		vaccineID = *input.VaccineID
+	}
+	return medicalRecordID, petID, doctorID, vaccineID
+}
+
+func sameVaccinationRelations(
+	medicalRecordIDA, petIDA, doctorIDA *uint64,
+	vaccineIDA uint64,
+	medicalRecordIDB, petIDB, doctorIDB *uint64,
+	vaccineIDB uint64,
+) bool {
+	return vaccineIDA == vaccineIDB &&
+		sameOptionalUint64(medicalRecordIDA, medicalRecordIDB) &&
+		sameOptionalUint64(petIDA, petIDB) &&
+		sameOptionalUint64(doctorIDA, doctorIDB)
+}
+
+func sameOptionalUint64(a, b *uint64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uint64, medicalRecordID, petID, doctorID *uint64, vaccineID uint64) error {
+	if s.vaccineRepo == nil || s.relationVerifier == nil || s.medicalRecords == nil {
+		return apperrors.WrapInternalServerError("vaccination relation validation dependencies are required")
+	}
+	if _, err := s.vaccineRepo.FindByID(ctx, clinicID, vaccineID); err != nil {
+		return apperrors.Wrap(err, "failed to verify vaccine ownership")
+	}
+
+	var petOwnerID *uint64
+	if petID != nil {
+		ownerID, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *petID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to verify vaccination pet ownership")
+		}
+		petOwnerID = &ownerID
+	}
+
+	if medicalRecordID != nil {
+		record, err := s.medicalRecords.LockByIDForUpdate(ctx, clinicID, *medicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to verify vaccination medical record ownership")
+		}
+		var recordPetOwnerID *uint64
+		if record.OwnerID != nil {
+			if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
+				return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+			}
+		}
+		if record.PetID != nil {
+			ownerID, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
+			}
+			recordPetOwnerID = &ownerID
+			if record.OwnerID == nil || *record.OwnerID != ownerID {
+				return apperrors.WrapNotFound("medical_record", "relation")
+			}
+		}
+		if petID != nil {
+			if record.PetID == nil || *record.PetID != *petID || recordPetOwnerID == nil || petOwnerID == nil || *recordPetOwnerID != *petOwnerID {
+				return apperrors.WrapNotFound("medical_record", "relation")
+			}
+		}
+	}
+
+	if doctorID != nil {
+		if err := s.relationVerifier.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
+			return apperrors.Wrap(err, "failed to verify vaccination doctor ownership")
+		}
+	}
+	return nil
+}
+
+func safeVaccinationOwnerID(clinicID uint64, vaccination *model.Vaccination) (uint64, bool) {
+	if vaccination == nil || vaccination.PetID == nil || vaccination.Pet == nil || vaccination.Pet.Owner == nil {
+		return 0, false
+	}
+	pet := vaccination.Pet
+	owner := pet.Owner
+	if pet.ID != *vaccination.PetID || pet.ClinicID != clinicID || owner.ID != pet.OwnerID || owner.ClinicID != clinicID {
+		return 0, false
+	}
+	return owner.ID, true
 }

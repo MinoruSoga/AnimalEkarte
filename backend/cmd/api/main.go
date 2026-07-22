@@ -291,7 +291,7 @@ func main() {
 	checkupFieldResultSvc := medicalrecord.NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
 	checkupTypeSvc := medicalrecord.NewCheckupTypeService(repos.CheckupType)
 	vaccineSvc := medicalrecord.NewVaccineService(repos.Vaccine)
-	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, svcs.LstepTagSync)
+	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, svcs.LstepTagSync, repos.Reservation, repos.MedicalRecord, mrTx)
 	prescriptionSvc := medicalrecord.NewPrescriptionService(repos.Prescription, repos.MedicalRecord, svcs.LstepTagSync, mrTx)
 	inquirySvc := medicalrecord.NewInquiryService(repos.Inquiry, repos.ChiefComplaintType)
 	inquiryTemplateSvc := medicalrecord.NewInquiryTemplateService(repos.InquiryTemplate)
@@ -338,9 +338,10 @@ func main() {
 	// hospitalization slice (BE9-2D ⑤): Phase 1 で WithTx+個別依存化済みの4 serviceを移動後、
 	// cross-package 依存（reservation/pet/cage/accounting/billingItem）は facade 具象の
 	// structural typing 注入。owner/pet link 検証は sharedkernel.OwnerPetLinkVerifier。
-	hospitalizationSvc := medicalrecord.NewHospitalizationService(
+	hospitalizationSvc := medicalrecord.NewHospitalizationServiceWithAudit(
 		repos.Hospitalization, repos.Reservation, repos.Pet, repos.Cage,
-		repos.CarePlanItem, repos.Accounting, repos.BillingItem, mrTx)
+		repos.CarePlanItem, repos.Accounting, repos.BillingItem, mrTx,
+		medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 	hospitalizationPlanSvc := medicalrecord.NewHospitalizationPlanService(repos.HospitalizationPlan)
 	// masters slice (BE9-2D ⑥): consultation/procedure/medicine(+dose)/cage/treatment_plan。
 	consultationSvc := medicalrecord.NewConsultationService(repos.Consultation)

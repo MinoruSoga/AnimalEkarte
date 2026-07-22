@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -139,10 +140,11 @@ func NewMedicalRecordService(
 	}
 }
 
-// withTx runs fn inside Transactor when configured; nil tx (unit tests) runs fn directly.
+// withTx requires the production transaction boundary. Create/Update validate request-derived
+// clinic context and must never degrade to a non-transactional check-then-write sequence.
 func (s *medicalRecordService) withTx(ctx context.Context, fn func(context.Context) error) error {
 	if s.tx == nil {
-		return fn(ctx)
+		return apperrors.WrapInternalServerError("medical record write requires a transaction dependency")
 	}
 	return s.tx.WithTx(ctx, fn)
 }

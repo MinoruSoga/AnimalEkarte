@@ -11,7 +11,7 @@ type (
 	ReservationCRUDRepository  = reservation.ReservationCRUDRepository
 	ReservationSlotRepository  = reservation.ReservationSlotRepository
 	ReservationQueryRepository = reservation.ReservationQueryRepository
-	ReservationRepository      = reservation.ReservationRepository
+	ReservationRepository      = reservation.ReservationStore
 )
 
 // NewReservationRepository は internal/reservation の実装を返す（BE9-2C R③ facade）。

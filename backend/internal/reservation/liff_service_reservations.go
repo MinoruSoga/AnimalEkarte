@@ -38,23 +38,6 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		return nil, apperrors.Wrap(err, "failed to validate and create appointment")
 	}
 
-	// BE-120: category=trimming の場合、トリミング詳細を作成（best-effort）
-	if input.TrimmingCourseID != nil {
-		detail := &model.AppointmentTrimmingDetail{
-			ClinicID:      clinicID,
-			AppointmentID: appt.ID,
-			CourseID:      input.TrimmingCourseID,
-			StyleRequest:  input.TrimmingStyleRequest,
-		}
-		if err := s.trimmingDetailRepo.Create(ctx, detail); err != nil {
-			slog.WarnContext(ctx, "failed to create trimming detail (best-effort)", "error", err, "appointment_id", appt.ID)
-		} else if len(input.TrimmingOptionIDs) > 0 {
-			if err := s.trimmingDetailRepo.SetOptions(ctx, clinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
-				slog.WarnContext(ctx, "failed to set trimming options (best-effort)", "error", err, "appointment_id", appt.ID)
-			}
-		}
-	}
-
 	// 顧客の追加フィールドを更新（プロフィール自動保存）
 	if len(input.CustomerFields) > 0 && string(input.CustomerFields) != "{}" {
 		if err := s.customerRepo.UpdateAdditionalFields(ctx, clinicID, customerID, input.CustomerFields); err != nil {
@@ -148,7 +131,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 		fields["pet_id"] = *petID
 	}
 
-	updated, err := s.reservationRepo.Update(ctx, clinicID, appt.ID, fields)
+	updated, err := s.reservationRepo.update(ctx, clinicID, appt.ID, fields)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to attach owner/pet to line reservation (best-effort)", "error", err)
 		return

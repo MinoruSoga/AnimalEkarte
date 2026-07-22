@@ -2,7 +2,7 @@ package billing
 
 // accounting_complete_appointments_test.go — G11-2 テスト負債解消
 //
-// テスト対象: AccountingRepository.CompleteAccountingAppointments の2経路SQL
+// テスト対象: reservation.ReservationRepository.CompleteForAccounting の2経路SQL
 // 保護する不変条件:
 //   (1) 同日同一ペットの status=accounting 予約のみが completed へ遷移する
 //       （JST日付境界 DATE(start_time AT TIME ZONE 'Asia/Tokyo') 述語）
@@ -22,7 +22,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // setupAccountingCompleteAppointmentsTestDB は G11-2 テスト用の DB を整備する。
@@ -80,7 +82,33 @@ func reloadAppointmentStatus(t *testing.T, db *gorm.DB, id uint64) model.Reserva
 	return res.Status
 }
 
-func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
+func completeForAccountingInTx(
+	ctx context.Context,
+	t *testing.T,
+	db *gorm.DB,
+	repo reservation.ReservationIntentRepository,
+	clinicID uint64,
+	medicalRecordID, ownerID, petID *uint64,
+	scheduledDate time.Time,
+) (int64, error) {
+	t.Helper()
+	var affected int64
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		affected, err = repo.CompleteForAccounting(
+			repohelpers.WithTxValue(ctx, tx),
+			clinicID,
+			medicalRecordID,
+			ownerID,
+			petID,
+			scheduledDate,
+		)
+		return err
+	})
+	return affected, err
+}
+
+func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 	ctx := context.Background()
 	const (
 		clinicA = uint64(1)
@@ -91,13 +119,13 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("経路1: 同日同一ペットのaccounting予約がcompletedになる", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "経路1飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "経路1ペット")
 		appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusAccounting,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // JST 12:00
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, nil, &owner.ID, &pet.ID, scheduledDateJun10)
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &pet.ID, scheduledDateJun10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), affected)
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID))
@@ -105,7 +133,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("経路1除外: 別日/別ペット/別クリニック/status≠accounting/deleted_atは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "除外テスト飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "除外テストペット")
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
@@ -124,7 +152,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
 		require.NoError(t, db.Delete(&model.Reservation{}, deletedAppt.ID).Error) // soft delete
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, nil, &owner.ID, &pet.ID, scheduledDateJun10)
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &pet.ID, scheduledDateJun10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "対象クリニック/飼主/ペット/日付/statusに一致する行が無いため0件")
 
@@ -137,7 +165,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("JST日付境界: UTC前日15:00は同日扱い、UTC当日14:59も同日、UTC当日15:00は翌日扱いで対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "境界テスト飼主")
 
 		petBefore := makeSpeciesAndPet(t, db, clinicA, owner.ID, "境界前ペット") // UTC前日15:00 = JST当日0:00
@@ -151,11 +179,11 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 		apptAfter := makeAccountingAppointment(t, db, clinicA, &owner.ID, &petAfter.ID, model.ReservationStatusAccounting,
 			time.Date(2026, 6, 10, 15, 0, 0, 0, time.UTC))
 
-		_, err := repo.CompleteAccountingAppointments(ctx, clinicA, nil, &owner.ID, &petBefore.ID, scheduledDateJun10)
+		_, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &petBefore.ID, scheduledDateJun10)
 		require.NoError(t, err)
-		_, err = repo.CompleteAccountingAppointments(ctx, clinicA, nil, &owner.ID, &petLate.ID, scheduledDateJun10)
+		_, err = completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &petLate.ID, scheduledDateJun10)
 		require.NoError(t, err)
-		_, err = repo.CompleteAccountingAppointments(ctx, clinicA, nil, &owner.ID, &petAfter.ID, scheduledDateJun10)
+		_, err = completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &petAfter.ID, scheduledDateJun10)
 		require.NoError(t, err)
 
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, apptBefore.ID), "UTC前日15:00(JST当日0:00)は同日扱いで完了化")
@@ -165,14 +193,14 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("経路2: medicalRecordID経由で非完了予約が完了化される", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "経路2飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "経路2ペット")
 		appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
 		mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-G11-2-001")
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, &mr.ID, nil, nil, time.Time{})
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, &mr.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), affected)
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID))
@@ -180,7 +208,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("経路2除外: completed/cancelled/no_showは触らない、別クリニックのmedical_recordは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "経路2除外飼主")
 
 		for _, status := range []model.ReservationStatus{
@@ -193,7 +221,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 				time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
 			mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-G11-2-excl-"+string(status))
 
-			affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, &mr.ID, nil, nil, time.Time{})
+			affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, &mr.ID, nil, nil, time.Time{})
 			require.NoError(t, err)
 			assert.Equal(t, int64(0), affected, "status=%s は既に完了扱いのため対象外", status)
 			assert.Equal(t, status, reloadAppointmentStatus(t, db, appt.ID))
@@ -205,7 +233,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
 		mrA := makeMedicalRecordForAppointment(t, db, clinicA, apptA.ID, "MR-G11-2-isolation")
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicB, &mrA.ID, nil, nil, time.Time{})
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicB, &mrA.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "別クリニックからは medical_record が見つからず対象外")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptA.ID), "clinic Aの予約は変更されない")
@@ -220,7 +248,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // clinic A 所属の予約
 		mrFKDrift := makeMedicalRecordForAppointment(t, db, clinicB, apptFKDrift.ID, "MR-G11-2-fk-drift") // clinic_id=B だが appointment は clinic A
 
-		affected, err = repo.CompleteAccountingAppointments(ctx, clinicB, &mrFKDrift.ID, nil, nil, time.Time{})
+		affected, err = completeForAccountingInTx(ctx, t, db, repo, clinicB, &mrFKDrift.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "medical_record.clinic_id一致でもappointment自体が別クリニックなら外側clinic_id述語で拒否される")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptFKDrift.ID), "clinic Aの予約は変更されない")
@@ -228,7 +256,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 		// サブクエリ述語: appointment_id IS NULL の medical_record は対象外（エラーにもならない）。
 		mrNoAppointment := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-G11-2-no-appt", Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)}
 		require.NoError(t, db.WithContext(ctx).Create(mrNoAppointment).Error)
-		affected, err = repo.CompleteAccountingAppointments(ctx, clinicA, &mrNoAppointment.ID, nil, nil, time.Time{})
+		affected, err = completeForAccountingInTx(ctx, t, db, repo, clinicA, &mrNoAppointment.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "appointment_idがnilのmedical_recordは対象外")
 
@@ -239,7 +267,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 		mrDeleted := makeMedicalRecordForAppointment(t, db, clinicA, apptDeletedMR.ID, "MR-G11-2-soft-deleted")
 		require.NoError(t, db.Delete(&model.MedicalRecord{}, mrDeleted.ID).Error)
 
-		affected, err = repo.CompleteAccountingAppointments(ctx, clinicA, &mrDeleted.ID, nil, nil, time.Time{})
+		affected, err = completeForAccountingInTx(ctx, t, db, repo, clinicA, &mrDeleted.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "soft-delete済みmedical_recordは対象外")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptDeletedMR.ID))
@@ -247,7 +275,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("totalAffectedは経路1と経路2の合算になる", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 		owner := repotest.MakeTestOwner(t, db, clinicA, "合算テスト飼主")
 		pet1 := makeSpeciesAndPet(t, db, clinicA, owner.ID, "合算ペット1")
 		pet2 := makeSpeciesAndPet(t, db, clinicA, owner.ID, "合算ペット2")
@@ -258,7 +286,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // 経路2対象
 		mr2 := makeMedicalRecordForAppointment(t, db, clinicA, appt2.ID, "MR-G11-2-combined")
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, &mr2.ID, &owner.ID, &pet1.ID, scheduledDateJun10)
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, &mr2.ID, &owner.ID, &pet1.ID, scheduledDateJun10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), affected, "経路1(1件)+経路2(1件)=2件")
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt1.ID))
@@ -267,9 +295,9 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 
 	t.Run("nil縮退: ownerID/petID/medicalRecordIDがnilなら両経路スキップされ0件・エラーなし", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
-		repo := NewAccountingRepository(db)
+		repo := reservation.NewReservationRepository(db)
 
-		affected, err := repo.CompleteAccountingAppointments(ctx, clinicA, nil, nil, nil, scheduledDateJun10)
+		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, nil, nil, scheduledDateJun10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected)
 	})

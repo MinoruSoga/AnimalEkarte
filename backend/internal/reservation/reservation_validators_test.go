@@ -257,6 +257,132 @@ func TestValidateBusinessRules_EmptyClosedWeekdaysAndDates_SkipsCheck(t *testing
 	assert.NoError(t, err)
 }
 
+func TestReservationValidators_ValidateAndCreate_MissingTransactorFailsClosed(t *testing.T) {
+	validators := NewReservationValidators(
+		nil,
+		&mockReservationRepository{},
+		mockReservationTypeFinder{},
+		&mockReservationStaffRepositoryForCapability{},
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		&mockTrimmingDetailRepository{},
+	)
+
+	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+		ClinicID:          1,
+		CustomerID:        2,
+		ReservationTypeID: 9,
+		Date:              dateInDays(3),
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+}
+
+func TestReservationValidators_ValidateAndCreate_RejectsHiddenStaffDirectPost(t *testing.T) {
+	createCalled := false
+	repo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 1, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true,
+				Category: model.ReservationTypeCategoryGeneral,
+			}, nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepositoryForCapability{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: false}, nil
+		},
+		supportsReservationTypeFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return true, nil
+		},
+	}
+	validators := NewReservationValidators(
+		&mockTransactor{}, repo, typeRepo, staffRepo,
+		okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+	)
+
+	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+		ClinicID:          1,
+		CustomerID:        2,
+		ReservationTypeID: 9,
+		StaffID:           3,
+		Date:              dateInDays(3),
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
+func TestReservationValidators_ValidateAndCreate_RejectsInactiveStaffDirectPost(t *testing.T) {
+	createCalled := false
+	repo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 1, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true,
+				Category: model.ReservationTypeCategoryGeneral,
+			}, nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepositoryForCapability{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id, ClinicID: clinicID, IsActive: false, ReservationVisible: true}, nil
+		},
+		supportsReservationTypeFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return true, nil
+		},
+	}
+	validators := NewReservationValidators(
+		&mockTransactor{}, repo, typeRepo, staffRepo,
+		okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+	)
+
+	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+		ClinicID:          1,
+		CustomerID:        2,
+		ReservationTypeID: 9,
+		StaffID:           3,
+		Date:              dateInDays(3),
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
 func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {
 	date := dateInDays(3)
 	startDT, err := ToDateTime(date, "1000")
@@ -284,10 +410,16 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 	}
 	typeRepo := mockReservationTypeFinder{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
+			return &model.ReservationType{
+				ID:                 id,
+				ClinicID:           clinicID,
+				IsActive:           true,
+				ReservationVisible: true,
+				MaxConcurrent:      &maxConcurrent,
+			}, nil
 		},
 	}
-	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{})
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,

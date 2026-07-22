@@ -200,6 +200,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// 確定済みのまま部分コミットになった。
 	// AUD-002: 最終関連 FK の所有・相互整合検証を write 前（同一 WithTx 内）で実施する。
 	var updatedBilling *model.Billing
+	var accounting *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
 			return err
@@ -243,16 +244,17 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 				return apperrors.Wrap(err, "failed to complete accounting appointments during update")
 			}
 		}
+
+		// Build the response before commit. A reload failure must roll back billing, payment,
+		// audit, and appointment writes instead of reporting an error after they committed.
+		accounting, err = s.repo.FindByID(txCtx, input.ClinicID, input.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to reload accounting after update", "error", err)
+			return apperrors.Wrap(err, "failed to reload accounting after update")
+		}
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update accounting in transaction")
-	}
-
-	// 更新後のレコードを返す
-	accounting, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload accounting after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
 	}
 
 	slog.InfoContext(ctx, "accounting updated",
@@ -271,7 +273,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 // 呼び出し元は返されたエラーで tx をロールバックし、監査失敗時に編集自体も無効にする。
 func (s *accountingService) logPostCloseEdit(ctx context.Context, input *UpdateAccountingInput) error {
 	if s.auditTx == nil {
-		return nil
+		return apperrors.WrapInternalServerError("billing audit dependency is required for post-close edits")
 	}
 	billingID := input.ID
 	aType := sharedkernel.AuditActorTypeFor(input.StaffID)
@@ -311,7 +313,10 @@ func (s *accountingService) loadPaymentMethodSystemKeyToID(ctx context.Context, 
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {
-	updated, err := s.repo.CompleteAccountingAppointments(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation repository is not configured")
+	}
+	updated, err := s.reservationRepo.CompleteForAccounting(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to complete accounting appointments",
 			slog.Uint64("clinic_id", clinicID),

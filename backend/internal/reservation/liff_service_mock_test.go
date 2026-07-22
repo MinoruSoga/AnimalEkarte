@@ -392,7 +392,7 @@ func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Reser
 	return nil
 }
 
-func (m *mockLiffReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockLiffReservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

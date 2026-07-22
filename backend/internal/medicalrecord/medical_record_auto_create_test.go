@@ -12,55 +12,63 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockMRRepoDeleteDraftSpy は DeleteDraftByAppointmentID の呼び出し検証専用ラッパー。
-// mockMedicalRecordRepository（medical_record_service_test.go 定義）の DeleteDraftByAppointmentID は
-// 固定 nil を返す非可変実装のため、interface embedding で必要なメソッドのみ差し替える。
-type mockMRRepoDeleteDraftSpy struct {
-	MedicalRecordRepository
-	deleteDraftFn func(ctx context.Context, clinicID, reservationID uint64) error
-}
-
-func (m *mockMRRepoDeleteDraftSpy) DeleteDraftByAppointmentID(ctx context.Context, clinicID, reservationID uint64) error {
-	if m.deleteDraftFn != nil {
-		return m.deleteDraftFn(ctx, clinicID, reservationID)
-	}
-	return nil
-}
-
 // ================================================================
 // DeleteDraftFromReservation
 // ================================================================
 
 func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
-	t.Run("成功時: DeleteDraftByAppointmentID が正しい引数で呼ばれる", func(t *testing.T) {
-		var capturedClinicID, capturedReservationID uint64
-		called := false
-		repo := &mockMRRepoDeleteDraftSpy{
-			MedicalRecordRepository: &mockMedicalRecordRepository{},
-			deleteDraftFn: func(_ context.Context, clinicID, reservationID uint64) error {
-				called = true
-				capturedClinicID = clinicID
-				capturedReservationID = reservationID
+	t.Run("draft は通常の安全な削除経路を通り監査される", func(t *testing.T) {
+		const (
+			clinicID      = uint64(3)
+			reservationID = uint64(77)
+			recordID      = uint64(91)
+		)
+		appointmentID := reservationID
+		record := &model.MedicalRecord{
+			ID:            recordID,
+			ClinicID:      clinicID,
+			AppointmentID: &appointmentID,
+			Status:        model.MedicalRecordStatusDraft,
+		}
+		deleteCalled := false
+		repo := &mockMedicalRecordRepository{
+			findByAppointmentIDFn: func(_ context.Context, gotClinicID, gotReservationID uint64) (*model.MedicalRecord, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, reservationID, gotReservationID)
+				return record, nil
+			},
+			findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, recordID, gotRecordID)
+				return record, nil
+			},
+			countEstimatesByMedicalRecordIDFn: func(_ context.Context, gotRecordID uint64) (int64, error) {
+				assert.Equal(t, recordID, gotRecordID)
+				return 0, nil
+			},
+			deleteFn: func(_ context.Context, gotClinicID, gotRecordID uint64) error {
+				deleteCalled = true
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, recordID, gotRecordID)
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		auditSvc := &mockAuditService{}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
 
-		svc.DeleteDraftFromReservation(context.Background(), 3, 77)
+		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
-		assert.True(t, called)
-		assert.Equal(t, uint64(3), capturedClinicID)
-		assert.Equal(t, uint64(77), capturedReservationID)
+		assert.True(t, deleteCalled)
+		assert.Contains(t, auditSvc.calls, "delete")
 	})
 
-	t.Run("リポジトリエラーは best-effort で無視される（パニックしない）", func(t *testing.T) {
-		repo := &mockMRRepoDeleteDraftSpy{
-			MedicalRecordRepository: &mockMedicalRecordRepository{},
-			deleteDraftFn: func(_ context.Context, _, _ uint64) error {
-				return errors.New("db error")
+	t.Run("検索エラーは best-effort で無視される（パニックしない）", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return nil, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.DeleteDraftFromReservation(context.Background(), 3, 77)
@@ -77,7 +85,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 0, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl, ok := svc.(*medicalRecordService)
 		require.True(t, ok)
 
@@ -88,7 +96,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 3, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -100,7 +108,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 				return 0, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -118,7 +126,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	doctorID := uint64(99)
 
 	t.Run("reservation が nil の場合はパニックせず即座にスキップする", func(t *testing.T) {
-		svc := NewMedicalRecordService(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 1, nil)
 		})
@@ -135,7 +143,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -153,7 +161,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -179,11 +187,19 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return &model.ClinicalPlan{ID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, clinicalPlanRepo, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID: 1, ClinicID: 1, StartTime: now,
 			OwnerID: &ownerID, PetID: &petID, DoctorID: &doctorID,
 		}
+		reservationRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return appt, nil
+			},
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return ownerID, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
 		require.NotNil(t, createdRecord)
@@ -207,8 +223,16 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
+		reservationRepo := &mockReservationRepoForMedicalRecord{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return appt, nil
+			},
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return ownerID, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 1, appt)

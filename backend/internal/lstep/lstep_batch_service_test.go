@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 type mockClinicRepository = dormantMockClinicRepository
@@ -27,6 +28,13 @@ func (m *batchMockReservationRepo) Update(ctx context.Context, clinicID, id uint
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
 	return &model.Reservation{}, nil
+}
+func (m *batchMockReservationRepo) MarkNoShow(ctx context.Context, clinicID, id uint64) (reservation.NoShowTransition, error) {
+	if m.updateFn == nil {
+		return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending}, nil
+	}
+	_, err := m.updateFn(ctx, clinicID, id, map[string]any{"status": model.ReservationStatusNoShow})
+	return reservation.NoShowTransition{Changed: err == nil, PreviousStatus: model.ReservationStatusPending}, err
 }
 func (m *batchMockReservationRepo) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	if m.findNoShowCandidatesFn != nil {
@@ -117,6 +125,22 @@ type batchMockAuditService struct {
 	called           bool
 }
 
+type batchImmediateTransactor struct{}
+
+func (batchImmediateTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+type batchNoShowAuditTxLogger struct {
+	entries []*NoShowAuditEntry
+	err     error
+}
+
+func (m *batchNoShowAuditTxLogger) LogNoShowTransitionTx(_ context.Context, entry *NoShowAuditEntry) error {
+	m.entries = append(m.entries, entry)
+	return m.err
+}
+
 func (m *batchMockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, action, _ string, _ *uint64, metadata any) error {
 	m.called = true
 	m.capturedAction = action
@@ -135,6 +159,7 @@ func newBatchService(
 	return NewLstepBatchService(
 		resRepo, tagSvc, clinicRepo, medRepo,
 		&batchMockAuditService{}, &mockLstepSettingsService{}, nil,
+		batchImmediateTransactor{}, &batchNoShowAuditTxLogger{},
 	).(*lstepBatchService)
 }
 
@@ -149,6 +174,7 @@ func newBatchServiceWithAuditSpy(
 	return NewLstepBatchService(
 		resRepo, tagSvc, clinicRepo, medRepo,
 		spy, &mockLstepSettingsService{}, nil,
+		batchImmediateTransactor{}, &batchNoShowAuditTxLogger{},
 	).(*lstepBatchService), spy
 }
 

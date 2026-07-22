@@ -51,6 +51,7 @@ const (
 	AuditActionLineNotificationSend  = "line.notification.send"
 	AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update"
 	AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink"
+	AuditActionReservationNoShow     = "reservation.no_show.auto"
 
 	// 取扱説明書（マニュアル）編集 監査アクション
 	AuditActionManualArticleUpsert = "manual_article.upsert"
@@ -82,7 +83,8 @@ const (
 
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
-	AuditActionExamResultReplace = "exam_result.replace"
+	AuditActionExamResultReplace                   = "exam_result.replace"
+	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 )
 
 // audit_logs.resource 定数
@@ -95,7 +97,9 @@ const (
 	// #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
 	AuditResourceCheckupFieldResult = "checkup_field_result"
 	// BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
-	AuditResourceExamResult = "exam_result"
+	AuditResourceExamResult      = "exam_result"
+	AuditResourceReservation     = "reservation"
+	AuditResourceHospitalization = "hospitalization"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる

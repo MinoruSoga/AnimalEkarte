@@ -5,6 +5,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -48,6 +49,9 @@ type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	// FindByAppointmentID returns the one active medical record linked to an appointment.
+	// Not found is represented as (nil, nil); other read errors fail closed.
+	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
 	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
@@ -57,14 +61,12 @@ type MedicalRecordRepository interface {
 	// expectedVersion が nil の場合は従来どおり version 述語なし（照合スキップ）。
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// DeleteDraftByAppointmentID は予約に紐づく draft カルテを論理削除する (#83 Q10)
-	DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
-	// CountEstimatesByMedicalRecordID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
-	// （呼び出し元 Delete が clinicID を既に保持・ownership 検証済みのため低リスクで追加可能）。
+	// CountEstimatesByMedicalRecordID はclinic-scopedな有効見積数を返す。Deleteの親カルテrow lockと
+	// 同じambient transactionへ参加し、並行する見積Createとの直列化を崩してはならない。
 	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
@@ -124,10 +126,10 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		// ここでは常に medical_records.clinic_id を明示指定する。
 		q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("medical_records.clinic_id IN ?", clinicIDs)
 		if needsPetJoin {
-			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.deleted_at IS NULL")
+			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL")
 		}
 		if needsOwnerJoin {
-			q = q.Joins("LEFT JOIN owners ON owners.id = medical_records.owner_id AND owners.deleted_at IS NULL")
+			q = q.Joins("LEFT JOIN owners ON owners.id = medical_records.owner_id AND owners.clinic_id = medical_records.clinic_id AND owners.deleted_at IS NULL")
 		}
 		if needsInquiryJoin {
 			q = q.Joins("LEFT JOIN inquiries ON inquiries.medical_record_id = medical_records.id")
@@ -212,6 +214,24 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 	return r.findMedicalRecordByID(ctx, []uint64{clinicID}, repohelpers.ClinicScope(clinicID), id)
 }
 
+func (r *medicalRecordRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error) {
+	var record model.MedicalRecord
+	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.MedicalRecord{})
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
+		Where("clinic_id = ? AND appointment_id = ? AND deleted_at IS NULL", clinicID, appointmentID).
+		Take(&record).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("appointment_id=%d", appointmentID))
+	}
+	return &record, nil
+}
+
 func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
 	return r.findMedicalRecordByID(ctx, clinicIDs, repohelpers.ClinicScopeIn(clinicIDs), id)
 }
@@ -283,20 +303,34 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.MedicalRecord{}, "medical_record", clinicID, id)
-}
-
-// DeleteDraftByAppointmentID は予約(appointment_id)に紐づく draft カルテを論理削除する (#83 Q10)。
-// draft 以外(診察開始済み等)は削除しない。削除対象なし(RowsAffected 0)は正常としエラーにしない。
-func (r *medicalRecordRepository) DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error {
-	err := r.db.WithContext(ctx).
+	db := repohelpers.DBOrTx(ctx, r.db)
+	result := db.
+		Model(&model.MedicalRecord{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("appointment_id = ? AND status = ?", appointmentID, model.MedicalRecordStatusDraft).
-		Delete(&model.MedicalRecord{}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("appointment:%d", appointmentID))
+		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).
+		Delete(&model.MedicalRecord{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
-	return nil
+	if result.RowsAffected > 0 {
+		return nil
+	}
+
+	// Distinguish a missing/cross-clinic record from an active non-draft record without weakening
+	// the atomic status predicate above. A concurrent finalization that wins the row lock must make
+	// deletion fail rather than soft-deleting a finalized clinical record.
+	var current struct {
+		Status model.MedicalRecordStatus
+	}
+	if err := db.
+		Model(&model.MedicalRecord{}).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Select("status").
+		Where("id = ?", id).
+		Take(&current).Error; err != nil {
+		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
+	}
+	return apperrors.WrapConflict("確定済みまたは下書き以外のカルテは削除できません")
 }
 
 // CountByPetID は指定されたペットに関連するカルテ数を返す
@@ -365,10 +399,10 @@ func (r *medicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicI
 
 // CountEstimatesByMedicalRecordID はカルテに紐付く見積書の件数を返す（BUG-201）
 // estimates.medical_record_id は ON DELETE RESTRICT のため削除前チェックが必要。
-// BE-refactor.md R2-5 (D12): clinic_id 述語を追加（estimates は clinic_id カラムを直接持つ）。
+// clinic_idでscopeし、Deleteの親カルテrow lockと同じambient transactionへ参加する。
 func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.Estimate{}).
 		Where("medical_record_id = ? AND clinic_id = ? AND deleted_at IS NULL", medicalRecordID, clinicID).
 		Count(&count).Error

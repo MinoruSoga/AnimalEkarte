@@ -5,6 +5,7 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationTy
 			if id != ownedTypeID {
 				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
 			}
-			return &model.ReservationType{ID: id}, nil
+			return &model.ReservationType{ID: id, IsActive: true, ReservationVisible: true}, nil
 		},
 	}
 
@@ -35,7 +36,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationTy
 				return nil
 			},
 		}
-		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{})
 	}
 
 	baseInput := func(typeID uint64) *CreateReservationInput {
@@ -80,7 +81,12 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 
 	typeRepo := mockReservationTypeFinder{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
-			return &model.ReservationType{ID: id}, nil
+			return &model.ReservationType{
+				ID:                 id,
+				Category:           model.ReservationTypeCategoryTrimming,
+				IsActive:           true,
+				ReservationVisible: true,
+			}, nil
 		},
 	}
 
@@ -91,7 +97,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 				return nil
 			},
 		}
-		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, courseRepo, optionRepo)
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, &mockTrimmingDetailRepository{})
 	}
 
 	baseInput := func() *CreateReservationInput {
@@ -141,6 +147,170 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
+	})
+}
+
+func TestReservationValidators_ValidateAndCreate_ValidatesPublicStaffInsideTransaction(t *testing.T) {
+	const (
+		clinicID          = uint64(1)
+		reservationTypeID = uint64(50)
+		staffID           = uint64(10)
+	)
+	type txMarkerKey struct{}
+	baseInput := func() *CreateReservationInput {
+		return &CreateReservationInput{
+			ClinicID:          clinicID,
+			CustomerID:        2,
+			ReservationTypeID: reservationTypeID,
+			StaffID:           staffID,
+			Date:              dateInDays(3),
+			StartTime:         "1000",
+			EndTime:           "1015",
+			Settings:          newSettingForValidation(),
+		}
+	}
+	typeRepo := mockReservationTypeFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+		return &model.ReservationType{
+			ID:                 id,
+			ClinicID:           clinicID,
+			IsActive:           true,
+			ReservationVisible: true,
+			Category:           model.ReservationTypeCategoryGeneral,
+		}, nil
+	}}
+
+	t.Run("rejects a staff member not assigned to the clinic", func(t *testing.T) {
+		created := false
+		repo := &mockReservationRepository{createFn: func(_ context.Context, _ *model.Reservation) error {
+			created = true
+			return nil
+		}}
+		staffRepo := &mockReservationStaffRepositoryForCapability{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
+				return nil, apperrors.WrapNotFound("reservation_staff", "foreign")
+			},
+		}
+		validators := NewReservationValidators(
+			&mockTransactor{}, repo, typeRepo, staffRepo,
+			okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+		)
+
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created)
+	})
+
+	t.Run("checks assignment and capability in the write transaction", func(t *testing.T) {
+		staffCheckedInTx := false
+		capabilityCheckedInTx := false
+		tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(context.WithValue(ctx, txMarkerKey{}, true))
+		}}
+		staffRepo := &mockReservationStaffRepositoryForCapability{
+			findByIDFn: func(ctx context.Context, _, id uint64) (*model.Staff, error) {
+				staffCheckedInTx = ctx.Value(txMarkerKey{}) == true
+				return &model.Staff{ID: id, IsActive: true, ReservationVisible: true}, nil
+			},
+			supportsReservationTypeFn: func(ctx context.Context, _, _, _ uint64) (bool, error) {
+				capabilityCheckedInTx = ctx.Value(txMarkerKey{}) == true
+				return true, nil
+			},
+		}
+		validators := NewReservationValidators(
+			tx, &mockReservationRepository{createFn: func(_ context.Context, _ *model.Reservation) error { return nil }}, typeRepo, staffRepo,
+			okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+		)
+
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, staffCheckedInTx)
+		assert.True(t, capabilityCheckedInTx)
+	})
+}
+
+func TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActive(t *testing.T) {
+	const (
+		clinicID          = uint64(1)
+		reservationTypeID = uint64(50)
+		courseID          = uint64(300)
+		optionID          = uint64(400)
+	)
+	typeRepo := mockReservationTypeFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+		return &model.ReservationType{
+			ID:                 id,
+			ClinicID:           clinicID,
+			IsActive:           true,
+			ReservationVisible: true,
+			Category:           model.ReservationTypeCategoryTrimming,
+		}, nil
+	}}
+	baseInput := func() *CreateReservationInput {
+		course := courseID
+		return &CreateReservationInput{
+			ClinicID:          clinicID,
+			CustomerID:        2,
+			ReservationTypeID: reservationTypeID,
+			Date:              dateInDays(3),
+			StartTime:         "1000",
+			EndTime:           "1015",
+			Settings:          newSettingForValidation(),
+			TrimmingCourseID:  &course,
+			TrimmingOptionIDs: []uint64{optionID},
+		}
+	}
+
+	t.Run("rejects inactive trimming master before appointment insert", func(t *testing.T) {
+		created := false
+		courseRepo := &mockTrimmingCourseFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+			return &model.TrimmingCourse{ID: id, ClinicID: clinicID, IsActive: false}, nil
+		}}
+		optionRepo := &mockTrimmingOptionFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+			return &model.TrimmingOption{ID: id, ClinicID: clinicID, IsActive: true}, nil
+		}}
+		validators := NewReservationValidators(
+			&mockTransactor{},
+			&mockReservationRepository{createFn: func(_ context.Context, _ *model.Reservation) error { created = true; return nil }},
+			typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, &mockTrimmingDetailRepository{},
+		)
+
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created)
+	})
+
+	t.Run("detail failure fails the reservation transaction", func(t *testing.T) {
+		created := false
+		detailErr := errors.New("detail insert failed")
+		courseRepo := &mockTrimmingCourseFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+			return &model.TrimmingCourse{ID: id, ClinicID: clinicID, IsActive: true}, nil
+		}}
+		optionRepo := &mockTrimmingOptionFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+			return &model.TrimmingOption{ID: id, ClinicID: clinicID, IsActive: true}, nil
+		}}
+		detailRepo := &mockTrimmingDetailRepository{createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			return detailErr
+		}}
+		validators := NewReservationValidators(
+			&mockTransactor{},
+			&mockReservationRepository{createFn: func(_ context.Context, appointment *model.Reservation) error {
+				created = true
+				appointment.ID = 99
+				return nil
+			}},
+			typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, detailRepo,
+		)
+
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+
+		assert.ErrorIs(t, err, detailErr)
+		assert.Nil(t, out)
+		assert.True(t, created, "appointment insert is attempted inside the transaction before the injected detail failure")
 	})
 }
 
@@ -331,7 +501,12 @@ func TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK(t *testing.T
 
 	typeRepo := mockReservationTypeFinder{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
-			return &model.ReservationType{ID: id}, nil
+			return &model.ReservationType{
+				ID:                 id,
+				Category:           model.ReservationTypeCategoryTrimming,
+				IsActive:           true,
+				ReservationVisible: true,
+			}, nil
 		},
 	}
 
@@ -357,7 +532,7 @@ func TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK(t *testing.T
 			reservationRepo:    reservationRepo,
 			trimmingDetailRepo: &mockTrimmingDetailRepository{},
 			notifier:           nil,
-			validators:         NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, courseRepo, okTrimmingOptionRepo()),
+			validators:         NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}),
 		}
 	}
 

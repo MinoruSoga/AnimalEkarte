@@ -174,6 +174,13 @@ func TestReservationRepository_AssertOwnerPetLineCustomer_ClinicIsolation(t *tes
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+	t.Run("FindPetOwnerInClinic rejects same-clinic pet linked to foreign owner", func(t *testing.T) {
+		pollutedPet := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "汚染ペット")
+		require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pollutedPet.ID).Update("owner_id", ownerB.ID).Error)
+		_, err := repo.FindPetOwnerInClinic(ctx, clinicA, pollutedPet.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
 	t.Run("AssertLineCustomerInClinic accepts same clinic", func(t *testing.T) {
 		require.NoError(t, repo.AssertLineCustomerInClinic(ctx, clinicA, lcA.ID))
 	})
@@ -227,6 +234,43 @@ func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignPet(t *tes
 	assert.Nil(t, found.Pet, "foreign Pet must not be preloaded via FindAllByCategory")
 }
 
+func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignTrimmingDetail(t *testing.T) {
+	db := setupReservationOwnerPetPreloadDB(t)
+	require.NoError(t, ensureAutoMigrated(db, &model.AppointmentTrimmingDetail{}))
+	repo := NewReservationRepository(db)
+	ctx := context.Background()
+
+	const clinicA, clinicB = uint64(1), uint64(2)
+	rtA := &model.ReservationType{
+		ClinicID: clinicA,
+		Name:     "トリミング詳細分離",
+		Category: model.ReservationTypeCategoryTrimming,
+	}
+	require.NoError(t, db.Create(rtA).Error)
+	appointment := makeReservation(t, db, clinicA)
+	require.NoError(t, db.Model(&model.Reservation{}).
+		Where("id = ?", appointment.ID).
+		Update("reservation_type_id", rtA.ID).Error)
+	require.NoError(t, db.Create(&model.AppointmentTrimmingDetail{
+		ClinicID:      clinicB,
+		AppointmentID: appointment.ID,
+		BWUnit:        model.BodyWeightUnitKg,
+		Remarks:       "別院のセンシティブな施術メモ",
+	}).Error)
+
+	items, _, err := repo.FindAllByCategory(ctx, clinicA, model.ReservationTypeCategoryTrimming, nil, nil, nil, nil, 1, 50)
+	require.NoError(t, err)
+	var found *model.Reservation
+	for i := range items {
+		if items[i].ID == appointment.ID {
+			found = &items[i]
+			break
+		}
+	}
+	require.NotNil(t, found)
+	assert.Nil(t, found.TrimmingDetail, "foreign-clinic trimming detail must not be preloaded")
+}
+
 func TestTrimmingPetValidationAndWrites_RollBackTogether(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
 	reservationRepo := NewReservationRepository(db)
@@ -245,7 +289,7 @@ func TestTrimmingPetValidationAndWrites_RollBackTogether(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, owner.ID, petOwnerID)
 
-		if _, err := reservationRepo.Update(txCtx, clinicID, appointment.ID, map[string]any{"pet_id": pet.ID}); err != nil {
+		if err := reservationRepo.BackfillForMedicalRecord(txCtx, clinicID, appointment.ID, nil, &pet.ID, nil); err != nil {
 			return err
 		}
 		if err := detailRepo.Create(txCtx, &model.AppointmentTrimmingDetail{

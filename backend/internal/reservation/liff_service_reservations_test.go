@@ -108,25 +108,24 @@ func TestLiffService_CreateReservation_DateParseErrorSkipsAutoDelegation(t *test
 }
 
 func TestLiffService_CreateReservation_TrimmingDetail_Success(t *testing.T) {
-	var createdDetail *model.AppointmentTrimmingDetail
-	var setOptionsCalled bool
-	var setOptionsIDs []uint64
+	var delegatedInput *CreateReservationInput
+	var legacyDetailWriteCalled bool
 	courseID := uint64(7)
 
 	svc := newReservationTestSvc(func(s *liffService) {
 		s.trimmingDetailRepo = &mockTrimmingDetailRepository{
-			createFn: func(_ context.Context, detail *model.AppointmentTrimmingDetail) error {
-				createdDetail = detail
+			createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+				legacyDetailWriteCalled = true
 				return nil
 			},
-			setOptionsFn: func(_ context.Context, _, _ uint64, optionIDs []uint64) error {
-				setOptionsCalled = true
-				setOptionsIDs = optionIDs
+			setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+				legacyDetailWriteCalled = true
 				return nil
 			},
 		}
 		s.validators = &mockLiffValidators{
-			validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.Reservation, error) {
+			validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+				delegatedInput = input
 				return &model.Reservation{ID: 42, ClinicID: 3}, nil
 			},
 		}
@@ -138,27 +137,32 @@ func TestLiffService_CreateReservation_TrimmingDetail_Success(t *testing.T) {
 
 	_, err := svc.CreateReservation(context.Background(), 3, 1, input)
 	require.NoError(t, err)
-	require.NotNil(t, createdDetail)
-	assert.Equal(t, uint64(42), createdDetail.AppointmentID)
-	if assert.NotNil(t, createdDetail.CourseID) {
-		assert.Equal(t, courseID, *createdDetail.CourseID)
+	require.NotNil(t, delegatedInput)
+	if assert.NotNil(t, delegatedInput.TrimmingCourseID) {
+		assert.Equal(t, courseID, *delegatedInput.TrimmingCourseID)
 	}
-	assert.True(t, setOptionsCalled)
-	assert.Equal(t, []uint64{1, 2}, setOptionsIDs)
+	assert.Equal(t, []uint64{1, 2}, delegatedInput.TrimmingOptionIDs)
+	assert.False(t, legacyDetailWriteCalled, "trimming writes belong to the validator transaction")
 }
 
-func TestLiffService_CreateReservation_TrimmingDetail_CreateError_BestEffort(t *testing.T) {
-	var setOptionsCalled bool
+func TestLiffService_CreateReservation_TrimmingDetail_CreateErrorFailsReservation(t *testing.T) {
+	var legacyDetailWriteCalled bool
 	courseID := uint64(7)
 
 	svc := newReservationTestSvc(func(s *liffService) {
 		s.trimmingDetailRepo = &mockTrimmingDetailRepository{
 			createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
-				return errors.New("db error")
+				legacyDetailWriteCalled = true
+				return nil
 			},
 			setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
-				setOptionsCalled = true
+				legacyDetailWriteCalled = true
 				return nil
+			},
+		}
+		s.validators = &mockLiffValidators{
+			validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.Reservation, error) {
+				return nil, errors.New("detail insert failed")
 			},
 		}
 	})
@@ -168,8 +172,8 @@ func TestLiffService_CreateReservation_TrimmingDetail_CreateError_BestEffort(t *
 	input.TrimmingOptionIDs = []uint64{1}
 
 	_, err := svc.CreateReservation(context.Background(), 3, 1, input)
-	require.NoError(t, err, "トリミング詳細作成失敗は best-effort であり予約自体は成功する")
-	assert.False(t, setOptionsCalled, "詳細作成に失敗した場合はオプション設定を試みない")
+	require.Error(t, err, "trimming detail persistence failure must abort the reservation")
+	assert.False(t, legacyDetailWriteCalled, "the service must not perform a second best-effort write")
 }
 
 func TestLiffService_CreateReservation_NotifierNil_NoPanic(t *testing.T) {

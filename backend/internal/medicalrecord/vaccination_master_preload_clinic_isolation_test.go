@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
@@ -58,8 +59,8 @@ func makeVaccinationRecord(t *testing.T, db *gorm.DB, clinicID, petID, vaccineID
 }
 
 // TestVaccinationRepository_FindByID_VaccinePreloadClinicIsolation は
-// clinic A のワクチン記録が別クリニック(B)の vaccine を指す FK を持っていても
-// 別クリニックの vaccine マスタを Preload で漏らさないことを検証する（#125 同型）。
+// clinic A のワクチン記録が別クリニック(B)の vaccine を指す FK を持つ場合は、
+// 汚染行自体を not-found として別クリニックの生IDも漏らさないことを検証する（#125 同型）。
 func TestVaccinationRepository_FindByID_VaccinePreloadClinicIsolation(t *testing.T) {
 	db := setupVaccinationMasterPreloadTestDB(t)
 	repo := NewVaccinationRepository(db)
@@ -78,9 +79,9 @@ func TestVaccinationRepository_FindByID_VaccinePreloadClinicIsolation(t *testing
 	cross := makeVaccinationRecord(t, db, clinicA, petA.ID, vaccineB.ID)
 
 	got, err := repo.FindByID(ctx, clinicA, cross.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got, "記録自体は clinic A 所属なので返る")
-	assert.Nil(t, got.Vaccine, "別クリニックの vaccine マスタが Preload で混入してはならない")
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, got, "別クリニックの vaccine ID を持つ汚染行は返してはならない")
 }
 
 // TestVaccinationRepository_FindByID_SameClinicVaccinePreloaded は

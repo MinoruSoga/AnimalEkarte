@@ -98,6 +98,34 @@ func TestMedicalRecordService_Create_RejectsCrossClinicOwnerPetWithoutAppointmen
 	}
 }
 
+func TestMedicalRecordService_Create_RejectsCrossClinicDoctorWithoutAppointment(t *testing.T) {
+	doctorID := uint64(303)
+	recordRepo := &mockMedicalRecordRepository{
+		createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+			t.Fatal("medical record must not be created with a doctor outside the clinic")
+			return nil
+		},
+	}
+	reservationRepo := &mockReservationRepoForMedicalRecord{
+		assertDoctorFn: func(ctx context.Context, clinicID, gotDoctorID uint64) error {
+			assertMedicalRecordTxContext(ctx, t)
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, doctorID, gotDoctorID)
+			return apperrors.WrapNotFound("staff", "303")
+		},
+	}
+	svc := newMedicalRecordClinicIsolationService(recordRepo, reservationRepo)
+
+	record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
+		Date:     time.Date(2026, 7, 22, 10, 0, 0, 0, time.UTC),
+		DoctorID: &doctorID,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, record)
+}
+
 func TestMedicalRecordService_Create_AcceptsSameClinicOwnerPetAndNilContract(t *testing.T) {
 	ownerID := uint64(10)
 	petID := uint64(20)
@@ -305,10 +333,10 @@ func TestMedicalRecordService_Create_WithAppointment_RejectsForeignAndLeavesAppo
 			assertMedicalRecordTxContext(ctx, t)
 			return apperrors.WrapNotFound("owner", "201")
 		},
-		updateFn: func(_ context.Context, _ uint64, _ uint64, _ map[string]any) (*model.Reservation, error) {
+		backfillFn: func(_ context.Context, _ uint64, _ uint64, _, _, _ *uint64) error {
 			appointmentUpdated = true
 			t.Fatal("appointment must not be backfilled with invalid Owner/Pet")
-			return nil, nil
+			return nil
 		},
 	}
 	svc := newMedicalRecordClinicIsolationService(recordRepo, reservationRepo)

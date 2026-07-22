@@ -14,6 +14,7 @@ import (
 type DischargeWithBillingInput struct {
 	DischargeDate    time.Time
 	CreateAccounting bool
+	ActorID          *uint64
 }
 
 // DischargeWithBillingResult は退院+会計作成のレスポンスDTO
@@ -158,12 +159,18 @@ type HospitalizationService interface {
 type hospitalizationService struct {
 	hospRepo         HospitalizationRepository
 	reservationRepo  sharedkernel.OwnerPetLinkVerifier
+	doctorVerifier   hospitalizationDoctorVerifier
 	petRepo          petFinder
 	cageRepo         cageFinder
 	carePlanItemRepo CarePlanItemRepository
 	accountingRepo   accountingCreator
 	billingItemRepo  billingItemWriter
 	transactor       Transactor
+	auditTx          AuditTxLogger
+}
+
+type hospitalizationDoctorVerifier interface {
+	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
 }
 
 // NewHospitalizationService は実消費 repo の個別注入で初期化する（BE9-2D ⑤ Phase1:
@@ -179,16 +186,61 @@ func NewHospitalizationService(
 	billingItemRepo billingItemWriter,
 	transactor Transactor,
 ) HospitalizationService {
+	return NewHospitalizationServiceWithAudit(
+		hospRepo,
+		reservationRepo,
+		petRepo,
+		cageRepo,
+		carePlanItemRepo,
+		accountingRepo,
+		billingItemRepo,
+		transactor,
+		nil,
+	)
+}
+
+// NewHospitalizationServiceWithAudit は退院会計の tx 内監査依存を追加して初期化する。
+// 既存コンストラクタは後方互換のため維持し、会計作成経路では nil 監査依存を fail-closed に扱う。
+func NewHospitalizationServiceWithAudit(
+	hospRepo HospitalizationRepository,
+	reservationRepo sharedkernel.OwnerPetLinkVerifier,
+	petRepo petFinder,
+	cageRepo cageFinder,
+	carePlanItemRepo CarePlanItemRepository,
+	accountingRepo accountingCreator,
+	billingItemRepo billingItemWriter,
+	transactor Transactor,
+	auditTx AuditTxLogger,
+) HospitalizationService {
+	doctorVerifier, _ := reservationRepo.(hospitalizationDoctorVerifier)
 	return &hospitalizationService{
 		hospRepo:         hospRepo,
 		reservationRepo:  reservationRepo,
+		doctorVerifier:   doctorVerifier,
 		petRepo:          petRepo,
 		cageRepo:         cageRepo,
 		carePlanItemRepo: carePlanItemRepo,
 		accountingRepo:   accountingRepo,
 		billingItemRepo:  billingItemRepo,
 		transactor:       transactor,
+		auditTx:          auditTx,
 	}
+}
+
+func (s *hospitalizationService) validateDoctor(ctx context.Context, clinicID uint64, doctorID *uint64) error {
+	if doctorID == nil {
+		return nil
+	}
+	if *doctorID == 0 {
+		return apperrors.WrapInvalidInput("doctor_id must be greater than zero")
+	}
+	if s.doctorVerifier == nil {
+		return apperrors.WrapInternalServerError("hospitalization doctor verifier is required")
+	}
+	if err := s.doctorVerifier.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
+		return apperrors.Wrap(err, "failed to verify hospitalization doctor ownership")
+	}
+	return nil
 }
 
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
@@ -210,6 +262,9 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
 	status := input.Status
 	if status == "" {
 		status = model.HospitalizationStatusReserved
@@ -220,26 +275,6 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if input.IsInsurance {
 		insuranceCompanyName = input.InsuranceCompanyName
 		insuranceNumber = input.InsuranceNumber
-	}
-
-	// クロステナント write 防止: request 由来 Owner/Pet の clinic 所有と Owner-Pet 整合を検証する（AUD-004）。
-	ownerID, petID := input.OwnerID, input.PetID
-	if err := sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
-		return nil, err
-	}
-
-	// 死亡ペットの入院ブロック（SD-10）
-	if err := validatePetNotDeceased(ctx, s.petRepo, clinicID, petID); err != nil {
-		return nil, err
-	}
-
-	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
-	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
-		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.cageRepo.FindByID(actx, cid, mid)
-			return err
-		}); err != nil {
-		return nil, err
 	}
 
 	hospitalization := &model.Hospitalization{
@@ -258,9 +293,35 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		InsuranceCompanyName: insuranceCompanyName,
 		InsuranceNumber:      insuranceNumber,
 	}
-	if err := s.hospRepo.Create(ctx, hospitalization); err != nil {
-		slog.ErrorContext(ctx, "failed to create hospitalization", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create hospitalization")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
+	}
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Validate every request-derived clinic-scoped FK in the same transaction as persistence.
+		ownerID, petID := input.OwnerID, input.PetID
+		if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
+			return err
+		}
+		if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID); err != nil {
+			return err
+		}
+		if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.cageRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+		if err := s.validateDoctor(txCtx, clinicID, input.DoctorID); err != nil {
+			return err
+		}
+		if err := s.hospRepo.Create(txCtx, hospitalization); err != nil {
+			slog.ErrorContext(txCtx, "failed to create hospitalization", "error", err)
+			return apperrors.Wrap(err, "failed to create hospitalization")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "hospitalization created",
 		slog.Uint64("hospitalization_id", hospitalization.ID),
@@ -272,44 +333,49 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	existing, err := s.hospRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find hospitalization")
-	}
-
-	// クロステナント write 防止: 最終マージ後の Owner/Pet を検証する（AUD-004）。
-	if input.OwnerID != nil || input.PetID != nil {
-		finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
-		if err := sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, finalOwnerID, finalPetID); err != nil {
-			return nil, err
-		}
-	}
-
-	// 死亡ペットへの貼り替えブロック（SD-10）: PetID が変更される場合のみ検証する。
-	if input.PetID != nil {
-		if err := validatePetNotDeceased(ctx, s.petRepo, clinicID, *input.PetID); err != nil {
-			return nil, err
-		}
-	}
-
-	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
-	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
-		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.cageRepo.FindByID(actx, cid, mid)
-			return err
-		}); err != nil {
-		return nil, err
-	}
-
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	hosp, err := s.hospRepo.Update(ctx, clinicID, id, fields)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update hospitalization", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update hospitalization")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
+	}
+	var hosp *model.Hospitalization
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		existing, err := s.hospRepo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to lock hospitalization", "error", err)
+			return apperrors.Wrap(err, "failed to lock hospitalization")
+		}
+		if input.OwnerID != nil || input.PetID != nil {
+			finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
+			if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, finalOwnerID, finalPetID); err != nil {
+				return err
+			}
+		}
+		if input.PetID != nil {
+			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, *input.PetID); err != nil {
+				return err
+			}
+		}
+		if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.cageRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+		if err := s.validateDoctor(txCtx, clinicID, input.DoctorID); err != nil {
+			return err
+		}
+		hosp, err = s.hospRepo.Update(txCtx, clinicID, id, fields)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to update hospitalization", "error", err)
+			return apperrors.Wrap(err, "failed to update hospitalization")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "hospitalization updated",
 		slog.Uint64("hospitalization_id", id),
@@ -397,6 +463,14 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
 			return err
 		}
+		if input.CreateAccounting {
+			if input.ActorID == nil || *input.ActorID == 0 {
+				return apperrors.WrapInvalidInput("staff actor is required to create discharge billing")
+			}
+			if s.auditTx == nil {
+				return apperrors.WrapInternalServerError("hospitalization discharge billing audit dependency is required")
+			}
+		}
 
 		// 2. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
@@ -432,7 +506,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 4. ケアプラン → 会計明細に変換
-		var totalAmount int64
+		var subtotalAmount int64
 		for i := range carePlanItems {
 			item := &carePlanItems[i]
 			billingItem := &model.BillingItem{
@@ -449,15 +523,35 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			if err := s.billingItemRepo.Create(txCtx, billingItem); err != nil {
 				return apperrors.Wrap(err, "failed to create billing item")
 			}
-			totalAmount += item.UnitPrice
+			subtotalAmount += item.UnitPrice
 		}
 
 		// 5. 合計金額更新
+		taxAmount := int64(float64(subtotalAmount) * sharedkernel.DefaultTaxRate)
+		totalAmount := subtotalAmount + taxAmount
 		if len(carePlanItems) > 0 {
-			taxTotal := int64(float64(totalAmount) * sharedkernel.DefaultTaxRate)
-			if err := s.billingItemRepo.UpdateBillingTotals(txCtx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
+			if err := s.billingItemRepo.UpdateBillingTotals(txCtx, clinicID, billing.ID, subtotalAmount, taxAmount, totalAmount); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}
+		}
+
+		// 6. 会計を伴う退院を同じ tx 内で監査する。失敗時は status/会計/明細/合計を一括 rollback する。
+		resourceID := id
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorID:    input.ActorID,
+			ActorType:  model.AuditActorTypeStaff,
+			Action:     model.AuditActionHospitalizationDischargeWithBilling,
+			Resource:   model.AuditResourceHospitalization,
+			ResourceID: &resourceID,
+			NewValue: map[string]any{
+				"billing_id":      billing.ID,
+				"subtotal_amount": subtotalAmount,
+				"tax_amount":      taxAmount,
+				"total_amount":    totalAmount,
+			},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to audit hospitalization discharge billing")
 		}
 
 		result.AccountingID = &billing.ID

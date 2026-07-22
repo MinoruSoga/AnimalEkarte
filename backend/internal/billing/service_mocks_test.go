@@ -128,111 +128,11 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) e
 	return fn(ctx)
 }
 
-// mockReservationRepository — reservation側test定義（package跨ぎimport不能）の複製（AUD-005 estimate fk test用）。
+// mockReservationRepository は billing が消費する owner/pet verifier と会計完了intentだけを実装する。
 type mockReservationRepository struct {
-	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
-	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn                           func(ctx context.Context, reservation *model.Reservation) error
-	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
-	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
-	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
-	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
-	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
-	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
-	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
-	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
-}
-
-func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
-	return m.findAllFn(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
-}
-
-func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
-
-func (m *mockReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
-	return nil, nil
-}
-
-func (m *mockReservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {
-	return m.createFn(ctx, reservation)
-}
-
-func (m *mockReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
-}
-
-func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
-}
-
-func (m *mockReservationRepository) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, _, reservationID uint64) (int64, error) {
-	if m.countMedicalRecordsByReservationID != nil {
-		return m.countMedicalRecordsByReservationID(ctx, reservationID)
-	}
-	return 0, nil
-}
-
-func (m *mockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
-	return nil
-}
-
-func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
-	if m.lockAndFindByIDFn != nil {
-		return m.lockAndFindByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
-
-func (m *mockReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationRepository) CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error) {
-	if m.countOnDutyDoctorsFn != nil {
-		return m.countOnDutyDoctorsFn(ctx, clinicID, date)
-	}
-	return 1, nil
-}
-
-func (m *mockReservationRepository) CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error) {
-	if m.countConflictsFn != nil {
-		return m.countConflictsFn(ctx, clinicID, start, end, excludeID)
-	}
-	return 0, nil
-}
-
-func (m *mockReservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
-	if m.countByTypeAndStartTimeFn != nil {
-		return m.countByTypeAndStartTimeFn(ctx, clinicID, reservationTypeID, startTime, excludeID)
-	}
-	return 0, nil
-}
-
-func (m *mockReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockReservationRepository) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
-	return nil, 0, nil
+	assertOwnerInClinicFn   func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn  func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	completeForAccountingFn func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 }
 
 func (m *mockReservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
@@ -249,15 +149,11 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 	return 0, nil
 }
 
-func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
-	if m.assertLineCustomerInClinicFn != nil {
-		return m.assertLineCustomerInClinicFn(ctx, clinicID, lineCustomerID)
+func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	if m.completeForAccountingFn != nil {
+		return m.completeForAccountingFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
 	}
-	return nil
-}
-
-func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
-	return nil, nil
+	return 0, nil
 }
 
 type mockAccountingRepository struct {
@@ -267,7 +163,6 @@ type mockAccountingRepository struct {
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	savePaymentFn       func(ctx context.Context, payment *model.Payment) error
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
-	completeApptsFn     func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
 	// #120: start_date/end_date 2引数バリアント
 	findUnpaidByBillingFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
@@ -339,13 +234,6 @@ func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits
 		return m.savePaymentSplitsFn(ctx, splits)
 	}
 	return nil
-}
-
-func (m *mockAccountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
-	if m.completeApptsFn != nil {
-		return m.completeApptsFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
-	}
-	return 0, nil
 }
 
 func (m *mockAccountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {

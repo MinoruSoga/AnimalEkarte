@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -47,7 +48,15 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 }
 
 func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
-	return repohelpers.FindByIDScoped[model.Vaccine](ctx, r.db, "vaccine", clinicID, id)
+	var vaccine model.Vaccine
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := db.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
+	}
+	return &vaccine, nil
 }
 
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {

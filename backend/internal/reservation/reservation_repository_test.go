@@ -192,6 +192,7 @@ func TestReservationRepository_LockAndFindByID(t *testing.T) {
 func TestReservationRepository_HasDoctorConflict(t *testing.T) {
 	db := setupReservationRepoTestDB(t)
 	repo := NewReservationRepository(db)
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -201,21 +202,30 @@ func TestReservationRepository_HasDoctorConflict(t *testing.T) {
 	end := start.Add(30 * time.Minute)
 	existing := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, start,
 		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, &doctor.ID)
+	checkConflict := func(startTime, endTime time.Time, excludeID *uint64) (bool, error) {
+		var conflict bool
+		err := tx.WithTx(ctx, func(txCtx context.Context) error {
+			var innerErr error
+			conflict, innerErr = repo.HasDoctorConflict(txCtx, clinicA, doctor.ID, startTime, endTime, excludeID)
+			return innerErr
+		})
+		return conflict, err
+	}
 
 	t.Run("重複する時間枠はtrue", func(t *testing.T) {
-		conflict, err := repo.HasDoctorConflict(ctx, clinicA, doctor.ID, start.Add(15*time.Minute), end.Add(15*time.Minute), nil)
+		conflict, err := checkConflict(start.Add(15*time.Minute), end.Add(15*time.Minute), nil)
 		require.NoError(t, err)
 		assert.True(t, conflict)
 	})
 
 	t.Run("重複しない時間枠はfalse", func(t *testing.T) {
-		conflict, err := repo.HasDoctorConflict(ctx, clinicA, doctor.ID, end.Add(time.Hour), end.Add(90*time.Minute), nil)
+		conflict, err := checkConflict(end.Add(time.Hour), end.Add(90*time.Minute), nil)
 		require.NoError(t, err)
 		assert.False(t, conflict)
 	})
 
 	t.Run("excludeIDで自身を除外するとfalse", func(t *testing.T) {
-		conflict, err := repo.HasDoctorConflict(ctx, clinicA, doctor.ID, start, end, &existing.ID)
+		conflict, err := checkConflict(start, end, &existing.ID)
 		require.NoError(t, err)
 		assert.False(t, conflict)
 	})
@@ -367,6 +377,16 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
 	cancelledOld := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
 		model.ReservationStatusCancelled, model.ReservationSourceManual, nil, nil)
+	finalized := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
+		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
+	record := &model.MedicalRecord{
+		ClinicID:      clinicA,
+		RecordNo:      "MR-NO-SHOW-CANDIDATE-EXCLUSION",
+		Date:          now,
+		AppointmentID: &finalized.ID,
+		Status:        model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.Create(record).Error)
 
 	t.Run("4時間以上経過したconfirmed/pendingのみ該当", func(t *testing.T) {
 		got, err := repo.FindNoShowCandidates(ctx, clinicA)
@@ -378,6 +398,7 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		assert.Contains(t, ids, candidate.ID)
 		assert.NotContains(t, ids, notOldEnough.ID, "4時間未満はノーショウ候補外のはず")
 		assert.NotContains(t, ids, cancelledOld.ID, "cancelledはノーショウ候補外のはず")
+		assert.NotContains(t, ids, finalized.ID, "確定済みカルテがある予約はノーショウ候補外のはず")
 	})
 
 	t.Run("該当データが無いクリニックは空を返す", func(t *testing.T) {

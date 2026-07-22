@@ -20,8 +20,9 @@ import (
 // 尊重しつつ、別テナント単独所属スタッフ名の漏洩を防ぐ。予約は現在/未来データのため履歴表示の回帰はない。
 const staffAssignedToClinicsCond = "deleted_at IS NULL AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id IN ? AND sca.deleted_at IS NULL)"
 
-// ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
-// reservation_service / trimming_service / liff_service で使用。
+// ReservationCRUDRepository は owner package 内のコア persistence 操作。
+// package 外の consumer はこの interface ではなく、必要な read operation と
+// ReservationIntentRepository の一部だけを consumer-side interface として宣言する。
 type ReservationCRUDRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) の予約を検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
@@ -29,8 +30,32 @@ type ReservationCRUDRepository interface {
 	// FindByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	// update は owner package 内だけで使う汎用 persistence primitive。
+	// package 外には ReservationIntentRepository の intent-specific operation だけを公開する。
+	update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+}
+
+// ReservationIntentRepository は reservation 外の consumer が使う appointment write operation。
+// 各 consumer はこのinterface全体ではなく、必要なメソッドだけをローカルinterfaceへ宣言する。
+type ReservationIntentRepository interface {
+	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
+	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
+	PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error
+	MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error)
+	FindTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	LockTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	CreateForTrimming(ctx context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error)
+	UpdateForTrimming(ctx context.Context, clinicID, id uint64, input UpdateTrimmingReservationInput) (*model.Reservation, error)
+	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
+}
+
+// NoShowTransition reports whether MarkNoShow performed the compare-and-set and, when it did,
+// the exact previous status needed for a transaction-local audit record.
+type NoShowTransition struct {
+	Changed        bool
+	PreviousStatus model.ReservationStatus
 }
 
 // ReservationSlotRepository はトランザクション内の競合チェック操作（5 メソッド）。
@@ -77,7 +102,8 @@ type ReservationQueryRepository interface {
 	// FindAllByCategory はカテゴリ（'general'/'trimming'）でフィルタした予約一覧を返す。
 	// トリミング管理APIが appointments ベースで動作するために使用（BE-119）。
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014 ノーショウ検知用）。
+	// FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、
+	// 確定済みカルテが存在しないものを返す（BE-014 ノーショウ検知用）。
 	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
 	// AssertOwnerInClinic は owner が clinic に属することを検証する（AUD-001、dbOrTx 参加）。
 	AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error
@@ -87,20 +113,28 @@ type ReservationQueryRepository interface {
 	AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
-// ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
-// DI 配線と、複数グループのメソッドが必要なサービスで使用する。
+// ReservationRepository は owner package 内の3つのrepository capabilityを合成する。
+// 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
 type ReservationRepository interface {
 	ReservationCRUDRepository
 	ReservationSlotRepository
 	ReservationQueryRepository
 }
 
+// ReservationStore は composition root が保持する具象実装の公開method set。
+// consumer はこの広い型を引数にせず、必要なreadとReservationIntentRepositoryの一部だけを
+// ローカルinterfaceとして宣言する。
+type ReservationStore interface {
+	ReservationRepository
+	ReservationIntentRepository
+}
+
 type reservationRepository struct {
 	db *gorm.DB
 }
 
-// NewReservationRepository は ReservationRepository の実装を返す。
-func NewReservationRepository(db *gorm.DB) ReservationRepository {
+// NewReservationRepository は owner内repositoryとcross-domain intentを実装するstoreを返す。
+func NewReservationRepository(db *gorm.DB) ReservationStore {
 	return &reservationRepository{db: db}
 }
 
@@ -197,7 +231,7 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
 		return nil, err
 	}
@@ -258,6 +292,9 @@ func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.C
 // ロールバックした時点で自動解放される（明示的な unlock 不要）。dbOrTx でトランザクション
 // 内の ambient tx に参加する。
 func (r *reservationRepository) AcquireBookingLock(ctx context.Context, clinicID uint64) error {
+	if repohelpers.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("booking lock requires an ambient transaction")
+	}
 	lockKey := fmt.Sprintf("appointments:%d", clinicID)
 	if err := repohelpers.DBOrTx(ctx, r.db).Exec(
 		"SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
@@ -271,6 +308,9 @@ func (r *reservationRepository) AcquireBookingLock(ctx context.Context, clinicID
 // LockAndFindByID は FOR UPDATE で予約を行ロック取得する。
 // updateWithConflictCheck のトランザクション内で使用する。
 func (r *reservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+	if err := requireReservationRowLockTransaction(ctx); err != nil {
+		return nil, err
+	}
 	var appt model.Reservation
 	err := repohelpers.DBOrTx(ctx, r.db).Raw(
 		`SELECT * FROM appointments WHERE clinic_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE`,
@@ -287,6 +327,9 @@ func (r *reservationRepository) LockAndFindByID(ctx context.Context, clinicID, i
 
 // HasDoctorConflict は指定医師の時間枠重複を SELECT FOR UPDATE でチェックする。
 func (r *reservationRepository) HasDoctorConflict(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error) {
+	if err := requireReservationRowLockTransaction(ctx); err != nil {
+		return false, err
+	}
 	var existing []struct{ ID uint64 }
 	excl := uint64(0)
 	if excludeID != nil {
@@ -333,6 +376,9 @@ func (r *reservationRepository) CountOnDutyDoctors(ctx context.Context, clinicID
 
 // CountConflicts は時間枠の競合予約数を SELECT FOR UPDATE で返す。
 func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error) {
+	if err := requireReservationRowLockTransaction(ctx); err != nil {
+		return 0, err
+	}
 	var existing []struct{ ID uint64 }
 	excl := uint64(0)
 	if excludeID != nil {
@@ -353,6 +399,13 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 		return 0, apperrors.Wrap(err, "lock reservations for capacity check")
 	}
 	return int64(len(existing)), nil
+}
+
+func requireReservationRowLockTransaction(ctx context.Context) error {
+	if repohelpers.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("reservation row lock requires an ambient transaction")
+	}
+	return nil
 }
 
 func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
@@ -427,15 +480,18 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 
 	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Where("appointments.clinic_id = ?", clinicID).
-		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.deleted_at IS NULL").
+		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.clinic_id = appointments.clinic_id AND reservation_types.deleted_at IS NULL").
 		Where("reservation_types.category = ?", category)
 
+	if petID != nil || ownerID != nil {
+		q = q.Joins("JOIN pets filter_pets ON filter_pets.id = appointments.pet_id AND filter_pets.clinic_id = appointments.clinic_id AND filter_pets.deleted_at IS NULL")
+	}
 	if petID != nil {
-		q = q.Where("appointments.pet_id = ?", *petID)
+		q = q.Where("filter_pets.id = ?", *petID)
 	}
 	if ownerID != nil {
-		q = q.Joins("JOIN pets ON pets.id = appointments.pet_id AND pets.deleted_at IS NULL").
-			Where("pets.owner_id = ?", *ownerID)
+		q = q.Joins("JOIN owners filter_owners ON filter_owners.id = filter_pets.owner_id AND filter_owners.clinic_id = appointments.clinic_id AND filter_owners.deleted_at IS NULL").
+			Where("filter_owners.id = ?", *ownerID)
 	}
 	if startDate != nil {
 		start, err := ParseJSTDate(*startDate)
@@ -461,6 +517,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
+		Preload("TrimmingDetail", "clinic_id = ?", clinicID).
 		Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("TrimmingDetail.Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(repohelpers.Paginate(page, limit)).
@@ -486,13 +543,21 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 	return count, nil
 }
 
-// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014）。
+// FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、
+// 確定済みカルテが存在しないものを返す（BE-014）。
 func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	var reservations []model.Reservation
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW() - interval '4 hours'",
 			clinicID,
 			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)}).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM medical_records mr
+			WHERE mr.clinic_id = appointments.clinic_id
+			  AND mr.appointment_id = appointments.id
+			  AND mr.status = ?
+			  AND mr.deleted_at IS NULL
+		)`, model.MedicalRecordStatusFinalized).
 		Find(&reservations).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", "")
@@ -519,7 +584,11 @@ func ParseJSTDate(value string) (time.Time, error) {
 // 別 clinic / 未存在を区別せず NotFound を返す。dbOrTx で ambient tx に参加する。
 func (r *reservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
 	var id uint64
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.Owner{}).
+	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.Owner{})
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Select("id").
 		Where("id = ?", ownerID).
@@ -530,15 +599,18 @@ func (r *reservationRepository) AssertOwnerInClinic(ctx context.Context, clinicI
 	return nil
 }
 
-// FindPetOwnerInClinic は pets を clinic スコープで取得し OwnerID を返す（AUD-001）。
-// transaction 内ではPet行を共有ロックし、検証後から予約writeまでのOwner変更を防ぐ。
+// FindPetOwnerInClinic は pets とその owner の双方が同一 clinic に属する場合だけ OwnerID を返す。
+// transaction 内では両行を共有ロックし、検証後から予約writeまでの clinic/owner 関係変更を防ぐ。
 func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
 	var pet model.Pet
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Clauses(clause.Locking{Strength: "SHARE"}).
-		Select("id", "owner_id").
-		Scopes(repohelpers.ClinicScope(clinicID)).
-		Where("id = ?", petID).
+	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.Pet{})
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
+		Select("pets.id", "pets.owner_id").
+		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.deleted_at IS NULL").
+		Where("pets.id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", petID, clinicID).
 		First(&pet).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
@@ -549,7 +621,11 @@ func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinic
 // AssertLineCustomerInClinic は line_customers を clinic スコープで存在確認する（AUD-001）。
 func (r *reservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
 	var id uint64
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.LineCustomer{}).
+	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.LineCustomer{})
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Select("id").
 		Where("id = ?", lineCustomerID).

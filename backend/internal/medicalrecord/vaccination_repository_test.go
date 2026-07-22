@@ -63,6 +63,8 @@ func TestVaccinationRepository_Create_FindByID(t *testing.T) {
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "ワクチンペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "混合ワクチン")
 	doctor := makeDoctor(t, db, clinicA, "接種医師")
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{StaffID: doctor.ID, ClinicID: clinicA, IsMain: true}).Error)
 
 	t.Run("作成した記録を関連Preload付きで取得できる", func(t *testing.T) {
 		did := doctor.ID
@@ -101,6 +103,18 @@ func TestVaccinationRepository_Create_FindByID(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestVaccinationRepository_LockByIDForUpdate_RequiresAmbientTransaction(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+
+	_, err := repo.LockByIDForUpdate(context.Background(), 1, 1)
+
+	require.Error(t, err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
 }
 
 func TestVaccinationRepository_FindAll(t *testing.T) {
@@ -336,6 +350,28 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 		vaccineB := makeVaccineMaster(t, db, clinicB, "医院Bワクチン")
 		makeVaccinationWithNextDate(clinicB, petB.ID, vaccineB.ID, target)
+
+		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicA, target)
+		require.NoError(t, err)
+		assert.NotContains(t, ids, ownerB.ID)
+	})
+
+	t.Run("医院Aの接種記録が医院Bのペットを誤参照しても含まれない", func(t *testing.T) {
+		ownerB := makeTestOwner(t, db, clinicB, "不整合接種飼主B")
+		petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "不整合接種ペットB")
+		vaccineA := makeVaccineMaster(t, db, clinicA, "不整合接種ワクチンA")
+		makeVaccinationWithNextDate(clinicA, petB.ID, vaccineA.ID, target)
+
+		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicA, target)
+		require.NoError(t, err)
+		assert.NotContains(t, ids, ownerB.ID)
+	})
+
+	t.Run("医院Aのペットが医院Bの飼い主を誤参照しても含まれない", func(t *testing.T) {
+		ownerB := makeTestOwner(t, db, clinicB, "不整合ペット飼主B")
+		petA := makeVaccinationRepoTestPet(t, db, clinicA, ownerB.ID, "不整合ペットA")
+		vaccineA := makeVaccineMaster(t, db, clinicA, "不整合ペット用ワクチンA")
+		makeVaccinationWithNextDate(clinicA, petA.ID, vaccineA.ID, target)
 
 		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicA, target)
 		require.NoError(t, err)

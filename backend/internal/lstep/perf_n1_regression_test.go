@@ -51,6 +51,8 @@ func TestH1_DetectDormantOwners_NilSettingsSvc_DoesNotPanic(t *testing.T) {
 		&batchMockAuditService{},
 		nil, // settingsSvc = nil → H-1 パニック回帰
 		nil,
+		batchImmediateTransactor{},
+		&batchNoShowAuditTxLogger{},
 	).(*lstepBatchService)
 
 	// パニックしないことを assert.NotPanics で保証する

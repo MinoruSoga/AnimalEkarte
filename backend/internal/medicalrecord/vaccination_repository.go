@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,6 +23,7 @@ import (
 type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	// FindByOwner は飼い主の生存ワクチン記録（ペット経由）を全件返す（ISSUE-004 タグ再同期用）。
 	// 飼い主のペットがすべて削除済みの場合は空配列を返す。
 	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
@@ -42,13 +44,18 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 
 func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Vaccination{}).
-			Where("vaccinations.clinic_id = ?", clinicID)
+		q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Vaccination{}).
+			Where("vaccinations.clinic_id = ?", clinicID).
+			Scopes(vaccinationPatientRelationsScope(clinicID))
+		if petID != nil || ownerID != nil {
+			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL")
+		}
 		if petID != nil {
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
+				Where("owners.id = ?", *ownerID)
 		}
 		if startDate != nil {
 			q = q.Where("vaccinations.date >= ?", *startDate)
@@ -65,11 +72,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	vaccinations := make([]model.Vaccination, 0)
-	if err := buildBase().
-		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Doctor", "deleted_at IS NULL").
+	if err := vaccinationReadPreloads(buildBase(), clinicID).
 		Scopes(paginate(page, limit)).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
@@ -81,9 +84,11 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 // pets テーブルを JOIN し、飼い主に属する生存ペットのワクチンのみ取得する。
 func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
 	vaccinations := make([]model.Vaccination, 0)
-	err := r.db.WithContext(ctx).
-		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").
-		Where("vaccinations.clinic_id = ? AND pets.owner_id = ?", clinicID, ownerID).
+	err := repohelpers.DBOrTx(ctx, r.db).
+		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL").
+		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
+		Where("vaccinations.clinic_id = ? AND owners.id = ?", clinicID, ownerID).
+		Scopes(vaccinationPatientRelationsScope(clinicID)).
 		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error
@@ -95,9 +100,24 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
-	err := r.db.WithContext(ctx).
+	err := vaccinationReadPreloads(repohelpers.DBOrTx(ctx, r.db), clinicID).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
-		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+		Scopes(vaccinationPatientRelationsScope(clinicID)).
+		First(&vaccination).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
+	}
+	return &vaccination, nil
+}
+
+func (r *vaccinationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
+	if repohelpers.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("vaccination lock requires an ambient transaction")
+	}
+	var vaccination model.Vaccination
+	err := repohelpers.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
 		First(&vaccination).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
@@ -106,32 +126,101 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 }
 
 func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {
-	if err := r.db.WithContext(ctx).Create(vaccination).Error; err != nil {
+	if err := repohelpers.DBOrTx(ctx, r.db).Create(vaccination).Error; err != nil {
 		return apperrors.FromGORM(err, "vaccination", "")
 	}
 	return nil
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
+	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id)
+	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id)
+}
+
+const vaccinationAssignedDoctorCond = "staffs.deleted_at IS NULL AND staffs.is_active = TRUE AND staffs.staff_type = 'doctor' AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)"
+
+func vaccinationReadPreloads(db *gorm.DB, clinicID uint64) *gorm.DB {
+	return db.
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Doctor", vaccinationAssignedDoctorCond, clinicID)
+}
+
+// vaccinationPatientRelationsScope excludes directly polluted rows without changing the
+// nullable Pet/MedicalRecord contract. Non-nil patient relations must resolve entirely inside
+// the vaccination clinic, and a linked medical record must describe the same patient.
+func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(`
+			EXISTS (
+				SELECT 1 FROM vaccines scoped_vaccine
+				WHERE scoped_vaccine.id = vaccinations.vaccine_id
+				  AND scoped_vaccine.clinic_id = ?
+				  AND scoped_vaccine.deleted_at IS NULL
+			)
+			AND (
+				vaccinations.pet_id IS NULL OR EXISTS (
+					SELECT 1 FROM pets scoped_pet
+					JOIN owners scoped_pet_owner
+					  ON scoped_pet_owner.id = scoped_pet.owner_id
+					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
+					 AND scoped_pet_owner.deleted_at IS NULL
+					WHERE scoped_pet.id = vaccinations.pet_id
+					  AND scoped_pet.clinic_id = ?
+					  AND scoped_pet.deleted_at IS NULL
+				)
+			)
+			AND (
+				vaccinations.medical_record_id IS NULL OR EXISTS (
+					SELECT 1 FROM medical_records scoped_record
+					WHERE scoped_record.id = vaccinations.medical_record_id
+					  AND scoped_record.clinic_id = ?
+					  AND scoped_record.deleted_at IS NULL
+					  AND (
+						scoped_record.owner_id IS NULL OR EXISTS (
+							SELECT 1 FROM owners scoped_record_owner
+							WHERE scoped_record_owner.id = scoped_record.owner_id
+							  AND scoped_record_owner.clinic_id = ?
+							  AND scoped_record_owner.deleted_at IS NULL
+						)
+					  )
+					  AND (
+						scoped_record.pet_id IS NULL OR EXISTS (
+							SELECT 1 FROM pets scoped_record_pet
+							JOIN owners scoped_record_pet_owner
+							  ON scoped_record_pet_owner.id = scoped_record_pet.owner_id
+							 AND scoped_record_pet_owner.clinic_id = scoped_record_pet.clinic_id
+							 AND scoped_record_pet_owner.deleted_at IS NULL
+							WHERE scoped_record_pet.id = scoped_record.pet_id
+							  AND scoped_record_pet.clinic_id = ?
+							  AND scoped_record_pet.deleted_at IS NULL
+							  AND scoped_record.owner_id = scoped_record_pet.owner_id
+						)
+					  )
+					  AND (vaccinations.pet_id IS NULL OR scoped_record.pet_id = vaccinations.pet_id)
+				)
+			)
+		`, clinicID, clinicID, clinicID, clinicID, clinicID)
+	}
 }
 
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
-// pets テーブルを JOIN し、生存ペット経由で飼い主IDを取得する。
+// pets/owners を clinic_id 一致で JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
 	target := targetDate.Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
-	err := r.db.WithContext(ctx).
+	err := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
-		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL").
+		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL").
+		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND vaccinations.deleted_at IS NULL", clinicID).
 		Where("vaccinations.next_date::date = ?::date", target).
 		Distinct("pets.owner_id AS owner_id").

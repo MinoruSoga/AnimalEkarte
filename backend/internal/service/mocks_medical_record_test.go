@@ -15,6 +15,7 @@ import (
 type mockMedicalRecordRepository struct {
 	findAllFn                         func(ctx context.Context, clinicIDs []uint64, filters repository.MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	findByAppointmentIDFn             func(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
 	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
@@ -47,6 +48,13 @@ func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id
 }
 
 func (m *mockMedicalRecordRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *mockMedicalRecordRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error) {
+	if m.findByAppointmentIDFn != nil {
+		return m.findByAppointmentIDFn(ctx, clinicID, appointmentID)
+	}
 	return nil, nil
 }
 
@@ -135,10 +143,6 @@ func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinic
 		return m.countByOwnerIDFn(ctx, clinicID, ownerID)
 	}
 	return 0, nil
-}
-
-func (m *mockMedicalRecordRepository) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
 }
 
 // LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する

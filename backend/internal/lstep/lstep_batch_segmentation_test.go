@@ -79,6 +79,7 @@ func newSegBatchService(
 	return NewLstepBatchService(
 		&batchMockReservationRepo{}, tagSvc, clinicRepo, medRepo,
 		auditSvc, settingsSvc, nil,
+		batchImmediateTransactor{}, &batchNoShowAuditTxLogger{},
 	)
 }
 

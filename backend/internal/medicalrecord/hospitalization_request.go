@@ -67,10 +67,11 @@ type dischargeWithBillingRequest struct {
 	CreateAccounting bool      `json:"create_accounting"`
 }
 
-func (r dischargeWithBillingRequest) toServiceInput() DischargeWithBillingInput {
+func (r dischargeWithBillingRequest) toServiceInput(actorID uint64) DischargeWithBillingInput {
 	return DischargeWithBillingInput{
 		DischargeDate:    r.DischargeDate,
 		CreateAccounting: r.CreateAccounting,
+		ActorID:          &actorID,
 	}
 }
 

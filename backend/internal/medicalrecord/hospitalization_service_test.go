@@ -871,6 +871,7 @@ type dischargeTestDeps struct {
 	accounting  accountingCreator
 	billingItem billingItemWriter
 	reservation *mockReservationRepository
+	audit       AuditTxLogger
 }
 
 func newDischargeTestDeps(hospRepo HospitalizationRepository, carePlanRepo CarePlanItemRepository, accountingRepo accountingCreator, billingItemRepo billingItemWriter) *dischargeTestDeps {
@@ -879,6 +880,7 @@ func newDischargeTestDeps(hospRepo HospitalizationRepository, carePlanRepo CareP
 		carePlan:    carePlanRepo,
 		accounting:  accountingRepo,
 		billingItem: billingItemRepo,
+		audit:       &mockTreatmentAuditTxLogger{},
 		reservation: &mockReservationRepository{
 			assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
 			findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
@@ -893,7 +895,7 @@ func newDischargeTestDeps(hospRepo HospitalizationRepository, carePlanRepo CareP
 }
 
 func (d *dischargeTestDeps) svc() HospitalizationService {
-	return NewHospitalizationService(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{})
+	return NewHospitalizationServiceWithAudit(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{}, d.audit)
 }
 
 func TestHospitalizationService_DischargeWithBilling_NotFound(t *testing.T) {
@@ -988,7 +990,7 @@ func TestHospitalizationService_DischargeWithBilling_CarePlanItemsFetchError(t *
 	}
 	svc := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil).svc()
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1015,7 +1017,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingCreateError(t *testi
 	}
 	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil).svc()
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1063,7 +1065,7 @@ func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testin
 	}
 	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1101,7 +1103,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingItemCreateError(t *t
 	}
 	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1138,7 +1140,7 @@ func TestHospitalizationService_DischargeWithBilling_UpdateBillingTotalsError(t 
 	}
 	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1176,6 +1178,7 @@ func TestHospitalizationService_DischargeWithBilling_ConcurrentDoubleDischarge_R
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),
 		CreateAccounting: true,
+		ActorID:          uint64PtrHosp(1),
 	})
 
 	assert.Error(t, err)

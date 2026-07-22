@@ -12,6 +12,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func setupTrimmingOptionTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
-		&model.TrimmingOption{}, &model.AppointmentTrimmingOption{},
+		&model.TrimmingCourse{}, &model.TrimmingOption{}, &model.AppointmentTrimmingOption{},
 	))
 	// 防御的クリーンアップ: model.AppointmentTrimmingDetail.Options の many2many タグ
 	// (gorm:"many2many:appointment_trimming_options;joinForeignKey:AppointmentID;...")
@@ -46,6 +47,84 @@ func setupTrimmingOptionTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`ALTER TABLE appointment_trimming_options
 		DROP CONSTRAINT IF EXISTS fk_appointment_trimming_options_appointment_trimming_detail`)
 	return db
+}
+
+func TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction(t *testing.T) {
+	db := setupTrimmingOptionTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	course := &model.TrimmingCourse{ClinicID: clinicID, Name: "共有ロックコース", IsActive: true}
+	option := &model.TrimmingOption{ClinicID: clinicID, Name: "共有ロックオプション", IsActive: true}
+	require.NoError(t, db.Create(course).Error)
+	require.NoError(t, db.Create(option).Error)
+
+	tests := []struct {
+		name   string
+		read   func(context.Context) error
+		update func() error
+	}{
+		{
+			name: "course",
+			read: func(txCtx context.Context) error {
+				_, err := NewTrimmingCourseRepository(db).FindByID(txCtx, clinicID, course.ID)
+				return err
+			},
+			update: func() error {
+				return db.Model(&model.TrimmingCourse{}).
+					Where("clinic_id = ? AND name = ?", clinicID, "共有ロックコース").
+					Update("is_active", false).Error
+			},
+		},
+		{
+			name: "option",
+			read: func(txCtx context.Context) error {
+				_, err := NewTrimmingOptionRepository(db).FindByID(txCtx, clinicID, option.ID)
+				return err
+			},
+			update: func() error {
+				return db.Model(&model.TrimmingOption{}).
+					Where("clinic_id = ? AND name = ?", clinicID, "共有ロックオプション").
+					Update("is_active", false).Error
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			locked := make(chan struct{})
+			release := make(chan struct{})
+			readDone := make(chan error, 1)
+			go func() {
+				readDone <- NewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+					if err := tt.read(txCtx); err != nil {
+						return err
+					}
+					close(locked)
+					<-release
+					return nil
+				})
+			}()
+			<-locked
+
+			updateStarted := make(chan struct{})
+			updateDone := make(chan error, 1)
+			go func() {
+				close(updateStarted)
+				updateDone <- tt.update()
+			}()
+			<-updateStarted
+
+			select {
+			case err := <-updateDone:
+				close(release)
+				require.Failf(t, "master update was not serialized", "err=%v", err)
+			case <-time.After(100 * time.Millisecond):
+				close(release)
+			}
+			require.NoError(t, <-readDone)
+			require.NoError(t, <-updateDone)
+		})
+	}
 }
 
 func TestTrimmingOptionRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {

@@ -119,11 +119,22 @@ var clinicScopedMasterAssoc = map[string]string{
 	// 同一コミットで本マップにも登録すること（read/write 両ゲートの双方向整合を維持する）。
 }
 
+// clinicScopedIntermediateAssoc lists sensitive clinic-owned associations that may appear before
+// the final segment of a nested Preload path. GORM applies a nested Preload predicate only to the
+// final association, so these prefixes must also be explicitly preloaded with clinic scope in the
+// same query chain (for example TrimmingDetail before TrimmingDetail.Course).
+var clinicScopedIntermediateAssoc = map[string]string{
+	"TrimmingDetail": "AppointmentTrimmingDetail",
+}
+
 // staffExemptAssoc: the clinic-scope Preload rule's Staff exception. Staff belongs to multiple clinics via
 // staff_clinic_assignments (staffs.clinic_id is the primary only). Scoping a historical
 // Doctor/Staff preload by staffs.clinic_id would wrongly hide shared/reassigned staff from
 // past records; the leak is a staff NAME only, low severity, and unreachable in normal flow
-// via write isolation (72e8887c). These names all resolve to the Staff model.
+// via write isolation (72e8887c). BUG-420 exception: vaccination uses a stricter runtime
+// predicate (active doctor + current clinic assignment) and suppresses DoctorID when that
+// predicate fails; TestVaccinationRepository_RelationPreloadsAreClinicScoped owns that contract.
+// These names all resolve to the Staff model.
 var staffExemptAssoc = map[string]struct{}{
 	"Doctor":          {},
 	"Staff":           {},
@@ -241,6 +252,17 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 		assoc, ok := stringLitValue(ce.Args[0])
 		if !ok {
 			return true // non-literal association name; not used in real repository code
+		}
+		for _, prefix := range clinicScopedIntermediatePrefixes(assoc) {
+			if preloadReceiverChainHasScopedAssociation(ce, prefix) {
+				continue
+			}
+			findings = append(findings, preloadFinding{
+				file:   base,
+				line:   fset.Position(ce.Pos()).Line,
+				assoc:  prefix,
+				detail: "nested Preload requires a preceding clinic-scoped Preload for its intermediate association",
+			})
 		}
 		key := lastAssocSegment(assoc)
 
@@ -373,11 +395,49 @@ func stringLitValue(e ast.Expr) (string, bool) {
 	return s, true
 }
 
+func clinicScopedIntermediatePrefixes(assoc string) []string {
+	parts := strings.Split(assoc, ".")
+	prefixes := make([]string, 0, len(parts)-1)
+	for i := 0; i < len(parts)-1; i++ {
+		if _, ok := clinicScopedIntermediateAssoc[parts[i]]; !ok {
+			continue
+		}
+		prefixes = append(prefixes, strings.Join(parts[:i+1], "."))
+	}
+	return prefixes
+}
+
+func preloadReceiverChainHasScopedAssociation(ce *ast.CallExpr, association string) bool {
+	sel, ok := ce.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	found := false
+	ast.Inspect(sel.X, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		candidate, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		candidateSelector, ok := candidate.Fun.(*ast.SelectorExpr)
+		if !ok || candidateSelector.Sel.Name != "Preload" || len(candidate.Args) == 0 {
+			return true
+		}
+		candidateAssociation, ok := stringLitValue(candidate.Args[0])
+		if ok && candidateAssociation == association {
+			found, _ = preloadHasClinicScope(candidate)
+		}
+		return !found
+	})
+	return found
+}
+
 // lastAssocSegment returns the final segment of a (possibly nested) Preload path. The clinic_id
 // predicate of a nested Preload applies to its LAST association (e.g. Preload("Pets.Insurance", …)
-// scopes Insurance), so classification keys on that segment. Intermediate segments are NOT
-// validated — no intermediate segment resolves to a clinic-scoped master in current code; a future
-// Preload("Master.Child", …) whose Child is a non-master would not be checked.
+// scopes Insurance), so master classification keys on that segment. Sensitive intermediate
+// associations are checked separately by clinicScopedIntermediateAssoc.
 func lastAssocSegment(assoc string) string {
 	if i := strings.LastIndex(assoc, "."); i >= 0 {
 		return assoc[i+1:]
@@ -563,7 +623,8 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 		{"master with no predicate", `db.Preload("Vaccine")`, 1},
 		{"nested master last segment missing", `db.Preload("ReservationType.Group", "deleted_at IS NULL")`, 1},
 		{"nested master last segment scoped", `db.Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", ids)`, 0},
-		{"nested trimming master scoped", `db.Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 0},
+		{"nested trimming detail missing intermediate scope", `db.Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 1},
+		{"nested trimming detail and master scoped", `db.Preload("TrimmingDetail", "clinic_id = ?", clinicID).Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 0},
 		{"closure missing clinic_id", `db.Preload("Children", func(db *gorm.DB) *gorm.DB { return db.Where("deleted_at IS NULL") })`, 1},
 		{"closure with clinic_id literal", `db.Preload("Children", func(db *gorm.DB) *gorm.DB { return db.Where("clinic_id = ? AND deleted_at IS NULL", clinicID) })`, 0},
 		{"closure with clinicScope helper", `db.Preload("Children", func(db *gorm.DB) *gorm.DB { return db.Scopes(clinicScope(clinicID)) })`, 0},

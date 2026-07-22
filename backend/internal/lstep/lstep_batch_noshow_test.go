@@ -9,88 +9,26 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// noShowMockReservationRepository is a local, complete ReservationRepository mock scoped to
-// this file (avoids depending on concurrently-edited appointment_service_test.go /
-// lstep_batch_service_test.go, which define similarly-shaped mocks under different names).
+// noShowMockReservationRepository implements only the consumer-side no-show intent.
 type noShowMockReservationRepository struct {
 	findNoShowCandidatesFn func(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
-	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	markNoShowFn           func(ctx context.Context, clinicID, id uint64) (reservation.NoShowTransition, error)
 }
 
-func (m *noShowMockReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
-	return nil, 0, nil
-}
-func (m *noShowMockReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-	return nil, nil
-}
-func (m *noShowMockReservationRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Reservation, error) {
-	return nil, nil
-}
-func (m *noShowMockReservationRepository) Create(_ context.Context, _ *model.Reservation) error {
-	return nil
-}
-func (m *noShowMockReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+func (m *noShowMockReservationRepository) MarkNoShow(ctx context.Context, clinicID, id uint64) (reservation.NoShowTransition, error) {
+	if m.markNoShowFn == nil {
+		return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending}, nil
 	}
-	return &model.Reservation{ID: id}, nil
-}
-func (m *noShowMockReservationRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *noShowMockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
-	return nil
-}
-func (m *noShowMockReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-	return nil, nil
-}
-func (m *noShowMockReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-func (m *noShowMockReservationRepository) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
-	return false, nil
-}
-func (m *noShowMockReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
-	return false, nil
-}
-func (m *noShowMockReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
-	return 0, nil
-}
-func (m *noShowMockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
-	return nil, 0, nil
+	return m.markNoShowFn(ctx, clinicID, id)
 }
 func (m *noShowMockReservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	if m.findNoShowCandidatesFn != nil {
 		return m.findNoShowCandidatesFn(ctx, clinicID)
 	}
 	return nil, nil
-}
-
-func (m *noShowMockReservationRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *noShowMockReservationRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
-	return 0, nil
-}
-
-func (m *noShowMockReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
-	return nil
 }
 
 // newNoShowBatchService は具象型を返す（B-5: detectNoShowReservations の unexport に伴い、
@@ -101,6 +39,9 @@ func newNoShowBatchService(reservationRepo *noShowMockReservationRepository, cli
 		clinicRepo:      clinicRepo,
 		auditSvc:        auditSvc,
 		settingsSvc:     settingsSvc,
+		transactor:      batchImmediateTransactor{},
+		noShowAuditTx:   &batchNoShowAuditTxLogger{},
+		nowFn:           time.Now,
 	}
 }
 
@@ -218,8 +159,8 @@ func TestLstepBatchService_RunNoShowCheckAllClinics(t *testing.T) {
 			findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
 				return []model.Reservation{{ID: 5}}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
-				return nil, errors.New("update failed")
+			markNoShowFn: func(_ context.Context, _, _ uint64) (reservation.NoShowTransition, error) {
+				return reservation.NoShowTransition{}, errors.New("update failed")
 			},
 		}
 		settingsSvc := &mockLstepSettingsService{
@@ -260,19 +201,104 @@ func TestLstepBatchService_DetectNoShowReservations_FindError(t *testing.T) {
 }
 
 func TestLstepBatchService_DetectNoShowReservations_Success(t *testing.T) {
-	var capturedFields map[string]any
+	var capturedIDs []uint64
 	reservationRepo := &noShowMockReservationRepository{
 		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
 			return []model.Reservation{{ID: 5}, {ID: 6}}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
-			capturedFields = fields
-			return &model.Reservation{ID: 5, Status: model.ReservationStatusNoShow}, nil
+		markNoShowFn: func(_ context.Context, _ uint64, id uint64) (reservation.NoShowTransition, error) {
+			capturedIDs = append(capturedIDs, id)
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed}, nil
 		},
 	}
 	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
 	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
-	assert.Equal(t, model.ReservationStatusNoShow, capturedFields["status"])
+	assert.Equal(t, []uint64{5, 6}, capturedIDs)
+}
+
+func TestLstepBatchService_DetectNoShowReservations_StaleCandidateIsNotCounted(t *testing.T) {
+	audit := &batchNoShowAuditTxLogger{}
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 5}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{}, nil
+		},
+	}
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.noShowAuditTx = audit
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
+	assert.Zero(t, count)
+	assert.Empty(t, errs)
+	assert.Empty(t, audit.entries, "a stale candidate must not create an audit record")
+}
+
+func TestLstepBatchService_DetectNoShowReservations_AuditsExactTransitionInTransaction(t *testing.T) {
+	fixedNow := time.Date(2026, 7, 22, 12, 34, 56, 0, time.UTC)
+	audit := &batchNoShowAuditTxLogger{}
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 17}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{
+				Changed:        true,
+				PreviousStatus: model.ReservationStatusConfirmed,
+			}, nil
+		},
+	}
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.noShowAuditTx = audit
+	svc.nowFn = func() time.Time { return fixedNow }
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Equal(t, 1, count)
+	assert.Empty(t, errs)
+	if assert.Len(t, audit.entries, 1) {
+		entry := audit.entries[0]
+		assert.Equal(t, uint64(7), entry.ClinicID)
+		assert.Equal(t, uint64(17), entry.AppointmentID)
+		assert.Equal(t, model.ReservationStatusConfirmed, entry.PreviousStatus)
+		assert.Equal(t, fixedNow, entry.EvaluatedAt)
+		assert.Equal(t, noShowRuleVersion, entry.RuleVersion)
+		assert.NotEmpty(t, entry.BatchRunID)
+	}
+}
+
+type noShowRollbackSpyTransactor struct {
+	rolledBack bool
+}
+
+func (m *noShowRollbackSpyTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	err := fn(ctx)
+	m.rolledBack = err != nil
+	return err
+}
+
+func TestLstepBatchService_DetectNoShowReservations_AuditFailureFailsClosed(t *testing.T) {
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 19}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{
+				Changed:        true,
+				PreviousStatus: model.ReservationStatusPending,
+			}, nil
+		},
+	}
+	tx := &noShowRollbackSpyTransactor{}
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.transactor = tx
+	svc.noShowAuditTx = &batchNoShowAuditTxLogger{err: errors.New("audit unavailable")}
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Zero(t, count)
+	assert.Len(t, errs, 1)
+	assert.True(t, tx.rolledBack, "audit failure must escape the transaction callback")
 }

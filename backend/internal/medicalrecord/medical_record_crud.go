@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
@@ -62,6 +63,13 @@ func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, inpu
 		existingHit  *model.MedicalRecord
 	)
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		// Validate request-derived context before appointment preparation can persist a backfill.
+		if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, input.OwnerID, input.PetID); err != nil {
+			return err
+		}
+		if err := s.validateMedicalRecordDoctor(txCtx, clinicID, input.DoctorID); err != nil {
+			return err
+		}
 		if err := s.applyAppointmentContextForCreate(txCtx, clinicID, input); err != nil {
 			return apperrors.Wrap(err, "failed to apply appointment context for medical record")
 		}
@@ -69,9 +77,16 @@ func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, inpu
 		if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}
+		if err := s.validateMedicalRecordDoctor(txCtx, clinicID, input.DoctorID); err != nil {
+			return err
+		}
 
 		built := buildMedicalRecordForCreate(clinicID, input)
-		if existing := s.findExistingRecordByAppointment(txCtx, clinicID, built); existing != nil {
+		existing, err := s.findExistingRecordByAppointment(txCtx, clinicID, built)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
 			existingHit = existing
 			return nil
 		}
@@ -135,11 +150,29 @@ func (s *medicalRecordService) applyAppointmentContextForCreate(
 	clinicID uint64,
 	input *CreateMedicalRecordInput,
 ) error {
-	if input == nil || input.AppointmentID == nil || s.reservationRepo == nil {
+	if input == nil || input.AppointmentID == nil {
 		return nil
 	}
-	if input.PetID == nil {
-		return nil
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to create an appointment-linked medical record")
+	}
+	if input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized {
+		if err := s.reservationRepo.PrepareForMedicalRecordFinalization(ctx, clinicID, *input.AppointmentID); err != nil {
+			return apperrors.Wrap(err, "failed to prepare appointment for medical record finalization")
+		}
+	}
+	// Always take the reservation-owned appointment row lock, even when no context field is
+	// missing. The lock is held by the medical-record transaction through duplicate detection and
+	// INSERT, serializing create with trimming update/delete.
+	if err := s.reservationRepo.BackfillForMedicalRecord(
+		ctx,
+		clinicID,
+		*input.AppointmentID,
+		input.OwnerID,
+		input.PetID,
+		input.DoctorID,
+	); err != nil {
+		return apperrors.Wrap(err, "failed to lock and validate appointment for medical record")
 	}
 	appt, err := s.reservationRepo.FindByID(ctx, clinicID, *input.AppointmentID)
 	if err != nil {
@@ -149,34 +182,24 @@ func (s *medicalRecordService) applyAppointmentContextForCreate(
 		return apperrors.WrapNotFound("appointment", "")
 	}
 
-	fields := map[string]any{}
-	if err := resolveAppointmentUint64("pet_id", appt.PetID, &input.PetID, fields); err != nil {
+	if err := resolveAppointmentUint64("pet_id", appt.PetID, &input.PetID); err != nil {
 		return err
 	}
-	if err := resolveAppointmentUint64("owner_id", appt.OwnerID, &input.OwnerID, fields); err != nil {
+	if err := resolveAppointmentUint64("owner_id", appt.OwnerID, &input.OwnerID); err != nil {
 		return err
 	}
-	if err := sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, input.OwnerID, input.PetID); err != nil {
+	if err := resolveAppointmentUint64("doctor_id", appt.DoctorID, &input.DoctorID); err != nil {
 		return err
 	}
-	if input.DoctorID == nil && appt.DoctorID != nil {
-		input.DoctorID = appt.DoctorID
-	} else if input.DoctorID != nil && appt.DoctorID == nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.Date.IsZero() {
-		input.Date = appt.StartTime
-	}
+	appointmentDate := appt.StartTime.In(config.JST)
+	input.Date = time.Date(
+		appointmentDate.Year(), appointmentDate.Month(), appointmentDate.Day(),
+		0, 0, 0, 0, config.JST,
+	)
 	if input.VisitType == "" {
 		input.VisitType = appt.VisitType
 	}
 
-	if len(fields) == 0 {
-		return nil
-	}
-	if _, err := s.reservationRepo.Update(ctx, clinicID, *input.AppointmentID, fields); err != nil {
-		return apperrors.Wrap(err, "failed to update appointment for medical record")
-	}
 	return nil
 }
 
@@ -184,7 +207,6 @@ func resolveAppointmentUint64(
 	field string,
 	appointmentValue *uint64,
 	inputValue **uint64,
-	fields map[string]any,
 ) error {
 	if appointmentValue != nil {
 		if *inputValue != nil && **inputValue != *appointmentValue {
@@ -194,9 +216,6 @@ func resolveAppointmentUint64(
 			*inputValue = appointmentValue
 		}
 		return nil
-	}
-	if *inputValue != nil {
-		fields[field] = **inputValue
 	}
 	return nil
 }
@@ -212,9 +231,26 @@ func (s *medicalRecordService) validateMedicalRecordOwnerPetLinks(
 		return nil
 	}
 	if s.reservationRepo == nil {
-		return nil
+		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
 	}
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID)
+}
+
+func (s *medicalRecordService) validateMedicalRecordDoctor(
+	ctx context.Context,
+	clinicID uint64,
+	doctorID *uint64,
+) error {
+	if doctorID == nil {
+		return nil
+	}
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation doctor validation dependency is required")
+	}
+	if err := s.reservationRepo.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record doctor ownership")
+	}
+	return nil
 }
 
 // resolveFinalMedicalRecordOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-008）。
@@ -230,35 +266,31 @@ func resolveFinalMedicalRecordOwnerPet(existing *model.MedicalRecord, input Upda
 	return ownerID, petID
 }
 
+func resolveFinalMedicalRecordDoctor(existing *model.MedicalRecord, input UpdateMedicalRecordInput) *uint64 {
+	if input.DoctorID != nil {
+		return input.DoctorID
+	}
+	return existing.DoctorID
+}
+
 func (s *medicalRecordService) findExistingRecordByAppointment(
 	ctx context.Context,
 	clinicID uint64,
 	record *model.MedicalRecord,
-) *model.MedicalRecord {
-	if record == nil || record.AppointmentID == nil || record.PetID == nil {
-		return nil
+) (*model.MedicalRecord, error) {
+	if record == nil || record.AppointmentID == nil {
+		return nil, nil
 	}
-	dateStr := record.Date.Format(time.DateOnly)
-	records, _, err := s.repo.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{
-		PetID:     record.PetID,
-		StartDate: &dateStr,
-		EndDate:   &dateStr,
-	}, 1, 50)
+	existing, err := s.repo.FindByAppointmentID(ctx, clinicID, *record.AppointmentID)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to check existing medical record by appointment",
+		return nil, apperrors.Wrap(err, "failed to check existing medical record by appointment")
+	}
+	if existing != nil {
+		slog.InfoContext(ctx, "medical record create skipped because appointment already has a record",
 			slog.Uint64("appointment_id", *record.AppointmentID),
-			slog.String("error", err.Error()))
-		return nil
+			slog.Uint64("record_id", existing.ID))
 	}
-	for i := range records {
-		if records[i].AppointmentID != nil && *records[i].AppointmentID == *record.AppointmentID {
-			slog.InfoContext(ctx, "medical record create skipped because appointment already has a record",
-				slog.Uint64("appointment_id", *record.AppointmentID),
-				slog.Uint64("record_id", records[i].ID))
-			return &records[i]
-		}
-	}
-	return nil
+	return existing, nil
 }
 
 func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
@@ -276,9 +308,18 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 			slog.Uint64("clinic_id", clinicID))
 		return nil, apperrors.WrapConflict("確定済みカルテは編集できません。訂正追記 (addendum) を使用してください")
 	}
+	if input.AppointmentID != nil && (existing.AppointmentID == nil || *input.AppointmentID != *existing.AppointmentID) {
+		return nil, apperrors.WrapConflict("作成済みカルテの予約紐付けは変更できません。監査付きの専用再紐付け手順が必要です")
+	}
+	if existing.AppointmentID != nil && input.Date != nil {
+		return nil, apperrors.WrapConflict("予約に紐づくカルテの診療日は変更できません。予約日時の訂正手順を使用してください")
+	}
 
-	// AUD-008: Owner/Pet 変更時は最終状態で clinic 所有・Owner-Pet 整合を検証し、write と同一 tx にする。
+	// AUD-008: context変更時は最終状態でclinic所有・appointment整合を検証し、writeと同一txにする。
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
+	needsContextValidation := needsLinkValidation || input.DoctorID != nil
+	finalOwnerID, finalPetID := resolveFinalMedicalRecordOwnerPet(existing, input)
+	finalDoctorID := resolveFinalMedicalRecordDoctor(existing, input)
 
 	fields := buildMedicalRecordUpdate(input)
 	if len(fields) == 0 {
@@ -298,10 +339,37 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if needsLinkValidation {
-			finalOwnerID, finalPetID := resolveFinalMedicalRecordOwnerPet(existing, input)
+		if needsLinkValidation || isBecomingFinalized {
 			if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
+			}
+		}
+		if input.DoctorID != nil || isBecomingFinalized {
+			if err := s.validateMedicalRecordDoctor(txCtx, clinicID, finalDoctorID); err != nil {
+				return err
+			}
+		}
+		if isBecomingFinalized && existing.AppointmentID != nil {
+			if s.reservationRepo == nil {
+				return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to finalize an appointment-linked medical record")
+			}
+			if err := s.reservationRepo.PrepareForMedicalRecordFinalization(txCtx, clinicID, *existing.AppointmentID); err != nil {
+				return apperrors.Wrap(err, "failed to prepare appointment for medical record finalization")
+			}
+		}
+		if existing.AppointmentID != nil && (needsContextValidation || isBecomingFinalized) {
+			if s.reservationRepo == nil {
+				return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to validate an appointment-linked medical record")
+			}
+			if err := s.reservationRepo.BackfillForMedicalRecord(
+				txCtx,
+				clinicID,
+				*existing.AppointmentID,
+				finalOwnerID,
+				finalPetID,
+				finalDoctorID,
+			); err != nil {
+				return apperrors.Wrap(err, "failed to lock and validate appointment for medical record update")
 			}
 		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, fields, input.Version)
@@ -343,27 +411,33 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find medical record")
-	}
-	// Prevent deletion of finalized medical records (data integrity/legal compliance)
-	if existing.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict("確定済みの診療記録は削除できません")
-	}
-	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check estimate dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check estimate dependencies")
-	}
-	if estimateCount > 0 {
-		return apperrors.WrapConflict("この項目は使用中のため削除できません")
+	var existing *model.MedicalRecord
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock medical record for deletion")
+		}
+		if locked.Status != model.MedicalRecordStatusDraft {
+			return apperrors.WrapConflict("確定済みまたは下書き以外の診療記録は削除できません")
+		}
+		estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check estimate dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check estimate dependencies")
+		}
+		if estimateCount > 0 {
+			return apperrors.WrapConflict("この項目は使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete medical record")
+		}
+		existing = locked
+		return nil
+	}); err != nil {
+		return err
 	}
 	oldValue := extractMedicalRecordImportantFields(existing)
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete medical record")
-	}
 	slog.InfoContext(ctx, "medical record deleted",
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))

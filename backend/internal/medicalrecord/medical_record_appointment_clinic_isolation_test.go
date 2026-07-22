@@ -54,12 +54,12 @@ func TestMedicalRecordService_Create_RejectsForeignOwnerPetBeforeAppointmentBack
 				},
 				assertOwnerFn:  tt.assertOwnerFn,
 				findPetOwnerFn: tt.findPetFn,
-				updateFn: func(_ context.Context, _ uint64, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				backfillFn: func(_ context.Context, _ uint64, _ uint64, _, _, _ *uint64) error {
 					t.Fatal("appointment must not be backfilled with invalid Owner/Pet links")
-					return nil, nil
+					return nil
 				},
 			}
-			svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil)
+			svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
 
 			got, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 				Date:          time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC),

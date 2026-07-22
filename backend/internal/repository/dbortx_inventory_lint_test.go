@@ -72,7 +72,7 @@ import (
 	"testing"
 )
 
-// dbOrTxParticipatingMethods は現 HEAD で dbOrTx(ctx, r.db) を使う repository メソッド（実測 80 個）を
+// dbOrTxParticipatingMethods は現worktreeで dbOrTx(ctx, r.db) を使う repository メソッドを
 // 固定する（key = "<file> | <ReceiverType>.<Method>"）。R1-1/R1-2 の tx 参加 surface を含む。
 // 追加/削除時はこのマップを更新し、新規は対応する atomicity/isolation テストを添えること。
 var dbOrTxParticipatingMethods = map[string]struct{}{
@@ -81,14 +81,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"account/repository.go|repository.FindByEmail": {}, // BE8-4 batch23: moved from account_repository.go
 	"account/repository.go|repository.FindByID":    {}, // BE8-4 batch23: moved from account_repository.go
 	"account/repository.go|repository.Update":      {}, // BE8-4 batch23: moved from account_repository.go
-	// accounting (R1-1 money-path atomicity; Create/CompleteAccountingAppointments added for
-	// BE-refactor.md X-12 billing-complete-appt-post-tx atomicity fix)
-	"billing/accounting_repository.go|accountingRepository.CompleteAccountingAppointments": {},
-	"billing/accounting_repository.go|accountingRepository.Create":                         {},
-	"billing/accounting_repository.go|accountingRepository.LockAndFindByID":                {},
-	"billing/accounting_repository.go|accountingRepository.SavePayment":                    {},
-	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":              {},
-	"billing/accounting_repository.go|accountingRepository.Update":                         {},
+	// accounting (R1-1 money-path atomicity; appointment completion moved to the reservation
+	// write owner in BE9-2E-0 while retaining ambient transaction participation)
+	"billing/accounting_repository.go|accountingRepository.Create":             {},
+	"billing/accounting_repository.go|accountingRepository.FindByID":           {}, // commit-before-reload must observe the caller's ambient writes
+	"billing/accounting_repository.go|accountingRepository.FindByIDForClinics": {}, // same multi-clinic read contract as FindByID
+	"billing/accounting_repository.go|accountingRepository.LockAndFindByID":    {},
+	"billing/accounting_repository.go|accountingRepository.SavePayment":        {},
+	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":  {},
+	"billing/accounting_repository.go|accountingRepository.Update":             {},
 	// audit (#211 tx-internal)
 	"audit/repository.go|repository.CreateTx": {}, // BE8-4 batch22: moved from audit_repository.go
 	// billing_confirmation (SD-2 系ガード監査: 会計医師確認 Confirm/Return が確定済みカルテ書込
@@ -111,9 +112,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
-	// 同一 ambient tx に参加させる＝二重会計防止)
+	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master
+	// 検証も同一txへ収束。Create/FindByID/Updateのrollback proofは
+	// TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction。)
 	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID":   {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Create":                {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindByID":              {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Update":                {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
@@ -148,10 +154,25 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
 
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":     {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.FindByAppointmentID":             {}, // appointment row-lock serialization proof in medicalrecord package
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                          {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":           {},
+	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
+	// service-owned transaction. Runtime proofs live in vaccination_transaction_concurrency_test.go;
+	// clinic-scoped read/preload coverage lives in vaccination_clinic_isolation_test.go.)
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.Create":                      {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.Delete":                      {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindAll":                     {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindByID":                    {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindByOwner":                 {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindOwnersByVaccineDeadline": {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.Update":                      {},
+	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":                            {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},
@@ -173,28 +194,42 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
-	"reservation/reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.AcquireBookingLock":                 {}, // X-9 (Appendix-A phantom-booking fix)
-	"reservation/reservation_repository.go|reservationRepository.FindPetOwnerInClinic":               {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":        {},
-	"reservation/reservation_repository.go|reservationRepository.CountByDateAndSource":               {},
-	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTime":            {},
-	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTimes":           {},
-	"reservation/reservation_repository.go|reservationRepository.CountConflicts":                     {},
-	"reservation/reservation_repository.go|reservationRepository.CountMedicalRecordsByReservationID": {},
-	"reservation/reservation_repository.go|reservationRepository.CountOnDutyDoctors":                 {},
-	"reservation/reservation_repository.go|reservationRepository.Create":                             {},
-	"reservation/reservation_repository.go|reservationRepository.Delete":                             {},
-	"reservation/reservation_repository.go|reservationRepository.ExistsByReservationTypeID":          {},
-	"reservation/reservation_repository.go|reservationRepository.ExistsByStaffID":                    {},
-	"reservation/reservation_repository.go|reservationRepository.FindAll":                            {},
-	"reservation/reservation_repository.go|reservationRepository.FindAllByCategory":                  {},
-	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                {},
-	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                  {},
-	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
-	"reservation/reservation_repository.go|reservationRepository.Update":                             {},
-	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":                       {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AssertOwnerInClinic":                              {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AcquireBookingLock":                               {}, // X-9 (Appendix-A phantom-booking fix)
+	"reservation/reservation_repository.go|reservationRepository.FindPetOwnerInClinic":                             {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":                      {},
+	"reservation/reservation_repository.go|reservationRepository.CountByDateAndSource":                             {},
+	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTime":                          {},
+	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTimes":                         {},
+	"reservation/reservation_repository.go|reservationRepository.CountConflicts":                                   {},
+	"reservation/reservation_repository.go|reservationRepository.CountMedicalRecordsByReservationID":               {},
+	"reservation/reservation_repository.go|reservationRepository.CountOnDutyDoctors":                               {},
+	"reservation/reservation_repository.go|reservationRepository.Create":                                           {},
+	"reservation/reservation_repository.go|reservationRepository.Delete":                                           {},
+	"reservation/reservation_repository.go|reservationRepository.ExistsByReservationTypeID":                        {},
+	"reservation/reservation_repository.go|reservationRepository.ExistsByStaffID":                                  {},
+	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
+	"reservation/reservation_repository.go|reservationRepository.FindAllByCategory":                                {},
+	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                              {},
+	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                                {},
+	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                                  {},
+	"reservation/reservation_repository.go|reservationRepository.update":                                           {},
+	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
+	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
+	"reservation/reservation_intent_repository.go|reservationRepository.AssertMedicalRecordDoctorInClinic":         {}, // BE9-2E-0 doctor guard; TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransaction
+	"reservation/reservation_intent_repository.go|reservationRepository.MarkNoShow":                                {}, // BE9-2E-0 atomic/idempotent transition
+	"reservation/reservation_intent_repository.go|reservationRepository.UpdateForTrimming":                         {}, // BE9-2E-0 typed update + ambient-tx rollback test
+	"reservation/reservation_intent_repository.go|reservationRepository.acquireAppointmentLifecycleLock":           {}, // no-show/finalization serialization
+	"reservation/reservation_intent_repository.go|reservationRepository.assertActiveTrimmingReservationType":       {}, // new trimming writes require active clinic-scoped master
+	"reservation/reservation_intent_repository.go|reservationRepository.assertGeneralMedicalRecordReservationType": {}, // BackfillForMedicalRecord category guard under appointment tx
+	"reservation/reservation_intent_repository.go|reservationRepository.assertStaffAssignedToClinic":               {}, // BE9-2E-0 doctor tenant guard
+	"reservation/reservation_intent_repository.go|reservationRepository.assertTrimmingReservationType":             {}, // BE9-2E-0 master-FK tenant guard
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                                {}, // AUD-001
+	// trimming master reads join the service-owned transaction and hold SHARE locks through
+	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
+	"trimmingcourse/repository.go|repository.FindByID": {},
+	"trimmingoption/repository.go|repository.FindByID": {},
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
@@ -296,7 +331,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
 	// BE-refactor.md H-7: FindByID を dbOrTx 化し、reservationStaffService.Update の
 	// tx 内所有権確認（GetByID）を ambient tx に参加させ TOCTOU 窓を閉じる。
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID": {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID":                {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType": {}, // assignment/capability SHARE-lock concurrency proof
 }
 
 // funcUsesDBOrTx reports whether a function body contains a call to dbOrTx / DBOrTx /

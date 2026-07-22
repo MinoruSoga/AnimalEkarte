@@ -225,7 +225,7 @@ func TestAccountingService_List(t *testing.T) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+			svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -287,7 +287,7 @@ func TestAccountingService_GetByID(t *testing.T) {
 					return tt.repoBilling, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+			svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billing, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -380,7 +380,7 @@ func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, nil, nil, nil, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -409,7 +409,12 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			accounting.ID = 30
 			return nil
 		},
-		completeApptsFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	}
+	resRepo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		completeForAccountingFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 			completedClinicID = clinicID
 			completedOwnerID = *ownerID
 			completedPetID = *petID
@@ -417,7 +422,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
@@ -436,7 +441,7 @@ func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *test
 }
 
 // #77: 会計完了時、診察カードの orphan 残留を防ぐため billing.medical_record_id が
-// CompleteAccountingAppointments に渡ることを検証する。
+// CompleteForAccounting に渡ることを検証する。
 func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t *testing.T) {
 	medicalRecordID := uint64(42)
 	var gotMedicalRecordID *uint64
@@ -447,7 +452,9 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 			accounting.ID = 30
 			return nil
 		},
-		completeApptsFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
+	}
+	resRepo := &mockReservationRepository{
+		completeForAccountingFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
 			called = true
 			gotMedicalRecordID = mrID
 			return 1, nil
@@ -458,7 +465,7 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
-	svc := NewAccountingService(repo, mrRepo, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, mrRepo, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	_, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:        1,
@@ -468,7 +475,7 @@ func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t 
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, called, "CompleteAccountingAppointments が呼ばれること")
+	assert.True(t, called, "CompleteForAccounting が呼ばれること")
 	if assert.NotNil(t, gotMedicalRecordID) {
 		assert.Equal(t, medicalRecordID, *gotMedicalRecordID)
 	}
@@ -485,15 +492,15 @@ func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T
 			accounting.ID = 30
 			return nil
 		},
-		completeApptsFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
-			gotNonNil = mrID != nil
-			return 1, nil
-		},
 	}
 	resRepo := &mockReservationRepository{
 		assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
 		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 			return ownerID, nil
+		},
+		completeForAccountingFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
+			gotNonNil = mrID != nil
+			return 1, nil
 		},
 	}
 	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
@@ -582,7 +589,7 @@ func TestAccountingService_Update(t *testing.T) {
 					return tt.repoRet, tt.repoErr
 				},
 			}
-			svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+			svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 			billing, err := svc.Update(context.Background(), &tt.input)
 
@@ -598,6 +605,46 @@ func TestAccountingService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T) {
+	type txMarkerKey struct{}
+	reloadErr := errors.New("reload failed")
+	status := model.BillingStatusWaiting
+	findCalls := 0
+	reloadUsedTx := false
+	var callbackErr error
+	repo := &mockAccountingRepository{
+		findByIDFn: func(ctx context.Context, _, _ uint64) (*model.Billing, error) {
+			findCalls++
+			if findCalls == 1 {
+				return &model.Billing{ID: 1, ClinicID: 1, Status: status}, nil
+			}
+			reloadUsedTx = ctx.Value(txMarkerKey{}) == true
+			return nil, reloadErr
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: 1, ClinicID: 1, Status: status}, nil
+		},
+	}
+	tx := &mockTransactor{
+		withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			callbackErr = fn(context.WithValue(ctx, txMarkerKey{}, true))
+			return callbackErr
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, tx, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+
+	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:       1,
+		ClinicID: 1,
+		Status:   &status,
+	})
+
+	assert.ErrorIs(t, err, reloadErr)
+	assert.ErrorIs(t, callbackErr, reloadErr, "reload failure must abort the transaction callback")
+	assert.True(t, reloadUsedTx, "final reload must use the ambient transaction")
+	assert.Nil(t, billing)
 }
 
 func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *testing.T) {
@@ -620,7 +667,7 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewAccountingService(repo, nil, nil, nil, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -665,7 +712,12 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 				Status:        status,
 			}, nil
 		},
-		completeApptsFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
+	}
+	resRepo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		completeForAccountingFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 			completedClinicID = clinicID
 			completedOwnerID = *ownerID
 			completedPetID = *petID
@@ -673,7 +725,7 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 			return 2, nil
 		},
 	}
-	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,

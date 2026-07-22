@@ -63,8 +63,10 @@ type reservationValidators struct {
 	tx                 Transactor
 	repo               ReservationRepository
 	typeRepo           reservationTypeFinder
+	staffRepo          ReservationStaffRepository
 	trimmingCourseRepo trimmingCourseFinder
 	trimmingOptionRepo trimmingOptionFinder
+	trimmingDetailRepo liffTrimmingDetailRepo
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
@@ -72,19 +74,35 @@ func NewReservationValidators(
 	tx Transactor,
 	repo ReservationRepository,
 	typeRepo reservationTypeFinder,
+	staffRepo ReservationStaffRepository,
 	trimmingCourseRepo trimmingCourseFinder,
 	trimmingOptionRepo trimmingOptionFinder,
+	trimmingDetailRepo liffTrimmingDetailRepo,
 ) ReservationValidators {
 	return &reservationValidators{
 		tx:                 tx,
 		repo:               repo,
 		typeRepo:           typeRepo,
+		staffRepo:          staffRepo,
 		trimmingCourseRepo: trimmingCourseRepo,
 		trimmingOptionRepo: trimmingOptionRepo,
+		trimmingDetailRepo: trimmingDetailRepo,
 	}
 }
 
 func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("reservation input is required")
+	}
+	if input.Settings == nil {
+		return nil, apperrors.WrapInternalServerError("LINE reservation settings are required")
+	}
+	if v.tx == nil {
+		return nil, apperrors.WrapInternalServerError("LINE reservation transactor is required")
+	}
+	if v.repo == nil {
+		return nil, apperrors.WrapInternalServerError("LINE reservation repository is required")
+	}
 	settings := input.Settings
 
 	// 稼働状態チェック
@@ -102,14 +120,6 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		return nil, apperrors.Wrap(err, "failed to validate business rules")
 	}
 
-	// X-14/U6a: クロステナント write 防止: ReservationTypeID / TrimmingCourseID /
-	// TrimmingOptionIDs が caller の clinic に属することを、INSERT 前(tx 開始前)に
-	// 検証する(billing_item_service.go と同型の master FK 所有権チェック)。所有権失敗は
-	// best-effort に落とさず hard fail とし、orphan appointment を作らない。
-	if err := v.validateReservationMasterOwnership(ctx, input); err != nil {
-		return nil, err
-	}
-
 	var result *model.Reservation
 	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
 		// BE-refactor.md X-9: LINE予約は不特定多数から到達するため、空き枠への同時アクセスが
@@ -117,6 +127,20 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		// 競合チェック～INSERT を直列化する。
 		if err := v.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
 			return err
+		}
+		if err := v.repo.AssertLineCustomerInClinic(ctx, input.ClinicID, input.CustomerID); err != nil {
+			return apperrors.Wrap(err, "failed to verify LINE customer ownership")
+		}
+		// Request-derived masters and staff are revalidated inside the write transaction.
+		// Their repository reads hold SHARE locks until appointment/detail/options commit.
+		reservationType, err := v.validateReservationMasterOwnership(ctx, input)
+		if err != nil {
+			return err
+		}
+		if input.StaffID != 0 {
+			if err := ValidateLineReservationStaffCapability(ctx, v.staffRepo, input.ClinicID, &input.StaffID, input.ReservationTypeID); err != nil {
+				return err
+			}
 		}
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := ToDateTime(input.Date, input.StartTime)
@@ -195,6 +219,25 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		if err := v.repo.Create(ctx, appt); err != nil {
 			return apperrors.Wrap(err, "failed to create reservation")
 		}
+		if reservationType.Category == model.ReservationTypeCategoryTrimming && hasLineTrimmingDetailInput(input) {
+			if v.trimmingDetailRepo == nil {
+				return apperrors.WrapInternalServerError("trimming detail repository is required for a LINE trimming reservation")
+			}
+			detail := &model.AppointmentTrimmingDetail{
+				ClinicID:      input.ClinicID,
+				AppointmentID: appt.ID,
+				CourseID:      input.TrimmingCourseID,
+				StyleRequest:  input.TrimmingStyleRequest,
+			}
+			if err := v.trimmingDetailRepo.Create(ctx, detail); err != nil {
+				return apperrors.Wrap(err, "failed to create LINE trimming detail")
+			}
+			if len(input.TrimmingOptionIDs) > 0 {
+				if err := v.trimmingDetailRepo.SetOptions(ctx, input.ClinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
+					return apperrors.Wrap(err, "failed to set LINE trimming options")
+				}
+			}
+		}
 		result = appt
 		return nil
 	}); err != nil {
@@ -208,28 +251,54 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 // TrimmingOptionIDs）が caller の clinic に属することを検証する（BE-refactor.md E-8:
 // ValidateAndCreate の4責務分割・純粋抽出）。所有権失敗は best-effort に落とさず hard fail
 // とし、orphan appointment を作らない。
-func (v *reservationValidators) validateReservationMasterOwnership(ctx context.Context, input *CreateReservationInput) error {
-	if v.typeRepo != nil {
-		if _, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
-			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
-			return apperrors.Wrap(err, "failed to verify reservation type ownership")
-		}
+func (v *reservationValidators) validateReservationMasterOwnership(ctx context.Context, input *CreateReservationInput) (*model.ReservationType, error) {
+	if v.typeRepo == nil {
+		return nil, apperrors.WrapInternalServerError("reservation type repository is required")
+	}
+	reservationType, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID)
+	if err != nil {
+		slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
+		return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
+	}
+	if !reservationType.IsActive || !reservationType.ReservationVisible || reservationType.IsInternal {
+		return nil, apperrors.WrapInvalidInput("reservation type is not available for LINE reservation")
+	}
+	if reservationType.Category != model.ReservationTypeCategoryTrimming && hasLineTrimmingDetailInput(input) {
+		return nil, apperrors.WrapInvalidInput("trimming fields require a trimming reservation type")
 	}
 	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
-		if _, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+		course, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID)
+		if err != nil {
 			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
-			return apperrors.Wrap(err, "failed to verify trimming course ownership")
+			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
 		}
+		if !course.IsActive {
+			return nil, apperrors.WrapInvalidInput("trimming course is inactive")
+		}
+	}
+	if input.TrimmingCourseID != nil && v.trimmingCourseRepo == nil {
+		return nil, apperrors.WrapInternalServerError("trimming course repository is required")
 	}
 	if v.trimmingOptionRepo != nil {
 		for _, optionID := range input.TrimmingOptionIDs {
-			if _, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID); err != nil {
+			option, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID)
+			if err != nil {
 				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
-				return apperrors.Wrap(err, "failed to verify trimming option ownership")
+				return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
+			}
+			if !option.IsActive {
+				return nil, apperrors.WrapInvalidInput("trimming option is inactive")
 			}
 		}
 	}
-	return nil
+	if len(input.TrimmingOptionIDs) > 0 && v.trimmingOptionRepo == nil {
+		return nil, apperrors.WrapInternalServerError("trimming option repository is required")
+	}
+	return reservationType, nil
+}
+
+func hasLineTrimmingDetailInput(input *CreateReservationInput) bool {
+	return input != nil && (input.TrimmingCourseID != nil || len(input.TrimmingOptionIDs) > 0 || input.TrimmingStyleRequest != "")
 }
 
 // checkCustomerReservationLimit は指定期間内の顧客の予約件数が limit 以上かどうかを検証する

@@ -87,9 +87,9 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 			want:  map[string]any{"doctor_id": doctorID},
 		},
 		{
-			name:  "AppointmentID のみ",
+			name:  "AppointmentID は作成後immutableのため更新mapへ含めない",
 			input: UpdateMedicalRecordInput{AppointmentID: &apptID},
-			want:  map[string]any{"appointment_id": apptID},
+			want:  map[string]any{},
 		},
 		{
 			name:  "Status のみ",
@@ -131,13 +131,12 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 				VisitType:     &visitType,
 			},
 			want: map[string]any{
-				"date":           date,
-				"owner_id":       ownerID,
-				"pet_id":         petID,
-				"doctor_id":      doctorID,
-				"appointment_id": apptID,
-				"status":         status,
-				"visit_type":     visitType,
+				"date":       date,
+				"owner_id":   ownerID,
+				"pet_id":     petID,
+				"doctor_id":  doctorID,
+				"status":     status,
+				"visit_type": visitType,
 			},
 		},
 	}

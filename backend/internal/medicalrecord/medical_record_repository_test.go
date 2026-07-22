@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
@@ -557,6 +558,54 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("確定済みカルテは削除できない", func(t *testing.T) {
+		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "DEL-FINALIZED", Date: time.Now(),
+			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusFinalized,
+		})
+
+		err := repo.Delete(ctx, clinicA, rec.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+
+		var persisted model.MedicalRecord
+		require.NoError(t, db.Unscoped().First(&persisted, rec.ID).Error)
+		assert.Equal(t, model.MedicalRecordStatusFinalized, persisted.Status)
+		assert.False(t, persisted.DeletedAt.Valid)
+	})
+
+	t.Run("確定commit待機後の削除はConflictになり確定記録を残す", func(t *testing.T) {
+		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "DEL-FINALIZE-RACE", Date: time.Now(),
+			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		})
+		tx := db.Begin()
+		require.NoError(t, tx.Error)
+		defer tx.Rollback()
+		txCtx := repohelpers.WithTxValue(ctx, tx)
+		_, err := repo.Update(txCtx, clinicA, rec.ID, map[string]any{
+			"status": model.MedicalRecordStatusFinalized,
+		}, nil)
+		require.NoError(t, err)
+
+		deleteDone := make(chan error, 1)
+		go func() { deleteDone <- repo.Delete(ctx, clinicA, rec.ID) }()
+		select {
+		case err := <-deleteDone:
+			require.Failf(t, "delete did not wait for finalization", "err=%v", err)
+		case <-time.After(100 * time.Millisecond):
+		}
+		require.NoError(t, tx.Commit().Error)
+
+		err = <-deleteDone
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		var persisted model.MedicalRecord
+		require.NoError(t, db.Unscoped().First(&persisted, rec.ID).Error)
+		assert.Equal(t, model.MedicalRecordStatusFinalized, persisted.Status)
+		assert.False(t, persisted.DeletedAt.Valid)
+	})
 }
 
 // TestMedicalRecordRepository_CountByPetID_CountByOwnerID は集計系メソッドの
@@ -599,47 +648,5 @@ func TestMedicalRecordRepository_CountByPetID_CountByOwnerID(t *testing.T) {
 		count, err := repo.CountByOwnerID(ctx, clinicB, owner.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
-	})
-}
-
-// TestMedicalRecordRepository_DeleteDraftByAppointmentID は予約紐づけ draft カルテの
-// 自動削除ロジック（#83 Q10）を検証する。draft 以外・存在しない場合はエラーにしない。
-func TestMedicalRecordRepository_DeleteDraftByAppointmentID(t *testing.T) {
-	db := setupMedicalRecordListTestDB(t)
-	repo := NewMedicalRecordRepository(db)
-	ctx := context.Background()
-	const clinicA = uint64(1)
-
-	owner := makeTestOwner(t, db, clinicA, "DDBA飼主")
-	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "DDBAペット")
-	appointmentID := uint64(4242)
-
-	t.Run("draft カルテは削除される", func(t *testing.T) {
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "DDBA-001", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID,
-			AppointmentID: &appointmentID,
-		})
-		require.NoError(t, repo.DeleteDraftByAppointmentID(ctx, clinicA, appointmentID))
-
-		_, err := repo.FindByID(ctx, clinicA, rec.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-	})
-
-	t.Run("finalized カルテは削除されない", func(t *testing.T) {
-		finalizedAppointmentID := uint64(4243)
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "DDBA-002", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID,
-			AppointmentID: &finalizedAppointmentID, Status: model.MedicalRecordStatusFinalized,
-		})
-		require.NoError(t, repo.DeleteDraftByAppointmentID(ctx, clinicA, finalizedAppointmentID))
-
-		got, err := repo.FindByID(ctx, clinicA, rec.ID)
-		require.NoError(t, err)
-		assert.Equal(t, rec.ID, got.ID, "finalized カルテは削除されず残るべき")
-	})
-
-	t.Run("対象なしはエラーにしない", func(t *testing.T) {
-		require.NoError(t, repo.DeleteDraftByAppointmentID(ctx, clinicA, uint64(999999)))
 	})
 }

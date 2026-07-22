@@ -33,7 +33,11 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 				return clinicID == 1, nil // clinic 1 のみ有効
 			},
 		}
-		svc := NewLstepBatchService(resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{}, &batchMockAuditService{}, settingsSvc, nil)
+		svc := NewLstepBatchService(
+			resRepo, &batchMockTagSyncSvc{}, clinicRepo, &batchMockMedRecordRepo{},
+			&batchMockAuditService{}, settingsSvc, nil,
+			batchImmediateTransactor{}, &batchNoShowAuditTxLogger{},
+		)
 		err := svc.RunNoShowCheckAllClinics(context.Background())
 		assert.NoError(t, err)
 		assert.Equal(t, []uint64{1}, processed)
@@ -57,7 +61,11 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 				return clinicID == 20, nil // clinic 20 のみ有効
 			},
 		}
-		svc := NewLstepBatchService(&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo, &batchMockAuditService{}, settingsSvc, nil)
+		svc := NewLstepBatchService(
+			&batchMockReservationRepo{}, &batchMockTagSyncSvc{}, clinicRepo, medRepo,
+			&batchMockAuditService{}, settingsSvc, nil,
+			batchImmediateTransactor{}, &batchNoShowAuditTxLogger{},
+		)
 		err := svc.RunDormantDetectionAllClinics(context.Background())
 		assert.NoError(t, err)
 		assert.Equal(t, []uint64{20}, processed)

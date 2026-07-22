@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateAccountingInput は会計作成のサービス入力DTO。
@@ -131,11 +131,16 @@ type accountingService struct {
 	repo              AccountingRepository
 	medicalRecordRepo billingMedicalRecordLocker
 	hospRepo          billingHospitalizationFinder
-	reservationRepo   reservation.ReservationRepository // AUD-001 AssertOwnerInClinic / FindPetOwnerInClinic 再利用
+	reservationRepo   accountingReservationRepository
 	tagSyncSvc        cpmTagSyncer
 	transactor        Transactor
 	auditTx           billingAuditTxLogger
 	payMethodRepo     PaymentMethodMasterRepository
+}
+
+type accountingReservationRepository interface {
+	sharedkernel.OwnerPetLinkVerifier
+	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 }
 
 // auditTx は tx 内監査（#211/BE-refactor.md R1-2 fail-closed）の記録経路。会計は金銭データのため、
@@ -147,7 +152,7 @@ func NewAccountingService(
 	repo AccountingRepository,
 	medicalRecordRepo billingMedicalRecordLocker,
 	hospRepo billingHospitalizationFinder,
-	reservationRepo reservation.ReservationRepository,
+	reservationRepo accountingReservationRepository,
 	tagSyncSvc cpmTagSyncer,
 	transactor Transactor,
 	auditTx billingAuditTxLogger,

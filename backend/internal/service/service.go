@@ -213,7 +213,17 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// on Services. The LSTEP tag-sync / delivery-trigger deps they need are exposed to main.go
 	// via svcs.LstepTagSync / svcs.LstepDeliveryTrigger.
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
-	lstepBatchSvc := lstep.NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
+	lstepBatchSvc := lstep.NewLstepBatchService(
+		repos.Reservation,
+		lstepTagSyncSvc,
+		repos.Clinic,
+		repos.MedicalRecord,
+		auditSvc,
+		lstepSettingsSvc,
+		lstepDeliveryTriggerSvc,
+		tx,
+		lstepNoShowAuditTxAdapter{inner: auditTxLogger},
+	)
 	// FEAT-385: Lステップ CSV インポート・分析
 	lstepCsvImportSvc := lstep.NewLstepCsvImportService(
 		repos.DB(),
