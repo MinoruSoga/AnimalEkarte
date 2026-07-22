@@ -236,6 +236,30 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 	}
 }
 
+func TestGetCheckupSyncPreview_UsesAuthenticatedClinicInsteadOfURLAlias(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCheckupSyncService{
+		previewCheckupSyncFn: func(_ context.Context, clinicID uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			return &PreviewCheckupSyncResult{}, nil
+		},
+	}
+	h := newHandlerWithCheckupSyncSvc(svc)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/999/lstep/checkup-sync/preview", http.NoBody)
+	c.Params = gin.Params{{Key: "clinic_id", Value: "999"}}
+	setClinicID(c)
+	c.Set("user_id", "10")
+
+	h.GetCheckupSyncPreview(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ---- CreateCheckupSync ----
+
 func TestCreateCheckupSync(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -339,4 +363,28 @@ func TestCreateCheckupSync(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateCheckupSync_UsesAuthenticatedClinicInsteadOfURLAlias(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockCheckupSyncService{
+		createCheckupSyncFn: func(_ context.Context, clinicID uint64, _ CreateCheckupSyncInput, _ *uint64) (*CreateCheckupSyncResult, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			return &CreateCheckupSyncResult{FailedOwnerIDs: []uint64{}}, nil
+		},
+	}
+	h := newHandlerWithCheckupSyncSvc(svc)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := bytes.NewBufferString(`{"checkup_type":"annual","owner_ids":["1"],"tag_name":"annual_checkup"}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/clinics/999/lstep/checkup-sync", body)
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "clinic_id", Value: "999"}}
+	setClinicID(c)
+	c.Set("user_id", "10")
+
+	h.CreateCheckupSync(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }

@@ -92,3 +92,56 @@ func TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError(t *testing.T)
 		assert.Empty(t, result.Owners[1].CurrentTags)
 	}
 }
+
+func TestCheckupSyncService_PreviewCheckupSync_BatchLoadsTagsWithinClinicScope(t *testing.T) {
+	const clinicID = uint64(17)
+	lineID1 := "U_test_1"
+	lineID3 := "U_test_3"
+	rows := []CheckupSyncPreviewRow{
+		{OwnerID: 1, LineUserID: &lineID1, LivingPetCount: 1},
+		{OwnerID: 2, LineUserID: nil, LivingPetCount: 1},
+		{OwnerID: 3, LineUserID: &lineID3, LivingPetCount: 1},
+	}
+
+	repo := &mockCheckupSyncRepository{
+		findCheckupSyncPreviewFn: func(_ context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
+			assert.Equal(t, clinicID, params.ClinicID)
+			return rows, nil
+		},
+	}
+	settings := &mockLstepSettingsService{
+		getCPMV1ThresholdsFn: func(_ context.Context, gotClinicID uint64) (model.CPMV1Thresholds, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			return model.CPMV1Thresholds{}.WithDefaults(), nil
+		},
+	}
+	findByOwnersCalls := 0
+	cache := &mockLstepTagCacheRepository{
+		findByOwnersFn: func(_ context.Context, gotClinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error) {
+			findByOwnersCalls++
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, []uint64{1, 3}, ownerIDs)
+			return map[uint64][]*model.LstepTagCache{
+				1: {{TagName: "tag-one"}},
+				3: {{TagName: "tag-three"}},
+			}, nil
+		},
+	}
+	audit := &mockAuditService{
+		logLstepOperationWithMetadataFn: func(_ context.Context, gotClinicID uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
+			assert.Equal(t, clinicID, gotClinicID)
+			return nil
+		},
+	}
+	svc := NewCheckupSyncService(repo, &mockOwnerRepository{}, &mockPetRepository{}, cache, settings, audit)
+
+	result, err := svc.PreviewCheckupSync(context.Background(), clinicID, &PreviewCheckupSyncInput{}, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, findByOwnersCalls)
+	if assert.NotNil(t, result) && assert.Len(t, result.Owners, 3) {
+		assert.Equal(t, []string{"tag-one"}, result.Owners[0].CurrentTags)
+		assert.Empty(t, result.Owners[1].CurrentTags)
+		assert.Equal(t, []string{"tag-three"}, result.Owners[2].CurrentTags)
+	}
+}

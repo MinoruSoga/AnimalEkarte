@@ -258,3 +258,124 @@ func TestCheckupSyncService_CreateCheckupSync_SuccessUpsertsCache(t *testing.T) 
 	assert.True(t, addedTagCalled)
 	assert.Equal(t, "campaign_2026", upsertedTag)
 }
+
+func TestCheckupSyncService_CreateCheckupSync_PropagatesClinicScopeToBatchDependencies(t *testing.T) {
+	const clinicID = uint64(17)
+	lineID := "U_scope"
+	settings := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, gotClinicID uint64) (bool, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			return true, nil
+		},
+		getRawCredentialsFn: func(_ context.Context, gotClinicID uint64) (string, string, string, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			return "test-key", "https://example.com", "", nil
+		},
+	}
+	owners := &mockOwnerRepository{
+		findByIDsFn: func(_ context.Context, gotClinicID uint64, ownerIDs []uint64) ([]*model.Owner, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, []uint64{1, 2}, ownerIDs)
+			return []*model.Owner{
+				{ID: 1, ClinicID: clinicID, LineUserID: &lineID},
+				{ID: 2, ClinicID: clinicID, LstepOptOut: true},
+			}, nil
+		},
+	}
+	pets := &mockPetRepository{
+		countLivingByOwnerIDsFn: func(_ context.Context, gotClinicID uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, []uint64{1}, ownerIDs, "opt-out owner must not enter the pet batch")
+			return map[uint64]int64{1: 1}, nil
+		},
+	}
+	cache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, gotClinicID, ownerID uint64, _, _, _ string) error {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, uint64(1), ownerID)
+			return nil
+		},
+	}
+	audit := &mockAuditService{
+		logLstepOperationWithMetadataFn: func(_ context.Context, gotClinicID uint64, _ *uint64, action, _ string, _ *uint64, _ any) error {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, "checkup_sync", action)
+			return nil
+		},
+	}
+	svc := NewCheckupSyncService(&mockCheckupSyncRepository{}, owners, pets, cache, settings, audit)
+
+	result, err := svc.CreateCheckupSync(context.Background(), clinicID, CreateCheckupSyncInput{
+		OwnerIDs: []uint64{1, 2},
+		TagName:  "campaign_2026",
+	}, nil)
+
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, 1, result.SuccessCount)
+		assert.Equal(t, 1, result.SkippedCount)
+	}
+}
+
+func TestCheckupSyncService_CreateCheckupSync_AddTagFailureIsPerOwnerAndCacheFailureIsNonFatal(t *testing.T) {
+	lineIDs := map[uint64]string{1: "U1", 2: "U2", 3: "U3"}
+	owners := &mockOwnerRepository{
+		findByIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) ([]*model.Owner, error) {
+			result := make([]*model.Owner, 0, len(ownerIDs))
+			for _, id := range ownerIDs {
+				lineID := lineIDs[id]
+				result = append(result, &model.Owner{ID: id, LineUserID: &lineID})
+			}
+			return result, nil
+		},
+	}
+	pets := &mockPetRepository{
+		countLivingByOwnerIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			counts := make(map[uint64]int64, len(ownerIDs))
+			for _, id := range ownerIDs {
+				counts[id] = 1
+			}
+			return counts, nil
+		},
+	}
+	client := &mockLstepAPIClient{
+		addTagFn: func(_ context.Context, lineUserID, _ string) error {
+			if lineUserID == "U1" {
+				return errors.New("first owner failed")
+			}
+			return nil
+		},
+	}
+	var upsertedOwnerIDs []uint64
+	cache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, _ uint64, ownerID uint64, _, _, _ string) error {
+			upsertedOwnerIDs = append(upsertedOwnerIDs, ownerID)
+			if ownerID == 2 {
+				return errors.New("cache unavailable")
+			}
+			return nil
+		},
+	}
+	svc := &checkupSyncService{
+		ownerRepo:    owners,
+		petRepo:      pets,
+		tagCacheRepo: cache,
+		auditSvc:     &mockAuditService{},
+		buildClientFn: func(_ context.Context, _ uint64) (lstepapi.Client, error) {
+			return client, nil
+		},
+	}
+
+	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
+		OwnerIDs: []uint64{1, 2, 3},
+		TagName:  "campaign_2026",
+	}, nil)
+
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, 2, result.SuccessCount, "cache failure remains non-fatal")
+		assert.Equal(t, 1, result.FailedCount)
+		assert.Equal(t, []uint64{1}, result.FailedOwnerIDs)
+	}
+	assert.Equal(t, []uint64{2, 3}, upsertedOwnerIDs, "processing continues after per-owner failures")
+}

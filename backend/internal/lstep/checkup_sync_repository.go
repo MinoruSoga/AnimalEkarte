@@ -115,7 +115,7 @@ SELECT
   EXISTS (
     SELECT 1 FROM pet_chronic_conditions pcc
     INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL
-    WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id
+    WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.clinic_id = o.clinic_id
       AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL
   ) AS has_chronic_condition,
   COALESCE((
@@ -132,7 +132,7 @@ SELECT
     SELECT MAX(c.date) FROM checkups c
     INNER JOIN medical_records mrc ON mrc.id = c.medical_record_id AND mrc.deleted_at IS NULL
     WHERE c.clinic_id = o.clinic_id AND c.deleted_at IS NULL
-      AND mrc.owner_id = o.id
+      AND mrc.clinic_id = o.clinic_id AND mrc.owner_id = o.id
   ) AS last_checkup_date
 FROM owners o
 LEFT JOIN pets p ON p.owner_id = o.id AND p.clinic_id = o.clinic_id AND p.deleted_at IS NULL
@@ -165,9 +165,9 @@ func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (where string, 
 	// ISSUE-009: 慢性疾患フィルタは飼い主単位の EXISTS で WHERE 評価する。
 	if params.HasChronicCondition != nil {
 		if *params.HasChronicCondition {
-			where += " AND EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
+			where += " AND EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
 		} else {
-			where += " AND NOT EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
+			where += " AND NOT EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
 		}
 	}
 	return where, args
@@ -206,11 +206,11 @@ func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) (having []stri
 	}
 	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
 	if params.LastCheckupBefore != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) <= ?")
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND mrf.owner_id = o.id) <= ?")
 		args = append(args, params.LastCheckupBefore.Format(time.DateOnly))
 	}
 	if params.LastCheckupAfter != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) >= ?")
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND mrf.owner_id = o.id) >= ?")
 		args = append(args, params.LastCheckupAfter.Format(time.DateOnly))
 	}
 	return having, args

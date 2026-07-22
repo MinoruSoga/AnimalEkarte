@@ -325,3 +325,60 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 		assert.Equal(t, ownerYoung.ID, rows[0].OwnerID)
 	})
 }
+
+func TestCheckupSyncRepository_FindCheckupSyncPreview_RejectsCrossClinicChildRows(t *testing.T) {
+	db := setupCheckupSyncTestDB(t)
+	repo := NewCheckupSyncRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	dogSpecies := makeSyncSpecies(t, db, "犬")
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "分離対象飼主")
+	petA := makeSyncPet(t, db, clinicA, ownerA.ID, dogSpecies.ID, "分離対象ペット", nil, nil)
+	makeSyncMedicalRecord(t, db, clinicA, ownerA.ID, petA.ID, time.Now().AddDate(0, 0, -7))
+
+	// Deliberately inconsistent child rows model data that bypassed the normal
+	// application write path. A tenant-scoped read must still fail closed.
+	require.NoError(t, db.WithContext(ctx).Create(&model.PetChronicCondition{
+		ClinicID: clinicB, PetID: petA.ID, ConditionCode: "CROSS", ConditionName: "別clinic疾患",
+		DiagnosedAt: time.Now(), IsActive: true,
+	}).Error)
+
+	checkupTypeA := makeCheckupTypeMaster(t, db, clinicA, "分離健診")
+	crossClinicRecord := makeSyncMedicalRecord(t, db, clinicB, ownerA.ID, petA.ID, time.Now())
+	makeSyncCheckup(t, db, clinicA, crossClinicRecord.ID, petA.ID, checkupTypeA.ID, time.Now())
+
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.False(t, rows[0].HasChronicCondition)
+	assert.Nil(t, rows[0].LastCheckupDate)
+
+	trueFlag := true
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
+		ClinicID: clinicA, HasChronicCondition: &trueFlag,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+
+	falseFlag := false
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
+		ClinicID: clinicA, HasChronicCondition: &falseFlag,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+
+	checkupBefore := time.Now().AddDate(0, 1, 0)
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
+		ClinicID: clinicA, LastCheckupBefore: &checkupBefore,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+
+	checkupAfter := time.Now().AddDate(-1, 0, 0)
+	rows, err = repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
+		ClinicID: clinicA, LastCheckupAfter: &checkupAfter,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+}
