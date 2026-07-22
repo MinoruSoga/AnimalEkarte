@@ -178,6 +178,8 @@
 - **route**: Yes（§1参照）。
 - **tenant boundary**: **混在、3分類**——clinic-scoped多数、global-master(AutoManagedPrefix/ConditionTagMapping/SendPurposeTagPrefix)、**cross-clinic-identity(重要edge case)**: `POST /api/line/webhook`はclinic_idなし。署名検証(`verifySignatureAnyClinic`)が全クリニックのLINEチャネルシークレットを走査していずれか一致で受理(意図的——受信前にどのクリニックのwebhookか判別不能)。`ownerRepo.FindAllByLineUserID`が**意図的にunscopedなクロステナント読み取り**(1つのLINEアカウントが複数クリニックのownerに紐づき得るため)。書き込みは各マッチ行自身の`ClinicID`を使用しclient入力を使わないため書き込みパスは安全。ADR-002の「no unscoped read」不変条件に対する**証拠に基づく例外**として明記が必要。
 
+**L⑥後の実装境界（2026-07-22・`849c27524`）**: SharedFileを含むroute/use case/persistence/testとproduction compositionは`internal/lstep`へ収束した。target側のtyped `Application`を`cmd/api`が組み立て、legacy `service.Services` / root `repository.Repositories`のLSTEP ownershipは0。SharedFile route 4本とPOSTのOR権限（owners edit / medical-records create / medical-records edit）、JWT clinic/staff scope、OpenAPI/storage/error contractを保存した。consumer 0のroot facade 16本と旧service adapter 3本は削除し、owner/pet/chronic-condition等の実consumerを持つ期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
+
 ### 3.11 clinic (`target:clinic` 25 source rows)
 
 - **owned**: `model.Clinic`,`Company`(**シングルトン、id=1固定、global-master——multi-tenant-spanningではない**、model comment/migration comment/コードのid=1 hardcodeで3重確認),`ClinicHoliday`,`ClosingSpecialPeriod`,`ClinicSettings`。Route: `/clinics`,`/company`,`/clinic-holidays`,`/closing-settings`(+special-periods/holidays、ClinicHolidayハンドラへ委譲)。Repo: `CountBlockingReferencesByClinicID`(11ドメインのテーブルへのraw `Table()`削除ガードscan)。
@@ -380,7 +382,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**実装進捗（2026-07-22）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 122 file。次はL⑥（SharedFile、composition、facade/DTO/mock carrier残置解消）。L⑤のfresh DB migration実適用だけはrelease gateとして残る。詳細・完了判定の正本は`BE-refactor.md`。
+**実装進捗（2026-07-22）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session B/C/Dの正式handoffをAが単一frontierへ統合しDが反証確認するまで、BE9-2E productionは開始しない。詳細・完了判定の正本は`BE-refactor.md`。
 
 ## 9. 実測手法の限界（正直な明記）
 

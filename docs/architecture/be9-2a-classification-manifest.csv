@@ -246,9 +246,9 @@ internal/handler/reservation_type_request.go,target:reservation,prefix token='re
 internal/handler/reservation_type_response.go,target:reservation,prefix token='reservation'
 internal/handler/response.go,target:httpapi,generic Gin response helper
 internal/handler/response_pg.go,target:httpapi,generic pagination response helper
-internal/handler/shared_file_handler.go,target:lstep,prefix token='shared'
-internal/handler/shared_file_request.go,target:lstep,prefix token='shared'
-internal/handler/shared_file_response.go,target:lstep,prefix token='shared'
+internal/handler/shared_file_handler.go,target:lstep,L⑥: internal/lstep/shared_file_handler.goへ移動
+internal/handler/shared_file_request.go,target:lstep,L⑥: internal/lstep/shared_file_request.goへ移動
+internal/handler/shared_file_response.go,target:lstep,L⑥: internal/lstep/shared_file_response.goへ移動
 internal/handler/shift_handler.go,target:staff,prefix token='shift'
 internal/handler/shift_request.go,target:staff,prefix token='shift'
 internal/handler/shift_response.go,target:staff,prefix token='shift'
@@ -429,7 +429,7 @@ internal/repository/cash_register_close_repository.go,target:billing,prefix toke
 internal/repository/checkup/repository.go,target:medicalrecord,repository/checkup をdomain roll-up
 internal/repository/checkup_field_repository.go,target:medicalrecord,prefix token='checkup'
 internal/repository/checkup_repository.go,target:medicalrecord,prefix token='checkup'
-internal/repository/checkup_sync_repository.go,target:lstep,L③b: compatibility facade for lstep checkup sync repository
+internal/repository/checkup_sync_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
 internal/repository/checkup_type_repository.go,target:medicalrecord,prefix token='checkup'
 internal/repository/checkupsync/repository.go,target:lstep,L③b: cross-domain preview query owned by lstep checkup sync
 internal/repository/checkuptype/repository.go,target:medicalrecord,repository/checkuptype をdomain roll-up
@@ -470,20 +470,20 @@ internal/repository/inventory_repository.go,target:inventory,prefix token='inven
 internal/repository/junction_helpers.go,keep,generic M:N join helper
 internal/repository/kana_normalize.go,keep,generic search-normalization utility
 internal/repository/lab_import_repository.go,target:medicalrecord,prefix token='lab'
-internal/repository/line_customer_repository.go,target:lstep,prefix token='line'
-internal/repository/line_link_token_repository.go,target:lstep,"LINE link token, not auth token"
-internal/repository/line_reservation_setting_repository.go,target:reservation,prefix token='reservation'
-internal/repository/line_send_log_repository.go,target:lstep,prefix token='line'
-internal/repository/lstep_csv_import_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_delivery_trigger_log_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_friend_attribute_snapshot_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_settings_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_sync_error_counter_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_sync_settings_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_cache_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_code_mapping_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_config_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_trigger_priority_repository.go,target:lstep,prefix token='lstep'
+internal/repository/line_customer_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_link_token_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_reservation_setting_repository.go,target:reservation,L⑥: reservation constructor直結後consumer 0のfacadeを削除
+internal/repository/line_send_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_csv_import_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_delivery_trigger_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_friend_attribute_snapshot_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_error_counter_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_cache_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_code_mapping_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_config_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_trigger_priority_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
 internal/repository/ltv_repository.go,target:owner,owner LTV analytics (C-10)
 internal/repository/manual_article_repository.go,target:manualarticle,prefix token='manual'
 internal/repository/manualarticle/repository.go,target:manualarticle,repository/manualarticle をdomain roll-up
@@ -530,8 +530,8 @@ internal/repository/reservationtype/repository.go,target:reservation,repository/
 internal/repository/reservationtypeavailableslot/repository.go,target:reservation,repository/reservationtypeavailableslot をdomain roll-up
 internal/repository/reservationtypegroup/repository.go,target:reservation,repository/reservationtypegroup をdomain roll-up
 internal/repository/reservationtypeunavailabletime/repository.go,target:reservation,repository/reservationtypeunavailabletime をdomain roll-up
-internal/repository/shared_file_repository.go,target:lstep,prefix token='shared'
-internal/repository/sharedfile/repository.go,target:lstep,repository/sharedfile をdomain roll-up
+internal/repository/shared_file_repository.go,target:lstep,L⑥: consumer 0のroot facadeを削除
+internal/repository/sharedfile/repository.go,target:lstep,L⑥: internal/lstep/shared_file_repository.goへroll-up
 internal/repository/shift_entry_repository.go,target:staff,prefix token='shift'
 internal/repository/shift_template_repository.go,target:staff,prefix token='shift'
 internal/repository/shiftentry/repository.go,target:staff,repository/shiftentry をdomain roll-up
@@ -725,7 +725,7 @@ internal/service/reservation_type_service_occupation.go,target:reservation,prefi
 internal/service/reservation_type_service_unavailable.go,target:reservation,prefix token='reservation'
 internal/service/reservation_validators.go,target:reservation,prefix token='reservation'
 internal/service/service.go,keep,composition-root facade (BE9-2F removal target)
-internal/service/shared_file_service.go,target:lstep,prefix token='shared'
+internal/service/shared_file_service.go,target:lstep,L⑥: internal/lstep/shared_file_service.goへ移動
 internal/service/shift_entry_service.go,target:staff,prefix token='shift'
 internal/service/shift_template_service.go,target:staff,prefix token='shift'
 internal/service/smtp_sender.go,keep,generic email-sending infra
