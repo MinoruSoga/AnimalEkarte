@@ -189,8 +189,12 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// Every future BE9-2C/2D/2E domain package will hit this same qualifier once it merges
 	// handler code into role scope; no further per-domain qualifier addition should be needed.
 	"gin": {},
-	// lstep.LifecycleAuditEntry is a transaction-local audit adapter input.
-	// It is not a persistence write DTO carrying a clinic-scoped master FK.
+	// gorm.DB is a transaction/query handle passed to repository-oriented helpers. It is not a
+	// request DTO and cannot carry a clinic-scoped master foreign key.
+	"gorm": {},
+	// lstep.LifecycleAuditEntry is the transaction-local audit adapter input at the
+	// composition boundary. It carries clinic/actor/resource IDs and audit labels only;
+	// it is not a persistence write DTO and cannot carry a clinic-scoped master FK.
 	"lstep": {},
 	// NOTE (BE9-2D sub-batch③): a "medicalrecord" qualifier was temporarily exempted in the
 	// Batch B middle state (labAuditAdapter.LogEntry(ctx, *medicalrecord.AuditEntry) in the now-
@@ -585,8 +589,8 @@ func baseName(p string) string {
 // examTypeService.Create/Update moved from internal/service to internal/medicalrecord (master-
 // CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
 // type names carried over verbatim) — only the evidence comments below now point at the new
-// file locations. "lstep/" was added when tag-sync write roles moved in L③a.
-var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/"}
+// file locations. "lstep/" was added when tag/checkup-sync write roles moved in L③.
+var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/", "lstep/"}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
 // "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this

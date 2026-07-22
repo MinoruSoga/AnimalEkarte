@@ -1,0 +1,178 @@
+package lstep
+
+import (
+	"context"
+	"log/slog"
+	"maps"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// lstepDormantBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
+const lstepDormantBatchPageSize = 500
+
+// deliveryTriggerHourJST は仕様 §6.4 で固定された Lステップ自動配信バッチの実行時刻 (10:00 JST)。
+// 設定可能化は意図的に廃止 (configurable fire hour 削除)。
+const deliveryTriggerHourJST = 10
+
+// LstepBatchService はバッチ処理でノーショウ検知・休眠検知を行うサービス（BE-005, BE-014）。
+type LstepBatchService interface {
+	// RunNoShowCheckAllClinics は全クリニックに対してノーショウ検知を実行するcronエントリポイント。
+	RunNoShowCheckAllClinics(ctx context.Context) error
+	// RunDormantDetectionAllClinics は全クリニックに対して休眠検知を実行するcronエントリポイント（02:00 JST）。
+	RunDormantDetectionAllClinics(ctx context.Context) error
+	// RunLTVTopPercentSyncAllClinics は全クリニックに対して LTV 上位 20% タグを同期するcronエントリポイント（FEAT-377）。
+	RunLTVTopPercentSyncAllClinics(ctx context.Context) error
+	// RunVisitDormantSyncAllClinics は全クリニックに対して VISIT_* タグ（180/210/240日超）を同期するcronエントリポイント（FEAT-377）。
+	RunVisitDormantSyncAllClinics(ctx context.Context) error
+	// RunHealthPreventionTagSyncAllClinics は全クリニックに対して健診・予防・物販タグを同期するcronエントリポイント（FEAT-379）。
+	RunHealthPreventionTagSyncAllClinics(ctx context.Context) error
+	// RunDeliveryTriggerBatchAllClinics は全クリニックに対して自動配信トリガーバッチを実行するcronエントリポイント（FEAT-383: 10:00 JST）。
+	RunDeliveryTriggerBatchAllClinics(ctx context.Context) error
+}
+
+type lstepBatchDeliveryTrigger interface {
+	TriggerFirstVisitFollowUp3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerFirstVisitFollowUp7D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerNextVisitReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerVaccineDeadline60(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerVaccineDeadline30(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerBirthdayMessage(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerDormantPrevention365(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerFilariaAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerFleaTickAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerFoodRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+}
+
+type lstepBatchReservationRepository interface {
+	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+}
+
+type lstepBatchClinicRepository interface {
+	FindAll(ctx context.Context) ([]model.Clinic, error)
+}
+
+type lstepBatchMedicalRecordRepository interface {
+	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]medicalrecord.DormantOwnerEntry, error)
+	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error)
+}
+
+type lstepBatchTagSyncer interface {
+	SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error
+	SyncLTVTopPercent(ctx context.Context, clinicID uint64) (int, []error)
+	SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
+	SyncHealthPreventionTagsForClinic(ctx context.Context, clinicID uint64) (int, []error)
+}
+
+type lstepBatchSettingsService interface {
+	IsSyncEnabled(ctx context.Context, clinicID uint64) (bool, error)
+	GetDormantThresholds(ctx context.Context, clinicID uint64) (model.DormantThresholds, error)
+}
+
+type lstepBatchAuditService interface {
+	LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error
+}
+
+type lstepBatchService struct {
+	reservationRepo      lstepBatchReservationRepository
+	tagSyncSvc           lstepBatchTagSyncer
+	clinicRepo           lstepBatchClinicRepository
+	medRecordRepo        lstepBatchMedicalRecordRepository
+	auditSvc             lstepBatchAuditService
+	settingsSvc          lstepBatchSettingsService
+	lstepDeliveryTrigger lstepBatchDeliveryTrigger
+	nowFn                func() time.Time
+}
+
+// NewLstepBatchService は LstepBatchService を初期化して返す。
+func NewLstepBatchService(
+	reservationRepo lstepBatchReservationRepository,
+	tagSyncSvc lstepBatchTagSyncer,
+	clinicRepo lstepBatchClinicRepository,
+	medRecordRepo lstepBatchMedicalRecordRepository,
+	auditSvc lstepBatchAuditService,
+	settingsSvc lstepBatchSettingsService,
+	lstepDeliveryTrigger lstepBatchDeliveryTrigger,
+) LstepBatchService {
+	return &lstepBatchService{
+		reservationRepo:      reservationRepo,
+		tagSyncSvc:           tagSyncSvc,
+		clinicRepo:           clinicRepo,
+		medRecordRepo:        medRecordRepo,
+		auditSvc:             auditSvc,
+		settingsSvc:          settingsSvc,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		nowFn:                time.Now,
+	}
+}
+
+// runBatchAllClinics は「全クリニック走査 → IsSyncEnabled ゲート → 1 クリニック分の処理 →
+// 部分エラーログ（本文サンプル付き）→ 処理件数>0 またはエラーあり時に audit 記録」という
+// lstep cron バッチ共通骨格を集約する（G3-2, dup-lstep-batch-allclinics）。
+// ログ文言・audit operation 文字列・extraMeta は呼び出し側が指定した値をそのまま使う。
+func (s *lstepBatchService) runBatchAllClinics(
+	ctx context.Context,
+	label string,
+	auditWarnLabel string,
+	syncedSuffix string,
+	operation string,
+	extraMeta map[string]any,
+	perClinic func(ctx context.Context, clinicID uint64) (int, []error),
+) error {
+	clinics, err := s.clinicRepo.FindAll(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, label+": failed to fetch clinics", "error", err)
+		return apperrors.Wrap(err, "failed to fetch clinics for "+label)
+	}
+
+	for i := range clinics {
+		clinic := &clinics[i]
+		if s.settingsSvc != nil {
+			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
+			if syncErr != nil {
+				slog.ErrorContext(ctx, label+": failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
+				continue
+			}
+			if !enabled {
+				continue
+			}
+		}
+		count, errs := perClinic(ctx, clinic.ID)
+		if len(errs) > 0 {
+			sample := errs
+			if len(sample) > 3 {
+				sample = sample[:3]
+			}
+			msgs := make([]string, 0, len(sample))
+			for _, e := range sample {
+				msgs = append(msgs, e.Error())
+			}
+			slog.ErrorContext(ctx, label+": partial errors",
+				"clinic_id", clinic.ID, "error_count", len(errs), "errors", msgs)
+		}
+		if count > 0 {
+			slog.InfoContext(ctx, label+": "+syncedSuffix, "clinic_id", clinic.ID, "count", count)
+		}
+		if count > 0 || len(errs) > 0 {
+			meta := map[string]any{
+				"operation":       operation,
+				"processed_count": count,
+				"error_count":     len(errs),
+			}
+			maps.Copy(meta, extraMeta)
+			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
+				operation, "clinic", &clinic.ID, meta,
+			); err != nil {
+				slog.WarnContext(ctx, "audit log failed for "+auditWarnLabel, "error", err, "clinic_id", clinic.ID)
+			}
+		}
+	}
+	return nil
+}

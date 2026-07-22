@@ -1,6 +1,23 @@
 package lstep
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+type mockEffectivePermissionService struct{}
+
+func testPermissionMiddleware(_, _ string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isSystemAdmin, ok := c.Get("is_system_admin")
+		if !ok || isSystemAdmin != true {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		c.Next()
+	}
+}
 
 // setClinicID は handler テスト用に clinic_id を gin.Context へ設定する
 // （medicalrecord/reservation/billing の同名ヘルパーの最小限の複製）。

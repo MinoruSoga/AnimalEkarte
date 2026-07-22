@@ -27,6 +27,9 @@ type Handler struct {
 	lifecycle         LstepLifecycleService
 	deliveryMonitor   LstepDeliveryMonitorService
 	triggerPriority   LstepTriggerPriorityService
+	aggregation       AggregationService
+	csvImport         LstepCsvImportService
+	analytics         LstepAnalyticsService
 	ownerLineLinker   ownerLineLinker
 	requirePermission PermissionMiddleware
 }
@@ -49,6 +52,9 @@ func NewHandler(
 	lifecycle LstepLifecycleService,
 	deliveryMonitor LstepDeliveryMonitorService,
 	triggerPriority LstepTriggerPriorityService,
+	aggregation AggregationService,
+	csvImport LstepCsvImportService,
+	analytics LstepAnalyticsService,
 	ownerLineLinker ownerLineLinker,
 	requirePermission PermissionMiddleware,
 ) *Handler {
@@ -65,6 +71,9 @@ func NewHandler(
 		lifecycle:         lifecycle,
 		deliveryMonitor:   deliveryMonitor,
 		triggerPriority:   triggerPriority,
+		aggregation:       aggregation,
+		csvImport:         csvImport,
+		analytics:         analytics,
 		ownerLineLinker:   ownerLineLinker,
 		requirePermission: requirePermission,
 	}
@@ -159,6 +168,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// FEAT-384 / Q23: delivery monitor and trigger priority settings.
 	h.RegisterLstepDeliveryMonitorRoutes(rg)
 	h.RegisterLstepTriggerPriorityRoutes(rg)
+
+	// BE-010 / FEAT-385: aggregation, CSV import, and analytics.
+	h.RegisterAggregationRoutes(rg)
+	h.RegisterLstepCsvImportRoutes(rg)
+	h.RegisterLstepAnalyticsRoutes(rg)
+	co.GET("/:id/lstep/friend-attributes", h.requirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
 
 	// 顧客管理（旧 reservation_line_routes.go 逐語）
 	customers := clinics.Group("/line-customers")

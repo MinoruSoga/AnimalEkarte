@@ -459,6 +459,9 @@ func main() {
 		svcs.LstepLifecycle,
 		svcs.LstepDeliveryMonitor,
 		svcs.LstepTriggerPriority,
+		svcs.Aggregation,
+		svcs.LstepCsvImport,
+		svcs.LstepAnalytics,
 		svcs.Owner,
 		h.RequirePermission,
 	)

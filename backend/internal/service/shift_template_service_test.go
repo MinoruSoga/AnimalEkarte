@@ -153,7 +153,7 @@ func TestBuildShiftTemplateUpdate(t *testing.T) {
 				StartTime: strPtr("13:00"),
 				EndTime:   strPtr("18:00"),
 				Notes:     strPtr("メモ"),
-				SortOrder: intPtr(2),
+				SortOrder: shiftTemplateIntPtr(2),
 				IsActive:  boolPtr(false),
 			},
 			want: map[string]any{
@@ -175,6 +175,8 @@ func TestBuildShiftTemplateUpdate(t *testing.T) {
 		})
 	}
 }
+
+func shiftTemplateIntPtr(value int) *int { return &value }
 
 // ---- Tests: List ----
 

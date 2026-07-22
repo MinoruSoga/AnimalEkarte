@@ -89,13 +89,13 @@ type Services struct {
 	LstepTag       LstepTagService
 	SharedFile     SharedFileService
 	// LSTEP-BE-010: LTV集計 → 顧客集計ドメインに統一
-	Aggregation AggregationService
+	Aggregation lstep.AggregationService
 	// LSTEP-BE-012: 慢性疾患フラグ
 	ChronicCondition ChronicConditionService
 	// LSTEP-BE-013: LINE個別送信
 	LineSend lstep.LineSendService
 	// LSTEP-BE-014: ノーショウ検知バッチ
-	LstepBatch LstepBatchService
+	LstepBatch lstep.LstepBatchService
 	// FEAT-383: 自動配信トリガー
 	LstepDeliveryTrigger lstep.LstepDeliveryTriggerService
 	// Q23: トリガー優先順位設定
@@ -113,8 +113,8 @@ type Services struct {
 	// FEAT-384: 自動配信トリガー監視
 	LstepDeliveryMonitor lstep.LstepDeliveryMonitorService
 	// FEAT-385: Lステップ CSV インポート・分析
-	LstepCsvImport LstepCsvImportService
-	LstepAnalytics LstepAnalyticsService
+	LstepCsvImport lstep.LstepCsvImportService
+	LstepAnalytics lstep.LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
 	// 認証: JWT 発行・検証
@@ -213,10 +213,10 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 	// on Services. The LSTEP tag-sync / delivery-trigger deps they need are exposed to main.go
 	// via svcs.LstepTagSync / svcs.LstepDeliveryTrigger.
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
-	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
+	lstepBatchSvc := lstep.NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
 	// FEAT-385: Lステップ CSV インポート・分析
-	lstepCsvImportSvc := NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
-	lstepAnalyticsSvc := NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
+	lstepCsvImportSvc := lstep.NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.Owner)
+	lstepAnalyticsSvc := lstep.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
 
 	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
 
@@ -288,7 +288,7 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		ReservationSchedule:       reservation.NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          reservation.NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              lstep.NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
-		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
+		Aggregation:               lstep.NewAggregationService(lstepAggregationRepositoryAdapter{inner: repos.Ltv}, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,

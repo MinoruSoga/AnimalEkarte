@@ -125,16 +125,13 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// LSTEP / LINE連携
 	// Lステップ設定 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L①）
 	h.RegisterSharedFileRoutes(protected)
-	h.RegisterAggregationRoutes(protected)
-	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	// Q23: トリガー優先順位設定
-	// FEAT-379: タグコードマッピング設定
-	// 自動管理タグプレフィックス・条件タグ・送信目的タグ設定
-	// FEAT-384: 自動配信トリガー監視
-	// FEAT-385: Lステップ CSV インポート・分析
-	h.RegisterLstepCsvImportRoutes(protected)
-	h.RegisterLstepAnalyticsRoutes(protected)
+	// Customer aggregation routes moved to internal/lstep (L⑤).
+	// LSTEP-BE-019/020: owner tag CRUD and tag summary routes moved to internal/lstep (L③a).
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携 routes moved to internal/lstep (L③b).
+	// Q23: トリガー優先順位設定 routes moved to internal/lstep (L④).
+	// FEAT-379 tag-code mappings and dynamic tag configuration moved to internal/lstep (L③a).
+	// FEAT-384: 自動配信トリガー監視 routes moved to internal/lstep (L④).
+	// FEAT-385 CSV import / analytics routes moved to internal/lstep (L⑤).
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	// LIFF 公開 API routes は internal/reservation.RegisterLiffRoutes へ移動（BE9-2C R⑤・main.go 配線）
@@ -168,16 +165,14 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
 	// ISSUE-001: FE統一エンドポイントのエイリアス。co側に無い理由は未文書化（現状維持）
 	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
-	// co側に無い理由は未文書化（現状維持）
-	// BE-017: Lステップオプトアウト（旧エンドポイント互換保持）
-	// ISSUE-001: 統合opt-outエンドポイント。co側に無い理由は未文書化（現状維持）
+	// LINE解除 / Lステップopt-out lifecycle routes moved to internal/lstep (L④).
 	// FEAT-381: 配信除外・転院・LINE ID確認
 	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryExclusion)
 	// FEAT-381-2: 配信注意フラグ
 	owners.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
 	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
-	// BE-019: Lステップタグ CRUD
+	// BE-019 Lステップタグ CRUD routes moved to internal/lstep (L③a).
 	// BE-013: LINE個別送信。owners側は /lstep/send・/lstep/send-history エイリアスを含む4ルート、
 	// co側はそのうち2ルートのみ（下記）— co側に2ルート無い理由は未文書化（現状維持）
 	// LINE 個別送信 routes は internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
@@ -190,9 +185,10 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
 	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
+	// clinic alias opt-out lifecycle route moved to internal/lstep (L④).
+	// clinic alias tag CRUD routes moved to internal/lstep (L③a).
 	// co側 LINE 個別送信 2ルートは internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
-	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
-	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
+	// FEAT-385 latest friend attributes route moved to internal/lstep (L⑤).
 }
 
 // registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

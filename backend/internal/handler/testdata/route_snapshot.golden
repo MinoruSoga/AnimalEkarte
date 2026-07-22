@@ -21,11 +21,6 @@ DELETE /api/v1/trimmings/:id DeleteTrimming
 GET /api/v1/clinic-holidays ListClinicHolidays
 GET /api/v1/clinics ListClinics
 GET /api/v1/clinics/:clinic_id GetClinic
-GET /api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats GetLstepMonthlyDeliveryStats
-GET /api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion GetLstepVisitConversionSummary
-GET /api/v1/clinics/:clinic_id/lstep/csv-imports ListLstepCsvImports
-GET /api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes GetLstepOwnerFriendAttributes
-GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
 GET /api/v1/closing-settings GetClosingSettings
 GET /api/v1/closing-settings/holidays ListClinicHolidays
 GET /api/v1/closing-settings/special-periods ListSpecialPeriods
@@ -114,7 +109,6 @@ POST /api/v1/auth/refresh RefreshToken
 POST /api/v1/auth/reset-password ResetPassword
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
-POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepFriendAttributesCsv
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/inventory CreateInventory

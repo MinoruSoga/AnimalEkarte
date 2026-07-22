@@ -10,7 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
+func TestRegisterRoutes_L5RBACTuples(t *testing.T) {
 	type permissionTuple struct {
 		resource string
 		action   string
@@ -44,28 +44,13 @@ func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	// L①〜L③b register 40 tuples before L④. L④ preserves the four owner
-	// lifecycle routes, four pet-death routes, four delivery-monitor routes, and
-	// four trigger-priority routes.
 	require.Len(t, calls, 64)
 	assert.Equal(t, []permissionTuple{
-		{string(model.ResourceOwners), "delete"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
-		{string(model.ResourceOwners), "edit"},
+		{string(model.ResourceOwners), "view"},
+		{string(model.ResourceLstepCsvImport), "edit"},
+		{string(model.ResourceLstepCsvImport), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
-		{string(model.ResourceLstepAnalytics), "view"},
-	}, calls[40:52])
-	assert.Equal(t, []permissionTuple{
-		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "edit"},
-		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "edit"},
-	}, calls[52:56])
+	}, calls[56:62])
 }
