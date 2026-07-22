@@ -1,11 +1,11 @@
-package handler
+package trimming
 
 import (
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// BE9-2E codegen compatibility carriers: tygo still pins this legacy file path.
-// Move that configuration to internal/trimming and delete these aliases in BE9-2F.
 // FE7-1: tygo codegen 対象にするため export（BackendTrimming の生成契約ゲート化・FE-refactor.md
 // BackendTrimming BLOCKED の解消）。JSON wire 形状は json タグで完全維持しており不変。
 type TrimmingOptionSummaryResponse struct {
@@ -53,4 +53,60 @@ type TrimmingResponse struct {
 	Staff   *staffSummaryResponse           `json:"staff,omitempty" tstype:"-"`
 	Course  *TrimmingCourseSummaryResponse  `json:"course,omitempty"`
 	Options []TrimmingOptionSummaryResponse `json:"options"`
+}
+
+func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
+	resp := TrimmingResponse{
+		ID:                appt.ID,
+		ClinicID:          appt.ClinicID,
+		ReservationTypeID: appt.ReservationTypeID,
+		StartTime:         localTime(appt.StartTime),
+		EndTime:           localTime(appt.EndTime),
+		PetID:             appt.PetID,
+		StaffID:           appt.DoctorID,
+		Status:            string(appt.Status),
+		Source:            string(appt.Source),
+		CreatedAt:         localTime(appt.CreatedAt),
+		UpdatedAt:         localTime(appt.UpdatedAt),
+		Pet:               toPetSummary(appt.Pet),
+		Staff:             toStaffSummary(appt.Doctor),
+		Options:           make([]TrimmingOptionSummaryResponse, 0),
+		// TrimmingDetail が nil の異常データ向けデフォルト（モデルデフォルトと一致）
+		BWUnit: "Kg",
+	}
+
+	if appt.TrimmingDetail != nil {
+		d := appt.TrimmingDetail
+		resp.HasDetail = true
+		resp.CourseID = d.CourseID
+		resp.StyleRequest = d.StyleRequest
+		resp.BW = d.BodyWeight
+		resp.BWUnit = string(d.BWUnit)
+		resp.BT = d.BodyTemperature
+		resp.UsedShampoo = d.UsedShampoo
+		resp.UsedRibbon = d.UsedRibbon
+		resp.Remarks = d.Remarks
+		resp.StyleImage = d.StyleImage
+		resp.CompletedImage = d.CompletedImage
+
+		if d.Course != nil {
+			var price int64
+			if d.Course.Price != nil {
+				price = *d.Course.Price
+			}
+			resp.Course = &TrimmingCourseSummaryResponse{
+				ID:    d.Course.ID,
+				Name:  d.Course.Name,
+				Price: price,
+			}
+		}
+		for i := range d.Options {
+			resp.Options = append(resp.Options, TrimmingOptionSummaryResponse{
+				ID:   d.Options[i].ID,
+				Name: d.Options[i].Name,
+			})
+		}
+	}
+
+	return resp
 }
