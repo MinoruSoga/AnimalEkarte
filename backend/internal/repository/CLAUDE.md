@@ -1,6 +1,6 @@
 # Persistence Packages
 
-このディレクトリは現行 code の database access を収めているが、repository pattern は Go/Gin公式要件ではない。persistence code の配置や abstraction は、利用者、transaction boundary、query の凝集性で判断する。
+このdirectoryは未移行persistence実装と期限付きcompatibility facadeのmigration surfaceであり、新規production実装の追加先ではない。新規実装は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)のtarget domain packageへ置く。ここを変更するのは、未移行実装の保守・安全修正、domain移動、または実consumerと削除phaseを持つcompatibility変更に限る。repository pattern自体はGo/Gin公式要件ではなく、詳細は[`BE-refactor.md`](../../../BE-refactor.md)に従う。
 
 ## Review points
 

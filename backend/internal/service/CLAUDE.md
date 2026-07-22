@@ -1,6 +1,6 @@
 # Application Logic Packages
 
-このディレクトリは現行 code の application logic を収めているが、`service` layer は Go/Gin公式要件ではない。package を増減・分割するときは、layer 名ではなく凝集性、利用者、依存方向、変更単位で判断する。
+このdirectoryは未移行application logicと期限付きcompatibility facade/adapterのmigration surfaceであり、新規production実装の追加先ではない。新規実装は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)のtarget domain packageへ置く。ここを変更するのは、未移行実装の保守・安全修正、domain移動、または実consumerと削除phaseを持つcompatibility変更に限る。`service` layer自体はGo/Gin公式要件ではなく、詳細は[`BE-refactor.md`](../../../BE-refactor.md)に従う。
 
 ## Review points
 
