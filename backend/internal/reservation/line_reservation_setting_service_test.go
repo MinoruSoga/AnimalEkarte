@@ -372,8 +372,8 @@ func testPlainEncrypt(value string) (string, error) { return value, nil }
 
 func testPlainDecrypt(_ context.Context, value string) string { return value }
 
-// testCipherEncrypt/testCipherDecrypt は production 注入 closure（service 集約が
-// lstep/line_credentials.go の encrypt/lstep.DecryptLineCredential を包む）と同一契約の
+// testCipherEncrypt/testCipherDecrypt はproduction注入closure（composition rootが
+// lstep/line_credentials.goのencrypt/decryptを包む）と同一契約の
 // テスト側再現（nil/空文字素通し+実 cipher・H-4）。helper 本体の単体検証は
 // service/line_credentials_test.go が正本。
 func testCipherEncrypt(cipher *crypto.AESGCMCipher) func(string) (string, error) {

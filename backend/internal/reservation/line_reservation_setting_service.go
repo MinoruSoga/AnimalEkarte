@@ -50,14 +50,14 @@ type LineReservationSettingService interface {
 type lineReservationSettingService struct {
 	repo LineReservationSettingRepository
 	// encrypt/decrypt は LINE credential の暗号化 helper（lstep 系実装・topo で import 不可）の
-	// closure 注入（R④ notification と同型・service 集約が旧実装を包んで渡す）。
+	// closure 注入（R④ notification と同型・composition rootが実装を包んで渡す）。
 	encryptCredential func(value string) (string, error)
 	decryptCredential func(ctx context.Context, value string) string
 	// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 }
 
 // NewLineReservationSettingService は LineReservationSettingService を初期化して返す。
-// closure が nil/空文字素通しを判定する場合（旧 cipher=nil 契約）は暗号化なしで動作する（lstep 連携と同一の cipher を再利用する）。
+// closure が nil/空文字素通しを判定する場合（旧 cipher=nil 契約）は暗号化なしで動作する（lstep 連携と同一の cipher をcomposition rootから受け取る）。
 func NewLineReservationSettingService(
 	repo LineReservationSettingRepository,
 	encryptCredential func(value string) (string, error),

@@ -41,7 +41,7 @@ type ReservationNotificationConfig struct {
 }
 
 // LinePusher は LINE Push（lstep domain 実装・topo で reservation→lstep import 禁止）の最小view。
-// exported なのは service 集約が closure の戻り型として名指しするため。
+// exported なのはcomposition boundaryがfactoryの戻り型として名指しするため。
 type LinePusher interface {
 	PushText(ctx context.Context, to, text string) error
 }
@@ -58,7 +58,7 @@ type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
 	settingRepo lineReservationSettingFinder
 	// 以下3本は lstep/auth 側実装の closure 注入（topo で reservation からの import 禁止のため。
-	// 具象は service 集約が旧実装（lstep.DecryptLineCredential/NewLineMessagingService/sendSMTPMail）を包んで渡す）。
+	// 具象はcomposition rootが包んで渡す）。
 	decryptCredential func(ctx context.Context, value string) string
 	newLineMessenger  func(channelToken string) LinePusher
 	sendMail          func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error

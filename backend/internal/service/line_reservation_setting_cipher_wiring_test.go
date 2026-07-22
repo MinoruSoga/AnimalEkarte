@@ -1,10 +1,9 @@
 package service
 
 // line_reservation_setting_cipher_wiring_test.go — R⑥レビューMEDIUM対応:
-// NewServices が LINE 予約設定サービスへ注入する encrypt/decrypt closure が
-// 実 lstep.EncryptLineCredential/lstep.DecryptLineCredential（実 cipher）へ正しく配線されることを
-// Save() 貫通で固定する統合テスト（reservation 側テストは複製 closure を使うため、
-// 実配線はここが唯一の検証点・new_services_cipher_test.go の X-2 と同型）。
+// NewServices がtyped compatibility inputのencrypt/decrypt closureをLINE予約設定serviceへ
+// そのまま注入することをSave()貫通で固定する。cmd/apiのproduction closure配線は
+// lstep_dependencies_test.goが検証する。
 
 import (
 	"context"
@@ -42,11 +41,19 @@ func TestNewServices_LineReservationSettingUsesInjectedCipherClosures(t *testing
 	svcs := NewServices(
 		repos,
 		&reservation.ReservationNotificationConfig{},
-		cipher,
 		"test-jwt-secret",
 		&mockAuditService{},
-		&mockLstepTagSyncService{},
-		nil,
+		&LegacyLstepDependencies{
+			TagSync: &mockLstepTagSyncService{},
+			EncryptCredential: func(value string) (string, error) {
+				return cipher.Encrypt(value)
+			},
+			DecryptCredential: func(_ context.Context, value string) string {
+				plaintext, decryptErr := cipher.Decrypt(value)
+				require.NoError(t, decryptErr)
+				return plaintext
+			},
+		},
 		repo,
 	)
 

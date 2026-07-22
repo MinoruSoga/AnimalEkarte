@@ -31,7 +31,7 @@ type liffService struct {
 	scheduleRepo        ReservationScheduleRepository
 	adminRepo           ReservationAdminRepository
 	reservationRepo     ReservationRepository
-	customerRepo        liffLineCustomerRepo
+	customerRepo        LiffLineCustomerRepository
 	ownerRepo           liffOwnerRepo
 	validators          ReservationValidators
 	notifier            ReservationNotifier
@@ -51,7 +51,7 @@ func NewLiffServiceWithType(
 	staffRepo ReservationStaffRepository,
 	scheduleRepo ReservationScheduleRepository,
 	adminRepo ReservationAdminRepository,
-	customerRepo liffLineCustomerRepo,
+	customerRepo LiffLineCustomerRepository,
 	ownerRepo liffOwnerRepo,
 	tx Transactor,
 	reservationRepo ReservationRepository,

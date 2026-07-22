@@ -61,7 +61,9 @@ type lineReservationSettingFinder interface {
 
 // ---- LIFF 用 consumer-side views（未移行 domain の repo・BE9-2C R⑤）----
 
-type liffLineCustomerRepo interface {
+// LiffLineCustomerRepository is the reservation-owned view used by LIFF booking.
+// It is exported only so the composition boundary can supply the LSTEP-owned implementation.
+type LiffLineCustomerRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 	UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
 	UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error

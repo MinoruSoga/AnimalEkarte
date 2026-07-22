@@ -4,12 +4,20 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/billing"
-	"github.com/animal-ekarte/backend/internal/infra/crypto"
-	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
+
+// LegacyLstepDependencies is the typed compatibility input for real legacy consumers.
+// It does not retain LSTEP services in Services; remove it with the service aggregator in BE9-2F.
+type LegacyLstepDependencies struct {
+	TagSync           LstepTagSyncService
+	LineCustomers     reservation.LiffLineCustomerRepository
+	EncryptCredential func(value string) (string, error)
+	DecryptCredential func(ctx context.Context, value string) string
+	NewLinePusher     func(channelToken string) reservation.LinePusher
+}
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
@@ -94,24 +102,19 @@ type Services struct {
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す。
-// cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
-// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
-// lstep 連携と同一の cipher を再利用する。
+// LSTEP-owned implementations arrive only through the typed compatibility input; this
+// legacy aggregator neither constructs nor stores LSTEP services.
 func NewServices(
 	repos *repository.Repositories,
 	notifCfg *reservation.ReservationNotificationConfig,
-	cipher *crypto.AESGCMCipher,
 	jwtSecret string,
 	auditSvc AuditKernel,
-	lstepTagSyncSvc LstepTagSyncService,
-	lineCustomers lstep.LineCustomerRepository,
+	lstepDeps *LegacyLstepDependencies,
 	lineReservationSettings reservation.LineReservationSettingRepository,
 ) *Services {
 	notifier := reservation.NewReservationNotificationService(notifCfg, lineReservationSettings,
-		func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) },
-		func(channelToken string) reservation.LinePusher {
-			return lstep.NewLineMessagingService(channelToken)
-		},
+		lstepDeps.DecryptCredential,
+		lstepDeps.NewLinePusher,
 		smtpSendAdapter)
 	auditTxLogger := AuditTxLogger(auditSvc)
 	tx := repository.NewTransactor(repos.DB())
@@ -150,7 +153,7 @@ func NewServices(
 	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
 
 	// LSTEP-BE-012: 慢性疾患フラグ
-	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepTagSyncSvc)
+	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepDeps.TagSync)
 
 	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
 
@@ -159,10 +162,10 @@ func NewServices(
 		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		Audit:                 auditSvc,
 		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepTagSyncSvc, auditSvc),
-		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
+		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepDeps.TagSync, auditSvc),
+		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepDeps.TagSync),
 		Reservation:           reservation.NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		Accounting:            billing.NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, billingAuditTxAdapter{inner: auditTxLogger}, repos.PaymentMethodMaster),
+		Accounting:            billing.NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepDeps.TagSync, tx, billingAuditTxAdapter{inner: auditTxLogger}, repos.PaymentMethodMaster),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,
@@ -213,8 +216,8 @@ func NewServices(
 		CashRegister:        billing.NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:    billing.NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting: reservation.NewLineReservationSettingService(lineReservationSettings,
-			func(value string) (string, error) { return lstep.EncryptLineCredential(cipher, value) },
-			func(ctx context.Context, value string) string { return lstep.DecryptLineCredential(ctx, cipher, value) }),
+			lstepDeps.EncryptCredential,
+			lstepDeps.DecryptCredential),
 		ReservationTypeLiff:       reservation.NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,
@@ -229,7 +232,7 @@ func NewServices(
 			repos.ReservationStaff,
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,
-			lineCustomers,
+			lstepDeps.LineCustomers,
 			repos.Owner,
 			tx,
 			repos.Reservation,

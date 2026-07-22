@@ -6,9 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -104,6 +106,22 @@ func (a petLifecycleWriterAdapter) ClearDeath(ctx context.Context, clinicID, pet
 	return a.inner.Update(ctx, clinicID, petID, map[string]any{
 		"deceased_at": nil, "deceased_reason": nil, "status": model.PetStatusAlive,
 	})
+}
+
+func newLegacyLstepDependencies(app *lstep.Application, cipher *appcrypto.AESGCMCipher) *service.LegacyLstepDependencies {
+	return &service.LegacyLstepDependencies{
+		TagSync:       app.TagSync,
+		LineCustomers: app.LineCustomers,
+		EncryptCredential: func(value string) (string, error) {
+			return lstep.EncryptLineCredential(cipher, value)
+		},
+		DecryptCredential: func(ctx context.Context, value string) string {
+			return lstep.DecryptLineCredential(ctx, cipher, value)
+		},
+		NewLinePusher: func(channelToken string) reservation.LinePusher {
+			return lstep.NewLineMessagingService(channelToken)
+		},
+	}
 }
 
 func adaptPermissionAny(require func(...struct{ Resource, Action string }) gin.HandlerFunc) lstep.PermissionAnyMiddleware {
