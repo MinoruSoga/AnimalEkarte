@@ -43,7 +43,7 @@ type lstepLineSettingReader interface {
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 }
 
-// lstepSharedFileService は共有ファイル（未移行 service）の署名付きURL取得の最小view。
+// lstepSharedFileService は共有ファイル署名付きURL取得のconsumer-side最小view。
 type lstepSharedFileService interface {
 	GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error)
 }
