@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式baseline上のdomain/capability移行
 
-> **ACTIVE (2026-07-19)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-22)**: 大規模domain 3件完了（medicalrecord 完了時185 file・現行分類175 / reservation 77 / billing 65）。L③a〜L④とBE9-2E-0は完遂、L⑤は**landing完遂 / release pending**。**進行中 = lstep L⑥**、次 = L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4。L⑤のfresh DB実migration適用はrelease gateとして残る。
+> **ACTIVE (2026-07-19、2026-07-22再照合)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
+> **進捗 (2026-07-22、code baseline `e662ab55d`)**: 大規模domain 3件完了（medicalrecord 完了時185 file・現行分類175 / reservation 77 / billing 65）。L③a〜L④とBE9-2E-0は完遂、L⑤は**landing完遂 / release pending**。**現在domain = lstep、次の未着手slice = L⑥**。残順 = L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4。L⑤のfresh DB実migration適用はrelease gateとして残る。
 > **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#be9-current-state)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
 > **BE8 SUPERSEDED**: 固定layerをGo/Gin公式要件として扱う方針は[ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md)、層優先subpackage/repository→service→handler移行は実測に基づく[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
@@ -66,7 +66,7 @@ backend/
 | 状態 | target domain | classification manifest source数 | 実績・着手方針 |
 |---|---|---:|---|
 | **済** | medicalrecord | 175 | 最大domain・**完了（2026-07-21、完了時inventory 185）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
-| **進行中** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 122 file。次=L⑥（残置解消）。内部分割しない（論点#2裁定・単一`internal/lstep`） |
+| **次着手** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 122 file。次の未着手slice=L⑥（残置解消）。内部分割しない（論点#2裁定・単一`internal/lstep`） |
 | **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
 | **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
 | 未着手 | staff 31 / auth 25 / clinic 25 / trimming 23 / pet 18 / owner 13 / inventory 12 | 147計 | **BE9-2E の対象**。lstep完了後、ready frontier内のlargest-ready順で処理する。owner は lstep L② の `OwnerResponder` closure 注入（`handler.RespondLinkedOwner`）の解消先でもある |
@@ -331,11 +331,13 @@ landing実行結果:
 3. 各commit treeを隔離してscoped検証し、production move、hardening、migration、write-owner収束を別revert単位へ維持した。
 4. L③a〜L④とBE9-2E-0は完遂、L⑤はlanding完遂 / release pending。L⑥は最新tipから開始できる。
 
-- **L⑥ 残置解消（未着手）**:
+- **L⑥ 残置解消（未着手・code baseline `e662ab55d`で再実測）**:
   1. `target:lstep`のまま旧layerに残るSharedFileはmanifest上6 production row（移動5 + 旧repository facade削除1）、test 4 file、route 4本。5実装と4 testを`internal/lstep`へ移し、旧facadeを削除してroute snapshot、RBAC、OpenAPI、compositionを保存する。POSTのOR権限（`owners:edit` / `medical-records:create` / `medical-records:edit`）はtyped middleware注入と専用RBAC testで固定する。別domainへ再分類する場合は先にADR-006と分類manifestを更新する。
   2. LSTEPのtyped composition result/constructorをtarget側へ置き、`cmd/api`（または凝集理由のあるcomposition package）が明示的に組み立てる。`service.NewServices`/`service.Services`が持つLSTEP construction・ownershipを解き、旧domain consumerには必要最小限の入力だけを渡す。
-  3. 旧packageに残るrepository facade 15本、service adapter、DTO alias、mock carrierをconsumer単位で棚卸しし、consumer 0は削除する。`accounting_reports_dto_aliases.go`の現consumerは`internal/service/mocks_accounting_test.go`であり、LSTEP testではない。`service/be9_2c_l3_tag_config_mock_carrier_test.go`全体と`service/lstep_l4_mock_carriers_test.go`のsettings/tag-cache carrierはconsumer 0の削除候補。tag-sync/lifecycle carrierはowner/pet/chronic等の残consumerと削除phaseを記録する。
-  4. 残すfacadeごとに実consumerとBE9-2E/2Fの削除phaseを明記し、移行期限のないalias・delegate・mockを残さない。
+  3. SharedFile facadeとは別に旧repository rootへ残るLSTEP composition関連facade 15本をconsumer単位で棚卸しする。内訳は`target:lstep` 14本（`checkup_sync`、`line_customer`、`line_link_token`、`line_send_log`、`lstep_*` 10本）+ `target:reservation` 1本（`line_reservation_setting`）。consumerをtarget package constructorへ切り替え、consumer 0になったfacadeだけを削除する。
+  4. 旧serviceに残るproduction adapter 3本（`lstep_aggregation_repository_adapter.go`、`lstep_lifecycle_audit_adapter.go`、`lstep_no_show_audit_adapter.go`）とtest-only mock carrierを棚卸しする。`service/be9_2c_l3_tag_config_mock_carrier_test.go`全体と`service/lstep_l4_mock_carriers_test.go`のsettings/tag-cache carrierはconsumer 0の削除候補。tag-sync/lifecycle carrierはowner/pet/chronic等の実consumerとBE9-2Eの削除phaseを記録する。`repository/accounting_reports_dto_aliases.go`の現consumerは`internal/service/mocks_accounting_test.go`でありLSTEP consumerではないため、L⑥の削除対象に数えずBE9-2E/2Fで追跡する。
+  5. `service.NewServices`は現時点でもLSTEP service群とSharedFileを構築し、`service.Services`がLSTEP field群を保持し、`cmd/api/main.go`が`svcs.Lstep*`を`lstep.NewHandler(...)`へ注入している。この3つのcomposition surfaceを同一cutover単位として扱い、target側typed resultへ収束させる。
+  6. 残すfacadeごとに実consumerとBE9-2E/2Fの削除phaseを明記し、移行期限のないalias・delegate・mockを残さない。
 
   **完了条件**: 分類manifestの`target:lstep`全rowがtarget packageへ移動済み、削除済み、または実consumerと期限を持つ薄いfacadeのいずれかである。SharedFile、LSTEP production composition、route/testがtarget側へ収束し、consumer 0のalias・adapter・mock carrierが0件。
 
@@ -390,6 +392,8 @@ landing実行結果:
 
 **完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件（ADRに記録した期限付き例外を除く）。
 
+<a id="be9-2f-legacy-layer-removal"></a>
+
 #### BE9-2F: 旧layer packageとfacadeを撤去する
 
 **着手条件**: BE9-2E-0を独立batchとしてlanding済み、かつBE9-2Eを完了し、facade削除によって未収束のwrite pathを隠さないこと。
@@ -401,7 +405,7 @@ landing実行結果:
 
 **完了条件**: `internal/handler`、`internal/service`、`internal/repository`にproduction implementationが0件。残すdirectory/fileがある場合は、domain packageへ置けない具体的consumer理由とADR-006の例外記録が必要。全target packageは単独test可能でimport cycleが0件。
 
-**残量の実測（2026-07-21・lstep L②完了時点。BE9-2E/2Fの規模見積の基準値）**: production file（`_test.go`除く）は `internal/handler` 109・`internal/service` 104・`internal/repository` 98。うち repository の **58 file は domain package への型alias facade**（`= lstep.X` 等）で、BE9-2F の削除対象。repository subpackage は 22 個残（旧BE8-4の42個から縮小）。`repos.Transaction` 機構は production consumer が既に0で、BE9-2F で機構ごと削除する。
+**残量の実測（2026-07-22・code baseline `e662ab55d`、L⑤/BE9-2E-0 landing後）**: `_test.go`を除くGo fileは`internal/handler` **80**、`internal/service` **59**、`internal/repository` **124**（root 98 + nested 26）の計263。repository root 98本のうち **58本は移行済みtarget packageへの型alias facade**（`= lstep.X`等）であり、実装残量と同一視しない。repository直下のsubpackageは21個（`repohelpers`、test supportの`repotest`を含む）。`Repositories.Transaction` method/`TransactionFn`は残るが、non-test production call-siteは0件で、BE9-2Fで機構ごと削除する。以後の規模見積はこの値をbaselineとし、各domain landing後に同じ条件で再計測する。
 
 ### BE9-3: Gin HTTP境界・production lifecycleを公式checklistで監査する
 
@@ -471,7 +475,9 @@ landing実行結果:
 - **reservation（77 file）**: Phase 0（`3dc35694e`）→ R①〜R⑥（`c4c95698d`〜`0ee22c180`）。
 - **billing（65 file）**: BUG-417是正（`2634f58fe`）→ B①〜B⑥（`22b2094e1`〜`24420376c`）。
 
-**進行中 = lstep L⑥**: 分類manifestの`target:lstep`は119 source row、現行`internal/lstep`はproduction Go 122 fileであり、別指標。L①（`6bae6095d`）→ L②（`2ef112227`）→ L③a（`d333d63ac`）→ L③b（`ba5767e88`+`5fdfa11fa`）→ L④（`62a09f62e`+`860bd5020`）は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂した。**次 = L⑥（SharedFile、composition、facade/DTO/mock carrier残置解消）**。
+**現在domain = lstep / 次の未着手slice = L⑥**: 分類manifestの`target:lstep`は119 source row、現行`internal/lstep`はproduction Go 122 fileであり、別指標。L①（`6bae6095d`）→ L②（`2ef112227`）→ L③a（`d333d63ac`）→ L③b（`ba5767e88`+`5fdfa11fa`）→ L④（`62a09f62e`+`860bd5020`）は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂した。L⑥のproduction変更はcode baseline `e662ab55d`時点で未着手であり、次はSharedFile、typed composition、facade/adapter/mock carrier残置の解消から開始する。
+
+**旧3layer残量（同baseline）**: `_test.go`を除きhandler 80 / service 59 / repository 124（root 98 + nested 26）。repository rootの58本は移行済みtargetへの型alias facadeであり、残production implementation数ではない。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
 
 **その後**: L⑥を終えた後、BE9-2E（中小domain 147 source row = staff/auth/clinic/trimming/pet/owner/inventory）→ BE9-2F（facade撤去・`repos.Transaction`機構削除。production consumer は既に0）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 

@@ -3,130 +3,197 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3セッション開発計画 — Readiness View（2026-07-16）</title>
+<title>BE9 4セッション実行計画 — Readiness View（2026-07-22）</title>
 <style>
   :root {
-    --ink: #1a202c; --sub: #4a5568; --line: #e2e8f0; --bg: #f7fafc;
-    --a: #2b6cb0; --b: #2f855a; --c: #9b2c2c;
+    --ink: #172033;
+    --sub: #526079;
+    --line: #dce3ec;
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --accent: #2858a4;
+    --done: #237a4b;
+    --current: #9a6700;
+    --wait: #667085;
+    --risk: #b42318;
   }
   * { box-sizing: border-box; }
-  body { font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 24px; line-height: 1.65; }
-  main { max-width: 1080px; margin: 0 auto; }
-  h1 { font-size: 22px; border-bottom: 3px solid var(--ink); padding-bottom: 8px; }
-  h2 { font-size: 18px; margin-top: 36px; }
-  .meta { color: var(--sub); font-size: 13px; }
-  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13.5px; }
-  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: #edf2f7; }
-  code { background: #edf2f7; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
-  .card { background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--sub); border-radius: 6px; padding: 16px 20px; margin: 16px 0; }
-  .card.s1 { border-left-color: var(--a); } .card.s2 { border-left-color: var(--b); }
-  .card.s3 { border-left-color: var(--c); }
-  .card h3 { margin: 0 0 6px; font-size: 16px; }
-  .tag { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: #edf2f7; color: var(--sub); margin-left: 6px; }
-  .warn { background: #fffaf0; border: 1px solid #ecc94b; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; }
-  ul { margin: 6px 0; padding-left: 22px; }
-  li { margin: 3px 0; }
-  .small { font-size: 12.5px; color: var(--sub); }
+  body {
+    margin: 0;
+    padding: 24px;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.65;
+  }
+  main { max-width: 1160px; margin: 0 auto; }
+  h1 { margin: 0; padding-bottom: 10px; border-bottom: 3px solid var(--ink); font-size: 24px; }
+  h2 { margin-top: 38px; font-size: 19px; }
+  h3 { margin: 0 0 6px; font-size: 15px; }
+  a { color: var(--accent); }
+  code { padding: 1px 5px; border-radius: 4px; background: #edf1f6; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); font-size: 13.5px; }
+  th, td { padding: 9px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: #eaf0f7; }
+  ul { margin: 7px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .meta { margin: 10px 0 0; color: var(--sub); font-size: 13px; }
+  .notice, .gate {
+    margin: 18px 0;
+    padding: 12px 15px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--accent);
+    border-radius: 7px;
+    background: var(--panel);
+    font-size: 13.5px;
+  }
+  .gate { border-left-color: var(--risk); background: #fff7f6; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+  .card p { margin: 0; font-size: 13.5px; }
+  .status { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11.5px; white-space: nowrap; }
+  .status.done { background: var(--done); }
+  .status.current { background: var(--current); }
+  .status.wait { background: var(--wait); }
+  .status.risk { background: var(--risk); }
+  .table-wrap { overflow-x: auto; }
+  .small { color: var(--sub); font-size: 12.5px; }
+  @media (max-width: 820px) {
+    body { padding: 16px; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 <main>
 
-<h1>3セッション開発計画 — Readiness View</h1>
+<h1>BE9 4セッション実行計画 — Readiness View</h1>
 <p class="meta">
-監査日: 2026-07-16 ／ 基準: HEAD <code>5e91a520</code> ／ 当初納品予定: 2026-07-18（下記 blocker 解消が前提）<br>
-<b>改訂 2026-07-20</b>: backend は BE9（<code>BE-refactor.md</code> / ADR-006）により domain package へ再編中。全セッション共通の実装先ルール・衝突回避・ゲートを「BE9 backend 再編との整合」節に追記。<br>
-正本の優先順位: <b>各実装 Issue の受け入れ条件 → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">計画 #260</a> → 本 HTML</b>。本 HTML は tracked view であり、詳細仕様や実行 prompt を重複保持しない。
+同期日: 2026-07-22 ／ code baseline: <code>e662ab55d</code><br>
+正本: <a href="BE-refactor.md#be9-current-state"><code>BE-refactor.md</code>「現在地と着手前ゲート」</a>・<a href="BE-refactor.md#be9-parallel-sessions">「並行セッション実行計画」</a> ／ 設計判断: <a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> ／ file帰属: <a href="docs/architecture/be9-2a-classification-manifest.csv">classification manifest</a><br>
+ファイル名 <code>3-session-agent.html</code> は既存リンク互換のため維持する。現行計画は3セッションではなく、統合ownerを含む<b>4セッション</b>である。
 </p>
 
-<h2>P0 — 開始・Go-live ブロッカー</h2>
+<div class="notice">
+本HTMLは進捗・ownership・同期barrierを一目で確認するためのtracked viewであり、詳細な実行手順や完了条件を二重管理しない。差異がある場合は常に <code>BE-refactor.md</code> を優先する。
+</div>
+
+<h2>現在地</h2>
+<div class="grid">
+  <section class="card">
+    <h3>完了した大規模domain</h3>
+    <p><span class="status done">完了</span> medicalrecord / reservation / billing</p>
+  </section>
+  <section class="card">
+    <h3>現在domain</h3>
+    <p><span class="status current">進行中</span> lstep</p>
+  </section>
+  <section class="card">
+    <h3>次の未着手slice</h3>
+    <p><span class="status current">次着手</span> L⑥ 残置解消</p>
+  </section>
+  <section class="card">
+    <h3>残り順</h3>
+    <p>L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4</p>
+  </section>
+</div>
+
+<div class="table-wrap">
+<table style="margin-top:14px;">
+  <tr><th>単位</th><th>状態</th><th>現行判定</th></tr>
+  <tr><td>medicalrecord</td><td><span class="status done">完了</span></td><td>高risk pathを含むdomain単位完了条件を充足。旧layerに残るfacadeはBE9-2F対象。</td></tr>
+  <tr><td>reservation</td><td><span class="status done">完了</span></td><td>R①〜R⑥完遂。appointment write ownerはreservationへ収束済み。</td></tr>
+  <tr><td>billing</td><td><span class="status done">完了</span></td><td>BUG-417是正後、B①〜B⑥完遂。旧HTMLの「billing着手前block」は失効。</td></tr>
+  <tr><td>BE9-2E-0</td><td><span class="status done">完了</span></td><td><code>de15c7903</code>で完遂。owner外の独立したappointments persistence writeを解消。</td></tr>
+  <tr><td>lstep L①〜L④</td><td><span class="status done">完了</span></td><td>設定・送信・タグ同期・checkup_sync・配信監視までtarget packageへ移行済み。</td></tr>
+  <tr><td>lstep L⑤</td><td><span class="status risk">release pending</span></td><td>landingは完遂。<code>002_lstep_snapshot_import_clinic_fk.sql</code>のfresh DB実適用とmigration checksum・rollback方針の確認がrelease gateとして残る。</td></tr>
+  <tr><td>lstep L⑥</td><td><span class="status current">次着手</span></td><td>SharedFile、typed composition、facade / adapter / mock carrier残置を解消してlstep domainを完了させる。</td></tr>
+  <tr><td>BE9-2E以降</td><td><span class="status wait">待機</span></td><td>L⑥完了後に中小domainをlargest-readyで反復し、facade撤去、Gin境界監査、最終検証へ進む。</td></tr>
+</table>
+</div>
+
+<h2>L⑥ — 着手範囲と完了barrier</h2>
+<div class="notice">
+<ul>
+  <li><code>target:lstep</code>の旧layer残置は、SharedFile 6 production row（移動5 + 旧repository facade削除1）、test 4 file、route 4本を基準に再確認する。</li>
+  <li>LSTEPのtyped composition result / constructorをtarget側へ置き、<code>service.NewServices</code>・<code>service.Services</code>・<code>cmd/api/main.go</code>のconstruction / ownershipを同一cutover単位で収束させる。</li>
+  <li>旧repository rootのcomposition関連facade 15本、旧serviceのproduction adapter 3本、test-only mock carrierをconsumer単位で棚卸しする。</li>
+  <li>consumer 0のalias / adapter / mock carrierは削除する。残すfacadeには実consumerとBE9-2E / 2Fでの削除期限を必ず記録する。</li>
+  <li>route snapshot、RBAC、OpenAPI、composition、scoped test / lintを保存し、target再分類が必要なら先にADR-006とmanifestを更新する。</li>
+</ul>
+<b>完了barrier:</b> <code>target:lstep</code>全rowがtargetへ移動済み、削除済み、または実consumerと期限を持つ薄いfacadeであり、SharedFile・production composition・route / testがtarget側へ収束し、consumer 0の残置が0件であること。
+</div>
+
+<h2>4セッションownership</h2>
+<div class="table-wrap">
 <table>
-<tr><th>領域</th><th>Issue</th><th>現在の判定</th></tr>
-<tr><td>Credential</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a></td><td>公開 repository の release blocker。USER による rotation・旧値無効化・履歴／不正利用確認が必要。STG 限定 park ではない。</td></tr>
-<tr><td>CI / Production</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>最新 main run は account billing/spending 状態により job 開始前に失敗。USER 復旧後、最新 main の全必須 job green が開始・Go-live 条件。</td></tr>
-<tr><td>臨床安全</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td><td>#201 は再オープン。薬量上限を ConfirmDialog で解除できる現状を BE 物理ブロックまたは権限付き例外フローへ是正する。Lock UI 等は #261 で PO 判定。</td></tr>
+  <tr><th>Session</th><th>役割</th><th>writer境界</th><th>現在wave（L⑥）</th></tr>
+  <tr><td><b>A</b></td><td>統合owner</td><td>canonical integration worktree、共有file、merge順、共有DB test queue、最終gateの唯一owner。</td><td>L⑥の唯一のproduction writer。SharedFile、typed composition、共有facade / DTO / mock残置を解消する。</td></tr>
+  <tr><td><b>B</b></td><td>domain lane 1</td><td>Aが固定した同一tipから独立worktreeで作業。central surfaceは変更しない。</td><td>BE9-2E候補のbusiness fact / write owner、baseline、依存、rollback単位をread-onlyで棚卸しする。</td></tr>
+  <tr><td><b>C</b></td><td>domain lane 2</td><td>Bと別worktree。fileだけでなくtable・transaction・route・gateまで非競合な候補だけを担当。</td><td>Bと重ならない候補群をread-onlyで棚卸しし、競合表を作る。</td></tr>
+  <tr><td><b>D</b></td><td>verification lane</td><td>原則production codeのwriterにならず、Aが固定したexact treeを独立検証する。</td><td>B/Cのsize・dependency・baselineとL⑥完了条件を反証し、ready frontier案をAへ返す。</td></tr>
 </table>
+</div>
 
-<h2>全体マップ</h2>
+<h2>残wave</h2>
+<div class="table-wrap">
 <table>
-<tr><th>セッション</th><th>対象</th><th>Readiness</th><th>主なゲート</th></tr>
-<tr><td><b>S1</b> 検査</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td><td>Phase 単位で条件付き</td><td>legacy mapping、enforceable な clinic/species schema、実機 export、manual validation を先行。</td></tr>
-<tr><td><b>S2</b> カルテ・飼主</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a></td><td>Issue 修正後に scoped 実装可</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a> は運用確認待ち、<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a> は価値検証待ち。#201 は safety work。</td></tr>
-<tr><td><b>S3</b> 会計・医院間リンク</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td><td>設計／業務決裁待ち</td><td>全書込経路の分類、会計保存則、clinic isolation・権限・RLS・audit atomicity を先に確定。</td></tr>
-</table>
-
-<h2>BE9 backend 再編との整合（2026-07-20 追記）</h2>
-<div class="warn">
-<p style="margin:4px 0;">backend は BE9 により <code>internal/handler|service|repository</code> の3層フラットから <b>ADR-006 の 13 domain package</b>（<code>internal/medicalrecord</code> 等）へ移行中。正本 = <code>BE-refactor.md</code>（進捗・着手前ゲート・申し送り）／<code>docs/architecture/adr/006-backend-domain-package-boundaries.md</code>／file 帰属 = <code>docs/architecture/be9-2a-classification-manifest.csv</code>。全セッション共通ルール:</p>
-<ul>
-<li><b>新規 backend 実装は旧3層へ追加禁止</b>（BE9-2B 発効）。target domain package へ実装する。既存 resource の修正は現在地のまま行ってよい（移動は BE9 batch の仕事。混ぜない）。</li>
-<li><b>ファイルの現在地は着手時に manifest で確認</b>する。Issue 本文や本 HTML のパス表記は移行で古くなる（例: exam_type の handler/service/repository は既に <code>internal/medicalrecord</code> へ移動済み）。</li>
-<li><b>domain package へ route を追加する場合</b>: route 登録は <code>&lt;domain&gt;.Handler.RegisterRoutes</code> 1本に集約（複数 struct の同名メソッドは OpenAPI drift 検知から静かに脱落する）。<code>route_snapshot.golden</code>・<code>openapi_route_drift_test.go</code> の追随が必須。</li>
-<li><b>safety lint は package 非依存</b>（<code>internal/lintscan</code> が <code>internal/**</code> 全走査）。新 package に置いても clinic isolation・audit・N+1 lint の監査対象から外れない。</li>
-<li><b>BE9 batch との衝突回避</b>: BE9 側の次バッチ = medicalrecord sub-batch②（checkup/vaccine/prescription/inquiry）。同一 domain の file 群を session と BE9 batch が同時に触らない — 着手前に <code>git log</code>/worktree 状態を確認し、重なる場合は単一 owner に直列化する（BUG-415 の二重実行事故の再発防止）。</li>
-</ul>
-<table style="margin-top:8px;">
-<tr><th>セッション</th><th>BE9 上の domain</th><th>影響・ゲート</th></tr>
-<tr><td>S1 検査</td><td>medicalrecord</td><td>exam_type 系は<b>移行済み</b>（<code>internal/medicalrecord</code>）— 新規検査 resource は同 package へ。lab_import/lab_report は sub-batch③（saga）予定で未移行 — baseline test 一覧は <code>BE-refactor.md</code>「BE9-2D: medicalrecord sub-batch定義」③を参照し、着手時は BE9 側と order を調整</td></tr>
-<tr><td>S2 カルテ・飼主</td><td>medicalrecord / reservation / owner・pet</td><td>#237（EXISTS 検索）・#235（確定カルテ画像）は sub-batch④領域（未移行・現在地で修正）。#230/#232 の checkup/inquiry 系は <b>sub-batch②と正面衝突</b> — 直列化必須。#238 の reservation は既存位置での修正のみ・移行を伴う変更を始めない（論点#1 は 2026-07-20 裁定済み〔案A: staff を唯一の書き込み者に一本化〕だが、移行実施は BE9 batch の仕事でセッション側は行わない）</td></tr>
-<tr><td>S3 会計・医院間リンク</td><td>billing / owner・pet</td><td><b>ゲート: <code>billing_item_repository.go</code> に触れる変更は todo.md バグ台帳 BUG-417（Update/Delete の clinic 分離 no-op）の subquery 是正＋クロステナント test 追加を先行必須</b>（ADR-006 論点#6・BE9 外の変更でも適用）。#239 の cross-clinic link は clinic isolation invariant（ADR-002）に直結 — <code>clinic-isolation-auditor</code> レビューを必須とする</td></tr>
+  <tr><th>wave</th><th>状態</th><th>主作業</th><th>同期barrier</th></tr>
+  <tr><td>0: 混在差分landing</td><td><span class="status done">完了</span></td><td>L③a〜L⑤とBE9-2E-0をrevert可能なlandingへ分離。</td><td>landing matrix row 0〜10完了。</td></tr>
+  <tr><td>1: L⑥</td><td><span class="status current">現在</span></td><td>Aがproduction変更。B/C/Dは次frontierの準備・独立検証。</td><td>L⑥完了 + Aによるfrontier統合 + Dの反証確認までBE9-2E production変更を開始しない。</td></tr>
+  <tr><td>2: BE9-2E反復</td><td><span class="status wait">待機</span></td><td>B/Cが最大2件の非競合largest-ready domainを担当し、Aが1件ずつ統合。</td><td>各landing後にfrontierと全競合軸を再実測。失効handoffはそのまま統合しない。</td></tr>
+  <tr><td>3: BE9-2F</td><td><span class="status wait">待機</span></td><td>consumer 0を証明したfacade / aggregator / 旧layerを撤去。</td><td>call-site・共有mock・route / OpenAPI・write ownerを隠し得る削除はAが直列実行。</td></tr>
+  <tr><td>4: BE9-3</td><td><span class="status wait">待機</span></td><td>Gin HTTP境界・server lifecycle・全domain route登録を横断監査。</td><td>監査は並行可。global surfaceの修正とbehavior / security変更はAが別batchで統合。</td></tr>
+  <tr><td>5: BE9-4</td><td><span class="status wait">待機</span></td><td>最終gate、残存symbol / facade確認、docs完了化。</td><td>AがB/C/Dの結果を再現し、全完了条件を満たした場合だけBE9を完了化。</td></tr>
 </table>
 </div>
 
-<div class="card s1">
-<h3>S1 — #249 検査機能<span class="tag">条件付き</span></h3>
-<ul>
-<li>legacy 相当 CSV は 1,324,612 行中 1,323,933 行で field ID が空。ID-only pivot は不可。読み取り専用の visibly-unmapped 表示と mapping/backfill review を先に行う。</li>
-<li>reference range は clinic ownership を DB で強制できる schema にし、species は既存 <code>animal_species_id</code> を正本にする。</li>
-<li>lab import の自動 commit は最後。初期 <code>auto_commit=false</code>、実機形式確認、代表データの手動照合、権限付き enable、停止・通知・監査を必須とする。</li>
-<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> の A1+A2/A6 は実装済み。A6 は <code>checkup_type_fields → checkup_types</code> 複合 FK であり、<code>exam_results</code> ではない。残りは USER の DB 適用確認と臨床確認。</li>
-</ul>
-</div>
-
-<div class="card s2">
-<h3>S2 — カルテ・飼主<span class="tag">安全境界を先に固定</span></h3>
-<ul>
-<li>#237 は correlated <code>EXISTS</code> を使い、JOIN する全 master を <code>medical_records.clinic_id</code> で再度 scope する。result と count は同じ条件を使う。</li>
-<li>#238 は条件付き OPS ではなく確定 backend bug。inactive 種別を公開一覧と直接予約 API から拒否し、既存予約表示は残す。</li>
-<li>#234 は既存の危険理由記録工程を確認して一本化を先に判断。理由は owner-facing DTO からキーごと除外し、院内 UI は touch/focus/keyboard でも1操作で確認可能にする。</li>
-<li>#235 は既存 upload path を再利用し、確定済みカルテでは drop UI・handler・BE の全境界で追加を拒否する。</li>
-</ul>
-</div>
-
-<div class="card s3">
-<h3>S3 — 会計・医院間リンク<span class="tag">Block</span></h3>
-<ul>
-<li>#251 は surgery、hospitalization、vaccine、hotel、training を含む全書込経路を棚卸ししてから BE/FE の分類 contract を決める。根拠のない <code>other</code> default は使わない。</li>
-<li>#247 は現行締め表の単純移植を禁止。discount・tax・insurance・refund・端数・件数の定義を決め、動的な支払方法列と row/column/grand total の保存則を共通 helper で保証する。</li>
-<li>#239 は明示 search → 手動 link/unlink → 最小履歴を先に検証し、候補自動化は最後。全 request ID の clinic scope、専用権限、custom RLS、transactional audit、owner/pet 整合を実装条件とする。</li>
-<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a> は current phase から外し、正式 CI baseline と PO の coverage policy 決裁後に高リスク repository test へ分解する。</li>
-</ul>
-</div>
-
-<h2>Delivery workstream</h2>
+<h2>Phase完了gate（要約）</h2>
+<div class="table-wrap">
 <table>
-<tr><th>Issue</th><th>扱い</th></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td><td>既存 <code>backend/cmd/stage-import</code> の gap analysis／拡張は開発。rehearsal・cutover は privileged USER operations。</td></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>CI/CD・監視・backup/restore の delivery prerequisite。main→STG 自動、production branch + required reviewer を維持。</td></tr>
-<tr><td>#256 / #258</td><td>システム内コンテンツ・repo docs の納品作業。人間 OPS だけではない。</td></tr>
-<tr><td>#254 / #255 / #257</td><td>UAT・アカウント発行・cutover を中心とする USER operations。</td></tr>
-<tr><td>#252 / #259</td><td>設定投入／納品後の外部 API 待ち。</td></tr>
+  <tr><th>Phase</th><th>完了判定</th></tr>
+  <tr><td>L⑥</td><td><code>target:lstep</code>全rowとproduction compositionがtarget側へ収束し、consumer 0の残置が0件。route / RBAC / OpenAPI保存則、scoped test、lstep全域lint 0件を確認。</td></tr>
+  <tr><td>BE9-2E</td><td>全中小domainが移行済みで、未分類・期限なしfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件。</td></tr>
+  <tr><td>BE9-2F</td><td>旧<code>handler</code> / <code>service</code> / <code>repository</code>のproduction implementationが0件。例外は具体的consumer理由とADR記録を持ち、各target packageが単独test可能でimport cycle 0件。</td></tr>
+  <tr><td>BE9-3</td><td>Go/Gin review checklistが全てPASSまたは根拠付きN/Aで、cross-tenant requestと内部error非漏洩のnegative testがある。</td></tr>
+  <tr><td>BE9-4</td><td>Docker経由のscoped test / race / vet、旧symbol 0件、rules同期・mirror差分0、docs symbol drift、local link、diff-checkを確認。full test / full lintは自動実行せずUSER手動gateとする。</td></tr>
 </table>
+</div>
 
-<h2>依存・実行ルール</h2>
-<div class="warn">
+<h2>並行化・統合ルール</h2>
+<div class="notice">
 <ul>
-<li><b>migration</b>: 作成直前に実ファイル最大+1を再計算する。2026-07-17 に <code>001_init.sql</code> 単一構成へ統合済み（現在作るなら 002。適用済み 001 の編集は checksum mismatch を生むため禁止 — 詳細は <code>backend/migrations/CLAUDE.md</code>）。#249・#234・#239・#250 を含め、作成と integration は単一担当が直列化する。</li>
-<li><b>並列化</b>: 独立 worktree／checkout と file ownership を使い、単一 integration owner が順に取り込む。S2 owners と #239、S1 examinations と #239 は重なる。同一 dirty worktree で blind <code>git pull</code> しない。</li>
-<li><b>哲学</b>: 要件ごとに一人の責任者と業務目的を確定し、削除→簡素化→高速化→自動化の順で判断する。確認ダイアログを安全装置にせず、二重入力・二重管理を増やさない。</li>
-<li><b>責任者</b>: 公開 Issue から access-controlled 台帳上の一人へ一意に解決できることを開始条件とする。「現場」「担当部門」だけでは着手しない。</li>
-<li><b>横断規約</b>: 仕様機能を推測追加しない。ただし clinic isolation、input validation、audit atomicity、API/docs/type sync、既存 security/verification gate は Issue の書き漏れでも省略せず、先に Issue を修正する。</li>
-<li><b>外部操作</b>: scoped verification のみ自動実行。push、本番操作、credential・billing 変更は明示依頼なしに行わない。</li>
+  <li><b>単一writer:</b> canonical integration worktreeのproduction / central surfaceはSession Aだけが変更する。</li>
+  <li><b>独立worktree:</b> B/CはAが公開した同一tipから開始し、同じworktree・branch・未commit差分を共有しない。Dはexact candidate treeを検証する。</li>
+  <li><b>largest-ready:</b> file・symbol・callerだけでなく、business fact・table・write owner・DI・transaction / lock・route / RBAC・gateまで非競合な候補だけを並行化する。固定domain順は作らない。</li>
+  <li><b>central surface:</b> <code>backend/cmd/api/main.go</code>、<code>backend/docs/api.yaml</code>、<code>handler.go</code>、<code>master_routes.go</code>、<code>service.go</code>、<code>repositories.go</code>、route snapshot、OpenAPI drift、lint inventory、manifest、ADR-006、boundary map、<code>BE-refactor.md</code>とcross-cutting packageはA専有。</li>
+  <li><b>共有DB:</b> Docker / DB-backed testはAのglobal leaseで直列化する。<code>-p 1</code>はprocess間の競合を防がず、別worktreeだけでもCompose project・DB・bind mountは分離されない。Docker checkはcontainer sourceとcandidate tree / 対象file hashの一致を証明し、証明できない結果は合格根拠にせず、Aが統合したexact tipで再実行する。</li>
+  <li><b>handoff:</b> base commit、candidate commit / tree hash、path allowlist、structural / behavior区分、共有面の変更要求、scoped検証結果、未解消事項を必須とする。Dがcandidate tree hashを固定して検証し、Aとのtree一致と反証結果が揃うまで統合しない。</li>
 </ul>
 </div>
 
-<p class="small">#229 は実装・close 済み。public serializer の非露出は raw grep 件数ではなく contract test で維持する。#99 は旧 ECS 経路撤去、#109 は CI 認証設定の二重管理／サイレント skip 解消として別途追跡する。</p>
+<h2>残存gate・技術債</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>種別</th><th>項目</th><th>扱い</th></tr>
+  <tr><td><span class="status risk">release gate</span></td><td>L⑤ migrationのfresh DB実適用、checksum・rollback確認</td><td>承認を要するため自動実行しない。未完了の間はrelease readyと判定しない。</td></tr>
+  <tr><td>behavior debt</td><td><code>PutMappingsForTag</code>の非transactional replace</td><td>folder移動へ混在させず、独立したbehavior-changing fixとして扱う。</td></tr>
+  <tr><td>contract判断</td><td>L③bの<code>owner_ids</code>件数上限、actor欠落401後のservice継続</td><td>要件・API contractを決めてから別batchで変更する。</td></tr>
+  <tr><td>orchestration判断</td><td>予約キャンセル後のdraftカルテcleanupが別transactionのbest-effort</td><td>BE9-2Eまでにretry / outbox / orchestratorの再収束方式をproduct contractと合わせて決める。</td></tr>
+  <tr><td>BE9-3</td><td>全domain route同時登録の統合testが未整備</td><td>現状はroute snapshotの±N保存則とOpenAPI path集合一致で代替し、BE9-3で収束させる。</td></tr>
+  <tr><td>既存整形債務</td><td>旧handler / serviceのgofmt未整形7 file</td><td>無関係な一括整形はせず、所有domain移行時または独立format batchで解消する。</td></tr>
+</table>
+</div>
+
+<div class="gate">
+<b>安全境界:</b> BE9は原則behavior-preserving migrationである。clinic isolation、認可、監査、transaction atomicity、clinical safetyの疑義を見つけたsliceは完了扱いにせず、folder移動と挙動変更を別batchへ分離する。L⑤のfresh DB実migration適用、push、STG / PROD操作はこのHTMLから自動実行しない。
+</div>
+
+<p class="small"><b>判定scope:</b> 本viewの<code>release pending</code> / <code>release ready</code>はBE9 backend refactorだけを対象とし、product全体のGo-live、security、clinical safety、CI blockerを再分類・解消するものではない。</p>
+<p class="small">旧「S1検査 / S2カルテ / S3会計」のIssue配分はBE9の現行ownership・実行順を表していないため、本viewから除外した。機能Issueの受け入れ条件は各Issue側で追跡し、本HTMLへ詳細仕様を複製しない。</p>
 
 </main>
 </body>
