@@ -14,13 +14,14 @@
 
 ## Architecture policy
 
-Go/Gin公式は特定の application architecture や folder tree を規定しない。この backend では、package を凝集性、利用者、依存方向、変更単位で設計する。現在存在する `handler`、`service`、`repository` 等の directory は実装の現状であり、新規 code の mandatory template ではない。
+Go/Gin公式は特定の application architecture や folder tree を規定しない。この backend では、[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)によりdomain/capability-firstのmodular monolithをproject decisionとして採用し、packageを凝集性、利用者、依存方向、変更単位で設計する。現在存在する`handler`、`service`、`repository`等のdirectoryは未移行実装と期限付きfacadeを含むmigration surfaceであり、新規production codeの追加先ではない。現在地と削除phaseは[`BE-refactor.md`](../BE-refactor.md)を参照する。
 
 正本:
 
 - [Go/Gin Backend Guidelines](../.claude/rules/go-gin-backend-guidelines.md)
 - [Backend Coding Rules](CODING_RULES.md)
 - [Backend Application Invariants](../.claude/refs/backend-application-invariants.md)
+- [ADR-006: Backend Domain Package Boundaries](../docs/architecture/adr/006-backend-domain-package-boundaries.md)
 - [Architecture Overview](../docs/architecture/overview.md)
 
 ## Module organization
@@ -30,7 +31,7 @@ Go/Gin公式は特定の application architecture や folder tree を規定し�
 - `migrations/`: versioned SQL migrations
 - `docs/api.yaml`: API contract
 
-`internal/` の package 構成は固定規約ではない。新しい package は、実際に独立した責務と利用者が確認できる場合に追加する。
+`internal/`配下の固定3層treeを新設する規約はない。新規production実装はADR-006のtarget domain packageへ置き、domain内のsubpackageは実際に独立した責務・利用者・依存方向が確認できる場合だけ追加する。
 
 ## Development
 

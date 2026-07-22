@@ -1,9 +1,9 @@
-# BE-refactor — Go/Gin公式ベースラインへのコード移行
+# BE-refactor — Go/Gin公式baseline上のdomain/capability移行
 
 > **ACTIVE (2026-07-19)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-21)**: 大規模domain 3件完了（medicalrecord 185 file / reservation 77 file / billing 65 file）。**進行中 = lstep（107 file・L①`6bae6095d`／L②`2ef112227` 完了）**、次 = L③a（タグ同期コア）→ L③b（checkup_sync合流）→ L④〜L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4。push未実施。
-> **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#現在地と着手前ゲート2026-07-21-更新)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
-> **BE8 SUPERSEDED**: 固定layer・層優先subpackage・repository→service→handler移行は [ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md) により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
+> **進捗 (2026-07-22)**: 大規模domain 3件完了（medicalrecord 完了時185 file・現行分類175 / reservation 77 / billing 65）。L③a〜L④とBE9-2E-0は完遂、L⑤は**landing完遂 / release pending**。**進行中 = lstep L⑥**、次 = L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4。L⑤のfresh DB実migration適用はrelease gateとして残る。
+> **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#be9-current-state)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
+> **BE8 SUPERSEDED**: 固定layerをGo/Gin公式要件として扱う方針は[ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md)、層優先subpackage/repository→service→handler移行は実測に基づく[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
 ## Active task: BE9 — 新コード規約をbackend実装・自動検査へ適用する（High）
 
@@ -37,8 +37,19 @@ backend/
 - domain package内では、HTTP、application logic、persistenceを必ず別subpackageにしない。同じ利用者・変更単位なら1packageの複数fileで構成する。
 - resource routeは各domainが`Register...Routes(*gin.RouterGroup)`等で登録し、巨大な`handler.Handler`/`service.Services`/`repository.Repositories`集約への新規追加を停止する。
 - domain間依存はconsumer側の最小interfaceで表し、implementation constructorはconcrete typeを返すことを基本とする。
-- `internal/handler`、`internal/service`、`internal/repository`はmigration中のcompatibility facadeとしてのみ残し、BE9完了時にproduction implementationを0件にする。
+- `internal/handler`、`internal/service`、`internal/repository`は、未移行implementationと期限付きcompatibility facadeを含むmigration surfaceである。BE9-2B以降は新規production implementationを追加せず、変更対象は既存挙動の保守、security/bug fix、移行・facade撤去に限定し、BE9完了時にproduction implementationを0件にする。
 - `model`の一括分割は先行条件にしない。GORM associationによるcycleを実測し、domain ownershipを安全に移せるtypeだけを同じbatchで移す。
+
+#### Product philosophyから導くproject制約
+
+[`docs/product-philosophy.md`](docs/product-philosophy.md)はfolder treeではなくproductのWHAT / WHYと判断順序を定める。本計画では、その順序を次の実装制約として適用する。詳細な決定の正本は[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)、予約から診療記録までのworkflow/SOTは[`reservation-to-record-flow.md`](docs/spec/reservation-to-record-flow.md)とする。
+
+- 構成は**domain/capability-firstのmodular monolith**とする。route、use case、transaction、persistence、testをdomainごとのvertical sliceで計画・review・rollbackする。
+- 1つのbusiness factには1つのsource of truthとwrite ownerを置く。targetでは`appointments`とそのlifecycleは`reservation`がwrite ownerであり、medicalrecord、trimming、billing、lstep等は独立したappointment persistenceを持たず、consumer-side interfaceまたは明示的orchestrationを通す。現行との差分はBE9-2E-0で収束させる。
+- cross-domain writeはownerとtransaction境界を明示する。compatibility facadeは薄いdelegate/type aliasに限定し、旧新2つのbusiness ruleまたはwrite実装を併存させない。
+- package/subpackage/interfaceは実在するconsumer、依存方向、変更周期がある場合だけ作る。移動後に不要になったlayer、facade、DTO、stateは削除条件を満たしたbatchで除去する。
+- 自動化は安全な手動pathと同じuse caseを再利用し、停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。clinical safety、clinic isolation、authorization、auditabilityをcycle timeより優先する。
+- BE9は原則behavior-preserving migrationである。write ownerの一本化や自動化安全性の是正が挙動変更を伴う場合、folder移動と同じbatchへ混在させず、characterization testとADR/contractを先に更新した独立batchで行う。clinical safetyまたはclinic isolationの疑義を発見したsliceは完了扱いにせず、安全修正を先行する。
 
 ### 実測根拠（当初根拠と解消状況）
 
@@ -50,15 +61,15 @@ backend/
 
 方針は**大きな課題を先に狙い、変更batchは小さくする**。旧`handler`、`service`、`repository`をlayerごとに順番に移すのではなく、1つのdomain/resourceについてHTTP・application logic・persistence・testを縦に移す。BE9-0、BE9-2A、BE9-1はfolder移動前の安全gate、BE9-2Bは移行手順を証明するpilot 1件だけであり、小規模domainを先に片付けるphaseにはしない。
 
-規模は**BE9-2Aで再実測済み**（全761 production Go file、未分類0件。正本 = [be9-2a-classification-manifest.csv](docs/architecture/be9-2a-classification-manifest.csv) / boundary map）。旧filename-prefixベースの暫定集計は正本として継承しない — 最大の乖離はmedicalrecord（旧見積96 file → 実測185 file）。
+規模は**BE9-2Aで分類manifestを再実測済み**（全761 production Go source row、未分類0件。正本 = [be9-2a-classification-manifest.csv](docs/architecture/be9-2a-classification-manifest.csv) / boundary map）。これは移行後target packageの物理file数ではない。1 sourceを複数fileへ分割する移行やtarget package内の新規composition fileにより両者は一致しない。旧filename-prefixベースの暫定集計は正本として継承しない — 最大の乖離はmedicalrecord（旧見積96 file → BE9-2A初回分類185 source row、現行分類175 source row）。
 
-| 状態 | target domain | 実測file数 | 実績・着手方針 |
+| 状態 | target domain | classification manifest source数 | 実績・着手方針 |
 |---|---|---:|---|
-| **済** | medicalrecord | 185 | 最大domain・**完了（2026-07-21）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
-| **進行中** | lstep | 107 | **L①`6bae6095d`（設定・認証基盤）・L②`2ef112227`（LINE送信基盤）完了**。次=L③a（タグ同期コア）→L③b（checkup_sync合流）→L④（配信トリガ・監視）→L⑤（バッチ・分析・CSV）→L⑥（残置解消）。内部分割しない（論点#2裁定・単一`internal/lstep`） |
+| **済** | medicalrecord | 175 | 最大domain・**完了（2026-07-21、完了時inventory 185）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
+| **進行中** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 122 file。次=L⑥（残置解消）。内部分割しない（論点#2裁定・単一`internal/lstep`） |
 | **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
 | **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
-| 未着手 | staff 31 / auth 25 / clinic 25 / trimming 23 / pet 21 / owner 13 / inventory 12 | 145計 | **BE9-2E の対象**。lstep完了後に規模順で処理する。owner は lstep L② の `OwnerResponder` closure 注入（`handler.RespondLinkedOwner`）の解消先でもある |
+| 未着手 | staff 31 / auth 25 / clinic 25 / trimming 23 / pet 18 / owner 13 / inventory 12 | 147計 | **BE9-2E の対象**。lstep完了後、ready frontier内のlargest-ready順で処理する。owner は lstep L② の `OwnerResponder` closure 注入（`handler.RespondLinkedOwner`）の解消先でもある |
 | 済 | manualarticle 6 / httpapi 12 | 18計 | BE9-2B pilotで移行完了 |
 
 暫定表を機械的な固定順にはしない。各batch開始時に、①target依存graphがacyclic、②tenant/認可/transaction/clinical safetyのbaseline testが存在、③route/API/SQL互換性とrollback単位が定義済み、の3条件を満たす**ready frontier**を作る。その中からproduction行数、file数、旧aggregator/call-site削減量が最大のdomain/subdomainを選ぶ（largest-ready）。小規模domainは、大規模targetのcycle解消・直接依存解除に必要な場合だけ先行し、解除後は直ちに大規模targetへ戻る。
@@ -95,7 +106,7 @@ backend/
 
 **完了条件**: 全production Go fileが「target package」「現状維持」「削除」のいずれかに割り当てられ、未分類fileが0件。target package間の許可依存graphがacyclicで、ADR-006がAccepted。
 
-**完遂（2026-07-19）**: [ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md) Accepted。boundary map正本 = [be9-2a-boundary-map.md](docs/architecture/be9-2a-boundary-map.md)、分類マニフェスト = [be9-2a-classification-manifest.csv](docs/architecture/be9-2a-classification-manifest.csv)（761 file・未分類0・削除0）。13 target package間の許可依存グラフは45エッジでacyclic（機械検証済み）。生cycle 10組中9組は既存規約のconsumer-side interfaceで解消可能。**reservation↔staff共有テーブル二重書き込みの1組だけはinterface逆転で解決できず、設計決裁が必要**（ADR論点#1）。santa dual-review 3ラウンドで収束。副産物として`billing_item_repository.go`のUpdate/Delete防御ギャップを新規検出（GORMの`Joins()`がUPDATE/DELETEへ伝播しない罠。service層事前checkで現状は生きた漏洩ではないが、defense-in-depth不全+クロステナントtestゼロ。**未修正** — ADR論点#6としてbilling着手前ゲート化）。
+**完遂（2026-07-19、当時の判定）**: [ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md) Accepted。boundary map正本 = [be9-2a-boundary-map.md](docs/architecture/be9-2a-boundary-map.md)、分類マニフェスト = [be9-2a-classification-manifest.csv](docs/architecture/be9-2a-classification-manifest.csv)（761 source row・未分類0・削除0）。13 target package間の許可依存グラフは45エッジでacyclic（機械検証済み）。BE9-2A時点では、生cycle 10組中9組はconsumer-side interfaceで解消可能、reservation↔staff共有テーブル二重書き込みだけは設計決裁が必要、`billing_item_repository.go`のUpdate/Delete防御ギャップはbilling着手前gateと記録した。その後、論点#1はstaffをwrite ownerとする案Aで実装済み、論点#6はBUG-417として修正・分離test追加済みであり、現行の解決状態はADR-006「論点の解決記録」と本書の現在地を正本とする。
 
 #### BE9-2B: compositionと新規追加先を切り替える
 
@@ -106,7 +117,7 @@ backend/
 
 **完了条件**: 少なくとも1つの低結合domainが旧3package集約を経由せず起動・route登録・DB処理・testを完結し、以降の新規codeが同じ構成へ追加できる。
 
-**完遂（2026-07-19）**: pilot=manualarticle（out-dom=0）。`internal/manualarticle`（repository+service+handler+routes、同一test名で緑）を新設。前提として`internal/httpapi`（target:httpapi 6ファイル: context_helpers/response/response_pg/bind_errors/time_response/slice_helpers）も切り出し、`internal/handler`側は269ファイルの既存呼び出し互換のため薄いdelegating facadeを残した（削除はBE9-2F）。`handler.Handler.RegisterRoutes`が`protected *gin.RouterGroup`を返すよう変更し、`cmd/api/main.go`がmanualarticleを`handler.Handler`/`service.Services`/`repository.Repositories`を経由せず直接組み立てて配線（Audit依存はconsumer-side `AuditLogger`interface+main.goのadapterで、Permission依存は`PermissionMiddleware`関数型注入で解消——auth domain未移行のため）。ADR-006をAcceptedへ昇格（6論点中5件はOpenのまま後続フェーズへ紐付けて記録）。〔当時の見通し〕次=BE9-2C/2D（reservation↔staffのcycle論点#1を先に決裁）。
+**完遂（2026-07-19）**: pilot=manualarticle（out-dom=0）。`internal/manualarticle`（repository+service+handler+routes、同一test名で緑）を新設。前提として`internal/httpapi`（target:httpapi 6ファイル: context_helpers/response/response_pg/bind_errors/time_response/slice_helpers）も切り出し、`internal/handler`側は269ファイルの既存呼び出し互換のため薄いdelegating facadeを残した（削除はBE9-2F）。`handler.Handler.RegisterRoutes`が`protected *gin.RouterGroup`を返すよう変更し、`cmd/api/main.go`がmanualarticleを`handler.Handler`/`service.Services`/`repository.Repositories`を経由せず直接組み立てて配線（Audit依存はconsumer-side `AuditLogger`interface+main.goのadapterで、Permission依存は`PermissionMiddleware`関数型注入で解消——auth domain未移行のため）。ADR-006をAcceptedへ昇格（**当時**は6論点中5件をOpenのまま後続phaseへ紐付け。現在はADR-006「論点の解決記録」の通り全件解決済み）。〔当時の見通し〕次=BE9-2C/2D（reservation↔staffのcycle論点#1を先に決裁）。
 
 #### BE9-2C: dependency-readyな大規模domainを優先migrationする
 
@@ -245,7 +256,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 
 各batchでdbortx/audit_tx/preload/master_fk allowlist再prefix+route snapshot±追随+全数test -p 1 green+敵対レビューApproveを完了条件とする。sub-batch内の依存詳細（narrow view設計・mock carrier方向）は各batch着手時にinventory実測で確定。
 
-**論点#4の紐付け（2026-07-20裁定済み）****論点#4の紐付け（2026-07-20裁定済み）**: `model/medicine.go`/`vaccine.go`は**medicalrecord帰属で確定**（ADR-006委任裁定）——sub-batch②のvaccine/vaccination移動は既定通りmedicalrecordへ（inventoryへの付け替えなし）。`internal/model/line_reservation_setting.go`は**reservation帰属で確定**（概念タグのみ・ファイル移動なし、reservation着手時にタグ通り扱う）。
+**論点#4の紐付け（2026-07-20裁定済み）**: `model/medicine.go`/`vaccine.go`は**medicalrecord帰属で確定**（ADR-006委任裁定）——sub-batch②のvaccine/vaccination移動は既定通りmedicalrecordへ（inventoryへの付け替えなし）。`internal/model/line_reservation_setting.go`は**reservation帰属で確定**（概念タグのみ・ファイル移動なし、reservation着手時にタグ通り扱う）。
 
 #### billing domain sub-batch定義（2026-07-21 inventory実測: production 65 file = handler 27+repository 21+service 17）
 
@@ -260,7 +271,9 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 
 各batch完了条件=従来gate+scoped golangci-lint（billing全域）0件（R⑤知見④の恒久化）。
 
-#### lstep domain sub-batch定義（2026-07-21 inventory実測: production 107 file = handler 40+service 52+repository 15）
+#### lstep domain sub-batch定義（分類manifest: `target:lstep` 119 source row。現行package: production Go 122 file）
+
+`119`はBE9-2A分類manifest上のsource ownership数、`122`はL⑤後の`internal/lstep`物理file数であり、移行時の分割・統合・composition追加を含むため一致を要求しない。
 
 前提=論点#2裁定済み（単一`internal/lstep`・内部3分割しない）+論点#7裁定（checkup_syncはlstep帰属＝⑧を本domainで合流）。playbook=medicalrecord/reservation/billing と同型（3batch A/B/C・敵対レビュー1統合レンズ・snapshot/lint/allowlist追随・昇格判定はシンボル単位）:
 
@@ -271,30 +284,120 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
   - 全route移動で空になった`internal/handler/reservation_line_routes.go`を削除。service側transitional alias 6型はconsumerゼロ実測で削除。
   - 検証: **RBAC tuple 10本を`git show HEAD:`と機械突合**（route snapshotはmiddlewareを捕捉しないため必須）・`func Test`名89本1:1保存・**移動repo 5本全数のlogic差分ゼロを機械diffで実証**（型修飾のみ）・snapshot両側±10保存則・5パッケージ全数test -p 1 green・下流domain（reservation/billing/medicalrecord/cmd）全数green・scoped lint 0件・docs-symbol-drift green。
   - 敵対レビュー（clinic-isolation統合レンズ・111 tool call・DB統合testまで実行）: **Approve / CRITICAL・HIGH・MEDIUM ともに 0**。独立に検出された指摘（service側transitional alias 6型がconsumerゼロ）は本コミット時点で是正済み。確認された既存事実 = `lstep_tag_config`の3テーブル（auto_managed_prefixes/condition_tag_mappings/send_purpose_tag_prefixes）は**clinic_idを持たないグローバルマスタ**で移動前から無スコープ（劣化なし）・`line_link_tokens`はtoken高エントロピーのためrepo無スコープだが`LinkAccount`が`lt.ClinicID != clinicID`で明示検証（test実測PASS）。
-- **L③ タグ同期コア（未着手・分割決定済み）**: lstep_tag_sync 群（repo は `tag_code_mapping`/`trigger_priority` のみ残 — **`tag_cache`/`tag_config` は L② で移動済み** + health_tag_sync 系 + CPM kernel）。**⑧checkup_sync（service 4+handler 3+repository/checkupsync）を本domainで合流**（論点#7裁定）。
+- **L③ タグ同期コア = 完遂（2026-07-22）**: lstep_tag_sync 群（repo は `tag_code_mapping`/`trigger_priority` のみ残 — **`tag_cache`/`tag_config` は L② で移動済み** + health_tag_sync 系 + CPM kernel）。**⑧checkup_sync（service 4+handler 3+repository/checkupsync）を本domainで合流済み**（論点#7裁定）。
   - **inventory 実測（2026-07-21・L② 完遂時点）= 89file**: service `lstep_tag*` 19+19 / `lstep_health*` 7+6 / `checkup_sync*` 4+3、handler `lstep_tag*` 12+6 / `checkup_sync*` 3+2、repository `lstep_tag*` 3+1 / `checkupsync/` 2（prod+test）。route 12本。**分割決定（着手前に確定・2026-07-21）= L③a / L③b の 2スライスに分ける**。
-    - **L③a タグ同期コア（約75file）**: repository `lstep_tag_code_mapping` のみ（tag_cache/tag_config は L② で移動済み）+ service `lstep_tag*` 19+19・`lstep_health*` 7+6・CPM kernel + handler `lstep_tag*` 12+6。route 10本。
-    - **L③b checkup_sync 合流（約14file）**: service 4+3 + handler 3+2 + `repository/checkupsync` package 2。route 2本。
+    - **L③a タグ同期コア = 完遂（2026-07-22・`d333d63ac`）**: 既存source 71fileを縦移動（repository `lstep_tag_code_mapping` 1+1、service `lstep_tag*` 19+19・`lstep_health*` 7+6、handler `lstep_tag*` 12+6）。CPM V1は移動前にdefault/custom thresholdの直接characterizationをREDで追加し、移動後GREEN。domain側はconsumer-side repository viewへ縮小し、productionから`repository.Repositories`集約依存を除去。route実測は見積10ではなく**23本**（owner tag canonical+alias 6、summary canonical+alias 4、code mapping canonical+alias 4、config 9）で、旧handler snapshot -23 / lstep snapshot +23の保存則、RBAC tuple 23本、clinic aliasが認証clinicを使うIDOR negative test、OpenAPI route/date drift gate追随で固定した。分類manifestの誤分類3本（`lstep_tag_sync_pet*`）を`target:lstep`へ訂正し107→110。既存技術債: `PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時の部分更新余地を移動前から持つ（本sliceはbehavior-preservingのため変更せず、transaction化は別修正）。
+      - 検証: 変更・下流9 packageの全数test `-p 1`、LSTEP race test、coverage 95.3%、scoped build/vet、`internal/lstep/...` golangci-lint 0件、OpenAPI route/date drift、docs-symbol-drift、gofmt/diff-checkがgreen。コードレビュー・security/clinic-isolationレビューともApprove、残存severityなし。
+    - **L③b checkup_sync 合流 = 完遂（2026-07-22・move `ba5767e88` / clinic hardening `5fdfa11fa`）**: 既存14file（service 4+3、handler 3+2、`repository/checkupsync` 1+1）を`internal/lstep`へ縦移動し、混在していたPERF-3回帰testも分離移動。repository aggregate互換facadeだけをBE9-2Fまで残し、service/handler実装は旧packageから除去。owner/pet/tag-cache/settings/auditはconsumer-side narrow interfaceへ縮小し、infra clientはalias importで依存方向を維持。route 2本はlstepの単一`RegisterRoutes`へ統合し、旧snapshot -2 / lstep snapshot +2、RBAC=`owners:view/edit`、OpenAPI driftで保存則を固定。JWT contextのclinic IDがURL aliasを必ず上書きするGET/POST IDOR negative test、repository実DB clinic isolation、batch依存へのscope伝播、部分失敗継続（AddTag失敗はper-owner、cache失敗はnon-fatal）を確認。clinic-isolation監査で既存raw SQLの`pet_chronic_conditions`・`medical_records`子行scope不足を検出し、不整合cross-clinic子行fixtureをREDにした後、全表示・true/false・before/after経路へ明示clinic predicateを追加してGREEN化。既存のactor欠落時401を書いた後もservice実行を続ける挙動はbehavior-preservingのため変更せずcharacterizationを維持。分類manifest9行をmedicalrecord→lstepへ訂正（lstep 110→119、medicalrecord 184→175）。
+      - 検証: lstep/service/handler/apicontract/cmdのscoped全数test、LSTEP race、coverage 95.7%、build/vet、`internal/lstep/...` golangci-lint 0件、route/OpenAPI/docs drift、diff-checkがgreen。コード・security・clinic-isolationレビューはいずれもApprove、残存severityなし。既存LOW hardening debtは`owner_ids`のbatch上限不足（API仕様と合わせて別タスク化対象）。
     - 分割根拠: 89file 一括は ⑥（90file）⑦（84file）と同規模で不可能ではないが、**checkup_sync は元 medicalrecord sub-batch ⑧ で独立 saga・専用 repository subpackage を持ち、レビューレンズが tag 同期と異なる**（健診対象抽出の臨床データ読取 vs タグ書込）。分離すると各コミットのレビュー観点が単一化し、L③b は L③a 完了後に tag 同期 API を consumer として参照できる。
-- **L④ 配信トリガ・監視**: lstep_delivery_trigger 群（batch/client/methods/state/suppression/log）+ lstep_delivery_monitor + lstep_lifecycle。
-- **L⑤ バッチ・分析・CSV**: lstep_batch(+delivery/dormant/noshow/segmentation)/lstep_analytics/lstep_csv_import(+helpers)/lstep_friend_attribute_snapshot/aggregation。
-- **L⑥ 残置解消**: repository DTO alias（accounting_reports_dto_aliases.go=lstep系test consumer）・mock carrier群・Services field棚卸し。
+- **L④ 配信トリガ・監視 = 完遂（2026-07-22・move/composition `62a09f62e` / clinic hardening `860bd5020`）**: 着手時inventoryで当初列挙から漏れていた`lstep_trigger_priority`も同じ設定・配信境界として合流。既存33file（production 18+test 15: delivery trigger/log、delivery monitor、lifecycle、trigger priority、共有request test）を`internal/lstep`へ縦移動し、route 16本（lifecycle 8 / monitor 4 / priority 4）を単一`RegisterRoutes`へ統合した。旧handler snapshot -16 / lstep snapshot +16、RBAC tuple 16本、OpenAPI driftで保存則を固定。L⑤ analytics/batch consumer向けにdelivery-log/priority repositoryの薄い型alias facadeだけを残し、service/handler実装は旧packageから除去した。
+  - **依存境界**: owner/pet/medicalrecord/vaccination/tag-cache/settings/audit/transactorはconsumer-side narrow interfaceへ縮小。lifecycleのtx内監査は`internal/service` composition境界の型付きadapterで6 fieldとambient contextを写像し、fail-closed原子性を維持。L⑤残留batchには実使用13 methodだけのtrigger interfaceを置いた。delivery trigger constructorから未使用のbilling-item依存を削除し、owner scope確認を1回に集約した。
+  - **clinic分離の追加防御**: clinic aliasがURLの`:clinic_id`ではなくJWT clinicを使うlifecycle/monitor/priority IDOR negative testを追加。delivery log一覧・pagination total・monitor/analyticsの5集計はownerを`(owner_id, clinic_id)`でINNER JOINし、別clinicまたは孤児ownerのログを除外。来院conversion、最終/次回来院、ワクチン期限、誕生日、タグowner抽出も親owner/petのclinic一致をJOINで検証し、不整合なcross-clinic子行fixtureをRED→GREENで固定した。配信処理は重複ログreadを含む全作用より前にclinic-scoped owner lookupを必須化。priority一括保存は保存値のclinic強制を維持しつつ、呼び出し元sliceを変更しないcopy-on-writeへ是正した。
+  - **検証**: lstep/service/handler/medicalrecord/apicontract/cmd/apiのscoped全数test、repository pet回帰test、LSTEP race、coverage 95.5%、scoped build/vet、`internal/lstep/...` golangci-lint 0件、route/OpenAPI snapshot、gofmt/diff-checkがgreen。広域lintは既存の未移行mock/整形債務303件を再確認したため、変更対象のLSTEP単独gateを合否判定に使用（無関係fileの一括修正はしない）。コードレビューで検出したMEDIUM 1件（一覧と集計のowner整合差）を5集計のJOIN統一+fixtureで是正し、コード・security・clinic-isolation再レビューはいずれもApprove、残存severityなし。
+- **L⑤ バッチ・分析・CSV = landing完遂 / release pending（2026-07-22・move `0fd34c7b7` / security-query hardening `f8a4df073` / migration-runner `4e8fb5b91`）**: 既存38file（production 18+test 20: lstep_batch+delivery/dormant/noshow/segmentation、analytics、CSV import+helpers、friend attribute snapshot、aggregation）を`internal/lstep`へ縦移動。route 6本（aggregation 1 / analytics 3 / CSV 2）を単一`RegisterRoutes`へ統合し、旧handler snapshot -6 / lstep snapshot +6、RBAC tuple 6本、JWT clinic優先のIDOR negative test、OpenAPI driftで保存則を固定した。repository aggregate互換facadeはCSV/snapshotの薄いaliasだけを残し、aggregationはcomposition境界の型付きadapterでlegacy DTOをdomain DTOへ写像した。batch/analytics/CSV/aggregationの依存をconsumer-side narrow interfaceへ縮小し、CSV serviceから未使用snapshot依存、aggregation serviceから未使用tag cache/config依存を除去した。
+  - **clinic・集計安全性**: LTV年間売上はbillingとownerの同一clinic・有効ownerをINNER JOINで検証。LTV一覧のpayment/refundを請求単位へ事前集約して多重JOIN水増しを防ぎ、refund clinicとmedical-record/billing owner整合を固定した。休眠抽出は同一clinicの有効ownerだけを対象化。CSV由来snapshotは読取時に親importのclinic一致を検証し、追記専用`002_lstep_snapshot_import_clinic_fk.sql`の複合FKでもcross-clinic書込を拒否する。CSVの認証staff IDはclinic-scoped lookup後にFK正本のaccount IDへ変換して保存する。
+  - **境界hardening**: CSV multipart requestを51MiBで入口制限（CSV本体50MiB）。heapへの全量保持をやめて一時ファイルへspoolし、decode後streamを`encoding/csv`より先にallocation-bounded字句走査して100,000行・64列・1セル64KiBを早期拒否する。global null-byte sanitizerも全量`io.ReadAll`を廃止してin-place streaming化し、binary MIMEをcase-insensitiveに判定するため、認証・route固有limit前のheap DoSを防ぐ。データは1行ずつ処理し、CSV内のLINE User IDだけを最大100件の`clinic_id + IN` queryで`line_user_id`列に限定して照合した後、snapshotを同じ100件単位で`REPEATABLE READ` TX保存する。病院全Owner・全列のloadは廃止。権限確認後かつ`FormFile`前のgateでCSV importを1病院1件・プロセス全体2件に制限し、単一病院による全枠占有を防ぎつつ超過時は本文を読まず429を返す。`error_count`は全件を保持しつつ永続化error logはPIIのLINE IDを除いた先頭100件に制限し、履歴一覧ではrepository projectionとresponse mapperの両方でerror logを除外。来院conversion窓をOpenAPIと揃えて1〜365日に制限。batch部分エラーはPIIを含み得る本文をログへ出さず件数だけを記録し、監査metadataのprocessed/error countは維持した。settings依存欠落時は同期ゲートを迂回せずfail-closedとした。
+  - **検証**: `internal/lstep`全数test（coverage 94.2%）+`internal/middleware`全数test+両package race、CSV comma-bomb/quoted/SJIS/BOM/blank-line・Owner照合100件batch/transaction isolation・multipart前429/病院別公平性・sanitizer no-pre-read/MIME大小文字境界、002 migrationのsame/cross clinic・既存不整合precheck、billing LTV・repository LTV・medicalrecord dormantのDB回帰test、service/handler/cmd/api/cmd/migrateを含むscoped compile/vet、旧/lstep route snapshot、RBAC/clinic scope、OpenAPI route/date drift、scoped golangci-lint 0件、gofmt/diff-checkがgreen。fresh DBへの実migration適用は承認境界のため未実施。
+
+<a id="be9-lstep-landing-matrix"></a>
+
+##### L③a〜L⑤ / BE9-2E-0 landing matrix（2026-07-22、L⑥着手前の必須gate）
+
+開始時の`HEAD=875cb613a`に重なっていた差分は、次の順序とgateでrevert可能なcommitへ分離した。row 0〜9はlanding済み、row 10が本docs-only同期である。L⑤のfresh DB実適用だけはrelease gateとして未実施。
+
+| 順序 | landing単位 | commit | 主な所有範囲 | 独立gate |
+|---:|---|---|---|---|
+| 0 | コード規約docs | `f778dabc0` | Go/Gin規約、`backend/CODING_RULES.md`。production差分とBE9進捗docsを含めない | docs symbol drift、`git diff --check` |
+| 1 | L③a tag-sync core | `d333d63ac` | `lstep_tag_*`、`lstep_health_*`、tag code/config/cache、owner tag/summary handler、route 23本、manifest誤分類3行 | tag RBAC/clinic negative、旧/lstep snapshot ±23、lstep全数test/race/lint |
+| 2 | L③b checkup_sync move | `ba5767e88` | `checkup_sync_*`（repo/service/handler/test/PERF）、route 2本、manifest再分類9行 | 同名test、RBAC tuple、旧/lstep snapshot ±2、下流compile |
+| 3 | L③b clinic hardening | `5fdfa11fa` | raw SQLのcross-clinic子行除外と敵対fixture | checkup IDOR、実DB clinic isolation、部分失敗継続のcharacterization |
+| 4 | L④ move/composition | `62a09f62e` | lifecycle、delivery trigger/log/monitor、trigger priority、service側typed audit adapter、route 16本 | 同名test、RBAC tuple、旧/lstep snapshot ±16、下流compile |
+| 5 | L④ clinic hardening | `860bd5020` | owner整合JOIN、cross-clinic子行fixture、作用前owner scope、priority copy-on-write | repository/serviceの敵対clinic test、race、L④関連package全数test |
+| 6 | L⑤ move/composition | `0fd34c7b7` | aggregation、batch、analytics、CSV import、friend-attribute snapshot、route 6本、aggregation adapter | 同名test、RBAC/IDOR、旧/lstep snapshot ±6、下流compile |
+| 7 | L⑤ security/query hardening | `f8a4df073` | CSV bounded parsing/concurrency/PII制限、Owner照合batch+TX、LTV/休眠/analyticsのclinic整合、fail-closed設定依存 | adversarial CSV、race、DB query regression、middleware/lstep全数test |
+| 8 | L⑤ migration/runner/docs | `4e8fb5b91` | `002_lstep_snapshot_import_clinic_fk.sql`、migrate runner/legacy-key test、migration規約、OpenAPI追随 | migration unit/precheck、cmd/migrate compile、checksum確認。fresh DB実適用だけはrelease gate |
+| 9 | BE9-2E-0 write-owner収束 | `de15c7903` | reservation owner operationとbilling/medicalrecord/lstep/trimming consumer、write-owner AST gate、ADR-006とworkflow contract | clinic/owner/pet/master-FK、concurrency、no-show/退院会計audit、cross-domain rollback、write-owner lint。L③a〜L⑤と混在させない |
+| 10 | BE9進捗docs同期 | 本docs-only batch | L③a〜L⑤とBE9-2E-0のlanding commit ID、検証結果、残債務を`BE-refactor.md`、ADR-006、boundary mapへ反映 | code差分を含めず、docs symbol drift、`git diff --check`。L⑤はfresh DB実適用まで`landing完遂 / release pending`と記録 |
+
+central fileのhunk所有はsymbol単位で固定してlandingした。`main.go`と`service.go`ではtag系=L③a、checkup=L③b、lifecycle/delivery/priority=L④、aggregation/batch/CSV/analytics=L⑤へ分離した。`lstep/routes.go`とconstructorは同じservice/handler群とroute blockを対応させ、旧/lstep snapshotはhandler名とroute本数の保存則を同じlandingへ含めた。manifestはL③aの3行とL③bの9行を別commitへ分離した。
+
+path stagingだけでは分離できない重複hunkがあったため、開始時HEADから各中間状態を一時index/worktree上で再構成してcommit treeを検証した。`service/perf_n1_regression_test.go`、`medicalrecord/medical_record_owner_visit_repository{,_test}.go`、`service/master_fk_write_inventory_lint_test.go`、constructor、route snapshotはsymbol/hunk単位で上表のownerへ割り当てた。
+
+landing実行結果:
+
+1. 単一writer、開始時HEAD/status、central file hashを固定した。
+2. path allowlist+hunk選択を使い、`git add .`やdirectory丸ごとのstageを行わず、row 0〜8へBE9-2E-0、row 9へL③a〜L⑤・frontend・ECC workflowを混入させなかった。
+3. 各commit treeを隔離してscoped検証し、production move、hardening、migration、write-owner収束を別revert単位へ維持した。
+4. L③a〜L④とBE9-2E-0は完遂、L⑤はlanding完遂 / release pending。L⑥は最新tipから開始できる。
+
+- **L⑥ 残置解消（未着手）**:
+  1. `target:lstep`のまま旧layerに残るSharedFileはmanifest上6 production row（移動5 + 旧repository facade削除1）、test 4 file、route 4本。5実装と4 testを`internal/lstep`へ移し、旧facadeを削除してroute snapshot、RBAC、OpenAPI、compositionを保存する。POSTのOR権限（`owners:edit` / `medical-records:create` / `medical-records:edit`）はtyped middleware注入と専用RBAC testで固定する。別domainへ再分類する場合は先にADR-006と分類manifestを更新する。
+  2. LSTEPのtyped composition result/constructorをtarget側へ置き、`cmd/api`（または凝集理由のあるcomposition package）が明示的に組み立てる。`service.NewServices`/`service.Services`が持つLSTEP construction・ownershipを解き、旧domain consumerには必要最小限の入力だけを渡す。
+  3. 旧packageに残るrepository facade 15本、service adapter、DTO alias、mock carrierをconsumer単位で棚卸しし、consumer 0は削除する。`accounting_reports_dto_aliases.go`の現consumerは`internal/service/mocks_accounting_test.go`であり、LSTEP testではない。`service/be9_2c_l3_tag_config_mock_carrier_test.go`全体と`service/lstep_l4_mock_carriers_test.go`のsettings/tag-cache carrierはconsumer 0の削除候補。tag-sync/lifecycle carrierはowner/pet/chronic等の残consumerと削除phaseを記録する。
+  4. 残すfacadeごとに実consumerとBE9-2E/2Fの削除phaseを明記し、移行期限のないalias・delegate・mockを残さない。
+
+  **完了条件**: 分類manifestの`target:lstep`全rowがtarget packageへ移動済み、削除済み、または実consumerと期限を持つ薄いfacadeのいずれかである。SharedFile、LSTEP production composition、route/testがtarget側へ収束し、consumer 0のalias・adapter・mock carrierが0件。
 
 各batch完了条件=従来gate+scoped golangci-lint（lstep全域）0件。
 
-#### BE9-2E: 残る中小domainを規模順にmigrationする
+<a id="be9-2e-0-write-owner"></a>
 
-1. 大規模domainのために先行移行済みの小規模dependencyを除き、残存production行数、file数、facade/call-site削減量が大きいdomainから処理する。
+#### BE9-2E-0: business factのwrite ownerを収束させる（behavior-changing pre-batch）
+
+2026-07-22の初回source inventoryでは、`appointments`のwrite ownerを`reservation`とするtargetに対し、次の未達を確認した。以下は着手時の差分であり、現在の実装状態は後段の完遂記録を正とする。
+
+- `internal/billing/accounting_repository.go`の`CompleteAccountingAppointments`が、billing transaction内で`model.Reservation`を直接2経路UPDATEしている。
+- `internal/medicalrecord`の`mrReservationRepo.Update(..., map[string]any)`と`internal/lstep`の`lstepBatchReservationRepository.Update(..., map[string]any)`はreservation実装を呼ぶが、consumerへ任意field更新能力を公開している。
+- trimmingを含む他consumerにも広い`ReservationRepository`依存が残るため、GORM構文のgrepだけでなくinterface call-siteまでinventoryする必要がある。
+
+1. production codeの`appointments` read/writeをinventoryし、各writeのbusiness intent、caller、transaction owner、status/owner/pet/doctor invariant、retry特性を記録する。
+2. billingの直接GORM writeと、medicalrecord/lstep等が使うgeneric `Update(map[string]any)`を、`reservation`が提供するbusiness intent別operationへ収束させる。consumer側interfaceは各callerが必要なoperationだけを宣言する。
+3. accounting等のcross-domain transactionではambient transactionへの参加、全参加write、rollback範囲を明示し、owner APIへの移行でatomicityを失わない。
+4. clinic isolation、owner/pet整合、許可されたstatus transition、concurrent execution、rollback、必要なidempotencyをruntime testで固定する。
+5. 現行挙動の変更が必要なoperationは、folder/facade削除と混在させず、characterization → contract/ADR → implementationの独立batchにする。臨床安全疑義がある場合はmigrationを停止し、安全修正を先行する。
+
+**完了条件**: `reservation`外の独立した`appointments` persistence writeが0件。外部consumerへgeneric field-update APIを公開せず、全writeがintent-specificなconsumer interfaceまたは明示的orchestrationを通る。cross-domain writeはtransaction ownerとrollback testを持ち、例外はADRに期限付きで記録されている。
+
+**完遂（2026-07-22・`de15c7903`）**: `appointments`の唯一のpersistence ownerを`internal/reservation`へ収束した。初回inventoryで確認したbillingの直接UPDATE、medicalrecord/lstep/trimmingのgeneric update依存を次のintent-specific operationへ置換し、owner内の汎用`update(map[string]any)`は非公開化した。write-owner AST gate、clinic/owner/pet/master-FK、transaction/concurrency、no-show監査、退院会計監査、cross-domain rollbackのruntime testを同じ独立landingへ含めた。
+
+| intent operation | consumer | transaction owner / atomicity | 固定したcontract |
+|---|---|---|---|
+| `CompleteForAccounting` | billing | billingが開始したambient transactionを必須とし、`DBOrTx`で参加する。会計write・appointment遷移・返却用の最終reloadまで同じtransaction内で成功させてからcommit/rollbackし、transaction欠落はfail-closed | clinic-scoped。同日同一owner/petの`accounting`、または同clinicのmedical recordに紐づく非terminal appointmentだけを`completed`へ遷移。commit後のreload失敗で「errorだが更新済み」を返さない |
+| `BackfillForMedicalRecord` | medicalrecord | appointment-linked medical recordのCreate transactionへ必ず参加し、context欠損の有無にかかわらずappointmentを`FOR UPDATE`で再読込。appointment直引きのduplicate判定とINSERT完了までlockを保持 | 同clinicの`general`予約だけを許可。欠損owner/pet/doctorだけを補完し、既存値との不一致、owner-pet不整合、doctor所属違反を拒否する。通常カルテは予約1件につき有効1件まで、`date`はappointmentのJST日付へ正規化して紐付け後は変更不可、`appointment_id`も再紐付け不可。duplicate lookup/必須verifier/transaction依存の欠落・失敗はfail-closed |
+| `PrepareForMedicalRecordFinalization` | medicalrecord | appointment-linked medical recordのfinalized Create/Update transactionへ参加し、appointment単位のlifecycle advisory lock→row lockをcommitまで保持。finalized Createでは`BackfillForMedicalRecord`より先に取得 | `no_show`/`cancelled` appointmentに紐づくカルテ確定を拒否。`MarkNoShow`と同じlock順序へ参加し、同時実行時も確定済みカルテと`no_show`が両立しない |
+| `MarkNoShow` | lstep no-show batch | lstepが候補1件ごとにtransactionを開始し、reservationのlifecycle lock・compare-and-set・system監査を同時commit/rollback | `pending`/`confirmed`かつ終了4時間経過後で、同clinicの確定済みカルテがない場合だけ`no_show`へ遷移。stale候補と再実行はno-op。実更新時は直前status、rule version、評価時刻、batch run IDを1予約単位で監査し、監査失敗時はstatus更新もrollback |
+| `CreateForTrimming` / `LockTrimmingByID` / `UpdateForTrimming` | trimming | ambient transaction不在を拒否。clinic advisory lock→appointment row→予約区分`FOR SHARE`の順序を固定し、slot/capacityを再検証。staff所属・対応可能種別、course/optionも同じtransactionで共有ロックし、appointment/detail/optionsを同時commit/rollback | 新規Createは同clinicのactiveな`trimming`予約区分だけを許可。petから同clinic ownerを導出して`owner_id`も保存し、既存予約の欠損ownerはappointment fieldを変更しないdetail-only writeでもtyped updateにより補完する。既存のinactive履歴は同clinic・非削除なら参照可能。pet/owner整合、doctor所属・対応可能種別、course/optionのclinic・active状態をwrite直前に固定し、medical record紐付け後の患者・担当者・日時変更、terminal appointmentの本体/詳細変更、trimming経由の`no_show`化を拒否。typed fieldだけを公開 |
+| `DeleteForTrimming` | trimming | ambient transaction不在を拒否し、clinic advisory lock→appointment row→予約区分共有ロック→medical record dependency checkの順でtyped deleteを実行 | 同clinic・非削除の`trimming`だけをsoft deleteし、inactiveな既存履歴も同じguardで扱う。紐づく未削除medical recordまたはterminal statusならconflictし、同時Createとはrow lockで直列化。一般診療appointmentは同clinicでもNotFoundとして扱う |
+
+`de15c7903`の隔離staged treeでは、reservation / billing / medicalrecord / lstep / service / model / cmd/api / repositoryの全数test、reservation / billing / medicalrecord / lstep / serviceのrace、同8 packageのvet、新規差分限定golangci-lint（0件）、gofmt、diff-check、高確度secret scanを実行してgreenを確認した。package全体lintは未変更fileの既知警告279件を検出するため合否から分離し、新規差分gateを正本とした。
+
+予約キャンセル後のdraftカルテcleanupは、安全な通常削除経路（row lock、draft再確認、見積依存確認、既存audit policy）へ統一して旧repository bypassを削除した。ただし予約更新とカルテcleanupは既存contractどおり別transactionのbest-effortであり、部分成功時の再収束は下記のcross-domain orchestration債務として明記する。これはowner外の`appointments` write例外ではない。
+
+- LIFF予約はtransactor・reservation repositoryを必須とし、公開中・active・非internalの予約区分、LINE顧客のclinic所有、明示staffのclinic所属・対応可能種別・`is_active=true`・`reservation_visible=true`、activeなcourse/optionをwrite transaction内で再検証する。具体repositoryはline customer/master/assignment/capability行を`FOR SHARE`で固定し、appointment・trimming detail・optionsを単一transactionで保存する。必須repository欠落や詳細・option保存失敗はfail-closedとし、appointmentだけを残す旧best-effort後書き経路は持たない。ownerのclinic所有確認もambient transaction内では共有ロックする。
+- 通常カルテのsoft deleteは、同じtransactionで対象カルテを`FOR UPDATE`し、同clinicの有効な見積依存を再確認してから`clinic_id + id + status=draft`の単一DELETE条件で実行する。見積Createも親カルテ行を先にlockするため、見積作成と削除は両順序で直列化され、先に見積がcommitした場合は削除をConflict、先に削除がcommitした場合は後続見積を拒否する。確定処理が先にrow lockを取得した場合や既に非draftの場合もConflictとし、確定済みカルテを削除しない。
+- 締め後の会計編集はtransaction内監査を必須とし、監査dependency欠落または監査write失敗時は編集自体をrollbackする。
+- `internal/reservation/appointment_write_owner_lint_test.go`を追加し、production tree全体のGORM write（`FirstOrCreate`を含むmutation、query変数、typed引数、slice/array・named/aliasを含むtyped parameter、free function/receiver method戻り値由来の`model.Reservation`、cross-fileおよび宣言戻り型で解決するpackage-qualified free/receiver factory、直接または変数代入した`TableName()`、package/local定数、table alias、schema-qualified tableを含む）、直接・const連結・静的helper戻り値・schema-qualified tableのraw SQL、owner外の広い`ReservationRepository`依存、`map[string]any`/`map[string]interface{}`のnamed/aliasを含むgeneric appointment mutation capabilityをASTで拒否する。read-only queryと薄いcompatibility facadeだけを明示的に許可する。
+- clinic isolation（一覧JOINの予約区分・pet・owner一致、medical record検索JOINのowner/pet clinic一致、nested Preloadの中間`TrimmingDetail` scopeを含む）、owner/pet/doctor/master-FK、同clinic一般予約のtrimming権限分離、通常カルテからtrimming予約への紐付け拒否、新規trimmingのinactive予約区分拒否、LIFFのinactive・非表示staff拒否、ambient transaction必須、owner/line customer/予約区分/staff assignment/capability/course/optionの共有ロック、同一appointmentへの通常カルテ同時作成の1件収束、並行backfill/no-show、no-showとカルテ確定の両勝者順序、カルテ確定・見積作成・draft削除の競合、確定済みカルテのno-show除外、stale candidate、idempotency、no-show status+監査、退院会計+監査およびcross-domain writeのrollback、trimming owner永続化（detail-only writeによる補完を含む）、trimming Create/既存予約再利用/Updateのslot・capacity再検証、terminal本体/詳細変更・削除拒否、指定された監査依存のfail-closedをruntime testで固定した。`DBOrTx`/Preload/master-FK inventory gateも新operationを追跡する。
+- schema/API変更はなくmigration不要。実装・transaction・状態遷移の決定記録は[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)、利用者向けworkflow contractは[予約からカルテ入力までの統合フロー仕様](docs/spec/reservation-to-record-flow.md#55-appointment-lifecycle-write-contract)を正本とする。
+
+#### BE9-2E: 残る中小domainをready frontier内のlargest-ready順にmigrationする
+
+1. 大規模domainのために先行移行済みの小規模dependencyを除き、ready条件を満たす候補から、残存production行数、file数、facade/call-site削減量が最大の非競合domainを実装lane B/Cの上限2件まで選ぶ。ready候補が1件だけ、または候補同士が競合する場合は1件へ縮退する。
 2. BE9-2Cと同じ縦移動、Context/error、API/SQL/tenant behavior、revert可能性のgateを適用する。
 3. cross-cutting packageは実際の複数consumerがある場合だけ維持し、所有者が1domainへ収束したcodeはそのdomainへ移す。
+4. 各domainのbusiness fact、source of truth、write owner、owner外のwrite call-siteを着手前に列挙し、直接writeをowner APIへ収束させる。挙動変更が必要なら移動batchと分ける。
 
-**完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。
+**完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件（ADRに記録した期限付き例外を除く）。
 
 #### BE9-2F: 旧layer packageとfacadeを撤去する
+
+**着手条件**: BE9-2E-0を独立batchとしてlanding済み、かつBE9-2Eを完了し、facade削除によって未収束のwrite pathを隠さないこと。
 
 1. 全call-siteをtarget domain packageへ変更し、期限切れfacade、巨大aggregator、旧layer専用helperを削除する。
 2. shared helperは実際の複数consumerがあるものだけ、用途を表すpackageへ置く。`common`、`util`、`interfaces` packageを作らない。
 3. docs、lint allowlist、test fixture、DI、route snapshot、OpenAPI symbol referenceを新pathへ同期する。
+4. facade削除時にwrite pathを再inventoryし、旧layer経由のbusiness rule/persistence実装やowner外の直接writeが残っていないことを確認する。
 
 **完了条件**: `internal/handler`、`internal/service`、`internal/repository`にproduction implementationが0件。残すdirectory/fileがある場合は、domain packageへ置けない具体的consumer理由とADR-006の例外記録が必要。全target packageは単独test可能でimport cycleが0件。
 
@@ -306,6 +409,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 2. dependencyはclosureまたはstructで型安全に注入し、package global/untyped context injectionを新設しない。`main.go`だけを唯一のDI場所として強制しない。
 3. trusted proxy失敗時の扱い、CORS/CSRF/cookie/rate limit/body limit、timeout値、`http.ErrServerClosed`、shutdown順序、goroutineの終了/cancelをdeployment前提と突合する。
 4. `httptest`でbinding、validation、authn/authz、ownership、unknown 500、middleware abort/orderを検証する。
+5. 自動処理を持つresourceは、手動fallback、停止、失敗通知、監査、idempotency/retryと、同じbusiness invariantを通ることを監査する。
 
 **完了条件**: [Go/Gin backend review](.claude/refs/go-gin-backend-review.md)の全項目にPASSまたは根拠付きN/Aがあり、cross-tenant requestと内部error非漏洩のnegative testがある。
 
@@ -314,38 +418,80 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 - scoped gate: 新scanner/packageと変更対象packageをDocker経由でtest/race/vetする。full `go test ./...`とfull lintは自動実行せず、最終gateとしてユーザー手動実行を依頼する。
 - `rg -n 'go-package-conventions|gin-architecture-compliance|golang-gin-clean-arch' .`が0件。
 - active code/testの旧P1–P18参照は、同名の別project phaseやhistorical fixtureを除き0件。例外にはsemanticな説明を付ける。
-- `bash .claude/scripts/sync-agents-skills.sh`後に`.claude`と`.agents`のrules/skills差分が0件。
-- `bash scripts/check-docs-symbol-drift.sh`、local Markdown link check、`git diff --check`がPASS。
+- `bash .claude/scripts/sync-agents-skills.sh`が成功し、各`.claude/rules/*.md`と対応する`.agents/rules/*.md`を`cmp`して差分0件を確認する。`.agents/skills`には生成されたcommand互換wrapperも含むため、`.claude` treeとの全体一致は合否条件にしない。
+- `bash scripts/check-docs-symbol-drift.sh`、今回追加・変更したlocal Markdown linkの存在確認、対象fileを限定した`git diff --check`がPASS。
+- L⑤ migrationのrunner/checksum/unit/precheckをBE9内で完了する。fresh DB実適用は承認を要するrelease-readiness gateとして結果を別途記録し、それまでは`BE9 code complete / release pending`であってrelease readyとはしない。
 - `BE-refactor.md`のBE9を完了化し、旧BE8本文は履歴として削除またはarchiveするかを別途判断する。
 
 ### 実装順序とbatch境界
 
-`BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot 1件）→ {BE9-2C ↔ BE9-2Dを大規模domainごとにlargest-ready方式で反復} → BE9-2E → BE9-2F → BE9-3 → BE9-4`。BE9-1は新target packageを監査できる状態にしてからproduction migrationを開始する。BE9-3のresource監査は各BE9-2 batchでも反復する。大規模domainを先に狙うが、各batchはroute/use case/transaction単位とし、behavior-preservingな移動と機能変更を混在させない。security invariantを変更する必要が出た場合は本タスク内で推測せず、ADRとruntime isolation testを先に更新する。
+`BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot 1件）→ {BE9-2C ↔ BE9-2Dを大規模domainごとにlargest-ready方式で反復} → BE9-2E-0（write owner収束）→ BE9-2E → BE9-2F → BE9-3 → BE9-4`。BE9-1は新target packageを監査できる状態にしてからproduction migrationを開始する。BE9-3のresource監査は各BE9-2 batchでも反復する。大規模domainを先に狙うが、各batchはroute/use case/transaction単位とし、behavior-preservingな移動と機能変更を混在させない。各batchはbusiness fact/write owner mapを持ち、owner一本化で挙動変更が必要なら独立batchへ分ける。security invariantを変更する必要が出た場合は本タスク内で推測せず、ADRとruntime isolation testを先に更新する。
 
-### 現在地と着手前ゲート（2026-07-21 更新）
+**landing実績**: BE9-2E-0はlstep完了前にL③a〜L⑤と重なった状態から、matrix 8の後に独立batch `de15c7903`として着地した。この先行landingはL⑥を省略・代替せず、lstep domainの完了条件は引き続きL⑥で満たす。
+
+<a id="be9-parallel-sessions"></a>
+
+### 並行セッション実行計画（4セッション / ownership view）
+
+本節は残作業を安全に4セッションで並行実行するためのsession ownershipと同期barrierだけを定める。wave 0の混在差分landingは完了済みであり、現在はwave 1（L⑥）以降を適用する。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
+
+- **Session A（統合owner）**: integration tip、共有file、merge順、共有DB test queue、最終gateを所有する。
+- **Session B（domain lane 1）**: ready frontierで最大の非競合domainを、独立worktreeでdomain-localに実装する。
+- **Session C（domain lane 2）**: Bと競合しない次のlargest-ready domainを、別の独立worktreeで実装する。
+- **Session D（verification lane）**: dependency、baseline、behavior差分、security/clinic isolation、handoff結果を独立検証する。原則としてproduction codeのwriterにならない。
+
+| wave | Session A（統合owner） | Session B（domain lane 1） | Session C（domain lane 2） | Session D（verification lane） | 同期barrier |
+|---|---|---|---|---|---|
+| 0: 混在差分landing（完了） | immutable snapshotから[landing matrix](#be9-lstep-landing-matrix)の0〜9を順番に再構成・検証し、row 10をdocs-onlyで統合 | BE9-2E-0のpath/hunk inventoryと独立commit-tree案を準備 | L⑥のconsumer inventoryとpath allowlist案をread-onlyで準備 | matrix各rowのscope混入、structural/behavior分離、commit-tree gateを独立確認 | row 0〜10完了。実績commitはlanding matrixを正本とする |
+| 1: L⑥ | SharedFile、typed composition、共有facade/DTO/mock carrier残置を解消する唯一production writer | landing後のfresh manifestを非重複候補群へ分け、BE9-2E候補のbusiness fact/write owner、baseline test、依存、rollback単位をread-onlyで棚卸しする | Bと重ならない候補群を同じ観点で棚卸しし、file/symbol/callerの競合表を作る | B/Cのsize・dependency・baseline測定とL⑥完了条件を独立検証し、ready frontier案をAへ返す | `target:lstep`全rowがL⑥完了条件を満たし、AがB/Cの候補を単一frontierへ統合し、Dが反証確認するまでBE9-2Eのproduction変更を開始しない |
+| 2: BE9-2E反復 | B/Cのbaseとなるintegration tipを固定し、共有composition/gate変更とhandoffを1件ずつ統合する。共有DB testを直列実行する | frontier内で最大のready候補をdomain-localなmove/test/facadeまで担当し、共有面の変更一覧をAへ引き渡す | Bとfile・symbol・caller・business fact・table・write owner・interface/DI・transaction/lock・route/RBAC・gateが非競合な候補のうち最大のものを同じhandoff contractで担当する | B/Cのbaseline、behavior差分、clinic/security invariant、scoped gateを独立検証し、次frontier候補を準備する | B/Cは同じA tipから別worktreeで開始する。Aが先のhandoffを統合した直後にfrontierを再実測し、残るhandoffがdependency・largest-ready・baseline・全競合軸を再PASSした場合だけ統合する。失効したhandoffは破棄または最新tipから再構成する |
+| 3: BE9-2F | aggregator、共有facade、旧layerとmerge順を所有し、全call-site収束を統合する | 最新A tipでconsumer 0を証明済みの、非競合domain-localな薄いalias/delegateと専用testだけを独立worktreeで削除する | Bと全競合軸が重ならず、同じconsumer 0・薄いfacade条件を満たす別domainの削除を担当する | 削除前後のconsumer、write path、transaction contract、期限付き例外、残存production実装をread-onlyで独立監査する | call-site変更、共有mock/aggregator、route/RBAC/OpenAPI、write ownerを隠し得る削除はAが直列実行する。Aが各handoffを1件ずつ統合してconsumer/write inventoryを再実測し、Dがexact tipを確認してから次へ進む |
+| 4: BE9-3最終収束監査 | 各BE9-2 batchで反復済みのresource監査を集約し、必要なcode/test修正を直列統合する | Aが割り当てたresource群のroute、binding、authn/authz、ownership、error contractを監査する | Bと重ならないresource群を同じchecklistで監査する | `cmd/api`、middleware、server lifecycle、全domain route同時登録、cross-domain invariantを横断監査する | 監査自体は並行可。global surfaceを含む実際の変更はAが直列化し、behavior/security修正はstructural移動と別batchにする |
+| 5: BE9-4 | 最終gate、結果集約、進捗docs完了化を行う唯一writer | 旧symbol、期限切れfacade、旧package production実装の残存をread-onlyで確認する | route/OpenAPI、classification manifest、ADR/boundary map、local linkの同期をread-onlyで確認する | 完了条件、検証証跡、release pending項目を独立に反証し、完了判定案をAへ返す | AがB/C/Dの結果を再現し、BE9-4完了条件を満たした時点だけBE9を完了化する |
+
+**並行化規則**:
+
+1. L③a〜L⑤・BE9-2E-0の混在差分はsingle-writer barrierとして処理済み。今後も未commit差分が複数laneへ重なった場合は、Session Aが`HEAD`、status、central file hash、staged/unstaged patch、untracked path/hashをimmutable snapshotとして固定し、Session B/C/Dはlive dirty treeではなくsnapshotを参照する。
+2. Session Aはcanonical integration worktreeの唯一writerである。production codeを並行編集できるのは、Aが公開した同一integration tipから作成した**別worktree**を持つB/Cだけとする。BとCは同じworktree、branch、未commit差分を共有せず、Aのtip更新後はhandoff前にrebaseではなく必要に応じて再構成してscopeを再証明する。Session DはAが公開したexact treeを専用verification worktreeで検証する。
+3. BE9-2Eの`largest-ready`は、実装lane B/Cへ**ready frontier内で最大、かつ相互にfile・symbol・caller・business fact・table・write owner・consumer/provider interface・DI edge・transaction/lock・route/RBAC・gateが非競合の候補を順に割り当てる**と解釈する。固定domain順を正本化せず、各landing後に再計測する。ready候補が1件しかなければ片方を準備・監査へ戻し、並行数を満たすために依存やbatch境界を崩さない。
+4. domain-local laneはtarget package、対応する旧domain file/test、期限付きfacadeだけを変更し、現行central compositionのままcompile可能な状態でhandoffする。structural move、behavior/security hardening、central integrationを別landing単位にする。
+5. `backend/cmd/api/main.go`、`backend/docs/api.yaml`、`backend/internal/{handler/handler.go,handler/master_routes.go,service/service.go,repository/repositories.go}`、旧route snapshot、OpenAPI drift gate、lint inventory、classification manifest、ADR-006、boundary map、`BE-refactor.md`は共有integration面であり、Session A以外のwriterを置かない。`middleware`、`httpapi`、`sharedkernel`、`repository/repohelpers`、共有mock carrier、migration runner/checksum等、複数domain consumerを持つcross-cutting面は列挙外でもA専有とする。L⑥で扱う追加central fileも同じ扱いとする。
+6. authのpermission middlewareとdiscount permission helperは全route/domainへfan-inするglobal barrierである。auth coreを先にdomain-local移行しても、middleware/callerの一括cutoverは他sessionのroute変更が着地した後にSession Aが単独実行する。
+7. 共有DBを使うDB-backed testはSession Aが単一global test queue/leaseを所有し、A/B/C/Dの全sessionがlease取得なしに実行しない。`-p 1`は単一process内の直列化にすぎず、session間のlease代替にならない。別Git worktreeだけではDocker Compose project、DB、port、bind mount/sourceを隔離したことにならない。Docker経由の全checkは、containerがcandidate treeまたは対象file hashと一致するsourceをmountしていることを証明する。証明できない結果はpure Go unit testでもcandidateの合格根拠にせず、Aが統合したexact tipで再実行する。DB-backed testを並行実行できるのは、sourceに加えてCompose project、DB、portもsession単位で分離できた場合だけとし、それ以外はglobal leaseで直列化する。container/DBを使わないstatic/docs checkは並行実行できる。
+8. Session Dは検証対象のproduction codeを変更しない。gate不足を検出した場合は再現手順とtest案を返し、実装はAが適切なownerへ割り当てる。D自身が作ったtestをD自身の独立承認根拠にせず、pre-integration検証だけで合格にしない。Aが統合したexact tipをDが再確認し、DB-backed gateはAのtest queueでpost-integration実行する。
+9. B/Cのhandoffはbase commit、candidate commit/tree hash、path allowlist、structural/behavior区分、共有面の変更要求、scoped検証結果、未解消事項を必須情報とする。Session Dはcandidate tree hashを固定して検証し、Session Aは同じtreeであることを照合する。この情報とDの反証結果が揃うまで統合しない。
+10. L⑤のfresh DB実migration適用は承認を要するrelease gateであり、Session A/B/C/Dの自動実行対象に含めない。
+
+<a id="be9-current-state"></a>
+
+### 現在地と着手前ゲート（2026-07-22 更新）
 
 **完了した大規模domain 3件**:
-- **medicalrecord（185 file）**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ ①（`538cdb34`）→ ②（`14f00f6c`）→ ③（`75c55c48`）→ ④a（`e3eb253e`）→ ④b（`cd8fd984d`+`6508faab0`）→ 共有カーネル昇格（`f93299f1c`）→ ⑤（`d4e227cf8`+`f024b09e7`）→ ⑥（`a21977e91`）→ ⑦（`d4d7ef068`）。⑧checkup_syncは論点#7でlstepへ帰属変更。
+- **medicalrecord（完了時inventory 185、現行分類175 file）**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ ①（`538cdb34`）→ ②（`14f00f6c`）→ ③（`75c55c48`）→ ④a（`e3eb253e`）→ ④b（`cd8fd984d`+`6508faab0`）→ 共有カーネル昇格（`f93299f1c`）→ ⑤（`d4e227cf8`+`f024b09e7`）→ ⑥（`a21977e91`）→ ⑦（`d4d7ef068`）。⑧checkup_syncは論点#7でlstepへ帰属変更。
 - **reservation（77 file）**: Phase 0（`3dc35694e`）→ R①〜R⑥（`c4c95698d`〜`0ee22c180`）。
 - **billing（65 file）**: BUG-417是正（`2634f58fe`）→ B①〜B⑥（`22b2094e1`〜`24420376c`）。
 
-**進行中 = lstep（107 file）**: L①（`6bae6095d`）→ L②（`2ef112227`）完了。**次 = L③a（タグ同期コア・約75 file）→ L③b（checkup_sync合流・約14 file）→ L④ → L⑤ → L⑥**。
+**進行中 = lstep L⑥**: 分類manifestの`target:lstep`は119 source row、現行`internal/lstep`はproduction Go 122 fileであり、別指標。L①（`6bae6095d`）→ L②（`2ef112227`）→ L③a（`d333d63ac`）→ L③b（`ba5767e88`+`5fdfa11fa`）→ L④（`62a09f62e`+`860bd5020`）は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂した。**次 = L⑥（SharedFile、composition、facade/DTO/mock carrier残置解消）**。
 
-**その後**: BE9-2E（中小domain 145 file = staff/auth/clinic/trimming/pet/owner/inventory）→ BE9-2F（facade撤去・`repos.Transaction`機構削除。production consumer は既に0）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）。**push未実施**。
+**その後**: L⑥を終えた後、BE9-2E（中小domain 147 source row = staff/auth/clinic/trimming/pet/owner/inventory）→ BE9-2F（facade撤去・`repos.Transaction`機構削除。production consumer は既に0）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 
-**未解消の技術債（各slice完了時に判明・起票済み）**:
-- BUG-418（`DischargeWithBilling`の監査ログ欠落・既存負債）= todo.md バグ台帳。
-- 全domainのrouteを同時登録する統合testが存在しない（Ginのroute衝突panicは起動時にしか出ない）。現状は「route snapshot両側の±N保存則 + openapi driftのpath集合一致」で代替証明している。BE9-3の候補。
-- `internal/handler`・`internal/service`に既存のgofmt未整形file 7本（本移行で触れていないpre-existing debt。無関係fileの整形はdiffを汚すため各sliceでは手を付けていない）。
+**未解消の技術債とgate（起票状態を明記）**:
+- **解消済み（`de15c7903`）**: BUG-418（`DischargeWithBilling`の監査ログ欠落）。会計を伴う退院はactor/audit dependencyをfail-closedとし、status・会計・明細・合計・監査を同一transactionでrollbackする。
+- **未起票・behavior-changing fixとして分離**: L③aの`PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時に部分更新を残し得る。
+- **未起票・contract判断が必要**: L③bの`owner_ids`件数上限と、actor欠落401後もservice実行を継続する既存挙動。
+- **未起票・BE9-2Eまでのcross-domain orchestration判断**: 予約キャンセル後のdraftカルテcleanupは通常の安全削除経路へ統一済みだが、予約更新とは別transactionのbest-effortである。部分成功をretry/outbox/明示的orchestratorのどれで再収束させるかをproduct contractと合わせて決める。
+- **release gate（技術債ではない）**: L⑤の`002_lstep_snapshot_import_clinic_fk.sql`をfresh DBへ実適用し、migration checksum・rollback方針を確認する。
+- **BE9-3計画内・未起票**: 全domainのrouteを同時登録する統合testが存在しない（Ginのroute衝突panicは起動時にしか出ない）。現状は「route snapshot両側の±N保存則 + OpenAPI driftのpath集合一致」で代替証明している。
+- **未起票の既存整形債務**: `internal/handler`・`internal/service`にgofmt未整形file 7本。本移行で触れていないfileを一括整形せず、所有domain移行時または独立format batchで解消する。
 
 **sub-batch④の重要決定（2026-07-20 inventory+advisor）**:
 - **④を④a/④bに分割する**。**④a（clean move）= vital + clinical_plan + medical_record_image → 完遂（2026-07-20・コミット`e3eb253e`）**。①②③と同じnarrow consumer-side interfaceパターンで移動。**④a実績の非自明点**: (1) advisor指摘3点を織り込み——lockDraftMedicalRecordのmedicalrecordコピー（本体byte-identical確認済・コメント差のみ）にtest新設（`medical_record_lock_test.go`・nil-parent-fails-closed parity・従来カバレッジ0）、verifyMedicalRecordOwnershipを残留`internal/handler/medical_record_ownership.go`へ抽出（④外treatment_plan_handlerが消費）、vital LogVitalChangeは**adapter不要の具象直渡し**（signature=primitive+map[string]anyのみでservice.AuditServiceと完全一致——labAuditAdapter型変換不要でfield parity達成）。(2) Batch Cのfork委譲がエージェント調整の錯綜（相互peer認識・fork完了待ちループ）を招き、統括が引き取り単一finisherで解消。残留漏れ3件（medical_record_handler_testのServices.ClinicalPlan field参照×2・simple_settingsのmisfiled TestUpdateClinicalPlanRequest）を統括が直接是正。(3) 親medical_record handlerはh.svc.ClinicalPlanをproductionで元々不使用（HEAD確認）のためfield注入除去はbehavior-preserving。検証: 変更5 package DB-backed全数test -p 1 green・build/vet(./...)/gofmt/docs-drift/diff-check green・敵対レビュー4レンズ+反証で指摘0（vital監査byte-identical専用レンズ含む）。**④b（refactor-then-move）= treatment（+treatment_dose_save+dose kernel）→ 完遂（2026-07-21・Phase1=`cd8fd984d`/Phase2=`6508faab0`・ユーザーの「BE-refactor.md対応」指示をgo-aheadとして実行）**。計画通り2フェーズで実施——詳細は「BE9-2D: medicalrecord sub-batch定義」④の完遂記録参照。計画時に見えていなかった発見: (1) dose kernelのservice側残留consumer（dose_validators.go←medicine master書込検証）が安全マップ共有でkernelごと移動が必要だった。(2) X-11並行性テストが旧repo-swap機構を「productionと同じ」とpinしており、gate追随（WithTx化）自体が新機構のtx参加の実DB証明になった。(3) master-FK gateのcross-package qualifier検出はtype aliasで型同一のまま回避可能（qualifier包括allowlist化は恒久弱体化のため禁じ手）。
 - **共有カーネル昇格batch = 完遂（2026-07-21・`f93299f1c`）**: `internal/sharedkernel`新設（import面={apperrors,model,stdlib}・acyclic）。LockDraftMedicalRecord+MedicalRecordLocker/GoSafe/AuditActorTypeFor/validators family（RequiredName/OptionalName/OwnedMasterFK(+FKs)/SetNullableUint64Field/NonNegativePrice/DiscountRate）+共有ErrMsg定数5本を単一実装化。service/medicalrecord両側は既存呼び出し面互換の1行delegate+定数alias（呼び出し40+箇所無変更・delegate解消=各domain移行時）。scope除外は計画通り（logReplaceDeletionTx/computeExamResultStatus=examination移行時自己解消）。検証=高リスク3本体のHEAD原本byte-identical機械証明+3パッケージ全数green+lock testの三重化（sharedkernel直+両delegate経由同名）。
 - **（履歴）共有カーネル昇格は④に含めない・④後の専用batchへ**。決定打: 昇格は④内でfile 0・新規重複0を解決する（medicalrecord側コピーはsub-batch②から既存）。逆に昇格はbilling_confirmation/estimate/examination/accounting/lstep/medicine等④外callerに波及し最高リスクスライスを膨張させる。**実測でコピー数は2（service+medicalrecord）でrule-of-three(3コピー)ではない** — 昇格の真の根拠は「literal count」ではなく「callerがmedicalrecord子孫 vs billing/accounting/lstep/masterという恒久ドメイン境界を跨ぐ（domain移行で決して消えない）」こと。専用batchはpure/leaf依存helperのみscope: lockDraftMedicalRecord(+medicalRecordLocker)/goSafe/auditActorTypeFor/validateNonNegativePrice/validators family。**lockDraftMedicalRecordを最初に昇格**（X-11 finalize-race臨床安全guard・純関数・{apperrors,model}依存のみ）。logReplaceDeletionTx・computeExamResultStatusは除外（examination移行時に自己解消・audit-sink型結合あり）。kernel package import面={apperrors,model}=検証済みacyclic。
 
-**sub-batch④以降の前提**: ⑤hospitalization/discharge-with-billingは④の後。billing側の`lockDraftMedicalRecord`呼び出し元（billing_confirmation/estimate）は触れない（論点#6=billing着手時）。ゲートの正本 = ADR-006「未解決論点」節。以下は要約:
+**（履歴・現在は完了）sub-batch④以降の前提**: ⑤hospitalization/discharge-with-billingは④の後。billing側の`lockDraftMedicalRecord`呼び出し元（billing_confirmation/estimate）は当時触れず、論点#6をbilling着手時のgateとした。現在の解決状態の正本 = ADR-006「論点の解決記録」節。以下は当時の要約:
 
-**2026-07-20: 論点#1〜#4はユーザーのPO判断委任に基づき裁定済み（Resolved）** — 裁定内容・根拠・実装条件の正本 = ADR-006「未解決論点」節（同日追記）。要約:
+**2026-07-20: 論点#1〜#4はユーザーのPO判断委任に基づき裁定済み（Resolved）** — 裁定内容・根拠・実装条件の正本 = ADR-006「論点の解決記録」節。要約:
 
 | # | 裁定（2026-07-20） | 実装時の条件 |
 |---|---|---|
@@ -353,11 +499,11 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 | 論点#2 | **単一`internal/lstep`で確定**（LIFF 9 fileのreservation再分類済みで分割動機が縮小） | BE9-2D lstep実装中に実消費境界が出現した場合のみ再評価（ADR再改訂） |
 | 論点#3 | **clinic→reservationエッジは追加しない**（2026-07-20再grepで消費者=clinic CRUD+accounting_reportのみと確定） | 休診日の予約反映は製品論点としてBE9外（要件化は責任者名付き別Issue） |
 | 論点#4 | **medicine/vaccine=medicalrecord、line_reservation_setting=reservation帰属で確定**（概念タグのみ・ファイル移動なし） | sub-batch②のvaccine移動は既定通りmedicalrecordへ |
-| 論点#6 | **裁定対象外（決裁事項ではなく技術的是正ゲート）** — `billing_item_repository.go`のsubquery是正+クロステナントtest追加（todo.md バグ台帳 BUG-417） | billing domain着手時の必須前提。BE9外でこのファイルへ触れる場合もその場で是正 |
+| 論点#6 | **Resolved（2026-07-21・billing Phase 0）** — `billing_item_repository.go`をsubqueryへ是正し、クロステナントtestを追加（BUG-417） | 完了済み。現在の根拠はADR-006「論点の解決記録」#6 |
 
 （論点#5=間接isolation 3件はBE9-2A内で検証完了・決裁事項から除外済み。#201等の臨床安全判断は委任対象外で未裁定のまま）
 
-**論点#7（Resolved・2026-07-21）= (a) lstepへ帰属変更を採用**（manifest訂正）。checkup_syncはlstep sub-batch **L③b** で移動する（CPM kernelの独立package先行抽出=案(b)は採らない。kernelの実consumerがlstep側に収束しているため）。以下は登録時の記録:
+**論点#7（Resolved・2026-07-21）= (a) lstepへ帰属変更を採用・L③bで移動完了**（manifest訂正）。CPM kernelの独立package先行抽出=案(b)は採らない（kernelの実consumerがlstep側に収束しているため）。以下は登録時の記録:
 
 **論点#7（登録時・2026-07-20 sub-batch②）**: checkup_sync系（`internal/service/checkup_sync_service{,_create,_metadata,_preview}.go`+handler 3 file+`internal/repository/checkupsync/`）のdomain帰属 — manifestはtarget:medicalrecordだが、依存の実質はlstep domain（`lstep.Client`直import・CPM純関数kernel `CalculateCPMStage`への依存でこのkernelは複製禁止コメント付き・owner/pet/tagCache repo・LstepSettings・route=`/clinics/:clinic_id/lstep/checkup-sync`・権限=ResourceOwners）。sub-batch②では移動せず`internal/service`残留。**発火タイミング=lstep domainのBE9-2C着手時**: (a) lstepへ帰属変更（推奨・manifest訂正）か (b) CPM kernelを独立packageへ先行抽出してmedicalrecordへ移すかを決める。
 
@@ -367,7 +513,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 - **domain packageのroute登録は単一エントリポイント必須**: `openapi_route_drift_test.go`の`buildFuncsFromDir`はbare名でfunc mapを構築するため、同名メソッドが複数struct上にあるとroute setがdrift検知から**静かに脱落**する。per-entity複数`RegisterRoutes`は禁止、`<domain>.Handler.RegisterRoutes` 1本に集約する（BE9-2C sub-batch①で発見・設計修正済み）。
 - **master-FK-write lintの`knownSafeParamQualifiers`への`"gin"`追加は対応済み**（sub-batch①）。以後のdomain移行でhandler層がスキャン対象に入っても追加作業は不要。`serviceWriteRolePackagePrefixes`への新domain prefix追加は初回のみ必要。
 - **fan-in 0の旧実装はfacade化せず完全削除が既定**（manualarticle/sub-batch①の先例）。型aliasで延命するのはfan-in>0（他domainの旧実装が依存）の場合のみで、削除期限を持たせる。
-- **共有validation kernelの複製debt**: `internal/medicalrecord/validators.go`は`internal/service/validators*.go`のpure部分の意図的複製（medicalrecordから旧serviceへのimportを禁止するため）。共有カーネルをcross-cutting packageへ昇格した時点で両コピーを統合する。以後のdomainで同じ複製が3個目に達したら昇格を必須化する（rule-of-three）。
+- **共有validation kernelの複製debtは解消済み**: 2026-07-21の専用batch（`f93299f1c`）で`internal/sharedkernel`へ単一実装化し、service/medicalrecord側は移行中の1行delegateに縮小した。delegateは各consumerのdomain移行時に除去し、sharedkernelへ新規追加する場合は複数consumerとacyclicな依存面を再確認する。
 - **cross-domain依存の解消パターン**: Audit依存 = consumer-side interface（`AuditLogger`）+ `main.go`のadapter、Permission依存 = middleware関数型注入（auth domain未移行のため）。BE9-2C以降も同型を使う。
 - **旧layer側は薄いdelegating facadeで互換維持**（呼び出し側無変更）。facade削除はBE9-2Fまで持ち越し、削除期限を持たせる。
 - **docs数値ゲートの追随**: `scripts/check-docs-symbol-drift.sh`の「ハンドラー数」チェック（`internal/handler/*_handler.go`のfile数）はBE9のhandler分散で測定基盤が溶解したため、docs側の宣言（`docs/spec/specification.md`）を削除して恒久解消済み（2026-07-20。宣言が復活しない限り3cチェックは発火しない）。**各batch完了時に同スクリプトを実行して他の数値宣言のドリフトも確認する**（sub-batch①ではこの1件が漏れていた）。
@@ -380,7 +526,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 - **（④b）並行性証明テストはproduction実機構をpinしている**: tx機構を変えたら、その機構を使う実DB並行性テスト（X-11系）も同じbatchで追随させる。追随後のgreenが新機構の挙動証明を兼ねる（旧機構のまま残すと「productionが使っていない機構の証明」に劣化する）。
 - **（④b）master-FK write gateのcross-package qualifierはtype aliasで回避する**: 移動済みdomainの型をservice層シグネチャに晒すとNoUnknownCrossPackageParamが発火する。`knownSafeParamQualifiers`へのqualifier追加は当該package全型の包括safe化＝恒久弱体化なので禁じ手。service側に`type X = medicalrecord.X`のtransitional aliasを置き無修飾へ戻す（型同一・gate実効維持・当該domain移行時に解消）。
 - **（④b）安全許可集合マップ（eligibleMedicineUnitsForPerWeight等）は複製禁止**: 共有シンボルが「安全側の許可集合」を定義する場合、複製はドリフト＝安全性劣化源。消費者が複数domainに跨るなら定義側kernelごと帰属domainへ移し、残留消費者は修飾importで参照する。
-- **（sub-batch②）rule-of-three進行状況**: 共有kernel複製は validators系（sub-batch①）+ lockDraftMedicalRecord/goSafe/logReplaceDeletionTx/validateNonNegativePrice（sub-batch②・いずれも原本service+複製medicalrecordの2箇所目）。**3個目の複製が発生するdomain（reservation/billing着手時が有力）で共有kernel package昇格を必須化**。
+- **（履歴）rule-of-three検討は共有kernel昇格batchで解決済み**: sub-batch②時点では原本service+複製medicalrecordの2箇所だったが、2026-07-21に`internal/sharedkernel`へ単一実装化した。今後の追加はliteralな3個目を待たず、複数consumer、恒久的なdomain境界、acyclicな依存面を根拠に判断する。
 
 ---
 
@@ -439,12 +585,12 @@ repository サブパッケージ（2026-07-19 実測 42 ドメイン）: `accoun
 
 ## 2. 調査結果（Option B 採用の根拠・§8 の再提案禁止決定が依拠する）
 
-1. **Go 公式**（[go.dev/doc/modules/layout](https://go.dev/doc/modules/layout)）: サーバプロジェクトはロジックを `internal/` 配下に置き、公式例は `internal/auth/`, `internal/metrics/`, `internal/model/` の**ドメイン名パッケージ**。cmd/ にバイナリ。→ 本リポジトリは internal/ + cmd/ は準拠済み。巨大フラットパッケージは公式例の姿ではない。
+1. **Go 公式**（[go.dev/doc/modules/layout](https://go.dev/doc/modules/layout)）: サーバプロジェクトの例はロジックを`internal/`配下へ置き、`internal/auth/`、`internal/metrics/`、`internal/model/`等の説明用packageと、複数commandの`cmd/`を示す。これらを「domain package」と定義したり、巨大flat packageを禁止したりはしていない。→ 本repositoryの`internal/`/`cmd/`採用は公式mechanismと整合するが、domain-firstの採用根拠は現行ADR-006というproject decisionである。
 2. **Google Go スタイルガイド**（[best-practices](https://google.github.io/styleguide/go/best-practices)）:
    - パッケージ名は機能を表すドメイン名。`util`/`helper`/`common` は不可。
    - **識別子でパッケージ名を繰り返さない**（stutter 禁止: `paymentmethod.NewRepository` であって `paymentmethod.NewPaymentMethodRepository` ではない）。
    - 分割基準 = 概念的に独立した機能は小さな専用パッケージへ。逆に「両方 import しないと使えない」なら統合が正。
-3. **Gin/コミュニティ実勢**: `internal/{handler,service,repository,domain,middleware}` の層構成 + 小さく焦点の合ったパッケージ・consumer 側 interface 定義・非循環依存が合意。
+3. **当時参照したGin/コミュニティ例**: `internal/{handler,service,repository,domain,middleware}`等の層構成も見られたが、これはGo/Gin公式の合意構成ではない。現行判断は公式一次資料、実測依存、ADR-005/006を正本とする。
 
 ---
 
@@ -546,8 +692,8 @@ backend/internal/
 ## 8. やらないこと（決定済み・再評価しない）
 
 - **Option A（ドメイン優先の全面転換: `internal/reservation/{handler,service,repository}`）** — 理由: ①層別 CLAUDE.md・P1-P18 lint 体系・scoped 検証規約がすべて層パスを前提としており波及が桁違い ②repository の先行分割が Option B 形であり方向転換は二重の手戻り。再提案しない。
-- **pkg/ ディレクトリ新設** — self-contained server binary であり公式ガイダンス上 `internal/` で完結（§2-1）。
-- **model の分割** — GORM モデル 85 files は FK・Preload で相互参照しており、ドメイン分割すると model 間 import cycle が不可避。単一 `model` パッケージは go.dev 公式例（`internal/model/`）とも整合。5,751 行と軽量で実害なし。
+- **pkg/ ディレクトリ新設** — self-contained serverで外部module向け公開libraryの実consumerがないため、project decisionとして`internal/`で完結させる。Go公式が`pkg/`を禁止しているという意味ではない。
+- **model の分割** — GORM モデル 85 files は FK・Preload で相互参照しており、ドメイン分割すると model 間 import cycleが生じるため一括分割しない。Go公式例の`internal/model/`は説明例であり、この判断の根拠は本projectの実測依存である。
 - **§1.5 の健全領域への変更**（cmd/・worker/・migrations/・小規模パッケージ）— 触らないことが決定事項。改善提案が出たら①要件から検証する。
 - **移動と同時の公開型リネーム** — diff 爆発防止。リネームは別コミット。
 

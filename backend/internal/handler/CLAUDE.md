@@ -1,6 +1,6 @@
 # Gin HTTP Boundary
 
-このディレクトリ名は現行実装の整理であり、Go/Gin公式が要求する layer ではない。新規 code の配置は [Go/Gin Backend Guidelines](../../../.claude/rules/go-gin-backend-guidelines.md) に従い、凝集性と利用者で判断する。
+このdirectoryは未移行HTTP実装と期限付きcompatibility facadeのmigration surfaceであり、新規production実装の追加先ではない。新規実装は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)のtarget domain packageへ置く。ここを変更するのは、未移行実装の保守・安全修正、domain移動、または実consumerと削除phaseを持つcompatibility変更に限る。詳細は[Go/Gin Backend Guidelines](../../../.claude/rules/go-gin-backend-guidelines.md)と[`BE-refactor.md`](../../../BE-refactor.md)に従う。
 
 ## Review points
 
