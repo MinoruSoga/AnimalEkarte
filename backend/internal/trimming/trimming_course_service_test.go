@@ -534,6 +534,36 @@ func TestTrimmingCourseService_Create_CourseTypeNotFound(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
+func TestTrimmingCourseService_Create_RejectsCrossClinicCourseTypeBeforeWrite(t *testing.T) {
+	const clinicID = uint64(1)
+	courseTypeID := uint64(5)
+	createCalled := false
+	courseRepo := &mockTrimmingCourseRepository{
+		createFn: func(context.Context, *model.TrimmingCourse) error {
+			createCalled = true
+			return nil
+		},
+	}
+	courseTypeRepo := &mockTrimmingCourseTypeRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotID uint64) (*model.TrimmingCourseType, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, courseTypeID, gotID)
+			return nil, errors.New("course type belongs to another clinic")
+		},
+	}
+	svc := NewTrimmingCourseService(courseRepo, courseTypeRepo)
+
+	result, err := svc.Create(context.Background(), clinicID, &CreateTrimmingCourseInput{
+		Name:         "新規コース",
+		CourseTypeID: &courseTypeID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.False(t, createCalled)
+}
+
 // ---- Update 追加分岐 ----
 
 func TestTrimmingCourseService_Update_InvalidName(t *testing.T) {
