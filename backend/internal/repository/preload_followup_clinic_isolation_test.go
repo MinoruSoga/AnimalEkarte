@@ -66,11 +66,21 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 func setupPreloadTrimmingDetailTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupIsolatedTestDB(t)
-	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE trimming_courses CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE trimming_options CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE reservation_types CASCADE").Error)
+	if db.Migrator().HasTable(&model.AppointmentTrimmingOption{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.AppointmentTrimmingDetail{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.TrimmingCourse{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE trimming_courses CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.TrimmingOption{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE trimming_options CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.ReservationType{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE reservation_types CASCADE").Error)
+	}
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.TrimmingOption{},
