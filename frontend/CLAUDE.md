@@ -138,9 +138,10 @@ docker compose exec frontend pnpm install
 - `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
 - `tsc --noEmit`（`pnpm type-check`）は `tsconfig.json` の `exclude` によりテストファイルを検証しない。import 改名・移行の検証罠（3アプリ全域grep・vitest実証手順）は `.claude/skills/scoped-verification-gates/SKILL.md`「検証の罠」節を参照。
 - `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
-- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7/C8/C9 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist（15件）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の `C8_ALLOWLIST` へ同一コミットで追記すること。
+- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7〜C19 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page /相対パス完全一致 allowlist（14件 = 独自page 9 + helper 5）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の対応する allowlist へ同一コミットで追記すること。C18 は `TableHead` / `TableCell` 呼び出し側による非仕様 typography・vertical padding の再上書き、C19 は `DataTableRow` / `SortableDataTableRow` の行全体 `onClick` を禁止する。空stateで追加vertical paddingが必要な場合だけ `data-empty-state` + `colSpan` + `text-center` を明示する。
 
-## DESIGN.md 適用範囲（MANDATORY・FE10 字義遵守 2026-07-21）
+## DESIGN.md / 製品デザイン適用範囲（MANDATORY・FE11 2026-07-21）
 
-`DESIGN.md` が意匠の**正本**であり字義で従う（決裁: 曽我）。brand = **`#0075DE`**（Notion blue・旧 teal `#038B94` は legacy — audit C1 で再導入禁止）。hairline `#E6E6E6`・caption 14px / eyebrow 12px・radius 最小 4px・`button-primary` = pill・テーブルヘッダ = `ex-data-table-cell` 様式（`STYLE.tableHeader*`）。
-唯一の逸脱 = `docs/spec/design-system.md` §2.4 臨床 semantic 色（danger/warning/status）の維持（臨床安全 SPECIFICATION 2.1 優先）。semantic 色を構造用途（CTA/リンク/active/focus）に使うことは引き続き禁止。
+- **色の正本**は `docs/spec/design-system.md`。brand **`#0075DE`**、臨床 semantic 色、業務 status 色、nav canvas-soft は製品判断として維持する。旧 teal `#038B94` は legacy（audit C1 で再導入禁止）。
+- **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法の正本**は `DESIGN.md`。hairline `#E6E6E6`、caption 14px / eyebrow 12px、radius 最小 4px、`button-primary` = pill、テーブルヘッダ = `ex-data-table-cell` 様式（`STYLE.tableHeader*`）へ字義で従う。
+- brand は CTA・リンク・active/focus に限定し、装飾へ流用しない。semantic 色を構造用途へ流用しない。

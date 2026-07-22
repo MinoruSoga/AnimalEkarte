@@ -8,6 +8,7 @@ import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "../hooks/use-auth";
@@ -118,12 +119,12 @@ export const LoginForm = memo(function LoginForm() {
 
         // 1. location.state から取得 (内部遷移)
         // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
-        // オープンリダイレクト対策: "/" 始まりかつ "//" 始まりでないパスのみ許可
-        const isSafePath = (s: string | null | undefined): s is string =>
-          typeof s === "string" && s.startsWith("/") && !s.startsWith("//");
         const stateFrom = (location.state as { from?: string })?.from;
         const queryFrom = new URLSearchParams(window.location.search).get("from");
-        const from = isSafePath(stateFrom) ? stateFrom : isSafePath(queryFrom) ? queryFrom : "/";
+        const from =
+          parseInternalPath(stateFrom) ??
+          parseInternalPath(queryFrom) ??
+          paths.home.getHref();
 
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
@@ -210,7 +211,7 @@ export const LoginForm = memo(function LoginForm() {
               onChange={handlePasswordChange}
               placeholder="パスワードを入力"
               minLength={6}
-              className={`${INPUT_BASE} pl-2.5 pr-10`}
+              className={`${INPUT_BASE} pl-2.5 pr-12`}
               aria-invalid={formState.error !== null}
               aria-describedby={formState.error ? "login-error" : undefined}
               disabled={isPending}
@@ -239,7 +240,7 @@ export const LoginForm = memo(function LoginForm() {
         <div className="text-center">
           <Link
             to={paths.auth.forgotPassword.getHref()}
-            className={`text-sm ${C.textBrand} hover:underline`}
+            className={`inline-flex min-h-11 items-center justify-center text-sm ${C.textBrand} hover:underline`}
           >
             パスワードをお忘れですか？
           </Link>

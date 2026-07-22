@@ -107,13 +107,13 @@ export function AccountingReportsPage() {
       icon={<BarChart3 className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        <div className="flex items-center gap-2 print:hidden" data-testid="report-actions">
+        <div className="flex flex-wrap items-center gap-2 print:hidden" data-testid="report-actions">
           {data ? (
             <button
               type="button"
               onClick={() => window.print()}
               data-testid="monthly-report-print-button"
-              className={`flex items-center gap-2 px-4 h-10 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+              className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
             >
               <Printer className="size-4" />
               印刷 / PDF出力
@@ -123,7 +123,7 @@ export function AccountingReportsPage() {
             type="button"
             onClick={handleExport}
             disabled={isExporting}
-            className={`flex items-center gap-2 px-4 h-10 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
+            className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
           >
             <Download className="size-4" />
             {isExporting ? "エクスポート中..." : "CSV出力"}
@@ -142,7 +142,7 @@ export function AccountingReportsPage() {
               id="report_mode"
               value={reportMode}
               onChange={handleModeChange}
-              className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
+              className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
             >
               <option value="month">月次</option>
               <option value="period">期間指定</option>
@@ -158,7 +158,7 @@ export function AccountingReportsPage() {
                   id="report_year"
                   value={year}
                   onChange={handleYearChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 >
                   {yearOptions.map((y) => (
                     <option key={y} value={y}>
@@ -175,7 +175,7 @@ export function AccountingReportsPage() {
                   id="report_month"
                   value={month}
                   onChange={handleMonthChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                     <option key={m} value={m}>
@@ -196,7 +196,7 @@ export function AccountingReportsPage() {
                   type="date"
                   value={startDate}
                   onChange={handleStartDateChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 />
               </div>
               <div>
@@ -208,7 +208,7 @@ export function AccountingReportsPage() {
                   type="date"
                   value={endDate}
                   onChange={handleEndDateChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 />
               </div>
             </>
@@ -255,7 +255,7 @@ export function AccountingReportsPage() {
                 canViewClinicSettings ? (
                   <Link
                     to={paths.settings.clinic.getHref()}
-                    className={`flex items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline`}
+                    className={`inline-flex min-h-11 items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline`}
                   >
                     <Settings className="size-3.5" />
                     税率設定を変更

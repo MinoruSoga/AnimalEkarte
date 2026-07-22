@@ -57,7 +57,7 @@ export function ManualSidebar({
             role="tab"
             aria-selected={viewMode === "screens"}
             onClick={() => onChangeViewMode("screens")}
-            className={`px-2 py-1.5 text-sm rounded-xxs transition-colors ${
+            className={`min-h-11 min-w-11 px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "screens"
                 ? `${C.bgBrand} text-white font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
@@ -70,7 +70,7 @@ export function ManualSidebar({
             role="tab"
             aria-selected={viewMode === "workflows"}
             onClick={() => onChangeViewMode("workflows")}
-            className={`px-2 py-1.5 text-sm rounded-xxs transition-colors ${
+            className={`min-h-11 min-w-11 px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "workflows"
                 ? `${C.bgBrand} text-white font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
@@ -89,7 +89,7 @@ export function ManualSidebar({
             value={query}
             onChange={(e) => onChangeQuery(e.target.value)}
             aria-label="マニュアル内検索"
-            className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-xxs border ${C.borderDivider} bg-white outline-none focus:ring-1 ${C.focusRingBrand40} ${C.text}`}
+            className={`min-h-11 w-full pl-8 pr-2 py-1.5 text-sm rounded-xxs border ${C.borderDivider} bg-white outline-none focus:ring-1 ${C.focusRingBrand40} ${C.text}`}
           />
         </div>
       </div>
@@ -102,7 +102,7 @@ export function ManualSidebar({
 
         {groups.map((g) => (
           <div key={g.section} className="mb-3">
-            <p className={`px-2 mb-1 text-2xs font-bold ${C.text40} uppercase tracking-wider`}>
+            <p className={`px-2 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>
               {g.section}
             </p>
             <ul className="space-y-0.5">
@@ -113,7 +113,7 @@ export function ManualSidebar({
                   <li key={`${a.category}/${a.slug}`}>
                     <Link
                       to={href}
-                      className={`block px-2 py-1.5 rounded-xxs text-sm transition-colors ${
+                      className={`flex min-h-11 items-center px-2 py-1.5 rounded-xxs text-sm transition-colors ${
                         isActive
                           ? `${STYLE.sidebarItemActive} font-medium`
                           : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`

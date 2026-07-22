@@ -140,7 +140,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     >
       <div className="space-y-4">
         {/* 期間 */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <Label>開始日</Label>
             <Input
@@ -163,7 +163,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         {periodError ? <p className={`text-xs ${C.danger}`}>{periodError}</p> : null}
 
         {/* 割引種別・値 */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <Label>割引種別</Label>
             <Select
@@ -196,7 +196,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         {/* 対象カテゴリ（Q1=D カテゴリ単位指定） */}
         <div className="space-y-2">
           <Label>対象カテゴリ</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
             {CATEGORY_OPTIONS.map((o) => (
               <label key={o.value} className="flex items-center gap-2 text-sm">
                 <Checkbox

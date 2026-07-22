@@ -45,7 +45,7 @@ export function DeliveryStatsSection({
         <select
           value={yearMonth}
           onChange={(e) => onYearMonthChange(e.target.value)}
-          className={`text-sm border ${C.borderLight} rounded-xs px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
+          className={`min-h-11 text-sm border ${C.borderLight} rounded-xs px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
           aria-label="集計対象年月"
         >
           {monthOptions.map((opt) => (

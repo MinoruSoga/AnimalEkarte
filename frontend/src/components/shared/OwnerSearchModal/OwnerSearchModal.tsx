@@ -169,10 +169,10 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 <thead>
                   {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ */}
                   <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主No</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主名</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>電話番号</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>住所</th>
+                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>飼主No</th>
+                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>飼主名</th>
+                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>電話番号</th>
+                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>住所</th>
                   </tr>
                 </thead>
                 <tbody>

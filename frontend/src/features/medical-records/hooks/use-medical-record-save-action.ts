@@ -11,6 +11,7 @@ interface UseMedicalRecordSaveActionArgs {
   recordId?: string;
   activeTab: string;
   canEdit: boolean;
+  isFinalized: boolean;
   isNextVisitDateValid: boolean;
   diagnosis1CategoryId: number | null;
   diagnosis1NameId: number | null;
@@ -55,6 +56,7 @@ export function useMedicalRecordSaveAction({
   recordId,
   activeTab,
   canEdit,
+  isFinalized,
   isNextVisitDateValid,
   diagnosis1CategoryId,
   diagnosis1NameId,
@@ -84,7 +86,11 @@ export function useMedicalRecordSaveAction({
 
   const [formState, formAction, isSaving] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
-      if (!recordId) return { success: false, timestamp: Date.now() };
+      // UI の disabled は操作補助にすぎない。programmatic submit や race でも
+      // 確定済み・権限なしカルテを更新しないよう action 境界で拒否する。
+      if (!recordId || !canEdit || isFinalized) {
+        return { success: false, timestamp: Date.now() };
+      }
 
       try {
         setManualErrors({});

@@ -124,12 +124,28 @@ export function TreatmentPlanMaster() {
     procedureData,
     vaccineData,
     checkupData,
-    onReorderConsultations: (ids) => reorderConsultations.mutate({ ids }),
-    onReorderExaminations: (ids) => reorderExaminations.mutate({ ids }),
-    onReorderProcedures: (ids) => reorderProcedures.mutate({ ids }),
-    onReorderVaccines: (ids) => reorderVaccines.mutate({ ids }),
-    onReorderCheckups: (ids) => reorderCheckups.mutate({ ids }),
+    onReorderConsultations: (ids) => {
+      if (!canEdit) return;
+      reorderConsultations.mutate({ ids });
+    },
+    onReorderExaminations: (ids) => {
+      if (!canEdit) return;
+      reorderExaminations.mutate({ ids });
+    },
+    onReorderProcedures: (ids) => {
+      if (!canEdit) return;
+      reorderProcedures.mutate({ ids });
+    },
+    onReorderVaccines: (ids) => {
+      if (!canEdit) return;
+      reorderVaccines.mutate({ ids });
+    },
+    onReorderCheckups: (ids) => {
+      if (!canEdit) return;
+      reorderCheckups.mutate({ ids });
+    },
   }), [
+    canEdit,
     consultationData, reorderConsultations,
     examinationData, reorderExaminations,
     procedureData, reorderProcedures,

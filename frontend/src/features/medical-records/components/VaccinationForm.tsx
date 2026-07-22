@@ -69,9 +69,9 @@ export const VaccinationForm = memo(function VaccinationForm({
   isSaving,
 }: VaccinationFormProps) {
   return (
-    <div className="col-span-6 flex flex-col gap-4">
+    <div className="col-span-1 flex flex-col gap-4 lg:col-span-6">
       {/* Row 1: Name and Date */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
@@ -106,7 +106,7 @@ export const VaccinationForm = memo(function VaccinationForm({
       </div>
 
       {/* LOT Numbers */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>
             LOT1

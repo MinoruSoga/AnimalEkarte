@@ -96,7 +96,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     expect(await screen.findByText("2番ケージ")).toBeInTheDocument();
   });
 
-  it("編集: 既存行クリックでサイドパネルに現在値が表示され、保存でupdateエンドポイントを呼ぶ", async () => {
+  it("編集: 固有名の行操作buttonでサイドパネルに現在値が表示され、保存でupdateエンドポイントを呼ぶ", async () => {
     stubCages([makeCage(1, "1番ケージ", { price: 500 })]);
 
     let updatedId: string | undefined;
@@ -112,7 +112,9 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByText("1番ケージ"));
+    await user.click(await screen.findByRole("button", {
+      name: "詳細: ケージ 1番ケージ (ID 1)",
+    }));
 
     const titleInput = await screen.findByDisplayValue("1番ケージ");
     await user.clear(titleInput);
@@ -140,7 +142,9 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByText("1番ケージ"));
+    await user.click(await screen.findByRole("button", {
+      name: "詳細: ケージ 1番ケージ (ID 1)",
+    }));
     await user.click(await screen.findByRole("button", { name: "削除" }));
 
     const dialog = await screen.findByRole("alertdialog");

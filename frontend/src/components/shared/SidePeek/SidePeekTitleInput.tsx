@@ -51,6 +51,7 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
           fontSize: LAYOUT.pageTitle.fontSize,
           fontWeight: LAYOUT.pageTitle.fontWeight,
           lineHeight: LAYOUT.pageTitle.lineHeight,
+          letterSpacing: LAYOUT.pageTitle.letterSpacing,
         }}
         value={value}
         onChange={(e) => onChange(e.target.value)}

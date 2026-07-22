@@ -272,7 +272,12 @@ export const queryKeys = {
   // ── pets ──────────────────────────────────────────────────────────
   pets: {
     /** ownerId 指定時は {ownerId} オブジェクトを第2要素に持つ（既存シェイプを温存） */
-    list: (ownerId?: string) => (ownerId ? (["pets", { ownerId }] as const) : (["pets"] as const)),
+    list: (ownerId?: string, options?: { includeDeceased?: boolean }) => {
+      if (options?.includeDeceased) {
+        return ["pets", { ...(ownerId ? { ownerId } : {}), includeDeceased: true }] as const;
+      }
+      return ownerId ? (["pets", { ownerId }] as const) : (["pets"] as const);
+    },
     detail: (id: string) => ["pet", id] as const,
   },
 

@@ -74,4 +74,22 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
     });
     expect(result.current.fetchStatus).toBe("idle");
   });
+
+  it("BIGINT の petId を数値変換せずクエリへ渡す", async () => {
+    const largePetId = "9007199254740993";
+    let receivedPetId = "";
+    server.use(
+      http.get("/api/v1/vaccinations", ({ request }) => {
+        receivedPetId = new URL(request.url).searchParams.get("pet_id") ?? "";
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetVaccinations(largePetId), {
+      wrapper: createTestWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(receivedPetId).toBe(largePetId);
+  });
 });

@@ -22,22 +22,27 @@ export function TrimmingCourseRow({
   onEdit,
 }: TrimmingCourseRowProps) {
   return (
-    <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-      <TableCell className={`font-medium text-base ${C.text}`}>
+    <DataTableRow key={item.id}>
+      <TableCell className={`font-medium ${C.text}`}>
         {item.name}
       </TableCell>
-      <TableCell className={`text-base ${C.text70}`}>
+      <TableCell className={C.text70}>
         {item.targetSize ? TARGET_SIZE_LABELS[item.targetSize] : "-"}
       </TableCell>
-      <TableCell className={`text-base ${C.text70}`}>
+      <TableCell className={C.text70}>
         {formatTrimmingDuration(item.duration)}
       </TableCell>
       <TrimmingPriceCell price={item.price} />
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            onClick={() => onEdit(item)}
+            aria-label={`トリミングコース「${item.name}」(ID: ${item.id}) を編集`}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );
@@ -55,11 +60,11 @@ export function TrimmingOptionRow({
   onEdit,
 }: TrimmingOptionRowProps) {
   return (
-    <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-      <TableCell className={`font-medium text-base ${C.text}`}>
+    <DataTableRow key={item.id}>
+      <TableCell className={`font-medium ${C.text}`}>
         {item.name}
       </TableCell>
-      <TableCell className={`text-base ${C.text70}`}>
+      <TableCell className={C.text70}>
         {formatTrimmingDuration(item.duration)}
       </TableCell>
       <TableCell className="text-center">
@@ -69,8 +74,13 @@ export function TrimmingOptionRow({
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            onClick={() => onEdit(item)}
+            aria-label={`トリミングオプション「${item.name}」(ID: ${item.id}) を編集`}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );
@@ -94,7 +104,7 @@ export function CombinablePill({ combinable }: { combinable: boolean }) {
 
 function TrimmingPriceCell({ price }: { price: number | null }) {
   return (
-    <TableCell className={`text-right font-mono text-base ${C.text}`}>
+    <TableCell className={`text-right font-mono ${C.text}`}>
       {price != null ? `¥${price.toLocaleString()}` : "-"}
     </TableCell>
   );

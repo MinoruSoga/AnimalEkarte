@@ -168,9 +168,9 @@ export function StaffSettings() {
         const visibleGroups = groups.slice(0, 2);
         const extraCount = groups.length - visibleGroups.length;
         return (
-          <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-            <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-            <TableCell className={`text-base ${C.text}`}>{item.occupationName ?? "—"}</TableCell>
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+            <TableCell className={C.text}>{item.occupationName ?? "—"}</TableCell>
             <TableCell>
               <div className="flex flex-wrap items-center gap-1">
                 {visibleGroups.length === 0 ? (
@@ -203,8 +203,13 @@ export function StaffSettings() {
             <TableCell className="text-center">
               <StatusPill isActive={item.isActive} />
             </TableCell>
-            <TableCell className="p-0 text-right">
-              {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`スタッフ「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
             </TableCell>
           </DataTableRow>
         );

@@ -96,7 +96,7 @@ export function OwnerBasicFields({
         <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
       </div>
 
-      <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
+      <div className="space-y-1.5 col-span-1 sm:col-span-2 lg:col-span-1 lg:row-span-3">
         <Label className={`text-sm ${C.text60}`}>危険人物</Label>
         <div className="flex items-center space-x-2 mb-2 h-10">
           <Switch

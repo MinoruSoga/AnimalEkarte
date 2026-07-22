@@ -102,9 +102,6 @@
   --text-heading-1: 2.5rem;  /* 40px — ページ/セクション見出し */
   --text-heading-1--line-height: 1.1;
   --text-heading-1--letter-spacing: -1px;
-  --tracking-compact: 0;
-  --tracking-compact-sm: 0;
-  --tracking-compact-xs: 0;
   --notion-shadow: rgba(15,15,15,0.04) 0px 0px 0px 1px, rgba(15,15,15,0.04) 0px 4px 18px;
   --notion-shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
   /* FE9-1: DESIGN.md §5 Elevation 実装トークン（design-system.md §5.1 が正本。Tailwind v4 が shadow-level1 等を生成） */

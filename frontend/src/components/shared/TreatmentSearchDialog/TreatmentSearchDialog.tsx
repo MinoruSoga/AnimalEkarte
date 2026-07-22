@@ -175,7 +175,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                 <Fragment key={category}>
                   {/* Category Header */}
                   {!activeCategory ? (
-                    <div className={`px-2 py-1.5 text-xs font-semibold ${C.text40} uppercase tracking-wider`}>
+                    <div className={`px-2 py-1.5 text-2xs font-semibold ${C.text40} uppercase`}>
                       {category}
                     </div>
                   ) : null}

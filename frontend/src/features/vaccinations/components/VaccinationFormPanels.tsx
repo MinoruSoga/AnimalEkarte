@@ -139,7 +139,7 @@ export function VaccinationFieldsPanel({
 
         <div className="space-y-2">
           <Label>LOT番号</Label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <LotInput label="LOT 1" value={lot1} onChange={onLot1Change} onMarkDirty={onMarkDirty} />
             <LotInput label="LOT 2" value={lot2} onChange={onLot2Change} onMarkDirty={onMarkDirty} />
             <LotInput label="LOT 3" value={lot3} onChange={onLot3Change} onMarkDirty={onMarkDirty} />

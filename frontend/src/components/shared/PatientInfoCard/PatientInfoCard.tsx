@@ -3,6 +3,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { Button } from "@/components/ui/button";
 
 interface PatientInfoCardProps {
@@ -32,6 +33,24 @@ interface PatientInfoCardProps {
   staffButtonId?: string;
 }
 
+function normalizeAlertDate(value: string): string | undefined {
+  const match = /^(\d{4})([-/])(\d{2})\2(\d{2})$/.exec(value);
+  if (!match) return undefined;
+
+  const [, yearText, , monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year
+    || candidate.getUTCMonth() !== month - 1
+    || candidate.getUTCDate() !== day
+  ) return undefined;
+
+  return `${yearText}-${monthText}-${dayText}`;
+}
+
 export const PatientInfoCard = memo(function PatientInfoCard({
   ownerName,
   petName,
@@ -45,8 +64,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   petDetails = "9才5ヶ月 / メス / 避妊済",
   insuranceName = "ペット保険Aプラン",
   insuranceDetails = "普通or危険",
-  nextVisitDate = "2025/10/10",
-  nextVisitContent = "ノミ予防",
+  nextVisitDate = "-",
+  nextVisitContent = "-",
   visitCount,
   sticky = true,
   hideStaff = false,
@@ -57,6 +76,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   staffButtonId,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
+  const nextVisitAlertDate = normalizeAlertDate(nextVisitDate);
 
   return (
     <div
@@ -90,14 +110,14 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               {petName}
             </span>
             {isDeceased ? (
-              <span className={`text-2xs font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}>
+              <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}>
                 【死亡】
               </span>
             ) : null}
           </div>
           <div className={`flex items-center gap-3 text-sm ${C.text60}`}>
             {petNumber ? (
-              <span className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 tracking-wide`}>
+              <span className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}>
                 #{petNumber}
               </span>
             ) : null}
@@ -146,6 +166,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Calendar className={`${ICON.xs} ${C.text60}`} />
               <span className={`text-sm ${C.text}`}>次回 {nextVisitDate}</span>
             </div>
+            <CheckupAlertBadge nextDate={nextVisitAlertDate} />
             <span className={`text-sm ${C.text60} truncate`}>{nextVisitContent}</span>
           </div>
         </div>

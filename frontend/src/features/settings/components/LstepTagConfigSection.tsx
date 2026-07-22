@@ -35,7 +35,7 @@ function DeleteButton({
       type="button"
       onClick={onDelete}
       disabled={disabled}
-      className={`text-xs ${C.text50} hover:opacity-70 shrink-0 disabled:opacity-30`}
+      className={`min-h-11 min-w-11 text-xs ${C.text50} hover:opacity-70 shrink-0 disabled:opacity-30`}
     >
       削除
     </button>

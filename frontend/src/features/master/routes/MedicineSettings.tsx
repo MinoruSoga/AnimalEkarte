@@ -84,6 +84,7 @@ export function MedicineSettings() {
     medicines,
     reorderMutation,
     updateMutation,
+    canEdit,
   });
 
   // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──

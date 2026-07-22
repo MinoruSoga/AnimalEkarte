@@ -18,7 +18,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
 }: CheckupSyncPreviewRowProps) {
   return (
     <tr className={`${STYLE.tableRow} ${eligible ? "" : "opacity-50"}`}>
-      <td className="px-4">
+      <td className={STYLE.tableCell}>
         <input
           type="checkbox"
           checked={selected}
@@ -35,7 +35,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
       <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
         {owner.last_visit_date ? owner.last_visit_date : "—"}
       </td>
-      <td className="px-4 py-2.5">
+      <td className={STYLE.tableCell}>
         {owner.has_line ? (
           <span
             className="inline-flex items-center gap-1 text-sm font-medium rounded-full px-2 py-0.5"
@@ -50,7 +50,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
           <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
         )}
       </td>
-      <td className={`px-4 py-2.5 text-sm ${C.danger}`}>
+      <td className={`${STYLE.tableCell} ${C.danger}`}>
         {owner.exclusion_reason ?? null}
       </td>
     </tr>

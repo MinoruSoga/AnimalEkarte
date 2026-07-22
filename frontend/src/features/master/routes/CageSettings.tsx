@@ -35,7 +35,13 @@ export function CageSettings() {
   const { orderedItems: sortedCages, sensors, activeId, handleDragStart, handleDragCancel, handleDragEnd, resetOrder } =
     useSortableList({
       items: crud.filteredItems,
-      onReorder: (newIds) => { reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder }); },
+      onReorder: (newIds) => {
+        if (!canEdit) return;
+        reorderMutation.mutate(
+          { ids: newIds.map(Number) },
+          { onSuccess: resetOrder },
+        );
+      },
     });
 
   const { handleSave } = useMasterSave<Cage, CageFormData, CreateCageRequest, UpdateCageRequest>({

@@ -38,6 +38,10 @@ interface CageCardProps {
 
 const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canCreate, canEdit }: CageCardProps) {
     const isDeceased = occupant?.petIsDeceased ?? false;
+    const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
+    const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
+    const canDrag = Boolean(occupant) && !isDeceased && canEdit;
+    const canOpenCard = Boolean(occupant) && !isDeceased && canEdit;
 
     const {
         attributes,
@@ -47,20 +51,21 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
     } = useDraggable({
         id: occupant?.id ?? `empty-${cage.id}`,
         data: { hospitalizationId: occupant?.id },
-        disabled: !occupant || isDeceased,
+        disabled: !canDrag,
     });
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
         id: `cage-${cage.id}`,
         data: { cageId: cage.id },
+        disabled: !canEdit,
     });
 
     return (
         <div ref={setDropRef} className="h-full">
             <Card
                 ref={setDragRef}
-                {...attributes}
-                {...(occupant && !isDeceased ? listeners : {})}
+                {...(canDrag ? attributes : {})}
+                {...(canDrag ? listeners : {})}
                 className={`relative flex flex-col h-40 transition-all border touch-none
                   ${occupant
                       ? isDeceased
@@ -70,13 +75,15 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-level1'}
                   ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
-                  ${isDeceased ? 'cursor-default' : 'cursor-pointer'}
+                  ${canOpenCard ? 'cursor-pointer' : 'cursor-default'}
                 `}
-                onClick={isDeceased || !canEdit ? undefined : () => onNavigateToForm(occupant?.id)}
+                onClick={
+                  canOpenCard && occupant ? () => onNavigateToForm(occupant.id) : undefined
+                }
             >
                 <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
                   <div className="flex items-center gap-1">
-                      {occupant ? (
+                      {canDrag ? (
                           <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
                               <GripVertical className={ICON.action} />
                           </div>
@@ -109,6 +116,8 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                          <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={emptyCageActionLabel}
+                            title={emptyCageActionLabel}
                             className={`h-10 w-10 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -132,6 +141,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -143,7 +153,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
 
     const targetCageId = overId.replace("cage-", "");
     onMovePet(hospitalizationId, targetCageId);
-  }, [onMovePet]);
+  }, [canEdit, onMovePet]);
 
   // Group cages by category (Area)
   const cagesByArea = cages.reduce((acc, cage) => {

@@ -77,6 +77,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
+  const isFinalized = existingRecord?.status === "確定済";
 
   useApplyMedicalRecord({
     existingRecord,
@@ -141,6 +142,7 @@ export function useMedicalRecordForm(recordId?: string) {
     recordId,
     activeTab,
     canEdit,
+    isFinalized,
     isNextVisitDateValid,
     diagnosis1CategoryId,
     diagnosis1NameId,
@@ -243,6 +245,7 @@ export function useMedicalRecordForm(recordId?: string) {
     formAction,
     formState,
     isSaving: isSaving || isSavingTransition,
+    isFinalized,
     isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,

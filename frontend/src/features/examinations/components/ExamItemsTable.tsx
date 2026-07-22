@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useCallback } from "react";
+import { memo, useCallback, useId } from "react";
 
 // External
 import { CheckCircle } from "lucide-react";
@@ -76,6 +76,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   onChangeInspectionValue,
   disabled = false,
 }: ExamItemsTableProps) {
+  const tableId = useId();
   const handleChange = useCallback(
     (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
       onChangeInspectionValue(key, e.target.value);
@@ -123,16 +124,18 @@ export const ExamItemsTable = memo(function ExamItemsTable({
           <div className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}>
             {item.name}
           </div>
-          <div className={`p-1.5 border-r ${C.borderMedium}`}>
+          <div className={`px-1.5 border-r ${C.borderMedium}`}>
             <Input
+              id={`${tableId}-result-${idx + 1}`}
+              name={`examItems.${idx}.inspectionValue`}
               type="text"
               inputMode="decimal"
               value={item.inspectionValue}
               disabled={disabled}
               onChange={handleChange(item.key)}
               placeholder="-"
-              className={`h-8 text-sm text-right font-mono ${C.bgWhite} ${C.borderMedium}`}
-              aria-label={`${item.name}の結果値`}
+              className={`h-11 min-w-11 text-sm text-right font-mono ${C.bgWhite} ${C.borderMedium}`}
+              aria-label={`${item.name.trim() || `検査項目${idx + 1}`}の結果値`}
             />
           </div>
           <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>

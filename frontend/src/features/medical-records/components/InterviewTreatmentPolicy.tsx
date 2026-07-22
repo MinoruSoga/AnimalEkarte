@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
+import { Label } from "@/components/ui/label";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 
@@ -32,7 +33,12 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
           </span>
         </h4>
       </div>
+      <Label htmlFor="medical-record-treatment-policy" className="sr-only">
+        治療方針
+      </Label>
       <CharCountTextarea
+        id="medical-record-treatment-policy"
+        name="treatmentPolicy"
         value={treatmentPolicy}
         onChange={setTreatmentPolicy}
         className="flex-1 min-h-0"

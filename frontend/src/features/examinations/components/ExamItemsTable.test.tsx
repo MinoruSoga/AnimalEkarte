@@ -77,6 +77,38 @@ describe("ExamItemsTable", () => {
       expect(input.value).toBe("95");
     });
 
+    it("結果値inputは44px以上の操作領域を持つ", () => {
+      render(
+        <ExamItemsTable
+          items={[makeItem({ name: "GLU" })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByLabelText("GLUの結果値")).toHaveClass("h-11", "min-w-11");
+    });
+
+    it("項目名が空でも結果値inputに一意なaccessible nameとid/nameを付ける", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({ key: "empty-1", examTypeFieldId: 101, name: "" }),
+            makeItem({ key: "empty-2", examTypeFieldId: 102, name: "   " }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      const firstInput = screen.getByRole("textbox", { name: "検査項目1の結果値" });
+      const secondInput = screen.getByRole("textbox", { name: "検査項目2の結果値" });
+
+      expect(firstInput).toHaveAttribute("id");
+      expect(firstInput).toHaveAttribute("name", "examItems.0.inspectionValue");
+      expect(secondInput).toHaveAttribute("id");
+      expect(secondInput).toHaveAttribute("name", "examItems.1.inspectionValue");
+      expect(firstInput.id).not.toBe(secondInput.id);
+    });
+
     it("referenceValue が空のとき normalValue にフォールバックする", () => {
       render(
         <ExamItemsTable

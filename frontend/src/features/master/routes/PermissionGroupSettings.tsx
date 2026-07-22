@@ -76,6 +76,7 @@ export function PermissionGroupSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
+      if (!canEdit) return;
       reorderMutation.mutate(newIds);
     },
   });

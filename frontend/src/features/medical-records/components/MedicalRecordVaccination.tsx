@@ -123,7 +123,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           <LstepStatusBadge status={lstepStatus} />
         </div>
       ) : null}
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
+    <div className="grid grid-cols-1 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1 lg:grid-cols-12">
       {/* Left Column: Form */}
       <VaccinationForm
         vaccineOptions={vaccineOptions}

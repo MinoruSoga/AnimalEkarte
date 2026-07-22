@@ -61,7 +61,7 @@ export function ReservationTypeSettingsContent({
         <button
           type="button"
           onClick={onGroupAdd}
-          className={`flex items-center gap-1.5 text-sm ${C.text45} ${C.hoverText} ${C.hoverBgLight}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-sm ${C.text45} ${C.hoverText} ${C.hoverBgLight}
             px-2 py-1.5 rounded-xxs transition-colors w-fit`}
         >
           <Plus className={ICON.action} />

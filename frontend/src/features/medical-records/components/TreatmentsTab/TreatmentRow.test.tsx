@@ -109,4 +109,10 @@ describe("TreatmentRow — 保存済み投与量スナップショット read-on
 
     expect(screen.queryByText(/保存時/)).not.toBeInTheDocument();
   });
+
+  it("3つの44px actionが収まる操作列幅を確保する", () => {
+    renderRow(baseTreatment);
+
+    expect(screen.getByTitle("上に移動").closest("td")).toHaveClass("w-36");
+  });
 });

@@ -162,6 +162,8 @@ export const C = {
   bgPrimary:     "bg-[#000000]",
   bgPrimary10:   "bg-[#000000]/10",
   bgPrimary5:    "bg-[#000000]/5",
+  /** Modal / mobile drawer scrim. */
+  bgOverlay:     "bg-[#000000]/30",
   /** Faint tinted background — skeleton shimmer base */
   bgSkeleton:    "bg-[rgba(0,0,0,0.06)]",
   /** Lightest bg — matching borderLight opacity; use for hr-style dividers */
@@ -560,8 +562,8 @@ export const LAYOUT = {
   sidebar: {
     expanded:      "w-[220px]",
     collapsed:     "w-[56px]",
-    /** 折りたたみ時の正方形ボタン高さ (30px) — トグル/ログアウトボタン共通 */
-    collapsedItemH: "h-[30px]",
+    /** 折りたたみ時の操作領域高 (44px) — トグル/ログアウトボタン共通 */
+    collapsedItemH: "h-11",
   },
 
   /* ── Side Peek (master edit, etc.) ── */
@@ -573,6 +575,7 @@ export const LAYOUT = {
   /** Master-detail nav panel width (tree/list side panel, e.g. LINE予約枠) */
   treeNavPanel: {
     width: "w-[260px]",
+    responsiveWidth: "w-full md:w-[260px]",
   },
 
   /* ── Property Row (Notion-style key-value) ── */
@@ -628,11 +631,12 @@ export const LAYOUT = {
     full: "w-[98%] sm:max-w-[1400px] h-[90vh]",
   },
 
-  /** Notion page title style */
+  /** DESIGN.md heading-2 — large page title used by side panels and settings index. */
   pageTitle: {
-    fontSize:      "30px",
+    fontSize:      "26px",
     fontWeight:    700,
-    lineHeight:    "1.2",
+    lineHeight:    "1.23",
+    letterSpacing: "-0.625px",
   },
 
   /** Notion page icon */
@@ -667,12 +671,12 @@ const PILL_SHADOW = "shadow-btn";
 export const STYLE = {
   /* ── Page / Section ─ */
   page:            `${C.bgPage} overflow-hidden`,
-  pageContent:     "flex-1 overflow-y-auto flex flex-col w-full px-3 py-5",
+  pageContent:     "flex-1 overflow-y-auto flex flex-col w-full px-3 py-6",
   sectionDivider:  `border-t ${C.borderLight}`,
 
   /* ── Form Header ── */
   formHeader:
-    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between gap-2 h-[53px]`,
+    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 py-1 flex items-center justify-between gap-2 min-h-[53px]`,
 
   /* ── Primary Button ── */
   btnGhost:
@@ -689,15 +693,15 @@ export const STYLE = {
   tableHeaderRow:
     `border-b ${C.borderLight} ${C.bgPage} h-11`,
   tableHeaderCell:
-    `text-2xs font-semibold ${C.text55} h-11`,
+    `text-2xs font-semibold ${C.text55} px-4 py-3`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
-    `text-base ${C.text} py-2.5`,
+    `text-sm font-normal ${C.text} px-4 py-3`,
   tableCellMono:
-    `font-mono text-base ${C.text} py-2.5`,
+    `font-mono text-sm font-normal ${C.text} px-4 py-3`,
   tableCellMuted:
-    `text-base ${C.text70} py-2.5`,
+    `text-sm font-normal ${C.text70} px-4 py-3`,
   tableEmpty:
     `text-center py-12 ${C.text70} text-base`,
   tableEmptySm:
@@ -731,7 +735,7 @@ export const STYLE = {
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
-    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-xxs transition-colors`,
+    `size-7 min-h-11 min-w-11 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-xxs transition-colors`,
 
   /* ── Notion Property Row ── */
   propertyRow:
@@ -749,11 +753,11 @@ export const STYLE = {
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
-  iconBtn32: `size-8 flex items-center justify-center rounded-md transition-colors`,
+  iconBtn32: `size-8 min-h-11 min-w-11 flex items-center justify-center rounded-md transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
-  iconBtn28: `size-7 flex items-center justify-center rounded-md transition-colors`,
+  iconBtn28: `size-7 min-h-11 min-w-11 flex items-center justify-center rounded-md transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
-  iconBtn20: `size-5 flex items-center justify-center rounded-xxs transition-colors`,
+  iconBtn20: `size-5 min-h-11 min-w-11 flex items-center justify-center rounded-xxs transition-colors`,
   sidePeekBody:
     "flex-1 overflow-y-auto",
   sidePeekFooter:

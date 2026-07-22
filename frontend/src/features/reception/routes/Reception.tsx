@@ -168,7 +168,7 @@ export function Reception() {
                         <PermissionBadges resource={ResourceReception} />
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
-                            className={`gap-2 ${C.bgWhite} h-11 text-base tracking-[var(--tracking-compact)] ${C.text} ${C.borderMedium}`}
+                            className={`gap-2 ${C.bgWhite} h-11 text-base ${C.text} ${C.borderMedium}`}
                             onClick={() => setIsFilterOpen(prev => !prev)}
                         >
                             <Filter className="size-[17.5px]" />
@@ -176,7 +176,7 @@ export function Reception() {
                         </Button>
                         {canCreateReservation ? (
                             <Button
-                                className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full px-4 shadow-none border-transparent h-11 text-base tracking-[var(--tracking-compact)]`}
+                                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full px-4 shadow-none border-transparent h-11 text-base`}
                                 onClick={() => goToNewReservation("reception=1")}
                             >
                                 新規予約登録
@@ -203,12 +203,12 @@ export function Reception() {
                 />
             ) : null}
 
-            <div className="flex-1 overflow-hidden p-5 pt-4">
+            <div className="flex-1 overflow-hidden p-6 pt-4">
                 {/* 確定はドロップ時のみ。onDragOver でのライブ移動は measureRects の再計測ループ
                     と通過時の誤ステータス API 発火を招くため撤去（commit-on-drop） */}
                 <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
-                    <div className={`grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
                         {columnElements}
                     </div>
                 </DndContext>

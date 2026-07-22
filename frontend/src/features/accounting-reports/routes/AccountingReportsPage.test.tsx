@@ -80,6 +80,21 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
     expect(within(actions).getByText("CSV出力")).toBeInTheDocument();
   });
 
+  it("画面上の操作と集計条件を44px以上に保つ", async () => {
+    const { container } = renderPage();
+    const actions = await screen.findByTestId("report-actions");
+
+    for (const button of within(actions).getAllByRole("button")) {
+      expect(button).toHaveClass("min-h-11");
+    }
+    for (const select of Array.from(container.querySelectorAll("select"))) {
+      expect(select).toHaveClass("min-h-11");
+    }
+    expect(await screen.findByRole("link", { name: /税率設定を変更/ })).toHaveClass(
+      "min-h-11",
+    );
+  });
+
   it("#184: 印刷エリアに 病院名・対象年月・日次明細 が含まれる", async () => {
     renderPage();
     const printArea = await screen.findByTestId("monthly-report-print-area");

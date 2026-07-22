@@ -298,3 +298,26 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     expect(within(dialog).getByText("内訳データなし")).toBeInTheDocument();
   });
 });
+
+describe("CashRegisterHistoryPage DESIGN.md table contract", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("header/body の typography と cell padding が DESIGN.md に一致する", async () => {
+    stubCloses([makeClose(1, "2026-06-15", "am")]);
+    renderPage("/accounting/close/history");
+
+    const table = await screen.findByRole("table");
+    const headers = within(table).getAllByRole("columnheader");
+    const cells = within(table).getAllByRole("cell");
+
+    for (const header of headers) {
+      expect(header).toHaveClass("px-4", "py-3", "text-2xs", "font-semibold");
+    }
+    expect(table).toHaveClass("text-sm");
+    for (const cell of cells) {
+      expect(cell).toHaveClass("px-4", "py-3");
+    }
+  });
+});

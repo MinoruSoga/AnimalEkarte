@@ -167,14 +167,14 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
             <Table>
               <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
                 <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
-                  <TableHead className={`min-w-[80px] text-xs ${C.text40} h-9`}>飼主No</TableHead>
-                  <TableHead className={`min-w-[120px] text-xs ${C.text40} h-9`}>飼主名</TableHead>
-                  <TableHead className={`min-w-[100px] text-xs ${C.text40} h-9`}>ペット名</TableHead>
-                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>種別</TableHead>
-                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>性別</TableHead>
-                  <TableHead className={`min-w-[80px] text-xs ${C.text40} h-9`}>生年月日</TableHead>
-                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>体重</TableHead>
-                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>操作</TableHead>
+                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>飼主No</TableHead>
+                  <TableHead className={`min-w-[120px] ${C.text40} h-9`}>飼主名</TableHead>
+                  <TableHead className={`min-w-[100px] ${C.text40} h-9`}>ペット名</TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>種別</TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>性別</TableHead>
+                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>生年月日</TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>体重</TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -188,14 +188,16 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                       } ${isDeceased ? "opacity-50 grayscale-[0.5]" : ""}`}
                       onClick={() => !isDeceased && onSelect(pet)}
                     >
-                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.ownerId}</TableCell>
-                      <TableCell className={`text-sm py-1 font-medium ${C.text}`}>{pet.ownerName}</TableCell>
-                      <TableCell className={`text-sm py-1 font-bold ${C.text}`}>{pet.name}</TableCell>
-                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.species}</TableCell>
-                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.gender || "-"}</TableCell>
-                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
-                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
-                      <TableCell className="py-1">
+                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
+                      <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
+                      <TableCell className={`text-sm ${C.text}`}>
+                        <span className="font-bold">{pet.name}</span>
+                      </TableCell>
+                      <TableCell className={`text-sm ${C.text}`}>{pet.species}</TableCell>
+                      <TableCell className={`text-sm ${C.text}`}>{pet.gender || "-"}</TableCell>
+                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
+                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
+                      <TableCell>
                         <Button
                           size="sm"
                           disabled={isDeceased}

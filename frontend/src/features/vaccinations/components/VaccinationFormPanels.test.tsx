@@ -48,6 +48,14 @@ function renderPanel(vaccineOptions: { value: string; label: string }[]) {
 }
 
 describe("VaccinationFieldsPanel — ワクチン選択 (BUG-401)", () => {
+  it("LOT番号はmobileで1列、sm以上で2列になる", () => {
+    renderPanel([]);
+
+    const grid = screen.getByPlaceholderText("LOT 1番号").parentElement?.parentElement;
+    expect(grid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+    expect(grid).not.toHaveClass("grid-cols-2");
+  });
+
   it("呼び出し元から渡された vaccineOptions（実マスタ由来）を選択肢として描画する", async () => {
     const user = userEvent.setup();
     renderPanel([

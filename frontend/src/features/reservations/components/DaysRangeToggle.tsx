@@ -26,7 +26,7 @@ export function DaysRangeToggle({ days, onChange }: DaysRangeToggleProps) {
             data-testid={`days-toggle-${opt.value}`}
             aria-pressed={isActive}
             onClick={() => onChange(opt.value)}
-            className={`h-9 px-3 rounded text-base font-medium transition-colors ${
+            className={`h-11 min-w-11 px-3 rounded text-base font-medium transition-colors ${
               isActive
                 ? `${C.bgBrand} text-white`
                 : `${C.text60} hover:${C.text}`

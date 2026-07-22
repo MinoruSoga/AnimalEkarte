@@ -63,4 +63,14 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });
+
+  it("ログインへ戻るリンクは44px以上の操作領域を持つ", () => {
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "ログインページに戻る" })).toHaveClass("min-h-11");
+  });
 });

@@ -56,6 +56,33 @@ function renderCard(
 }
 
 describe("AppointmentCard", () => {
+  it("通常予約のミニアクションを44px以上かつ折返し可能にする", () => {
+    renderCard();
+
+    const recordButton = screen.getByRole("button", { name: /ポチのカルテ/ });
+    const accountingButton = screen.getByRole("button", { name: /ポチの会計/ });
+
+    expect(recordButton).toHaveClass("min-h-11", "min-w-11");
+    expect(accountingButton).toHaveClass("min-h-11", "min-w-11");
+    expect(recordButton.parentElement).toHaveClass("flex-wrap");
+  });
+
+  it("入院予約のミニアクションを44px以上にする", () => {
+    renderCard({
+      ...baseAppointment,
+      reservationType: "入院",
+    });
+
+    expect(screen.getByRole("button", { name: /ポチの会計/ })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+    expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+
   it("通常カルテ遷移に appointmentId を query と state の両方で渡す", () => {
     const onRecordOpen = vi.fn();
     renderCard(baseAppointment, "受付済", onRecordOpen);

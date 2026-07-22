@@ -112,7 +112,7 @@ export function TreatmentRowActions({
   onDelete,
 }: TreatmentRowActionsProps) {
   return (
-    <td className="px-2 py-2 w-28">
+    <td className="px-2 py-2 w-36">
       <div className="flex items-center gap-0.5 justify-end">
         <Button
           variant="ghost"

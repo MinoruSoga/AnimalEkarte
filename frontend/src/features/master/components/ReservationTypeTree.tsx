@@ -10,7 +10,7 @@ interface Props {
 }
 
 function leafClassName(isSelected: boolean, isActive: boolean): string {
-  const base = `w-full flex items-center gap-1.5 px-3 py-2 text-sm text-left transition-colors border-l-2 ${C.hoverBgLight}`;
+  const base = `w-full min-h-11 flex items-center gap-1.5 px-3 py-2 text-sm text-left transition-colors border-l-2 ${C.hoverBgLight}`;
   if (isSelected) return `${base} ${C.bgBrand8} ${C.textBrand} ${C.borderBrand}`;
   return `${base} border-transparent ${isActive ? C.text : C.text40}`;
 }
@@ -60,7 +60,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
               onClick={() => toggleOpen(parent.id)}
               aria-expanded={isOpen}
               aria-label={parentAriaLabel}
-              className={`w-full flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-left transition-colors ${C.bgPage} ${C.hoverBgLight} ${
+              className={`w-full min-h-11 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-left transition-colors ${C.bgPage} ${C.hoverBgLight} ${
                 parent.isActive ? C.text : C.text40
               }`}
             >

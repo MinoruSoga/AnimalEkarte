@@ -278,10 +278,10 @@ export function HospitalizationList() {
             </div>
             <div className={`${C.bgWhite} rounded-sm border ${C.borderMedium} p-1 h-11 flex items-center`}>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
-                    <ToggleGroupItem value="board" size="sm" aria-label="Board View">
+                    <ToggleGroupItem value="board" size="sm" aria-label="Board View" className="-my-1 h-11 min-w-11">
                         <LayoutGrid className={ICON.action} />
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="list" size="sm" aria-label="List View">
+                    <ToggleGroupItem value="list" size="sm" aria-label="List View" className="-my-1 h-11 min-w-11">
                         <List className={ICON.action} />
                     </ToggleGroupItem>
                 </ToggleGroup>

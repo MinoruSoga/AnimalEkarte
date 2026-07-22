@@ -134,7 +134,7 @@ function EntryEditRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`mb-0.5 text-sm ${C.text50} hover:opacity-70 shrink-0`}
+        className={`mb-0.5 min-h-11 min-w-11 text-sm ${C.text50} hover:opacity-70 shrink-0`}
         aria-label="行を削除"
       >
         ×

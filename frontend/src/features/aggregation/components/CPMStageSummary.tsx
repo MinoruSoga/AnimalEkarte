@@ -26,7 +26,7 @@ function countLabel(value: number, isLoading: boolean, isError: boolean): string
 
 function chipClass(active: boolean): string {
   const base =
-    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors";
+    "inline-flex min-h-11 min-w-11 items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors";
   return active
     ? `${base} ${C.bgBrand10} ${C.textBrand} border-current`
     : `${base} bg-white ${C.text} ${C.borderLight} ${C.hoverBgStatusGray}`;

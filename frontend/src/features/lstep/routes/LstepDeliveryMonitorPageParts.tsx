@@ -40,8 +40,8 @@ export function DeliveryMonitorFilters({
   onStatusChange,
 }: DeliveryMonitorFiltersProps) {
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-xs px-4 py-3 flex flex-wrap items-center gap-3`}>
-      <label className={`text-sm ${C.text70} flex items-center gap-2`}>
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3 flex flex-wrap items-stretch sm:items-center gap-3`}>
+      <label className={`text-sm ${C.text70} flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center`}>
         期間
         <DateRangeInputs
           fromValue={from}
@@ -50,13 +50,14 @@ export function DeliveryMonitorFilters({
           onToChange={onToChange}
           fromTestId="filter-from"
           toTestId="filter-to"
-          inputClassName={`h-9 w-auto px-2 text-sm border ${C.borderMedium} rounded-xs bg-white ${C.text}`}
+          className="w-full flex-col items-stretch sm:w-auto sm:flex-row sm:items-center"
+          inputClassName={`h-11 w-full px-2 text-sm border ${C.borderMedium} rounded-xs ${C.bgWhite} ${C.text} sm:w-auto`}
         />
       </label>
 
       <Select value={triggerType || "all"} onValueChange={onTriggerTypeChange}>
         <SelectTrigger
-          className={`h-9 w-[220px] ${C.borderMedium} ${C.text} bg-white text-sm`}
+          className={`h-9 w-full sm:w-[220px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
           data-testid="filter-trigger-type"
         >
           <SelectValue />
@@ -73,7 +74,7 @@ export function DeliveryMonitorFilters({
 
       <Select value={statusFilter || "all"} onValueChange={onStatusChange}>
         <SelectTrigger
-          className={`h-9 w-[140px] ${C.borderMedium} ${C.text} bg-white text-sm`}
+          className={`h-9 w-full sm:w-[140px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
           data-testid="filter-status"
         >
           <SelectValue />
@@ -101,11 +102,11 @@ export function DeliverySummaryCards({ summary }: DeliverySummaryCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       {DELIVERY_STATUS_CARDS.map(({ key, label }) => (
         <div
           key={key}
-          className={`bg-white border ${C.borderLight} rounded-xs px-5 py-4`}
+          className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-4`}
           data-testid={`summary-card-${key}`}
         >
           <p className={`text-xs ${C.text50} mb-1`}>{label}</p>
@@ -146,7 +147,7 @@ export function DeliveryExcludedReasonBreakdown({ summary }: DeliverySummaryCard
   }
 
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-xs px-4 py-3`} data-testid="excluded-reason-breakdown">
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`} data-testid="excluded-reason-breakdown">
       <p className={`text-sm font-medium ${C.text70} mb-2`}>除外理由</p>
       <div className="flex flex-wrap gap-2">
         {Object.entries(summary.excluded_reason_breakdown).map(([reason, count]) => (

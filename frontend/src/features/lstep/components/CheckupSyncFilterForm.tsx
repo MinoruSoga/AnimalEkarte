@@ -127,7 +127,7 @@ export function CheckupSyncFilterForm({
   );
 
   return (
-    <form action={formAction} className={`bg-white rounded-xs border ${C.borderLight} p-5 space-y-4`}>
+    <form action={formAction} className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-6 space-y-4`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">

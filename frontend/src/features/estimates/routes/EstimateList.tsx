@@ -13,6 +13,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
@@ -197,22 +198,30 @@ export function EstimateList() {
     const showDelete = canDelete && !isLocked;
 
     return (
-      <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
-        <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
-        <TableCell className={`text-base ${C.text60} py-2`}>
+      <DataTableRow key={estimate.id}>
+        <TableCell className={`font-mono ${C.text60}`}>
+          <DataTableRowLink
+            to={paths.estimates.detail.getHref(estimate.id)}
+            aria-label={`見積書「${estimate.estimateNo} / ${estimate.title}」(ID: ${estimate.id}) の詳細を開く`}
+          >
+            {estimate.estimateNo}
+          </DataTableRowLink>
+        </TableCell>
+        <TableCell className={`${C.text} font-medium`}>{estimate.title}</TableCell>
+        <TableCell className={C.text}>{estimate.ownerName ?? "-"}</TableCell>
+        <TableCell className={C.text60}>
           {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
         </TableCell>
-        <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
+        <TableCell className={`text-right font-mono font-medium ${C.text}`}>
           {formatCurrency(estimate.totalAmount)}
         </TableCell>
-        <TableCell className="py-2">
+        <TableCell>
           <EstimateStatusBadge status={estimate.status} />
         </TableCell>
-        <TableCell className="text-right py-2">
+        <TableCell className="text-right">
           {(canEdit || canDelete) ? (
             <RowActionDropdown
+              ariaLabel={`見積書「${estimate.estimateNo} / ${estimate.title}」(ID: ${estimate.id}) の操作`}
               actions={[
                 {
                   label: "詳細",

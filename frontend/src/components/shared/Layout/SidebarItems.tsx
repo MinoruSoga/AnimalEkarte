@@ -51,9 +51,9 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
 
   const contentBaseClassName = [
     // rounded-xxs: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
-    "w-full flex items-center gap-3 px-3 h-12 rounded-xxs text-base transition-colors",
+    "w-full flex items-center gap-3 h-12 rounded-xxs text-base transition-colors",
     isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
-    collapsed ? "justify-center" : "",
+    collapsed ? "justify-center px-0" : "px-3",
     level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
   ].join(" ");
 
@@ -75,9 +75,10 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
           <button
             type="button"
             onClick={handleClick}
-            className="min-w-0 flex-1 h-full flex items-center gap-3 text-left"
+            className={`${collapsed ? "min-w-11 justify-center" : "min-w-0"} flex-1 min-h-11 h-full flex items-center gap-3 text-left`}
             title={collapsed ? item.label : undefined}
-            aria-expanded={isExpanded}
+            aria-label={collapsed ? item.label : undefined}
+            aria-expanded={collapsed ? undefined : isExpanded}
           >
             <div className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
               {item.icon}
@@ -88,8 +89,8 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
             <button
               type="button"
               onClick={handleChevronClick}
-              aria-label={isExpanded ? `${item.label}を折りたむ` : `${item.label}を展開`}
-              className={`p-0.5 rounded ${C.hoverBgMedium} transition-colors`}
+              aria-label={isExpanded ? `${item.label}を折りたたむ` : `${item.label}を展開`}
+              className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgMedium} transition-colors`}
             >
               <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </button>

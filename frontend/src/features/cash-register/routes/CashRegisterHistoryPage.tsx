@@ -185,18 +185,18 @@ export function CashRegisterHistoryPage() {
             <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
           </div>
         ) : (
-          <div className={`${C.bgWhite} rounded-lg border ${C.borderLight}`}>
+          <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-x-auto`}>
             {rows.length > 0 ? (
-              <table className="w-full text-base">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>日付</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>区分</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>理論現金</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>実際の現金</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>差額</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>担当者</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>締め時刻</th>
+                  <tr className={STYLE.tableHeaderRow}>
+                    <th className={`${STYLE.tableHeaderCell} text-left`}>日付</th>
+                    <th className={`${STYLE.tableHeaderCell} text-left`}>区分</th>
+                    <th className={`${STYLE.tableHeaderCell} text-right`}>理論現金</th>
+                    <th className={`${STYLE.tableHeaderCell} text-right`}>実際の現金</th>
+                    <th className={`${STYLE.tableHeaderCell} text-right`}>差額</th>
+                    <th className={`${STYLE.tableHeaderCell} text-left`}>担当者</th>
+                    <th className={`${STYLE.tableHeaderCell} text-left`}>締め時刻</th>
                   </tr>
                 </thead>
                 <tbody>

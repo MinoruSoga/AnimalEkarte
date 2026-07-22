@@ -67,7 +67,7 @@ export function ForgotPasswordPage() {
             </div>
             <Link
               to={paths.auth.login.getHref()}
-              className={`block text-center text-sm ${C.textBrand} hover:underline`}
+              className={`flex min-h-11 items-center justify-center text-center text-sm ${C.textBrand} hover:underline`}
             >
               ログインページに戻る
             </Link>
@@ -101,7 +101,7 @@ export function ForgotPasswordPage() {
 
             <Link
               to={paths.auth.login.getHref()}
-              className={`block text-center text-sm ${C.textBrand} hover:underline`}
+              className={`flex min-h-11 items-center justify-center text-center text-sm ${C.textBrand} hover:underline`}
             >
               ログインページに戻る
             </Link>

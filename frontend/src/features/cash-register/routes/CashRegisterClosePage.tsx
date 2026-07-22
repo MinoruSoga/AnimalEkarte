@@ -124,7 +124,7 @@ export function CashRegisterClosePage() {
             <button
               type="button"
               onClick={enablePreview}
-              className={`h-11 px-5 text-base rounded-xs ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
+              className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
             >
               プレビュー
             </button>
@@ -159,7 +159,7 @@ export function CashRegisterClosePage() {
                     type="button"
                     onClick={() => window.print()}
                     data-testid="close-print-button"
-                    className={`flex items-center gap-2 px-4 h-10 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+                    className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
                   >
                     <Printer className="size-4" />
                     印刷 / PDF出力

@@ -51,7 +51,7 @@ export function Section({ title, children }: { title: string; children: React.Re
 
 export function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[200px_1fr] gap-4 items-start pt-1">
+    <div className="grid grid-cols-1 gap-4 items-start pt-1 sm:grid-cols-[200px_1fr]">
       <Label className={`text-sm ${C.text65} pt-1`}>{label}</Label>
       <div>{children}</div>
     </div>
@@ -85,26 +85,26 @@ export function BreakHoursEditor({ value, onChange }: BreakHoursEditorProps) {
   return (
     <div className="space-y-2">
       {value.map((item, idx) => (
-        <div key={idx} className="flex items-center gap-2">
+        <div key={idx} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <Input
             type="time"
             value={toDisplayTime(item.start)}
             onChange={(event) => handleChange(idx, "start", event.target.value)}
-            className="max-w-[120px]"
+            className="w-full sm:max-w-[120px]"
           />
           <span className={`text-sm ${C.textMuted}`}>〜</span>
           <Input
             type="time"
             value={toDisplayTime(item.end)}
             onChange={(event) => handleChange(idx, "end", event.target.value)}
-            className="max-w-[120px]"
+            className="w-full sm:max-w-[120px]"
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => handleRemove(idx)}
-            className={`text-xs ${C.textMuted}`}
+            className={`w-full text-xs sm:w-auto ${C.textMuted}`}
           >
             削除
           </Button>
@@ -148,19 +148,19 @@ export function ClosedDatesEditor({ value, onChange }: ClosedDatesEditorProps) {
         <p className={`text-sm ${C.textMuted}`}>特定定休日は設定されていません</p>
       ) : (
         value.map((date, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={idx} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <Input
               type="date"
               value={date}
               onChange={(event) => handleChange(idx, event.target.value)}
-              className="max-w-[160px]"
+              className="w-full sm:max-w-[160px]"
             />
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => handleRemove(idx)}
-              className={`text-xs ${C.textMuted}`}
+              className={`w-full text-xs sm:w-auto ${C.textMuted}`}
             >
               削除
             </Button>
@@ -200,20 +200,20 @@ export function WeekdayHoursEditor({
       {WEEKDAYS.map(({ value: day, label }) => {
         const hours = value[day] ?? defaultHours;
         return (
-          <div key={day} className="flex items-center gap-3">
+          <div key={day} className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <span className={`text-sm w-6 text-center font-medium ${C.text65}`}>{label}</span>
             <Input
               type="time"
               value={toDisplayTime(hours.start)}
               onChange={(event) => handleChange(day, "start", event.target.value)}
-              className="max-w-[120px]"
+              className="w-full sm:max-w-[120px]"
             />
             <span className={`text-sm ${C.textMuted}`}>〜</span>
             <Input
               type="time"
               value={toDisplayTime(hours.end)}
               onChange={(event) => handleChange(day, "end", event.target.value)}
-              className="max-w-[120px]"
+              className="w-full sm:max-w-[120px]"
             />
           </div>
         );

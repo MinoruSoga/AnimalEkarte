@@ -255,7 +255,7 @@ function SelectedPatientSummary({
 }) {
   return (
     <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
-      <Label className={`text-xs ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
+      <Label className={`text-2xs ${C.text40} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
         <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
       </Label>

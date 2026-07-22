@@ -49,11 +49,35 @@ function OwnerInfoHarness({ onChange }: { onChange: ReturnType<typeof vi.fn> }) 
 
 function renderOwnerInfo() {
   const onChange = vi.fn();
-  render(<OwnerInfoHarness onChange={onChange} />);
-  return { onChange };
+  const { container } = render(<OwnerInfoHarness onChange={onChange} />);
+  return { container, onChange };
 }
 
 describe("OwnerInfoSection", () => {
+  it("飼主生年月日のfocusable inputを44px以上に保つ", () => {
+    renderOwnerInfo();
+
+    expect(screen.getByLabelText("飼主生年月日")).toHaveClass("min-h-11");
+  });
+
+  it("mobileでは単一列にし、sm以上で2列、lg以上で既存の4列へ戻す", () => {
+    const { container } = renderOwnerInfo();
+    const dangerousField = screen.getByText("危険人物").parentElement;
+
+    expect(container.firstElementChild).toHaveClass(
+      "w-full",
+      "grid-cols-1",
+      "sm:grid-cols-2",
+      "lg:grid-cols-4",
+    );
+    expect(dangerousField).toHaveClass(
+      "col-span-1",
+      "sm:col-span-2",
+      "lg:col-span-1",
+    );
+    expect(dangerousField).not.toHaveClass("col-span-2");
+  });
+
   it("DM区分を未設定/必要/不要として編集できる", async () => {
     const user = userEvent.setup();
     const { onChange } = renderOwnerInfo();

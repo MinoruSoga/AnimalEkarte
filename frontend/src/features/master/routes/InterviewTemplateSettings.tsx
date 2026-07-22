@@ -71,11 +71,18 @@ export function InterviewTemplateSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`text-base ${C.text}`}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={C.text}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
+          <TableCell className={`font-medium ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`問診テンプレート「${item.title}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <InterviewTemplateSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}

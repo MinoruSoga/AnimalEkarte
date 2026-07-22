@@ -53,7 +53,7 @@ const PetTableRow = memo(function PetTableRow({
       <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
         {pet.remarks}
       </TableCell>
-      <TableCell className="py-2">
+      <TableCell>
         <div className="flex gap-1 justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -124,7 +124,7 @@ const PetTableRow = memo(function PetTableRow({
 });
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景（既存の C.bgPage）+ eyebrow 相当タイポグラフィ。
-// STYLE.tableCellMuted（body 用）ではなく既存の STYLE.sectionLabel（uppercase + tracking-wide）を再利用する。
+// STYLE.tableCellMuted（body 用）ではなく既存の STYLE.sectionLabel（eyebrow role）を再利用する。
 const PET_TABLE_HEADER_CELL = `${STYLE.sectionLabel} whitespace-nowrap`;
 
 const PET_TABLE_HEADER = (
@@ -194,6 +194,7 @@ export function OwnerPetsSection({
             {pets.length === 0 ? (
               <TableRow>
                 <TableCell
+                  data-empty-state
                   colSpan={11}
                   className={`text-center py-8 text-sm ${C.text60}`}
                 >

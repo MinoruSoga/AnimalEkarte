@@ -128,7 +128,7 @@ export function TriggerPrioritySection() {
           type="button"
           onClick={handleSave}
           disabled={!isDirty || updateMutation.isPending}
-          className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full transition-colors shadow-none border-transparent h-10 text-sm px-5`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full transition-colors shadow-none border-transparent h-10 text-sm px-4`}
         >
           {updateMutation.isPending ? "保存中..." : "保存"}
         </Button>

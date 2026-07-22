@@ -100,7 +100,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         {/* Accent Header */}
         <div className={`h-1.5 w-full ${visitAccent.dot}`} />
 
-        <DialogHeader className="px-5 pt-4 pb-0 pr-12">
+        <DialogHeader className="px-6 pt-4 pb-0 pr-12">
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}>
               <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
@@ -115,7 +115,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-5 pt-3 pb-4 space-y-4">
+        <div className="px-6 pt-3 pb-4 space-y-4">
           {/* LINE Warning */}
           {lineData !== undefined && (!lineData.is_linked || lineData.lstep_opt_out) ? (
             <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}>
@@ -237,7 +237,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           ) : null}
         </div>
 
-        <DialogFooter className={`px-5 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
+        <DialogFooter className={`px-6 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
           <div className="flex-1">
             {onDelete ? (
               <DeleteIconButton onClick={() => onDelete(reservation)} />

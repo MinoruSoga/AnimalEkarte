@@ -99,7 +99,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         >
           <SelectTrigger
             id="status"
-            className="h-9 text-sm w-[200px]"
+            className="h-9 text-sm w-full sm:w-[200px]"
             aria-describedby={statusError ? "status-error" : undefined}
           >
             <SelectValue />
@@ -121,7 +121,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={validUntil ? validUntil.slice(0, 10) : ''}
           onChange={(v) => onChange('validUntil', v)}
           placeholder="有効期限を選択…"
-          className="w-[220px]"
+          className="w-full sm:w-[220px]"
         />
       </div>
     </>
@@ -150,7 +150,7 @@ const AmountSection = memo(function AmountSection({
   onChange,
 }: AmountSectionProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="space-y-1.5">
         <Label htmlFor="subtotal" className={`text-sm font-medium ${C.text}`}>
           小計（税抜）
@@ -360,7 +360,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     >
       {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
       <NavigationBlocker when={!!isDirty && !isPending} />
-      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-5`}>
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6 space-y-6`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
           title={form.title}

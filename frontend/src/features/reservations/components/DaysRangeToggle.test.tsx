@@ -11,6 +11,13 @@ describe("DaysRangeToggle", () => {
     expect(screen.getByTestId("days-toggle-7")).toBeInTheDocument();
   });
 
+  it("5日・7日ボタンは44px以上のタッチターゲットを持つ", () => {
+    render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
+
+    expect(screen.getByTestId("days-toggle-5")).toHaveClass("h-11", "min-w-11");
+    expect(screen.getByTestId("days-toggle-7")).toHaveClass("h-11", "min-w-11");
+  });
+
   it("days=5 のとき 5日ボタンが aria-pressed=true", () => {
     render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
     expect(screen.getByTestId("days-toggle-5")).toHaveAttribute("aria-pressed", "true");

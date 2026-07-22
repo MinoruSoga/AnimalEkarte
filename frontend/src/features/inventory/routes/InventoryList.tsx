@@ -24,6 +24,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -282,32 +283,44 @@ export function InventoryList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((item: InventoryItem) => (
-    <DataTableRow key={item.id} onClick={canEdit ? () => handleEdit(item.id) : undefined}>
-      <TableCell className={`text-base font-medium ${C.text} py-2`}>
-        {item.name}
+    <DataTableRow key={item.id}>
+      <TableCell className={`font-medium ${C.text}`}>
+        {canEdit ? (
+          <DataTableRowLink
+            to={paths.inventory.detail.getHref(item.id)}
+            aria-label={`在庫品「${item.name}」(ID: ${item.id}) の詳細を開く`}
+          >
+            {item.name}
+          </DataTableRowLink>
+        ) : item.name}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>
+      <TableCell className={C.text}>
         {CATEGORY_LABELS[item.category]}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2 text-right font-mono`}>
+      <TableCell className={`${C.text} text-right font-mono`}>
         {item.quantity} {item.unit}
       </TableCell>
-      <TableCell className={`text-base ${C.text60} py-2 text-right font-mono hidden lg:table-cell`}>
+      <TableCell className={`${C.text60} text-right font-mono hidden lg:table-cell`}>
         {item.minStockLevel} {item.unit}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>
+      <TableCell className={C.text}>
         {item.location ?? "-"}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2 font-mono hidden lg:table-cell`}>
+      <TableCell className={`${C.text} font-mono hidden lg:table-cell`}>
         {item.expiryDate ?? "-"}
       </TableCell>
-      <TableCell className="py-2">
+      <TableCell>
         <StatusBadge colorClass={getInventoryStatusColor(item.status)}>
           {getInventoryStatusLabel(item.status)}
         </StatusBadge>
       </TableCell>
-      <TableCell className="text-right py-2">
-        {canEdit ? <RowActionButton onClick={() => handleEdit(item.id)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            onClick={() => handleEdit(item.id)}
+            aria-label={`在庫品「${item.name}」(ID: ${item.id}) を編集`}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   ), [handleEdit, canEdit]);

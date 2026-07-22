@@ -25,4 +25,14 @@ describe("SortableHeader", () => {
     screen.getByRole("button", { name: "飼主名でソート" }).click();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
+
+  it("C18のtable cell padding内で44x44px以上の操作領域を持つ", () => {
+    render(<SortableHeader label="種" direction="none" onToggle={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "種でソート" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+      "-my-3",
+    );
+  });
 });

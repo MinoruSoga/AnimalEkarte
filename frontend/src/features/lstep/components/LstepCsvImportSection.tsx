@@ -1,4 +1,4 @@
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { UploadCloud } from "lucide-react";
 
@@ -20,7 +20,7 @@ export function CsvImportSection() {
         友だち属性 CSV インポート
       </h2>
 
-      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-5`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-6`}>
         <div>
           <p className={`text-sm font-medium ${C.text80} mb-3`}>新規アップロード</p>
           <CsvUploadSection />
@@ -40,6 +40,7 @@ type UploadState = { success: true } | { error: string } | null;
 function CsvUploadSection() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [state, formAction, isPending] = useActionState<UploadState, FormData>(
     async () => {
       const file = fileInputRef.current?.files?.[0];
@@ -61,22 +62,45 @@ function CsvUploadSection() {
 
   return (
     <form action={formAction} className="space-y-3">
-      <div className={`flex items-center gap-3 p-4 border ${C.borderLight} rounded-xs ${C.bgLight}`}>
-        <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>
-          <p className={`text-xs ${C.text40}`}>
-            Lステップ管理画面からエクスポートした CSV をアップロード
-          </p>
+      <div
+        className={`flex flex-col items-stretch gap-3 p-4 border ${C.borderLight} rounded-xs ${C.bgLight} sm:flex-row sm:items-center`}
+        data-testid="csv-upload-row"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>
+            <p className={`text-xs ${C.text40}`}>
+              Lステップ管理画面からエクスポートした CSV をアップロード
+            </p>
+          </div>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          name="file"
-          accept=".csv"
-          className={`text-sm ${C.text60} file:mr-3 file:px-3 file:py-1.5 file:rounded file:border-0 file:text-xs file:font-medium file:${C.bgWhite} file:border file:${C.borderLight}`}
-          aria-label="友だち属性CSVファイルを選択"
-        />
+        <div
+          className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0"
+          data-testid="csv-upload-controls"
+        >
+          <label
+            className={`relative inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-xs border ${C.borderLight} ${C.bgWhite} px-3 text-xs font-medium ${C.text60} focus-within:ring-2 focus-within:ring-ring/50`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              name="file"
+              accept=".csv"
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              aria-label="友だち属性CSVファイルを選択"
+              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")}
+            />
+            CSVファイルを選択
+          </label>
+          <span
+            className={`min-w-0 flex-1 truncate text-xs ${C.text60} sm:max-w-40`}
+            aria-live="polite"
+            data-testid="csv-selected-file-name"
+          >
+            {selectedFileName || "未選択"}
+          </span>
+        </div>
       </div>
       {state && "error" in state ? (
         <p className={`text-sm text-[${PALETTE.danger}]`}>{state.error}</p>

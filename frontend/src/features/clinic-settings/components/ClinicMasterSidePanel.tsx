@@ -78,6 +78,7 @@ export function ClinicMasterSidePanel({
                     fontSize: LAYOUT.pageTitle.fontSize,
                     fontWeight: LAYOUT.pageTitle.fontWeight,
                     lineHeight: LAYOUT.pageTitle.lineHeight,
+                    letterSpacing: LAYOUT.pageTitle.letterSpacing,
                   }}
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
@@ -299,7 +300,7 @@ export function ClinicMasterSidePanel({
               キャンセル
             </button>
             {canEdit ? (
-              <SubmitButton className="h-9 px-5">保存</SubmitButton>
+              <SubmitButton className="h-9 px-4">保存</SubmitButton>
             ) : null}
           </div>
         </fieldset>

@@ -24,7 +24,7 @@ export function VisitConversionSection({
         <p className={`text-xs ${C.text40}`}>配信日から30日以内の来院を集計</p>
       </div>
 
-      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-5`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-6`}>
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (

@@ -34,8 +34,8 @@ export const BasicInfoSection = memo(function BasicInfoSection({
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
           <Label htmlFor="name" className={`text-sm ${C.text}`}>
             品名 <span className={C.textRequired}>*</span>
           </Label>
@@ -111,7 +111,7 @@ export const StockInfoSection = memo(function StockInfoSection({
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
             現在庫数 <span className={C.textRequired}>*</span>
@@ -192,7 +192,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="supplier" className={`text-sm ${C.text}`}>
             仕入先

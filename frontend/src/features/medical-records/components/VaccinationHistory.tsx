@@ -60,7 +60,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
     });
 
   return (
-    <div className="col-span-6 flex flex-col gap-3">
+    <div className="col-span-1 flex flex-col gap-3 lg:col-span-6">
       <h2 className={`text-sm font-bold ${C.text}`}>予防接種履歴</h2>
 
       {/* Filters */}

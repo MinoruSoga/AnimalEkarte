@@ -36,8 +36,9 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
+const mockUsePermission = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
+  usePermission: () => mockUsePermission(),
 }));
 
 // API フック群をすべてスタブ化（デフォルト: データなし・ローディングなし）
@@ -103,6 +104,12 @@ vi.mock("@/hooks/use-reservation-types", () => ({
 describe("useMedicalRecordForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUsePermission.mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: true,
+    });
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
     mockUseGetMedicalRecord.mockReturnValue(noData);
@@ -463,6 +470,71 @@ describe("useMedicalRecordForm", () => {
       // 問診タブ保存 → toast.success
       const { toast } = await import("sonner");
       expect(toast.success).toHaveBeenCalledWith("保存しました");
+    });
+
+    it("確定済みカルテはprogrammatic formActionでも更新mutationを呼ばない", async () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: {
+          id: "10",
+          status: "確定済",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          nextVisitRecommendedDate: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).toBeGreaterThan(0);
+      });
+      expect(result.current.formState.success).toBe(false);
+      expect(noMutation.mutateAsync).not.toHaveBeenCalled();
+      const { toast } = await import("sonner");
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("canEdit=falseではprogrammatic formActionでも更新mutationを呼ばない", async () => {
+      mockUsePermission.mockReturnValue({
+        canView: true,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+      });
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: {
+          id: "10",
+          status: "作成中",
+          petId: "5",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          nextVisitRecommendedDate: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).toBeGreaterThan(0);
+      });
+      expect(result.current.formState.success).toBe(false);
+      expect(noMutation.mutateAsync).not.toHaveBeenCalled();
+      const { toast } = await import("sonner");
+      expect(toast.success).not.toHaveBeenCalled();
     });
 
     it("recordId あり & 診察/治療プランタブ & diagnosis1CategoryId あり & diagnosis1NameId なし → バリデーションエラー（line 183-188）", async () => {

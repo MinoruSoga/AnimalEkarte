@@ -18,6 +18,7 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -214,15 +215,27 @@ export function VaccinationList() {
       ...(canDelete ? [{ label: "削除", icon: Trash2, onClick: () => setPendingDeleteId(r.id), variant: "destructive" as const }] : []),
     ];
     return (
-      <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
-        <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.date}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2`}>{r.ownerName}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2`}>{r.petName}</TableCell>
-        <TableCell className={`text-base font-medium ${C.text} py-2`}>{r.vaccineName}</TableCell>
-        <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.nextDate}</TableCell>
-        <TableCell className="text-right py-2">
+      <DataTableRow key={r.id}>
+        <TableCell className={`font-mono ${C.text}`}>{r.date}</TableCell>
+        <TableCell className={C.text}>{r.ownerName}</TableCell>
+        <TableCell className={C.text}>
+          <DataTableRowLink
+            to={paths.vaccinations.detail.getHref(r.id)}
+            aria-label={`予防接種詳細: ${r.petName} ${r.date} ID ${r.id}`}
+          >
+            {r.petName}
+          </DataTableRowLink>
+        </TableCell>
+        <TableCell className={`font-medium ${C.text}`}>{r.vaccineName}</TableCell>
+        <TableCell className={`font-mono ${C.text}`}>{r.nextDate}</TableCell>
+        <TableCell className="text-right">
           {/* BUG-089: 行操作ドロップダウン（編集・削除） */}
-          {actions.length > 0 ? <RowActionDropdown actions={actions} /> : null}
+          {actions.length > 0 ? (
+            <RowActionDropdown
+              actions={actions}
+              ariaLabel={`予防接種操作: ${r.petName} ${r.date} ID ${r.id}`}
+            />
+          ) : null}
         </TableCell>
       </DataTableRow>
     );

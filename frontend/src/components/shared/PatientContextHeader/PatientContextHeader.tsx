@@ -115,7 +115,7 @@ export function PatientContextHeader({
           </Tooltip>
           {isDeceased ? (
             <span
-              className={`text-2xs font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}
+              className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}
             >
               【死亡】
             </span>
@@ -124,7 +124,7 @@ export function PatientContextHeader({
         <div className={`flex items-center flex-wrap gap-x-3 gap-y-0.5 text-sm ${C.text60}`}>
           {petNumber ? (
             <span
-              className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 tracking-wide`}
+              className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
             >
               #{petNumber}
             </span>

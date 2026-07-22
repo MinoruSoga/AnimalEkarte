@@ -53,7 +53,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
   const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
   const durationMinutes = endMinutes - startMinutes;
-  const height = Math.max((durationMinutes / 60) * HOUR_HEIGHT, 24);
+  const height = Math.max((durationMinutes / 60) * HOUR_HEIGHT, 44);
   const top = (startMinutes / 60) * HOUR_HEIGHT;
 
   const dragConstraints = useMemo(
@@ -93,7 +93,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   return (
     <motion.button
       type="button"
-      className={`absolute rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
+      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}

@@ -55,6 +55,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleBack,
     formAction,
     formState,
+    isSaving,
+    isFinalized,
     isCreating,
     treatmentPlanItems: _treatmentPlanItems,
     setTreatmentPlanItems: _setTreatmentPlanItems,
@@ -167,9 +169,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
-
-  // SPEC-GAP: カルテ確定状態。確定済みは編集不可となり、以降の修正は追記(addendum)のみ
-  const isFinalized = currentRecord?.status === "確定済";
 
   const handleFinalizeConfirm = useCallback(() => {
     handleFinalize();
@@ -360,6 +359,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
+        isSaving={isSaving}
         isFinalized={isFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}

@@ -14,6 +14,7 @@ interface MedicalRecordFloatingActionsProps {
   canSubmit: boolean;
   isNewRecord: boolean;
   isCreating: boolean;
+  isSaving: boolean;
   isFinalized: boolean;
   onDeleteClick: () => void;
   onVitalsClick: () => void;
@@ -28,6 +29,7 @@ export function MedicalRecordFloatingActions({
   canSubmit,
   isNewRecord,
   isCreating,
+  isSaving,
   isFinalized,
   onDeleteClick,
   onVitalsClick,
@@ -93,8 +95,8 @@ export function MedicalRecordFloatingActions({
       ) : null}
       {canSubmit ? (
         <SubmitButton
-          className="px-5"
-          disabled={isCreating}
+          className="px-4"
+          disabled={isCreating || isSaving || isFinalized}
         >
           {isCreating ? "カルテ作成中..." : "保存"}
         </SubmitButton>

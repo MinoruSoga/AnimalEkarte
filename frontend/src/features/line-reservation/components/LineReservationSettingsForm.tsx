@@ -164,6 +164,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
               <div key={day} className="flex items-center gap-1.5">
                 <Checkbox
                   id={`closed-weekday-${day}`}
+                  touchTarget
                   checked={closedWeekdays.includes(day)}
                   onCheckedChange={(checked) => handleWeekdayToggle(day, checked === true)}
                 />

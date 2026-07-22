@@ -1,4 +1,5 @@
 import { memo, useActionState, useState } from "react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -152,13 +153,22 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
           <p className={`${STYLE.formLabel} mb-2`}>休診曜日</p>
           <div className="flex flex-wrap gap-3">
             {[0, 1, 2, 3, 4, 5, 6].map((day) => (
-              <label key={day} className="flex items-center gap-1.5 cursor-pointer">
+              <label
+                key={day}
+                className="relative flex min-h-11 min-w-11 items-center gap-1.5 cursor-pointer"
+              >
                 <input
                   type="checkbox"
                   name={`closed_weekday_${day}`}
                   defaultChecked={(settings.closed_weekdays ?? []).includes(day)}
-                  className="rounded"
+                  className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                 />
+                <span
+                  aria-hidden="true"
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} bg-white text-white transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50`}
+                >
+                  <Check className="size-3.5" />
+                </span>
                 <span className={`text-base ${C.text}`}>{WEEKDAY_LABELS[day]}</span>
               </label>
             ))}

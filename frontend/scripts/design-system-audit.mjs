@@ -9,6 +9,16 @@
  *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
  *   C8 — `src/features/<feat>/routes/<file>.tsx` が PageLayout / Master*Page / allowlist のいずれか。
  *   C9 — `rounded(-[trbl]{1,2})?-[Npx]` 任意値禁止（トークン `rounded-xxs/xs/...` へ）。
+ *   C10 — Tailwind 既定影と shadow 任意値禁止。DESIGN.md elevation トークンのみ許可。
+ *   C11 — font-size 任意値禁止。
+ *   C12 — DESIGN.md に存在しない font-size 段禁止。
+ *   C13 — DESIGN.md ink 4段を迂回する黒アルファ禁止。
+ *   C14 — typography role の letter-spacing を上書きする tracking utility 禁止。
+ *   C15 — 本体 routes/pages で named white/black color の直接指定禁止。
+ *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
+ *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
+ *   C18 — Table primitive 呼び出し側で typography / padding を非仕様値へ上書きすることを禁止。
+ *   C19 — DataTableRow / SortableDataTableRow の行全体クリックを禁止。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -26,6 +36,7 @@ import path from "node:path";
 
 const SCAN_ROOTS = ["src", path.join("liff", "src"), path.join("line-reserve", "src")];
 const SCAN_EXTENSIONS = new Set([".ts", ".tsx"]);
+const CSS_SCAN_EXTENSIONS = new Set([".css"]);
 const EXCLUDE_DIR_NAMES = new Set(["node_modules", "dist", "generated"]);
 const LEAF_DIR_NAMES = new Set(["routes", "pages"]);
 
@@ -35,37 +46,59 @@ const DESIGN_TOKENS_REL_PATH = path.join("src", "lib", "design-tokens.ts");
 const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color-map.ts");
 
 const C1_RE = /C\.accent\b|#038B94|#027078|#2383E2/i;
-const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]/;
+const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]|(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration)-\[#[0-9A-Fa-f]{3,8}\](?:\/[0-9]+)?/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
 const C5_BRAND_VALUE = "brand";
 const C6_RE = /rgba?\(|hsla?\(/;
 const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
-const C10_RE = /(?:^|[^-\w])shadow-(?:2xs|xs|sm|md|lg|xl|2xl)\b|shadow-\[/;
+const C10_RE = /(?:^|[^-\w])(?:shadow-(?:2xs|xs|sm|md|lg|xl|2xl)\b|shadow-\[|drop-shadow-(?:2xs|xs|sm|md|lg|xl|2xl)\b|drop-shadow-\[)/;
 const C11_RE = /text-\[[0-9.]+(?:px|rem)\]/;
 /** C12: DESIGN.md typography ロールに存在しないサイズ段（Tailwind 既定 18/24/30/36px 以上）の使用禁止（FE11-F4）。
  *  許可されるのは text-2xs/xs/sm/base/xl と text-heading-1/2/3 のみ。 */
 const C12_RE = /(?:^|[^-\w])text-(?:lg|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)\b/;
 /** C13: ink は DESIGN.md 4段のみ。黒アルファ（text-[#000000]/NN）の再導入禁止（FE11-F2）。 */
 const C13_RE = /text-\[#000000\]\/[0-9]+|placeholder:text-\[rgba\(0,0,0/;
+/** C14: role の letter-spacing を Tailwind built-in / arbitrary / shorthand で上書きしない。 */
+const C14_RE = /(?:^|[^-\w])(?:-?tracking-(?:tighter|tight|normal|wide|wider|widest)\b|-?tracking-\[[^\]]+\]|-?tracking-\([^)]+\))/;
+const C15_RE = /(?:^|[^-\w])(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration|divide)-(?:white|black)(?:\/[0-9]+)?\b/;
+const C16_RE = /(?:^|[^-\w])-?(?:[mp][trblxy]?|gap|space-[xy])-(?:5\b|\[(?:20px|1\.25rem)\])/;
+const C17_RE = /\bbox-shadow\s*:|\bfilter\s*:[^;]*\bdrop-shadow\s*\(/;
+const C18_TABLE_OPENING_TAG_START_RE = /<Table(Cell|Head)\b/g;
+const C18_TABLE_CELL_RE = /\b(?:text-(?:base|xs|2xs)|p-0)\b/;
+const C18_TABLE_HEAD_RE = /\b(?:text-(?:sm|base|xs)|font-medium|p-0)\b/;
+const C18_TABLE_CELL_STYLE_RE = /\bSTYLE\.tableHeaderCell\b/;
+const C18_TABLE_HEAD_STYLE_RE = /\bSTYLE\.tableCell(?:Mono|Muted)?\b/;
+const C18_TABLE_TYPE_SIZE_RE = /\btext-(?:2xs|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|heading-[123]|\[[^\]]+\])\b/g;
+const C18_TABLE_FONT_WEIGHT_RE = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/g;
+const C18_TABLE_VERTICAL_PADDING_RE = /\b(?:p|py|pt|pb)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
+const C18_TABLE_CELL_ALLOWED_WEIGHTS = new Set(["font-normal", "font-medium", "font-semibold"]);
+const C19_DATA_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow)\b/g;
 
-/** C8: PageLayout/Master shell を持たない正当な routes ファイル（basename 15件） */
+/** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
+export const C8_PAGE_ALLOWLIST = new Set([
+  path.join("src", "features", "auth", "routes", "Login.tsx"),
+  path.join("src", "features", "auth", "routes", "ForgotPasswordPage.tsx"),
+  path.join("src", "features", "auth", "routes", "ResetPasswordPage.tsx"),
+  path.join("src", "features", "owner-report", "routes", "OwnerReport.tsx"),
+  path.join("src", "features", "reception", "routes", "Reception.tsx"),
+  path.join("src", "features", "manual", "routes", "ManualPage.tsx"),
+  path.join("src", "features", "reservations", "routes", "ReservationManagement.tsx"),
+  path.join("src", "features", "clinic-settings", "routes", "ClinicMasterSettings.tsx"),
+  path.join("src", "features", "master", "routes", "LineReservationSlotsSettings.tsx"),
+]);
+
+/** C8: routes/ に置かれているが route page ではない helper（相対パス完全一致）。 */
+export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
+  path.join("src", "features", "trimming", "routes", "TrimmingLazyModals.tsx"),
+  path.join("src", "features", "reception", "routes", "ReceptionLazyModals.tsx"),
+  path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorPageParts.tsx"),
+  path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorLogsTable.tsx"),
+  path.join("src", "features", "medical-records", "routes", "medical-records-columns.tsx"),
+]);
 export const C8_ALLOWLIST = new Set([
-  "Login.tsx",
-  "ForgotPasswordPage.tsx",
-  "ResetPasswordPage.tsx",
-  "OwnerReport.tsx",
-  "Reception.tsx",
-  "ManualPage.tsx",
-  "ReservationManagement.tsx",
-  "CheckupSyncPage.tsx",
-  "ClinicMasterSettings.tsx",
-  "LineReservationSlotsSettings.tsx",
-  "TrimmingLazyModals.tsx",
-  "ReceptionLazyModals.tsx",
-  "LstepDeliveryMonitorPageParts.tsx",
-  "LstepDeliveryMonitorLogsTable.tsx",
-  "medical-records-columns.tsx",
+  ...C8_PAGE_ALLOWLIST,
+  ...C8_ROUTE_HELPER_ALLOWLIST,
 ]);
 const C8_SHELL_RE = /<PageLayout|Master(?:CRUD|Tab|List)Page/;
 
@@ -185,8 +218,8 @@ export function checkC7(text) {
  * checkC8 は routes ファイル本文が PageLayout / Master*Page / allowlist のいずれかを満たすか判定する。
  * 違反時は 1 件の擬似 violation を返す（ファイル単位）。
  */
-export function checkC8(fileName, text) {
-  if (C8_ALLOWLIST.has(fileName)) return [];
+export function checkC8(relPath, text) {
+  if (C8_ALLOWLIST.has(relPath)) return [];
   if (C8_SHELL_RE.test(text)) return [];
   return [{ lineNumber: 1, text: "PageLayout / Master*Page / C8 allowlist のいずれも無し" }];
 }
@@ -242,7 +275,7 @@ export function checkC12(text, relPath = "") {
   // LINE ミニアプリ（liff / line-reserve / 共有 shared-liff）は FE10/FE11 の DESIGN.md スイープ
   // 対象外として明示宣言された別アプリ（対象=本体84ルート）。装飾絵文字に text-6xl 等を使うため除外する。
   // ※ 黙って握り潰さないための明示 allowlist。本体へ適用範囲を広げる場合はここを外すこと。
-  if (/^(liff|line-reserve)[\\/]/.test(relPath) || relPath.includes("shared-liff")) return [];
+  if (isFE11ExcludedPath(relPath)) return [];
   const violations = [];
   text.split("\n").forEach((line, i) => {
     if (C12_RE.test(line)) {
@@ -264,6 +297,345 @@ export function checkC13(text) {
     }
   });
   return violations;
+}
+
+/**
+ * checkC14 は typography role 固有の letter-spacing を上書きする tracking utility を検出する。
+ */
+export function checkC14(text, relPath = "") {
+  // FE11 は本体84ルートが対象。別アプリは C12 と同じ明示 allowlist とする。
+  if (isFE11ExcludedPath(relPath)) return [];
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C14_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC15 は本体アプリの route/page surface に残る named white/black color を検出する。
+ * 色の用途と出典を追跡できるよう、C / STYLE の semantic token 経由に統一する。
+ */
+export function checkC15(text, relPath = "") {
+  if (isFE11ExcludedPath(relPath) || !isLeafRouteFile(relPath)) return [];
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C15_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC16 は DESIGN.md spacing scale にない 20px (`*-5`) の spacing utility を検出する。
+ * アイコン寸法などの size/w/h-5 は spacing ではないため対象外。
+ */
+export function checkC16(text, relPath = "") {
+  if (isFE11ExcludedPath(relPath)) return [];
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C16_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC17 は CSS から elevation token を迂回する直接 shadow 宣言を検出する。
+ * `--shadow-*` custom property の定義は `box-shadow:` 宣言ではないため許可される。
+ */
+export function checkC17(text, relPath = "") {
+  if (isFE11ExcludedPath(relPath)) return [];
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C17_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+function extractC18ClassNameSegments(openingTag) {
+  const segments = [];
+  let braceDepth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let cursor = 0; cursor < openingTag.length; cursor += 1) {
+    const char = openingTag[cursor];
+    if (quote !== null) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      continue;
+    }
+    if (char === "{") {
+      braceDepth += 1;
+      continue;
+    }
+    if (char === "}") {
+      braceDepth = Math.max(0, braceDepth - 1);
+      continue;
+    }
+    if (
+      braceDepth !== 0
+      || !openingTag.startsWith("className", cursor)
+      || /[\w$]/.test(openingTag[cursor - 1] ?? "")
+    ) continue;
+
+    let assignment = cursor + "className".length;
+    while (/\s/.test(openingTag[assignment] ?? "")) assignment += 1;
+    if (openingTag[assignment] !== "=") continue;
+
+    let start = assignment + 1;
+    while (/\s/.test(openingTag[start] ?? "")) start += 1;
+
+    let end = start;
+    const delimiter = openingTag[start];
+    if (delimiter === '"' || delimiter === "'" || delimiter === "`") {
+      let escaped = false;
+      end += 1;
+      for (; end < openingTag.length; end += 1) {
+        const char = openingTag[end];
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === delimiter) {
+          end += 1;
+          break;
+        }
+      }
+    } else if (delimiter === "{") {
+      let braceDepth = 0;
+      let quote = null;
+      let escaped = false;
+      for (; end < openingTag.length; end += 1) {
+        const char = openingTag[end];
+        if (quote !== null) {
+          if (escaped) escaped = false;
+          else if (char === "\\") escaped = true;
+          else if (char === quote) quote = null;
+          continue;
+        }
+        if (char === '"' || char === "'" || char === "`") quote = char;
+        else if (char === "{") braceDepth += 1;
+        else if (char === "}" && --braceDepth === 0) {
+          end += 1;
+          break;
+        }
+      }
+    } else {
+      while (end < openingTag.length && !/[\s>]/.test(openingTag[end])) end += 1;
+    }
+
+    segments.push({
+      text: openingTag.slice(start, end),
+      lineOffset: openingTag.slice(0, start).split("\n").length - 1,
+    });
+    cursor = Math.max(end - 1, cursor);
+  }
+  return segments;
+}
+
+function isC18IgnoredOpeningTag(text, index) {
+  let mode = "code";
+  let escaped = false;
+  for (let cursor = 0; cursor < index; cursor += 1) {
+    const char = text[cursor];
+    const next = text[cursor + 1];
+
+    if (mode === "line-comment") {
+      if (char === "\n") mode = "code";
+      continue;
+    }
+    if (mode === "block-comment") {
+      if (char === "*" && next === "/") {
+        mode = "code";
+        cursor += 1;
+      }
+      continue;
+    }
+    if (mode !== "code") {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (
+        (mode === "single-quote" && char === "'")
+        || (mode === "double-quote" && char === '"')
+        || (mode === "template" && char === "`")
+      ) mode = "code";
+      else if (char === "\n" && mode !== "template") mode = "code";
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      mode = "line-comment";
+      cursor += 1;
+    } else if (char === "/" && next === "*") {
+      mode = "block-comment";
+      cursor += 1;
+    } else if (char === "'") mode = "single-quote";
+    else if (char === '"') mode = "double-quote";
+    else if (char === "`") mode = "template";
+  }
+  return mode !== "code";
+}
+
+/**
+ * checkC18 は Table primitive の opening tag だけを調べ、DESIGN.md §9 と
+ * `components/ui/table.tsx` の標準 typography / padding を上書きする class を検出する。
+ * `data-empty-state` + `colSpan` + `text-center` の空 state 追加余白、cell 内の子要素、
+ * 別 component、test / 非 TSX は対象外。
+ */
+export function checkC18(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+
+  const violations = [];
+  const openingTagRe = new RegExp(C18_TABLE_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(text)) !== null) {
+    if (isC18IgnoredOpeningTag(text, match.index)) continue;
+    let braceDepth = 0;
+    let quote = null;
+    let escaped = false;
+    let endIndex = text.length;
+
+    for (let index = openingTagRe.lastIndex; index < text.length; index += 1) {
+      const char = text[index];
+      if (quote !== null) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === "\\") {
+          escaped = true;
+        } else if (char === quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (char === '"' || char === "'" || char === "`") {
+        quote = char;
+      } else if (char === "{") {
+        braceDepth += 1;
+      } else if (char === "}") {
+        braceDepth = Math.max(0, braceDepth - 1);
+      } else if (char === ">" && braceDepth === 0) {
+        endIndex = index + 1;
+        break;
+      }
+    }
+
+    const openingTag = text.slice(match.index, endIndex);
+    const classNameSegments = extractC18ClassNameSegments(openingTag);
+    const classNameSource = classNameSegments.map((segment) => segment.text).join(" ");
+    const forbiddenRe = match[1] === "Head" ? C18_TABLE_HEAD_RE : C18_TABLE_CELL_RE;
+    const forbiddenStyleRe = match[1] === "Head" ? C18_TABLE_HEAD_STYLE_RE : C18_TABLE_CELL_STYLE_RE;
+    const isEmptyState = match[1] === "Cell"
+      && /\bdata-empty-state\b/.test(openingTag)
+      && /\bcolSpan\s*=/.test(openingTag)
+      && /\btext-center\b/.test(classNameSource);
+    const firstLineNumber = text.slice(0, match.index).split("\n").length;
+    classNameSegments.forEach((segment) => {
+      segment.text.split("\n").forEach((line, index) => {
+        const expectedTypeSize = match[1] === "Head" ? "text-2xs" : "text-sm";
+        const hasWrongTypeSize = [...line.matchAll(C18_TABLE_TYPE_SIZE_RE)]
+          .some(([token]) => token !== expectedTypeSize);
+        const hasWrongFontWeight = [...line.matchAll(C18_TABLE_FONT_WEIGHT_RE)].some(([token]) => (
+          match[1] === "Head" ? token !== "font-semibold" : !C18_TABLE_CELL_ALLOWED_WEIGHTS.has(token)
+        ));
+        const hasNonstandardVerticalPadding = [...line.matchAll(C18_TABLE_VERTICAL_PADDING_RE)]
+          .some(([token]) => token !== "py-3" && !(isEmptyState && token.startsWith("py-")));
+        if (
+          forbiddenRe.test(line)
+          || forbiddenStyleRe.test(line)
+          || hasWrongTypeSize
+          || hasWrongFontWeight
+          || hasNonstandardVerticalPadding
+        ) {
+          violations.push({ lineNumber: firstLineNumber + segment.lineOffset + index, text: line.trim() });
+        }
+      });
+    });
+    openingTagRe.lastIndex = endIndex;
+  }
+  return violations;
+}
+
+/**
+ * checkC19 は共有 DataTable row の opening tag を調べ、行全体へ onClick を付ける実装を検出する。
+ * 詳細遷移は cell 内の native link、編集・表示は native button を使う。test / 非 TSX は対象外。
+ */
+export function checkC19(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+
+  const violations = [];
+  const openingTagRe = new RegExp(C19_DATA_TABLE_ROW_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(text)) !== null) {
+    if (isC18IgnoredOpeningTag(text, match.index)) continue;
+
+    let braceDepth = 0;
+    let quote = null;
+    let escaped = false;
+    let endIndex = text.length;
+    let onClickIndex = -1;
+
+    for (let index = openingTagRe.lastIndex; index < text.length; index += 1) {
+      const char = text[index];
+      if (quote !== null) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === quote) quote = null;
+        continue;
+      }
+      if (char === '"' || char === "'" || char === "`") {
+        quote = char;
+      } else if (char === "{") {
+        braceDepth += 1;
+      } else if (char === "}") {
+        braceDepth = Math.max(0, braceDepth - 1);
+      } else if (char === ">" && braceDepth === 0) {
+        endIndex = index + 1;
+        break;
+      } else if (
+        braceDepth === 0
+        && text.startsWith("onClick", index)
+        && /\s/.test(text[index - 1] ?? "")
+        && !/[\w$]/.test(text[index + "onClick".length] ?? "")
+      ) {
+        let assignment = index + "onClick".length;
+        while (/\s/.test(text[assignment] ?? "")) assignment += 1;
+        if (text[assignment] === "=") onClickIndex = index;
+      }
+    }
+
+    if (onClickIndex >= 0) {
+      const lineStart = text.lastIndexOf("\n", onClickIndex - 1) + 1;
+      const nextLine = text.indexOf("\n", onClickIndex);
+      const lineEnd = nextLine === -1 ? text.length : nextLine;
+      violations.push({
+        lineNumber: text.slice(0, onClickIndex).split("\n").length,
+        text: text.slice(lineStart, lineEnd).trim(),
+      });
+    }
+    openingTagRe.lastIndex = endIndex;
+  }
+  return violations;
+}
+
+function isFE11ExcludedPath(relPath) {
+  const segments = relPath.split(/[\\/]/);
+  const normalizedPath = segments.join("/");
+  return (
+    segments[0] === "liff" ||
+    segments[0] === "line-reserve" ||
+    (segments[0] === "src" && segments[1] === "shared-liff") ||
+    normalizedPath === "src/features/medical-records/components/MedicalRecordPrintView.tsx"
+  );
 }
 
 async function walk(dir, exts, excludeNames) {
@@ -288,11 +660,11 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1/C3/C5/C6 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1/checkC3/checkC5/checkC6 に委譲する。
+ * C1〜C19 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC19 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -342,6 +714,21 @@ export async function collectViolations(cwd) {
         for (const v of checkC13(text)) {
           result.c13.push({ file: relPath, ...v });
         }
+        for (const v of checkC14(text, relPath)) {
+          result.c14.push({ file: relPath, ...v });
+        }
+        for (const v of checkC15(text, relPath)) {
+          result.c15.push({ file: relPath, ...v });
+        }
+        for (const v of checkC16(text, relPath)) {
+          result.c16.push({ file: relPath, ...v });
+        }
+        for (const v of checkC18(text, relPath)) {
+          result.c18.push({ file: relPath, ...v });
+        }
+        for (const v of checkC19(text, relPath)) {
+          result.c19.push({ file: relPath, ...v });
+        }
       }
 
       // C8: src/features/<feat>/routes/<file>.tsx のみ（ネスト無し・.test 除外）
@@ -354,9 +741,18 @@ export async function collectViolations(cwd) {
         path.extname(parts[4]) === ".tsx" &&
         !isTest
       ) {
-        for (const v of checkC8(parts[4], text)) {
+        for (const v of checkC8(relPath, text)) {
           result.c8.push({ file: relPath, ...v });
         }
+      }
+    }
+
+    const cssFiles = await walk(root, CSS_SCAN_EXTENSIONS, EXCLUDE_DIR_NAMES);
+    for (const file of cssFiles) {
+      const relPath = path.relative(cwd, file);
+      const text = readFileSync(file, "utf-8");
+      for (const v of checkC17(text, relPath)) {
+        result.c17.push({ file: relPath, ...v });
       }
     }
   }
@@ -393,10 +789,17 @@ async function main() {
   printGroup("C11 font-size 任意値", result.c11);
   printGroup("C12 非仕様サイズ段(text-lg/2xl+)", result.c12);
   printGroup("C13 ink 黒アルファ", result.c13);
+  printGroup("C14 tracking 直書き", result.c14);
+  printGroup("C15 route named color", result.c15);
+  printGroup("C16 非仕様 spacing(*-5)", result.c16);
+  printGroup("C17 CSS shadow 直書き", result.c17);
+  printGroup("C18 Table primitive override", result.c18);
+  printGroup("C19 DataTable row onClick", result.c19);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
-    + result.c12.length + result.c13.length;
+    + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
+    + result.c17.length + result.c18.length + result.c19.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

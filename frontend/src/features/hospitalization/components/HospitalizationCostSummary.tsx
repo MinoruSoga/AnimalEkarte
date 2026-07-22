@@ -91,7 +91,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         </div>
 
         {/* 保険・飼主請求額 */}
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <div className="grid w-full grid-cols-1 gap-3 mt-2 sm:grid-cols-2">
           <div className={`flex items-center justify-between py-1.5 px-3 ${C.bgCostBlue} rounded-md`}>
             <span className={`${H_STYLES.text.base} ${C.text60}`}>保険請求額</span>
             <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.textCostBlue}`}>￥0</span>

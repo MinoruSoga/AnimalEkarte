@@ -53,6 +53,7 @@ export function MerchandiseItemSettings() {
   } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
+      if (!canEdit) return;
       reorderMutation.mutate(
         { ids: newIds.map(Number) },
         { onSuccess: resetOrder },

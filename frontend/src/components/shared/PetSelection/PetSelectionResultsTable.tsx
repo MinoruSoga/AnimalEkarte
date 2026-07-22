@@ -52,11 +52,11 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
                   onClick={() => !isDeceased && onSelect(pet)}
                 >
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap py-2`}>{pet.ownerId}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap py-2`}>{pet.ownerName}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap py-2`}>{pet.petNumber || "-"}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap py-2`}>{pet.name}</TableCell>
-                  <TableCell className="whitespace-nowrap py-2">
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerId}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerName}</TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.petNumber || "-"}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.name}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {pet.status ? (
                       <Badge
                         variant="secondary"
@@ -70,12 +70,12 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       </Badge>
                     ) : null}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap py-2`}>{pet.species}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap py-2`}>{formatDate(pet.birthDate)}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap py-2`}>{pet.weight || "-"}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap py-2`}>{pet.environment || "-"}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap py-2`}>{formatDate(pet.lastVisit)}</TableCell>
-                  <TableCell className="whitespace-nowrap py-2" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.species}</TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{formatDate(pet.birthDate)}</TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.weight || "-"}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.environment || "-"}</TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{formatDate(pet.lastVisit)}</TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Button
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}

@@ -1,0 +1,69 @@
+import { renderHook, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { describe, expect, it } from "vitest";
+
+import { queryKeys } from "@/lib/query-keys";
+import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
+
+import { useGetPets } from "./use-pet";
+
+describe("useGetPets", () => {
+  it("死亡ペットを含める場合はAPIへinclude_deceased=trueを明示してstatusを変換する", async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json({
+          data: [
+            {
+              id: 7,
+              clinic_id: 1,
+              owner_id: 42,
+              name: "ポチ",
+              status: "deceased",
+              deceased_at: "2026-07-10T12:00:00+09:00",
+            },
+          ],
+        });
+      }),
+    );
+
+    const { result } = renderHook(
+      () => useGetPets("42", { includeDeceased: true }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.searchParams.get("owner_id")).toBe("42");
+    expect(capturedUrl?.searchParams.get("include_deceased")).toBe("true");
+    expect(result.current.data?.[0]).toEqual(
+      expect.objectContaining({ id: "7", status: "死亡" }),
+    );
+  });
+
+  it("通常一覧と死亡ペットを含む一覧は異なるquery keyを使う", () => {
+    expect(queryKeys.pets.list("42")).not.toEqual(
+      queryKeys.pets.list("42", { includeDeceased: true }),
+    );
+  });
+
+  it("通常一覧ではinclude_deceasedを送信しない", async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPets("42"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.searchParams.get("include_deceased")).toBeNull();
+  });
+});

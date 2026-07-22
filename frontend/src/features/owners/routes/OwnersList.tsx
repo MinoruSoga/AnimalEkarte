@@ -194,16 +194,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     openOwnerReport(ownerId, petId);
   }, []);
 
-  // 行クリック → 飼主編集・ペット一覧ページに遷移
-  // #86: 別医院の行は詳細 API が現在医院スコープで 404 になるため遷移させない（閲覧のみ）
-  const handleRowClick = useCallback((pet: Pet) => {
-    if (pet.clinicId && currentClinicId && pet.clinicId !== currentClinicId) {
-      toast.info("別医院のデータです。医院を切り替えると詳細を表示できます");
-      return;
-    }
-    navigate(paths.owners.detail.getHref(pet.ownerId));
-  }, [navigate, currentClinicId]);
-
   // rerender-dependencies: object 依存を避け stable な変数に抽出してから deps に渡す
   const petModalItem = petModal.item;
   const closePetModal = petModal.close;
@@ -304,7 +294,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         currentClinicId={currentClinicId}
         onSearchChange={setSearchTerm}
         onFilterChange={handleFilterChange}
-        onRowClick={handleRowClick}
         onEdit={handleEdit}
         onDeleteRequest={handleDeleteRequest}
         onReport={handleReport}

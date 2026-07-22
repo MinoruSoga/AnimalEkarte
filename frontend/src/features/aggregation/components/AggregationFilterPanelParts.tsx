@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
@@ -115,13 +116,14 @@ export function RevenueFilters({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 h-9">
-        <input
-          type="checkbox"
+      <div className="flex min-h-11 items-center gap-2">
+        <Checkbox
           id="revenue-include-zero"
-          className="size-4 cursor-pointer"
+          touchTarget
           checked={params.include_zero === true}
-          onChange={(e) => onParamsChange({ include_zero: e.target.checked ? true : undefined, page: 1 })}
+          onCheckedChange={(checked) =>
+            onParamsChange({ include_zero: checked === true ? true : undefined, page: 1 })
+          }
         />
         <label htmlFor="revenue-include-zero" className={`text-sm ${C.text} cursor-pointer select-none`}>
           0円を含む
@@ -222,13 +224,14 @@ export function LastVisitFilters({
         </Select>
       </div>
 
-      <div className="flex items-center gap-2 h-9">
-        <input
-          type="checkbox"
+      <div className="flex min-h-11 items-center gap-2">
+        <Checkbox
           id="last-visit-include-no-visit"
-          className="size-4 cursor-pointer"
+          touchTarget
           checked={params.include_no_visit === true}
-          onChange={(e) => onParamsChange({ include_no_visit: e.target.checked ? true : undefined, page: 1 })}
+          onCheckedChange={(checked) =>
+            onParamsChange({ include_no_visit: checked === true ? true : undefined, page: 1 })
+          }
         />
         <label htmlFor="last-visit-include-no-visit" className={`text-sm ${C.text} cursor-pointer select-none`}>
           来院なしを含む

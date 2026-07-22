@@ -4,6 +4,7 @@ import { Download, Trash2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -78,7 +79,7 @@ const TagOwnerListItem = memo(function TagOwnerListItem({
       </div>
       <Link
         to={paths.owners.detail.getHref(owner.owner_id)}
-        className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
+        className={`inline-flex min-h-11 shrink-0 items-center ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
       >
         カルテを開く
       </Link>
@@ -125,12 +126,14 @@ export function TagOwnerListDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] flex flex-col p-0">
-          <SheetHeader className="px-4 py-4 border-b shrink-0">
+        <SheetContent side="right" className="w-full max-w-full sm:max-w-[480px] flex flex-col p-0">
+          <SheetHeader className="px-4 py-4 pr-16 border-b shrink-0">
             <SheetTitle className={`${C.text} text-base`}>
               タグ「{tagName}」の対象者一覧
             </SheetTitle>
-            <p className={`text-sm ${C.text50}`}>{ownerCount}名</p>
+            <SheetDescription className={C.text50}>
+              {ownerCount}名
+            </SheetDescription>
           </SheetHeader>
 
           {/* ツールバー */}
@@ -138,7 +141,7 @@ export function TagOwnerListDrawer({
             {canExportCsv ? (
               <Button
                 variant="outline"
-                className={`h-9 px-3 text-sm ${STYLE.btnOutline}`}
+                className={`min-h-11 px-3 text-sm ${STYLE.btnOutline}`}
                 onClick={handleExportCsv}
                 disabled={isLoading || csvLoading || ownerCount === 0}
               >
@@ -149,7 +152,7 @@ export function TagOwnerListDrawer({
             {canBulkDelete ? (
               <Button
                 variant="outline"
-                className={`h-9 px-3 text-sm ${C.danger} border ${C.borderDanger} ${C.hoverBgDanger5}`}
+                className={`min-h-11 px-3 text-sm ${C.danger} border ${C.borderDanger} ${C.hoverBgDanger5}`}
                 onClick={handleRemoveClick}
                 disabled={isLoading || owners.length === 0}
               >

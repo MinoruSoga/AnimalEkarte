@@ -1,3 +1,4 @@
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
@@ -21,19 +22,32 @@ export function DiagnosisTypeRow({
     <SortableDataTableRow
       key={item.id}
       id={item.id}
-      onClick={canEdit ? () => onEdit(item) : undefined}
+      dragLabel={`並べ替え: 診断カテゴリ ${item.name} (ID ${item.id})`}
+      dragDisabled={!canEdit}
     >
-      <TableCell className={`font-medium text-base ${C.text}`}>
-        {item.name}
+      <TableCell className={`font-medium ${C.text}`}>
+        {canEdit ? (
+          <DataTableRowButton
+            aria-label={`詳細: 診断カテゴリ ${item.name} (ID ${item.id})`}
+            onClick={() => onEdit(item)}
+          >
+            {item.name}
+          </DataTableRowButton>
+        ) : item.name}
       </TableCell>
-      <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>
+      <TableCell className={`${C.text70} truncate max-w-[240px]`}>
         {item.description || "-"}
       </TableCell>
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: 診断カテゴリ ${item.name} (ID ${item.id})`}
+            onClick={() => onEdit(item)}
+          />
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );
@@ -56,19 +70,32 @@ export function DiagnosisNameRow({
     <SortableDataTableRow
       key={item.id}
       id={item.id}
-      onClick={canEdit ? () => onEdit(item) : undefined}
+      dragLabel={`並べ替え: 診断病名 ${item.name} (ID ${item.id})`}
+      dragDisabled={!canEdit}
     >
-      <TableCell className={`text-base ${C.text70}`}>
+      <TableCell className={C.text70}>
         {categoryMap.get(item.diagnosisTypeId) ?? "-"}
       </TableCell>
-      <TableCell className={`font-medium text-base ${C.text}`}>
-        {item.name}
+      <TableCell className={`font-medium ${C.text}`}>
+        {canEdit ? (
+          <DataTableRowButton
+            aria-label={`詳細: 診断病名 ${item.name} (ID ${item.id})`}
+            onClick={() => onEdit(item)}
+          >
+            {item.name}
+          </DataTableRowButton>
+        ) : item.name}
       </TableCell>
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: 診断病名 ${item.name} (ID ${item.id})`}
+            onClick={() => onEdit(item)}
+          />
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );

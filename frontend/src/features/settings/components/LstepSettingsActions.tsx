@@ -141,7 +141,7 @@ export function LstepActionFooter({
             設定削除
           </Button>
         ) : null}
-        <SubmitButton className="h-10 text-sm px-5">
+        <SubmitButton className="h-10 text-sm px-4">
           保存
         </SubmitButton>
       </div>

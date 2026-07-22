@@ -45,7 +45,10 @@ export function AnimalSpeciesSettings() {
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
-    onReorder: (newIds) => { reorderMutation.mutate({ ids: newIds.map(Number) }); },
+    onReorder: (newIds) => {
+      if (!canEdit) return;
+      reorderMutation.mutate({ ids: newIds.map(Number) });
+    },
   });
 
   const { handleSave } = useMasterSave<AnimalSpecies, AnimalSpeciesFormData, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequest>({

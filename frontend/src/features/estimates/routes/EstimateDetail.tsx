@@ -90,13 +90,13 @@ export function EstimateDetail() {
     >
       <div className="space-y-6">
         {/* 基本情報 */}
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-4`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6 space-y-4`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-base font-semibold ${C.text}`}>{estimate.title}</h2>
             <EstimateStatusBadge status={estimate.status} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <dt className={`${C.text50} mb-0.5`}>見積番号</dt>
               <dd className={`font-mono ${C.text}`}>{estimate.estimateNo}</dd>
@@ -132,7 +132,7 @@ export function EstimateDetail() {
         </div>
 
         {/* 見積明細 */}
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6`}>
           <h3 className={`text-sm font-medium ${C.text} mb-4`}>見積明細</h3>
           <EstimateLineItems
             items={estimate.items}
@@ -146,7 +146,7 @@ export function EstimateDetail() {
 
         {/* 備考 */}
         {estimate.notes ? (
-          <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5`}>
+          <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6`}>
             <h3 className={`text-sm font-medium ${C.text} mb-2`}>備考</h3>
             <p className={`text-sm ${C.text70} whitespace-pre-wrap`}>{estimate.notes}</p>
           </div>

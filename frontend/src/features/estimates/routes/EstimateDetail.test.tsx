@@ -106,3 +106,18 @@ describe("EstimateDetail locked status actions", () => {
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
   });
 });
+
+describe("EstimateDetail mobile-first layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasPermission.mockImplementation(() => true);
+  });
+
+  it("基本情報は mobile で単一列、sm 以上で2列にする", () => {
+    mockEstimate.current = makeEstimate("draft");
+    renderDetail();
+
+    const basicInfoGrid = screen.getByText("見積番号").parentElement?.parentElement;
+    expect(basicInfoGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+  });
+});

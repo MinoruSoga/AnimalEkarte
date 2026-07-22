@@ -1,12 +1,11 @@
-import { useActionState, useState, useCallback } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useActionState, useState, useCallback, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { toast } from "sonner";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { resetPassword } from "../api/reset-password";
@@ -17,10 +16,24 @@ type ResetPasswordState = { error: string | null };
 
 const INITIAL_STATE: ResetPasswordState = { error: null };
 
+function resetTokenFromLocation(search: string, hash: string): string {
+  const fragment = hash.startsWith("#") ? hash.slice(1) : hash;
+  const fragmentToken = new URLSearchParams(fragment).get("token");
+  if (fragmentToken) return fragmentToken;
+  return new URLSearchParams(search).get("token") ?? "";
+}
+
 export function ResetPasswordPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const location = useLocation();
+  const [token] = useState(() =>
+    resetTokenFromLocation(location.search, location.hash),
+  );
+
+  useEffect(() => {
+    if (!token || (location.search === "" && location.hash === "")) return;
+    void navigate(paths.auth.resetPassword.getHref(), { replace: true });
+  }, [location.hash, location.search, navigate, token]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -56,8 +69,7 @@ export function ResetPasswordPage() {
         toast.success("パスワードを変更しました");
         void navigate(paths.auth.login.getHref());
         return { error: null };
-      } catch (err) {
-        handleApiError(err, "パスワードのリセット");
+      } catch {
         return { error: "パスワードのリセットに失敗しました。リンクの有効期限が切れている可能性があります。" };
       }
     },
@@ -78,7 +90,7 @@ export function ResetPasswordPage() {
           </p>
           <Link
             to={paths.auth.forgotPassword.getHref()}
-            className={`block text-sm ${C.textBrand} hover:underline`}
+            className={`inline-flex min-h-11 items-center justify-center text-sm ${C.textBrand} hover:underline`}
           >
             パスワードリセットを再申請する
           </Link>
@@ -114,7 +126,7 @@ export function ResetPasswordPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 placeholder="8文字以上で入力"
-                className={`${INPUT_BASE} pl-2.5 pr-10`}
+                className={`${INPUT_BASE} pl-2.5 pr-12`}
                 aria-invalid={state.error !== null}
                 aria-describedby={state.error ? "reset-error" : undefined}
               />
@@ -141,7 +153,7 @@ export function ResetPasswordPage() {
                 type={showConfirmPassword ? "text" : "password"}
                 autoComplete="new-password"
                 placeholder="同じパスワードを入力"
-                className={`${INPUT_BASE} pl-2.5 pr-10`}
+                className={`${INPUT_BASE} pl-2.5 pr-12`}
                 aria-invalid={state.error !== null}
                 aria-describedby={state.error ? "reset-error" : undefined}
               />
@@ -167,7 +179,7 @@ export function ResetPasswordPage() {
 
           <Link
             to={paths.auth.login.getHref()}
-            className={`block text-center text-sm ${C.textBrand} hover:underline`}
+            className={`flex min-h-11 items-center justify-center text-center text-sm ${C.textBrand} hover:underline`}
           >
             ログインページに戻る
           </Link>

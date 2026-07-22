@@ -11,6 +11,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import * as audit from "./design-system-audit.mjs";
 import {
   isTestFile,
   isLeafRouteFile,
@@ -25,6 +26,9 @@ import {
   checkC9,
   checkC10,
   checkC11,
+  checkC12,
+  checkC13,
+  checkC14,
   C8_ALLOWLIST,
   collectViolations,
 } from "./design-system-audit.mjs";
@@ -75,6 +79,18 @@ test("checkC3: 引用符付き hex リテラルを検出する", () => {
   ].join("\n");
   const violations = checkC3(text);
   assert.equal(violations.length, 3);
+});
+
+test("checkC3: Tailwind arbitrary color 内の hex を検出する", () => {
+  const text = [
+    'className="bg-[#ff0000]"',
+    'className="placeholder:text-[#A39E98]"',
+    'className="hover:border-[#ABC]/50"',
+  ].join("\n");
+
+  const violations = checkC3(text);
+  assert.equal(violations.length, 3);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3]);
 });
 
 test("checkC3: 引用符無しの issue 番号コメント（#158 等）は誤検知しない", () => {
@@ -188,6 +204,71 @@ test("collectViolations: 意図的違反 fixture は各カテゴリで検出さ�
     assert.equal(result.c9.length, 1);
     // BrokenPage は PageLayout 無し・allowlist 外 → C8
     assert.equal(result.c8.length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("collectViolations: 本体 route の named color と非仕様 spacing を C15/C16 に集計する", async () => {
+  const { root, routesDir } = makeFixture();
+  try {
+    writeFileSync(
+      path.join(routesDir, "WidgetPage.tsx"),
+      [
+        "export function WidgetPage() {",
+        '  return <PageLayout title="ok">',
+        '    <div className="bg-white p-5">surface</div>',
+        '    <span className="text-white gap-5">label</span>',
+        '    <div className="bg-black/30">overlay</div>',
+        "  </PageLayout>;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = await collectViolations(root);
+    assert.ok(Array.isArray(result.c15), "C15 named color の集計結果が必要");
+    assert.equal(result.c15.length, 3);
+    assert.ok(Array.isArray(result.c16), "C16 非仕様 spacing の集計結果が必要");
+    assert.equal(result.c16.length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("collectViolations: src/**/*.css の直接 shadow を C17 に集計し globals の token 定義は許可する", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const featureStylesDir = path.join(root, "src", "features", "widget", "styles");
+    const globalStylesDir = path.join(root, "src", "styles");
+    mkdirSync(featureStylesDir, { recursive: true });
+    mkdirSync(globalStylesDir, { recursive: true });
+    writeFileSync(
+      path.join(featureStylesDir, "widget.css"),
+      [
+        ".card { box-shadow: 0 1px 2px currentColor; }",
+        ".icon { filter: drop-shadow(0 2px 4px currentColor); }",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(globalStylesDir, "globals.css"),
+      [
+        ":root {",
+        "  --shadow-level1: 0 1px 2px currentColor;",
+        "  --shadow-level2: 0 4px 18px currentColor;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = await collectViolations(root);
+    assert.ok(Array.isArray(result.c17), "C17 CSS shadow の集計結果が必要");
+    assert.equal(result.c17.length, 2);
+    assert.deepEqual(
+      result.c17.map(({ file, lineNumber }) => ({ file, lineNumber })),
+      [
+        { file: path.join("src", "features", "widget", "styles", "widget.css"), lineNumber: 1 },
+        { file: path.join("src", "features", "widget", "styles", "widget.css"), lineNumber: 2 },
+      ],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -345,7 +426,8 @@ test("checkC10: Tailwind 既定影と shadow 任意値を検出し、level ト�
     'className="drop-shadow-md"',
   ].join("\n");
   const violations = checkC10(text);
-  assert.equal(violations.length, 3);
+  assert.equal(violations.length, 4);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3, 7]);
 });
 
 test("checkC11: font-size 任意値を検出し、ロールクラスは許可する", () => {
@@ -359,24 +441,571 @@ test("checkC11: font-size 任意値を検出し、ロールクラスは許可す
   assert.equal(violations.length, 3);
 });
 
-test("checkC8: allowlist / PageLayout / 欠落を判定する", () => {
-  assert.equal(C8_ALLOWLIST.size, 15);
-  assert.equal(checkC8("Login.tsx", "export function Login() { return null; }").length, 0);
-  assert.equal(checkC8("FooPage.tsx", "return <PageLayout title=\"x\">").length, 0);
-  assert.equal(checkC8("FooPage.tsx", "return <MasterListPage />").length, 0);
-  assert.equal(checkC8("FooPage.tsx", "export function Foo() { return null; }").length, 1);
+test("checkC12: 非仕様サイズ段を本体で検出し、別アプリは除外する", () => {
+  const text = [
+    'className="text-lg"',
+    'className="text-2xl"',
+    'className="text-9xl"',
+    'className="text-xl text-heading-1 text-heading-2 text-heading-3"',
+  ].join("\n");
+
+  assert.equal(checkC12(text, path.join("src", "features", "widget", "Widget.tsx")).length, 3);
+  assert.equal(checkC12(text, path.join("liff", "src", "pages", "Widget.tsx")).length, 0);
+  assert.equal(checkC12(text, path.join("src", "shared-liff", "Widget.tsx")).length, 0);
+  assert.equal(
+    checkC12(text, path.join("src", "features", "shared-liff-tools", "Widget.tsx")).length,
+    3,
+  );
 });
 
-test("collectViolations（FE8-5）: C8 は allowlist basename を除外する", async () => {
+test("checkC13: ink 黒アルファを検出し、4段トークンは許可する", () => {
+  const text = [
+    'className="text-[#000000]/60"',
+    'className="placeholder:text-[rgba(0,0,0,0.3)]"',
+    'className={C.text60}',
+  ].join("\n");
+
+  assert.equal(checkC13(text).length, 2);
+});
+
+test("checkC14: built-in・任意値・負値・shorthand の tracking を本体で検出し、別アプリだけを除外する", () => {
+  const text = [
+    'className="tracking-wide"',
+    'className="uppercase tracking-wider"',
+    'className="tracking-widest text-2xs"',
+    'className="tracking-tight"',
+    'className="tracking-normal"',
+    'className="tracking-[0.12em]"',
+    'className="tracking-[var(--tracking-compact)]"',
+    'className="tracking-[var(--tracking-compact-sm)]"',
+    'className="tracking-[var(--tracking-compact-xs)]"',
+    'className="-tracking-wide"',
+    'className="tracking-(--custom-letter-spacing)"',
+  ].join("\n");
+
+  const violations = checkC14(text, path.join("src", "features", "widget", "Widget.tsx"));
+  assert.equal(violations.length, 11);
+  assert.equal(checkC14(text, path.join("liff", "src", "pages", "Widget.tsx")).length, 0);
+  assert.equal(checkC14(text, path.join("line-reserve", "src", "pages", "Widget.tsx")).length, 0);
+  assert.equal(checkC14(text, path.join("src", "shared-liff", "Widget.tsx")).length, 0);
+  assert.equal(
+    checkC14(text, path.join("src", "features", "shared-liff-tools", "Widget.tsx")).length,
+    11,
+  );
+});
+
+test("checkC15: 本体 routes/pages の直接 named color を検出し、トークンと別アプリは許可する", () => {
+  assert.equal(typeof audit.checkC15, "function");
+
+  const text = [
+    'className="bg-white"',
+    'className="text-white"',
+    'className="fixed inset-0 bg-black/30"',
+    'className="text-black"',
+    'className="bg-black"',
+    'className="border-white"',
+    'className="hover:border-black/50"',
+    'className="placeholder:text-black"',
+    'className={`${C.bgWhite} ${C.textWhite} ${C.bgOverlay}`}',
+  ].join("\n");
+  const mainRoute = path.join("src", "features", "widget", "routes", "WidgetPage.tsx");
+  const mainPage = path.join("src", "features", "widget", "pages", "WidgetPage.tsx");
+
+  assert.equal(audit.checkC15(text, mainRoute).length, 8);
+  assert.equal(audit.checkC15(text, mainPage).length, 8);
+  assert.equal(
+    audit.checkC15(text, path.join("src", "features", "widget", "components", "Widget.tsx")).length,
+    0,
+  );
+  assert.equal(audit.checkC15(text, path.join("liff", "src", "pages", "Widget.tsx")).length, 0);
+  assert.equal(audit.checkC15(text, path.join("line-reserve", "src", "pages", "Widget.tsx")).length, 0);
+});
+
+test("checkC16: DESIGN.md の spacing scale にない p/m/gap/space の *-5 を本体で検出する", () => {
+  assert.equal(typeof audit.checkC16, "function");
+
+  const text = [
+    'className="p-5"',
+    'className="px-5 py-5"',
+    'className="mt-5 mb-5"',
+    'className="gap-5 space-y-5"',
+    'className="-m-5"',
+    'className="-mx-5 -mt-5"',
+    'className="p-[20px]"',
+    'className="gap-[1.25rem]"',
+    'className="space-y-[20px]"',
+    'className="p-4 px-6 gap-4 size-5 w-5 h-5"',
+  ].join("\n");
+  const mainComponent = path.join("src", "features", "widget", "components", "Widget.tsx");
+
+  assert.equal(audit.checkC16(text, mainComponent).length, 9);
+  assert.equal(audit.checkC16(text, path.join("liff", "src", "pages", "Widget.tsx")).length, 0);
+  assert.equal(audit.checkC16(text, path.join("src", "shared-liff", "Widget.tsx")).length, 0);
+  assert.equal(
+    audit.checkC16(
+      text,
+      path.join("src", "features", "medical-records", "components", "MedicalRecordPrintView.tsx"),
+    ).length,
+    0,
+  );
+});
+
+test("checkC17: CSS の直接 box-shadow / drop-shadow を検出し --shadow-* token 定義は許可する", () => {
+  assert.equal(typeof audit.checkC17, "function");
+
+  const css = [
+    ".clean { filter: blur(2px); box-sizing: border-box; }",
+    ".card { box-shadow: 0 1px 2px currentColor; }",
+    ".icon { filter: drop-shadow(0 2px 4px currentColor); }",
+  ].join("\n");
+  const globalsCss = [
+    ":root {",
+    "  --shadow-level1: 0 1px 2px currentColor;",
+    "  --shadow-level2: 0 4px 18px currentColor;",
+    "}",
+    ".raw { box-shadow: 0 1px 2px currentColor; }",
+  ].join("\n");
+
+  const violations = audit.checkC17(
+    css,
+    path.join("src", "features", "widget", "styles", "widget.css"),
+  );
+  assert.equal(violations.length, 2);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [2, 3]);
+
+  const globalsViolations = audit.checkC17(
+    globalsCss,
+    path.join("src", "styles", "globals.css"),
+  );
+  assert.equal(globalsViolations.length, 1);
+  assert.equal(globalsViolations[0].lineNumber, 5);
+  assert.equal(
+    audit.checkC17(css, path.join("liff", "src", "styles", "widget.css")).length,
+    0,
+  );
+});
+
+test("checkC18: TableCell / TableHead の非仕様 override を検出し正確な行番号を返す", () => {
+  assert.equal(typeof audit.checkC18, "function");
+
+  const text = [
+    "<Table>",
+    "  <TableHeader>",
+    "    <TableRow>",
+    '      <TableHead className="text-base">A</TableHead>',
+    '      <TableHead className="text-xs">B</TableHead>',
+    '      <TableHead className="font-medium">C</TableHead>',
+    '      <TableHead className="py-1">D</TableHead>',
+    '      <TableHead className="py-2">E</TableHead>',
+    '      <TableHead className="py-2.5">F</TableHead>',
+    "      <TableHead",
+    '        className="p-0"',
+    "      >G</TableHead>",
+    "    </TableRow>",
+    "  </TableHeader>",
+    "  <TableBody>",
+    "    <TableRow>",
+    '      <TableCell className="text-base">A</TableCell>',
+    '      <TableCell className="py-1">B</TableCell>',
+    '      <TableCell className="py-2">C</TableCell>',
+    '      <TableCell className="py-2.5">D</TableCell>',
+    "      <TableCell",
+    '        className="p-0"',
+    "      >E</TableCell>",
+    "    </TableRow>",
+    "  </TableBody>",
+    "</Table>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.equal(violations.length, 12);
+  assert.deepEqual(
+    violations.map(({ lineNumber }) => lineNumber),
+    [4, 5, 6, 7, 8, 9, 11, 17, 18, 19, 20, 22],
+  );
+});
+
+test("checkC18: multiline JSX の className 式内にある override の実在行を返す", () => {
+  assert.equal(typeof audit.checkC18, "function");
+
+  const text = [
+    "<TableCell",
+    "  colSpan={2}",
+    "  className={cn(",
+    "    STYLE.tableCell,",
+    '    "py-2",',
+    "  )}",
+    ">",
+    "  value",
+    "</TableCell>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].lineNumber, 5);
+});
+
+test("checkC18: className より前の arrow function で opening tag の走査を打ち切らない", () => {
+  const text = [
+    "<TableCell",
+    "  onClick={(event) => event.stopPropagation()}",
+    '  className="py-2"',
+    ">",
+    "  value",
+    "</TableCell>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].lineNumber, 3);
+});
+
+test("checkC18: comment・string・prop内の子JSX classNameはprimitive overrideとして扱わない", () => {
+  const text = [
+    '// <TableCell className="py-1">comment</TableCell>',
+    'const fixture = `<TableCell className="py-1">string</TableCell>`;',
+    'const multilineFixture = `',
+    '<TableCell className="py-1">multiline string</TableCell>',
+    '`;',
+    '<TableCell render={() => <span className="py-1">child</span>}>value</TableCell>',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.equal(violations.length, 0);
+});
+
+test("checkC18: header/body の標準 typography より大きい・小さい文字段を禁止する", () => {
+  const text = [
+    '<TableHead className="text-sm">header</TableHead>',
+    '<TableCell className="text-xs">dense body</TableCell>',
+    '<TableCell className="text-2xs">smaller body</TableCell>',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3]);
+});
+
+test("checkC18: TableHead/TableCell に逆側の STYLE tokenを渡す迂回を禁止する", () => {
+  const text = [
+    "<TableHead className={STYLE.tableCell}>header</TableHead>",
+    "<TableHead className={STYLE.tableCellMono}>header</TableHead>",
+    "<TableHead className={STYLE.tableCellMuted}>header</TableHead>",
+    "<TableCell className={STYLE.tableHeaderCell}>body</TableCell>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3, 4]);
+});
+
+test("checkC18: 標準py-3以外のvertical paddingを禁止し、明示した空stateだけを許可する", () => {
+  const text = [
+    '<TableCell className="py-0">body</TableCell>',
+    '<TableCell className="py-4">body</TableCell>',
+    '<TableCell className="py-[10px]">body</TableCell>',
+    '<TableHead className="py-6">header</TableHead>',
+    '<TableCell colSpan={5} className="py-8 text-center">集計値</TableCell>',
+    "<TableCell",
+    "  colSpan={5}",
+    '  className="py-12 text-center"',
+    ">集計値</TableCell>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3, 4, 5, 8]);
+});
+
+test("checkC18: padding shorthand・片側padding・誤ったtypography roleを禁止する", () => {
+  const text = [
+    '<TableCell className="p-4">body</TableCell>',
+    '<TableCell className="pt-2">body</TableCell>',
+    '<TableCell className="pb-[10px]">body</TableCell>',
+    '<TableCell className="text-xl">body</TableCell>',
+    '<TableCell className="font-bold">body</TableCell>',
+    '<TableHead className="text-xl">header</TableHead>',
+    '<TableHead className="font-bold">header</TableHead>',
+    '<TableCell className="text-heading-3">body</TableCell>',
+    '<TableHead className="text-heading-1">header</TableHead>',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetTable.tsx"),
+  );
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+test("checkC18: 標準 table class・class なし・明示した空 state の追加余白は許可する", () => {
+  assert.equal(typeof audit.checkC18, "function");
+
+  const text = [
+    "<TableHead>名前</TableHead>",
+    '<TableHead className={STYLE.tableHeaderCell}>名前</TableHead>',
+    '<TableHead className="text-2xs font-semibold px-4 py-3">名前</TableHead>',
+    "<TableCell>ポチ</TableCell>",
+    '<TableCell className={STYLE.tableCell}>ポチ</TableCell>',
+    '<TableCell className="text-sm font-normal px-4 py-3">ポチ</TableCell>',
+    '<TableCell data-empty-state colSpan={5} className="py-6 text-center">データなし</TableCell>',
+    '<TableCell><span className="text-base py-2">子要素</span></TableCell>',
+    '<TableCell aria-label="text-base py-2" data-density="py-0">属性値</TableCell>',
+    '<TableHead aria-description="text-sm py-6">属性値</TableHead>',
+    '<DataTableCell className="text-base py-2 p-0">別 component</DataTableCell>',
+  ].join("\n");
+  const mainComponent = path.join("src", "features", "widget", "components", "WidgetTable.tsx");
+
+  assert.equal(audit.checkC18(text, mainComponent).length, 0);
+  assert.equal(
+    audit.checkC18(
+      '<TableCell className="text-base py-2 p-0">TS file</TableCell>',
+      path.join("src", "features", "widget", "components", "table-source.ts"),
+    ).length,
+    0,
+  );
+});
+
+test("collectViolations: Table primitive 呼び出し側 override を C18 に集計する", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
   try {
-    const routesDir = path.join(root, "src", "features", "auth", "routes");
-    mkdirSync(routesDir, { recursive: true });
-    writeFileSync(path.join(routesDir, "Login.tsx"), "export function Login() { return null; }");
-    writeFileSync(path.join(routesDir, "OrphanPage.tsx"), "export function OrphanPage() { return null; }");
+    const componentsDir = path.join(root, "src", "features", "widget", "components");
+    mkdirSync(componentsDir, { recursive: true });
+    writeFileSync(
+      path.join(componentsDir, "BrokenTable.tsx"),
+      [
+        'import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";',
+        "export function BrokenTable() {",
+        "  return (",
+        "    <Table>",
+        "      <TableHeader>",
+        "        <TableRow>",
+        '          <TableHead className="text-xs">名前</TableHead>',
+        "        </TableRow>",
+        "      </TableHeader>",
+        "      <TableBody>",
+        "        <TableRow>",
+        "          <TableCell",
+        '            className="py-2.5"',
+        "          >ポチ</TableCell>",
+        "        </TableRow>",
+        "      </TableBody>",
+        "    </Table>",
+        "  );",
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(componentsDir, "CleanTable.tsx"),
+      [
+        "export function CleanTable() {",
+        '  return <TableCell className="text-sm font-normal px-4 py-3">ポチ</TableCell>;',
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(componentsDir, "BrokenTable.test.tsx"),
+      'render(<TableCell className="text-base p-0">fixture test</TableCell>);',
+    );
+
+    const result = await collectViolations(root);
+    assert.ok(Array.isArray(result.c18), "C18 table override の集計結果が必要");
+    assert.equal(result.c18.length, 2);
+    assert.deepEqual(
+      result.c18.map(({ file, lineNumber }) => ({ file, lineNumber })),
+      [
+        {
+          file: path.join("src", "features", "widget", "components", "BrokenTable.tsx"),
+          lineNumber: 7,
+        },
+        {
+          file: path.join("src", "features", "widget", "components", "BrokenTable.tsx"),
+          lineNumber: 13,
+        },
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkC19: DataTableRow / SortableDataTableRow の single-line onClick を検出する", () => {
+  assert.equal(typeof audit.checkC19, "function");
+
+  const text = [
+    "<DataTableRow onClick={onEdit}><TableCell>通常行</TableCell></DataTableRow>",
+    "<SortableDataTableRow id={item.id} onClick={() => onEdit(item)}>並べ替え行</SortableDataTableRow>",
+  ].join("\n");
+
+  const violations = audit.checkC19(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetRows.tsx"),
+  );
+  assert.equal(violations.length, 2);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2]);
+  assert.match(violations[0].text, /DataTableRow/);
+  assert.match(violations[1].text, /SortableDataTableRow/);
+});
+
+test("checkC19: multiline opening tag と arrow handler の onClick 実在行を返す", () => {
+  assert.equal(typeof audit.checkC19, "function");
+
+  const text = [
+    "<DataTableRow",
+    "  key={item.id}",
+    "  onClick={() => onEdit(item)}",
+    ">",
+    "  <TableCell>通常行</TableCell>",
+    "</DataTableRow>",
+    "<SortableDataTableRow",
+    "  id={item.id}",
+    "  onClick={(event) => {",
+    "    event.preventDefault();",
+    "    onEdit(item);",
+    "  }}",
+    ">",
+    "  並べ替え行",
+    "</SortableDataTableRow>",
+  ].join("\n");
+
+  const violations = audit.checkC19(
+    text,
+    path.join("src", "features", "widget", "components", "WidgetRows.tsx"),
+  );
+  assert.equal(violations.length, 2);
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [3, 9]);
+});
+
+test("checkC19: test file・comment・string 内の見かけ上の row onClick は除外する", () => {
+  assert.equal(typeof audit.checkC19, "function");
+
+  const source = [
+    "// <DataTableRow onClick={onEdit}>comment</DataTableRow>",
+    "/* <SortableDataTableRow onClick={() => onEdit(item)}>comment</SortableDataTableRow> */",
+    "const singleQuoted = '<DataTableRow onClick={onEdit}>fixture</DataTableRow>';",
+    "const doubleQuoted = \"<SortableDataTableRow onClick={onEdit}>fixture</SortableDataTableRow>\";",
+    "const template = `<DataTableRow onClick={() => onEdit(item)}>fixture</DataTableRow>`;",
+    "<DataTableRow data-description=\"onClick={onEdit}\"><TableCell>安全な行</TableCell></DataTableRow>",
+  ].join("\n");
+  const componentPath = path.join("src", "features", "widget", "components", "WidgetRows.tsx");
+  const testPath = path.join("src", "features", "widget", "components", "WidgetRows.test.tsx");
+
+  assert.equal(audit.checkC19(source, componentPath).length, 0);
+  assert.equal(
+    audit.checkC19("<DataTableRow onClick={onEdit}>test</DataTableRow>", testPath).length,
+    0,
+  );
+});
+
+test("collectViolations: row-level onClick を C19 に集計し test file は除外する", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const componentsDir = path.join(root, "src", "features", "widget", "components");
+    mkdirSync(componentsDir, { recursive: true });
+    writeFileSync(
+      path.join(componentsDir, "BrokenRows.tsx"),
+      [
+        "export function BrokenRows() {",
+        "  return <>",
+        "    <DataTableRow onClick={onEdit}>通常行</DataTableRow>",
+        "    <SortableDataTableRow",
+        "      id={item.id}",
+        "      onClick={() => onEdit(item)}",
+        "    >並べ替え行</SortableDataTableRow>",
+        "  </>;",
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(componentsDir, "BrokenRows.test.tsx"),
+      "render(<DataTableRow onClick={onEdit}>fixture test</DataTableRow>);",
+    );
+
+    const result = await collectViolations(root);
+    assert.ok(Array.isArray(result.c19), "C19 row-level onClick の集計結果が必要");
+    assert.deepEqual(
+      result.c19.map(({ file, lineNumber }) => ({ file, lineNumber })),
+      [
+        {
+          file: path.join("src", "features", "widget", "components", "BrokenRows.tsx"),
+          lineNumber: 3,
+        },
+        {
+          file: path.join("src", "features", "widget", "components", "BrokenRows.tsx"),
+          lineNumber: 6,
+        },
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI: tracking 直書きは C14 として exit code 1 になる", () => {
+  const { root, routesDir } = makeFixture();
+  try {
+    writeFileSync(
+      path.join(routesDir, "WidgetPage.tsx"),
+      'export function WidgetPage() { return <PageLayout title="ok" className="tracking-wide">x</PageLayout>; }',
+    );
+    const scriptPath = path.join(import.meta.dirname, "design-system-audit.mjs");
+    assert.throws(() => {
+      execFileSync("node", [scriptPath, "--cwd", root], { encoding: "utf-8" });
+    }, (err) => {
+      assert.equal(err.status, 1);
+      assert.match(err.stdout, /C14 tracking 直書き/);
+      assert.match(err.stdout, /WidgetPage\.tsx:1/);
+      assert.match(err.stdout, /FAIL — 1 件/);
+      return true;
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkC8: allowlist は basename ではなく feature 相対パスだけを許可する", () => {
+  const loginPath = path.join("src", "features", "auth", "routes", "Login.tsx");
+  const spoofedLoginPath = path.join("src", "features", "widget", "routes", "Login.tsx");
+  const fooPath = path.join("src", "features", "widget", "routes", "FooPage.tsx");
+
+  assert.equal(C8_ALLOWLIST.size, 14);
+  assert.ok([...C8_ALLOWLIST].every((relPath) => relPath.includes(path.sep)));
+  assert.equal(checkC8(loginPath, "export function Login() { return null; }").length, 0);
+  assert.equal(checkC8(spoofedLoginPath, "export function Login() { return null; }").length, 1);
+  assert.equal(checkC8(fooPath, "return <PageLayout title=\"x\">").length, 0);
+  assert.equal(checkC8(fooPath, "return <MasterListPage />").length, 0);
+  assert.equal(checkC8(fooPath, "export function Foo() { return null; }").length, 1);
+});
+
+test("collectViolations（FE8-5）: C8 allowlist と同名の別 feature route は除外しない", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const authRoutesDir = path.join(root, "src", "features", "auth", "routes");
+    const widgetRoutesDir = path.join(root, "src", "features", "widget", "routes");
+    mkdirSync(authRoutesDir, { recursive: true });
+    mkdirSync(widgetRoutesDir, { recursive: true });
+    writeFileSync(path.join(authRoutesDir, "Login.tsx"), "export function Login() { return null; }");
+    writeFileSync(path.join(widgetRoutesDir, "Login.tsx"), "export function Login() { return null; }");
     const result = await collectViolations(root);
     assert.equal(result.c8.length, 1);
-    assert.match(result.c8[0].file, /OrphanPage\.tsx$/);
+    assert.equal(result.c8[0].file, path.join("src", "features", "widget", "routes", "Login.tsx"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

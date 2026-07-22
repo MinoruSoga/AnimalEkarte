@@ -21,7 +21,7 @@ export function RouteErrorBoundary() {
   }
 
   return (
-    <div className="flex-1 p-5 flex flex-col items-center justify-center gap-4">
+    <div className={`flex-1 p-6 flex flex-col items-center justify-center gap-4 ${C.bgPage}`}>
       <AlertCircle className={`size-12 ${C.danger}`} />
       <h1 className={`text-xl font-bold ${C.text}`}>{title}</h1>
       <p className={`${C.text50} text-center max-w-md`}>{message}</p>

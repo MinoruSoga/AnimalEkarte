@@ -245,7 +245,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
           {/* BUG-092: 休日選択時は時刻フィールドを非活性 */}
           <div className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="start-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>開始時刻</Label>
                 <Input

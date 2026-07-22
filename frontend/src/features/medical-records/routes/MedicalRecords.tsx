@@ -19,6 +19,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
@@ -45,7 +46,7 @@ import type {
   ActiveFilter,
   FilterCondition,
 } from "@/components/shared/PropertyFilter/types";
-import { ResourceMedicalRecords } from "@/types/generated/models";
+import { ResourceAccounting, ResourceMedicalRecords } from "@/types/generated/models";
 
 const PAGE_SIZE = 20;
 
@@ -85,7 +86,8 @@ const MEDICAL_RECORDS_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
 export function MedicalRecords() {
   const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMedicalRecords);
+  const { canView: canViewAccounting } = usePermission(ResourceAccounting);
   const {
     assignedClinics,
     selectedClinicIds,
@@ -217,28 +219,37 @@ export function MedicalRecords() {
             headerCellClassName={MEDICAL_RECORDS_HEADER_CELL}
             renderRow={(r) => {
               const isOtherClinic = showClinicColumn && r.clinicId !== currentClinicId;
+              const accountingId = r.accountingId;
               return (
-              <DataTableRow
-                key={r.id}
-                onClick={isOtherClinic ? undefined : () => handleNavigateToForm(r.id)}
-              >
+                <DataTableRow key={r.id}>
                 <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
-                <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+                <TableCell className={STYLE.tableCell}>
+                  {isOtherClinic ? r.petName : (
+                    <DataTableRowLink
+                      to={paths.medicalRecords.detail.getHref(r.id)}
+                      state={{ from: paths.medicalRecords.getHref() }}
+                      aria-label={`カルテ詳細: ${r.petName} ${r.date} ID ${r.id}`}
+                    >
+                      {r.petName}
+                    </DataTableRowLink>
+                  )}
+                </TableCell>
                 <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
                 <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
-                <TableCell className="py-2.5 hidden lg:table-cell">
-                  {r.accountingId ? (
+                <TableCell className="hidden lg:table-cell">
+                  {!isOtherClinic && canViewAccounting && accountingId ? (
                     <button type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(paths.accounting.detail.getHref(r.accountingId ?? ""));
+                        navigate(paths.accounting.detail.getHref(accountingId));
                       }}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-xxs border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
+                      className={`inline-flex min-h-11 min-w-11 items-center gap-1 rounded-xxs border px-2 text-xs font-medium ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
+                      aria-label={`会計詳細: ${r.petName} ${r.date} カルテID ${r.id}`}
                     >
-                      <Receipt className={ICON.xs} />
+                      <Receipt className={ICON.xs} aria-hidden="true" />
                       会計
                     </button>
                   ) : (
@@ -251,11 +262,17 @@ export function MedicalRecords() {
                       {r.doctor}
                     </span>
                     {!isValidStaff(r.doctor) ? (
-                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} ${C.danger}`} /></span>
+                      <span
+                        role="img"
+                        aria-label={`無効な担当医: ${r.doctor}（退職等）`}
+                        title="担当医が無効（退職等）に設定されています"
+                      >
+                        <AlertTriangle className={`${ICON.xs} ${C.danger}`} aria-hidden="true" />
+                      </span>
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="py-2.5">
+                <TableCell>
                   <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
                     {r.status}
                   </StatusBadge>
@@ -267,9 +284,10 @@ export function MedicalRecords() {
                     </span>
                   </TableCell>
                 ) : null}
-                <TableCell className="text-right py-2.5">
+                <TableCell className="text-right">
                   {(canEdit || canDelete) && !isOtherClinic ? (
                     <RowActionDropdown
+                      ariaLabel={`カルテ操作: ${r.petName} ${r.date} ID ${r.id}`}
                       actions={[
                         ...(canEdit ? [{
                           label: "編集",

@@ -3,12 +3,14 @@ import { FileText, Pencil, Trash2 } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { formatWeight } from "@/lib/format/number";
@@ -50,7 +52,6 @@ interface OwnersListTableProps {
   currentClinicId?: string | null;
   onSearchChange: (value: string) => void;
   onFilterChange: (filters: ActiveFilter[]) => void;
-  onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
   /** #158: 飼主レポートを別ウィンドウで開く（ownerId + 初期 petId）。 */
@@ -73,7 +74,6 @@ export function OwnersListTable({
   currentClinicId,
   onSearchChange,
   onFilterChange,
-  onRowClick,
   onEdit,
   onDeleteRequest,
   onReport,
@@ -87,7 +87,7 @@ export function OwnersListTable({
     ...(showClinicColumn ? [{ header: "医院", className: "w-[110px]" }] : []),
     { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
     { header: "ペット名", className: "w-[120px]" },
-    { header: "生死", className: "w-[60px] hidden lg:table-cell" },
+    { header: "生死", className: "w-[60px]" },
     { header: "種", className: "w-[60px]" },
     { header: "生年月日", className: "w-[100px] hidden lg:table-cell" },
     { header: "体重", className: "w-[80px] hidden lg:table-cell" },
@@ -116,7 +116,7 @@ export function OwnersListTable({
           headerRowClassName={OWNERS_TABLE_HEADER_ROW}
           headerCellClassName={OWNERS_TABLE_HEADER_CELL}
           renderRow={(pet) => {
-            // #86: 別医院の行は編集・削除を抑止（閲覧のみ）。行クリックの遷移ガードは呼び出し側
+            // #86: 別医院の行は詳細リンク・編集・削除を抑止（閲覧のみ）。
             const isOtherClinic = !!(
               currentClinicId && pet.clinicId && pet.clinicId !== currentClinicId
             );
@@ -130,7 +130,6 @@ export function OwnersListTable({
                 canReport={!!canReport && !isOtherClinic}
                 showClinicColumn={showClinicColumn}
                 clinicNameById={clinicNameById}
-                onRowClick={onRowClick}
                 onEdit={onEdit}
                 onDeleteRequest={onDeleteRequest}
                 onReport={onReport}
@@ -163,7 +162,6 @@ interface OwnersListRowProps {
   canReport: boolean;
   showClinicColumn?: boolean;
   clinicNameById?: Map<string, string>;
-  onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
   onReport: (ownerId: string, petId: string) => void;
@@ -176,19 +174,25 @@ function OwnersListRow({
   canReport,
   showClinicColumn = false,
   clinicNameById,
-  onRowClick,
   onEdit,
   onDeleteRequest,
   onReport,
 }: OwnersListRowProps) {
   return (
-    <DataTableRow onClick={canEdit ? () => onRowClick(pet) : undefined}>
+    <DataTableRow>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         <span className="flex items-center gap-1.5">
-          {pet.ownerName}
+          {canEdit ? (
+            <DataTableRowLink
+              to={paths.owners.detail.getHref(pet.ownerId)}
+              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
+            >
+              {pet.ownerName}
+            </DataTableRowLink>
+          ) : pet.ownerName}
           {pet.dangerLevel === "高" ? (
             <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
               ⚠ 危険
@@ -206,7 +210,7 @@ function OwnersListRow({
         {pet.petNumber || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.name}</TableCell>
-      <TableCell className="whitespace-nowrap py-2 hidden lg:table-cell">
+      <TableCell className="whitespace-nowrap">
         {pet.status ? (
           <StatusBadge colorClass={getPetStatusColor(pet.status)}>
             {pet.status}
@@ -226,9 +230,10 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatDate(pet.lastVisit)}
       </TableCell>
-      <TableCell className="whitespace-nowrap py-2 text-right">
+      <TableCell className="whitespace-nowrap text-right">
         {canEdit || canDelete || canReport ? (
           <RowActionDropdown
+            ariaLabel={`飼主「${pet.ownerName}」(ID: ${pet.ownerId})・ペット「${pet.name}」(ID: ${pet.id}) の操作`}
             actions={[
               ...(canEdit ? [{
                 label: "編集",
