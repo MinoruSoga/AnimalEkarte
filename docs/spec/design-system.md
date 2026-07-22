@@ -88,6 +88,8 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 
 > 危険バッジ・死亡グレーアウト・RBAC 非活性表示など臨床安全 UI は、デザイン変更で退行させない。
 
+本体 routes/pages で `bg-white` / `text-black` / `border-white` 等の white/black named color を直接指定せず、用途が追跡できる `C` / `STYLE` token を使う（audit C15）。
+
 ### 2.5 業務ステータス色 — DESIGN.md スティッカーパレットは不採用（FE11 決裁）
 
 **DESIGN.md の sticker palette 8色は本システムでは採用しない。** DESIGN.md におけるあの8色は「イラスト・アプリアイコンタイル・カテゴリドット」という*装飾*の規定であり、本システムの色は**スタッフが状態を読むための業務識別子**として機能している（受付ステータス・予約区分・在庫状態など）。用途が異なるものに同じ規定を当てても遵守にならないため、色の正本である本書の判断として不採用とする。
@@ -116,7 +118,7 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 |---|---|---|
 | **印刷帳票** | `PrintPortal` 配下（`MonthlyReportPrintArea` / `ClosePrintArea`）。raw Tailwind グレー 92 箇所 | 紙・モノクロプリンタ出力が要件。canvas-soft／hairline／ink ランプは画面の図地設計であり紙面には適用しない |
 | **マニュアル本文** | `ManualContent` の markdown レンダリング（`bg-black/5` ヘッダ等） | 文書レンダリングであり、アプリのデータテーブル規範（`ex-data-table-cell`）の対象外 |
-| **LINE ミニアプリ** | `liff/` `line-reserve/` `src/shared-liff/` | 別アプリ。FE10 でスイープ対象外を宣言済み（対象＝本体 84 ルート）。audit C12 も明示 allowlist で除外 |
+| **LINE ミニアプリ** | `liff/` `line-reserve/` `src/shared-liff/` | 別アプリ。FE10 でスイープ対象外を宣言済み（対象＝本体 84 ルート）。audit C12/C14 も明示 allowlist で除外 |
 
 > 対象外にする場合は**必ず本節に列挙する**。列挙のない暗黙の除外は「対象ゼロ」を「全件合格」に見せかけるため禁止。
 
@@ -173,20 +175,23 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 ### 3.4 採用範囲と実装マッピング（FE10 字義化・2026-07-21）
 
-アプリ本体 UI が日常的に使うのは `{typography.title}` 以下（display/heading 系は hero/LP 等の大面積見出しでのみ使用機会がある — 用途列が示すとおり DESIGN.md 自身の使い分け）。サイズは **DESIGN.md 字義値**に整列済み。
+アプリ本体 UI は `{typography.title}` 以下を中心に使い、大きな見出しが必要な箇所だけ heading ロールを使う。display 2段は描画箇所がないため未実装である。実装済みサイズは **DESIGN.md 字義値**に整列済み。
 
 | ロール | AE 実装（Tailwind） | 実サイズ | 用途 |
 |---|---|---|---|
+| heading-1 | `text-heading-1 font-bold` | 40px | ページ級の大見出し |
+| heading-2 | `text-heading-2 font-bold` | 26px | 大セクション見出し・大型サイドパネルタイトル |
+| heading-3 | `text-heading-3 font-bold` | 22px | カードタイトル |
 | title | `text-xl font-semibold` | 20px | ページ内最上位見出し（PageLayout タイトル等） |
-| section | `text-lg font-semibold` | 18px | セクション見出し（title と body の中間段） |
 | body-md | `text-base` | 16px | 標準本文・フォームラベル |
 | body-sm | `text-sm` | 15px（`--text-sm`） | テーブル行・密な UI の既定 |
 | caption | `text-xs` | **14px**（`--text-xs` — DESIGN.md caption 字義値。FE10 で 13px 上書きを撤回） | キャプション・メタ・placeholder |
 | eyebrow | `text-2xs font-semibold`（字送りは `--text-2xs--letter-spacing: 0.125px` が伴走） | **12px**（DESIGN.md eyebrow 字義値） | データテーブルヘッダー（`STYLE.tableHeaderCell`）・小ラベル |
 | micro | `text-2xs` | **12px**（`--text-2xs` — FE10 で 11px 製品拡張を撤回し eyebrow 段に統合） | バッジ内文字・極小メタ表示。乱用禁止 — caption で足りるなら caption |
 
-- **`text-[Npx]` 等の font-size 任意値は禁止**（audit C11 恒久ガード）。
-- font-weight: 本文 400、強調 500（`font-medium`）、見出し 600（`font-semibold`）。**700（`font-bold`）は title/section 見出し専用** — 本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
+- **`text-[Npx]` 等の font-size 任意値は禁止**（audit C11）。DESIGN.md にない `text-lg/2xl/3xl/4xl+` も禁止し、heading/title ロールへ写像する（audit C12）。
+- 黒アルファによる ink 段の迂回は禁止する（audit C13）。letter-spacing はロールに伴走するため、`tracking-wide` 等や任意値で上書きしない（audit C14）。
+- font-weight: 本文 400、強調・ボタン 500（`font-medium`）、title/eyebrow 600（`font-semibold`）、heading 700（`font-bold`）。**700 は heading 専用**で、本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
 
 ---
 
@@ -197,6 +202,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - **ベース単位**: 8px
 - **トークン**: `{spacing.xxs}` 4px · `{spacing.xs}` 8px · `{spacing.sm}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 28px · `{spacing.xxl}` 32px
 - カード内 padding は `{spacing.lg}`（24px）前後。ユーティリティボタンは 4px/14px。フォームフィールドは 6px 程度。
+- `p-5` / `m-5` / `gap-5`、負値、`[20px]` / `[1.25rem]` 等の20px spacing utilityは禁止（audit C16）。
 
 ### 4.2 Grid & Container
 
@@ -227,6 +233,8 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 ## 5. Elevation & Depth / エレベーション
 
 DESIGN.md 準拠：**barely-there** — hairline + 複数レイヤーの極薄シャドウ。重い drop-shadow 禁止。
+
+Tailwind の既定/任意 shadow と drop-shadow は audit C10、CSS の直接 `box-shadow:` / `filter: drop-shadow()` は audit C17 が禁止する。
 
 | Level | Treatment | 用途 |
 |---|---|---|
@@ -356,7 +364,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 - 業務ステータス色（§2.5）はバッジ・タグ・凡例ドット等の状態表示にのみ使う。構造色 brand をステータスや装飾に流用しない。
 - 見出し階層は §3.4 のロール表に従う。
 - Primary CTA は pill `{rounded.full}`（`button-primary` 字義）、ユーティリティボタンは `{rounded.md}` — 対比は意図的。
-- カード境界は hairline `#E6E6E6` + Level-1 の極薄シャドウで表現する。
+- 通常カードは hairline `#E6E6E6` の Level 0、浮動面だけを Level-1 の極薄シャドウで表現する。
 - 深 indigo `{colors.secondary}` hero-band は単一の hero モーメントに限定する。
 
 ### Don't

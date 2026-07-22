@@ -72,9 +72,10 @@ STG データは以下の 4 つの方法で作成されます。それぞれの�
 
 ### 3.1 Migration（自動）
 - **対象**: seed data のみ
-- **ファイル**: `backend/migrations/` の .sql ファイル
+- **ファイル**: `backend/migrations/` の DDL SQL と `backend/migrations/seeds/{002_master,003_demo,004_staging}` の CSV バンドル
 - **削除方法**: 不可。migration は immutable。削除は新規 migration で実装
-- **例**: `migration_001_initial_setup.sql` で system_admin group 作成
+- **例**: `backend/migrations/001_init.sql` の DDL + `backend/migrations/seeds/003_demo/accounts.csv`（admin@noavet.jp の `is_system_admin=true`）が
+  STG の最初期 seed を構成
 
 ### 3.2 API 経由（推奨）
 - **対象**: demo accounts, smoke test data, investigation data

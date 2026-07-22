@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ実行前。
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-07-10 | **ステータス**: Production Ready (108 Tables Sync)
+> **最新更新**: 2026-07-22 | **ステータス**: Production Ready (108 Tables Sync)
 
 ---
 
@@ -35,7 +35,7 @@
   - [ ] `S3_SHARED_BUCKET`: 共有ファイル（LINE連携用、実体は Cloudflare R2）のバケット準備。
 - [ ] **DB マイグレーションの整合性**
   - [ ] 全 108 テーブルのスキーマが、ローカルのマイグレーション（`001_init.sql`。旧増分`005`〜`012`は統合済み、詳細は`docs/architecture/erd.md` §4.3）と完全一致しているか。
-  - [ ] 初期マスタデータ（`002_seed_master.sql`）の投入準備完了。
+  - [ ] 初期マスタデータ（`backend/migrations/seeds/002_master/`）の投入準備完了。
 
 ---
 

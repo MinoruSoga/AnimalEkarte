@@ -1,7 +1,7 @@
 # Architecture Overview
 
 > **目的**: backend の設計原則と request lifecycle を説明する。
-> Go/Gin公式は特定の application layer や folder tree を規定しない。本書も directory 配置を architecture contract にしない。
+> Go/Gin公式は特定のapplication layerやfolder treeを規定しない。任意のdirectory例をarchitecture contractにはしないが、本projectが実測に基づいて採用したpackage/data ownership境界は[ADR-006](adr/006-backend-domain-package-boundaries.md)をcontractとする。
 
 ## System context
 
@@ -35,6 +35,21 @@ backend は [Go/Gin Backend Guidelines](../../.claude/rules/go-gin-backend-guide
 - dependency は closure または struct で型安全に注入し、global state を避ける。
 
 Handler → Service → Repository、Clean Architecture、repository pattern、layer-first/domain-first は Go/Gin公式が定める architecture ではない。必要な設計判断は ADR に記録し、公式由来の規約と区別する。
+
+## Product-driven package architecture
+
+[Product Philosophy](../product-philosophy.md)はfolder treeではなく、要件を疑う、不要なものを削除する、単純化する、cycle timeを短くする、最後に自動化する、という判断順序を定める。このprojectはその順序をbackendへ適用するため、[ADR-006](adr/006-backend-domain-package-boundaries.md)で**domain/capability-firstのmodular monolith**を採用する。
+
+- top-level packageは`internal/<domain>`を基本とし、route、use case、transaction、persistence、testを業務能力ごとのvertical sliceとして扱う。
+- domain内の責務は別file/型に分けられるが、`handler`、`service`、`repository` subpackageを機械的には作らない。実際のconsumer、依存方向、変更周期が分かれた場合だけpackageを分離する。
+- business factにはsource of truthとwrite ownerを1つだけ置く。`appointments`とそのlifecycleは`reservation`がwrite ownerであり、medicalrecord、trimming、billing、lstep等は独立したappointment write実装を持たない。この境界はBE9-2E-0で収束済みで、実装状態と回帰gateは[BE-refactor.md BE9-2E-0](../../BE-refactor.md#be9-2e-0-write-owner)で追跡する。
+- cross-domain操作はbusiness intentを表すconsumer側の最小interfaceまたは明示的orchestrationを通す。owner外へ任意field更新APIを公開せず、複数domainにまたがるwriteはtransaction ownerとatomicityを明示する。
+- migration facadeは薄いdelegate/type aliasに限定し、旧実装と新実装を二重のwrite pathとして残さない。
+- 自動化は安全な手動pathを置き換えるのではなく同じuse caseを再利用し、停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
+
+BE9-2B以降、旧`internal/handler|service|repository`は未移行実装と期限付きfacadeを含むmigration surfaceであり、新規production実装の追加先ではない。移行順序、現行例外、削除条件は[`BE-refactor.md`](../../BE-refactor.md)を正本とする。
+
+この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 
 ## Request lifecycle
 
@@ -87,6 +102,9 @@ Handler → Service → Repository、Clean Architecture、repository pattern、l
 | Concern | Source of truth |
 |:---|:---|
 | Go/Gin general guidance | [go-gin-backend-guidelines.md](../../.claude/rules/go-gin-backend-guidelines.md) |
+| Product and workflow principles | [product-philosophy.md](../product-philosophy.md) |
+| Backend domain/package and write ownership | [ADR-006](adr/006-backend-domain-package-boundaries.md) |
+| Appointment workflow and source of truth | [reservation-to-record-flow.md](../spec/reservation-to-record-flow.md) |
 | API contract | [`backend/docs/api.yaml`](../../backend/docs/api.yaml) |
 | Tenant isolation | [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) |
 | Authentication/authorization | [auth.md](auth.md) |

@@ -35,7 +35,7 @@ docker volume rm ekarte-postgres-data
 # 再びコンテナを起動
 make up
 ```
-起動時に `001_init.sql`（DDL）が適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（2026-07 以降、002-004 は stub SQL ではなく CSV バンドルのみ）。
+起動時に `001_init.sql` → `002_lstep_snapshot_import_clinic_fk.sql` のDDLが適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。
 
 ---
 
@@ -44,14 +44,15 @@ make up
 
 ```text
 Migration completed file=001_init.sql
-Migration summary applied=1 skipped=0 total=1
+Migration completed file=002_lstep_snapshot_import_clinic_fk.sql
+Migration summary applied=2 skipped=0 total=2
 Seed bundle loaded bundle=002_master
 Seed bundle loaded bundle=003_demo
 Seed bundle loaded bundle=004_staging
 Seed bundle summary applied=3 skipped=0 total=3
 ```
 
-`schema_migrations` テーブルは最終的に4行（`001_init.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
+`schema_migrations` テーブルは最終的に5行（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 

@@ -42,7 +42,7 @@
   `gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true`
 - **監視項目**:
   - Cloudflare 正系統: Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
-  - 旧 ECS 経路: `aws logs tail` で `001_init.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
+  - 旧 ECS 経路: `aws logs tail` で `001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
   - いずれの経路でも Checksum mismatch エラー、`detected legacy seed migration key(s)` エラーが発生していないか確認する。
 - **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
 

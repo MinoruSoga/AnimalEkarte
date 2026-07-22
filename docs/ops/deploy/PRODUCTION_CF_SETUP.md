@@ -379,7 +379,7 @@ WORKER_URL=https://api.noah-karte.com MIGRATE_RUN_SECRET=<production用の値> \
   ./infra/scripts/cf-run-migrate.sh
 ```
 
-exitCode 0 を確認。**初回は空DBへの `001_init.sql` 適用 + seedバンドル3本の自動ロードになる。
+exitCode 0 を確認。**初回は空DBへの `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` 適用後、seedバンドル3本の自動ロードになる。
 §10 を必ず読むこと(demo/staging データが自動投入される既知の挙動)。**
 
 ### 9.5 スモーク(任意)
@@ -400,8 +400,8 @@ STG_DEMO_EMAIL=<production用> STG_DEMO_PASSWORD=<production用> \
 `backend/cmd/migrate/main.go` の `runSeedBundles` は `seedbundle.BundleOrder`
 (`002_master → 003_demo → 004_staging`)を**常に全件**適用する設計であり、環境(STG/production)を
 判定して一部をスキップする機構は現状コードに存在しない
-(`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md` 18行目: 「fresh DB 適用後の正しい終了状態は
-schema_migrations に4行: 001_init.sql + 3seedバンドル全て」)。
+(`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`: 「fresh DB 適用後の正しい終了状態は
+schema_migrations に5行: DDL 2本 + 3seedバンドル全て」)。
 
 これは本書が新規に発見した問題ではなく、`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` 44行目に
 「重要: 本番移行時に全削除。ステージング環境でのみ有効」と既に明記されている既知事項。

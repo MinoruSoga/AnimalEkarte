@@ -38,7 +38,7 @@ STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.
 
 CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
 
-**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql 適用 → 002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go:23`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md:18` も「fresh DB 適用後の正しい終了状態は `schema_migrations` に4行」と明記しており、これは自動投入を前提にした記述。
+**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql → 002_lstep_snapshot_import_clinic_fk.sql のDDL適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go:23`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md` の「fresh DB 適用後は `schema_migrations` 5行」と整合する。
 
 ### 2.2 ただし前提条件が一つだけある: `public` スキーマの実在
 
@@ -190,10 +190,10 @@ export PGPASSWORD="<password>"; export PGDATABASE="<database>"
 ### Step D. 検証クエリ（テーブル別件数 + 主要マスタの存在確認）
 
 ```sql
--- 1. schema_migrations が4行そろっているか（fresh apply の正しい終了状態）
+-- 1. schema_migrations が5行そろっているか（fresh apply の正しい終了状態）
 --    SEED_MIGRATION_OPERATIONS.md:18 の期待値
 SELECT filename, checksum, executed_at FROM schema_migrations ORDER BY filename;
--- 期待: 001_init.sql / seeds/002_master / seeds/003_demo / seeds/004_staging の4行
+-- 期待: 001_init.sql / 002_lstep_snapshot_import_clinic_fk.sql / seeds/002_master / seeds/003_demo / seeds/004_staging の5行
 -- checksum の期待値（2026-07-16 時点、git HEAD の committed 内容から算出。
 --   seeds/*.csv や manifest.json を編集した場合は再計算が必要。算出方法は §5 Step E-a 参照）:
 --   seeds/002_master = 5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945

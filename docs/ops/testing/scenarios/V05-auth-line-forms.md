@@ -185,7 +185,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 | 1 | 抽出条件の年齢・累計金額・年間来院回数に負値/小数を入力 | 0 以上の整数のみ受理され、違反はエラーで抽出できない。最小年齢 > 最大年齢もエラー |
 | 2 | 検診種別未選択・対象者 0 件のまま実行 | 検診種別なしでは抽出できず、対象 0 件では実行ボタン disabled |
 | 3 | 確認ダイアログでタグ名を空/スペースのみにする | 実行ボタンが無効（trim 後非空必須。検診種別由来の初期値あり） |
-| 4 | タグ名に自動管理タグ名（例: `CPM_01_出会い` — [31-lstep-integration.md §2.1](../../../spec/screens/31-lstep-integration.md)）を指定して実行 | 拒否される（BE: 「tag_name は自動管理タグのため使用できません」 — `service/checkup_sync_service_create.go`） |
+| 4 | タグ名に自動管理タグ名（例: `CPM_01_出会い` — [31-lstep-integration.md §2.1](../../../spec/screens/31-lstep-integration.md)）を指定して実行 | 拒否される（BE: 「tag_name は自動管理タグのため使用できません」 — `lstep/checkup_sync_service_create.go`） |
 | 5 | Lステップ API 未設定の状態で実行 | 拒否される（BE: 「Lステップ API が設定されていません」 — 同ファイル） |
 | 6 | API 設定済みで妥当なタグ名で実行 | 完了表示。実行が `audit_logs` に記録される（DB 参照は USER 実施 — S01 と同運用）。Write API 停止中のため Lステップ側実タグは変化しない |
 
