@@ -17,6 +17,10 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
 	q := newCheckupSyncPreviewQuery(c.Request.URL.Query())
 	input, err := q.toServiceInput()
@@ -26,10 +30,7 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	}
 
 	// ISSUE-010: 抽出メタデータを audit_logs に永続化するため actorID を service に渡す。
-	var actorID *uint64
-	if staffID, ok := httpapi.ExtractStaffID(c); ok {
-		actorID = &staffID
-	}
+	actorID := &staffID
 
 	result, err := h.checkupSync.PreviewCheckupSync(c.Request.Context(), clinicID, input, actorID)
 	if err != nil {
@@ -46,6 +47,10 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
 	var req checkupSyncRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,10 +64,7 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 		return
 	}
 
-	var actorID *uint64
-	if staffID, ok := httpapi.ExtractStaffID(c); ok {
-		actorID = &staffID
-	}
+	actorID := &staffID
 
 	result, err := h.checkupSync.CreateCheckupSync(c.Request.Context(), clinicID, input, actorID)
 	if err != nil {

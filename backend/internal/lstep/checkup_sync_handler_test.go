@@ -175,20 +175,13 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 			wantBody:   `"owner_id":"1"`,
 		},
 		{
-			// extractStaffID() writes its own 401 response as soon as user_id is
-			// missing from the context, even though GetCheckupSyncPreview treats the
-			// staff lookup as optional (`if staffID, ok := extractStaffID(c); ok`).
-			// The handler keeps executing afterward (actorID stays nil and the
-			// service is still invoked), but the response status is already locked
-			// to 401 by that earlier write. This test documents that existing
-			// behavior rather than the intended "optional actor" semantics.
-			name:     "returns 401 when staff context is missing even though actor is optional",
+			name:     "returns 401 without invoking service when staff context is missing",
 			query:    "checkup_type=annual",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupSyncService{
-				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
-					assert.Nil(t, actorID)
-					return &PreviewCheckupSyncResult{}, nil
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
+					t.Fatal("PreviewCheckupSync must not be called after authentication failure")
+					return nil, nil
 				},
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -203,7 +196,7 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 		{
 			name:       "returns 400 for invalid query parameters",
 			query:      "has_chronic_condition=maybe",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			svc:        &mockCheckupSyncService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -320,15 +313,27 @@ func TestCreateCheckupSync(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:     "returns 401 without invoking service when staff context is missing",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			body:     validBody,
+			svc: &mockCheckupSyncService{
+				createCheckupSyncFn: func(_ context.Context, _ uint64, _ CreateCheckupSyncInput, _ *uint64) (*CreateCheckupSyncResult, error) {
+					t.Fatal("CreateCheckupSync must not be called after authentication failure")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 when required field missing",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			body:       map[string]any{"tag_name": "annual_checkup"},
 			svc:        &mockCheckupSyncService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 when tag_name is invalid",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
 			body:       map[string]any{"checkup_type": "annual", "owner_ids": []string{"1"}, "tag_name": "invalid tag!"},
 			svc:        &mockCheckupSyncService{},
 			wantStatus: http.StatusBadRequest,
