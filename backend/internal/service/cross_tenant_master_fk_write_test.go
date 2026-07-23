@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -74,7 +75,7 @@ func okChiefComplaintTypeRepo() repository.ChiefComplaintTypeRepository {
 // okInventoryRepo also wires a no-op createFn: medicineService.Create unconditionally
 // creates a linked InventoryItem (BUG-320) regardless of the ParentID/InventoryID guards
 // under test here, and mockInventoryRepository.Create has no nil-createFn guard.
-func okInventoryRepo() repository.InventoryRepository {
+func okInventoryRepo() inventory.Repository {
 	return &mockInventoryRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
 			return &model.InventoryItem{ID: id}, nil
@@ -114,7 +115,7 @@ func rejectInsuranceRepo(ownedID uint64) repository.InsuranceRepository {
 
 // rejectInventoryRepo also wires a no-op createFn for the same BUG-320 reason as
 // okInventoryRepo above — the "accepts same-clinic" sub-tests reach the auto-create step.
-func rejectInventoryRepo(ownedID uint64) repository.InventoryRepository {
+func rejectInventoryRepo(ownedID uint64) inventory.Repository {
 	return &mockInventoryRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
 			if id != ownedID {

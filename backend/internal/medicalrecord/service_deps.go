@@ -217,7 +217,7 @@ type billingItemWriter interface {
 }
 
 // medicineInventoryRepo は medicineService の BUG-320 連携在庫同期 write view + ParentID/
-// InventoryID master-FK 検証 read view（repository.InventoryRepository の部分集合・BE9-2D ⑥）。
+// InventoryID master-FK 検証 read view（inventory.Repository の部分集合・BE9-2D ⑥）。
 type medicineInventoryRepo interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error

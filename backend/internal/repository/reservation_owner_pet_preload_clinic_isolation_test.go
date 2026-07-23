@@ -19,6 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 func setupReservationOwnerPetPreloadDB(t *testing.T) *gorm.DB {
@@ -274,7 +275,7 @@ func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignTrimmingDe
 func TestTrimmingPetValidationAndWrites_RollBackTogether(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
 	reservationRepo := NewReservationRepository(db)
-	detailRepo := NewAppointmentTrimmingDetailRepository(db)
+	detailRepo := trimming.NewAppointmentTrimmingDetailRepository(db)
 	transactor := NewTransactor(db)
 	ctx := context.Background()
 

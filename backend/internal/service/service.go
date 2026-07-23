@@ -4,9 +4,11 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/billing"
+	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 // LegacyLstepDependencies is the typed compatibility input for real legacy consumers.
@@ -34,8 +36,6 @@ type Services struct {
 	// 削除 = reservation domain 移行時）。
 	MedicalRecord                  medicalrecord.MedicalRecordService
 	Accounting                     billing.AccountingService
-	Trimming                       TrimmingService
-	Inventory                      InventoryService
 	Staff                          StaffService
 	StaffCore                      StaffCoreService
 	StaffAccount                   StaffAccountService
@@ -46,8 +46,6 @@ type Services struct {
 	ReservationTypeAvailableSlot   reservation.ReservationTypeAvailableSlotService
 	ReservationTypeOccupation      reservation.ReservationTypeOccupationService
 	ReservationTypeGroup           reservation.ReservationTypeGroupService
-	TrimmingCourse                 TrimmingCourseService
-	TrimmingOption                 TrimmingOptionService
 	Clinic                         ClinicService
 	Occupation                     OccupationService
 	Company                        CompanyService
@@ -64,7 +62,6 @@ type Services struct {
 	Estimate billing.EstimateService
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
 	// package). No longer constructed here; see cmd/api/main.go.
-	MerchandiseItem     MerchandiseItemService
 	BillingItem         billing.BillingItemService
 	Refund              billing.RefundService
 	PasswordReset       PasswordResetService
@@ -73,7 +70,6 @@ type Services struct {
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
 	PaymentMethodMaster billing.PaymentMethodMasterService
-	TrimmingCourseType  TrimmingCourseTypeService
 	Campaign            billing.CampaignService
 	CashRegister        billing.CashRegisterService
 	AccountingReport    billing.AccountingReportService
@@ -156,29 +152,20 @@ func NewServices(
 	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepDeps.TagSync)
 
 	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
+	merchandiseItemRepo := inventory.NewMerchandiseItemRepository(repos.DB())
+	trimmingCourseRepo := trimming.NewTrimmingCourseRepository(repos.DB())
+	trimmingOptionRepo := trimming.NewTrimmingOptionRepository(repos.DB())
+	trimmingDetailRepo := trimming.NewAppointmentTrimmingDetailRepository(repos.DB())
 
 	return &Services{
-		Account:               NewAccountService(repos.Account),
-		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
-		Audit:                 auditSvc,
-		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepDeps.TagSync, auditSvc),
-		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepDeps.TagSync),
-		Reservation:           reservation.NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		Accounting:            billing.NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepDeps.TagSync, tx, billingAuditTxAdapter{inner: auditTxLogger}, repos.PaymentMethodMaster),
-		Trimming: NewTrimmingService(
-			repos.Reservation,
-			repos.ReservationType,
-			repos.ReservationStaff,
-			repos.ReservationTypeUnavailableTime,
-			repos.ReservationTypeAvailableSlot,
-			repos.AppointmentTrimmingDetail,
-			repos.TrimmingCourse,
-			repos.TrimmingOption,
-			tx,
-			auditTxLogger,
-		),
-		Inventory:                      NewInventoryService(repos.Inventory),
+		Account:                        NewAccountService(repos.Account),
+		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
+		Audit:                          auditSvc,
+		AnimalSpecies:                  NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
+		Owner:                          NewOwnerService(repos.Owner, repos.Insurance, lstepDeps.TagSync, auditSvc),
+		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepDeps.TagSync),
+		Reservation:                    reservation.NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
+		Accounting:                     billing.NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepDeps.TagSync, tx, billingAuditTxAdapter{inner: auditTxLogger}, repos.PaymentMethodMaster),
 		Staff:                          staffSvc,
 		StaffCore:                      staffSvc,
 		StaffAccount:                   staffSvc,
@@ -189,8 +176,6 @@ func NewServices(
 		ReservationTypeAvailableSlot:   reservationTypeSvc,
 		ReservationTypeOccupation:      reservationTypeSvc,
 		ReservationTypeGroup:           reservation.NewReservationTypeGroupService(repos.ReservationTypeGroup),
-		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType, tx),
-		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption, tx),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		Company:                        NewCompanyService(repos.Company),
@@ -204,16 +189,14 @@ func NewServices(
 		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 		// で直接構築する（Services には保持しない）。
 		Estimate:            billing.NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, billingAuditAdapter{inner: auditSvc}, tx),
-		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:         billing.NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
+		BillingItem:         billing.NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, trimmingCourseRepo, trimmingOptionRepo, repos.Campaign, repos.Owner),
 		Refund:              billing.NewRefundService(repos.Refund, repos.Accounting, billingAuditTxAdapter{inner: auditTxLogger}, tx),
 		PasswordReset:       NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		ReservationNotifier: notifier,
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:     closingSettingsSvc,
 		PaymentMethodMaster: billing.NewPaymentMethodMasterService(repos.PaymentMethodMaster),
-		TrimmingCourseType:  NewTrimmingCourseTypeService(repos.TrimmingCourseType, tx),
-		Campaign:            billing.NewCampaignService(repos.Campaign, repos.MerchandiseItem),
+		Campaign:            billing.NewCampaignService(repos.Campaign, merchandiseItemRepo),
 		CashRegister:        billing.NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:    billing.NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting: reservation.NewLineReservationSettingService(lineReservationSettings,
@@ -241,9 +224,9 @@ func NewServices(
 			repos.ReservationTypeUnavailableTime,
 			repos.ReservationTypeAvailableSlot,
 			repos.ReservationTypeOccupation,
-			repos.TrimmingCourse,
-			repos.TrimmingOption,
-			repos.AppointmentTrimmingDetail,
+			trimmingCourseRepo,
+			trimmingOptionRepo,
+			trimmingDetailRepo,
 			repos.Vaccination,
 		),
 		TokenBlacklist: tokenBlacklistSvc,

@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 // --- (a1) examination: ExaminationType ---
@@ -93,7 +94,7 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadCl
 	// setupPreloadTrimmingDetailTestDB = setupIsolatedTestDB + trimming 系 TRUNCATE。
 	// 共有プール上の並行 TRUNCATE 破壊を避ける（TEST-FLAKE-P2）。
 	db := setupPreloadTrimmingDetailTestDB(t)
-	repo := NewAppointmentTrimmingDetailRepository(db)
+	repo := trimming.NewAppointmentTrimmingDetailRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 

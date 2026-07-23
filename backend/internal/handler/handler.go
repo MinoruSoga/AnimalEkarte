@@ -125,7 +125,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.registerOwnerRoutesWithAuth(protected)
 	h.RegisterPetRoutes(protected)
 	// 予約 CRUD routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R③）
-	h.registerMedicalRecordRoutesWithAuth(protected)
 	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
 	// 会計 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B④）
 	// examinations 系 route: BE9-2D ⑦ で internal/medicalrecord の RegisterRoutes へ移動。
@@ -133,7 +132,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// (composed directly in cmd/api/main.go, ADR-006 aggregator 非経由).
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
-	h.registerEstimateRoutesWithAuth(protected)
 	h.RegisterShiftRoutes(protected)
 	h.RegisterShiftTemplateRoutes(protected)
 	h.RegisterClinicHolidayRoutes(protected)
@@ -218,18 +216,4 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	// clinic alias tag CRUD routes moved to internal/lstep (L③a).
 	// co側 LINE 個別送信 2ルートは internal/lstep.RegisterRoutes へ移動（BE9-2C L②）
 	// FEAT-385 latest friend attributes route moved to internal/lstep (L⑤).
-}
-
-// registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
-	records := rg.Group("/medical-records")
-	// BE9-2D ⑦: カルテ本体 CRUD/recommendation-reason/addenda は internal/medicalrecord の
-	// RegisterRoutes へ移動。billing-confirmation（billing 残留 domain）のみここに残る
-	// （/medical-records group は gin path merge で共存）。
-	_ = records // billing-confirmation routes は internal/billing.RegisterRoutes へ移動（BE9-2C B②・/medical-records group は gin path merge で共存）
-}
-
-// registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
-	// 見積 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B②）
 }
