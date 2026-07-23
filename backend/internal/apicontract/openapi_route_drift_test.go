@@ -461,6 +461,7 @@ var migratedDomainRoutePackages = []struct {
 	{dir: "../reservation", prefix: "/api/v1"},
 	{dir: "../billing", prefix: "/api/v1"},
 	{dir: "../lstep", prefix: "/api/v1"},
+	{dir: "../trimming", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
 	// BE9-2C L②: LINE Webhook は JWT 認証なしで engine root へ絶対パス登録するため
 	// prefix なしの追加 root として登録する。

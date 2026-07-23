@@ -16,10 +16,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 // TestRouteCompositionSmoke_NoPanic registers every route surface in main.go order.
-// Trimming remains part of the legacy handler until its route ownership migrates in BE9-2F.
 func TestRouteCompositionSmoke_NoPanic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -38,6 +38,7 @@ func TestRouteCompositionSmoke_NoPanic(t *testing.T) {
 
 		manualarticle.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
 		inventory.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
+		trimming.NewHandlerWithPermission(nil, nil, nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
 		newMedicalRecordRouteSmokeHandler().RegisterRoutes(protected)
 
 		lstepHandler := newLstepRouteSmokeHandler()

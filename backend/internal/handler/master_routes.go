@@ -65,30 +65,6 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Hospitalization Plans
 	// hospitalization-plans: BE9-2D ⑤ で internal/medicalrecord の RegisterRoutes へ移動。
 
-	// Trimming Courses
-	masters.GET("/trimming-courses", perm(model.ResourceMasterTrimming, "view"), h.ListTrimmingCourses)
-	masters.POST("/trimming-courses", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingCourse)
-	masters.PATCH("/trimming-courses/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingCourses)
-	masters.GET("/trimming-courses/:id", perm(model.ResourceMasterTrimming, "view"), h.GetTrimmingCourse)
-	masters.PATCH("/trimming-courses/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingCourse)
-	masters.DELETE("/trimming-courses/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourse)
-
-	// Trimming Options
-	masters.GET("/trimming-options", perm(model.ResourceMasterTrimming, "view"), h.ListTrimmingOptions)
-	masters.POST("/trimming-options", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingOption)
-	masters.PATCH("/trimming-options/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingOptions)
-	masters.GET("/trimming-options/:id", perm(model.ResourceMasterTrimming, "view"), h.GetTrimmingOption)
-	masters.PATCH("/trimming-options/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingOption)
-	masters.DELETE("/trimming-options/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingOption)
-
-	// Trimming Course Types (#73)
-	masters.GET("/trimming-course-types", perm(model.ResourceMasterTrimming, "view"), h.ListTrimmingCourseTypes)
-	masters.POST("/trimming-course-types", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingCourseType)
-	masters.PATCH("/trimming-course-types/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingCourseTypes)
-	masters.GET("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "view"), h.GetTrimmingCourseType)
-	masters.PATCH("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingCourseType)
-	masters.DELETE("/trimming-course-types/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourseType)
-
 	// Campaigns (#81 割引キャンペーンマスタ。会計割引マスタのため ResourceAccounting 権限)
 
 	// Examination Types / Diagnosis Categories / Diagnosis Names: moved to

@@ -25,6 +25,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 // manualArticleAuditAdapter adapts the shared audit kernel (internal/service.AuditService —
@@ -61,6 +62,24 @@ func (a manualArticleAuditAdapter) LogEntry(ctx context.Context, entry manualart
 type medicalRecordAuditTxAdapter struct{ inner service.AuditTxLogger }
 
 func (a medicalRecordAuditTxAdapter) LogEntryTx(ctx context.Context, e *medicalrecord.AuditEntry) error {
+	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
+		ClinicID:   e.ClinicID,
+		ActorID:    e.ActorID,
+		ActorType:  e.ActorType,
+		Action:     e.Action,
+		Resource:   e.Resource,
+		ResourceID: e.ResourceID,
+		OldValue:   e.OldValue,
+		NewValue:   e.NewValue,
+		Metadata:   e.Metadata,
+	})
+}
+
+// trimmingAuditTxAdapter keeps trimming's durable mutation audit consumer-owned while
+// reusing the shared audit kernel at the composition root.
+type trimmingAuditTxAdapter struct{ inner service.AuditTxLogger }
+
+func (a trimmingAuditTxAdapter) LogEntryTx(ctx context.Context, e *trimming.AuditEntry) error {
 	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
 		ClinicID:   e.ClinicID,
 		ActorID:    e.ActorID,
@@ -191,6 +210,34 @@ func main() {
 	// at this composition root so internal/lstep never imports legacy aggregators.
 	auditSvc := service.NewAuditService(repos.Audit)
 	tx := repository.NewTransactor(repos.DB())
+	trimmingCourseRepo := trimming.NewTrimmingCourseRepository(db)
+	trimmingOptionRepo := trimming.NewTrimmingOptionRepository(db)
+	trimmingCourseTypeRepo := trimming.NewTrimmingCourseTypeRepository(db)
+	trimmingDetailRepo := trimming.NewAppointmentTrimmingDetailRepository(db)
+	trimmingSvc := trimming.NewTrimmingServiceWithAudit(
+		repos.Reservation,
+		repos.ReservationType,
+		repos.ReservationStaff,
+		repos.ReservationTypeUnavailableTime,
+		trimmingDetailRepo,
+		trimmingCourseRepo,
+		trimmingOptionRepo,
+		tx,
+		trimmingAuditTxAdapter{inner: auditSvc},
+	)
+	trimmingCourseSvc := trimming.NewTrimmingCourseService(trimmingCourseRepo, trimmingCourseTypeRepo, tx)
+	trimmingOptionSvc := trimming.NewTrimmingOptionService(trimmingOptionRepo, tx)
+	trimmingCourseTypeSvc := trimming.NewTrimmingCourseTypeService(trimmingCourseTypeRepo, tx)
+	billingItemSvc := billing.NewBillingItemServiceWithCampaign(
+		repos.BillingItem,
+		repos.Accounting,
+		repos.Treatment,
+		tx,
+		trimmingCourseRepo,
+		trimmingOptionRepo,
+		repos.Campaign,
+		repos.Owner,
+	)
 	lineReservationSettings := reservation.NewLineReservationSettingRepository(db)
 	lstepApp := lstep.NewApplication(&lstep.Dependencies{
 		DB:                    db,
@@ -323,6 +370,13 @@ func main() {
 		merchandiseItemSvc,
 		h.RequirePermission,
 	).RegisterRoutes(protected)
+	trimming.NewHandlerWithPermission(
+		trimmingSvc,
+		trimmingCourseSvc,
+		trimmingCourseTypeSvc,
+		trimmingOptionSvc,
+		h.RequirePermission,
+	).RegisterRoutes(protected)
 
 	// BE9-2C/2D (medicalrecord slice): same aggregator-non-経由 pattern as the BE9-2B
 	// manualarticle pilot above. The master-CRUD entities (diagnosis/exam/chief-complaint,
@@ -439,9 +493,9 @@ func main() {
 		repos.ReservationTypeUnavailableTime,
 		repos.ReservationTypeAvailableSlot,
 		repos.ReservationTypeOccupation,
-		repos.TrimmingCourse,
-		repos.TrimmingOption,
-		repos.AppointmentTrimmingDetail,
+		trimmingCourseRepo,
+		trimmingOptionRepo,
+		trimmingDetailRepo,
 		repos.Vaccination,
 		medicalRecordSvc,
 	)
@@ -529,7 +583,7 @@ func main() {
 		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
 		billing.NewEstimateHandler(svcs.Estimate, h.HasPermission),
 		billing.NewBillingConfirmationHandler(svcs.BillingConfirmation, h.RequirePermission),
-		billing.NewBillingItemHandler(svcs.BillingItem, h.RequirePermission),
+		billing.NewBillingItemHandler(billingItemSvc, h.RequirePermission),
 		billing.NewRefundHandler(svcs.Refund, h.RequirePermission),
 		billing.NewAccountingHandler(svcs.Accounting, svcs.CashRegister, h.HasPermission),
 		billing.NewCashRegisterHandler(svcs.CashRegister, h.RequirePermission),

@@ -123,7 +123,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.registerMedicalRecordRoutesWithAuth(protected)
 	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
 	// 会計 routes は internal/billing.RegisterRoutes へ移動（BE9-2C B④）
-	h.registerTrimmingRoutesWithAuth(protected)
 	// examinations 系 route: BE9-2D ⑦ で internal/medicalrecord の RegisterRoutes へ移動。
 	// BE9-2D: /vaccinations moved to internal/medicalrecord.Handler.RegisterRoutes
 	// (composed directly in cmd/api/main.go, ADR-006 aggregator 非経由).
@@ -223,16 +222,6 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	// RegisterRoutes へ移動。billing-confirmation（billing 残留 domain）のみここに残る
 	// （/medical-records group は gin path merge で共存）。
 	_ = records // billing-confirmation routes は internal/billing.RegisterRoutes へ移動（BE9-2C B②・/medical-records group は gin path merge で共存）
-}
-
-// registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
-	trimmings := rg.Group("/trimmings")
-	trimmings.GET("", h.RequirePermission(string(model.ResourceTrimming), "view"), h.ListTrimmings)
-	trimmings.GET("/:id", h.RequirePermission(string(model.ResourceTrimming), "view"), h.GetTrimming)
-	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
-	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
-	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
 }
 
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
