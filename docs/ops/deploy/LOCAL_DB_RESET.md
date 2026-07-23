@@ -35,7 +35,7 @@ docker volume rm ekarte-postgres-data
 # 再びコンテナを起動
 make up
 ```
-起動時に `001_init.sql` → `002_lstep_snapshot_import_clinic_fk.sql` のDDLが適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。
+起動時に `001_init.sql` → `002_lstep_snapshot_import_clinic_fk.sql` → `003_medical_records_appointment_id_index.sql` のDDLが適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。
 
 ---
 
@@ -45,14 +45,15 @@ make up
 ```text
 Migration completed file=001_init.sql
 Migration completed file=002_lstep_snapshot_import_clinic_fk.sql
-Migration summary applied=2 skipped=0 total=2
+Migration completed file=003_medical_records_appointment_id_index.sql
+Migration summary applied=3 skipped=0 total=3
 Seed bundle loaded bundle=002_master
 Seed bundle loaded bundle=003_demo
 Seed bundle loaded bundle=004_staging
 Seed bundle summary applied=3 skipped=0 total=3
 ```
 
-`schema_migrations` テーブルは最終的に5行（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
+`schema_migrations` テーブルは最終的に6行（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 
@@ -60,6 +61,6 @@ Seed bundle summary applied=3 skipped=0 total=3
 
 ## 4. 注意事項
 - **データ消失**: この操作により、ローカル環境に入力したテスト用データは全て削除されます。
-- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行せず、`gh workflow run` による正規のデプロイ手順に従ってください。
+- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行しないでください。現行workflowはDBを再作成しません。再構築が必要な場合は、破壊的操作の明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従います。
 
 ---

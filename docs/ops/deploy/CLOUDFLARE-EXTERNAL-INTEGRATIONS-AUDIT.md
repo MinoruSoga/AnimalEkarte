@@ -72,7 +72,7 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 
 ## リスクレジスタへの反映（AC-P47-6）
 
-`migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `migration-cloudflare.md` 試行12セクションを参照。
+`../infra/_archive/migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `../infra/_archive/migration-cloudflare.md` 試行12セクションを参照。
 
 ---
 

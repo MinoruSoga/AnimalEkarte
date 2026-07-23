@@ -64,6 +64,10 @@ backend/uploads/
 # Terraform
 *.tfplan
 tfplan
+# Retired AWS Terraform paths may still contain local state, providers, and
+# tfvars after the tracked IaC is removed. Never surface or recommit them.
+infra/terraform/
+infra/terraform-bootstrap/
 
 # Docker
 postgres_data/

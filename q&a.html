@@ -894,9 +894,9 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 </article>
 
 <article class="task" data-task="OPS-7">
-  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-7 (U-8)</span></label><h3 class="task-title"><code>terraform apply</code>（P2 internal ALB + VPC Origin）</h3></div>
+  <div class="task-head"><label class="task-check"><input type="checkbox" checked disabled><span class="task-id">OPS-7 (U-8)</span></label><h3 class="task-title">旧AWS IaCタスク退役</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc"><code>infra/terraform/terraform.tfvars</code> はローカル準備済み（gitignore 対象）。完了条件: apply 成功・疎通確認。完了後のエージェント作業: なし。</p>
+  <p class="task-desc">AWS STGと関連IaCは2026-07-20に廃止済み。旧Terraformをapplyしない。現行Cloudflare構成と残作業は <code>docs/ops/infra/</code> を正本とする。</p>
 </article>
 
 <article class="task" data-task="OPS-8">
@@ -933,7 +933,19 @@ ORDER BY pg.clinic_id, pg.id;</pre>
   <p class="task-desc">方針（2026-07-15 確定）: フル 003_demo（~529MB・PHI 含みうる）は Git に載せない。正本バックアップ = <code>old_db/sensitive-local/animalekarte-003-demo-full/</code>。リポジトリの <code>003_demo</code> は小さいデモのまま。ローカルでフル seed を使う場合: <code>rsync -a ../old_db/sensitive-local/animalekarte-003-demo-full/ backend/migrations/seeds/003_demo/</code> のあと <code>make reset</code>（エージェントは reset しない）。誤 <code>git add</code> 防止のため該当 CSV に <code>skip-worktree</code> 推奨。STG へのフル seed 適用は別途承認・手動実行（通常は小さいデモのまま）。</p>
 </article>
 
-<h2 id="cf">Cloudflare 移行 — 人間タスクチェックリスト（24 タスク）</h2>
+<h2 id="cf">Cloudflare 移行 — 完了・旧チェックリスト退役</h2>
+<p class="section-intro">
+  STG の Cloudflare 移行と AWS 廃止は 2026-07-20 に完了しました。現行構成・運用は
+  <a href="docs/ops/infra/architecture.md">docs/ops/infra/architecture.md</a>、
+  <a href="docs/ops/infra/staging/runbook.md">docs/ops/infra/staging/runbook.md</a>、
+  <a href="docs/ops/deploy/README.md">docs/ops/deploy/README.md</a> を正本とします。
+  旧 AWS、RDS→PlanetScale、S3→R2、NS切替、Phase 8 の項目は完了済みの移行履歴であり、
+  現在のタスクや実行手順ではありません。実施記録は
+  <a href="docs/ops/infra/_archive/migration-cloudflare.md">凍結済みアーカイブ</a>を参照してください。
+</p>
+
+<template id="cf-retired-history" data-status="retired-do-not-execute">
+<h2 id="cf-history">Cloudflare 移行 — 旧人間タスクチェックリスト（凍結・実行禁止）</h2>
 <p class="section-intro">
   <a href="migration-cloudflare.md">migration-cloudflare.md</a> の実施記録から、人間の判断・承認・ダッシュボード操作が必要なタスクだけを依存順・優先度別に抽出（旧 <code>todo-me.html</code> を統合・タスク ID とチェック状態は継承）。
   Phase 0〜6 のエージェント自律作業は完了済み（作成 2026-07-07 / HEAD <code>7125789a</code> 時点）。次のクリティカルパス: <b>P5-2 → P5-5 → Phase7 前確認 → P1-2</b>。検証 URL: <span class="mono">animalekarte-stg-api.baritech-soga.workers.dev</span>。参照: <a href="research-cloudflare.html">research-cloudflare.html</a>。
@@ -1118,6 +1130,7 @@ terraform apply tfplan
     <li><code>STG_DEMO_EMAIL</code>/<code>STG_DEMO_PASSWORD</code> の <code>.env.staging</code> 投入（試行12、P4-8 実機検証用）</li>
   </ul>
 </details>
+</template>
 
 <h2 id="po008">PO-008 ファクトシート — 曽我様宛仕様書 §7 確認事項の現行実装動作</h2>
 <p class="section-intro">

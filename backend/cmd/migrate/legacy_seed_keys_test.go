@@ -23,7 +23,7 @@ func TestLegacyKeysAmongDetectsAllLegacyFilenames(t *testing.T) {
 
 func TestLegacyKeysAmongEmptyOnFreshLayout(t *testing.T) {
 	// Fresh layout schema_migrations keys: DDL filenames plus seeds/<bundle>
-	// (6 rows as of 2026-07-22). None of these are legacy stub filenames.
+	// (6 rows as of 2026-07-23). None of these are legacy stub filenames.
 	applied := []string{
 		"001_init.sql",
 		"002_lstep_snapshot_import_clinic_fk.sql",
@@ -85,14 +85,12 @@ func TestLegacyKeysAmongPartialDetection(t *testing.T) {
 // already established for this package.
 //
 // It intentionally takes no "which legacy keys were found" input and always
-// returns ALL bundle keys (PR #186 security review, HIGH): baselining only
-// the bundles whose specific legacy filename was found would leave the rest
-// "unapplied" for a DB whose legacy key set is genuinely partial, letting the
-// following runSeedBundles call auto-load those CSV bundles onto what may be
-// a real database — see the doc comment on legacyTranslationTargets in
-// main.go for the full hazard.
+// returns all three legacy-equivalent bundle keys (PR #186 security review,
+// HIGH). Bundles introduced after the stub-SQL era must not be translated:
+// they have no legacy applied-history equivalent and must remain eligible for
+// normal application.
 
-func TestLegacyTranslationTargetsCoversAllBundlesInOrder(t *testing.T) {
+func TestLegacyTranslationTargetsCoversOnlyLegacyEquivalentBundles(t *testing.T) {
 	got := legacyTranslationTargets()
 	want := []string{"seeds/002_master", "seeds/003_demo", "seeds/004_staging"}
 	if !reflect.DeepEqual(got, want) {

@@ -1,7 +1,7 @@
 # インフラ再編計画（コード・ドキュメントの整理と STG/PROD 分離）
 
 > **起案**: 2026-07-20（責任者: PO）／**目的**: ① AWS 廃止後の死骸を除去 ② Cloudflare のコード/ドキュメントを STG・PROD で明確に分離 ③ IaC 運用のベストプラクティス（リモート state・ドリフト検知・トークン分割）を導入する。
-> **前提**: STG は Cloudflare へ完全移行済み・AWS STG は 2026-07-20 に destroy 済み（`migration-cloudflare.md` Phase 8）。本番（#253）は未構築。
+> **前提**: STG は Cloudflare へ完全移行済み・AWS STG は 2026-07-20 に destroy 済み（`docs/ops/infra/_archive/migration-cloudflare.md` Phase 8）。本番（#253）は未構築。
 
 ## 0. 現状の問題（実測 2026-07-20）
 
@@ -59,6 +59,8 @@ docs/ops/infra/
 ## 2. 実施フェーズ（順序厳守・各フェーズ独立コミット）
 
 ### Phase A — 死骸の除去（②削除・最優先・低リスク）
+
+> **✅ 完了（2026-07-20・コミット `8e868e0d` + `24c6e6c4`）**: infra/terraform・terraform-bootstrap・infra/ecs・migrate-images-r2.sh・scripts/stg-db-tunnel.sh(#98温床)・backend-deploy-ecs.yml・staging-stop.yml を削除（38ファイル・-3,030行）。AWS-era docs 3本を `docs/ops/infra/_archive/aws-legacy/` へ凍結。infra/CLAUDE.md を Cloudflare 正本へ書換。A-4 実施済み: tfstate バケット（68バージョン）+ DynamoDB ロック + 孤児 uploads バケットを削除し **S3=ゼロ**。AWS残存は復元用 RDS スナップショット 20GB のみ（意図的保険・月額約$2）。残参照は docs/ops/infra/architecture.md のみ（Phase C の書換対象として想定内）
 1. `infra/terraform/` `infra/terraform-bootstrap/` `infra/ecs/` を削除（AWS 環境は破棄済み・適用不能）
 2. `infra/scripts/` の AWS 専用スクリプト（`stg-db-tunnel.sh` 等）を削除・CF/pscale 系は残す
 3. AWS-era docs を `docs/ops/infra/_archive/aws-legacy/` へ移動（削除ではなく凍結 — 過去の意思決定記録の価値があるため）
@@ -74,11 +76,13 @@ docs/ops/infra/
 - **リスク**: state 移設ミスで既存 STG リソースを terraform が「再作成」しようとする → 必ず `terraform plan` が「0 to add/change/destroy」になることを確認してから apply
 
 ### Phase C — ドキュメントの env 分離・SSOT 化
+
+> **✅ 完了（2026-07-20）**: `docs/ops/infra/` を新設し SSOT 化 — README(索引)・architecture.md(現行CF・AWS記述なし)・iac-guidelines.md(2層境界/state/token/drift/変更フロー)・staging/runbook.md(デプロイ/DB/障害初動・ポインタ方式で二重管理回避)・production/{setup,runbook}.md(setup=旧PRODUCTION_CF_SETUP移設)。migration-cloudflare.md は _archive/ へ凍結(冒頭に凍結注記)。AWS版 infra-architecture.md は aws-legacy/ へ。**参照更新 24 ファイル**(md は相対パス計算・jsonc/yml は root 基準)・残参照ゼロを grep 検証済み。Phase A 取りこぼしの infra-terraform-plan-preflight.sh も削除
 1. `docs/ops/infra/` を新設し上記構造へ再配置
-2. `migration-cloudflare.md`（root・完了記録）→ `_archive/` へ移動
+2. `migration-cloudflare.md`（root・完了記録）→ `docs/ops/infra/_archive/` へ移動
 3. `architecture.md` を現行 CF 構成で新規作成（AWS 記述を持ち込まない）
 4. `iac-guidelines.md` に運用規約を明文化（下記 §3）
-5. root の infra 系 md（`migration-cloudflare.md`）を撤去し、残す root doc を最小化
+5. root の infra 系 md を撤去し、残す root doc を最小化
 
 ### Phase D — 運用ガードレール（本番構築前に必須）
 1. **ドリフト検知 CI**: 日次 `terraform plan` を GitHub Actions で回し、drift（ダッシュボード手動変更）を検知して通知。**今日の CloudFront 手動リソースの依存地獄は、これがあれば事前に見えていた**

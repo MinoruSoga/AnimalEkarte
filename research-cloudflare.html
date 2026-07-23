@@ -86,6 +86,7 @@
 
 <header class="hero">
   <div class="inner">
+    <p class="small"><strong>凍結済み調査スナップショット:</strong> 本文中のAWS IaC・SSM・ECS参照は調査当時の記録です。AWS STGは2026-07-20に廃止済みで、現行運用には使用しません。正本は <code>docs/ops/infra/</code> です。</p>
     <div class="eyebrow">Infrastructure Migration Research · 内部技術調査</div>
     <h1>STG AWS 環境 → Cloudflare 全面移行 調査レポート</h1>
     <p class="lede">Animal Ekarte（動物病院向け電子カルテ）の Staging AWS バックエンド/インフラを Cloudflare ネイティブ構成へ全面移行した場合の、リソース対応関係・移行リスク・JPY 建て費用（STG 実態 / 本番投影の 2 シナリオ）・移行可否の結論を、リポジトリ IaC を一次情報として検証した。<strong>結論を先に言う: DB 本体を Cloudflare がホストする経路は依然存在しないが、PlanetScale 提携（2026-06-18）により「Cloudflare 課金・管理に一元化された Postgres」が成立した。推奨は引き続きハイブリッド構成（ただし DB の選択肢が拡大）。</strong></p>

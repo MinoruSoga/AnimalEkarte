@@ -5,13 +5,13 @@
 > **読者**: インフラ担当（実施者）。
 > **タイミング**: 7/17 の事前構築を想定（**7/18 Go-live 当日の作業ではない**）。
 > **前提**: PO決定（2026-07-15）「納品はCloudflare経路。本番もCF構成で新設」/ 追跡Issue **#253**。
-> 詳細背景は [`migration-cloudflare.md`](../../../migration-cloudflare.md) 「現況サマリ」
+> 詳細背景は [`../_archive/migration-cloudflare.md`](../_archive/migration-cloudflare.md) 「現況サマリ」
 > 2026-07-15/16 ブロック参照。critical path 上、本手順は **STG Phase 7（NS切替）完了後**に
 > 着手する前提（`noah-karte.com` ゾーンが Cloudflare 上で active であることが前提条件）。
 >
 > 本書が参照する新規ドラフトファイル:
-> - [`backend/wrangler.production.jsonc`](../../../backend/wrangler.production.jsonc)
-> - [`infra/cloudflare/production/`](../../../infra/cloudflare/production/)（Terraform一式）
+> - [`backend/wrangler.production.jsonc`](../../../../backend/wrangler.production.jsonc)
+> - [`infra/cloudflare/production/`](../../../../infra/cloudflare/production/)（Terraform一式）
 >
 > これらは STG の正本（`backend/wrangler.jsonc` / `infra/cloudflare/*.tf`）をベースにした
 > **ドラフト**であり、`terraform apply` 等の実インフラ変更は未実施。本書はそれを実施する
@@ -21,7 +21,7 @@
 
 ## 0. 事前確認チェックリスト
 
-- [ ] `migration-cloudflare.md` の STG Phase 7（NS切替）が完了している（`noah-karte.com` ゾーンが
+- [ ] `../_archive/migration-cloudflare.md` の STG Phase 7（NS切替）が完了している（`noah-karte.com` ゾーンが
       Cloudflare 上で active。`dig noah-karte.com NS` で Cloudflare の NS が返ることを確認）
 - [ ] `production` ブランチが存在する（確認済み: `git branch -a` に `remotes/origin/production` あり）
 - [ ] `docs/ops/deploy/README.md` の「Production」行が指す `noah-karte.com` / `api.noah-karte.com` が
@@ -54,7 +54,7 @@
 
 ## 2. PlanetScale 本番DB作成
 
-STG の [`infra/scripts/pscale-create-stg.sh`](../../../infra/scripts/pscale-create-stg.sh) を
+STG の [`infra/scripts/pscale-create-stg.sh`](../../../../infra/scripts/pscale-create-stg.sh) を
 production 向けに読み替えた手順。同スクリプトは STG 専用（DB名がハードコードされている）ため、
 本番では以下を手動実行する（新規スクリプトファイルは作成しない。1回限りの作成作業のため）。
 
@@ -153,7 +153,7 @@ terraform output zone_id                 # noah-karte.com のゾーンID(STGと�
 
 ## 4. R2 S3互換トークン発行
 
-STGの実施記録（`migration-cloudflare.md` 試行8, P2-3）と同じ手順を production バケット向けに行う。
+STGの実施記録（`../_archive/migration-cloudflare.md` 試行8, P2-3）と同じ手順を production バケット向けに行う。
 
 ```bash
 # ACCOUNT_ID は backend/wrangler.jsonc に既に公開値として存在するもの(STGと同一アカウント)
@@ -309,7 +309,7 @@ cd backend
 +    # (staging push時は 'staging' を参照するが、Environment未作成でも自動生成されるだけで
 +    # 保護ルール・環境専用secretsが無いためrepo-levelのsecretsに非破壊フォールバックする)。
 +    # 'production' Environmentの作成・Required reviewers・環境専用secrets登録の手順は
-+    # docs/ops/deploy/PRODUCTION_CF_SETUP.md §7 参照。
++    # setup.md §7 参照。
 +    environment: ${{ github.ref_name }}
 
      steps:
@@ -379,7 +379,7 @@ WORKER_URL=https://api.noah-karte.com MIGRATE_RUN_SECRET=<production用の値> \
   ./infra/scripts/cf-run-migrate.sh
 ```
 
-exitCode 0 を確認。**初回は空DBへの `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` 適用後、seedバンドル3本の自動ロードになる。
+exitCode 0 を確認。**初回は空DBへの `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `003_medical_records_appointment_id_index.sql` 適用後、seedバンドル3本の自動ロードになる。
 §10 を必ず読むこと(demo/staging データが自動投入される既知の挙動)。**
 
 ### 9.5 スモーク(任意)
@@ -401,7 +401,7 @@ STG_DEMO_EMAIL=<production用> STG_DEMO_PASSWORD=<production用> \
 (`002_master → 003_demo → 004_staging`)を**常に全件**適用する設計であり、環境(STG/production)を
 判定して一部をスキップする機構は現状コードに存在しない
 (`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`: 「fresh DB 適用後の正しい終了状態は
-schema_migrations に5行: DDL 2本 + 3seedバンドル全て」)。
+schema_migrations に6行: DDL 3本 + 3seedバンドル全て」)。
 
 これは本書が新規に発見した問題ではなく、`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` 44行目に
 「重要: 本番移行時に全削除。ステージング環境でのみ有効」と既に明記されている既知事項。
@@ -457,7 +457,7 @@ DB接続情報をtfstateに保持し続けるコストだけが発生するた�
 ## 11. ロールバック
 
 Cloudflare側(Worker/Container)には旧バージョンへの自動ロールバック機構がない
-(STGの `migration-cloudflare.md` リスク登録簿に記載の既知の制約と同じ:
+(STGの `../_archive/migration-cloudflare.md` リスク登録簿に記載の既知の制約と同じ:
 Durable Object bindのため段階的デプロイ・Preview URLが使えない)。
 問題が発生した場合:
 

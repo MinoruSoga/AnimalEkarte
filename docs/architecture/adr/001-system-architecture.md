@@ -36,6 +36,8 @@
 
 技術スタックの選定履歴は有効だが、Go/Gin公式要件として project 固有の3層構成を強制する判断は ADR-005 により廃止した。package architecture は公式ガイドが規定するものと、application 固有の判断を分離して扱う。
 
+インフラ欄は当時の決定記録であり、AWS ECS/RDSは2026-07-20に廃止済み。現行構成の正本は [docs/ops/infra/architecture.md](../../ops/infra/architecture.md) とする。
+
 ## References
 
 - [docs/architecture/overview.md](../overview.md)

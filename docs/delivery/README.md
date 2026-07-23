@@ -16,5 +16,5 @@
 
 ## 運用ルール
 
-- 本番切替の技術的な構築手順は [../ops/deploy/PRODUCTION_CF_SETUP.md](../ops/deploy/PRODUCTION_CF_SETUP.md)（開発側文書）が正本。本フォルダの GOLIVE_RUNBOOK は当日のオーケストレーションを担う。
+- 本番切替の技術的な構築手順は [../ops/infra/production/setup.md](../ops/infra/production/setup.md)（開発側文書）が正本。本フォルダの GOLIVE_RUNBOOK は当日のオーケストレーションを担う。
 - 納品完了後、時点性の強い文書（GOLIVE_RUNBOOK）は役目を終えたら削除して git 履歴に残す（凍結スナップショットを残さない — PRODUCT_PHILOSOPHY ②）。

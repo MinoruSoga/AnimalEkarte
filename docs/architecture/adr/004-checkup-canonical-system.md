@@ -40,9 +40,9 @@
 
 **注意点:**
 - seed バンドル（`seeds/003_demo` を含む）を編集した場合、既適用環境では checksum mismatch が発生する前提で反映方針を整理する必要がある。Cloudflare 正系統デプロイには
-  `db_reset=true` の明示指定がないため、要否に応じて ECS ロールバック経路（`backend-deploy-ecs.yml -f db_reset=true`）を使う判断が必要。
+  `db_reset=true` の経路がなく、旧AWS ECS/RDSも廃止済みである。既存環境の是正はappend-only migrationまたは明示承認済みの隔離再構築として別途計画する。
 - checkup パッケージ関連は `001_init.sql` に統合されており、未適用環境では新規デプロイまたは必要な再構築時に適用される。
-- 既適用環境の exam_types 12000-12003 / exam_type_fields 45-58 の残存行は、`DB_RESET=true`（ECS 再初期化経路）で再構築した際に消える前提。
+- 既適用環境の exam_types 12000-12003 / exam_type_fields 45-58 を除去する場合は、影響件数を確認したappend-only migrationとして扱う。暗黙のDB resetに依存しない。
 
 ## References
 

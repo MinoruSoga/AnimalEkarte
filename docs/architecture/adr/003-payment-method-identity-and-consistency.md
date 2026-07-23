@@ -17,10 +17,10 @@
 
 ### マイグレーション安全性（全論点共通の前提）
 
-適用済み migration（`001` / `002_lstep_snapshot_import_clinic_fk.sql`）の **in-place 編集は checksum mismatch を起こし STG db_reset 必須**になる。
+適用済み migration（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql`）の **in-place 編集は checksum mismatch を起こす**。共有環境の復旧・再構築には明示承認が必要であり、現行workflowに自動reset経路はない。
 一方、かつて `007_add_bank_transfer_payment_method.sql`（#127）が実証した通り（同ファイルは 2026-06-26 の統合で `001_init.sql` に取り込み済み）、
 **新規ファイルで additive に変更すれば適用済みファイルの checksum は破壊されず、通常デプロイで適用される（db_reset 不要）**。
-本 ADR の全案は新規ファイル（`003+`、現行ベースラインは `001`＋`002`）で実現可能であり、**技術リスクは低い**。
+本 ADR の全案は新規ファイル（`004+`、現行ベースラインは `001`＋`002`＋`003`）で実現可能であり、**技術リスクは低い**。
 よって各論点を退ける/保留する根拠は「技術的危険」ではなく「設計の意味論を PO が確定すべき」というガバナンス事由である。
 
 ---

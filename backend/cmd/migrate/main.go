@@ -111,10 +111,11 @@ func run(logger *slog.Logger) error {
 	}
 
 	// 既存DBへの初回適用: baseline 処理
-	// schema_migrations が空だが既にテーブルが存在する場合、直下の全 *.sql（DDL）と
-	// 全 seed バンドル（seeds/<bundle>）の両方を「適用済み」として記録しスキップする
+	// schema_migrations が空だが既にテーブルが存在する場合、初期スキーマ 001 と
+	// 全 seed バンドル（seeds/<bundle>）を「適用済み」として記録する。
+	// 002 以降の append-only DDL は baseline せず、この後の runSQLMigrations で適用する
 	// （既存DBへ demo/staging CSV を自動ロードしないための必須ガード。詳細は
-	// baselineIfNeeded 内のコメント参照）
+	// baselineIfNeeded 内のコメント参照）。
 	if err := baselineIfNeeded(db, logger); err != nil {
 		return fmt.Errorf("baseline failed: %w", err)
 	}
@@ -124,7 +125,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
-	// フェーズ2: CSV シードバンドルを固定順 (002_master→003_demo→004_staging) でロード
+	// フェーズ2: CSV シードバンドルを seedbundle.BundleOrder の固定順でロード
 	// connStr は pgx（CSVシードバンドルのCOPYロード用）でもそのまま使える
 	// libpq形式のDSNのため、lib/pq用に構築したものを使い回す。
 	if err := runSeedBundles(context.Background(), db, connStr, logger); err != nil {
@@ -157,7 +158,7 @@ func ensureMigrationsTable(db *sql.DB) error {
 // detectLegacySeedKeys は 2026-07 の stub SQL 削除（002-004 の CSV-only 移行）より前の
 // バイナリが記録した seed 由来の schema_migrations キー（例: "002_seed_master.sql"）が
 // 残っていないか確認する。それらのキーは stub SQL ファイル自体が削除された現行バイナリでは
-// 二度と生成されない。検出した場合は translateLegacySeedKeys で現行キー全件
+// 二度と生成されない。検出した場合は translateLegacySeedKeys で旧stubに対応する現行キー
 // （"seeds/002_master" 等）を baseline し、通常アップグレード経路（main→staging 等）を
 // db_reset なしで通す（P1-3, PR #186 review — 旧実装は fail-fast していたが、これは
 // 既存 STG/prod DB の通常アップグレードを毎回ブロックしてしまう）。
@@ -188,7 +189,7 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 		return nil
 	}
 
-	logger.Warn("⚠️ Detected legacy seed migration key(s) — baselining all current seeds/<bundle> keys",
+	logger.Warn("⚠️ Detected legacy seed migration key(s) — baselining legacy-equivalent seeds/<bundle> keys",
 		slog.String("legacy_keys", strings.Join(found, ", ")))
 	if err := translateLegacySeedKeys(db, logger); err != nil {
 		return fmt.Errorf("failed to translate legacy seed key(s) %s: %w", strings.Join(found, ", "), err)
@@ -197,10 +198,12 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 }
 
 // legacyTranslationTargets returns the schema_migrations keys that
-// translateLegacySeedKeys marks applied whenever ANY legacy key is found —
-// always ALL of seedbundle.BundleOrder, never only the bundles whose specific
-// legacy filename was found in schema_migrations. Pure, no DB access — this
-// is what the translation unit tests exercise directly.
+// translateLegacySeedKeys marks applied whenever ANY legacy key is found.
+// It always returns all three bundles that have a legacy stub equivalent,
+// never only the bundles whose specific legacy filename was found in
+// schema_migrations. Bundles introduced after the stub era must remain
+// eligible for normal application. Pure, no DB access — this is what the
+// translation unit tests exercise directly.
 //
 // Why "all", not "only the ones found" (PR #186 security review, HIGH): the
 // pre-2026-07 binary applied every *.sql file unconditionally in one pass, so
@@ -211,16 +214,18 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 // after this would then auto-COPY those CSV bundles onto what may be a real
 // database. baselineIfNeeded already treats this exact hazard as
 // non-negotiable (see its doc comment); translateLegacySeedKeys must match
-// that same conservative posture, not decide per found key.
+// that same conservative posture for the legacy-equivalent set, not decide
+// per found key.
 func legacyTranslationTargets() []string {
-	keys := make([]string, 0, len(seedbundle.BundleOrder))
-	for _, bundleDir := range seedbundle.BundleOrder {
+	legacyBundleDirs := [...]string{"002_master", "003_demo", "004_staging"}
+	keys := make([]string, 0, len(legacyBundleDirs))
+	for _, bundleDir := range legacyBundleDirs {
 		keys = append(keys, seedbundle.BundleMigrationKey(bundleDir))
 	}
 	return keys
 }
 
-// translateLegacySeedKeys records every current seeds/<bundle> key
+// translateLegacySeedKeys records every legacy-equivalent seeds/<bundle> key
 // (legacyTranslationTargets) not already recorded — idempotent (an EXISTS
 // check guards each insert, so a rerun or an already-baselined/normally-
 // applied bundle is a no-op). It never deletes the legacy row(s) that

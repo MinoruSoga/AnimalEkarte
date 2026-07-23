@@ -1,8 +1,10 @@
+> **📦 アーカイブ（2026-07-20）**: STG の Cloudflare 移行は Phase 0〜8 全て完了し、本書は凍結された実施記録である。現行構成の正本は [docs/ops/infra/architecture.md](../architecture.md)。
+
 # STG AWS → Cloudflare 全面移行 タスクドキュメント
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
-> **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
-> **人間タスク一覧**: [q&a.html](q&a.html)（「Cloudflare 移行」節。未完了かつ人間操作が必要な項目を依存順・優先度別にチェックリスト化。旧 todo-me.html/todo-po.html を 2026-07-20 に統合）
+> **前提調査**: [research-cloudflare.html](../../../../research-cloudflare.html)（2026-07-04 再調査版）
+> **人間タスク一覧**: [q&a.html](../../../../q&a.html)（「Cloudflare 移行」節。未完了かつ人間操作が必要な項目を依存順・優先度別にチェックリスト化。旧 todo-me.html/todo-po.html を 2026-07-20 に統合）
 > **ステータス**: **STG 切替完了（2026-07-17 夜）・並行稼働中（P7-2）** — 詳細は先頭の「最新更新」行と現況サマリ参照。以下この行の残りは 2026-07-07 時点の記録: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
@@ -35,7 +37,7 @@
 
 決定の含意:
 
-1. **STG は納品前に Phase 7 まで完遂する**（クリティカルパス: P5-2 Secrets 登録【人間】→ staging push → P5-5 2 連続 green → P2-4/P2-5 画像データ移行 → P3-6/P3-7 データ本切替 → P1-2/Phase 7 NS 切替【人間】）。人間タスクの正本は [q&a.html](q&a.html)「Cloudflare 移行」節
+1. **STG は納品前に Phase 7 まで完遂する**（クリティカルパス: P5-2 Secrets 登録【人間】→ staging push → P5-5 2 連続 green → P2-4/P2-5 画像データ移行 → P3-6/P3-7 データ本切替 → P1-2/Phase 7 NS 切替【人間】）。人間タスクの正本は [q&a.html](../../../../q&a.html)「Cloudflare 移行」節
 2. **納品環境（本番）も Cloudflare 構成で整備する**（§10「本番移行は別途計画」の前倒し）。本番はまだ実データ運用前のため既存データの本切替が不要で、Access 移行（#250）を本番 DB へ直接投入できる — 切替コストが最小の唯一のタイミングである。本番整備の追跡 Issue は #253（BE 自動デプロイ = CF 版 `backend-deploy.yml` の production 対応として実装）
 3. AWS 側（ECS/RDS）は Phase 7 の並行稼働期間はロールバック先として維持し、Phase 8（廃止）は納品後の安定確認を待って実施する
 
@@ -887,6 +889,18 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 ---
 
 ## Phase 8: AWS リソース廃止（1〜2 人日）
+
+> **2026-07-20 完遂（PO 指示「AWS の課金を停止」）**: `terraform destroy` で STG AWS 一式を破棄し課金停止。実施順と結果:
+> 1. 最終 RDS スナップショット `animalekarte-stg-final-20260720-1108`（20GB・available）を保全用に取得（復元経路として保持・課金わずか）
+> 2. terraform destroy 第1波: RDS / ECS / fck-nat EC2+EIP / スケジューラ / OIDC ロール / SG 破棄（48→残8）
+> 3. 依存障害: 手動作成の CloudFront ディストリビューション `dcqico6azu5w2`(ERCVR5P0IAJKS) が VPC Origin→ALB を参照し ALB 削除をブロック → CloudFront を Enabled=false 化 → Deployed 到達後に delete-distribution → ECR は `--force` で削除
+> 4. terraform destroy 第2波: VPC Origin / ALB / ALB SG / VPC / サブネット破棄（残0）
+> 5. 検証: terraform state 0 件・ALB/VPC/CloudFront 全消滅・**STG 実 URL(CF 経由) は health 200 で無影響**（切替が完全だった証明）
+>
+> **残存（意図的・課金ほぼゼロ）**: (a) 復元用 RDS スナップショット 20GB（不要になれば削除可） (b) S3 `animalekarte-stg-uploads`（668B の孤児テスト画像・R2 移行後不要） (c) tfstate S3 バケット + DynamoDB ロック（backend。state は空・削除は任意） (d) PlanetScale 所有権 REASSIGN の未解決サポートチケット（AWS とは別件）
+> **ロールバック不可に変化**: AWS ホットスタンバイは消滅した。以後 STG の障害復旧は「CF 側の修正」または「スナップショット+IaC からの再建(30-60分)」のみ。本番はまだ CF 未構築のため本 destroy の影響を受けない
+
+
 
 **順序が重要**。データを持つものは最後、復旧手段は最後の最後。
 
