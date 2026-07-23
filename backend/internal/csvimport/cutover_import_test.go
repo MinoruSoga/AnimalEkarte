@@ -26,7 +26,7 @@ func TestApplyCutoverWithBeginImportsAndVerifiesAllTables(t *testing.T) {
 		context.Background(),
 		func(context.Context) (cutoverTransaction, error) { return tx, nil },
 		bundle,
-		CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4},
+		validCutoverSeeds(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestApplyCutoverUsesForceNotNullForDeclaredTextColumns(t *testing.T) {
 		context.Background(),
 		func(context.Context) (cutoverTransaction, error) { return tx, nil },
 		bundle,
-		CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4},
+		validCutoverSeeds(),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -69,11 +69,21 @@ func TestApplyCutoverUsesForceNotNullForDeclaredTextColumns(t *testing.T) {
 	if strings.Contains(tx.copySQLs[9], "FORCE_NOT_NULL") {
 		t.Fatalf("appointments COPY unexpectedly forces nullable values: %s", tx.copySQLs[9])
 	}
+	var paymentsCopySQL string
+	for _, copySQL := range tx.copySQLs {
+		if strings.Contains(copySQL, `COPY "payments"`) {
+			paymentsCopySQL = copySQL
+			break
+		}
+	}
+	if !strings.Contains(paymentsCopySQL, `FORCE_NOT_NULL ("insurance_name")`) {
+		t.Fatalf("payments COPY does not preserve required empty text: %s", paymentsCopySQL)
+	}
 }
 
 func TestApplyCutoverWithBeginFailsClosedAcrossTransactionStages(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
-	seeds := CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4}
+	seeds := validCutoverSeeds()
 	tests := []struct {
 		name        string
 		tx          *fakeCutoverTransaction
@@ -89,6 +99,7 @@ func TestApplyCutoverWithBeginFailsClosedAcrossTransactionStages(t *testing.T) {
 		{name: "target seed", tx: &fakeCutoverTransaction{}, seeds: CutoverSeedIDs{}, want: "explicit target seed"},
 		{name: "copy", tx: &fakeCutoverTransaction{copyError: errors.New("private-owner-name")}, seeds: seeds, want: "target database rejected"},
 		{name: "row verification", tx: &fakeCutoverTransaction{countMismatch: true}, seeds: seeds, want: "row count"},
+		{name: "payment graph", tx: &fakeCutoverTransaction{paymentGraphMismatch: true}, seeds: seeds, want: "payment graph"},
 		{name: "sequence advance", tx: &fakeCutoverTransaction{execErrorContains: "setval"}, seeds: seeds, want: "advance sequence"},
 		{name: "sequence verification", tx: &fakeCutoverTransaction{sequenceBelowFloor: true}, seeds: seeds, want: "below application floor"},
 		{name: "commit rollback", tx: &fakeCutoverTransaction{commitError: pgx.ErrTxCommitRollback}, seeds: seeds, want: "transaction rolled back"},
@@ -119,7 +130,31 @@ func TestApplyCutoverWithBeginFailsClosedAcrossTransactionStages(t *testing.T) {
 			if tt.name == "begin" && !errors.Is(err, ErrCutoverTransactionNotStarted) {
 				t.Fatalf("begin failure classification = %v", err)
 			}
+			if tt.name == "payment graph" && (tt.tx.committed || !tt.tx.rolledBack) {
+				t.Fatalf("payment graph failure transaction state committed=%v rolledBack=%v", tt.tx.committed, tt.tx.rolledBack)
+			}
 		})
+	}
+}
+
+func TestApplyCutoverRollsBackWhenPaymentSplitCopyFails(t *testing.T) {
+	bundle := validCutoverBundleForApply(t)
+	tx := &fakeCutoverTransaction{copyErrorContains: `"payment_splits"`}
+
+	_, err := applyCutoverWithBegin(
+		context.Background(),
+		func(context.Context) (cutoverTransaction, error) { return tx, nil },
+		bundle,
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "payment_splits") {
+		t.Fatalf("error = %v, want payment_splits COPY rejection", err)
+	}
+	if tx.committed || !tx.rolledBack {
+		t.Fatalf("transaction state committed=%v rolledBack=%v", tx.committed, tx.rolledBack)
+	}
+	if tx.copyCalls != 14 {
+		t.Fatalf("successful COPY calls before payment_splits = %d, want 14", tx.copyCalls)
 	}
 }
 
@@ -139,21 +174,29 @@ func validCutoverBundleForApply(t *testing.T) CutoverBundle {
 }
 
 type fakeCutoverTransaction struct {
-	committed          bool
-	rolledBack         bool
-	copyCalls          int
-	copySQLs           []string
-	setvalCalls        int
-	execErrorContains  string
-	copyError          error
-	commitError        error
-	countMismatch      bool
-	sequenceBelowFloor bool
+	committed            bool
+	rolledBack           bool
+	copyCalls            int
+	copySQLs             []string
+	setvalCalls          int
+	execErrorContains    string
+	copyErrorContains    string
+	copyError            error
+	commitError          error
+	countMismatch        bool
+	sequenceBelowFloor   bool
+	paymentGraphMismatch bool
 }
 
 func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	switch {
+	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
+		return validTargetQuerier{}.QueryRow(ctx, query, args...)
+	case strings.Contains(query, "FROM payment_splits split") && tx.paymentGraphMismatch:
+		return staticRow{values: []any{int64(1)}}
 	case strings.Contains(query, "clinic_id <> $3"):
+		return staticRow{values: []any{int64(0)}}
+	case strings.Contains(query, "FROM payment_splits split"):
 		return staticRow{values: []any{int64(0)}}
 	case strings.Contains(query, "count(*)"):
 		if tx.countMismatch {
@@ -182,6 +225,9 @@ func (tx *fakeCutoverTransaction) Exec(_ context.Context, query string, _ ...any
 }
 
 func (tx *fakeCutoverTransaction) CopyFrom(_ context.Context, reader io.Reader, copySQL string) (pgconn.CommandTag, error) {
+	if tx.copyErrorContains != "" && strings.Contains(copySQL, tx.copyErrorContains) {
+		return pgconn.CommandTag{}, errors.New("forced payment copy failure")
+	}
 	if tx.copyError != nil {
 		return pgconn.CommandTag{}, tx.copyError
 	}
@@ -219,6 +265,7 @@ func TestTransformCutoverCSVResolvesOnlyDeclaredPlaceholders(t *testing.T) {
 	var output bytes.Buffer
 	count, err := transformCutoverCSV(context.Background(), path, &output, CutoverSeedIDs{
 		ClinicID: 11, AnimalSpeciesID: 22, ExamTypeID: 33, TrimmingReservationTypeID: 44,
+		CashPaymentMethodID: 55, CreditCardPaymentMethodID: 66,
 	}, hex.EncodeToString(sum[:]))
 	if err != nil {
 		t.Fatal(err)
@@ -228,6 +275,31 @@ func TestTransformCutoverCSVResolvesOnlyDeclaredPlaceholders(t *testing.T) {
 	}
 	if got := output.String(); got != "id,clinic_id,owner_id,animal_species_id,name\n1000001,11,300001,22,Pochi\n" {
 		t.Fatalf("transformed CSV = %q", got)
+	}
+}
+
+func TestTransformCutoverCSVResolvesPaymentMethodPlaceholders(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "payments.csv")
+	source := "id,method,payment_method_id\n1000001,cash,{{PAYMENT_METHOD_CASH_ID}}\n1000002,credit_card,{{PAYMENT_METHOD_CREDIT_CARD_ID}}\n"
+	if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(source))
+	var output bytes.Buffer
+	count, err := transformCutoverCSV(context.Background(), path, &output, CutoverSeedIDs{
+		ClinicID: 11, AnimalSpeciesID: 22, ExamTypeID: 33, TrimmingReservationTypeID: 44,
+		CashPaymentMethodID: 55, CreditCardPaymentMethodID: 66,
+	}, hex.EncodeToString(sum[:]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("count = %d, want 2", count)
+	}
+	want := "id,method,payment_method_id\n1000001,cash,55\n1000002,credit_card,66\n"
+	if got := output.String(); got != want {
+		t.Fatalf("transformed CSV = %q, want %q", got, want)
 	}
 }
 
@@ -272,11 +344,14 @@ func TestCutoverCopyResultErrorPrioritizesSanitizedDatabaseFailure(t *testing.T)
 }
 
 func TestValidateCutoverSeedFacts(t *testing.T) {
-	seeds := CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4}
+	seeds := validCutoverSeeds()
 	valid := cutoverSeedFacts{
 		ClinicExists: true, SpeciesActive: true,
 		ExamTypeClinicID: 1, ExamTypeName: "検査", ExamTypeActive: true,
 		ReservationTypeClinicID: 1, ReservationTypeCategory: "trimming", ReservationTypeActive: true,
+		CashMethodClinicID: 1, CashMethodSystemKey: "cash", CashMethodActive: true, CashMethodMatchCount: 1,
+		CreditCardMethodClinicID: 1, CreditCardMethodSystemKey: "credit_card",
+		CreditCardMethodActive: true, CreditCardMethodMatchCount: 1,
 	}
 	if err := validateCutoverSeedFacts(seeds, valid); err != nil {
 		t.Fatalf("valid facts rejected: %v", err)
@@ -286,6 +361,18 @@ func TestValidateCutoverSeedFacts(t *testing.T) {
 	invalid.ReservationTypeClinicID = 9
 	if err := validateCutoverSeedFacts(seeds, invalid); err == nil || !strings.Contains(err.Error(), "reservation type") {
 		t.Fatalf("cross-clinic reservation type error = %v", err)
+	}
+
+	invalid = valid
+	invalid.CashMethodMatchCount = 2
+	if err := validateCutoverSeedFacts(seeds, invalid); err == nil || !strings.Contains(err.Error(), "unique cash") {
+		t.Fatalf("duplicate cash payment method error = %v", err)
+	}
+
+	invalid = valid
+	invalid.CreditCardMethodClinicID = 9
+	if err := validateCutoverSeedFacts(seeds, invalid); err == nil || !strings.Contains(err.Error(), "credit-card payment method") {
+		t.Fatalf("cross-clinic credit-card payment method error = %v", err)
 	}
 }
 
@@ -299,7 +386,7 @@ func TestPreflightAndVerifyCutoverTarget(t *testing.T) {
 	for _, spec := range CutoverTableSpecs() {
 		manifest.Tables = append(manifest.Tables, CutoverManifestTable{Table: spec.Name, File: spec.Name + ".csv"})
 	}
-	seeds := CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4}
+	seeds := validCutoverSeeds()
 	target := validTargetQuerier{}
 	if err := PreflightCutoverTarget(context.Background(), target, manifest, seeds); err != nil {
 		t.Fatalf("PreflightCutoverTarget() error = %v", err)
@@ -319,7 +406,7 @@ func TestPreflightAllowsLowSequenceButVerifyRequiresApplicationFloor(t *testing.
 	for _, spec := range CutoverTableSpecs() {
 		manifest.Tables = append(manifest.Tables, CutoverManifestTable{Table: spec.Name, File: spec.Name + ".csv"})
 	}
-	seeds := CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4}
+	seeds := validCutoverSeeds()
 	target := lowSequenceTargetQuerier{}
 	if err := PreflightCutoverTarget(context.Background(), target, manifest, seeds); err != nil {
 		t.Fatalf("preflight rejected an existing sequence before advance: %v", err)
@@ -330,6 +417,146 @@ func TestPreflightAllowsLowSequenceButVerifyRequiresApplicationFloor(t *testing.
 }
 
 func TestPreflightRejectsMissingValidatedForeignKey(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingForeignKeyTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "validated foreign key") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want foreign-key rejection", err)
+	}
+}
+
+func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
+	required := map[string]bool{
+		"payments.billing_id->billings.id":                     false,
+		"payments.payment_method_id->payment_methods.id":       false,
+		"payments.paid_by->staffs.id":                          false,
+		"payment_splits.clinic_id->clinics.id":                 false,
+		"payment_splits.billing_id->billings.id":               false,
+		"payment_splits.payment_method_id->payment_methods.id": false,
+		"payment_splits.paid_by->staffs.id":                    false,
+	}
+	for _, foreignKey := range cutoverRequiredForeignKeys() {
+		key := foreignKey.childTable + "." + foreignKey.childColumn + "->" +
+			foreignKey.parentTable + "." + foreignKey.parentColumn
+		if _, ok := required[key]; ok {
+			required[key] = true
+		}
+	}
+	for key, found := range required {
+		if !found {
+			t.Errorf("missing required payment foreign key %s", key)
+		}
+	}
+}
+
+func TestPreflightRejectsMissingPaymentBillingUniqueConstraint(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingPaymentUniqueTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "payments.billing_id") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want payments.billing_id uniqueness rejection", err)
+	}
+}
+
+func TestPreflightRejectsMissingPaymentMethodSystemKeyUniqueIndex(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingPaymentMethodUniqueTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "payment_methods") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want payment_methods uniqueness rejection", err)
+	}
+}
+
+func TestVerifyRejectsPaymentSplitWithoutPaymentParent(t *testing.T) {
+	err := VerifyCutover(
+		context.Background(),
+		missingPaymentParentTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "payment parent") {
+		t.Fatalf("VerifyCutover() error = %v, want payment parent rejection", err)
+	}
+}
+
+func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t *testing.T) {
+	required := []string{
+		"LEFT JOIN billings billing",
+		"split_rows AS MATERIALIZED",
+		"split_summaries AS MATERIALIZED",
+		"JOIN payment_rows payment ON payment.billing_id = split.billing_id",
+		"payment.billing_clinic_id IS DISTINCT FROM $3",
+		"payment.subtotal IS NULL",
+		"payment.tax_total IS NULL",
+		"payment.total_amount IS NULL",
+		"payment.billing_amount IS NULL",
+		"payment.received_amount IS NULL",
+		"payment.change_amount IS NULL",
+		"payment.created_at IS NULL",
+		"NOT COALESCE(",
+		"bool_and(COALESCE(",
+		"split.created_at IS NOT NULL",
+		"split.received_amount IS NOT NULL",
+		"split.change_amount IS NOT NULL",
+		"payment.method IS DISTINCT FROM",
+	}
+	for _, fragment := range required {
+		if !strings.Contains(verifyCutoverPaymentGraphQuery, fragment) {
+			t.Errorf("payment verification query is missing fail-closed fragment %q", fragment)
+		}
+	}
+
+	splitRowsStart := strings.Index(verifyCutoverPaymentGraphQuery, "split_rows AS MATERIALIZED")
+	orphanStart := strings.Index(verifyCutoverPaymentGraphQuery, "orphan_split_violations AS")
+	if splitRowsStart < 0 || orphanStart <= splitRowsStart {
+		t.Fatal("payment verification query does not contain the expected graph sections")
+	}
+	splitAggregationQuery := verifyCutoverPaymentGraphQuery[splitRowsStart:orphanStart]
+	if strings.Contains(splitAggregationQuery, "split.id >= $1") ||
+		strings.Contains(splitAggregationQuery, "split.id < $2") {
+		t.Fatal("parent split aggregation must include child rows outside the cutover ID band")
+	}
+	if strings.Contains(splitAggregationQuery, "JOIN LATERAL") {
+		t.Fatal("payment split aggregation must be set-based rather than correlated per payment")
+	}
+}
+
+func TestUniqueIndexVerificationQueriesRejectWeakerExpressionAndPartialIndexes(t *testing.T) {
+	for _, fragment := range []string{
+		"index_definition.indexprs IS NULL",
+		"index_definition.indnkeyatts = 1",
+		"index_definition.indnatts = 1",
+	} {
+		if !strings.Contains(paymentsBillingUniqueIndexQuery, fragment) {
+			t.Errorf("payments index query is missing %q", fragment)
+		}
+	}
+	for _, fragment := range []string{
+		"index_definition.indexprs IS NULL",
+		"index_definition.indnkeyatts = 2",
+		"index_definition.indnatts = 2",
+		"'system_keyisnotnullanddeleted_atisnull'",
+		"'deleted_atisnullandsystem_keyisnotnull'",
+	} {
+		if !strings.Contains(paymentMethodSystemKeyUniqueIndexQuery, fragment) {
+			t.Errorf("payment method index query is missing %q", fragment)
+		}
+	}
+	if strings.Contains(paymentMethodSystemKeyUniqueIndexQuery, "LIKE '%") {
+		t.Fatal("payment method index predicate must not accept a substring match")
+	}
+}
+
+func cutoverManifestForTargetTests() CutoverManifest {
 	manifest := CutoverManifest{
 		IDBand: CutoverIDBand{
 			Base: 0, EndExclusive: 10_000_000, NonOwnerIDOffset: 1_000_000,
@@ -339,10 +566,13 @@ func TestPreflightRejectsMissingValidatedForeignKey(t *testing.T) {
 	for _, spec := range CutoverTableSpecs() {
 		manifest.Tables = append(manifest.Tables, CutoverManifestTable{Table: spec.Name, File: spec.Name + ".csv"})
 	}
-	seeds := CutoverSeedIDs{ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4}
-	err := PreflightCutoverTarget(context.Background(), missingForeignKeyTargetQuerier{}, manifest, seeds)
-	if err == nil || !strings.Contains(err.Error(), "validated foreign key") {
-		t.Fatalf("PreflightCutoverTarget() error = %v, want foreign-key rejection", err)
+	return manifest
+}
+
+func validCutoverSeeds() CutoverSeedIDs {
+	return CutoverSeedIDs{
+		ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3, TrimmingReservationTypeID: 4,
+		CashPaymentMethodID: 5, CreditCardPaymentMethodID: 6,
 	}
 }
 
@@ -350,11 +580,17 @@ type validTargetQuerier struct{}
 
 func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pgx.Row {
 	switch {
-	case strings.Contains(query, "WITH\n  clinic_seed"):
-		return staticRow{values: []any{true, true, int64(1), "検査", true, int64(1), "trimming", true}}
+	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
+		return staticRow{values: []any{
+			true, true, int64(1), "検査", true, int64(1), "trimming", true,
+			int64(1), "cash", true, int64(1),
+			int64(1), "credit_card", true, int64(1),
+		}}
 	case strings.Contains(query, "information_schema.columns"):
 		return staticRow{values: []any{"bigint"}}
 	case strings.Contains(query, "FROM pg_constraint"):
+		return staticRow{values: []any{true}}
+	case strings.Contains(query, "FROM pg_index"):
 		return staticRow{values: []any{true}}
 	case strings.Contains(query, "pg_get_serial_sequence"):
 		return staticRow{values: []any{"public.fixture_id_seq"}}
@@ -376,6 +612,33 @@ type missingForeignKeyTargetQuerier struct{}
 func (missingForeignKeyTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "FROM pg_constraint") {
 		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type missingPaymentUniqueTargetQuerier struct{}
+
+func (missingPaymentUniqueTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "FROM pg_index") {
+		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type missingPaymentMethodUniqueTargetQuerier struct{}
+
+func (missingPaymentMethodUniqueTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "target_table.relname = 'payment_methods'") {
+		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type missingPaymentParentTargetQuerier struct{}
+
+func (missingPaymentParentTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "FROM payment_splits split") {
+		return staticRow{values: []any{int64(1)}}
 	}
 	return validTargetQuerier{}.QueryRow(ctx, query, args...)
 }

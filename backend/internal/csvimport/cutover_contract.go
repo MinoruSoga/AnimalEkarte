@@ -105,6 +105,11 @@ func CutoverPlaceholderColumns() map[string]string {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
+		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
+		"payment_splits.clinic_id":                                "{{CLINIC_ID}}",
+		"payment_splits.payment_method_id (cash)":                 "{{PAYMENT_METHOD_CASH_ID}}",
+		"payment_splits.payment_method_id (credit_card)":          "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
 		"estimates.clinic_id":                                     "{{CLINIC_ID}}",
 		"exams.clinic_id":                                         "{{CLINIC_ID}}",
 		"exams.exam_type_id":                                      "{{FALLBACK_EXAM_TYPE_ID}}",
@@ -129,6 +134,8 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
 		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
 		{"billing_items", []string{"id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
+		{"payments", []string{"id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},
+		{"payment_splits", []string{"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount", "received_amount", "change_amount", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, nil},
 		{"estimates", []string{"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "status", "subtotal", "tax_total", "total_amount", "insurance_amount", "discount_amount", "valid_until", "comment", "notes", "created_by", "created_at"}, []string{"id", "medical_record_id", "owner_id", "created_by"}, []string{"estimate_no", "title", "comment", "notes"}},
 		{"estimate_items", []string{"id", "estimate_id", "name", "category", "unit_price", "quantity", "tax_type", "tax_rate", "discount_rate", "discount_amount", "is_insurance_applicable", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id", "sort_order"}, []string{"id", "estimate_id", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id"}, []string{"name"}},
 		{"exams", []string{"id", "clinic_id", "medical_record_id", "pet_id", "date", "exam_type_id", "result_summary"}, []string{"id", "medical_record_id", "pet_id"}, []string{"result_summary"}},
@@ -334,7 +341,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest) error {
 			return fmt.Errorf("unexpected file or directory in cutover source")
 		}
 	}
-	return nil
+	return validateCutoverPaymentGraph(sourceDir, manifest)
 }
 
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand) error {
@@ -413,6 +420,12 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 }
 
 func validateCutoverRow(spec CutoverTableSpec, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64) error {
+	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
+		return err
+	}
+	if spec.Name == "payment_splits" && row[indexes["clinic_id"]] != "{{CLINIC_ID}}" {
+		return fmt.Errorf("table payment_splits column clinic_id row %d: clinic placeholder is required", csvLine)
+	}
 	for i, value := range row {
 		matches := placeholderPattern.FindAllString(value, -1)
 		for _, token := range matches {
@@ -452,8 +465,30 @@ func placeholderAllowed(table, column, value, token string) bool {
 	if table == "pets" && column == "animal_species_id" {
 		key = "pets.animal_species_id (fallback only, when unresolved)"
 	}
+	if (table == "payments" || table == "payment_splits") && column == "payment_method_id" {
+		return token == "{{PAYMENT_METHOD_CASH_ID}}" || token == "{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
+	}
 	want, ok := CutoverPlaceholderColumns()[key]
 	return ok && token == want
+}
+
+func validatePaymentMethodPlaceholder(spec CutoverTableSpec, row []string, indexes map[string]int, csvLine int64) error {
+	if spec.Name != "payments" && spec.Name != "payment_splits" {
+		return nil
+	}
+	method := row[indexes["method"]]
+	token := row[indexes["payment_method_id"]]
+	want := map[string]string{
+		"cash":        "{{PAYMENT_METHOD_CASH_ID}}",
+		"credit_card": "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
+	}[method]
+	if want == "" {
+		return fmt.Errorf("table %s column method row %d: unsupported payment method", spec.Name, csvLine)
+	}
+	if token != want {
+		return fmt.Errorf("table %s column payment_method_id row %d: payment method placeholder does not match method", spec.Name, csvLine)
+	}
+	return nil
 }
 
 func readOwnerOnlyRegularFile(path string) ([]byte, error) {

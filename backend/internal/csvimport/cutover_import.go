@@ -37,6 +37,8 @@ type CutoverSeedIDs struct {
 	AnimalSpeciesID           int64 `json:"animalSpeciesId"`
 	ExamTypeID                int64 `json:"examTypeId"`
 	TrimmingReservationTypeID int64 `json:"trimmingReservationTypeId"`
+	CashPaymentMethodID       int64 `json:"cashPaymentMethodId"`
+	CreditCardPaymentMethodID int64 `json:"creditCardPaymentMethodId"`
 }
 
 type CutoverResult struct {
@@ -48,14 +50,22 @@ type CutoverResult struct {
 }
 
 type cutoverSeedFacts struct {
-	ClinicExists            bool
-	SpeciesActive           bool
-	ExamTypeClinicID        int64
-	ExamTypeName            string
-	ExamTypeActive          bool
-	ReservationTypeClinicID int64
-	ReservationTypeCategory string
-	ReservationTypeActive   bool
+	ClinicExists               bool
+	SpeciesActive              bool
+	ExamTypeClinicID           int64
+	ExamTypeName               string
+	ExamTypeActive             bool
+	ReservationTypeClinicID    int64
+	ReservationTypeCategory    string
+	ReservationTypeActive      bool
+	CashMethodClinicID         int64
+	CashMethodSystemKey        string
+	CashMethodActive           bool
+	CashMethodMatchCount       int64
+	CreditCardMethodClinicID   int64
+	CreditCardMethodSystemKey  string
+	CreditCardMethodActive     bool
+	CreditCardMethodMatchCount int64
 }
 
 type cutoverQuerier interface {
@@ -118,6 +128,13 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"billings", "owner_id", "owners", "id"},
 		{"billings", "pet_id", "pets", "id"},
 		{"billing_items", "billing_id", "billings", "id"},
+		{"payments", "billing_id", "billings", "id"},
+		{"payments", "payment_method_id", "payment_methods", "id"},
+		{"payments", "paid_by", "staffs", "id"},
+		{"payment_splits", "clinic_id", "clinics", "id"},
+		{"payment_splits", "billing_id", "billings", "id"},
+		{"payment_splits", "payment_method_id", "payment_methods", "id"},
+		{"payment_splits", "paid_by", "staffs", "id"},
 		{"estimates", "clinic_id", "clinics", "id"},
 		{"estimates", "medical_record_id", "medical_records", "id"},
 		{"estimates", "owner_id", "owners", "id"},
@@ -153,7 +170,7 @@ func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest
 	return nil
 }
 
-// ApplyCutover imports all nineteen CSVs in one transaction. It never deletes
+// ApplyCutover imports all twenty-one CSVs in one transaction. It never deletes
 // existing rows: a non-empty clinic band fails closed, making retries explicit
 // and preventing a cutover from silently replacing unrelated data.
 func ApplyCutover(ctx context.Context, pool *pgxpool.Pool, bundle CutoverBundle, seeds CutoverSeedIDs) (CutoverResult, error) {
@@ -254,6 +271,9 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	if err := validateCutoverForeignKeys(ctx, q); err != nil {
 		return err
 	}
+	if err := validateCutoverUniqueIndexes(ctx, q); err != nil {
+		return err
+	}
 	if err := validateCutoverSequences(ctx, q); err != nil {
 		return err
 	}
@@ -314,6 +334,12 @@ WITH
   ),
   reservation_seed AS MATERIALIZED (
     SELECT clinic_id, category, is_active FROM reservation_types WHERE id = $4 AND deleted_at IS NULL FOR SHARE
+  ),
+  cash_method_seed AS MATERIALIZED (
+    SELECT clinic_id, system_key, is_active FROM payment_methods WHERE id = $5 AND deleted_at IS NULL FOR SHARE
+  ),
+  credit_card_method_seed AS MATERIALIZED (
+    SELECT clinic_id, system_key, is_active FROM payment_methods WHERE id = $6 AND deleted_at IS NULL FOR SHARE
   )
 SELECT
   EXISTS (SELECT 1 FROM clinic_seed WHERE is_active = true),
@@ -323,13 +349,25 @@ SELECT
   COALESCE((SELECT is_active FROM exam_seed), false),
   COALESCE((SELECT clinic_id FROM reservation_seed), 0),
   COALESCE((SELECT category::text FROM reservation_seed), ''),
-  COALESCE((SELECT is_active FROM reservation_seed), false)`
+  COALESCE((SELECT is_active FROM reservation_seed), false),
+  COALESCE((SELECT clinic_id FROM cash_method_seed), 0),
+  COALESCE((SELECT system_key FROM cash_method_seed), ''),
+  COALESCE((SELECT is_active FROM cash_method_seed), false),
+  (SELECT count(*) FROM payment_methods
+    WHERE clinic_id = $1 AND system_key = 'cash' AND deleted_at IS NULL),
+  COALESCE((SELECT clinic_id FROM credit_card_method_seed), 0),
+  COALESCE((SELECT system_key FROM credit_card_method_seed), ''),
+  COALESCE((SELECT is_active FROM credit_card_method_seed), false),
+  (SELECT count(*) FROM payment_methods
+    WHERE clinic_id = $1 AND system_key = 'credit_card' AND deleted_at IS NULL)`
 	var facts cutoverSeedFacts
 	if err := q.QueryRow(ctx, query,
 		seeds.ClinicID,
 		seeds.AnimalSpeciesID,
 		seeds.ExamTypeID,
 		seeds.TrimmingReservationTypeID,
+		seeds.CashPaymentMethodID,
+		seeds.CreditCardPaymentMethodID,
 	).Scan(
 		&facts.ClinicExists,
 		&facts.SpeciesActive,
@@ -339,6 +377,14 @@ SELECT
 		&facts.ReservationTypeClinicID,
 		&facts.ReservationTypeCategory,
 		&facts.ReservationTypeActive,
+		&facts.CashMethodClinicID,
+		&facts.CashMethodSystemKey,
+		&facts.CashMethodActive,
+		&facts.CashMethodMatchCount,
+		&facts.CreditCardMethodClinicID,
+		&facts.CreditCardMethodSystemKey,
+		&facts.CreditCardMethodActive,
+		&facts.CreditCardMethodMatchCount,
 	); err != nil {
 		return cutoverSeedFacts{}, fmt.Errorf("inspect target seed bindings: %w", err)
 	}
@@ -346,8 +392,16 @@ SELECT
 }
 
 func validateCutoverSeedFacts(seeds CutoverSeedIDs, facts cutoverSeedFacts) error {
-	if seeds.ClinicID <= 0 || seeds.AnimalSpeciesID <= 0 || seeds.ExamTypeID <= 0 || seeds.TrimmingReservationTypeID <= 0 {
-		return fmt.Errorf("all four explicit target seed IDs must be positive")
+	if seeds.ClinicID <= 0 ||
+		seeds.AnimalSpeciesID <= 0 ||
+		seeds.ExamTypeID <= 0 ||
+		seeds.TrimmingReservationTypeID <= 0 ||
+		seeds.CashPaymentMethodID <= 0 ||
+		seeds.CreditCardPaymentMethodID <= 0 {
+		return fmt.Errorf("all six explicit target seed IDs must be positive")
+	}
+	if seeds.CashPaymentMethodID == seeds.CreditCardPaymentMethodID {
+		return fmt.Errorf("cash and credit-card payment method seed IDs must be different")
 	}
 	if !facts.ClinicExists {
 		return fmt.Errorf("target clinic seed is missing or inactive")
@@ -360,6 +414,22 @@ func validateCutoverSeedFacts(seeds CutoverSeedIDs, facts cutoverSeedFacts) erro
 	}
 	if facts.ReservationTypeClinicID != seeds.ClinicID || facts.ReservationTypeCategory != "trimming" || !facts.ReservationTypeActive {
 		return fmt.Errorf("trimming reservation type must be active, non-deleted, category=trimming, and belong to the target clinic")
+	}
+	if facts.CashMethodClinicID != seeds.ClinicID ||
+		facts.CashMethodSystemKey != "cash" ||
+		!facts.CashMethodActive {
+		return fmt.Errorf("cash payment method must be active, non-deleted, system_key=cash, and belong to the target clinic")
+	}
+	if facts.CashMethodMatchCount != 1 {
+		return fmt.Errorf("target clinic must have exactly one unique cash payment method")
+	}
+	if facts.CreditCardMethodClinicID != seeds.ClinicID ||
+		facts.CreditCardMethodSystemKey != "credit_card" ||
+		!facts.CreditCardMethodActive {
+		return fmt.Errorf("credit-card payment method must be active, non-deleted, system_key=credit_card, and belong to the target clinic")
+	}
+	if facts.CreditCardMethodMatchCount != 1 {
+		return fmt.Errorf("target clinic must have exactly one unique credit-card payment method")
 	}
 	return nil
 }
@@ -498,10 +568,12 @@ func transformCutoverCSV(ctx context.Context, path string, output io.Writer, see
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(file, maxCutoverCSVBytes+1), hash)))
 	writer := csv.NewWriter(output)
 	replacements := map[string]string{
-		"{{CLINIC_ID}}":                    strconv.FormatInt(seeds.ClinicID, 10),
-		"{{FALLBACK_ANIMAL_SPECIES_ID}}":   strconv.FormatInt(seeds.AnimalSpeciesID, 10),
-		"{{FALLBACK_EXAM_TYPE_ID}}":        strconv.FormatInt(seeds.ExamTypeID, 10),
-		"{{TRIMMING_RESERVATION_TYPE_ID}}": strconv.FormatInt(seeds.TrimmingReservationTypeID, 10),
+		"{{CLINIC_ID}}":                     strconv.FormatInt(seeds.ClinicID, 10),
+		"{{FALLBACK_ANIMAL_SPECIES_ID}}":    strconv.FormatInt(seeds.AnimalSpeciesID, 10),
+		"{{FALLBACK_EXAM_TYPE_ID}}":         strconv.FormatInt(seeds.ExamTypeID, 10),
+		"{{TRIMMING_RESERVATION_TYPE_ID}}":  strconv.FormatInt(seeds.TrimmingReservationTypeID, 10),
+		"{{PAYMENT_METHOD_CASH_ID}}":        strconv.FormatInt(seeds.CashPaymentMethodID, 10),
+		"{{PAYMENT_METHOD_CREDIT_CARD_ID}}": strconv.FormatInt(seeds.CreditCardPaymentMethodID, 10),
 	}
 	var records int64
 	firstRecord := true
@@ -603,7 +675,7 @@ func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverMa
 			}
 		}
 	}
-	return nil
+	return verifyCutoverPaymentGraph(ctx, q, manifest, seeds)
 }
 
 func hasColumn(columns []string, target string) bool {

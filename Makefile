@@ -103,20 +103,23 @@ seed:
 	@echo "✓ Seed data applied"
 
 # ============================================================================
-# F6 CSV import: old_db's immutable 19-table CSV hand-off -> AnimalEkarte
+# F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
 # ============================================================================
 # Required variables:
 #   CSV_IMPORT_SOURCE_DIR (absolute host path), CSV_MANIFEST_SHA256,
 #   CLINIC_CODE, CLINIC_ORDINAL, MIGRATION_RUN_ID,
 #   TARGET_CLINIC_ID, FALLBACK_ANIMAL_SPECIES_ID, FALLBACK_EXAM_TYPE_ID,
-#   TRIMMING_RESERVATION_TYPE_ID.
+#   TRIMMING_RESERVATION_TYPE_ID, PAYMENT_METHOD_CASH_ID,
+#   PAYMENT_METHOD_CREDIT_CARD_ID.
 # Apply additionally requires TARGET_DB_NAME to exactly match DB_NAME from
-# .env.local. Reports contain aggregate counts only and are owner-only under
-# sensitive-local/. The source volume is read-only and no old_db network exists.
+# .env.local. Reports contain aggregate counts and the six non-PHI seed IDs,
+# and are owner-only under sensitive-local/. The source volume is read-only and
+# no old_db network exists.
 CSV_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.csv-import.yml
 export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
-export TRIMMING_RESERVATION_TYPE_ID TARGET_DB_NAME
+export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
+export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
 CSV_IMPORT_COMMON_ARGS = \
 	--source-dir /migration-input \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
@@ -126,7 +129,9 @@ CSV_IMPORT_COMMON_ARGS = \
 	--clinic-id "$${TARGET_CLINIC_ID}" \
 	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
 	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
-	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}"
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
+	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}"
 
 csv-import-preflight:
 	@install -d -m 700 sensitive-local/csv-import-reports
@@ -329,9 +334,9 @@ help:
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
 	@echo ""
-	@echo "旧DB移行（正式経路: 19表CSV + manifest -> 本テーブル）:"
+	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
-	@echo "  csv-import                19表CSVを単一transactionで投入（backup・target確認必須）"
+	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
 	@echo "  stage-import-dry-run      旧direct-DB互換経路のdry-run（F6では使用しない）"
 	@echo "  stage-import              旧direct-DB互換経路（F6では使用しない）"

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -24,11 +25,83 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreflightCutoverBundle() error = %v", err)
 	}
-	if len(bundle.Manifest.Tables) != 19 {
-		t.Fatalf("table count = %d, want 19", len(bundle.Manifest.Tables))
+	if len(bundle.Manifest.Tables) != 21 {
+		t.Fatalf("table count = %d, want 21", len(bundle.Manifest.Tables))
 	}
 	if bundle.Manifest.IDBand.ApplicationIDFloor != 1_000_000_000 {
 		t.Fatalf("application floor = %d", bundle.Manifest.IDBand.ApplicationIDFloor)
+	}
+}
+
+func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
+	specs := CutoverTableSpecs()
+	if len(specs) != 21 {
+		t.Fatalf("table count = %d, want 21", len(specs))
+	}
+	gotNames := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		gotNames = append(gotNames, spec.Name)
+	}
+	wantNames := []string{
+		"staffs", "procedures", "merchandise_items", "owners", "pets",
+		"medical_records", "inquiries", "clinical_plans", "vital_records",
+		"appointments", "appointment_trimming_details", "billings",
+		"billing_items", "payments", "payment_splits", "estimates",
+		"estimate_items", "exams", "exam_results", "vaccines", "vaccinations",
+	}
+	if !slices.Equal(gotNames, wantNames) {
+		t.Fatalf("table order = %v, want %v", gotNames, wantNames)
+	}
+
+	payments := specs[13]
+	if !slices.Equal(payments.Columns, []string{
+		"id", "billing_id", "subtotal", "tax_total", "total_amount",
+		"insurance_name", "insurance_ratio", "insurance_amount", "discount_amount",
+		"billing_amount", "received_amount", "change_amount", "method",
+		"payment_method_id", "paid_by", "created_at",
+	}) {
+		t.Fatalf("payments columns = %v", payments.Columns)
+	}
+	if !slices.Equal(payments.BandColumns, []string{"id", "billing_id", "paid_by"}) {
+		t.Fatalf("payments band columns = %v", payments.BandColumns)
+	}
+	paymentSplits := specs[14]
+	if !slices.Equal(paymentSplits.Columns, []string{
+		"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount",
+		"received_amount", "change_amount", "paid_by", "created_at",
+	}) {
+		t.Fatalf("payment_splits columns = %v", paymentSplits.Columns)
+	}
+	if !slices.Equal(paymentSplits.BandColumns, []string{"id", "billing_id", "paid_by"}) {
+		t.Fatalf("payment_splits band columns = %v", paymentSplits.BandColumns)
+	}
+
+	wantPlaceholders := map[string]string{
+		"staffs.clinic_id":            "{{CLINIC_ID}}",
+		"procedures.clinic_id":        "{{CLINIC_ID}}",
+		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
+		"owners.clinic_id":            "{{CLINIC_ID}}",
+		"pets.clinic_id":              "{{CLINIC_ID}}",
+		"pets.animal_species_id (fallback only, when unresolved)": "{{FALLBACK_ANIMAL_SPECIES_ID}}",
+		"medical_records.clinic_id":                               "{{CLINIC_ID}}",
+		"vital_records.clinic_id":                                 "{{CLINIC_ID}}",
+		"appointments.clinic_id":                                  "{{CLINIC_ID}}",
+		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
+		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
+		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
+		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
+		"payment_splits.clinic_id":                                "{{CLINIC_ID}}",
+		"payment_splits.payment_method_id (cash)":                 "{{PAYMENT_METHOD_CASH_ID}}",
+		"payment_splits.payment_method_id (credit_card)":          "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
+		"estimates.clinic_id":                                     "{{CLINIC_ID}}",
+		"exams.clinic_id":                                         "{{CLINIC_ID}}",
+		"exams.exam_type_id":                                      "{{FALLBACK_EXAM_TYPE_ID}}",
+		"vaccines.clinic_id":                                      "{{CLINIC_ID}}",
+		"vaccinations.clinic_id":                                  "{{CLINIC_ID}}",
+	}
+	if got := CutoverPlaceholderColumns(); !reflect.DeepEqual(got, wantPlaceholders) {
+		t.Fatalf("placeholder inventory = %v, want %v", got, wantPlaceholders)
 	}
 }
 
@@ -47,6 +120,8 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 		"appointment_trimming_details": {"remarks"},
 		"billings":                     nil,
 		"billing_items":                {"name"},
+		"payments":                     {"insurance_name"},
+		"payment_splits":               nil,
 		"estimates":                    {"estimate_no", "title", "comment", "notes"},
 		"estimate_items":               {"name"},
 		"exams":                        {"result_summary"},
@@ -167,6 +242,148 @@ func TestPreflightCutoverBundleFailsClosed(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*fixtureBundle)
+		wantErr string
+	}{
+		{
+			name: "duplicate payment billing",
+			mutate: func(f *fixtureBundle) {
+				row := append([]string(nil), f.rows["payments"][0]...)
+				row[columnIndex(CutoverTableSpecs()[13].Columns, "id")] = "1000002"
+				f.rows["payments"] = append(f.rows["payments"], row)
+				f.manifest.Tables[13].RowCount++
+			},
+			wantErr: "billing_id",
+		},
+		{
+			name: "payment split without payment parent",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "billing_id")] = "1000002"
+			},
+			wantErr: "payment parent",
+		},
+		{
+			name: "payment method placeholder disagrees with method",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "payment_method_id")] =
+					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
+			},
+			wantErr: "does not match method",
+		},
+		{
+			name: "payment split clinic is not an explicit placeholder",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "clinic_id")] = "1"
+			},
+			wantErr: "clinic placeholder",
+		},
+		{
+			name: "payment subtotal is negative",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "subtotal")] = "-1"
+			},
+			wantErr: "subtotal",
+		},
+		{
+			name: "payment tax total is negative",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "tax_total")] = "-1"
+			},
+			wantErr: "tax_total",
+		},
+		{
+			name: "payment total amount is negative",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "total_amount")] = "-1"
+			},
+			wantErr: "total_amount",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, tt.mutate)
+			_, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+				ManifestSHA256: digest,
+				ClinicCode:     "hachioji",
+				ClinicOrdinal:  1,
+				RunID:          "run-1",
+			})
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.wantErr)) {
+				t.Fatalf("error = %v, want text %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateCutoverPaymentGraphRejectsUnboundedPaymentInventory(t *testing.T) {
+	manifest := CutoverManifest{Tables: []CutoverManifestTable{
+		{Table: "payments", File: "payments.csv", RowCount: maxCutoverPaymentRows + 1},
+		{Table: "payment_splits", File: "payment_splits.csv", RowCount: 0},
+	}}
+	err := validateCutoverPaymentGraph(t.TempDir(), manifest)
+	if err == nil || !strings.Contains(err.Error(), "payment limit") {
+		t.Fatalf("validateCutoverPaymentGraph() error = %v, want payment limit rejection", err)
+	}
+}
+
+func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*fixtureBundle)
+	}{
+		{
+			name: "credit card only",
+			mutate: func(f *fixtureBundle) {
+				paymentColumns := CutoverTableSpecs()[13].Columns
+				splitColumns := CutoverTableSpecs()[14].Columns
+				f.rows["payments"][0][columnIndex(paymentColumns, "method")] = "credit_card"
+				f.rows["payments"][0][columnIndex(paymentColumns, "payment_method_id")] =
+					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
+				f.rows["payments"][0][columnIndex(paymentColumns, "received_amount")] = "0"
+				f.rows["payment_splits"][0][columnIndex(splitColumns, "method")] = "credit_card"
+				f.rows["payment_splits"][0][columnIndex(splitColumns, "payment_method_id")] =
+					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
+				f.rows["payment_splits"][0][columnIndex(splitColumns, "received_amount")] = "0"
+			},
+		},
+		{
+			name: "mixed",
+			mutate: func(f *fixtureBundle) {
+				paymentColumns := CutoverTableSpecs()[13].Columns
+				splitColumns := CutoverTableSpecs()[14].Columns
+				f.rows["payments"][0][columnIndex(paymentColumns, "billing_amount")] = "1500"
+				card := append([]string(nil), f.rows["payment_splits"][0]...)
+				card[columnIndex(splitColumns, "id")] = "1000002"
+				card[columnIndex(splitColumns, "method")] = "credit_card"
+				card[columnIndex(splitColumns, "payment_method_id")] =
+					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
+				card[columnIndex(splitColumns, "amount")] = "500"
+				card[columnIndex(splitColumns, "received_amount")] = "0"
+				f.rows["payment_splits"] = append(f.rows["payment_splits"], card)
+				f.manifest.Tables[14].RowCount++
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, tt.mutate)
+			if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+				ManifestSHA256: digest,
+				ClinicCode:     "hachioji",
+				ClinicOrdinal:  1,
+				RunID:          "run-1",
+			}); err != nil {
+				t.Fatalf("PreflightCutoverBundle() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestReadOwnerOnlyRegularFileRejectsOversizedManifest(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "manifest.json")
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -257,6 +474,26 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				row[i] = "{{FALLBACK_EXAM_TYPE_ID}}"
 			case "reservation_type_id":
 				row[i] = "{{TRIMMING_RESERVATION_TYPE_ID}}"
+			case "method":
+				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "cash"
+				}
+			case "payment_method_id":
+				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "{{PAYMENT_METHOD_CASH_ID}}"
+				}
+			case "subtotal", "total_amount", "billing_amount", "received_amount", "amount":
+				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "1000"
+				}
+			case "tax_total", "insurance_ratio", "insurance_amount", "discount_amount", "change_amount":
+				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "0"
+				}
+			case "created_at":
+				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "2026-07-22T00:00:00Z"
+				}
 			}
 		}
 		for _, column := range spec.BandColumns {

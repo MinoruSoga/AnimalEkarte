@@ -1,4 +1,4 @@
-// Command csv-import is the fail-closed consumer for the old_db nineteen-table
+// Command csv-import is the fail-closed consumer for the old_db twenty-one-table
 // CSV hand-off. It has no old_db database/network dependency: the source is an
 // operator-selected read-only directory plus a trusted manifest SHA-256.
 package main
@@ -37,6 +37,8 @@ type options struct {
 	animalSpeciesID           int64
 	examTypeID                int64
 	trimmingReservationTypeID int64
+	cashPaymentMethodID       int64
+	creditCardPaymentMethodID int64
 	confirmTargetWrite        bool
 	confirmBackupReady        bool
 	confirmTargetHost         string
@@ -45,18 +47,19 @@ type options struct {
 }
 
 type auditReport struct {
-	Status         string                  `json:"status"`
-	StartedAt      time.Time               `json:"startedAt"`
-	CompletedAt    *time.Time              `json:"completedAt,omitempty"`
-	ManifestSHA256 string                  `json:"manifestSha256"`
-	ClinicCode     string                  `json:"clinicCode"`
-	ClinicOrdinal  int64                   `json:"clinicOrdinal"`
-	RunID          string                  `json:"runId"`
-	TargetHost     string                  `json:"targetHost"`
-	TargetDatabase string                  `json:"targetDatabase"`
-	IDBand         csvimport.CutoverIDBand `json:"idBand"`
-	Counts         map[string]int64        `json:"counts,omitempty"`
-	FailureStage   string                  `json:"failureStage,omitempty"`
+	Status         string                   `json:"status"`
+	StartedAt      time.Time                `json:"startedAt"`
+	CompletedAt    *time.Time               `json:"completedAt,omitempty"`
+	ManifestSHA256 string                   `json:"manifestSha256"`
+	ClinicCode     string                   `json:"clinicCode"`
+	ClinicOrdinal  int64                    `json:"clinicOrdinal"`
+	RunID          string                   `json:"runId"`
+	TargetHost     string                   `json:"targetHost"`
+	TargetDatabase string                   `json:"targetDatabase"`
+	SeedIDs        csvimport.CutoverSeedIDs `json:"seedIds"`
+	IDBand         csvimport.CutoverIDBand  `json:"idBand"`
+	Counts         map[string]int64         `json:"counts,omitempty"`
+	FailureStage   string                   `json:"failureStage,omitempty"`
 }
 
 type cutoverTarget interface {
@@ -176,6 +179,8 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 		AnimalSpeciesID:           opt.animalSpeciesID,
 		ExamTypeID:                opt.examTypeID,
 		TrimmingReservationTypeID: opt.trimmingReservationTypeID,
+		CashPaymentMethodID:       opt.cashPaymentMethodID,
+		CreditCardPaymentMethodID: opt.creditCardPaymentMethodID,
 	}
 
 	switch opt.command {
@@ -244,7 +249,7 @@ func parseOptions(args []string) (options, error) {
 	}
 	flags := flag.NewFlagSet("csv-import "+opt.command, flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
-	flags.StringVar(&opt.sourceDir, "source-dir", "", "absolute directory containing manifest.json and nineteen CSV files")
+	flags.StringVar(&opt.sourceDir, "source-dir", "", "absolute directory containing manifest.json and twenty-one CSV files")
 	flags.StringVar(&opt.manifestSHA256, "expected-manifest-sha256", "", "trusted producer manifest SHA-256")
 	flags.StringVar(&opt.clinicCode, "clinic-code", "", "expected producer clinic code")
 	flags.Int64Var(&opt.clinicOrdinal, "clinic-ordinal", 0, "expected producer clinic ordinal (1..50)")
@@ -253,6 +258,8 @@ func parseOptions(args []string) (options, error) {
 	flags.Int64Var(&opt.animalSpeciesID, "fallback-animal-species-id", 0, "explicit active target animal species ID")
 	flags.Int64Var(&opt.examTypeID, "fallback-exam-type-id", 0, "explicit target clinic exam type ID named 検査")
 	flags.Int64Var(&opt.trimmingReservationTypeID, "trimming-reservation-type-id", 0, "explicit active target clinic reservation type ID in category trimming")
+	flags.Int64Var(&opt.cashPaymentMethodID, "cash-payment-method-id", 0, "explicit active target clinic payment method ID with system_key cash")
+	flags.Int64Var(&opt.creditCardPaymentMethodID, "credit-card-payment-method-id", 0, "explicit active target clinic payment method ID with system_key credit_card")
 	flags.BoolVar(&opt.confirmTargetWrite, "confirm-target-write", false, "required for apply")
 	flags.BoolVar(&opt.confirmBackupReady, "confirm-backup-ready", false, "required for apply; confirms a tested pre-import backup exists")
 	flags.StringVar(&opt.confirmTargetHost, "confirm-target-host", "", "required for apply; must exactly equal DB_HOST")
@@ -307,6 +314,7 @@ func applyWithAudit(
 		RunID:          bundle.Manifest.SourceRunID,
 		TargetHost:     targetHost,
 		TargetDatabase: targetDatabase,
+		SeedIDs:        seeds,
 		IDBand:         bundle.Manifest.IDBand,
 	}
 	reportFile, err := createAuditReport(opt.reportPath, reportRoot, report)

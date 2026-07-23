@@ -57,7 +57,7 @@ docker compose exec backend go run ./cmd/seed-export
 
 ## 旧DB移行：正式経路は CSV import（F6）
 
-正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の19表 CSV + manifest を read-only mount して `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で実行する。
+正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の21表 CSV + manifest を read-only mount して `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で実行する。
 
 `stage-import` は old_db Postgres へ直接接続する旧ローカル互換経路であり、F6/F7の本番カットオーバーには使用しない。
 

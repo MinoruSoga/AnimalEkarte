@@ -1,21 +1,23 @@
 # 医院 CSV カットオーバー投入（F6）
 
-更新日: 2026-07-22
+更新日: 2026-07-24
 
-`old_db` が出力した AnimalEkarte 形状 CSV 19 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。
+`old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。
+
+現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。この状態でも21表のmechanicsは検証できますが、実会計行の移行証明にはなりません。
 
 ## 安全境界
 
 - source は絶対パスを `/migration-input:ro` で read-only mount する。
 - one-shot containerへ渡すsecretはDB接続用環境変数だけに限定し、`.env.local` 全体をcontainerへ注入しない。
 - `clinic-migration-run-report.json` に記録された manifest SHA-256 を別経路で受領し、source directory 内から自己申告値を拾わない。
-- manifest は `PASS`、`animalekarte_stage`、医院 code/ordinal、run ID、10M ID band、19 テーブル固定順、各 CSV SHA-256 が完全一致する場合だけ受理する。
+- manifest は `PASS`、`animalekarte_stage`、医院 code/ordinal、run ID、10M ID band、21 テーブル固定順、各 CSV SHA-256 が完全一致する場合だけ受理する。
 - source directory は 0700、manifest/CSV は 0600、symlink は不可。
-- parserのメモリ/時間上限としてmanifestは4MiB、各CSVは512MiBを上限とし、超過時はfail-closedする。
-- target seed ID は4つとも明示する。特に `reservation_types.category='trimming'` は複数行あり得るため、category だけで先頭行を選ばない。
-- apply は対象 band が19表すべて空の場合だけ実行し、既存行を削除・置換しない。
+- parserのメモリ/時間上限としてmanifestは4MiB、各CSVは512MiB、payment親は100万件、splitは親あたり最大2件を上限とし、超過時はfail-closedする。
+- target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
+- apply は対象 band が21表すべて空の場合だけ実行し、既存行を削除・置換しない。
 - apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。
-- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は aggregate count のみ、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
+- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は aggregate count と再検証に必要な非PHIの6 seed IDのみを記録し、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
 
 ## 事前準備
 
@@ -27,6 +29,8 @@
    - active system-wide animal species fallback
    - 対象 clinic の active/non-deleted `exam_types.name='検査'`
    - 対象 clinic の active/non-deleted `reservation_types.category='trimming'`
+   - 対象 clinic の active/non-deleted `payment_methods.system_key='cash'`（同一clinic/keyで1件）
+   - 対象 clinic の active/non-deleted `payment_methods.system_key='credit_card'`（同一clinic/keyで1件）
 5. producer run report と bundle を照合し、manifest SHA-256 を安全な作業票へ転記する。
 
 共通変数の例:
@@ -41,6 +45,8 @@ export TARGET_CLINIC_ID=<id>
 export FALLBACK_ANIMAL_SPECIES_ID=<id>
 export FALLBACK_EXAM_TYPE_ID=<id>
 export TRIMMING_RESERVATION_TYPE_ID=<id>
+export PAYMENT_METHOD_CASH_ID=<id>
+export PAYMENT_METHOD_CREDIT_CARD_ID=<id>
 ```
 
 ## Preflight（read-only）
@@ -49,7 +55,7 @@ export TRIMMING_RESERVATION_TYPE_ID=<id>
 make csv-import-preflight
 ```
 
-source 契約に加えて、target の seed binding、全 migrated ID/FK 列の BIGINT、19 sequence、対象 band が空であることを検証します。1件でも不一致なら apply へ進みません。
+source 契約（payment親子、method placeholder、split算術、`subtotal` / `tax_total` / `total_amount` の非負を含む）に加えて、target の6 seed binding、全 migrated ID/FK 列の BIGINT、21 sequence、会計FK、`payments.billing_id` UNIQUE、`payment_methods(clinic_id, system_key)` partial UNIQUE、対象 band が空であることを検証します。1件でも不一致なら apply へ進みません。
 
 ## Apply
 
@@ -67,9 +73,9 @@ run sheet上でbackup取得・復元手順・担当者を再確認したoperator
 - 復元確認済み backup が存在
 - target host が `DB_HOST` と完全一致
 - target database が `DB_NAME` と完全一致
-- aggregate-only report の新規パス（既存 report を上書きしない）
+- aggregate count + 6 seed IDだけを含むreportの新規パス（既存 report を上書きしない）
 
-apply 後、各 table の件数・clinic isolation・sequence floor を transaction 内で検証してから commit します。19 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上になるよう進めます。
+apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・sequence floor を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上になるよう進めます。
 
 ## Verify（read-only）
 
@@ -77,7 +83,7 @@ apply 後、各 table の件数・clinic isolation・sequence floor を transact
 make csv-import-verify
 ```
 
-manifest 件数、医院割当、seed binding、BIGINT/sequence 契約を再検証します。preflight/apply/verify はCSV列が依存する全FKについてtarget上にvalidated制約が存在することも検証し、その制約をCOPY時にPostgreSQLが適用するため、orphanが1件でもあればapply transactionはcommitされません。
+manifest 件数、医院割当、6 seed binding、BIGINT/sequence契約、`payments.billing_id`を親キーとするpayment_splits論理親子、method seed binding、payment非負額、split合計/received/changeを再検証します。preflight/apply/verify はCSV列が依存する全FKについてtarget上にvalidated制約が存在することも検証し、その制約をCOPY時にPostgreSQLが適用するため、orphanが1件でもあればapply transactionはcommitされません。
 
 ## 失敗・rollback
 
@@ -95,5 +101,7 @@ docker compose exec backend go test ./internal/csvimport -count=1
 docker compose exec backend go test ./cmd/csv-import -count=1
 docker compose exec backend go test ./cmd/migrate -count=1
 ```
+
+実PostgreSQL上のcatalog/payment SQL構文とread-only実行計画は、共有DBの排他leaseを取得した独立セッションで `CSVIMPORT_DB_INTEGRATION=1` を付け、`go test ./internal/csvimport -run TestCutoverPaymentTargetSQLAgainstPostgres -count=1 -p 1` を実行します。このテストはread-only transactionだけを使います。
 
 実 DB apply、DB reset、STG/PROD 操作はこのテスト手順に含みません。

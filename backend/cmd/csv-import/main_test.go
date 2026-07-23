@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/animal-ekarte/backend/internal/csvimport"
 	"github.com/animal-ekarte/backend/internal/dbconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestParseOptions(t *testing.T) {
@@ -30,6 +31,8 @@ func TestParseOptions(t *testing.T) {
 		"--fallback-animal-species-id", "3",
 		"--fallback-exam-type-id", "4",
 		"--trimming-reservation-type-id", "5",
+		"--cash-payment-method-id", "6",
+		"--credit-card-payment-method-id", "7",
 		"--confirm-target-write",
 		"--confirm-backup-ready",
 		"--confirm-target-host", "db",
@@ -42,7 +45,8 @@ func TestParseOptions(t *testing.T) {
 	}
 	if opt.command != "apply" || opt.sourceDir != "/migration-input" || opt.clinicOrdinal != 1 ||
 		opt.clinicID != 2 || opt.animalSpeciesID != 3 || opt.examTypeID != 4 ||
-		opt.trimmingReservationTypeID != 5 || !opt.confirmTargetWrite || !opt.confirmBackupReady {
+		opt.trimmingReservationTypeID != 5 || opt.cashPaymentMethodID != 6 ||
+		opt.creditCardPaymentMethodID != 7 || !opt.confirmTargetWrite || !opt.confirmBackupReady {
 		t.Fatalf("parsed options = %#v", opt)
 	}
 
@@ -88,6 +92,9 @@ func TestRunWithDependenciesRoutesCommandsAndWritesAudit(t *testing.T) {
 			if command == "verify" && target.verifyCalls != 1 {
 				t.Fatalf("verify calls = %d", target.verifyCalls)
 			}
+			if target.lastSeeds.CashPaymentMethodID != 5 || target.lastSeeds.CreditCardPaymentMethodID != 6 {
+				t.Fatalf("payment method seeds = %#v", target.lastSeeds)
+			}
 		})
 	}
 
@@ -123,6 +130,11 @@ func TestRunWithDependenciesRoutesCommandsAndWritesAudit(t *testing.T) {
 		report := readAuditReport(t, reportPath)
 		if report.Status != "PASS" || report.CompletedAt == nil || report.Counts["owners"] != 2 {
 			t.Fatalf("report = %#v", report)
+		}
+		if report.SeedIDs != target.lastSeeds ||
+			report.SeedIDs.CashPaymentMethodID != 5 ||
+			report.SeedIDs.CreditCardPaymentMethodID != 6 {
+			t.Fatalf("report seed IDs = %#v, target seeds = %#v", report.SeedIDs, target.lastSeeds)
 		}
 	})
 }
@@ -258,6 +270,8 @@ func testCLIArgs(command string) []string {
 		"--fallback-animal-species-id", "2",
 		"--fallback-exam-type-id", "3",
 		"--trimming-reservation-type-id", "4",
+		"--cash-payment-method-id", "5",
+		"--credit-card-payment-method-id", "6",
 	}
 }
 
@@ -272,6 +286,7 @@ type fakeCutoverTarget struct {
 	pingError      error
 	preflightError error
 	verifyError    error
+	lastSeeds      csvimport.CutoverSeedIDs
 }
 
 func (f *fakeCutoverTarget) Ping(context.Context) error {
@@ -283,18 +298,21 @@ func (f *fakeCutoverTarget) Close() {
 	f.closed = true
 }
 
-func (f *fakeCutoverTarget) Preflight(context.Context, csvimport.CutoverManifest, csvimport.CutoverSeedIDs) error {
+func (f *fakeCutoverTarget) Preflight(_ context.Context, _ csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
 	f.preflightCalls++
+	f.lastSeeds = seeds
 	return f.preflightError
 }
 
-func (f *fakeCutoverTarget) Verify(context.Context, csvimport.CutoverManifest, csvimport.CutoverSeedIDs) error {
+func (f *fakeCutoverTarget) Verify(_ context.Context, _ csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
 	f.verifyCalls++
+	f.lastSeeds = seeds
 	return f.verifyError
 }
 
-func (f *fakeCutoverTarget) Apply(context.Context, csvimport.CutoverBundle, csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {
+func (f *fakeCutoverTarget) Apply(_ context.Context, _ csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {
 	f.applyCalls++
+	f.lastSeeds = seeds
 	return f.applyResult, f.applyError
 }
 

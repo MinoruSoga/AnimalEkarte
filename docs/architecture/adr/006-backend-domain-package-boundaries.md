@@ -1,7 +1,7 @@
 # ADR-006: backend domain package 境界と許可依存グラフ
 
-**Status**: Accepted（2026-07-19。2026-07-22 amended: product philosophyとの対応と論点の解決状態を同期）
-**Date**: 2026-07-19（Amended: 2026-07-22）
+**Status**: Accepted（2026-07-19。2026-07-24 amended: CSV cutoverを21表契約へ同期）
+**Date**: 2026-07-19（Amended: 2026-07-24）
 **Relates to**: ADR-005（Go/Gin公式ベースライン採用）、ADR-002（clinic_id完全隔離）、[`docs/product-philosophy.md`](../../product-philosophy.md)
 **Deciders**: MinoruSoga（Accepted への昇格判断者）
 
@@ -43,7 +43,7 @@ backend/internal/
 - BE9-2B以降、旧`internal/handler|service|repository`は未移行実装と期限付きcompatibility codeを収めるmigration surfaceとし、新規production実装の追加先にしない。新規実装は本ADRのtarget domain packageへ置く。
 - 自動化は安全な手動pathと同じuse caseを再利用し、停止手段、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 - clinical safety、clinic isolation、authorization、auditabilityは効率化より優先する。package配置だけを安全性の証拠にせず、runtime testとapplication invariantで検証する。
-- `internal/csvimport` は医院カットオーバー専用のcross-domain例外として、固定19表・固定列契約だけを単一transactionで扱う。通常applicationから再利用できる汎用write APIは公開せず、manifest digest、clinic band、明示seed binding、全件検証を満たすoperator commandからのみ呼ぶ。
+- `internal/csvimport` は医院カットオーバー専用のcross-domain例外として、固定21表・固定列契約だけを単一transactionで扱う。`payments.billing_id`一意性と同じ`billing_id`を使うpayment_splits論理親子、cash/credit-cardの明示seed binding、split整合もcommit前とread-only verifyで検証する。通常applicationから再利用できる汎用write APIは公開せず、manifest digest、clinic band、6つの明示seed binding、全件検証を満たすoperator commandからのみ呼ぶ。
 
 **Implementation status (2026-07-22)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[BE-refactor.md BE9-2E-0](../../../BE-refactor.md#be9-2e-0-write-owner)のruntime/AST gateで回帰を防ぐ。
 
