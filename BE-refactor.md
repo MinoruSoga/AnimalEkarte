@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式baseline上のdomain/capability移行
 
-> **ACTIVE (2026-07-19、2026-07-22再照合)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-22、L⑥ code tip `bd3f53987`)**: 大規模domain 3件完了（medicalrecord 完了時185 file・現行分類175 / reservation 77 / billing 65）。L③a〜L⑥とBE9-2E-0は完遂、L⑤は**landing完遂 / release pending**。**現在domain = lstep完了 / 次frontierの正式handoff待ち**。残順 = BE9-2E → BE9-2F → BE9-3 → BE9-4。Session B/C/Dの候補統合・反証確認まではBE9-2E productionを開始せず、L⑤のfresh DB実migration適用もrelease gateとして残す。
+> **ACTIVE (2026-07-23再照合)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
+> **進捗 (2026-07-23)**: trimmingのmain由来exact reconstruction `297a23fc7` / tree `deac925c8`まではSession Dが静的同等性を確認したが、handoffは`Canonical integration: HOLD`でありpost-integration判定はBLOCKED。canonical exact tip、exact Docker mount、global DB lease、DB/race/coverage gate、quiescent barrierが残る。残順 = BE9-2E integration → BE9-2F → BE9-3 → BE9-4。
 > **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#be9-current-state)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
 > **BE8 SUPERSEDED**: 固定layerをGo/Gin公式要件として扱う方針は[ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md)、層優先subpackage/repository→service→handler移行は実測に基づく[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
@@ -66,13 +66,21 @@ backend/
 | 状態 | target domain | classification manifest source数 | 実績・着手方針 |
 |---|---|---:|---|
 | **済** | medicalrecord | 175 | 最大domain・**完了（2026-07-21、完了時inventory 185）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
-| **済** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`・L⑥`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 131 file。次frontierの正式handoffと反証確認待ちで、BE9-2E productionは未着手。内部分割しない（論点#2裁定・単一`internal/lstep`） |
+| **済** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`・L⑥`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 131 file。内部分割しない（論点#2裁定・単一`internal/lstep`） |
 | **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
 | **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
-| 未着手 | staff 31 / auth 25 / clinic 25 / trimming 23 / pet 18 / owner 13 / inventory 12 | 147計 | **BE9-2E の対象**。lstep完了後、ready frontier内のlargest-ready順で処理する。owner は lstep L② の `OwnerResponder` closure 注入（`handler.RespondLinkedOwner`）の解消先でもある |
+| **HOLD / Session D post-integration BLOCKED** | trimming | 23 | candidate `0d759795a` + overlay `234daa3c2`とmain由来reconstruction `297a23fc7`のpath/symbol/business fact静的同等性は確認済み。canonical exact tip、central cutover、exact-source runtime/lease/coverage gateは未完了 |
+| **BLOCKED / 実装未着手** | staff | 31（live source 30） | assignment/shift/multi-clinic deleteのsecurity batchと、reservationへ移動済み1 rowのmanifest是正が先。CSV cutover landing後に残るcsvimport dirty WIPともtable/lock境界が交差 |
+| **BLOCKED / 実装未着手** | auth | 25 | password-reset 2 fileの直接WIP、`checkStaffActive`のfail-open、PermissionGroup ID一覧のclinic scope欠落、global authorizer cutoverが先 |
+| **BLOCKED / 実装未着手** | clinic | 25 | cross-clinic Create/Delete認可、auth-owned PermissionGroup write/delete、`hasPermission` ownershipの是正が先 |
+| **BLOCKED / 実装未着手** | pet | 18 | Owner preloadのclinic predicate欠落とowner側pets直接writeによるwrite-owner重複の解消が先 |
+| **BLOCKED / 実装未着手** | owner | 13 | Pets/Pets.Owner preloadのclinic predicate、pet write owner、commit後reload semanticsの確定が先。LSTEP `OwnerResponder` closure注入の最終解消先 |
+| **BLOCKED / 実装未着手** | inventory | 12 | `DecreaseStock`のID-only updateをclinic-scoped atomic writeまたは同一tx内lock/recheckへ是正し、cross-tenant runtime testを追加するまで移動しない |
 | 済 | manualarticle 6 / httpapi 12 | 18計 | BE9-2B pilotで移行完了 |
 
 暫定表を機械的な固定順にはしない。各batch開始時に、①target依存graphがacyclic、②tenant/認可/transaction/clinical safetyのbaseline testが存在、③route/API/SQL互換性とrollback単位が定義済み、の3条件を満たす**ready frontier**を作る。その中からproduction行数、file数、旧aggregator/call-site削減量が最大のdomain/subdomainを選ぶ（largest-ready）。小規模domainは、大規模targetのcycle解消・直接依存解除に必要な場合だけ先行し、解除後は直ちに大規模targetへ戻る。
+
+BE9-2Eのclassification manifest残量は147 row、fixed tree上の旧source実在は146本である。差分1本はstaff分類の`liff_service_availability_staff.go`が既に`internal/reservation`へ移動済みであることによるmanifest driftであり、staff着手前に是正する。
 
 ### BE9-0: 旧規約の実効面をinventory化する
 
@@ -396,6 +404,17 @@ landing実行結果:
 3. cross-cutting packageは実際の複数consumerがある場合だけ維持し、所有者が1domainへ収束したcodeはそのdomainへ移す。
 4. 各domainのbusiness fact、source of truth、write owner、owner外のwrite call-siteを着手前に列挙し、直接writeをowner APIへ収束させる。挙動変更が必要なら移動batchと分ける。
 
+**Active integration gate — trimming**:
+
+- 比較基準はSession B candidate `0d759795a5dcfde684622bb444dcf81cd22f8b25` / tree `002afc0e04bd97e5a007bcd3078a15a9952dc552`とinventory overlay `234daa3c27ea68a01928f6cc59c5a9d3d65ca3c9` / tree `4a4c7731406be979cf894e8db75d183cde340b5c`。candidate parentはfixed base `a738f8d26c7cd4a1ddb9221e030deb973f16854f`で、いずれもcanonicalへは未統合。
+- candidateのtarget subtreeは43 file（production 20 + test 23）。manifest 23 rowのうち13 rowは実consumerを持つ期限付きfacade、10 rowは旧pathから完全移動している。facadeのdirect consumer切替と撤去はSession A integrationおよびBE9-2Fの残作業。
+- **2026-07-23 Session A v2 snapshot**: canonical mainは`4454d2a00e883df67b402fa08b752a5d9e1d18cb` / tree `fb46dc21e331a3f3e8bb96c333a7a0b4aa30bdfa`。別branch `codex/be9-wave2-session-a-trimming-canonical-overlay-4454d2a`では指定6 commitのconflictなしreplayを完了し、tip `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`を構築した。74 logical record / 103 endpointのpath・blob・mode・deletion mismatchとthree-source mappingのunexplained mismatchはいずれも0。ただしmainはoverlayの祖先であってoverlayはmainから到達できず、canonical integrationではない。
+- exact reconstruction/mappingは完了したが、runtime qualificationとcanonical integrationは未完了。lease-independent test 53件とstatic gateはgreenだが、authoritative global DB leaseがないためDB-backed trimming・transaction/rollback/lock・clinic-isolation、race、current-tree coverageは未実行。fixed-tree reviewはcandidate由来CRITICAL/HIGH 0/0に対してtree全体で継承HIGH 3件を残し、Session AのAC-07/08/09はBLOCKED。
+- **Session D pre-integration静的監査（2026-07-23）**: candidate 43 file（production 20 + test 23）、reconstruction 47 file（production 25 + test 22）、manifest 23 row、期限付きfacade 13本、exported callable 80を照合し、未説明path/symbol/business fact欠落、facade内business/persistence重複、静的route/RBAC/OpenAPI差分、owner外appointment write、新規migration起因CRITICAL/HIGH回帰はいずれも0。23 route tuple、typed reservation intent、outer transaction、lock構造、clinic-scoped detail/options repositoryは静的に維持されている。
+- **Session D post-integration判定 = BLOCKED**: `297a23fc7`はreconstructionでありcanonical exact tipではない。central composition、tygo source、classification manifest、ADR-006、boundary map、route/OpenAPI gateはlegacy central blobのまま。Docker `/app`はdirty canonical mainの`backend`をmountしreconstructionの`internal/trimming`を含まず、global DB leaseもないためruntime/race/vet/lint/coverageは未実行。Session D起因のtracked editは0だが、canonical status fingerprintが並行WIPで変化したためquiescent barrierも未証明。
+- canonical integration前に、mainへlanding済みのCSV cutover `e4e74d1fb`より後に残るcsvimport・password-reset・ADRのdirty WIPをlandingまたは隔離し、main由来のnew tipで全競合軸を再censusする。統合時はtarget直接登録、tygo source、classification manifest、ADR-006、boundary map、本書を同期する。
+- mainから到達可能なexact integration treeでSession AのDB-backed gate・race・coverage・CRITICAL/HIGH 0/0を成立させ、Session Bがsame-tree equivalence、Session Dがindependent post-integration PASSを返し、本書のHOLDを解除した後に限り、Session Cが次のready frontierを再計測する。
+
 **完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件（ADRに記録した期限付き例外を除く）。
 
 <a id="be9-2f-legacy-layer-removal"></a>
@@ -443,23 +462,45 @@ landing実行結果:
 
 ### 並行セッション実行計画（4セッション / ownership view）
 
-本節は残作業を安全に4セッションで並行実行するためのsession ownershipと同期barrierだけを定める。wave 0の混在差分landingとwave 1のL⑥は完了済みであり、現在はwave 2（BE9-2E反復）の前提となる正式handoff・反証確認barrierで停止している。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
+本節は残作業を安全に4セッションで並行実行するためのsession ownershipと同期barrierだけを定める。現在はwave 2のSession A exact reconstruction完了後、runtime qualification・same-tree independent verification・canonical integration前のHOLDである。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
 
 - **Session A（統合owner）**: integration tip、共有file、merge順、共有DB test queue、最終gateを所有する。
-- **Session B（domain lane 1）**: ready frontierで最大の非競合domainを、独立worktreeでdomain-localに実装する。
-- **Session C（domain lane 2）**: Bと競合しない次のlargest-ready domainを、別の独立worktreeで実装する。
+- **Session B（domain lane 1）**: ready frontierで最大の非競合domainを独立worktreeでdomain-localに実装する。wave 2ではcandidate evidenceを保持し、Aのexact integration tip公開後のread-only差分照合だけを担当する。
+- **Session C（domain lane 2）**: wave 2のread-only recensus lane。canonical readiness packet成立後に、Bと競合しない次のlargest-ready domainを再計測し、別の独立worktreeで実装する。
 - **Session D（verification lane）**: dependency、baseline、behavior差分、security/clinic isolation、handoff結果を独立検証する。原則としてproduction codeのwriterにならない。
 
 | wave | Session A（統合owner） | Session B（domain lane 1） | Session C（domain lane 2） | Session D（verification lane） | 同期barrier |
 |---|---|---|---|---|---|
-| 0: 混在差分landing（完了） | immutable snapshotから[landing matrix](#be9-lstep-landing-matrix)の0〜9を順番に再構成・検証し、row 10をdocs-onlyで統合 | BE9-2E-0のpath/hunk inventoryと独立commit-tree案を準備 | L⑥のconsumer inventoryとpath allowlist案をread-onlyで準備 | matrix各rowのscope混入、structural/behavior分離、commit-tree gateを独立確認 | row 0〜10完了。実績commitはlanding matrixを正本とする |
-| 1: L⑥ | SharedFile、typed composition、共有facade/DTO/mock carrier残置を解消する唯一production writer | landing後のfresh manifestを非重複候補群へ分け、BE9-2E候補のbusiness fact/write owner、baseline test、依存、rollback単位をread-onlyで棚卸しする | Bと重ならない候補群を同じ観点で棚卸しし、file/symbol/callerの競合表を作る | B/Cのsize・dependency・baseline測定とL⑥完了条件を独立検証し、ready frontier案をAへ返す | `target:lstep`全rowがL⑥完了条件を満たし、AがB/Cの候補を単一frontierへ統合し、Dが反証確認するまでBE9-2Eのproduction変更を開始しない |
-| 2: BE9-2E反復 | B/Cのbaseとなるintegration tipを固定し、共有composition/gate変更とhandoffを1件ずつ統合する。共有DB testを直列実行する | frontier内で最大のready候補をdomain-localなmove/test/facadeまで担当し、共有面の変更一覧をAへ引き渡す | Bとfile・symbol・caller・business fact・table・write owner・interface/DI・transaction/lock・route/RBAC・gateが非競合な候補のうち最大のものを同じhandoff contractで担当する | B/Cのbaseline、behavior差分、clinic/security invariant、scoped gateを独立検証し、次frontier候補を準備する | B/Cは同じA tipから別worktreeで開始する。Aが先のhandoffを統合した直後にfrontierを再実測し、残るhandoffがdependency・largest-ready・baseline・全競合軸を再PASSした場合だけ統合する。失効したhandoffは破棄または最新tipから再構成する |
+| 2: BE9-2E trimming integration | overlay `297a23fc7` / tree `deac925c8`のexact replay/mappingは完了。Session A固定treeの継承HIGH 3件とSession D追加HIGH contract drift、authoritative DB lease、DB/race/coverageを収束し、protected WIPをlanding/隔離してmainから到達可能なqualified exact tipを公開する | Aのcanonical exact tip公開後、比較基準 `0d759795a` + `234daa3c2`およびoverlay `297a23fc7`との差をsymbol・business fact・transaction/lock・security gate単位でread-only照合する。production/shared write、DB leaseなしのtest、新domain着手は行わない | **TERMINAL BLOCKED**。6 domain recensus、changed blocker再評価、ready matrix、pair/rankingは未計測。canonical readiness packetが揃うまで同じ調査を再実行しない | **PRE-INTEGRATION静的監査PASS / POST-INTEGRATION BLOCKED**。canonical exact tip、exact Docker source、global DB lease、runtime/coverage、quiescent barrier受領後に同じtreeを独立検証する | canonical commit/tree、A完全qualification、B same-tree equivalence、D independent PASS、committed plan HOLD解除の5点が同一packetで揃うまで、Session C recensusと次domain着手を禁止する |
 | 3: BE9-2F | aggregator、共有facade、旧layerとmerge順を所有し、全call-site収束を統合する | 最新A tipでconsumer 0を証明済みの、非競合domain-localな薄いalias/delegateと専用testだけを独立worktreeで削除する | Bと全競合軸が重ならず、同じconsumer 0・薄いfacade条件を満たす別domainの削除を担当する | 削除前後のconsumer、write path、transaction contract、期限付き例外、残存production実装をread-onlyで独立監査する | call-site変更、共有mock/aggregator、route/RBAC/OpenAPI、write ownerを隠し得る削除はAが直列実行する。Aが各handoffを1件ずつ統合してconsumer/write inventoryを再実測し、Dがexact tipを確認してから次へ進む |
 | 4: BE9-3最終収束監査 | 各BE9-2 batchで反復済みのresource監査を集約し、必要なcode/test修正を直列統合する | Aが割り当てたresource群のroute、binding、authn/authz、ownership、error contractを監査する | Bと重ならないresource群を同じchecklistで監査する | `cmd/api`、middleware、server lifecycle、全domain route同時登録、cross-domain invariantを横断監査する | 監査自体は並行可。global surfaceを含む実際の変更はAが直列化し、behavior/security修正はstructural移動と別batchにする |
 | 5: BE9-4 | 最終gate、結果集約、進捗docs完了化を行う唯一writer | 旧symbol、期限切れfacade、旧package production実装の残存をread-onlyで確認する | route/OpenAPI、classification manifest、ADR/boundary map、local linkの同期をread-onlyで確認する | 完了条件、検証証跡、release pending項目を独立に反証し、完了判定案をAへ返す | AがB/C/Dの結果を再現し、BE9-4完了条件を満たした時点だけBE9を完了化する |
 
+**Session B残作業**:
+
+- Session A ownerからmain由来のexact integration tipと採否が明示された時点で、`0d759795a` + `234daa3c2`との差をpath、symbol、business fact、transaction/lock、clinic/security invariant、inventory gate単位で再照合する。A tipが更新された場合は古いhashを推測で追認せず、tip/tree/subtreeを固定し直す。
+- **STOP**: Aの明示handoff前、またはcandidate/overlayと異なるlineageの同等性を証明できない間は、production/shared fileを変更せず、DB leaseなしでDocker/DB-backed testを実行せず、wave 3以降へ進まない。採用・破棄・再構成・canonical適用はSession A専有である。
+
+**Session C現状（2026-07-23）**:
+
+- 最新のread-only runはcanonical identity/WIP boundaryとread-only終了をPASSとした一方、Session A qualification、Session D independent PASS、active plan HOLD解除、six-domain recensus、frontier確定をBLOCKEDとした。Session C-origin writeは0で、観測中のfrontend working-tree driftはHEAD/tree/index/refs/staged state不変の外部変更として分離した。
+- `staff`、`auth`、`clinic`、`pet`、`owner`、`inventory`のproduction file/LOC、manifest/live、facade/call-site削減、changed blocker path、ready条件、全競合軸、rankingはhard stop前提により未計測である。これは「ready候補0件」または「empty frontier」の計測結果ではない。
+- 同一readiness gapの再確認が3回以上続いたため、bounded follow-upは**terminal BLOCKED**とする。次回Session Cを開始できるのは、(1) main-reachable canonical commit/tree、(2) 同一treeのSession A完全qualification、(3) Session B same-tree equivalence、(4) Session D independent post-integration PASS、(5) committed本書のHOLD解除を1つのevidence packetで受領した時だけとする。
+
+**Session D現状（2026-07-23）**:
+
+- verdictは**PRE-INTEGRATION ONLY — POST-INTEGRATION BLOCKED**。candidate、overlay、reconstruction `297a23fc7`の静的移行差分は未説明path/symbol/business fact欠落0、新規migration起因CRITICAL/HIGH回帰0で、既知債務とrelease pendingも分離済み。post-integration rubricによるindependent reviewはreviewer/go-reviewerともFAILである。
+- post-integrationへ進むには、canonical integration COMPLETEを明記したliteral commit/tree/parent/base、clean detached verification worktree、exact backendのDocker `/app` mount/hash、global DB leaseのholder/acquire/release、継承HIGHの修正または明示的owner/release判断、canonical mainのquiescent/immutable barrierが必要である。いずれかが欠ける間はpre-integration evidenceをAPPROVEへ流用しない。
+- readiness後はreconstructionからpost-canonical exact treeまでのcentral差分だけを追加照合し、trimming/reservation/repository/service/handler/apicontractのscoped test、実DB rollback/isolation、race、vet、lint、coverage 80%以上、同一rubricの独立review 2本を同一treeで再実行する。
+
 **並行化規則**:
+
+**物理worktree分離gate**:
+
+- 論理的なsession ownershipやpath allowlistだけでは並行編集の安全条件を満たさない。writeを行う各sessionは**1 session = 1 branch + 1独立worktree**とし、canonical `main` worktreeを通常の実装・docs・検証WIP置き場に使わない。frontend、infra、別backend taskなどBE9外の並行作業にも同じ条件を適用する。
+- canonical `main` worktreeはread-onlyの統合面とし、Session Aだけがcleanかつquiescentなintegration windowで書き込める。Session A以外は`BE-refactor.md`、ADR、classification manifest、boundary map等の共有integration面をcanonicalで直接編集しない。
+- candidateとのpath/hunk overlapが0でも、canonicalにtracked unstaged、staged、untracked、active writerのいずれかが残る間はintegrationを開始しない。これは各sessionの変更量超過を意味するとは限らず、物理worktree分離またはWIP landingが未完了であることを示す。
+- dirty canonicalを検出した場合は、Session Aが`HEAD`、tree、status、staged/unstaged patch、untracked path/hashを固定し、各WIP ownerが自身のbranch/worktreeへ正規にlandingまたは隔離するまでHOLDする。Session Aは他ownerのWIPを代行してstash、clean、restore、bulk commit、破棄しない。
 
 1. L③a〜L⑤・BE9-2E-0の混在差分はsingle-writer barrierとして処理済み。今後も未commit差分が複数laneへ重なった場合は、Session Aが`HEAD`、status、central file hash、staged/unstaged patch、untracked path/hashをimmutable snapshotとして固定し、Session B/C/Dはlive dirty treeではなくsnapshotを参照する。
 2. Session Aはcanonical integration worktreeの唯一writerである。production codeを並行編集できるのは、Aが公開した同一integration tipから作成した**別worktree**を持つB/Cだけとする。BとCは同じworktree、branch、未commit差分を共有せず、Aのtip更新後はhandoff前にrebaseではなく必要に応じて再構成してscopeを再証明する。Session DはAが公開したexact treeを専用verification worktreeで検証する。
@@ -474,21 +515,21 @@ landing実行結果:
 
 <a id="be9-current-state"></a>
 
-### 現在地と着手前ゲート（2026-07-22 更新）
+### 現在地と着手前ゲート（2026-07-23 更新）
 
-**完了した大規模domain 3件**:
-- **medicalrecord（完了時inventory 185、現行分類175 file）**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ ①（`538cdb34`）→ ②（`14f00f6c`）→ ③（`75c55c48`）→ ④a（`e3eb253e`）→ ④b（`cd8fd984d`+`6508faab0`）→ 共有カーネル昇格（`f93299f1c`）→ ⑤（`d4e227cf8`+`f024b09e7`）→ ⑥（`a21977e91`）→ ⑦（`d4d7ef068`）。⑧checkup_syncは論点#7でlstepへ帰属変更。
-- **reservation（77 file）**: Phase 0（`3dc35694e`）→ R①〜R⑥（`c4c95698d`〜`0ee22c180`）。
-- **billing（65 file）**: BUG-417是正（`2634f58fe`）→ B①〜B⑥（`22b2094e1`〜`24420376c`）。
+**現在domain = exact reconstruction完了 / canonical integration HOLD / Session D post-integration BLOCKED**: canonical mainは`4454d2a00` / tree `fb46dc21e`。Session A overlay `297a23fc7` / tree `deac925c8`はmainの6 commit先にある別refで、exact replayとthree-source mappingは成立したがmainから未到達である。Session Dはreconstructionまでの静的同等性と新規migration起因CRITICAL/HIGH回帰0を確認したが、DB-backed gate・race・current-tree coverage、exact-source mount、global DB lease、quiescent barrierは未証明であり、qualification・canonical採用・統合完了を推定しない。staff、auth、clinic、pet、owner、inventoryはsame-tree recensus未実行のBLOCKEDである。
 
-**現在domain = lstep完了 / 次frontierの正式handoff待ち**: 分類manifestの`target:lstep` 119 source rowはすべてtarget packageへの移動またはconsumer 0削除を完了し、旧source path実在0件。現行`internal/lstep`はproduction Go 131 fileであり、manifestの履歴source row数とは別指標。L①（`6bae6095d`）→ L②（`2ef112227`）→ L③a（`d333d63ac`）→ L③b（`ba5767e88`+`5fdfa11fa`）→ L④（`62a09f62e`+`860bd5020`）→ L⑥（`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`）は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。Session B/C/Dの正式handoffは未受領であり、単一ready frontierへの統合と反証確認までBE9-2E productionを開始しない。
+**canonical旧3layer残量（L⑥ code tip `bd3f53987`）**: `_test.go`を除きhandler 77 / service 55 / repository 106（root 81 + nested 25）。LSTEP composition facadeは0本。trimming candidate未統合のため、残量はintegration後に同じ条件で再計測する。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
 
-**旧3layer残量（L⑥ code tip `bd3f53987`）**: `_test.go`を除きhandler 77 / service 55 / repository 106（root 81 + nested 25）。LSTEP composition facadeは0本。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
-
-**その後**: Session B/C/Dの正式handoffを受領し、Session Aが候補を単一frontierへ統合、Session Dがexact tipを反証確認した後に限り、BE9-2E（中小domain 147 source row = staff/auth/clinic/trimming/pet/owner/inventory）→ BE9-2F（facade撤去・`repos.Transaction`機構削除。production consumer は既に0）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。**BE9-2E not started**。
+**次の実行**: 各ownerがcanonicalに残るprotected WIPをlandingまたは隔離する。Session Aは固定tree reviewとSession Dで確認した継承HIGH finding群を解消または正式にrelease-gate裁定し、authoritative global DB lease下でDB-backed trimming・transaction/rollback/lock・clinic-isolation、race、coverage 80%以上、CRITICAL/HIGH 0/0を同一treeで成立させてmainへ統合し、exact commit/treeを公開する。Session Bがsame-tree equivalence、Session Dがindependent post-integration PASSを返し、本書のHOLDをcommitted stateで解除した後、Session Cが6 domainのfrontierを初めて再計測する。その結果に従いBE9-2E残domain → BE9-2F（期限付きfacade撤去・`repos.Transaction`機構削除）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 
 **未解消の技術債とgate（起票状態を明記）**:
-- **解消済み（`de15c7903`）**: BUG-418（`DischargeWithBilling`の監査ログ欠落）。会計を伴う退院はactor/audit dependencyをfail-closedとし、status・会計・明細・合計・監査を同一transactionでrollbackする。
+- **未起票・behavior-changing fixとして分離**: trimming course usage countは`appointments.clinic_id`をscopeするが、`appointment_trimming_details.clinic_id`を直接制約しない。cross-clinic再現DB testを先に追加し、構造移行と分けて修正する。
+- **未起票・clinical audit設計**: trimming CUDにactor-awareなdurable clinical audit sinkがない。同一transaction内のaudit writeとfail-closed policyを別sliceで設計する。
+- **未起票・behavior-changing fixとして分離**: trimming masterの`CountUsage`確認からsoft deleteまでが非原子的でTOCTOUを持つ。対象masterと依存行のlock/recheckを同一transactionへ収束する。
+- **未起票・HIGH contract判断**: trimming POST/PATCHが`completed`を直接受理し、billing-owned completion intentを迂回できる現行contractと`reservation-to-record-flow.md`が不一致。直接受理を拒否するか既存API contractとしてowner/release条件を明記するかを決め、構造移行と分けて固定する。
+- **未起票・MEDIUM fail-closed/API hardening**: unavailable-time/capacity依存のnilを成功扱いするpath、unavailable-time readのambient `DBOrTx`不参加、Updateの`option_ids`上限欠落を別behavior batchで検証・是正する。
+- **post-integration verification gap**: exact PostgreSQL treeでappointment/detail/optionsのCreate/Update rollback、reservation intentのambient transaction、advisory lock serializationを証明するruntime testとcoverage 80%以上が未実行。
 - **未起票・behavior-changing fixとして分離**: L③aの`PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時に部分更新を残し得る。
 - **未起票・contract判断が必要**: L③bの`owner_ids`件数上限と、actor欠落401後もservice実行を継続する既存挙動。
 - **未起票・BE9-2Eまでのcross-domain orchestration判断**: 予約キャンセル後のdraftカルテcleanupは通常の安全削除経路へ統一済みだが、予約更新とは別transactionのbest-effortである。部分成功をretry/outbox/明示的orchestratorのどれで再収束させるかをproduct contractと合わせて決める。
