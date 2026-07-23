@@ -1,6 +1,6 @@
 # UI Design Compliance — 全ルートページ準拠監査
 
-> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体84リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-22**。`frontend/docs/design-audit-pages.md` は本書に統合済みで更新終了。
+> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体84リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-23**。`frontend/docs/design-audit-pages.md` は本書に統合済みで更新終了。
 
 ## 1. 準拠チェック定義
 
@@ -25,11 +25,11 @@
 | C16 | spacing scale にない20px utility（`*-5`、負値、`[20px]` / `[1.25rem]`）禁止 | design-system.md §4.1 | **機械化**（C16） |
 | C17 | CSS の直接 `box-shadow:` / `filter: drop-shadow()` 禁止。elevation token経由必須 | design-system.md §5.1 | **機械化**（C17） |
 | C18 | `TableHead` / `TableCell` 呼び出し側で header eyebrow・body-sm・12px vertical paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、`data-empty-state` + `colSpan` + `text-center` の空state追加余白と子要素は許可） |
-| C19 | `DataTableRow` / `SortableDataTableRow` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の共有row opening tagをmultiline対応で検査） |
+| C19 | `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の4種のrow opening tagをmultiline対応で検査） |
 
 **FE11 正本分割（2026-07-21）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand `#0075DE` は製品採用値であり、臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 
-**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11の対象は本体84ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages に限定し、C18は `.tsx` の共通 Table primitive opening tag、C19は共有 DataTable row opening tagを対象にする。raw `<TableRow>` / `<tr>` の行クリック、ロール内での誤選択、手書き `<th>/<td>`、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
+**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11の対象は本体84ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive opening tag、C19は4種のrow opening tagを対象にする。ロール内での意味的誤選択、手書き `<th>/<td>`、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
 
 **機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C19 は `frontend/scripts/design-system-audit.mjs` で strict fail。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
 ```bash
@@ -38,7 +38,7 @@ docker compose exec frontend pnpm design-audit
 
 ## 2. ページ別対応状況表
 
-**サマリー: 機械適合 83 / P1〜P10 完全確認 0 / 対象外 1（合計 84 リーフルート）**（監査日 2026-07-22）。下表の `✅` は C1〜C19 と shell baseline の機械適合を示し、4 viewport・意味レビュー・臨床状態まで含む完全準拠ではない。完全確認は [`FE-refactor.md`](../../FE-refactor.md) で追跡する。
+**サマリー: 機械適合 83 / P1〜P10・該当V1〜V8 完全確認 83 / BLOCKED 0 / 対象外 1（合計 84 リーフルート）**（監査日 2026-07-23）。83製品ページを1440 / 1200 / 800 / 500pxでproduction component経由で描画し、console error、HTTP 4xx/5xx、document overflow、無名control、44px未満control、continued business non-GETがすべて0であることを確認した。臨床5 routeはgenerated API type・feature type・transform testに適合する明白なsentinel fixtureだけをPlaywright内でfulfillし、共有DBへのbusiness writeは0件とした。最終runtime正本は `frontend/e2e/ui-design-compliance-readonly.spec.ts` と `frontend/e2e/fixtures/ui-design-clinical.ts`。
 
 | エリア | ページ名 | パス | コンポーネント | 機械適合 | 備考 |
 |---|---|---|---|---|---|
@@ -64,17 +64,17 @@ docker compose exec frontend pnpm design-audit
 | 在庫/見積/シフト | シフトカレンダー | /shifts | ShiftCalendarPage | ✅ | |
 | カルテ | カルテ一覧 | /medical-records | MedicalRecords | ✅ | |
 | カルテ | カルテ作成 - ペット選択 | /medical-records/select-pet | MedicalRecordPetSelection | ✅ | |
-| カルテ | カルテ作成(新規) | /medical-records/new | MedicalRecordForm | ✅ | |
+| カルテ | カルテ作成(新規) | /medical-records/new | MedicalRecordForm | ✅ | synthetic pet GET、予約/カルテ作成POSTをlocal fulfillし、synthetic detailへproduction遷移。backend write 0 |
 | カルテ | カルテ編集 | /medical-records/:id | MedicalRecordForm | ✅ | |
 | 入院/ホテル | 入院・ホテル一覧 | /hospitalization | HospitalizationList | ✅ | |
 | 入院/ホテル | 入院・ホテル登録 - ペット選択 | /hospitalization/select-pet | HospitalizationPetSelection | ✅ | |
 | 入院/ホテル | 入院・ホテル登録(新規) | /hospitalization/new | HospitalizationForm | ✅ | |
-| 入院/ホテル | 入院・ホテル詳細 | /hospitalization/:id | HospitalizationDetail | ✅ | C6:死亡表示等は目視要 |
-| 入院/ホテル | 入院・ホテル編集 | /hospitalization/:id/edit | HospitalizationForm | ✅ | |
+| 入院/ホテル | 入院・ホテル詳細 | /hospitalization/:id | HospitalizationDetail | ✅ | typed `BackendHospitalization` / care-plan fixtureで臨床状態・担当医・単価を4 viewport確認 |
+| 入院/ホテル | 入院・ホテル編集 | /hospitalization/:id/edit | HospitalizationForm | ✅ | typed recordのform/treatment-plan hydration、治療・割引の参照専用状態、費用、mount時business non-GET 0を確認 |
 | トリミング | トリミング一覧 | /trimming | TrimmingList | ✅ | |
 | トリミング | トリミング登録 - ペット選択 | /trimming/select-pet | TrimmingPetSelection | ✅ | |
 | トリミング | トリミング登録(新規) | /trimming/new | TrimmingForm | ✅ | |
-| トリミング | トリミング編集 | /trimming/:id | TrimmingForm | ✅ | |
+| トリミング | トリミング編集 | /trimming/:id | TrimmingForm | ✅ | typed `BackendTrimming` とcourse/options/staff master fixtureでedit stateを4 viewport確認 |
 | 検査 | 検査一覧 | /examinations | ExaminationsList | ✅ | |
 | 検査 | 検査登録 - ペット選択 | /examinations/select-pet | ExaminationPetSelection | ✅ | |
 | 検査 | 検査登録(新規) | /examinations/new | ExaminationForm | ✅ | |
@@ -82,7 +82,7 @@ docker compose exec frontend pnpm design-audit
 | ワクチン | ワクチン一覧 | /vaccinations | VaccinationList | ✅ | |
 | ワクチン | ワクチン接種 - ペット選択 | /vaccinations/select-pet | VaccinationPetSelection | ✅ | |
 | ワクチン | ワクチン登録(新規) | /vaccinations/new | VaccinationForm | ✅ | |
-| ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | ✅ | |
+| ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | ✅ | typed `BackendVaccination` とpet/vaccine/doctor fixtureでedit state・担当医帰属を4 viewport確認 |
 | 定期健診 | 定期健診一覧 | /checkups | CheckupsList | ✅ | |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | ✅ | |
 | 定期健診 | 定期健診登録(新規) | /checkups/new | CheckupForm | ✅ | |
@@ -128,8 +128,11 @@ docker compose exec frontend pnpm design-audit
 | 設定/マスタ | Lステップタグ管理 | /settings/lstep/tags | LstepTagManagementPage | ✅ | |
 
 **脚注**:
+- 最終runtime: `cd frontend && ./scripts/run-e2e.sh e2e/ui-design-compliance-readonly.spec.ts --workers=1` は **92/92 PASS**（route inventory 1 + 製品ページ83 + known RBAC 3 + clinical P10 5）。全ページで4 viewport、console/network/overflow/accessible name/44pxを検査し、synthetic interceptorは attempted / locally fulfilled / blocked / continued-to-backend を排他的に集計する。
+- write safety: synthetic non-GETは完全一致allowlistの `POST /api/v1/reservations` と `POST /api/v1/medical-records` だけをlocal fulfillし、それ以外のbusiness non-GETはabortする。same-origin、sentinel `X-Clinic-ID`、non-GETの`X-Requested-With`も検証し、`frontend/e2e/helpers/synthetic-api.spec.ts` 2件と `frontend/e2e/medical-records-create.spec.ts` 1件は **3/3 PASS**、continued-to-backend 0。
+- targeted coverage: 明示したproduct logic 18 source / 17 test file / 138 testで statements **84.58%**、lines **87.38%**、branches **75.89%**、functions **83.10%**。`.coverage-baseline` は変更していない。
 - リダイレクト専用route（`<Navigate replace />`）は表から除外: `/settings/job-title`, `/service-type`, `/diagnosis-type`, `/diagnosis-name`, `/trimming-course`, `/trimming-option`, `/examination`, `/vaccine`, `/consultation`, `/procedure`, `/inquiry-template`, `/shift-template` の **12件**。
 - C1（legacy accent）・C3（route表面hex直書き）は全84ルートで **0件**。生regex `#[0-9A-Fa-f]{3,8}` は issue番号コメント（`#158`等）を誤検知するため、文字列リテラル限定パターンで再検証済み。
 - C5（Primary CTA colorVariant）は route表面で確認できた9件全てが `brand`。legacy variant使用は0件。
-- C15（route named white/black）・C16（非仕様20px spacing）・C17（CSS shadow直書き）・C18（Table primitive非仕様override）・C19（共有DataTable rowの行全体click）は現行treeで **0件**。C16は画面用26件を仕様内scaleへ移行し、印刷ビュー5件は対象外を明示した。C18導入時に36ファイル195行、C19導入時に26ファイル29箇所を検出し、primitive標準とcell内native controlへ移行した。raw `<TableRow onClick>` 7箇所とraw `<tr onClick>` 3箇所はC19対象外で、次バッチとして追跡する。
+- C15（route named white/black）・C16（非仕様20px spacing）・C17（CSS shadow直書き）・C18（Table primitive非仕様override）・C19（4種のrow全体click）は現行treeで **0件**。C16は画面用26件を仕様内scaleへ移行し、印刷ビュー5件は対象外を明示した。C18導入時に36ファイル195行、C19では共有row 29箇所に加えraw `<TableRow onClick>` 7箇所・raw `<tr onClick>` 3箇所をcell内native controlへ移行し、同じ失敗modeの再導入をunit testで禁止した。
 - DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み（DESIGN_SYSTEM.md §10 側の旧baseline記述は本書のみ更新、DESIGN_SYSTEM.md本文は対象外のため未修正）。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。
