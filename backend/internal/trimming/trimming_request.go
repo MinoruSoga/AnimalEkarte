@@ -63,7 +63,7 @@ type createTrimmingRequest struct {
 	EndTime           *time.Time `json:"end_time"`
 	PetID             *uint64    `json:"pet_id"               binding:"required"`
 	StaffID           *uint64    `json:"staff_id"`
-	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting"`
 	ReservationRoute  string     `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
@@ -120,7 +120,7 @@ type updateTrimmingRequest struct {
 	EndTime   *time.Time `json:"end_time"`
 	PetID     *uint64    `json:"pet_id"`
 	StaffID   *uint64    `json:"staff_id"`
-	Status    *string    `json:"status"      binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	Status    *string    `json:"status"      binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
 	StyleRequest   *string  `json:"style_request"`
@@ -133,7 +133,7 @@ type updateTrimmingRequest struct {
 	StyleImage     *string  `json:"style_image"`
 	CompletedImage *string  `json:"completed_image"`
 	// nil = 変更なし、non-nil（空スライス含む）= 全置換
-	OptionIDs *[]uint64 `json:"option_ids"`
+	OptionIDs *[]uint64 `json:"option_ids" binding:"omitempty,max=50,dive"`
 }
 
 func (r *updateTrimmingRequest) toServiceInput() *UpdateTrimmingInput {

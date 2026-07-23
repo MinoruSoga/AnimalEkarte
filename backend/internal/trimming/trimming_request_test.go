@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin/binding"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
@@ -106,7 +108,7 @@ func TestCreateTrimmingRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateTrimmingRequest_ToServiceInput(t *testing.T) {
-	status := "completed"
+	status := "accounting"
 	bwUnit := "kg"
 	styleRequest := ""
 	optionIDs := []uint64{}
@@ -130,5 +132,107 @@ func TestUpdateTrimmingRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.OptionIDs == nil || len(*input.OptionIDs) != 0 {
 		t.Errorf("OptionIDs = %v, want empty slice pointer", input.OptionIDs)
+	}
+}
+
+func TestTrimmingRequest_BindingRejectsDirectCompletedStatus(t *testing.T) {
+	completed := "completed"
+	accounting := "accounting"
+	petID := uint64(1)
+
+	tests := []struct {
+		name    string
+		request any
+		wantErr bool
+	}{
+		{
+			name: "create rejects completed",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1,
+				PetID:             &petID,
+				Status:            completed,
+			},
+			wantErr: true,
+		},
+		{
+			name: "create accepts accounting",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1,
+				PetID:             &petID,
+				Status:            accounting,
+			},
+		},
+		{
+			name:    "update rejects completed",
+			request: &updateTrimmingRequest{Status: &completed},
+			wantErr: true,
+		},
+		{
+			name:    "update accepts accounting",
+			request: &updateTrimmingRequest{Status: &accounting},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := binding.Validator.ValidateStruct(tt.request)
+			if tt.wantErr && err == nil {
+				t.Fatal("ValidateStruct() = nil, want validation error")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("ValidateStruct() = %v, want nil", err)
+			}
+		})
+	}
+}
+
+func TestTrimmingRequest_BindingOptionIDsLimit(t *testing.T) {
+	fiftyIDs := make([]uint64, 50)
+	fiftyOneIDs := make([]uint64, 51)
+	petID := uint64(1)
+
+	tests := []struct {
+		name    string
+		request any
+		wantErr bool
+	}{
+		{
+			name: "create accepts 50 options",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1,
+				PetID:             &petID,
+				OptionIDs:         fiftyIDs,
+			},
+		},
+		{
+			name: "create rejects 51 options",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1,
+				PetID:             &petID,
+				OptionIDs:         fiftyOneIDs,
+			},
+			wantErr: true,
+		},
+		{
+			name:    "update accepts 50 options",
+			request: &updateTrimmingRequest{OptionIDs: &fiftyIDs},
+		},
+		{
+			name:    "update rejects 51 options",
+			request: &updateTrimmingRequest{OptionIDs: &fiftyOneIDs},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := binding.Validator.ValidateStruct(tt.request)
+			if tt.wantErr && err == nil {
+				t.Fatal("ValidateStruct() = nil, want validation error")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("ValidateStruct() = %v, want nil", err)
+			}
+		})
 	}
 }

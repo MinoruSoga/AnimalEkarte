@@ -316,6 +316,9 @@ func (r *reservationRepository) CreateForTrimming(
 	if err := requireTrimmingAmbientTransaction(ctx); err != nil {
 		return nil, err
 	}
+	if err := validateTrimmingCreateStatus(input.Status); err != nil {
+		return nil, err
+	}
 	if err := r.assertActiveTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
@@ -444,6 +447,17 @@ func ValidateTrimmingAppointmentMutable(current model.ReservationStatus) error {
 	}
 }
 
+func validateTrimmingCreateStatus(status model.ReservationStatus) error {
+	switch status {
+	case model.ReservationStatusCompleted:
+		return apperrors.WrapInvalidInput("completed is owned by the accounting completion transition")
+	case model.ReservationStatusNoShow:
+		return apperrors.WrapInvalidInput("no_show is owned by the no-show transition")
+	default:
+		return nil
+	}
+}
+
 func validateTrimmingStatusTransition(current model.ReservationStatus, requested *model.ReservationStatus) error {
 	if err := ValidateTrimmingAppointmentMutable(current); err != nil {
 		return err
@@ -453,6 +467,9 @@ func validateTrimmingStatusTransition(current model.ReservationStatus, requested
 	}
 	if *requested == model.ReservationStatusNoShow {
 		return apperrors.WrapInvalidInput("no_show is owned by the no-show transition")
+	}
+	if *requested == model.ReservationStatusCompleted {
+		return apperrors.WrapInvalidInput("completed is owned by the accounting completion transition")
 	}
 	return nil
 }
