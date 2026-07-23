@@ -299,6 +299,151 @@ func TestClinicRepository_LockActiveByID_HoldsShareLockUntilTransactionEnds(t *t
 	}
 }
 
+func TestClinicRepository_LockByIDForUpdate_SourceContract(t *testing.T) {
+	source, err := os.ReadFile("clinic_repository.go")
+	require.NoError(t, err)
+
+	const methodSignature = "func (r *clinicRepository) LockByIDForUpdate("
+	const nextMethodSignature = "func (r *clinicRepository) FindByID("
+	methodStart := bytes.Index(source, []byte(methodSignature))
+	require.NotEqual(t, -1, methodStart)
+	methodEndOffset := bytes.Index(source[methodStart:], []byte(nextMethodSignature))
+	require.NotEqual(t, -1, methodEndOffset)
+	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
+
+	assert.Contains(t, methodSource, "txFromContext(ctx)")
+	assert.Contains(t, methodSource, "dbOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, `clause.Locking{Strength: "UPDATE"}`)
+	assert.Contains(t, methodSource, `Where("id = ?", id)`)
+	assert.NotContains(t, methodSource, "is_active")
+	assert.Contains(t, methodSource, `apperrors.FromGORM`)
+}
+
+func TestClinicRepository_LockByIDForUpdate_RequiresAmbientTransaction(t *testing.T) {
+	repo := NewClinicRepository(nil)
+
+	clinic, err := repo.LockByIDForUpdate(context.Background(), 1)
+
+	assert.Nil(t, clinic)
+	require.Error(t, err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+}
+
+func TestClinicRepository_LockByIDForUpdate_IncludesInactiveAndReturnsNotFound(t *testing.T) {
+	db := setupClinicTestDB(t)
+	repo := NewClinicRepository(db)
+	transactor := NewTransactor(db)
+	ctx := context.Background()
+
+	activeClinic := makeClinicFixture(t, db, "active clinic update lock target")
+	inactiveClinic := makeClinicFixture(t, db, "inactive clinic update lock target")
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Clinic{}).
+		Where("id = ?", inactiveClinic.ID).
+		Update("is_active", false).Error)
+
+	t.Run("active clinic is returned", func(t *testing.T) {
+		var locked *model.Clinic
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			var lockErr error
+			locked, lockErr = repo.LockByIDForUpdate(txCtx, activeClinic.ID)
+			return lockErr
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, locked)
+		assert.Equal(t, activeClinic.ID, locked.ID)
+		assert.True(t, locked.IsActive)
+	})
+
+	t.Run("inactive clinic is returned for deletion", func(t *testing.T) {
+		var locked *model.Clinic
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			var lockErr error
+			locked, lockErr = repo.LockByIDForUpdate(txCtx, inactiveClinic.ID)
+			return lockErr
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, locked)
+		assert.Equal(t, inactiveClinic.ID, locked.ID)
+		assert.False(t, locked.IsActive)
+	})
+
+	t.Run("missing clinic is NotFound", func(t *testing.T) {
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			_, lockErr := repo.LockByIDForUpdate(txCtx, 999888005)
+			return lockErr
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestClinicRepository_LockByIDForUpdate_HoldsExclusiveLockUntilTransactionEnds(t *testing.T) {
+	db := setupClinicTestDB(t)
+	repo := NewClinicRepository(db)
+	transactor := NewTransactor(db)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	clinic := makeClinicFixture(t, db, "update lock target")
+
+	locked := make(chan struct{})
+	release := make(chan struct{})
+	holderDone := make(chan error, 1)
+	go func() {
+		holderDone <- transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if _, err := repo.LockByIDForUpdate(txCtx, clinic.ID); err != nil {
+				return err
+			}
+			close(locked)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+
+	select {
+	case <-locked:
+	case <-ctx.Done():
+		t.Fatal("clinic UPDATE lock was not acquired")
+	}
+
+	shareDone := make(chan error, 1)
+	go func() {
+		shareDone <- transactor.WithTx(ctx, func(txCtx context.Context) error {
+			_, err := repo.LockActiveByID(txCtx, clinic.ID)
+			return err
+		})
+	}()
+
+	completedBeforeRelease := false
+	var shareErr error
+	select {
+	case shareErr = <-shareDone:
+		completedBeforeRelease = true
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+
+	require.NoError(t, <-holderDone)
+	if !completedBeforeRelease {
+		select {
+		case shareErr = <-shareDone:
+		case <-ctx.Done():
+			t.Fatal("clinic SHARE lock did not resume after the UPDATE lock transaction ended")
+		}
+	}
+	require.NoError(t, shareErr)
+	assert.False(t, completedBeforeRelease, "clinic SHARE lock must wait for the UPDATE lock")
+}
+
 func TestClinicRepository_FindCompany(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)

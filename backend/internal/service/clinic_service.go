@@ -424,9 +424,28 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return apperrors.Wrap(err, "failed to find clinic")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.ensureClinicCanBeDeleted(txCtx, id); err != nil {
+			return err
+		}
+		if err := s.permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, id); err != nil {
+			return apperrors.Wrap(err, "failed to clean up soft-deleted permission groups")
+		}
+		return s.repo.Delete(txCtx, id)
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
+		return apperrors.Wrap(err, "failed to delete clinic")
 	}
+
+	slog.InfoContext(ctx, "clinic deleted", slog.Uint64("clinic_id", id))
+	return nil
+}
+
+func (s *clinicService) ensureClinicCanBeDeleted(ctx context.Context, id uint64) error {
+	if _, err := s.repo.LockByIDForUpdate(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to lock clinic for deletion")
+	}
+
 	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
 	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
 	if err != nil {
@@ -456,22 +475,5 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		dep := dependencies[0]
 		return apperrors.WrapConflict(dep.Label + "が紐付いているため削除できません。関連データを先に整理してください")
 	}
-
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, id); err != nil {
-			return apperrors.Wrap(err, "failed to clean up soft-deleted permission groups")
-		}
-		if err := s.repo.Delete(txCtx, id); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
-		return apperrors.Wrap(err, "failed to delete clinic")
-	}
-
-	slog.InfoContext(ctx, "clinic deleted",
-		slog.Uint64("clinic_id", id))
-
 	return nil
 }

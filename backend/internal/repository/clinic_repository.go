@@ -16,6 +16,7 @@ type ClinicRepository interface {
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
+	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
@@ -71,6 +72,24 @@ func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*mode
 	err := dbOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Where("id = ? AND is_active = ?", id, true).
+		First(&clinic).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", id))
+	}
+	return &clinic, nil
+}
+
+// LockByIDForUpdate holds an UPDATE lock on a clinic until the caller's
+// transaction ends. It intentionally includes inactive clinics because
+// deactivation followed by physical deletion is an existing supported flow.
+func (r *clinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error) {
+	if txFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("clinic update lock requires an active transaction")
+	}
+	var clinic model.Clinic
+	err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
 		First(&clinic).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", id))
@@ -138,7 +157,7 @@ func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
 
 func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Model(&model.Owner{}).
 		Scopes(clinicScope(clinicID)).Where("deleted_at IS NULL").
 		Count(&count).Error
@@ -150,7 +169,7 @@ func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID u
 
 func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
 		Where("staffs.deleted_at IS NULL").
@@ -188,7 +207,7 @@ func (r *clinicRepository) CountBlockingReferencesByClinicID(ctx context.Context
 		}
 
 		var count int64
-		if err := r.db.WithContext(ctx).
+		if err := dbOrTx(ctx, r.db).
 			Table(check.table).
 			Where(query, clinicID).
 			Count(&count).Error; err != nil {

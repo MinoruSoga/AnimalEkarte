@@ -19,6 +19,7 @@ type mockClinicRepository struct {
 	findAllFn               func(ctx context.Context) ([]model.Clinic, error)
 	findByStaffIDFn         func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	findByIDFn              func(ctx context.Context, id uint64) (*model.Clinic, error)
+	lockForUpdateFn         func(ctx context.Context, id uint64) (*model.Clinic, error)
 	getCompanyFn            func(ctx context.Context) (*model.Company, error)
 	createFn                func(ctx context.Context, clinic *model.Clinic) error
 	updateFn                func(ctx context.Context, id uint64, fields map[string]any) error
@@ -68,6 +69,13 @@ func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.
 
 func (m *mockClinicRepository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	return m.FindByID(ctx, id)
+}
+
+func (m *mockClinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error) {
+	if m.lockForUpdateFn != nil {
+		return m.lockForUpdateFn(ctx, id)
+	}
+	return &model.Clinic{ID: id, IsActive: true}, nil
 }
 
 func (m *mockClinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
@@ -805,6 +813,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 		countStaffErr error
 		blockingRefs  []repository.ClinicDependencyCount
 		blockingErr   error
+		lockErr       error
 		repoErr       error
 		wantErr       bool
 		wantNF        bool
@@ -897,7 +906,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			staffCount:    0,
 			countOwnerErr: nil,
 			countStaffErr: nil,
-			repoErr:       apperrors.WrapNotFound("clinic", "999"),
+			lockErr:       apperrors.WrapNotFound("clinic", "999"),
 			wantErr:       true,
 			wantNF:        true,
 		},
@@ -942,6 +951,12 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockClinicRepository{
+				lockForUpdateFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+					if tt.lockErr != nil {
+						return nil, tt.lockErr
+					}
+					return &model.Clinic{ID: id, IsActive: true}, nil
+				},
 				countOwnersByClinicIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.ownerCount, tt.countOwnerErr
 				},
@@ -984,7 +999,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 
 	newRepository := func(deleteFn func(context.Context, uint64) error) *mockClinicRepository {
 		return &mockClinicRepository{
-			findByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+			lockForUpdateFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
 				return &model.Clinic{ID: id}, nil
 			},
 			deleteFn: deleteFn,
@@ -993,13 +1008,37 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 
 	t.Run("cleanup and clinic delete run in order inside the same transaction context", func(t *testing.T) {
 		txMarker := &struct{}{}
-		calls := make([]string, 0, 2)
+		calls := make([]string, 0, 6)
 		repo := newRepository(func(ctx context.Context, id uint64) error {
 			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
 			assert.Equal(t, clinicID, id)
 			calls = append(calls, "delete-clinic")
 			return nil
 		})
+		repo.lockForUpdateFn = func(ctx context.Context, id uint64) (*model.Clinic, error) {
+			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+			assert.Equal(t, clinicID, id)
+			calls = append(calls, "lock-clinic")
+			return &model.Clinic{ID: id}, nil
+		}
+		repo.countOwnersByClinicIDFn = func(ctx context.Context, id uint64) (int64, error) {
+			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+			assert.Equal(t, clinicID, id)
+			calls = append(calls, "count-owners")
+			return 0, nil
+		}
+		repo.countStaffByClinicIDFn = func(ctx context.Context, id uint64) (int64, error) {
+			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+			assert.Equal(t, clinicID, id)
+			calls = append(calls, "count-staff")
+			return 0, nil
+		}
+		repo.countBlockingRefsFn = func(ctx context.Context, id uint64) ([]repository.ClinicDependencyCount, error) {
+			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+			assert.Equal(t, clinicID, id)
+			calls = append(calls, "count-blocking-references")
+			return nil, nil
+		}
 		pgRepo := &mockClinicPermissionGroupWriter{
 			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
 			deleteSoftDeletedByClinicIDFn: func(ctx context.Context, id uint64) error {
@@ -1019,7 +1058,14 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"cleanup-permission-groups", "delete-clinic"}, calls)
+		assert.Equal(t, []string{
+			"lock-clinic",
+			"count-owners",
+			"count-staff",
+			"count-blocking-references",
+			"cleanup-permission-groups",
+			"delete-clinic",
+		}, calls)
 	})
 
 	t.Run("cleanup failure prevents clinic delete and preserves the cause", func(t *testing.T) {
@@ -1089,8 +1135,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 		assert.False(t, deleteCalled)
 	})
 
-	t.Run("active permission groups retain conflict semantics and skip transaction", func(t *testing.T) {
-		txCalled := false
+	t.Run("active permission groups retain conflict semantics inside transaction", func(t *testing.T) {
 		repo := newRepository(func(_ context.Context, _ uint64) error {
 			t.Fatal("clinic delete must not run for an active permission group")
 			return nil
@@ -1105,17 +1150,16 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 				return nil
 			},
 		}
-		tx := &mockTransactor{
-			withTxFn: func(_ context.Context, _ func(context.Context) error) error {
-				txCalled = true
-				return nil
-			},
-		}
+		txCalled := false
+		tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			txCalled = true
+			return fn(ctx)
+		}}
 
 		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))
-		assert.False(t, txCalled)
+		assert.True(t, txCalled)
 	})
 }
