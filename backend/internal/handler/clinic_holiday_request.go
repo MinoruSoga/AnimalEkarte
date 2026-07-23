@@ -1,11 +1,13 @@
 package handler
 
-import "net/url"
+import (
+	"net/url"
 
-type listClinicHolidaysQuery struct {
-	YearMonth string
-}
+	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
+)
+
+type listClinicHolidaysQuery = clinicdomain.ListClinicHolidaysQuery
 
 func newListClinicHolidaysQuery(values url.Values) listClinicHolidaysQuery {
-	return listClinicHolidaysQuery{YearMonth: values.Get("year_month")}
+	return clinicdomain.NewListClinicHolidaysQuery(values)
 }

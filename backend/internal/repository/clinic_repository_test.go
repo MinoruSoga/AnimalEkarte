@@ -146,7 +146,7 @@ func TestClinicRepository_FindByID(t *testing.T) {
 }
 
 func TestClinicRepository_LockActiveByID_SourceContract(t *testing.T) {
-	source, err := os.ReadFile("clinic_repository.go")
+	source, err := os.ReadFile("../clinic/clinic_repository.go")
 	require.NoError(t, err)
 
 	const methodSignature = "func (r *clinicRepository) LockActiveByID("
@@ -157,8 +157,8 @@ func TestClinicRepository_LockActiveByID_SourceContract(t *testing.T) {
 	require.NotEqual(t, -1, methodEndOffset)
 	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
 
-	assert.Contains(t, methodSource, "txFromContext(ctx)")
-	assert.Contains(t, methodSource, "dbOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, "repohelpers.TxFromContext(ctx)")
+	assert.Contains(t, methodSource, "repohelpers.DBOrTx(ctx, r.db)")
 	assert.Contains(t, methodSource, `clause.Locking{Strength: "SHARE"}`)
 	assert.Contains(t, methodSource, `Where("id = ? AND is_active = ?", id, true)`)
 	assert.Contains(t, methodSource, `apperrors.FromGORM`)
@@ -300,7 +300,7 @@ func TestClinicRepository_LockActiveByID_HoldsShareLockUntilTransactionEnds(t *t
 }
 
 func TestClinicRepository_LockByIDForUpdate_SourceContract(t *testing.T) {
-	source, err := os.ReadFile("clinic_repository.go")
+	source, err := os.ReadFile("../clinic/clinic_repository.go")
 	require.NoError(t, err)
 
 	const methodSignature = "func (r *clinicRepository) LockByIDForUpdate("
@@ -311,8 +311,8 @@ func TestClinicRepository_LockByIDForUpdate_SourceContract(t *testing.T) {
 	require.NotEqual(t, -1, methodEndOffset)
 	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
 
-	assert.Contains(t, methodSource, "txFromContext(ctx)")
-	assert.Contains(t, methodSource, "dbOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, "repohelpers.TxFromContext(ctx)")
+	assert.Contains(t, methodSource, "repohelpers.DBOrTx(ctx, r.db)")
 	assert.Contains(t, methodSource, `clause.Locking{Strength: "UPDATE"}`)
 	assert.Contains(t, methodSource, `Where("id = ?", id)`)
 	assert.NotContains(t, methodSource, "is_active")

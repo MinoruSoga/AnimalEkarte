@@ -1,62 +1,39 @@
+// Package handler keeps the legacy clinic HTTP surface during BE9 migration.
+// Route implementations live in internal/clinic; hasPermission remains here
+// temporarily because global legacy permission middleware still consumes it.
 package handler
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
+	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
 )
 
-// ListClinics godoc
-// scope=all: 全クリニック一覧を返す（system_admin のみ）
-// scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
-func (h *Handler) ListClinics(c *gin.Context) {
-	query := newListClinicQuery(c.Request.URL.Query())
-
-	if query.Scope == "all" {
-		if !requireSystemAdmin(c) {
-			return
-		}
-		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
-		if err != nil {
-			RespondError(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
-		return
+func (h *Handler) clinicDomainHandler() *clinicdomain.Handler {
+	if h.svc == nil {
+		return clinicdomain.NewHandler(nil, nil, nil, nil, h.RequirePermission)
 	}
-
-	// デフォルト: staff_clinic_assignments から割当済みクリニック一覧を返す
-	staffID, ok := extractStaffID(c)
-	if !ok {
-		return
-	}
-	clinics, err := h.svc.Clinic.ListClinicsByStaffID(c.Request.Context(), staffID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
+	return clinicdomain.NewHandler(
+		h.svc.Clinic,
+		h.svc.ClinicHoliday,
+		h.svc.ClosingSettings,
+		h.svc.Company,
+		h.RequirePermission,
+	)
 }
 
-func requireSystemAdmin(c *gin.Context) bool {
-	isSystemAdmin, ok := extractIsSystemAdmin(c)
-	if !ok {
-		return false
-	}
-	if !isSystemAdmin {
-		RespondError(c, apperrors.WrapForbidden("system administrator access required"))
-		return false
-	}
-	return true
+func (h *Handler) ListClinics(c *gin.Context)  { h.clinicDomainHandler().ListClinics(c) }
+func (h *Handler) GetClinic(c *gin.Context)    { h.clinicDomainHandler().GetClinic(c) }
+func (h *Handler) CreateClinic(c *gin.Context) { h.clinicDomainHandler().CreateClinic(c) }
+func (h *Handler) UpdateClinic(c *gin.Context) { h.clinicDomainHandler().UpdateClinic(c) }
+func (h *Handler) DeleteClinic(c *gin.Context) { h.clinicDomainHandler().DeleteClinic(c) }
+func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
+	h.clinicDomainHandler().RegisterClinicRoutes(rg)
 }
 
-// hasPermission はユーザーの実効権限を確認する。
-// is_system_admin=true は全権限バイパス。
-// それ以外は permission_group_rules から判定する（clinic_id スコープ付き）。
+// hasPermission is the compatibility authorization hook used by legacy global
+// permission middleware and discount guards. New domain handlers consume the
+// auth-owned RequirePermission method value instead.
 func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
@@ -95,115 +72,4 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 		}
 	}
 	return false
-}
-
-// GetClinic godoc
-// system_admin は任意クリニックを取得可能。それ以外は所属クリニックのみ。
-func (h *Handler) GetClinic(c *gin.Context) {
-	id, ok := parseIDParam(c, "clinic_id")
-	if !ok {
-		return
-	}
-	isSystemAdmin, ok := extractIsSystemAdmin(c)
-	if !ok {
-		return
-	}
-	if !isSystemAdmin {
-		clinicID, ok := extractClinicID(c)
-		if !ok {
-			return
-		}
-		if id != clinicID {
-			RespondError(c, apperrors.WrapForbidden("cannot access other clinics"))
-			return
-		}
-	}
-	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toClinicResponse(clinic))
-}
-
-// UpdateClinic godoc
-// system_admin は任意クリニックを更新可能。それ以外は所属クリニックのみ。
-func (h *Handler) UpdateClinic(c *gin.Context) {
-	id, ok := parseIDParam(c, "clinic_id")
-	if !ok {
-		return
-	}
-	isSystemAdmin, ok := extractIsSystemAdmin(c)
-	if !ok {
-		return
-	}
-	if !isSystemAdmin {
-		clinicID, ok := extractClinicID(c)
-		if !ok {
-			return
-		}
-		if id != clinicID {
-			RespondError(c, apperrors.WrapForbidden("cannot update other clinics"))
-			return
-		}
-	}
-	var req updateClinicRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-
-	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, req.toServiceInput())
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toClinicResponse(result))
-}
-
-// CreateClinic godoc
-// system_admin のみ作成可能。
-func (h *Handler) CreateClinic(c *gin.Context) {
-	if !requireSystemAdmin(c) {
-		return
-	}
-	var req createClinicRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), req.toServiceInput())
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Header("Location", fmt.Sprintf("/api/v1/clinics/%d", result.ID))
-	c.JSON(http.StatusCreated, toClinicResponse(result))
-}
-
-// DeleteClinic godoc
-// system_admin のみ削除可能。
-func (h *Handler) DeleteClinic(c *gin.Context) {
-	if !requireSystemAdmin(c) {
-		return
-	}
-	id, ok := parseIDParam(c, "clinic_id")
-	if !ok {
-		return
-	}
-	if err := h.svc.Clinic.DeleteClinic(c.Request.Context(), id); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
-// RegisterClinicRoutes はクリニック設定関連のルートを登録する
-func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
-	clinics := rg.Group("/clinics")
-	clinics.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListClinics)
-	clinics.GET("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetClinic)
-	clinics.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateClinic)
-	clinics.PATCH("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
-	clinics.DELETE("/:clinic_id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)
 }

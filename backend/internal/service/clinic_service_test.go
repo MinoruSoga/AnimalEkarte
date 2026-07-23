@@ -14,6 +14,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+func clinicBoolPtr(value bool) *bool {
+	return &value
+}
+
 // mockClinicRepository は ClinicRepository のテスト用モック実装
 type mockClinicRepository struct {
 	findAllFn               func(ctx context.Context) ([]model.Clinic, error)
@@ -637,9 +641,9 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 	t.Run("指定した帳票設定が実カラム名付きで更新マップへ入る", func(t *testing.T) {
 		fields, err := buildClinicUpdate(&UpdateClinicInput{
-			AccountingDocumentShowLogo:                boolPtr(true),
-			AccountingDocumentShowRegistrationWarning: boolPtr(false),
-			AccountingDocumentShowItemCategory:        boolPtr(false),
+			AccountingDocumentShowLogo:                clinicBoolPtr(true),
+			AccountingDocumentShowRegistrationWarning: clinicBoolPtr(false),
+			AccountingDocumentShowItemCategory:        clinicBoolPtr(false),
 			AccountingDocumentFooterNote:              strPtr("ご来院ありがとうございました。"),
 		})
 

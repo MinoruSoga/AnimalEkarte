@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/closingspecialperiod"
+	"github.com/animal-ekarte/backend/internal/clinic"
 )
 
 // ClosingSpecialPeriodRepository is a stable facade alias for closingspecialperiod.
-type ClosingSpecialPeriodRepository = closingspecialperiod.Repository
+type ClosingSpecialPeriodRepository = clinic.ClosingSpecialPeriodRepository
 
 // NewClosingSpecialPeriodRepository constructs the closing special period repository.
 func NewClosingSpecialPeriodRepository(db *gorm.DB) ClosingSpecialPeriodRepository {
-	return closingspecialperiod.New(db)
+	return clinic.NewClosingSpecialPeriodRepository(db)
 }
