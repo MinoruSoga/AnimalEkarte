@@ -1,4 +1,4 @@
-package repository
+package inventory
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // ---- 実 DB 結合テスト（merchandise_item_repository.go）----
@@ -22,8 +23,8 @@ import (
 // それらも migrate する。
 func setupMerchandiseItemRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.MerchandiseItem{}, &model.Billing{}, &model.BillingItem{},
 		&model.Estimate{}, &model.EstimateItem{},
 	))

@@ -1,4 +1,5 @@
-// Package inventory owns inventory_items data access (BE8-4 batch18 — leaf domain).
+// Package inventory owns inventory and merchandise-item HTTP, use-case, and
+// persistence behavior as one ADR-006 vertical slice.
 package inventory
 
 import (
@@ -14,7 +15,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
-// Repository is the data access interface for inventory items.
+// Repository is the temporary full persistence surface retained for the legacy
+// repository aggregator. Domain consumers already depend on narrower,
+// consumer-owned interfaces. Remove this exported interface in BE9-2F after
+// the aggregator and its compatibility facade are removed.
 type Repository interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
@@ -127,7 +131,7 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 // status は SD-4 決裁A（q&a.html SD-4）により
 // 保存値を信頼しないことになったため、ここでの再計算は行わない — 読み取り時に
 // model.DeriveInventoryStatus で quantity/min_stock_level から都度導出する
-// （handler/inventory_response.go の toInventoryResponse を参照）。
+// （internal/inventory/inventory_response.go の toInventoryResponse を参照）。
 func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
 	result := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).

@@ -1,130 +1,31 @@
-// Package handler provides HTTP handler implementations for MerchandiseItem entity.
 package handler
 
-import (
-	"fmt"
-	"net/http"
+import "github.com/gin-gonic/gin"
 
-	"github.com/gin-gonic/gin"
+// The methods in this file are BE9-2F compatibility delegates for
+// master_routes.go. Delete them after the inventory domain registers its
+// merchandise-item routes directly.
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
-)
-
-// ListMerchandiseItems godoc
-// マスタ API は全件取得（ページネーションなし）で配列を直接返す。
-// 他のマスタ API（cages, staffs 等）と同じパターン。
 func (h *Handler) ListMerchandiseItems(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	query := newListMerchandiseItemsQuery(c.Request.URL.Query())
-	items, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, query.Category)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(items, toMerchandiseItemResponse))
+	h.inventoryDomainHandler().ListMerchandiseItems(c)
 }
 
-// GetMerchandiseItem godoc
 func (h *Handler) GetMerchandiseItem(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-
-	item, err := h.svc.MerchandiseItem.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponse(item))
+	h.inventoryDomainHandler().GetMerchandiseItem(c)
 }
 
-// CreateMerchandiseItem godoc
 func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	var req createMerchandiseItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-
-	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, req.toServiceInput())
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Header("Location", fmt.Sprintf("/v1/masters/merchandise-items/%d", item.ID))
-	c.JSON(http.StatusCreated, toMerchandiseItemResponse(item))
+	h.inventoryDomainHandler().CreateMerchandiseItem(c)
 }
 
-// UpdateMerchandiseItem godoc
 func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-
-	var req updateMerchandiseItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-
-	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponse(item))
+	h.inventoryDomainHandler().UpdateMerchandiseItem(c)
 }
 
-// ReorderMerchandiseItems godoc
 func (h *Handler) ReorderMerchandiseItems(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	var req reorderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-	if err := h.svc.MerchandiseItem.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
+	h.inventoryDomainHandler().ReorderMerchandiseItems(c)
 }
 
-// DeleteMerchandiseItem godoc
 func (h *Handler) DeleteMerchandiseItem(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if err := h.svc.MerchandiseItem.Delete(c.Request.Context(), clinicID, id); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
+	h.inventoryDomainHandler().DeleteMerchandiseItem(c)
 }

@@ -1,6 +1,6 @@
 package inventory
 
-// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
+// repository_test.go — inventory Repository の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindAll / FindByID / Create / Update / Delete / DecreaseStock /
 //       CountUsageByInventoryID / DeleteByNameAndMedicineCategory / UpdateNameByMedicineCategory

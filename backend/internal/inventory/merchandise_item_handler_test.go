@@ -1,4 +1,4 @@
-package handler
+package inventory
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock MerchandiseItemService ----
@@ -23,8 +22,8 @@ import (
 type mockMerchandiseItemService struct {
 	listFn    func(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -37,14 +36,14 @@ func (m *mockMerchandiseItemService) GetByID(ctx context.Context, clinicID, id u
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockMerchandiseItemService) Create(ctx context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+func (m *mockMerchandiseItemService) Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, clinicID, input)
 	}
 	return &model.MerchandiseItem{}, nil
 }
 
-func (m *mockMerchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+func (m *mockMerchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
@@ -61,10 +60,8 @@ func (m *mockMerchandiseItemService) Reorder(ctx context.Context, clinicID uint6
 
 // ---- test helper ----
 
-func newHandlerWithMerchandiseItemSvc(svc service.MerchandiseItemService) *Handler {
-	return &Handler{
-		svc: &service.Services{MerchandiseItem: svc},
-	}
+func newHandlerWithMerchandiseItemSvc(svc MerchandiseItemService) *Handler {
+	return NewHandler(nil, svc, allowInventoryTestPermission)
 }
 
 // ---- ListMerchandiseItems ----
@@ -260,7 +257,7 @@ func TestCreateMerchandiseItem(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "プレミアムフード", input.Name)
 					assert.Equal(t, "food", input.Category)
@@ -310,7 +307,7 @@ func TestCreateMerchandiseItem(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -361,7 +358,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 			body:     map[string]any{"name": "更新済み商品"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					require.NotNil(t, input.Name)
 					assert.Equal(t, "更新済み商品", *input.Name)
 					return &model.MerchandiseItem{ID: 1, Name: *input.Name}, nil
@@ -376,7 +373,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 			body:     map[string]any{"unit_price": 500},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					require.NotNil(t, input.UnitPrice)
 					assert.Equal(t, int64(500), *input.UnitPrice)
 					return &model.MerchandiseItem{ID: 1}, nil
@@ -406,7 +403,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					return nil, apperrors.WrapNotFound("merchandise_item", "999")
 				},
 			},
@@ -418,7 +415,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 			body:     map[string]any{},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMerchandiseItemService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 				},
 			},
@@ -452,7 +449,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 
 // ---- DeleteMerchandiseItem ----
 
-func newDeleteMerchandiseItemRouter(svc service.MerchandiseItemService) *gin.Engine {
+func newDeleteMerchandiseItemRouter(svc MerchandiseItemService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithMerchandiseItemSvc(svc)
 	r.DELETE("/merchandise-items/:id", func(c *gin.Context) {
@@ -533,7 +530,7 @@ func TestDeleteMerchandiseItem(t *testing.T) {
 
 // ---- ReorderMerchandiseItems ----
 
-func newReorderMerchandiseItemsRouter(svc service.MerchandiseItemService) *gin.Engine {
+func newReorderMerchandiseItemsRouter(svc MerchandiseItemService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithMerchandiseItemSvc(svc)
 	r.PUT("/merchandise-items/reorder", func(c *gin.Context) {

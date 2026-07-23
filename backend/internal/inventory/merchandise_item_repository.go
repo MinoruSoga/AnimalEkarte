@@ -1,5 +1,4 @@
-// Package merchandiseitem owns merchandise_items master data access.
-package merchandiseitem
+package inventory
 
 import (
 	"context"
@@ -11,8 +10,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
-// Repository is the data access interface for merchandise items.
-type Repository interface {
+// MerchandiseItemRepository is the temporary full persistence surface retained
+// for the legacy repository aggregator. Domain consumers already depend on
+// narrower, consumer-owned interfaces. Remove this exported interface in BE9-2F
+// after the aggregator and its compatibility facade are removed.
+type MerchandiseItemRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
@@ -22,14 +24,14 @@ type Repository interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type repository struct{ db *gorm.DB }
+type merchandiseItemRepository struct{ db *gorm.DB }
 
-// New constructs a Repository.
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+// NewMerchandiseItemRepository constructs the merchandise-item repository.
+func NewMerchandiseItemRepository(db *gorm.DB) MerchandiseItemRepository {
+	return &merchandiseItemRepository{db: db}
 }
 
-func (r *repository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
 	items := make([]model.MerchandiseItem, 0)
 	q := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID))
 	if category != "" {
@@ -41,31 +43,31 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64, category stri
 	return items, nil
 }
 
-func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	return repohelpers.FindByIDScoped[model.MerchandiseItem](ctx, r.db, "merchandise_item", clinicID, id)
 }
 
-func (r *repository) Create(ctx context.Context, item *model.MerchandiseItem) error {
+func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {
 	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
 		return apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	return nil
 }
 
-func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
 	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *repository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return repohelpers.ReorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids, "sort_order")
 }
 
 // CountUsageByMerchandiseItemID returns billing_items + estimate_items references (BUG-109).
 // Child tables lack clinic_id; tenant isolation is via JOIN.
-func (r *repository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
+func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
 	var billingCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
@@ -87,6 +89,6 @@ func (r *repository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID
 	return billingCount + estimateCount, nil
 }
 
-func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return repohelpers.DeleteScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
 }

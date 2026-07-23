@@ -3,13 +3,15 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/merchandiseitem"
+	"github.com/animal-ekarte/backend/internal/inventory"
 )
 
-// MerchandiseItemRepository is a stable facade alias for merchandiseitem.
-type MerchandiseItemRepository = merchandiseitem.Repository
+// MerchandiseItemRepository is a BE9-2F compatibility alias for the legacy
+// Repositories aggregator and its billing composition caller. Delete after
+// those callers construct internal/inventory directly.
+type MerchandiseItemRepository = inventory.MerchandiseItemRepository
 
-// NewMerchandiseItemRepository constructs the merchandise item repository.
+// NewMerchandiseItemRepository is a BE9-2F compatibility constructor.
 func NewMerchandiseItemRepository(db *gorm.DB) MerchandiseItemRepository {
-	return merchandiseitem.New(db)
+	return inventory.NewMerchandiseItemRepository(db)
 }

@@ -1,8 +1,9 @@
-package handler
+package inventory
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -31,7 +32,7 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse
 		TaxRate:   m.TaxRate,
 		IsActive:  m.IsActive,
 		SortOrder: m.SortOrder,
-		CreatedAt: localTime(m.CreatedAt),
-		UpdatedAt: localTime(m.UpdatedAt),
+		CreatedAt: httpapi.LocalTime(m.CreatedAt),
+		UpdatedAt: httpapi.LocalTime(m.UpdatedAt),
 	}
 }

@@ -1,10 +1,6 @@
-package handler
+package inventory
 
-import (
-	"net/url"
-
-	"github.com/animal-ekarte/backend/internal/service"
-)
+import "net/url"
 
 type listMerchandiseItemsQuery struct {
 	Category string
@@ -25,8 +21,8 @@ type createMerchandiseItemRequest struct {
 	SortOrder int      `json:"sort_order"`
 }
 
-func (r *createMerchandiseItemRequest) toServiceInput() *service.CreateMerchandiseItemInput {
-	return &service.CreateMerchandiseItemInput{
+func (r *createMerchandiseItemRequest) toServiceInput() *CreateMerchandiseItemInput {
+	return &CreateMerchandiseItemInput{
 		Name:      r.Name,
 		Category:  r.Category,
 		UnitPrice: r.UnitPrice,
@@ -48,8 +44,8 @@ type updateMerchandiseItemRequest struct {
 	SortOrder *int     `json:"sort_order" binding:"omitempty,min=0"`
 }
 
-func (r updateMerchandiseItemRequest) toServiceInput() *service.UpdateMerchandiseItemInput {
-	return &service.UpdateMerchandiseItemInput{
+func (r updateMerchandiseItemRequest) toServiceInput() *UpdateMerchandiseItemInput {
+	return &UpdateMerchandiseItemInput{
 		Name:      r.Name,
 		Category:  r.Category,
 		UnitPrice: r.UnitPrice,

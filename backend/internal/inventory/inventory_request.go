@@ -1,10 +1,10 @@
-package handler
+package inventory
 
 import (
 	"net/url"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listInventoryQuery struct {
@@ -26,8 +26,8 @@ type listInventoryFilters struct {
 
 func (q listInventoryQuery) toServiceFilters() listInventoryFilters {
 	return listInventoryFilters{
-		Category: optionalStringQueryFilter(q.Category),
-		Status:   optionalStringQueryFilter(q.Status),
+		Category: httpapi.NilIfEmpty(q.Category),
+		Status:   httpapi.NilIfEmpty(q.Status),
 	}
 }
 
@@ -45,16 +45,16 @@ type createInventoryRequest struct {
 	Status        string  `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
-func (r *createInventoryRequest) toServiceInput() (*service.CreateInventoryInput, error) {
-	expiryDate, err := parseDate(r.ExpiryDate)
+func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error) {
+	expiryDate, err := httpapi.ParseDate(r.ExpiryDate)
 	if err != nil {
 		return nil, err
 	}
-	lastRestocked, err := parseDate(r.LastRestocked)
+	lastRestocked, err := httpapi.ParseDate(r.LastRestocked)
 	if err != nil {
 		return nil, err
 	}
-	return &service.CreateInventoryInput{
+	return &CreateInventoryInput{
 		Name:          r.Name,
 		Category:      r.Category,
 		Quantity:      r.Quantity,
@@ -82,7 +82,7 @@ type updateInventoryRequest struct {
 	Status        *string `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
-func (r *updateInventoryRequest) toServiceInput() (*service.UpdateInventoryInput, error) {
+func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error) {
 	var category *model.InventoryCategory
 	if r.Category != nil {
 		cat := model.InventoryCategory(*r.Category)
@@ -93,15 +93,15 @@ func (r *updateInventoryRequest) toServiceInput() (*service.UpdateInventoryInput
 		s := model.InventoryStatus(*r.Status)
 		status = &s
 	}
-	expiryDate, err := parseDate(r.ExpiryDate)
+	expiryDate, err := httpapi.ParseDate(r.ExpiryDate)
 	if err != nil {
 		return nil, err
 	}
-	lastRestocked, err := parseDate(r.LastRestocked)
+	lastRestocked, err := httpapi.ParseDate(r.LastRestocked)
 	if err != nil {
 		return nil, err
 	}
-	return &service.UpdateInventoryInput{
+	return &UpdateInventoryInput{
 		Name:          r.Name,
 		Category:      category,
 		Quantity:      r.Quantity,

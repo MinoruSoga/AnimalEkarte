@@ -1,9 +1,4 @@
-package repository
-
-// BE9-2D ⑥注記: medicine repository 実装は internal/medicalrecord へ移動済みだが、本テストは
-// inventory repository（未移行 domain）との tx atomicity を跨いで検証するため repository package に
-// 残置し facade 経由で実装を検証する（medicalrecord からは repository を import できないため）。
-// 移設 = inventory domain 移行時。
+package inventory_test
 
 // medicine_inventory_tx_atomicity_test.go — BE-refactor.md Appendix-A X-6
 //
@@ -27,15 +22,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/inventory"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupMedicineInventoryTxTestDB は BUG-429 の Create フロー（medicine + inventory_items）を
 // 単一トランザクションで検証するために両テーブルを整備する。
 func setupMedicineInventoryTxTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Medicine{}, &model.InventoryItem{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Medicine{}, &model.InventoryItem{}))
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
 	return db
@@ -51,9 +50,9 @@ func TestMedicineInventoryRepository_Create_RollsBackWhenAmbientTxFails(t *testi
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	medicineRepo := NewMedicineRepository(db)
-	inventoryRepo := NewInventoryRepository(db)
-	tx := NewTransactor(db)
+	medicineRepo := medicalrecord.NewMedicineRepository(db)
+	inventoryRepo := inventory.New(db)
+	tx := repository.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "原子性テスト薬剤"}
 
@@ -91,9 +90,9 @@ func TestMedicineInventoryRepository_Create_CommitsWithinAmbientTx(t *testing.T)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	medicineRepo := NewMedicineRepository(db)
-	inventoryRepo := NewInventoryRepository(db)
-	tx := NewTransactor(db)
+	medicineRepo := medicalrecord.NewMedicineRepository(db)
+	inventoryRepo := inventory.New(db)
+	tx := repository.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "コミットテスト薬剤"}
 
@@ -126,8 +125,8 @@ func TestMedicineRepository_Update_ReadsOwnWriteWithinAmbientTx(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	medicineRepo := NewMedicineRepository(db)
-	tx := NewTransactor(db)
+	medicineRepo := medicalrecord.NewMedicineRepository(db)
+	tx := repository.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "更新前"}
 	require.NoError(t, medicineRepo.Create(ctx, medicine))

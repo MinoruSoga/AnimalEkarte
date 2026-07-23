@@ -1,4 +1,4 @@
-package handler
+package inventory
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock InventoryService ----
@@ -23,8 +22,8 @@ import (
 type mockInventoryService struct {
 	listFn    func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateInventoryInput) (*model.InventoryItem, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -36,14 +35,14 @@ func (m *mockInventoryService) GetByID(ctx context.Context, clinicID, id uint64)
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockInventoryService) Create(ctx context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error) {
+func (m *mockInventoryService) Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, clinicID, input)
 	}
 	return &model.InventoryItem{}, nil
 }
 
-func (m *mockInventoryService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+func (m *mockInventoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInventoryInput) (*model.InventoryItem, error) {
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
@@ -53,10 +52,8 @@ func (m *mockInventoryService) Delete(ctx context.Context, clinicID, id uint64) 
 
 // ---- test helper ----
 
-func newHandlerWithInventorySvc(svc service.InventoryService) *Handler {
-	return &Handler{
-		svc: &service.Services{Inventory: svc},
-	}
+func newHandlerWithInventorySvc(svc InventoryService) *Handler {
+	return NewHandler(svc, nil, allowInventoryTestPermission)
 }
 
 // ---- ListInventory ----
@@ -246,7 +243,7 @@ func TestCreateInventory(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreateInventoryInput) (*model.InventoryItem, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "アルコール消毒液", input.Name)
 					return &model.InventoryItem{Name: input.Name, Category: model.InventoryCategory(input.Category)}, nil
@@ -274,7 +271,7 @@ func TestCreateInventory(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateInventoryInput) (*model.InventoryItem, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateInventoryInput) (*model.InventoryItem, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -324,7 +321,7 @@ func TestUpdateInventory(t *testing.T) {
 			body:     map[string]any{"name": "更新済み消毒液", "quantity": 20},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateInventoryInput) (*model.InventoryItem, error) {
 					require.NotNil(t, input.Name)
 					assert.Equal(t, "更新済み消毒液", *input.Name)
 					require.NotNil(t, input.Quantity)
@@ -356,7 +353,7 @@ func TestUpdateInventory(t *testing.T) {
 			body:     map[string]any{"quantity": 5},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateInventoryInput) (*model.InventoryItem, error) {
 					return nil, apperrors.WrapNotFound("inventory", "999")
 				},
 			},
@@ -387,7 +384,7 @@ func TestUpdateInventory(t *testing.T) {
 
 // ---- DeleteInventory ----
 
-func newDeleteInventoryRouter(svc service.InventoryService) *gin.Engine {
+func newDeleteInventoryRouter(svc InventoryService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithInventorySvc(svc)
 	r.DELETE("/inventory/:id", func(c *gin.Context) {

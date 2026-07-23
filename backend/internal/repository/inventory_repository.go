@@ -3,15 +3,15 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/inventory"
+	"github.com/animal-ekarte/backend/internal/inventory"
 )
 
-// InventoryRepository is a stable facade alias for the inventory domain
-// package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
+// InventoryRepository is a BE9-2F compatibility alias for the legacy
+// Repositories aggregator and its remaining medicalrecord composition callers.
+// Delete after those callers construct internal/inventory directly.
 type InventoryRepository = inventory.Repository
 
-// NewInventoryRepository constructs the inventory repository.
+// NewInventoryRepository is a BE9-2F compatibility constructor.
 func NewInventoryRepository(db *gorm.DB) InventoryRepository {
 	return inventory.New(db)
 }
