@@ -125,14 +125,15 @@ func (r *petRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint
 }
 
 // findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。
-// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+// Preload する飼主と保険マスタも同じ集合で clinic 隔離する
+// （破損した owner_id / insurance_id から別クリニックのデータが混入するのを防止）。
 func (r *petRepository) findPetByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
 	if len(clinicIDs) == 0 {
 		return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
-		Preload("Owner", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error

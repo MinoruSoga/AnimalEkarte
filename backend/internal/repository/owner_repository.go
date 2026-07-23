@@ -89,7 +89,9 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
-		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pets.AnimalSpecies").
+		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(paginate(page, limit)).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
@@ -107,17 +109,18 @@ func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []ui
 
 // findOwnerByID は認可済みクリニック集合を受け取り飼主を1件取得する共通実装。
 // clinicIDs は呼び出し側で検証済みの集合（単一は []uint64{clinicID}、拠点横断#86は全所属）。
-// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+// Preload するペット・飼主・保険マスタも同じ集合で clinic 隔離する
+// （破損したowner/pet関連やinsurance_idから別クリニックのデータが混入するのを防止）。
 func (r *ownerRepository) findOwnerByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
 	if len(clinicIDs) == 0 {
 		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 	}
 	var owner model.Owner
 	err := r.db.WithContext(ctx).
-		Preload("Pets", "deleted_at IS NULL").
+		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pets.Owner", "deleted_at IS NULL").
+		Preload("Pets.Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
