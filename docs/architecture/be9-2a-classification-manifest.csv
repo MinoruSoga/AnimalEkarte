@@ -266,18 +266,18 @@ internal/handler/treatment_plan_request.go,target:medicalrecord,prefix token='tr
 internal/handler/treatment_plan_response.go,target:medicalrecord,prefix token='treatment'
 internal/handler/treatment_request.go,target:medicalrecord,prefix token='treatment'
 internal/handler/treatment_response.go,target:medicalrecord,prefix token='treatment'
-internal/handler/trimming_course_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_response.go,target:trimming,prefix token='trimming'
+internal/handler/trimming_course_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_type_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しtrimming route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_option_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_response.go,target:trimming,BE9-2E trimming: runtime DTOをtargetへ移動しtygo carrierをBE9-2Fまで保持
 internal/handler/vaccination_handler.go,target:medicalrecord,prefix token='vaccination'
 internal/handler/vaccination_request.go,target:medicalrecord,prefix token='vaccination'
 internal/handler/vaccination_response.go,target:medicalrecord,prefix token='vaccination'
@@ -544,13 +544,13 @@ internal/repository/tokenblacklist/repository.go,target:auth,repository/tokenbla
 internal/repository/transactor.go,keep,repository cross-cutting helper
 internal/repository/treatment_plan_repository.go,target:medicalrecord,prefix token='treatment'
 internal/repository/treatment_repository.go,target:medicalrecord,prefix token='treatment'
-internal/repository/trimming_course_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_course_type_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_option_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimmingcourse/repository.go,target:trimming,repository/trimmingcourse をdomain roll-up
-internal/repository/trimmingcoursetype/repository.go,target:trimming,repository/trimmingcoursetype をdomain roll-up
-internal/repository/trimmingoption/repository.go,target:trimming,repository/trimmingoption をdomain roll-up
+internal/repository/trimming_course_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_course_type_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_option_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimmingcourse/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingcoursetype/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingoption/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
 internal/repository/vaccination_repository.go,target:medicalrecord,prefix token='vaccination'
 internal/repository/vaccine/repository.go,target:medicalrecord,repository/vaccine をdomain roll-up
 internal/repository/vaccine_repository.go,target:medicalrecord,prefix token='vaccine'
@@ -742,10 +742,10 @@ internal/service/token_service.go,target:auth,prefix token='token'
 internal/service/treatment_dose_save.go,target:medicalrecord,prefix token='treatment'
 internal/service/treatment_plan_service.go,target:medicalrecord,prefix token='treatment'
 internal/service/treatment_service.go,target:medicalrecord,prefix token='treatment'
-internal/service/trimming_course_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_course_type_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_option_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_service.go,target:trimming,prefix token='trimming'
+internal/service/trimming_course_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_course_type_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_option_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
 internal/service/update_fields.go,keep,shared partial-update kernel (§9 2共有カーネル)
 internal/service/vaccination_service.go,target:medicalrecord,prefix token='vaccination'
 internal/service/vaccine_service.go,target:medicalrecord,prefix token='vaccine'

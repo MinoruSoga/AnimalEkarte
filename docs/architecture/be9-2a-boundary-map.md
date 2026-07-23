@@ -122,12 +122,14 @@
 
 ### 3.6 trimming (`target:trimming` 23 source rows)
 
+**BE9-2E実装状態（2026-07-23、code tip `297a23fc7`）**: 23 source rowのproduction bodyとdomain-owned testを`internal/trimming`へ収束した。旧layerにはroute/composition/tygoの実consumerを持つcompatibility surface 13件（handler 5、repository 4、service 4）だけをBE9-2F期限で残す。handlerの`trimming_response.go`はtygoが旧pathを参照するcodegen carrierで、残る12件がthin facade/aliasである。HTTP behaviorはtarget handlerが所有するが、route registrationはBE9-2Fのconsumer切替までlegacy central handler/master routesに残る。route tuple/RBAC/OpenAPI、clinic isolation、status/error、public LIFF catalogの配置は不変。exact overlayのscoped gateはtest/race/vet/lintを通過し、target coverage 91.6%、fixed-tree reviewのcandidate起因CRITICAL/HIGHは0件。
+
 - **owned**: `model.TrimmingCourse`/`TrimmingOption`/`TrimmingCourseType`、`AppointmentTrimmingDetail/Option`(appointments 1:1拡張)。Route: `/trimmings`、`/masters/trimming-{courses,options,course-types}`、`/api/liff/:clinicId/trimming-{courses,options}`(read-only)。
 - **consumers**: billing(TrimmingCourseID所有権チェック)、reservation(結合、後述)、lstep/LIFF(顧客向けカタログ、§2是正後はreservation内のliffファイル経由)。
-- **deps**: reservation, pet, clinic, httpapi。**trimmingはreservationのロック機構(AcquireBookingLock/LockAndFindByID)を自前で持たず借用**——trimmingの原子性がreservationのAPI呼び出しに依存する実質的なランタイム結合。
+- **deps**: reservation, pet, clinic, httpapi。`appointments`のwrite ownerはreservationであり、trimmingのwriteはconsumer-side interfaceの`CreateForTrimming` / `LockTrimmingByID` / `UpdateForTrimming` / `DeleteForTrimming`へ限定する。同interfaceにはtrimmingが必要とするread/validation/booking-lock capabilityも含むが、generic appointment writerや独立persistenceを持たない。
 - **change freq**: 78 commits。
 - **fan-in/out**: fan-in 2(billing,reservation)、fan-out 1(reservation)。
-- **tx**: Yes、ただし借用（`s.reservation.AcquireBookingLock`/`LockAndFindByID`をown `WithTx`内で呼ぶ）。
+- **tx**: Yes。trimmingの`WithTx`内でreservation intentを呼び、appointment/detail/optionsを同時commit/rollbackする。新規Createは重複予約を禁止する条件でclinic booking advisory lockを取り、作成対象には既存appointment rowがない。既存appointmentへのattach/update/deleteはrow lockを使い、reservation type/course/option/staff assignment/capabilityの必要な`FOR SHARE`を同じtransactionへ参加させる。reservation intentはambient transaction欠落をfail-closedにする。
 - **route**: Yes — `/trimmings`,`/masters/trimming-*`,`/api/liff/:clinicId/trimming-*`(read-only)。
 - **tenant boundary**: clinic-scoped、曖昧性なし。
 

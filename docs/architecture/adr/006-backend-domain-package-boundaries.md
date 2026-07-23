@@ -50,6 +50,8 @@ L⑥（core `849c27524` / final composition `962ce70e3`）でLSTEPのproduction 
 
 SharedFileはroute・use case・persistence・testを単一`internal/lstep` vertical sliceへ移した。4 route、status、storage/error/OpenAPI contractを維持し、POST authorizationは`owners:edit` / `medical-records:create` / `medical-records:edit`のtyped OR要件とする。clinic/staff scopeはJWT由来のみを保存pathへ渡し、URL/body/query値を認可根拠にしない。package移動自体を安全性の根拠とせず、RBAC tuple、敵対clinic test、route snapshot、OpenAPI drift gateで固定する。
 
+BE9-2Eの最初のdomainとしてtrimmingの23 source rowを単一`internal/trimming` vertical sliceへ収束した（2026-07-23、code tip `297a23fc7`）。handler behavior、request/response、use case、persistence、domain-owned testをtargetへ移し、旧layerにはcentral route/composition/tygoの実consumerを持つcompatibility surface 13件（thin facade/alias 12 + tygo codegen carrier 1）だけをBE9-2F期限で残す。route registration自体はconsumer切替までlegacy central handler/master routesに残る。`appointments`のwrite ownerは引き続き`internal/reservation`であり、trimmingのwriteは`CreateForTrimming` / `LockTrimmingByID` / `UpdateForTrimming` / `DeleteForTrimming`のconsumer-side intentへ限定する。同interfaceはtrimmingに必要なread/validation/booking-lock capabilityも持つが、generic appointment writerや独立persistenceを公開しない。route/RBAC/OpenAPI、clinic isolation、transaction/lock、status/error contractを変更せず、exact overlayのtarget coverageは91.6%、fixed-tree reviewのcandidate起因CRITICAL/HIGHは0件。trimmingの完了はBE9-2E全domainまたはBE9全体の完了を意味せず、次domainはSession A integration completion conditionを満たしたexact treeのfresh frontier censusで選ぶ。
+
 #### `appointments` write ownerの実装決定（BE9-2E-0）
 
 `internal/reservation`は`appointments`のpersistenceとlifecycle invariantを所有する。他domainは利用側packageで必要最小限のinterfaceを宣言し、次のbusiness intentだけを呼ぶ。
