@@ -201,6 +201,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // RegisterWebhookRoutes は LINE Webhook（JWT 認証なし・HMAC-SHA256 署名検証）を engine 直下へ登録する
 // （旧 handler.go の r.POST("/api/line/webhook", h.ReceiveLineWebhook) 逐語）。
-func (h *Handler) RegisterWebhookRoutes(r *gin.Engine) {
-	r.POST("/api/line/webhook", h.lineLink.ReceiveLineWebhook)
+func (h *Handler) RegisterWebhookRoutes(r *gin.Engine, middleware ...gin.HandlerFunc) {
+	handlers := make([]gin.HandlerFunc, 0, len(middleware)+1)
+	handlers = append(handlers, middleware...)
+	handlers = append(handlers, h.lineLink.ReceiveLineWebhook)
+	r.POST("/api/line/webhook", handlers...)
 }

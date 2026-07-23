@@ -28,6 +28,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
+const (
+	lineWebhookRequestsPerSecond = 50
+	lineWebhookBurst             = 200
+)
+
 // manualArticleAuditAdapter adapts the shared audit kernel (internal/service.AuditService —
 // BE9-2A classification: "keep") to internal/manualarticle's own minimal AuditLogger
 // interface, so internal/manualarticle itself never imports internal/service (ADR-006
@@ -130,6 +135,10 @@ func (a medicalRecordAuditAdapter) LogEntry(ctx context.Context, e *medicalrecor
 }
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
 	cfg := config.Load()
 
@@ -147,14 +156,14 @@ func main() {
 
 	if err := config.ConfigureTimeZone(); err != nil {
 		slog.Error("timezone configuration failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 
 	// H2: TRUSTED_PROXY_CIDR（release必須）・STORAGE_TYPE=s3 時の S3_BUCKET/S3_REGION 必須検証は
 	// cfg.Validate() に集約済み（G9-2）
 	if err := cfg.Validate(); err != nil {
 		slog.Error("config validation failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 	gin.SetMode(cfg.GinMode)
 
@@ -162,9 +171,23 @@ func main() {
 	db, err := repository.NewDB(cfg)
 	if err != nil {
 		logger.Error("failed to connect to database", slog.String("error", err.Error()))
-		os.Exit(1)
+		return 1
 	}
 	logger.Info("database connected")
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Error("failed to access database connection pool", slog.String("error", err.Error()))
+		return 1
+	}
+	databaseOwnedByRunner := false
+	defer func() {
+		if databaseOwnedByRunner {
+			return
+		}
+		if err := sqlDB.Close(); err != nil {
+			logger.Error("failed to close database connection pool", slog.String("error", err.Error()))
+		}
+	}()
 
 	// リポジトリ初期化
 	repos := repository.NewRepositories(db)
@@ -182,7 +205,7 @@ func main() {
 		c, err := appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
 		if err != nil {
 			logger.Error("failed to initialize AES-GCM cipher", slog.String("error", err.Error()))
-			os.Exit(1)
+			return 1
 		}
 		integrationCipher = c
 		logger.Info("integration cipher: AES-256-GCM enabled")
@@ -197,7 +220,7 @@ func main() {
 		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
 		if err != nil {
 			logger.Error("failed to initialize S3FileStorage", slog.String("error", err.Error()))
-			os.Exit(1)
+			return 1
 		}
 		sharedStorage = s3fs
 		logger.Info("shared file storage: S3", slog.String("bucket", cfg.S3SharedBucket))
@@ -282,7 +305,7 @@ func main() {
 		s3Up, err := infra.NewS3Uploader(context.Background(), cfg.S3Bucket, cfg.S3Region, cfg.S3Endpoint, cfg.S3PublicBaseURL)
 		if err != nil {
 			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
-			os.Exit(1)
+			return 1
 		}
 		uploader = s3Up
 		logger.Info("file uploader: S3", slog.String("bucket", cfg.S3Bucket), slog.String("region", cfg.S3Region))
@@ -307,19 +330,25 @@ func main() {
 
 	// LSTEP-BE-014: ノーショウ検知バッチ — 毎時0分に起動し 10/15/20 時 (JST) のみ実行
 	// time.Local は main() 冒頭の config.ConfigureTimeZone() で Asia/Tokyo 確定済み（G9-3）
-	go runScheduled(appCtx, "no-show batch", hourlyTick, func(ctx context.Context) error {
-		triggerHours := map[int]bool{10: true, 15: true, 20: true}
-		if !triggerHours[time.Now().Hour()] {
-			return nil
-		}
-		return lstepApp.Batch.RunNoShowCheckAllClinics(ctx)
-	})
-
-	// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
-	go runScheduled(appCtx, "dormant detection batch", dailyAt2AM, lstepApp.Batch.RunDormantDetectionAllClinics)
-
-	// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
-	go runScheduled(appCtx, "delivery trigger batch", hourlyTick, lstepApp.Batch.RunDeliveryTriggerBatchAllClinics)
+	schedulers := []backgroundJob{
+		func(ctx context.Context) {
+			runScheduled(ctx, "no-show batch", hourlyTick, func(ctx context.Context) error {
+				triggerHours := map[int]bool{10: true, 15: true, 20: true}
+				if !triggerHours[time.Now().Hour()] {
+					return nil
+				}
+				return lstepApp.Batch.RunNoShowCheckAllClinics(ctx)
+			})
+		},
+		// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
+		func(ctx context.Context) {
+			runScheduled(ctx, "dormant detection batch", dailyAt2AM, lstepApp.Batch.RunDormantDetectionAllClinics)
+		},
+		// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
+		func(ctx context.Context) {
+			runScheduled(ctx, "delivery trigger batch", hourlyTick, lstepApp.Batch.RunDeliveryTriggerBatchAllClinics)
+		},
+	}
 
 	// ルーター設定
 	r := gin.New()
@@ -327,19 +356,18 @@ func main() {
 	// TRUSTED_PROXY_CIDR validation is done earlier via cfg.Validate(), so only build list here
 	var trustedProxies []string
 	if cfg.GinMode == "release" {
-		// Production: trust ALB CIDR
-		// e.g., TRUSTED_PROXY_CIDR="10.0.0.0/8" for AWS ALB in private subnet
+		// Production: trust only the configured Cloudflare Worker-to-Container proxy CIDR.
 		if cfg.TrustedProxyCIDR != "" {
 			trustedProxies = []string{cfg.TrustedProxyCIDR}
-			slog.Info("rate-limit: trusting ALB CIDR")
+			slog.Info("rate-limit: trusting configured proxy CIDR")
 		}
 	} else {
 		// Development: trust localhost only
 		trustedProxies = []string{"127.0.0.1"}
 	}
 	if err := r.SetTrustedProxies(trustedProxies); err != nil {
-		// Log but continue - SetTrustedProxies failure is non-fatal
-		slog.Warn("failed to set trusted proxies", slog.Any("error", err))
+		logger.Error("failed to set trusted proxies", slog.String("error", err.Error()))
+		return 1
 	}
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
@@ -546,6 +574,8 @@ func main() {
 
 	// LIFF レートリミット store（cleanup goroutine は appCtx ライフタイム）
 	liffRateLimitStore := middleware.NewRateLimitStore(appCtx)
+	// LINE webhookはLIFFとは独立したIP別budgetを持ち、片方のburstで他方を枯渇させない。
+	webhookRateLimitStore := middleware.NewRateLimitStore(appCtx)
 
 	// lstep domain（BE9-2C L①〜）: target-owned application composes the full HTTP graph.
 	// LINE 紐付け callback は reservation の LIFF route へ narrow method として注入する。
@@ -595,7 +625,7 @@ func main() {
 	// lstep domain（BE9-2C L①〜）
 	lstepHandler.RegisterRoutes(protected)
 	// LINE Webhook（JWT 認証なし・HMAC 署名検証）
-	lstepHandler.RegisterWebhookRoutes(r)
+	lstepHandler.RegisterWebhookRoutes(r, middleware.RateLimit(webhookRateLimitStore, lineWebhookRequestsPerSecond, lineWebhookBurst))
 
 	// HTTPサーバー設定
 	server := &http.Server{
@@ -611,44 +641,37 @@ func main() {
 		slog.String("port", cfg.Port),
 	)
 
-	// Graceful shutdown
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("server goroutine panic", slog.Any("panic", r))
-			}
-		}()
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("server error", slog.String("error", err.Error()))
-		}
-	}()
-
-	// シグナル待機
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("shutting down server...")
-
-	// シャットダウン処理（30秒タイムアウト）
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("shutdown error", slog.String("error", err.Error()))
+	signalCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	runner := serverRunner{
+		server:           server,
+		address:          server.Addr,
+		backgroundCtx:    appCtx,
+		cancelBackground: appCancel,
+		shutdownTimeout:  30 * time.Second,
+		schedulers:       schedulers,
+		drainers: []func(){
+			func() {
+				// PERF-FOLLOWUP-05: password-reset email sends are fire-and-forget.
+				logger.Info("draining in-flight password reset email goroutines...")
+				svcs.PasswordReset.Wait()
+			},
+			func() {
+				logger.Info("draining in-flight reservation notification goroutines...")
+				svcs.ReservationNotifier.Wait()
+			},
+			func() {
+				logger.Info("draining in-flight checkup followup trigger goroutines...")
+				checkupSvc.Wait()
+			},
+		},
+		resources: []resourceCloser{sqlDB},
 	}
-
-	// PERF-FOLLOWUP-05: パスワードリセットメール送信は fire-and-forget goroutine のため、
-	// server.Shutdown の HTTP drain だけでは goroutine が孤児化する。ここで明示的に drain する。
-	logger.Info("draining in-flight password reset email goroutines...")
-	svcs.PasswordReset.Wait()
-
-	// BE-refactor.md B-1: 予約通知（LINE/メール）と健診フォローアップトリガーも
-	// fire-and-forget goroutine のため、同様に明示的に drain する。
-	logger.Info("draining in-flight reservation notification goroutines...")
-	svcs.ReservationNotifier.Wait()
-	logger.Info("draining in-flight checkup followup trigger goroutines...")
-	checkupSvc.Wait()
-
+	databaseOwnedByRunner = true
+	if err := runner.run(signalCtx); err != nil {
+		logger.Error("server lifecycle failed", slog.String("error", err.Error()))
+		return 1
+	}
 	logger.Info("server stopped")
+	return 0
 }
