@@ -240,6 +240,7 @@ export const AuditActionLstepTagSyncBulk = "lstep.tag.sync_bulk";
 export const AuditActionLineNotificationSend = "line.notification.send";
 export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
+export const AuditActionReservationNoShow = "reservation.no_show.auto";
 /**
  * 取扱説明書（マニュアル）編集 監査アクション
  */
@@ -280,10 +281,11 @@ export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replac
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
 export const AuditActionExamResultReplace = "exam_result.replace";
+export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionHospitalizationDischargeWithBilling;
 export const AuditResourceLabImport = "lab_import";
 /**
  * #201 薬量自動計算
@@ -299,10 +301,12 @@ export const AuditResourceCheckupFieldResult = "checkup_field_result";
  * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
  */
 export const AuditResourceExamResult = "exam_result";
+export const AuditResourceReservation = "reservation";
+export const AuditResourceHospitalization = "hospitalization";
 /**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult;
+export type AuditResource = typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization;
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。
@@ -804,6 +808,7 @@ export interface ClinicalPlan {
   diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -1496,7 +1501,7 @@ export interface InventoryItem {
 
 /**
  * LabImportJobStatus は lab_import_jobs のジョブ状態。
- * 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+ * 許可された遷移は medicalrecord.CanTransitionTo で強制される（BE9-2D sub-batch③ で internal/service から移動）。
  */
 export const LabImportJobStatusReceived = "received";
 export const LabImportJobStatusValidated = "validated";

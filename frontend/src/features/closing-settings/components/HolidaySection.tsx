@@ -119,7 +119,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
                 type="button"
                 onClick={() => handleDelete(holiday.date)}
                 aria-label={`${holiday.date}の休診日を削除`}
-                className={`flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
+                className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >
                 <Trash2 className="size-4" />
               </button>

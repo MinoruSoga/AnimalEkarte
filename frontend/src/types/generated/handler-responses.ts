@@ -85,6 +85,8 @@ export interface ResourcePermission {
 // source: trimming_response.go
 
 /**
+ * BE9-2E codegen compatibility carriers: tygo still pins this legacy file path.
+ * Move that configuration to internal/trimming and delete these aliases in BE9-2F.
  * FE7-1: tygo codegen 対象にするため export（BackendTrimming の生成契約ゲート化・FE-refactor.md
  * BackendTrimming BLOCKED の解消）。JSON wire 形状は json タグで完全維持しており不変。
  */
