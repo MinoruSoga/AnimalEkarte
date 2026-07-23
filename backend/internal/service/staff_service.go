@@ -78,6 +78,15 @@ type StaffAssignmentClinicLookup interface {
 	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
 }
 
+// StaffAccountStore は Staff service がアカウント作成・パスワード更新に
+// 必要とする最小の read/write port である。実装は受け取った context の
+// ambient transaction に参加する。
+type StaffAccountStore interface {
+	FindByEmail(ctx context.Context, email string) (*model.Account, error)
+	Create(ctx context.Context, account *model.Account) error
+	Update(ctx context.Context, id uint64, fields map[string]any) error
+}
+
 // StaffCoreService はスタッフの CRUD・並び替え操作（テスト時に最小モックで済む分割単位）
 type StaffCoreService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
@@ -133,7 +142,7 @@ type StaffService interface {
 
 type staffService struct {
 	repo                repository.StaffRepository
-	accountRepo         repository.AccountRepository
+	accountRepo         StaffAccountStore
 	assignmentRepo      repository.StaffClinicAssignmentRepository
 	reservationRepo     repository.ReservationQueryRepository
 	shiftEntryRepo      repository.ShiftEntryRepository
@@ -146,7 +155,7 @@ type staffService struct {
 
 func NewStaffService(
 	repo repository.StaffRepository,
-	accountRepo repository.AccountRepository,
+	accountRepo StaffAccountStore,
 	assignmentRepo repository.StaffClinicAssignmentRepository,
 	reservationRepo repository.ReservationQueryRepository,
 	shiftEntryRepo repository.ShiftEntryRepository,
