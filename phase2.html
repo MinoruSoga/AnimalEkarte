@@ -190,7 +190,7 @@
     <li><strong>登録番号系 3 箇所分散</strong>（<code>Company.RegistrationNumber</code>/<code>Company.InvoiceRegistrationNumber</code>/<code>Clinic.RegistrationNumber</code>）— 二重管理疑い（②）。次期 BE 監査で「どれが何の番号か」の定義確定と統合可否の棚卸し。</li>
     <li><strong>clinical_plan/inquiry の finalized ガード正規パターン統一</strong>（Transactor＋LockByIDForUpdate）。<em>再開条件</em>: <code>cross_tenant_master_fk_write_test.go</code> の制約解消後。現行の atomic WHERE 軽量パターンの限界は <code>backend/internal/service/CLAUDE.md</code> 記載。</li>
     <li><strong><code>calculateNextDate</code> の <code>"other"</code> デッドブランチ</strong>（Select 実値は <code>"custom"</code>・実害なし）— <strong>削除確定</strong>（検討ではない。「念のため残す」禁止）。次期リファクタスイープで実施。</li>
-    <li><strong>死亡ペット直 API の一括監査</strong>（SD-10 裁定で指示済み: 予約・検査・トリミング等、入院以外の経路の BE 境界防御の棚卸し）。</li>
+    <li><strong>死亡ペット直 API の一括監査</strong>（SD-10 裁定で指示済み: 予約・検査・トリミング等、入院以外の経路の BE 境界防御の棚卸し）。<em>2026-07-23 調査確定（BE9 trimming qualification 由来・敵対検証済み）</em>: BE ガードは入院のみに存在。欠落確定経路 = trimming Create 新規/既存予約再利用/Update の pet 変更（trimming_service.go:232/421/548）・一般予約 admin Create（appointment_admin_service.go:109）・LIFF の resolveReservationPetID（deceased フィルタなし）。推奨方式 = 全経路が write tx 内で pet 行 SHARE lock（FindPetOwnerInClinic）を既に取るため、sharedkernel.ValidateReservationOwnerPetLinks に deceased 拒否付き変形を追加して差し替えれば TOCTOU も同時に閉じる（入院の既存 2 テスト = Create/Update_RejectsDeceasedPet がパターン正本）。カルテ経路への適用可否のみ別決裁。</li>
     <li>OwnerReport 印刷は SD-17 決裁で不採用済み（将来要件化時の設計メモは fix-sd17-19 最終報告と 39 doc 参照）。422 エラー種別の導入は積まない（SD-10 裁定 — 要件が出たら①から）。</li>
   </ul>
 

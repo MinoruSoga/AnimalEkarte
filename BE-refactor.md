@@ -70,8 +70,8 @@ backend/
 | **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
 | **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
 | **BE9-2E移行・qualification済 / BE9-2F待ち** | trimming | 23 | reconstruction `297a23fc7`をmerge commit `490756325`でmainへ統合し、same-tree静的同等性とexact-source runtime gateはPASS。実consumerを持つcompatibility surface 13件はconsumer 0証明後のBE9-2Fで撤去 |
-| **BLOCKED / 実装未着手** | staff | 31（live source 30） | assignment/shift/multi-clinic deleteのsecurity batchと、reservationへ移動済み1 rowのmanifest是正が先。CSV cutover landing後に残るcsvimport dirty WIPともtable/lock境界が交差 |
-| **BLOCKED / 実装未着手** | auth | 25 | password-reset 2 fileの直接WIP、`checkStaffActive`のfail-open、PermissionGroup ID一覧のclinic scope欠落、global authorizer cutoverが先 |
+| **BLOCKED / 実装未着手** | staff | 31（live source 30） | assignment/shift/multi-clinic deleteのsecurity batchと、reservationへ移動済み1 rowのmanifest是正が先。csvimport WIPは`db6600e73`でsettlement済み＝dirty WIP交差は解消（csvimportとのtable/lock境界の設計上の交差はrecensus時に再確認） |
+| **BLOCKED / 実装未着手** | auth | 25 | `checkStaffActive`のfail-open、PermissionGroup ID一覧のclinic scope欠落、global authorizer cutoverが先（password-reset 2 fileの直接WIPは`c2a0340d5`でsettlement済み・解消） |
 | **BLOCKED / 実装未着手** | clinic | 25 | cross-clinic Create/Delete認可、auth-owned PermissionGroup write/delete、`hasPermission` ownershipの是正が先 |
 | **BLOCKED / 実装未着手** | pet | 18 | Owner preloadのclinic predicate欠落とowner側pets直接writeによるwrite-owner重複の解消が先 |
 | **BLOCKED / 実装未着手** | owner | 13 | Pets/Pets.Owner preloadのclinic predicate、pet write owner、commit後reload semanticsの確定が先。LSTEP `OwnerResponder` closure注入の最終解消先 |
@@ -279,7 +279,7 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 
 各batch完了条件=従来gate+scoped golangci-lint（billing全域）0件（R⑤知見④の恒久化）。
 
-#### lstep domain sub-batch定義（分類manifest: `target:lstep` 119 source row。現行package: production Go 122 file）
+#### lstep domain sub-batch定義（分類manifest: `target:lstep` 119 source row。L⑤時点package: production Go 122 file・L⑥完遂時点131）
 
 `119`はBE9-2A分類manifest上のsource ownership数、`122`はL⑤後の`internal/lstep`物理file数であり、移行時の分割・統合・composition追加を含むため一致を要求しない。
 
@@ -406,11 +406,11 @@ landing実行結果:
 
 **Trimmingの完了証跡と残作業**:
 
-- **BE9-2E移行・same-tree qualification = COMPLETE**。reconstruction `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`はmerge commit `490756325ab8d553ceed7ce0be6fc57920d0d9bc`でlocal `main`へ統合済み。main `853137184`とreconstructionのbackend差分は0、`internal/trimming` subtreeは双方`3f83919866f117db1d930098537e2a3fb79599c4`である。現行HEAD `1e7faf56e`までbackend差分0を再確認している。
+- **BE9-2E移行・same-tree qualification = COMPLETE**。reconstruction `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`はmerge commit `490756325ab8d553ceed7ce0be6fc57920d0d9bc`でlocal `main`へ統合済み。main `853137184`とreconstructionのbackend差分は0、`internal/trimming` subtreeは双方`3f83919866f117db1d930098537e2a3fb79599c4`である。`1e7faf56e`までbackend差分0を再確認済み。その後のWIP settlement 2 commit（`c2a0340d5`=password reset・`db6600e73`=csvimport）のbackend変更は`internal/service`と`internal/csvimport`に限られ、`internal/trimming` subtree hashは2026-07-23 HEAD `d130655f9`でも不変（qualification失効なし）。
 - exact Docker source、atomic global DB lease、scoped build/vet、gofmt、target lint 0、DB-backed trimming全test、race、coverage 91.6%、handler/repository/reservation/serviceの隣接gateはPASS。Go/healthcare独立reviewは移行差分の新規CRITICAL/HIGH/MEDIUM 0/0/0で、Session B handoffは`bcc46bb40`で完了済み。unchanged backendへ同じqualificationを未完了扱いで再要求しない。
 - manifest 23 rowのproduction bodyとdomain-owned testは`internal/trimming`へ収束した。旧layerに残る13件（handler 5、repository 4、service 4）はroute/composition/tygo等の実consumerを持つ薄いcompatibility surfaceであり、central consumer切替とconsumer 0証明後のBE9-2Fで撤去する。
 - central cutover、継承HIGHのrelease判断、または別behavior/security batchがqualified treeを変更した場合は、その**変更後exact tree**へaffected gateとfixed-tree reviewを再実行する。これは完了済みlandingのqualificationを取り消すものではない。
-- 2026-07-23のlocal remote-tracking snapshotではlocal `main`は`origin/main`に対してahead 143 / behind 8である。各waveのbase packetで両tipとahead/behindを再計測し、remoteを先にreconcileするか、local-only authorityとして進めremote integrationをHOLDするかを明記する。自動pull/rebaseや履歴書換えで解消しない。
+- 2026-07-23夜の再計測でremote reconciliationは完了済み — infra統合merge `854fc6447` 時点でlocal `main`=`origin/main`（0/0）、その後のlocal commit `e14421cef` でahead 1 / behind 0。divergenceは解消済みのため、B0 packetのremote方針は「同期済み・未push 1件（push=USER専権）」の記録で足りる。各waveのbase packetで両tipとahead/behindを再計測し、remoteを先にreconcileするか、local-only authorityとして進めremote integrationをHOLDするかを明記する。自動pull/rebaseや履歴書換えで解消しない。
 
 **完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件（ADRに記録した期限付き例外を除く）。
 
@@ -505,24 +505,24 @@ Session Aをcanonical local `main`の唯一writer兼integration owner、Session 
 
 **旧3layer残量**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
 
-**現在の実行状態 = WIP settlement完了 — clean main確定準備**: protected WIP 15件のsettlement landingは完了し、local `main`はclean／quiescentへの切替準備状態になった。Session A Wave 2aは本実行では未着手で、次着手では既に固定した`B0`をfreshに再確認してから開始する。
+**現在の実行状態 = 全WIP landing完了 — B0固定可能（2026-07-23夜実測）**: protected WIP 15件のsettlement（backend分=`c2a0340d5`・`db6600e73`）に続き、infra/docs移行WIP約95 fileはmerge `854fc6447`、frontend CI修理+codegen再生成は`e14421cef`で着地した。remoteはreconcile済み（behind 0）。FE-refactor.mdの無実装空化1件（127行→5行の未コミット上書き）は検出し、FE-OPEN-1〜3を含む127行版へ復元済み。残る未コミットは技術債起票・DEC-11〜13代理決裁のdocs同期（BE-refactor.md/todo.md/q&a.html/phase2.html）のみで、そのlanding直後のcommit/treeを`B0`として固定できる。注意: frontend別セッションが同一`main` worktreeで作業した実績があるため、Wave 2a開始時は開始gateどおり他writer不在（quiescent）を確認し、frontend作業（FE-OPEN-1〜3）は別worktreeへ分離する。Session A Wave 2aは未着手。
 
 **次の実行**: 各ownerがcanonicalに残るprotected WIPを正規commitとしてlandingするか別worktreeへ隔離し、local `main`をcleanかつquiescentにする。Session Aがそのcommit/treeを`B0`として固定し、origin relationとauthority modeを記録する。Session Aは`main`上で6 domain全体のfrontierを統合し、Session Bは`B0`から作る唯一の専用worktreeで分担domainとpair conflict matrixをcountercheckする。競合0のlargest-ready #1/#2を確定後、Aは#1をmain、Bは#2を専用worktreeで同時実装する。Aの#1 landing後にBをnew main tipへ再構成し、Aだけが#2と必須central gate同期をmainへ反映する。その後、BE9-2E残domain → BE9-2F（consumer 0の期限付きfacade撤去・`repos.Transaction`機構削除）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 
-**未解消の技術債とgate（起票状態を明記）**:
-- **未起票・behavior-changing fixとして分離**: trimming course usage countは`appointments.clinic_id`をscopeするが、`appointment_trimming_details.clinic_id`を直接制約しない。cross-clinic再現DB testを先に追加し、構造移行と分けて修正する。
-- **未起票・clinical audit設計**: trimming CUDにactor-awareなdurable clinical audit sinkがない。同一transaction内のaudit writeとfail-closed policyを別sliceで設計する。
-- **未起票・behavior-changing fixとして分離**: trimming masterの`CountUsage`確認からsoft deleteまでが非原子的でTOCTOUを持つ。対象masterと依存行のlock/recheckを同一transactionへ収束する。
-- **未起票・HIGH contract判断**: trimming POST/PATCHが`completed`を直接受理し、billing-owned completion intentを迂回できる現行contractと`reservation-to-record-flow.md`が不一致。直接受理を拒否するか既存API contractとしてowner/release条件を明記するかを決め、構造移行と分けて固定する。
-- **未起票・patient safety guard**: trimming Createが死亡済みpetをbackendで拒否しない。`pets.status` / `deceased_at`をwrite transaction内で検証し、UIを迂回した新規予約・施術記録作成をfail-closedにする。
-- **未起票・MEDIUM fail-closed/API hardening**: unavailable-time/capacity依存のnilを成功扱いするpath、unavailable-time readのambient `DBOrTx`不参加、Updateの`option_ids`上限欠落を別behavior batchで検証・是正する。
+**未解消の技術債とgate（起票状態を明記。2026-07-23全件処置: 21エージェント並列調査+敵対検証の上、todo.md/q&a.html/phase2.htmlへ起票・登録済み）**:
+- **起票済み BUG-421（todo.md・LOWへ確定）**: trimming course usage countは`appointments.clinic_id`をscopeするが、`appointment_trimming_details.clinic_id`を直接制約しない。調査確定: 書込3系統（trimming/LIFF/csvimport）は全てclinic強制済みで現行の混入経路なし — defense-in-depth欠落のみ。修正=述語1行+破損行subtest（RED→GREEN）。複合FK化は次回trimming系DDL変更に相乗りする別判断。
+- **起票済み BUG-422（todo.md・MEDIUM・設計確定）**: trimming CUDにactor-awareなdurable clinical audit sinkがない（監査配線ゼロをgrep+middleware/trigger探索で実証）。設計は既存パターンの完全再利用で確定 — consumer-side AuditEntry/AuditTxLogger port + main.go adapter + WithTx内fail-closed LogEntryTx。Delete最優先。
+- **起票済み BUG-423（todo.md・MEDIUM）**: trimming masterの`CountUsage`確認からsoft deleteまでが非原子的でTOCTOUを持つ（course/option/course_typeの3マスタとも確認）。修正方式=tx内delete-then-recheck。course_typeはwrite側tx化+SHARE lock分岐追加もセットでないと閉じない。
+- **裁定済み DEC-11=案A（2026-07-23 Fable代理決裁・実装=BUG-426）**: trimming POST/PATCHの`completed`直接受理を拒否する。3アプリ全域実測でcompleted送信consumer=会計完了（billing正規経路）のみ・trimming/一般予約PATCHともゼロ＝閉鎖で壊れるフローなし。一般予約側の同型閉鎖はBUG-426後にconsumer再実測付きの後続batchで判断。
+- **SD-10裁定準拠でphase2.html一括監査へ統合（本件単独の新規決裁はしない）**: trimming Createが死亡済みpetをbackendで拒否しない。調査確定: BEガードは入院のみ・欠落=trimming 3経路+一般予約admin Create+LIFF。既存裁定「予約・トリミング等の直APIは一括監査で次期棚卸し」に従い、証拠と推奨方式（sharedkernel validator拡張=既存SHARE lock内でTOCTOUも同時に閉じる）をphase2.htmlへ記録済み。
+- **起票済み BUG-424（todo.md・MEDIUM・3点とも実証済み）**: unavailable-time/capacity依存のnilを成功扱いするpath（本番DIはnon-nilの潜在パス）、unavailable-time readのambient `DBOrTx`不参加（writer側もtx/lockなしの追加証拠を検証で確認）、Updateの`option_ids`上限欠落（Createはmax=50で非対称）。
 - **post-change verification gate**: 現行trimming landing treeのDB-backed rollback/transaction/lock・clinic-isolation、race、coverage 91.6%と独立reviewはPASS済み。BE9-2F central cutover、継承finding修正、または別behavior/security batchでexact treeを変更した場合だけ、変更面に対応するgateとfixed-tree reviewを再実行する。
-- **未起票・behavior-changing fixとして分離**: L③aの`PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時に部分更新を残し得る。
-- **未起票・contract判断が必要**: L③bの`owner_ids`件数上限と、actor欠落401後もservice実行を継続する既存挙動。
-- **未起票・BE9-2Eまでのcross-domain orchestration判断**: 予約キャンセル後のdraftカルテcleanupは通常の安全削除経路へ統一済みだが、予約更新とは別transactionのbest-effortである。部分成功をretry/outbox/明示的orchestratorのどれで再収束させるかをproduct contractと合わせて決める。
-- **release gate（技術債ではない）**: L⑤の`002_lstep_snapshot_import_clinic_fk.sql`をfresh DBへ実適用し、migration checksum・rollback方針を確認する。
-- **BE9-3計画内・未起票**: 全domainのrouteを同時登録する統合testが存在しない（Ginのroute衝突panicは起動時にしか出ない）。現状は「route snapshot両側の±N保存則 + OpenAPI driftのpath集合一致」で代替証明している。
-- **未起票の既存整形債務**: `internal/handler`・`internal/service`にgofmt未整形file 7本。本移行で触れていないfileを一括整形せず、所有domain移行時または独立format batchで解消する。
+- **起票済み BUG-425（todo.md・MEDIUM)**: L③aの`PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時に部分更新を残し得る（repoは`r.db`直参照でDBOrTx不参加・delete〜create間の並行読取が部分集合を観測する窓も確認）。修正=DBOrTx化+consumer-side WithTx注入。
+- **裁定済み DEC-12=両案A（2026-07-23 Fable代理決裁・実装=BUG-427）**: `owner_ids`はmaxItems=100（csvSnapshotBatchSize=100と同値・binding+api.yaml同時導入・FE分割送信UXと同一batch）、actor欠落401は即abort化（挙動変更のため別batch。本番到達不能はAuth middleware実測で確認済み）。
+- **裁定済み DEC-13=案A（2026-07-23 Fable代理決裁・実装=BUG-428）**: draftカルテcleanupはbest-effort容認+失敗の確実な可視化（ERROR+監査行+意図的Conflict/障害の文言分離）+LIFF/adminキャンセル経路への配線で確定。残置draftの確定はfail-closed拒否済み（実害=一覧残留とdedupe使い回しに限定）。outboxはPERF-AUDIT-TX P2と同一の再開条件（失敗監査行が月1件以上恒常観測で再起案）を設定して見送り。
+- **release gate（技術債ではない・OPS-13としてq&a.html USER操作へ登録済み）**: L⑤の`002_lstep_snapshot_import_clinic_fk.sql`をfresh DBへ実適用し、migration checksum・rollback方針を確認する（OPS-2のDB_RESET再適用と同一実行で兼ねてよい）。
+- **起票済み TEST-ROUTES-01（todo.md・BE9-2F着手前に導入）**: 全domainのrouteを同時登録する統合testが存在しない（Ginのroute衝突panicは起動時にしか出ない）。現状は「route snapshot両側の±N保存則 + OpenAPI driftのpath集合一致」で代替証明している。調査で実現性確認済み: nil依存+noop closureで全RegisterRoutesを1 engineへ登録する約100行のsmoke test 1 fileで足りる（DB・stub不要）。
+- **起票済み FMT-BE-01（todo.md・実測で4本へ訂正）**: `internal/handler`・`internal/service`のgofmt未整形fileは2026-07-23コンテナ内実測で4本（auth_session_test.go / staff_service_account.go / token_service.go / token_service_test.go。旧記載7本はBE9縦移動で3本解消済み）。本移行で触れていないfileを一括整形せず、独立format batchで解消する。
 
 **sub-batch④の重要決定（2026-07-20 inventory+advisor）**:
 - **④を④a/④bに分割する**。**④a（clean move）= vital + clinical_plan + medical_record_image → 完遂（2026-07-20・コミット`e3eb253e`）**。①②③と同じnarrow consumer-side interfaceパターンで移動。**④a実績の非自明点**: (1) advisor指摘3点を織り込み——lockDraftMedicalRecordのmedicalrecordコピー（本体byte-identical確認済・コメント差のみ）にtest新設（`medical_record_lock_test.go`・nil-parent-fails-closed parity・従来カバレッジ0）、verifyMedicalRecordOwnershipを残留`internal/handler/medical_record_ownership.go`へ抽出（④外treatment_plan_handlerが消費）、vital LogVitalChangeは**adapter不要の具象直渡し**（signature=primitive+map[string]anyのみでservice.AuditServiceと完全一致——labAuditAdapter型変換不要でfield parity達成）。(2) Batch Cのfork委譲がエージェント調整の錯綜（相互peer認識・fork完了待ちループ）を招き、統括が引き取り単一finisherで解消。残留漏れ3件（medical_record_handler_testのServices.ClinicalPlan field参照×2・simple_settingsのmisfiled TestUpdateClinicalPlanRequest）を統括が直接是正。(3) 親medical_record handlerはh.svc.ClinicalPlanをproductionで元々不使用（HEAD確認）のためfield注入除去はbehavior-preserving。検証: 変更5 package DB-backed全数test -p 1 green・build/vet(./...)/gofmt/docs-drift/diff-check green・敵対レビュー4レンズ+反証で指摘0（vital監査byte-identical専用レンズ含む）。**④b（refactor-then-move）= treatment（+treatment_dose_save+dose kernel）→ 完遂（2026-07-21・Phase1=`cd8fd984d`/Phase2=`6508faab0`・ユーザーの「BE-refactor.md対応」指示をgo-aheadとして実行）**。計画通り2フェーズで実施——詳細は「BE9-2D: medicalrecord sub-batch定義」④の完遂記録参照。計画時に見えていなかった発見: (1) dose kernelのservice側残留consumer（dose_validators.go←medicine master書込検証）が安全マップ共有でkernelごと移動が必要だった。(2) X-11並行性テストが旧repo-swap機構を「productionと同じ」とpinしており、gate追随（WithTx化）自体が新機構のtx参加の実DB証明になった。(3) master-FK gateのcross-package qualifier検出はtype aliasで型同一のまま回避可能（qualifier包括allowlist化は恒久弱体化のため禁じ手）。

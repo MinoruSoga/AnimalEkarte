@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）<strong>2026-07-23: BE9 trimming/lstep qualification 由来の技術債を 21 エージェント調査+敵対検証の上で処置 — 判断待ち DEC-11〜13 と USER 操作 OPS-13（L⑤ release gate）を追加、調査確定分は todo.md BUG-421〜425 / TEST-ROUTES-01 / FMT-BE-01 へ起票、死亡ペット直 API は SD-10 裁定どおり phase2.html 一括監査へ証拠を追記。同日、DEC-11〜13 はユーザー委任「コード・仕様書を読んで判断」に基づき Fable 代理決裁で確定（全て案A 採用・実装 = todo.md BUG-426〜428）。PO 判断待ちは計 3 件（DEC-1/9/10）に復帰。</strong></p>
   </header>
 
   <div class="toolbar">
@@ -811,6 +811,66 @@ UX 未確定のまま実装着手禁止。</p>
 
   <article class="card" data-state="answered">
     <div class="card-head">
+      <span class="qno">DEC-11</span>
+      <span class="badge category">BE 契約 / trimming 会計</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-23（BE9 trimming qualification 由来・21エージェント調査+敵対検証済み）／ 決定: 2026-07-23（Fable 代理決裁・ユーザー委任「コード・仕様書を読んで判断」— PO は本欄を上書きして覆せる。覆した場合はエージェントが実装を巻き戻す）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: backend/internal/trimming/trimming_request.go:66,123 ／ backend/internal/reservation/reservation_intent_repository.go:447 ／ docs/spec/reservation-to-record-flow.md §5.5
+現状: POST/PATCH /v1/trimmings が status=completed を直接受理する（completed での新規作成も可）。spec は completed の遷移主体を会計完了（billing の fail-closed tx = CompleteForAccounting）と規定しており実装と不一致。調査確定: FE・LIFF とも completed を送る consumer はゼロ（純粋な dead surface）。実害経路: 会計ステージをバイパスすると未請求明細 API（accounting 状態のみ請求候補化）から silent に消え、売上漏れになる。
+問い: (A) POST/PATCH の completed 直接受理を拒否する（oneof から除去＋遷移検証で閉鎖・会計経由のみ）／(B) 現行を正式 contract として仕様へ明文化（owner/release 条件を記載）。
+推奨: A。consumer ゼロの経路削除で壊れるフローが存在せず、completion 経路の二重管理削除（原則②）そのもの。B は spec の自己矛盾解消・undo 経路の新規発明・売上漏れ経路の正式容認という仕様負債を生む。付記: 一般予約 PATCH（reservation_request.go:220 の oneof）にも同型の completed 直接受理があり、A 採用時は一般予約側へ同一判断を展開するかを実装時に確認する。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>案A で確定 — POST/PATCH /v1/trimmings の completed 直接受理を拒否する（会計経由のみ）。</strong>仕様は completed の遷移主体を会計完了と一意に規定しており（reservation-to-record-flow.md:349 = billing の fail-closed tx 必須・:646 確定仕様判断5「会計完了で completed に進める」）、実装のみが逸脱している。consumer 実測（FE 本体 + liff + line-reserve の 3 アプリ全域）: status=completed を送る mutation は会計完了アクション（use-accounting-completion-action.ts → updateAccounting = billing 正規経路）のみで、trimming・一般予約 PATCH への completed 送信はゼロ — 閉鎖で壊れるフローは存在しない。直接受理は会計バイパス（未請求明細 API は accounting 状態のみ請求候補化 = :654）による売上漏れ経路かつ completion の二重管理（原則②違反）。実装 = todo.md BUG-426（oneof 除去 + CreateForTrimming/validateTrimmingStatusTransition の completed 拒否 + テスト置換）。一般予約 PATCH（reservation_request.go:220）の同型受理も送信ゼロを実測済みだが、影響面（受付カンバン・LIFF）が別のため BUG-426 完了後に consumer 再実測を添えた後続 batch で閉鎖判断する。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-12</span>
+      <span class="badge category">BE 契約 / lstep checkup-sync</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-23（BE9 L③b 由来・調査+敵対検証済み）／ 決定: 2026-07-23（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: backend/internal/lstep/checkup_sync_request.go:146 ／ backend/docs/api.yaml:8095 ／ checkup_sync_handler.go
+現状: POST checkup-sync の owner_ids は実装・api.yaml とも上限なしで一致（drift でなく仕様欠落）。preview 側にも LIMIT がなく、全件選択 POST で非有界 IN 句＋件数分の逐次外部 Lstep API 呼び出しになりタイムアウトで部分成功・結果不達が起き得る。別論点: actor 欠落時に 401 を書いた後も service 実行を継続する既存挙動（本番は Auth middleware fail-closed のため到達不能・テストが defect を characterization として固定中）。
+問い: 上限 = (A) 100 件（実装済み csvSnapshotBatchSize=100 と同値・binding＋api.yaml 同時導入）／(B) 別値。401 継続 = (A) 即 abort 化（挙動変更・別 batch）／(B) characterization 維持で据え置き。
+推奨: 両方 A。上限は FE の分割送信/選択上限 UX 追随とセットの batch にすること（100 が業務上限として不足なら preview の実測対象者数を根拠に B へ切替可・その場合も maxItems は必ず入れる）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>両論点とも案A で確定 — owner_ids は maxItems=100・actor 欠落 401 は即 abort 化。</strong>上限: 認可内スタッフの 1 リクエストで非有界 IN 句 + 件数分の逐次外部 Lstep API 呼び出しになる現状は、タイムアウト部分成功・結果不達の実害経路であり上限は必須。api.yaml に揃えるべき既存値が無いことは実測済みのため、実装済み定数 csvSnapshotBatchSize=100 と揃える。binding max=100 + api.yaml maxItems:100 を同時導入し、FE の分割送信/選択上限 UX を同一 batch で追随する（BE 先行で 422 を出さない）。preview 実測で 100 不足が判明したら値のみ再調整（maxItems 撤廃はしない）。401: httpapi.RespondError は Abort しない実装で、401 書込後の service 続行は response 二重書込 defect — テスト自身が「本来の意図ではない」と自認する挙動を characterization で固定し続けない。挙動変更のため cap とは別 batch。実装 = todo.md BUG-427（2 batch 構成）。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-13</span>
+      <span class="badge category">BE 方式 / 予約キャンセル後 cleanup</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-23（BE9-2E-0 由来・調査+敵対検証済み）／ 決定: 2026-07-23（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: backend/internal/reservation/reservation_handler.go:214 ／ backend/internal/medicalrecord/medical_record_auto_create.go:97-115
+現状（調査確定）: 予約キャンセル後の draft カルテ cleanup はスタッフ PUT 経路のみで、予約 tx とは別の best-effort。失敗は WARN ログ 2 行のみ（200 応答・監査行なし・見積依存の意図的 Conflict と DB 障害が同一文言で区別不能）。追加発見: LIFF キャンセルと admin キャンセル経路は cleanup を試行すらしない。安全側の確認済み事実: 残置 draft の確定は PrepareForMedicalRecordFinalization が fail-closed 拒否するため、実害は一覧残留と再予約時の dedupe による旧 draft 使い回しに限られる。
+問い: 部分成功の再収束方式 = (A) best-effort 容認＋失敗の確実な可視化（ERROR 格上げ＋監査行＋Conflict/障害の文言分離）＋LIFF/admin 経路への cleanup 配線＋既存手動削除で回復／(B) 同期 retry（冪等 re-check 付き）／(C) outbox/orchestrator 導入。
+推奨: A。欠陥の本質は失敗経路の不可視性（原則⑤違反）であり A が直接解消する。C は PERF-AUDIT-TX P2 の裁定（outbox 見送り・失敗が月 1 件以上恒常観測で再起案）と同型判断に従い見送り。B は失敗主因が DB 障害なら即時 retry の成功期待値が低く機構だけ増える。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>案A で確定 — best-effort 容認 + 失敗の確実な可視化 + LIFF/admin 経路への cleanup 配線。</strong>根拠: ①残置 draft の確定は PrepareForMedicalRecordFinalization が fail-closed 拒否済みで、ワーストケースは UI 可視・手動削除可能な draft 残置に抑えられている — orchestrator 級の機構（案C）は最少機構原則（③）に反し、outbox は PERF-AUDIT-TX P2 裁定（恒常観測で再起案）と同型判断で見送り。②現欠陥の本質は失敗の不可視性（WARN のみ・監査なし・意図的 Conflict と障害が同一文言 = 原則⑤違反）であり、案A が直接解消する。③調査で発覚した LIFF/admin キャンセル経路の cleanup 未配線は案A の必須スコープに含める（穴の放置は best-effort ですらない）。再開条件: cleanup 失敗の監査行が月 1 件以上恒常観測されたら実測を添えて案B/C を再起案（PERF-AUDIT-TX P2 と同一基準）。実装 = todo.md BUG-428。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
       <span class="qno">DEC-2〜8</span>
       <span class="badge category">代理決裁（todo-po.html 決裁カード）</span>
       <span class="badge answered">回答あり</span>
@@ -844,7 +904,7 @@ UX 未確定のまま実装着手禁止。</p>
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
 </table>
 
-<h2 id="ops">USER 操作（承認・実行待ち・12 件）</h2>
+<h2 id="ops">USER 操作（承認・実行待ち・13 件）</h2>
 <p class="section-intro">上から順に消化を推奨（旧 todo.md U-系を継承・OPS-系へ改番、旧番号は括弧内）。「完了後のエージェント作業」は、完了の合図をもらったエージェントが次に何をすべきかの指示。</p>
 
 <article class="task" data-task="OPS-1">
@@ -931,6 +991,12 @@ ORDER BY pg.clinic_id, pg.id;</pre>
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-12 (CSV)</span></label><h3 class="task-title">CSV import（フル seed 運用）</h3></div>
   <p class="dep-badge" hidden></p>
   <p class="task-desc">方針（2026-07-15 確定）: フル 003_demo（~529MB・PHI 含みうる）は Git に載せない。正本バックアップ = <code>old_db/sensitive-local/animalekarte-003-demo-full/</code>。リポジトリの <code>003_demo</code> は小さいデモのまま。ローカルでフル seed を使う場合: <code>rsync -a ../old_db/sensitive-local/animalekarte-003-demo-full/ backend/migrations/seeds/003_demo/</code> のあと <code>make reset</code>（エージェントは reset しない）。誤 <code>git add</code> 防止のため該当 CSV に <code>skip-worktree</code> 推奨。STG へのフル seed 適用は別途承認・手動実行（通常は小さいデモのまま）。</p>
+</article>
+
+<article class="task" data-task="OPS-13">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-13 (BE9 L⑤)</span></label><h3 class="task-title"><code>002_lstep_snapshot_import_clinic_fk.sql</code> の fresh DB 実適用（release gate）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">BE9 L⑤ の追記専用 migration を fresh DB へ実適用し、checksum・rollback 方針を確認する（DB reset・migration 適用はエージェント実行禁止のため USER 実行）。OPS-2（<code>DB_RESET=true</code> 再適用）と同一実行で兼ねてよい。完了条件: fresh 適用 green + schema_migrations 記録確認。完了までは BE9 L⑤ は「landing完遂 / release pending」（BE-refactor.md）。完了後のエージェント作業: BE-refactor.md の L⑤/BE9-4 節を release 済みへ更新。</p>
 </article>
 
 <h2 id="cf">Cloudflare 移行 — 完了・旧チェックリスト退役</h2>
