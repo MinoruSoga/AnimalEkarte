@@ -116,12 +116,12 @@ type reservationService struct {
 	repo                 ReservationRepository
 	typeRepo             reservationTypeFinder
 	tx                   Transactor
-	reservationStaffRepo ReservationStaffRepository
+	reservationStaffRepo ReservationStaffWriteGuard
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffRepository, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
+func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
 	var slotRepo ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
@@ -201,9 +201,6 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return nil, apperrors.WrapInvalidInput(AllowedReservationRoutesMessage)
 		}
 	}
-	if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
-		return nil, err
-	}
 	enforceBookingConstraints := ShouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
 		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
@@ -247,6 +244,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	// BE-refactor.md X-9: 空き枠（既存行 0 件）は SELECT FOR UPDATE が何もロックしないため、
 	// AcquireBookingLock（clinic 単位 advisory xact lock）で競合チェック～INSERT を直列化する。
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, reservation.ClinicID, reservation.DoctorID, reservation.ReservationTypeID); err != nil {
+			return err
+		}
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, reservation.ClinicID, reservation.OwnerID, reservation.PetID); err != nil {
 			return err
 		}
@@ -417,6 +417,11 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
+		if input.DoctorID != nil || input.ReservationTypeID != nil {
+			if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+				return err
+			}
+		}
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -455,23 +460,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err
-	}
-	if input.DoctorID != nil || input.ReservationTypeID != nil {
-		resolvedDoctorID := current.DoctorID
-		if input.DoctorID != nil {
-			if *input.DoctorID == 0 {
-				resolvedDoctorID = nil
-			} else {
-				resolvedDoctorID = input.DoctorID
-			}
-		}
-		resolvedReservationTypeID := current.ReservationTypeID
-		if input.ReservationTypeID != nil {
-			resolvedReservationTypeID = *input.ReservationTypeID
-		}
-		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
-			return nil, err
-		}
 	}
 	if input.StartTime != nil || input.EndTime != nil || input.ReservationTypeID != nil {
 		resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)

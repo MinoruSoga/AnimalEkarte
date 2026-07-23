@@ -64,20 +64,36 @@ func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint6
 }
 
 // FindByID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
-// BE-refactor.md H-7: repohelpers.DBOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
-// WithTx 閉包内で行う所有権確認がその ambient tx に参加する（確認〜更新の TOCTOU 窓を閉じる）。
+// ambient tx 内では、スタッフ identity → 有効な所属行の順に個別の SHARE lock を取得する。
+// JOIN への FOR SHARE は PostgreSQL の実行計画にロック順を委ねるため、所属解除・スタッフ削除と
+// 予約書き込みの lock order を決定的に揃えられない。個別 query にすることで、後続の
+// SupportsReservationType（capability SHARE lock）まで
+// staff → assignment → capability の順を明示する。
 func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	var staff model.Staff
 	db := repohelpers.DBOrTx(ctx, r.db)
 	if repohelpers.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
-	err := db.
-		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL", clinicID).
+	if err := db.
 		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
-		First(&staff).Error
-	if err != nil {
+		First(&staff).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
+	}
+
+	var assignment model.StaffClinicAssignment
+	assignmentDB := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		assignmentDB = assignmentDB.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := assignmentDB.
+		Where("staff_id = ? AND clinic_id = ?", id, clinicID).
+		First(&assignment).Error; err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"staff_clinic_assignment",
+			fmt.Sprintf("staff=%d,clinic=%d", id, clinicID),
+		)
 	}
 	return &staff, nil
 }

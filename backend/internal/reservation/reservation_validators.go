@@ -63,7 +63,7 @@ type reservationValidators struct {
 	tx                 Transactor
 	repo               ReservationRepository
 	typeRepo           reservationTypeFinder
-	staffRepo          ReservationStaffRepository
+	staffRepo          ReservationStaffWriteGuard
 	trimmingCourseRepo trimmingCourseFinder
 	trimmingOptionRepo trimmingOptionFinder
 	trimmingDetailRepo liffTrimmingDetailRepo
@@ -74,7 +74,7 @@ func NewReservationValidators(
 	tx Transactor,
 	repo ReservationRepository,
 	typeRepo reservationTypeFinder,
-	staffRepo ReservationStaffRepository,
+	staffRepo ReservationStaffWriteGuard,
 	trimmingCourseRepo trimmingCourseFinder,
 	trimmingOptionRepo trimmingOptionFinder,
 	trimmingDetailRepo liffTrimmingDetailRepo,

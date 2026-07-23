@@ -7,26 +7,31 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationStaffCapabilityView is the read-only capability required by staff validation.
-type ReservationStaffCapabilityView interface {
+// ReservationStaffWriteGuard is the reservation-owned, consumer-minimal port
+// used to protect appointment writes that reference staff. Its repository
+// implementation locks the staff identity and active clinic assignment in
+// FindByID, then locks the exact reservation-type capability in
+// SupportsReservationType. Callers must invoke it inside their write
+// transaction so those SHARE locks are held through commit.
+type ReservationStaffWriteGuard interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
 
-func ValidateReservationStaffCapability(ctx context.Context, repo ReservationStaffCapabilityView, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
-	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, false)
+func ValidateReservationStaffCapability(ctx context.Context, guard ReservationStaffWriteGuard, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+	return validateReservationStaffCapability(ctx, guard, clinicID, doctorID, reservationTypeID, false)
 }
 
 // ValidateLineReservationStaffCapability applies the public LIFF boundary in addition to
 // clinic assignment and reservation-type capability. Internal reservation workflows may assign
 // inactive or hidden staff, so public availability is intentionally enforced only here.
-func ValidateLineReservationStaffCapability(ctx context.Context, repo ReservationStaffCapabilityView, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
-	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, true)
+func ValidateLineReservationStaffCapability(ctx context.Context, guard ReservationStaffWriteGuard, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+	return validateReservationStaffCapability(ctx, guard, clinicID, doctorID, reservationTypeID, true)
 }
 
 func validateReservationStaffCapability(
 	ctx context.Context,
-	repo ReservationStaffCapabilityView,
+	guard ReservationStaffWriteGuard,
 	clinicID uint64,
 	doctorID *uint64,
 	reservationTypeID uint64,
@@ -35,22 +40,22 @@ func validateReservationStaffCapability(
 	if doctorID == nil || *doctorID == 0 {
 		return nil
 	}
-	if repo == nil {
-		return apperrors.WrapInternalServerError("reservation staff repository is required")
+	if guard == nil {
+		return apperrors.WrapInternalServerError("reservation staff write guard is required")
 	}
 	if reservationTypeID == 0 {
 		return apperrors.WrapInternalServerError("reservation type is required to verify staff capability")
 	}
-	staff, err := repo.FindByID(ctx, clinicID, *doctorID)
+	staff, err := guard.FindByID(ctx, clinicID, *doctorID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify reservation staff")
 	}
-	if requireReservationVisible && (!staff.IsActive || !staff.ReservationVisible) {
-		return apperrors.WrapInvalidInput("選択した担当者はLINE予約では指定できません")
-	}
-	supports, err := repo.SupportsReservationType(ctx, clinicID, *doctorID, reservationTypeID)
+	supports, err := guard.SupportsReservationType(ctx, clinicID, *doctorID, reservationTypeID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get staff reservation capabilities")
+	}
+	if requireReservationVisible && (!staff.IsActive || !staff.ReservationVisible) {
+		return apperrors.WrapInvalidInput("選択した担当者はLINE予約では指定できません")
 	}
 	if !supports {
 		return apperrors.WrapInvalidInput("選択した担当者はこの予約区分に対応していません")

@@ -41,13 +41,13 @@ type reservationAdminService struct {
 	resRepo              ReservationRepository
 	typeRepo             reservationTypeFinder
 	tx                   Transactor
-	reservationStaffRepo ReservationStaffRepository
+	reservationStaffRepo ReservationStaffWriteGuard
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 	medicalRecord        medicalRecordAutoCreator
 }
 
-func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffRepository, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
+func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
 	var slotRepo ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
@@ -68,7 +68,7 @@ func NewReservationAdminServiceWithMedicalRecord(
 	resRepo ReservationRepository,
 	typeRepo reservationTypeFinder,
 	tx Transactor,
-	reservationStaffRepo ReservationStaffRepository,
+	reservationStaffRepo ReservationStaffWriteGuard,
 	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	medicalRecord medicalRecordAutoCreator,
@@ -111,9 +111,6 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if err := sharedkernel.ValidateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
-	if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate staff capability")
-	}
 	if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate available time")
 	}
@@ -129,6 +126,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+			return apperrors.Wrap(err, "failed to validate staff capability")
+		}
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}

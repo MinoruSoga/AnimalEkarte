@@ -108,8 +108,8 @@ type StaffAccountService interface {
 	// UpdatePassword はスタッフに紐づくアカウントのパスワードをハッシュ化して更新する。
 	UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error
 	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
-	// 認可・存在確認後に既存割当を全削除し、新しい clinicIDs を登録する。
-	// 最初の1件は is_main=true となる。
+	// staff・既存割当を決定的な順序でロックし、解除対象 clinic の予約・シフト依存を
+	// 同じ transaction で拒否してから置換する。最初の1件は is_main=true となる。
 	SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error
 	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 	// 所属していない場合は ErrNotFound を返す。
@@ -144,7 +144,7 @@ type staffService struct {
 	repo                repository.StaffRepository
 	accountRepo         StaffAccountStore
 	assignmentRepo      repository.StaffClinicAssignmentRepository
-	reservationRepo     repository.ReservationQueryRepository
+	reservationRepo     StaffAssignmentReservationUsage
 	shiftEntryRepo      repository.ShiftEntryRepository
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
@@ -157,7 +157,7 @@ func NewStaffService(
 	repo repository.StaffRepository,
 	accountRepo StaffAccountStore,
 	assignmentRepo repository.StaffClinicAssignmentRepository,
-	reservationRepo repository.ReservationQueryRepository,
+	reservationRepo StaffAssignmentReservationUsage,
 	shiftEntryRepo repository.ShiftEntryRepository,
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
