@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BE9 4セッション実行計画 — Readiness View（2026-07-22）</title>
+<title>BE9 2セッション実行計画 — Readiness View（2026-07-23）</title>
 <style>
   :root {
     --ink: #172033;
@@ -70,11 +70,11 @@
 <body>
 <main>
 
-<h1>BE9 4セッション実行計画 — Readiness View</h1>
+<h1>BE9 2セッション実行計画 — Readiness View</h1>
 <p class="meta">
-同期日: 2026-07-22 ／ code baseline: <code>e662ab55d</code><br>
+同期日: 2026-07-23 ／ 観測時local main: <code>1e7faf56e</code>（実行baseはclean gate後に再固定）<br>
 正本: <a href="BE-refactor.md#be9-current-state"><code>BE-refactor.md</code>「現在地と着手前ゲート」</a>・<a href="BE-refactor.md#be9-parallel-sessions">「並行セッション実行計画」</a> ／ 設計判断: <a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> ／ file帰属: <a href="docs/architecture/be9-2a-classification-manifest.csv">classification manifest</a><br>
-ファイル名 <code>3-session-agent.html</code> は既存リンク互換のため維持する。現行計画は3セッションではなく、統合ownerを含む<b>4セッション</b>である。
+ファイル名 <code>3-session-agent.html</code> は既存リンク互換のため維持する。現行計画は<b>Session A = clean local main</b>、<b>Session B = isolated worktree</b>の2セッションである。
 </p>
 
 <div class="notice">
@@ -85,19 +85,19 @@
 <div class="grid">
   <section class="card">
     <h3>完了した大規模domain</h3>
-    <p><span class="status done">完了</span> medicalrecord / reservation / billing</p>
+    <p><span class="status done">完了</span> medicalrecord / reservation / billing / lstep</p>
   </section>
   <section class="card">
     <h3>現在domain</h3>
-    <p><span class="status current">進行中</span> lstep</p>
+    <p><span class="status done">移行・qualification完了</span> trimming</p>
   </section>
   <section class="card">
-    <h3>次の未着手slice</h3>
-    <p><span class="status current">次着手</span> L⑥ 残置解消</p>
+    <h3>現在の実行gate</h3>
+    <p><span class="status risk">HOLD</span> canonical WIP隔離とclean base固定</p>
   </section>
   <section class="card">
     <h3>残り順</h3>
-    <p>L⑥ → BE9-2E → BE9-2F → BE9-3 → BE9-4</p>
+    <p>6 domain recensus → BE9-2E → BE9-2F → BE9-3 → BE9-4</p>
   </section>
 </div>
 
@@ -108,33 +108,31 @@
   <tr><td>reservation</td><td><span class="status done">完了</span></td><td>R①〜R⑥完遂。appointment write ownerはreservationへ収束済み。</td></tr>
   <tr><td>billing</td><td><span class="status done">完了</span></td><td>BUG-417是正後、B①〜B⑥完遂。旧HTMLの「billing着手前block」は失効。</td></tr>
   <tr><td>BE9-2E-0</td><td><span class="status done">完了</span></td><td><code>de15c7903</code>で完遂。owner外の独立したappointments persistence writeを解消。</td></tr>
-  <tr><td>lstep L①〜L④</td><td><span class="status done">完了</span></td><td>設定・送信・タグ同期・checkup_sync・配信監視までtarget packageへ移行済み。</td></tr>
+  <tr><td>lstep L①〜L⑥</td><td><span class="status done">完了</span></td><td>SharedFile、typed composition、facade / adapter / mock carrier整理を含め、旧sourceはtarget packageへ収束済み。</td></tr>
   <tr><td>lstep L⑤</td><td><span class="status risk">release pending</span></td><td>landingは完遂。<code>002_lstep_snapshot_import_clinic_fk.sql</code>のfresh DB実適用とmigration checksum・rollback方針の確認がrelease gateとして残る。</td></tr>
-  <tr><td>lstep L⑥</td><td><span class="status current">次着手</span></td><td>SharedFile、typed composition、facade / adapter / mock carrier残置を解消してlstep domainを完了させる。</td></tr>
-  <tr><td>BE9-2E以降</td><td><span class="status wait">待機</span></td><td>L⑥完了後に中小domainをlargest-readyで反復し、facade撤去、Gin境界監査、最終検証へ進む。</td></tr>
+  <tr><td>trimming</td><td><span class="status done">BE9-2E移行・qualification完了</span></td><td>main landing、exact-source DB-backed test、race、coverage 91.6%、target lint、独立reviewまでPASS。実consumerを持つ13 facadeはBE9-2F期限。</td></tr>
+  <tr><td>staff / auth / clinic / pet / owner / inventory</td><td><span class="status wait">再計測待ち</span></td><td>既知blockerを保持。clean base上でlive source、consumer、security、write owner、transaction、全競合軸を再計測してからlargest-ready pairを決める。</td></tr>
 </table>
 </div>
 
-<h2>L⑥ — 着手範囲と完了barrier</h2>
+<h2>Trimming — 完了証跡と残作業</h2>
 <div class="notice">
 <ul>
-  <li><code>target:lstep</code>の旧layer残置は、SharedFile 6 production row（移動5 + 旧repository facade削除1）、test 4 file、route 4本を基準に再確認する。</li>
-  <li>LSTEPのtyped composition result / constructorをtarget側へ置き、<code>service.NewServices</code>・<code>service.Services</code>・<code>cmd/api/main.go</code>のconstruction / ownershipを同一cutover単位で収束させる。</li>
-  <li>旧repository rootのcomposition関連facade 15本、旧serviceのproduction adapter 3本、test-only mock carrierをconsumer単位で棚卸しする。</li>
-  <li>consumer 0のalias / adapter / mock carrierは削除する。残すfacadeには実consumerとBE9-2E / 2Fでの削除期限を必ず記録する。</li>
-  <li>route snapshot、RBAC、OpenAPI、composition、scoped test / lintを保存し、target再分類が必要なら先にADR-006とmanifestを更新する。</li>
+  <li>reconstruction <code>297a23fc7</code>はmerge commit <code>490756325</code>でlocal mainへ統合済み。現行HEADまでbackend差分0を確認している。</li>
+  <li>exact Docker source、global DB lease、DB-backed test、race、coverage 91.6%、scoped build / vet、target lint、Go / healthcare reviewはPASS。unchanged backendへ同じqualificationを未完了扱いで再要求しない。</li>
+  <li>manifest 23 rowのproduction bodyとdomain-owned testは<code>internal/trimming</code>へ収束。旧layerに残るhandler 5、repository 4、service 4は実consumerを持つ期限付きcompatibility surfaceである。</li>
+  <li>central consumer cutoverと13 facade撤去はBE9-2Fで扱う。cutoverまたは別behavior / security batchがexact treeを変更した場合、その変更面のgateとfixed-tree reviewを再実行する。</li>
 </ul>
-<b>完了barrier:</b> <code>target:lstep</code>全rowがtargetへ移動済み、削除済み、または実consumerと期限を持つ薄いfacadeであり、SharedFile・production composition・route / testがtarget側へ収束し、consumer 0の残置が0件であること。
+<b>状態:</b> BE9-2Eの構造移行とsame-tree qualificationはCOMPLETE。BE9-2F、個別の安全債務、L⑤ release gate、BE9全体は未完了。
 </div>
 
-<h2>4セッションownership</h2>
+<h2>2セッションownership</h2>
 <div class="table-wrap">
 <table>
-  <tr><th>Session</th><th>役割</th><th>writer境界</th><th>現在wave（L⑥）</th></tr>
-  <tr><td><b>A</b></td><td>統合owner</td><td>canonical integration worktree、共有file、merge順、共有DB test queue、最終gateの唯一owner。</td><td>L⑥の唯一のproduction writer。SharedFile、typed composition、共有facade / DTO / mock残置を解消する。</td></tr>
-  <tr><td><b>B</b></td><td>domain lane 1</td><td>Aが固定した同一tipから独立worktreeで作業。central surfaceは変更しない。</td><td>BE9-2E候補のbusiness fact / write owner、baseline、依存、rollback単位をread-onlyで棚卸しする。</td></tr>
-  <tr><td><b>C</b></td><td>domain lane 2</td><td>Bと別worktree。fileだけでなくtable・transaction・route・gateまで非競合な候補だけを担当。</td><td>Bと重ならない候補群をread-onlyで棚卸しし、競合表を作る。</td></tr>
-  <tr><td><b>D</b></td><td>verification lane</td><td>原則production codeのwriterにならず、Aが固定したexact treeを独立検証する。</td><td>B/Cのsize・dependency・baselineとL⑥完了条件を反証し、ready frontier案をAへ返す。</td></tr>
+  <tr><th>Session</th><th>役割</th><th>writer境界</th><th>現在wave</th></tr>
+  <tr><td><b>A</b></td><td>main writer / domain lane A / integration owner</td><td>clean local <code>main</code>の唯一writer。domain #1、central/shared surface、docs、統合順、DB queue、最終gateを所有。</td><td>main WIP隔離後、6 domain recensusの正本とpair matrixを統合する。</td></tr>
+  <tr><td><b>B</b></td><td>isolated domain lane B</td><td>Aが固定した<code>B0</code>から専用branch/worktreeを1つだけ作る。central/shared surfaceは変更しない。</td><td>分担domainと#2候補をcountercheckし、安全なpair確定後だけdomain-local実装を並行する。</td></tr>
+  <tr><td><b>Reviewers</b></td><td>ephemeral fixed-tree review</td><td>A/B candidateとcombined exact treeをread-onlyで確認。production writerにはならない。</td><td>general / Go / clinic-isolation / securityを必須とし、変更面に応じdatabase / healthcareを追加。</td></tr>
 </table>
 </div>
 
@@ -142,12 +140,12 @@
 <div class="table-wrap">
 <table>
   <tr><th>wave</th><th>状態</th><th>主作業</th><th>同期barrier</th></tr>
-  <tr><td>0: 混在差分landing</td><td><span class="status done">完了</span></td><td>L③a〜L⑤とBE9-2E-0をrevert可能なlandingへ分離。</td><td>landing matrix row 0〜10完了。</td></tr>
-  <tr><td>1: L⑥</td><td><span class="status current">現在</span></td><td>Aがproduction変更。B/C/Dは次frontierの準備・独立検証。</td><td>L⑥完了 + Aによるfrontier統合 + Dの反証確認までBE9-2E production変更を開始しない。</td></tr>
-  <tr><td>2: BE9-2E反復</td><td><span class="status wait">待機</span></td><td>B/Cが最大2件の非競合largest-ready domainを担当し、Aが1件ずつ統合。</td><td>各landing後にfrontierと全競合軸を再実測。失効handoffはそのまま統合しない。</td></tr>
+  <tr><td>0: canonical WIP隔離</td><td><span class="status current">現在</span></td><td>各ownerが同じmain worktreeに残るWIPを正規landingまたは別worktreeへ隔離。</td><td>tracked unstaged / staged / untracked / active writerが全て0のclean mainだけを<code>B0</code>にする。</td></tr>
+  <tr><td>1: six-domain recensus</td><td><span class="status wait">待機</span></td><td>Aが全体frontier、Bが分担domainとpair conflictを独立再計測。</td><td>同一<code>B0</code>、全競合軸、origin relationをreconcileしてからproduction pairを固定。</td></tr>
+  <tr><td>2: BE9-2E反復</td><td><span class="status wait">待機</span></td><td>Aがlargest-ready #1をmain、Bが非競合#2を専用worktreeで並行実装。</td><td>A landing後、B candidateをnew main tip上で再構成し、Aだけがmainへ反映する。</td></tr>
   <tr><td>3: BE9-2F</td><td><span class="status wait">待機</span></td><td>consumer 0を証明したfacade / aggregator / 旧layerを撤去。</td><td>call-site・共有mock・route / OpenAPI・write ownerを隠し得る削除はAが直列実行。</td></tr>
   <tr><td>4: BE9-3</td><td><span class="status wait">待機</span></td><td>Gin HTTP境界・server lifecycle・全domain route登録を横断監査。</td><td>監査は並行可。global surfaceの修正とbehavior / security変更はAが別batchで統合。</td></tr>
-  <tr><td>5: BE9-4</td><td><span class="status wait">待機</span></td><td>最終gate、残存symbol / facade確認、docs完了化。</td><td>AがB/C/Dの結果を再現し、全完了条件を満たした場合だけBE9を完了化。</td></tr>
+  <tr><td>5: BE9-4</td><td><span class="status wait">待機</span></td><td>最終gate、残存symbol / facade確認、docs完了化。</td><td>AがB handoffとfixed-tree reviewsを再現し、全完了条件を満たした場合だけBE9を完了化。</td></tr>
 </table>
 </div>
 
@@ -155,7 +153,6 @@
 <div class="table-wrap">
 <table>
   <tr><th>Phase</th><th>完了判定</th></tr>
-  <tr><td>L⑥</td><td><code>target:lstep</code>全rowとproduction compositionがtarget側へ収束し、consumer 0の残置が0件。route / RBAC / OpenAPI保存則、scoped test、lstep全域lint 0件を確認。</td></tr>
   <tr><td>BE9-2E</td><td>全中小domainが移行済みで、未分類・期限なしfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件。</td></tr>
   <tr><td>BE9-2F</td><td>旧<code>handler</code> / <code>service</code> / <code>repository</code>のproduction implementationが0件。例外は具体的consumer理由とADR記録を持ち、各target packageが単独test可能でimport cycle 0件。</td></tr>
   <tr><td>BE9-3</td><td>Go/Gin review checklistが全てPASSまたは根拠付きN/Aで、cross-tenant requestと内部error非漏洩のnegative testがある。</td></tr>
@@ -166,12 +163,14 @@
 <h2>並行化・統合ルール</h2>
 <div class="notice">
 <ul>
-  <li><b>単一writer:</b> canonical integration worktreeのproduction / central surfaceはSession Aだけが変更する。</li>
-  <li><b>独立worktree:</b> B/CはAが公開した同一tipから開始し、同じworktree・branch・未commit差分を共有しない。Dはexact candidate treeを検証する。</li>
-  <li><b>largest-ready:</b> file・symbol・callerだけでなく、business fact・table・write owner・DI・transaction / lock・route / RBAC・gateまで非競合な候補だけを並行化する。固定domain順は作らない。</li>
+  <li><b>開始条件:</b> clean local mainのcommit/treeを<code>B0</code>として固定する。dirty mainを検出したら、Aは他ownerのWIPをstash / clean / restore / bulk commitせずHOLDする。</li>
+  <li><b>main単一writer:</b> Session Aだけがlocal mainとcentral/shared surfaceを変更する。Aの実行中、frontend / infra / 別backend taskを含む他writerは別branch/worktreeを使う。</li>
+  <li><b>Session B worktree:</b> Bは<code>B0</code>から専用worktreeを1つだけ作り、domain-local allowlistだけを変更する。A landing後はnew main tipから再構成し、blind merge / rebaseしない。</li>
+  <li><b>largest-ready:</b> file・symbol・callerだけでなく、business fact・table・write owner・DI・transaction / lock・route / RBAC / OpenAPI・gate・protected WIPまで非競合な候補だけを並行化する。固定domain順は作らない。</li>
   <li><b>central surface:</b> <code>backend/cmd/api/main.go</code>、<code>backend/docs/api.yaml</code>、<code>handler.go</code>、<code>master_routes.go</code>、<code>service.go</code>、<code>repositories.go</code>、route snapshot、OpenAPI drift、lint inventory、manifest、ADR-006、boundary map、<code>BE-refactor.md</code>とcross-cutting packageはA専有。</li>
   <li><b>共有DB:</b> Docker / DB-backed testはAのglobal leaseで直列化する。<code>-p 1</code>はprocess間の競合を防がず、別worktreeだけでもCompose project・DB・bind mountは分離されない。Docker checkはcontainer sourceとcandidate tree / 対象file hashの一致を証明し、証明できない結果は合格根拠にせず、Aが統合したexact tipで再実行する。</li>
-  <li><b>handoff:</b> base commit、candidate commit / tree hash、path allowlist、structural / behavior区分、共有面の変更要求、scoped検証結果、未解消事項を必須とする。Dがcandidate tree hashを固定して検証し、Aとのtree一致と反証結果が揃うまで統合しない。</li>
+  <li><b>origin relation:</b> <code>B0</code> packetへlocal main / origin main / merge-base / ahead / behindを記録する。diverge中はremote reconciliationを先行するか、local-only authorityとしてremote integrationをHOLDするかを明記し、自動pull / rebase / history rewriteをしない。</li>
+  <li><b>handoff:</b> base commit、candidate commit / tree hash、path/hunk allowlist、structural / behavior区分、共有面の変更要求、scoped検証結果、未解消事項を必須とする。Aとのtree一致とfixed-tree reviewが揃うまで統合しない。</li>
 </ul>
 </div>
 
@@ -180,6 +179,9 @@
 <table>
   <tr><th>種別</th><th>項目</th><th>扱い</th></tr>
   <tr><td><span class="status risk">release gate</span></td><td>L⑤ migrationのfresh DB実適用、checksum・rollback確認</td><td>承認を要するため自動実行しない。未完了の間はrelease readyと判定しない。</td></tr>
+  <tr><td><span class="status risk">execution hold</span></td><td>canonical mainに既存WIPが残る</td><td>本更新開始時はtracked unstaged 15、staged 0、untracked 0。各ownerのlanding / worktree隔離後にclean baseを再固定する。</td></tr>
+  <tr><td><span class="status risk">integration hold</span></td><td>local mainとlocal remote-tracking <code>origin/main</code>がdiverge</td><td>観測値はorigin-only 8 / local-only 143。次wave開始時に再計測し、authority modeを明記する。</td></tr>
+  <tr><td>BE9-2F</td><td>trimming compatibility surface 13件</td><td>実consumerとdeadlineを保持。central consumer切替とconsumer 0証明後に撤去する。</td></tr>
   <tr><td>behavior debt</td><td><code>PutMappingsForTag</code>の非transactional replace</td><td>folder移動へ混在させず、独立したbehavior-changing fixとして扱う。</td></tr>
   <tr><td>contract判断</td><td>L③bの<code>owner_ids</code>件数上限、actor欠落401後のservice継続</td><td>要件・API contractを決めてから別batchで変更する。</td></tr>
   <tr><td>orchestration判断</td><td>予約キャンセル後のdraftカルテcleanupが別transactionのbest-effort</td><td>BE9-2Eまでにretry / outbox / orchestratorの再収束方式をproduct contractと合わせて決める。</td></tr>
@@ -193,7 +195,7 @@
 </div>
 
 <p class="small"><b>判定scope:</b> 本viewの<code>release pending</code> / <code>release ready</code>はBE9 backend refactorだけを対象とし、product全体のGo-live、security、clinical safety、CI blockerを再分類・解消するものではない。</p>
-<p class="small">旧「S1検査 / S2カルテ / S3会計」のIssue配分はBE9の現行ownership・実行順を表していないため、本viewから除外した。機能Issueの受け入れ条件は各Issue側で追跡し、本HTMLへ詳細仕様を複製しない。</p>
+<p class="small">旧4セッション、旧L⑥着手表示、「S1検査 / S2カルテ / S3会計」のIssue配分はBE9の現行ownership・実行順を表していないため、本viewから除外した。機能Issueの受け入れ条件は各Issue側で追跡し、本HTMLへ詳細仕様を複製しない。</p>
 
 </main>
 </body>

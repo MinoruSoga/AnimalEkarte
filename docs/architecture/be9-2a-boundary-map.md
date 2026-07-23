@@ -384,7 +384,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**実装進捗（2026-07-22）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session B/C/Dの正式handoffをAが単一frontierへ統合しDが反証確認するまで、BE9-2E productionは開始しない。詳細・完了判定の正本は`BE-refactor.md`。
+**実装進捗（2026-07-23）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。今後のBE9はSession Aをclean local `main`の唯一writer兼integration owner、Session Bを同じimmutable baseから作る専用worktreeの非競合domain laneとし、開始前に6 domainのfrontierと全競合軸を再計測する。詳細・完了判定の正本は`BE-refactor.md`。
 
 ## 9. 実測手法の限界（正直な明記）
 

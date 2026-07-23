@@ -12,8 +12,8 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
 
 > ⚠️ **ANIMALEKARTE PROJECT OVERRIDE (BE9 — community defaults belowより優先)**
 >
-> - 移行順序、landing ownership、並行化、現在地の正本は、[`BE-refactor.md` active BE9](../../../BE-refactor.md)、[landing matrix](../../../BE-refactor.md#be9-lstep-landing-matrix)、[4-session ownership plan](../../../BE-refactor.md#be9-parallel-sessions)、[current state](../../../BE-refactor.md#be9-current-state)とする。`Superseded history: BE8`以降を実行手順として使わない。
-> - PR/push/`gh`等の外部操作は自動実行しない。worktreeはBE9のintegration tip、single-writer、ownership、handoff、共有DB lease条件を満たす場合だけ使い、既存のdirty差分を共有worktreeから変更・破棄しない。
+> - 移行順序、landing ownership、並行化、現在地の正本は、[`BE-refactor.md` active BE9](../../../BE-refactor.md)、[landing matrix](../../../BE-refactor.md#be9-lstep-landing-matrix)、[2-session ownership plan](../../../BE-refactor.md#be9-parallel-sessions)、[current state](../../../BE-refactor.md#be9-current-state)とする。`Superseded history: BE8`以降を実行手順として使わない。
+> - PR/push/`gh`等の外部操作は自動実行しない。Session Aはcleanかつquiescentなlocal `main`の唯一writer、Session Bは同じimmutable baseから作る専用branch/worktreeのwriterとする。既存のdirty差分を共有worktreeから変更・破棄せず、central surface、handoff、共有DB lease条件を満たす場合だけ並行化する。
 > - bareなGo commandとfull-repository commandは、このskillとreferencesにあるcommunity例も含めて実行しない。[`.claude/CLAUDE.md`](../../CLAUDE.md)とBE9のbatchごとのgateに従い、変更package/fileだけをDocker経由で検証する。full test/lint等が必要ならユーザー手動gateとして提示する。
 > - DIは`main.go`だけに限定しない。closure/struct/constructorを使い、`cmd/api`または必要最小限のcomposition packageで型安全に組み立てる。package globalやuntyped context injectionを新設しない。
 > - 本skillから再利用するのはtool-driven transform、blast-radius safety net、structural/behavioral分離、依存実測に基づくcycle解消である。genericなstacked-PR/refactoring-branch、固定行数、毎stepの人手承認はAnimalEkarteへ適用しない。
@@ -27,7 +27,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
 **Modes:**
 
 - **Plan mode** (mandatory gate before any edit) — use gopls or repository search to map structure and blast radius, build a refactoring inventory, and decide ordering. Ask before execution only when an unresolved choice materially changes scope; once scope is authorized, do not add mid-task approval gates. Use [workflow.md](references/workflow.md) only for inventory and ordering concepts.
-- **Execute mode** — follow BE9's Session A-D ownership, integration-tip, worktree, handoff, and shared-DB barriers. Parallelize only fully non-conflicting lanes and keep shared integration files under the designated single writer.
+- **Execute mode** — follow BE9's Session A/B ownership, integration-tip, worktree, handoff, and shared-DB barriers. Session A writes directly to a clean local `main`; Session B writes only its disjoint domain-local candidate in one separate worktree from the same immutable base. Session A alone writes central/shared surfaces and integrates Session B's re-frozen candidate serially.
 - **Simple-sweep mode** — apply one bounded mechanical, behavior-preserving transform with no overlapping writer or dependent step.
 - **Review mode** — verify structural/behavioral separation, behavior preservation, ownership, and scoped gate evidence before accepting a landing unit.
 
@@ -81,7 +81,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
   - Treat "changes what the code does" as the trigger for a security-and-safety pass, not an afterthought reserved for the final review.
 - **Record an immutable baseline and preserve unrelated dirty work.**
   - Capture the exact HEAD, status, relevant file hashes, staged/unstaged patch, and untracked paths required by the BE9 landing matrix before editing.
-  - Use the designated single writer and path/symbol allowlist. If a step goes red, restore or reconstruct only that step from the recorded baseline; never reset or revert another user's existing changes.
+  - Use the designated path owner, central single writer, and path/symbol allowlist. If a step goes red, restore or reconstruct only that step from the recorded baseline; never reset or revert another user's existing changes.
   - Integrate a unit only after its exact candidate tree passes the required scoped gates.
 
 ## When Not to Refactor
@@ -113,7 +113,7 @@ Refactoring is an investment that only pays off if a future change is coming to 
 
 ## Workflow: Plan → Stage → Land
 
-- AnimalEkarte refactors land as the ordered, independently verifiable units defined by active BE9. Session A owns the integration tip and shared surfaces; B/C may use separate worktrees only for fully non-conflicting domain lanes; D remains an independent verification lane.
+- AnimalEkarte refactors land as the ordered, independently verifiable units defined by active BE9. Session A uses a clean local `main` as lane A and the integration tip; Session B uses one separate branch/worktree from the same immutable base. They may implement two mutually non-conflicting domain-local candidates concurrently. After A lands lane A plus its required central gate sync to `main`, B reconstructs and re-freezes its candidate on the new main tip; A then lands that exact candidate and applies B's central change request separately. Ephemeral read-only fixed-tree reviewer agents ensure neither lane self-approves; they are not additional implementation sessions.
 - [workflow.md](references/workflow.md) is community reference material. Read only its inventory and ordering concepts; its mandatory sign-off cadence, refactoring branch, per-change PR, marker, worktree, and bare/full Go command model do not apply here:
   - the planning gate and refactoring inventory
   - the three interacting orderings (structural-before-behavioral, conflict-avoidance, dependency order)

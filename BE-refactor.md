@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式baseline上のdomain/capability移行
 
 > **ACTIVE (2026-07-23再照合)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-23)**: trimming reconstruction `297a23fc7`はmerge commit `490756325`でcanonical `main`へcode landing済み。main backendとの同一性、exact Docker mount、DB-backed test、race、coverage 91.6%、build/vet/target lint、Session B same-tree equivalenceもPASS。post-integration qualificationはcentral cutover、継承HIGHのrelease判断、Session D独立検証が残るためBLOCKED。残順 = BE9-2E qualification → BE9-2F → BE9-3 → BE9-4。
+> **進捗 (2026-07-23)**: trimming reconstruction `297a23fc7`はmerge commit `490756325`でlocal `main`へcode landing済み。main backendとの同一性、exact Docker source、DB-backed test、race、coverage 91.6%、build/vet/target lint、same-tree qualificationもPASSしている。残るtrimming作業はBE9-2Fのcentral consumer cutover・期限付きfacade 13件の撤去と、構造移行から分離した安全・release判断である。残6 domainはclean `main`を固定するまで再計測・production着手ともHOLD。残順 = WIP隔離 + recensus → BE9-2E残domain（最大2 lane）→ BE9-2F → BE9-3 → BE9-4。
 > **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#be9-current-state)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
 > **BE8 SUPERSEDED**: 固定layerをGo/Gin公式要件として扱う方針は[ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md)、層優先subpackage/repository→service→handler移行は実測に基づく[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
@@ -69,7 +69,7 @@ backend/
 | **済** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`・L⑥`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 131 file。内部分割しない（論点#2裁定・単一`internal/lstep`） |
 | **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
 | **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
-| **code main統合・Session B完了 / Session D qualification BLOCKED** | trimming | 23 | reconstruction `297a23fc7`をmerge commit `490756325`でmainへ統合。same-tree静的同等性とexact-source runtime gateはPASS。central cutover、継承HIGHのrelease判断、Session D独立検証は未完了 |
+| **BE9-2E移行・qualification済 / BE9-2F待ち** | trimming | 23 | reconstruction `297a23fc7`をmerge commit `490756325`でmainへ統合し、same-tree静的同等性とexact-source runtime gateはPASS。実consumerを持つcompatibility surface 13件はconsumer 0証明後のBE9-2Fで撤去 |
 | **BLOCKED / 実装未着手** | staff | 31（live source 30） | assignment/shift/multi-clinic deleteのsecurity batchと、reservationへ移動済み1 rowのmanifest是正が先。CSV cutover landing後に残るcsvimport dirty WIPともtable/lock境界が交差 |
 | **BLOCKED / 実装未着手** | auth | 25 | password-reset 2 fileの直接WIP、`checkStaffActive`のfail-open、PermissionGroup ID一覧のclinic scope欠落、global authorizer cutoverが先 |
 | **BLOCKED / 実装未着手** | clinic | 25 | cross-clinic Create/Delete認可、auth-owned PermissionGroup write/delete、`hasPermission` ownershipの是正が先 |
@@ -80,7 +80,7 @@ backend/
 
 暫定表を機械的な固定順にはしない。各batch開始時に、①target依存graphがacyclic、②tenant/認可/transaction/clinical safetyのbaseline testが存在、③route/API/SQL互換性とrollback単位が定義済み、の3条件を満たす**ready frontier**を作る。その中からproduction行数、file数、旧aggregator/call-site削減量が最大のdomain/subdomainを選ぶ（largest-ready）。小規模domainは、大規模targetのcycle解消・直接依存解除に必要な場合だけ先行し、解除後は直ちに大規模targetへ戻る。
 
-BE9-2Eのclassification manifest残量は147 row、fixed tree上の旧source実在は146本である。差分1本はstaff分類の`liff_service_availability_staff.go`が既に`internal/reservation`へ移動済みであることによるmanifest driftであり、staff着手前に是正する。
+trimmingを除くBE9-2E未着手6 domainはclassification manifest 124 row、fixed tree上の旧source実在は123本である。差分1本はstaff分類の`liff_service_availability_staff.go`が既に`internal/reservation`へ移動済みであることによるmanifest driftであり、staff着手前に是正する。trimming 23 rowは残量へ含めず、完全移動10 rowとBE9-2F期限のcompatibility surface 13件として追跡する。
 
 ### BE9-0: 旧規約の実効面をinventory化する
 
@@ -353,7 +353,7 @@ landing実行結果:
 
   target側にtyped `lstep.Application` / `Dependencies` / `HandlerDependencies`を置き、`cmd/api`がapplicationを組み立てる構成へcutoverした。`service.NewServices` / `service.Services`とroot `repository.Repositories`はLSTEP/SharedFileのconstruction・field ownershipを持たず、legacy consumerにはtyped resultの必要最小限だけを渡す。owner/pet lifecycleのwrite依存はconsumer-side intent interface、legacy audit/aggregation変換は`cmd/api` adapterへ収束し、generic write capabilityやimport cycleを追加していない。
 
-  consumer 0を確認したrepository root facade 16本（SharedFile 1、`target:lstep` 14、line reservation setting 1）、旧service production adapter 3本、DTO alias・mock carrierの不要部分を削除した。独立reviewで`mocks_accounting_test.go`とrepository DTO aliasが互いの宣言のみを延命するconsumer 0だと判明し、B①由来のsettings/sync-settings carrierを含むconsumer 0 test carrierも削除した。期限付き残置は、owner/pet/chronic/accountingの実consumerを持つ`service.LstepTagSyncService` aliasとtag-sync test carrier（BE9-2E、BE9-2F backstop）、pet/master testのinsurance carrierと`ptrString`（BE9-2E）、trimming testのreservation-staff carrier（BE9-2E）、cross-tenant/clinic/owner/master testのmedicine/procedure/consultation carrierと`strPtr`/`uint64Ptr`（BE9-2E）、staff assignment・owner deletion routeのhandler test carrier（BE9-2E）、reservation setting cipher wiring testのtest-only key helper（同testとBE9-2Fで削除）である。`LegacyLstepDependencies`は同じlegacy production consumerへ必要最小限を渡すtyped compatibility inputとしてBE9-2Fまで残す。分類manifestの119 `target:lstep` source pathは旧path実在0件となり、現行`internal/lstep`はproduction Go 131本。scoped Docker gateはLSTEP全数・race・vet・lintを通過しcoverage 94.1%。L⑤のfresh DB実適用は行わず、BE9-2E productionも未着手のままSession A handoffへ進む。
+  consumer 0を確認したrepository root facade 16本（SharedFile 1、`target:lstep` 14、line reservation setting 1）、旧service production adapter 3本、DTO alias・mock carrierの不要部分を削除した。独立reviewで`mocks_accounting_test.go`とrepository DTO aliasが互いの宣言のみを延命するconsumer 0だと判明し、B①由来のsettings/sync-settings carrierを含むconsumer 0 test carrierも削除した。期限付き残置は、owner/pet/chronic/accountingの実consumerを持つ`service.LstepTagSyncService` aliasとtag-sync test carrier（BE9-2E、BE9-2F backstop）、pet/master testのinsurance carrierと`ptrString`（BE9-2E）、trimming testのreservation-staff carrier（BE9-2E）、cross-tenant/clinic/owner/master testのmedicine/procedure/consultation carrierと`strPtr`/`uint64Ptr`（BE9-2E）、staff assignment・owner deletion routeのhandler test carrier（BE9-2E）、reservation setting cipher wiring testのtest-only key helper（同testとBE9-2Fで削除）である。`LegacyLstepDependencies`は同じlegacy production consumerへ必要最小限を渡すtyped compatibility inputとしてBE9-2Fまで残す。分類manifestの119 `target:lstep` source pathは旧path実在0件となり、現行`internal/lstep`はproduction Go 131本。scoped Docker gateはLSTEP全数・race・vet・lintを通過しcoverage 94.1%。L⑤のfresh DB実適用は行わず、当該L⑥ batchにBE9-2E productionは含めなかった。
 
 各batch完了条件=従来gate+scoped golangci-lint（lstep全域）0件。
 
@@ -399,21 +399,18 @@ landing実行結果:
 
 #### BE9-2E: 残る中小domainをready frontier内のlargest-ready順にmigrationする
 
-1. 大規模domainのために先行移行済みの小規模dependencyを除き、ready条件を満たす候補から、残存production行数、file数、facade/call-site削減量が最大の非競合domainを実装lane B/Cの上限2件まで選ぶ。ready候補が1件だけ、または候補同士が競合する場合は1件へ縮退する。
+1. 大規模domainのために先行移行済みの小規模dependencyを除き、clean local `main`の同一immutable baseから作るready frontierで、残存production行数、file数、facade/call-site削減量が最大の候補をSession Aへ、次に大きく相互非競合な候補をSession Bへ割り当て、最大2 domain laneを同時実装する。Session Aはその`main`の唯一writer、Session Bは同baseから作る専用branch/worktreeのwriterとする。pairはfile/hunk、symbol/caller、business fact、table/write owner、consumer/provider interface、DI、transaction/lock、route/RBAC/OpenAPI、lint/gate、migration、protected WIPの全軸で競合0を証明する。安全な2件目がなければBは別domainの非競合characterization/test-only blocker-preparation batchへ縮退し、並行数のためにready条件を緩めない。behavior/security blocker removalはcharacterization、contract/ADR、clinic-isolation runtime testを先に固定した独立batchとして全競合軸0を証明できる場合だけ割り当て、それ以外はBをread-onlyへ縮退する。
 2. BE9-2Cと同じ縦移動、Context/error、API/SQL/tenant behavior、revert可能性のgateを適用する。
 3. cross-cutting packageは実際の複数consumerがある場合だけ維持し、所有者が1domainへ収束したcodeはそのdomainへ移す。
 4. 各domainのbusiness fact、source of truth、write owner、owner外のwrite call-siteを着手前に列挙し、直接writeをowner APIへ収束させる。挙動変更が必要なら移動batchと分ける。
 
-**Active integration gate — trimming**:
+**Trimmingの完了証跡と残作業**:
 
-- 比較基準はSession B candidate `0d759795a5dcfde684622bb444dcf81cd22f8b25` / tree `002afc0e04bd97e5a007bcd3078a15a9952dc552`とinventory overlay `234daa3c27ea68a01928f6cc59c5a9d3d65ca3c9` / tree `4a4c7731406be979cf894e8db75d183cde340b5c`。candidate parentはfixed base `a738f8d26c7cd4a1ddb9221e030deb973f16854f`で、いずれもcanonicalへは未統合。
-- candidateのtarget subtreeは43 file（production 20 + test 23）。manifest 23 rowのうち13 rowは実consumerを持つ期限付きfacade、10 rowは旧pathから完全移動している。facadeのdirect consumer切替と撤去はBE9-2Fの残作業。
-- **Canonical code landing（2026-07-23）**: conflictなしreplay `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`は、74 logical record / 103 endpointのpath・blob・mode・deletion mismatchとthree-source mappingのunexplained mismatch 0を確認済み。Session D文書commit `29ca4c0e6271a34a667daed0cbe5225901239db0`とのmerge commit `490756325ab8d553ceed7ce0be6fc57920d0d9bc`でmainへ統合し、対象74 pathと既存dirty WIPの重複0、merge-tree conflict 0でmain-reachableになった。
-- **Exact-source runtime / Session B same-tree gate（2026-07-23）**: main `853137184`と`297a23fc7`のbackend差分は0、`internal/trimming` subtreeは双方`3f83919866f117db1d930098537e2a3fb79599c4`。Docker `/app`の代表file hash一致を確認し、atomic global test lease `/tmp/animalekarte-global-db-test.lease`を単独取得・解放した。scoped build/vet（trimming/handler/repository/reservation/service/cmd-api）、gofmt、trimming lint 0件、DB-backed trimming全test、race、coverage 91.6%、handler/repository/reservation/serviceの隣接gateはgreen。変更package全体lintはbaseから存在する無関係issueを含むため合格根拠に流用せず、target package結果と分離した。Go/healthcare独立reviewは移行差分の新規CRITICAL/HIGH/MEDIUM 0/0/0、構造landing GO。継承HIGH 4件はrelease debtとして残す。
-- **Session D pre-integration静的監査（2026-07-23）**: candidate 43 file（production 20 + test 23）、reconstruction 47 file（production 25 + test 22）、manifest 23 row、期限付きfacade 13本、exported callable 80を照合し、未説明path/symbol/business fact欠落、facade内business/persistence重複、静的route/RBAC/OpenAPI差分、owner外appointment write、新規migration起因CRITICAL/HIGH回帰はいずれも0。23 route tuple、typed reservation intent、outer transaction、lock構造、clinic-scoped detail/options repositoryは静的に維持されている。
-- **Session D post-integration qualification = BLOCKED**: code landing後のexact mainは`853137184`（backendは`297a23fc7`と同一）だが、Session Dはこのtreeを独立監査していない。classification manifest、ADR-006、boundary mapはSession Aのcanonical文書統合でtrimming現状へ同期済み。central composition、tygo source、route/OpenAPI gateは未cutoverで、canonical worktreeにはunrelated dirty WIPが残る。Session A/Session Bのruntime evidenceだけをSession D APPROVEへ読み替えない。
-- post-integration qualification前に、mainへlanding済みのCSV cutover `e4e74d1fb`より後に残るcsvimport・password-reset・ADRのdirty WIPをlandingまたは隔離し、main由来のnew tipで全競合軸を再censusする。central cutover時はtarget直接登録、tygo source、route/OpenAPI gate、本書のqualification statusを同期し、既に同期済みのclassification manifest、ADR-006、boundary mapは実装差分が生じた場合だけ追随する。
-- merge commit `490756325`をbaseにcentral cutoverと継承findingを収束し、変更後のclean exact treeでSession A gateとSession Dのindependent post-integration PASSを成立させた後に限り、Session Cが次のready frontierを再計測する。
+- **BE9-2E移行・same-tree qualification = COMPLETE**。reconstruction `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`はmerge commit `490756325ab8d553ceed7ce0be6fc57920d0d9bc`でlocal `main`へ統合済み。main `853137184`とreconstructionのbackend差分は0、`internal/trimming` subtreeは双方`3f83919866f117db1d930098537e2a3fb79599c4`である。現行HEAD `1e7faf56e`までbackend差分0を再確認している。
+- exact Docker source、atomic global DB lease、scoped build/vet、gofmt、target lint 0、DB-backed trimming全test、race、coverage 91.6%、handler/repository/reservation/serviceの隣接gateはPASS。Go/healthcare独立reviewは移行差分の新規CRITICAL/HIGH/MEDIUM 0/0/0で、Session B handoffは`bcc46bb40`で完了済み。unchanged backendへ同じqualificationを未完了扱いで再要求しない。
+- manifest 23 rowのproduction bodyとdomain-owned testは`internal/trimming`へ収束した。旧layerに残る13件（handler 5、repository 4、service 4）はroute/composition/tygo等の実consumerを持つ薄いcompatibility surfaceであり、central consumer切替とconsumer 0証明後のBE9-2Fで撤去する。
+- central cutover、継承HIGHのrelease判断、または別behavior/security batchがqualified treeを変更した場合は、その**変更後exact tree**へaffected gateとfixed-tree reviewを再実行する。これは完了済みlandingのqualificationを取り消すものではない。
+- 2026-07-23のlocal remote-tracking snapshotではlocal `main`は`origin/main`に対してahead 143 / behind 8である。各waveのbase packetで両tipとahead/behindを再計測し、remoteを先にreconcileするか、local-only authorityとして進めremote integrationをHOLDするかを明記する。自動pull/rebaseや履歴書換えで解消しない。
 
 **完了条件**: boundary mapで「target package」へ分類した全中小domainが移行済みで、未分類または移行期限のないfacadeが0件。各business factのwrite ownerが一意で、owner外の独立write実装が0件（ADRに記録した期限付き例外を除く）。
 
@@ -460,71 +457,66 @@ landing実行結果:
 
 <a id="be9-parallel-sessions"></a>
 
-### 並行セッション実行計画（4セッション / ownership view）
+### 2セッション並行実行計画（Session A = clean `main` / Session B = isolated worktree）
 
-本節は残作業を安全に4セッションで並行実行するためのsession ownershipと同期barrierだけを定める。現在はwave 2のcode landingとSession B same-tree verificationを完了し、central cutover・継承findingのrelease判断・Session D independent qualification待ちである。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
+Session Aをcanonical local `main`の唯一writer兼integration owner、Session Bを同じimmutable baseから作る専用branch/worktreeのdomain laneとする。A用・integration用の追加worktreeは作らない。並行化するのは相互非競合なdomain-local実装期間だけで、central/shared surface、共有DB gate、Session B candidateのmain反映はSession Aが直列化する。独立検証は固定commit/treeを読む一時的なread-only reviewer agentsへ分離し、長寿命のSession C/Dは置かない。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
 
-- **Session A（統合owner）**: integration tip、共有file、merge順、共有DB test queue、最終gateを所有する。
-- **Session B（domain lane 1）**: ready frontierで最大の非競合domainを独立worktreeでdomain-localに実装する。wave 2のcandidate実装・handoff・main same-tree照合は完了済み。
-- **Session C（domain lane 2）**: wave 2のread-only recensus lane。canonical readiness packet成立後に、Bと競合しない次のlargest-ready domainを再計測し、別の独立worktreeで実装する。
-- **Session D（verification lane）**: dependency、baseline、behavior差分、security/clinic isolation、handoff結果を独立検証する。原則としてproduction codeのwriterにならない。
+- **Session A（`main` writer / domain lane A / integration owner）**: cleanかつquiescentなlocal `main`でlargest-ready候補1のdomain-local production/test実装を行い、共有file、candidate統合順、文書reconciliation、global DB test queue、最終結果を所有する。別sessionや別taskが同じ`main` worktreeを同時に編集してはならない。
+- **Session B（isolated domain lane B）**: Session Aが固定した`B0`から専用branch/worktreeを1つだけ作り、次に大きい相互非競合候補をdomain-localに実装する。central/shared surfaceを編集せず、必要なcentral変更をhandoffのchange requestとしてAへ渡す。
+- **Independent reviewers**: A/B各candidateとcombined exact treeを編集せずにreviewする。最低でもgeneral、Go、clinic-isolation、securityを使い、DB/transaction変更にはdatabase、臨床データ変更にはhealthcare reviewを追加する。findingはauthor laneへ返し、treeが変われば旧verdictを失効させる。必要なreviewer agentを利用できずcombined treeの独立reviewを成立させられない場合、A/Bの相互reviewだけで完了扱いにせず、当該waveをHOLDするかA=executor/B=verifierの直列モデルへ縮退する。
 
-| wave | Session A（統合owner） | Session B（domain lane 1） | Session C（domain lane 2） | Session D（verification lane） | 同期barrier |
-|---|---|---|---|---|---|
-| 2: BE9-2E trimming integration | reconstruction `297a23fc7`をmerge commit `490756325`でmainへcode landing済み。central cutoverと継承findingを収束してqualified exact tipを公開する | **COMPLETE**。candidate/overlay/reconstruction/main backendのsame-tree同等性、exact-source runtime、race、coverage 91.6%、独立reviewを完了 | **TERMINAL BLOCKED**。6 domain recensus、changed blocker再評価、ready matrix、pair/rankingは未計測。canonical readiness packetが揃うまで同じ調査を再実行しない | **PRE-INTEGRATION静的監査PASS / POST-INTEGRATION QUALIFICATION BLOCKED**。central cutover後のclean exact treeを独立検証する | Aのcentral/release qualification、D independent PASS、committed plan更新が同一packetで揃うまで、Session C recensusと次domain着手を禁止する |
-| 3: BE9-2F | aggregator、共有facade、旧layerとmerge順を所有し、全call-site収束を統合する | 最新A tipでconsumer 0を証明済みの、非競合domain-localな薄いalias/delegateと専用testだけを独立worktreeで削除する | Bと全競合軸が重ならず、同じconsumer 0・薄いfacade条件を満たす別domainの削除を担当する | 削除前後のconsumer、write path、transaction contract、期限付き例外、残存production実装をread-onlyで独立監査する | call-site変更、共有mock/aggregator、route/RBAC/OpenAPI、write ownerを隠し得る削除はAが直列実行する。Aが各handoffを1件ずつ統合してconsumer/write inventoryを再実測し、Dがexact tipを確認してから次へ進む |
-| 4: BE9-3最終収束監査 | 各BE9-2 batchで反復済みのresource監査を集約し、必要なcode/test修正を直列統合する | Aが割り当てたresource群のroute、binding、authn/authz、ownership、error contractを監査する | Bと重ならないresource群を同じchecklistで監査する | `cmd/api`、middleware、server lifecycle、全domain route同時登録、cross-domain invariantを横断監査する | 監査自体は並行可。global surfaceを含む実際の変更はAが直列化し、behavior/security修正はstructural移動と別batchにする |
-| 5: BE9-4 | 最終gate、結果集約、進捗docs完了化を行う唯一writer | 旧symbol、期限切れfacade、旧package production実装の残存をread-onlyで確認する | route/OpenAPI、classification manifest、ADR/boundary map、local linkの同期をread-onlyで確認する | 完了条件、検証証跡、release pending項目を独立に反証し、完了判定案をAへ返す | AがB/C/Dの結果を再現し、BE9-4完了条件を満たした時点だけBE9を完了化する |
+| wave | Session A（clean `main`） | Session B（専用worktree） | 直列barrier |
+|---|---|---|---|
+| 2a: six-domain recensus | 6 domain全体のlive/manifest/blockerを統合し、largest-ready #1とpair matrixの正本を作る | 分担されたdomainを独立再計測し、#2候補とA/B全競合軸をcountercheckする | clean `B0`と同一sourceを使う。ready pair確定前にproduction実装を開始しない |
+| 2b: BE9-2E残domain | largest-ready #1を`main`へdomain-localに実装し、必須central gateを同期する | next-largest-readyかつ相互非競合の#2を専用worktreeで同時実装する | Aのnew main tip確定後、Bは#2をそのtipから再構成・再freezeする。Aだけがexact B candidateとB用central gate同期をmainへ反映する |
+| 3: BE9-2F | lane A所有domainとshared consumerのfacade/call-siteをmainで収束する | lane B所有domainの非競合なconsumer 0候補を作る | shared caller/mock/aggregator、route/RBAC/OpenAPI、write ownerを隠し得る削除はAがmainで直列実行する |
+| 4–5: BE9-3 / BE9-4 | lane A resourceの監査・修正、cross-domain integration、文書完了化を行う | 非競合resourceの監査・修正を専用worktreeで行う | combined exact-tree gateとfixed-tree reviewersのPASS後だけBE9を完了化する |
 
-**Session C現状（2026-07-23）**:
+`staff`、`auth`、`clinic`、`pet`、`owner`、`inventory`のproduction file/LOC、manifest/live、facade/call-site削減、changed blocker path、ready条件、全競合軸、rankingはまだ再計測していない。これは「ready候補0件」または「empty frontier」の計測結果ではない。clean `B0`成立後にA/Bで再計測し、同じbaseへreconcileして最初のpairを確定する。
 
-- 最新のread-only runはcanonical identity/WIP boundaryとread-only終了をPASSとした一方、Session A qualification、Session D independent PASS、active plan HOLD解除、six-domain recensus、frontier確定をBLOCKEDとした。Session C-origin writeは0で、観測中のfrontend working-tree driftはHEAD/tree/index/refs/staged state不変の外部変更として分離した。
-- `staff`、`auth`、`clinic`、`pet`、`owner`、`inventory`のproduction file/LOC、manifest/live、facade/call-site削減、changed blocker path、ready条件、全競合軸、rankingはhard stop前提により未計測である。これは「ready候補0件」または「empty frontier」の計測結果ではない。
-- 同一readiness gapの再確認が3回以上続いたため、bounded follow-upは**terminal BLOCKED**とする。次回Session Cを開始できるのは、(1) central cutoverと継承findingを収束したSession A qualified exact tree、(2) Session D independent post-integration PASS、(3) committed本書のHOLD解除を1つのevidence packetで受領した時だけとする。
+第2 full-domainがreadyでない場合、Session Bは別domainの非競合characterization/test-only blocker-preparation batchを担当する。behavior/security blocker removalは独立contract/testと全競合軸0を先に証明できる場合だけ別landingとして扱う。それも成立しないwaveだけは一時的にBをread-only review/readiness laneへ縮退する。これは安全条件による例外であり、通常契約はA=`main`とB=worktreeの同時writerである。第三のproduction writer laneは設けない。
 
-**Session D現状（2026-07-23）**:
+**開始・物理分離gate**:
 
-- verdictは**CODE LANDING COMPLETE — POST-INTEGRATION QUALIFICATION BLOCKED**。candidate、overlay、reconstruction `297a23fc7`の静的移行差分は未説明path/symbol/business fact欠落0、新規migration起因CRITICAL/HIGH回帰0で、merge commit `490756325`によりmain-reachableになった。既知債務とrelease pendingは引き続き分離する。
-- post-integrationへ進むには、merge tipをbaseにcentral cutoverを完了したliteral commit/tree/parent/base、clean detached verification worktree、exact backendのDocker `/app` mount/hash、global DB leaseのholder/acquire/release、継承HIGHの修正または明示的owner/release判断が必要である。いずれかが欠ける間はpre-integration evidenceやcode landingをAPPROVEへ流用しない。
-- readiness後はmerge commit `490756325`からqualified exact treeまでのcentral差分だけを追加照合し、trimming/reservation/repository/service/handler/apicontractのscoped test、実DB rollback/isolation、race、vet、lint、coverage 80%以上、同一rubricの独立review 2本を同一treeで再実行する。
+- 各wave開始時にlocal `main`のclean commit/tree `B0`を固定する。tracked unstaged、staged、untracked、active Git state、別writerのいずれかが存在する間は開始しない。Session Aは`main`を直接使用し、Session B用`WT-B`だけを`B0`から作る。`WT-A`や`WT-I`は作らない。
+- `B0` packetにはlocal `main`、`origin/main`、merge-base、ahead/behindを含める。behindがある場合は、remote reconciliationを先行するか、local-only authorityとして進めpush/PR/remote integrationをHOLDするかを明記する。Session Aは他ownerのWIPやremote divergenceを代行してstash、clean、restore、pull、rebase、history rewrite、bulk commitで解消しない。
+- frontend、infra、別backend taskを含むSession A以外のwriterは、AがBE9を`main`で実行している間、それぞれ別branch/worktreeを使う。pathname overlapが0でも同じ`main` worktreeを共有しない。
+- dirty `main`を検出した場合は、Session Aが`HEAD`、tree、status、central file hash、staged/unstaged patch、untracked path/hashを固定し、各WIP ownerが自身のbranch/worktreeへ正規にlandingまたは隔離するまでHOLDする。
+- Session B worktreeはcandidate landingまたはabandon後にfreezeし、証跡取得後に退役させる。同じSession Bが複数のactive writer worktreeを同時に持たない。
 
-**並行化規則**:
+**並行化・統合規則**:
 
-**物理worktree分離gate**:
-
-- 論理的なsession ownershipやpath allowlistだけでは並行編集の安全条件を満たさない。writeを行う各sessionは**1 session = 1 branch + 1独立worktree**とし、canonical `main` worktreeを通常の実装・docs・検証WIP置き場に使わない。frontend、infra、別backend taskなどBE9外の並行作業にも同じ条件を適用する。
-- canonical `main` worktreeはread-onlyの統合面とし、Session Aだけがcleanかつquiescentなintegration windowで書き込める。Session A以外は`BE-refactor.md`、ADR、classification manifest、boundary map等の共有integration面をcanonicalで直接編集しない。
-- candidateとのpath/hunk overlapが0でも、canonicalにtracked unstaged、staged、untracked、active writerのいずれかが残る間はintegrationを開始しない。これは各sessionの変更量超過を意味するとは限らず、物理worktree分離またはWIP landingが未完了であることを示す。
-- dirty canonicalを検出した場合は、Session Aが`HEAD`、tree、status、staged/unstaged patch、untracked path/hashを固定し、各WIP ownerが自身のbranch/worktreeへ正規にlandingまたは隔離するまでHOLDする。Session Aは他ownerのWIPを代行してstash、clean、restore、bulk commit、破棄しない。
-
-1. L③a〜L⑤・BE9-2E-0の混在差分はsingle-writer barrierとして処理済み。今後も未commit差分が複数laneへ重なった場合は、Session Aが`HEAD`、status、central file hash、staged/unstaged patch、untracked path/hashをimmutable snapshotとして固定し、Session B/C/Dはlive dirty treeではなくsnapshotを参照する。
-2. Session Aはcanonical integration worktreeの唯一writerである。production codeを並行編集できるのは、Aが公開した同一integration tipから作成した**別worktree**を持つB/Cだけとする。BとCは同じworktree、branch、未commit差分を共有せず、Aのtip更新後はhandoff前にrebaseではなく必要に応じて再構成してscopeを再証明する。Session DはAが公開したexact treeを専用verification worktreeで検証する。
-3. BE9-2Eの`largest-ready`は、実装lane B/Cへ**ready frontier内で最大、かつ相互にfile・symbol・caller・business fact・table・write owner・consumer/provider interface・DI edge・transaction/lock・route/RBAC・gateが非競合の候補を順に割り当てる**と解釈する。固定domain順を正本化せず、各landing後に再計測する。ready候補が1件しかなければ片方を準備・監査へ戻し、並行数を満たすために依存やbatch境界を崩さない。
-4. domain-local laneはtarget package、対応する旧domain file/test、期限付きfacadeだけを変更し、現行central compositionのままcompile可能な状態でhandoffする。structural move、behavior/security hardening、central integrationを別landing単位にする。
-5. `backend/cmd/api/main.go`、`backend/docs/api.yaml`、`backend/internal/{handler/handler.go,handler/master_routes.go,service/service.go,repository/repositories.go}`、旧route snapshot、OpenAPI drift gate、lint inventory、classification manifest、ADR-006、boundary map、`BE-refactor.md`は共有integration面であり、Session A以外のwriterを置かない。`middleware`、`httpapi`、`sharedkernel`、`repository/repohelpers`、共有mock carrier、migration runner/checksum等、複数domain consumerを持つcross-cutting面は列挙外でもA専有とする。L⑥で扱う追加central fileも同じ扱いとする。
-6. authのpermission middlewareとdiscount permission helperは全route/domainへfan-inするglobal barrierである。auth coreを先にdomain-local移行しても、middleware/callerの一括cutoverは他sessionのroute変更が着地した後にSession Aが単独実行する。
-7. 共有DBを使うDB-backed testはSession Aが単一global test queue/leaseを所有し、A/B/C/Dの全sessionがlease取得なしに実行しない。`-p 1`は単一process内の直列化にすぎず、session間のlease代替にならない。別Git worktreeだけではDocker Compose project、DB、port、bind mount/sourceを隔離したことにならない。Docker経由の全checkは、containerがcandidate treeまたは対象file hashと一致するsourceをmountしていることを証明する。証明できない結果はpure Go unit testでもcandidateの合格根拠にせず、Aが統合したexact tipで再実行する。DB-backed testを並行実行できるのは、sourceに加えてCompose project、DB、portもsession単位で分離できた場合だけとし、それ以外はglobal leaseで直列化する。container/DBを使わないstatic/docs checkは並行実行できる。
-8. Session Dは検証対象のproduction codeを変更しない。gate不足を検出した場合は再現手順とtest案を返し、実装はAが適切なownerへ割り当てる。D自身が作ったtestをD自身の独立承認根拠にせず、pre-integration検証だけで合格にしない。Aが統合したexact tipをDが再確認し、DB-backed gateはAのtest queueでpost-integration実行する。
-9. B/Cのhandoffはbase commit、candidate commit/tree hash、path allowlist、structural/behavior区分、共有面の変更要求、scoped検証結果、未解消事項を必須情報とする。Session Dはcandidate tree hashを固定して検証し、Session Aは同じtreeであることを照合する。この情報とDの反証結果が揃うまで統合しない。
-10. L⑤のfresh DB実migration適用は承認を要するrelease gateであり、Session A/B/C/Dの自動実行対象に含めない。
+1. L③a〜L⑤・BE9-2E-0の混在差分はcentral single-writer barrierとして処理済み。今後もA/Bはlive dirty treeではなく同じclean `B0`から開始する。
+2. Session Aだけがlocal `main`、共有file、docs、およびfinal integrationのwriterである。Session Bは専用branch/worktreeの開始時allowlistだけを編集し、Aや既存WIPの変更を修正・restore・revertしない。
+3. BE9-2Eの`largest-ready`は、ready frontier内の最大候補をA、次に大きい相互非競合候補をBへ割り当てると解釈する。固定domain順を正本化せず、各landing後に再計測する。file/hunk・symbol/caller・business fact・table/write owner・consumer/provider interface・DI edge・transaction/lock・route/RBAC/OpenAPI・lint/gate・migration・protected WIPのいずれかが不明または非0なら同時pairにしない。別fileでも同じtable、parent row、advisory/row lock、audit transactionを触る候補は競合として直列化する。
+4. domain-local batchはtarget package、対応する旧domain file/test、期限付きfacadeだけを変更し、現行central compositionのままcompile可能な状態でhandoffする。structural move、behavior/security hardening、central integrationを別landing単位にする。
+5. `backend/cmd/api/main.go`、`backend/docs/api.yaml`、`backend/internal/{handler/handler.go,handler/master_routes.go,service/service.go,repository/repositories.go}`、旧route snapshot、OpenAPI drift gate、lint inventory、classification manifest、ADR-006、boundary map、`BE-refactor.md`は共有integration面であり、Session A以外のwriterを置かない。`middleware`、`httpapi`、`sharedkernel`、`repository/repohelpers`、共有mock carrier、migration runner/checksum等、複数domain consumerを持つcross-cutting面は列挙外でもA専有とする。
+6. authのpermission middlewareとdiscount permission helperは全route/domainへfan-inするglobal barrierである。auth coreを先にdomain-local移行しても、middleware/callerの一括cutoverは関連するroute batchが着地した後にSession Aが単独実行する。
+7. 共有DBを使うDB-backed testはSession Aが単一global test queueを所有し、A/Bとreviewer agentsの実行者は同じglobal leaseをatomicかつfail-closedに取得する。lease evidenceにはholder、candidate commit/tree、Compose project、container/source hash、DB/port/volume identity、acquire/release時刻、command/resultを記録する。既存holder、identity不一致、stale holderの生存確認不能、異常終了後のsafe release未確認のいずれかでは実行しない。`-p 1`は単一process内の直列化にすぎず、session間のlease代替にならない。別Git worktreeだけではDocker Compose project、DB、port、bind mount/sourceを隔離したことにならない。Docker経由の全checkは、containerがcandidate treeまたは対象file hashと一致するsourceをmountしていることを証明する。証明できない結果はcandidateの合格根拠にしない。DB-backed testを並行実行できるのは、sourceに加えてCompose project、DB、port、volumeもsession単位で分離できた場合だけとし、それ以外はglobal leaseで直列化する。container/DBを使わないstatic/docs checkは並行実行できる。
+8. 各candidateはauthor以外のfixed-tree reviewer agentsが確認し、findingはauthor laneが修正する。A/Bは相互のpath/blob/symbol/business-fact差分をcountercheckするが自己承認しない。candidate treeが変わった場合は旧reviewを失効させ、combined exact treeでも独立reviewを再実行する。
+9. Session BからAへのhandoffは`B0`、candidate commit/tree hash、path/hunk allowlist、structural/behavior区分、central change request、scoped検証結果、未解消事項を必須情報とする。Aのrank #1 landing後、Bはnew main tipから専用worktreeを作り直し、rank #2をre-census・reconstruct・再freezeする。Aはそのexact B candidateをmainへ反映し、Bのcentral change requestをA-authored別commitとして適用する。AがBのdomain hunkを変更した場合、そのhunkはA-authoredとなりBとfixed-tree reviewersの再reviewを必須とする。blind merge/rebaseはせず、path/blob/mode/deletion、symbol、business fact、write owner、gateに未説明差分があればB candidateをHOLDしてpairを再選定する。
+10. L⑤のfresh DB実migration適用は承認を要するrelease gateであり、Session A/Bの自動実行対象に含めない。
 
 <a id="be9-current-state"></a>
 
 ### 現在地と着手前ゲート（2026-07-23 更新）
 
-**現在domain = trimming code main統合・Session B完了 / post-integration qualification BLOCKED**: reconstruction `297a23fc7` / tree `deac925c8`はmerge commit `490756325`でmain-reachable。main `853137184`とのbackend差分0、exact Docker source、DB-backed isolation/rollback/lock、race、coverage 91.6%、scoped build/vet/target lint、Go/healthcare reviewまでPASSした。central cutover、継承HIGH 4件の解消またはrelease判断、Session D independent PASSが残るため、release qualification完了は推定しない。staff、auth、clinic、pet、owner、inventoryはsame-tree recensus未実行のBLOCKEDである。
+**現在domain = trimming BE9-2E移行・qualification COMPLETE / BE9-2F central cutover待ち**: reconstruction `297a23fc7`はmainへ統合済みで、exact-source DB-backed test、race、coverage 91.6%、scoped build/vet/target lint、独立reviewまでPASSしている。13件のcompatibility surfaceとcentral route/composition/tygo consumerはBE9-2Fで収束する。staff、auth、clinic、pet、owner、inventoryはsame-tree recensus未実行で、次のproduction pairは未確定である。
 
-**旧3layer残量（trimming landing `490756325`）**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
+**旧3layer残量**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
 
-**次の実行**: merge commit `490756325`をbaseに、各ownerがcanonicalに残るprotected WIPをlandingまたは隔離する。classification manifest、ADR-006、boundary mapのtrimming記録はSession Aのcanonical文書統合で同期済み。Session Aは残るcentral composition/tygo/route gateを同期し、継承HIGH finding群を解消または正式にrelease-gate裁定する。変更後のclean exact treeでDB-backed trimming・transaction/rollback/lock・clinic-isolation、race、coverage 80%以上、CRITICAL/HIGH 0/0を再成立させ、Session Dがindependent post-integration PASSを返した後、Session Cが6 domainのfrontierを初めて再計測する。その結果に従いBE9-2E残domain → BE9-2F（期限付きfacade撤去・`repos.Transaction`機構削除）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
+**現在の実行状態 = HOLD — clean `main`待ち**: 2026-07-23の本更新開始時点でlocal `main`にはtracked unstaged 15件、staged 0件、untracked 0件があり、Session A用`B0`の開始条件を満たさない。これは各sessionの変更量超過を意味せず、別taskのWIPが同じcanonical worktreeへ残っていることを示す。本書更新もその既存WIPを保持したまま行っている。
+
+**次の実行**: 各ownerがcanonicalに残るprotected WIPを正規commitとしてlandingするか別worktreeへ隔離し、local `main`をcleanかつquiescentにする。Session Aがそのcommit/treeを`B0`として固定し、origin relationとauthority modeを記録する。Session Aは`main`上で6 domain全体のfrontierを統合し、Session Bは`B0`から作る唯一の専用worktreeで分担domainとpair conflict matrixをcountercheckする。競合0のlargest-ready #1/#2を確定後、Aは#1をmain、Bは#2を専用worktreeで同時実装する。Aの#1 landing後にBをnew main tipへ再構成し、Aだけが#2と必須central gate同期をmainへ反映する。その後、BE9-2E残domain → BE9-2F（consumer 0の期限付きfacade撤去・`repos.Transaction`機構削除）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 
 **未解消の技術債とgate（起票状態を明記）**:
 - **未起票・behavior-changing fixとして分離**: trimming course usage countは`appointments.clinic_id`をscopeするが、`appointment_trimming_details.clinic_id`を直接制約しない。cross-clinic再現DB testを先に追加し、構造移行と分けて修正する。
 - **未起票・clinical audit設計**: trimming CUDにactor-awareなdurable clinical audit sinkがない。同一transaction内のaudit writeとfail-closed policyを別sliceで設計する。
 - **未起票・behavior-changing fixとして分離**: trimming masterの`CountUsage`確認からsoft deleteまでが非原子的でTOCTOUを持つ。対象masterと依存行のlock/recheckを同一transactionへ収束する。
 - **未起票・HIGH contract判断**: trimming POST/PATCHが`completed`を直接受理し、billing-owned completion intentを迂回できる現行contractと`reservation-to-record-flow.md`が不一致。直接受理を拒否するか既存API contractとしてowner/release条件を明記するかを決め、構造移行と分けて固定する。
+- **未起票・patient safety guard**: trimming Createが死亡済みpetをbackendで拒否しない。`pets.status` / `deceased_at`をwrite transaction内で検証し、UIを迂回した新規予約・施術記録作成をfail-closedにする。
 - **未起票・MEDIUM fail-closed/API hardening**: unavailable-time/capacity依存のnilを成功扱いするpath、unavailable-time readのambient `DBOrTx`不参加、Updateの`option_ids`上限欠落を別behavior batchで検証・是正する。
-- **post-integration verification gap**: 現行landing treeのDB-backed rollback/transaction/lock、race、coverage 91.6%はPASS済み。central cutoverと継承finding修正後のexact treeで、Session Dによる同一gateの独立再実行が未完了。
+- **post-change verification gate**: 現行trimming landing treeのDB-backed rollback/transaction/lock・clinic-isolation、race、coverage 91.6%と独立reviewはPASS済み。BE9-2F central cutover、継承finding修正、または別behavior/security batchでexact treeを変更した場合だけ、変更面に対応するgateとfixed-tree reviewを再実行する。
 - **未起票・behavior-changing fixとして分離**: L③aの`PutMappingsForTag`はsoft-delete後にN件createする非transactional replaceで、途中失敗時に部分更新を残し得る。
 - **未起票・contract判断が必要**: L③bの`owner_ids`件数上限と、actor欠落401後もservice実行を継続する既存挙動。
 - **未起票・BE9-2Eまでのcross-domain orchestration判断**: 予約キャンセル後のdraftカルテcleanupは通常の安全削除経路へ統一済みだが、予約更新とは別transactionのbest-effortである。部分成功をretry/outbox/明示的orchestratorのどれで再収束させるかをproduct contractと合わせて決める。
