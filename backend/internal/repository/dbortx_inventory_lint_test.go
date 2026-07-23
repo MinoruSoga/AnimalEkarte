@@ -173,6 +173,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.Update":                      {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":                            {},
+	// BUG-425: tag-code replacement is one transaction; every replacement write must use DBOrTx.
+	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
+	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
+	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDeleteByClinicIDAndTagName": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},
@@ -226,10 +230,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.assertStaffAssignedToClinic":               {}, // BE9-2E-0 doctor tenant guard
 	"reservation/reservation_intent_repository.go|reservationRepository.assertTrimmingReservationType":             {}, // BE9-2E-0 master-FK tenant guard
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                                {}, // AUD-001
+	// BUG-424: unavailable-time reads participate in the booking transaction.
+	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
 	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID": {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID": {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":      {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                          {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Update":                            {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID": {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Delete":                   {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                 {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.CountUsageByTrimmingOptionID":      {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.Delete":                            {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                          {},
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},

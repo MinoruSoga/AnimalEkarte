@@ -13,6 +13,7 @@ type TrimmingCourseService = trimming.TrimmingCourseService
 func NewTrimmingCourseService(
 	repo repository.TrimmingCourseRepository,
 	courseTypeRepo repository.TrimmingCourseTypeRepository,
+	tx repository.Transactor,
 ) TrimmingCourseService {
-	return trimming.NewTrimmingCourseService(repo, courseTypeRepo)
+	return trimming.NewTrimmingCourseService(repo, courseTypeRepo, tx)
 }

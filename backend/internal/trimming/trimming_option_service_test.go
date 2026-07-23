@@ -167,7 +167,7 @@ func TestTrimmingOptionService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			options, err := svc.List(context.Background(), 1)
 
@@ -223,7 +223,7 @@ func TestTrimmingOptionService_GetByID(t *testing.T) {
 					return tt.repoOption, tt.repoErr
 				},
 			}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			option, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -291,7 +291,7 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -363,7 +363,7 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 					return &model.TrimmingOption{ID: 1, Name: optName}, nil
 				},
 			}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			option, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -380,7 +380,7 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 
 func TestTrimmingOptionService_Update_NilInput(t *testing.T) {
 	repo := &mockTrimmingOptionRepository{}
-	svc := NewTrimmingOptionService(repo)
+	svc := NewTrimmingOptionService(repo, &mockTransactor{})
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -415,7 +415,7 @@ func TestTrimmingOptionService_Reorder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{reorderErr: tt.repoErr}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -434,7 +434,6 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 		id           uint64
 		usageCount   int64
 		usageErr     error
-		findByIDErr  error
 		repoErr      error
 		wantErr      bool
 		wantNF       bool
@@ -462,11 +461,11 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:        "returns not found error when option does not exist",
-			id:          999,
-			findByIDErr: apperrors.WrapNotFound("trimming_option", "999"),
-			wantErr:     true,
-			wantNF:      true,
+			name:    "returns not found error when option does not exist",
+			id:      999,
+			repoErr: apperrors.WrapNotFound("trimming_option", "999"),
+			wantErr: true,
+			wantNF:  true,
 		},
 		{
 			name:       "returns error on repository failure",
@@ -481,12 +480,6 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
-					if tt.findByIDErr != nil {
-						return nil, tt.findByIDErr
-					}
-					return &model.TrimmingOption{ID: id}, nil
-				},
 				countRecordsByOptFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
@@ -494,7 +487,7 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTrimmingOptionService(repo)
+			svc := NewTrimmingOptionService(repo, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 

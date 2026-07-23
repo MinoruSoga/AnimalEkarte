@@ -82,21 +82,21 @@ func TestTrimmingCourseTypeService_Create(t *testing.T) {
 				return created, nil
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: "シャンプー", SortOrder: 1})
 		assert.NoError(t, err)
 		assert.Equal(t, created, got)
 	})
 
 	t.Run("エラー: 名前が空", func(t *testing.T) {
-		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{}, &mockTransactor{})
 		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: ""})
 		assert.Error(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("エラー: 名前が空白のみ", func(t *testing.T) {
-		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{}, &mockTransactor{})
 		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: "   "})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -108,7 +108,7 @@ func TestTrimmingCourseTypeService_Create(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: "エラーケース"})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -149,7 +149,7 @@ func TestTrimmingCourseTypeService_List(t *testing.T) {
 					return tt.items, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseTypeService(repo)
+			svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 			got, err := svc.List(context.Background(), 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -193,7 +193,7 @@ func TestTrimmingCourseTypeService_GetByID(t *testing.T) {
 					return tt.item, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseTypeService(repo)
+			svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 			got, err := svc.GetByID(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -223,14 +223,14 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 				return &model.TrimmingCourseType{ID: id, Name: name}, nil
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &name, SortOrder: &sortOrder, IsActive: &isActive})
 		assert.NoError(t, err)
 		assert.Equal(t, name, got.Name)
 	})
 
 	t.Run("エラー: input が nil", func(t *testing.T) {
-		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{}, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 1, nil)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -243,7 +243,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 				return nil, apperrors.WrapNotFound("trimming_course_type", "999")
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingCourseTypeInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -257,7 +257,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 				return &model.TrimmingCourseType{ID: id}, nil
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &empty})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -269,7 +269,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 				return &model.TrimmingCourseType{ID: id}, nil
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -285,7 +285,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -333,7 +333,6 @@ func TestBuildTrimmingCourseTypeUpdate(t *testing.T) {
 func TestTrimmingCourseTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string
-		findByIDErr  error
 		countUsageFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 		deleteFn     func(ctx context.Context, clinicID, id uint64) error
 		wantErr      bool
@@ -356,10 +355,12 @@ func TestTrimmingCourseTypeService_Delete(t *testing.T) {
 			wantErr:      true,
 		},
 		{
-			name:        "エラー: FindByID が見つからない",
-			findByIDErr: apperrors.WrapNotFound("trimming_course_type", "999"),
-			wantErr:     true,
-			wantErrIs:   apperrors.ErrNotFound,
+			name: "エラー: 削除対象が見つからない",
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return apperrors.WrapNotFound("trimming_course_type", "999")
+			},
+			wantErr:   true,
+			wantErrIs: apperrors.ErrNotFound,
 		},
 		{
 			name:         "エラー: repo Delete がエラーを返す",
@@ -372,16 +373,10 @@ func TestTrimmingCourseTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseTypeRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
-					if tt.findByIDErr != nil {
-						return nil, tt.findByIDErr
-					}
-					return &model.TrimmingCourseType{ID: id}, nil
-				},
 				countUsageFn: tt.countUsageFn,
 				deleteFn:     tt.deleteFn,
 			}
-			svc := NewTrimmingCourseTypeService(repo)
+			svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 			err := svc.Delete(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -400,12 +395,12 @@ func TestTrimmingCourseTypeService_Reorder(t *testing.T) {
 		repo := &mockTrimmingCourseTypeRepository{
 			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error { return nil },
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		assert.NoError(t, svc.Reorder(context.Background(), 1, []uint64{2, 1}))
 	})
 
 	t.Run("エラー: ID リストが空", func(t *testing.T) {
-		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{}, &mockTransactor{})
 		assert.Error(t, svc.Reorder(context.Background(), 1, []uint64{}))
 	})
 
@@ -413,7 +408,7 @@ func TestTrimmingCourseTypeService_Reorder(t *testing.T) {
 		repo := &mockTrimmingCourseTypeRepository{
 			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error { return errors.New("db error") },
 		}
-		svc := NewTrimmingCourseTypeService(repo)
+		svc := NewTrimmingCourseTypeService(repo, &mockTransactor{})
 		assert.Error(t, svc.Reorder(context.Background(), 1, []uint64{1, 2}))
 	})
 }

@@ -128,7 +128,7 @@ func TestTrimmingCourseService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			courses, err := svc.List(context.Background(), 1)
 
@@ -184,7 +184,7 @@ func TestTrimmingCourseService_GetByID(t *testing.T) {
 					return tt.repoCourse, tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			course, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -246,7 +246,7 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -313,7 +313,7 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 					return &model.TrimmingCourse{ID: 1, Name: name}, nil
 				},
 			}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			course, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -334,7 +334,6 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 		id           uint64
 		countRecords int64
 		countErr     error
-		findByIDErr  error
 		deleteErr    error
 		wantErr      bool
 		wantNF       bool
@@ -355,11 +354,11 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 			wantConflict: true,
 		},
 		{
-			name:        "returns not found error when course does not exist",
-			id:          999,
-			findByIDErr: apperrors.WrapNotFound("trimming_course", "999"),
-			wantErr:     true,
-			wantNF:      true,
+			name:      "returns not found error when course does not exist",
+			id:        999,
+			deleteErr: apperrors.WrapNotFound("trimming_course", "999"),
+			wantErr:   true,
+			wantNF:    true,
 		},
 		{
 			name:      "returns error on repository failure",
@@ -372,12 +371,6 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
-					if tt.findByIDErr != nil {
-						return nil, tt.findByIDErr
-					}
-					return &model.TrimmingCourse{ID: id}, nil
-				},
 				countUsageByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.countRecords, tt.countErr
 				},
@@ -385,7 +378,7 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -428,7 +421,7 @@ func TestTrimmingCourseService_Reorder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{reorderErr: tt.repoErr}
-			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+			svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -443,7 +436,7 @@ func TestTrimmingCourseService_Reorder(t *testing.T) {
 
 func TestTrimmingCourseService_Update_NilInput(t *testing.T) {
 	repo := &mockTrimmingCourseRepository{}
-	svc := NewTrimmingCourseService(repo, &mockTrimmingCourseTypeRepository{})
+	svc := NewTrimmingCourseService(repo, &mockTrimmingCourseTypeRepository{}, &mockTransactor{})
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -506,7 +499,7 @@ func TestBuildTrimmingCourseUpdate(t *testing.T) {
 // ---- Create 追加分岐 ----
 
 func TestTrimmingCourseService_Create_EmptyNameError(t *testing.T) {
-	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, &mockMinimalCourseTypeRepo{})
+	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseInput{Name: ""})
 
@@ -522,7 +515,7 @@ func TestTrimmingCourseService_Create_CourseTypeNotFound(t *testing.T) {
 			return nil, errors.New("not found")
 		},
 	}
-	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, courseTypeRepo)
+	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, courseTypeRepo, &mockTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseInput{
 		Name:         "新規コース",
@@ -551,7 +544,7 @@ func TestTrimmingCourseService_Create_RejectsCrossClinicCourseTypeBeforeWrite(t 
 			return nil, apperrors.WrapNotFound("trimming course type", "5")
 		},
 	}
-	svc := NewTrimmingCourseService(courseRepo, courseTypeRepo)
+	svc := NewTrimmingCourseService(courseRepo, courseTypeRepo, &mockTransactor{})
 
 	result, err := svc.Create(context.Background(), clinicID, &CreateTrimmingCourseInput{
 		Name:         "新規コース",
@@ -573,7 +566,7 @@ func TestTrimmingCourseService_Update_InvalidName(t *testing.T) {
 			return &model.TrimmingCourse{ID: id}, nil
 		},
 	}
-	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseInput{Name: &invalidName})
 
@@ -592,8 +585,11 @@ func TestTrimmingCourseService_Delete_CountUsageError(t *testing.T) {
 		countUsageByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, errors.New("db error")
 		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return nil
+		},
 	}
-	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{})
+	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 1)
 
@@ -603,7 +599,7 @@ func TestTrimmingCourseService_Delete_CountUsageError(t *testing.T) {
 // ---- Reorder 追加分岐 ----
 
 func TestTrimmingCourseService_Reorder_EmptyIDs(t *testing.T) {
-	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, &mockMinimalCourseTypeRepo{})
+	svc := NewTrimmingCourseService(&mockTrimmingCourseRepository{}, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
 
 	err := svc.Reorder(context.Background(), 1, []uint64{})
 

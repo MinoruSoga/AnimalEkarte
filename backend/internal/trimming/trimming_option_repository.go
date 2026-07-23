@@ -66,7 +66,7 @@ func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, id)
+	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id)
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -77,7 +77,7 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 // appointment_trimming_options は直接 clinic_id を持たないため appointments を JOIN してテナント分離する
 func (r *trimmingOptionRepository) CountUsageByTrimmingOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.AppointmentTrimmingOption{}).
 		Joins("JOIN appointments ON appointments.id = appointment_trimming_options.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
 		Where("appointment_trimming_options.option_id = ?", optionID).

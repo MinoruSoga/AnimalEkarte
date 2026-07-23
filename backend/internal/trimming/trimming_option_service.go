@@ -77,12 +77,13 @@ type TrimmingOptionService interface {
 }
 
 type trimmingOptionService struct {
-	repo TrimmingOptionRepository
+	repo       TrimmingOptionRepository
+	transactor Transactor
 }
 
 // NewTrimmingOptionService は TrimmingOptionService を生成する
-func NewTrimmingOptionService(repo TrimmingOptionRepository) TrimmingOptionService {
-	return &trimmingOptionService{repo: repo}
+func NewTrimmingOptionService(repo TrimmingOptionRepository, transactor Transactor) TrimmingOptionService {
+	return &trimmingOptionService{repo: repo, transactor: transactor}
 }
 
 func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
@@ -152,18 +153,22 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 }
 
 func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get trimming option")
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("trimming option transaction dependency is required")
 	}
-	count, err := s.repo.CountUsageByTrimmingOptionID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check trimming option dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check trimming option dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming option")
+		}
+		count, err := s.repo.CountUsageByTrimmingOptionID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check trimming option dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete trimming option", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming option")
 	}

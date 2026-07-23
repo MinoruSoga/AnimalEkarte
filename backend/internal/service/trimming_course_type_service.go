@@ -10,6 +10,9 @@ type CreateTrimmingCourseTypeInput = trimming.CreateTrimmingCourseTypeInput
 type UpdateTrimmingCourseTypeInput = trimming.UpdateTrimmingCourseTypeInput
 type TrimmingCourseTypeService = trimming.TrimmingCourseTypeService
 
-func NewTrimmingCourseTypeService(repo repository.TrimmingCourseTypeRepository) TrimmingCourseTypeService {
-	return trimming.NewTrimmingCourseTypeService(repo)
+func NewTrimmingCourseTypeService(
+	repo repository.TrimmingCourseTypeRepository,
+	tx repository.Transactor,
+) TrimmingCourseTypeService {
+	return trimming.NewTrimmingCourseTypeService(repo, tx)
 }

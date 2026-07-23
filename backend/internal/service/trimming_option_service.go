@@ -10,6 +10,9 @@ type CreateTrimmingOptionInput = trimming.CreateTrimmingOptionInput
 type UpdateTrimmingOptionInput = trimming.UpdateTrimmingOptionInput
 type TrimmingOptionService = trimming.TrimmingOptionService
 
-func NewTrimmingOptionService(repo repository.TrimmingOptionRepository) TrimmingOptionService {
-	return trimming.NewTrimmingOptionService(repo)
+func NewTrimmingOptionService(
+	repo repository.TrimmingOptionRepository,
+	tx repository.Transactor,
+) TrimmingOptionService {
+	return trimming.NewTrimmingOptionService(repo, tx)
 }

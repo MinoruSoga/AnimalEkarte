@@ -52,12 +52,13 @@ type TrimmingCourseTypeService interface {
 }
 
 type trimmingCourseTypeService struct {
-	repo TrimmingCourseTypeRepository
+	repo       TrimmingCourseTypeRepository
+	transactor Transactor
 }
 
 // NewTrimmingCourseTypeService は TrimmingCourseTypeService を初期化して返す
-func NewTrimmingCourseTypeService(repo TrimmingCourseTypeRepository) TrimmingCourseTypeService {
-	return &trimmingCourseTypeService{repo: repo}
+func NewTrimmingCourseTypeService(repo TrimmingCourseTypeRepository, transactor Transactor) TrimmingCourseTypeService {
+	return &trimmingCourseTypeService{repo: repo, transactor: transactor}
 }
 
 func (s *trimmingCourseTypeService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error) {
@@ -125,18 +126,22 @@ func (s *trimmingCourseTypeService) Update(ctx context.Context, clinicID, id uin
 }
 
 func (s *trimmingCourseTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get trimming course type")
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("trimming course type transaction dependency is required")
 	}
-	count, err := s.repo.CountUsageByCourseTypeID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check trimming course type usage", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check trimming course type usage")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この種別は使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming course type")
+		}
+		count, err := s.repo.CountUsageByCourseTypeID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check trimming course type usage")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この種別は使用中のため削除できません")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete trimming course type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming course type")
 	}

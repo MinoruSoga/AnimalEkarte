@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -44,7 +45,11 @@ func (r *trimmingCourseTypeRepository) FindAll(ctx context.Context, clinicID uin
 
 func (r *trimmingCourseTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourseType, error) {
 	var m model.TrimmingCourseType
-	err := r.db.WithContext(ctx).
+	db := repohelpers.DBOrTx(ctx, r.db)
+	if repohelpers.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		First(&m, id).Error
 	if err != nil {
@@ -68,12 +73,12 @@ func (r *trimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id 
 }
 
 func (r *trimmingCourseTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id)
+	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id)
 }
 
 func (r *trimmingCourseTypeRepository) CountUsageByCourseTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.TrimmingCourse{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("course_type_id = ? AND deleted_at IS NULL", id).

@@ -52,28 +52,28 @@ func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id ui
 }
 
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
-	if err := r.db.WithContext(ctx).Create(course).Error; err != nil {
+	if err := repohelpers.DBOrTx(ctx, r.db).Create(course).Error; err != nil {
 		return apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return nil
 }
 
 func (r *trimmingCourseRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, id, fields); err != nil {
+	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.TrimmingCourse{}, "trimming_course", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, id)
+	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.TrimmingCourse{}, "trimming_course", clinicID, id)
 }
 
 // CountUsageByTrimmingCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
 // appointment_trimming_details は deleted_at を持たないため appointments を JOIN して論理削除を考慮する
 func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.AppointmentTrimmingDetail{}).
 		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
 		Where("appointment_trimming_details.clinic_id = ?", clinicID).

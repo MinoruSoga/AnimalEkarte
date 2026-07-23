@@ -85,11 +85,20 @@ type TrimmingCourseService interface {
 type trimmingCourseService struct {
 	repo           TrimmingCourseRepository
 	courseTypeRepo TrimmingCourseTypeRepository
+	transactor     Transactor
 }
 
 // NewTrimmingCourseService は TrimmingCourseService を生成する
-func NewTrimmingCourseService(repo TrimmingCourseRepository, courseTypeRepo TrimmingCourseTypeRepository) TrimmingCourseService {
-	return &trimmingCourseService{repo: repo, courseTypeRepo: courseTypeRepo}
+func NewTrimmingCourseService(
+	repo TrimmingCourseRepository,
+	courseTypeRepo TrimmingCourseTypeRepository,
+	transactor Transactor,
+) TrimmingCourseService {
+	return &trimmingCourseService{
+		repo:           repo,
+		courseTypeRepo: courseTypeRepo,
+		transactor:     transactor,
+	}
 }
 
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -114,11 +123,6 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
-	if input.CourseTypeID != nil {
-		if _, err := s.courseTypeRepo.FindByID(ctx, clinicID, *input.CourseTypeID); err != nil {
-			return nil, apperrors.WrapInvalidInput("course_type_id not found in this clinic")
-		}
-	}
 	course := &model.TrimmingCourse{
 		ClinicID:     clinicID,
 		Name:         input.Name,
@@ -133,7 +137,20 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		ts := model.TargetSize(input.TargetSize)
 		course.TargetSize = &ts
 	}
-	if err := s.repo.Create(ctx, course); err != nil {
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("trimming course transaction dependency is required")
+	}
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if input.CourseTypeID != nil {
+			if _, err := s.courseTypeRepo.FindByID(txCtx, clinicID, *input.CourseTypeID); err != nil {
+				return apperrors.WrapInvalidInput("course_type_id not found in this clinic")
+			}
+		}
+		if err := s.repo.Create(txCtx, course); err != nil {
+			return apperrors.Wrap(err, "failed to create trimming course")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create trimming course", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming course")
 	}
@@ -151,20 +168,30 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 		slog.ErrorContext(ctx, "failed to get trimming course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming course")
 	}
-	if input.CourseTypeID != nil {
-		if _, err := s.courseTypeRepo.FindByID(ctx, clinicID, *input.CourseTypeID); err != nil {
-			return nil, apperrors.WrapInvalidInput("course_type_id not found in this clinic")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("trimming course transaction dependency is required")
+	}
+	var course *model.TrimmingCourse
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if input.CourseTypeID != nil {
+			if _, err := s.courseTypeRepo.FindByID(txCtx, clinicID, *input.CourseTypeID); err != nil {
+				return apperrors.WrapInvalidInput("course_type_id not found in this clinic")
+			}
 		}
-	}
-	if err := validateOptionalName(input.Name); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate optional name")
-	}
-	fields := buildTrimmingCourseUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
-	}
-	course, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
+		if err := validateOptionalName(input.Name); err != nil {
+			return apperrors.Wrap(err, "failed to validate optional name")
+		}
+		fields := buildTrimmingCourseUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to update trimming course")
+		}
+		course = updated
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to update trimming course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update trimming course")
 	}
@@ -173,18 +200,22 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 }
 
 func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get trimming course")
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("trimming course transaction dependency is required")
 	}
-	count, err := s.repo.CountUsageByTrimmingCourseID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check trimming course dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check trimming course dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming course")
+		}
+		count, err := s.repo.CountUsageByTrimmingCourseID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check trimming course dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete trimming course", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming course")
 	}
