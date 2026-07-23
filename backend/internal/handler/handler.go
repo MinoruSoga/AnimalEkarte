@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +27,17 @@ type Handler struct {
 // owner deletion route. Delete this port when the owner HTTP surface moves in BE9-2E.
 type OwnerDeletionLifecycle interface {
 	HandleOwnerDeletion(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+func notifyStaffValidationFailure(ctx context.Context, staffID uint64, cause error) error {
+	slog.ErrorContext(
+		ctx,
+		"auth staff validation failed open",
+		"event", "auth_staff_validation_fail_open",
+		"staff_id", staffID,
+		"error", cause,
+	)
+	return nil
 }
 
 // New はHandlerを初期化して返す
@@ -91,7 +103,13 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 		auditSvc = h.svc.Audit
 		staffSvc = h.svc.Staff
 	}
-	protected.Use(middleware.Auth(h.tokenSvc(), h.cfg.GinMode == "release", auditSvc, staffSvc))
+	protected.Use(middleware.AuthWithStaffValidationFailureNotifier(
+		h.tokenSvc(),
+		h.cfg.GinMode == "release",
+		auditSvc,
+		staffSvc,
+		notifyStaffValidationFailure,
+	))
 	protected.Use(middleware.RequireXRequestedWith())
 	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -16,6 +17,10 @@ import (
 // JWTClaims は JWT ペイロードのエイリアス（service 層との import cycle 回避）。
 type JWTClaims = authjwt.Claims
 
+// StaffValidationFailureNotifier は staff 有効性検証の取得エラーを通知する。
+// 通知自体の失敗は認証を閉じず、呼び出し元でベストエフォートとして扱う。
+type StaffValidationFailureNotifier func(ctx context.Context, staffID uint64, cause error) error
+
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
 // tokenSvc は access JWT 検証に使用する（VerifyAccessToken）。
@@ -23,6 +28,28 @@ type JWTClaims = authjwt.Claims
 // auditSvc はクリニック切替の監査ログ記録に使用する（ベストエフォート: nil 許容）。
 // staffSvc は staff の有効性チェック（is_active && deleted_at IS NULL）に使用する。
 func Auth(tokenSvc service.TokenService, isProduction bool, auditSvc service.AuditService, staffSvc service.StaffService) gin.HandlerFunc {
+	return auth(tokenSvc, isProduction, auditSvc, staffSvc, nil)
+}
+
+// AuthWithStaffValidationFailureNotifier は Auth に staff 有効性検証エラーの通知経路を追加する。
+// notifier は nil を許容し、通知失敗時も既存の fail-open 挙動を維持する。
+func AuthWithStaffValidationFailureNotifier(
+	tokenSvc service.TokenService,
+	isProduction bool,
+	auditSvc service.AuditService,
+	staffSvc service.StaffService,
+	notifier StaffValidationFailureNotifier,
+) gin.HandlerFunc {
+	return auth(tokenSvc, isProduction, auditSvc, staffSvc, notifier)
+}
+
+func auth(
+	tokenSvc service.TokenService,
+	isProduction bool,
+	auditSvc service.AuditService,
+	staffSvc service.StaffService,
+	notifier StaffValidationFailureNotifier,
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
@@ -41,7 +68,7 @@ func Auth(tokenSvc service.TokenService, isProduction bool, auditSvc service.Aud
 		c.Set("is_system_admin", claims.IsSystemAdmin)
 
 		// staff 有効性チェック（deactivation / soft-delete 防止）
-		if !checkStaffActive(c, staffSvc, claims.UserID) {
+		if !checkStaffActive(c, staffSvc, claims.UserID, notifier) {
 			return
 		}
 
@@ -85,14 +112,25 @@ func extractToken(c *gin.Context) string {
 // 既に 403 レスポンスを書き込み済みのため呼び出し元は即座に return すること。
 // userID が数値でない、staffSvc が nil、または DB 一時障害の場合は検証をスキップし
 // true を返す（既存挙動を維持）。
-func checkStaffActive(c *gin.Context, staffSvc service.StaffService, userID string) bool {
+func checkStaffActive(
+	c *gin.Context,
+	staffSvc service.StaffService,
+	userID string,
+	notifier StaffValidationFailureNotifier,
+) bool {
 	staffID, err := strconv.ParseUint(userID, 10, 64)
 	if err != nil || staffSvc == nil {
 		return true
 	}
-	staff, getErr := staffSvc.GetByID(c.Request.Context(), staffID)
+	ctx := c.Request.Context()
+	staff, getErr := staffSvc.GetByID(ctx, staffID)
 	if getErr != nil {
-		slog.WarnContext(c.Request.Context(), "failed to verify staff validity (non-fatal)", "staff_id", staffID, "error", getErr)
+		slog.WarnContext(ctx, "failed to verify staff validity (non-fatal)", "staff_id", staffID, "error", getErr)
+		if notifier != nil {
+			if notifyErr := notifier(ctx, staffID, getErr); notifyErr != nil {
+				slog.ErrorContext(ctx, "failed to notify staff validation failure (non-fatal)", "staff_id", staffID, "error", notifyErr)
+			}
+		}
 		// 取得失敗は許容（DB 一時障害）→ 続行
 		return true
 	}

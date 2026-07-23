@@ -409,61 +409,114 @@ func TestAuth_StaffValidation(t *testing.T) {
 	}
 	token := makeToken(t, jwt.SigningMethodHS256, claims)
 
-	t.Run("allows active staff", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		router := gin.New()
-		staffSvc := &mockStaffService{}
-		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
-		router.GET("/test", func(c *gin.Context) {
-			c.Status(http.StatusOK)
+	staffLookupErr := errors.New("db error")
+	notifierErr := errors.New("notifier unavailable")
+	tests := []struct {
+		name              string
+		staff             *model.Staff
+		staffErr          error
+		notifierErr       error
+		injectNotifier    bool
+		wantStatus        int
+		wantDownstream    bool
+		wantNotifierCalls int
+	}{
+		{
+			name:              "allows active staff without notification",
+			staff:             &model.Staff{ID: 123, IsActive: true},
+			injectNotifier:    true,
+			wantStatus:        http.StatusOK,
+			wantDownstream:    true,
+			wantNotifierCalls: 0,
+		},
+		{
+			name:              "blocks inactive staff without notification",
+			staff:             &model.Staff{ID: 123, IsActive: false},
+			injectNotifier:    true,
+			wantStatus:        http.StatusForbidden,
+			wantDownstream:    false,
+			wantNotifierCalls: 0,
+		},
+		{
+			name:              "blocks missing staff without notification",
+			injectNotifier:    true,
+			wantStatus:        http.StatusForbidden,
+			wantDownstream:    false,
+			wantNotifierCalls: 0,
+		},
+		{
+			name:              "notifies exactly once and continues when staff validation fails",
+			staffErr:          staffLookupErr,
+			injectNotifier:    true,
+			wantStatus:        http.StatusOK,
+			wantDownstream:    true,
+			wantNotifierCalls: 1,
+		},
+		{
+			name:              "continues when staff validation notification fails",
+			staffErr:          staffLookupErr,
+			notifierErr:       notifierErr,
+			injectNotifier:    true,
+			wantStatus:        http.StatusOK,
+			wantDownstream:    true,
+			wantNotifierCalls: 1,
+		},
+		{
+			name:              "legacy Auth continues without a notifier when staff validation fails",
+			staffErr:          staffLookupErr,
+			wantStatus:        http.StatusOK,
+			wantDownstream:    true,
+			wantNotifierCalls: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var lookupStaffID uint64
+			staffSvc := &mockStaffService{
+				getByIDFn: func(_ context.Context, staffID uint64) (*model.Staff, error) {
+					lookupStaffID = staffID
+					return tt.staff, tt.staffErr
+				},
+			}
+
+			var notifiedStaffID uint64
+			var notifiedErr error
+			notifierCalls := 0
+			notifier := StaffValidationFailureNotifier(func(_ context.Context, staffID uint64, cause error) error {
+				notifierCalls++
+				notifiedStaffID = staffID
+				notifiedErr = cause
+				return tt.notifierErr
+			})
+
+			downstreamCalled := false
+			w := httptest.NewRecorder()
+			router := gin.New()
+			authMiddleware := Auth(testTokenSvc(), false, nil, staffSvc)
+			if tt.injectNotifier {
+				authMiddleware = AuthWithStaffValidationFailureNotifier(testTokenSvc(), false, nil, staffSvc, notifier)
+			}
+			router.Use(authMiddleware)
+			router.GET("/test", func(c *gin.Context) {
+				downstreamCalled = true
+				c.Status(http.StatusOK)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+			req.Header.Set("Authorization", "Bearer "+token)
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, uint64(123), lookupStaffID)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Equal(t, tt.wantDownstream, downstreamCalled)
+			assert.Equal(t, tt.wantNotifierCalls, notifierCalls)
+			if tt.wantNotifierCalls > 0 {
+				assert.Equal(t, uint64(123), notifiedStaffID)
+				assert.Same(t, tt.staffErr, notifiedErr)
+			}
 		})
-
-		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
-		req.Header.Set("Authorization", "Bearer "+token)
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("blocks inactive staff", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		router := gin.New()
-		staffSvc := &mockStaffService{
-			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
-				return &model.Staff{IsActive: false}, nil
-			},
-		}
-		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
-		router.GET("/test", func(c *gin.Context) {
-			c.Status(http.StatusOK)
-		})
-
-		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
-		req.Header.Set("Authorization", "Bearer "+token)
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusForbidden, w.Code)
-	})
-
-	t.Run("allows staff check to proceed even if DB query fails", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		router := gin.New()
-		staffSvc := &mockStaffService{
-			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
-				return nil, errors.New("db error")
-			},
-		}
-		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
-		router.GET("/test", func(c *gin.Context) {
-			c.Status(http.StatusOK)
-		})
-
-		req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
-		req.Header.Set("Authorization", "Bearer "+token)
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
+	}
 }
 
 func TestAuth_RejectsRefreshTokenSubject(t *testing.T) {
