@@ -35,10 +35,10 @@ func TestClinicHandlerCompiles(t *testing.T) {
 //    Test Cases (10 scenarios):
 //    ✓ Returns 200 OK with empty list when no clinics exist
 //    ✓ Default (no scope param): Returns clinics where staff is assigned (staff_clinic_assignments)
-//    ✓ scope=all: Returns ALL system clinics (requires master-staff view permission)
+//    ✓ scope=all: Returns ALL system clinics (system_admin only)
 //    ✓ Returns 401 when staff_id missing from context (default behavior)
-//    ✓ scope=all with master-staff view permission: returns full clinic list
-//    ✓ scope=all without permission: returns 403 Forbidden
+//    ✓ scope=all with system_admin: returns full clinic list
+//    ✓ scope=all with non-admin: returns 403 Forbidden without calling services
 //    ✓ Default list respects staff_clinic_assignments (staff sees only assigned clinics)
 //    ✓ Response includes all clinic fields with toClinicResponseList transformation
 //    ✓ Returns 500 on database error
@@ -108,8 +108,8 @@ func TestClinicHandlerCompiles(t *testing.T) {
 // SECURITY & MULTITENANCY:
 //    ✓ CRITICAL: Clinics are SYSTEM-WIDE (NOT clinic-scoped in request context)
 //    ✓ system_admin flag controls access (is_system_admin extraction required)
-//    ✓ RBAC via ResourceHospitalSettings permission for create/update/delete
-//    ✓ RBAC via ResourceMasterStaff permission for scope=all listing
+//    ✓ system_admin is required for create/delete and scope=all listing
+//    ✓ RBAC via ResourceHospitalSettings permission remains in place for update
 //    ✓ staff_clinic_assignments controls which clinics staff can view (default scope)
 //    ✓ Non-admin staff can only access/modify their own clinic
 //    ✓ Soft delete prevents accidental data loss
@@ -146,9 +146,9 @@ func TestClinicHandlerCompiles(t *testing.T) {
 //    - CRITICAL DIFFERENCE: Clinics are SYSTEM-WIDE (NOT clinic-scoped in request context)
 //    - Clinic access controlled by is_system_admin flag (not clinic_id context)
 //    - Non-admin staff view/access controlled via staff_clinic_assignments join
-//    - ListClinics with scope=all requires ResourceHospitalSettings view permission
+//    - ListClinics with scope=all requires system_admin (NOT permission-based)
 //    - CreateClinic requires system_admin (NOT permission-based)
-//    - DeleteClinic requires system_admin + ResourceHospitalSettings delete permission
+//    - DeleteClinic requires system_admin (NOT permission-based)
 //    - UpdateClinic requires ResourceHospitalSettings edit permission (admin can do any clinic)
 //    - Non-admin staff can only update their own clinic (clinic_id == requested id)
 //    - Tax rates: standard and reduced for billing calculations
@@ -163,8 +163,8 @@ func TestClinicHandlerCompiles(t *testing.T) {
 //    - Verify system_admin access control (can access any clinic)
 //    - Verify non-admin clinic_id scoping (can only access own clinic)
 //    - Verify staff_clinic_assignments for default ListClinics scope
-//    - Test scope=all with master-staff permission (RBAC check)
-//    - Test scope=all without permission (403 Forbidden)
+//    - Test scope=all with system_admin
+//    - Test scope=all with non-admin (403 Forbidden without service calls)
 //    - Test CreateClinic system_admin requirement (403 if not admin)
 //    - Test DeleteClinic system_admin requirement
 //    - Test PATCH semantics (unspecified fields unchanged)
@@ -340,26 +340,68 @@ func TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ノア動物病院 大阪")
 }
 
-func TestListClinics_ScopeAll_NoPermission_Returns403(t *testing.T) {
+func TestListClinics_ScopeAll_NonAdmin_Returns403WithoutServiceCalls(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	permissionServiceCalled := false
 	permSvc := &mockEffectivePermissionService{
 		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-			// 権限ルールを空で返す → hospital_settings view 権限なし
-			return []model.PermissionGroupRule{}, nil
+			permissionServiceCalled = true
+			return []model.PermissionGroupRule{
+				{Resource: string(model.ResourceHospitalSettings), CanView: true},
+			}, nil
 		},
 	}
-	h := newHandlerWithClinicAndPermSvc(&mockClinicService{}, permSvc)
+	clinicServiceCalled := false
+	clinicSvc := &mockClinicService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			clinicServiceCalled = true
+			return []model.Clinic{{ID: 1, Name: "ノア動物病院 本院"}}, nil
+		},
+	}
+	h := newHandlerWithClinicAndPermSvc(clinicSvc, permSvc)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
 	setNonSystemAdmin(c)
-	setClinicID(c)
 
 	h.ListClinics(c)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.False(t, permissionServiceCalled)
+	assert.False(t, clinicServiceCalled)
+}
+
+func TestListClinics_ScopeAll_MissingAdminContext_Returns401WithoutServiceCalls(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	permissionServiceCalled := false
+	permSvc := &mockEffectivePermissionService{
+		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+			permissionServiceCalled = true
+			return nil, nil
+		},
+	}
+	clinicServiceCalled := false
+	clinicSvc := &mockClinicService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			clinicServiceCalled = true
+			return nil, nil
+		},
+	}
+	h := newHandlerWithClinicAndPermSvc(clinicSvc, permSvc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.JSONEq(t, `{"error":"missing user context"}`, w.Body.String())
+	assert.False(t, permissionServiceCalled)
+	assert.False(t, clinicServiceCalled)
 }
 
 // ---- GetClinic ----
@@ -919,6 +961,7 @@ func TestCreateClinic(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest(http.MethodPost, "/clinics", bytes.NewReader(bodyBytes))
 			c.Request.Header.Set("Content-Type", "application/json")
+			setSystemAdmin(c)
 
 			h.CreateClinic(c)
 
@@ -929,6 +972,57 @@ func TestCreateClinic(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+func TestCreateClinic_RequiresSystemAdminWithoutCallingService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "returns 403 for non-admin",
+			setupCtx:   setNonSystemAdmin,
+			wantStatus: http.StatusForbidden,
+			wantBody:   `{"error":"system administrator access required"}`,
+		},
+		{
+			name:       "returns 401 when admin context is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   `{"error":"missing user context"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serviceCalled := false
+			svc := &mockClinicService{
+				createClinicFn: func(_ context.Context, _ *service.CreateClinicInput) (*model.Clinic, error) {
+					serviceCalled = true
+					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
+				},
+			}
+			h := newHandlerWithClinicSvc(svc)
+
+			body, err := json.Marshal(createClinicRequest{Name: "新規クリニック"})
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/clinics", bytes.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateClinic(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.JSONEq(t, tt.wantBody, w.Body.String())
+			assert.False(t, serviceCalled)
 		})
 	}
 }
@@ -991,11 +1085,61 @@ func TestDeleteClinic(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest(http.MethodDelete, "/clinics/"+tt.paramID, http.NoBody)
 			c.Params = gin.Params{{Key: "clinic_id", Value: tt.paramID}}
+			setSystemAdmin(c)
 
 			h.DeleteClinic(c)
 			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
 
 			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestDeleteClinic_RequiresSystemAdminWithoutCallingService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "returns 403 for non-admin",
+			setupCtx:   setNonSystemAdmin,
+			wantStatus: http.StatusForbidden,
+			wantBody:   `{"error":"system administrator access required"}`,
+		},
+		{
+			name:       "returns 401 when admin context is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   `{"error":"missing user context"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serviceCalled := false
+			svc := &mockClinicService{
+				deleteClinicFn: func(_ context.Context, _ uint64) error {
+					serviceCalled = true
+					return nil
+				},
+			}
+			h := newHandlerWithClinicSvc(svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/clinics/3", http.NoBody)
+			c.Params = gin.Params{{Key: "clinic_id", Value: "3"}}
+			tt.setupCtx(c)
+
+			h.DeleteClinic(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.JSONEq(t, tt.wantBody, w.Body.String())
+			assert.False(t, serviceCalled)
 		})
 	}
 }

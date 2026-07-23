@@ -11,14 +11,13 @@ import (
 )
 
 // ListClinics godoc
-// scope=all: 全クリニック一覧を返す（hospital-settings の can_view 権限が必要）
+// scope=all: 全クリニック一覧を返す（system_admin のみ）
 // scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
 func (h *Handler) ListClinics(c *gin.Context) {
 	query := newListClinicQuery(c.Request.URL.Query())
 
 	if query.Scope == "all" {
-		if !h.hasPermission(c, string(model.ResourceHospitalSettings), "view") {
-			RespondError(c, apperrors.WrapForbidden("医院マスタの閲覧権限が必要です"))
+		if !requireSystemAdmin(c) {
 			return
 		}
 		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
@@ -41,6 +40,18 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
+}
+
+func requireSystemAdmin(c *gin.Context) bool {
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return false
+	}
+	if !isSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("system administrator access required"))
+		return false
+	}
+	return true
 }
 
 // hasPermission はユーザーの実効権限を確認する。
@@ -151,8 +162,11 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 }
 
 // CreateClinic godoc
-// hospital-settings.can_create 権限が必要（RequirePermission ミドルウェアで事前検査済み）
+// system_admin のみ作成可能。
 func (h *Handler) CreateClinic(c *gin.Context) {
+	if !requireSystemAdmin(c) {
+		return
+	}
 	var req createClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -168,8 +182,11 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 }
 
 // DeleteClinic godoc
-// hospital-settings.can_delete 権限が必要（RequirePermission ミドルウェアで事前検査済み）
+// system_admin のみ削除可能。
 func (h *Handler) DeleteClinic(c *gin.Context) {
+	if !requireSystemAdmin(c) {
+		return
+	}
 	id, ok := parseIDParam(c, "clinic_id")
 	if !ok {
 		return
