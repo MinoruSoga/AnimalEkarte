@@ -8,14 +8,14 @@
 
 ## 前提
 
-- `backend/migrations/` 直下の `.sql` はDDL専用で、`001_init.sql`（統合初期スキーマ、変更しない）と追記専用incremental `002_lstep_snapshot_import_clinic_fk.sql` が存在する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
+- `backend/migrations/` 直下の `.sql` はDDL専用で、`001_init.sql`（統合初期スキーマ、変更しない）と追記専用incremental `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` が存在する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
   1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrder` の固定順（`002_master → 003_demo → 004_staging`）で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
-- fresh DB 適用後の正しい終了状態は `schema_migrations` に **5行**: `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
+- fresh DB 適用後の正しい終了状態は `schema_migrations` に **6行**: `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `003_medical_records_appointment_id_index.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
 - `schema_migrations`が空で既存テーブルを検出するlegacy baselineでは、`001_init.sql`とseed 3バンドルだけを適用済み記録する。`002`以降のappend-only DDLはbaseline対象外で、直後のmigration phaseで実行する。
 - 既に適用済みの `001_init.sql` / seed バンドル（CSV・manifest.json）を編集すると、既存 DB の `schema_migrations` に記録された checksum と不一致になる。
 - **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを「適用済み」として baseline する（見つかった旧キーに対応するものだけでなく常に全件。`baselineIfNeeded` と同じ保守的方針 — 一部だけ baseline すると残りのバンドルが `runSeedBundles` に CSV 自動ロードされてしまうため）。`db_reset=true`/ボリューム再構築は不要になった。
@@ -55,12 +55,18 @@ docker compose exec backend go run ./cmd/seed-export
 
 ---
 
-## 旧DB移行：推奨経路は stage-import（animalekarte_stage → 本テーブル）
+## 旧DB移行：正式経路は CSV import（F6）
+
+正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の19表 CSV + manifest を read-only mount して `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で実行する。
+
+`stage-import` は old_db Postgres へ直接接続する旧ローカル互換経路であり、F6/F7の本番カットオーバーには使用しない。
+
+## 旧ローカル互換経路：stage-import（animalekarte_stage → 本テーブル）
 
 更新日: 2026-06-25
 
 > **⚠️ 直下の TSV ベース直接 seeder (`make seed-old-db`) は deprecated（comparison-only）。**
-> 新規の移行作業・本テーブル投入は **`make stage-import`** を使うこと。下記
+> F6の本番移行には使用禁止。過去のローカル比較だけで **`make stage-import`** を使う。下記
 > 「旧DB移行データのローカル投入 (old-db seed)」節は比較用に残す。
 
 ### なぜ stage-import か

@@ -1,4 +1,6 @@
-# AnimalEkarte CSV import completion report
+# AnimalEkarte CSV seed overlay completion report（旧7表経路）
+
+> これは2026-07-15の disposable seed-export 用7表adapterの記録であり、医院カットオーバーF6の実装・運用証跡ではない。正式な19表 consumer は [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) を参照する。
 
 ## Completion Report
 
