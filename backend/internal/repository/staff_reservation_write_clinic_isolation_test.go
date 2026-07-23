@@ -2,8 +2,8 @@ package repository
 
 // staff_reservation_write_clinic_isolation_test.go — ADR-006 論点#1 案A（staffs 書込一本化）
 //
-// テスト対象: staffRepository の予約用途 write（CreateForReservation / UpdateForReservation /
-//   DeleteForReservation / SwapSortOrderForReservation）の clinic_id 境界。
+// テスト対象: staffRepository の予約用途 write（CreateForReservation /
+//   UpdateForReservation / SwapSortOrderForReservation）の clinic_id 境界。
 // 保護する不変条件: 一本化後も staff domain 側 write path が clinic-scope 検証を維持する
 //   （裁定の実装条件ii）。reservation 側の既存テストは delegate 経由で挙動を検証するが、
 //   本ファイルは移動先の staff domain メソッドを直接呼び、スコープ述語の削除で必ず失敗する。
@@ -70,25 +70,6 @@ func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 	var reloaded model.Staff
 	require.NoError(t, db.First(&reloaded, staffB.ID).Error)
 	assert.Equal(t, "クリニックB医師", reloaded.Name)
-}
-
-// TestStaffRepository_DeleteForReservation_ClinicIsolation は clinic A から
-// clinic B のスタッフを削除できない（NotFound・ソフトデリートなし）ことを検証する。
-func TestStaffRepository_DeleteForReservation_ClinicIsolation(t *testing.T) {
-	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
-	ctx := context.Background()
-
-	staffB := makeAssignedDoctor(t, db, 2, "クリニックB医師", 1)
-
-	err := repo.DeleteForReservation(ctx, 1, staffB.ID)
-	require.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
-
-	var count int64
-	require.NoError(t, db.Model(&model.Staff{}).
-		Where("id = ? AND deleted_at IS NULL", staffB.ID).Count(&count).Error)
-	assert.Equal(t, int64(1), count, "clinic B のスタッフがソフトデリートされてはならない")
 }
 
 // TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation は clinic A から

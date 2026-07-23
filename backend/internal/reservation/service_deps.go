@@ -25,6 +25,12 @@ type Transactor interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
+// ReservationStaffDeleter is the reservation-owned business-intent port for
+// removing a staff member through the canonical staff lifecycle.
+type ReservationStaffDeleter interface {
+	Delete(ctx context.Context, clinicID, staffID uint64) error
+}
+
 // trimmingCourseFinder / trimmingOptionFinder は trimming マスタ（未移行 domain）の
 // 所有権確認に使う最小 view（LINE予約 validator 用）。
 type trimmingCourseFinder interface {

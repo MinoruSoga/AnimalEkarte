@@ -118,7 +118,7 @@ func (m *mockReservationStaffRepository) SupportsReservationType(ctx context.Con
 // mockTransactor は trimming_service_test.go で定義済み
 
 func newTestReservationStaffService(repo *mockReservationStaffRepository, transactor *mockTransactor) ReservationStaffService {
-	return NewReservationStaffService(repo, transactor)
+	return NewReservationStaffService(repo, transactor, &reservationStaffDeleteRecorder{})
 }
 
 func TestReservationStaffService_List_ReturnsStaffs(t *testing.T) {
@@ -241,93 +241,6 @@ func TestReservationStaffService_Create_Success(t *testing.T) {
 	assert.NotNil(t, staff)
 	assert.NotNil(t, excluded)
 	assert.Equal(t, "新スタッフ", staff.Name)
-}
-
-func TestReservationStaffService_Delete_Success(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id, Name: "田中医師"}, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			return nil
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	err := svc.Delete(context.Background(), 1, 1)
-
-	assert.NoError(t, err)
-}
-
-func TestReservationStaffService_Delete_NotFound(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
-			return nil, apperrors.WrapNotFound("reservation_staff", "999")
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			return nil
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	err := svc.Delete(context.Background(), 1, 999)
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
-}
-
-func TestReservationStaffService_Delete_UsageCheckError(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id}, nil
-		},
-		countUsageByStaffIDFn: func() (int64, error) {
-			return 0, errors.New("db error")
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	err := svc.Delete(context.Background(), 1, 1)
-
-	assert.Error(t, err)
-}
-
-func TestReservationStaffService_Delete_Conflict(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id}, nil
-		},
-		countUsageByStaffIDFn: func() (int64, error) {
-			return 3, nil
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	err := svc.Delete(context.Background(), 1, 1)
-
-	assert.Error(t, err)
-	assert.False(t, apperrors.IsNotFound(err))
-}
-
-func TestReservationStaffService_Delete_RepoDeleteError(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id}, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			return errors.New("db error")
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	err := svc.Delete(context.Background(), 1, 1)
-
-	assert.Error(t, err)
 }
 
 func TestReservationStaffService_Create_DefaultsStaffTypeWhenEmpty(t *testing.T) {

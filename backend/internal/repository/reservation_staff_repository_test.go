@@ -6,7 +6,7 @@ package repository
 
 // reservation_staff_repository_test.go — #212 カバレッジ向上（ローカル実測 0% のメソッド群）
 //
-// 対象: FindAll / Delete / CountUsageByStaffID / UpdateSortOrder /
+// 対象: FindAll / UpdateSortOrder /
 //       FindAllExcludedReservationTypes / FindAllExcludedReservationTypesByStaffIDs
 //
 // 優先順位は異常系・clinic_id 隔離・FK 検証（#212 の明示要件）。正常系の重複でカバレッジを稼がない。
@@ -16,13 +16,11 @@ package repository
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -43,30 +41,6 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 		"TRUNCATE TABLE staff_reservation_exclusions, staff_reservation_capabilities, "+
 			"staff_clinic_assignments, reservation_types, staffs CASCADE").Error)
 	return db
-}
-
-// makeReservationWithDoctorAtOffset は makeReservationWithDoctor と異なり start_time を
-// offset で明示的にずらして作成する。appointments には
-// uk_appointment_staff_time (clinic_id, doctor_id, start_time) の部分 UNIQUE INDEX
-// (WHERE deleted_at IS NULL AND status != 'cancelled') があるため、同一クリニック・同一
-// staff の予約を複数件作るテスト（CountUsageByStaffID）では start_time を必ず分散させる。
-func makeReservationWithDoctorAtOffset(t *testing.T, db *gorm.DB, clinicID, reservationTypeID, doctorID uint64, offset time.Duration) *model.Reservation {
-	t.Helper()
-	start := time.Now().UTC().Truncate(time.Minute).Add(offset)
-	did := doctorID
-	res := &model.Reservation{
-		ClinicID:          clinicID,
-		StartTime:         start,
-		EndTime:           start.Add(15 * time.Minute),
-		ReservationTypeID: reservationTypeID,
-		DoctorID:          &did,
-		VisitType:         model.VisitTypeRevisit,
-		Status:            model.ReservationStatusPending,
-		Source:            model.ReservationSourceManual,
-		CustomerFields:    []byte(`{}`),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(res).Error)
-	return res
 }
 
 // ─── FindAll ────────────────────────────────────────────────────────────────
@@ -123,100 +97,6 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 		}
 		assert.True(t, containsID(staffsA, staff.ID), "clinic A からも取得できるべき")
 		assert.True(t, containsID(staffsB, staff.ID), "clinic B からも取得できるべき")
-	})
-}
-
-// ─── Delete ─────────────────────────────────────────────────────────────────
-
-func TestReservationStaffRepository_Delete(t *testing.T) {
-	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	t.Run("同一クリニックからは削除成功しソフトデリートされる", func(t *testing.T) {
-		staff := makeDoctorAssignedToClinic(t, db, clinicA, "Deleteテスト用スタッフ")
-
-		err := repo.Delete(ctx, clinicA, staff.ID)
-		require.NoError(t, err)
-
-		var count int64
-		require.NoError(t, db.Unscoped().Model(&model.Staff{}).Where("id = ? AND deleted_at IS NOT NULL", staff.ID).Count(&count).Error)
-		assert.EqualValues(t, 1, count, "対象行は物理削除でなくソフトデリートされるべき")
-	})
-
-	// Fixed: Delete は EXISTS(...) 相関サブクエリで clinic_id 隔離を検証する
-	// （reservation_staff_repository.go 参照）。旧 Joins()+Delete() 実装は
-	// GORM のソフトデリート UPDATE で JOIN 条件が無視されるバグがあったが、
-	// 現行の EXISTS サブクエリはただの WHERE 述語であり、同様の欠落は発生しない。
-	t.Run("別クリニックからの削除はNotFoundで行が残る", func(t *testing.T) {
-		staff := makeDoctorAssignedToClinic(t, db, clinicA, "Delete別クリニックテスト用スタッフ")
-
-		err := repo.Delete(ctx, clinicB, staff.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-
-		var count int64
-		require.NoError(t, db.Model(&model.Staff{}).Where("id = ?", staff.ID).Count(&count).Error)
-		assert.EqualValues(t, 1, count, "別クリニックからの削除要求で行が消えてはならない")
-	})
-
-	t.Run("存在しないIDはNotFound", func(t *testing.T) {
-		err := repo.Delete(ctx, clinicA, 999999)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-	})
-}
-
-// ─── CountUsageByStaffID ──────────────────────────────────────────────────
-
-func TestReservationStaffRepository_CountUsageByStaffID(t *testing.T) {
-	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	staffA := makeDoctor(t, db, clinicA, "CountUsageテストA用スタッフ")
-	otherStaff := makeDoctor(t, db, clinicA, "CountUsageテスト対象外スタッフ")
-	rtA := makeReservationType(t, db, clinicA)
-	rtB := makeReservationType(t, db, clinicB)
-
-	// staffA 担当の予約を clinic A に2件作成（uk_appointment_staff_time 部分UNIQUE回避のため
-	// start_time を分散させる）
-	makeReservationWithDoctorAtOffset(t, db, clinicA, rtA.ID, staffA.ID, 0)
-	res2 := makeReservationWithDoctorAtOffset(t, db, clinicA, rtA.ID, staffA.ID, time.Hour)
-
-	// 別スタッフ担当の予約（カウントされないはず）
-	makeReservationWithDoctorAtOffset(t, db, clinicA, rtA.ID, otherStaff.ID, 2*time.Hour)
-
-	// staffA 担当だが clinic B の予約（clinic_id 隔離でカウントされないはず）
-	makeReservationWithDoctorAtOffset(t, db, clinicB, rtB.ID, staffA.ID, 3*time.Hour)
-
-	t.Run("同一クリニック内の担当予約数のみをカウントする", func(t *testing.T) {
-		count, err := repo.CountUsageByStaffID(ctx, clinicA, staffA.ID)
-		require.NoError(t, err)
-		assert.EqualValues(t, 2, count, "clinic A 内の staffA 担当予約2件のみカウントされるべき")
-	})
-
-	t.Run("別クリニックの担当予約は対象クリニックのカウントに含まれない", func(t *testing.T) {
-		count, err := repo.CountUsageByStaffID(ctx, clinicB, staffA.ID)
-		require.NoError(t, err)
-		assert.EqualValues(t, 1, count, "clinic B 側から見た staffA 担当予約は1件のみ")
-	})
-
-	t.Run("ソフトデリート済み予約はカウントされない", func(t *testing.T) {
-		require.NoError(t, db.WithContext(ctx).Delete(&model.Reservation{}, res2.ID).Error)
-
-		count, err := repo.CountUsageByStaffID(ctx, clinicA, staffA.ID)
-		require.NoError(t, err)
-		assert.EqualValues(t, 1, count, "ソフトデリート済み予約を除いた1件になるべき")
-	})
-
-	t.Run("担当予約が無いスタッフは0件", func(t *testing.T) {
-		unused := makeDoctor(t, db, clinicA, "CountUsage未使用スタッフ")
-		count, err := repo.CountUsageByStaffID(ctx, clinicA, unused.ID)
-		require.NoError(t, err)
-		assert.Zero(t, count)
 	})
 }
 

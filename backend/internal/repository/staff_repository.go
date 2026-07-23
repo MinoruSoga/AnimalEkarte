@@ -31,12 +31,11 @@ type StaffRepository interface {
 	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
 	// --- 予約用途の staffs 書き込み（ADR-006 論点#1 案A: staffs テーブルの書き込みは
 	// staff domain の exported メソッドへ一本化し、reservation 側は delegate 経由で呼ぶ）。
-	// 既存 Create/Update/Delete/Reorder と意図的に別メソッド: エラーリソース名
+	// 既存 Create/Update/Reorder と意図的に別メソッド: エラーリソース名
 	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
 	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
 	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	DeleteForReservation(ctx context.Context, clinicID, id uint64) error
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -366,24 +365,6 @@ func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model
 // Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
 func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
-}
-
-// DeleteForReservation は予約用の staffs ソフトデリート。
-// BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。
-// #236 BUG#1: Staff はソフトデリート対象のため Delete() は UPDATE に変換され、GORM は Joins() を落とす。
-// clinic 条件は WHERE 側の EXISTS に埋め、staffRepository.Delete と同型にする。
-func (r *staffRepository) DeleteForReservation(ctx context.Context, clinicID, id uint64) error {
-	result := dbOrTx(ctx, r.db).
-		Where("id = ?", id).
-		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)", clinicID).
-		Delete(&model.Staff{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
-	}
-	return nil
 }
 
 // SwapSortOrderForReservation は隣接スタッフと sort_order を入れ替える（予約画面の並び替え）。

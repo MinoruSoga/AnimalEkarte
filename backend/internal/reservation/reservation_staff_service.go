@@ -80,12 +80,21 @@ type ReservationStaffService interface {
 }
 
 type reservationStaffService struct {
-	repo       ReservationStaffRepository
-	transactor Transactor
+	repo         ReservationStaffRepository
+	transactor   Transactor
+	staffDeleter ReservationStaffDeleter
 }
 
-func NewReservationStaffService(repo ReservationStaffRepository, transactor Transactor) ReservationStaffService {
-	return &reservationStaffService{repo: repo, transactor: transactor}
+func NewReservationStaffService(
+	repo ReservationStaffRepository,
+	transactor Transactor,
+	staffDeleter ReservationStaffDeleter,
+) ReservationStaffService {
+	return &reservationStaffService{
+		repo:         repo,
+		transactor:   transactor,
+		staffDeleter: staffDeleter,
+	}
 }
 
 func (s *reservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -193,19 +202,10 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to verify reservation staff ownership")
+	if s.staffDeleter == nil {
+		return apperrors.WrapInternalServerError("reservation staff deleter is not configured")
 	}
-	count, err := s.repo.CountUsageByStaffID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count reservation staff usage", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to count reservation staff usage")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("このスタッフは予約データで使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete reservation staff", "error", err, "id", id, "clinic_id", clinicID)
+	if err := s.staffDeleter.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff deleted",

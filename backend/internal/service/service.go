@@ -150,7 +150,7 @@ func NewServices(
 	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, repos.Clinic, tx)
 
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
-	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
+	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx, staffSvc)
 
 	// LSTEP-BE-012: 慢性疾患フラグ
 	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepDeps.TagSync)

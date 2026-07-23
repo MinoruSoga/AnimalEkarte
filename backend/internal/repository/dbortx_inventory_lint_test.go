@@ -278,7 +278,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
 	"staff_repository.go|staffRepository.CreateForReservation":        {},
 	"staff_repository.go|staffRepository.UpdateForReservation":        {},
-	"staff_repository.go|staffRepository.DeleteForReservation":        {},
 	"staff_repository.go|staffRepository.SwapSortOrderForReservation": {},
 	// shift_entry (uniform dbOrTx)
 	"shiftentry/repository.go|repository.Create": {}, // BE8-4 batch13: moved from shift_entry_repository.go
