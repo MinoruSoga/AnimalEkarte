@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { STYLE } from "@/lib/design-tokens";
 import { ReservationTypeGroupedTable } from "./ReservationTypeGroupedTable";
 
 const mocks = vi.hoisted(() => ({
@@ -61,6 +62,26 @@ describe("ReservationTypeGroupedTable", () => {
     const tableWrapper = screen.getByRole("table").parentElement;
     expect(tableWrapper).toHaveClass("overflow-x-auto", "overflow-y-hidden");
     expect(tableWrapper).not.toHaveClass("overflow-hidden");
+  });
+
+  it("ヘッダセルはSTYLE.tableHeaderCellの仕様padding(px-4)を保ち、px-3で上書きしない", () => {
+    render(
+      <ReservationTypeGroupedTable
+        groups={[]}
+        categories={[]}
+        onCategoryEdit={vi.fn()}
+        onGroupEdit={vi.fn()}
+        onCategoryAddInGroup={vi.fn()}
+        canEdit
+      />,
+    );
+
+    const headerCellClasses = STYLE.tableHeaderCell.split(/\s+/);
+    for (const name of ["名称", "備考", "ステータス"]) {
+      const th = screen.getByRole("columnheader", { name });
+      expect(th).toHaveClass(...headerCellClasses);
+      expect(th).not.toHaveClass("px-3");
+    }
   });
 
   it("編集権限がない場合は並び替えmutationを呼ばない", () => {

@@ -17,7 +17,7 @@
  *   C15 — 本体 routes/pages で named white/black color の直接指定禁止。
  *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
- *   C18 — Table primitive 呼び出し側で typography / padding を非仕様値へ上書きすることを禁止。
+ *   C18 — Table primitive / raw th・td 呼び出し側で typography / padding / 背景を非仕様値へ上書きすることを禁止。
  *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
@@ -64,7 +64,7 @@ const C14_RE = /(?:^|[^-\w])(?:-?tracking-(?:tighter|tight|normal|wide|wider|wid
 const C15_RE = /(?:^|[^-\w])(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration|divide)-(?:white|black)(?:\/[0-9]+)?\b/;
 const C16_RE = /(?:^|[^-\w])-?(?:[mp][trblxy]?|gap|space-[xy])-(?:5\b|\[(?:20px|1\.25rem)\])/;
 const C17_RE = /\bbox-shadow\s*:|\bfilter\s*:[^;]*\bdrop-shadow\s*\(/;
-const C18_TABLE_OPENING_TAG_START_RE = /<Table(Cell|Head)\b/g;
+const C18_TABLE_OPENING_TAG_START_RE = /<(?:Table(Cell|Head)|(td|th))\b/g;
 const C18_TABLE_CELL_RE = /\b(?:text-(?:base|xs|2xs)|p-0)\b/;
 const C18_TABLE_HEAD_RE = /\b(?:text-(?:sm|base|xs)|font-medium|p-0)\b/;
 const C18_TABLE_CELL_STYLE_RE = /\bSTYLE\.tableHeaderCell\b/;
@@ -73,6 +73,10 @@ const C18_TABLE_TYPE_SIZE_RE = /\btext-(?:2xs|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6
 const C18_TABLE_FONT_WEIGHT_RE = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/g;
 const C18_TABLE_VERTICAL_PADDING_RE = /\b(?:p|py|pt|pb)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
 const C18_TABLE_CELL_ALLOWED_WEIGHTS = new Set(["font-normal", "font-medium", "font-semibold"]);
+/** C18(raw): 横paddingは DESIGN.md ex-data-table-cell の px-4（16px）のみ。primitive は基底styleがpx-4を保証するため raw 限定。 */
+const C18_TABLE_HORIZONTAL_PADDING_RE = /\b(?:px|pl|pr)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
+/** C18(raw): 背景は行側（STYLE.tableHeaderRow の bgPage 帯）が正本。セル単位の bg 再指定を禁止。 */
+const C18_TABLE_RAW_CELL_BG_RE = /(?:^|[^-\w])bg-|(?:^|[^\w$])C\.bg[A-Z]/;
 const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
@@ -101,6 +105,42 @@ export const C8_ALLOWLIST = new Set([
   ...C8_ROUTE_HELPER_ALLOWLIST,
 ]);
 const C8_SHELL_RE = /<PageLayout|Master(?:CRUD|Tab|List)Page/;
+
+/**
+ * C18: raw `<th>` / `<td>` 検査の対象外ファイル（相対パス完全一致・根拠必須）。
+ * Table primitive（TableHead/TableCell）の検査はこの allowlist の影響を受けない。
+ */
+export const C18_RAW_CELL_ALLOWLIST = new Set([
+  // Table primitive の実装正本 — TableHead/TableCell の中身が raw th/td。
+  path.join("src", "components", "ui", "table.tsx"),
+  // print 帳票 — 画面用 DESIGN.md ex-data-table-cell の適用対象外（*PrintArea*.tsx は basename パターンで除外）。
+  path.join("src", "features", "accounting", "components", "AccountingDocument.tsx"),
+  // print 帳票部品 — raw td は DailyAccountingPrintArea.tsx 専用の CatCell のみ。
+  path.join("src", "features", "accounting", "components", "DailyAccountingTabParts.tsx"),
+  // 操作マニュアル本文のドキュメント表 — 業務 data-table ではない。
+  path.join("src", "features", "manual", "components", "ManualContent.tsx"),
+  // owner-report 密度レイアウト群 — py-1.5 pr-3 はレポート密度目的の意図的判断（FE11 ⚠領域・最終裁定は統括判断）。
+  path.join("src", "features", "owner-report", "components", "HistoryTable.tsx"),
+  path.join("src", "features", "owner-report", "components", "TreatmentHistorySection.tsx"),
+  path.join("src", "features", "owner-report", "components", "TrimmingHistorySection.tsx"),
+  path.join("src", "features", "owner-report", "components", "VaccinationHistorySection.tsx"),
+  // sticky 履歴マトリクス（縦=種類×横=日付）— 標準 data-table ではない特殊グリッド。
+  path.join("src", "features", "owner-report", "components", "ClinicalHistoryMatrix.tsx"),
+  // グループ行への nested DataTable 埋め込み構造セル（px-2 py-0）と空行 — 標準 cellPadding を当てると内側テーブルが崩れる。
+  path.join("src", "features", "master", "components", "ReservationTypeGroupedTableRows.tsx"),
+]);
+/** C18: print 帳票（MonthlyReportPrintArea / DailyAccountingPrintArea / ClosePrintArea 等）の basename パターン。 */
+const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
+
+/**
+ * isC18RawCellExemptFile は raw th/td 検査の対象外ファイルか判定する。
+ * allowlist・print 帳票・別アプリ（liff / line-reserve / shared-liff / MedicalRecordPrintView = FE11 除外）を除外する。
+ */
+export function isC18RawCellExemptFile(relPath) {
+  if (C18_RAW_CELL_ALLOWLIST.has(relPath)) return true;
+  if (C18_RAW_CELL_PRINT_BASENAME_RE.test(path.basename(relPath))) return true;
+  return isFE11ExcludedPath(relPath);
+}
 
 function parseArgs(argv) {
   const args = { cwd: process.cwd() };
@@ -487,19 +527,27 @@ function isC18IgnoredOpeningTag(text, index) {
 }
 
 /**
- * checkC18 は Table primitive の opening tag だけを調べ、DESIGN.md §9 と
- * `components/ui/table.tsx` の標準 typography / padding を上書きする class を検出する。
- * `data-empty-state` + `colSpan` + `text-center` の空 state 追加余白、cell 内の子要素、
- * 別 component、test / 非 TSX は対象外。
+ * checkC18 は Table primitive（TableHead/TableCell）と raw `<th>` / `<td>` の opening tag を調べ、
+ * DESIGN.md ex-data-table-cell と `components/ui/table.tsx` の標準 typography / padding を
+ * 上書きする class を検出する（th→Head 規則・td→Cell 規則）。raw cell は基底 style を継承しない
+ * ため、STYLE.tableHeaderCell / STYLE.tableCell(Mono|Muted) 経由か仕様値 literal を正の準拠経路とし、
+ * 加えて横padding（px-4 以外）と背景のセル単位再指定も禁止する。
+ * `data-empty-state` + `colSpan` + `text-center` の空 state 追加余白、self-closing の構造セル
+ * （drag handle 列 / 操作列スペーサ等・内容なし）、cell 内の子要素、別 component、
+ * C18_RAW_CELL_ALLOWLIST（raw のみ）、test / 非 TSX は対象外。
  */
 export function checkC18(text, relPath = "") {
   if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
 
+  const rawCellExempt = isC18RawCellExemptFile(relPath);
   const violations = [];
   const openingTagRe = new RegExp(C18_TABLE_OPENING_TAG_START_RE.source, "g");
   let match;
   while ((match = openingTagRe.exec(text)) !== null) {
     if (isC18IgnoredOpeningTag(text, match.index)) continue;
+    const isRawCell = match[1] === undefined;
+    const kind = match[1] ?? (match[2] === "th" ? "Head" : "Cell");
+    if (isRawCell && rawCellExempt) continue;
     let braceDepth = 0;
     let quote = null;
     let escaped = false;
@@ -530,31 +578,42 @@ export function checkC18(text, relPath = "") {
     }
 
     const openingTag = text.slice(match.index, endIndex);
+    // raw の self-closing セル（<th className="w-11 px-0" /> 等）は内容を持たない構造セル
+    // （drag handle 列 / 操作列スペーサ）であり typography / padding 仕様の適用対象外。
+    if (isRawCell && /\/\s*>$/.test(openingTag)) {
+      openingTagRe.lastIndex = endIndex;
+      continue;
+    }
     const classNameSegments = extractC18ClassNameSegments(openingTag);
     const classNameSource = classNameSegments.map((segment) => segment.text).join(" ");
-    const forbiddenRe = match[1] === "Head" ? C18_TABLE_HEAD_RE : C18_TABLE_CELL_RE;
-    const forbiddenStyleRe = match[1] === "Head" ? C18_TABLE_HEAD_STYLE_RE : C18_TABLE_CELL_STYLE_RE;
-    const isEmptyState = match[1] === "Cell"
+    const forbiddenRe = kind === "Head" ? C18_TABLE_HEAD_RE : C18_TABLE_CELL_RE;
+    const forbiddenStyleRe = kind === "Head" ? C18_TABLE_HEAD_STYLE_RE : C18_TABLE_CELL_STYLE_RE;
+    const isEmptyState = kind === "Cell"
       && /\bdata-empty-state\b/.test(openingTag)
       && /\bcolSpan\s*=/.test(openingTag)
       && /\btext-center\b/.test(classNameSource);
     const firstLineNumber = text.slice(0, match.index).split("\n").length;
     classNameSegments.forEach((segment) => {
       segment.text.split("\n").forEach((line, index) => {
-        const expectedTypeSize = match[1] === "Head" ? "text-2xs" : "text-sm";
+        const expectedTypeSize = kind === "Head" ? "text-2xs" : "text-sm";
         const hasWrongTypeSize = [...line.matchAll(C18_TABLE_TYPE_SIZE_RE)]
           .some(([token]) => token !== expectedTypeSize);
         const hasWrongFontWeight = [...line.matchAll(C18_TABLE_FONT_WEIGHT_RE)].some(([token]) => (
-          match[1] === "Head" ? token !== "font-semibold" : !C18_TABLE_CELL_ALLOWED_WEIGHTS.has(token)
+          kind === "Head" ? token !== "font-semibold" : !C18_TABLE_CELL_ALLOWED_WEIGHTS.has(token)
         ));
         const hasNonstandardVerticalPadding = [...line.matchAll(C18_TABLE_VERTICAL_PADDING_RE)]
           .some(([token]) => token !== "py-3" && !(isEmptyState && token.startsWith("py-")));
+        const hasNonstandardHorizontalPadding = isRawCell
+          && [...line.matchAll(C18_TABLE_HORIZONTAL_PADDING_RE)].some(([token]) => token !== "px-4");
+        const hasCellBackground = isRawCell && C18_TABLE_RAW_CELL_BG_RE.test(line);
         if (
           forbiddenRe.test(line)
           || forbiddenStyleRe.test(line)
           || hasWrongTypeSize
           || hasWrongFontWeight
           || hasNonstandardVerticalPadding
+          || hasNonstandardHorizontalPadding
+          || hasCellBackground
         ) {
           violations.push({ lineNumber: firstLineNumber + segment.lineOffset + index, text: line.trim() });
         }
@@ -793,7 +852,7 @@ async function main() {
   printGroup("C15 route named color", result.c15);
   printGroup("C16 非仕様 spacing(*-5)", result.c16);
   printGroup("C17 CSS shadow 直書き", result.c17);
-  printGroup("C18 Table primitive override", result.c18);
+  printGroup("C18 table cell override", result.c18);
   printGroup("C19 table row onClick", result.c19);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length

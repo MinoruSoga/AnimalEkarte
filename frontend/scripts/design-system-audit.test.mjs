@@ -846,6 +846,170 @@ test("collectViolations: Table primitive 呼び出し側 override を C18 に集
   }
 });
 
+test("checkC18: raw th/td の非仕様 typography・vertical padding・STYLE cross-use を検出する", () => {
+  const text = [
+    '<th className="text-sm">サイズ</th>',
+    '<th className="font-medium">weight</th>',
+    '<th className="py-2">縦padding</th>',
+    "<th className={STYLE.tableCell}>cross</th>",
+    '<td className="text-xs">サイズ</td>',
+    '<td className="text-2xs">サイズ</td>',
+    '<td className="font-bold">weight</td>',
+    '<td className="py-2.5">縦padding</td>',
+    '<td className="p-0">shorthand</td>',
+    "<td className={STYLE.tableHeaderCell}>cross</td>",
+    "<td",
+    '  className="py-1"',
+    ">multiline</td>",
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "RawTable.tsx"),
+  );
+  assert.deepEqual(
+    violations.map(({ lineNumber }) => lineNumber),
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12],
+  );
+});
+
+test("checkC18: raw th/td 限定で横padding（px-4以外）と背景再指定を検出する", () => {
+  const text = [
+    "<th className={`${STYLE.tableHeaderCell} px-3`}>横padding上書き</th>",
+    '<td className="px-3 py-3">横padding</td>',
+    '<td className="pr-3">片側横padding</td>',
+    '<td className="pl-10">片側横padding</td>',
+    '<td className="px-[10px]">任意値横padding</td>',
+    "<th className={`${C.bgLight} text-left`}>背景</th>",
+    '<td className="bg-white">背景</td>',
+    '<td className="px-4 py-3">仕様値は許可</td>',
+    '<TableCell className="px-3">primitive の横paddingは対象外（基底styleがpx-4を保証）</TableCell>',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "RawTable.tsx"),
+  );
+  assert.deepEqual(
+    violations.map(({ lineNumber }) => lineNumber),
+    [1, 2, 3, 4, 5, 6, 7],
+  );
+});
+
+test("checkC18: 仕様準拠の raw th/td（STYLE token・仕様値literal・構造セル・空state）は許可する", () => {
+  const text = [
+    "<th className={`${STYLE.tableHeaderCell} text-left w-48`}>種別</th>",
+    '<th className="text-2xs font-semibold px-4 py-3">名前</th>',
+    "<td className={STYLE.tableCell}>ポチ</td>",
+    "<td className={`${STYLE.tableCell} font-mono`}>0123</td>",
+    "<td className={`${STYLE.tableCellMuted} text-right`}>備考</td>",
+    "<td className={`px-4 py-3 ${C.text}`}>値</td>",
+    "<td colSpan={6} className={STYLE.tableEmpty}>データなし</td>",
+    '<td data-empty-state colSpan={5} className="py-12 text-center">データなし</td>',
+    '<th className="w-11 px-0" />',
+    '<th className="w-20" />',
+    '<td><span className="text-base py-2 px-2">子要素</span></td>',
+    '<thead className="text-base">',
+    '<tr className="text-xs py-2">',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "RawTable.tsx"),
+  );
+  assert.deepEqual(violations, []);
+});
+
+test("checkC18: raw cell allowlist（primitive正本/print帳票/ManualContent/owner-report密度/nested構造）と別アプリを除外する", () => {
+  const rawViolation = '<td className="py-2 pr-3 text-xs">dense</td>';
+  const exemptPaths = [
+    path.join("src", "components", "ui", "table.tsx"),
+    path.join("src", "features", "accounting", "components", "AccountingDocument.tsx"),
+    path.join("src", "features", "accounting", "components", "DailyAccountingTabParts.tsx"),
+    path.join("src", "features", "manual", "components", "ManualContent.tsx"),
+    path.join("src", "features", "owner-report", "components", "HistoryTable.tsx"),
+    path.join("src", "features", "owner-report", "components", "TreatmentHistorySection.tsx"),
+    path.join("src", "features", "owner-report", "components", "TrimmingHistorySection.tsx"),
+    path.join("src", "features", "owner-report", "components", "VaccinationHistorySection.tsx"),
+    path.join("src", "features", "owner-report", "components", "ClinicalHistoryMatrix.tsx"),
+    path.join("src", "features", "master", "components", "ReservationTypeGroupedTableRows.tsx"),
+    path.join("src", "features", "accounting-reports", "components", "MonthlyReportPrintArea.tsx"),
+    path.join("src", "features", "cash-register", "components", "ClosePrintArea.tsx"),
+    path.join("src", "features", "medical-records", "components", "MedicalRecordPrintView.tsx"),
+    path.join("liff", "src", "pages", "PetHealthPage.tsx"),
+  ];
+  for (const exemptPath of exemptPaths) {
+    assert.equal(audit.checkC18(rawViolation, exemptPath).length, 0, exemptPath);
+  }
+  assert.equal(
+    audit.checkC18(
+      rawViolation,
+      path.join("src", "features", "widget", "components", "Widget.tsx"),
+    ).length,
+    1,
+  );
+});
+
+test("checkC18: raw cell allowlist ファイルでも Table primitive override は検出する", () => {
+  const violations = audit.checkC18(
+    '<TableCell className="py-2">x</TableCell>',
+    path.join("src", "features", "manual", "components", "ManualContent.tsx"),
+  );
+  assert.equal(violations.length, 1);
+});
+
+test("collectViolations: raw th/td override を C18 に集計し allowlist は除外する", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const componentsDir = path.join(root, "src", "features", "widget", "components");
+    const manualDir = path.join(root, "src", "features", "manual", "components");
+    mkdirSync(componentsDir, { recursive: true });
+    mkdirSync(manualDir, { recursive: true });
+    writeFileSync(
+      path.join(componentsDir, "RawBrokenTable.tsx"),
+      [
+        "export function RawBrokenTable() {",
+        "  return (",
+        "    <table>",
+        "      <thead>",
+        "        <tr>",
+        '          <th className="py-2">名前</th>',
+        "        </tr>",
+        "      </thead>",
+        "      <tbody>",
+        "        <tr>",
+        '          <td className="px-3">ポチ</td>',
+        "        </tr>",
+        "      </tbody>",
+        "    </table>",
+        "  );",
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(manualDir, "ManualContent.tsx"),
+      'export function ManualContent() { return <td className="py-2">doc</td>; }',
+    );
+
+    const result = await collectViolations(root);
+    assert.deepEqual(
+      result.c18.map(({ file, lineNumber }) => ({ file, lineNumber })),
+      [
+        {
+          file: path.join("src", "features", "widget", "components", "RawBrokenTable.tsx"),
+          lineNumber: 6,
+        },
+        {
+          file: path.join("src", "features", "widget", "components", "RawBrokenTable.tsx"),
+          lineNumber: 11,
+        },
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("checkC19: DataTableRow / SortableDataTableRow の single-line onClick を検出する", () => {
   assert.equal(typeof audit.checkC19, "function");
 

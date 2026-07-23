@@ -79,9 +79,9 @@ export function ReservationTypeGroupedTable({
             <thead>
               <tr className={STYLE.tableHeaderRow}>
                 <th className="w-11 px-0" />
-                <th className={`text-left ${STYLE.tableHeaderCell} px-3`}>名称</th>
-                <th className={`text-left ${STYLE.tableHeaderCell} px-3 w-56`}>備考</th>
-                <th className={`text-center ${STYLE.tableHeaderCell} px-3 w-24 whitespace-nowrap`}>ステータス</th>
+                <th className={`text-left ${STYLE.tableHeaderCell}`}>名称</th>
+                <th className={`text-left ${STYLE.tableHeaderCell} w-56`}>備考</th>
+                <th className={`text-center ${STYLE.tableHeaderCell} w-24 whitespace-nowrap`}>ステータス</th>
                 <th className="w-20" />
               </tr>
             </thead>
