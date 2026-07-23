@@ -80,6 +80,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
   const selectedPet = selectedPets[0];
 
   const {
+    doctorName,
     date, setDate,
     vaccineId, setVaccineId, vaccineOptions,
     nextScheduleType, setNextScheduleType,
@@ -191,6 +192,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <VaccinationFieldsPanel
+            doctorName={doctorName}
             date={date}
             vaccineId={vaccineId}
             vaccineOptions={vaccineOptions}

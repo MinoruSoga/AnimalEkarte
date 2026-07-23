@@ -50,7 +50,7 @@ export const InsuranceCard = memo(function InsuranceCard({
           <div className="space-y-2">
             <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
             <Select value={insuranceRatio} onValueChange={onInsuranceRatioChange}>
-              <SelectTrigger className="h-10">
+              <SelectTrigger className="h-11" aria-label="負担割合">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>

@@ -271,7 +271,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         </FieldRow>
         <FieldRow label="タイムスロットモード">
           <Select value={timeSlotMode} onValueChange={setTimeSlotMode}>
-            <SelectTrigger className="max-w-[240px]">
+            <SelectTrigger className="max-w-[240px]" aria-label="タイムスロットモード">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{TIME_SLOT_MODE_ITEMS}</SelectContent>
@@ -290,7 +290,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         </FieldRow>
         <FieldRow label="スタッフ不在モード">
           <Select value={noStaffMode} onValueChange={setNoStaffMode}>
-            <SelectTrigger className="max-w-[240px]">
+            <SelectTrigger className="max-w-[240px]" aria-label="スタッフ不在モード">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{NO_STAFF_MODE_ITEMS}</SelectContent>
@@ -303,6 +303,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="電話番号">
           <Input
             name="phone_number"
+            aria-label="電話番号"
             defaultValue={setting.phone_number}
             className="max-w-[240px]"
             placeholder="例: 03-1234-5678"
@@ -311,6 +312,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="通知メール">
           <Input
             name="notification_email"
+            aria-label="通知メール"
             type="email"
             defaultValue={setting.notification_email}
             className="max-w-[320px]"
@@ -324,6 +326,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="チャネルID">
           <Input
             name="line_channel_id"
+            aria-label="チャネルID"
             defaultValue={setting.line_channel_id}
             className="max-w-[320px]"
             placeholder="LINE チャネルID"
@@ -332,6 +335,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="LIFF ID">
           <Input
             name="liff_id"
+            aria-label="LIFF ID"
             defaultValue={setting.liff_id}
             className="max-w-[320px]"
             placeholder="LIFF ID"

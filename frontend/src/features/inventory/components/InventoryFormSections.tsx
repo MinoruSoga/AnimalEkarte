@@ -60,7 +60,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
               onCategoryChange(value);
             }}
           >
-            <SelectTrigger className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}>
+            <SelectTrigger id="category" className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}>
               <SelectValue placeholder="カテゴリを選択" />
             </SelectTrigger>
             <SelectContent>

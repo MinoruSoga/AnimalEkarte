@@ -73,6 +73,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           期間
         </Label>
         <div className={`flex flex-col items-stretch ${H_STYLES.gap.default}`}>
+          <Label htmlFor="start_date" className="sr-only">開始日</Label>
           <DatePicker
             id="start_date"
             value={formData.displayDate}
@@ -81,6 +82,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             className="flex-1"
           />
           <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">〜</span>
+          <Label htmlFor="end_date" className="sr-only">終了日</Label>
           <DatePicker
             id="end_date"
             value={formData.endDate ?? ""}
@@ -94,7 +96,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
       {/* ケージ/個室 */}
       <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <Label className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
+            <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
             <MasterLink category="cage" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
@@ -168,7 +170,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* メモ */}
       <div>
-        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
+        <Label htmlFor="memo" className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
         <Textarea
           id="memo"
           value={formData.memo}

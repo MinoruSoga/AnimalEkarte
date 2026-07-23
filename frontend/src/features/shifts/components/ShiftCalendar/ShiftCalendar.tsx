@@ -164,6 +164,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             value={selectedStaffId}
             onValueChange={onStaffChange}
             options={staffFilterOptions}
+            ariaLabel="スタッフ絞り込み"
             placeholder="スタッフ選択"
             searchPlaceholder="スタッフを検索..."
             className="w-[160px]"

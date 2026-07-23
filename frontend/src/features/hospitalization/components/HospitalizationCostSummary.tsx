@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Label } from "@/components/ui/label";
 import { H_STYLES } from "../styles";
 import { C } from "@/lib/design-tokens";
 
@@ -14,6 +15,7 @@ interface HospitalizationCostSummaryProps {
     setGlobalDiscount: (val: number) => void;
     globalDiscountAmount: number;
     setGlobalDiscountAmount: (val: number) => void;
+    readOnly?: boolean;
 }
 
 export const HospitalizationCostSummary = memo(function HospitalizationCostSummary({
@@ -21,7 +23,8 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
     globalDiscount,
     setGlobalDiscount,
     globalDiscountAmount,
-    setGlobalDiscountAmount
+    setGlobalDiscountAmount,
+    readOnly = false,
 }: HospitalizationCostSummaryProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
@@ -39,11 +42,15 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         {/* 割引 */}
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
           <div className="flex items-center gap-3">
-            <span className={`${H_STYLES.text.base} ${C.text60}`}>割引適用額</span>
+            <Label htmlFor="hospitalization-global-discount" className={`${H_STYLES.text.base} ${C.text60}`}>
+              割引適用額
+            </Label>
             <div className="flex items-center gap-2">
               <NumberInput
+                id="hospitalization-global-discount"
                 value={globalDiscount}
                 onChange={(v) => setGlobalDiscount(parseInt(v) || 0)}
+                disabled={readOnly}
                 suffix="%"
                 align="right"
                 className={`w-16 h-11 ${H_STYLES.text.base}`}
@@ -58,11 +65,15 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         {/* 値引 */}
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
           <div className="flex items-center gap-3">
-            <span className={`${H_STYLES.text.base} ${C.text60}`}>値引適用額</span>
+            <Label htmlFor="hospitalization-global-discount-amount" className={`${H_STYLES.text.base} ${C.text60}`}>
+              値引適用額
+            </Label>
             <div className="flex items-center gap-2">
               <NumberInput
+                id="hospitalization-global-discount-amount"
                 value={globalDiscountAmount}
                 onChange={(v) => setGlobalDiscountAmount(parseInt(v) || 0)}
+                disabled={readOnly}
                 suffix="円"
                 align="right"
                 className={`w-20 h-11 ${H_STYLES.text.base}`}
@@ -90,19 +101,9 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
           </span>
         </div>
 
-        {/* 保険・飼主請求額 */}
-        <div className="grid w-full grid-cols-1 gap-3 mt-2 sm:grid-cols-2">
-          <div className={`flex items-center justify-between py-1.5 px-3 ${C.bgCostBlue} rounded-md`}>
-            <span className={`${H_STYLES.text.base} ${C.text60}`}>保険請求額</span>
-            <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.textCostBlue}`}>￥0</span>
-          </div>
-          <div className={`flex items-center justify-between py-1.5 px-3 ${C.bgCostGreen} rounded-md`}>
-            <span className={`${H_STYLES.text.base} ${C.text60}`}>飼主請求額</span>
-            <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.textCostGreen}`}>
-              ￥{totals.total.toLocaleString()}
-            </span>
-          </div>
-        </div>
+        <p className={`mt-2 ${H_STYLES.text.sm} ${C.text60}`}>
+          保険負担額と飼主負担額は、保険条件を確認したうえで会計時に確定します。
+        </p>
       </div>
     </div>
   );

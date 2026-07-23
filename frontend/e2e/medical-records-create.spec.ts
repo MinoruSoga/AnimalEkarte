@@ -1,18 +1,20 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { MedicalRecordsPage } from './pages/medical-records-page';
+import { expect, test, type BrowserContext } from "@playwright/test";
 
-// E2E test for medical record creation form initialization.
-// Seed data: pet 1 "Iris(イリス)" exists in seed.
-// admin@noavet.jp is system_admin with full access.
-//
-// Design: form load assertions only (no save or write).
-// Tests the direct URL navigation to new record form and form field visibility.
-// Pet selection button and full navigation flow are covered by clinical-flows.spec.ts.
-// Actual save is scoped out to avoid DB pollution.
+import {
+  SYNTHETIC_CLINICAL_SCENARIOS,
+  SYNTHETIC_PET,
+} from "./fixtures/ui-design-clinical";
+import { createAuthedContext } from "./helpers/context";
+import {
+  installSyntheticApiInterceptor,
+  isBusinessNonGet,
+} from "./helpers/synthetic-api";
 
-test.describe('カルテ新規作成フォーム E2E', () => {
+const E2E_ORIGIN = new URL(
+  process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003",
+).origin;
+
+test.describe("カルテ新規作成フォーム E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -23,25 +25,44 @@ test.describe('カルテ新規作成フォーム E2E', () => {
     await context.close();
   });
 
-  test('/medical-records/new?petId=1 — カルテ入力フォームが表示される (seed: pet=Iris)', async () => {
+  test("mount時auto-createをローカルfulfillしsynthetic detailへ遷移する", async () => {
+    const scenario = SYNTHETIC_CLINICAL_SCENARIOS.medicalRecordCreate;
     const page = await context.newPage();
-    const medical = new MedicalRecordsPage(page);
+    const interceptor = await installSyntheticApiInterceptor(page, scenario.endpoints, {
+      expectedOrigin: E2E_ORIGIN,
+      expectedClinicId: scenario.currentClinicId,
+    });
+
     try {
-      // Navigate directly to new record form with pet_id=1 (Iris from seed)
-      await medical.gotoNew('?petId=1');
-      // Wait for network idle to ensure all lazy-loaded content is ready
-      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => null);
-
-      // Verify the form loaded by checking for critical elements
-      // Use more resilient selectors that wait longer for the async component to render
-      await expect(medical.heading(undefined, 1)).toBeVisible({
-        timeout: 15000,
-      });
-
-      await expect(medical.irisText()).toBeVisible({ timeout: 10000 });
-      await expect(medical.saveButton()).toBeVisible({ timeout: 10000 });
-    } finally {
+      await page.addInitScript(
+        ({ key, value }) => window.localStorage.setItem(key, value),
+        { key: "auth_current_clinic:v1", value: scenario.currentClinicId },
+      );
+      await page.clock.setFixedTime(new Date(scenario.fixedTime));
+      await page.goto(scenario.entryPath, { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(scenario.renderedPath, { timeout: 30000 });
+      await expect(page.getByRole("heading", { name: "カルテ編集" })).toBeVisible();
+      await expect(
+        page.getByText(SYNTHETIC_PET.name, { exact: false }).filter({ visible: true }).first(),
+      ).toBeVisible();
+      await page.waitForTimeout(350);
       await page.close();
+
+      const locallyFulfilledBusinessNonGet = interceptor.ledger.locallyFulfilled.filter(isBusinessNonGet);
+      const continuedBusinessNonGet = interceptor.ledger.continuedToBackend.filter(isBusinessNonGet);
+      expect(locallyFulfilledBusinessNonGet).toEqual(scenario.expectedLocalBusinessNonGet);
+      expect(interceptor.ledger.blocked).toEqual([]);
+      expect(interceptor.ledger.validationFailures).toEqual([]);
+      expect(continuedBusinessNonGet).toEqual([]);
+      expect(interceptor.ledger.continuedToBackend).toEqual([]);
+      expect(interceptor.ledger.attempted.length).toBe(
+        interceptor.ledger.locallyFulfilled.length +
+          interceptor.ledger.blocked.length +
+          interceptor.ledger.continuedToBackend.length,
+      );
+    } finally {
+      if (!page.isClosed()) await page.close();
+      await interceptor.dispose();
     }
   });
 });

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Calendar, Syringe, AlertTriangle } from "lucide-react";
+import { Calendar, Syringe, AlertTriangle, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C, ICON } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "@/types";
@@ -46,9 +46,12 @@ export const VaccinationCard = memo(function VaccinationCard({
             接種: {vaccination.date}
           </span>
 
-          {/* 担当医 */}
-          {/* VaccinationRecord に doctor フィールドは現状存在しないため
-              ownerName を代替表示せず、フィールドが追加されたときに対応 */}
+          {vaccination.doctor ? (
+            <span className="flex items-center gap-1">
+              <UserRound className={`${ICON.xs} shrink-0`} />
+              担当医: {vaccination.doctor}
+            </span>
+          ) : null}
         </div>
 
         {/* 次回接種予定日 */}

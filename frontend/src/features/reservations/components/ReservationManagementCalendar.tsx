@@ -113,7 +113,7 @@ export function ReservationManagementCalendar({
           data-testid="reservation-toolbar-filters"
         >
           <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
-            <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
+            <SelectTrigger aria-label="予約ソース" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
               <SelectValue placeholder="予約ソース" />
             </SelectTrigger>
             <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
@@ -123,13 +123,14 @@ export function ReservationManagementCalendar({
             value={doctorFilter}
             onValueChange={onDoctorFilterChange}
             options={doctorFilterOptions}
+            ariaLabel="担当医絞り込み"
             placeholder="担当医で絞込"
             searchPlaceholder="担当医を検索..."
             className="w-[160px] h-11"
           />
 
           <Select value={view} onValueChange={typedSetter(onViewChange, CALENDAR_VIEW_VALUES)}>
-            <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
+            <SelectTrigger aria-label="カレンダー表示切替" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
               <SelectValue placeholder="表示切替" />
             </SelectTrigger>
             <SelectContent>

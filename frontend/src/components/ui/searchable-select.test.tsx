@@ -10,10 +10,11 @@ describe("SearchableSelect", () => {
         onValueChange={vi.fn()}
         options={[]}
         placeholder="選択してください"
+        ariaLabel="合成監査選択"
       />,
     );
 
-    expect(screen.getByRole("combobox")).toHaveClass(
+    expect(screen.getByRole("combobox", { name: "合成監査選択" })).toHaveClass(
       "h-11",
       "min-w-11",
     );

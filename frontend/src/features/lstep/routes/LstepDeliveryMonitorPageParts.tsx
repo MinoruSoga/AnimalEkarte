@@ -57,7 +57,8 @@ export function DeliveryMonitorFilters({
 
       <Select value={triggerType || "all"} onValueChange={onTriggerTypeChange}>
         <SelectTrigger
-          className={`h-9 w-full sm:w-[220px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
+          aria-label="配信トリガー種別"
+          className={`h-11 w-full sm:w-[220px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
           data-testid="filter-trigger-type"
         >
           <SelectValue />
@@ -74,7 +75,8 @@ export function DeliveryMonitorFilters({
 
       <Select value={statusFilter || "all"} onValueChange={onStatusChange}>
         <SelectTrigger
-          className={`h-9 w-full sm:w-[140px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
+          aria-label="配信ステータス"
+          className={`h-11 w-full sm:w-[140px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
           data-testid="filter-status"
         >
           <SelectValue />

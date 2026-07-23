@@ -84,6 +84,12 @@ describe("ShiftCalendar 定休日マーカー", () => {
 });
 
 describe("ShiftCalendar staffs 表示", () => {
+  it("スタッフfilterに操作内容を表すaccessible nameがある", () => {
+    renderCalendar("2026-01");
+
+    expect(screen.getByRole("combobox", { name: "スタッフ絞り込み" })).toBeInTheDocument();
+  });
+
   it("staffs が空のとき空状態メッセージを表示する", () => {
     renderCalendar("2026-01", { staffs: [] });
     expect(screen.getByText("スタッフが見つかりません")).toBeInTheDocument();

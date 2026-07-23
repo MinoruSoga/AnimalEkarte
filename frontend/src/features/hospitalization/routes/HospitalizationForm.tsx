@@ -24,6 +24,7 @@ import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
+import { H_STYLES } from "../styles";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -238,11 +239,17 @@ export function HospitalizationForm() {
         </div>
 
         {/* 治療プラン */}
+        {isEdit ? (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            既存の治療プランと割引は参照のみです。この画面の更新では変更されません。
+          </p>
+        ) : null}
         <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
             onRemove={canDelete ? removeTreatmentPlan : undefined}
+            readOnly={isEdit}
         />
 
         {/* 診療費計算 */}
@@ -252,6 +259,7 @@ export function HospitalizationForm() {
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
+            readOnly={isEdit}
         />
         </fieldset>
     </PageLayout>

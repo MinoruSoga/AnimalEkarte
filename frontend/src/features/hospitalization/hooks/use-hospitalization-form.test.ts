@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { startTransition } from "react";
+import { calculateBillingTotals } from "@/lib/calculations";
 import { useHospitalizationForm } from "./use-hospitalization-form";
+
+async function submitForm(action: ReturnType<typeof useHospitalizationForm>["formAction"]) {
+  await act(async () => {
+    startTransition(() => action(new FormData()));
+  });
+}
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -127,9 +135,7 @@ describe("useHospitalizationForm", () => {
       // selectedPets は空（デフォルト）
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
       expect(result.current.formState.fieldErrors?.pet).toBe(
@@ -140,9 +146,7 @@ describe("useHospitalizationForm", () => {
     it("selectedPets が空 → createHospitalization は呼ばれない", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
     });
@@ -172,9 +176,7 @@ describe("useHospitalizationForm", () => {
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
       expect(mockUpdateHospitalization).not.toHaveBeenCalled();
@@ -183,9 +185,7 @@ describe("useHospitalizationForm", () => {
     it("createHospitalization に pet_id と owner_id が渡される", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -198,9 +198,7 @@ describe("useHospitalizationForm", () => {
     it("成功時 → toast.success が呼ばれる", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockToast.success).toHaveBeenCalledWith("入院情報を登録しました");
     });
@@ -208,9 +206,7 @@ describe("useHospitalizationForm", () => {
     it("成功時 → formState.success = true", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(true);
     });
@@ -220,9 +216,7 @@ describe("useHospitalizationForm", () => {
 
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
     });
@@ -251,9 +245,7 @@ describe("useHospitalizationForm", () => {
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {
       const { result } = renderHook(() => useHospitalizationForm("42"));
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).toHaveBeenCalledTimes(1);
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
@@ -262,9 +254,7 @@ describe("useHospitalizationForm", () => {
     it("updateHospitalization に id が渡される", async () => {
       const { result } = renderHook(() => useHospitalizationForm("42"));
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).toHaveBeenCalledWith(
         "42",
@@ -275,9 +265,7 @@ describe("useHospitalizationForm", () => {
     it("成功時 → toast.success が呼ばれる（更新メッセージ）", async () => {
       const { result } = renderHook(() => useHospitalizationForm("42"));
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockToast.success).toHaveBeenCalledWith("入院情報を更新しました");
     });
@@ -285,9 +273,7 @@ describe("useHospitalizationForm", () => {
     it("成功時 → formState.success = true", async () => {
       const { result } = renderHook(() => useHospitalizationForm("42"));
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(true);
     });
@@ -297,9 +283,7 @@ describe("useHospitalizationForm", () => {
 
       const { result } = renderHook(() => useHospitalizationForm("42"));
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
     });
@@ -353,9 +337,7 @@ describe("useHospitalizationForm", () => {
     it("isInsurance = false (デフォルト) → create 時 insurance_company_name: null, insurance_number: null", async () => {
       const { result } = renderHook(() => useHospitalizationForm());
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -376,9 +358,7 @@ describe("useHospitalizationForm", () => {
         });
       });
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -400,9 +380,7 @@ describe("useHospitalizationForm", () => {
         });
       });
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -423,9 +401,7 @@ describe("useHospitalizationForm", () => {
         });
       });
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).toHaveBeenCalledWith(
         "42",
@@ -448,9 +424,7 @@ describe("useHospitalizationForm", () => {
         });
       });
 
-      await act(async () => {
-        await result.current.formAction(new FormData());
-      });
+      await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).toHaveBeenCalledWith(
         "42",
@@ -467,6 +441,20 @@ describe("useHospitalizationForm", () => {
   // treatmentPlans
   // ──────────────────────────
   describe("treatmentPlans", () => {
+    it("保険対象flagをbilling計算契約へ明示的に変換する", () => {
+      const { result } = renderHook(() => useHospitalizationForm());
+
+      result.current.calculateTotals();
+
+      expect(vi.mocked(calculateBillingTotals)).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ is_insurance: true, isInsuranceApplicable: true }),
+        ]),
+        0,
+        0,
+      );
+    });
+
     it("addTreatmentPlan で計画を追加できる", () => {
       const { result } = renderHook(() => useHospitalizationForm());
       const initialCount = result.current.treatmentPlans.length;

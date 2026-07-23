@@ -131,11 +131,12 @@ export function CheckupSyncFilterForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>
+          <label htmlFor="checkup_type" className={STYLE.formLabel}>
             検診種別
             <span className={`ml-1 ${C.textRequired}`}>*</span>
           </label>
           <select
+            id="checkup_type"
             name="checkup_type"
             className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           >
@@ -212,8 +213,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 慢性疾患 */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>慢性疾患（任意）</label>
+          <label htmlFor="has_chronic_condition" className={STYLE.formLabel}>慢性疾患（任意）</label>
           <select
+            id="has_chronic_condition"
             name="has_chronic_condition"
             defaultValue=""
             className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
@@ -228,8 +230,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: CPM ステージ */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>CPMステージ（任意）</label>
+          <label htmlFor="cpm_stage" className={STYLE.formLabel}>CPMステージ（任意）</label>
           <select
+            id="cpm_stage"
             name="cpm_stage"
             defaultValue=""
             className={`w-full ${STYLE.formInput} border rounded-xs px-3`}

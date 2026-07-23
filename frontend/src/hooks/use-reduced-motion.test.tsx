@@ -42,7 +42,10 @@ describe("useReducedMotion", () => {
     expect(addEventListener).toHaveBeenCalledTimes(1);
 
     act(() => {
-      listener?.({ matches: true } as MediaQueryListEvent);
+      listener?.(Object.assign(new Event("change"), {
+        matches: true,
+        media: "(prefers-reduced-motion: reduce)",
+      }));
     });
     expect(screen.getByText("first:reduce")).toBeInTheDocument();
     expect(screen.getByText("second:reduce")).toBeInTheDocument();

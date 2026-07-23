@@ -330,6 +330,7 @@ export function useVaccinationForm(id?: string) {
   const isDeleting = deleteMutation.isPending;
 
   const form = useMemo(() => ({
+    doctorName: existingVaccination?.doctor ?? "",
     vaccineId: formData.vaccineId,
     setVaccineId,
     vaccineOptions,
@@ -352,6 +353,7 @@ export function useVaccinationForm(id?: string) {
     remarks: formData.remarks,
     setRemarks,
   }), [
+    existingVaccination?.doctor,
     formData.vaccineId, setVaccineId, vaccineOptions,
     formData.date, setDate,
     formData.supplemental, setSupplemental,

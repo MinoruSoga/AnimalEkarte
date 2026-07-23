@@ -12,13 +12,15 @@ interface HospitalizationTreatmentTableProps {
   onAdd: () => void;
   onRemove?: (id: string) => void;
   onUpdate: (id: string, field: keyof HospitalizationTreatmentPlan, value: string | number | boolean) => void;
+  readOnly?: boolean;
 }
 
 export const HospitalizationTreatmentTable = memo(function HospitalizationTreatmentTable({
     treatmentPlans,
     onAdd,
     onRemove,
-    onUpdate
+    onUpdate,
+    readOnly = false,
 }: HospitalizationTreatmentTableProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}>
@@ -29,6 +31,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
         </h2>
         <Button
           onClick={onAdd}
+          disabled={readOnly}
           variant="outline"
           size="sm"
           className={`gap-1.5 ${H_STYLES.button.action} ${C.text} ${C.borderMedium} ${C.bgSkeleton}`}
@@ -39,7 +42,12 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
       </div>
 
       {/* Table */}
-      <div className={`border ${C.borderMedium} rounded-md overflow-hidden overflow-x-auto`}>
+      <div
+        role="region"
+        aria-label="治療プラン"
+        tabIndex={0}
+        className={`border ${C.borderMedium} rounded-md overflow-hidden overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`}
+      >
         <table className="w-full min-w-[800px]">
           <thead className={`${C.bgPage} border-b ${C.borderMedium}`}>
             <tr>
@@ -55,11 +63,13 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
             </tr>
           </thead>
           <tbody className={`divide-y ${C.divideDivider}`}>
-            {treatmentPlans.map((plan) => (
+            {treatmentPlans.map((plan, index) => (
               <tr key={plan.id} className={`${C.hoverBgLight} transition-colors h-10`}>
                 <td className="px-3 py-1">
                   <Input
+                    aria-label={`治療内容 ${index + 1}`}
                     value={plan.treatmentContent}
+                    disabled={readOnly}
                     onChange={(e) =>
                       onUpdate(plan.id, "treatmentContent", e.target.value)
                     }
@@ -69,7 +79,9 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                 </td>
                 <td className="px-3 py-1">
                   <Input
+                    aria-label={`治療メモ ${index + 1}`}
                     value={plan.memo}
+                    disabled={readOnly}
                     onChange={(e) =>
                       onUpdate(plan.id, "memo", e.target.value)
                     }
@@ -96,7 +108,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   {plan.subtotal.toLocaleString()}
                 </td>
                 <td className="px-3 py-1 text-center">
-                  {onRemove !== undefined ? (
+                  {onRemove !== undefined && !readOnly ? (
                     <DeleteIconButton onClick={() => onRemove(plan.id)} />
                   ) : null}
                 </td>

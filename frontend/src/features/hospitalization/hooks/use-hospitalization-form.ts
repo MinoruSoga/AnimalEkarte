@@ -1,4 +1,4 @@
-import { useState, useEffect, useActionState, useCallback } from "react";
+import { useState, useEffect, useActionState, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -18,6 +18,7 @@ import {
   buildCreateHospitalizationRequest,
   buildHospitalizationFormDataFromRecord,
   buildSelectedPetFromHospitalization,
+  buildTreatmentPlansFromRecord,
   buildUpdateHospitalizationRequest,
   createEmptyTreatmentPlan,
   createInitialHospitalizationFormData,
@@ -42,7 +43,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>(DEFAULT_TREATMENT_PLANS);
+  const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>(
+    isEdit ? [] : DEFAULT_TREATMENT_PLANS,
+  );
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -79,16 +82,15 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     error: hospitalizationError,
   } = useGetHospitalizationRaw(id);
 
-  // Sync form when hospitalization data loads — previous-value pattern
-  const [prevHospId, setPrevHospId] = useState(hospitalizationData?.id);
-  if (prevHospId !== hospitalizationData?.id && hospitalizationData) {
-    setPrevHospId(hospitalizationData.id);
+  const hydratedHospitalizationId = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!hospitalizationData || hydratedHospitalizationId.current === hospitalizationData.id) return;
+    hydratedHospitalizationId.current = hospitalizationData.id;
     setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, hospitalizationData));
+    setTreatmentPlans(buildTreatmentPlansFromRecord(hospitalizationData));
     const selectedPet = buildSelectedPetFromHospitalization(hospitalizationData);
-    if (selectedPet) {
-      setSelectedPets([selectedPet]);
-    }
-  }
+    if (selectedPet) setSelectedPets([selectedPet]);
+  }, [hospitalizationData, setSelectedPets]);
 
   useEffect(() => {
     if (isError) {
@@ -134,7 +136,11 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   }, []);
 
   const calculateTotals = () => {
-    const result = calculateBillingTotals(treatmentPlans, globalDiscount, globalDiscountAmount);
+    const billingItems = treatmentPlans.map((plan) => ({
+      ...plan,
+      isInsuranceApplicable: plan.is_insurance,
+    }));
+    const result = calculateBillingTotals(billingItems, globalDiscount, globalDiscountAmount);
     return {
       subtotalBeforeDiscount: result.subtotal,
       discountAmount: result.globalDiscountAmount,

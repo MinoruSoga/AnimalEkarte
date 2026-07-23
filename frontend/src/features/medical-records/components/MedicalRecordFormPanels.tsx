@@ -106,7 +106,7 @@ export function MedicalRecordStickyHeader({
             onChange={(e) => {
               if (e.target.value) onDateChange!(e.target.value);
             }}
-            className={`h-8 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
+            className={`h-11 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
           />
         ) : (
           <span className={`h-8 flex items-center text-sm ${C.text}`}>

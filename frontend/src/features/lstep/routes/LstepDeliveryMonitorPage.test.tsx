@@ -385,12 +385,16 @@ describe("LstepDeliveryMonitorPage — H: mobile-first layout", () => {
 
     expect(screen.getByTestId("filter-trigger-type")).toHaveClass(
       "w-full",
+      "h-11",
       "sm:w-[220px]",
     );
     expect(screen.getByTestId("filter-status")).toHaveClass(
       "w-full",
+      "h-11",
       "sm:w-[140px]",
     );
+    expect(screen.getByRole("combobox", { name: "配信トリガー種別" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "配信ステータス" })).toBeInTheDocument();
     const dateRange = screen.getByTestId("filter-from").parentElement;
     expect(dateRange).toHaveClass("w-full", "flex-col", "sm:w-auto", "sm:flex-row");
     expect(screen.getByTestId("filter-from")).toHaveClass("w-full", "sm:w-auto");

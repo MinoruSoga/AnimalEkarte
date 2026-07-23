@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { HospitalizationCostSummary } from "./HospitalizationCostSummary";
 
-describe("HospitalizationCostSummary responsive layout", () => {
-  it("保険・飼主請求額はmobileで全幅1列、sm以上で既存の2列に戻る", () => {
+describe("HospitalizationCostSummary", () => {
+  it("authoritativeな保険条件がない段階では負担額を確定表示しない", () => {
     render(
       <HospitalizationCostSummary
         totals={{
@@ -17,11 +17,14 @@ describe("HospitalizationCostSummary responsive layout", () => {
         setGlobalDiscount={vi.fn()}
         globalDiscountAmount={0}
         setGlobalDiscountAmount={vi.fn()}
+        readOnly
       />,
     );
 
-    const claimGrid = screen.getByText("保険請求額").closest('[class*="grid-cols"]');
-    expect(claimGrid).toHaveClass("w-full", "grid-cols-1", "sm:grid-cols-2");
-    expect(claimGrid).not.toHaveClass("grid-cols-2");
+    expect(screen.queryByText("保険請求額")).not.toBeInTheDocument();
+    expect(screen.queryByText("飼主請求額")).not.toBeInTheDocument();
+    expect(screen.getByText(/会計時に確定します/)).toBeVisible();
+    expect(screen.getByLabelText("割引適用額")).toBeDisabled();
+    expect(screen.getByLabelText("値引適用額")).toBeDisabled();
   });
 });

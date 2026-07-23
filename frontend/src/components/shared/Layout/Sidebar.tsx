@@ -92,6 +92,7 @@ export const Sidebar = memo(function Sidebar() {
                   {/* rounded-xxs: コードベース全体112箇所の既存compact-control標準値。以降の同値も同様(全面改修は範囲外) */}
                   <button
                     type="button"
+                    aria-label={clinicName || "医院を切り替える"}
                     className={`flex min-h-11 min-w-11 max-w-full items-center gap-1 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-xxs px-1.5 py-1 transition-colors outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
                   >
                     <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />

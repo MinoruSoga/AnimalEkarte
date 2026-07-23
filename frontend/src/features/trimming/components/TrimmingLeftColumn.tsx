@@ -79,8 +79,11 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>スタイルの希望</Label>
+        <Label htmlFor="trimming-style-request" className={`text-sm ${C.text60} mb-2 block`}>
+          スタイルの希望
+        </Label>
         <Textarea
+          id="trimming-style-request"
           value={formData.styleRequest}
           onChange={(event) => onFormChange({ styleRequest: event.target.value })}
           placeholder="スタイルの希望を入力..."

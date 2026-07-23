@@ -187,13 +187,14 @@ export const ItemListCard = memo(function ItemListCard({
                   <div className="flex items-center gap-2 py-2">
                     <Input
                       autoFocus
+                      aria-label="品目名検索"
                       value={merchandiseSearch}
                       onChange={(e) => setMerchandiseSearch(e.target.value)}
                       placeholder="品目名で検索..."
-                      className="flex-1 h-9"
+                      className="flex-1 h-11"
                     />
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                      <SelectTrigger className="w-[120px] h-9">
+                      <SelectTrigger aria-label="品目カテゴリ" className="w-[120px] h-11">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

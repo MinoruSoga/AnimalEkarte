@@ -53,5 +53,8 @@ describe("ReservationManagementCalendar toolbar", () => {
     const controls = screen.getAllByRole("combobox");
     expect(controls).toHaveLength(3);
     controls.forEach((control) => expect(control).toHaveClass("h-11"));
+    expect(screen.getByRole("combobox", { name: "予約ソース" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "担当医絞り込み" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "カレンダー表示切替" })).toBeInTheDocument();
   });
 });

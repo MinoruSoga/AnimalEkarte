@@ -46,6 +46,8 @@ interface SearchableSelectProps {
   triggerTestId?: string;
   /** トリガー要素の id。Label の htmlFor 連携用。 */
   id?: string;
+  /** id/htmlFor を使わないfilter toolbar等でのトリガー名。 */
+  ariaLabel?: string;
   ariaInvalid?: boolean;
 }
 
@@ -78,6 +80,7 @@ export function SearchableSelect({
   contentClassName,
   triggerTestId,
   id,
+  ariaLabel,
   ariaInvalid = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
@@ -115,6 +118,7 @@ export function SearchableSelect({
         type="button"
         role="combobox"
         id={id}
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-invalid={ariaInvalid}
         disabled={disabled}

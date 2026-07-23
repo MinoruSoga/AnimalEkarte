@@ -98,7 +98,7 @@ export function PatientContextHeader({
               <button
                 type="button"
                 onClick={onOwnerClick}
-                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
               >
                 {ownerName}
               </button>
