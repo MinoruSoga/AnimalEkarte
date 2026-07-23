@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/animal-ekarte/backend/internal/authjwt"
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/authjwt"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
