@@ -4,22 +4,29 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func ValidateReservationStaffCapability(ctx context.Context, repo ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+// ReservationStaffCapabilityView is the read-only capability required by staff validation.
+type ReservationStaffCapabilityView interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
+}
+
+func ValidateReservationStaffCapability(ctx context.Context, repo ReservationStaffCapabilityView, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
 	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, false)
 }
 
 // ValidateLineReservationStaffCapability applies the public LIFF boundary in addition to
 // clinic assignment and reservation-type capability. Internal reservation workflows may assign
 // inactive or hidden staff, so public availability is intentionally enforced only here.
-func ValidateLineReservationStaffCapability(ctx context.Context, repo ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+func ValidateLineReservationStaffCapability(ctx context.Context, repo ReservationStaffCapabilityView, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
 	return validateReservationStaffCapability(ctx, repo, clinicID, doctorID, reservationTypeID, true)
 }
 
 func validateReservationStaffCapability(
 	ctx context.Context,
-	repo ReservationStaffRepository,
+	repo ReservationStaffCapabilityView,
 	clinicID uint64,
 	doctorID *uint64,
 	reservationTypeID uint64,

@@ -9,11 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/trimmingcourse"
-	"github.com/animal-ekarte/backend/internal/repository/trimmingoption"
 )
 
 type failingLiffTrimmingDetailRepository struct {
@@ -37,8 +36,28 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 	reservationRepo := NewReservationRepository(db)
 	typeRepo := NewReservationTypeRepository(db)
 	staffRepo := NewReservationStaffRepository(db, nil)
-	courseRepo := trimmingcourse.New(db)
-	optionRepo := trimmingoption.New(db)
+	courseRepo := &mockTrimmingCourseFinder{findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+		var course model.TrimmingCourse
+		query := repohelpers.DBOrTx(ctx, db)
+		if repohelpers.TxFromContext(ctx) != nil {
+			query = query.Clauses(clause.Locking{Strength: "SHARE"})
+		}
+		if err := query.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&course).Error; err != nil {
+			return nil, err
+		}
+		return &course, nil
+	}}
+	optionRepo := &mockTrimmingOptionFinder{findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
+		var option model.TrimmingOption
+		query := repohelpers.DBOrTx(ctx, db)
+		if repohelpers.TxFromContext(ctx) != nil {
+			query = query.Clauses(clause.Locking{Strength: "SHARE"})
+		}
+		if err := query.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&option).Error; err != nil {
+			return nil, err
+		}
+		return &option, nil
+	}}
 	customer := makeLineCustomerForAdmin(t, db, clinicA, "validator-real-db-customer")
 	foreignCustomer := makeLineCustomerForAdmin(t, db, clinicB, "validator-foreign-customer")
 	validStaff := makeDoctor(t, db, clinicA, "医院A LIFF担当")

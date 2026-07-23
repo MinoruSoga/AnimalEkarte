@@ -202,29 +202,6 @@ type animalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-// toPetSummary は *model.Pet を *petSummaryResponse に変換する。nilの場合はnilを返す。
-func toPetSummary(p *model.Pet) *petSummaryResponse {
-	if p == nil {
-		return nil
-	}
-	resp := &petSummaryResponse{
-		ID:        p.ID,
-		Name:      p.Name,
-		PetNumber: p.PetNumber,
-		Weight:    p.Weight,
-		Status:    string(p.Status),
-		Breed:     p.Breed,
-		Owner:     toOwnerSummary(p.Owner),
-	}
-	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &animalSpeciesSummaryResponse{
-			ID:   p.AnimalSpecies.ID,
-			Name: p.AnimalSpecies.Name,
-		}
-	}
-	return resp
-}
-
 func toPetResponse(p *model.Pet) petResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {

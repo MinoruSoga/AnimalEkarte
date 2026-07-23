@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/trimmingoption"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
-// TrimmingOptionRepository is a stable facade alias for trimmingoption.
-type TrimmingOptionRepository = trimmingoption.Repository
+// TrimmingOptionRepository is a BE9-2E facade; remove with the repository aggregator in BE9-2F.
+type TrimmingOptionRepository = trimming.TrimmingOptionRepository
 
 // NewTrimmingOptionRepository constructs the trimming option repository.
 func NewTrimmingOptionRepository(db *gorm.DB) TrimmingOptionRepository {
-	return trimmingoption.New(db)
+	return trimming.NewTrimmingOptionRepository(db)
 }

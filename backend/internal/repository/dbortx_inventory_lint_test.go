@@ -228,8 +228,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                                {}, // AUD-001
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
 	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
-	"trimmingcourse/repository.go|repository.FindByID": {},
-	"trimmingoption/repository.go|repository.FindByID": {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID": {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID": {},
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
@@ -271,10 +271,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"shiftentry/repository.go|repository.Update":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
 	"shiftentry/repository.go|repository.ReplaceBreaks":    {}, // BE8-4 batch13: moved from shift_entry_repository.go; G6-2 repo-internal tx replace
 	// trimming detail (uniform dbOrTx)
-	"trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
-	"trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
-	"trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
-	"trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
 	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む

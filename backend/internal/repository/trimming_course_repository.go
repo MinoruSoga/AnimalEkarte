@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/trimmingcourse"
+	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
-// TrimmingCourseRepository is a facade alias to trimmingcourse.Repository (BE8-4 batch26).
-type TrimmingCourseRepository = trimmingcourse.Repository
+// TrimmingCourseRepository is a BE9-2E facade; remove with the repository aggregator in BE9-2F.
+type TrimmingCourseRepository = trimming.TrimmingCourseRepository
 
 // NewTrimmingCourseRepository constructs a TrimmingCourseRepository.
 func NewTrimmingCourseRepository(db *gorm.DB) TrimmingCourseRepository {
-	return trimmingcourse.New(db)
+	return trimming.NewTrimmingCourseRepository(db)
 }

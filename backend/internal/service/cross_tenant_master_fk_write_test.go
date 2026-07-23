@@ -19,7 +19,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -51,18 +50,6 @@ func okConsultationRepo() repository.ConsultationRepository {
 func okExamTypeRepo() repository.ExamTypeRepository {
 	return &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
 		return &model.ExaminationType{ID: id}, nil
-	}}
-}
-
-func okTrimmingCourseRepo() repository.TrimmingCourseRepository {
-	return &mockTrimmingCourseRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
-		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
-	}}
-}
-
-func okTrimmingOptionRepo() repository.TrimmingOptionRepository {
-	return &mockTrimmingOptionRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
-		return &model.TrimmingOption{ID: id, IsActive: true}, nil
 	}}
 }
 
@@ -150,78 +137,9 @@ func rejectOccupationRepo(ownedID uint64) repository.OccupationRepository {
 	}}
 }
 
-// ── trimmingCourseService CourseTypeID (X-14b): Update now mirrors Create's
-// pre-persist courseTypeRepo.FindByID guard (symmetric with Create). ──
-
-func TestTrimmingCourseService_Update_RejectsCrossClinicCourseTypeFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const entityID = uint64(1)
-	const ownedCourseTypeID = uint64(10)
-	const foreignCourseTypeID = uint64(999)
-
-	newSvc := func(updated *bool) TrimmingCourseService {
-		repo := &mockTrimmingCourseRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
-				return &model.TrimmingCourse{ID: id}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.TrimmingCourse, error) {
-				*updated = true
-				return &model.TrimmingCourse{ID: id}, nil
-			},
-		}
-		courseTypeRepo := &mockTrimmingCourseTypeRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
-				if id != ownedCourseTypeID {
-					return nil, apperrors.WrapNotFound("trimming_course_type", "foreign")
-				}
-				return &model.TrimmingCourseType{ID: id}, nil
-			},
-		}
-		return NewTrimmingCourseService(repo, courseTypeRepo)
-	}
-
-	t.Run("rejects cross-clinic course_type_id and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignCourseTypeID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateTrimmingCourseInput{CourseTypeID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "trimming course must NOT be updated to reference another clinic's course type")
-	})
-
-	t.Run("accepts same-clinic course_type_id (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		owned := ownedCourseTypeID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateTrimmingCourseInput{CourseTypeID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
-	})
-}
-
 // ── vaccination (CRITICAL #125): vaccine_id ──
 
 // ── billing_item (P1, X-4): trimming_course_id / trimming_option_id ──
-
-func rejectTrimmingCourseRepo(ownedID uint64) repository.TrimmingCourseRepository {
-	return &mockTrimmingCourseRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
-		if id != ownedID {
-			return nil, apperrors.WrapNotFound("trimming_course", "foreign")
-		}
-		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
-	}}
-}
-
-func rejectTrimmingOptionRepo(ownedID uint64) repository.TrimmingOptionRepository {
-	return &mockTrimmingOptionRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
-		if id != ownedID {
-			return nil, apperrors.WrapNotFound("trimming_option", "foreign")
-		}
-		return &model.TrimmingOption{ID: id, IsActive: true}, nil
-	}}
-}
 
 func rejectDiagnosisNameRepo(ownedID uint64) repository.DiagnosisNameRepository {
 	return &mockDiagnosisNameRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
@@ -538,199 +456,6 @@ func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 		svc := newSvc(&updated, rejectOccupationRepo(ownedOccupationID))
 		owned := ownedOccupationID
 		out, err := svc.Update(context.Background(), clinicID, staffID, &UpdateStaffInput{OccupationID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
-	})
-}
-
-// ── trimmingService CourseID/OptionIDs (X-14c): Create/Update now guard via
-// trimmingCourseRepo/trimmingOptionRepo.FindByID(ctx, clinicID, id) before persist
-// (DI added — reservation_validators.go:116-127 と同型の 2 repo ガード). ──
-
-func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedCourseID = uint64(10)
-	const foreignCourseID = uint64(999)
-
-	newSvc := func(created *bool, courseRepo repository.TrimmingCourseRepository) TrimmingService {
-		reserv := &mockTrimmingReservationRepository{
-			createFn: func(_ context.Context, a *model.Reservation) error {
-				*created = true
-				a.ID = 1
-				return nil
-			},
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
-			},
-		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil, nil,
-			&mockTrimmingDetailRepository{}, courseRepo, okTrimmingOptionRepo(), &mockTransactor{})
-	}
-
-	t.Run("rejects cross-clinic course_id and does not persist", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
-		foreign := foreignCourseID
-		out, err := svc.Create(context.Background(), clinicID, &CreateTrimmingInput{
-			ReservationTypeID: 1,
-			StartTime:         time.Now(),
-			EndTime:           time.Now().Add(time.Hour),
-			CourseID:          &foreign,
-		})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, created, "trimming appointment must NOT be persisted when referencing another clinic's course")
-	})
-
-	t.Run("accepts same-clinic course_id (no false-reject)", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
-		owned := ownedCourseID
-		out, err := svc.Create(context.Background(), clinicID, &CreateTrimmingInput{
-			ReservationTypeID: 1,
-			StartTime:         time.Now(),
-			EndTime:           time.Now().Add(time.Hour),
-			CourseID:          &owned,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, created)
-	})
-}
-
-func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedOptionID = uint64(20)
-	const foreignOptionID = uint64(998)
-
-	newSvc := func(created *bool, optionRepo repository.TrimmingOptionRepository) TrimmingService {
-		reserv := &mockTrimmingReservationRepository{
-			createFn: func(_ context.Context, a *model.Reservation) error {
-				*created = true
-				a.ID = 1
-				return nil
-			},
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
-			},
-		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil, nil,
-			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), optionRepo, &mockTransactor{})
-	}
-
-	t.Run("rejects cross-clinic option_id and does not persist", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingOptionRepo(ownedOptionID))
-		out, err := svc.Create(context.Background(), clinicID, &CreateTrimmingInput{
-			ReservationTypeID: 1,
-			StartTime:         time.Now(),
-			EndTime:           time.Now().Add(time.Hour),
-			OptionIDs:         []uint64{foreignOptionID},
-		})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, created, "trimming appointment must NOT be persisted when referencing another clinic's option")
-	})
-
-	t.Run("accepts same-clinic option_id (no false-reject)", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingOptionRepo(ownedOptionID))
-		out, err := svc.Create(context.Background(), clinicID, &CreateTrimmingInput{
-			ReservationTypeID: 1,
-			StartTime:         time.Now(),
-			EndTime:           time.Now().Add(time.Hour),
-			OptionIDs:         []uint64{ownedOptionID},
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, created)
-	})
-}
-
-func TestTrimmingService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const appointmentID = uint64(1)
-	const ownedCourseID = uint64(10)
-	const foreignCourseID = uint64(999)
-
-	newSvc := func(updated *bool, courseRepo repository.TrimmingCourseRepository) TrimmingService {
-		// UpdateTrimmingInput{CourseID: ...} だけでは appointments 側の apptFields は空のまま
-		// (course_id は appointment_trimming_detail 側のフィールド) なので、永続化の観測は
-		// s.trimmingDetail.Update 呼び出しで行う。
-		reserv := &mockTrimmingReservationRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
-			},
-		}
-		detail := &mockTrimmingDetailRepository{
-			updateFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
-				*updated = true
-				return nil
-			},
-		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil, nil,
-			detail, courseRepo, okTrimmingOptionRepo(), &mockTransactor{})
-	}
-
-	t.Run("rejects cross-clinic course_id on update and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated, rejectTrimmingCourseRepo(ownedCourseID))
-		foreign := foreignCourseID
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "trimming appointment must NOT be updated to reference another clinic's course")
-	})
-
-	t.Run("accepts same-clinic course_id on update (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated, rejectTrimmingCourseRepo(ownedCourseID))
-		owned := ownedCourseID
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
-	})
-}
-
-func TestTrimmingService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const appointmentID = uint64(1)
-	const ownedOptionID = uint64(20)
-	const foreignOptionID = uint64(998)
-
-	newSvc := func(updated *bool, optionRepo repository.TrimmingOptionRepository) TrimmingService {
-		reserv := &mockTrimmingReservationRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
-			},
-		}
-		detail := &mockTrimmingDetailRepository{
-			setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
-				*updated = true
-				return nil
-			},
-		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil, nil,
-			detail, okTrimmingCourseRepo(), optionRepo, &mockTransactor{})
-	}
-
-	t.Run("rejects cross-clinic option_id on update and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated, rejectTrimmingOptionRepo(ownedOptionID))
-		foreignIDs := []uint64{foreignOptionID}
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &foreignIDs})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "trimming detail options must NOT be updated to reference another clinic's option")
-	})
-
-	t.Run("accepts same-clinic option_id on update (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated, rejectTrimmingOptionRepo(ownedOptionID))
-		ownedIDs := []uint64{ownedOptionID}
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &ownedIDs})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

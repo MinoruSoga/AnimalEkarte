@@ -63,10 +63,36 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 
 // --- (a2) trimming: Course / Options ---
 
+func setupPreloadTrimmingDetailTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupIsolatedTestDB(t)
+	if db.Migrator().HasTable(&model.AppointmentTrimmingOption{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.AppointmentTrimmingDetail{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.TrimmingCourse{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE trimming_courses CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.TrimmingOption{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE trimming_options CASCADE").Error)
+	}
+	if db.Migrator().HasTable(&model.ReservationType{}) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE reservation_types CASCADE").Error)
+	}
+	require.NoError(t, ensureAutoMigrated(db,
+		&model.ReservationType{}, &model.Reservation{},
+		&model.TrimmingCourse{}, &model.TrimmingOption{},
+		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{},
+	))
+	return db
+}
+
 func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadClinicIsolation(t *testing.T) {
-	// setupAppointmentTrimmingDetailTestDB = setupIsolatedTestDB + trimming 系 TRUNCATE。
+	// setupPreloadTrimmingDetailTestDB = setupIsolatedTestDB + trimming 系 TRUNCATE。
 	// 共有プール上の並行 TRUNCATE 破壊を避ける（TEST-FLAKE-P2）。
-	db := setupAppointmentTrimmingDetailTestDB(t)
+	db := setupPreloadTrimmingDetailTestDB(t)
 	repo := NewAppointmentTrimmingDetailRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
