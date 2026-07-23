@@ -7,13 +7,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -104,7 +105,7 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 
 	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
+	resetURL := buildPasswordResetURL(s.cfg.FrontendURL, rawToken)
 	s.wg.Add(1)
 	goSafe("password reset email", func() { //nolint:contextcheck // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
 		defer s.wg.Done()
@@ -120,6 +121,11 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	slog.InfoContext(ctx, "password reset token issued",
 		slog.Uint64("account_id", account.ID))
 	return nil
+}
+
+func buildPasswordResetURL(frontendURL, rawToken string) string {
+	fragment := url.Values{"token": []string{rawToken}}.Encode()
+	return fmt.Sprintf("%s/reset-password#%s", frontendURL, fragment)
 }
 
 // ResetPassword は rawToken を検証してパスワードを更新する。

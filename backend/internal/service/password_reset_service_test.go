@@ -420,6 +420,15 @@ func TestPasswordResetService_SendResetEmail(t *testing.T) {
 	})
 }
 
+func TestBuildPasswordResetURL(t *testing.T) {
+	t.Parallel()
+
+	got := buildPasswordResetURL("https://example.com", "secret+token/value")
+
+	assert.Equal(t, "https://example.com/reset-password#token=secret%2Btoken%2Fvalue", got)
+	assert.NotContains(t, got, "?token=")
+}
+
 func TestValidateSMTPLine(t *testing.T) {
 	tests := []struct {
 		name    string
