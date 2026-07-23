@@ -153,6 +153,7 @@ func main() {
 	merchandiseItemRepo := inventorydomain.NewMerchandiseItemRepository(db)
 	inventorySvc := inventorydomain.NewInventoryService(inventoryRepo)
 	merchandiseItemSvc := inventorydomain.NewMerchandiseItemService(merchandiseItemRepo)
+	campaignSvc := billing.NewCampaignService(repos.Campaign, merchandiseItemRepo)
 
 	// 連携設定の暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）。
 	// lstep 連携（clinic_integrations）と LINE 予約設定（line_reservation_settings）で共有する（H-4）。
@@ -524,7 +525,7 @@ func main() {
 	// billing domain（BE9-2C B①〜）: 会計系 master routes
 	billingHandler := billing.NewHandler(
 		billing.NewInsuranceHandler(svcs.Insurance),
-		billing.NewCampaignHandler(svcs.Campaign),
+		billing.NewCampaignHandler(campaignSvc),
 		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
 		billing.NewEstimateHandler(svcs.Estimate, h.HasPermission),
 		billing.NewBillingConfirmationHandler(svcs.BillingConfirmation, h.RequirePermission),
