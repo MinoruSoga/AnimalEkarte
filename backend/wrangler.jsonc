@@ -92,6 +92,13 @@
     "head_sampling_rate": 1,
   },
 
+  // Cron は UTC。Worker の exact allowlist と同じ3式だけを登録する。
+  // 01:00 UTC = 10:00 JST(no_show → delivery)、06:00/11:00 UTC =
+  // 15:00/20:00 JST(no_show)、17:00 UTC = 翌02:00 JST(dormant)。
+  "triggers": {
+    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *"],
+  },
+
   "containers": [
     {
       "class_name": "AnimalEkarteApiContainer",

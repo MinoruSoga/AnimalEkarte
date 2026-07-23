@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "WebWorker"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    "../../worker-configuration.d.ts",
+    "./runtime-augmentations.d.ts",
+    "./index.ts",
+    "./migrate-exec.ts",
+    "./scheduled-handler.ts",
+    "./scheduled-jobs.ts",
+    "./scheduler-coordinator.ts"
+  ]
+}

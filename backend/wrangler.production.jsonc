@@ -101,6 +101,12 @@
     "head_sampling_rate": 1,
   },
 
+  // STG と同じ UTC Cron 契約。production placeholder / secret 値には触れず、
+  // 実デプロイは冒頭の全 placeholder 解消と承認後にのみ行う。
+  "triggers": {
+    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *"],
+  },
+
   "containers": [
     {
       "class_name": "AnimalEkarteApiContainer",

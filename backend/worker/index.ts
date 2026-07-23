@@ -12,6 +12,18 @@
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 import { isAuthorizedMigrateRequest, toMigrateResponse, type MigrateExecResult } from "./migrate-exec";
+import { dispatchScheduledEvent } from "./scheduled-handler";
+import {
+  SchedulerCoordinator,
+  runScheduledPlan,
+  type SchedulerControl,
+  type ScheduledRunResult,
+} from "./scheduler-coordinator";
+import {
+  SCHEDULER_NAME,
+  isScheduledJobsInternalPath,
+  runScheduledJobRequest,
+} from "./scheduled-jobs";
 
 export class AnimalEkarteApiContainer extends Container<Env> {
   defaultPort = 8080;
@@ -129,6 +141,35 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       stderr: decoder.decode(output.stderr),
     };
   }
+
+  // BE9-3: Cron 専用の named DO からのみ呼ばれる RPC。
+  // Durable Object storage が pause・global lease・fence・run ledger を保持し、
+  // container の scale-to-zero や Worker の再起動後も重複実行を防ぐ。
+  async runScheduledJobs(
+    cron: string,
+    scheduledTime: number,
+  ): Promise<readonly ScheduledRunResult[]> {
+    const coordinator = new SchedulerCoordinator(this.ctx.storage);
+    return runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
+      runScheduledJobRequest(
+        (internalRequest) => this.containerFetch(internalRequest),
+        request,
+      ),
+    );
+  }
+
+  // 外部 HTTP からは公開しない。Workers RPC binding 経由の運用制御だけを許可し、
+  // 新規シークレットや既存シークレットの用途流用を避ける。
+  async setScheduledJobsPaused(paused: boolean): Promise<SchedulerControl> {
+    if (typeof paused !== "boolean") {
+      throw new Error("paused must be a boolean");
+    }
+    return new SchedulerCoordinator(this.ctx.storage).setPaused(paused);
+  }
+
+  async getScheduledJobsControl(): Promise<SchedulerControl> {
+    return new SchedulerCoordinator(this.ctx.storage).getControl();
+  }
 }
 
 export default {
@@ -138,6 +179,12 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/_internal/migrate") {
       return handleMigrateRequest(request, env);
+    }
+    if (isScheduledJobsInternalPath(url.pathname)) {
+      return new Response(JSON.stringify({ error: "not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // H2/AC-2: containerFetch は既定では X-Forwarded-For を注入しない(試行9の実測で確認—
@@ -166,6 +213,24 @@ export default {
         status: 503,
         headers: { "Content-Type": "application/json" },
       });
+    }
+  },
+
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    const coordinator = getContainer(env.API_CONTAINER, SCHEDULER_NAME);
+    try {
+      await dispatchScheduledEvent(controller, (cron, scheduledTime) =>
+        coordinator.runScheduledJobs(cron, scheduledTime),
+      );
+    } catch {
+      // cron と scheduledTime は Cloudflare 設定由来で PII/secret を含まない。
+      // Go 応答本文や例外詳細は記録せず、失敗種別は永続 run ledger で確認する。
+      console.error("scheduled invocation failed", {
+        scheduler: SCHEDULER_NAME,
+        cron: controller.cron,
+        scheduled_time: controller.scheduledTime,
+      });
+      throw new Error("scheduled invocation failed");
     }
   },
 };
