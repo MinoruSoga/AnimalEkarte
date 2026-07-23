@@ -144,15 +144,21 @@ func (s *tokenService) VerifyRefreshToken(ctx context.Context, tokenStr string) 
 		return nil, apperrors.WrapUnauthorized("invalid token type")
 	}
 
-	if claims.ID != "" && s.tokenBlacklist != nil {
-		revoked, blacklistErr := s.tokenBlacklist.IsRevoked(ctx, claims.ID)
-		if blacklistErr != nil {
-			slog.ErrorContext(ctx, "token blacklist check failed", "jti", claims.ID, "error", blacklistErr)
-			return nil, apperrors.WrapUnauthorized("token validation failed")
-		}
-		if revoked {
-			return nil, apperrors.WrapUnauthorized("token has been revoked")
-		}
+	if claims.ID == "" || claims.ExpiresAt == nil {
+		return nil, apperrors.WrapUnauthorized("invalid refresh token claims")
+	}
+	if s.tokenBlacklist == nil {
+		slog.ErrorContext(ctx, "refresh token validation unavailable: token blacklist is not configured")
+		return nil, apperrors.WrapUnauthorized("token validation unavailable")
+	}
+
+	revoked, blacklistErr := s.tokenBlacklist.IsRevoked(ctx, claims.ID)
+	if blacklistErr != nil {
+		slog.ErrorContext(ctx, "token blacklist check failed", "jti", claims.ID, "error", blacklistErr)
+		return nil, apperrors.WrapUnauthorized("token validation failed")
+	}
+	if revoked {
+		return nil, apperrors.WrapUnauthorized("token has been revoked")
 	}
 
 	return claims, nil

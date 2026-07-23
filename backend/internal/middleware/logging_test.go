@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,6 +92,24 @@ func TestRequestLoggingMiddleware(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/200?query=1", http.NoBody)
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("does not log query values", func(t *testing.T) {
+		var logBuffer bytes.Buffer
+		previousLogger := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuffer, nil)))
+		t.Cleanup(func() {
+			slog.SetDefault(previousLogger)
+		})
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/200?access_token=secret-value", http.NoBody)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, logBuffer.String(), `"path":"/200"`)
+		assert.NotContains(t, logBuffer.String(), "access_token")
+		assert.NotContains(t, logBuffer.String(), "secret-value")
 	})
 
 	t.Run("logs status 400", func(t *testing.T) {

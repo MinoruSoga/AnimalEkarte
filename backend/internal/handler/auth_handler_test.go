@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/authjwt"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -50,6 +54,16 @@ func (m *mockTokenBlacklistService) IsRevoked(ctx context.Context, jti string) (
 
 func (m *mockTokenBlacklistService) DeleteExpired(_ context.Context) error {
 	return nil
+}
+
+type countingTokenService struct {
+	service.TokenService
+	parseRefreshTokenClaimsCalls int
+}
+
+func (s *countingTokenService) ParseRefreshTokenClaims(tokenStr string) (*authjwt.Claims, error) {
+	s.parseRefreshTokenClaimsCalls++
+	return s.TokenService.ParseRefreshTokenClaims(tokenStr)
 }
 
 // ---- test helper ----
@@ -112,7 +126,7 @@ func TestAuthHandlerCompiles(t *testing.T) {
 // 2. Logout Handler (POST /v1/auth/logout)
 //    Test Cases:
 //    ✓ Clears access_token cookie (MaxAge=-1, HttpOnly, Path="/")
-//    ✓ Clears refresh_token cookie (MaxAge=-1, HttpOnly, Path="/api/v1/auth/refresh")
+//    ✓ Clears current and legacy refresh_token cookie paths
 //    ✓ Clears legacy auth_token cookie for backward compatibility
 //    ✓ Cookie cleanup works with and without user context
 //    ✓ Audit log recorded (best-effort, doesn't block on error)
@@ -570,7 +584,8 @@ func TestLogout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	validRefreshClaims := &middleware.JWTClaims{
-		UserID: "10",
+		UserID:   "10",
+		ClinicID: "1",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        "jti-logout-1",
 			Subject:   "refresh",
@@ -586,6 +601,7 @@ func TestLogout(t *testing.T) {
 		refreshToken string
 		setupCtx     func(c *gin.Context)
 		svc          *service.Services
+		wantStatus   int
 		checkAudit   func(t *testing.T, audit *mockAuditService)
 	}{
 		{
@@ -608,13 +624,47 @@ func TestLogout(t *testing.T) {
 			},
 		},
 		{
+			name:         "audits real public logout route from signed refresh claims",
+			refreshToken: validRefreshToken,
+			setupCtx:     func(_ *gin.Context) {},
+			svc: &service.Services{
+				TokenBlacklist: &mockTokenBlacklistService{},
+				Audit: &mockAuditService{
+					logAuthLoginFn: func(_ context.Context, clinicID, staffID *uint64, action, _, _ string) error {
+						require.NotNil(t, clinicID)
+						require.NotNil(t, staffID)
+						assert.Equal(t, uint64(1), *clinicID)
+						assert.Equal(t, uint64(10), *staffID)
+						assert.Equal(t, model.AuditActionAuthLogout, action)
+						return nil
+					},
+				},
+			},
+			checkAudit: func(t *testing.T, audit *mockAuditService) {
+				assert.Equal(t, []string{model.AuditActionAuthLogout}, audit.loggedActions)
+			},
+		},
+		{
 			name:         "best-effort ignores malformed refresh token",
 			refreshToken: "not-a-valid-jwt",
 			setupCtx:     func(_ *gin.Context) {},
 			svc:          &service.Services{TokenBlacklist: &mockTokenBlacklistService{}, Audit: &mockAuditService{}},
 		},
 		{
-			name:         "best-effort ignores revoke error from token blacklist",
+			name:         "already revoked refresh token is idempotent",
+			refreshToken: validRefreshToken,
+			setupCtx:     func(_ *gin.Context) {},
+			svc: &service.Services{
+				TokenBlacklist: &mockTokenBlacklistService{
+					revokeTokenFn: func(_ context.Context, _ string, _ time.Time) error {
+						return apperrors.WrapAlreadyExists("refresh token", "jti-logout-1")
+					},
+				},
+				Audit: &mockAuditService{},
+			},
+		},
+		{
+			name:         "fails closed when refresh token revocation fails",
 			refreshToken: validRefreshToken,
 			setupCtx:     func(_ *gin.Context) {},
 			svc: &service.Services{
@@ -624,6 +674,10 @@ func TestLogout(t *testing.T) {
 					},
 				},
 				Audit: &mockAuditService{},
+			},
+			wantStatus: http.StatusInternalServerError,
+			checkAudit: func(t *testing.T, audit *mockAuditService) {
+				assert.Empty(t, audit.loggedActions, "failed revocation must not be recorded as a successful logout")
 			},
 		},
 		{
@@ -692,23 +746,362 @@ func TestLogout(t *testing.T) {
 
 			h.Logout(c)
 
-			assert.Equal(t, http.StatusOK, w.Code)
-			assert.Contains(t, w.Body.String(), "logged out")
+			wantStatus := tt.wantStatus
+			if wantStatus == 0 {
+				wantStatus = http.StatusOK
+			}
+			assert.Equal(t, wantStatus, w.Code)
+			if wantStatus == http.StatusOK {
+				assert.Contains(t, w.Body.String(), "logged out")
+			}
 
 			var access *http.Cookie
+			refreshPaths := make(map[string]bool)
 			for _, ck := range w.Result().Cookies() {
 				if ck.Name == accessTokenCookieName {
 					access = ck
 				}
+				if ck.Name == refreshTokenCookieName && ck.MaxAge < 0 {
+					refreshPaths[ck.Path] = true
+				}
 			}
-			require.NotNil(t, access, "access_token cookie should be cleared")
-			assert.Equal(t, -1, access.MaxAge)
+			if wantStatus == http.StatusOK {
+				require.NotNil(t, access, "access_token cookie should be cleared")
+				assert.Equal(t, -1, access.MaxAge)
+				assert.True(t, refreshPaths["/api/v1/auth"], "refresh cookie must be cleared on the logout-visible path")
+				assert.True(t, refreshPaths["/api/v1/auth/refresh"], "legacy refresh cookie path must be cleared")
+			} else {
+				assert.Nil(t, access, "failed logout must retain access_token for a safe retry")
+				assert.Empty(t, refreshPaths, "failed logout must retain refresh tokens for a safe retry")
+			}
 
 			if tt.checkAudit != nil {
 				tt.checkAudit(t, tt.svc.Audit.(*mockAuditService))
 			}
 		})
 	}
+}
+
+func TestLogout_CompatibilityRouteRevokesBothRefreshCookiePaths(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	expiresAt := time.Now().Add(time.Hour)
+	buildRefreshToken := func(jti string) string {
+		t.Helper()
+		return buildAuthTestJWT(t, testAuthJWTSecret, &middleware.JWTClaims{
+			UserID: "10",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        jti,
+				Subject:   "refresh",
+				ExpiresAt: jwt.NewNumericDate(expiresAt),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+		})
+	}
+
+	var revokedJTIs []string
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, jti string, _ time.Time) error {
+				revokedJTIs = append(revokedJTIs, jti)
+				return nil
+			},
+		},
+		Audit: &mockAuditService{},
+	}, "")
+
+	router := gin.New()
+	h.RegisterRoutes(context.Background(), router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	cookieOrigin, err := url.Parse(server.URL + legacyRefreshTokenCookiePath)
+	require.NoError(t, err)
+	jar.SetCookies(cookieOrigin, []*http.Cookie{
+		{
+			Name:  refreshTokenCookieName,
+			Value: buildRefreshToken("legacy-refresh-jti"),
+			Path:  legacyRefreshTokenCookiePath,
+		},
+		{
+			Name:  refreshTokenCookieName,
+			Value: buildRefreshToken("current-refresh-jti"),
+			Path:  refreshTokenCookiePath,
+		},
+	})
+
+	request, err := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/refresh/logout", http.NoBody)
+	require.NoError(t, err)
+	request.Header.Set("X-Requested-With", "XMLHttpRequest")
+	response, err := (&http.Client{Jar: jar}).Do(request)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, response.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.ElementsMatch(t, []string{"legacy-refresh-jti", "current-refresh-jti"}, revokedJTIs)
+}
+
+func TestLogout_RejectsUnrepresentableRefreshCookieFanoutBeforeRevocation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var revokedJTIs []string
+	audit := &mockAuditService{}
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, jti string, _ time.Time) error {
+				revokedJTIs = append(revokedJTIs, jti)
+				return nil
+			},
+		},
+		Audit: audit,
+	}, "")
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh/logout", http.NoBody)
+	request.AddCookie(&http.Cookie{
+		Name:  refreshTokenCookieName,
+		Value: strings.Repeat("a", maxRefreshTokenCookieBytes+1),
+	})
+	request.AddCookie(&http.Cookie{Name: refreshTokenCookieName, Value: "attacker-malformed-cookie"})
+	request.AddCookie(&http.Cookie{
+		Name: refreshTokenCookieName,
+		Value: buildAuthTestJWT(t, testAuthJWTSecret, &middleware.JWTClaims{
+			UserID:   "10",
+			ClinicID: "1",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        "legitimate-jti",
+				Subject:   "refresh",
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+		}),
+	})
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = request
+
+	h.Logout(c)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	assert.Empty(t, revokedJTIs)
+	assert.Empty(t, audit.loggedActions)
+}
+
+func TestLogout_CookieTossingFailureRetainsLegitimateCookiesForRetry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	expiresAt := time.Now().Add(time.Hour)
+	buildRefreshToken := func(jti string) string {
+		t.Helper()
+		return buildAuthTestJWT(t, testAuthJWTSecret, &middleware.JWTClaims{
+			UserID:   "10",
+			ClinicID: "1",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        jti,
+				Subject:   "refresh",
+				ExpiresAt: jwt.NewNumericDate(expiresAt),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+		})
+	}
+
+	var revokedJTIs []string
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, jti string, _ time.Time) error {
+				revokedJTIs = append(revokedJTIs, jti)
+				return nil
+			},
+		},
+		Audit: &mockAuditService{},
+	}, "")
+	router := gin.New()
+	h.RegisterRoutes(context.Background(), router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	logoutURL, err := url.Parse(server.URL + "/api/v1/auth/refresh/logout")
+	require.NoError(t, err)
+	jar.SetCookies(logoutURL, []*http.Cookie{
+		{Name: refreshTokenCookieName, Value: buildRefreshToken("current-jti"), Path: refreshTokenCookiePath},
+		{Name: refreshTokenCookieName, Value: buildRefreshToken("legacy-jti"), Path: legacyRefreshTokenCookiePath},
+		{Name: refreshTokenCookieName, Value: "attacker-malformed-cookie", Path: "/api/v1/auth/refresh/logout"},
+	})
+	client := &http.Client{Jar: jar}
+	postLogout := func() *http.Response {
+		t.Helper()
+		request, requestErr := http.NewRequest(http.MethodPost, logoutURL.String(), http.NoBody)
+		require.NoError(t, requestErr)
+		request.Header.Set("X-Requested-With", "XMLHttpRequest")
+		response, responseErr := client.Do(request)
+		require.NoError(t, responseErr)
+		return response
+	}
+
+	firstResponse := postLogout()
+	require.NoError(t, firstResponse.Body.Close())
+	assert.Equal(t, http.StatusBadRequest, firstResponse.StatusCode)
+	assert.Empty(t, revokedJTIs)
+
+	jar.SetCookies(logoutURL, []*http.Cookie{{
+		Name: refreshTokenCookieName, Path: "/api/v1/auth/refresh/logout", MaxAge: -1,
+	}})
+	secondResponse := postLogout()
+	require.NoError(t, secondResponse.Body.Close())
+
+	assert.Equal(t, http.StatusOK, secondResponse.StatusCode)
+	assert.ElementsMatch(t, []string{"current-jti", "legacy-jti"}, revokedJTIs)
+}
+
+func TestLogout_RejectsMismatchedSignedRefreshIdentitiesBeforeRevocation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var revokedJTIs []string
+	audit := &mockAuditService{}
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, jti string, _ time.Time) error {
+				revokedJTIs = append(revokedJTIs, jti)
+				return nil
+			},
+		},
+		Audit: audit,
+	}, "")
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh/logout", http.NoBody)
+	for i, identity := range []struct {
+		userID   string
+		clinicID string
+	}{
+		{userID: "10", clinicID: "1"},
+		{userID: "99", clinicID: "2"},
+	} {
+		request.AddCookie(&http.Cookie{
+			Name: refreshTokenCookieName,
+			Value: buildAuthTestJWT(t, testAuthJWTSecret, &middleware.JWTClaims{
+				UserID:   identity.userID,
+				ClinicID: identity.clinicID,
+				RegisteredClaims: jwt.RegisteredClaims{
+					ID:        fmt.Sprintf("jti-%d", i),
+					Subject:   "refresh",
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+				},
+			}),
+		})
+	}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = request
+
+	h.Logout(c)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	assert.Empty(t, revokedJTIs)
+	assert.Empty(t, audit.loggedActions)
+}
+
+func TestLogout_RejectsOversizedRefreshCookieBeforeJWTVerification(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	revokeCalls := 0
+	tokenSvc := &countingTokenService{
+		TokenService: service.NewTokenService(testAuthJWTSecret, nil),
+	}
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, _ string, _ time.Time) error {
+				revokeCalls++
+				return nil
+			},
+		},
+		Audit: &mockAuditService{},
+		Token: tokenSvc,
+	}, "")
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh/logout", http.NoBody)
+	request.AddCookie(&http.Cookie{
+		Name:  refreshTokenCookieName,
+		Value: strings.Repeat("a", maxRefreshTokenCookieBytes+1),
+	})
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = request
+
+	h.Logout(c)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Zero(t, revokeCalls)
+	assert.Zero(t, tokenSvc.parseRefreshTokenClaimsCalls)
+}
+
+func TestLogout_LegacyClientRouteRedirectsToNarrowCookiePath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	expiresAt := time.Now().Add(time.Hour)
+	buildRefreshToken := func(jti string) string {
+		t.Helper()
+		return buildAuthTestJWT(t, testAuthJWTSecret, &middleware.JWTClaims{
+			UserID:   "10",
+			ClinicID: "1",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ID:        jti,
+				Subject:   "refresh",
+				ExpiresAt: jwt.NewNumericDate(expiresAt),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+		})
+	}
+
+	var revokedJTIs []string
+	h := newHandlerForAuthHandler(&service.Services{
+		TokenBlacklist: &mockTokenBlacklistService{
+			revokeTokenFn: func(_ context.Context, jti string, _ time.Time) error {
+				revokedJTIs = append(revokedJTIs, jti)
+				return nil
+			},
+		},
+		Audit: &mockAuditService{},
+	}, "")
+	router := gin.New()
+	h.RegisterRoutes(context.Background(), router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	cookieOrigin, err := url.Parse(server.URL + legacyRefreshTokenCookiePath)
+	require.NoError(t, err)
+	jar.SetCookies(cookieOrigin, []*http.Cookie{
+		{
+			Name:  refreshTokenCookieName,
+			Value: buildRefreshToken("legacy-path-jti"),
+			Path:  legacyRefreshTokenCookiePath,
+		},
+		{
+			Name:  refreshTokenCookieName,
+			Value: buildRefreshToken("narrow-current-path-jti"),
+			Path:  "/api/v1/auth",
+		},
+	})
+
+	request, err := http.NewRequest(http.MethodPost, server.URL+"/api/v1/logout", http.NoBody)
+	require.NoError(t, err)
+	request.Header.Set("X-Requested-With", "XMLHttpRequest")
+	response, err := (&http.Client{Jar: jar}).Do(request)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, response.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.Equal(t, "/api/v1/auth/refresh/logout", response.Request.URL.Path)
+	assert.ElementsMatch(t, []string{"legacy-path-jti", "narrow-current-path-jti"}, revokedJTIs)
 }
 
 // ---- RefreshToken ----
@@ -854,7 +1247,7 @@ func TestRefreshToken(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:         "returns 200 even when rotation revoke fails (best-effort)",
+			name:         "returns 500 when rotation revoke fails",
 			refreshToken: buildAuthTestJWT(t, testAuthJWTSecret, makeClaims("10", "refresh", "jti-9", validExpiry)),
 			svc: &service.Services{
 				TokenBlacklist: &mockTokenBlacklistService{
@@ -873,10 +1266,10 @@ func TestRefreshToken(t *testing.T) {
 					},
 				},
 			},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusInternalServerError,
 		},
 		{
-			name:         "returns 200 when jti is empty (skips blacklist check)",
+			name:         "returns 401 when jti is empty",
 			refreshToken: buildAuthTestJWT(t, testAuthJWTSecret, makeClaims("10", "refresh", "", validExpiry)),
 			svc: &service.Services{
 				TokenBlacklist: &mockTokenBlacklistService{
@@ -896,7 +1289,7 @@ func TestRefreshToken(t *testing.T) {
 					},
 				},
 			},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusUnauthorized,
 		},
 	}
 
@@ -924,6 +1317,10 @@ func TestRefreshToken(t *testing.T) {
 				}
 				require.NotNil(t, access, "successful refresh should set a new access_token cookie")
 				assert.NotEmpty(t, access.Value)
+			} else {
+				for _, ck := range w.Result().Cookies() {
+					assert.NotEqual(t, accessTokenCookieName, ck.Name, "failed refresh must not issue a new access token")
+				}
 			}
 		})
 	}

@@ -75,13 +75,14 @@ PATCH /api/v1/shift-templates/reorder ReorderShiftTemplates
 PATCH /api/v1/shifts/:id UpdateShiftEntry
 POST /api/v1/auth/forgot-password ForgotPassword
 POST /api/v1/auth/refresh RefreshToken
+POST /api/v1/auth/refresh/logout Logout
 POST /api/v1/auth/reset-password ResetPassword
 POST /api/v1/clinic-holidays SetClinicHoliday
 POST /api/v1/clinics CreateClinic
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/login Login
-POST /api/v1/logout Logout
+POST /api/v1/logout RedirectLogout
 POST /api/v1/masters/animal-species CreateAnimalSpecies
 POST /api/v1/masters/occupations CreateOccupation
 POST /api/v1/masters/permission-groups CreatePermissionGroup

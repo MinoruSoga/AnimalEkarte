@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 )
@@ -132,6 +133,9 @@ func (c *Config) Validate() error {
 	}
 	if c.TrustedProxyCIDR == "" {
 		return fmt.Errorf("TRUSTED_PROXY_CIDR is required in production (rate-limit bypass risk)")
+	}
+	if _, _, err := net.ParseCIDR(c.TrustedProxyCIDR); err != nil {
+		return fmt.Errorf("TRUSTED_PROXY_CIDR must be a valid CIDR")
 	}
 	if c.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET must be explicitly set in release mode")

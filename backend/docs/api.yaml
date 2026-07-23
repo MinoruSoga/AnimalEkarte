@@ -12,7 +12,7 @@ info:
     | Cookie 名 | 内容 | 有効期限 | Path | 用途 |
     |----------|------|---------|------|------|
     | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
-    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth/refresh` | アクセストークン再発行 |
+    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth` | アクセストークン再発行・ログアウト |
     | `prev_clinic_id` | クリニックID数値 | 15分 | `/` | クリニック切替の監査・履歴用 |
     | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
 
@@ -28,6 +28,15 @@ servers:
   - url: http://localhost:8080/api/v1
     description: 開発環境
 components:
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: CSRF 防止のため `XMLHttpRequest` を指定する。
+      schema:
+        type: string
+        enum: [XMLHttpRequest]
   securitySchemes:
     CookieAuth:
       type: apiKey
@@ -42,7 +51,7 @@ components:
       in: cookie
       name: refresh_token
       description: |
-        `POST /auth/refresh` 専用の HttpOnly な JWT（Path=/auth/refresh、MaxAge=7days）。
+        認証更新・ログアウト専用の HttpOnly な JWT（Path=/api/v1/auth、MaxAge=7days）。
         Token Rotation により毎回置換される。
     BearerAuth:
       type: http
@@ -8607,6 +8616,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: レート制限を超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     InternalError:
       description: サーバー内部エラー
       content:
@@ -8624,6 +8639,8 @@ paths:
       description: メールアドレスとパスワードで認証してJWTトークンを返す
       tags: [Auth]
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       requestBody:
         required: true
         content:
@@ -8641,16 +8658,49 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
   /logout:
     post:
       operationId: logout
-      summary: ログアウト
-      description: httpOnly Cookie (`auth_token`) を無効化してログアウトする。Cookie は 
-        HttpOnly のため JS から直接削除できないためサーバー側で MaxAge=-1 でクリアする。
+      summary: 旧ログアウト経路（互換 redirect）
+      description: |
+        キャッシュされた旧クライアント向け互換経路。POST と CSRF ヘッダーを維持する
+        `307 Temporary Redirect` で `/auth/refresh/logout` へ転送し、
+        Path が狭い refresh Cookie もブラウザから送信させる。
       tags: [Auth]
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
+      responses:
+        '307':
+          description: refresh Cookie 互換ログアウト経路へ転送
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/auth/refresh/logout
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/refresh/logout:
+    post:
+      operationId: logoutRefreshCookieCompatible
+      summary: ログアウト（refresh Cookie Path 互換）
+      description: |
+        現行の `/api/v1/auth` Path と旧 `/api/v1/auth/refresh` Path の
+        `refresh_token` Cookie を同時に受信し、署名検証済み JTI を失効してから
+        認証 Cookie を削除する。旧 Cookie の移行期間を安全に終了するため、
+        クライアントの標準ログアウト経路はこちらを使用する。
+      tags: [Auth]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       responses:
         '200':
           description: ログアウト成功
@@ -8662,6 +8712,12 @@ paths:
                   message:
                     type: string
                     example: logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
   /me:
@@ -8692,15 +8748,27 @@ paths:
       tags: [Auth]
       security:
         - RefreshCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       responses:
         '200':
           description: トークン再発行成功。新しい access_token / refresh_token を Cookie でセット。
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: token refreshed
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /auth/forgot-password:
     post:

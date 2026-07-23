@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,7 +18,24 @@ const (
 	accessTokenCookieName  = "access_token"
 	refreshTokenCookieName = "refresh_token"
 	legacyCookieName       = "auth_token"
+
+	refreshTokenCookiePath       = "/api/v1/auth"
+	legacyRefreshTokenCookiePath = "/api/v1/auth/refresh"
+
+	maxRefreshTokenCookieCount = 2
+	maxRefreshTokenCookieBytes = 4096
 )
+
+type logoutAuditIdentity struct {
+	staffID  uint64
+	clinicID uint64
+	valid    bool
+}
+
+type refreshTokenRevocation struct {
+	jti       string
+	expiresAt time.Time
+}
 
 // Login godoc
 // Login はメール/パスワードで認証してJWTトークンを返す。
@@ -102,18 +122,14 @@ func (h *Handler) buildMeResponse(c *gin.Context, staff *model.Staff, account *m
 func (h *Handler) Logout(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// refresh_token の jti をブラックリストに登録してサーバーサイド失効させる（ベストエフォート）。
-	// 失効に失敗してもログアウト自体はブロックしない。
 	// ParseRefreshTokenClaims は BL 照合なし（既に失効済みでも parse でき、冪等 revoke 可能）。
-	if tokenStr, err := c.Cookie(refreshTokenCookieName); err == nil && tokenStr != "" {
-		if claims, parseErr := h.tokenSvc().ParseRefreshTokenClaims(tokenStr); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
-			if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
-				slog.ErrorContext(ctx, "failed to revoke refresh token on logout (best-effort)", "jti", claims.ID, "error", revokeErr)
-			}
-		}
-	}
+	auditIdentity, refreshRevokeErr := h.revokeRefreshTokenCookies(ctx, c.Request.Cookies())
 
-	h.auditLogoutBestEffort(c)
+	if refreshRevokeErr != nil {
+		slog.ErrorContext(ctx, "logout refresh cookie processing failed", "error", refreshRevokeErr)
+		RespondError(c, refreshRevokeErr)
+		return
+	}
 
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
@@ -123,21 +139,110 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	clearCookie(c, accessTokenCookieName, "/", isProduction, sameSite)
 	clearCookie(c, legacyCookieName, "/", isProduction, sameSite)
-	clearCookie(c, refreshTokenCookieName, "/api/v1/auth/refresh", isProduction, sameSite)
+	clearCookie(c, refreshTokenCookieName, refreshTokenCookiePath, isProduction, sameSite)
+	clearCookie(c, refreshTokenCookieName, legacyRefreshTokenCookiePath, isProduction, sameSite)
 	clearCookie(c, "prev_clinic_id", "/", isProduction, sameSite)
 
+	h.auditLogoutBestEffort(c, auditIdentity)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
+// RedirectLogout keeps cached clients that still call /api/v1/logout safe while
+// the refresh cookie is narrowed to /api/v1/auth. A 307 preserves POST and the
+// CSRF header; the browser then attaches both legacy and current refresh cookies.
+func (h *Handler) RedirectLogout(c *gin.Context) {
+	c.Redirect(http.StatusTemporaryRedirect, "/api/v1/auth/refresh/logout")
+}
+
+func (h *Handler) revokeRefreshTokenCookies(ctx context.Context, cookies []*http.Cookie) (logoutAuditIdentity, error) {
+	tokens, err := uniqueRefreshTokenValues(cookies)
+	if err != nil {
+		return logoutAuditIdentity{}, err
+	}
+
+	revocations, auditIdentity, err := h.parseRefreshTokenRevocations(tokens)
+	if err != nil {
+		return logoutAuditIdentity{}, err
+	}
+	if len(revocations) > 0 && (h.svc == nil || h.svc.TokenBlacklist == nil) {
+		return logoutAuditIdentity{}, errors.New("token blacklist service unavailable")
+	}
+
+	var result error
+	for _, revocation := range revocations {
+		if err := h.svc.TokenBlacklist.RevokeToken(ctx, revocation.jti, revocation.expiresAt); err != nil && !apperrors.IsAlreadyExists(err) {
+			result = errors.Join(result, err)
+		}
+	}
+	return auditIdentity, result
+}
+
+func uniqueRefreshTokenValues(cookies []*http.Cookie) ([]string, error) {
+	seenTokens := make(map[string]struct{}, len(cookies))
+	tokens := make([]string, 0, maxRefreshTokenCookieCount)
+	for _, cookie := range cookies {
+		if cookie.Name != refreshTokenCookieName || cookie.Value == "" {
+			continue
+		}
+		if _, duplicate := seenTokens[cookie.Value]; duplicate {
+			continue
+		}
+		seenTokens[cookie.Value] = struct{}{}
+		if len(tokens) >= maxRefreshTokenCookieCount {
+			return nil, apperrors.WrapInvalidInput("invalid refresh cookie set")
+		}
+		tokens = append(tokens, cookie.Value)
+	}
+	return tokens, nil
+}
+
+func (h *Handler) parseRefreshTokenRevocations(tokens []string) ([]refreshTokenRevocation, logoutAuditIdentity, error) {
+	revocations := make([]refreshTokenRevocation, 0, len(tokens))
+	var signedUserID string
+	var signedClinicID string
+	hasSignedIdentity := false
+	for _, token := range tokens {
+		if len(token) > maxRefreshTokenCookieBytes {
+			continue
+		}
+
+		claims, err := h.tokenSvc().ParseRefreshTokenClaims(token)
+		if err != nil || claims.ID == "" || claims.ExpiresAt == nil {
+			continue
+		}
+		if hasSignedIdentity && (claims.UserID != signedUserID || claims.ClinicID != signedClinicID) {
+			return nil, logoutAuditIdentity{}, apperrors.WrapInvalidInput("invalid refresh cookie identity")
+		}
+		if !hasSignedIdentity {
+			signedUserID = claims.UserID
+			signedClinicID = claims.ClinicID
+			hasSignedIdentity = true
+		}
+		revocations = append(revocations, refreshTokenRevocation{jti: claims.ID, expiresAt: claims.ExpiresAt.Time})
+	}
+
+	staffID, staffErr := strconv.ParseUint(signedUserID, 10, 64)
+	clinicID, clinicErr := strconv.ParseUint(signedClinicID, 10, 64)
+	auditIdentity := logoutAuditIdentity{
+		staffID: staffID, clinicID: clinicID,
+		valid: hasSignedIdentity && staffErr == nil && clinicErr == nil,
+	}
+	return revocations, auditIdentity, nil
+}
+
 // auditLogoutBestEffort はログアウト監査ログをベストエフォートで記録する（E-2）。
-// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
-// 存在しない場合に 401 レスポンスを書き込む副作用がある。
-// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
-// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
-func (h *Handler) auditLogoutBestEffort(c *gin.Context) {
+// 保護グループ外の実ルートでは Auth middleware の context 値がないため、
+// 署名検証済み refresh claims の staff/clinic を fallback として使う。
+func (h *Handler) auditLogoutBestEffort(c *gin.Context, fallback logoutAuditIdentity) {
+	if h.svc == nil || h.svc.Audit == nil {
+		return
+	}
 	userIDVal, hasUser := c.Get("user_id")
 	clinicIDVal, hasClinic := c.Get("clinic_id")
 	if !hasUser || !hasClinic {
+		if fallback.valid {
+			h.logLogoutAudit(c, fallback.staffID, fallback.clinicID)
+		}
 		return
 	}
 	userIDStr, ok := userIDVal.(string)
@@ -157,6 +262,10 @@ func (h *Handler) auditLogoutBestEffort(c *gin.Context) {
 		return
 	}
 
+	h.logLogoutAudit(c, staffID, clinicID)
+}
+
+func (h *Handler) logLogoutAudit(c *gin.Context, staffID, clinicID uint64) {
 	ctx := c.Request.Context()
 	if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
 		slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
@@ -205,12 +314,10 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// ResolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
 	mainClinicID, clinicIDs := h.authSvc().ResolveClinicInfo(assignments)
 
-	// Token rotation: 旧 JTI をブラックリストに登録して旧トークンを失効させる（ベストエフォート）。
-	// 失効失敗は回帰させない（新トークン発行は続行）。
-	if claims.ID != "" && claims.ExpiresAt != nil {
-		if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
-			slog.ErrorContext(ctx, "failed to revoke old refresh token on rotation (best-effort)", "jti", claims.ID, "error", revokeErr)
-		}
+	// Token rotation: 旧 JTI の永続失効に成功した場合だけ新しいtokenを発行する。
+	if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
+		RespondError(c, apperrors.Wrap(revokeErr, "failed to revoke old refresh token"))
+		return
 	}
 
 	// 新しい access_token + refresh_token を発行して Cookie にセットする（E-3: ログイン時と同じ発行処理に委譲）。

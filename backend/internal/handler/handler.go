@@ -90,9 +90,14 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	loginRateStore := middleware.NewRateLimitStore(ctx)
 	// パスワードリセット系も独立したストアでレートリミット（3回/分・バースト3）
 	passwordRateStore := middleware.NewRateLimitStore(ctx)
-	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
-	api.POST("/logout", h.Logout)
-	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
+	refreshRateStore := middleware.NewRateLimitStore(ctx)
+	logoutRateStore := middleware.NewRateLimitStore(ctx)
+	logoutRedirectRateStore := middleware.NewRateLimitStore(ctx)
+	authCookieCSRF := middleware.RequireXRequestedWith()
+	api.POST("/login", authCookieCSRF, middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
+	api.POST("/logout", authCookieCSRF, middleware.RateLimit(logoutRedirectRateStore, 30.0/60, 30), h.RedirectLogout)
+	api.POST("/auth/refresh/logout", authCookieCSRF, middleware.RateLimit(logoutRateStore, 30.0/60, 30), h.Logout)
+	api.POST("/auth/refresh", authCookieCSRF, middleware.RateLimit(refreshRateStore, 30.0/60, 30), h.RefreshToken) // BUG-136: refresh token エンドポイント
 	api.POST("/auth/forgot-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ForgotPassword)
 	api.POST("/auth/reset-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ResetPassword)
 

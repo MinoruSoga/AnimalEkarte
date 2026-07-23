@@ -172,7 +172,7 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 
 	// 以下は LINE IDトークン認証が必要
 	authed := liff.Group("")
-	authed.Use(liffAuth)
+	authed.Use(h.liffRateLimit(60), liffAuth)
 
 	authed.GET("/profile", h.liff.GetLiffProfile)
 	authed.GET("/courses", h.liff.GetLiffTypes)

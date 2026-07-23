@@ -167,10 +167,12 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 	if err != nil {
 		return err
 	}
+	// 旧pathの同名cookieが残るとrefresh endpointへ2値送信され得るため、移行時に明示削除する。
+	clearCookie(c, refreshTokenCookieName, legacyRefreshTokenCookiePath, secure, sameSite)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     refreshTokenCookieName,
 		Value:    refreshIssued.Token,
-		Path:     "/api/v1/auth/refresh",
+		Path:     refreshTokenCookiePath,
 		MaxAge:   int(time.Until(refreshIssued.ExpiresAt).Seconds()),
 		HttpOnly: true,
 		Secure:   secure,

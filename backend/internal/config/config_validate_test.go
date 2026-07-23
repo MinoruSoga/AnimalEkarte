@@ -242,6 +242,17 @@ func TestConfigValidate_ReleaseRequiresTrustedProxyCIDR(t *testing.T) {
 	}
 }
 
+func TestConfigValidate_ReleaseRejectsInvalidTrustedProxyCIDR(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.TrustedProxyCIDR = "not-a-cidr"
+
+	err := cfg.Validate()
+
+	if err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_CIDR must be a valid CIDR") {
+		t.Fatalf("expected invalid TRUSTED_PROXY_CIDR error, got %v", err)
+	}
+}
+
 func TestConfigValidate_StorageTypeS3RequiresBucketAndRegion(t *testing.T) {
 	tests := []struct {
 		name      string

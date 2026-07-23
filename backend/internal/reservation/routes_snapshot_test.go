@@ -128,6 +128,34 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestRegisterLiffRoutes_RateLimitsEveryPublicAuthenticatedRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var configuredLimits []int
+	h := NewHandler(
+		NewReservationTypeHandler(nil, nil, nil, nil),
+		NewReservationTypeGroupHandler(nil),
+		NewReservationTypeLiffHandler(nil),
+		NewReservationStaffHandler(nil),
+		NewReservationScheduleHandler(nil),
+		NewReservationHandler(nil, nil, nil, nil),
+		NewReservationAdminHandler(nil, nil),
+		NewLineReservationSettingHandler(nil),
+		NewLiffHandler(nil, nil),
+		func(c *gin.Context) { c.Next() },
+		func(limit int) gin.HandlerFunc {
+			configuredLimits = append(configuredLimits, limit)
+			return func(c *gin.Context) { c.Next() }
+		},
+		stubLinkLiffAccount,
+		func(_, _ string) gin.HandlerFunc { return func(c *gin.Context) { c.Next() } },
+	)
+
+	h.RegisterLiffRoutes(gin.New())
+
+	assert.Equal(t, []int{30, 10, 60, 30}, configuredLimits)
+}
+
 // stubLinkLiffAccount は snapshot 用の named stub（本番は handler.LinkLiffAccount の
 // method value が注入される——handler 名は composition root 依存のため snapshot は stub 名で固定）。
 func stubLinkLiffAccount(_ *gin.Context) {}

@@ -463,22 +463,28 @@ func TestIssueAuthCookies(t *testing.T) {
 		require.NoError(t, err)
 
 		cookies := w.Result().Cookies()
-		var access, refresh *http.Cookie
+		var access, refresh, legacyRefreshClear *http.Cookie
 		for _, ck := range cookies {
 			switch ck.Name {
 			case accessTokenCookieName:
 				access = ck
 			case refreshTokenCookieName:
-				refresh = ck
+				if ck.Path == "/api/v1/auth" {
+					refresh = ck
+				}
+				if ck.Path == "/api/v1/auth/refresh" && ck.MaxAge < 0 {
+					legacyRefreshClear = ck
+				}
 			}
 		}
 		require.NotNil(t, access)
 		require.NotNil(t, refresh)
+		require.NotNil(t, legacyRefreshClear)
 		assert.False(t, access.Secure)
 		assert.Equal(t, http.SameSiteLaxMode, access.SameSite)
 		assert.True(t, access.HttpOnly)
 		assert.Equal(t, "/", access.Path)
-		assert.Equal(t, "/api/v1/auth/refresh", refresh.Path)
+		assert.Equal(t, "/api/v1/auth", refresh.Path)
 
 		claims := &middleware.JWTClaims{}
 		_, err = jwt.ParseWithClaims(access.Value, claims, func(_ *jwt.Token) (any, error) {

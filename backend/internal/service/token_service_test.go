@@ -138,6 +138,29 @@ func TestTokenService_IssueAndVerify(t *testing.T) {
 		assert.True(t, strings.Contains(err.Error(), "token has been revoked"))
 	})
 
+	t.Run("missing JTI: rotationできない refresh token は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, NewTokenBlacklistService(&mockTokenBlacklistRepository{}))
+		token := signTestJWT(t, jwt.SigningMethodHS256, refreshClaimsForAlg())
+
+		_, err := svc.VerifyRefreshToken(ctx, token)
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid refresh token claims")
+	})
+
+	t.Run("missing blacklist: 失効確認できない場合は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		issued, err := svc.IssueRefreshToken(5, "3", false, []uint64{3})
+		require.NoError(t, err)
+
+		_, err = svc.VerifyRefreshToken(ctx, issued.Token)
+
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "token validation unavailable")
+	})
+
 	t.Run("invalid token type: access token を refresh 検証に流用すると拒否する", func(t *testing.T) {
 		svc := NewTokenService(testTokenJWTSecret, nil)
 
