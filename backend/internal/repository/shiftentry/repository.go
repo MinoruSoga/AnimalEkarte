@@ -16,6 +16,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
+// staffAssignedToClinicCond keeps the shift entry visible while hiding a Staff
+// association that does not have an active assignment to the requested clinic.
+const staffAssignedToClinicCond = "deleted_at IS NULL AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)"
+
 // Filter はシフト一覧取得のフィルタ条件
 type Filter struct {
 	YearMonth string // "YYYY-MM" 形式
@@ -57,7 +61,7 @@ func isUniqueConstraintErr(err error) bool {
 
 func (r *repository) FindAll(ctx context.Context, clinicID uint64, filter Filter) ([]model.ShiftEntry, error) {
 	q := repohelpers.DBOrTx(ctx, r.db).
-		Preload("Staff", "deleted_at IS NULL").
+		Preload("Staff", staffAssignedToClinicCond, clinicID).
 		Preload("Breaks").
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Order("date ASC, staff_id ASC")
@@ -86,7 +90,7 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64, filter Filter
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := repohelpers.DBOrTx(ctx, r.db).
-		Preload("Staff", "deleted_at IS NULL").
+		Preload("Staff", staffAssignedToClinicCond, clinicID).
 		Preload("Breaks").
 		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
 		First(&entry).Error

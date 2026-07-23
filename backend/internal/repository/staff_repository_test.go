@@ -328,6 +328,72 @@ func TestStaffRepository_Delete_NotFoundWithoutAssignment(t *testing.T) {
 	assert.Equal(t, staff.ID, got.ID)
 }
 
+func TestStaffRepository_Delete_ConflictForMultipleActiveAssignmentsPreservesIdentityAndAssignments(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	staff := makeDoctor(t, db, clinicA, "複数医院所属スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicA)
+	makeStaffClinicAssignment(t, db, staff.ID, clinicB)
+
+	var staffBefore model.Staff
+	require.NoError(t, db.WithContext(ctx).Unscoped().First(&staffBefore, "id = ?", staff.ID).Error)
+	var assignmentsBefore []model.StaffClinicAssignment
+	require.NoError(t, db.WithContext(ctx).Unscoped().
+		Where("staff_id = ?", staff.ID).
+		Order("id ASC").
+		Find(&assignmentsBefore).Error)
+	require.Len(t, assignmentsBefore, 2)
+
+	err := repo.Delete(ctx, clinicA, staff.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "複数の有効な所属がある場合は Conflict: %v", err)
+
+	var staffAfter model.Staff
+	require.NoError(t, db.WithContext(ctx).Unscoped().First(&staffAfter, "id = ?", staff.ID).Error)
+	assert.Equal(t, staffBefore, staffAfter, "Conflict 時は staff identity を変更しない")
+	assert.False(t, staffAfter.DeletedAt.Valid)
+
+	var assignmentsAfter []model.StaffClinicAssignment
+	require.NoError(t, db.WithContext(ctx).Unscoped().
+		Where("staff_id = ?", staff.ID).
+		Order("id ASC").
+		Find(&assignmentsAfter).Error)
+	assert.Equal(t, assignmentsBefore, assignmentsAfter, "Conflict 時は全 clinic assignment を変更しない")
+}
+
+func TestStaffRepository_Delete_SoftDeletedOtherAssignmentDoesNotConflict(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	staff := makeDoctor(t, db, clinicA, "有効所属一件スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicA)
+	inactiveAssignment := &model.StaffClinicAssignment{StaffID: staff.ID, ClinicID: clinicB}
+	require.NoError(t, db.WithContext(ctx).Create(inactiveAssignment).Error)
+	require.NoError(t, db.WithContext(ctx).Delete(inactiveAssignment).Error)
+
+	require.NoError(t, repo.Delete(ctx, clinicA, staff.ID))
+
+	var deletedStaff model.Staff
+	require.NoError(t, db.WithContext(ctx).Unscoped().First(&deletedStaff, "id = ?", staff.ID).Error)
+	assert.True(t, deletedStaff.DeletedAt.Valid, "無効な別所属は active assignment 数に含めない")
+
+	var assignments []model.StaffClinicAssignment
+	require.NoError(t, db.WithContext(ctx).Unscoped().
+		Where("staff_id = ?", staff.ID).
+		Order("id ASC").
+		Find(&assignments).Error)
+	require.Len(t, assignments, 2)
+	assert.False(t, assignments[0].DeletedAt.Valid, "現在 clinic の assignment は変更しない")
+	assert.True(t, assignments[1].DeletedAt.Valid, "既存の soft-delete 状態を変更しない")
+}
+
 // ---- Reorder ----
 
 func TestStaffRepository_Reorder_HappyPath(t *testing.T) {

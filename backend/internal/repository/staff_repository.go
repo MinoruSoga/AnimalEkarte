@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -135,16 +136,54 @@ func (r *staffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicI
 }
 
 func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.Staff{}).
-		Where("id = ?", id).
-		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
-		Update("deleted_at", gorm.Expr("now()"))
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
+	staffID := fmt.Sprintf("%d", id)
+	var operationErr error
+	transactionErr := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		// Lock the scoped identity and its active assignments so the multi-clinic
+		// guard and soft delete observe the same state.
+		var staff model.Staff
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("staffs.id = ?", id).
+			Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+			First(&staff).Error; err != nil {
+			operationErr = apperrors.FromGORM(err, "staff", staffID)
+			return operationErr
+		}
+
+		var assignments []model.StaffClinicAssignment
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("staff_id = ?", id).
+			Find(&assignments).Error; err != nil {
+			operationErr = apperrors.FromGORM(err, "staff_clinic_assignment", "staff_id="+staffID)
+			return operationErr
+		}
+		if len(assignments) > 1 {
+			operationErr = apperrors.WrapConflict("複数のクリニックに所属しているスタッフは削除できません")
+			return operationErr
+		}
+
+		result := tx.
+			Model(&model.Staff{}).
+			Where("id = ?", id).
+			Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+			Update("deleted_at", gorm.Expr("now()"))
+		if result.Error != nil {
+			operationErr = apperrors.FromGORM(result.Error, "staff", staffID)
+			return operationErr
+		}
+		if result.RowsAffected == 0 {
+			operationErr = apperrors.WrapNotFound("staff", staffID)
+			return operationErr
+		}
+		return nil
+	})
+	if transactionErr != nil {
+		if operationErr != nil {
+			return operationErr
+		}
+		return apperrors.FromGORM(transactionErr, "staff", staffID)
 	}
 	return nil
 }

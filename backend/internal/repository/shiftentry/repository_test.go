@@ -4,6 +4,7 @@ package shiftentry
 //
 // 保護する不変条件:
 //   - FindAll / FindByID / ExistsByStaffID は clinic_id でテナント隔離される。
+//   - FindAll / FindByID の Staff preload は requested clinic の有効な所属があるスタッフだけを返す。
 //   - FindAll は YearMonth / StaffID フィルタが正しく機能する。
 //   - Create は (clinic_id, staff_id, date) の重複で AlreadyExists を返す（001_init.sql の
 //     uk_shift_staff_date を模した複合 UNIQUE を AutoMigrate 後に明示追加して検証する）。
@@ -28,14 +29,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
-// setupShiftEntryTestDB は shift_entries / shift_entry_breaks / staffs を整備する。
+// setupShiftEntryTestDB は shift_entries / shift_entry_breaks / staffs /
+// staff_clinic_assignments と FK 親を整備する。
 // 本番マイグレーションの複合 UNIQUE(clinic_id, staff_id, date) は GORM モデルの
 // uniqueIndex タグが無いため AutoMigrate では再現されない。Create の重複検知を
 // 意味のある形で検証するため、明示的に複合 UNIQUE INDEX を追加する。
 func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
+		&model.ShiftEntry{}, &model.ShiftEntryBreak{},
+	))
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
@@ -44,16 +49,37 @@ func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`ALTER TABLE shift_entry_breaks ALTER COLUMN break_end TYPE time USING break_end::time`)
 	db.Exec("TRUNCATE TABLE shift_entry_breaks CASCADE")
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
+	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_shift_entry_staff_date
 		ON shift_entries (clinic_id, staff_id, date)`)
 	return db
 }
 
+func ensureShiftEntryClinic(t *testing.T, db *gorm.DB, clinicID uint64) {
+	t.Helper()
+	var count int64
+	require.NoError(t, db.WithContext(context.Background()).
+		Model(&model.Clinic{}).
+		Where("id = ?", clinicID).
+		Count(&count).Error)
+	if count > 0 {
+		return
+	}
+
+	company := &model.Company{Name: "シフトリポジトリテスト法人"}
+	require.NoError(t, db.WithContext(context.Background()).Create(company).Error)
+	clinic := &model.Clinic{ID: clinicID, CompanyID: company.ID, Name: "シフトリポジトリテスト医院"}
+	require.NoError(t, db.WithContext(context.Background()).Create(clinic).Error)
+}
+
 func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
 	t.Helper()
+	ensureShiftEntryClinic(t, db, clinicID)
 	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor}
 	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
+	assignment := &model.StaffClinicAssignment{StaffID: s.ID, ClinicID: clinicID}
+	require.NoError(t, db.WithContext(context.Background()).Create(assignment).Error)
 	return s
 }
 
@@ -135,6 +161,29 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 	})
 }
 
+func TestShiftEntryRepository_FindAll_HidesForeignStaffWithoutRequestedClinicAssignment(t *testing.T) {
+	db := setupShiftEntryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	foreignStaff := makeDoctor(t, db, clinicB, "別医院スタッフ")
+	entry := makeShiftEntryWithType(
+		t,
+		db,
+		clinicA,
+		foreignStaff.ID,
+		time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		model.ShiftTypeFull,
+	)
+
+	got, err := repo.FindAll(ctx, clinicA, Filter{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, entry.ID, got[0].ID, "clinic-scoped shift entry 自体は取得する")
+	assert.Nil(t, got[0].Staff, "requested clinic に所属しない staff identity は preload しない")
+}
+
 func TestShiftEntryRepository_FindByID(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
 	repo := New(db)
@@ -167,6 +216,31 @@ func TestShiftEntryRepository_FindByID(t *testing.T) {
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestShiftEntryRepository_FindByID_HidesStaffWithSoftDeletedRequestedClinicAssignment(t *testing.T) {
+	db := setupShiftEntryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	staff := makeDoctor(t, db, clinicID, "所属解除済みスタッフ")
+	require.NoError(t, db.WithContext(ctx).
+		Where("staff_id = ? AND clinic_id = ?", staff.ID, clinicID).
+		Delete(&model.StaffClinicAssignment{}).Error)
+	entry := makeShiftEntryWithType(
+		t,
+		db,
+		clinicID,
+		staff.ID,
+		time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		model.ShiftTypeFull,
+	)
+
+	got, err := repo.FindByID(ctx, clinicID, entry.ID)
+	require.NoError(t, err)
+	assert.Equal(t, entry.ID, got.ID, "clinic-scoped shift entry 自体は取得する")
+	assert.Nil(t, got.Staff, "soft-delete 済み assignment は有効な所属として扱わない")
 }
 
 func TestShiftEntryRepository_Create(t *testing.T) {
