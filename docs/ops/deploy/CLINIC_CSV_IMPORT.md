@@ -4,7 +4,7 @@
 
 `old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。
 
-現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。この状態でも21表のmechanicsは検証できますが、実会計行の移行証明にはなりません。
+現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、`status=completed` のbillingにpayment graphがないbundleはpreflightで拒否され、正式applyには使用できません。producerは正式bundleを再生成する前に、`billings.csv`へ`completed_at`を追加し、completed billingごとのpayment graphを出力する必要があります。
 
 ## 安全境界
 
@@ -22,7 +22,7 @@
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. `003_medical_records_appointment_id_index.sql` を通常の migration 経路で先に適用する。通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window 内で適用する。手書き SQL は使わない。
+2. `003_medical_records_appointment_id_index.sql` と `004_payment_splits_billing_id_index.sql` を通常の migration 経路で先に適用する。通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window 内で適用する。手書き SQL は使わない。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
@@ -55,7 +55,7 @@ export PAYMENT_METHOD_CREDIT_CARD_ID=<id>
 make csv-import-preflight
 ```
 
-source 契約（payment親子、method placeholder、split算術、`subtotal` / `tax_total` / `total_amount` の非負を含む）に加えて、target の6 seed binding、全 migrated ID/FK 列の BIGINT、21 sequence、会計FK、`payments.billing_id` UNIQUE、`payment_methods(clinic_id, system_key)` partial UNIQUE、対象 band が空であることを検証します。1件でも不一致なら apply へ進みません。
+source 契約（completed billingの`completed_at`、payment親子、method placeholder、split算術、billing/payment total一致、保険比率0〜1、保険額の符号、割引額の非負を含む）に加えて、target の6 seed binding、全 migrated ID/FK 列の BIGINT、21 sequence、会計FK、`payments.billing_id` UNIQUE、`payment_methods(clinic_id, system_key)` partial UNIQUE、`payment_splits(billing_id)` index、対象 band が空であることを検証します。completed billingにpayment 1件とsplit 1〜2件が揃わない場合を含め、1件でも不一致なら apply へ進みません。
 
 ## Apply
 
@@ -75,7 +75,7 @@ run sheet上でbackup取得・復元手順・担当者を再確認したoperator
 - target database が `DB_NAME` と完全一致
 - aggregate count + 6 seed IDだけを含むreportの新規パス（既存 report を上書きしない）
 
-apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・sequence floor を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上になるよう進めます。
+apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・completed timestamp・sequence floor/max ID を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上かつ現行`max(id)`超になるよう進めます。
 
 ## Verify（read-only）
 
@@ -83,7 +83,7 @@ apply 後、各 table の件数・clinic isolation・会計親子/支払方法/�
 make csv-import-verify
 ```
 
-manifest 件数、医院割当、6 seed binding、BIGINT/sequence契約、`payments.billing_id`を親キーとするpayment_splits論理親子、method seed binding、payment非負額、split合計/received/changeを再検証します。preflight/apply/verify はCSV列が依存する全FKについてtarget上にvalidated制約が存在することも検証し、その制約をCOPY時にPostgreSQLが適用するため、orphanが1件でもあればapply transactionはcommitされません。
+単一の REPEATABLE READ snapshot内で、manifest 件数、医院割当、6 seed binding、BIGINT/sequence契約、`payments.billing_id`を親キーとするpayment_splits論理親子、method seed binding、payment金額、completed billing/payment対応、split合計/received/changeを再検証します。seedの並行変更を防ぐ`FOR SHARE`を使うためPostgreSQL transaction自体は`READ ONLY`指定にしませんが、このverify経路はtarget dataを変更しません。preflight/apply/verify はCSV列が依存する全FKについてtarget上にvalidated制約が存在することも検証し、その制約をCOPY時にPostgreSQLが適用するため、orphanが1件でもあればapply transactionはcommitされません。
 
 ## 失敗・rollback
 
@@ -102,6 +102,6 @@ docker compose exec backend go test ./cmd/csv-import -count=1
 docker compose exec backend go test ./cmd/migrate -count=1
 ```
 
-実PostgreSQL上のcatalog/payment SQL構文とread-only実行計画は、共有DBの排他leaseを取得した独立セッションで `CSVIMPORT_DB_INTEGRATION=1` を付け、`go test ./internal/csvimport -run TestCutoverPaymentTargetSQLAgainstPostgres -count=1 -p 1` を実行します。このテストはread-only transactionだけを使います。
+実PostgreSQL上のcatalog/payment SQL構文と実行計画は、共有DBの排他leaseを取得した独立セッションで `CSVIMPORT_DB_INTEGRATION=1` を付け、`go test ./internal/csvimport -run TestCutoverPaymentTargetSQLAgainstPostgres -count=1 -p 1` を実行します。このテストはtransaction-localな一時テーブルに正常/敵対fixtureを作成し、必ずrollbackします。
 
 実 DB apply、DB reset、STG/PROD 操作はこのテスト手順に含みません。

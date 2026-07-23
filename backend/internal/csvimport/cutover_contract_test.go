@@ -53,6 +53,13 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		t.Fatalf("table order = %v, want %v", gotNames, wantNames)
 	}
 
+	billings := specs[11]
+	if !slices.Equal(billings.Columns, []string{
+		"id", "clinic_id", "medical_record_id", "owner_id", "pet_id",
+		"total_amount", "status", "scheduled_date", "completed_at",
+	}) {
+		t.Fatalf("billings columns = %v", billings.Columns)
+	}
 	payments := specs[13]
 	if !slices.Equal(payments.Columns, []string{
 		"id", "billing_id", "subtotal", "tax_total", "total_amount",
@@ -301,6 +308,51 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			},
 			wantErr: "total_amount",
 		},
+		{
+			name: "payment total amount disagrees with billing",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "total_amount")] = "999"
+			},
+			wantErr: "payment snapshot",
+		},
+		{
+			name: "insurance ratio is outside contract range",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "insurance_ratio")] = "1.01"
+			},
+			wantErr: "insurance_ratio",
+		},
+		{
+			name: "insurance amount is negative",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "insurance_amount")] = "-1"
+			},
+			wantErr: "insurance_amount",
+		},
+		{
+			name: "discount amount is negative",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "discount_amount")] = "-1"
+			},
+			wantErr: "discount_amount",
+		},
+		{
+			name: "completed billing timestamp is missing",
+			mutate: func(f *fixtureBundle) {
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+			},
+			wantErr: "completed_at",
+		},
+		{
+			name: "completed billing payment graph is missing",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"] = nil
+				f.rows["payment_splits"] = nil
+				f.manifest.Tables[13].RowCount = 0
+				f.manifest.Tables[14].RowCount = 0
+			},
+			wantErr: "completed billing",
+		},
 	}
 
 	for _, tt := range tests {
@@ -324,7 +376,7 @@ func TestValidateCutoverPaymentGraphRejectsUnboundedPaymentInventory(t *testing.
 		{Table: "payments", File: "payments.csv", RowCount: maxCutoverPaymentRows + 1},
 		{Table: "payment_splits", File: "payment_splits.csv", RowCount: 0},
 	}}
-	err := validateCutoverPaymentGraph(t.TempDir(), manifest)
+	err := validateCutoverPaymentGraph(t.TempDir(), &manifest)
 	if err == nil || !strings.Contains(err.Error(), "payment limit") {
 		t.Fatalf("validateCutoverPaymentGraph() error = %v, want payment limit rejection", err)
 	}
@@ -335,6 +387,14 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 		name   string
 		mutate func(*fixtureBundle)
 	}{
+		{
+			name: "positive insurance amount",
+			mutate: func(f *fixtureBundle) {
+				paymentColumns := CutoverTableSpecs()[13].Columns
+				f.rows["payments"][0][columnIndex(paymentColumns, "insurance_ratio")] = "0.50"
+				f.rows["payments"][0][columnIndex(paymentColumns, "insurance_amount")] = "500"
+			},
+		},
 		{
 			name: "credit card only",
 			mutate: func(f *fixtureBundle) {
@@ -478,12 +538,18 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "cash"
 				}
+			case "status":
+				if spec.Name == "billings" {
+					row[i] = "completed"
+				}
 			case "payment_method_id":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "{{PAYMENT_METHOD_CASH_ID}}"
 				}
 			case "subtotal", "total_amount", "billing_amount", "received_amount", "amount":
-				if spec.Name == "payments" || spec.Name == "payment_splits" {
+				if spec.Name == "billings" && column == "total_amount" {
+					row[i] = "1000"
+				} else if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "1000"
 				}
 			case "tax_total", "insurance_ratio", "insurance_amount", "discount_amount", "change_amount":
@@ -492,6 +558,10 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				}
 			case "created_at":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "2026-07-22T00:00:00Z"
+				}
+			case "completed_at":
+				if spec.Name == "billings" {
 					row[i] = "2026-07-22T00:00:00Z"
 				}
 			}

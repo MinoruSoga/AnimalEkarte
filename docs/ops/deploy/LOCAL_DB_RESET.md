@@ -35,7 +35,7 @@ docker volume rm ekarte-postgres-data
 # 再びコンテナを起動
 make up
 ```
-起動時に `001_init.sql` → `002_lstep_snapshot_import_clinic_fk.sql` → `003_medical_records_appointment_id_index.sql` のDDLが適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。
+起動時に `001_init.sql` → `002_lstep_snapshot_import_clinic_fk.sql` → `003_medical_records_appointment_id_index.sql` → `004_payment_splits_billing_id_index.sql` のDDLが適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。
 
 ---
 
@@ -46,14 +46,15 @@ make up
 Migration completed file=001_init.sql
 Migration completed file=002_lstep_snapshot_import_clinic_fk.sql
 Migration completed file=003_medical_records_appointment_id_index.sql
-Migration summary applied=3 skipped=0 total=3
+Migration completed file=004_payment_splits_billing_id_index.sql
+Migration summary applied=4 skipped=0 total=4
 Seed bundle loaded bundle=002_master
 Seed bundle loaded bundle=003_demo
 Seed bundle loaded bundle=004_staging
 Seed bundle summary applied=3 skipped=0 total=3
 ```
 
-`schema_migrations` テーブルは最終的に6行（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
+`schema_migrations` テーブルは最終的に7行（`001_init.sql` / `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` / `004_payment_splits_billing_id_index.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 

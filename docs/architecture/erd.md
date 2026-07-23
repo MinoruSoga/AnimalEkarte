@@ -94,7 +94,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション（`001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `003_medical_records_appointment_id_index.sql`）の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です（旧 005〜012 は 001 へ統合済み）。
+現行マイグレーション（`001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `003_medical_records_appointment_id_index.sql` + `004_payment_splits_billing_id_index.sql`）の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です（旧 005〜012 は 001 へ統合済み）。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -109,13 +109,13 @@ erDiagram
 >
 > **2026-07-22 追記**: 統合済み001を変更せず、`002_lstep_snapshot_import_clinic_fk.sql`を追記専用incrementalとして追加した。LSTEP属性snapshotとCSV importのclinic整合性を複合FKで保証するDDLで、新規テーブルはないため総数(108)は不変。統合済み001が適用済みのDBには通常のno-reset incrementalとして適用する。
 >
-> **2026-07-23 追記**: `003_medical_records_appointment_id_index.sql`を追記専用incrementalとして追加した。`medical_records(appointment_id)` の非NULL行を対象にした非一意の部分indexで、新規テーブルはないため総数(108)は不変。
+> **2026-07-24 追記**: `003_medical_records_appointment_id_index.sql`と`004_payment_splits_billing_id_index.sql`を追記専用incrementalとして追加した。いずれも非一意indexで、新規テーブルはないため総数(108)は不変。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 108（2026-07-04 統合前は 103） | 旧 005/009/010 由来の5テーブルが統合により `001_init.sql` に直接定義されるようになった。物理テーブル総数(108)自体は統合の前後で不変 |
 | 旧増分マイグレーションが追加していたテーブル | 5: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`) | 2026-07-04 統合により現在は `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`001_init.sql` + 追記DDL `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致 |
+| 全マイグレーション（`001_init.sql` + 追記DDL `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` / `004_payment_splits_billing_id_index.sql` + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致 |
 | ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
@@ -144,12 +144,15 @@ erDiagram
 > **2026-07-22 追記**: 上記の統合済み`001_init.sql`は変更せず、以後の新規DDLをappend-only incrementalとして再開した。最初の追加は`002_lstep_snapshot_import_clinic_fk.sql`で、現行001が適用済みのDBにはno-resetで適用する。`baselineIfNeeded`は001だけをbaselineし、002以降を実行対象として残す。
 >
 > **2026-07-23 追記**: 2本目のappend-only incrementalとして`003_medical_records_appointment_id_index.sql`を追加した。以後の新規DDL番号は004以降を使用する。
+>
+> **2026-07-24 追記**: 3本目のappend-only incrementalとして`004_payment_splits_billing_id_index.sql`を追加した。payment graph検証とbilling単位の参照を全医院横断scanにしないための非一意indexで、新規テーブルはないため総数(108)は不変。
 
-現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-23 時点）。
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-24 時点）。
 
 - `001_init.sql`（fresh 用統合スキーマ・108 テーブル。§7 に旧 005–013 相当の原文を番号順追記）
 - `002_lstep_snapshot_import_clinic_fk.sql`（LSTEP属性snapshot→CSV importのclinic複合FK。新規テーブルなし）
 - `003_medical_records_appointment_id_index.sql`（予約紐付きカルテ参照用の非一意部分index。新規テーブルなし）
+- `004_payment_splits_billing_id_index.sql`（payment splitのbilling単位参照用の非一意index。新規テーブルなし）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。

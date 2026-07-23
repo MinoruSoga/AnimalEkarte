@@ -14,8 +14,9 @@ import (
 )
 
 // This test executes the catalog and payment-graph SQL against real
-// PostgreSQL without changing data. It is opt-in because the shared Compose DB
-// requires the project-wide DB lease even for read-only verification.
+// PostgreSQL. All fixtures live in temporary tables inside a transaction that
+// is always rolled back. It is opt-in because the shared Compose DB requires
+// the project-wide DB lease even for rollback-only verification.
 func TestCutoverPaymentTargetSQLAgainstPostgres(t *testing.T) {
 	if os.Getenv("CSVIMPORT_DB_INTEGRATION") != "1" {
 		t.Skip("set CSVIMPORT_DB_INTEGRATION=1 under the shared DB lease")
@@ -56,7 +57,7 @@ func TestCutoverPaymentTargetSQLAgainstPostgres(t *testing.T) {
 	}
 	defer pool.Close()
 
-	tx, err := pool.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,25 +67,199 @@ func TestCutoverPaymentTargetSQLAgainstPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	emptyBand := CutoverManifest{IDBand: CutoverIDBand{
-		NonOwnerIDOffset: 9_000_000_000_000_000_000,
-		EndExclusive:     9_000_000_000_000_000_001,
+	fixtureDDL := []string{
+		`SET LOCAL search_path = pg_temp, public`,
+		`CREATE TEMP TABLE billings (
+  id bigint PRIMARY KEY,
+  clinic_id bigint NOT NULL,
+  total_amount bigint NOT NULL,
+  status public.billing_status NOT NULL,
+  completed_at timestamptz,
+  deleted_at timestamptz
+)`,
+		`CREATE TEMP TABLE staffs (
+  id bigint PRIMARY KEY,
+  clinic_id bigint NOT NULL
+)`,
+		`CREATE TEMP TABLE payments (
+  id bigint PRIMARY KEY,
+  billing_id bigint NOT NULL UNIQUE,
+  subtotal bigint,
+  tax_total bigint,
+  total_amount bigint,
+  insurance_ratio numeric(3,2),
+  insurance_amount bigint,
+  discount_amount bigint,
+  billing_amount bigint,
+  received_amount bigint,
+  change_amount bigint,
+  method public.payment_method,
+  payment_method_id bigint,
+  paid_by bigint,
+  created_at timestamptz,
+  deleted_at timestamptz
+)`,
+		`CREATE TEMP TABLE payment_splits (
+  id bigint PRIMARY KEY,
+  clinic_id bigint NOT NULL,
+  billing_id bigint NOT NULL,
+  method public.payment_method NOT NULL,
+  payment_method_id bigint,
+  amount bigint,
+  received_amount bigint,
+  change_amount bigint,
+  paid_by bigint,
+  created_at timestamptz
+		)`,
+		`CREATE INDEX ON payment_splits (billing_id)`,
+	}
+	for _, statement := range fixtureDDL {
+		if _, err := tx.Exec(ctx, statement); err != nil {
+			t.Fatalf("create payment graph fixtures: %v", err)
+		}
+	}
+
+	const (
+		bandStart = int64(9_000_000_000_000_000_000)
+		bandEnd   = int64(9_000_000_000_000_000_100)
+		clinicID  = int64(101)
+		cashID    = int64(201)
+		cardID    = int64(202)
+		staffID   = bandStart + 1
+		billingID = bandStart + 2
+		paymentID = bandStart + 3
+		splitID   = bandStart + 4
+	)
+	if _, err := tx.Exec(ctx, `INSERT INTO staffs (id, clinic_id) VALUES ($1, $2)`, staffID, clinicID); err != nil {
+		t.Fatalf("insert staff fixture: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO billings (id, clinic_id, total_amount, status, completed_at)
+VALUES ($1, $2, 1000, 'completed', '2026-07-22T00:00:00Z')
+`, billingID, clinicID); err != nil {
+		t.Fatalf("insert billing fixture: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO payments (
+  id, billing_id, subtotal, tax_total, total_amount, insurance_ratio,
+  insurance_amount, discount_amount, billing_amount, received_amount,
+  change_amount, method, payment_method_id, paid_by, created_at
+) VALUES (
+  $1, $2, 1000, 0, 1000, 0, 0, 0, 1000, 1000,
+  0, 'cash', $3, $4, '2026-07-22T00:00:00Z'
+)
+`, paymentID, billingID, cashID, staffID); err != nil {
+		t.Fatalf("insert payment fixture: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO payment_splits (
+  id, clinic_id, billing_id, method, payment_method_id, amount,
+  received_amount, change_amount, paid_by, created_at
+) VALUES (
+  $1, $2, $3, 'cash', $4, 1000,
+  1000, 0, $5, '2026-07-22T00:00:00Z'
+)
+`, splitID, clinicID, billingID, cashID, staffID); err != nil {
+		t.Fatalf("insert payment split fixture: %v", err)
+	}
+
+	manifest := CutoverManifest{IDBand: CutoverIDBand{
+		NonOwnerIDOffset: bandStart,
+		EndExclusive:     bandEnd,
 	}}
-	if err := verifyCutoverPaymentGraph(ctx, tx, emptyBand, CutoverSeedIDs{
-		ClinicID: 1, CashPaymentMethodID: 1, CreditCardPaymentMethodID: 2,
-	}); err != nil {
+	seeds := CutoverSeedIDs{
+		ClinicID: clinicID, CashPaymentMethodID: cashID, CreditCardPaymentMethodID: cardID,
+	}
+	if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds); err != nil {
 		t.Fatal(err)
 	}
+
+	assertRejected := func(
+		name string,
+		mutateSQL string,
+		mutateArgs []any,
+		restoreSQL string,
+		restoreArgs []any,
+	) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			if _, err := tx.Exec(ctx, mutateSQL, mutateArgs...); err != nil {
+				t.Fatalf("mutate fixture: %v", err)
+			}
+			if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds); err == nil {
+				t.Fatal("payment graph violation was accepted")
+			}
+			if _, err := tx.Exec(ctx, restoreSQL, restoreArgs...); err != nil {
+				t.Fatalf("restore fixture: %v", err)
+			}
+		})
+	}
+	assertRejected(
+		"cross-clinic split",
+		"UPDATE payment_splits SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID + 1, splitID},
+		"UPDATE payment_splits SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID, splitID},
+	)
+	assertRejected(
+		"cross-clinic staff",
+		"UPDATE staffs SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID + 1, staffID},
+		"UPDATE staffs SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID, staffID},
+	)
+	assertRejected(
+		"payment method mismatch",
+		"UPDATE payment_splits SET payment_method_id = $1 WHERE id = $2",
+		[]any{cardID, splitID},
+		"UPDATE payment_splits SET payment_method_id = $1 WHERE id = $2",
+		[]any{cashID, splitID},
+	)
+	assertRejected(
+		"outside-band split",
+		"UPDATE payment_splits SET id = $1 WHERE billing_id = $2",
+		[]any{bandEnd, billingID},
+		"UPDATE payment_splits SET id = $1 WHERE billing_id = $2",
+		[]any{splitID, billingID},
+	)
+	assertRejected(
+		"nullable insurance ratio",
+		"UPDATE payments SET insurance_ratio = NULL WHERE id = $1",
+		[]any{paymentID},
+		"UPDATE payments SET insurance_ratio = 0 WHERE id = $1",
+		[]any{paymentID},
+	)
+	assertRejected(
+		"negative insurance amount",
+		"UPDATE payments SET insurance_amount = -1 WHERE id = $1",
+		[]any{paymentID},
+		"UPDATE payments SET insurance_amount = 0 WHERE id = $1",
+		[]any{paymentID},
+	)
+	assertRejected(
+		"soft-deleted payment",
+		"UPDATE payments SET deleted_at = now() WHERE id = $1",
+		[]any{paymentID},
+		"UPDATE payments SET deleted_at = NULL WHERE id = $1",
+		[]any{paymentID},
+	)
+	assertRejected(
+		"completed billing without payment",
+		"UPDATE payments SET billing_id = $1 WHERE id = $2",
+		[]any{billingID + 1, paymentID},
+		"UPDATE payments SET billing_id = $1 WHERE id = $2",
+		[]any{billingID, paymentID},
+	)
 
 	var planJSON []byte
 	if err := tx.QueryRow(
 		ctx,
 		"EXPLAIN (FORMAT JSON, COSTS FALSE) "+verifyCutoverPaymentGraphQuery,
-		emptyBand.IDBand.NonOwnerIDOffset,
-		emptyBand.IDBand.EndExclusive,
-		int64(1),
-		int64(1),
-		int64(2),
+		manifest.IDBand.NonOwnerIDOffset,
+		manifest.IDBand.EndExclusive,
+		clinicID,
+		cashID,
+		cardID,
 	).Scan(&planJSON); err != nil {
 		t.Fatalf("explain payment graph query: %v", err)
 	}

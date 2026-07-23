@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const maxCutoverPaymentRows = int64(1_000_000)
@@ -32,7 +33,12 @@ type cutoverPaymentParent struct {
 	hasCreditCard  bool
 }
 
-func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) error {
+type cutoverBillingFact struct {
+	totalAmount int64
+	status      string
+}
+
+func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) error {
 	paymentsSpec, paymentsTable, err := cutoverPaymentContractPart(manifest, "payments")
 	if err != nil {
 		return err
@@ -47,6 +53,39 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 	if splitsTable.RowCount > paymentsTable.RowCount*2 {
 		return fmt.Errorf("table payment_splits: row count exceeds two rows per payment")
 	}
+	billingsSpec, billingsTable, err := cutoverPaymentContractPart(manifest, "billings")
+	if err != nil {
+		return err
+	}
+
+	billings := make(map[int64]cutoverBillingFact)
+	billingsPath := filepath.Join(sourceDir, billingsTable.File)
+	if err := streamCutoverCSV(billingsPath, billingsSpec, billingsTable.SHA256, func(row []string, indexes map[string]int, line int64) error {
+		billingID, err := parsePaymentGraphInt("billings", "id", row[indexes["id"]], line)
+		if err != nil {
+			return err
+		}
+		if _, duplicate := billings[billingID]; duplicate {
+			return fmt.Errorf("table billings column id row %d: duplicate billing id", line)
+		}
+		totalAmount, err := parsePaymentGraphInt("billings", "total_amount", row[indexes["total_amount"]], line)
+		if err != nil {
+			return err
+		}
+		if totalAmount < 0 {
+			return fmt.Errorf("table billings column total_amount row %d: amount must not be negative", line)
+		}
+		status := row[indexes["status"]]
+		if status == "completed" {
+			if err := validatePaymentGraphTimestamp("billings", "completed_at", row[indexes["completed_at"]], line); err != nil {
+				return err
+			}
+		}
+		billings[billingID] = cutoverBillingFact{totalAmount: totalAmount, status: status}
+		return nil
+	}); err != nil {
+		return err
+	}
 
 	parents := make(map[int64]cutoverPaymentParent)
 	paymentsPath := filepath.Join(sourceDir, paymentsTable.File)
@@ -54,6 +93,10 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 		billingID, err := parsePaymentGraphInt("payments", "billing_id", row[indexes["billing_id"]], line)
 		if err != nil {
 			return err
+		}
+		billing, ok := billings[billingID]
+		if !ok {
+			return fmt.Errorf("table payments column billing_id row %d: billing parent is missing", line)
 		}
 		if _, duplicate := parents[billingID]; duplicate {
 			return fmt.Errorf("table payments column billing_id row %d: duplicate billing_id", line)
@@ -73,7 +116,8 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 		if billingAmount <= 0 || receivedAmount < 0 || changeAmount < 0 {
 			return fmt.Errorf("table payments row %d: payment amounts violate the cutover contract", line)
 		}
-		for _, column := range []string{"subtotal", "tax_total", "total_amount"} {
+		var totalAmount int64
+		for _, column := range []string{"subtotal", "tax_total", "total_amount", "discount_amount"} {
 			amount, err := parsePaymentGraphInt("payments", column, row[indexes[column]], line)
 			if err != nil {
 				return err
@@ -81,10 +125,26 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 			if amount < 0 {
 				return fmt.Errorf("table payments column %s row %d: amount must not be negative", column, line)
 			}
+			if column == "total_amount" {
+				totalAmount = amount
+			}
+		}
+		if totalAmount != billing.totalAmount {
+			return fmt.Errorf("table payments column total_amount row %d: payment snapshot does not match billing", line)
+		}
+		if _, err := parsePaymentGraphRatio(row[indexes["insurance_ratio"]], line); err != nil {
+			return err
+		}
+		insuranceAmount, err := parsePaymentGraphInt("payments", "insurance_amount", row[indexes["insurance_amount"]], line)
+		if err != nil {
+			return err
+		}
+		if insuranceAmount < 0 {
+			return fmt.Errorf("table payments column insurance_amount row %d: amount must not be negative", line)
 		}
 		createdAt := row[indexes["created_at"]]
-		if createdAt == "" {
-			return fmt.Errorf("table payments column created_at row %d: value is required", line)
+		if err := validatePaymentGraphTimestamp("payments", "created_at", createdAt, line); err != nil {
+			return err
 		}
 		parents[billingID] = cutoverPaymentParent{
 			billingAmount:  billingAmount,
@@ -168,7 +228,8 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 		return err
 	}
 
-	for _, parent := range parents {
+	for billingID := range parents {
+		parent := parents[billingID]
 		if parent.splitCount < 1 || parent.splitAmount != parent.billingAmount {
 			return fmt.Errorf("table payments: split set does not match payment billing amount")
 		}
@@ -182,10 +243,17 @@ func validateCutoverPaymentGraph(sourceDir string, manifest CutoverManifest) err
 			return fmt.Errorf("table payments: split set does not match payment summary")
 		}
 	}
+	for billingID, billing := range billings {
+		if billing.status == "completed" {
+			if _, ok := parents[billingID]; !ok {
+				return fmt.Errorf("table billings: completed billing is missing its payment graph")
+			}
+		}
+	}
 	return nil
 }
 
-func cutoverPaymentContractPart(manifest CutoverManifest, tableName string) (CutoverTableSpec, CutoverManifestTable, error) {
+func cutoverPaymentContractPart(manifest *CutoverManifest, tableName string) (CutoverTableSpec, CutoverManifestTable, error) {
 	var spec CutoverTableSpec
 	for _, candidate := range CutoverTableSpecs() {
 		if candidate.Name == tableName {
@@ -249,6 +317,21 @@ func parsePaymentGraphInt(table, column, value string, line int64) (int64, error
 		return 0, fmt.Errorf("table %s column %s row %d: value must be an integer", table, column, line)
 	}
 	return parsed, nil
+}
+
+func parsePaymentGraphRatio(value string, line int64) (float64, error) {
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) || parsed < 0 || parsed > 1 {
+		return 0, fmt.Errorf("table payments column insurance_ratio row %d: value must be between 0 and 1", line)
+	}
+	return parsed, nil
+}
+
+func validatePaymentGraphTimestamp(table, column, value string, line int64) error {
+	if _, err := time.Parse(time.RFC3339Nano, value); err != nil {
+		return fmt.Errorf("table %s column %s row %d: value must be an RFC3339 timestamp", table, column, line)
+	}
+	return nil
 }
 
 func addPaymentGraphAmount(left, right int64) (int64, error) {

@@ -132,7 +132,7 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"vital_records", []string{"id", "clinic_id", "medical_record_id", "pet_id", "recorded_at", "temperature", "weight", "weight_unit", "heart_rate", "respiration_rate", "staff_id", "notes"}, []string{"id", "medical_record_id", "pet_id", "staff_id"}, []string{"notes"}},
 		{"appointments", []string{"id", "clinic_id", "start_time", "end_time", "pet_id", "visit_type", "reservation_type_id", "doctor_id", "status", "source"}, []string{"id", "pet_id", "doctor_id"}, nil},
 		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
-		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
+		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date", "completed_at"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
 		{"billing_items", []string{"id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
 		{"payments", []string{"id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},
 		{"payment_splits", []string{"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount", "received_amount", "change_amount", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, nil},
@@ -341,7 +341,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest) error {
 			return fmt.Errorf("unexpected file or directory in cutover source")
 		}
 	}
-	return validateCutoverPaymentGraph(sourceDir, manifest)
+	return validateCutoverPaymentGraph(sourceDir, &manifest)
 }
 
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand) error {

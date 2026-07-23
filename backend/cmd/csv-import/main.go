@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sys/unix"
 
@@ -87,7 +88,14 @@ func (t *pgxCutoverTarget) Preflight(ctx context.Context, manifest csvimport.Cut
 }
 
 func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
-	return csvimport.VerifyCutover(ctx, t.pool, manifest, seeds)
+	tx, err := t.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.RepeatableRead,
+	})
+	if err != nil {
+		return fmt.Errorf("begin repeatable-read cutover verification: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	return csvimport.VerifyCutover(ctx, tx, manifest, seeds)
 }
 
 func (t *pgxCutoverTarget) Apply(ctx context.Context, bundle csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {

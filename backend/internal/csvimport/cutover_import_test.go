@@ -416,6 +416,18 @@ func TestPreflightAllowsLowSequenceButVerifyRequiresApplicationFloor(t *testing.
 	}
 }
 
+func TestVerifyRequiresSequenceToExceedCurrentMaxID(t *testing.T) {
+	err := VerifyCutover(
+		context.Background(),
+		staleSequenceTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "does not exceed") {
+		t.Fatalf("VerifyCutover() error = %v, want max-id rejection", err)
+	}
+}
+
 func TestPreflightRejectsMissingValidatedForeignKey(t *testing.T) {
 	err := PreflightCutoverTarget(
 		context.Background(),
@@ -476,6 +488,18 @@ func TestPreflightRejectsMissingPaymentMethodSystemKeyUniqueIndex(t *testing.T) 
 	}
 }
 
+func TestPreflightRejectsMissingPaymentSplitsBillingIndex(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingPaymentSplitsBillingIndexTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "payment_splits.billing_id") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want payment_splits index rejection", err)
+	}
+}
+
 func TestVerifyRejectsPaymentSplitWithoutPaymentParent(t *testing.T) {
 	err := VerifyCutover(
 		context.Background(),
@@ -494,20 +518,36 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"split_rows AS MATERIALIZED",
 		"split_summaries AS MATERIALIZED",
 		"JOIN payment_rows payment ON payment.billing_id = split.billing_id",
+		"payment.deleted_at IS NOT NULL",
+		"payment.parent_billing_id < $1",
+		"payment.billing_deleted_at IS NOT NULL",
 		"payment.billing_clinic_id IS DISTINCT FROM $3",
+		"payment.billing_total_amount IS DISTINCT FROM payment.total_amount",
 		"payment.subtotal IS NULL",
 		"payment.tax_total IS NULL",
 		"payment.total_amount IS NULL",
+		"payment.insurance_ratio IS NULL",
+		"payment.insurance_ratio > 1",
+		"payment.insurance_amount IS NULL",
+		"payment.insurance_amount < 0",
+		"payment.discount_amount IS NULL",
+		"payment.discount_amount < 0",
 		"payment.billing_amount IS NULL",
 		"payment.received_amount IS NULL",
 		"payment.change_amount IS NULL",
 		"payment.created_at IS NULL",
+		"payment.paid_by < $1",
 		"NOT COALESCE(",
 		"bool_and(COALESCE(",
+		"split.id >= $1",
+		"split.paid_by >= $1",
 		"split.created_at IS NOT NULL",
 		"split.received_amount IS NOT NULL",
 		"split.change_amount IS NOT NULL",
 		"payment.method IS DISTINCT FROM",
+		"completed_billing_violations AS",
+		"billing.status = 'completed'",
+		"billing.completed_at IS NULL OR payment.id IS NULL",
 	}
 	for _, fragment := range required {
 		if !strings.Contains(verifyCutoverPaymentGraphQuery, fragment) {
@@ -521,12 +561,26 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		t.Fatal("payment verification query does not contain the expected graph sections")
 	}
 	splitAggregationQuery := verifyCutoverPaymentGraphQuery[splitRowsStart:orphanStart]
-	if strings.Contains(splitAggregationQuery, "split.id >= $1") ||
-		strings.Contains(splitAggregationQuery, "split.id < $2") {
-		t.Fatal("parent split aggregation must include child rows outside the cutover ID band")
+	if !strings.Contains(splitAggregationQuery, "split.id >= $1") ||
+		!strings.Contains(splitAggregationQuery, "split.id < $2") {
+		t.Fatal("parent split aggregation must reject child rows outside the cutover ID band")
 	}
 	if strings.Contains(splitAggregationQuery, "JOIN LATERAL") {
 		t.Fatal("payment split aggregation must be set-based rather than correlated per payment")
+	}
+}
+
+func TestVerifyCutoverPaymentGraphPreservesQueryErrorIdentity(t *testing.T) {
+	queryErr := errors.New("query failed")
+	manifest := cutoverManifestForTargetTests()
+	err := verifyCutoverPaymentGraph(
+		context.Background(),
+		errorTargetQuerier{err: queryErr},
+		&manifest,
+		validCutoverSeeds(),
+	)
+	if !errors.Is(err, queryErr) {
+		t.Fatalf("verifyCutoverPaymentGraph() error = %v, want wrapped query error", err)
 	}
 }
 
@@ -553,6 +607,16 @@ func TestUniqueIndexVerificationQueriesRejectWeakerExpressionAndPartialIndexes(t
 	}
 	if strings.Contains(paymentMethodSystemKeyUniqueIndexQuery, "LIKE '%") {
 		t.Fatal("payment method index predicate must not accept a substring match")
+	}
+	for _, fragment := range []string{
+		"target_table.relname = 'payment_splits'",
+		"index_definition.indpred IS NULL",
+		"key_column.ordinality = 1",
+		") = 'billing_id'",
+	} {
+		if !strings.Contains(paymentSplitsBillingIndexQuery, fragment) {
+			t.Errorf("payment_splits index query is missing %q", fragment)
+		}
 	}
 }
 
@@ -596,6 +660,8 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 		return staticRow{values: []any{"public.fixture_id_seq"}}
 	case strings.Contains(query, "last_value, is_called"):
 		return staticRow{values: []any{applicationIDFloor, false}}
+	case strings.Contains(query, "SELECT COALESCE(max(id), 0)"):
+		return staticRow{values: []any{int64(0)}}
 	case strings.Contains(query, "clinic_id <> $3"):
 		return staticRow{values: []any{int64(0)}}
 	case strings.Contains(query, "count(*)"):
@@ -605,6 +671,14 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 	default:
 		return staticRow{err: errUnexpectedQuery}
 	}
+}
+
+type errorTargetQuerier struct {
+	err error
+}
+
+func (q errorTargetQuerier) QueryRow(context.Context, string, ...any) pgx.Row {
+	return staticRow{err: q.err}
 }
 
 type missingForeignKeyTargetQuerier struct{}
@@ -634,6 +708,15 @@ func (missingPaymentMethodUniqueTargetQuerier) QueryRow(ctx context.Context, que
 	return validTargetQuerier{}.QueryRow(ctx, query, args...)
 }
 
+type missingPaymentSplitsBillingIndexTargetQuerier struct{}
+
+func (missingPaymentSplitsBillingIndexTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "target_table.relname = 'payment_splits'") {
+		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
 type missingPaymentParentTargetQuerier struct{}
 
 func (missingPaymentParentTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
@@ -648,6 +731,18 @@ type lowSequenceTargetQuerier struct{}
 func (lowSequenceTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "last_value, is_called") {
 		return staticRow{values: []any{int64(1), false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type staleSequenceTargetQuerier struct{}
+
+func (staleSequenceTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "last_value, is_called") {
+		return staticRow{values: []any{applicationIDFloor, false}}
+	}
+	if strings.Contains(query, "SELECT COALESCE(max(id), 0)") {
+		return staticRow{values: []any{applicationIDFloor}}
 	}
 	return validTargetQuerier{}.QueryRow(ctx, query, args...)
 }

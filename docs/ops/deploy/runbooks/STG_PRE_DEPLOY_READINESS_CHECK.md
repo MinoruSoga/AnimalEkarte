@@ -46,7 +46,7 @@ gh workflow run backend-deploy.yml --ref staging
 
 - **監視項目**:
   - Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
-  - fresh DB では DDL 3件 + seed 3件（`002_master` → `003_demo` → `004_staging`）が完了し、`schema_migrations` が6行になることを確認。
+  - fresh DB では DDL 4件 + seed 3件（`002_master` → `003_demo` → `004_staging`）が完了し、`schema_migrations` が7行になることを確認。
   - Checksum mismatch がないことを確認。旧 seed key の検出時は旧形式相当の 002〜004 が legacy translation されることを確認する。
 - **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
 

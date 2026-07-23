@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -675,7 +676,7 @@ func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverMa
 			}
 		}
 	}
-	return verifyCutoverPaymentGraph(ctx, q, manifest, seeds)
+	return verifyCutoverPaymentGraph(ctx, q, &manifest, seeds)
 }
 
 func hasColumn(columns []string, target string) bool {
@@ -728,10 +729,21 @@ func verifyCutoverSequences(ctx context.Context, q cutoverQuerier) error {
 		}
 		nextValue := lastValue
 		if isCalled {
+			if lastValue == math.MaxInt64 {
+				return fmt.Errorf("table %s sequence exhausted", spec.Name)
+			}
 			nextValue++
 		}
 		if nextValue < applicationIDFloor {
 			return fmt.Errorf("table %s sequence next value is below application floor", spec.Name)
+		}
+		var maxID int64
+		maxQuery := fmt.Sprintf(`SELECT COALESCE(max(id), 0) FROM %s`, pgx.Identifier{spec.Name}.Sanitize())
+		if err := q.QueryRow(ctx, maxQuery).Scan(&maxID); err != nil {
+			return fmt.Errorf("read max id for table %s during sequence verification: %w", spec.Name, err)
+		}
+		if nextValue <= maxID {
+			return fmt.Errorf("table %s sequence next value does not exceed the current max id", spec.Name)
 		}
 	}
 	return nil
