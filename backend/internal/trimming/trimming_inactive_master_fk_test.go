@@ -44,7 +44,7 @@ func TestTrimmingService_Create_RejectsInactiveCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{})
 	}
 
@@ -79,7 +79,7 @@ func TestTrimmingService_Create_RejectsInactiveOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{})
 	}
 

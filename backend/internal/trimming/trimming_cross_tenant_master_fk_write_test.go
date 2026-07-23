@@ -91,7 +91,7 @@ func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return NewTrimmingService(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, courseRepo, okTrimmingOptionRepo(), &mockTransactor{})
 	}
 
@@ -134,7 +134,7 @@ func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return NewTrimmingService(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), optionRepo, &mockTransactor{})
 	}
 

@@ -34,7 +34,7 @@ func (r *reservationTypeUnavailableTimeRepository) FindAll(
 	ctx context.Context, clinicID, reservationTypeID uint64,
 ) ([]model.ReservationTypeUnavailableTime, error) {
 	var results []model.ReservationTypeUnavailableTime
-	err := r.db.WithContext(ctx).
+	err := repohelpers.DBOrTx(ctx, r.db).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").

@@ -198,14 +198,17 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return nil, apperrors.WrapInvalidInput(reservation.AllowedReservationRoutesMessage)
 		}
 	}
+	enforceBookingConstraints := reservation.ShouldEnforceReservationBookingConstraints(status, input.ReservationRoute)
 	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID, true); err != nil {
 		return nil, err
 	}
 	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	enforceBookingConstraints := reservation.ShouldEnforceReservationBookingConstraints(status, input.ReservationRoute)
 	if enforceBookingConstraints {
+		if err := s.requireBookingConstraintDependencies(); err != nil {
+			return nil, err
+		}
 		if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
@@ -301,7 +304,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, clinicID, reservationTypeID uint64, requireActive bool) error {
 	if s.reservationType == nil {
-		return apperrors.WrapInvalidInput("reservation type repository is required")
+		return apperrors.WrapInternalServerError("reservation type repository is required")
 	}
 
 	reservationType, err := s.reservationType.FindByID(ctx, clinicID, reservationTypeID)
@@ -313,6 +316,19 @@ func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, c
 	}
 	if requireActive && !reservationType.IsActive {
 		return apperrors.WrapInvalidInput("reservation_type_id references an inactive trimming reservation type")
+	}
+	return nil
+}
+
+func (s *trimmingService) requireBookingConstraintDependencies() error {
+	if s.unavailableTime == nil {
+		return apperrors.WrapInternalServerError("reservation type unavailable-time repository is required")
+	}
+	if s.reservation == nil {
+		return apperrors.WrapInternalServerError("reservation repository is required")
+	}
+	if s.reservationType == nil {
+		return apperrors.WrapInternalServerError("reservation type repository is required")
 	}
 	return nil
 }
@@ -434,6 +450,9 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			resolvedEnd = locked.EndTime
 		}
 		if !input.StartTime.IsZero() || !input.EndTime.IsZero() {
+			if err := s.requireBookingConstraintDependencies(); err != nil {
+				return err
+			}
 			if err := reservation.ValidateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 				return err
 			}
@@ -448,6 +467,9 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		}
 		if (!input.StartTime.IsZero() || !input.EndTime.IsZero() || input.StaffID != nil) &&
 			reservation.ShouldEnforceReservationBookingConstraints(resolvedStatus, locked.ReservationRoute) {
+			if err := s.requireBookingConstraintDependencies(); err != nil {
+				return err
+			}
 			if err := reservation.CheckSlotConflict(txCtx, s.reservation, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &appointmentID); err != nil {
 				return err
 			}
@@ -564,11 +586,17 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			}
 		}
 		if input.StartTime != nil || input.EndTime != nil {
+			if err := s.requireBookingConstraintDependencies(); err != nil {
+				return err
+			}
 			if err := reservation.ValidateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 				return err
 			}
 		}
 		if input.StartTime != nil || input.EndTime != nil || input.StaffID != nil {
+			if err := s.requireBookingConstraintDependencies(); err != nil {
+				return err
+			}
 			if err := reservation.CheckSlotConflict(txCtx, s.reservation, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
 				return err
 			}

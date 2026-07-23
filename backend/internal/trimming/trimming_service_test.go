@@ -172,6 +172,22 @@ func (m *mockTrimmingReservationTypeRepository) FindByID(ctx context.Context, cl
 
 var _ ReservationTypeRepository = (*mockTrimmingReservationTypeRepository)(nil)
 
+type mockTrimmingUnavailableTimeRepository struct {
+	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+}
+
+func (m *mockTrimmingUnavailableTimeRepository) FindAll(
+	ctx context.Context,
+	clinicID, reservationTypeID uint64,
+) ([]model.ReservationTypeUnavailableTime, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeUnavailableTime{}, nil
+}
+
+var _ ReservationTypeUnavailableTimeRepository = (*mockTrimmingUnavailableTimeRepository)(nil)
+
 // --- mock: AppointmentTrimmingDetailRepository ---
 
 type mockTrimmingDetailRepository struct {
@@ -243,7 +259,7 @@ func newTrimmingTestServiceWithReservationType(
 		reserv,
 		reservationType,
 		newAcceptingTrimmingStaffRepository(),
-		nil,
+		&mockTrimmingUnavailableTimeRepository{},
 		detail,
 		newActiveTrimmingCourseRepository(),
 		newActiveTrimmingOptionRepository(),
@@ -516,8 +532,43 @@ func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testin
 	})
 
 	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
 	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *testing.T) {
+	createCalled := false
+	reserv := &mockTrimmingReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	svc := NewTrimmingService(
+		reserv,
+		&mockTrimmingReservationTypeRepository{},
+		newAcceptingTrimmingStaffRepository(),
+		nil,
+		&mockTrimmingDetailRepository{},
+		newActiveTrimmingCourseRepository(),
+		newActiveTrimmingOptionRepository(),
+		&mockTransactor{},
+	)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		ReservationTypeID: 1,
+		StartTime:         time.Now(),
+		EndTime:           time.Now().Add(time.Hour),
+	})
+
+	require.Error(t, err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+	assert.Nil(t, appt)
+	assert.False(t, createCalled)
 }
 
 func TestTrimmingService_ValidateTrimmingReservationType_FindByIDError(t *testing.T) {
@@ -860,7 +911,7 @@ func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *t
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
-		nil,
+		&mockTrimmingUnavailableTimeRepository{},
 		&mockTrimmingDetailRepository{},
 		nil,
 		nil,
@@ -927,7 +978,7 @@ func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
-		nil,
+		&mockTrimmingUnavailableTimeRepository{},
 		&mockTrimmingDetailRepository{},
 		nil,
 		nil,
@@ -967,7 +1018,7 @@ func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T)
 	svc := NewTrimmingService(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
-		nil, nil,
+		nil, &mockTrimmingUnavailableTimeRepository{},
 		detailRepo,
 		nil,
 		nil,
@@ -1750,7 +1801,7 @@ func TestTrimmingService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
 		detail,
 		&mockTrimmingReservationTypeRepository{},
 		nil,
-		nil,
+		&mockTrimmingUnavailableTimeRepository{},
 	)
 
 	appointment, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{

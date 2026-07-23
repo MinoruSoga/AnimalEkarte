@@ -6,6 +6,7 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
@@ -66,6 +68,41 @@ func TestReservationTypeUnavailableTimeRepository_FindAll(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+}
+
+func TestReservationTypeUnavailableTimeRepository_FindAll_UsesAmbientTransaction(t *testing.T) {
+	db := setupUnavailableTimeRepoTestDB(t)
+	repo := NewReservationTypeUnavailableTimeRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	reservationType := makeReservationTypeLinked(t, db, clinicID, "tx参加確認区分", nil, nil)
+	rollback := errors.New("rollback unavailable-time fixture")
+
+	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+		dayOfWeek := int8(2)
+		unavailableTime := &model.ReservationTypeUnavailableTime{
+			ClinicID:          clinicID,
+			ReservationTypeID: reservationType.ID,
+			UnavailableType:   model.UnavailableTypeWeekly,
+			DayOfWeek:         &dayOfWeek,
+			StartTime:         "10:00",
+			EndTime:           "11:00",
+		}
+		require.NoError(t, repohelpers.DBOrTx(txCtx, db).Create(unavailableTime).Error)
+
+		got, findErr := repo.FindAll(txCtx, clinicID, reservationType.ID)
+		require.NoError(t, findErr)
+		require.Len(t, got, 1)
+		assert.Equal(t, unavailableTime.ID, got[0].ID)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+
+	var count int64
+	require.NoError(t, db.Model(&model.ReservationTypeUnavailableTime{}).
+		Where("clinic_id = ? AND reservation_type_id = ?", clinicID, reservationType.ID).
+		Count(&count).Error)
+	assert.Zero(t, count)
 }
 
 func TestReservationTypeUnavailableTimeRepository_FindByID(t *testing.T) {

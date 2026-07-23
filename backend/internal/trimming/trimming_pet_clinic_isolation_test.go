@@ -27,7 +27,7 @@ func newTrimmingClinicIsolationTestService(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		nil,
-		nil,
+		&mockTrimmingUnavailableTimeRepository{},
 		detail,
 		nil,
 		nil,
