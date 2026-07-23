@@ -147,7 +147,7 @@ func NewServices(
 
 	// staffSvc は StaffService（StaffCoreService / StaffAccountService / StaffPermissionService の合成）を実装する。
 	// 同一インスタンスを4フィールドに割り当てることで余分な初期化を避ける。
-	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, tx)
+	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, repos.Clinic, tx)
 
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
 	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
@@ -197,7 +197,7 @@ func NewServices(
 		PermissionGroup:                permissionGroupSvc,
 		EffectivePermission:            permissionGroupSvc,
 		BillingConfirmation:            billing.NewBillingConfirmationService(repos.BillingConfirmation, repos.MedicalRecord, tx),
-		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry),
+		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry, repos.Staff, repos.StaffClinicAssignment, tx),
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
 		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも

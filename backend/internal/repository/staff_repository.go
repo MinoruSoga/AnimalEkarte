@@ -18,6 +18,9 @@ import (
 type StaffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
+	LockActiveByIDForUpdate(ctx context.Context, id uint64) (*model.Staff, error)
+	LockActiveByIDForUpdateInClinic(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error)
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
@@ -81,6 +84,70 @@ func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff
 		Preload("Occupation", "deleted_at IS NULL").
 		First(&staff, "id = ?", id).Error
 	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
+	}
+	return &staff, nil
+}
+
+// LockActiveByIDForUpdate locks a non-deleted staff identity for a mutation.
+// The caller must already own the transaction so the lock lifetime covers all
+// following authorization, dependency checks, and writes.
+func (r *staffRepository) LockActiveByIDForUpdate(
+	ctx context.Context,
+	id uint64,
+) (*model.Staff, error) {
+	if txFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("staff update lock requires an active transaction")
+	}
+	var staff model.Staff
+	if err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		First(&staff).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
+	}
+	return &staff, nil
+}
+
+// LockActiveByIDForUpdateInClinic locks a non-deleted staff identity only when
+// it has an active assignment to the authenticated clinic. This prevents a
+// cross-clinic identifier from acquiring or disclosing another clinic's row.
+func (r *staffRepository) LockActiveByIDForUpdateInClinic(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	if txFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("scoped staff update lock requires an active transaction")
+	}
+	var staff model.Staff
+	if err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		Where(
+			"EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)",
+			clinicID,
+		).
+		First(&staff).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
+	}
+	return &staff, nil
+}
+
+// LockActiveByIDForShare locks a non-deleted staff identity for a dependent
+// write without blocking other readers. Writers that delete or replace the
+// staff's assignments must take the update lock first, preserving lock order.
+func (r *staffRepository) LockActiveByIDForShare(
+	ctx context.Context,
+	id uint64,
+) (*model.Staff, error) {
+	if txFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("staff share lock requires an active transaction")
+	}
+	var staff model.Staff
+	if err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		First(&staff).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
 	return &staff, nil

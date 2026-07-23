@@ -91,6 +91,7 @@ func newTestStaffServiceForPermissions(
 		permRepo,
 		resRepo,
 		nil,
+		nil,
 		noopTransactor{},
 	)
 }

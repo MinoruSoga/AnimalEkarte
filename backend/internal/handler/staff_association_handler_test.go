@@ -18,6 +18,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -66,6 +67,8 @@ func staffAssocCtx(w *httptest.ResponseRecorder, method string, body []byte) *gi
 		c.Request = httptest.NewRequest(method, "/", http.NoBody)
 	}
 	setClinicID(c)
+	c.Set("is_system_admin", false)
+	c.Set("clinic_ids", []uint64{1, 3})
 	c.Params = gin.Params{{Key: "id", Value: "10"}}
 	return c
 }
@@ -235,9 +238,11 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 
 	t.Run("200 echoes clinic_ids", func(t *testing.T) {
 		svc := &mockStaffService{
-			setClinicAssignmentsFn: func(_ context.Context, staffID uint64, ids []uint64) error {
-				assert.Equal(t, uint64(10), staffID)
-				assert.Equal(t, []uint64{1, 3}, ids)
+			setClinicAssignmentsFn: func(_ context.Context, input *service.SetClinicAssignmentsInput) error {
+				assert.Equal(t, uint64(10), input.StaffID)
+				assert.Equal(t, []uint64{1, 3}, input.ClinicIDs)
+				assert.Equal(t, []uint64{1, 3}, input.AuthorizedClinicIDs)
+				assert.False(t, input.IsSystemAdmin)
 				return nil
 			},
 		}
@@ -247,10 +252,108 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 		assert.JSONEq(t, `{"clinic_ids":[1,3]}`, w.Body.String())
 	})
 
+	t.Run("200 deduplicates clinic_ids while preserving order", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, input *service.SetClinicAssignmentsInput) error {
+				assert.Equal(t, []uint64{2, 4}, input.ClinicIDs)
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c := staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[2,2,4,2]}`))
+		c.Set("clinic_ids", []uint64{2, 4})
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(c)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"clinic_ids":[2,4]}`, w.Body.String())
+	})
+
+	t.Run("system admin scope is propagated without requiring clinic assignments", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, input *service.SetClinicAssignmentsInput) error {
+				assert.Equal(t, uint64(10), input.StaffID)
+				assert.Equal(t, []uint64{99}, input.ClinicIDs)
+				assert.Nil(t, input.AuthorizedClinicIDs)
+				assert.True(t, input.IsSystemAdmin)
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c := staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[99]}`))
+		c.Set("is_system_admin", true)
+		c.Set("clinic_ids", []uint64(nil))
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(c)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"clinic_ids":[99]}`, w.Body.String())
+	})
+
+	t.Run("401 when non-admin clinic assignments are missing", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, _ *service.SetClinicAssignmentsInput) error {
+				t.Fatal("service must not run without authenticated clinic ids")
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"clinic_ids":[1]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		setClinicID(c)
+		c.Set("is_system_admin", false)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(c)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("401 when system admin context is missing", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, _ *service.SetClinicAssignmentsInput) error {
+				t.Fatal("service must not run without authenticated admin status")
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"clinic_ids":[1]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		setClinicID(c)
+		c.Set("clinic_ids", []uint64{1})
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(c)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 when more than 50 clinic ids are requested", func(t *testing.T) {
+		clinicIDs := make([]uint64, 51)
+		for i := range clinicIDs {
+			clinicIDs[i] = uint64(i + 1)
+		}
+		body, err := json.Marshal(map[string][]uint64{"clinic_ids": clinicIDs})
+		require.NoError(t, err)
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, _ *service.SetClinicAssignmentsInput) error {
+				t.Fatal("service must not run when request binding rejects too many clinic ids")
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, body))
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("200 normalizes null to empty array", func(t *testing.T) {
 		svc := &mockStaffService{
-			setClinicAssignmentsFn: func(_ context.Context, _ uint64, ids []uint64) error {
-				assert.Equal(t, []uint64{}, ids)
+			setClinicAssignmentsFn: func(_ context.Context, input *service.SetClinicAssignmentsInput) error {
+				assert.Equal(t, []uint64{}, input.ClinicIDs)
 				return nil
 			},
 		}
@@ -263,7 +366,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	t.Run("404 when not clinic member; downstream not called", func(t *testing.T) {
 		svc := &mockStaffService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
-			setClinicAssignmentsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+			setClinicAssignmentsFn: func(_ context.Context, _ *service.SetClinicAssignmentsInput) error {
 				t.Fatal("downstream SetClinicAssignments must not run when membership fails")
 				return nil
 			},
@@ -292,7 +395,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 
 	t.Run("500 on service error", func(t *testing.T) {
 		svc := &mockStaffService{
-			setClinicAssignmentsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+			setClinicAssignmentsFn: func(_ context.Context, _ *service.SetClinicAssignmentsInput) error {
 				return fmt.Errorf("db failure")
 			},
 		}

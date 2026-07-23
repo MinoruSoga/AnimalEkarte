@@ -63,6 +63,21 @@ type UpdateStaffInput struct {
 	ReservationImageURL    *string
 }
 
+// SetClinicAssignmentsInput はスタッフのクリニック割当全置換と、実行者の認可済み
+// clinic scope をまとめた入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
+type SetClinicAssignmentsInput struct {
+	StaffID             uint64
+	ClinicIDs           []uint64
+	AuthorizedClinicIDs []uint64
+	IsSystemAdmin       bool
+}
+
+// StaffAssignmentClinicLookup は割当先クリニックを同一 transaction の完了まで
+// active のまま保持するために必要な最小依存である。
+type StaffAssignmentClinicLookup interface {
+	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
+}
+
 // StaffCoreService はスタッフの CRUD・並び替え操作（テスト時に最小モックで済む分割単位）
 type StaffCoreService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
@@ -84,8 +99,9 @@ type StaffAccountService interface {
 	// UpdatePassword はスタッフに紐づくアカウントのパスワードをハッシュ化して更新する。
 	UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error
 	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
-	// 既存割当を全削除してから新しい clinicIDs を登録する。最初の1件は is_main=true となる。
-	SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error
+	// 認可・存在確認後に既存割当を全削除し、新しい clinicIDs を登録する。
+	// 最初の1件は is_main=true となる。
+	SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error
 	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 	// 所属していない場合は ErrNotFound を返す。
 	VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error
@@ -124,6 +140,7 @@ type staffService struct {
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
 	occupationRepo      repository.OccupationRepository
+	clinicRepo          StaffAssignmentClinicLookup
 	tx                  repository.Transactor
 }
 
@@ -136,6 +153,7 @@ func NewStaffService(
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
 	occupationRepo repository.OccupationRepository,
+	clinicRepo StaffAssignmentClinicLookup,
 	tx repository.Transactor,
 ) StaffService {
 	return &staffService{
@@ -147,6 +165,7 @@ func NewStaffService(
 		permissionGroupRepo: permissionGroupRepo,
 		resStaffRepo:        resStaffRepo,
 		occupationRepo:      occupationRepo,
+		clinicRepo:          clinicRepo,
 		tx:                  tx,
 	}
 }

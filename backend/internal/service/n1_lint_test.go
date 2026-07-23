@@ -128,7 +128,6 @@ var n1Allowlist = map[string]bool{
 	// validateReservationMasterOwnership helper (pure master-FK ownership check); key renamed
 	// to match, reasoning unchanged.
 	n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): true,
-
 	// --- Category 2: tracked pre-existing debt ---
 	// (empty) PERF-FOLLOWUP-08 (2026-07-12) resolved both prior entries by hoisting the
 	// per-iteration Find call above the loop: SyncLTVTopPercent now batches via

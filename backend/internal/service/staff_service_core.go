@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -171,38 +172,79 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// 存在確認（NotFound は FromGORM 経由で伝播）
-	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return apperrors.Wrap(err, "failed to find staff before delete")
+	if clinicID == 0 {
+		return apperrors.WrapInvalidInput("clinic_id is required")
+	}
+	if id == 0 {
+		return apperrors.WrapInvalidInput("staff_id is required")
+	}
+	if s.repo == nil || s.assignmentRepo == nil || s.reservationRepo == nil ||
+		s.shiftEntryRepo == nil || s.tx == nil {
+		return apperrors.WrapInternalServerError("staff deletion dependencies are not configured")
 	}
 
-	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check reservation dependency")
-	}
-	if reservationExists {
-		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
-	}
-	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check shift dependency", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check shift dependency")
-	}
-	if shiftExists {
-		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
-	}
-	dependencies, err := s.repo.CountBlockingReferencesByStaffID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check staff dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check staff dependencies")
-	}
-	if len(dependencies) > 0 {
-		dep := dependencies[0]
-		return apperrors.WrapConflict(dep.Label + "を残しているため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete staff", "error", err, "id", id, "clinic_id", clinicID)
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		staff, lockStaffErr := s.repo.LockActiveByIDForUpdateInClinic(txCtx, clinicID, id)
+		if lockStaffErr != nil {
+			return apperrors.Wrap(lockStaffErr, "failed to lock staff before delete")
+		}
+		if staff == nil || staff.ID != id {
+			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+		}
+
+		assignments, lockAssignmentsErr := s.assignmentRepo.LockActiveByStaff(txCtx, id)
+		if lockAssignmentsErr != nil {
+			return apperrors.Wrap(lockAssignmentsErr, "failed to lock staff clinic assignments before delete")
+		}
+		if len(assignments) == 0 {
+			return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
+		}
+		assignedToClinic := false
+		for _, assignment := range assignments {
+			if assignment.StaffID != id || assignment.ClinicID == 0 {
+				return apperrors.WrapInternalServerError("staff clinic assignment lock returned an invalid record")
+			}
+			if assignment.ClinicID == clinicID {
+				assignedToClinic = true
+			}
+		}
+		if !assignedToClinic {
+			return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
+		}
+		if len(assignments) > 1 {
+			return apperrors.WrapConflict("複数のクリニックに所属しているスタッフは削除できません")
+		}
+
+		reservationExists, reservationErr := s.reservationRepo.ExistsByStaffID(txCtx, clinicID, id)
+		if reservationErr != nil {
+			slog.ErrorContext(txCtx, "failed to check reservation dependency", "error", reservationErr, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(reservationErr, "failed to check reservation dependency")
+		}
+		if reservationExists {
+			return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
+		}
+		shiftExists, shiftErr := s.shiftEntryRepo.ExistsByStaffID(txCtx, clinicID, id)
+		if shiftErr != nil {
+			slog.ErrorContext(txCtx, "failed to check shift dependency", "error", shiftErr, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(shiftErr, "failed to check shift dependency")
+		}
+		if shiftExists {
+			return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
+		}
+		dependencies, dependencyErr := s.repo.CountBlockingReferencesByStaffID(txCtx, clinicID, id)
+		if dependencyErr != nil {
+			slog.ErrorContext(txCtx, "failed to check staff dependencies", "error", dependencyErr, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(dependencyErr, "failed to check staff dependencies")
+		}
+		if len(dependencies) > 0 {
+			return apperrors.WrapConflict(dependencies[0].Label + "を残しているため削除できません")
+		}
+		if deleteErr := s.repo.Delete(txCtx, clinicID, id); deleteErr != nil {
+			slog.ErrorContext(txCtx, "failed to delete staff", "error", deleteErr, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(deleteErr, "failed to delete staff")
+		}
+		return nil
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete staff")
 	}
 	slog.InfoContext(ctx, "staff deleted", slog.Uint64("staff_id", id), slog.Uint64("clinic_id", clinicID))

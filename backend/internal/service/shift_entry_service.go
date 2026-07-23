@@ -74,13 +74,42 @@ type ShiftEntryService interface {
 	GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
 }
 
+// ShiftEntryStaffAssignmentLocker はシフト作成時の有効な医院所属確認に必要な最小依存である。
+// 実装は soft-delete 済み割当を除外し、同一トランザクションの完了まで有効な所属行を
+// FOR SHARE で保持する。これにより所属確認直後の並行解除との TOCTOU を防ぐ。
+type ShiftEntryStaffAssignmentLocker interface {
+	LockActiveByStaffAndClinic(
+		ctx context.Context,
+		staffID, clinicID uint64,
+	) (*model.StaffClinicAssignment, error)
+}
+
+// ShiftEntryStaffLocker はシフト作成時に有効な staff identity を assignment より
+// 先に FOR SHARE で保持するための consumer-side port である。
+type ShiftEntryStaffLocker interface {
+	LockActiveByIDForShare(ctx context.Context, staffID uint64) (*model.Staff, error)
+}
+
 type shiftEntryService struct {
-	repo repository.ShiftEntryRepository
+	repo                repository.ShiftEntryRepository
+	staffRepo           ShiftEntryStaffLocker
+	staffAssignmentRepo ShiftEntryStaffAssignmentLocker
+	tx                  repository.Transactor
 }
 
 // NewShiftEntryService はShiftEntryServiceを初期化して返す
-func NewShiftEntryService(repo repository.ShiftEntryRepository) ShiftEntryService {
-	return &shiftEntryService{repo: repo}
+func NewShiftEntryService(
+	repo repository.ShiftEntryRepository,
+	staffRepo ShiftEntryStaffLocker,
+	staffAssignmentRepo ShiftEntryStaffAssignmentLocker,
+	tx repository.Transactor,
+) ShiftEntryService {
+	return &shiftEntryService{
+		repo:                repo,
+		staffRepo:           staffRepo,
+		staffAssignmentRepo: staffAssignmentRepo,
+		tx:                  tx,
+	}
 }
 
 func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error) {
@@ -125,6 +154,15 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("shift entry input is required")
+	}
+	if clinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id is required")
+	}
+	if input.StaffID == 0 {
+		return nil, apperrors.WrapInvalidInput("staff_id is required")
+	}
 	shiftType := model.ShiftType(input.ShiftType)
 	if err := validateShiftType(shiftType); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate shift type")
@@ -146,29 +184,58 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		EndTime:   endTime,
 		Notes:     input.Notes,
 	}
-	if err := s.repo.Create(ctx, entry); err != nil {
-		slog.ErrorContext(ctx, "failed to create shift entry", "error", err)
+
+	breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
+	for _, b := range input.Breaks {
+		breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+	}
+	if s.repo == nil || s.staffRepo == nil || s.staffAssignmentRepo == nil || s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("shift entry dependencies are not configured")
+	}
+
+	var result *model.ShiftEntry
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		staff, lockStaffErr := s.staffRepo.LockActiveByIDForShare(ctx, input.StaffID)
+		if lockStaffErr != nil {
+			return apperrors.Wrap(lockStaffErr, "failed to lock active staff")
+		}
+		if staff == nil || staff.ID != input.StaffID {
+			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+		}
+
+		assignment, lockErr := s.staffAssignmentRepo.LockActiveByStaffAndClinic(ctx, input.StaffID, clinicID)
+		if lockErr != nil {
+			return apperrors.Wrap(lockErr, "failed to lock staff clinic assignment")
+		}
+		if assignment == nil || assignment.StaffID != input.StaffID || assignment.ClinicID != clinicID {
+			return apperrors.WrapInternalServerError("staff clinic assignment lock returned an invalid record")
+		}
+
+		if createErr := s.repo.Create(ctx, entry); createErr != nil {
+			slog.ErrorContext(ctx, "failed to create shift entry", "error", createErr)
+			return apperrors.Wrap(createErr, "failed to create shift entry")
+		}
+		if len(breaks) > 0 {
+			if replaceErr := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); replaceErr != nil {
+				slog.ErrorContext(ctx, "failed to save shift breaks", "error", replaceErr)
+				return apperrors.Wrap(replaceErr, "failed to save shift breaks")
+			}
+		}
+
+		created, findErr := s.repo.FindByID(ctx, clinicID, entry.ID)
+		if findErr != nil {
+			slog.ErrorContext(ctx, "failed to get shift entry after create", "error", findErr)
+			return apperrors.Wrap(findErr, "failed to get shift entry after create")
+		}
+		result = created
+		return nil
+	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
-	// 休憩時間を保存
-	if len(input.Breaks) > 0 {
-		breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
-		for _, b := range input.Breaks {
-			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
-		}
-		if err := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); err != nil {
-			slog.ErrorContext(ctx, "failed to save shift breaks", "error", err)
-			return nil, apperrors.Wrap(err, "failed to save shift breaks")
-		}
-	}
+
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, entry.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get shift entry after create", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get shift entry after create")
-	}
 	return result, nil
 }
 

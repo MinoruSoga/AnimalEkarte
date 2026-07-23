@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // staffListMaxLimit は全スタッフ一括取得の上限。スタッフ数は現実的に数十〜数百名程度のため全件返却で問題ない。
@@ -200,16 +202,38 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if req.ClinicIDs == nil {
-		req.ClinicIDs = []uint64{}
+	normalizedClinicIDs := make([]uint64, 0, len(req.ClinicIDs))
+	seenClinicIDs := make(map[uint64]struct{}, len(req.ClinicIDs))
+	for _, clinicID := range req.ClinicIDs {
+		if _, duplicate := seenClinicIDs[clinicID]; duplicate {
+			continue
+		}
+		seenClinicIDs[clinicID] = struct{}{}
+		normalizedClinicIDs = append(normalizedClinicIDs, clinicID)
 	}
 
-	// 削除→作成をサービス層のトランザクションで実行する
-	if err := h.svc.Staff.SetClinicAssignments(c.Request.Context(), id, req.ClinicIDs); err != nil {
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return
+	}
+	var authorizedClinicIDs []uint64
+	if !isSystemAdmin {
+		authorizedClinicIDs, ok = httpapi.ExtractClinicIDs(c)
+		if !ok {
+			return
+		}
+	}
+
+	if err := h.svc.Staff.SetClinicAssignments(c.Request.Context(), &service.SetClinicAssignmentsInput{
+		StaffID:             id,
+		ClinicIDs:           normalizedClinicIDs,
+		AuthorizedClinicIDs: authorizedClinicIDs,
+		IsSystemAdmin:       isSystemAdmin,
+	}); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, staffClinicAssignmentsResponse(req))
+	c.JSON(http.StatusOK, staffClinicAssignmentsResponse{ClinicIDs: normalizedClinicIDs})
 }
 
 // GetStaffExcludedReservationTypes godoc

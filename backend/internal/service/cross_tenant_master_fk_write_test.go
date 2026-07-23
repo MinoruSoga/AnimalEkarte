@@ -348,7 +348,7 @@ func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, nil, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
@@ -394,7 +394,7 @@ func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testin
 				return nil
 			},
 		}
-		return NewStaffService(repo, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, nil, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
@@ -438,7 +438,7 @@ func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, nil, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {

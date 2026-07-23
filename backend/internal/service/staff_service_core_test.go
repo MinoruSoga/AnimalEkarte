@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -19,6 +20,9 @@ import (
 type coreMockStaffRepository struct {
 	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	findByIDFn                         func(ctx context.Context, id uint64) (*model.Staff, error)
+	lockForUpdateFn                    func(ctx context.Context, id uint64) (*model.Staff, error)
+	lockInClinicFn                     func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	lockForShareFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
 	createFn                           func(ctx context.Context, staff *model.Staff) error
 	updateFn                           func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
@@ -35,6 +39,30 @@ func (m *coreMockStaffRepository) FindAll(ctx context.Context, clinicID uint64, 
 func (m *coreMockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
+}
+func (m *coreMockStaffRepository) LockActiveByIDForUpdate(ctx context.Context, id uint64) (*model.Staff, error) {
+	if m.lockForUpdateFn != nil {
+		return m.lockForUpdateFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
+}
+func (m *coreMockStaffRepository) LockActiveByIDForUpdateInClinic(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	if m.lockInClinicFn != nil {
+		return m.lockInClinicFn(ctx, clinicID, id)
+	}
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
+}
+func (m *coreMockStaffRepository) LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error) {
+	if m.lockForShareFn != nil {
+		return m.lockForShareFn(ctx, id)
 	}
 	return &model.Staff{ID: id}, nil
 }
@@ -110,7 +138,8 @@ func (m *coreMockAccountRepository) Update(ctx context.Context, id uint64, field
 }
 
 type coreMockStaffClinicAssignmentRepository struct {
-	createFn func(ctx context.Context, assignment *model.StaffClinicAssignment) error
+	createFn     func(ctx context.Context, assignment *model.StaffClinicAssignment) error
+	lockActiveFn func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 }
 
 func (m *coreMockStaffClinicAssignmentRepository) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
@@ -119,11 +148,32 @@ func (m *coreMockStaffClinicAssignmentRepository) FindByStaffID(_ context.Contex
 func (m *coreMockStaffClinicAssignmentRepository) CountByStaffAndClinic(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+func (m *coreMockStaffClinicAssignmentRepository) LockActiveByStaffAndClinic(
+	_ context.Context,
+	staffID, clinicID uint64,
+) (*model.StaffClinicAssignment, error) {
+	return &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID}, nil
+}
+func (m *coreMockStaffClinicAssignmentRepository) LockActiveByStaff(
+	ctx context.Context,
+	staffID uint64,
+) ([]model.StaffClinicAssignment, error) {
+	if m.lockActiveFn != nil {
+		return m.lockActiveFn(ctx, staffID)
+	}
+	return []model.StaffClinicAssignment{{StaffID: staffID, ClinicID: 1, IsMain: true}}, nil
+}
 func (m *coreMockStaffClinicAssignmentRepository) Create(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, assignment)
 	}
 	return nil
+}
+func (m *coreMockStaffClinicAssignmentRepository) RestoreOrCreate(
+	ctx context.Context,
+	assignment *model.StaffClinicAssignment,
+) error {
+	return m.Create(ctx, assignment)
 }
 func (m *coreMockStaffClinicAssignmentRepository) Delete(_ context.Context, _ uint64) error {
 	return nil
@@ -228,7 +278,7 @@ func newCoreStaffService(
 	shiftEntryRepo *coreMockShiftEntryRepository,
 	tx repository.Transactor,
 ) StaffService {
-	return NewStaffService(repo, accountRepo, assignmentRepo, reservationRepo, shiftEntryRepo, nil, nil, nil, tx)
+	return NewStaffService(repo, accountRepo, assignmentRepo, reservationRepo, shiftEntryRepo, nil, nil, nil, nil, tx)
 }
 
 // ---- Create ----
@@ -568,6 +618,153 @@ func TestStaffServiceCore_Delete(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
+	events := make([]string, 0, 7)
+	repo := &coreMockStaffRepository{
+		lockInClinicFn: func(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+			requireStaffSecurityTxContext(t, ctx)
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(7), id)
+			events = append(events, "lock-staff")
+			return &model.Staff{ID: id}, nil
+		},
+		countBlockingReferencesByStaffIDFn: func(ctx context.Context, clinicID, staffID uint64) ([]repository.StaffDependencyCount, error) {
+			requireStaffSecurityTxContext(t, ctx)
+			events = append(events, "dependencies")
+			return nil, nil
+		},
+		deleteFn: func(ctx context.Context, clinicID, id uint64) error {
+			requireStaffSecurityTxContext(t, ctx)
+			events = append(events, "delete")
+			return nil
+		},
+	}
+	assignmentRepo := &coreMockStaffClinicAssignmentRepository{
+		lockActiveFn: func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+			requireStaffSecurityTxContext(t, ctx)
+			events = append(events, "lock-assignments")
+			return []model.StaffClinicAssignment{{StaffID: staffID, ClinicID: 1, IsMain: true}}, nil
+		},
+	}
+	reservationRepo := &coreMockReservationQueryRepository{
+		existsByStaffIDFn: func(ctx context.Context, clinicID, staffID uint64) (bool, error) {
+			requireStaffSecurityTxContext(t, ctx)
+			events = append(events, "reservations")
+			return false, nil
+		},
+	}
+	shiftRepo := &coreMockShiftEntryRepository{
+		existsByStaffIDFn: func(ctx context.Context, clinicID, staffID uint64) (bool, error) {
+			requireStaffSecurityTxContext(t, ctx)
+			events = append(events, "shifts")
+			return false, nil
+		},
+	}
+	svc := newCoreStaffService(
+		repo,
+		&coreMockAccountRepository{},
+		assignmentRepo,
+		reservationRepo,
+		shiftRepo,
+		markedStaffSecurityTransactor{},
+	)
+
+	err := svc.Delete(context.Background(), 1, 7)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"lock-staff",
+		"lock-assignments",
+		"reservations",
+		"shifts",
+		"dependencies",
+		"delete",
+	}, events)
+}
+
+func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDependencies(t *testing.T) {
+	tests := []struct {
+		name         string
+		assignments  []model.StaffClinicAssignment
+		wantNotFound bool
+		wantConflict bool
+	}{
+		{
+			name:         "no active assignments",
+			assignments:  nil,
+			wantNotFound: true,
+		},
+		{
+			name: "only another clinic assignment",
+			assignments: []model.StaffClinicAssignment{
+				{StaffID: 7, ClinicID: 2},
+			},
+			wantNotFound: true,
+		},
+		{
+			name: "multiple active assignments",
+			assignments: []model.StaffClinicAssignment{
+				{StaffID: 7, ClinicID: 1, IsMain: true},
+				{StaffID: 7, ClinicID: 2},
+			},
+			wantConflict: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &coreMockStaffRepository{
+				lockInClinicFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+					return &model.Staff{ID: id}, nil
+				},
+				countBlockingReferencesByStaffIDFn: func(_ context.Context, _, _ uint64) ([]repository.StaffDependencyCount, error) {
+					t.Fatal("dependency state must not be disclosed before assignment validation")
+					return nil, nil
+				},
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					t.Fatal("invalid assignment state must not delete staff")
+					return nil
+				},
+			}
+			assignmentRepo := &coreMockStaffClinicAssignmentRepository{
+				lockActiveFn: func(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+					return tt.assignments, nil
+				},
+			}
+			reservationRepo := &coreMockReservationQueryRepository{
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
+					t.Fatal("dependency state must not be disclosed before assignment validation")
+					return false, nil
+				},
+			}
+			shiftRepo := &coreMockShiftEntryRepository{
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
+					t.Fatal("dependency state must not be disclosed before assignment validation")
+					return false, nil
+				},
+			}
+			svc := newCoreStaffService(
+				repo,
+				&coreMockAccountRepository{},
+				assignmentRepo,
+				reservationRepo,
+				shiftRepo,
+				&coreFakeTransactor{},
+			)
+
+			err := svc.Delete(context.Background(), 1, 7)
+
+			require.Error(t, err)
+			if tt.wantNotFound {
+				assert.True(t, apperrors.IsNotFound(err), "unexpected error: %v", err)
+			}
+			if tt.wantConflict {
+				assert.True(t, apperrors.IsConflict(err), "unexpected error: %v", err)
+			}
 		})
 	}
 }

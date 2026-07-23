@@ -13,6 +13,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+const maxStaffClinicAssignments = 50
+
 func (s *staffService) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByAccountID(ctx, accountID)
 	if err != nil {
@@ -131,36 +133,171 @@ func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, new
 	return nil
 }
 
-// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
-func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error {
-	if len(clinicIDs) == 0 {
-		return apperrors.WrapInvalidInput("clinic_ids must not be empty")
+func validateAndDedupeClinicAssignments(input *SetClinicAssignmentsInput) ([]uint64, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("clinic assignment input is required")
 	}
+	if input.StaffID == 0 {
+		return nil, apperrors.WrapInvalidInput("staff_id is required")
+	}
+	if len(input.ClinicIDs) == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_ids must not be empty")
+	}
+	if len(input.ClinicIDs) > maxStaffClinicAssignments {
+		return nil, apperrors.WrapInvalidInput("clinic_ids must contain at most 50 ids")
+	}
+
+	authorized := make(map[uint64]struct{}, len(input.AuthorizedClinicIDs))
+	for _, clinicID := range input.AuthorizedClinicIDs {
+		authorized[clinicID] = struct{}{}
+	}
+
+	seen := make(map[uint64]struct{}, len(input.ClinicIDs))
+	clinicIDs := make([]uint64, 0, len(input.ClinicIDs))
+	for _, clinicID := range input.ClinicIDs {
+		if clinicID == 0 {
+			return nil, apperrors.WrapInvalidInput("clinic_ids must contain positive ids")
+		}
+		if _, duplicate := seen[clinicID]; duplicate {
+			continue
+		}
+		if !input.IsSystemAdmin {
+			if _, ok := authorized[clinicID]; !ok {
+				return nil, apperrors.WrapForbidden("cannot assign staff outside authorized clinics")
+			}
+		}
+		seen[clinicID] = struct{}{}
+		clinicIDs = append(clinicIDs, clinicID)
+	}
+	return clinicIDs, nil
+}
+
+func authorizeExistingClinicAssignments(
+	input *SetClinicAssignmentsInput,
+	assignments []model.StaffClinicAssignment,
+) error {
+	if input.IsSystemAdmin {
+		return nil
+	}
+	authorized := make(map[uint64]struct{}, len(input.AuthorizedClinicIDs))
+	for _, clinicID := range input.AuthorizedClinicIDs {
+		authorized[clinicID] = struct{}{}
+	}
+	for _, assignment := range assignments {
+		if _, ok := authorized[assignment.ClinicID]; !ok {
+			return apperrors.WrapForbidden("cannot replace staff assignments outside authorized clinics")
+		}
+	}
+	return nil
+}
+
+func removedClinicAssignmentIDs(
+	existingAssignments []model.StaffClinicAssignment,
+	targetClinicIDs []uint64,
+) []uint64 {
+	targets := make(map[uint64]struct{}, len(targetClinicIDs))
+	for _, clinicID := range targetClinicIDs {
+		targets[clinicID] = struct{}{}
+	}
+
+	removed := make([]uint64, 0, len(existingAssignments))
+	for _, assignment := range existingAssignments {
+		if _, retained := targets[assignment.ClinicID]; !retained {
+			removed = append(removed, assignment.ClinicID)
+		}
+	}
+	return removed
+}
+
+// SetClinicAssignments は認可・存在確認後にスタッフのクリニック割当を
+// トランザクション内で差し替える。
+func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error {
+	clinicIDs, err := validateAndDedupeClinicAssignments(input)
+	if err != nil {
+		return err
+	}
+	if s.repo == nil || s.assignmentRepo == nil || s.shiftEntryRepo == nil ||
+		s.clinicRepo == nil || s.tx == nil {
+		return apperrors.WrapInternalServerError("clinic assignment dependencies are not configured")
+	}
+
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := s.assignmentRepo.Delete(ctx, staffID); err != nil {
-			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", staffID)
+		staff, lockStaffErr := s.repo.LockActiveByIDForUpdate(ctx, input.StaffID)
+		if lockStaffErr != nil {
+			return apperrors.Wrap(lockStaffErr, "failed to lock staff for clinic assignment replacement")
+		}
+		if staff == nil || staff.ID != input.StaffID {
+			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+		}
+
+		existingAssignments, lockAssignmentsErr := s.assignmentRepo.LockActiveByStaff(ctx, input.StaffID)
+		if lockAssignmentsErr != nil {
+			return apperrors.Wrap(lockAssignmentsErr, "failed to lock existing clinic assignments")
+		}
+		for _, assignment := range existingAssignments {
+			if assignment.StaffID != input.StaffID || assignment.ClinicID == 0 {
+				return apperrors.WrapInternalServerError("clinic assignment lock returned an invalid record")
+			}
+		}
+		if authorizeErr := authorizeExistingClinicAssignments(input, existingAssignments); authorizeErr != nil {
+			return authorizeErr
+		}
+
+		// Lock every active target clinic before the destructive replacement.
+		for _, clinicID := range clinicIDs {
+			clinic, lockClinicErr := s.clinicRepo.LockActiveByID(ctx, clinicID)
+			if lockClinicErr != nil {
+				return apperrors.Wrap(lockClinicErr, "failed to lock clinic assignment target")
+			}
+			if clinic == nil || clinic.ID != clinicID {
+				return apperrors.WrapInternalServerError("clinic lock returned an invalid record")
+			}
+		}
+
+		for _, clinicID := range removedClinicAssignmentIDs(existingAssignments, clinicIDs) {
+			hasShift, dependencyErr := s.shiftEntryRepo.ExistsByStaffID(ctx, clinicID, input.StaffID)
+			if dependencyErr != nil {
+				slog.ErrorContext(
+					ctx,
+					"failed to check shift dependency before removing clinic assignment",
+					"error", dependencyErr,
+					"staff_id", input.StaffID,
+					"clinic_id", clinicID,
+				)
+				return apperrors.Wrap(
+					dependencyErr,
+					"failed to check shift dependency before removing clinic assignment",
+				)
+			}
+			if hasShift {
+				return apperrors.WrapConflict("シフトデータがあるクリニック所属は解除できません")
+			}
+		}
+
+		if err := s.assignmentRepo.Delete(ctx, input.StaffID); err != nil {
+			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", input.StaffID)
 			return apperrors.Wrap(err, "failed to delete existing clinic assignments")
 		}
 		for i, clinicID := range clinicIDs {
 			assignment := &model.StaffClinicAssignment{
-				StaffID:  staffID,
+				StaffID:  input.StaffID,
 				ClinicID: clinicID,
 				IsMain:   i == 0,
 			}
-			if err := s.assignmentRepo.Create(ctx, assignment); err != nil {
-				slog.ErrorContext(ctx, "failed to create clinic assignment", "error", err, "staff_id", staffID, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to create clinic assignment")
+			if err := s.assignmentRepo.RestoreOrCreate(ctx, assignment); err != nil {
+				slog.ErrorContext(ctx, "failed to restore or create clinic assignment", "error", err, "staff_id", input.StaffID, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to restore or create clinic assignment")
 			}
 		}
-		if err := s.repo.UpdatePrimaryClinicID(ctx, staffID, clinicIDs[0]); err != nil {
-			slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", staffID, "clinic_id", clinicIDs[0])
+		if err := s.repo.UpdatePrimaryClinicID(ctx, input.StaffID, clinicIDs[0]); err != nil {
+			slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", input.StaffID, "clinic_id", clinicIDs[0])
 			return apperrors.Wrap(err, "failed to update staff primary clinic")
 		}
 		return nil
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to set clinic assignments")
 	}
-	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", staffID), slog.Int("count", len(clinicIDs)))
+	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", input.StaffID), slog.Int("count", len(clinicIDs)))
 	return nil
 }
 func (s *staffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {

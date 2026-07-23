@@ -33,7 +33,7 @@ type mockStaffService struct {
 	createFn                      func(ctx context.Context, input *service.CreateStaffInput) (*model.Staff, error)
 	createWithAccountFn           func(ctx context.Context, input *service.CreateStaffWithAccountInput) (*model.Staff, error)
 	updatePasswordFn              func(ctx context.Context, accountID uint64, newPassword string) error
-	setClinicAssignmentsFn        func(ctx context.Context, staffID uint64, clinicIDs []uint64) error
+	setClinicAssignmentsFn        func(ctx context.Context, input *service.SetClinicAssignmentsInput) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, input *service.UpdateStaffInput) (*model.Staff, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -88,9 +88,9 @@ func (m *mockStaffService) UpdatePassword(ctx context.Context, accountID uint64,
 	return nil
 }
 
-func (m *mockStaffService) SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error {
+func (m *mockStaffService) SetClinicAssignments(ctx context.Context, input *service.SetClinicAssignmentsInput) error {
 	if m.setClinicAssignmentsFn != nil {
-		return m.setClinicAssignmentsFn(ctx, staffID, clinicIDs)
+		return m.setClinicAssignmentsFn(ctx, input)
 	}
 	return nil
 }

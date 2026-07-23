@@ -16,7 +16,7 @@ import (
 func newAuthServiceForAuthenticateTest(accountRepo *mockAccountRepository, staffRepo *mockStaffRepository) AuthService {
 	return NewAuthService(
 		NewAccountService(accountRepo),
-		NewStaffService(staffRepo, nil, nil, nil, nil, nil, nil, nil, nil),
+		NewStaffService(staffRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil),
 		nil,
 	)
 }

@@ -255,10 +255,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
 	// staff_clinic_assignment
-	"staffclinicassignment/repository.go|repository.CountByStaffAndClinic": {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.Create":                {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.Delete":                {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.FindByStaffID":         {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.CountByStaffAndClinic":      {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.Create":                     {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.Delete":                     {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.FindByStaffID":              {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.LockActiveByStaff":          {}, // SEC-STAFF: replacement serialization lock.
+	"staffclinicassignment/repository.go|repository.LockActiveByStaffAndClinic": {}, // SEC-STAFF: runtime proof TestStaffClinicAssignmentRepository_LockActiveByStaffAndClinic_HoldsShareLockUntilTransactionEnds.
+	"staffclinicassignment/repository.go|repository.RestoreOrCreate":            {}, // SEC-STAFF: FULL UNIQUE-safe assignment replacement.
 	// staff (uniform dbOrTx)
 	"staff_repository.go|staffRepository.CountBlockingReferencesByStaffID": {},
 	"staff_repository.go|staffRepository.Create":                           {},
@@ -266,6 +269,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff_repository.go|staffRepository.FindAll":                          {},
 	"staff_repository.go|staffRepository.FindByAccountID":                  {},
 	"staff_repository.go|staffRepository.FindByID":                         {},
+	"staff_repository.go|staffRepository.LockActiveByIDForShare":           {},
+	"staff_repository.go|staffRepository.LockActiveByIDForUpdate":          {},
+	"staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
 	"staff_repository.go|staffRepository.Reorder":                          {},
 	"staff_repository.go|staffRepository.Update":                           {},
 	"staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},

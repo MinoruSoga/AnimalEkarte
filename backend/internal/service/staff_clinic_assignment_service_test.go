@@ -34,11 +34,32 @@ func (m *mockStaffClinicAssignmentRepository) CountByStaffAndClinic(ctx context.
 	return 0, nil
 }
 
+func (m *mockStaffClinicAssignmentRepository) LockActiveByStaffAndClinic(
+	_ context.Context,
+	staffID, clinicID uint64,
+) (*model.StaffClinicAssignment, error) {
+	return &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID}, nil
+}
+
+func (m *mockStaffClinicAssignmentRepository) LockActiveByStaff(
+	_ context.Context,
+	_ uint64,
+) ([]model.StaffClinicAssignment, error) {
+	return nil, nil
+}
+
 func (m *mockStaffClinicAssignmentRepository) Create(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, assignment)
 	}
 	return nil
+}
+
+func (m *mockStaffClinicAssignmentRepository) RestoreOrCreate(
+	ctx context.Context,
+	assignment *model.StaffClinicAssignment,
+) error {
+	return m.Create(ctx, assignment)
 }
 
 func (m *mockStaffClinicAssignmentRepository) Delete(ctx context.Context, staffID uint64) error {

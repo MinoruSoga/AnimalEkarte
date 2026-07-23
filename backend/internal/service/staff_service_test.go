@@ -17,6 +17,9 @@ import (
 type mockStaffRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
+	lockForUpdateFn     func(ctx context.Context, id uint64) (*model.Staff, error)
+	lockInClinicFn      func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	lockForShareFn      func(ctx context.Context, id uint64) (*model.Staff, error)
 	findByAccountIDFn   func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn            func(ctx context.Context, staff *model.Staff) error
 	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -32,6 +35,33 @@ func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, page
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	return m.findByIDFn(ctx, id)
+}
+
+func (m *mockStaffRepository) LockActiveByIDForUpdate(ctx context.Context, id uint64) (*model.Staff, error) {
+	if m.lockForUpdateFn != nil {
+		return m.lockForUpdateFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
+}
+
+func (m *mockStaffRepository) LockActiveByIDForUpdateInClinic(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	if m.lockInClinicFn != nil {
+		return m.lockInClinicFn(ctx, clinicID, id)
+	}
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
+}
+
+func (m *mockStaffRepository) LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error) {
+	if m.lockForShareFn != nil {
+		return m.lockForShareFn(ctx, id)
+	}
+	return &model.Staff{ID: id}, nil
 }
 
 func (m *mockStaffRepository) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
@@ -212,6 +242,8 @@ func (m *mockAccountForStaff) Delete(_ context.Context, _ uint64) error { return
 type mockAssignmentForStaff struct {
 	deleteByStaffIDFn func(ctx context.Context, staffID uint64) error
 	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
+	lockActiveFn      func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	restoreOrCreateFn func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
 func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
@@ -219,6 +251,21 @@ func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]m
 }
 func (m *mockAssignmentForStaff) CountByStaffAndClinic(_ context.Context, _, _ uint64) (int64, error) {
 	return 1, nil
+}
+func (m *mockAssignmentForStaff) LockActiveByStaffAndClinic(
+	_ context.Context,
+	staffID, clinicID uint64,
+) (*model.StaffClinicAssignment, error) {
+	return &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID}, nil
+}
+func (m *mockAssignmentForStaff) LockActiveByStaff(
+	ctx context.Context,
+	staffID uint64,
+) ([]model.StaffClinicAssignment, error) {
+	if m.lockActiveFn != nil {
+		return m.lockActiveFn(ctx, staffID)
+	}
+	return nil, nil
 }
 func (m *mockAssignmentForStaff) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
@@ -228,6 +275,12 @@ func (m *mockAssignmentForStaff) Create(ctx context.Context, a *model.StaffClini
 		return m.createFn(ctx, a)
 	}
 	return nil
+}
+func (m *mockAssignmentForStaff) RestoreOrCreate(ctx context.Context, a *model.StaffClinicAssignment) error {
+	if m.restoreOrCreateFn != nil {
+		return m.restoreOrCreateFn(ctx, a)
+	}
+	return m.Create(ctx, a)
 }
 func (m *mockAssignmentForStaff) Delete(ctx context.Context, staffID uint64) error {
 	if m.deleteByStaffIDFn != nil {
@@ -286,7 +339,7 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error
 }
 
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, noopTransactor{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -534,9 +587,13 @@ func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, noopTransactor{})
+	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
 
-	err := svc.SetClinicAssignments(context.Background(), 10, []uint64{2, 4})
+	err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
+		StaffID:             10,
+		ClinicIDs:           []uint64{2, 4},
+		AuthorizedClinicIDs: []uint64{2, 4},
+	})
 
 	assert.NoError(t, err)
 	if assert.Len(t, created, 2) {
@@ -553,9 +610,13 @@ func TestStaffService_SetClinicAssignments_RequiresClinicIDs(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, noopTransactor{})
+	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
-	err := svc.SetClinicAssignments(context.Background(), 10, nil)
+	err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
+		StaffID:             10,
+		ClinicIDs:           nil,
+		AuthorizedClinicIDs: []uint64{1},
+	})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
@@ -819,7 +880,16 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, noopTransactor{})
+			assignmentRepo := &mockAssignmentForStaff{
+				lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+					return []model.StaffClinicAssignment{{
+						StaffID:  staffID,
+						ClinicID: tt.clinicID,
+						IsMain:   true,
+					}}, nil
+				},
+			}
+			svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, reservationRepo, shiftRepo, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
