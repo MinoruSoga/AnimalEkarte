@@ -14,6 +14,7 @@ import (
 
 // CreateTrimmingInput はトリミング予約作成の入力DTO（appointments ベース, BE-119）
 type CreateTrimmingInput struct {
+	ActorID           *uint64 // 認証済み staff actor。request body からは受け取らない。
 	AppointmentID     *uint64
 	ReservationTypeID uint64
 	StartTime         time.Time
@@ -39,6 +40,7 @@ type CreateTrimmingInput struct {
 // UpdateTrimmingInput はトリミング予約部分更新の入力DTO。nil = 未送信フィールド。
 // OptionIDs: nil = 変更なし、non-nil（空スライス含む）= 全置換
 type UpdateTrimmingInput struct {
+	ActorID         *uint64 // 認証済み staff actor。request body からは受け取らない。
 	StartTime       *time.Time
 	EndTime         *time.Time
 	PetID           *uint64
@@ -96,7 +98,7 @@ type TrimmingService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 }
 
 type trimmingService struct {
@@ -108,6 +110,7 @@ type trimmingService struct {
 	trimmingCourseRepo TrimmingCourseRepository
 	trimmingOptionRepo TrimmingOptionRepository
 	transactor         Transactor
+	auditTx            AuditTxLogger
 }
 
 // TrimmingReservationRepository is the appointment-owner capability view used by trimming.
@@ -137,6 +140,32 @@ func NewTrimmingService(
 	trimmingOptionRepo TrimmingOptionRepository,
 	transactor Transactor,
 ) TrimmingService {
+	return NewTrimmingServiceWithAudit(
+		reservationRepo,
+		reservationType,
+		reservationStaff,
+		unavailableTime,
+		trimmingDetail,
+		trimmingCourseRepo,
+		trimmingOptionRepo,
+		transactor,
+		nil,
+	)
+}
+
+// NewTrimmingServiceWithAudit wires the durable, transaction-local clinical audit sink.
+// A nil sink is retained only for composition compatibility and makes every mutation fail closed.
+func NewTrimmingServiceWithAudit(
+	reservationRepo TrimmingReservationRepository,
+	reservationType ReservationTypeRepository,
+	reservationStaff ReservationStaffRepository,
+	unavailableTime ReservationTypeUnavailableTimeRepository,
+	trimmingDetail AppointmentTrimmingDetailRepository,
+	trimmingCourseRepo TrimmingCourseRepository,
+	trimmingOptionRepo TrimmingOptionRepository,
+	transactor Transactor,
+	auditTx AuditTxLogger,
+) TrimmingService {
 	return &trimmingService{
 		reservation:        reservationRepo,
 		reservationType:    reservationType,
@@ -146,6 +175,7 @@ func NewTrimmingService(
 		trimmingCourseRepo: trimmingCourseRepo,
 		trimmingOptionRepo: trimmingOptionRepo,
 		transactor:         transactor,
+		auditTx:            auditTx,
 	}
 }
 
@@ -178,6 +208,15 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 }
 
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("trimming create input is required")
+	}
+	if err := requireTrimmingStaffAuditActor(input.ActorID); err != nil {
+		return nil, err
+	}
+	if err := s.requireAuditTx(); err != nil {
+		return nil, err
+	}
 	status := model.ReservationStatusPending
 	if input.Status != "" {
 		status = input.Status
@@ -289,7 +328,19 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 		apptID = appt.ID
 		result, err = s.GetByID(txCtx, clinicID, appt.ID)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.logTrimmingAuditTx(
+			txCtx,
+			clinicID,
+			input.ActorID,
+			model.AuditActionTrimmingCreate,
+			appt.ID,
+			trimmingAuditMutationCreateAppointment,
+			nil,
+			trimmingAuditValue(result, result.TrimmingDetail),
+		)
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
 		return nil, apperrors.Wrap(err, "failed to set options trimming")
@@ -415,6 +466,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err := reservation.ValidateTrimmingAppointmentMutable(locked.Status); err != nil {
 			return err
 		}
+		oldValue := trimmingAuditValue(locked, nil)
 		if existing, err := s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, appointmentID); err == nil && existing != nil {
 			result, err = s.GetByID(txCtx, clinicID, appointmentID)
 			return err
@@ -508,7 +560,19 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			}
 		}
 		result, err = s.GetByID(txCtx, clinicID, appointmentID)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.logTrimmingAuditTx(
+			txCtx,
+			clinicID,
+			input.ActorID,
+			model.AuditActionTrimmingCreate,
+			appointmentID,
+			trimmingAuditMutationCreateDetail,
+			oldValue,
+			trimmingAuditValue(result, result.TrimmingDetail),
+		)
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create trimming detail for existing appointment", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
@@ -520,6 +584,12 @@ func (s *trimmingService) createDetailForExistingAppointment(
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("trimming update input is required")
+	}
+	if err := requireTrimmingStaffAuditActor(input.ActorID); err != nil {
+		return nil, err
+	}
+	if err := s.requireAuditTx(); err != nil {
+		return nil, err
 	}
 	var optionIDs []uint64
 	if input.OptionIDs != nil {
@@ -615,6 +685,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get trimming detail for update")
 		}
+		oldValue := trimmingAuditValue(locked, detail)
 
 		existingOptionIDs := make([]uint64, len(detail.Options))
 		for i := range detail.Options {
@@ -663,7 +734,19 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			}
 		}
 		result, err = s.GetByID(txCtx, clinicID, id)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.logTrimmingAuditTx(
+			txCtx,
+			clinicID,
+			input.ActorID,
+			model.AuditActionTrimmingUpdate,
+			id,
+			trimmingAuditMutationUpdate,
+			oldValue,
+			trimmingAuditValue(result, result.TrimmingDetail),
+		)
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
 		return nil, apperrors.Wrap(err, "failed to set options trimming")
@@ -676,12 +759,40 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	return result, nil
 }
 
-func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+	if err := requireTrimmingStaffAuditActor(actorID); err != nil {
+		return err
+	}
+	if err := s.requireAuditTx(); err != nil {
+		return err
+	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
 		}
-		return s.reservation.DeleteForTrimming(txCtx, clinicID, id)
+		locked, err := s.reservation.LockTrimmingByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock trimming appointment for delete")
+		}
+		var detail *model.AppointmentTrimmingDetail
+		detail, err = s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
+		if err != nil && !apperrors.IsNotFound(err) {
+			return apperrors.Wrap(err, "failed to get trimming detail for delete")
+		}
+		oldValue := trimmingAuditValue(locked, detail)
+		if err := s.reservation.DeleteForTrimming(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming appointment")
+		}
+		return s.logTrimmingAuditTx(
+			txCtx,
+			clinicID,
+			actorID,
+			model.AuditActionTrimmingDelete,
+			id,
+			trimmingAuditMutationDelete,
+			oldValue,
+			nil,
+		)
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete trimming appointment", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming appointment")

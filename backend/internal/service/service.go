@@ -176,6 +176,7 @@ func NewServices(
 			repos.TrimmingCourse,
 			repos.TrimmingOption,
 			tx,
+			auditTxLogger,
 		),
 		Inventory:                      NewInventoryService(repos.Inventory),
 		Staff:                          staffSvc,

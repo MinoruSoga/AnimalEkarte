@@ -71,6 +71,10 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
 	var req createTrimmingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -83,7 +87,9 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
-	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -98,6 +104,10 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -109,7 +119,9 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
-	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -123,11 +135,15 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

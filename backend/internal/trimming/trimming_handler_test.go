@@ -25,7 +25,7 @@ type mockTrimmingService struct {
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn  func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
 	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
-	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	deleteFn  func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 }
 
 func (m *mockTrimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -56,9 +56,9 @@ func (m *mockTrimmingService) Update(ctx context.Context, clinicID, id uint64, i
 	return &model.Reservation{ID: id}, nil
 }
 
-func (m *mockTrimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockTrimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, id)
+		return m.deleteFn(ctx, clinicID, id, actorID)
 	}
 	return nil
 }
@@ -67,6 +67,11 @@ func (m *mockTrimmingService) Delete(ctx context.Context, clinicID, id uint64) e
 
 func newHandlerWithTrimmingSvc(svc TrimmingService) *Handler {
 	return &Handler{svc: &handlerServices{Trimming: svc}}
+}
+
+func setTrimmingWriteContext(c *gin.Context) {
+	setClinicID(c)
+	c.Set("user_id", "42")
 }
 
 // ---- ListTrimmings ----
@@ -245,11 +250,13 @@ func TestCreateTrimming(t *testing.T) {
 		{
 			name:     "creates trimming successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: setTrimmingWriteContext,
 			svc: &mockTrimmingService{
 				createFn: func(_ context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), input.ReservationTypeID)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(42), *input.ActorID)
 					return &model.Reservation{ID: 1}, nil
 				},
 			},
@@ -263,23 +270,30 @@ func TestCreateTrimming(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:       "returns 401 when staff actor missing",
+			body:       validBody(),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockTrimmingService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 when reservation_type_id missing",
 			body:       map[string]any{"start_time": now.Format(time.RFC3339), "end_time": end.Format(time.RFC3339), "pet_id": 1},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   setTrimmingWriteContext,
 			svc:        &mockTrimmingService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 when pet_id missing",
 			body:       map[string]any{"reservation_type_id": 1, "start_time": now.Format(time.RFC3339), "end_time": end.Format(time.RFC3339)},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   setTrimmingWriteContext,
 			svc:        &mockTrimmingService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: setTrimmingWriteContext,
 			svc: &mockTrimmingService{
 				createFn: func(_ context.Context, _ uint64, _ *CreateTrimmingInput) (*model.Reservation, error) {
 					return nil, fmt.Errorf("db error")
@@ -322,9 +336,11 @@ func TestUpdateTrimming(t *testing.T) {
 			name:     "updates trimming successfully",
 			paramID:  "1",
 			body:     map[string]any{"style_request": "短めにカット"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: setTrimmingWriteContext,
 			svc: &mockTrimmingService{
-				updateFn: func(_ context.Context, _, id uint64, _ *UpdateTrimmingInput) (*model.Reservation, error) {
+				updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(42), *input.ActorID)
 					return &model.Reservation{ID: id}, nil
 				},
 			},
@@ -339,10 +355,18 @@ func TestUpdateTrimming(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:       "returns 401 when staff actor missing",
+			paramID:    "1",
+			body:       map[string]any{"style_request": "test"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockTrimmingService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
 			body:       map[string]any{"style_request": "test"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   setTrimmingWriteContext,
 			svc:        &mockTrimmingService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -350,7 +374,7 @@ func TestUpdateTrimming(t *testing.T) {
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"style_request": "test"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: setTrimmingWriteContext,
 			svc: &mockTrimmingService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingInput) (*model.Reservation, error) {
 					return nil, apperrors.WrapNotFound("trimming", "999")
@@ -382,7 +406,7 @@ func TestUpdateTrimming(t *testing.T) {
 func newDeleteTrimmingRouter(svc TrimmingService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithTrimmingSvc(svc)
-	r.DELETE("/trimmings/:id", func(c *gin.Context) { setClinicID(c) }, h.DeleteTrimming)
+	r.DELETE("/trimmings/:id", setTrimmingWriteContext, h.DeleteTrimming)
 	return r
 }
 
@@ -399,9 +423,11 @@ func TestDeleteTrimming(t *testing.T) {
 			name:    "deletes trimming successfully",
 			paramID: "1",
 			svc: &mockTrimmingService{
-				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+				deleteFn: func(_ context.Context, clinicID, id uint64, actorID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, actorID)
+					assert.Equal(t, uint64(42), *actorID)
 					return nil
 				},
 			},
@@ -417,7 +443,7 @@ func TestDeleteTrimming(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockTrimmingService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
 					return apperrors.WrapNotFound("trimming", "999")
 				},
 			},
@@ -441,6 +467,22 @@ func TestDeleteTrimming(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteTrimming(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 401 when staff actor missing", func(t *testing.T) {
+		h := newHandlerWithTrimmingSvc(&mockTrimmingService{
+			deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+				t.Fatal("service must not be called without an authenticated staff actor")
+				return nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
 		h.DeleteTrimming(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})

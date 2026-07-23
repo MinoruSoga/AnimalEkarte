@@ -23,7 +23,7 @@ func newTrimmingClinicIsolationTestService(
 	reserv *mockTrimmingReservationRepository,
 	detail *mockTrimmingDetailRepository,
 ) TrimmingService {
-	return NewTrimmingService(
+	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		nil,
@@ -32,7 +32,8 @@ func newTrimmingClinicIsolationTestService(
 		nil,
 		nil,
 		trimmingTxMarker{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 }
 
 func assertTrimmingTxContext(ctx context.Context, t *testing.T) {

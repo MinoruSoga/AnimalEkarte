@@ -91,8 +91,8 @@ func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
-			&mockTrimmingDetailRepository{}, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+			&mockTrimmingDetailRepository{}, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects cross-clinic course_id", func(t *testing.T) {
@@ -134,8 +134,8 @@ func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
-			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects cross-clinic option_id", func(t *testing.T) {
@@ -173,8 +173,8 @@ func TestTrimmingService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 		reservationRepo := &mockTrimmingReservationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		}}
-		return NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects cross-clinic course_id", func(t *testing.T) {
@@ -210,8 +210,8 @@ func TestTrimmingService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 		reservationRepo := &mockTrimmingReservationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		}}
-		return NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects cross-clinic option_id", func(t *testing.T) {

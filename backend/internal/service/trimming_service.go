@@ -20,8 +20,13 @@ func NewTrimmingService(
 	trimmingCourseRepo repository.TrimmingCourseRepository,
 	trimmingOptionRepo repository.TrimmingOptionRepository,
 	transactor repository.Transactor,
+	auditTx AuditTxLogger,
 ) TrimmingService {
-	return trimming.NewTrimmingService(
+	var trimmingAudit trimming.AuditTxLogger
+	if auditTx != nil {
+		trimmingAudit = trimmingAuditTxAdapter{inner: auditTx}
+	}
+	return trimming.NewTrimmingServiceWithAudit(
 		reservationRepo,
 		reservationType,
 		reservationStaff,
@@ -30,5 +35,6 @@ func NewTrimmingService(
 		trimmingCourseRepo,
 		trimmingOptionRepo,
 		transactor,
+		trimmingAudit,
 	)
 }

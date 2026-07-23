@@ -255,7 +255,7 @@ func newTrimmingTestServiceWithReservationType(
 	detail *mockTrimmingDetailRepository,
 	reservationType *mockTrimmingReservationTypeRepository,
 ) TrimmingService {
-	return NewTrimmingService(
+	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reserv,
 		reservationType,
 		newAcceptingTrimmingStaffRepository(),
@@ -264,7 +264,8 @@ func newTrimmingTestServiceWithReservationType(
 		newActiveTrimmingCourseRepository(),
 		newActiveTrimmingOptionRepository(),
 		&mockTransactor{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 }
 
 func newTrimmingTestServiceWithAvailability(
@@ -274,7 +275,7 @@ func newTrimmingTestServiceWithAvailability(
 	reservationStaff ReservationStaffRepository,
 	unavailableTime ReservationTypeUnavailableTimeRepository,
 ) TrimmingService {
-	return NewTrimmingService(
+	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reserv,
 		reservationType,
 		reservationStaff,
@@ -283,7 +284,8 @@ func newTrimmingTestServiceWithAvailability(
 		newActiveTrimmingCourseRepository(),
 		newActiveTrimmingOptionRepository(),
 		&mockTransactor{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 }
 
 func newAcceptingTrimmingStaffRepository() ReservationStaffRepository {
@@ -523,7 +525,7 @@ func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testin
 		},
 	}
 	// reservationType repository を明示的に nil で渡し、interface が真に nil であることを検証する。
-	svc := NewTrimmingService(reserv, nil, nil, nil, &mockTrimmingDetailRepository{}, nil, nil, &mockTransactor{})
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, nil, nil, nil, &mockTrimmingDetailRepository{}, nil, nil, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		ReservationTypeID: 1,
@@ -546,7 +548,7 @@ func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *t
 			return nil
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		newAcceptingTrimmingStaffRepository(),
@@ -555,7 +557,8 @@ func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *t
 		newActiveTrimmingCourseRepository(),
 		newActiveTrimmingOptionRepository(),
 		&mockTransactor{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 
 	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		ReservationTypeID: 1,
@@ -907,7 +910,7 @@ func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *t
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
@@ -916,7 +919,8 @@ func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *t
 		nil,
 		nil,
 		tx,
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 
 	appointment, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		ReservationTypeID: 9,
@@ -974,7 +978,7 @@ func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation
 			return fn(context.WithValue(ctx, txContextKey{}, true))
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
@@ -983,7 +987,8 @@ func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation
 		nil,
 		nil,
 		tx,
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 	start := time.Now().UTC().Add(time.Hour)
 
 	appointment, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
@@ -1015,7 +1020,7 @@ func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T)
 			return nil
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		nil, &mockTrimmingUnavailableTimeRepository{},
@@ -1023,7 +1028,8 @@ func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T)
 		nil,
 		nil,
 		&mockTransactor{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 	start := time.Now().UTC().Add(time.Hour)
 
 	got, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
@@ -1065,7 +1071,7 @@ func TestTrimmingService_Update_MissingOptionRepositoryFailsClosed(t *testing.T)
 			return nil
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		nil, nil,
@@ -1073,7 +1079,8 @@ func TestTrimmingService_Update_MissingOptionRepositoryFailsClosed(t *testing.T)
 		nil,
 		nil,
 		&mockTransactor{},
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 
 	got, err := svc.Update(context.Background(), 1, 77, &UpdateTrimmingInput{OptionIDs: &optionIDs})
 
@@ -1861,7 +1868,7 @@ func TestTrimmingService_Delete(t *testing.T) {
 			}
 			svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id, ptrUint64(42))
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1888,7 +1895,7 @@ func TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T)
 	}
 	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-	err := svc.Delete(context.Background(), 1, 10)
+	err := svc.Delete(context.Background(), 1, 10, ptrUint64(42))
 
 	assert.Error(t, err)
 	assert.False(t, apperrors.IsNotFound(err))
@@ -1906,6 +1913,12 @@ func TestTrimmingService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 			assert.Same(t, marker, ctx.Value(txMarkerKey{}))
 			return nil
 		},
+		lockAndFindByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			assert.Equal(t, uint64(3), clinicID)
+			assert.Equal(t, uint64(27), id)
+			assert.Same(t, marker, ctx.Value(txMarkerKey{}))
+			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
+		},
 		deleteFn: func(ctx context.Context, clinicID, id uint64) error {
 			deleteCalled = true
 			assert.Equal(t, uint64(3), clinicID)
@@ -1919,7 +1932,7 @@ func TestTrimmingService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 			return fn(context.WithValue(ctx, txMarkerKey{}, marker))
 		},
 	}
-	svc := NewTrimmingService(
+	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		nil,
@@ -1928,9 +1941,10 @@ func TestTrimmingService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 		nil,
 		nil,
 		transactor,
-	)
+		noopTrimmingAuditTxLogger{},
+	))
 
-	err := svc.Delete(context.Background(), 3, 27)
+	err := svc.Delete(context.Background(), 3, 27, ptrUint64(42))
 
 	assert.NoError(t, err)
 	assert.True(t, lockCalled)

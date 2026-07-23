@@ -44,8 +44,8 @@ func TestTrimmingService_Create_RejectsInactiveCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
-			&mockTrimmingDetailRepository{}, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+			&mockTrimmingDetailRepository{}, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects newly referenced inactive course_id and does not persist", func(t *testing.T) {
@@ -79,8 +79,8 @@ func TestTrimmingService_Create_RejectsInactiveOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
-			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{})
+		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
 	t.Run("rejects newly referenced inactive option_id and does not persist", func(t *testing.T) {
@@ -118,8 +118,8 @@ func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{})
+		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		course := inactiveCourseID
 		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &course})
@@ -140,8 +140,8 @@ func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{})
+		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		// クライアントが既存カルテと同じ無効化済み course_id を再送（維持）するケース。
 		sameCourse := inactiveCourseID
@@ -172,8 +172,8 @@ func TestTrimmingService_Update_InactiveOptionFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{})
+		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		newOptions := []uint64{inactiveOptionID}
 		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &newOptions})
@@ -196,8 +196,8 @@ func TestTrimmingService_Update_InactiveOptionFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewTrimmingService(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
-			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{})
+		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		// クライアントが既存カルテと同じ無効化済み option_id 集合を再送（維持）するケース。
 		sameOptions := []uint64{inactiveOptionID}

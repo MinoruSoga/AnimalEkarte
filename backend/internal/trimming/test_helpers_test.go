@@ -53,6 +53,57 @@ type testTransactor struct {
 	db *gorm.DB
 }
 
+type noopTrimmingAuditTxLogger struct{}
+
+func (noopTrimmingAuditTxLogger) LogEntryTx(context.Context, *AuditEntry) error {
+	return nil
+}
+
+type trimmingServiceWithTestActor struct {
+	TrimmingService
+}
+
+func withTrimmingTestActor(svc TrimmingService) TrimmingService {
+	return &trimmingServiceWithTestActor{TrimmingService: svc}
+}
+
+func (s *trimmingServiceWithTestActor) Create(
+	ctx context.Context,
+	clinicID uint64,
+	input *CreateTrimmingInput,
+) (*model.Reservation, error) {
+	if input == nil || input.ActorID != nil {
+		return s.TrimmingService.Create(ctx, clinicID, input)
+	}
+	cloned := *input
+	cloned.ActorID = ptrUint64(42)
+	return s.TrimmingService.Create(ctx, clinicID, &cloned)
+}
+
+func (s *trimmingServiceWithTestActor) Update(
+	ctx context.Context,
+	clinicID, id uint64,
+	input *UpdateTrimmingInput,
+) (*model.Reservation, error) {
+	if input == nil || input.ActorID != nil {
+		return s.TrimmingService.Update(ctx, clinicID, id, input)
+	}
+	cloned := *input
+	cloned.ActorID = ptrUint64(42)
+	return s.TrimmingService.Update(ctx, clinicID, id, &cloned)
+}
+
+func (s *trimmingServiceWithTestActor) Delete(
+	ctx context.Context,
+	clinicID, id uint64,
+	actorID *uint64,
+) error {
+	if actorID == nil {
+		actorID = ptrUint64(42)
+	}
+	return s.TrimmingService.Delete(ctx, clinicID, id, actorID)
+}
+
 func newTestTransactor(db *gorm.DB) Transactor {
 	return &testTransactor{db: db}
 }

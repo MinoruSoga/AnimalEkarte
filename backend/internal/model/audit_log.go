@@ -57,6 +57,11 @@ const (
 	AuditActionManualArticleUpsert = "manual_article.upsert"
 	AuditActionManualArticleDelete = "manual_article.delete"
 
+	// トリミング予約の臨床変更監査（BUG-422）
+	AuditActionTrimmingCreate = "trimming.create"
+	AuditActionTrimmingUpdate = "trimming.update"
+	AuditActionTrimmingDelete = "trimming.delete"
+
 	// 会計・返金 監査アクション（#122）
 	AuditActionBillingCancel        = "billing.cancel"
 	AuditActionBillingPostCloseEdit = "billing.post_close_edit"
@@ -100,6 +105,7 @@ const (
 	AuditResourceExamResult      = "exam_result"
 	AuditResourceReservation     = "reservation"
 	AuditResourceHospitalization = "hospitalization"
+	AuditResourceTrimming        = "trimming"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
