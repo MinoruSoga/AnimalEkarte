@@ -11,13 +11,14 @@ import (
 
 // センチネルエラー
 var (
-	ErrNotFound       = errors.New("resource not found")
-	ErrAlreadyExists  = errors.New("resource already exists")
-	ErrConflict       = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
-	ErrInvalidInput   = errors.New("invalid input")
-	ErrUnauthorized   = errors.New("unauthorized")
-	ErrForbidden      = errors.New("forbidden")
-	ErrNotImplemented = errors.New("not implemented")
+	ErrNotFound        = errors.New("resource not found")
+	ErrAlreadyExists   = errors.New("resource already exists")
+	ErrConflict        = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
+	ErrInvalidInput    = errors.New("invalid input")
+	ErrPayloadTooLarge = errors.New("payload too large")
+	ErrUnauthorized    = errors.New("unauthorized")
+	ErrForbidden       = errors.New("forbidden")
+	ErrNotImplemented  = errors.New("not implemented")
 )
 
 // AppError はアプリケーション固有のエラー
@@ -69,6 +70,18 @@ func IsNotFound(err error) bool {
 
 func IsInvalidInput(err error) bool {
 	return errors.Is(err, ErrInvalidInput)
+}
+
+func WrapPayloadTooLarge(message string) error {
+	return &AppError{
+		Code:    "PAYLOAD_TOO_LARGE",
+		Message: message,
+		Err:     ErrPayloadTooLarge,
+	}
+}
+
+func IsPayloadTooLarge(err error) bool {
+	return errors.Is(err, ErrPayloadTooLarge)
 }
 
 // WrapAlreadyExists は重複リソースエラーを生成する

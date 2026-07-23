@@ -56,6 +56,9 @@ func ResolveErrorResponse(err error) (status int, message, code string) {
 	case errors.Is(err, apperrors.ErrInvalidInput):
 		status = http.StatusBadRequest
 		message, code = appMessageAndCode(hasApp, appErr, "invalid input")
+	case errors.Is(err, apperrors.ErrPayloadTooLarge):
+		status = http.StatusRequestEntityTooLarge
+		message, code = appMessageAndCode(hasApp, appErr, "payload too large")
 	case errors.Is(err, apperrors.ErrConflict):
 		status = http.StatusConflict
 		message, code = appMessageAndCode(hasApp, appErr, "resource conflict")

@@ -1,6 +1,7 @@
 package lstep
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+const maxLineWebhookRequestBytes int64 = 2 * 1024 * 1024
 
 // OwnerResponder は紐付け成功時の飼主レスポンスを書き出す注入 closure。
 // owner の公開 DTO は internal/handler が単一正本として保持しており、owner domain 移行
@@ -47,14 +50,24 @@ func toLinkTokenResponse(r *LinkTokenResult) linkTokenResponse {
 // ReceiveLineWebhook は LINE Webhook を受信する。
 // POST /api/line/webhook
 func (h *LineLinkHandler) ReceiveLineWebhook(c *gin.Context) {
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("failed to read request body"))
-		return
-	}
 	signature := c.GetHeader("X-Line-Signature")
 	if signature == "" {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("missing X-Line-Signature header"))
+		return
+	}
+	if c.Request.ContentLength > maxLineWebhookRequestBytes {
+		httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("LINE webhook request exceeds size limit"))
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxLineWebhookRequestBytes)
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("LINE webhook request exceeds size limit"))
+			return
+		}
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("failed to read request body"))
 		return
 	}
 	if err := h.svc.HandleWebhook(c.Request.Context(), body, signature); err != nil {

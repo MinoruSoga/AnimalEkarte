@@ -13,7 +13,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-const medicalRecordImageMaxUploadSize = 10 * 1024 * 1024 // 10MB
+const (
+	medicalRecordImageMaxUploadSize  = 10 * 1024 * 1024 // 10MB
+	medicalRecordImageMaxRequestSize = medicalRecordImageMaxUploadSize + 1024*1024
+)
 
 // GIF を許可するのは意図的: カルテ画像は院内保存専用で LINE 配信を経由しないため、
 // 歩様など動きの記録に有用な GIF を受け付ける。LINE 配信経路の共有ファイル

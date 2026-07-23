@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -138,8 +139,18 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
+	if c.Request.ContentLength > medicalRecordImageMaxRequestSize {
+		httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("medical record image upload request exceeds size limit"))
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, medicalRecordImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("medical record image upload request exceeds size limit"))
+			return
+		}
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("file field is required"))
 		return
 	}
