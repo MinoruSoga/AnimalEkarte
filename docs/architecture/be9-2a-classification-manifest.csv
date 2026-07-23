@@ -621,7 +621,7 @@ internal/service/liff_service_availability_business.go,target:reservation,"RE-CL
 internal/service/liff_service_availability_delegate.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_availability_filters.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_availability_slots.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
-internal/service/liff_service_availability_staff.go,target:staff,prefix token='staff'
+internal/service/liff_service_availability_staff.go,target:reservation,RE-CLASSIFIED 2026-07-23 Wave 2a: BE9-2C R5(de5f0d348)でinternal/reservationへ縦移動済みの実態へ是正(旧reason: prefix token='staff')
 internal/service/liff_service_availability_time.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_catalog.go,target:reservation,"RE-CLASSIFIED, see liff_service.go (trimming/reservation catalog for LIFF)"
 internal/service/liff_service_health_card.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
