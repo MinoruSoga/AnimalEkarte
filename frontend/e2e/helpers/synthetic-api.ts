@@ -1,5 +1,27 @@
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+interface ExternalAssetStub {
+  origin: string;
+  pathname: string;
+  contentType: string;
+  body: string;
+}
+
+/**
+ * Cross-origin assets the app is allowed to load (frontend/index.html loads
+ * Google Fonts CSS intentionally). Allowlisted assets are always answered from
+ * these local stubs — in every mode — so E2E runs stay deterministic and never
+ * perform real external communication for them.
+ */
+const EXTERNAL_ASSET_STUBS: readonly ExternalAssetStub[] = [
+  {
+    origin: "https://fonts.googleapis.com",
+    pathname: "/css2",
+    contentType: "text/css; charset=utf-8",
+    body: "/* synthetic-api local stub: Google Fonts CSS is never fetched externally in E2E */",
+  },
+];
+
 export type SyntheticHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface SyntheticInterceptorRequest {
@@ -9,11 +31,15 @@ export interface SyntheticInterceptorRequest {
   postData(): string | null;
 }
 
+export type SyntheticFulfillOptions =
+  | { json: unknown }
+  | { body: string; contentType: string };
+
 export interface SyntheticInterceptorRoute {
   request(): SyntheticInterceptorRequest;
   continue(): Promise<void>;
   abort(errorCode?: "blockedbyclient"): Promise<void>;
-  fulfill(options: { json: unknown }): Promise<void>;
+  fulfill(options: SyntheticFulfillOptions): Promise<void>;
 }
 
 export interface SyntheticInterceptorPage {
@@ -59,7 +85,7 @@ export interface SyntheticApiInterceptor {
   dispose(): Promise<void>;
 }
 
-function requestKey(request: SyntheticInterceptorRequest): string {
+function requestKey(request: SyntheticInterceptorRequest, withOrigin = false): string {
   const url = new URL(request.url());
   const redactedPathname = url.pathname
     .split("/")
@@ -70,7 +96,13 @@ function requestKey(request: SyntheticInterceptorRequest): string {
         : segment,
     )
     .join("/");
-  return `${request.method()}:${redactedPathname}`;
+  return `${request.method()}:${withOrigin ? url.origin : ""}${redactedPathname}`;
+}
+
+function findExternalAssetStub(url: URL): ExternalAssetStub | undefined {
+  return EXTERNAL_ASSET_STUBS.find(
+    (stub) => stub.origin === url.origin && stub.pathname === url.pathname,
+  );
 }
 
 function matchesPath(expected: string | RegExp, actual: string): boolean {
@@ -138,16 +170,54 @@ export async function installSyntheticApiInterceptor(
     ledger = { ...ledger, [field]: [...ledger[field], value] };
   };
 
-  const handler = async (route: SyntheticInterceptorRoute): Promise<void> => {
-    const request = route.request();
-    const requestUrl = new URL(request.url());
-    const isApiRequest = requestUrl.pathname.startsWith("/api/");
-    const key = requestKey(request);
+  const isUnexpectedOrigin = (requestUrl: URL): boolean =>
+    options.expectedOrigin !== undefined &&
+    requestUrl.origin !== options.expectedOrigin;
 
-    if (
-      options.expectedOrigin !== undefined &&
-      requestUrl.origin !== options.expectedOrigin
-    ) {
+  // Non-API surface: assets never consult synthetic endpoints, clinic/CSRF
+  // headers, or the business non-GET allowlist — those stay API-only.
+  const handleAssetRequest = async (
+    route: SyntheticInterceptorRoute,
+    request: SyntheticInterceptorRequest,
+    requestUrl: URL,
+  ): Promise<void> => {
+    const stub = findExternalAssetStub(requestUrl);
+    if (stub && READ_METHODS.has(request.method())) {
+      const key = requestKey(request, true);
+      record("attempted", key);
+      await route.fulfill({ body: stub.body, contentType: stub.contentType });
+      record("locallyFulfilled", key);
+      return;
+    }
+
+    if (!READ_METHODS.has(request.method())) {
+      const key = requestKey(request, isUnexpectedOrigin(requestUrl));
+      record("attempted", key);
+      record("blocked", key);
+      await route.abort("blockedbyclient");
+      return;
+    }
+
+    if (isUnexpectedOrigin(requestUrl)) {
+      const key = requestKey(request, true);
+      record("attempted", key);
+      record("blocked", key);
+      record("validationFailures", `${key}:unexpected cross-origin asset`);
+      await route.abort("blockedbyclient");
+      return;
+    }
+
+    // Same-origin app asset (or normal mode): outside the API audit ledger.
+    await route.continue();
+  };
+
+  const handleApiRequest = async (
+    route: SyntheticInterceptorRoute,
+    request: SyntheticInterceptorRequest,
+    requestUrl: URL,
+  ): Promise<void> => {
+    if (isUnexpectedOrigin(requestUrl)) {
+      const key = requestKey(request, true);
       record("attempted", key);
       record("blocked", key);
       record("validationFailures", `${key}:unexpected API origin`);
@@ -155,10 +225,7 @@ export async function installSyntheticApiInterceptor(
       return;
     }
 
-    if (!isApiRequest && READ_METHODS.has(request.method())) {
-      await route.continue();
-      return;
-    }
+    const key = requestKey(request);
     record("attempted", key);
 
     let endpoint: SyntheticEndpoint | undefined;
@@ -211,6 +278,16 @@ export async function installSyntheticApiInterceptor(
 
     record("blocked", key);
     await route.abort("blockedbyclient");
+  };
+
+  const handler = async (route: SyntheticInterceptorRoute): Promise<void> => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    if (requestUrl.pathname.startsWith("/api/")) {
+      await handleApiRequest(route, request, requestUrl);
+      return;
+    }
+    await handleAssetRequest(route, request, requestUrl);
   };
 
   await page.route("**/*", handler);

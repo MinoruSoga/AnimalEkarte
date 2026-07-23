@@ -43,7 +43,7 @@ const ENDPOINTS = [
 type RouteAction =
   | { type: "abort"; errorCode: string | undefined }
   | { type: "continue" }
-  | { type: "fulfill" };
+  | { type: "fulfill"; contentType: string | undefined };
 
 interface RequestInput {
   url: string;
@@ -91,8 +91,14 @@ function createInterceptorHarness(): InterceptorHarness {
         abort: async (errorCode?: string) => {
           actions = [...actions, { type: "abort", errorCode }];
         },
-        fulfill: async () => {
-          actions = [...actions, { type: "fulfill" }];
+        fulfill: async (options) => {
+          actions = [
+            ...actions,
+            {
+              type: "fulfill",
+              contentType: "contentType" in options ? options.contentType : undefined,
+            },
+          ];
         },
       };
 
@@ -126,7 +132,57 @@ test("pure fully synthetic mode blocks an unregistered same-origin API GET", asy
   });
 });
 
-test("pure fully synthetic mode blocks a cross-origin non-API GET", async () => {
+test("pure fully synthetic mode blocks a cross-origin API GET and records its origin", async () => {
+  const harness = createInterceptorHarness();
+  const interceptor = await installSyntheticApiInterceptor(
+    harness.page,
+    [],
+    { expectedOrigin: "http://frontend.test" },
+  );
+
+  const actions = await harness.dispatch({
+    url: "https://api.evil.test/api/v1/owners",
+  });
+
+  expect(actions).toEqual([
+    { type: "abort", errorCode: "blockedbyclient" },
+  ]);
+  expect(interceptor.ledger).toEqual({
+    attempted: ["GET:https://api.evil.test/api/v1/owners"],
+    locallyFulfilled: [],
+    blocked: ["GET:https://api.evil.test/api/v1/owners"],
+    continuedToBackend: [],
+    validationFailures: [
+      "GET:https://api.evil.test/api/v1/owners:unexpected API origin",
+    ],
+  });
+});
+
+test("pure fully synthetic mode fulfills an allowlisted external asset from the local stub", async () => {
+  const harness = createInterceptorHarness();
+  const interceptor = await installSyntheticApiInterceptor(
+    harness.page,
+    [],
+    { expectedOrigin: "http://frontend.test" },
+  );
+
+  const actions = await harness.dispatch({
+    url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap",
+  });
+
+  expect(actions).toEqual([
+    { type: "fulfill", contentType: "text/css; charset=utf-8" },
+  ]);
+  expect(interceptor.ledger).toEqual({
+    attempted: ["GET:https://fonts.googleapis.com/css2"],
+    locallyFulfilled: ["GET:https://fonts.googleapis.com/css2"],
+    blocked: [],
+    continuedToBackend: [],
+    validationFailures: [],
+  });
+});
+
+test("pure fully synthetic mode blocks an unknown cross-origin asset GET", async () => {
   const harness = createInterceptorHarness();
   const interceptor = await installSyntheticApiInterceptor(
     harness.page,
@@ -142,13 +198,76 @@ test("pure fully synthetic mode blocks a cross-origin non-API GET", async () => 
     { type: "abort", errorCode: "blockedbyclient" },
   ]);
   expect(interceptor.ledger).toEqual({
-    attempted: ["GET:/assets/application.js"],
+    attempted: ["GET:https://cdn.example.test/assets/application.js"],
     locallyFulfilled: [],
-    blocked: ["GET:/assets/application.js"],
+    blocked: ["GET:https://cdn.example.test/assets/application.js"],
     continuedToBackend: [],
     validationFailures: [
-      "GET:/assets/application.js:unexpected API origin",
+      "GET:https://cdn.example.test/assets/application.js:unexpected cross-origin asset",
     ],
+  });
+});
+
+test("pure fully synthetic mode continues a same-origin non-API asset GET outside the ledger", async () => {
+  const harness = createInterceptorHarness();
+  const interceptor = await installSyntheticApiInterceptor(
+    harness.page,
+    [],
+    { expectedOrigin: "http://frontend.test" },
+  );
+
+  const actions = await harness.dispatch({
+    url: "http://frontend.test/src/main.tsx",
+  });
+
+  expect(actions).toEqual([{ type: "continue" }]);
+  expect(interceptor.ledger).toEqual({
+    attempted: [],
+    locallyFulfilled: [],
+    blocked: [],
+    continuedToBackend: [],
+    validationFailures: [],
+  });
+});
+
+test("pure normal mode fulfills an allowlisted external asset from the local stub", async () => {
+  const harness = createInterceptorHarness();
+  const interceptor = await installSyntheticApiInterceptor(harness.page, []);
+
+  const actions = await harness.dispatch({
+    url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
+  });
+
+  expect(actions).toEqual([
+    { type: "fulfill", contentType: "text/css; charset=utf-8" },
+  ]);
+  expect(interceptor.ledger).toEqual({
+    attempted: ["GET:https://fonts.googleapis.com/css2"],
+    locallyFulfilled: ["GET:https://fonts.googleapis.com/css2"],
+    blocked: [],
+    continuedToBackend: [],
+    validationFailures: [],
+  });
+});
+
+test("pure normal mode blocks a non-API business write instead of continuing", async () => {
+  const harness = createInterceptorHarness();
+  const interceptor = await installSyntheticApiInterceptor(harness.page, []);
+
+  const actions = await harness.dispatch({
+    url: "http://frontend.test/logout",
+    method: "POST",
+  });
+
+  expect(actions).toEqual([
+    { type: "abort", errorCode: "blockedbyclient" },
+  ]);
+  expect(interceptor.ledger).toEqual({
+    attempted: ["POST:/logout"],
+    locallyFulfilled: [],
+    blocked: ["POST:/logout"],
+    continuedToBackend: [],
+    validationFailures: [],
   });
 });
 
@@ -293,12 +412,12 @@ test("fully synthetic mode rejects cross-origin and wrong-clinic requests", asyn
     ]);
     expect(interceptor.ledger.blocked).toEqual([
       "GET:/api/v1/synthetic-read",
-      "GET:/api/v1/synthetic-read",
+      "GET:https://example.invalid/api/v1/synthetic-read",
     ]);
     expect(interceptor.ledger.continuedToBackend).toEqual([]);
     expect(interceptor.ledger.validationFailures).toEqual([
       "GET:/api/v1/synthetic-read:synthetic clinic header mismatch",
-      "GET:/api/v1/synthetic-read:unexpected API origin",
+      "GET:https://example.invalid/api/v1/synthetic-read:unexpected API origin",
     ]);
   } finally {
     await interceptor.dispose();
