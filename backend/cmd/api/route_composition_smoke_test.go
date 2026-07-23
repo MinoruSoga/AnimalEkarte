@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
+	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
@@ -36,6 +37,7 @@ func TestRouteCompositionSmoke_NoPanic(t *testing.T) {
 		protected := legacyHandler.RegisterRoutes(ctx, r)
 
 		manualarticle.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
+		inventory.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
 		newMedicalRecordRouteSmokeHandler().RegisterRoutes(protected)
 
 		lstepHandler := newLstepRouteSmokeHandler()

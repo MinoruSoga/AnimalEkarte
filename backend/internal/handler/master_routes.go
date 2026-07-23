@@ -115,11 +115,4 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Inquiry Templates: moved to internal/medicalrecord.Handler.RegisterRoutes (BE9-2D —
 	// composed in cmd/api/main.go). See internal/medicalrecord/routes.go.
 
-	// Merchandise Items
-	masters.GET("/merchandise-items", perm(model.ResourceMasterMerchandise, "view"), h.ListMerchandiseItems)
-	masters.POST("/merchandise-items", perm(model.ResourceMasterMerchandise, "create"), h.CreateMerchandiseItem)
-	masters.PATCH("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
-	masters.GET("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "view"), h.GetMerchandiseItem)
-	masters.PATCH("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "edit"), h.UpdateMerchandiseItem)
-	masters.DELETE("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "delete"), h.DeleteMerchandiseItem)
 }

@@ -456,6 +456,7 @@ var migratedDomainRoutePackages = []struct {
 	rootFn string
 }{
 	{dir: "../manualarticle", prefix: "/api/v1"},
+	{dir: "../inventory", prefix: "/api/v1"},
 	{dir: "../medicalrecord", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "/api/v1"},
 	{dir: "../billing", prefix: "/api/v1"},

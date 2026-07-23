@@ -16,6 +16,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/infra"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
+	inventorydomain "github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
@@ -148,6 +149,10 @@ func main() {
 
 	// リポジトリ初期化
 	repos := repository.NewRepositories(db)
+	inventoryRepo := inventorydomain.New(db)
+	merchandiseItemRepo := inventorydomain.NewMerchandiseItemRepository(db)
+	inventorySvc := inventorydomain.NewInventoryService(inventoryRepo)
+	merchandiseItemSvc := inventorydomain.NewMerchandiseItemService(merchandiseItemRepo)
 
 	// 連携設定の暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）。
 	// lstep 連携（clinic_integrations）と LINE 予約設定（line_reservation_settings）で共有する（H-4）。
@@ -310,6 +315,14 @@ func main() {
 	)
 	manualArticleHandler.RegisterRoutes(protected)
 
+	// BE9-2E inventory: compose the domain-owned repository, services, and routes
+	// directly. The legacy aggregators retain only compatibility facades until BE9-2F.
+	inventorydomain.NewHandler(
+		inventorySvc,
+		merchandiseItemSvc,
+		h.RequirePermission,
+	).RegisterRoutes(protected)
+
 	// BE9-2C/2D (medicalrecord slice): same aggregator-non-経由 pattern as the BE9-2B
 	// manualarticle pilot above. The master-CRUD entities (diagnosis/exam/chief-complaint,
 	// BE9-2C) plus checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
@@ -384,7 +397,7 @@ func main() {
 	// masters slice (BE9-2D ⑥): consultation/procedure/medicine(+dose)/cage/treatment_plan。
 	consultationSvc := medicalrecord.NewConsultationService(repos.Consultation)
 	procedureSvc := medicalrecord.NewProcedureService(repos.Procedure)
-	medicineSvc := medicalrecord.NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
+	medicineSvc := medicalrecord.NewMedicineServiceWithAudit(repos.Medicine, inventoryRepo, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 	medicineDoseParamSvc := medicalrecord.NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 	cageSvc := medicalrecord.NewCageService(repos.Cage)
 	treatmentPlanSvc := medicalrecord.NewTreatmentPlanService(repos.TreatmentPlan)
@@ -437,7 +450,7 @@ func main() {
 	carePlanItemSvc := medicalrecord.NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan)
 	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
 		repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation,
-		repos.Inventory, repos.Vital, repos.MedicineDoseParam, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
+		inventoryRepo, repos.Vital, repos.MedicineDoseParam, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 
 	medicalRecordHandler := medicalrecord.NewHandler(
 		medicalrecord.NewDiagnosisHandler(

@@ -127,7 +127,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// examinations 系 route: BE9-2D ⑦ で internal/medicalrecord の RegisterRoutes へ移動。
 	// BE9-2D: /vaccinations moved to internal/medicalrecord.Handler.RegisterRoutes
 	// (composed directly in cmd/api/main.go, ADR-006 aggregator 非経由).
-	h.registerInventoryRoutesWithAuth(protected)
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
@@ -234,16 +233,6 @@ func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
 	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
 	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
-}
-
-// registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
-	inventory := rg.Group("/inventory")
-	inventory.GET("", h.RequirePermission(string(model.ResourceInventory), "view"), h.ListInventory)
-	inventory.GET("/:id", h.RequirePermission(string(model.ResourceInventory), "view"), h.GetInventory)
-	inventory.POST("", h.RequirePermission(string(model.ResourceInventory), "create"), h.CreateInventory)
-	inventory.PATCH("/:id", h.RequirePermission(string(model.ResourceInventory), "edit"), h.UpdateInventory)
-	inventory.DELETE("/:id", h.RequirePermission(string(model.ResourceInventory), "delete"), h.DeleteInventory)
 }
 
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

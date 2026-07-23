@@ -591,7 +591,7 @@ func baseName(p string) string {
 // CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
 // type names carried over verbatim) — only the evidence comments below now point at the new
 // file locations. "lstep/" was added when tag/checkup-sync write roles moved in L③.
-var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/", "lstep/", "trimming/"}
+var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/", "lstep/", "trimming/", "inventory/"}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
 // "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this
