@@ -505,7 +505,7 @@ Session Aをcanonical local `main`の唯一writer兼integration owner、Session 
 
 **旧3layer残量**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
 
-**現在の実行状態 = HOLD — clean `main`待ち**: 2026-07-23の本更新開始時点でlocal `main`にはtracked unstaged 15件、staged 0件、untracked 0件があり、Session A用`B0`の開始条件を満たさない。これは各sessionの変更量超過を意味せず、別taskのWIPが同じcanonical worktreeへ残っていることを示す。本書更新もその既存WIPを保持したまま行っている。
+**現在の実行状態 = WIP settlement完了 — clean main確定準備**: protected WIP 15件のsettlement landingは完了し、local `main`はclean／quiescentへの切替準備状態になった。Session A Wave 2aは本実行では未着手で、次着手では既に固定した`B0`をfreshに再確認してから開始する。
 
 **次の実行**: 各ownerがcanonicalに残るprotected WIPを正規commitとしてlandingするか別worktreeへ隔離し、local `main`をcleanかつquiescentにする。Session Aがそのcommit/treeを`B0`として固定し、origin relationとauthority modeを記録する。Session Aは`main`上で6 domain全体のfrontierを統合し、Session Bは`B0`から作る唯一の専用worktreeで分担domainとpair conflict matrixをcountercheckする。競合0のlargest-ready #1/#2を確定後、Aは#1をmain、Bは#2を専用worktreeで同時実装する。Aの#1 landing後にBをnew main tipへ再構成し、Aだけが#2と必須central gate同期をmainへ反映する。その後、BE9-2E残domain → BE9-2F（consumer 0の期限付きfacade撤去・`repos.Transaction`機構削除）→ BE9-3（Gin境界監査）→ BE9-4（最終検証）へ進む。
 
