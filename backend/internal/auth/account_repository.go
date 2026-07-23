@@ -1,8 +1,4 @@
-// Package account is a thin domain split of the flat repository package.
-// It owns accounts (login account) data access. accounts テーブルは clinic_id を
-// 持たないグローバルなログインアカウントのため、clinicScope は使用しない
-// （P4 例外対象、repository/CLAUDE.md 参照）。
-package account
+package auth
 
 import (
 	"context"
@@ -16,26 +12,26 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
-// Repository はアカウント管理のインターフェース
-type Repository interface {
+// AccountRepository provides global login-account persistence.
+// Accounts intentionally have no clinic_id; clinic access is authorized through staff assignments.
+type AccountRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.Account, error)
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
 	Create(ctx context.Context, account *model.Account) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 }
 
-// repository は Repository の実装
-type repository struct {
+type accountRepository struct {
 	db *gorm.DB
 }
 
-// New は Repository を初期化して返す
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+// NewAccountRepository constructs global login-account persistence.
+func NewAccountRepository(db *gorm.DB) AccountRepository {
+	return &accountRepository{db: db}
 }
 
 // FindByID はIDでアカウントを取得する
-func (r *repository) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
+func (r *accountRepository) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
 	var account model.Account
 	if err := repohelpers.DBOrTx(ctx, r.db).First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -47,7 +43,7 @@ func (r *repository) FindByID(ctx context.Context, id uint64) (*model.Account, e
 }
 
 // FindByEmail はメールアドレスでアカウントを検索する
-func (r *repository) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
+func (r *accountRepository) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
 	var account model.Account
 	if err := repohelpers.DBOrTx(ctx, r.db).First(&account, "email = ? AND deleted_at IS NULL", email).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -59,7 +55,7 @@ func (r *repository) FindByEmail(ctx context.Context, email string) (*model.Acco
 }
 
 // Create はアカウントを新規作成する
-func (r *repository) Create(ctx context.Context, account *model.Account) error {
+func (r *accountRepository) Create(ctx context.Context, account *model.Account) error {
 	if err := repohelpers.DBOrTx(ctx, r.db).Create(account).Error; err != nil {
 		return apperrors.FromGORM(err, "account", "create")
 	}
@@ -67,7 +63,7 @@ func (r *repository) Create(ctx context.Context, account *model.Account) error {
 }
 
 // Update はアカウントの指定フィールドのみを更新する（Save() による全フィールド上書き防止）。
-func (r *repository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *accountRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
 	result := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.Account{}).
 		Where("id = ?", id).

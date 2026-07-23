@@ -7,10 +7,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
-	ids, err := s.permissionGroupRepo.FindAllGroupIDsByStaffID(ctx, staffID)
+func (s *staffService) GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+	ids, err := s.permissionGroupRepo.FindAllGroupIDsByStaffID(ctx, clinicID, staffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get permission group ids", "error", err, "id", staffID)
+		slog.ErrorContext(ctx, "failed to get permission group ids",
+			"error", err, "clinic_id", clinicID, "staff_id", staffID)
 		return nil, apperrors.Wrap(err, "failed to get permission group ids")
 	}
 	return ids, nil

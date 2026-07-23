@@ -268,7 +268,7 @@ type ClinicService interface {
 // cross-domain writes needed to create and delete a clinic.
 type clinicPermissionGroupWriter interface {
 	Create(ctx context.Context, group *model.PermissionGroup) error
-	UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
+	UpdateRules(ctx context.Context, clinicID, groupID uint64, rules []model.PermissionGroupRule) error
 	DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error
 }
 
@@ -366,7 +366,7 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 			// 全スタッフが全リソースへアクセス不能になる（hasPermission の deny-by-default
 			// fallback）。作成直後に defaultPermissionRuleTable 由来のルールを流し込む。
 			rules := buildDefaultPermissionGroupRules(groupDef.isExecutive)
-			if err := s.permissionGroupRepo.UpdateRules(ctx, group.ID, rules); err != nil {
+			if err := s.permissionGroupRepo.UpdateRules(ctx, clinic.ID, group.ID, rules); err != nil {
 				return apperrors.Wrap(err, "failed to create default permission group rules")
 			}
 			slog.InfoContext(ctx, "default permission group created",

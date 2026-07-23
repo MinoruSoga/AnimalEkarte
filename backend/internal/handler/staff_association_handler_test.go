@@ -84,7 +84,8 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 
 	t.Run("200 returns group_ids", func(t *testing.T) {
 		svc := &mockStaffService{
-			getPermissionGroupIDsFn: func(_ context.Context, staffID uint64) ([]uint64, error) {
+			getPermissionGroupIDsFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
+				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), staffID)
 				return []uint64{2, 5}, nil
 			},
@@ -98,7 +99,7 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 	t.Run("404 when not clinic member; downstream not called", func(t *testing.T) {
 		svc := &mockStaffService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
-			getPermissionGroupIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+			getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				t.Fatal("downstream GetPermissionGroupIDs must not run when membership fails")
 				return nil, nil
 			},
@@ -110,7 +111,7 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 
 	t.Run("500 on service error", func(t *testing.T) {
 		svc := &mockStaffService{
-			getPermissionGroupIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+			getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				return nil, fmt.Errorf("db failure")
 			},
 		}
@@ -651,7 +652,7 @@ func TestStaffAssociation_MissingClinicID_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	svc := &mockStaffService{
-		getPermissionGroupIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+		getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 			t.Fatal("downstream must not run when clinic_id is missing")
 			return nil, nil
 		},

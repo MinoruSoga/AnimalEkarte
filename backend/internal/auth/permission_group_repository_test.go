@@ -1,4 +1,4 @@
-package repository
+package auth
 
 // permission_group_repository_test.go
 // permission_group_repository.go の実DB結合テスト（#212: internal/repository カバレッジ向上）。
@@ -11,6 +11,8 @@ package repository
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,17 +21,20 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupPermissionGroupRepositoryTestDB は本ファイルの全テストで共有する DB を整備する。
 func setupPermissionGroupRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
-		&model.Staff{}, &model.PermissionGroup{}, &model.PermissionGroupRule{}, &model.StaffPermissionGroup{},
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
+		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{},
+		&model.PermissionGroupRule{}, &model.StaffPermissionGroup{},
 	))
 	ensureStaffPermissionGroupsCreatedAt(t, db)
-	db.Exec("TRUNCATE TABLE staff_permission_groups, permission_group_rules, permission_groups, staffs CASCADE")
+	db.Exec("TRUNCATE TABLE staff_permission_groups, staff_clinic_assignments, permission_group_rules, permission_groups, staffs CASCADE")
 	return db
 }
 
@@ -189,7 +194,7 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
 	t.Run("全削除→再挿入で既存ルールが新ルールに完全置換される", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "UpdateRules対象グループ")
@@ -199,7 +204,7 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 		newRules := []model.PermissionGroupRule{
 			{Resource: "owner", CanView: true, CanCreate: false, CanEdit: false, CanDelete: false},
 		}
-		err := repo.UpdateRules(ctx, g.ID, newRules)
+		err := repo.UpdateRules(ctx, clinicA, g.ID, newRules)
 		require.NoError(t, err)
 
 		got, err := repo.FindByID(ctx, clinicA, g.ID)
@@ -213,13 +218,103 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "UpdateRules空スライス対象")
 		makeEffPermRule(t, db, g.ID, "medical_record", true, true, true, true)
 
-		err := repo.UpdateRules(ctx, g.ID, []model.PermissionGroupRule{})
+		err := repo.UpdateRules(ctx, clinicA, g.ID, []model.PermissionGroupRule{})
 		require.NoError(t, err)
 
 		got, err := repo.FindByID(ctx, clinicA, g.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got.Rules)
 	})
+
+	t.Run("別クリニックの対象グループはNotFoundで既存ルールを変更しない", func(t *testing.T) {
+		g := makePermissionGroup(t, db, clinicA, "UpdateRules越境拒否対象")
+		existing := makeEffPermRule(t, db, g.ID, "medical_record", true, false, false, false)
+
+		err := repo.UpdateRules(ctx, clinicB, g.ID, []model.PermissionGroupRule{
+			{Resource: "billing", CanView: true},
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "別院対象と不存在は同じ NotFound 境界にする: %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, g.ID)
+		require.NoError(t, findErr)
+		require.Len(t, got.Rules, 1)
+		assert.Equal(t, existing.ID, got.Rules[0].ID)
+		assert.Equal(t, "medical_record", got.Rules[0].Resource)
+	})
+}
+
+// TestPermissionGroupRepository_UpdateRules_SerializesParentDeletion は、
+// 親グループの削除とルール全置換を同じ親行ロックで直列化することを検証する。
+func TestPermissionGroupRepository_UpdateRules_SerializesParentDeletion(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	group := makePermissionGroup(t, db, clinicID, "UpdateRules親削除競合")
+	makeEffPermRule(t, db, group.ID, "medical_record", true, false, false, false)
+
+	parentDeleteStarted := make(chan struct{})
+	releaseParentDelete := make(chan struct{})
+	parentDeleteDone := make(chan error, 1)
+	var releaseOnce sync.Once
+	release := func() {
+		releaseOnce.Do(func() {
+			close(releaseParentDelete)
+		})
+	}
+	t.Cleanup(release)
+
+	go func() {
+		parentDeleteDone <- db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			result := tx.Model(&model.PermissionGroup{}).
+				Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", group.ID, clinicID).
+				Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP"))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected != 1 {
+				return apperrors.WrapInternalServerError("permission group deletion did not update one row")
+			}
+			close(parentDeleteStarted)
+			<-releaseParentDelete
+			return nil
+		})
+	}()
+	select {
+	case <-parentDeleteStarted:
+	case holderErr := <-parentDeleteDone:
+		require.NoError(t, holderErr)
+		require.FailNow(t, "parent deletion transaction ended before holding its row lock")
+	}
+
+	updateErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SET LOCAL lock_timeout = '100ms'").Error; err != nil {
+			return err
+		}
+		txCtx := repohelpers.WithTxValue(ctx, tx)
+		return repo.UpdateRules(txCtx, clinicID, group.ID, []model.PermissionGroupRule{
+			{Resource: "billing", CanView: true},
+		})
+	})
+	release()
+	require.NoError(t, <-parentDeleteDone)
+
+	require.Error(t, updateErr, "ルール置換は競合する親削除の行ロックを待機すべき")
+	assert.True(
+		t,
+		strings.Contains(updateErr.Error(), "55P03") ||
+			strings.Contains(updateErr.Error(), "lock timeout"),
+		"expected PostgreSQL lock timeout, got: %v",
+		updateErr,
+	)
+
+	retryErr := repo.UpdateRules(ctx, clinicID, group.ID, []model.PermissionGroupRule{
+		{Resource: "billing", CanView: true},
+	})
+	require.Error(t, retryErr, "親削除確定後の再試行は拒否すべき")
+	assert.True(t, apperrors.IsNotFound(retryErr), "unexpected retry error: %v", retryErr)
 }
 
 func TestPermissionGroupRepository_CountUsageByGroupID(t *testing.T) {
@@ -272,14 +367,14 @@ func TestPermissionGroupRepository_FindAllGroupIDsByStaffID(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Create(&model.StaffPermissionGroup{StaffID: staff.ID, GroupID: groupOne.ID}).Error)
 		require.NoError(t, db.WithContext(ctx).Create(&model.StaffPermissionGroup{StaffID: staff.ID, GroupID: groupTwo.ID}).Error)
 
-		ids, err := repo.FindAllGroupIDsByStaffID(ctx, staff.ID)
+		ids, err := repo.FindAllGroupIDsByStaffID(ctx, clinicA, staff.ID)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []uint64{groupOne.ID, groupTwo.ID}, ids)
 	})
 
 	t.Run("所属グループがなければ空スライスを返す", func(t *testing.T) {
 		staff := makeDoctor(t, db, clinicA, "未所属グループID一覧テスト用スタッフ")
-		ids, err := repo.FindAllGroupIDsByStaffID(ctx, staff.ID)
+		ids, err := repo.FindAllGroupIDsByStaffID(ctx, clinicA, staff.ID)
 		require.NoError(t, err)
 		assert.Empty(t, ids)
 	})
@@ -329,10 +424,11 @@ func TestPermissionGroupRepository_UpdateStaffGroups_InvalidGroupID(t *testing.T
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
 	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
 
 	t.Run("別クリニックのgroup_idを混ぜるとWrapInvalidInputになる", func(t *testing.T) {
-		staff := makeDoctor(t, db, clinicA, "InvalidGroupID検証用スタッフ")
+		clinicA := makePermissionGroupTestClinic(t, db, "InvalidGroupID clinic A").ID
+		clinicB := makePermissionGroupTestClinic(t, db, "InvalidGroupID clinic B").ID
+		staff := makeDoctorAssignedToClinic(t, db, clinicA, "InvalidGroupID検証用スタッフ")
 		groupB := makePermissionGroup(t, db, clinicB, "InvalidGroupID検証用clinicBグループ")
 
 		err := repo.UpdateStaffGroups(ctx, clinicA, staff.ID, []uint64{groupB.ID})

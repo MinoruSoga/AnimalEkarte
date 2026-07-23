@@ -122,13 +122,15 @@ func TestStaffService_GetPermissionGroupIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			permRepo := &mockPermissionGroupRepository{
-				findAllGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				findAllGroupIDsByStaffIDFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), staffID)
 					return tt.ids, tt.repoErr
 				},
 			}
 			svc := newTestStaffServiceForPermissions(permRepo, &mockResStaffRepoForStaffPermissions{})
 
-			got, err := svc.GetPermissionGroupIDs(context.Background(), 1)
+			got, err := svc.GetPermissionGroupIDs(context.Background(), 1, 10)
 
 			if tt.wantErr {
 				assert.Error(t, err)

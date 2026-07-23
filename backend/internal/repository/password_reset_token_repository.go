@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/passwordreset"
+	"github.com/animal-ekarte/backend/internal/auth"
 )
 
-// PasswordResetTokenRepository is a stable facade alias for the passwordreset domain package.
-type PasswordResetTokenRepository = passwordreset.Repository
+// PasswordResetTokenRepository is a compatibility alias for auth persistence.
+type PasswordResetTokenRepository = auth.PasswordResetTokenRepository
 
 // NewPasswordResetTokenRepository constructs the password reset token repository.
 func NewPasswordResetTokenRepository(db *gorm.DB) PasswordResetTokenRepository {
-	return passwordreset.New(db)
+	return auth.NewPasswordResetTokenRepository(db)
 }

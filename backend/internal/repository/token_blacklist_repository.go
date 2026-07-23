@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/tokenblacklist"
+	"github.com/animal-ekarte/backend/internal/auth"
 )
 
-// TokenBlacklistRepository is a stable facade alias for the tokenblacklist domain package.
-type TokenBlacklistRepository = tokenblacklist.Repository
+// TokenBlacklistRepository is a compatibility alias for auth persistence.
+type TokenBlacklistRepository = auth.TokenBlacklistRepository
 
 // NewTokenBlacklistRepository constructs the token blacklist repository.
 func NewTokenBlacklistRepository(db *gorm.DB) TokenBlacklistRepository {
-	return tokenblacklist.New(db)
+	return auth.NewTokenBlacklistRepository(db)
 }

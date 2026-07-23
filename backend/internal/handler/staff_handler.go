@@ -137,11 +137,11 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 // GetStaffPermissionGroups godoc
 // GET /v1/masters/staffs/:id/permission-groups
 func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
-	_, id, ok := h.resolveStaffWithClinic(c)
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
 		return
 	}
-	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), id)
+	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -230,7 +230,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	inputRules := req.toServiceInput()
-	if err := h.svc.PermissionGroup.UpdateRules(c.Request.Context(), id, inputRules, staffID); err != nil {
+	if err := h.svc.PermissionGroup.UpdateRules(c.Request.Context(), clinicID, id, inputRules, staffID); err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -118,8 +118,8 @@ type StaffAccountService interface {
 
 // StaffPermissionService は権限グループ・除外予約種別の操作
 type StaffPermissionService interface {
-	// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
-	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// GetPermissionGroupIDs は認証済みクリニック内でスタッフが所属する権限グループIDを返す
+	GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
 	SetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 	// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す

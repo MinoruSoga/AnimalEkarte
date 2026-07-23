@@ -1,4 +1,4 @@
-package account
+package auth
 
 // repository_test.go — Repository の統合テスト。
 //
@@ -49,7 +49,7 @@ func makeAccount(t *testing.T, db *gorm.DB, email string) *model.Account {
 
 func TestRepository_FindByID(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := New(db)
+	repo := NewAccountRepository(db)
 	ctx := context.Background()
 
 	t.Run("存在するIDでは取得できる", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRepository_FindByID(t *testing.T) {
 
 func TestRepository_FindByEmail(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := New(db)
+	repo := NewAccountRepository(db)
 	ctx := context.Background()
 
 	t.Run("存在するメールアドレスでは取得できる", func(t *testing.T) {
@@ -111,7 +111,7 @@ func TestRepository_FindByEmail(t *testing.T) {
 
 func TestRepository_Create(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := New(db)
+	repo := NewAccountRepository(db)
 	ctx := context.Background()
 
 	t.Run("新規アカウントを作成できる", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestRepository_Create(t *testing.T) {
 
 func TestRepository_Update(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := New(db)
+	repo := NewAccountRepository(db)
 	ctx := context.Background()
 
 	t.Run("指定フィールドのみ更新される", func(t *testing.T) {

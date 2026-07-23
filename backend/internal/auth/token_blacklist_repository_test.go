@@ -1,4 +1,4 @@
-package repository
+package auth
 
 // token_blacklist_repository_test.go — M-8 認証トークン・ライフサイクル回帰テスト
 //
@@ -22,16 +22,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupTokenBlacklistTestDB は token_blacklist テーブルを用意し、
 // クリーンな状態でテストを開始できるようにする。
-// setupTestDB は token_blacklist を対象にしないため、
-// ここで AutoMigrate と TRUNCATE を明示的に行う。
 func setupTokenBlacklistTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.TokenBlacklist{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.TokenBlacklist{}))
 	db.Exec("TRUNCATE TABLE token_blacklist CASCADE")
 	return db
 }

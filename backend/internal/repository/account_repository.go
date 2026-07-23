@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/account"
+	"github.com/animal-ekarte/backend/internal/auth"
 )
 
-// AccountRepository is a stable facade alias for the account domain package.
-// Service/handler imports keep using repository.* so the domain split does
-// not churn all importers.
-type AccountRepository = account.Repository
+// AccountRepository is a compatibility alias for auth persistence.
+type AccountRepository = auth.AccountRepository
 
 // NewAccountRepository constructs the account repository.
 func NewAccountRepository(db *gorm.DB) AccountRepository {
-	return account.New(db)
+	return auth.NewAccountRepository(db)
 }

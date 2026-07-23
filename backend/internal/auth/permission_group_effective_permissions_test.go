@@ -1,4 +1,4 @@
-package repository
+package auth
 
 // permission_group_effective_permissions_test.go — G11-1 (test-effective-permissions-sql-untested)
 //
@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupEffectivePermissionsTestDB は実効権限集約テスト用の DB を整備する。
@@ -30,8 +31,8 @@ import (
 // 本テストが追加で必要とする PermissionGroupRule も AutoMigrate + TRUNCATE 対象に含める。
 func setupEffectivePermissionsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.Staff{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{}, &model.PermissionGroupRule{},
 	))
 	ensureStaffPermissionGroupsCreatedAt(t, db)
@@ -171,6 +172,25 @@ func TestPermissionGroupRepository_FindAllEffectivePermissions(t *testing.T) {
 
 		for _, r := range rules {
 			assert.NotEqual(t, "owner", r.Resource, "ソフトデリート済みグループのルールが混入している: %+v", r)
+		}
+	})
+
+	t.Run("deleted_atがNOT NULLのルールは実効権限から除外される", func(t *testing.T) {
+		db := setupEffectivePermissionsTestDB(t)
+		repo := NewPermissionGroupRepository(db)
+		ctx := context.Background()
+
+		staff := makeDoctor(t, db, clinicA, "ソフトデリートルール除外テスト用スタッフ")
+		group := makeEffPermGroup(t, db, clinicA, "有効グループ", true)
+		deletedRule := makeEffPermRule(t, db, group.ID, "billing", true, true, true, true)
+		assignStaffToGroup(t, db, staff.ID, group.ID)
+		require.NoError(t, db.Delete(&model.PermissionGroupRule{}, deletedRule.ID).Error)
+
+		rules, err := repo.FindAllEffectivePermissionsByStaffID(ctx, staff.ID, clinicA)
+		require.NoError(t, err)
+
+		for _, rule := range rules {
+			assert.NotEqual(t, "billing", rule.Resource, "ソフトデリート済みルールが混入している: %+v", rule)
 		}
 	})
 

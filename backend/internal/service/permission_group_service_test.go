@@ -306,12 +306,13 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
-				setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+				setRulesFn: func(_ context.Context, clinicID, _ uint64, _ []model.PermissionGroupRule) error {
+					assert.Equal(t, uint64(1), clinicID)
 					return tt.setRulesErr
 				},
 			}
 			svc := newPermissionGroupServiceImpl(repo)
-			err := svc.UpdateRules(context.Background(), 1, tt.inputs, 0)
+			err := svc.UpdateRules(context.Background(), 1, 1, tt.inputs, 0)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -335,10 +336,12 @@ func TestPermissionGroupService_UpdateRules_FailClosedOnGroupLookupError(t *test
 
 	setRulesCalled := false
 	repo := &mockPermissionGroupRepository{
-		getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+		getGroupIDsByStaffIDFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(10), staffID)
 			return nil, errors.New("db error") // 所属グループ取得が失敗
 		},
-		setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+		setRulesFn: func(_ context.Context, _, _ uint64, _ []model.PermissionGroupRule) error {
 			setRulesCalled = true
 			return nil
 		},
@@ -346,7 +349,7 @@ func TestPermissionGroupService_UpdateRules_FailClosedOnGroupLookupError(t *test
 	svc := newPermissionGroupServiceImpl(repo)
 
 	// groupID=1 を actorStaffID=10 が編集。所属取得失敗 → fail-closed で拒否すべき。
-	err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+	err := svc.UpdateRules(context.Background(), 1, 1, inputs, 10)
 
 	assert.Error(t, err, "所属グループ取得が失敗したら fail-closed で拒否すべき（自己参照チェックを素通りさせない）")
 	assert.False(t, setRulesCalled, "検証不能時に repo.UpdateRules を呼んではならない")
@@ -499,7 +502,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 	t.Run("rejects duplicate rules before checking self reference", func(t *testing.T) {
 		setRulesCalled := false
 		repo := &mockPermissionGroupRepository{
-			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+			setRulesFn: func(_ context.Context, _, _ uint64, _ []model.PermissionGroupRule) error {
 				setRulesCalled = true
 				return nil
 			},
@@ -510,7 +513,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 			{Resource: string(model.ResourceOwners)},
 			{Resource: string(model.ResourceOwners)},
 		}
-		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+		err := svc.UpdateRules(context.Background(), 1, 1, inputs, 10)
 
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -520,10 +523,12 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 	t.Run("rejects removing own master-permission edit", func(t *testing.T) {
 		setRulesCalled := false
 		repo := &mockPermissionGroupRepository{
-			getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+			getGroupIDsByStaffIDFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(10), staffID)
 				return []uint64{1}, nil
 			},
-			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+			setRulesFn: func(_ context.Context, _, _ uint64, _ []model.PermissionGroupRule) error {
 				setRulesCalled = true
 				return nil
 			},
@@ -533,7 +538,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 		inputs := []SetPermissionGroupRulesInput{
 			{Resource: string(model.ResourceOwners), CanView: true},
 		}
-		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+		err := svc.UpdateRules(context.Background(), 1, 1, inputs, 10)
 
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -542,10 +547,13 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 
 	t.Run("allows self-referencing group when master-permission edit is retained", func(t *testing.T) {
 		repo := &mockPermissionGroupRepository{
-			getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+			getGroupIDsByStaffIDFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(10), staffID)
 				return []uint64{1}, nil
 			},
-			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+			setRulesFn: func(_ context.Context, clinicID, _ uint64, _ []model.PermissionGroupRule) error {
+				assert.Equal(t, uint64(1), clinicID)
 				return nil
 			},
 		}
@@ -554,7 +562,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 		inputs := []SetPermissionGroupRulesInput{
 			{Resource: string(model.ResourceMasterPermission), CanEdit: true},
 		}
-		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+		err := svc.UpdateRules(context.Background(), 1, 1, inputs, 10)
 
 		assert.NoError(t, err)
 	})

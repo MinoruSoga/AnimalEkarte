@@ -76,11 +76,31 @@ import (
 // 固定する（key = "<file> | <ReceiverType>.<Method>"）。R1-1/R1-2 の tx 参加 surface を含む。
 // 追加/削除時はこのマップを更新し、新規は対応する atomicity/isolation テストを添えること。
 var dbOrTxParticipatingMethods = map[string]struct{}{
-	// account
-	"account/repository.go|repository.Create":      {}, // BE8-4 batch23: moved from account_repository.go
-	"account/repository.go|repository.FindByEmail": {}, // BE8-4 batch23: moved from account_repository.go
-	"account/repository.go|repository.FindByID":    {}, // BE8-4 batch23: moved from account_repository.go
-	"account/repository.go|repository.Update":      {}, // BE8-4 batch23: moved from account_repository.go
+	// auth persistence (BE9 auth Phase 1): global account/reset/blacklist data and
+	// clinic-scoped permission groups participate in the caller's ambient transaction.
+	"auth/account_repository.go|accountRepository.Create":                                                {},
+	"auth/account_repository.go|accountRepository.FindByEmail":                                           {},
+	"auth/account_repository.go|accountRepository.FindByID":                                              {},
+	"auth/account_repository.go|accountRepository.Update":                                                {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.Create":                        {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByAccountID":             {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByID":                    {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHash":               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.CountUsageByGroupID":                  {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Create":                               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Delete":                               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID":          {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAll":                              {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAllEffectivePermissionsByStaffID": {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAllGroupIDsByStaffID":             {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindByID":                             {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                              {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Update":                               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                          {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                    {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                 {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                          {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                            {},
 	// accounting (R1-1 money-path atomicity; appointment completion moved to the reservation
 	// write owner in BE9-2E-0 while retaining ambient transaction participation)
 	"billing/accounting_repository.go|accountingRepository.Create":             {},
@@ -334,23 +354,18 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.CountUsageByInventoryID":                      {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.UpdateNameByMedicineCategory":                 {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
-	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic/permission_group repo-internal
-	// tx conversion. Allowlist backfill discovered during G6-2 (X-7 landed without registering these).
-	"clinic_repository.go|clinicRepository.Create":                                         {},
-	"clinic_repository.go|clinicRepository.Update":                                         {},
-	"clinic_repository.go|clinicRepository.Delete":                                         {},
-	"clinic_repository.go|clinicRepository.FindByID":                                       {},
-	"clinic_repository.go|clinicRepository.FindCompany":                                    {},
-	"clinic_repository.go|clinicRepository.LockActiveByID":                                 {},
-	"clinic_repository.go|clinicRepository.LockByIDForUpdate":                              {},
-	"clinic_repository.go|clinicRepository.CountOwnersByClinicID":                          {},
-	"clinic_repository.go|clinicRepository.CountStaffByClinicID":                           {},
-	"clinic_repository.go|clinicRepository.CountBlockingReferencesByClinicID":              {},
-	"permission_group_repository.go|permissionGroupRepository.Create":                      {},
-	"permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID": {},
-	"permission_group_repository.go|permissionGroupRepository.Reorder":                     {},
-	"permission_group_repository.go|permissionGroupRepository.UpdateRules":                 {},
-	"permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":           {},
+	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic repository tx conversion.
+	// Permission-group ownership moved to internal/auth in BE9 auth Phase 1.
+	"clinic_repository.go|clinicRepository.Create":                            {},
+	"clinic_repository.go|clinicRepository.Update":                            {},
+	"clinic_repository.go|clinicRepository.Delete":                            {},
+	"clinic_repository.go|clinicRepository.FindByID":                          {},
+	"clinic_repository.go|clinicRepository.FindCompany":                       {},
+	"clinic_repository.go|clinicRepository.LockActiveByID":                    {},
+	"clinic_repository.go|clinicRepository.LockByIDForUpdate":                 {},
+	"clinic_repository.go|clinicRepository.CountOwnersByClinicID":             {},
+	"clinic_repository.go|clinicRepository.CountStaffByClinicID":              {},
+	"clinic_repository.go|clinicRepository.CountBlockingReferencesByClinicID": {},
 	// X-8 (Appendix-A tx-atomicity fix, commit 1e2d483c): reservation_staff repo-internal tx
 	// conversion. Allowlist backfill discovered during G6-2 (X-8 landed without registering these).
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},

@@ -26,7 +26,7 @@ type mockPermissionGroupService struct {
 	createFn   func(ctx context.Context, clinicID uint64, input *service.CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	updateFn   func(ctx context.Context, clinicID, id uint64, input *service.UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	setRulesFn func(ctx context.Context, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error
+	setRulesFn func(ctx context.Context, clinicID, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error
 	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -65,9 +65,9 @@ func (m *mockPermissionGroupService) Delete(ctx context.Context, clinicID, id ui
 	return nil
 }
 
-func (m *mockPermissionGroupService) UpdateRules(ctx context.Context, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
+func (m *mockPermissionGroupService) UpdateRules(ctx context.Context, clinicID, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
 	if m.setRulesFn != nil {
-		return m.setRulesFn(ctx, groupID, inputs, actorStaffID)
+		return m.setRulesFn(ctx, clinicID, groupID, inputs, actorStaffID)
 	}
 	return nil
 }
@@ -598,7 +598,8 @@ func TestPermissionGroupHandler_SetRules(t *testing.T) {
 					Rules:    []model.PermissionGroupRule{{Resource: string(model.ResourceMasterPermission), CanEdit: true}},
 				}, nil
 			},
-			setRulesFn: func(_ context.Context, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
+			setRulesFn: func(_ context.Context, clinicID, groupID uint64, inputs []service.SetPermissionGroupRulesInput, actorStaffID uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(1), groupID)
 				assert.Equal(t, uint64(1), actorStaffID)
 				return nil

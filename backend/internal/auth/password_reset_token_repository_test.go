@@ -1,4 +1,4 @@
-package repository
+package auth
 
 // password_reset_token_repository_test.go — M-8 認証トークン・ライフサイクル回帰テスト
 //
@@ -26,16 +26,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupPasswordResetTokenTestDB は password_reset_tokens テーブルを用意し、
 // クリーンな状態でテストを開始できるようにする。
-// setupTestDB は password_reset_tokens を対象にしないため、
-// ここで AutoMigrate と TRUNCATE を明示的に行う。
 func setupPasswordResetTokenTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.PasswordResetToken{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.PasswordResetToken{}))
 	db.Exec("TRUNCATE TABLE password_reset_tokens CASCADE")
 	return db
 }

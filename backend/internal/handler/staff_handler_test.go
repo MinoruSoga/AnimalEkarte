@@ -37,7 +37,7 @@ type mockStaffService struct {
 	updateFn                      func(ctx context.Context, clinicID, id uint64, input *service.UpdateStaffInput) (*model.Staff, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
-	getPermissionGroupIDsFn       func(ctx context.Context, staffID uint64) ([]uint64, error)
+	getPermissionGroupIDsFn       func(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 	setPermissionGroupIDsFn       func(ctx context.Context, staffID uint64, groupIDs []uint64) error
 	getExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]uint64, error)
 	setExcludedReservationTypesFn func(ctx context.Context, staffID uint64, typeIDs []uint64) error
@@ -116,9 +116,9 @@ func (m *mockStaffService) Reorder(ctx context.Context, clinicID uint64, ids []u
 	return nil
 }
 
-func (m *mockStaffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+func (m *mockStaffService) GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
 	if m.getPermissionGroupIDsFn != nil {
-		return m.getPermissionGroupIDsFn(ctx, staffID)
+		return m.getPermissionGroupIDsFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }

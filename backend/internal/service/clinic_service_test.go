@@ -388,7 +388,8 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 			created = append(created, group)
 			return nil
 		},
-		setRulesFn: func(_ context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
+		setRulesFn: func(_ context.Context, clinicID, groupID uint64, rules []model.PermissionGroupRule) error {
+			assert.Equal(t, uint64(42), clinicID)
 			name := ""
 			for _, g := range created {
 				if g.ID == groupID {

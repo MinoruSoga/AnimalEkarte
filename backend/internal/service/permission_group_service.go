@@ -74,8 +74,9 @@ type PermissionGroupService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// UpdateRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
-	UpdateRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
+	// UpdateRules はグループのルールを全置換する。clinicID は自己参照チェックのテナント境界、
+	// actorStaffID は自己参照チェックに使用される。
+	UpdateRules(ctx context.Context, clinicID, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -186,7 +187,7 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
-func (s *permissionGroupService) UpdateRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error {
+func (s *permissionGroupService) UpdateRules(ctx context.Context, clinicID, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error {
 	// Input DTO を model.PermissionGroupRule に変換
 	rules := make([]model.PermissionGroupRule, 0, len(inputs))
 	for _, inp := range inputs {
@@ -204,24 +205,25 @@ func (s *permissionGroupService) UpdateRules(ctx context.Context, groupID uint64
 	}
 	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
 	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
-	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, actorStaffID)
+	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, clinicID, actorStaffID)
 	if err != nil {
 		// F-3 / BUG-140: 所属グループ取得に失敗すると自己参照チェックが不能になる。
 		// 旧実装は空スライスへフォールバックして検証を素通りさせていた（fail-open）が、
 		// これは self master-permission edit の削除を許す security ホールだった。
 		// 自己参照保護は security control のため fail-closed とし、検証不能なら拒否する。
 		slog.ErrorContext(ctx, "failed to find staff group IDs for self-reference check",
-			"error", err, "actor_staff_id", actorStaffID)
+			"error", err, "clinic_id", clinicID, "actor_staff_id", actorStaffID)
 		return apperrors.Wrap(err, "failed to find staff group IDs")
 	}
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
 		return err
 	}
-	if err := s.repo.UpdateRules(ctx, groupID, rules); err != nil {
+	if err := s.repo.UpdateRules(ctx, clinicID, groupID, rules); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group rules", "error", err, "id", groupID)
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	slog.InfoContext(ctx, "permission group rules set",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("permission_group_id", groupID),
 		slog.Int("rule_count", len(rules)))
 	return nil
