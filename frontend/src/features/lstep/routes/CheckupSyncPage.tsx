@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
+import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckupSyncPreview } from "../api/get-checkup-sync-preview";
 import { useCreateCheckupSync } from "../api/create-checkup-sync";
@@ -42,7 +43,7 @@ export function CheckupSyncPage() {
   }
 
   function handleConfirm() {
-    if (!searchParams) return;
+    if (!searchParams || selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT) return;
     createCheckupSync(
       {
         checkup_type: searchParams.checkup_type,
@@ -120,7 +121,7 @@ export function CheckupSyncPage() {
                     <span className={`font-semibold ${C.text}`}>
                       {selectedOwnerIds.size}名
                     </span>
-                    を選択中
+                    を選択中（最大{CHECKUP_SYNC_OWNER_LIMIT}名）
                   </>
                 ) : (
                   "LINE連携済みの対象者を選択してください"
@@ -129,7 +130,10 @@ export function CheckupSyncPage() {
               <Button
                 type="button"
                 onClick={handleOpenConfirm}
-                disabled={selectedOwnerIds.size === 0}
+                disabled={
+                  selectedOwnerIds.size === 0 ||
+                  selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
+                }
                 className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
               >
                 <Send className={ICON.sm} />

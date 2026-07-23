@@ -143,7 +143,7 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, er
 // checkupSyncRequest は一括タグ付与リクエスト。
 type checkupSyncRequest struct {
 	CheckupType string   `json:"checkup_type" binding:"required"`
-	OwnerIDs    []string `json:"owner_ids"    binding:"required,min=1"`
+	OwnerIDs    []string `json:"owner_ids"    binding:"required,min=1,max=100"`
 	TagName     string   `json:"tag_name"     binding:"required"`
 }
 

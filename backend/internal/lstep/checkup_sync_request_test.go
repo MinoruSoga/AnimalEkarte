@@ -2,7 +2,10 @@ package lstep
 
 import (
 	"net/url"
+	"strconv"
 	"testing"
+
+	"github.com/gin-gonic/gin/binding"
 )
 
 func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
@@ -95,6 +98,50 @@ func TestCheckupSyncRequest_ToServiceInput_InvalidTagName(t *testing.T) {
 	}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
+	}
+}
+
+func TestCheckupSyncRequest_OwnerIDsBoundary(t *testing.T) {
+	ownerIDs := func(count int) []string {
+		ids := make([]string, count)
+		for i := range ids {
+			ids[i] = strconv.Itoa(i + 1)
+		}
+		return ids
+	}
+
+	tests := []struct {
+		name      string
+		ownerIDs  []string
+		wantError bool
+	}{
+		{
+			name:     "accepts 100 owners",
+			ownerIDs: ownerIDs(100),
+		},
+		{
+			name:      "rejects 101 owners",
+			ownerIDs:  ownerIDs(101),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := checkupSyncRequest{
+				CheckupType: "annual",
+				OwnerIDs:    tt.ownerIDs,
+				TagName:     "annual_checkup",
+			}
+
+			err := binding.Validator.ValidateStruct(req)
+			if tt.wantError && err == nil {
+				t.Fatal("ValidateStruct() error = nil, want owner_ids max validation error")
+			}
+			if !tt.wantError && err != nil {
+				t.Fatalf("ValidateStruct() error = %v, want nil", err)
+			}
+		})
 	}
 }
 
