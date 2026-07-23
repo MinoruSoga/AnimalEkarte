@@ -94,7 +94,7 @@
 <div class="container">
 <header>
   <h1>Phase 2 台帳 — 今フェーズでやらないもの</h1>
-  <p class="meta">更新: 2026-07-16（todo.md から切り出し）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
+  <p class="meta">更新: 2026-07-22（todo.md の非着手項目を再分類）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
 </header>
 
 <section>
@@ -123,7 +123,60 @@
     <li><span class="badge never">やらない</span><strong>#211 ライブ E2E</strong>（今はやらない）</li>
     <li><span class="badge never">やらない</span><strong>admin_route・prescriptions dose 連携</strong>（#201 スコープ外確定）</li>
     <li><span class="badge never">やらない</span><strong>会計 DTO 化</strong></li>
-    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（todo.md PO-002）導入後の実測。</li>
+    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（q&amp;a.html PO-002。ベンダ・課金はDEC-10待ち）導入後の実測。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>条件付き再開 — todo.md から移管（2026-07-22）</h2>
+
+  <h3><span class="badge hold">見送り</span>BUG-416-A: 第1・第2診断の更新をtri-state contractへ統一</h3>
+  <ul>
+    <li><strong>問題</strong>: 第1診断はFEで<code>null</code>を<code>undefined</code>へ変換し、BEも未送信と明示<code>null</code>を区別できないため、将来の解除UIが成功表示のままno-opになり得る。第2診断だけはtri-stateで非対称。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts:118-130</code>、<code>backend/internal/medicalrecord/clinical_plan_request.go:9-65</code>。現行<code>SearchableSelect</code>には解除操作がなく、現在は未到達。</li>
+    <li><strong>再開時の方針</strong>: 第1診断も「未送信=保持、<code>null</code>=診断type/nameを組でDB NULL、値=clinic-scoped master検証後に更新」へ統一する。FEだけの修正にしない。</li>
+    <li><strong>受け入れ条件</strong>: 3状態のrequest/service/repository testを追加し、type/name片方だけの不整合を保存しない。解除UIのcomponent testで保存後の再取得が未選択になる。</li>
+    <li><em>再開条件</em>: 診断解除UIの要件責任者・業務目的が記録され、追加が承認された時。解除UI追加と同じタスクへ戻す。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-416-B: 同一画面内カルテID切替時にフォームstateをrecord単位で再生成</h3>
+  <ul>
+    <li><strong>問題</strong>: 同じcomponent instanceでrecord A→Bへ切り替えると、Bのnull項目にsetterが呼ばれず、Aの診断・主訴・plan・assessment・notes等がBへ残る可能性がある。クロスペイシェント混入を防ぐ臨床安全上の前提条件。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/medical-records/hooks/use-apply-medical-record.ts:44-68</code>は非null項目だけhydrateする。現在はdetail→detailの直接navigationが存在せず未到達。</li>
+    <li><strong>再開時の方針</strong>: routeのrecord IDをkeyにフォーム全体を再生成する。診断だけを個別resetしない。同一record IDのbackground refetchではdirtyな未保存入力を上書きしない。</li>
+    <li><strong>受け入れ条件</strong>: Aの全項目に値、BはnullのfixtureでA→Bを直接遷移し、画面stateとBの保存payloadへAの値が1項目も混入しない。同一ID refetchではdirty stateを維持する。</li>
+    <li><em>再開条件</em>: 「前/次の来院」等、同一画面内でrecord IDだけを変えるnavigationの実装時。navigationタスクの必須受入条件としてtodo.mdへ戻す。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-413-A: 予防接種一覧の全件集合ページング</h3>
+  <ul>
+    <li><strong>問題</strong>: FEがpage/limitを送らず、BE既定20件だけを受け取ってから検索・担当医・日付filterとローカルpaginationを行うため、21件目以降が不可視になる。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/vaccinations/api/get-vaccinations.ts:14-25</code>、<code>frontend/src/features/vaccinations/hooks/use-vaccinations.ts</code>、<code>frontend/src/features/vaccinations/routes/VaccinationList.tsx</code>。seedが0件でもfixtureで技術検証は可能であり、「検証不能」は移管理由にしない。</li>
+    <li><strong>再開時の方針</strong>: page/limit/totalと全filterをBE query contractへ送り、filter後の全件集合にserver-side paginationを適用する。既存offset APIを使い、cursor新設を前提にしない。</li>
+    <li><strong>受け入れ条件</strong>: 21件fixtureでpage 2に21件目が表示され、検索・担当医・日付filter後のtotalとページ内容が一致する。空結果・API失敗も既存UI contractどおり。BUG-420のclinic-isolation修正を先に完了する。</li>
+    <li><em>再開条件</em>: 実件数が20件を超える、または予防実装をPOが承認した時。GitHub Issue #250の現在の受入条件には件数再確認がないため、外部更新の明示承認を得て追加してから運用トリガとする。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-413-B: トリミング一覧の全件集合ページング</h3>
+  <ul>
+    <li><strong>問題</strong>: FEが<code>page=1, limit=100</code>の1回だけ取得し、その100件へstatus/species/staff/search/date filterとローカルpaginationを適用するため、101件目以降が不可視になる。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/trimming/api/get-trimmings.ts:17-27</code>、<code>frontend/src/features/trimming/hooks/use-trimming-records.ts</code>、<code>frontend/src/features/trimming/routes/TrimmingList.tsx</code>。BEは既にoffsetとCOUNTを返すため、cursorは必須ではない。</li>
+    <li><strong>再開時の方針</strong>: 予防接種とは独立タスクにし、全filterをserver query contractへ移してfilter後のtotalを使う。共有reservation consumerへ無関係なsignature変更を波及させない。</li>
+    <li><strong>受け入れ条件</strong>: 101件fixtureでBE取得page 2に101件目が含まれ、FEの10件表示ではUI page 11から到達できる。全filter後のtotal・表示集合が一致し、空結果・API失敗も検証する。</li>
+    <li><em>再開条件</em>: 実件数が100件を超える、または予防実装をPOが承認した時。#250へ同じ件数再確認を追加する場合は外部更新の明示承認が必要。</li>
+  </ul>
+
+  <h3><span class="badge hold">依存待ち</span>FEAT-VACCINE-SPECIES: AnimalSpecies分類と2フォームのワクチン候補filter（DEC-3）</h3>
+  <ul>
+    <li><strong>目的・指標</strong>: 診療時に無関係なワクチン候補を走査する工程と異種選択リスクを減らす。通常表示の対象外候補0件、例外候補の全件表示は追加1操作以内、接種登録自体の必須入力は増やさない。要件責任者の個人名は未記録のため、q&amp;a.html DEC-3または正本GitHub Issueへの記録が再開ゲート。</li>
+    <li><strong>DEC-3で確定済み</strong>: <code>AnimalSpecies.species_category</code>=<code>dog|cat|other</code>を追加し、選択中ペットとの一致候補＋<code>both</code>を既定表示する。「全て表示」で例外使用を可能にし、保存時のhard blockはしない。既存値はname patternでbackfillし、判定不能は<code>other</code>。</li>
+    <li><strong>提案デフォルト（未決定）</strong>: dog pet=dog+both、cat pet=cat+both、other pet=both、pet未選択/category取得失敗=全active、<code>Vaccine.species=null</code>と不一致候補は「全て表示」のみ、既選択値は不一致・inactiveでも編集時に保持、pet変更時はtoggle OFF。backfill aliasはtrim後の完全一致で犬/イヌ/いぬ/dog→dog、猫/ネコ/ねこ/cat→cat、その他→other。新規・編集UIではcategoryを明示選択し、name変更で暗黙再分類しない。これらは要件責任者が正本で承認するまで実装contractとして扱わない。</li>
+    <li><strong>DB/API contract</strong>: 着手時の最大番号+1（現状なら<code>002_add_animal_species_category.sql</code>）を新規作成し、適用済み<code>001_init.sql</code>は編集しない。NOT NULL・default <code>other</code>・enum外拒否をDB/APIで保証する。model、request/response、repository/service、OpenAPI、generated TypeScriptを同期する。</li>
+    <li><strong>seed bootstrap</strong>: DDL後に旧6列CSVを列指定なしCOPYすると、7列化したtableへloadできず<code>cmd/seed-export</code>がdump前に失敗する。先に<code>backend/cmd/migrate/csvbundle.go</code>を、CSV headerを検証・quoteして明示column list付きCOPYを生成する汎用実装へ変更し、「新schemaへ旧headerをloadすると新列のdefaultが使われる」回帰testを追加する。その上でlocal disposable DBだけに<code>SEED_EXPORT_POST_SQL</code>の決定的UPDATEを適用し、<code>cmd/seed-export</code>から7列CSVを再生成する（CSV手編集禁止）。生成後はPOST SQLなしでもseed-exportが完走することを再実行で確認する。</li>
+    <li><strong>seed運用</strong>: seed bundle checksumが変わるため適用済み環境はDB_RESET必須。<code>python3 scripts/verify_seed.py</code>と、ユーザー手動のfresh DB全migration+3 bundle適用を完了条件にする。POST SQLはseed生成用のlocal disposable DB以外へ実行しない。</li>
+    <li><strong>実装順序</strong>: ①BE9-2Eの<code>pet</code> packageへAnimalSpeciesをbehavior-preserving移行 ②CSV header対応＋DB/model/API ③ユーザー手動codegen ④seed bootstrap＋マスタcategory UI ⑤共有pure filterをstandaloneとカルテ内の両フォームへ適用 ⑥画面仕様とtest同期。package移動と機能変更を同一batchへ混ぜない。</li>
+    <li><strong>受け入れ条件</strong>: 旧6列→新7列schemaのbootstrapと、生成済み7列CSVからのfresh applyが両方成功する。既存DB backfillとfresh seedが承認済みmappingどおり。不正enumは400で未保存、categoryのcreate/get/update/reloadを保持。承認済みの犬/猫/other/未選択/全件表示/nullable/inactive/既存不一致contractが両フォームで一致する。<code>docs/spec/screens/15-vaccinations-form.md</code>と<code>docs/spec/screens/settings/master-animal-species.md</code>も同期する。</li>
+    <li><strong>状態</strong>: BLOCKED。依存=BE9-2E pet移行完了、関連未コミット差分の解消、提案デフォルトと要件責任者の正本記録、正本GitHub Issue作成。再開時は少なくとも「DB/BE/API＋seed tooling」と「master UI＋2フォームfilter」の<code>TASK-xxx-BE</code>/<code>TASK-xxx-FE</code>へ分割してからtodo.mdへ戻す。FEAT系はGitHub Issuesが正本だが、2026-07-22のread-only検索では対応Issueなし。外部Issue作成は明示承認後に行う。</li>
   </ul>
 </section>
 

@@ -19,17 +19,7 @@
 
 ## アーキテクチャ概要
 
-```
-Vercel (Frontend SPA)
-    ↓ HTTPS
-CloudFront (API Gateway, *.cloudfront.net)
-    ↓ HTTP
-ALB (ヘルスチェック: /health)
-    ↓
-ECS Fargate SPOT (Go/Gin API, CPU:256, Memory:512MB)
-    ↓
-RDS PostgreSQL 16.4 (db.t4g.micro, private only)
-```
+構成図は `infra/terraform/modules/` 配下のモジュール構成（vpc/security/rds/ecr/ecs）と `docs/ops/infra-architecture.md` を参照（`.tf` から再構築可能なため本ファイルには図を持たない）。
 
 > **コスト最適化（2026-06-01〜）**: ECS は Fargate Spot、外向きは NAT Gateway ではなく
 > fck-nat インスタンス（t4g.nano + auto-recovery）、RDS は public access 無効（SSM port-forward 経由）、
@@ -42,15 +32,7 @@ RDS PostgreSQL 16.4 (db.t4g.micro, private only)
 
 ## ネットワーク構成
 
-```
-VPC: 10.0.0.0/16 (us-east-1)
-├── Public Subnets
-│   ├── 10.0.1.0/24 (us-east-1a) — ALB, fck-nat インスタンス（旧 NAT Gateway）
-│   └── 10.0.2.0/24 (us-east-1b)
-└── Private Subnets
-    ├── 10.0.11.0/24 (us-east-1a) — ECS Fargate
-    └── 10.0.12.0/24 (us-east-1b) — RDS
-```
+CIDR構成は `infra/terraform/modules/vpc/` を参照（`.tf` から再構築可能）。
 
 ### セキュリティグループ
 
@@ -73,22 +55,7 @@ VPC: 10.0.0.0/16 (us-east-1)
 
 ### デプロイフロー
 
-```
-main ブランチへ Push (backend/**)
-    ↓
-GitHub Actions トリガー
-    ↓
-AWS OIDC 認証（animalekarte-stg-github-ecs-deploy-role）
-    ↓
-Docker Build (linux/amd64) & ECR Push
-  → タグ: ${github.sha} + latest
-    ↓
-ECS タスク定義更新（イメージタグのみ差し替え）
-    ↓
-ECS サービス更新（wait-for-service-stability: true）
-    ↓
-HealthCheck 確認 (/health)
-```
+`.github/workflows/backend-deploy.yml` を参照（Push → OIDC認証 → Docker Build/ECR Push → ECSタスク更新 → HealthCheckの標準フロー）。
 
 ### GitHub OIDC
 
@@ -103,24 +70,7 @@ HealthCheck 確認 (/health)
 
 ### ディレクトリ構成
 
-```
-infra/
-├── terraform/
-│   ├── main.tf              # モジュールオーケストレーション
-│   ├── variables.tf          # ルート変数（23個）
-│   ├── outputs.tf            # 出力（33個）
-│   ├── providers.tf          # AWS プロバイダ（profile: AnimalEkarte）
-│   ├── backend.tf            # S3 + DynamoDB State 管理
-│   ├── terraform.tfvars      # テスト環境変数値
-│   └── modules/
-│       ├── vpc/              # VPC, Subnet, IGW, NAT
-│       ├── security/         # SG, CloudWatch, SSM, IAM
-│       ├── rds/              # PostgreSQL RDS
-│       ├── ecr/              # ECR リポジトリ（animalekarte-api）
-│       ├── ecs/              # ALB, ECS Cluster/Service/Task
-│       └── github-oidc/      # GitHub Actions OIDC 連携
-└── terraform-bootstrap/      # S3・DynamoDB 初期化
-```
+`ls infra/terraform` で再構築可能（`modules/` 配下は vpc/security/rds/ecr/ecs/github-oidc の6モジュール）。
 
 > インフラ関連ドキュメントは `docs/ops/`（構成書・デプロイハブ・ランブック）に集約されている。
 
@@ -135,15 +85,7 @@ Encryption: enabled
 
 ### 主要変数
 
-| 変数 | デフォルト値 | 説明 |
-|------|-------------|------|
-| `name_prefix` | `animalekarte-stg` | リソース名プレフィックス |
-| `rds_instance_class` | `db.t4g.micro` | RDS インスタンスタイプ |
-| `ecs_task_cpu` | `256` | ECS タスク CPU |
-| `ecs_task_memory` | `512` | ECS タスクメモリ (MB) |
-| `ecs_desired_count` | `1` | ECS タスク数 |
-| `use_public_rds` | `false` | RDS パブリックアクセス |
-| `cors_allowed_origin` | — | CORS 許可オリジン |
+デフォルト値は `variables.tf` が正本（本ファイルでの複製はドリフトの元のため廃止）。
 
 ### Terraform 実行
 
@@ -169,12 +111,7 @@ terraform apply tfplan
 
 ## Docker（本番ビルド）
 
-### Backend: `backend/Dockerfile.production`
-
-- マルチステージビルド（builder → runtime）
-- Go 1.25-alpine, CGO_ENABLED=0（静的リンク）
-- Runtime: alpine 3.21（非 root ユーザ: appuser:1000）
-- HealthCheck: `/health` エンドポイント
+構成は `backend/Dockerfile.production` を参照（マルチステージビルド、非rootユーザ実行）。
 
 ### ビルドコマンド
 
@@ -186,12 +123,7 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 ## Vercel（Frontend）
 
-**設定**: `frontend/vercel.json`
-
-- SPA リライト: `/(.*) → /index.html`
-- セキュリティヘッダー: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`
-- 静的アセットキャッシュ: `Cache-Control: public, max-age=31536000, immutable`
-- 環境変数: `VITE_API_URL=https://dcqico6azu5w2.cloudfront.net/api`
+設定は `frontend/vercel.json` を参照（SPAリライト・セキュリティヘッダー・静的アセットキャッシュ・`VITE_API_URL`環境変数）。
 
 ---
 
