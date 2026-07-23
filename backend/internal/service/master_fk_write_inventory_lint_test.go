@@ -304,6 +304,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"trimmingService.Update", statusGuarded, []string{"CourseID", "OptionIDs"}, "internal/trimming/trimming_service.go (BE9-2E): validateTrimmingCourseAndOptions guards *input.CourseID/*input.OptionIDs before persist and missing required repositories fail closed; tests: TestTrimmingService_Update_RejectsCrossClinicCourseFK, TestTrimmingService_Update_RejectsCrossClinicOptionFK, TestTrimmingService_Update_MissingOptionRepositoryFailsClosed"},
 	{"vaccineService.Create", statusGuarded, []string{"ParentID"}, "internal/medicalrecord/vaccine_service.go (BE9-2D, moved from internal/service): validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestVaccineService_Create_RejectsCrossClinicParentFK (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
 	{"vaccineService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); internal/medicalrecord/vaccine_service.go; test: TestVaccineService_Update_RejectsCrossClinicParentFK"},
+	{"writer.Create", statusGuarded, []string{"InsuranceID"}, "internal/pet/owner_registration.go: lockOwnerRegistrationMasters checks every non-nil InsuranceID by clinic under a SHARE lock before insert; test: TestPetRepository_Create_RejectsCrossClinicInsuranceAndRollsBackPet (internal/repository/owner_pet_create_write_owner_test.go)"},
+	{"writer.CreateForOwnerRegistration", statusGuarded, []string{"InsuranceID"}, "internal/pet/owner_registration.go: the ambient transaction path delegates to lockOwnerRegistrationMasters before any nested pet insert; test: TestOwnerRepository_CreateWithPets_RejectsCrossClinicInsuranceAndRollsBackGraph (internal/repository/owner_pet_create_write_owner_test.go)"},
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -591,7 +593,19 @@ func baseName(p string) string {
 // CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
 // type names carried over verbatim) — only the evidence comments below now point at the new
 // file locations. "lstep/" was added when tag/checkup-sync write roles moved in L③.
-var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/", "billing/", "lstep/", "trimming/", "inventory/"}
+var serviceWriteRolePackagePrefixes = []string{
+	"service/",
+	"medicalrecord/",
+	"reservation/",
+	"billing/",
+	"lstep/",
+	"trimming/",
+	"inventory/",
+	"pet/",
+	"staff/",
+	"clinic/",
+	"auth/",
+}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
 // "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this

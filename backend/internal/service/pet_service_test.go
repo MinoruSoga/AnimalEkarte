@@ -399,7 +399,6 @@ func TestPetService_Create(t *testing.T) {
 		repoErr          error
 		ownerRepoErr     error
 		insuranceRepoErr error
-		countByOwnerErr  error
 		wantErr          bool
 		wantPet          bool
 	}{
@@ -485,17 +484,6 @@ func TestPetService_Create(t *testing.T) {
 			insuranceRepoErr: apperrors.WrapNotFound("insurance", "99"),
 			wantErr:          true,
 		},
-		{
-			name:     "returns error when CountByOwner fails",
-			clinicID: 1,
-			input: CreatePetInput{
-				OwnerID:         5,
-				AnimalSpeciesID: 1,
-				Name:            "ペット",
-			},
-			countByOwnerErr: errors.New("db error"),
-			wantErr:         true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -503,12 +491,6 @@ func TestPetService_Create(t *testing.T) {
 			repo := &mockPetRepository{
 				createFn: func(_ context.Context, _ *model.Pet) error {
 					return tt.repoErr
-				},
-				countByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) {
-					if tt.countByOwnerErr != nil {
-						return 0, tt.countByOwnerErr
-					}
-					return 0, nil
 				},
 			}
 			ownerRepo := &mockOwnerRepository{
@@ -545,6 +527,38 @@ func TestPetService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPetService_Create_DelegatesNumberAllocationToPetWriteOwner(t *testing.T) {
+	countCalled := false
+	repo := &mockPetRepository{
+		countByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			countCalled = true
+			return 0, errors.New("legacy count-before-create must not be called")
+		},
+		createFn: func(_ context.Context, pet *model.Pet) error {
+			pet.ID = 10
+			pet.PetNumber = "5-1"
+			return nil
+		},
+	}
+	svc := newPetSvc(
+		repo,
+		defaultOwnerRepo(),
+		defaultInsuranceRepo(1),
+		defaultMedicalRecordRepo(),
+	)
+
+	created, err := svc.Create(context.Background(), 1, &CreatePetInput{
+		OwnerID:         5,
+		AnimalSpeciesID: 1,
+		Name:            "採番委譲ペット",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.False(t, countCalled)
+	assert.Equal(t, "5-1", created.PetNumber)
 }
 
 func TestPetService_Create_SyncLstepTagsBestEffort(t *testing.T) {

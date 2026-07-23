@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	petdomain "github.com/animal-ekarte/backend/internal/pet"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
 type OwnerRepository interface {
@@ -49,11 +52,19 @@ type OwnerRepository interface {
 }
 
 type ownerRepository struct {
-	db *gorm.DB
+	db        *gorm.DB
+	petWriter petdomain.OwnerRegistrationWriter
 }
 
 func NewOwnerRepository(db *gorm.DB) OwnerRepository {
-	return &ownerRepository{db: db}
+	return NewOwnerRepositoryWithPetWriter(db, petdomain.NewWriter(db))
+}
+
+// NewOwnerRepositoryWithPetWriter preserves the legacy repository constructor
+// while allowing composition tests and the eventual owner-domain move to inject
+// the pet-owned cross-domain capability explicitly.
+func NewOwnerRepositoryWithPetWriter(db *gorm.DB, petWriter petdomain.OwnerRegistrationWriter) OwnerRepository {
+	return &ownerRepository{db: db, petWriter: petWriter}
 }
 
 func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -112,11 +123,20 @@ func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []ui
 // Preload するペット・飼主・保険マスタも同じ集合で clinic 隔離する
 // （破損したowner/pet関連やinsurance_idから別クリニックのデータが混入するのを防止）。
 func (r *ownerRepository) findOwnerByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	return r.findOwnerByIDWithDB(ctx, dbOrTx(ctx, r.db), clinicIDs, id)
+}
+
+func (r *ownerRepository) findOwnerByIDWithDB(
+	ctx context.Context,
+	db *gorm.DB,
+	clinicIDs []uint64,
+	id uint64,
+) (*model.Owner, error) {
 	if len(clinicIDs) == 0 {
 		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 	}
 	var owner model.Owner
-	err := r.db.WithContext(ctx).
+	err := db.WithContext(ctx).
 		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
@@ -178,32 +198,49 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := repohelpers.WithTxValue(ctx, tx)
 		// 1. 飼主を作成
-		if err := tx.Create(owner).Error; err != nil {
+		if err := tx.Omit(clause.Associations).Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
 			return apperrors.FromGORM(err, "owner", "")
 		}
-		// 2. ペットを順次作成（owner_id, clinic_id をサーバー側でセット）
-		for i := range pets {
-			pets[i].OwnerID = owner.ID
-			pets[i].ClinicID = owner.ClinicID
-			if err := tx.Create(&pets[i]).Error; err != nil {
-				return apperrors.FromGORM(err, "pet", "")
-			}
+		if r.petWriter == nil {
+			return apperrors.WrapInternalServerError("owner registration pet writer is not configured")
 		}
+		// 2. ペット側の write owner に、同じ ambient transaction 内で
+		// owner-registration intent だけを委譲する。
+		if _, err := r.petWriter.CreateForOwnerRegistration(txCtx, petdomain.OwnerRegistrationIntent{
+			ClinicID: owner.ClinicID,
+			OwnerID:  owner.ID,
+			Pets:     ownerRegistrationPetDrafts(pets),
+		}); err != nil {
+			return err
+		}
+		loaded, err := r.findOwnerByIDWithDB(
+			txCtx,
+			tx,
+			[]uint64{owner.ClinicID},
+			owner.ID,
+		)
+		if err != nil {
+			return apperrors.Wrap(err, "reload owner after create")
+		}
+		*owner = *loaded
 		return nil
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to create owner with pets")
 	}
-	// トランザクションコミット後に全リレーションをロードして呼び出し元に反映
-	loaded, err := r.FindByID(ctx, owner.ClinicID, owner.ID)
-	if err != nil {
-		return apperrors.Wrap(err, "reload owner after create")
-	}
-	*owner = *loaded
 	return nil
+}
+
+func ownerRegistrationPetDrafts(pets []model.Pet) []petdomain.CreatePetDraft {
+	drafts := make([]petdomain.CreatePetDraft, 0, len(pets))
+	for i := range pets {
+		drafts = append(drafts, petdomain.CreatePetDraftFromModel(pets[i]))
+	}
+	return drafts
 }
 
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {

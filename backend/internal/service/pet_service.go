@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -256,15 +255,9 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 		}
 	}
 
-	// ペット番号を自動採番: 「飼主ID-連番」形式
-	count, err := s.repo.CountByOwner(ctx, clinicID, input.OwnerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count pets by owner", "error", err)
-		return nil, apperrors.Wrap(err, "failed to count pets by owner")
-	}
-	petNumber := fmt.Sprintf("%d-%d", input.OwnerID, count+1)
-
-	pet := buildPetModel(clinicID, petNumber, input)
+	// 採番は pet-owned repository capability が owner row lock と同一
+	// transaction 内で行う。service で count-before-create しない。
+	pet := buildPetModel(clinicID, "", input)
 
 	if err := s.repo.Create(ctx, pet); err != nil {
 		slog.ErrorContext(ctx, "failed to create pet", "error", err)

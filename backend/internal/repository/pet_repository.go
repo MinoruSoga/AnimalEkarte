@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	petdomain "github.com/animal-ekarte/backend/internal/pet"
 )
 
 // PetListFilters はペット一覧のフィルタ条件（#266: サーバサイド pagination/search 拡張）。
@@ -44,11 +45,18 @@ type PetRepository interface {
 }
 
 type petRepository struct {
-	db *gorm.DB
+	db        *gorm.DB
+	petWriter petdomain.Creator
 }
 
 func NewPetRepository(db *gorm.DB) PetRepository {
-	return &petRepository{db: db}
+	return NewPetRepositoryWithWriter(db, petdomain.NewWriter(db))
+}
+
+// NewPetRepositoryWithWriter keeps the legacy repository surface as a thin
+// delegate while allowing focused capability tests.
+func NewPetRepositoryWithWriter(db *gorm.DB, petWriter petdomain.Creator) PetRepository {
+	return &petRepository{db: db, petWriter: petWriter}
 }
 
 func (r *petRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error) {
@@ -217,17 +225,21 @@ func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, species
 }
 
 func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
-	if err := r.db.WithContext(ctx).Create(pet).Error; err != nil {
-		if isUniqueConstraintErr(err) {
+	if r.petWriter == nil {
+		return apperrors.WrapInternalServerError("pet writer is not configured")
+	}
+	created, err := r.petWriter.Create(ctx, petdomain.CreateIntent{
+		ClinicID: pet.ClinicID,
+		OwnerID:  pet.OwnerID,
+		Pet:      petdomain.CreatePetDraftFromModel(*pet),
+	})
+	if err != nil {
+		if apperrors.IsAlreadyExists(err) {
 			return apperrors.WrapAlreadyExists("pet", "pet number already registered")
 		}
-		return apperrors.FromGORM(err, "pet", "")
+		return err
 	}
-	loaded, err := r.FindByID(ctx, pet.ClinicID, pet.ID)
-	if err != nil {
-		return apperrors.Wrap(err, "reload pet after create")
-	}
-	*pet = *loaded
+	*pet = *created
 	return nil
 }
 

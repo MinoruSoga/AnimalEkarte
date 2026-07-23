@@ -207,6 +207,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。runtime proof は
 	// pet_repository_tx_atomicity_test.go)
 	"pet_repository.go|petRepository.Update": {},
+	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
+	// remain in the caller's ambient transaction. Runtime:
+	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:
+	// TestPetRepository_Create_ReloadFailureRollsBackPet.
+	"pet/owner_registration.go|writer.Create": {},
+	// BE9 owner reads stay inside the caller's ambient transaction. Public wrapper proof:
+	// TestOwnerRepository_FindByID_UsesAmbientTransaction; rollback-on-reload:
+	// TestOwnerRepository_CreateWithPets_ReloadFailureRollsBackGraph.
+	"owner_repository.go|ownerRepository.findOwnerByID": {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Create": {}, // BE8-4 batch7: moved from prescription_repository.go
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Update": {}, // BE8-4 batch7: moved from prescription_repository.go
