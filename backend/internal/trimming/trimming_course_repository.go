@@ -76,6 +76,7 @@ func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(ctx context.Cont
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingDetail{}).
 		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
+		Where("appointment_trimming_details.clinic_id = ?", clinicID).
 		Where("appointment_trimming_details.course_id = ?", courseID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")

@@ -225,6 +225,23 @@ func TestTrimmingCourseRepository_CountUsageByTrimmingCourseID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
+	t.Run("detail.clinic_id が親 appointment と異なる破損行を数えない", func(t *testing.T) {
+		corruptAppt := makeReservation(t, db, clinicA)
+		corruptDetail := &model.AppointmentTrimmingDetail{
+			ClinicID:      clinicB,
+			AppointmentID: corruptAppt.ID,
+			CourseID:      &course.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(corruptDetail).Error)
+		t.Cleanup(func() {
+			require.NoError(t, db.WithContext(ctx).Delete(corruptDetail).Error)
+		})
+
+		count, err := repo.CountUsageByTrimmingCourseID(ctx, clinicA, course.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
 	// appointment_trimming_details.appointment_id は appointments(=Reservation) への FK のため実予約を作る。
 	appt := makeReservation(t, db, clinicA)
 	detail := &model.AppointmentTrimmingDetail{ClinicID: clinicA, AppointmentID: appt.ID, CourseID: &course.ID}
