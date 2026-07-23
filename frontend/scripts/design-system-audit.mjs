@@ -71,10 +71,10 @@ const C18_TABLE_CELL_STYLE_RE = /\bSTYLE\.tableHeaderCell\b/;
 const C18_TABLE_HEAD_STYLE_RE = /\bSTYLE\.tableCell(?:Mono|Muted)?\b/;
 const C18_TABLE_TYPE_SIZE_RE = /\btext-(?:2xs|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|heading-[123]|\[[^\]]+\])\b/g;
 const C18_TABLE_FONT_WEIGHT_RE = /\bfont-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/g;
-const C18_TABLE_VERTICAL_PADDING_RE = /\b(?:p|py|pt|pb)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
+const C18_TABLE_VERTICAL_PADDING_RE = /\b(?:p|py|pt|pb)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\]|\([^)]+\))/g;
 const C18_TABLE_CELL_ALLOWED_WEIGHTS = new Set(["font-normal", "font-medium", "font-semibold"]);
 /** C18(raw): 横paddingは DESIGN.md ex-data-table-cell の px-4（16px）のみ。primitive は基底styleがpx-4を保証するため raw 限定。 */
-const C18_TABLE_HORIZONTAL_PADDING_RE = /\b(?:px|pl|pr)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\])/g;
+const C18_TABLE_HORIZONTAL_PADDING_RE = /\b(?:px|pl|pr|ps|pe)-(?:px|[0-9]+(?:\.5)?|\[[^\]]+\]|\([^)]+\))/g;
 /** C18(raw): 背景は行側（STYLE.tableHeaderRow の bgPage 帯）が正本。セル単位の bg 再指定を禁止。 */
 const C18_TABLE_RAW_CELL_BG_RE = /(?:^|[^-\w])bg-|(?:^|[^\w$])C\.bg[A-Z]/;
 const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
@@ -131,6 +131,34 @@ export const C18_RAW_CELL_ALLOWLIST = new Set([
 ]);
 /** C18: print 帳票（MonthlyReportPrintArea / DailyAccountingPrintArea / ClosePrintArea 等）の basename パターン。 */
 const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
+/**
+ * 既存raw tableの移行負債を件数でratchetする。値は2026-07-24時点のstrict C18検出数。
+ * 新規fileはbaseline 0、既存fileも件数増加分だけをgating violationとして扱う。
+ */
+export const C18_RAW_CELL_BASELINE = new Map([
+  [path.join("src", "components", "shared", "OwnerSearchModal", "OwnerSearchModal.tsx"), 10],
+  [path.join("src", "features", "accounting", "components", "ItemListCard.tsx"), 10],
+  [path.join("src", "features", "accounting", "components", "RefundSection.tsx"), 10],
+  [path.join("src", "features", "accounting-reports", "components", "DailyBreakdownTable.tsx"), 20],
+  [path.join("src", "features", "cash-register", "components", "BillingDetailTable.tsx"), 14],
+  [path.join("src", "features", "cash-register", "components", "UnifiedClosingSummaryTable.tsx"), 12],
+  [path.join("src", "features", "cash-register", "routes", "CashRegisterHistoryPage.tsx"), 7],
+  [path.join("src", "features", "closing-settings", "components", "StandardClosingTimeSection.tsx"), 6],
+  [path.join("src", "features", "hospitalization", "components", "HospitalizationTreatmentTable.tsx"), 18],
+  [path.join("src", "features", "lstep", "components", "LstepCsvImportSection.tsx"), 12],
+  [path.join("src", "features", "lstep", "components", "LstepDeliveryStatsSection.tsx"), 6],
+  [path.join("src", "features", "lstep", "components", "LstepVisitConversionSection.tsx"), 8],
+  [path.join("src", "features", "master", "components", "PermissionRuleTable.tsx"), 2],
+  [path.join("src", "features", "medical-records", "components", "CheckupsTab", "CheckupsTabRows.tsx"), 12],
+  [path.join("src", "features", "medical-records", "components", "CheckupsTab", "CheckupsTabTable.tsx"), 6],
+  [path.join("src", "features", "medical-records", "components", "TreatmentsTab", "TreatmentRow.tsx"), 5],
+  [path.join("src", "features", "medical-records", "components", "TreatmentsTab", "TreatmentRowParts.tsx"), 5],
+  [path.join("src", "features", "medical-records", "components", "TreatmentsTab", "TreatmentsTabParts.tsx"), 10],
+  [path.join("src", "features", "medical-records", "components", "VitalsTab", "VitalsTabRows.tsx"), 14],
+  [path.join("src", "features", "medical-records", "components", "VitalsTab", "VitalsTabTable.tsx"), 7],
+  [path.join("src", "features", "owner-report", "components", "CheckupHistorySection.tsx"), 4],
+  [path.join("src", "features", "owner-report", "components", "ExaminationHistorySection.tsx"), 6],
+]);
 
 /**
  * isC18RawCellExemptFile は raw th/td 検査の対象外ファイルか判定する。
@@ -483,6 +511,13 @@ function extractC18ClassNameSegments(openingTag) {
   return segments;
 }
 
+function hasC18UnprefixedClassToken(source, token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    "(?:^|[\\s\"'`{(])" + escaped + "(?=$|[\\s\"'`}\\)])",
+  ).test(source);
+}
+
 function isC18IgnoredOpeningTag(text, index) {
   let mode = "code";
   let escaped = false;
@@ -532,8 +567,8 @@ function isC18IgnoredOpeningTag(text, index) {
  * 上書きする class を検出する（th→Head 規則・td→Cell 規則）。raw cell は基底 style を継承しない
  * ため、STYLE.tableHeaderCell / STYLE.tableCell(Mono|Muted) 経由か仕様値 literal を正の準拠経路とし、
  * 加えて横padding（px-4 以外）と背景のセル単位再指定も禁止する。
- * `data-empty-state` + `colSpan` + `text-center` の空 state 追加余白、self-closing の構造セル
- * （drag handle 列 / 操作列スペーサ等・内容なし）、cell 内の子要素、別 component、
+ * `data-empty-state` + `colSpan` + `text-center` の空 state 追加余白、明示的な
+ * `data-c18-structural-cell` を持つself-closing構造セル、cell 内の子要素、別 component、
  * C18_RAW_CELL_ALLOWLIST（raw のみ）、test / 非 TSX は対象外。
  */
 export function checkC18(text, relPath = "") {
@@ -578,12 +613,13 @@ export function checkC18(text, relPath = "") {
     }
 
     const openingTag = text.slice(match.index, endIndex);
-    // raw の self-closing セル（<th className="w-11 px-0" /> 等）は内容を持たない構造セル
-    // （drag handle 列 / 操作列スペーサ）であり typography / padding 仕様の適用対象外。
-    if (isRawCell && /\/\s*>$/.test(openingTag)) {
-      openingTagRe.lastIndex = endIndex;
-      continue;
-    }
+    // 内容を持たない構造セルは明示marker付きself-closing要素だけ基底style必須から除外する。
+    // markerがあっても背景・typography・padding overrideの検査は継続する。
+    const isStructuralCell = (
+      isRawCell
+      && /\/\s*>$/.test(openingTag)
+      && /\bdata-c18-structural-cell\b/.test(openingTag)
+    );
     const classNameSegments = extractC18ClassNameSegments(openingTag);
     const classNameSource = classNameSegments.map((segment) => segment.text).join(" ");
     const forbiddenRe = kind === "Head" ? C18_TABLE_HEAD_RE : C18_TABLE_CELL_RE;
@@ -593,6 +629,31 @@ export function checkC18(text, relPath = "") {
       && /\bcolSpan\s*=/.test(openingTag)
       && /\btext-center\b/.test(classNameSource);
     const firstLineNumber = text.slice(0, match.index).split("\n").length;
+    const hasRawStyleToken = kind === "Head"
+      ? /\bSTYLE\.tableHeaderCell\b/.test(classNameSource)
+      : /\bSTYLE\.tableCell(?:Mono|Muted)?\b/.test(classNameSource);
+    const hasRawLiteralContract = kind === "Head"
+      ? ["text-2xs", "font-semibold", "px-4", "py-3"]
+        .every((token) => hasC18UnprefixedClassToken(classNameSource, token))
+      : ["text-sm", "font-normal", "px-4", "py-3"]
+        .every((token) => hasC18UnprefixedClassToken(classNameSource, token));
+    const hasRawEmptyStyle = kind === "Cell" && /\bSTYLE\.tableEmpty(?:Sm)?\b/.test(classNameSource);
+    if (
+      isRawCell
+      && !isEmptyState
+      && !isStructuralCell
+      && !hasRawEmptyStyle
+      && !hasRawStyleToken
+      && !hasRawLiteralContract
+    ) {
+      violations.push({
+        lineNumber: firstLineNumber,
+        text: openingTag.split("\n")[0].trim(),
+        surface: "raw",
+      });
+      openingTagRe.lastIndex = endIndex;
+      continue;
+    }
     classNameSegments.forEach((segment) => {
       segment.text.split("\n").forEach((line, index) => {
         const expectedTypeSize = kind === "Head" ? "text-2xs" : "text-sm";
@@ -604,7 +665,9 @@ export function checkC18(text, relPath = "") {
         const hasNonstandardVerticalPadding = [...line.matchAll(C18_TABLE_VERTICAL_PADDING_RE)]
           .some(([token]) => token !== "py-3" && !(isEmptyState && token.startsWith("py-")));
         const hasNonstandardHorizontalPadding = isRawCell
-          && [...line.matchAll(C18_TABLE_HORIZONTAL_PADDING_RE)].some(([token]) => token !== "px-4");
+          && [...line.matchAll(C18_TABLE_HORIZONTAL_PADDING_RE)].some(([token]) => (
+            token !== "px-4" && !(isStructuralCell && token === "px-0")
+          ));
         const hasCellBackground = isRawCell && C18_TABLE_RAW_CELL_BG_RE.test(line);
         if (
           forbiddenRe.test(line)
@@ -615,7 +678,11 @@ export function checkC18(text, relPath = "") {
           || hasNonstandardHorizontalPadding
           || hasCellBackground
         ) {
-          violations.push({ lineNumber: firstLineNumber + segment.lineOffset + index, text: line.trim() });
+          violations.push({
+            lineNumber: firstLineNumber + segment.lineOffset + index,
+            text: line.trim(),
+            surface: isRawCell ? "raw" : "primitive",
+          });
         }
       });
     });
@@ -723,7 +790,7 @@ async function walk(dir, exts, excludeNames) {
  * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC19 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c18RawBaseline: [], c19: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -782,8 +849,14 @@ export async function collectViolations(cwd) {
         for (const v of checkC16(text, relPath)) {
           result.c16.push({ file: relPath, ...v });
         }
+        let rawBaselineRemaining = C18_RAW_CELL_BASELINE.get(relPath) ?? 0;
         for (const v of checkC18(text, relPath)) {
-          result.c18.push({ file: relPath, ...v });
+          if (v.surface === "raw" && rawBaselineRemaining > 0) {
+            result.c18RawBaseline.push({ file: relPath, ...v });
+            rawBaselineRemaining -= 1;
+          } else {
+            result.c18.push({ file: relPath, ...v });
+          }
         }
         for (const v of checkC19(text, relPath)) {
           result.c19.push({ file: relPath, ...v });
@@ -853,6 +926,7 @@ async function main() {
   printGroup("C16 非仕様 spacing(*-5)", result.c16);
   printGroup("C17 CSS shadow 直書き", result.c17);
   printGroup("C18 table cell override", result.c18);
+  console.log(`design-system-audit: C18 raw legacy baseline — ${result.c18RawBaseline.length} 件（non-gating ratchet）`);
   printGroup("C19 table row onClick", result.c19);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length

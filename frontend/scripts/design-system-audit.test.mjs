@@ -869,7 +869,7 @@ test("checkC18: raw th/td の非仕様 typography・vertical padding・STYLE cro
   );
   assert.deepEqual(
     violations.map(({ lineNumber }) => lineNumber),
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12],
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   );
 });
 
@@ -892,7 +892,7 @@ test("checkC18: raw th/td 限定で横padding（px-4以外）と背景再指定�
   );
   assert.deepEqual(
     violations.map(({ lineNumber }) => lineNumber),
-    [1, 2, 3, 4, 5, 6, 7],
+    [1, 2, 3, 4, 5, 6, 7, 8],
   );
 });
 
@@ -903,12 +903,12 @@ test("checkC18: 仕様準拠の raw th/td（STYLE token・仕様値literal・構
     "<td className={STYLE.tableCell}>ポチ</td>",
     "<td className={`${STYLE.tableCell} font-mono`}>0123</td>",
     "<td className={`${STYLE.tableCellMuted} text-right`}>備考</td>",
-    "<td className={`px-4 py-3 ${C.text}`}>値</td>",
+    "<td className={`text-sm font-normal px-4 py-3 ${C.text}`}>値</td>",
     "<td colSpan={6} className={STYLE.tableEmpty}>データなし</td>",
     '<td data-empty-state colSpan={5} className="py-12 text-center">データなし</td>',
-    '<th className="w-11 px-0" />',
-    '<th className="w-20" />',
-    '<td><span className="text-base py-2 px-2">子要素</span></td>',
+    '<th data-c18-structural-cell className="w-11 px-0" />',
+    '<th data-c18-structural-cell className="w-20" />',
+    '<td className={STYLE.tableCell}><span className="text-base py-2 px-2">子要素</span></td>',
     '<thead className="text-base">',
     '<tr className="text-xs py-2">',
   ].join("\n");
@@ -918,6 +918,24 @@ test("checkC18: 仕様準拠の raw th/td（STYLE token・仕様値literal・構
     path.join("src", "features", "widget", "components", "RawTable.tsx"),
   );
   assert.deepEqual(violations, []);
+});
+
+test("checkC18: raw cellのmarker・variant・Tailwind v4 shorthand回避をfail closedする", () => {
+  const text = [
+    "<th>unstyled</th>",
+    '<th className="w-11 px-0" />',
+    "<td className={`${STYLE.tableCell} ps-3`}>logical padding</td>",
+    '<th data-c18-structural-cell className="bg-red-500 px-3 text-base" />',
+    '<th className="sm:text-2xs sm:font-semibold sm:px-4 sm:py-3">variant only</th>',
+    '<td className="text-sm font-normal px-(--dense) py-3">v4 shorthand</td>',
+    '<td className="text-sm font-normal px-4 py-(--dense)">v4 shorthand</td>',
+  ].join("\n");
+
+  const violations = audit.checkC18(
+    text,
+    path.join("src", "features", "widget", "components", "RawTable.tsx"),
+  );
+  assert.deepEqual(violations.map(({ lineNumber }) => lineNumber), [1, 2, 3, 4, 5, 6, 7]);
 });
 
 test("checkC18: raw cell allowlist（primitive正本/print帳票/ManualContent/owner-report密度/nested構造）と別アプリを除外する", () => {
@@ -1005,6 +1023,25 @@ test("collectViolations: raw th/td override を C18 に集計し allowlist は�
         },
       ],
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("collectViolations: 既存raw baselineは件数まで非gating、増加分だけをC18違反にする", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const componentDir = path.join(root, "src", "components", "shared", "OwnerSearchModal");
+    mkdirSync(componentDir, { recursive: true });
+    writeFileSync(
+      path.join(componentDir, "OwnerSearchModal.tsx"),
+      Array.from({ length: 11 }, (_, index) => `<td>legacy-${index}</td>`).join("\n"),
+    );
+
+    const result = await collectViolations(root);
+    assert.equal(result.c18RawBaseline.length, 10);
+    assert.equal(result.c18.length, 1);
+    assert.equal(result.c18[0].lineNumber, 11);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

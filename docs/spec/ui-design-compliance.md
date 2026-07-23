@@ -1,6 +1,6 @@
 # UI Design Compliance — 全ルートページ準拠監査
 
-> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体84リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-23**。`frontend/docs/design-audit-pages.md` は本書に統合済みで更新終了。
+> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体84リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-24**。`frontend/docs/design-audit-pages.md` は本書に統合済みで更新終了。
 
 ## 1. 準拠チェック定義
 
@@ -24,14 +24,14 @@
 | C15 | 本体 routes/pages の white/black named color 直接指定禁止。色token経由必須 | design-system.md §2, §9 | **機械化**（C15） |
 | C16 | spacing scale にない20px utility（`*-5`、負値、`[20px]` / `[1.25rem]`）禁止 | design-system.md §4.1 | **機械化**（C16） |
 | C17 | CSS の直接 `box-shadow:` / `filter: drop-shadow()` 禁止。elevation token経由必須 | design-system.md §5.1 | **機械化**（C17） |
-| C18 | `TableHead` / `TableCell` 呼び出し側で header eyebrow・body-sm・12px vertical paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、`data-empty-state` + `colSpan` + `text-center` の空state追加余白と子要素は許可） |
+| C18 | `TableHead` / `TableCell` とraw `th` / `td` で header eyebrow・body-sm・12px vertical / 16px horizontal paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、空stateと`data-c18-structural-cell`付きself-closing構造セルは許可。既存raw debtは件数ratchet） |
 | C19 | `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の4種のrow opening tagをmultiline対応で検査） |
 
 **FE11 正本分割（2026-07-21）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand `#0075DE` は製品採用値であり、臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 
-**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11の対象は本体84ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive opening tag、C19は4種のrow opening tagを対象にする。ロール内での意味的誤選択、手書き `<th>/<td>`、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
+**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11の対象は本体84ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive とraw `th` / `td` opening tag、C19は4種のrow opening tagを対象にする。C18 rawの既存22ファイル204件はファイル別件数をratchetし、増加分と新規fileをstrict failする。ロール内での意味的誤選択、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
 
-**機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C19 は `frontend/scripts/design-system-audit.mjs` で strict fail。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
+**機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C19 は `frontend/scripts/design-system-audit.mjs` で strict fail（C18 rawの明示baseline内だけはnon-gating、増加はfail）。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
 ```bash
 docker compose exec frontend pnpm design-audit
 ```
@@ -134,5 +134,5 @@ docker compose exec frontend pnpm design-audit
 - リダイレクト専用route（`<Navigate replace />`）は表から除外: `/settings/job-title`, `/service-type`, `/diagnosis-type`, `/diagnosis-name`, `/trimming-course`, `/trimming-option`, `/examination`, `/vaccine`, `/consultation`, `/procedure`, `/inquiry-template`, `/shift-template` の **12件**。
 - C1（legacy accent）・C3（route表面hex直書き）は全84ルートで **0件**。生regex `#[0-9A-Fa-f]{3,8}` は issue番号コメント（`#158`等）を誤検知するため、文字列リテラル限定パターンで再検証済み。
 - C5（Primary CTA colorVariant）は route表面で確認できた9件全てが `brand`。legacy variant使用は0件。
-- C15（route named white/black）・C16（非仕様20px spacing）・C17（CSS shadow直書き）・C18（Table primitive非仕様override）・C19（4種のrow全体click）は現行treeで **0件**。C16は画面用26件を仕様内scaleへ移行し、印刷ビュー5件は対象外を明示した。C18導入時に36ファイル195行、C19では共有row 29箇所に加えraw `<TableRow onClick>` 7箇所・raw `<tr onClick>` 3箇所をcell内native controlへ移行し、同じ失敗modeの再導入をunit testで禁止した。
+- C15（route named white/black）・C16（非仕様20px spacing）・C17（CSS shadow直書き）・C18 gating violation・C19（4種のrow全体click）は現行treeで **0件**。C18のTable primitive overrideは0件、raw cellは既存22ファイル204件をnon-gating ratchetとして可視化し、新規/増加を禁止する。C16は画面用26件を仕様内scaleへ移行し、印刷ビュー5件は対象外を明示した。C19では共有row 29箇所に加えraw `<TableRow onClick>` 7箇所・raw `<tr onClick>` 3箇所をcell内native controlへ移行し、同じ失敗modeの再導入をunit testで禁止した。
 - DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み（DESIGN_SYSTEM.md §10 側の旧baseline記述は本書のみ更新、DESIGN_SYSTEM.md本文は対象外のため未修正）。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。
