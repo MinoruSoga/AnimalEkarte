@@ -12,6 +12,7 @@ package inventory
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
@@ -251,23 +253,70 @@ func TestInventoryRepository_DecreaseStock(t *testing.T) {
 	db := setupInventoryTestDB(t)
 	repo := New(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
 	item := makeInventoryItem(t, db, clinicA, "在庫減算対象", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	foreignItem := makeInventoryItem(t, db, clinicB, "他院の在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
 
 	t.Run("在庫数が減算される", func(t *testing.T) {
-		require.NoError(t, repo.DecreaseStock(ctx, item.ID, 3))
+		require.NoError(t, repo.DecreaseStock(ctx, clinicA, item.ID, 3))
 
 		got, err := repo.FindByID(ctx, clinicA, item.ID)
 		require.NoError(t, err)
 		assert.Equal(t, 7, got.Quantity)
 	})
 
+	t.Run("別クリニックの在庫は NotFound となり減算されない", func(t *testing.T) {
+		err := repo.DecreaseStock(ctx, clinicA, foreignItem.ID, 3)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+
+		got, findErr := repo.FindByID(ctx, clinicB, foreignItem.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, 10, got.Quantity)
+	})
+
+	t.Run("ソフトデリート済みの在庫は NotFound となり減算されない", func(t *testing.T) {
+		deletedItem := makeInventoryItem(t, db, clinicA, "削除済み在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		require.NoError(t, repo.Delete(ctx, clinicA, deletedItem.ID))
+
+		err := repo.DecreaseStock(ctx, clinicA, deletedItem.ID, 3)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+
+		var raw model.InventoryItem
+		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", deletedItem.ID).First(&raw).Error)
+		assert.Equal(t, 10, raw.Quantity)
+	})
+
 	t.Run("存在しない ID は NotFound", func(t *testing.T) {
-		err := repo.DecreaseStock(ctx, 999999, 1)
+		err := repo.DecreaseStock(ctx, clinicA, 999999, 1)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestInventoryRepository_DecreaseStock_AmbientTxRollback(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeInventoryItem(t, db, clinicA, "ロールバック対象在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	forcedErr := errors.New("force rollback after stock decrease")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := repohelpers.WithTxValue(ctx, tx)
+		if err := repo.DecreaseStock(txCtx, clinicA, item.ID, 3); err != nil {
+			return err
+		}
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, err := repo.FindByID(ctx, clinicA, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 10, got.Quantity, "ambient transaction rollback must restore the stock quantity")
 }
 
 // TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate は SD-4 決裁A

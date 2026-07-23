@@ -177,11 +177,11 @@ type consultationFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 }
 
-// treatmentInventoryRepo is treatmentService's view of the inventory repository. FindByID is the
-// only cross-tenant defense before DecreaseStock (X-14a: DecreaseStock takes no clinicID).
+// treatmentInventoryRepo is treatmentService's view of the inventory repository. FindByID rejects
+// cross-clinic treatment links, while DecreaseStock repeats clinic scope in the atomic stock update.
 type treatmentInventoryRepo interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
+	DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error
 }
 
 // doseParamFinder is treatmentService's per-species dose-param read view（#201 B-2 保存時再検証、

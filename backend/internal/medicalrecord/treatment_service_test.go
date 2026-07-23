@@ -283,11 +283,10 @@ func TestTreatmentService_Create(t *testing.T) {
 	}
 }
 
-// TestTreatmentService_Create_DecreaseStock は FOLLOWUP-X14A の回帰テスト。
+// TestTreatmentService_Create_DecreaseStock は FOLLOWUP-X14A / INV-SEC P1 の回帰テスト。
 // medicines.id と inventory_items.id は独立した採番空間の別テーブルであり、
-// DecreaseStock（clinic_id 述語なしで inventory_items.id を直接 UPDATE する）に
-// MedicineID を代用して渡すと、番号が偶然衝突した他クリニックの在庫を減算しうる
-// （クロステナント write IDOR）。在庫減算は InventoryID が明示指定された場合のみ行う。
+// MedicineID を在庫 ID として代用せず、明示された InventoryID と認証済み clinicID のみを
+// DecreaseStock へ渡す。
 func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 	const (
 		clinicID        = uint64(1)
@@ -304,7 +303,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
 		}
 		invRepo := &mockInventoryRepository{
-			decreaseStockFn: func(_ context.Context, _ uint64, _ float64) error {
+			decreaseStockFn: func(_ context.Context, _, _ uint64, _ float64) error {
 				called = true
 				return nil
 			},
@@ -331,14 +330,16 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 		medicineID := uint64(999) // 同時に指定されても DecreaseStock の対象に影響しないことを確認する
 		inventoryID := uint64(42)
 		callCount := 0
+		var gotClinicID uint64
 		var gotID uint64
 		var gotQty float64
 		treatmentRepo := &mockTreatmentRepository{
 			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
 		}
 		invRepo := &mockInventoryRepository{
-			decreaseStockFn: func(_ context.Context, id uint64, qty float64) error {
+			decreaseStockFn: func(_ context.Context, passedClinicID, id uint64, qty float64) error {
 				callCount++
+				gotClinicID = passedClinicID
 				gotID = id
 				gotQty = qty
 				return nil
@@ -360,6 +361,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, treatment)
 		assert.Equal(t, 1, callCount)
+		assert.Equal(t, clinicID, gotClinicID)
 		assert.Equal(t, inventoryID, gotID)
 		assert.Equal(t, quantity, gotQty)
 	})

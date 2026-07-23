@@ -95,8 +95,8 @@ func TestTreatmentService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 	})
 }
 
-// ── treatment InventoryID (X-14a): DecreaseStock(ctx, targetInvID, qty) takes no
-// clinicID, so the pre-persist ownership guard is the only cross-tenant defense. ──
+// ── treatment InventoryID (X-14a / INV-SEC P1): the pre-persist ownership guard rejects
+// cross-clinic treatment links; DecreaseStock independently scopes the stock update by clinicID. ──
 
 func TestTreatmentService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 	const clinicID = uint64(1)

@@ -20,7 +20,7 @@ type mockInventoryRepository struct {
 	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 	countUsageByIDFn func(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
-	decreaseStockFn  func(ctx context.Context, id uint64, quantity float64) error // FOLLOWUP-X14A 回帰テスト用フック
+	decreaseStockFn  func(ctx context.Context, clinicID, id uint64, quantity float64) error // INV-SEC P1 signature parity
 }
 
 func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
@@ -46,9 +46,9 @@ func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint6
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
+func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
 	if m.decreaseStockFn != nil {
-		return m.decreaseStockFn(ctx, id, quantity)
+		return m.decreaseStockFn(ctx, clinicID, id, quantity)
 	}
 	return nil
 }

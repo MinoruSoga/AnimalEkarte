@@ -109,7 +109,7 @@ func (m *mockTreatmentAuditTxLogger) LogEntryTx(_ context.Context, input *AuditE
 
 type mockInventoryRepository struct {
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	decreaseStockFn func(ctx context.Context, id uint64, quantity float64) error
+	decreaseStockFn func(ctx context.Context, clinicID, id uint64, quantity float64) error
 	createFn        func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 }
 
@@ -120,9 +120,9 @@ func (m *mockInventoryRepository) FindByID(ctx context.Context, clinicID, id uin
 	return nil, nil
 }
 
-func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
+func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
 	if m.decreaseStockFn != nil {
-		return m.decreaseStockFn(ctx, id, quantity)
+		return m.decreaseStockFn(ctx, clinicID, id, quantity)
 	}
 	return nil
 }

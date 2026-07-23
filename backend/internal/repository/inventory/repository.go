@@ -21,7 +21,7 @@ type Repository interface {
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
+	DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error
 	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 	// BUG-381: 薬剤マスタ削除時に BUG-320 で自動作成された連携在庫をカスケード削除するため、
 	// (clinic_id, name, category=medicine) で在庫を削除する。マッチなしは no-op。
@@ -123,14 +123,15 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
 }
 
-// DecreaseStock は quantity のみを減算する。status は SD-4 決裁A（q&a.html SD-4）により
+// DecreaseStock は clinic_id + id + active row を同じ UPDATE 述語で検証して quantity のみを減算する。
+// status は SD-4 決裁A（q&a.html SD-4）により
 // 保存値を信頼しないことになったため、ここでの再計算は行わない — 読み取り時に
 // model.DeriveInventoryStatus で quantity/min_stock_level から都度導出する
 // （handler/inventory_response.go の toInventoryResponse を参照）。
-func (r *repository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
+func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
 	result := repohelpers.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
-		Where("id = ?", id).
+		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
 		UpdateColumn("quantity", gorm.Expr("quantity - ?", int(quantity)))
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))

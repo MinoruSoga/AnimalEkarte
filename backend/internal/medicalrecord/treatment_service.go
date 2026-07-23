@@ -303,7 +303,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		// フォールバックは書込 IDOR（medicines.id と inventory_items.id の採番衝突で他クリニックの
 		// 在庫を減算しうる）だったため廃止した。減算は InventoryID が明示指定された場合のみ行う。
 		if input.InventoryID != nil && *input.InventoryID > 0 {
-			if err := s.inventoryRepo.DecreaseStock(txCtx, *input.InventoryID, input.Quantity); err != nil {
+			if err := s.inventoryRepo.DecreaseStock(txCtx, clinicID, *input.InventoryID, input.Quantity); err != nil {
 				return apperrors.Wrap(err, "failed to decrease inventory stock")
 			}
 		}
@@ -537,8 +537,8 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 // 持たず medical_record 経由で隔離されるため、これらのマスタが別 clinic のものでないことを
 // write 前に明示確認しないと cross-tenant の mislink（#124/#125 同型）を作れてしまう。
 // 別 clinic のマスタ参照は repo の FindByID が NotFound を返し write を遮断する。
-// InventoryID は BE-refactor.md X-14a: DecreaseStock(ctx, targetInvID, qty) が clinicID を
-// 取らないため、write 前の所有権検証が唯一のクロステナント防御線になる。
+// InventoryID は write 前の所有権検証で cross-clinic treatment link を拒否し、在庫減算時も
+// DecreaseStock(ctx, clinicID, targetInvID, qty) の atomic predicate で同じ clinic scope を再適用する。
 func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID, inventoryID *uint64) error {
 	if err := validateOwnedMasterFK(ctx, "medicine", clinicID, medicineID,
 		func(actx context.Context, cid, mid uint64) error {
