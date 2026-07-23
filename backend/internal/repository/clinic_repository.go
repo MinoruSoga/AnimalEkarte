@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -14,6 +15,7 @@ type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
+	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
@@ -57,6 +59,23 @@ func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([
 		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("staff_id=%d", staffID))
 	}
 	return clinics, nil
+}
+
+// LockActiveByID holds a SHARE lock on an active clinic until the caller's
+// transaction ends. It fails closed without an ambient transaction.
+func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+	if txFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("clinic lock requires an active transaction")
+	}
+	var clinic model.Clinic
+	err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Where("id = ? AND is_active = ?", id, true).
+		First(&clinic).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", id))
+	}
+	return &clinic, nil
 }
 
 func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
@@ -103,30 +122,16 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 	return nil
 }
 
-// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
-// その中のネスト tx（SAVEPOINT）として参加する（R1-1 と同一パターン、accounting_repository.go
-// SavePaymentSplits 参照）。現状 Delete を ambient tx から呼ぶ呼び出し元は無く、
-// 既存呼び出しに対する挙動は変わらない（ambient tx が無ければ dbOrTx は従来どおり新規 tx を開始する）。
+// Delete participates in the caller's ambient transaction. Permission-group cleanup
+// is owned by PermissionGroupRepository and must be orchestrated by the service in
+// the same Transactor.WithTx callback before this delete.
 func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
-	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// Soft-deleted PG rows remain as physical rows and block the clinic FK.
-		// Hard-delete only those rows (deleted_at IS NOT NULL) before removing the clinic.
-		// Active PGs (deleted_at IS NULL) are still caught by CountBlockingReferencesByClinicID → 409.
-		if err := tx.Unscoped().
-			Where("clinic_id = ? AND deleted_at IS NOT NULL", id).
-			Delete(&model.PermissionGroup{}).Error; err != nil {
-			return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("clinic_id=%d", id))
-		}
-		result := tx.Delete(&model.Clinic{}, "id = ?", id)
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
-		}
-		if result.RowsAffected == 0 {
-			return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to delete clinic")
+	result := dbOrTx(ctx, r.db).Delete(&model.Clinic{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

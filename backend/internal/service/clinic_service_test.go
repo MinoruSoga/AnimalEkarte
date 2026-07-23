@@ -7,6 +7,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -27,6 +28,26 @@ type mockClinicRepository struct {
 	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]repository.ClinicDependencyCount, error)
 }
 
+// DeleteSoftDeletedByClinicID keeps the shared permission-group mock compatible with
+// repository.PermissionGroupRepository after the write owner gains clinic cleanup.
+// Clinic transaction tests use mockClinicPermissionGroupWriter below when they need
+// to observe or fail the cleanup call.
+func (m *mockPermissionGroupRepository) DeleteSoftDeletedByClinicID(_ context.Context, _ uint64) error {
+	return nil
+}
+
+type mockClinicPermissionGroupWriter struct {
+	*mockPermissionGroupRepository
+	deleteSoftDeletedByClinicIDFn func(ctx context.Context, clinicID uint64) error
+}
+
+func (m *mockClinicPermissionGroupWriter) DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error {
+	if m.deleteSoftDeletedByClinicIDFn != nil {
+		return m.deleteSoftDeletedByClinicIDFn(ctx, clinicID)
+	}
+	return nil
+}
+
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
 	return m.findAllFn(ctx)
 }
@@ -43,6 +64,10 @@ func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.
 		return m.findByIDFn(ctx, id)
 	}
 	return nil, nil
+}
+
+func (m *mockClinicRepository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+	return m.FindByID(ctx, id)
 }
 
 func (m *mockClinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
@@ -879,7 +904,8 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 		// FK cleanup regression tests: soft-deleted PGs must not block clinic hard-delete
 		{
 			// CountBlockingReferencesByClinicID uses "deleted_at IS NULL" for permission_groups,
-			// so soft-deleted PGs return count=0 → service allows deletion → repo cleans them up.
+			// so soft-deleted PGs return count=0 → service allows deletion → the permission-group
+			// write owner cleans them up in the clinic delete transaction.
 			name:         "succeeds when only soft-deleted permission_groups remain",
 			id:           1,
 			ownerCount:   0,
@@ -900,8 +926,8 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			wantConflict: true,
 		},
 		{
-			// The FK 23503 path (repo returning 400 due to soft-deleted PG rows) must not occur.
-			// repo.Delete now purges soft-deleted PGs in a transaction, so it never reaches this.
+			// The FK 23503 path due only to soft-deleted PG rows must not occur because the
+			// permission-group cleanup runs before clinic Delete in the same transaction.
 			// If it did, the error would propagate as-is (not swallowed).
 			name:         "propagates unexpected repo error without masking",
 			id:           1,
@@ -949,4 +975,147 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			}
 		})
 	}
+}
+
+type clinicDeleteTxMarkerKey struct{}
+
+func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
+	const clinicID = uint64(41)
+
+	newRepository := func(deleteFn func(context.Context, uint64) error) *mockClinicRepository {
+		return &mockClinicRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
+				return &model.Clinic{ID: id}, nil
+			},
+			deleteFn: deleteFn,
+		}
+	}
+
+	t.Run("cleanup and clinic delete run in order inside the same transaction context", func(t *testing.T) {
+		txMarker := &struct{}{}
+		calls := make([]string, 0, 2)
+		repo := newRepository(func(ctx context.Context, id uint64) error {
+			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+			assert.Equal(t, clinicID, id)
+			calls = append(calls, "delete-clinic")
+			return nil
+		})
+		pgRepo := &mockClinicPermissionGroupWriter{
+			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
+			deleteSoftDeletedByClinicIDFn: func(ctx context.Context, id uint64) error {
+				assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
+				assert.Equal(t, clinicID, id)
+				calls = append(calls, "cleanup-permission-groups")
+				return nil
+			},
+		}
+		tx := &mockTransactor{
+			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCtx := context.WithValue(ctx, clinicDeleteTxMarkerKey{}, txMarker)
+				return fn(txCtx)
+			},
+		}
+
+		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"cleanup-permission-groups", "delete-clinic"}, calls)
+	})
+
+	t.Run("cleanup failure prevents clinic delete and preserves the cause", func(t *testing.T) {
+		cleanupErr := errors.New("permission group cleanup failed")
+		deleteCalled := false
+		repo := newRepository(func(_ context.Context, _ uint64) error {
+			deleteCalled = true
+			return nil
+		})
+		pgRepo := &mockClinicPermissionGroupWriter{
+			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
+			deleteSoftDeletedByClinicIDFn: func(_ context.Context, id uint64) error {
+				assert.Equal(t, clinicID, id)
+				return cleanupErr
+			},
+		}
+
+		err := NewClinicService(repo, pgRepo, &mockTransactor{}).
+			DeleteClinic(context.Background(), clinicID)
+
+		require.ErrorIs(t, err, cleanupErr)
+		assert.False(t, deleteCalled)
+	})
+
+	t.Run("clinic delete failure after cleanup preserves the cause", func(t *testing.T) {
+		deleteErr := errors.New("clinic delete failed")
+		cleanupCalled := false
+		repo := newRepository(func(_ context.Context, _ uint64) error {
+			return deleteErr
+		})
+		pgRepo := &mockClinicPermissionGroupWriter{
+			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
+			deleteSoftDeletedByClinicIDFn: func(_ context.Context, _ uint64) error {
+				cleanupCalled = true
+				return nil
+			},
+		}
+
+		err := NewClinicService(repo, pgRepo, &mockTransactor{}).
+			DeleteClinic(context.Background(), clinicID)
+
+		require.ErrorIs(t, err, deleteErr)
+		assert.True(t, cleanupCalled)
+	})
+
+	t.Run("transaction start failure runs neither cleanup nor clinic delete", func(t *testing.T) {
+		txErr := errors.New("transaction unavailable")
+		cleanupCalled := false
+		deleteCalled := false
+		repo := newRepository(func(_ context.Context, _ uint64) error {
+			deleteCalled = true
+			return nil
+		})
+		pgRepo := &mockClinicPermissionGroupWriter{
+			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
+			deleteSoftDeletedByClinicIDFn: func(_ context.Context, _ uint64) error {
+				cleanupCalled = true
+				return nil
+			},
+		}
+
+		err := NewClinicService(repo, pgRepo, &mockTransactor{withTxErr: txErr}).
+			DeleteClinic(context.Background(), clinicID)
+
+		require.ErrorIs(t, err, txErr)
+		assert.False(t, cleanupCalled)
+		assert.False(t, deleteCalled)
+	})
+
+	t.Run("active permission groups retain conflict semantics and skip transaction", func(t *testing.T) {
+		txCalled := false
+		repo := newRepository(func(_ context.Context, _ uint64) error {
+			t.Fatal("clinic delete must not run for an active permission group")
+			return nil
+		})
+		repo.countBlockingRefsFn = func(_ context.Context, _ uint64) ([]repository.ClinicDependencyCount, error) {
+			return []repository.ClinicDependencyCount{{Label: "権限グループ", Count: 1}}, nil
+		}
+		pgRepo := &mockClinicPermissionGroupWriter{
+			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
+			deleteSoftDeletedByClinicIDFn: func(_ context.Context, _ uint64) error {
+				t.Fatal("cleanup must not run for an active permission group")
+				return nil
+			},
+		}
+		tx := &mockTransactor{
+			withTxFn: func(_ context.Context, _ func(context.Context) error) error {
+				txCalled = true
+				return nil
+			},
+		}
+
+		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.False(t, txCalled)
+	})
 }

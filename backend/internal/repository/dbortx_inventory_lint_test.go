@@ -331,15 +331,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic/permission_group repo-internal
 	// tx conversion. Allowlist backfill discovered during G6-2 (X-7 landed without registering these).
-	"clinic_repository.go|clinicRepository.Create":                               {},
-	"clinic_repository.go|clinicRepository.Update":                               {},
-	"clinic_repository.go|clinicRepository.Delete":                               {},
-	"clinic_repository.go|clinicRepository.FindByID":                             {},
-	"clinic_repository.go|clinicRepository.FindCompany":                          {},
-	"permission_group_repository.go|permissionGroupRepository.Create":            {},
-	"permission_group_repository.go|permissionGroupRepository.Reorder":           {},
-	"permission_group_repository.go|permissionGroupRepository.UpdateRules":       {},
-	"permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups": {},
+	"clinic_repository.go|clinicRepository.Create":                                         {},
+	"clinic_repository.go|clinicRepository.Update":                                         {},
+	"clinic_repository.go|clinicRepository.Delete":                                         {},
+	"clinic_repository.go|clinicRepository.FindByID":                                       {},
+	"clinic_repository.go|clinicRepository.FindCompany":                                    {},
+	"clinic_repository.go|clinicRepository.LockActiveByID":                                 {},
+	"permission_group_repository.go|permissionGroupRepository.Create":                      {},
+	"permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID": {},
+	"permission_group_repository.go|permissionGroupRepository.Reorder":                     {},
+	"permission_group_repository.go|permissionGroupRepository.UpdateRules":                 {},
+	"permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":           {},
 	// X-8 (Appendix-A tx-atomicity fix, commit 1e2d483c): reservation_staff repo-internal tx
 	// conversion. Allowlist backfill discovered during G6-2 (X-8 landed without registering these).
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},

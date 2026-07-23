@@ -144,6 +144,47 @@ func TestPermissionGroupRepository_Delete(t *testing.T) {
 	})
 }
 
+func TestPermissionGroupRepository_DeleteSoftDeletedByClinicID_ClinicIsolation(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	activeA := makePermissionGroup(t, db, clinicA, "cleanup active clinic A")
+	deletedA := makePermissionGroup(t, db, clinicA, "cleanup deleted clinic A")
+	deletedB := makePermissionGroup(t, db, clinicB, "cleanup deleted clinic B")
+	require.NoError(t, db.WithContext(ctx).Delete(deletedA).Error)
+	require.NoError(t, db.WithContext(ctx).Delete(deletedB).Error)
+
+	require.NoError(t, repo.DeleteSoftDeletedByClinicID(ctx, clinicA))
+
+	countPhysicalRows := func(id uint64) int64 {
+		var count int64
+		require.NoError(t, db.Unscoped().
+			Model(&model.PermissionGroup{}).
+			Where("id = ?", id).
+			Count(&count).Error)
+		return count
+	}
+	assert.Equal(t, int64(1), countPhysicalRows(activeA.ID), "active group in target clinic must remain")
+	assert.Zero(t, countPhysicalRows(deletedA.ID), "only soft-deleted groups in target clinic are hard-deleted")
+	assert.Equal(t, int64(1), countPhysicalRows(deletedB.ID), "soft-deleted group in another clinic must remain")
+
+	t.Run("zero matching rows is successful", func(t *testing.T) {
+		require.NoError(t, repo.DeleteSoftDeletedByClinicID(ctx, clinicA))
+	})
+
+	t.Run("database error preserves its cause", func(t *testing.T) {
+		cancelledCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		err := repo.DeleteSoftDeletedByClinicID(cancelledCtx, clinicA)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+}
+
 func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)

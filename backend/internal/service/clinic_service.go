@@ -264,13 +264,21 @@ type ClinicService interface {
 	DeleteClinic(ctx context.Context, id uint64) error
 }
 
+// clinicPermissionGroupWriter is owned by the clinic consumer and exposes only the
+// cross-domain writes needed to create and delete a clinic.
+type clinicPermissionGroupWriter interface {
+	Create(ctx context.Context, group *model.PermissionGroup) error
+	UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
+	DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error
+}
+
 type clinicService struct {
 	repo                repository.ClinicRepository
-	permissionGroupRepo repository.PermissionGroupRepository
+	permissionGroupRepo clinicPermissionGroupWriter
 	transactor          repository.Transactor
 }
 
-func NewClinicService(repo repository.ClinicRepository, permissionGroupRepo repository.PermissionGroupRepository, transactor repository.Transactor) ClinicService {
+func NewClinicService(repo repository.ClinicRepository, permissionGroupRepo clinicPermissionGroupWriter, transactor repository.Transactor) ClinicService {
 	return &clinicService{repo: repo, permissionGroupRepo: permissionGroupRepo, transactor: transactor}
 }
 
@@ -449,7 +457,15 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		return apperrors.WrapConflict(dep.Label + "が紐付いているため削除できません。関連データを先に整理してください")
 	}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, id); err != nil {
+			return apperrors.Wrap(err, "failed to clean up soft-deleted permission groups")
+		}
+		if err := s.repo.Delete(txCtx, id); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete clinic")
 	}

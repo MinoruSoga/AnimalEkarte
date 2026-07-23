@@ -8,7 +8,10 @@ package repository
 // 完全に隔離された clinic_id を得てから検証する。
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -142,6 +145,160 @@ func TestClinicRepository_FindByID(t *testing.T) {
 	})
 }
 
+func TestClinicRepository_LockActiveByID_SourceContract(t *testing.T) {
+	source, err := os.ReadFile("clinic_repository.go")
+	require.NoError(t, err)
+
+	const methodSignature = "func (r *clinicRepository) LockActiveByID("
+	const nextMethodSignature = "func (r *clinicRepository) FindByID("
+	methodStart := bytes.Index(source, []byte(methodSignature))
+	require.NotEqual(t, -1, methodStart)
+	methodEndOffset := bytes.Index(source[methodStart:], []byte(nextMethodSignature))
+	require.NotEqual(t, -1, methodEndOffset)
+	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
+
+	assert.Contains(t, methodSource, "txFromContext(ctx)")
+	assert.Contains(t, methodSource, "dbOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, `clause.Locking{Strength: "SHARE"}`)
+	assert.Contains(t, methodSource, `Where("id = ? AND is_active = ?", id, true)`)
+	assert.Contains(t, methodSource, `apperrors.FromGORM`)
+}
+
+func TestClinicRepository_LockActiveByID_RequiresAmbientTransaction(t *testing.T) {
+	repo := NewClinicRepository(nil)
+
+	clinic, err := repo.LockActiveByID(context.Background(), 1)
+
+	assert.Nil(t, clinic)
+	require.Error(t, err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+}
+
+func TestClinicRepository_LockActiveByID_ActiveAndNotFound(t *testing.T) {
+	db := setupClinicTestDB(t)
+	repo := NewClinicRepository(db)
+	transactor := NewTransactor(db)
+	ctx := context.Background()
+
+	activeClinic := makeClinicFixture(t, db, "active clinic lock target")
+	inactiveClinic := makeClinicFixture(t, db, "inactive clinic lock target")
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Clinic{}).
+		Where("id = ?", inactiveClinic.ID).
+		Update("is_active", false).Error)
+
+	t.Run("active clinic is returned", func(t *testing.T) {
+		var locked *model.Clinic
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			var lockErr error
+			locked, lockErr = repo.LockActiveByID(txCtx, activeClinic.ID)
+			return lockErr
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, locked)
+		assert.Equal(t, activeClinic.ID, locked.ID)
+		assert.True(t, locked.IsActive)
+	})
+
+	t.Run("inactive clinic is NotFound", func(t *testing.T) {
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			_, lockErr := repo.LockActiveByID(txCtx, inactiveClinic.ID)
+			return lockErr
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("missing clinic is NotFound", func(t *testing.T) {
+		err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+			_, lockErr := repo.LockActiveByID(txCtx, 999888004)
+			return lockErr
+		})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestClinicRepository_LockActiveByID_HoldsShareLockUntilTransactionEnds(t *testing.T) {
+	tests := []struct {
+		name           string
+		transactionErr error
+	}{
+		{name: "commit"},
+		{name: "rollback", transactionErr: errors.New("force lock holder rollback")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := setupClinicTestDB(t)
+			repo := NewClinicRepository(db)
+			transactor := NewTransactor(db)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			clinic := makeClinicFixture(t, db, "share lock target "+tt.name)
+
+			locked := make(chan struct{})
+			release := make(chan struct{})
+			holderDone := make(chan error, 1)
+			go func() {
+				holderDone <- transactor.WithTx(ctx, func(txCtx context.Context) error {
+					if _, err := repo.LockActiveByID(txCtx, clinic.ID); err != nil {
+						return err
+					}
+					close(locked)
+					select {
+					case <-release:
+						return tt.transactionErr
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				})
+			}()
+
+			select {
+			case <-locked:
+			case <-ctx.Done():
+				t.Fatal("clinic SHARE lock was not acquired")
+			}
+
+			deleteDone := make(chan error, 1)
+			go func() {
+				deleteDone <- repo.Delete(ctx, clinic.ID)
+			}()
+
+			var deleteErr error
+			completedBeforeRelease := false
+			select {
+			case deleteErr = <-deleteDone:
+				completedBeforeRelease = true
+			case <-time.After(100 * time.Millisecond):
+			}
+			close(release)
+
+			holderErr := <-holderDone
+			if tt.transactionErr == nil {
+				require.NoError(t, holderErr)
+			} else {
+				require.ErrorIs(t, holderErr, tt.transactionErr)
+			}
+			if !completedBeforeRelease {
+				select {
+				case deleteErr = <-deleteDone:
+				case <-ctx.Done():
+					t.Fatal("clinic deletion did not resume after the lock transaction ended")
+				}
+			}
+			require.NoError(t, deleteErr)
+			assert.False(t, completedBeforeRelease, "clinic delete must wait for the SHARE lock")
+		})
+	}
+}
+
 func TestClinicRepository_FindCompany(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
@@ -215,18 +372,25 @@ func TestClinicRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "削除後は NotFound になるべき")
 	})
 
-	t.Run("ソフト削除済みPermissionGroupは事前にハード削除されクリニックを削除できる", func(t *testing.T) {
+	t.Run("直接削除はPermissionGroup所有行を書き換えない", func(t *testing.T) {
 		clinic := makeClinicFixture(t, db, "PG付き削除対象クリニック")
 		pg := &model.PermissionGroup{ClinicID: clinic.ID, Name: "削除予定グループ"}
 		require.NoError(t, db.WithContext(ctx).Create(pg).Error)
 		require.NoError(t, db.WithContext(ctx).Delete(pg).Error) // ソフト削除
 
-		err := repo.Delete(ctx, clinic.ID)
-		require.NoError(t, err)
+		rollbackErr := errors.New("rollback direct repository delete")
+		err := NewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+			require.NoError(t, repo.Delete(txCtx, clinic.ID))
 
-		var count int64
-		db.Unscoped().Model(&model.PermissionGroup{}).Where("id = ?", pg.ID).Count(&count)
-		assert.Equal(t, int64(0), count, "ソフト削除済み PermissionGroup は物理削除されている")
+			var count int64
+			require.NoError(t, dbOrTx(txCtx, db).Unscoped().Model(&model.PermissionGroup{}).Where("id = ?", pg.ID).Count(&count).Error)
+			assert.Equal(t, int64(1), count, "clinic repository must not delete permission-group-owned rows")
+			return rollbackErr
+		})
+		require.ErrorIs(t, err, rollbackErr)
+
+		_, findErr := repo.FindByID(ctx, clinic.ID)
+		require.NoError(t, findErr, "test rollback must preserve the clinic")
 	})
 
 	t.Run("存在しないIDはNotFound", func(t *testing.T) {
@@ -234,6 +398,40 @@ func TestClinicRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
+}
+
+func TestClinicPermissionGroupCleanupDelete_RollsBackTogether(t *testing.T) {
+	db := setupClinicTestDB(t)
+	clinicRepo := NewClinicRepository(db)
+	permissionGroupRepo := NewPermissionGroupRepository(db)
+	transactor := NewTransactor(db)
+	ctx := context.Background()
+
+	clinic := makeClinicFixture(t, db, "PG cleanup/delete rollback clinic")
+	group := &model.PermissionGroup{ClinicID: clinic.ID, Name: "rollback soft-deleted group"}
+	require.NoError(t, db.WithContext(ctx).Create(group).Error)
+	require.NoError(t, db.WithContext(ctx).Delete(group).Error)
+	rollbackErr := errors.New("force cleanup/delete rollback")
+
+	err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if cleanupErr := permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, clinic.ID); cleanupErr != nil {
+			return cleanupErr
+		}
+		if deleteErr := clinicRepo.Delete(txCtx, clinic.ID); deleteErr != nil {
+			return deleteErr
+		}
+		return rollbackErr
+	})
+
+	require.ErrorIs(t, err, rollbackErr)
+	_, findErr := clinicRepo.FindByID(ctx, clinic.ID)
+	require.NoError(t, findErr, "clinic deletion must roll back")
+	var groupCount int64
+	require.NoError(t, db.Unscoped().
+		Model(&model.PermissionGroup{}).
+		Where("id = ?", group.ID).
+		Count(&groupCount).Error)
+	assert.Equal(t, int64(1), groupCount, "permission-group cleanup must roll back with clinic delete")
 }
 
 func TestClinicRepository_CountOwnersByClinicID(t *testing.T) {

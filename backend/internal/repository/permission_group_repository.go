@@ -19,6 +19,7 @@ type PermissionGroupRepository interface {
 	Create(ctx context.Context, group *model.PermissionGroup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error
 	UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -91,6 +92,23 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uin
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// DeleteSoftDeletedByClinicID hard-deletes only rows already soft-deleted in the
+// target clinic. Zero matching rows is a successful idempotent cleanup.
+func (r *permissionGroupRepository) DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error {
+	result := dbOrTx(ctx, r.db).
+		Unscoped().
+		Where("clinic_id = ? AND deleted_at IS NOT NULL", clinicID).
+		Delete(&model.PermissionGroup{})
+	if result.Error != nil {
+		return apperrors.FromGORM(
+			result.Error,
+			"permission_group",
+			fmt.Sprintf("clinic_id=%d", clinicID),
+		)
 	}
 	return nil
 }
