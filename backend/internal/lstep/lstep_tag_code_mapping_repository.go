@@ -62,12 +62,15 @@ func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *mod
 
 func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	now := time.Now()
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
+	result := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
-		Update("deleted_at", now).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "lstep_tag_code_mapping", fmt.Sprintf("%d", id))
+		Update("deleted_at", now)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "lstep_tag_code_mapping", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lstep_tag_code_mapping", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

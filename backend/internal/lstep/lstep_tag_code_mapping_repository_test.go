@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
@@ -132,11 +133,13 @@ func TestLstepTagCodeMappingRepository_SoftDelete(t *testing.T) {
 		assert.NotNil(t, stored.DeletedAt)
 	})
 
-	t.Run("別clinic_idからのSoftDeleteはno-opでエラーにならない", func(t *testing.T) {
+	t.Run("別clinic_idからのSoftDeleteはNotFoundになり対象行を変更しない", func(t *testing.T) {
 		m := &model.LstepTagCodeMapping{ClinicID: 5, TagName: "protected", CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"C1"}}
 		require.NoError(t, repo.Create(ctx, m))
 
-		require.NoError(t, repo.SoftDelete(ctx, 999, m.ID))
+		err := repo.SoftDelete(ctx, 999, m.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
 
 		var stored model.LstepTagCodeMapping
 		require.NoError(t, db.Where("id = ?", m.ID).First(&stored).Error)
