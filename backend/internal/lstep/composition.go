@@ -44,7 +44,7 @@ type AuditLogger interface {
 	lstepBatchAuditService
 }
 
-// Transactor preserves the ambient transaction in lifecycle and batch operations.
+// Transactor preserves the ambient transaction across LSTEP write operations.
 type Transactor interface {
 	WithTx(ctx context.Context, fn func(context.Context) error) error
 }

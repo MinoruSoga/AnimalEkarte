@@ -10,6 +10,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/lib/pq"
@@ -18,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
@@ -176,4 +178,60 @@ func TestLstepTagCodeMappingRepository_SoftDeleteByClinicIDAndTagName(t *testing
 		require.NoError(t, err)
 		require.Len(t, mappings, 1)
 	})
+}
+
+type failNthCreateLstepTagCodeMappingRepository struct {
+	LstepTagCodeMappingRepository
+	failAt      int
+	createCalls int
+}
+
+func (r *failNthCreateLstepTagCodeMappingRepository) Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error {
+	r.createCalls++
+	if r.createCalls == r.failAt {
+		return errors.New("injected create failure")
+	}
+	return r.LstepTagCodeMappingRepository.Create(ctx, mapping)
+}
+
+func TestLstepTagCodeMappingService_PutMappingsForTag_RollsBackPartialReplacement(t *testing.T) {
+	db := setupLstepTagCodeMappingTestDB(t)
+	baseRepo := NewLstepTagCodeMappingRepository(db)
+	ctx := context.Background()
+
+	const clinicID = uint64(1)
+	original := &model.LstepTagCodeMapping{
+		ClinicID: clinicID,
+		TagName:  HlthHealthcheckDoneTag,
+		CodeType: model.CodeTypeCheckupType,
+		Codes:    pq.StringArray{"ORIGINAL"},
+	}
+	require.NoError(t, baseRepo.Create(ctx, original))
+
+	failingRepo := &failNthCreateLstepTagCodeMappingRepository{
+		LstepTagCodeMappingRepository: baseRepo,
+		failAt:                        2,
+	}
+	svc := NewLstepTagCodeMappingService(failingRepo, repository.NewTransactor(db))
+
+	got, err := svc.PutMappingsForTag(ctx, clinicID, HlthHealthcheckDoneTag, []PutMappingEntry{
+		{CodeType: model.CodeTypePrescription, Codes: []string{"RX_NEW"}},
+		{CodeType: model.CodeTypeMerchandiseItem, Codes: []string{"FOOD_NEW"}},
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.Equal(t, 2, failingRepo.createCalls)
+
+	active, findErr := baseRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+	require.NoError(t, findErr)
+	if assert.Len(t, active, 1) {
+		assert.Equal(t, original.ID, active[0].ID)
+		assert.Equal(t, pq.StringArray{"ORIGINAL"}, active[0].Codes)
+		assert.Nil(t, active[0].DeletedAt)
+	}
+
+	var allRows []*model.LstepTagCodeMapping
+	require.NoError(t, db.Where("clinic_id = ? AND tag_name = ?", clinicID, HlthHealthcheckDoneTag).Find(&allRows).Error)
+	assert.Len(t, allRows, 1, "soft delete and successful creates before the failure must roll back together")
 }

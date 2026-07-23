@@ -54,7 +54,7 @@ func newApplicationGraph(
 		lineLink:        NewLineLinkService(deps.Owners, repos.lineLinkToken, deps.ReservationSettings, deps.Audit, deps.Cipher),
 		lineCustomer:    NewLineCustomerService(repos.lineCustomers, deps.Owners),
 		tag:             NewLstepTagService(core.settings, deps.Owners, repos.tagCache, deps.Audit, repos.tagConfig),
-		tagCodeMapping:  NewLstepTagCodeMappingService(repos.tagCodeMapping),
+		tagCodeMapping:  NewLstepTagCodeMappingService(repos.tagCodeMapping, deps.Transactor),
 		tagConfig:       NewLstepTagConfigService(repos.tagConfig),
 		tagSummary:      NewLstepTagSummaryService(repos.tagCache),
 		checkupSync:     NewCheckupSyncService(repos.checkupSync, deps.Owners, deps.Pets, repos.tagCache, core.settings, deps.Audit),

@@ -37,13 +37,24 @@ type LstepTagCodeMappingService interface {
 	PutMappingsForTag(ctx context.Context, clinicID uint64, tagName string, entries []PutMappingEntry) ([]*model.LstepTagCodeMapping, error)
 }
 
+type tagCodeMappingTransactor interface {
+	WithTx(ctx context.Context, fn func(context.Context) error) error
+}
+
 type lstepTagCodeMappingService struct {
-	repo LstepTagCodeMappingRepository
+	repo       LstepTagCodeMappingRepository
+	transactor tagCodeMappingTransactor
 }
 
 // NewLstepTagCodeMappingService はサービスを生成する。
-func NewLstepTagCodeMappingService(repo LstepTagCodeMappingRepository) LstepTagCodeMappingService {
-	return &lstepTagCodeMappingService{repo: repo}
+func NewLstepTagCodeMappingService(
+	repo LstepTagCodeMappingRepository,
+	transactor tagCodeMappingTransactor,
+) LstepTagCodeMappingService {
+	return &lstepTagCodeMappingService{
+		repo:       repo,
+		transactor: transactor,
+	}
 }
 
 func (s *lstepTagCodeMappingService) ListMappings(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error) {
@@ -59,32 +70,40 @@ func (s *lstepTagCodeMappingService) PutMappingsForTag(ctx context.Context, clin
 	if !isConfigurableTag(tagName) {
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag %q is not configurable", tagName))
 	}
-
-	if err := s.repo.SoftDeleteByClinicIDAndTagName(ctx, clinicID, tagName); err != nil {
-		slog.ErrorContext(ctx, "failed to soft-delete lstep tag code mappings", "clinic_id", clinicID, "tag_name", tagName, "error", err)
-		return nil, apperrors.Wrap(err, "failed to delete existing mappings")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("lstep tag code mapping transaction dependency is required")
 	}
 
 	created := make([]*model.LstepTagCodeMapping, 0, len(entries))
-	for i := range entries {
-		m := &model.LstepTagCodeMapping{
-			ClinicID: clinicID,
-			TagName:  tagName,
-			CodeType: entries[i].CodeType,
-			Codes:    entries[i].Codes,
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.SoftDeleteByClinicIDAndTagName(txCtx, clinicID, tagName); err != nil {
+			return apperrors.Wrap(err, "failed to delete existing mappings")
 		}
-		if entries[i].SpeciesScope != "" {
-			s := entries[i].SpeciesScope
-			m.SpeciesScope = &s
+
+		for i := range entries {
+			m := &model.LstepTagCodeMapping{
+				ClinicID: clinicID,
+				TagName:  tagName,
+				CodeType: entries[i].CodeType,
+				Codes:    entries[i].Codes,
+			}
+			if entries[i].SpeciesScope != "" {
+				speciesScope := entries[i].SpeciesScope
+				m.SpeciesScope = &speciesScope
+			}
+			if entries[i].AgeMin != nil {
+				m.AgeMin = entries[i].AgeMin
+			}
+			if err := s.repo.Create(txCtx, m); err != nil {
+				return apperrors.Wrap(err, "failed to create mapping")
+			}
+			created = append(created, m)
 		}
-		if entries[i].AgeMin != nil {
-			m.AgeMin = entries[i].AgeMin
-		}
-		if err := s.repo.Create(ctx, m); err != nil {
-			slog.ErrorContext(ctx, "failed to create lstep tag code mapping", "clinic_id", clinicID, "tag_name", tagName, "error", err)
-			return nil, apperrors.Wrap(err, "failed to create mapping")
-		}
-		created = append(created, m)
+
+		return nil
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to replace lstep tag code mappings", "clinic_id", clinicID, "tag_name", tagName, "error", err)
+		return nil, apperrors.Wrap(err, "failed to replace lstep tag code mappings")
 	}
 
 	return created, nil

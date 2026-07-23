@@ -54,7 +54,7 @@ func (r *lstepTagCodeMappingRepository) FindByClinicIDAndTagName(ctx context.Con
 }
 
 func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error {
-	if err := r.db.WithContext(ctx).Create(mapping).Error; err != nil {
+	if err := repohelpers.DBOrTx(ctx, r.db).Create(mapping).Error; err != nil {
 		return apperrors.FromGORM(err, "lstep_tag_code_mapping", "create")
 	}
 	return nil
@@ -62,7 +62,7 @@ func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *mod
 
 func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	now := time.Now()
-	err := r.db.WithContext(ctx).Model(&model.LstepTagCodeMapping{}).
+	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		Update("deleted_at", now).Error
@@ -74,7 +74,7 @@ func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID
 
 func (r *lstepTagCodeMappingRepository) SoftDeleteByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) error {
 	now := time.Now()
-	err := r.db.WithContext(ctx).Model(&model.LstepTagCodeMapping{}).
+	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("tag_name = ? AND deleted_at IS NULL", tagName).
 		Update("deleted_at", now).Error

@@ -17,6 +17,21 @@ type mockLstepTagCodeMappingRepositoryForCodeSettings struct {
 	createFn                         func(ctx context.Context, mapping *model.LstepTagCodeMapping) error
 }
 
+type mockLstepTagCodeMappingTransactor struct {
+	withTxFn func(ctx context.Context, fn func(context.Context) error) error
+}
+
+func (m *mockLstepTagCodeMappingTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	if m.withTxFn != nil {
+		return m.withTxFn(ctx, fn)
+	}
+	return fn(ctx)
+}
+
+func newTestLstepTagCodeMappingService(repo LstepTagCodeMappingRepository) LstepTagCodeMappingService {
+	return NewLstepTagCodeMappingService(repo, &mockLstepTagCodeMappingTransactor{})
+}
+
 func (m *mockLstepTagCodeMappingRepositoryForCodeSettings) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error) {
 	if m.findAllByClinicIDFn != nil {
 		return m.findAllByClinicIDFn(ctx, clinicID)
@@ -57,7 +72,7 @@ func TestLstepTagCodeMappingService_ListMappings(t *testing.T) {
 				Codes:    pq.StringArray{"FOOD_A"},
 			},
 		}
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]*model.LstepTagCodeMapping, error) {
 				return want, nil
 			},
@@ -69,7 +84,7 @@ func TestLstepTagCodeMappingService_ListMappings(t *testing.T) {
 	})
 
 	t.Run("wraps repository error", func(t *testing.T) {
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]*model.LstepTagCodeMapping, error) {
 				return nil, errors.New("db error")
 			},
@@ -85,7 +100,7 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 	t.Run("creates entries after soft delete", func(t *testing.T) {
 		var deletedTag string
 		var created []*model.LstepTagCodeMapping
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, tagName string) error {
 				deletedTag = tagName
 				return nil
@@ -119,14 +134,14 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 	})
 
 	t.Run("rejects non-configurable tag", func(t *testing.T) {
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{})
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{})
 		got, err := svc.PutMappingsForTag(context.Background(), 10, "NOT_ALLOWED", nil)
 		assert.Error(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("returns wrapped error when soft delete fails", func(t *testing.T) {
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
 				return errors.New("db error")
 			},
@@ -139,7 +154,7 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 	})
 
 	t.Run("returns wrapped error when create fails", func(t *testing.T) {
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
 				return errors.New("db error")
 			},
@@ -153,7 +168,7 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 
 	t.Run("stops on first create failure and does not create remaining entries", func(t *testing.T) {
 		callCount := 0
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
 				callCount++
 				if callCount == 1 {
@@ -173,7 +188,7 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 	t.Run("sets SpeciesScope and AgeMin when provided, and handles multiple entries", func(t *testing.T) {
 		ageMin := 5
 		var created []*model.LstepTagCodeMapping
-		svc := NewLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			createFn: func(_ context.Context, mapping *model.LstepTagCodeMapping) error {
 				created = append(created, mapping)
 				mapping.ID = uint64(len(created))
@@ -198,5 +213,91 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 			assert.Nil(t, created[1].AgeMin)
 		}
 		assert.Len(t, got, 2)
+	})
+
+	t.Run("runs soft delete and every create in one transaction context", func(t *testing.T) {
+		type txMarkerKey struct{}
+		var operations []string
+		txCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(ctx context.Context, _ uint64, _ string) error {
+				assert.Equal(t, "replacement-tx", ctx.Value(txMarkerKey{}))
+				operations = append(operations, "soft-delete")
+				return nil
+			},
+			createFn: func(ctx context.Context, _ *model.LstepTagCodeMapping) error {
+				assert.Equal(t, "replacement-tx", ctx.Value(txMarkerKey{}))
+				operations = append(operations, "create")
+				return nil
+			},
+		}
+		transactor := &mockLstepTagCodeMappingTransactor{
+			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCalls++
+				return fn(context.WithValue(ctx, txMarkerKey{}, "replacement-tx"))
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, transactor)
+
+		_, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: model.CodeTypeCheckupType, Codes: []string{"CHK_01"}},
+			{CodeType: model.CodeTypePrescription, Codes: []string{"RX_01"}},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, txCalls)
+		assert.Equal(t, []string{"soft-delete", "create", "create"}, operations)
+	})
+
+	t.Run("does not write when transaction start fails", func(t *testing.T) {
+		txErr := errors.New("transaction unavailable")
+		writeCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
+				writeCalls++
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				writeCalls++
+				return nil
+			},
+		}
+		transactor := &mockLstepTagCodeMappingTransactor{
+			withTxFn: func(context.Context, func(context.Context) error) error {
+				return txErr
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, transactor)
+
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: model.CodeTypeCheckupType, Codes: []string{"CHK_01"}},
+		})
+
+		assert.ErrorIs(t, err, txErr)
+		assert.Nil(t, got)
+		assert.Zero(t, writeCalls)
+	})
+
+	t.Run("fails closed when transaction dependency is missing", func(t *testing.T) {
+		writeCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
+				writeCalls++
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				writeCalls++
+				return nil
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, nil)
+
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: model.CodeTypeCheckupType, Codes: []string{"CHK_01"}},
+		})
+
+		assert.ErrorContains(t, err, "transaction dependency is required")
+		assert.Nil(t, got)
+		assert.Zero(t, writeCalls)
 	})
 }
