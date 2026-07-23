@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"time"
@@ -23,8 +24,12 @@ const deliveryTriggerHourJST = 10
 type LstepBatchService interface {
 	// RunNoShowCheckAllClinics は全クリニックに対してノーショウ検知を実行するcronエントリポイント。
 	RunNoShowCheckAllClinics(ctx context.Context) error
+	// RunNoShowCheckAllClinicsAt は durable scheduler の scheduledAt と安定 runID を使って実行する。
+	RunNoShowCheckAllClinicsAt(ctx context.Context, scheduledAt time.Time, runID string) BatchRunResult
 	// RunDormantDetectionAllClinics は全クリニックに対して休眠検知を実行するcronエントリポイント（02:00 JST）。
 	RunDormantDetectionAllClinics(ctx context.Context) error
+	// RunDormantDetectionAllClinicsAt は durable scheduler の scheduledAt を休眠判定基準に使う。
+	RunDormantDetectionAllClinicsAt(ctx context.Context, scheduledAt time.Time, runID string) BatchRunResult
 	// RunLTVTopPercentSyncAllClinics は全クリニックに対して LTV 上位 20% タグを同期するcronエントリポイント（FEAT-377）。
 	RunLTVTopPercentSyncAllClinics(ctx context.Context) error
 	// RunVisitDormantSyncAllClinics は全クリニックに対して VISIT_* タグ（180/210/240日超）を同期するcronエントリポイント（FEAT-377）。
@@ -33,6 +38,46 @@ type LstepBatchService interface {
 	RunHealthPreventionTagSyncAllClinics(ctx context.Context) error
 	// RunDeliveryTriggerBatchAllClinics は全クリニックに対して自動配信トリガーバッチを実行するcronエントリポイント（FEAT-383: 10:00 JST）。
 	RunDeliveryTriggerBatchAllClinics(ctx context.Context) error
+	// RunDeliveryTriggerBatchAllClinicsAt は durable scheduler の scheduledAt を全配信判定へ渡す。
+	RunDeliveryTriggerBatchAllClinicsAt(ctx context.Context, scheduledAt time.Time, runID string) BatchRunResult
+}
+
+// BatchRunResult is the strict aggregate returned to the durable scheduler.
+// Processed must always equal Succeeded + Failed.
+type BatchRunResult struct {
+	Processed int
+	Succeeded int
+	Failed    int
+}
+
+// Validate checks the counter invariant before the result crosses the HTTP boundary.
+func (r BatchRunResult) Validate() error {
+	if r.Processed < 0 || r.Succeeded < 0 || r.Failed < 0 {
+		return errors.New("batch counters must be non-negative")
+	}
+	if r.Processed != r.Succeeded+r.Failed {
+		return errors.New("batch processed must equal succeeded plus failed")
+	}
+	return nil
+}
+
+func (r BatchRunResult) add(succeeded, failed int) BatchRunResult {
+	return BatchRunResult{
+		Processed: r.Processed + succeeded + failed,
+		Succeeded: r.Succeeded + succeeded,
+		Failed:    r.Failed + failed,
+	}
+}
+
+func failedBatchRunResult() BatchRunResult {
+	return BatchRunResult{Processed: 1, Failed: 1}
+}
+
+func scheduledBatchMetadata(scheduledAt time.Time, runID string) map[string]any {
+	return map[string]any{
+		"batch_run_id":   runID,
+		"scheduled_time": scheduledAt.UnixMilli(),
+	}
 }
 
 type lstepBatchDeliveryTrigger interface {
@@ -95,6 +140,20 @@ type lstepBatchReservationRepository interface {
 	MarkNoShow(ctx context.Context, clinicID, id uint64) (reservation.NoShowTransition, error)
 }
 
+type lstepBatchReservationRepositoryAt interface {
+	FindNoShowCandidatesAt(
+		ctx context.Context,
+		clinicID uint64,
+		evaluatedAt time.Time,
+	) ([]model.Reservation, error)
+	MarkNoShowAt(
+		ctx context.Context,
+		clinicID uint64,
+		id uint64,
+		evaluatedAt time.Time,
+	) (reservation.NoShowTransition, error)
+}
+
 type lstepBatchTransactor interface {
 	WithTx(ctx context.Context, fn func(context.Context) error) error
 }
@@ -121,6 +180,17 @@ type lstepBatchClinicRepository interface {
 type lstepBatchMedicalRecordRepository interface {
 	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]medicalrecord.DormantOwnerEntry, error)
 	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error)
+}
+
+type lstepBatchMedicalRecordRepositoryAt interface {
+	FindDormantOwnerEntriesCursorAt(
+		ctx context.Context,
+		clinicID uint64,
+		minDaysSince int,
+		afterOwnerID uint64,
+		limit int,
+		evaluatedAt time.Time,
+	) ([]medicalrecord.DormantOwnerEntry, error)
 }
 
 type lstepBatchTagSyncer interface {
@@ -152,27 +222,58 @@ func (s *lstepBatchService) runBatchAllClinics(
 	extraMeta map[string]any,
 	perClinic func(ctx context.Context, clinicID uint64) (int, []error),
 ) error {
+	_, err := s.runBatchAllClinicsWithResult(
+		ctx,
+		label,
+		auditWarnLabel,
+		syncedSuffix,
+		operation,
+		extraMeta,
+		perClinic,
+	)
+	return err
+}
+
+// runBatchAllClinicsWithResult preserves the legacy fatal error while also
+// counting every business, settings, and audit failure for durable scheduling.
+func (s *lstepBatchService) runBatchAllClinicsWithResult(
+	ctx context.Context,
+	label string,
+	auditWarnLabel string,
+	syncedSuffix string,
+	operation string,
+	extraMeta map[string]any,
+	perClinic func(ctx context.Context, clinicID uint64) (int, []error),
+) (BatchRunResult, error) {
 	if s.settingsSvc == nil {
 		slog.ErrorContext(ctx, label+": settings service is not configured")
-		return apperrors.WrapInternalServerError("LSTEP settings service is not configured")
+		return failedBatchRunResult(), apperrors.WrapInternalServerError("LSTEP settings service is not configured")
 	}
 	clinics, err := s.clinicRepo.FindAll(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, label+": failed to fetch clinics", "error", err)
-		return apperrors.Wrap(err, "failed to fetch clinics for "+label)
+		return failedBatchRunResult(), apperrors.Wrap(err, "failed to fetch clinics for "+label)
 	}
 
+	result := BatchRunResult{}
 	for i := range clinics {
 		clinic := &clinics[i]
 		enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
 		if syncErr != nil {
 			slog.ErrorContext(ctx, label+": failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
+			result = result.add(0, 1)
 			continue
 		}
 		if !enabled {
 			continue
 		}
 		count, errs := perClinic(ctx, clinic.ID)
+		if count < 0 {
+			slog.ErrorContext(ctx, label+": invalid negative processed count", "clinic_id", clinic.ID)
+			count = 0
+			errs = append(errs, errors.New("negative batch processed count"))
+		}
+		result = result.add(count, len(errs))
 		if len(errs) > 0 {
 			slog.ErrorContext(ctx, label+": partial errors",
 				"clinic_id", clinic.ID, "error_count", len(errs))
@@ -187,12 +288,18 @@ func (s *lstepBatchService) runBatchAllClinics(
 				"error_count":     len(errs),
 			}
 			maps.Copy(meta, extraMeta)
+			if s.auditSvc == nil {
+				slog.WarnContext(ctx, "audit logger is not configured for "+auditWarnLabel, "clinic_id", clinic.ID)
+				result = result.add(0, 1)
+				continue
+			}
 			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
 				operation, "clinic", &clinic.ID, meta,
 			); err != nil {
 				slog.WarnContext(ctx, "audit log failed for "+auditWarnLabel, "error", err, "clinic_id", clinic.ID)
+				result = result.add(0, 1)
 			}
 		}
 	}
-	return nil
+	return result, nil
 }

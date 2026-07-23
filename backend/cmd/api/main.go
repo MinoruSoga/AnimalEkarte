@@ -328,28 +328,6 @@ func run() int {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
-	// LSTEP-BE-014: ノーショウ検知バッチ — 毎時0分に起動し 10/15/20 時 (JST) のみ実行
-	// time.Local は main() 冒頭の config.ConfigureTimeZone() で Asia/Tokyo 確定済み（G9-3）
-	schedulers := []backgroundJob{
-		func(ctx context.Context) {
-			runScheduled(ctx, "no-show batch", hourlyTick, func(ctx context.Context) error {
-				triggerHours := map[int]bool{10: true, 15: true, 20: true}
-				if !triggerHours[time.Now().Hour()] {
-					return nil
-				}
-				return lstepApp.Batch.RunNoShowCheckAllClinics(ctx)
-			})
-		},
-		// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
-		func(ctx context.Context) {
-			runScheduled(ctx, "dormant detection batch", dailyAt2AM, lstepApp.Batch.RunDormantDetectionAllClinics)
-		},
-		// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
-		func(ctx context.Context) {
-			runScheduled(ctx, "delivery trigger batch", hourlyTick, lstepApp.Batch.RunDeliveryTriggerBatchAllClinics)
-		},
-	}
-
 	// ルーター設定
 	r := gin.New()
 	// H2: Set trusted proxies to prevent rate-limit bypass via X-Forwarded-For spoofing
@@ -376,6 +354,10 @@ func run() int {
 	r.Use(middleware.RequestLoggingMiddleware())
 	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
 	r.Use(middleware.SanitizeNullBytes())
+	// Durable Cloudflare coordinator -> Container only. The public Worker
+	// denies this prefix; the Go boundary still validates the complete
+	// deterministic schedule identity and applies its own 100s deadline.
+	registerScheduledJobRoutes(r, lstepApp.Batch)
 	protected := h.RegisterRoutes(appCtx, r)
 
 	// BE9-2B pilot: internal/manualarticle is composed here directly — it does not go
@@ -648,8 +630,7 @@ func run() int {
 		address:          server.Addr,
 		backgroundCtx:    appCtx,
 		cancelBackground: appCancel,
-		shutdownTimeout:  30 * time.Second,
-		schedulers:       schedulers,
+		shutdownTimeout:  130 * time.Second,
 		drainers: []func(){
 			func() {
 				// PERF-FOLLOWUP-05: password-reset email sends are fire-and-forget.

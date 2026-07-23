@@ -406,6 +406,56 @@ func TestReservationRepository_MarkNoShow(t *testing.T) {
 	})
 }
 
+func TestReservationRepository_MarkNoShowAt_UsesSuppliedTimeInCAS(t *testing.T) {
+	db := setupReservationRepoTestDB(t)
+	store := NewReservationRepository(db)
+	repo, ok := store.(ReservationNoShowAtRepository)
+	require.True(t, ok)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	reservationType := makeReservationType(t, db, clinicID)
+	evaluatedAt := time.Date(2030, 1, 2, 10, 0, 0, 0, time.UTC)
+	eligibleEnd := evaluatedAt.Add(-4 * time.Hour)
+	appointment := makeReservationForReservationRepoTest(
+		t,
+		db,
+		clinicID,
+		reservationType.ID,
+		eligibleEnd.Add(-30*time.Minute),
+		model.ReservationStatusConfirmed,
+		model.ReservationSourceManual,
+		nil,
+		nil,
+	)
+
+	var beforeCutoff NoShowTransition
+	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+		var markErr error
+		beforeCutoff, markErr = repo.MarkNoShowAt(
+			txCtx,
+			clinicID,
+			appointment.ID,
+			evaluatedAt.Add(-time.Minute),
+		)
+		return markErr
+	})
+	require.NoError(t, err)
+	assert.False(t, beforeCutoff.Changed)
+	assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, appointment.ID))
+
+	var atCutoff NoShowTransition
+	err = testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+		var markErr error
+		atCutoff, markErr = repo.MarkNoShowAt(txCtx, clinicID, appointment.ID, evaluatedAt)
+		return markErr
+	})
+	require.NoError(t, err)
+	assert.True(t, atCutoff.Changed)
+	assert.Equal(t, model.ReservationStatusConfirmed, atCutoff.PreviousStatus)
+	assert.Equal(t, model.ReservationStatusNoShow, reloadReservationIntentStatus(t, db, appointment.ID))
+}
+
 func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *testing.T) {
 	const clinicID = uint64(1)
 	ctx := context.Background()

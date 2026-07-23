@@ -115,12 +115,11 @@ func waitForLifecycleRun(t *testing.T, done <-chan error) error {
 	}
 }
 
-func TestServerRunner_BindFailureDoesNotStartSchedulers(t *testing.T) {
+func TestServerRunner_BindFailureCancelsBackgroundContext(t *testing.T) {
 	bindErr := errors.New("address already in use")
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
 	t.Cleanup(cancelBackground)
 
-	var schedulerStarted atomic.Bool
 	resource := &lifecycleTestCloser{}
 	server := newLifecycleTestServer()
 	runner := serverRunner{
@@ -131,18 +130,12 @@ func TestServerRunner_BindFailureDoesNotStartSchedulers(t *testing.T) {
 		listen: func(string, string) (net.Listener, error) {
 			return nil, bindErr
 		},
-		schedulers: []backgroundJob{
-			func(context.Context) {
-				schedulerStarted.Store(true)
-			},
-		},
 		resources: []resourceCloser{resource},
 	}
 
 	err := runner.run(context.Background())
 
 	require.ErrorIs(t, err, bindErr)
-	assert.False(t, schedulerStarted.Load())
 	assert.False(t, server.shutdownCalled.Load())
 	assert.False(t, server.closeCalled.Load())
 	assert.True(t, resource.closed.Load())
@@ -153,24 +146,22 @@ func TestServerRunner_BindFailureDoesNotStartSchedulers(t *testing.T) {
 	}
 }
 
-func TestServerRunner_GracefulShutdownJoinsSchedulersBeforeResources(t *testing.T) {
+func TestServerRunner_GracefulShutdownCancelsBackgroundBeforeDrainersAndResources(t *testing.T) {
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
 	server := newLifecycleTestServer()
 	listener := newLifecycleTestListener()
 
-	var schedulerStops atomic.Int32
-	schedulersStarted := make(chan struct{}, 2)
-	scheduler := func(ctx context.Context) {
-		schedulersStarted <- struct{}{}
-		<-ctx.Done()
-		schedulerStops.Add(1)
-	}
+	backgroundStopped := make(chan struct{})
+	go func() {
+		<-backgroundCtx.Done()
+		close(backgroundStopped)
+	}()
 
 	var drainCalled atomic.Bool
 	var resourceClosedTooEarly atomic.Bool
 	resource := &lifecycleTestCloser{
 		onClose: func() {
-			if schedulerStops.Load() != 2 || !drainCalled.Load() {
+			if backgroundCtx.Err() == nil || !drainCalled.Load() {
 				resourceClosedTooEarly.Store(true)
 			}
 		},
@@ -184,9 +175,13 @@ func TestServerRunner_GracefulShutdownJoinsSchedulersBeforeResources(t *testing.
 			return listener, nil
 		},
 		shutdownTimeout: time.Second,
-		schedulers:      []backgroundJob{scheduler, scheduler},
 		drainers: []func(){
 			func() {
+				select {
+				case <-backgroundStopped:
+				case <-time.After(time.Second):
+					return
+				}
 				drainCalled.Store(true)
 			},
 		},
@@ -199,13 +194,6 @@ func TestServerRunner_GracefulShutdownJoinsSchedulersBeforeResources(t *testing.
 		runDone <- runner.run(runCtx)
 	}()
 
-	for range 2 {
-		select {
-		case <-schedulersStarted:
-		case <-time.After(time.Second):
-			t.Fatal("scheduler did not start after listener bind")
-		}
-	}
 	select {
 	case <-server.serveStarted:
 	case <-time.After(time.Second):
@@ -218,7 +206,6 @@ func TestServerRunner_GracefulShutdownJoinsSchedulersBeforeResources(t *testing.
 	assert.True(t, server.shutdownCalled.Load())
 	assert.True(t, server.shutdownHasDeadline.Load())
 	assert.False(t, server.closeCalled.Load())
-	assert.Equal(t, int32(2), schedulerStops.Load())
 	assert.True(t, drainCalled.Load())
 	assert.True(t, resource.closed.Load())
 	assert.False(t, resourceClosedTooEarly.Load())
@@ -231,11 +218,17 @@ func TestServerRunner_ShutdownFailureFallsBackToClose(t *testing.T) {
 	listener := newLifecycleTestListener()
 
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
-	var schedulerStopped atomic.Bool
+	backgroundStopped := make(chan struct{})
+	var backgroundCanceled atomic.Bool
+	go func() {
+		<-backgroundCtx.Done()
+		backgroundCanceled.Store(true)
+		close(backgroundStopped)
+	}()
 	var resourceClosedTooEarly atomic.Bool
 	resource := &lifecycleTestCloser{
 		onClose: func() {
-			if !schedulerStopped.Load() {
+			if !backgroundCanceled.Load() {
 				resourceClosedTooEarly.Store(true)
 			}
 		},
@@ -249,10 +242,12 @@ func TestServerRunner_ShutdownFailureFallsBackToClose(t *testing.T) {
 			return listener, nil
 		},
 		shutdownTimeout: time.Second,
-		schedulers: []backgroundJob{
-			func(ctx context.Context) {
-				<-ctx.Done()
-				schedulerStopped.Store(true)
+		drainers: []func(){
+			func() {
+				select {
+				case <-backgroundStopped:
+				case <-time.After(time.Second):
+				}
 			},
 		},
 		resources: []resourceCloser{resource},
@@ -275,7 +270,7 @@ func TestServerRunner_ShutdownFailureFallsBackToClose(t *testing.T) {
 	require.ErrorIs(t, err, shutdownErr)
 	assert.True(t, server.shutdownCalled.Load())
 	assert.True(t, server.closeCalled.Load())
-	assert.True(t, schedulerStopped.Load())
+	assert.True(t, backgroundCanceled.Load())
 	assert.True(t, resource.closed.Load())
 	assert.False(t, resourceClosedTooEarly.Load())
 }
@@ -288,7 +283,13 @@ func TestServerRunner_ServeFailureStopsBackgroundWorkAndReturns(t *testing.T) {
 	listener := newLifecycleTestListener()
 
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
-	var schedulerStopped atomic.Bool
+	backgroundStopped := make(chan struct{})
+	var backgroundCanceled atomic.Bool
+	go func() {
+		<-backgroundCtx.Done()
+		backgroundCanceled.Store(true)
+		close(backgroundStopped)
+	}()
 	resource := &lifecycleTestCloser{}
 	runner := serverRunner{
 		server:           server,
@@ -299,10 +300,12 @@ func TestServerRunner_ServeFailureStopsBackgroundWorkAndReturns(t *testing.T) {
 			return listener, nil
 		},
 		shutdownTimeout: time.Second,
-		schedulers: []backgroundJob{
-			func(ctx context.Context) {
-				<-ctx.Done()
-				schedulerStopped.Store(true)
+		drainers: []func(){
+			func() {
+				select {
+				case <-backgroundStopped:
+				case <-time.After(time.Second):
+				}
 			},
 		},
 		resources: []resourceCloser{resource},
@@ -313,6 +316,17 @@ func TestServerRunner_ServeFailureStopsBackgroundWorkAndReturns(t *testing.T) {
 	require.ErrorIs(t, err, serveErr)
 	assert.True(t, server.shutdownCalled.Load())
 	assert.False(t, server.closeCalled.Load())
-	assert.True(t, schedulerStopped.Load())
+	assert.True(t, backgroundCanceled.Load())
 	assert.True(t, resource.closed.Load())
+}
+
+func TestServerRunner_DefaultShutdownTimeoutCoversScheduledRequestDeadline(t *testing.T) {
+	runner := &serverRunner{}
+
+	assert.GreaterOrEqual(
+		t,
+		runner.effectiveShutdownTimeout(),
+		130*time.Second,
+		"100s scheduled job deadline requires at least a 30s shutdown margin",
+	)
 }

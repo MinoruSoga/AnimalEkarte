@@ -132,6 +132,50 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation(t
 	require.Len(t, got, 1, "自医院の休眠飼い主のみ返る")
 }
 
+func TestMedicalRecordRepository_FindDormantOwnerEntriesCursorAt_UsesSuppliedEvaluationTime(t *testing.T) {
+	db := repotest.SetupTestDB(t)
+	store := NewMedicalRecordRepository(db)
+	repo, ok := store.(DormantOwnerEntriesAtRepository)
+	require.True(t, ok)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	const minDaysSince = 180
+
+	evaluatedAt := time.Date(2030, 1, 2, 10, 0, 0, 0, time.Local)
+	eligibleIDs := seedDormantOwners(
+		t,
+		db,
+		clinicID,
+		1,
+		evaluatedAt.AddDate(0, 0, -(minDaysSince+1)),
+	)
+	recentIDs := seedDormantOwners(
+		t,
+		db,
+		clinicID,
+		1,
+		evaluatedAt.AddDate(0, 0, -(minDaysSince-1)),
+	)
+
+	got, err := repo.FindDormantOwnerEntriesCursorAt(
+		ctx,
+		clinicID,
+		minDaysSince,
+		0,
+		500,
+		evaluatedAt,
+	)
+
+	require.NoError(t, err)
+	ids := make([]uint64, 0, len(got))
+	for _, entry := range got {
+		ids = append(ids, entry.OwnerID)
+		assert.Equal(t, minDaysSince+1, entry.DaysSince)
+	}
+	assert.Contains(t, ids, eligibleIDs[0])
+	assert.NotContains(t, ids, recentIDs[0])
+}
+
 func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSameClinic(t *testing.T) {
 	db := repotest.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)

@@ -258,6 +258,17 @@ func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.
 // status for audit. A stale candidate cannot overwrite a concurrent lifecycle transition, and
 // an appointment with a finalized medical record can never be classified as a no-show.
 func (r *reservationRepository) MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error) {
+	return r.MarkNoShowAt(ctx, clinicID, id, time.Now().UTC())
+}
+
+// MarkNoShowAt performs the same atomic lifecycle transition while rechecking
+// eligibility against the exact timestamp used by candidate selection.
+func (r *reservationRepository) MarkNoShowAt(
+	ctx context.Context,
+	clinicID uint64,
+	id uint64,
+	evaluatedAt time.Time,
+) (NoShowTransition, error) {
 	if err := r.acquireAppointmentLifecycleLock(ctx, clinicID, id); err != nil {
 		return NoShowTransition{}, err
 	}
@@ -269,7 +280,7 @@ func (r *reservationRepository) MarkNoShow(ctx context.Context, clinicID, id uin
 			  AND a.id = ?
 			  AND a.deleted_at IS NULL
 			  AND a.status IN (?, ?)
-			  AND a.end_time <= NOW() - interval '4 hours'
+			  AND a.end_time <= CAST(? AS timestamptz) - interval '4 hours'
 			  AND NOT EXISTS (
 				SELECT 1 FROM medical_records mr
 				WHERE mr.clinic_id = a.clinic_id
@@ -294,6 +305,7 @@ func (r *reservationRepository) MarkNoShow(ctx context.Context, clinicID, id uin
 			id,
 			model.ReservationStatusPending,
 			model.ReservationStatusConfirmed,
+			evaluatedAt,
 			model.MedicalRecordStatusFinalized,
 			model.ReservationStatusNoShow,
 		).

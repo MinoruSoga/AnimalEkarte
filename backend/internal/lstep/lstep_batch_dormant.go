@@ -3,12 +3,66 @@ package lstep
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
 func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
+	return s.detectDormantOwnersWithFinder(
+		ctx,
+		clinicID,
+		s.medRecordRepo.FindDormantOwnerEntriesCursor,
+	)
+}
+
+func (s *lstepBatchService) detectDormantOwnersAt(
+	ctx context.Context,
+	clinicID uint64,
+	evaluatedAt time.Time,
+) (int, []error) {
+	repositoryAt, ok := s.medRecordRepo.(lstepBatchMedicalRecordRepositoryAt)
+	if !ok {
+		err := apperrors.WrapInternalServerError("dormant scheduled-time repository is not configured")
+		slog.ErrorContext(ctx, "dormant batch: scheduled-time repository is not configured", "clinic_id", clinicID)
+		return 0, []error{err}
+	}
+	return s.detectDormantOwnersWithFinder(
+		ctx,
+		clinicID,
+		func(
+			ctx context.Context,
+			clinicID uint64,
+			minDaysSince int,
+			afterOwnerID uint64,
+			limit int,
+		) ([]medicalrecord.DormantOwnerEntry, error) {
+			return repositoryAt.FindDormantOwnerEntriesCursorAt(
+				ctx,
+				clinicID,
+				minDaysSince,
+				afterOwnerID,
+				limit,
+				evaluatedAt,
+			)
+		},
+	)
+}
+
+type dormantOwnerPageFinder func(
+	ctx context.Context,
+	clinicID uint64,
+	minDaysSince int,
+	afterOwnerID uint64,
+	limit int,
+) ([]medicalrecord.DormantOwnerEntry, error)
+
+func (s *lstepBatchService) detectDormantOwnersWithFinder(
+	ctx context.Context,
+	clinicID uint64,
+	findPage dormantOwnerPageFinder,
+) (int, []error) {
 	const minDaysSince = 180
 	if s.settingsSvc == nil {
 		err := apperrors.WrapInternalServerError("LSTEP settings service is not configured")
@@ -17,7 +71,7 @@ func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID ui
 	}
 
 	// PERF-FOLLOWUP-02: 無制限全件取得を避けるため、先頭ページのみ先に取得する。
-	firstPage, err := s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, 0, lstepDormantBatchPageSize)
+	firstPage, err := findPage(ctx, clinicID, minDaysSince, 0, lstepDormantBatchPageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find dormant owners")}
@@ -54,7 +108,7 @@ func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID ui
 			break
 		}
 		var pageErr error
-		page, pageErr = s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, lstepDormantBatchPageSize)
+		page, pageErr = findPage(ctx, clinicID, minDaysSince, afterOwnerID, lstepDormantBatchPageSize)
 		if pageErr != nil {
 			slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners (next page)",
 				"clinic_id", clinicID, "after_owner_id", afterOwnerID, "error", pageErr)
@@ -76,4 +130,28 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 		map[string]any{"min_days_since": 180},
 		s.detectDormantOwners,
 	)
+}
+
+// RunDormantDetectionAllClinicsAt uses the immutable scheduled instant for
+// both the dormant cutoff and the reported days-since value.
+func (s *lstepBatchService) RunDormantDetectionAllClinicsAt(
+	ctx context.Context,
+	scheduledAt time.Time,
+	runID string,
+) BatchRunResult {
+	scheduledAt = scheduledAt.UTC()
+	metadata := scheduledBatchMetadata(scheduledAt, runID)
+	metadata["min_days_since"] = 180
+	result, _ := s.runBatchAllClinicsWithResult(
+		ctx,
+		"dormant batch",
+		"dormant batch",
+		"synced dormant tags",
+		"batch_dormant_detect",
+		metadata,
+		func(ctx context.Context, clinicID uint64) (int, []error) {
+			return s.detectDormantOwnersAt(ctx, clinicID, scheduledAt)
+		},
+	)
+	return result
 }

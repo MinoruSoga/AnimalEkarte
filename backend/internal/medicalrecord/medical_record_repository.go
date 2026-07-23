@@ -96,6 +96,20 @@ type MedicalRecordRepository interface {
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 }
 
+// DormantOwnerEntriesAtRepository is the narrow durable-scheduler capability.
+// It remains separate from the broad legacy repository interface so unrelated
+// medical-record consumers and mocks do not acquire a scheduler-only method.
+type DormantOwnerEntriesAtRepository interface {
+	FindDormantOwnerEntriesCursorAt(
+		ctx context.Context,
+		clinicID uint64,
+		minDaysSince int,
+		afterOwnerID uint64,
+		limit int,
+		evaluatedAt time.Time,
+	) ([]DormantOwnerEntry, error)
+}
+
 type medicalRecordRepository struct {
 	db *gorm.DB
 }

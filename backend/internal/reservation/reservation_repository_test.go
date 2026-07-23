@@ -407,3 +407,49 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		assert.Empty(t, got)
 	})
 }
+
+func TestReservationRepository_FindNoShowCandidatesAt_UsesSuppliedEvaluationTime(t *testing.T) {
+	db := setupReservationRepoTestDB(t)
+	store := NewReservationRepository(db)
+	repo, ok := store.(ReservationNoShowAtRepository)
+	require.True(t, ok)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	reservationType := makeReservationType(t, db, clinicID)
+	evaluatedAt := time.Date(2030, 1, 2, 10, 0, 0, 0, time.UTC)
+	eligibleEnd := evaluatedAt.Add(-4 * time.Hour)
+	tooRecentEnd := eligibleEnd.Add(time.Minute)
+	eligible := makeReservationForReservationRepoTest(
+		t,
+		db,
+		clinicID,
+		reservationType.ID,
+		eligibleEnd.Add(-30*time.Minute),
+		model.ReservationStatusConfirmed,
+		model.ReservationSourceManual,
+		nil,
+		nil,
+	)
+	tooRecent := makeReservationForReservationRepoTest(
+		t,
+		db,
+		clinicID,
+		reservationType.ID,
+		tooRecentEnd.Add(-30*time.Minute),
+		model.ReservationStatusPending,
+		model.ReservationSourceManual,
+		nil,
+		nil,
+	)
+
+	got, err := repo.FindNoShowCandidatesAt(ctx, clinicID, evaluatedAt)
+
+	require.NoError(t, err)
+	ids := make([]uint64, 0, len(got))
+	for _, candidate := range got {
+		ids = append(ids, candidate.ID)
+	}
+	assert.Contains(t, ids, eligible.ID)
+	assert.NotContains(t, ids, tooRecent.ID)
+}

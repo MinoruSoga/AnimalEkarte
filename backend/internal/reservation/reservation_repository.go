@@ -58,6 +58,23 @@ type NoShowTransition struct {
 	PreviousStatus model.ReservationStatus
 }
 
+// ReservationNoShowAtRepository is the narrow durable-scheduler capability.
+// It is intentionally not embedded in the broad legacy interfaces so existing
+// consumers do not acquire methods they do not use.
+type ReservationNoShowAtRepository interface {
+	FindNoShowCandidatesAt(
+		ctx context.Context,
+		clinicID uint64,
+		evaluatedAt time.Time,
+	) ([]model.Reservation, error)
+	MarkNoShowAt(
+		ctx context.Context,
+		clinicID uint64,
+		id uint64,
+		evaluatedAt time.Time,
+	) (NoShowTransition, error)
+}
+
 // ReservationSlotRepository はトランザクション内の競合チェック操作（5 メソッド）。
 // dbOrTx でコンテキストの tx を自動使用。reservation_service で使用。
 type ReservationSlotRepository interface {
@@ -546,11 +563,22 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 // FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、
 // 確定済みカルテが存在しないものを返す（BE-014）。
 func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
+	return r.FindNoShowCandidatesAt(ctx, clinicID, time.Now().UTC())
+}
+
+// FindNoShowCandidatesAt evaluates the complete candidate predicate against
+// the durable scheduler timestamp instead of database wall-clock time.
+func (r *reservationRepository) FindNoShowCandidatesAt(
+	ctx context.Context,
+	clinicID uint64,
+	evaluatedAt time.Time,
+) ([]model.Reservation, error) {
 	var reservations []model.Reservation
-	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= NOW() - interval '4 hours'",
+	err := repohelpers.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= CAST(? AS timestamptz) - interval '4 hours'",
 			clinicID,
-			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)}).
+			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)},
+			evaluatedAt).
 		Where(`NOT EXISTS (
 			SELECT 1 FROM medical_records mr
 			WHERE mr.clinic_id = appointments.clinic_id

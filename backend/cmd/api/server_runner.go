@@ -6,19 +6,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
-const defaultShutdownTimeout = 30 * time.Second
+const defaultShutdownTimeout = 130 * time.Second
 
 type lifecycleServer interface {
 	Serve(net.Listener) error
 	Shutdown(context.Context) error
 	Close() error
 }
-
-type backgroundJob func(context.Context)
 
 type resourceCloser interface {
 	Close() error
@@ -32,7 +29,6 @@ type serverRunner struct {
 
 	backgroundCtx    context.Context
 	cancelBackground context.CancelFunc
-	schedulers       []backgroundJob
 	drainers         []func()
 	resources        []resourceCloser
 	shutdownTimeout  time.Duration
@@ -42,7 +38,7 @@ func (r *serverRunner) run(runCtx context.Context) (resultErr error) {
 	if runCtx == nil {
 		return errors.New("run HTTP server: context is required")
 	}
-	backgroundCtx, cancelBackground := r.backgroundLifecycle(runCtx)
+	_, cancelBackground := r.backgroundLifecycle(runCtx)
 	defer func() {
 		cancelBackground()
 		resultErr = errors.Join(resultErr, closeResources(r.resources))
@@ -59,18 +55,6 @@ func (r *serverRunner) run(runCtx context.Context) (resultErr error) {
 	defer func() {
 		_ = listener.Close()
 	}()
-
-	var schedulers sync.WaitGroup
-	for _, scheduler := range r.schedulers {
-		if scheduler == nil {
-			continue
-		}
-		schedulers.Add(1)
-		go func(job backgroundJob) {
-			defer schedulers.Done()
-			job(backgroundCtx)
-		}(scheduler)
-	}
 
 	serveResult := make(chan error, 1)
 	go func() {
@@ -101,7 +85,6 @@ func (r *serverRunner) run(runCtx context.Context) (resultErr error) {
 		resultErr = errors.Join(resultErr, normalizeServeError(<-serveResult))
 	}
 
-	schedulers.Wait()
 	for _, drain := range r.drainers {
 		if drain != nil {
 			drain()
