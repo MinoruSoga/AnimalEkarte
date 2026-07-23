@@ -44,6 +44,7 @@ type reservationAdminService struct {
 	reservationStaffRepo ReservationStaffRepository
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
+	medicalRecord        medicalRecordAutoCreator
 }
 
 func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffRepository, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
@@ -59,6 +60,28 @@ func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepo
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
 		availableSlotRepo:    slotRepo,
+	}
+}
+
+func NewReservationAdminServiceWithMedicalRecord(
+	repo ReservationAdminRepository,
+	resRepo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffRepository,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	medicalRecord medicalRecordAutoCreator,
+) ReservationAdminService {
+	return &reservationAdminService{
+		repo:                 repo,
+		resRepo:              resRepo,
+		typeRepo:             typeRepo,
+		tx:                   tx,
+		reservationStaffRepo: reservationStaffRepo,
+		unavailableTimeRepo:  unavailableTimeRepo,
+		availableSlotRepo:    availableSlotRepo,
+		medicalRecord:        medicalRecord,
 	}
 }
 
@@ -162,6 +185,9 @@ func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint6
 	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete reservation appointment", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
+	}
+	if s.medicalRecord != nil {
+		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, id)
 	}
 	slog.InfoContext(ctx, "admin reservation deleted",
 		slog.Uint64("reservation_id", id),

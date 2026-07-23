@@ -416,6 +416,68 @@ func TestReservationAdminService_Delete(t *testing.T) {
 	}
 }
 
+func TestReservationAdminService_Delete_CleansUpDraftMedicalRecord(t *testing.T) {
+	const (
+		clinicID      = uint64(3)
+		reservationID = uint64(77)
+	)
+
+	t.Run("soft delete 成功後に同じ clinic と reservation で cleanup を呼ぶ", func(t *testing.T) {
+		var cleanupCalls int
+		medicalRecord := &mockMedicalRecordService{
+			deleteDraftFromReservationFn: func(ctx context.Context, gotClinicID, gotReservationID uint64) {
+				cleanupCalls++
+				assert.NotNil(t, ctx)
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, reservationID, gotReservationID)
+			},
+		}
+		resRepo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: id}, nil
+			},
+		}
+		repo := &mockReservationAdminRepository{
+			softDeleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+		}
+		svc := NewReservationAdminServiceWithMedicalRecord(
+			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord,
+		)
+
+		err := svc.Delete(context.Background(), clinicID, reservationID)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, cleanupCalls)
+	})
+
+	t.Run("soft delete 失敗時は cleanup を呼ばない", func(t *testing.T) {
+		var cleanupCalls int
+		medicalRecord := &mockMedicalRecordService{
+			deleteDraftFromReservationFn: func(_ context.Context, _, _ uint64) {
+				cleanupCalls++
+			},
+		}
+		resRepo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: id}, nil
+			},
+		}
+		repo := &mockReservationAdminRepository{
+			softDeleteFn: func(_ context.Context, _, _ uint64) error {
+				return errors.New("delete failed")
+			},
+		}
+		svc := NewReservationAdminServiceWithMedicalRecord(
+			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord,
+		)
+
+		err := svc.Delete(context.Background(), clinicID, reservationID)
+
+		require.Error(t, err)
+		assert.Zero(t, cleanupCalls)
+	})
+}
+
 // ---- NewReservationAdminServiceWithAvailabilityAndType ----
 
 func TestNewReservationAdminServiceWithAvailabilityAndType(t *testing.T) {

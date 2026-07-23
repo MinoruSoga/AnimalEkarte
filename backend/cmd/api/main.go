@@ -95,6 +95,20 @@ func (a labAuditAdapter) LogEntry(ctx context.Context, e *medicalrecord.AuditEnt
 	})
 }
 
+// medicalRecordAuditAdapter supplies both the unchanged medical-record change methods and the
+// generic best-effort audit entry used to observe reservation-cancel cleanup failures.
+type medicalRecordAuditAdapter struct {
+	service.AuditService
+}
+
+func (a medicalRecordAuditAdapter) LogEntry(ctx context.Context, e *medicalrecord.AuditEntry) error {
+	return a.AuditService.LogEntry(ctx, &service.AuditLogInput{
+		ClinicID: e.ClinicID, ActorID: e.ActorID, ActorType: e.ActorType,
+		Action: e.Action, Resource: e.Resource, ResourceID: e.ResourceID,
+		OldValue: e.OldValue, NewValue: e.NewValue, Metadata: e.Metadata,
+	})
+}
+
 func main() {
 	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
 	cfg := config.Load()
@@ -374,15 +388,49 @@ func main() {
 	medicineDoseParamSvc := medicalrecord.NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 	cageSvc := medicalrecord.NewCageService(repos.Cage)
 	treatmentPlanSvc := medicalrecord.NewTreatmentPlanService(repos.TreatmentPlan)
-	// medical record core slice (BE9-2D ⑦): 本体+addendum+examination。audit は
-	// LogMedicalRecordChange/LogAddendumCreate が primitives+model 型のみのため svcs.Audit を
-	// 無 adapter で直渡し（vitalAuditLogger 先例）。
+	// medical record core slice (BE9-2D ⑦): 本体+addendum+examination。既存の
+	// LogMedicalRecordChange/LogAddendumCreate は埋め込んだ svcs.Audit へそのまま委譲し、
+	// 予約キャンセル後の失敗監査に必要な generic LogEntry だけを adapter で変換する。
 	medicalRecordSvc := medicalrecord.NewMedicalRecordService(
 		repos.MedicalRecord, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType,
 		repos.DiagnosisType, repos.DiagnosisName, lstepApp.LineCustomers, repos.Reservation,
-		lstepApp.DeliveryTrigger, svcs.Audit, mrTx, lstepApp.TagSync)
+		lstepApp.DeliveryTrigger, medicalRecordAuditAdapter{AuditService: svcs.Audit}, mrTx, lstepApp.TagSync)
 	// reservation_handler（残置）が AutoCreateFromReservation 等に使うため Services へ注入。
 	svcs.MedicalRecord = medicalRecordSvc
+	// The compatibility aggregator constructs reservation services before the target-owned
+	// medical-record service exists. Replace those two instances before route composition so every
+	// cancellation entry point receives the same best-effort draft-cleanup view.
+	svcs.ReservationAdmin = reservation.NewReservationAdminServiceWithMedicalRecord(
+		repos.ReservationAdmin,
+		repos.Reservation,
+		repos.ReservationType,
+		mrTx,
+		repos.ReservationStaff,
+		repos.ReservationTypeUnavailableTime,
+		repos.ReservationTypeAvailableSlot,
+		medicalRecordSvc,
+	)
+	svcs.Liff = reservation.NewLiffServiceWithType(
+		lineReservationSettings,
+		repos.ReservationTypeLiff,
+		repos.ReservationType,
+		repos.ReservationStaff,
+		repos.ReservationSchedule,
+		repos.ReservationAdmin,
+		lstepApp.LineCustomers,
+		repos.Owner,
+		mrTx,
+		repos.Reservation,
+		svcs.ReservationNotifier,
+		repos.ReservationTypeUnavailableTime,
+		repos.ReservationTypeAvailableSlot,
+		repos.ReservationTypeOccupation,
+		repos.TrimmingCourse,
+		repos.TrimmingOption,
+		repos.AppointmentTrimmingDetail,
+		repos.Vaccination,
+		medicalRecordSvc,
+	)
 	medicalRecordAddendumSvc := medicalrecord.NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, svcs.Audit)
 	examinationSvc := medicalrecord.NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
 	dailyRecordSvc := medicalrecord.NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, mrTx)

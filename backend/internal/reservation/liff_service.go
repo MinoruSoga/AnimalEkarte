@@ -42,6 +42,7 @@ type liffService struct {
 	trimmingOptionRepo  trimmingOptionFinder                // BE-120
 	trimmingDetailRepo  liffTrimmingDetailRepo              // BE-120
 	vaccinationRepo     liffVaccinationRepo
+	medicalRecord       medicalRecordAutoCreator
 }
 
 func NewLiffServiceWithType(
@@ -63,7 +64,12 @@ func NewLiffServiceWithType(
 	trimmingOptionRepo trimmingOptionFinder,
 	trimmingDetailRepo liffTrimmingDetailRepo,
 	vaccinationRepo liffVaccinationRepo,
+	medicalRecords ...medicalRecordAutoCreator,
 ) LiffService {
+	var medicalRecord medicalRecordAutoCreator
+	if len(medicalRecords) > 0 {
+		medicalRecord = medicalRecords[0]
+	}
 	return &liffService{
 		settingRepo:         settingRepo,
 		typeLiffRepo:        typeLiffRepo,
@@ -83,5 +89,6 @@ func NewLiffServiceWithType(
 		trimmingOptionRepo:  trimmingOptionRepo,
 		trimmingDetailRepo:  trimmingDetailRepo,
 		vaccinationRepo:     vaccinationRepo,
+		medicalRecord:       medicalRecord,
 	}
 }

@@ -418,7 +418,10 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 			return apperrors.Wrap(err, "failed to lock medical record for deletion")
 		}
 		if locked.Status != model.MedicalRecordStatusDraft {
-			return apperrors.WrapConflict("確定済みまたは下書き以外の診療記録は削除できません")
+			return wrapMedicalRecordDeleteConflict(
+				medicalRecordDeleteStateConflict,
+				"確定済みまたは下書き以外の診療記録は削除できません",
+			)
 		}
 		estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(txCtx, clinicID, id)
 		if err != nil {
@@ -426,7 +429,10 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 			return apperrors.Wrap(err, "failed to check estimate dependencies")
 		}
 		if estimateCount > 0 {
-			return apperrors.WrapConflict("この項目は使用中のため削除できません")
+			return wrapMedicalRecordDeleteConflict(
+				medicalRecordDeleteDependencyConflict,
+				"この項目は使用中のため削除できません",
+			)
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)

@@ -771,6 +771,65 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 func TestLiffService_CancelReservation(t *testing.T) {
 	ctx := context.Background()
 
+	t.Run("正常系: キャンセル後に同じ clinic と reservation で draft cleanup を呼ぶ", func(t *testing.T) {
+		var cleanupCalls int
+		medicalRecord := &mockMedicalRecordService{
+			deleteDraftFromReservationFn: func(gotCtx context.Context, clinicID, reservationID uint64) {
+				cleanupCalls++
+				assert.Equal(t, ctx, gotCtx)
+				assert.Equal(t, uint64(3), clinicID)
+				assert.Equal(t, uint64(10), reservationID)
+			},
+		}
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error { return nil },
+			},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+		svc.medicalRecord = medicalRecord
+
+		err := svc.CancelReservation(ctx, 3, 1, 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, cleanupCalls)
+	})
+
+	t.Run("キャンセル失敗時は draft cleanup を呼ばない", func(t *testing.T) {
+		var cleanupCalls int
+		medicalRecord := &mockMedicalRecordService{
+			deleteDraftFromReservationFn: func(_ context.Context, _, _ uint64) {
+				cleanupCalls++
+			},
+		}
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error {
+					return errors.New("cancel failed")
+				},
+			},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+		svc.medicalRecord = medicalRecord
+
+		err := svc.CancelReservation(ctx, 3, 1, 10)
+
+		require.Error(t, err)
+		assert.Zero(t, cleanupCalls)
+	})
+
 	t.Run("正常系: キャンセル成功", func(t *testing.T) {
 		var cancelCalled bool
 		svc := newLiffSvc(
@@ -1005,6 +1064,7 @@ func TestNewLiffService(t *testing.T) {
 
 func TestNewLiffServiceWithType(t *testing.T) {
 	typeRepo := &mockLiffTypeRepository{}
+	medicalRecord := &mockMedicalRecordService{}
 	svc := NewLiffServiceWithType(
 		&mockLiffSettingRepository{},
 		&mockLiffTypeRepository{},
@@ -1024,11 +1084,13 @@ func TestNewLiffServiceWithType(t *testing.T) {
 		&mockTrimmingOptionRepository{},
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
+		medicalRecord,
 	)
 	require.NotNil(t, svc)
 
 	impl, ok := svc.(*liffService)
 	require.True(t, ok, "戻り値は具象型 *liffService であるべき")
 	assert.Same(t, typeRepo, impl.typeRepo, "typeRepo が明示的に配線されること")
+	assert.Same(t, medicalRecord, impl.medicalRecord, "medicalRecord cleanup view が明示的に配線されること")
 	assert.NotNil(t, impl.validators, "validators が初期化されていること")
 }

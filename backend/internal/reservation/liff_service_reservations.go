@@ -94,6 +94,10 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 
+	if s.medicalRecord != nil {
+		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, reservationID)
+	}
+
 	// Phase 6: キャンセル通知（LINE + メール）fire-and-forget
 	if s.notifier != nil && apptForNotify != nil {
 		// best-effort: 通知失敗は予約キャンセル成否に影響させない
