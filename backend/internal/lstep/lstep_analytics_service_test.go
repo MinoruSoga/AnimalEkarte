@@ -127,14 +127,21 @@ func (m *mockAnalyticsOwnerRepo) Update(_ context.Context, _, _ uint64, _ map[st
 func (m *mockAnalyticsOwnerRepo) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
 	return nil
 }
-func (m *mockAnalyticsOwnerRepo) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
-	return nil, nil
+func (m *mockAnalyticsOwnerRepo) UpdateLineFollowedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
-func (m *mockAnalyticsOwnerRepo) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-func (m *mockAnalyticsOwnerRepo) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
+func (m *mockAnalyticsOwnerRepo) UpdateLineBlockedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
 func (m *mockAnalyticsOwnerRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mockAnalyticsOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {

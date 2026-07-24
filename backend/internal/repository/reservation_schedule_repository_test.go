@@ -26,9 +26,14 @@ import (
 func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	// AutoMigrate より先に共有テーブルをクリア（テスト isolation; setupTestDB は per-call DROP TYPE しない）
-	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
+	require.NoError(t, ensureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{}, &model.Staff{},
+		&model.StaffClinicAssignment{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{},
+	))
+	require.NoError(t, db.Exec(
+		"TRUNCATE TABLE shift_entries, staff_clinic_assignments, staffs CASCADE",
+	).Error)
+	seedClinicsForFK(t, db, 1, 2)
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
@@ -184,6 +189,11 @@ func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 	const clinicA = uint64(1)
 
 	staffA := makeDoctor(t, db, clinicA, "新規保存スタッフ")
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID:  staffA.ID,
+		ClinicID: clinicA,
+		IsMain:   true,
+	}).Error)
 	date := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
 
 	entry := &model.ShiftEntry{
@@ -195,16 +205,20 @@ func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 	}
 	breaks := []model.ShiftEntryBreak{{BreakStart: "12:00", BreakEnd: "13:00"}}
 
-	require.NoError(t, repo.Save(ctx, clinicA, entry, breaks))
-	assert.NotZero(t, entry.ID)
+	saved, savedBreaks, created, err := repo.Save(ctx, clinicA, entry, breaks)
+	require.NoError(t, err)
+	assert.True(t, created)
+	require.NotNil(t, saved)
+	assert.NotZero(t, saved.ID)
+	require.Len(t, savedBreaks, 1)
 
 	got, err := repo.FindAllByDate(ctx, clinicA, staffA.ID, date)
 	require.NoError(t, err)
 	assert.Equal(t, "初回作成", got.Notes)
 
-	savedBreaks, err := repo.FindAllBreaksByEntryID(ctx, got.ID)
+	reloadedBreaks, err := repo.FindAllBreaksByEntryID(ctx, got.ID)
 	require.NoError(t, err)
-	require.Len(t, savedBreaks, 1)
+	require.Len(t, reloadedBreaks, 1)
 }
 
 func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
@@ -214,6 +228,11 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 	const clinicA = uint64(1)
 
 	staffA := makeDoctor(t, db, clinicA, "更新保存スタッフ")
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID:  staffA.ID,
+		ClinicID: clinicA,
+		IsMain:   true,
+	}).Error)
 	date := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
 
 	// 初回作成
@@ -224,8 +243,12 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 		ShiftType: model.ShiftTypeFull,
 		Notes:     "旧メモ",
 	}
-	require.NoError(t, repo.Save(ctx, clinicA, first, nil))
-	firstID := first.ID
+	savedFirst, savedFirstBreaks, firstCreated, err := repo.Save(ctx, clinicA, first, nil)
+	require.NoError(t, err)
+	assert.True(t, firstCreated)
+	require.NotNil(t, savedFirst)
+	assert.Empty(t, savedFirstBreaks)
+	firstID := savedFirst.ID
 
 	// 同一 staff/date で再度 Save → 更新分岐
 	second := &model.ShiftEntry{
@@ -235,9 +258,18 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 		ShiftType: model.ShiftTypeMorning,
 		Notes:     "新メモ",
 	}
-	require.NoError(t, repo.Save(ctx, clinicA, second, []model.ShiftEntryBreak{{BreakStart: "09:00", BreakEnd: "09:15"}}))
+	savedSecond, savedSecondBreaks, secondCreated, err := repo.Save(
+		ctx,
+		clinicA,
+		second,
+		[]model.ShiftEntryBreak{{BreakStart: "09:00", BreakEnd: "09:15"}},
+	)
+	require.NoError(t, err)
+	assert.False(t, secondCreated)
+	require.NotNil(t, savedSecond)
+	require.Len(t, savedSecondBreaks, 1)
 
-	assert.Equal(t, firstID, second.ID, "既存エントリの ID を引き継ぐべき")
+	assert.Equal(t, firstID, savedSecond.ID, "既存エントリの ID を引き継ぐべき")
 
 	got, err := repo.FindAllByDate(ctx, clinicA, staffA.ID, date)
 	require.NoError(t, err)
@@ -257,6 +289,11 @@ func TestReservationScheduleRepository_Delete_NotFound(t *testing.T) {
 	const clinicA = uint64(1)
 
 	staffA := makeDoctor(t, db, clinicA, "削除対象なしスタッフ")
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID:  staffA.ID,
+		ClinicID: clinicA,
+		IsMain:   true,
+	}).Error)
 	err := repo.Delete(ctx, clinicA, staffA.ID, time.Date(2026, 6, 25, 0, 0, 0, 0, time.UTC))
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))

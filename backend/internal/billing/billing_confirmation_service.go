@@ -68,24 +68,14 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 			slog.ErrorContext(ctx, "failed to create billing review", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create billing review")
 		}
-		slog.InfoContext(ctx, "billing_confirmation created",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("billing_confirmation_id", review.ID),
-			slog.Uint64("medical_record_id", medicalRecordID))
 	}
 	return review, nil
 }
 
 func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
-	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get or create billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get or create billing review")
+	if input == nil || input.ConfirmedBy == 0 {
+		return nil, apperrors.WrapUnauthorized("authenticated staff is required")
 	}
-	if review.Status == model.ConfirmationStatusConfirmed {
-		return nil, apperrors.WrapInvalidInput("billing review is already confirmed")
-	}
-
 	now := time.Now()
 	fields := map[string]any{
 		"status":       model.ConfirmationStatusConfirmed,
@@ -93,6 +83,7 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		"confirmed_at": now,
 		"memo":         input.Memo,
 	}
+	var review *model.BillingConfirmation
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の変更を拒否。
 		// LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の会計確認変更が
@@ -101,9 +92,38 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 			"failed to find medical record", "確定済みカルテの会計確認は変更できません"); err != nil {
 			return err
 		}
+		if err := s.repo.LockActiveStaffAssignment(txCtx, clinicID, input.ConfirmedBy); err != nil {
+			return apperrors.Wrap(err, "failed to verify billing confirmation actor")
+		}
+		var err error
+		review, err = s.GetOrCreate(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get or create billing review", "error", err)
+			return apperrors.Wrap(err, "failed to get or create billing review")
+		}
+		if review.Status == model.ConfirmationStatusConfirmed {
+			return apperrors.WrapInvalidInput("billing review is already confirmed")
+		}
 		if err := s.repo.Update(txCtx, clinicID, review.ID, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to update billing review", "error", err)
 			return apperrors.Wrap(err, "failed to update billing review")
+		}
+		review, err = s.repo.FindByMedicalRecordID(
+			txCtx,
+			clinicID,
+			medicalRecordID,
+		)
+		if err != nil {
+			slog.ErrorContext(
+				txCtx,
+				"failed to get confirmed billing review",
+				"error",
+				err,
+			)
+			return apperrors.Wrap(
+				err,
+				"failed to get confirmed billing review",
+			)
 		}
 		return nil
 	}); err != nil {
@@ -114,25 +134,13 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		slog.Uint64("billing_confirmation_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
-	confirmed, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get confirmed billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get confirmed billing review")
-	}
-	return confirmed, nil
+	return review, nil
 }
 
 func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
-	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get or create billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get or create billing review")
+	if input == nil || input.ReturnedBy == 0 {
+		return nil, apperrors.WrapUnauthorized("authenticated staff is required")
 	}
-
-	if review.Status != model.ConfirmationStatusConfirmed {
-		return nil, apperrors.WrapInvalidInput("差し戻しは確認済みの場合のみ可能です")
-	}
-
 	now := time.Now()
 	fields := map[string]any{
 		"status":        model.ConfirmationStatusReturned,
@@ -141,15 +149,45 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		"return_reason": input.ReturnReason,
 		"memo":          input.Memo,
 	}
+	var review *model.BillingConfirmation
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の差し戻しを拒否。
 		if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
 			"failed to find medical record", "確定済みカルテの会計確認は差し戻しできません"); err != nil {
 			return err
 		}
+		if err := s.repo.LockActiveStaffAssignment(txCtx, clinicID, input.ReturnedBy); err != nil {
+			return apperrors.Wrap(err, "failed to verify billing confirmation actor")
+		}
+		var err error
+		review, err = s.GetOrCreate(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get or create billing review", "error", err)
+			return apperrors.Wrap(err, "failed to get or create billing review")
+		}
+		if review.Status != model.ConfirmationStatusConfirmed {
+			return apperrors.WrapInvalidInput("差し戻しは確認済みの場合のみ可能です")
+		}
 		if err := s.repo.Update(txCtx, clinicID, review.ID, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to update billing review", "error", err)
 			return apperrors.Wrap(err, "failed to update billing review")
+		}
+		review, err = s.repo.FindByMedicalRecordID(
+			txCtx,
+			clinicID,
+			medicalRecordID,
+		)
+		if err != nil {
+			slog.ErrorContext(
+				txCtx,
+				"failed to get returned billing review",
+				"error",
+				err,
+			)
+			return apperrors.Wrap(
+				err,
+				"failed to get returned billing review",
+			)
 		}
 		return nil
 	}); err != nil {
@@ -160,10 +198,5 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		slog.Uint64("billing_confirmation_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("returned_by", input.ReturnedBy))
-	returned, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get returned billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get returned billing review")
-	}
-	return returned, nil
+	return review, nil
 }

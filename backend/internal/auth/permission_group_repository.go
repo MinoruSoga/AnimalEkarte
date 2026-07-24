@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // PermissionGroupRepository provides clinic-scoped permission-group persistence.
@@ -41,8 +41,8 @@ func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 
 func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
 	groups := make([]model.PermissionGroup, 0)
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("Rules", "deleted_at IS NULL").
 		Order("sort_order ASC, name ASC").
 		Find(&groups).Error
@@ -54,11 +54,40 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Rules", "deleted_at IS NULL").
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&group).Error
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&group).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+	}
+	return &group, nil
+}
+
+// LockByIDForUpdate serializes authorization-policy writers before they capture
+// the old audit snapshot. The caller must provide an ambient transaction.
+func (r *permissionGroupRepository) LockByIDForUpdate(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.PermissionGroup, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError(
+			"permission group mutation lock requires an ambient transaction",
+		)
+	}
+	var group model.PermissionGroup
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Rules", "deleted_at IS NULL").
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&group).
+		Error
+	if err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"permission_group",
+			fmt.Sprintf("%d", id),
+		)
 	}
 	return &group, nil
 }
@@ -69,7 +98,7 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 // オートコミット済みで WithTx のロールバックが効かず、デフォルト権限グループが片方だけの
 // 孤児クリニックが生成しうるバグがあった。
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(group).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(group).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "permission_group", "")
 	}
@@ -77,9 +106,9 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 }
 
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	if err := repohelpers.UpdateScopedByID(
+	if err := persistence.UpdateScopedByID(
 		ctx,
-		repohelpers.DBOrTx(ctx, r.db),
+		persistence.DBOrTx(ctx, r.db),
 		&model.PermissionGroup{},
 		"permission_group",
 		clinicID,
@@ -92,9 +121,9 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(
+	return persistence.DeleteScopedByID(
 		ctx,
-		repohelpers.DBOrTx(ctx, r.db),
+		persistence.DBOrTx(ctx, r.db),
 		&model.PermissionGroup{},
 		"permission_group",
 		clinicID,
@@ -105,7 +134,7 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uin
 // DeleteSoftDeletedByClinicID hard-deletes only rows already soft-deleted in the
 // target clinic. Zero matching rows is a successful idempotent cleanup.
 func (r *permissionGroupRepository) DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Unscoped().
 		Where("clinic_id = ? AND deleted_at IS NOT NULL", clinicID).
 		Delete(&model.PermissionGroup{})
@@ -129,7 +158,7 @@ func (r *permissionGroupRepository) UpdateRules(
 	clinicID, groupID uint64,
 	rules []model.PermissionGroupRule,
 ) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var group model.PermissionGroup
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -166,7 +195,7 @@ func (r *permissionGroupRepository) UpdateRules(
 // permission_groups テーブルが clinic_id を持つため JOIN でテナント分離を行う
 func (r *permissionGroupRepository) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.StaffPermissionGroup{}).
 		Joins("JOIN permission_groups ON permission_groups.id = staff_permission_groups.group_id AND permission_groups.clinic_id = ? AND permission_groups.deleted_at IS NULL", clinicID).
 		Joins("JOIN staffs ON staffs.id = staff_permission_groups.staff_id AND staffs.deleted_at IS NULL").
@@ -186,7 +215,7 @@ func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx con
 	// staff_permission_groups → permission_groups (active & not deleted) → permission_group_rules を JOIN し
 	// resource 毎に bool_or で集約する。
 	// pg.clinic_id = ? で結果を指定クリニックに限定し、所属外クリニックの権限が混入するのを防止。
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Raw(`
 			SELECT
 				pgr.resource,
@@ -220,7 +249,7 @@ func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context
 	var rows []struct {
 		GroupID uint64
 	}
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.StaffPermissionGroup{}).
 		Select("staff_permission_groups.group_id").
 		Joins(`
@@ -244,9 +273,9 @@ func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context
 // staff_clinic_assignments の active 行を同じ transaction 内で FOR UPDATE 取得し、
 // 所属解除との TOCTOU と並行する権限全置換を直列化する。
 func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
-	db := repohelpers.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db)
 	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
-	return repohelpers.ReplaceJunctionInTransaction(db, func(tx *gorm.DB) error {
+	return persistence.ReplaceJunctionInTransaction(db, func(tx *gorm.DB) error {
 		var assignment model.StaffClinicAssignment
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -265,7 +294,7 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 
 		// テナント越境 write 防止: 紐付け対象の権限グループIDも置換と同じ
 		// transaction 内で検証し、失敗時は既存リンクを保持する。
-		if err := repohelpers.ValidateClinicScopedMasterIDs(
+		if err := persistence.ValidateClinicScopedMasterIDs(
 			ctx,
 			tx,
 			clinicID,
@@ -282,7 +311,7 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 		// staff_clinic_assignments で複数クリニックに所属しうる）の場合、clinicID の属さない
 		// 他クリニック分の紐付けまで無警告で消えてしまう。group 側の clinic_id サブクエリで
 		// clinicID に属する紐付けのみを削除対象にスコープする）。
-		if err := repohelpers.DeleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
+		if err := persistence.DeleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
 			&model.StaffPermissionGroup{}, &model.PermissionGroup{}, "group_id",
 			"staff_permission_group", fmt.Sprintf("staff:%d", staffID)); err != nil {
 			return err
@@ -294,7 +323,7 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 		for _, gid := range groupIDs {
 			rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
 		}
-		return repohelpers.InsertJunctionRowsInBatches(tx, rows, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+		return persistence.InsertJunctionRowsInBatches(tx, rows, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
 	}, "failed to replace staff permission groups")
 }
 
@@ -302,10 +331,10 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 // GORM の論理削除は Model 呼び出しで自動適用されないため、明示的に deleted_at IS NULL を指定する。
 // BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
-				Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
+				Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
 				Update("sort_order", i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))

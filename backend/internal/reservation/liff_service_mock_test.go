@@ -79,8 +79,8 @@ func (m *mockLiffTypeRepository) UpdateSortOrder(_ context.Context, _, _ uint64,
 type mockLiffStaffRepository struct {
 	findAllFn                                func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	findExcludedReservationTypesFn           func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesFn           func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	findCapabilitiesByStaffIDsFn             func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
 	supportsReservationTypeFn                func(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
@@ -97,6 +97,13 @@ func (m *mockLiffStaffRepository) FindByID(ctx context.Context, clinicID, id uin
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffStaffRepository) LockForMutation(
+	_ context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	return &model.Staff{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ uint64) error {
@@ -116,16 +123,16 @@ func (m *mockLiffStaffRepository) UpdateSortOrder(_ context.Context, _, _ uint64
 	return nil
 }
 
-func (m *mockLiffStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockLiffStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesFn != nil {
-		return m.findExcludedReservationTypesFn(ctx, staffID)
+		return m.findExcludedReservationTypesFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesByStaffIDsFn != nil {
-		return m.findExcludedReservationTypesByStaffIDsFn(ctx, staffIDs)
+		return m.findExcludedReservationTypesByStaffIDsFn(ctx, clinicID, staffIDs)
 	}
 	return nil, nil
 }
@@ -193,8 +200,13 @@ func (m *mockLiffScheduleRepository) FindAllBreaksByEntryID(_ context.Context, _
 	return nil, nil
 }
 
-func (m *mockLiffScheduleRepository) Save(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
-	return nil
+func (m *mockLiffScheduleRepository) Save(
+	_ context.Context,
+	_ uint64,
+	_ *model.ShiftEntry,
+	_ []model.ShiftEntryBreak,
+) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+	return nil, nil, false, nil
 }
 
 func (m *mockLiffScheduleRepository) Delete(_ context.Context, _, _ uint64, _ time.Time) error {
@@ -354,16 +366,22 @@ func (m *mockLiffOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint6
 	return nil
 }
 
-func (m *mockLiffOwnerRepository) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
-	return nil, nil
+func (m *mockLiffOwnerRepository) UpdateLineFollowedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
 
-func (m *mockLiffOwnerRepository) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-
-func (m *mockLiffOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
+func (m *mockLiffOwnerRepository) UpdateLineBlockedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
 
 func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {

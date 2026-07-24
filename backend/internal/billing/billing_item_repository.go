@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -17,6 +18,7 @@ import (
 type BillingItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
+	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) error
 	Create(ctx context.Context, item *model.BillingItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -67,6 +69,162 @@ func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, b
 		return nil, apperrors.FromGORM(err, "billing_item", "")
 	}
 	return items, nil
+}
+
+type billingItemBillingReference struct {
+	MedicalRecordID *uint64
+	OwnerID         *uint64
+	PetID           *uint64
+}
+
+type billingItemMedicalRecordReference struct {
+	ID            uint64
+	AppointmentID *uint64
+	OwnerID       *uint64
+	PetID         *uint64
+}
+
+type billingItemAppointmentReference struct {
+	OwnerID *uint64
+	PetID   *uint64
+}
+
+func sameOptionalBillingReference(left, right *uint64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func invalidBillingItemReferenceCombination() error {
+	return apperrors.WrapInvalidInput("参照先の組み合わせが正しくありません")
+}
+
+// ValidateCreateReferences validates every request-derived billing_items FK
+// against the authenticated clinic and its parent graph. It must run in the
+// same transaction as Create so that row locks keep the validated graph stable
+// until persistence commits. The billing parent is locked FOR UPDATE because
+// the same transaction recalculates and updates its totals.
+func (r *billingItemRepository) ValidateCreateReferences(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
+) error {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return apperrors.WrapInternalServerError("billing item reference validation requires an active transaction")
+	}
+	tx = tx.WithContext(ctx)
+
+	var billingRef billingItemBillingReference
+	if err := tx.
+		Table("billings").
+		Select("medical_record_id", "owner_id", "pet_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Take(&billingRef).Error; err != nil {
+		return apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+	}
+
+	if merchandiseItemID != nil {
+		var id uint64
+		if err := tx.
+			Table("merchandise_items").
+			Select("id").
+			Where("id = ? AND clinic_id = ? AND is_active = TRUE AND deleted_at IS NULL", *merchandiseItemID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&id).Error; err != nil {
+			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", *merchandiseItemID))
+		}
+	}
+
+	var medicalRecordRef *billingItemMedicalRecordReference
+	if billingRef.MedicalRecordID != nil && (treatmentID != nil || appointmentID != nil) {
+		var ref billingItemMedicalRecordReference
+		if err := tx.
+			Table("medical_records").
+			Select("id", "appointment_id", "owner_id", "pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.MedicalRecordID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&ref).Error; err != nil {
+			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *billingRef.MedicalRecordID))
+		}
+		if !sameOptionalBillingReference(billingRef.OwnerID, ref.OwnerID) ||
+			!sameOptionalBillingReference(billingRef.PetID, ref.PetID) {
+			return invalidBillingItemReferenceCombination()
+		}
+		medicalRecordRef = &ref
+	}
+
+	if treatmentID != nil {
+		var treatmentRef struct {
+			MedicalRecordID uint64
+		}
+		if err := tx.
+			Table("treatments").
+			Select("treatments.medical_record_id").
+			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+			Where("treatments.id = ? AND treatments.deleted_at IS NULL", *treatmentID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&treatmentRef).Error; err != nil {
+			return apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *treatmentID))
+		}
+		if billingRef.MedicalRecordID == nil ||
+			treatmentRef.MedicalRecordID != *billingRef.MedicalRecordID {
+			return invalidBillingItemReferenceCombination()
+		}
+	}
+
+	if appointmentID != nil {
+		var appointmentRef billingItemAppointmentReference
+		if err := tx.
+			Table("appointments").
+			Select("owner_id", "pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *appointmentID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&appointmentRef).Error; err != nil {
+			return apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *appointmentID))
+		}
+		if !sameOptionalBillingReference(billingRef.OwnerID, appointmentRef.OwnerID) ||
+			!sameOptionalBillingReference(billingRef.PetID, appointmentRef.PetID) {
+			return invalidBillingItemReferenceCombination()
+		}
+		if medicalRecordRef != nil &&
+			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *appointmentID) {
+			return invalidBillingItemReferenceCombination()
+		}
+	}
+
+	if (trimmingCourseID != nil || trimmingOptionID != nil) && appointmentID == nil {
+		return invalidBillingItemReferenceCombination()
+	}
+	if trimmingCourseID != nil {
+		var id uint64
+		if err := tx.
+			Table("appointment_trimming_details AS atd").
+			Select("tc.id").
+			Joins("JOIN trimming_courses AS tc ON tc.id = atd.course_id AND tc.clinic_id = atd.clinic_id AND tc.deleted_at IS NULL").
+			Where("atd.appointment_id = ? AND atd.clinic_id = ? AND atd.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&id).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
+		}
+	}
+	if trimmingOptionID != nil {
+		var id uint64
+		if err := tx.
+			Table("appointment_trimming_options AS ato").
+			Select("topt.id").
+			Joins("JOIN appointments AS a ON a.id = ato.appointment_id AND a.clinic_id = ? AND a.deleted_at IS NULL", clinicID).
+			Joins("JOIN trimming_options AS topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL").
+			Where("ato.appointment_id = ? AND ato.option_id = ?", *appointmentID, *trimmingOptionID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&id).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", *trimmingOptionID))
+		}
+	}
+
+	return nil
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
@@ -181,9 +339,9 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 			tc.id AS trimming_course_id,
 			NULL::bigint AS trimming_option_id
 		FROM appointment_trimming_details atd
-		JOIN appointments a ON a.id = atd.appointment_id AND a.deleted_at IS NULL
-		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.deleted_at IS NULL
-		JOIN trimming_courses tc ON tc.id = atd.course_id AND tc.deleted_at IS NULL
+		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
+		JOIN trimming_courses tc ON tc.id = atd.course_id AND tc.clinic_id = a.clinic_id AND tc.deleted_at IS NULL
 		WHERE a.clinic_id = ?
 		  AND a.pet_id = ?
 		  AND a.status = ?
@@ -192,7 +350,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		  AND NOT EXISTS (
 		      SELECT 1
 		      FROM billing_items bi
-		      JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL
+		      JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = a.clinic_id AND b.deleted_at IS NULL
 		      WHERE bi.appointment_id = a.id
 		        AND bi.trimming_course_id = tc.id
 		        AND bi.deleted_at IS NULL
@@ -208,10 +366,10 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 			NULL::bigint AS trimming_course_id,
 			topt.id AS trimming_option_id
 		FROM appointment_trimming_details atd
-		JOIN appointments a ON a.id = atd.appointment_id AND a.deleted_at IS NULL
-		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.deleted_at IS NULL
+		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
 		JOIN appointment_trimming_options ato ON ato.appointment_id = a.id
-		JOIN trimming_options topt ON topt.id = ato.option_id AND topt.deleted_at IS NULL
+		JOIN trimming_options topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL
 		WHERE a.clinic_id = ?
 		  AND a.pet_id = ?
 		  AND a.status = ?
@@ -220,7 +378,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		  AND NOT EXISTS (
 		      SELECT 1
 		      FROM billing_items bi
-		      JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL
+		      JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = a.clinic_id AND b.deleted_at IS NULL
 		      WHERE bi.appointment_id = a.id
 		        AND bi.trimming_option_id = topt.id
 		        AND bi.deleted_at IS NULL
@@ -264,7 +422,7 @@ func (r *billingItemRepository) CountNonAccountingTrimmingByPetAndDate(ctx conte
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Reservation{}).
-		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.deleted_at IS NULL").
+		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.clinic_id = appointments.clinic_id AND rt.deleted_at IS NULL").
 		Where("appointments.clinic_id = ? AND appointments.pet_id = ? AND appointments.deleted_at IS NULL", clinicID, petID).
 		Where("rt.category = ?", model.ReservationTypeCategoryTrimming).
 		Where("appointments.status NOT IN ?", []model.ReservationStatus{

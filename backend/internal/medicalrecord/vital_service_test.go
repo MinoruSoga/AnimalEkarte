@@ -61,6 +61,47 @@ func (m *mockVitalAuditLogger) LogVitalChange(ctx context.Context, clinicID uint
 	return nil
 }
 
+type vitalClinicalRelationVerifierStub struct {
+	petOwners map[uint64]uint64
+}
+
+func (s *vitalClinicalRelationVerifierStub) AssertOwnerInClinic(
+	_ context.Context,
+	_ uint64,
+	ownerID uint64,
+) error {
+	for _, scopedOwnerID := range s.petOwners {
+		if scopedOwnerID == ownerID {
+			return nil
+		}
+	}
+	return apperrors.WrapNotFound("owner", "scoped")
+}
+
+func (s *vitalClinicalRelationVerifierStub) FindPetOwnerInClinic(
+	_ context.Context,
+	_ uint64,
+	petID uint64,
+) (uint64, error) {
+	ownerID, ok := s.petOwners[petID]
+	if !ok {
+		return 0, apperrors.WrapNotFound("pet", "scoped")
+	}
+	return ownerID, nil
+}
+
+func (*vitalClinicalRelationVerifierStub) AssertMedicalRecordDoctorInClinic(
+	context.Context,
+	uint64,
+	uint64,
+) error {
+	return nil
+}
+
+func validVitalRelations(petID, ownerID uint64) ClinicalRelationVerifier {
+	return &vitalClinicalRelationVerifierStub{petOwners: map[uint64]uint64{petID: ownerID}}
+}
+
 // ---- Tests ----
 
 func TestVitalService_List(t *testing.T) {
@@ -258,12 +299,25 @@ func TestVitalService_Create(t *testing.T) {
 						status = model.MedicalRecordStatusDraft
 					}
 					return &model.MedicalRecord{
-						ID:     tt.medicalRecordID,
-						Status: status,
+						ID:       tt.medicalRecordID,
+						ClinicID: tt.input.ClinicID,
+						OwnerID:  ptrUint64(100),
+						PetID:    ptrUint64(tt.input.PetID),
+						Status:   status,
 					}, nil
 				},
 			}
-			svc := NewVitalService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
+			svc := NewVitalServiceWithRelationValidation(
+				repo,
+				medRecordRepo,
+				nil,
+				validVitalRelations(tt.input.PetID, 100),
+				&clinicalStaffLockerStub{staff: &model.Staff{ID: staffID, IsActive: true}},
+				&clinicalStaffAssignmentLockerStub{
+					assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: 1},
+				},
+				&mockCheckupTransactor{},
+			)
 
 			vital, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -310,12 +364,17 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital: &model.VitalRecord{
 				ID:              1,
+				ClinicID:        1,
+				PetID:           10,
 				MedicalRecordID: ptrUint64(1),
 				Temperature:     &updatedTemperature,
 				HeartRate:       &updatedHeartRate,
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
-			wantErr:      false,
+			parentRecord: &model.MedicalRecord{
+				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			},
+			wantErr: false,
 		},
 		{
 			name:            "rejects update on finalized medical record",
@@ -327,9 +386,14 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital: &model.VitalRecord{
 				ID:              1,
+				ClinicID:        1,
+				PetID:           10,
 				MedicalRecordID: ptrUint64(1),
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized},
+			parentRecord: &model.MedicalRecord{
+				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusFinalized,
+			},
 			wantErr:      true,
 			wantConflict: true,
 		},
@@ -341,10 +405,15 @@ func TestVitalService_Update(t *testing.T) {
 			input:           &UpdateVitalInput{},
 			repoVital: &model.VitalRecord{
 				ID:              1,
+				ClinicID:        1,
+				PetID:           10,
 				MedicalRecordID: ptrUint64(1),
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
-			wantErr:      true,
+			parentRecord: &model.MedicalRecord{
+				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			},
+			wantErr: true,
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
@@ -382,11 +451,16 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital: &model.VitalRecord{
 				ID:              1,
+				ClinicID:        1,
+				PetID:           10,
 				MedicalRecordID: ptrUint64(1),
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
-			updateErr:    errors.New("db error"),
-			wantErr:      true,
+			parentRecord: &model.MedicalRecord{
+				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			},
+			updateErr: errors.New("db error"),
+			wantErr:   true,
 		},
 		{
 			name:            "updates only notes field",
@@ -398,11 +472,16 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			repoVital: &model.VitalRecord{
 				ID:              1,
+				ClinicID:        1,
+				PetID:           10,
 				MedicalRecordID: ptrUint64(1),
 				Notes:           updatedNotes,
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
-			wantErr:      false,
+			parentRecord: &model.MedicalRecord{
+				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			},
+			wantErr: false,
 		},
 		{
 			name:            "returns error when parent medical record lookup fails",
@@ -436,7 +515,15 @@ func TestVitalService_Update(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo, nil, &mockCheckupTransactor{})
+			svc := NewVitalServiceWithRelationValidation(
+				repo,
+				mrRepo,
+				nil,
+				validVitalRelations(10, 100),
+				nil,
+				nil,
+				&mockCheckupTransactor{},
+			)
 
 			vital, err := svc.Update(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID, tt.input)
 
@@ -591,12 +678,23 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 	medRecordRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
-				ID:     77,
-				Status: model.MedicalRecordStatusDraft,
+				ID:       77,
+				ClinicID: 1,
+				OwnerID:  ptrUint64(100),
+				PetID:    ptrUint64(10),
+				Status:   model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
-	svc := NewVitalService(repo, medRecordRepo, auditSvc, &mockCheckupTransactor{})
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		medRecordRepo,
+		auditSvc,
+		validVitalRelations(10, 100),
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
 
 	input := &CreateVitalInput{
 		ClinicID:    1,
@@ -614,6 +712,8 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 	auditSvc := &mockVitalAuditLogger{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
+		ClinicID:        1,
+		PetID:           10,
 		MedicalRecordID: ptrUint64(77),
 		WeightUnit:      model.BodyWeightUnitKg,
 		RecordedAt:      time.Now(),
@@ -621,6 +721,8 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 	}
 	updatedVital := &model.VitalRecord{
 		ID:              55,
+		ClinicID:        1,
+		PetID:           10,
 		MedicalRecordID: ptrUint64(77),
 		WeightUnit:      model.BodyWeightUnitKg,
 		RecordedAt:      time.Now(),
@@ -641,10 +743,21 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{
+				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
 		},
 	}
-	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		mrRepo,
+		auditSvc,
+		validVitalRelations(10, 100),
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
 
 	staffID := uint64(20)
 	_, err := svc.Update(context.Background(), 1, 77, 55, &UpdateVitalInput{
@@ -700,12 +813,23 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 	medRecordRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
-				ID:     77,
-				Status: model.MedicalRecordStatusDraft,
+				ID:       77,
+				ClinicID: 1,
+				OwnerID:  ptrUint64(100),
+				PetID:    ptrUint64(10),
+				Status:   model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
-	svc := NewVitalService(repo, medRecordRepo, auditSvc, &mockCheckupTransactor{})
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		medRecordRepo,
+		auditSvc,
+		validVitalRelations(10, 100),
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
 
 	input := &CreateVitalInput{
 		ClinicID:    1,
@@ -766,4 +890,228 @@ func TestWeightUnitOrDefault(t *testing.T) {
 		g := model.BodyWeightUnitG
 		assert.Equal(t, model.BodyWeightUnitG, weightUnitOrDefault(&g))
 	})
+}
+
+func TestVitalService_CreateRejectsMedicalRecordPetMismatch(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		medicalRecord = uint64(10)
+		recordPetID   = uint64(20)
+		requestPetID  = uint64(21)
+	)
+	createCalls := 0
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, _ *model.VitalRecord) error {
+			createCalls++
+			return nil
+		},
+	}
+	medRecRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(100),
+				PetID:  ptrUint64(recordPetID),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		medRecRepo,
+		nil,
+		&vitalClinicalRelationVerifierStub{petOwners: map[uint64]uint64{
+			recordPetID: 100, requestPetID: 100,
+		}},
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
+
+	got, err := svc.Create(context.Background(), medicalRecord, &CreateVitalInput{
+		ClinicID: clinicID, PetID: requestPetID, Temperature: ptrFloat(38.1),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, createCalls)
+}
+
+func TestVitalService_CreateRejectsInactiveOrForeignPetBeforeWrite(t *testing.T) {
+	createCalls := 0
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, _ *model.VitalRecord) error {
+			createCalls++
+			return nil
+		},
+	}
+	medRecRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: id, ClinicID: clinicID, OwnerID: ptrUint64(100), PetID: ptrUint64(20),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		medRecRepo,
+		nil,
+		&vitalClinicalRelationVerifierStub{petOwners: map[uint64]uint64{}},
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
+
+	got, err := svc.Create(context.Background(), 10, &CreateVitalInput{
+		ClinicID: 1, PetID: 20, Temperature: ptrFloat(38.1),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, createCalls)
+}
+
+func TestVitalService_StaffReferenceValidation(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		medicalRecord = uint64(10)
+		petID         = uint64(20)
+		staffID       = uint64(30)
+	)
+	newService := func(
+		repo *mockVitalRepository,
+		staff *model.Staff,
+		assignment *model.StaffClinicAssignment,
+	) VitalService {
+		medRecRepo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(100),
+					PetID:  ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+		}
+		return NewVitalServiceWithRelationValidation(
+			repo,
+			medRecRepo,
+			nil,
+			validVitalRelations(petID, 100),
+			&clinicalStaffLockerStub{staff: staff},
+			&clinicalStaffAssignmentLockerStub{assignment: assignment},
+			&mockCheckupTransactor{},
+		)
+	}
+
+	t.Run("create rejects unassigned staff before write", func(t *testing.T) {
+		createCalls := 0
+		repo := &mockVitalRepository{
+			createFn: func(_ context.Context, _ *model.VitalRecord) error {
+				createCalls++
+				return nil
+			},
+		}
+		svc := newService(
+			repo,
+			&model.Staff{ID: staffID, IsActive: true},
+			&model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID + 1},
+		)
+
+		got, err := svc.Create(context.Background(), medicalRecord, &CreateVitalInput{
+			ClinicID: clinicID, PetID: petID, StaffID: ptrUint64(staffID),
+			Temperature: ptrFloat(38.1),
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, createCalls)
+	})
+
+	t.Run("update rejects inactive staff before write", func(t *testing.T) {
+		updateCalls := 0
+		repo := &mockVitalRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.VitalRecord, error) {
+				return &model.VitalRecord{
+					ID: id, ClinicID: clinicID, PetID: petID, MedicalRecordID: ptrUint64(medicalRecord),
+				}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateCalls++
+				return nil
+			},
+		}
+		svc := newService(
+			repo,
+			&model.Staff{ID: staffID, IsActive: false},
+			&model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+		)
+
+		got, err := svc.Update(context.Background(), clinicID, medicalRecord, 40, &UpdateVitalInput{
+			StaffID: ptrUint64(staffID),
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+	})
+
+	t.Run("create accepts active assigned staff", func(t *testing.T) {
+		createCalls := 0
+		repo := &mockVitalRepository{
+			createFn: func(_ context.Context, vital *model.VitalRecord) error {
+				createCalls++
+				vital.ID = 1
+				return nil
+			},
+		}
+		svc := newService(
+			repo,
+			&model.Staff{ID: staffID, IsActive: true},
+			&model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+		)
+
+		got, err := svc.Create(context.Background(), medicalRecord, &CreateVitalInput{
+			ClinicID: clinicID, PetID: petID, StaffID: ptrUint64(staffID),
+			Temperature: ptrFloat(38.1),
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, got)
+		assert.Equal(t, 1, createCalls)
+	})
+}
+
+func TestVitalService_CreateFailsClosedWithoutStaffValidationDependencies(t *testing.T) {
+	createCalls := 0
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, _ *model.VitalRecord) error {
+			createCalls++
+			return nil
+		},
+	}
+	medRecRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: id, ClinicID: clinicID, OwnerID: ptrUint64(100), PetID: ptrUint64(20),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(
+		repo,
+		medRecRepo,
+		nil,
+		validVitalRelations(20, 100),
+		nil,
+		nil,
+		&mockCheckupTransactor{},
+	)
+
+	got, err := svc.Create(context.Background(), 10, &CreateVitalInput{
+		ClinicID: 1, PetID: 20, StaffID: ptrUint64(30), Temperature: ptrFloat(38.1),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, createCalls)
 }

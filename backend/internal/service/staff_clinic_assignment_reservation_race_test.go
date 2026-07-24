@@ -11,11 +11,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	staffdomain "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 type blockingAssignmentRaceReservationRepository struct {
@@ -44,7 +45,7 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {
-	repository.StaffRepository
+	staffdomain.StaffRepository
 	started      chan struct{}
 	returned     chan struct{}
 	startedOnce  sync.Once
@@ -66,7 +67,7 @@ func (r *observedAssignmentRaceStaffUpdateLocker) LockActiveByIDForUpdate(
 }
 
 type blockingAssignmentRaceClinicLookup struct {
-	repository.ClinicRepository
+	clinicdomain.ClinicRepository
 	locked     chan struct{}
 	release    chan struct{}
 	lockedOnce sync.Once
@@ -103,7 +104,7 @@ func (r *observedAssignmentRaceReservationStaffRepository) FindByID(
 	ctx context.Context,
 	clinicID, staffID uint64,
 ) (*model.Staff, error) {
-	inWriteTransaction := repohelpers.TxFromContext(ctx) != nil
+	inWriteTransaction := persistence.TxFromContext(ctx) != nil
 	if inWriteTransaction {
 		r.startedOnce.Do(func() {
 			close(r.started)
@@ -124,20 +125,20 @@ type assignmentRaceFixture struct {
 	targetClinic      *model.Clinic
 	staff             *model.Staff
 	reservationType   *model.ReservationType
-	staffRepo         repository.StaffRepository
-	assignmentRepo    repository.StaffClinicAssignmentRepository
-	shiftRepo         repository.ShiftEntryRepository
-	clinicRepo        repository.ClinicRepository
+	staffRepo         staffdomain.StaffRepository
+	assignmentRepo    staffdomain.StaffClinicAssignmentRepository
+	shiftRepo         staffdomain.ShiftEntryRepository
+	clinicRepo        clinicdomain.ClinicRepository
 	reservationRepo   reservation.ReservationStore
 	reservationStaff  reservation.ReservationStaffRepository
-	transactor        repository.Transactor
+	transactor        persistence.Transactor
 	reservationCreate *reservation.CreateManualReservationInput
 }
 
 func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixture {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.Company{},
 		&model.Clinic{},
@@ -180,8 +181,8 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 	}
 	require.NoError(t, db.Create(staff).Error)
 
-	staffRepo := repository.NewStaffRepository(db)
-	assignmentRepo := repository.NewStaffClinicAssignmentRepository(db)
+	staffRepo := staffdomain.NewStaffRepository(db)
+	assignmentRepo := staffdomain.NewStaffClinicAssignmentRepository(db)
 	require.NoError(t, assignmentRepo.Create(context.Background(), &model.StaffClinicAssignment{
 		StaffID:  staff.ID,
 		ClinicID: sourceClinic.ID,
@@ -202,7 +203,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 
 	reservationRepo := reservation.NewReservationRepository(db)
 	reservationStaff := reservation.NewReservationStaffRepository(db, staffRepo)
-	transactor := repository.NewTransactor(db)
+	transactor := persistence.NewTransactor(db)
 	route := "reception"
 	start := time.Date(2026, 7, 25, 9, 0, 0, 0, time.UTC)
 	return &assignmentRaceFixture{
@@ -213,8 +214,8 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 		reservationType:  reservationType,
 		staffRepo:        staffRepo,
 		assignmentRepo:   assignmentRepo,
-		shiftRepo:        repository.NewShiftEntryRepository(db),
-		clinicRepo:       repository.NewClinicRepository(db),
+		shiftRepo:        staffdomain.NewShiftEntryRepository(db),
+		clinicRepo:       clinicdomain.NewClinicRepository(db),
 		reservationRepo:  reservationRepo,
 		reservationStaff: reservationStaff,
 		transactor:       transactor,
@@ -234,7 +235,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 
 func newAssignmentRaceStaffService(
 	fixture *assignmentRaceFixture,
-	staffRepo repository.StaffRepository,
+	staffRepo staffdomain.StaffRepository,
 	clinicRepo StaffAssignmentClinicLookup,
 ) StaffService {
 	return NewStaffService(

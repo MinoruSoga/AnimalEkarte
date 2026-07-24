@@ -243,6 +243,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	// アプリケーションレベルでの排他制御が必要
 	// BE-refactor.md X-9: 空き枠（既存行 0 件）は SELECT FOR UPDATE が何もロックしないため、
 	// AcquireBookingLock（clinic 単位 advisory xact lock）で競合チェック～INSERT を直列化する。
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, reservation.ClinicID, reservation.DoctorID, reservation.ReservationTypeID); err != nil {
 			return err
@@ -395,6 +398,9 @@ func validateLineReservationCheckedInLink(current *model.Reservation, input *Upd
 // updateWithConflictCheck は SELECT FOR UPDATE + トランザクション内で競合チェック + 予約更新を実行する。
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
 	var result *model.Reservation
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// BE-refactor.md X-9: 空き枠への同時更新（別予約への時刻変更等）もファントムの対象
@@ -499,6 +505,9 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	case needsLinkValidation:
 		// Owner/Pet 変更: 検証と書込みを同一 tx に置く（AUD-001）。
 		// 並行更新で古い current を使わないよう、tx 内で行ロックしてから最終状態を検証する。
+		if s.tx == nil {
+			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+		}
 		var result *model.Reservation
 		if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 			locked, err := s.repo.LockAndFindByID(ctx, clinicID, id)

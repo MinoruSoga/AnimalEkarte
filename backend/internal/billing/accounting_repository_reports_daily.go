@@ -21,7 +21,10 @@ func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uin
 	}
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payment_splits ON payment_splits.billing_id = billings.id").
+		Joins(
+			"JOIN payment_splits ON payment_splits.billing_id = billings.id"+
+				" AND payment_splits.clinic_id = billings.clinic_id",
+		).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at >= ? AND billings.completed_at < ?", jstDateStart, jstDateEnd).
@@ -34,7 +37,10 @@ func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uin
 	paymentTotals := make([]PaymentMethodTotal, 0)
 	if err := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN payment_splits ON payment_splits.billing_id = billings.id").
+		Joins(
+			"JOIN payment_splits ON payment_splits.billing_id = billings.id"+
+				" AND payment_splits.clinic_id = billings.clinic_id",
+		).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
 		Where("billings.completed_at >= ? AND billings.completed_at < ?", jstDateStart, jstDateEnd).

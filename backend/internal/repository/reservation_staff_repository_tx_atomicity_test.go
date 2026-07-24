@@ -66,7 +66,11 @@ func TestReservationStaffRepository_Create_RollsBackWhenAmbientTxFails(t *testin
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := &model.Staff{Name: "原子性テスト用スタッフ", StaffType: model.StaffTypeDoctor}
+	staff := &model.Staff{
+		ClinicID:  clinicA,
+		Name:      "原子性テスト用スタッフ",
+		StaffType: model.StaffTypeDoctor,
+	}
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
 		if err := repo.Create(txCtx, staff, clinicA); err != nil {
@@ -96,7 +100,11 @@ func TestReservationStaffRepository_Create_CommitsWithinAmbientTx(t *testing.T) 
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := &model.Staff{Name: "原子性テスト用スタッフ2", StaffType: model.StaffTypeDoctor}
+	staff := &model.Staff{
+		ClinicID:  clinicA,
+		Name:      "原子性テスト用スタッフ2",
+		StaffType: model.StaffTypeDoctor,
+	}
 	typeA := makeReservationType(t, db, clinicA)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
@@ -124,7 +132,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhen
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := makeDoctor(t, db, clinicA, "除外原子性テスト用スタッフ")
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "除外原子性テスト用スタッフ")
 	typeA := makeReservationType(t, db, clinicA)
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
@@ -150,7 +158,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_CommitsWithin
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := makeDoctor(t, db, clinicA, "除外原子性テスト用スタッフ2")
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "除外原子性テスト用スタッフ2")
 	typeA := makeReservationType(t, db, clinicA)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
@@ -176,7 +184,7 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Rol
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := makeDoctor(t, db, clinicA, "更新前の名前")
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "更新前の名前")
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
 		if err := repo.Update(txCtx, clinicA, staff.ID, map[string]any{"name": "更新後の名前"}); err != nil {
@@ -201,7 +209,7 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Com
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := makeDoctor(t, db, clinicA, "更新前の名前2")
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "更新前の名前2")
 	typeA := makeReservationType(t, db, clinicA)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {

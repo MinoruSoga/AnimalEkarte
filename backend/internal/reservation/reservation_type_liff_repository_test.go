@@ -14,7 +14,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationTypeLiffTestDB は ReservationTypeLiffRepository のテスト用に DB を整備する。
@@ -22,8 +22,8 @@ import (
 // 消える。AutoMigrate で列・テーブルを再整備してから TRUNCATE でクリーンな状態にする。
 func setupReservationTypeLiffTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_type_groups CASCADE")
 	return db

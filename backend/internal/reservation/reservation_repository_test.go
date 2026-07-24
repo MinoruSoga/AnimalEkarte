@@ -24,7 +24,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationRepoTestDB は reservation_repository.go の全メソッドをカバーするために
@@ -33,9 +33,9 @@ import (
 // （reservation_schedule_clinic_isolation_test.go と同じ順序）。
 func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.Staff{}, &model.ShiftEntry{}, &model.LineCustomer{},
 	))

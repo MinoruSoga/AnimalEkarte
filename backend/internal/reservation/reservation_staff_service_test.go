@@ -15,13 +15,14 @@ import (
 type mockReservationStaffRepository struct {
 	findAllFn                              func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	findByIDFn                             func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	lockForMutationFn                      func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	createFn                               func(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	updateFieldsFn                         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                               func(ctx context.Context, clinicID, id uint64) error
 	countUsageByStaffIDFn                  func() (int64, error)
 	swapSortOrderFn                        func(ctx context.Context, clinicID, id uint64, direction string) error
-	findExcludedReservationTypesFn         func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	findExcludedReservationTypesByStaffIDs func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesFn         func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesByStaffIDs func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	replaceExcludedReservationTypesFn      func(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error
 	findCapabilitiesFn                     func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
 	findCapabilitiesByStaffIDsFn           func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
@@ -35,6 +36,16 @@ func (m *mockReservationStaffRepository) FindAll(ctx context.Context, clinicID u
 
 func (m *mockReservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockReservationStaffRepository) LockForMutation(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	if m.lockForMutationFn != nil {
+		return m.lockForMutationFn(ctx, clinicID, id)
+	}
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Staff{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockReservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
@@ -66,16 +77,16 @@ func (m *mockReservationStaffRepository) UpdateSortOrder(ctx context.Context, cl
 	return nil
 }
 
-func (m *mockReservationStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesFn != nil {
-		return m.findExcludedReservationTypesFn(ctx, staffID)
+		return m.findExcludedReservationTypesFn(ctx, clinicID, staffID)
 	}
 	return []model.StaffReservationExclusion{}, nil
 }
 
-func (m *mockReservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
 	if m.findExcludedReservationTypesByStaffIDs != nil {
-		return m.findExcludedReservationTypesByStaffIDs(ctx, staffIDs)
+		return m.findExcludedReservationTypesByStaffIDs(ctx, clinicID, staffIDs)
 	}
 	return []model.StaffReservationExclusion{}, nil
 }
@@ -224,11 +235,12 @@ func TestReservationStaffService_Create_Success(t *testing.T) {
 		ExcludedTypeIDs:    []uint64{},
 	}
 	repo := &mockReservationStaffRepository{
-		createFn: func(_ context.Context, staff *model.Staff, _ uint64) error {
+		createFn: func(_ context.Context, staff *model.Staff, clinicID uint64) error {
+			assert.Equal(t, clinicID, staff.ClinicID)
 			staff.ID = 10
 			return nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 			return []model.StaffReservationExclusion{}, nil
 		},
 	}
@@ -284,7 +296,7 @@ func TestReservationStaffService_Create_WithExcludedTypeIDs(t *testing.T) {
 			replacedIDs = courseIDs
 			return nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 			return []model.StaffReservationExclusion{{ID: 1, StaffID: 12, ReservationTypeID: 1}}, nil
 		},
 	}
@@ -360,7 +372,7 @@ func TestReservationStaffService_Create_FindExcludedAfterCreateError(t *testing.
 			staff.ID = 14
 			return nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -562,7 +574,7 @@ func TestReservationStaffService_Update_FindExcludedAfterUpdateError(t *testing.
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 			return nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -677,7 +689,7 @@ func TestReservationStaffService_PatchStatus_FindExcludedAfterPatchError(t *test
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -689,6 +701,86 @@ func TestReservationStaffService_PatchStatus_FindExcludedAfterPatchError(t *test
 	assert.Error(t, err)
 	assert.Nil(t, staff)
 	assert.Nil(t, excluded)
+}
+
+func TestReservationStaffService_MutationsAcquireExclusiveOwnershipFirst(t *testing.T) {
+	name := "更新名"
+	tests := []struct {
+		name       string
+		mutate     func(svc ReservationStaffService) error
+		lockErr    error
+		wantEvents []string
+		wantErr    bool
+	}{
+		{
+			name: "update",
+			mutate: func(svc ReservationStaffService) error {
+				_, _, err := svc.Update(
+					context.Background(),
+					1,
+					2,
+					&UpdateReservationStaffInput{Name: &name},
+				)
+				return err
+			},
+			wantEvents: []string{"lock", "update", "read", "exclusions"},
+		},
+		{
+			name: "patch status",
+			mutate: func(svc ReservationStaffService) error {
+				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false)
+				return err
+			},
+			wantEvents: []string{"lock", "update", "read", "exclusions"},
+		},
+		{
+			name: "ownership lock failure stops update",
+			mutate: func(svc ReservationStaffService) error {
+				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false)
+				return err
+			},
+			lockErr:    apperrors.WrapNotFound("reservation_staff", "2"),
+			wantEvents: []string{"lock"},
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			events := make([]string, 0, 4)
+			repo := &mockReservationStaffRepository{
+				lockForMutationFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+					events = append(events, "lock")
+					if tt.lockErr != nil {
+						return nil, tt.lockErr
+					}
+					return &model.Staff{ID: id, ClinicID: clinicID}, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					events = append(events, "update")
+					return nil
+				},
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+					events = append(events, "read")
+					return &model.Staff{ID: id, ClinicID: clinicID}, nil
+				},
+				findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
+					events = append(events, "exclusions")
+					return []model.StaffReservationExclusion{}, nil
+				},
+			}
+			svc := newTestReservationStaffService(repo, &mockTransactor{})
+
+			err := tt.mutate(svc)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantEvents, events)
+		})
+	}
 }
 
 func TestReservationStaffService_PatchSortOrder_Success(t *testing.T) {
@@ -755,7 +847,8 @@ func TestReservationStaffService_PatchSortOrder_RepoError(t *testing.T) {
 
 func TestReservationStaffService_ListExcludedByStaffIDs_Success(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findExcludedReservationTypesByStaffIDs: func(_ context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesByStaffIDs: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+			assert.Equal(t, uint64(9), clinicID)
 			return []model.StaffReservationExclusion{
 				{ID: 1, StaffID: staffIDs[0], ReservationTypeID: 5},
 				{ID: 2, StaffID: staffIDs[0], ReservationTypeID: 6},
@@ -766,7 +859,7 @@ func TestReservationStaffService_ListExcludedByStaffIDs_Success(t *testing.T) {
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	result, err := svc.ListExcludedByStaffIDs(context.Background(), []uint64{1, 2})
+	result, err := svc.ListExcludedByStaffIDs(context.Background(), 9, []uint64{1, 2})
 
 	assert.NoError(t, err)
 	assert.Len(t, result[1], 2)
@@ -775,14 +868,14 @@ func TestReservationStaffService_ListExcludedByStaffIDs_Success(t *testing.T) {
 
 func TestReservationStaffService_ListExcludedByStaffIDs_Empty(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findExcludedReservationTypesByStaffIDs: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesByStaffIDs: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
 			return []model.StaffReservationExclusion{}, nil
 		},
 	}
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	result, err := svc.ListExcludedByStaffIDs(context.Background(), []uint64{})
+	result, err := svc.ListExcludedByStaffIDs(context.Background(), 9, []uint64{})
 
 	assert.NoError(t, err)
 	assert.Empty(t, result)
@@ -790,14 +883,14 @@ func TestReservationStaffService_ListExcludedByStaffIDs_Empty(t *testing.T) {
 
 func TestReservationStaffService_ListExcludedByStaffIDs_RepoError(t *testing.T) {
 	repo := &mockReservationStaffRepository{
-		findExcludedReservationTypesByStaffIDs: func(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+		findExcludedReservationTypesByStaffIDs: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
 			return nil, errors.New("db error")
 		},
 	}
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	result, err := svc.ListExcludedByStaffIDs(context.Background(), []uint64{1})
+	result, err := svc.ListExcludedByStaffIDs(context.Background(), 9, []uint64{1})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

@@ -37,7 +37,8 @@ func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND medical_record_images.medical_record_id = ?", clinicID, medicalRecordID).
-		Preload("Staff", "deleted_at IS NULL").
+		Scopes(medicalRecordImageRelationsScope()).
+		Preload("Staff", "deleted_at IS NULL AND is_active = TRUE").
 		Order("medical_record_images.sort_order ASC, medical_record_images.created_at ASC").
 		Find(&images).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", "")
@@ -76,11 +77,46 @@ func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, i
 	var image model.MedicalRecordImage
 	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.MedicalRecordTenantScope("medical_record_images", clinicID)).
+		Scopes(medicalRecordImageRelationsScope()).
 		Where("medical_record_images.id = ?", id).
-		Preload("Staff", "deleted_at IS NULL").
+		Preload("Staff", "deleted_at IS NULL AND is_active = TRUE").
 		First(&image).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))
 	}
 	return &image, nil
+}
+
+// medicalRecordImageRelationsScope rejects an image row before its raw exam_id or
+// staff_id can reach a response. Exam references must point back to the exact parent
+// medical record, and staff membership is based on an active clinic assignment rather
+// than the staff row's primary clinic_id.
+func medicalRecordImageRelationsScope() func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(`
+			(
+				medical_record_images.exam_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM exams scoped_exam
+					WHERE scoped_exam.id = medical_record_images.exam_id
+					  AND scoped_exam.clinic_id = medical_records.clinic_id
+					  AND scoped_exam.medical_record_id = medical_record_images.medical_record_id
+					  AND scoped_exam.deleted_at IS NULL
+				)
+			)
+			AND (
+				medical_record_images.staff_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_staff_assignment
+					JOIN staffs scoped_staff
+					  ON scoped_staff.id = scoped_staff_assignment.staff_id
+					 AND scoped_staff.deleted_at IS NULL
+					 AND scoped_staff.is_active = TRUE
+					WHERE scoped_staff_assignment.staff_id = medical_record_images.staff_id
+					  AND scoped_staff_assignment.clinic_id = medical_records.clinic_id
+					  AND scoped_staff_assignment.deleted_at IS NULL
+				)
+			)
+		`)
+	}
 }

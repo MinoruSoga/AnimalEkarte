@@ -5,6 +5,7 @@ package billing
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,38 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
+
+func seedBillingClinicForFK(t *testing.T, db *gorm.DB, clinicID uint64) {
+	t.Helper()
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.Company{},
+		&model.Clinic{},
+		&model.StaffClinicAssignment{},
+	))
+
+	ctx := context.Background()
+	var existing model.Clinic
+	err := db.WithContext(ctx).First(&existing, clinicID).Error
+	if err == nil {
+		return
+	}
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+
+	company := &model.Company{
+		Name: fmt.Sprintf("billing fixture company %d", clinicID),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(company).Error)
+	clinic := &model.Clinic{
+		ID:        clinicID,
+		CompanyID: company.ID,
+		Name:      fmt.Sprintf("billing fixture clinic %d", clinicID),
+		IsActive:  true,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(clinic).Error)
+}
 
 func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
 	t.Helper()

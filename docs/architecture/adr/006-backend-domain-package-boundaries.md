@@ -1,7 +1,7 @@
 # ADR-006: backend domain package 境界と許可依存グラフ
 
-**Status**: Accepted（2026-07-19。2026-07-24 amended: CSV cutoverを21表契約へ同期）
-**Date**: 2026-07-19（Amended: 2026-07-24）
+**Status**: Accepted / Implemented（2026-07-19。2026-07-24 amended: BE9 final cutoverとCSV cutover 21表契約へ同期）
+**Date**: 2026-07-19（Final implementation amendment: 2026-07-24）
 **Relates to**: ADR-005（Go/Gin公式ベースライン採用）、ADR-002（clinic_id完全隔離）、[`docs/product-philosophy.md`](../../product-philosophy.md)
 **Deciders**: MinoruSoga（Accepted への昇格判断者）
 
@@ -12,6 +12,16 @@ ADR-005は「Handler → Service → Repository、Clean Architecture、layer-fir
 BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 production Go source（`backend/internal/**/*.go` + `backend/cmd/**/*.go`、`_test.go`・`cmd/_archive` 除外）を分類manifestの761 rowへ固定し、codegraph（callers/callees/explore）+ grep/git log による再実測（8並列エージェント調査）を通じて、実際のRBAC resource名・route registration構造・GORM型のClinicIDフィールド・Goのreceiver型制約という一次証拠に基づき、target package境界の候補を導出した。移行後target packageの物理file数とは別指標である。
 
 旧 BE-refactor.md §9（BE8-2、`internal/service`のみのgo/ast識別子参照実測、69ドメイン）と旧見積表（filename-prefixのみのカウント）は**正本として継承していない**——本ADRの判断は再実測（[boundary map doc](../be9-2a-boundary-map.md)）に基づく。詳細な再実測データ、per-domainの9列boundary map、§9との差分は同docを参照。**本ADRは決定のみを記録し、詳細data（分類manifest 761 source row・per-domain data・fan-in/out数値等）はboundary map docへのリンクに留める（二重管理禁止）**。
+
+## Implementation outcome（2026-07-24）
+
+本Decisionは実装済み。13 target packageは全て現行domain/capability packageへ収束し、旧`internal/handler` directoryは削除、旧`internal/service`はtest-only 14 file、旧`internal/repository`はtest-only 50 fileとなった。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。
+
+`cmd/api`は22 production Go fileへ分割した明示composition rootで、18 fileがtarget domain packageを直接importする。共有能力は実consumerに基づき`audit`、`persistence`、`scheduler`、`sharedkernel`、`textsearch`、`testdb`等へ命名して抽出し、`common`/`util`の無差別bucketは作成していない。移行後の物理file数、manifest 761 rowのprovenance、旧path消滅状況は[boundary map](../be9-2a-boundary-map.md)を正本とする。
+
+2026-07-24のfollow-up hardeningでは、LINE webhookの全setting-secret readを受信前identity解決だけの限定例外とし、一意に署名一致したclinicへowner lookup/updateをscopeした。duplicate secretによる曖昧系はfail closed、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`とLINE event timestampを使うCASとし、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`とし、LINE ID token検証はredirectを追従しない。billing confirmation/returnは認証済みstaffをactorとし、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。
+
+本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`BE-refactor.md`](../../../BE-refactor.md#be9-current-state)のrelease gateとして未実施である。
 
 ## Decision
 
@@ -29,7 +39,9 @@ backend/internal/
   # 現状維持（既存の凝集cross-cutting package）:
   config/ dbconn/ middleware/ infra/ model/
   timeutil/ seedbundle/ logger/ csvimport/
-  authjwt/ apperrors/ apicontract/
+  authjwt/ apperrors/ apicontract/ lintscan/
+  audit/ persistence/ scheduler/ sharedkernel/
+  textsearch/ testdb/
 ```
 
 ### Product philosophyに基づく運用境界（project decision）
@@ -40,18 +52,18 @@ backend/internal/
 - domain内に`handler`、`service`、`repository` subpackageを機械的に作らない。実際のconsumer、依存方向、変更周期が分かれた場合だけ分離する。
 - 1つのbusiness factには1つのsource of truthとwrite ownerを置く。`appointments`とそのlifecycleのwrite ownerは`reservation`、`staffs`と`shift_entries`のwrite ownerは`staff`とする。他domainはbusiness intentを表すconsumer-side interfaceまたは明示的orchestrationを通して操作し、owner外へ任意fieldを変更できるgeneric update APIを公開しない。
 - cross-domain writeはownerとtransaction境界を明示し、owner外に独立したpersistence実装を作らない。移行中のcompatibility facadeは薄いdelegate/type aliasに限定し、consumer移行後の削除条件を持たせる。
-- BE9-2B以降、旧`internal/handler|service|repository`は未移行実装と期限付きcompatibility codeを収めるmigration surfaceとし、新規production実装の追加先にしない。新規実装は本ADRのtarget domain packageへ置く。
+- BE9-2B以降、旧`internal/handler|service|repository`を未移行実装と期限付きcompatibility codeのmigration surfaceとして扱い、新規production実装を追加しない方針で移行した。BE9完了時点ではproduction implementation 0件で、残る`service`/`repository` fileは全てtest-onlyである。新規実装は本ADRのtarget domain packageまたは実consumerを持つ命名済みcross-cutting packageへ置く。
 - 自動化は安全な手動pathと同じuse caseを再利用し、停止手段、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 - clinical safety、clinic isolation、authorization、auditabilityは効率化より優先する。package配置だけを安全性の証拠にせず、runtime testとapplication invariantで検証する。
 - `internal/csvimport` は医院カットオーバー専用のcross-domain例外として、固定21表・固定列契約だけを単一transactionで扱う。`payments.billing_id`一意性と同じ`billing_id`を使うpayment_splits論理親子、completed billingのpayment/completed_at、cash/credit-cardの明示seed binding、split整合もcommit前とread-only REPEATABLE READ verifyで検証する。通常applicationから再利用できる汎用write APIは公開せず、manifest digest、clinic band、6つの明示seed binding、全件検証を満たすoperator commandからのみ呼ぶ。
 
-**Implementation status (2026-07-22)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[BE-refactor.md BE9-2E-0](../../../BE-refactor.md#be9-2e-0-write-owner)のruntime/AST gateで回帰を防ぐ。
+**Historical landing status (2026-07-22; final outcomeは上記Implementation outcome)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[BE-refactor.md BE9-2E-0](../../../BE-refactor.md#be9-2e-0-write-owner)のruntime/AST gateで回帰を防ぐ。
 
 L⑥（core `849c27524` / final composition `962ce70e3`）でLSTEPのproduction compositionをtarget package側のtyped `lstep.Application`へ収束した。`cmd/api`が`lstep.Dependencies`からapplicationを組み立て、旧`service.NewServices` / `service.Services`とroot `repository.Repositories`はLSTEP/SharedFileを所有しない。legacy domainへはtyped resultの必要最小限だけを渡し、owner/pet lifecycleはconsumer-side intent interface、legacy DTO/audit変換はcomposition root adapterで接続する。このcutoverでconsumer 0のroot facadeと旧service adapterを削除し、期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
 
 SharedFileはroute・use case・persistence・testを単一`internal/lstep` vertical sliceへ移した。4 route、status、storage/error/OpenAPI contractを維持し、POST authorizationは`owners:edit` / `medical-records:create` / `medical-records:edit`のtyped OR要件とする。clinic/staff scopeはJWT由来のみを保存pathへ渡し、URL/body/query値を認可根拠にしない。package移動自体を安全性の根拠とせず、RBAC tuple、敵対clinic test、route snapshot、OpenAPI drift gateで固定する。
 
-BE9-2Eの最初のdomainとしてtrimmingの23 source rowを単一`internal/trimming` vertical sliceへ収束した（2026-07-23、code tip `297a23fc7`）。handler behavior、request/response、use case、persistence、domain-owned testをtargetへ移し、旧layerにはcentral route/composition/tygoの実consumerを持つcompatibility surface 13件（thin facade/alias 12 + tygo codegen carrier 1）だけをBE9-2F期限で残す。route registration自体はconsumer切替までlegacy central handler/master routesに残る。`appointments`のwrite ownerは引き続き`internal/reservation`であり、trimmingのwriteは`CreateForTrimming` / `LockTrimmingByID` / `UpdateForTrimming` / `DeleteForTrimming`のconsumer-side intentへ限定する。同interfaceはtrimmingに必要なread/validation/booking-lock capabilityも持つが、generic appointment writerや独立persistenceを公開しない。route/RBAC/OpenAPI、clinic isolation、transaction/lock、status/error contractを変更せず、exact overlayのtarget coverageは91.6%、fixed-tree reviewのcandidate起因CRITICAL/HIGHは0件。trimmingの完了はBE9-2E全domainまたはBE9全体の完了を意味せず、次domainはSession A integration completion conditionを満たしたexact treeのfresh frontier censusで選ぶ。
+Historical landing note: BE9-2Eの最初のdomainとしてtrimmingの23 source rowを単一`internal/trimming` vertical sliceへ収束した（2026-07-23、code tip `297a23fc7`）。handler behavior、request/response、use case、persistence、domain-owned testをtargetへ移し、当時はcentral route/composition/tygoの実consumerを持つcompatibility surface 13件（thin facade/alias 12 + tygo codegen carrier 1）をBE9-2F期限で残した。`appointments`のwrite ownerは引き続き`internal/reservation`であり、trimmingのwriteは`CreateForTrimming` / `LockTrimmingByID` / `UpdateForTrimming` / `DeleteForTrimming`のconsumer-side intentへ限定する。同interfaceはtrimmingに必要なread/validation/booking-lock capabilityも持つが、generic appointment writerや独立persistenceを公開しない。route/RBAC/OpenAPI、clinic isolation、transaction/lock、status/error contractを維持した。13件のcompatibility surfaceとlegacy central consumerは2026-07-24のBE9-2Fで撤去済みである。
 
 #### `appointments` write ownerの実装決定（BE9-2E-0）
 
@@ -106,7 +118,7 @@ owner内の汎用`update(map[string]any)`は非公開primitiveとし、owner外�
 **#8-10追加検出の影響評価（round1 architectレビュー）**: この見落としはDAG構造自体（13 package taxonomy、トポロジカル順序）を無効化しない——3組とも#6と同一の解消方式で解消し、lstepはトポロジカル順序で最上位のまま変わらない。Goはimport cycleを物理的に拒否するため、この見落としが実害化する経路は「BE9-2Cでowner/pet/billingへ着手した際のコンパイルエラー」であり、「サイレントなtenant isolation不具合」ではない——census網羅性の是正であり、構造的な誤りの訂正ではない。
 
 **tenant boundary上のセキュリティリスク**として以下を明記する（ADR-002との整合確認）:
-- `POST /api/line/webhook`（lstepドメイン）は`clinic_id`なしで受信し、署名検証段階で全クリニックのLINEチャネルシークレットを走査する意図的なcross-clinic-identity読み取りを行う。書き込みは各マッチ行自身の`ClinicID`を使用しclient入力を使わないため安全——ADR-002「no unscoped read」不変条件に対する**証拠に基づく例外**として本ADRで承認する（santa dual-review round 1でclinic-isolation-auditorが`line_link_service.go`の書き込みパスを直接読み、client入力を使わないことを再検証済み）。
+- `POST /api/line/webhook`（lstepドメイン）は`clinic_id`なしで受信するため、署名検証段階で全`LineReservationSetting`のLINE channel secretを読む意図的なcross-clinic-identity readを行う。この例外は受信前identity解決だけに限定し、ownerを全clinic横断で検索・更新する権限へ拡張しない。異なるclinicで同じsecretが一致する曖昧系はfail closedとし、一意に一致したclinic IDを以後の`FindByLineUserID`とfollow/unfollow updateへ必須scopeとして渡す。owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。更新CASは`clinic_id + owner id + expected line_user_id`と正数かつ受信時刻+5分以内のLINE event timestampを必須とし、followは保存済みfollow/unfollowの両時刻より新しい場合だけ、unfollowは保存済みfollowと同時刻以上かつ保存済みunfollowより新しい場合だけ適用する。したがってstale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先となる。これをADR-002「no unscoped read」不変条件に対する**限定された証拠ベースの例外**として承認する。
 - `BillingConfirmation`/`BillingItem`/`Payment`（billing）、`Inquiry`/`CarePlanItem`/`Treatment`/`ClinicalPlan`/`MedicalRecordImage`（medicalrecord）は自前`clinic_id`を持たず、親レコード（billing/medical_record/hospitalization）経由の間接isolation——親側のownership検証が壊れると連鎖的にisolationが崩れる構造的リスクとして明記する。BE9-2B以降のリファクタでこの間接isolationパターンを壊さないこと（当初`Inquiry`のみと記載していたが、reviewで同型resourceを追加検出——詳細は[boundary map §7.3](../be9-2a-boundary-map.md#be9-2a-indirect-isolation)）。`StaffReservationExclusion`も同型（自前clinic_idなし）だが、こちらは新規発見ではなく既に`preload_clinic_scope_lint_test.go`でsite-exception追跡済みの既知の低severity読み取りギャップ。`ExamResult`/`ExamTypeField`/`StaffNote`も検証済み——生きた漏洩なし（詳細はboundary map §7.3）。
 - **起票時の記録（2026-07-21に是正済み）**: `BillingItem`は間接isolationの中で唯一、repository層の防御が実質的にno-opだった（[boundary map §7.4](../be9-2a-boundary-map.md#be9-2a-bug-417)）。`billing_item_repository.go`のUpdate/DeleteがGORMの`Joins()`をUPDATE/DELETE SQLへ伝播しない罠に該当したが、当時もservice層の事前check（`FindByID`）でgateされており生きた漏洩ではなかった。BE9-2Aではmeasurement/document-onlyのため修正せず、2026-07-21のbilling Phase 0でsubquery形式への是正とクロステナントtest追加を完了した。詳細は「論点の解決記録」#6。
 - `AnimalSpecies`（pet）、`Company`（clinic、シングルトン）、`LstepAutoManagedPrefix`/`LstepConditionTagMapping`/`LstepSendPurposeTagPrefix`（lstep）はglobal-master。BE9-1でlintのsource discoveryはpackage非依存化済みで、preload lintは`AnimalSpecies`を明示的なglobal exemptionとして持つ。他のglobal-masterも新しいassociation/preload pathを追加する際にclinic predicateを誤強制しないよう、この分類をreview根拠にする。
@@ -155,7 +167,7 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 
 - 分類manifest 761 source rowの帰属が実測（RBAC resource名・route構造・GORM ClinicIDフィールド・Goのreceiver型制約という一次証拠）に基づき機械的に検証可能な形で確定した。旧BE8/§9のfilename-prefixのみの分類の限界（receiver-vs-filename不一致等）を後続batchでも訂正できる形にした。
 - 10組の生cycleのうち9組は、新規abstractionを発明せず、プロジェクト既存のconsumer-side interface規約（ADR-005/go-gin-backend-guidelines.md §3）だけで解消可能であることを実証した——BE9-2B以降で「解決策が見つからず立ち往生する」リスクを大幅に下げた。
-- medicalrecordドメインのBE9-2A初回分類が185 source row（旧見積96の約2倍）と判明し、batchサイジングを補正できた。checkup_sync再分類後の現行manifestは175 source row、移行後`internal/medicalrecord`はproduction Go 178 fileであり、これらは別指標である。
+- medicalrecordドメインのBE9-2A初回分類が185 source row（旧見積96の約2倍）と判明し、batchサイジングを補正できた。checkup_sync再分類後の現行manifestは175 source row、2026-07-24 live treeの`internal/medicalrecord`はproduction Go 180 fileであり、これらは別指標である。同様にbillingはmanifest 65 source rowに対して現行production Go 71 fileで、snapshot provenanceと移行後の物理file数を混同しない。
 
 ### Trade-offs
 

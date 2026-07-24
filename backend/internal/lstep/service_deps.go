@@ -30,10 +30,34 @@ type lstepAuditLogger interface {
 // lstepOwnerRepo は飼主（owner domain 未移行）の LINE 連携フィールド更新の最小view。
 type lstepOwnerRepo interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error)
+}
+
+// lineLinkOwnerRepo is the public LINE account-link/webhook owner capability.
+// Webhook lookups are always scoped by the clinic whose channel secret uniquely
+// matched the request signature.
+type lineLinkOwnerRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
+	LockLineLinkOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
 	UpdateLineUserID(ctx context.Context, clinicID, ownerID uint64, lineUserID *string) error
-	UpdateLineFollowedAt(ctx context.Context, clinicID, ownerID uint64, t time.Time) error
-	UpdateLineBlockedAt(ctx context.Context, clinicID, ownerID uint64, t time.Time) error
+	UpdateLineFollowedAt(
+		ctx context.Context,
+		clinicID, ownerID uint64,
+		expectedLineUserID string,
+		eventAt time.Time,
+	) (bool, error)
+	UpdateLineBlockedAt(
+		ctx context.Context,
+		clinicID, ownerID uint64,
+		expectedLineUserID string,
+		eventAt time.Time,
+	) (bool, error)
+}
+
+// LineLinkAuditTxLogger is the consumer-side audit contract for a successful
+// public LINE account link. Implementations must write through the ambient tx.
+type LineLinkAuditTxLogger interface {
+	LogOwnerLineLinkTx(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // lstepLineSettingReader は LINE 予約設定（reservation domain・topo で lstep は最下流のため

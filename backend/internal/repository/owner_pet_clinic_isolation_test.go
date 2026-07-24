@@ -114,8 +114,14 @@ func TestOwnerRepository_Update_ClinicIsolation(t *testing.T) {
 	ownerA := makeTestOwner(t, db, clinicA, "更新テスト飼主")
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, ownerA.ID, map[string]any{"name": "不正書き換え"})
+		updated, err := repo.UpdateAndFind(
+			ctx,
+			clinicB,
+			ownerA.ID,
+			map[string]any{"name": "不正書き換え"},
+		)
 		require.Error(t, err, "clinic B から clinic A の owner を更新できてはならない")
+		assert.Nil(t, updated)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
 
@@ -127,11 +133,15 @@ func TestOwnerRepository_Update_ClinicIsolation(t *testing.T) {
 	})
 
 	t.Run("正しいクリニックIDからの Update は成功する", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, ownerA.ID, map[string]any{"name": "正常更新後の名前"})
+		updated, err := repo.UpdateAndFind(
+			ctx,
+			clinicA,
+			ownerA.ID,
+			map[string]any{"name": "正常更新後の名前"},
+		)
 		require.NoError(t, err)
-		got, err := repo.FindByID(ctx, clinicA, ownerA.ID)
-		require.NoError(t, err)
-		assert.Equal(t, "正常更新後の名前", got.Name)
+		require.NotNil(t, updated)
+		assert.Equal(t, "正常更新後の名前", updated.Name)
 	})
 }
 

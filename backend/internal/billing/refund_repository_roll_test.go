@@ -22,15 +22,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-// setupRefundRepoTestDB は billing_refunds の FK/Preload テストに必要な staffs テーブルを
-// 追加で AutoMigrate する（setupSharedTestSchema の基本テーブル集合には staffs が含まれないため）。
-// Staff モデルは Clinic への association フィールドを持たないため、AutoMigrate 単体で
-// clinics テーブルの存在は前提にならない（staff_occupation_preload_clinic_isolation_test.go の
-// setupStaffOccupationPreloadTestDB と同様のパターン）。
+// setupRefundRepoTestDB は billing_refunds の FK/Preload テストに必要な staffs と
+// staff_clinic_assignments を追加で AutoMigrate する
+// （setupSharedTestSchema の基本テーブル集合には含まれないため）。
+// assignment の clinic 親行は makeStaffForRefundRepositoryTest が作成する。
 func setupRefundRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.Staff{},
+		&model.StaffClinicAssignment{},
+	))
 	return db
 }
 
@@ -44,6 +47,10 @@ func makeStaffForRefundRepositoryTest(t *testing.T, db *gorm.DB, clinicID uint64
 		StaffType: model.StaffTypeDoctor,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
+	seedBillingClinicForFK(t, db, clinicID)
+	require.NoError(t, db.WithContext(context.Background()).Create(
+		&model.StaffClinicAssignment{StaffID: s.ID, ClinicID: clinicID},
+	).Error)
 	return s
 }
 

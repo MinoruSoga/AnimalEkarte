@@ -46,9 +46,9 @@
     "SCHEDULER_ENVIRONMENT": "staging",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
-    // PlanetScale Postgres はTLS必須。証明書検証はスキップしつつ暗号化のみ要求する
-    // (試行7で確認済みの sslmode=require 運用を踏襲)。
-    "DB_SSL_MODE": "require",
+    // PlanetScale Postgres はTLSとserver identity検証を必須化する。
+    "DB_SSL_MODE": "verify-full",
+    "DB_SSL_ROOT_CERT": "system",
     // DB接続プール上限(Goコード既定=50/25はローカル・単一プロセス前提)。
     // Containers は直結(Hyperdrive/プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
     // ありうるため、インスタンスあたりを低く抑えないと PlanetScale の接続スロットを食い潰す

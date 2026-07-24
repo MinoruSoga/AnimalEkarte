@@ -14,8 +14,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func makePetForReservationIntentTest(
@@ -101,7 +101,7 @@ func TestReservationRepository_BackfillForMedicalRecord(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "カルテ連携飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "カルテ連携飼主A")
 	petA := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "カルテ連携ペットA")
 	doctorA := makeDoctor(t, db, clinicA, "カルテ連携獣医A")
 	require.NoError(t, db.Create(&model.StaffClinicAssignment{
@@ -137,7 +137,7 @@ func TestReservationRepository_BackfillForMedicalRecord(t *testing.T) {
 
 	t.Run("rejects a foreign clinic owner before persisting", func(t *testing.T) {
 		appt := makeReservation(t, db, clinicA)
-		ownerB := repotest.MakeTestOwner(t, db, clinicB, "カルテ連携飼主B")
+		ownerB := testdb.MakeTestOwner(t, db, clinicB, "カルテ連携飼主B")
 
 		err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			return repo.BackfillForMedicalRecord(txCtx, clinicA, appt.ID, &ownerB.ID, nil, nil)
@@ -172,7 +172,7 @@ func TestReservationRepository_BackfillForMedicalRecord(t *testing.T) {
 
 	t.Run("rejects a concurrent owner mismatch instead of overwriting it", func(t *testing.T) {
 		appt := makeReservation(t, db, clinicA)
-		otherOwner := repotest.MakeTestOwner(t, db, clinicA, "カルテ連携別飼主")
+		otherOwner := testdb.MakeTestOwner(t, db, clinicA, "カルテ連携別飼主")
 		require.NoError(t, db.Model(&model.Reservation{}).
 			Where("id = ?", appt.ID).
 			Update("owner_id", otherOwner.ID).Error)
@@ -497,7 +497,7 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 				if err := repo.PrepareForMedicalRecordFinalization(txCtx, clinicID, appointment.ID); err != nil {
 					return err
 				}
-				if err := repohelpers.DBOrTx(txCtx, db).
+				if err := persistence.DBOrTx(txCtx, db).
 					Model(&model.MedicalRecord{}).
 					Where("clinic_id = ? AND id = ?", clinicID, record.ID).
 					Update("status", model.MedicalRecordStatusFinalized).
@@ -646,7 +646,7 @@ func TestReservationRepository_CreateForTrimming_PersistsOwnerForAccountingCompl
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "トリミング会計飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "トリミング会計飼主")
 	pet := makePetForReservationIntentTest(t, db, clinicID, owner.ID, "トリミング会計ペット")
 	reservationType := &model.ReservationType{
 		ClinicID: clinicID,
@@ -850,7 +850,7 @@ func TestReservationRepository_ClinicScopedFKAssertionsHoldShareLocks(t *testing
 	}
 
 	t.Run("owner", func(t *testing.T) {
-		owner := repotest.MakeTestOwner(t, db, clinicID, "共有ロック対象飼主")
+		owner := testdb.MakeTestOwner(t, db, clinicID, "共有ロック対象飼主")
 		assertMutationBlocks(t,
 			func(txCtx context.Context) error { return repo.AssertOwnerInClinic(txCtx, clinicID, owner.ID) },
 			func() error { return db.Delete(&model.Owner{}, owner.ID).Error },
@@ -994,8 +994,8 @@ func TestReservationRepository_FindAllByCategoryScopesJoinedTablesToAppointmentC
 	}
 	require.NoError(t, db.Create(typeA).Error)
 	require.NoError(t, db.Create(typeB).Error)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "一覧JOIN飼主A")
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "一覧JOIN飼主B")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "一覧JOIN飼主A")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "一覧JOIN飼主B")
 	petA := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "一覧JOINペットA")
 	petB := makePetForReservationIntentTest(t, db, clinicB, ownerB.ID, "一覧JOINペットB")
 	start := time.Now().UTC().Add(time.Hour)
@@ -1084,8 +1084,8 @@ func TestReservationRepository_CreateForTrimmingRejectsPetLinkedToForeignOwner(t
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "トリミング飼主A")
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "トリミング飼主B")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "トリミング飼主A")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "トリミング飼主B")
 	pollutedPet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "飼主関係汚染ペット")
 	require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pollutedPet.ID).Update("owner_id", ownerB.ID).Error)
 	reservationType := &model.ReservationType{

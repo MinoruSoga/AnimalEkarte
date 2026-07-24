@@ -18,7 +18,7 @@ import (
 )
 
 func TestOwnerRepository_PetsOwnerPreload_HasClinicScopeContract(t *testing.T) {
-	source, err := os.ReadFile("owner_repository.go")
+	source, err := os.ReadFile("../owner/repository.go")
 	require.NoError(t, err)
 	assert.Contains(
 		t,

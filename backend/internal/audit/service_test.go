@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,6 +62,27 @@ func TestServiceLogEntryBuildsCanonicalLog(t *testing.T) {
 	assert.JSONEq(t, `{"name":"old"}`, string(repo.lastLog.OldValue))
 	assert.JSONEq(t, `{"name":"new"}`, string(repo.lastLog.NewValue))
 	assert.Equal(t, "audit-test", repo.lastLog.UserAgent)
+}
+
+func TestServiceLogEntryNormalizesAndBoundsUserAgent(t *testing.T) {
+	repo := &recordingRepository{}
+	svc := NewService(repo)
+	clinicID := uint64(1)
+	longUserAgent := strings.Repeat("a", maxAuditUserAgentBytes-1) + "界\xff"
+
+	err := svc.LogEntry(context.Background(), &Entry{
+		ClinicID:  &clinicID,
+		ActorType: model.AuditActorTypeSystem,
+		Action:    "test.user_agent",
+		Resource:  "auth",
+		UserAgent: longUserAgent,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, repo.lastLog)
+	assert.LessOrEqual(t, len(repo.lastLog.UserAgent), maxAuditUserAgentBytes)
+	assert.True(t, utf8.ValidString(repo.lastLog.UserAgent))
+	assert.NotContains(t, repo.lastLog.UserAgent, "\xff")
 }
 
 func TestServiceLogEntryTxUsesTransactionRepositoryPath(t *testing.T) {

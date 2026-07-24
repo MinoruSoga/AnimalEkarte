@@ -47,7 +47,9 @@ Handler → Service → Repository、Clean Architecture、repository pattern、l
 - migration facadeは薄いdelegate/type aliasに限定し、旧実装と新実装を二重のwrite pathとして残さない。
 - 自動化は安全な手動pathを置き換えるのではなく同じuse caseを再利用し、停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 
-BE9-2B以降、旧`internal/handler|service|repository`は未移行実装と期限付きfacadeを含むmigration surfaceであり、新規production実装の追加先ではない。移行順序、現行例外、削除条件は[`BE-refactor.md`](../../BE-refactor.md)を正本とする。
+BE9の構造移行後、production実装は`internal/<domain>`へ収束した。旧`internal/handler`は削除済みで、旧`internal/service`と`internal/repository`に残るGo fileは、移行後のpackageを対象にする互換・回帰testだけである。production codeから旧3 packageへのimport edgeはない。
+
+`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`smtptransport`、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡とrelease gateは[`BE-refactor.md`](../../BE-refactor.md)を正本とする。
 
 この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 
@@ -86,16 +88,19 @@ BE9-2B以降、旧`internal/handler|service|repository`は未移行実装と期�
 
 - production server は `http.Server` で timeout/limit を明示する。
 - SIGINT/SIGTERM から timeout 付き graceful shutdown を行う。
-- DB、worker、queue 等を安全な順序で close する。
-- goroutine は元の `*gin.Context` を保持せず、終了条件と cancel/error 経路を持つ。
+- 新規requestを止め、HTTP shutdown、background work drain、DB closeの順序を明示する。
+- background workは受付gateとbounded concurrencyを持ち、shutdown開始後の追加受付を拒否する。
+- goroutine は元の `*gin.Context` を保持せず、終了条件とcancel/error経路を持つ。
+- Cloudflare scheduled eventは、通常APIと同じdomain use caseを呼ぶdurable coordinatorを経由し、重複実行防止、pause/resume、catch-up、履歴、失敗通知を備える。運用手順は[Scheduler Operations](../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)を参照する。
 
 ## Testing strategy
 
-- handler/middleware は `net/http/httptest` と最小 router で test する。
+- domain HTTP boundaryとmiddlewareは`net/http/httptest`と最小routerでtestする。
 - binding、validation、authentication、authorization、not-found、conflict、internal-error を確認する。
 - query、transaction、tenant isolation は risk に応じて実 DB integration test を行う。
 - cancellation、concurrency、shutdown は変更箇所に応じて検証する。
 - package layout そのものではなく、observable behavior と security boundary を test する。
+- route composition smoke、OpenAPI drift、package非依存のclinic/audit/transaction lintで、domain間の統合境界を検証する。
 
 ## Decision ownership
 

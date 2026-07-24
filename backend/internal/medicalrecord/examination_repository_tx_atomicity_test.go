@@ -181,3 +181,145 @@ func TestExaminationRepository_Delete_CommitsWithinAmbientTx(t *testing.T) {
 	require.Error(t, e, "commit 後は exam が削除されている")
 	assert.True(t, apperrors.IsNotFound(e))
 }
+
+func TestDB_ExaminationRepository_CountItemsByExamIDReadsAmbientTxAndRollsBack(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	examType := makeExamTypeMaster(t, db, clinicID, "血液検査（Count tx）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicID, ExamTypeID: examType.ID, Date: time.Date(2026, 6, 14, 0, 0, 0, 0, time.UTC),
+	})
+	repo := NewExaminationRepository(db)
+	sentinel := errors.New("rollback count visibility")
+
+	err := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
+		require.NoError(t, persistence.DBOrTx(txCtx, db).Create(&model.ExamResult{
+			ExamID: exam.ID,
+			Name:   "uncommitted WBC",
+		}).Error)
+
+		count, countErr := repo.CountItemsByExamID(txCtx, clinicID, exam.ID)
+		require.NoError(t, countErr)
+		assert.EqualValues(t, 1, count, "dependency count must observe the ambient transaction write")
+		return sentinel
+	})
+	require.ErrorIs(t, err, sentinel)
+
+	count, err := repo.CountItemsByExamID(ctx, clinicID, exam.ID)
+	require.NoError(t, err)
+	assert.Zero(t, count, "the uncommitted result must disappear with the ambient rollback")
+}
+
+func TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpdate(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	examType := makeExamTypeMaster(t, db, clinicID, "血液検査（exam lock）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicID, ExamTypeID: examType.ID, Date: time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC),
+		Status: model.ExaminationStatusInProgress,
+	})
+	repo := NewExaminationRepository(db)
+
+	err := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
+		locked, lockErr := repo.LockByIDForUpdate(txCtx, clinicID, exam.ID)
+		require.NoError(t, lockErr)
+		assert.Equal(t, model.ExaminationStatusInProgress, locked.Status)
+
+		competingTx := db.WithContext(ctx).Begin()
+		require.NoError(t, competingTx.Error)
+		defer competingTx.Rollback()
+		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+
+		competingCtx := persistence.WithTxValue(ctx, competingTx)
+		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, map[string]any{
+			"status": model.ExaminationStatusConfirmed,
+		})
+		require.Error(t, updateErr, "a concurrent status update must wait on the locked exam row")
+		return nil
+	})
+	require.NoError(t, err)
+
+	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
+		"status": model.ExaminationStatusConfirmed,
+	})
+	require.NoError(t, err, "the status update must succeed after the lock transaction commits")
+}
+
+func TestDB_ExaminationRepository_ReplaceItemsLocksParentAgainstConcurrentStatusUpdate(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	examType := makeExamTypeMaster(t, db, clinicID, "血液検査（result parent lock）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicID, ExamTypeID: examType.ID, Date: time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
+		Status: model.ExaminationStatusInProgress,
+	})
+	repo := NewExaminationRepository(db)
+
+	err := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
+		_, _, replaceErr := repo.ReplaceItemsByExamID(txCtx, clinicID, exam.ID, []model.ExamResult{{
+			Name:            "WBC",
+			InspectionValue: "5.0",
+		}})
+		require.NoError(t, replaceErr)
+
+		competingTx := db.WithContext(ctx).Begin()
+		require.NoError(t, competingTx.Error)
+		defer competingTx.Rollback()
+		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+
+		competingCtx := persistence.WithTxValue(ctx, competingTx)
+		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, map[string]any{
+			"status": model.ExaminationStatusConfirmed,
+		})
+		require.Error(t, updateErr, "direct result replacement must keep the parent exam row locked")
+		return nil
+	})
+	require.NoError(t, err)
+
+	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
+		"status": model.ExaminationStatusConfirmed,
+	})
+	require.NoError(t, err, "the status update must succeed after result replacement commits")
+}
+
+func TestDB_ExaminationRepository_ReplaceItemsRejectsConfirmedParentAndPreservesItems(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	examType := makeExamTypeMaster(t, db, clinicID, "血液検査（confirmed result guard）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicID, ExamTypeID: examType.ID, Date: time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC),
+		Status: model.ExaminationStatusInProgress,
+	})
+	repo := NewExaminationRepository(db)
+	_, _, err := repo.ReplaceItemsByExamID(ctx, clinicID, exam.ID, []model.ExamResult{{
+		Name:            "WBC",
+		InspectionValue: "5.0",
+	}})
+	require.NoError(t, err)
+
+	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
+		"status": model.ExaminationStatusConfirmed,
+	})
+	require.NoError(t, err)
+
+	_, _, err = repo.ReplaceItemsByExamID(ctx, clinicID, exam.ID, []model.ExamResult{{
+		Name:            "Glucose",
+		InspectionValue: "90",
+	}})
+	require.Error(t, err, "result replacement that loses the row-lock race to confirmation must fail closed")
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	preserved, err := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
+	require.NoError(t, err)
+	require.Len(t, preserved, 1)
+	assert.Equal(t, "WBC", preserved[0].Name)
+	assert.Equal(t, "5.0", preserved[0].InspectionValue)
+}

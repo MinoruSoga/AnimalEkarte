@@ -14,6 +14,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	petdomain "github.com/animal-ekarte/backend/internal/pet"
 )
 
@@ -265,7 +266,7 @@ func TestOwnerRepository_CreateWithPets_DelegatesPetWriteInsideSameTransaction(t
 		require.Len(t, intent.Pets, 1)
 
 		var ownerCount int64
-		require.NoError(t, dbOrTx(txCtx, db).Model(&model.Owner{}).
+		require.NoError(t, persistence.DBOrTx(txCtx, db).Model(&model.Owner{}).
 			Where("id = ? AND clinic_id = ?", intent.OwnerID, intent.ClinicID).
 			Count(&ownerCount).Error)
 		assert.Equal(t, int64(1), ownerCount, "owner insert must be visible inside the same transaction")

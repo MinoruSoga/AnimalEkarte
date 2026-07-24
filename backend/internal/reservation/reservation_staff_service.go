@@ -70,7 +70,7 @@ type ReservationStaffCoreService interface {
 // ReservationStaffExclusionService は予約スタッフの除外コース操作
 type ReservationStaffExclusionService interface {
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
-	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+	ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
 }
 
 // ReservationStaffService は ReservationStaffCoreService / ReservationStaffExclusionService を統合したインターフェース。
@@ -121,6 +121,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		staffType = model.StaffTypeDoctor
 	}
 	staff := &model.Staff{
+		ClinicID:           clinicID,
 		Name:               input.Name,
 		IsActive:           true,
 		SortOrder:          input.SortOrder,
@@ -128,6 +129,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		ReservationVisible: input.ReservationVisible,
 		ReservationComment: input.ReservationComment,
 	}
+	var excluded []model.StaffReservationExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, staff, clinicID); err != nil {
 			slog.ErrorContext(txCtx, "failed to create reservation staff", "error", err)
@@ -139,6 +141,17 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
 		}
+		var err error
+		excluded, err = s.repo.FindAllExcludedReservationTypes(txCtx, clinicID, staff.ID)
+		if err != nil {
+			slog.ErrorContext(
+				txCtx,
+				"failed to get excluded reservation types",
+				"error", err,
+				"clinic_id", clinicID,
+			)
+			return apperrors.Wrap(err, "failed to get excluded reservation types")
+		}
 		return nil
 	}); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create reservation staff")
@@ -146,11 +159,6 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	slog.InfoContext(ctx, "reservation staff created",
 		slog.Uint64("staff_id", staff.ID),
 		slog.Uint64("clinic_id", clinicID))
-	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, staff.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
-	}
 	return staff, excluded, nil
 }
 
@@ -159,12 +167,13 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 	// 括らないと、fields 更新が成功し UpdateExcludedReservationTypes が失敗した場合に
 	// staff 側の変更（名前/種別/表示可否等）だけがコミットされ、除外コースは古いまま残る
 	// 非原子な部分更新になる。
-	// BE-refactor.md H-7: clinicID 確認（所有権確認）を WithTx 閉包の外から先頭へ移動し、
-	// dbOrTx 化済みの repo.FindByID を txCtx で呼ぶことで ambient tx に参加させる。
-	// これにより確認〜更新の間にスタッフ削除/所属変更が起きる TOCTOU 窓を閉じる
-	// （repo.Update は R13 で updateScopedByID 化済み・RowsAffected==0 は WrapNotFound）。
+	// mutation-specific UPDATE lock を最初に取得し、所有権確認から更新までを直列化する。
+	// FindByID の SHARE lock から UPDATE への lock upgrade は、Update と PatchStatus が
+	// 同時実行された際に相互待ちを作り得るため mutation の先頭では使用しない。
+	var updated *model.Staff
+	var excluded []model.StaffReservationExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+		if _, err := s.repo.LockForMutation(txCtx, clinicID, id); err != nil {
 			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
 			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 		}
@@ -181,23 +190,36 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 				return apperrors.Wrap(err, "failed to update excluded courses")
 			}
 		}
+		var err error
+		updated, err = s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(
+				txCtx,
+				"failed to get reservation staff after update",
+				"error", err,
+				"id", id,
+				"clinic_id", clinicID,
+			)
+			return apperrors.Wrap(err, "failed to get reservation staff after update")
+		}
+		excluded, err = s.repo.FindAllExcludedReservationTypes(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(
+				txCtx,
+				"failed to get excluded reservation types",
+				"error", err,
+				"id", id,
+				"clinic_id", clinicID,
+			)
+			return apperrors.Wrap(err, "failed to get excluded reservation types")
+		}
 		return nil
 	}); err != nil {
 		return nil, nil, err //nolint:wrapcheck // tx 閉包内の 3 分岐とも文脈付き wrap 済み（同義二重ラップ回避）
 	}
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation staff after update", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to get reservation staff after update")
-	}
 	slog.InfoContext(ctx, "reservation staff updated",
 		slog.Uint64("staff_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
-	}
 	return updated, excluded, nil
 }
 
@@ -215,28 +237,36 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 }
 
 func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
-	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
-		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
-	}
-	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
-		slog.ErrorContext(ctx, "failed to patch staff status", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to patch staff status")
-	}
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation staff after patch status", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to get reservation staff after patch status")
+	var result *model.Staff
+	var excluded []model.StaffReservationExclusion
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.LockForMutation(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
+		}
+		if err := s.repo.Update(txCtx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
+			slog.ErrorContext(txCtx, "failed to patch staff status", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to patch staff status")
+		}
+		var err error
+		result, err = s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get reservation staff after patch status", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to get reservation staff after patch status")
+		}
+		excluded, err = s.repo.FindAllExcludedReservationTypes(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to get excluded reservation types")
+		}
+		return nil
+	}); err != nil {
+		return nil, nil, err //nolint:wrapcheck // tx 閉包内の全分岐を文脈付き wrap 済み
 	}
 	slog.InfoContext(ctx, "reservation staff status patched",
 		slog.Uint64("staff_id", id),
 		slog.Uint64("clinic_id", clinicID),
 		slog.Bool("is_active", isActive))
-	excluded, err := s.repo.FindAllExcludedReservationTypes(ctx, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded reservation types", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, nil, apperrors.Wrap(err, "failed to get excluded reservation types")
-	}
 	return result, excluded, nil
 }
 
@@ -256,8 +286,12 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 }
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す
-func (s *reservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
-	items, err := s.repo.FindAllExcludedReservationTypesByStaffIDs(ctx, staffIDs)
+func (s *reservationStaffService) ListExcludedByStaffIDs(
+	ctx context.Context,
+	clinicID uint64,
+	staffIDs []uint64,
+) (map[uint64][]model.StaffReservationExclusion, error) {
+	items, err := s.repo.FindAllExcludedReservationTypesByStaffIDs(ctx, clinicID, staffIDs)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list excluded service types", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")

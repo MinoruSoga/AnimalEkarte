@@ -15,7 +15,7 @@ import type {
 } from "./scheduler-coordinator";
 import { SCHEDULER_NAME, type ScheduledJobName } from "./scheduled-jobs";
 
-const SECRET = "scheduler-ops-test-secret";
+const SECRET = "scheduler-ops-test-secret-32-bytes-minimum";
 const NOW = Date.UTC(2026, 6, 24, 18, 0, 0);
 const AUTH_CONFIG = {
   automationSecret: SECRET,
@@ -74,7 +74,7 @@ function encodeBase64URL(value: Uint8Array | string): string {
     .replace(/=+$/u, "");
 }
 
-async function createAccessSigner() {
+async function createAccessSigner(keyID = "access-test-key") {
   const keys = (await crypto.subtle.generateKey(
     {
       name: "RSASSA-PKCS1-v1_5",
@@ -86,7 +86,6 @@ async function createAccessSigner() {
     ["sign", "verify"],
   )) as CryptoKeyPair;
   const publicKey = await crypto.subtle.exportKey("jwk", keys.publicKey);
-  const keyID = "access-test-key";
   const jwk = { ...publicKey, alg: "RS256", kid: keyID, use: "sig" };
 
   return {
@@ -208,7 +207,38 @@ describe("scheduler ops authentication", () => {
     expect(isAuthorizedSchedulerOpsRequest(request, "")).toBe(false);
   });
 
+  it("fails closed when the dedicated secret is shorter than 32 UTF-8 bytes", () => {
+    const shortASCIISecret = "a".repeat(31);
+    const shortUnicodeSecret = "é".repeat(15);
+
+    expect(
+      isAuthorizedSchedulerOpsRequest(
+        new Request("https://api.example.com/_internal/scheduler/status", {
+          headers: { Authorization: `Bearer ${shortASCIISecret}` },
+        }),
+        shortASCIISecret,
+      ),
+    ).toBe(false);
+    expect(
+      isAuthorizedSchedulerOpsRequest(
+        new Request("https://api.example.com/_internal/scheduler/status", {
+          headers: { Authorization: `Bearer ${shortUnicodeSecret}` },
+        }),
+        shortUnicodeSecret,
+      ),
+    ).toBe(false);
+  });
+
   it("accepts only an exact Bearer credential", () => {
+    const minimumLengthSecret = "m".repeat(32);
+    expect(
+      isAuthorizedSchedulerOpsRequest(
+        new Request("https://api.example.com/_internal/scheduler/status", {
+          headers: { Authorization: `Bearer ${minimumLengthSecret}` },
+        }),
+        minimumLengthSecret,
+      ),
+    ).toBe(true);
     expect(
       isAuthorizedSchedulerOpsRequest(
         authorizedRequest("/_internal/scheduler/status"),
@@ -232,7 +262,7 @@ describe("scheduler ops authentication", () => {
       expect(request.url).toBe(
         "https://animalekarte.cloudflareaccess.com/cdn-cgi/access/certs",
       );
-      expect(request.redirect).toBe("error");
+      expect(request.redirect).toBe("manual");
       return Response.json({ keys: [signer.jwk] });
     });
     const request = new Request(
@@ -251,6 +281,122 @@ describe("scheduler ops authentication", () => {
       actorPrincipal: "cloudflare-access:operator-123",
     });
     expect(certsFetch).toHaveBeenCalledOnce();
+  });
+
+  it("bounds forged-kid JWKS refreshes while still accepting a rotated key after cooldown", async () => {
+    const currentSigner = await createAccessSigner("current-access-key");
+    const rotatedSigner = await createAccessSigner("rotated-access-key");
+    const currentAssertion = await currentSigner.sign();
+    const rotatedAssertion = await rotatedSigner.sign();
+    const certsFetch = vi.fn(async () =>
+      Response.json({
+        keys:
+          certsFetch.mock.calls.length === 1
+            ? [currentSigner.jwk]
+            : [currentSigner.jwk, rotatedSigner.jwk],
+      }),
+    );
+
+    await expect(
+      authenticateSchedulerOpsRequest(
+        new Request("https://api.example.com/_internal/scheduler/status", {
+          headers: { "CF-Access-Jwt-Assertion": currentAssertion },
+        }),
+        AUTH_CONFIG,
+        NOW,
+        certsFetch,
+      ),
+    ).resolves.toEqual({
+      actorPrincipal: "cloudflare-access:operator-123",
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(
+        authenticateSchedulerOpsRequest(
+          new Request("https://api.example.com/_internal/scheduler/status", {
+            headers: { "CF-Access-Jwt-Assertion": rotatedAssertion },
+          }),
+          AUTH_CONFIG,
+          NOW + 1_000,
+          certsFetch,
+        ),
+      ).resolves.toBeUndefined();
+    }
+    expect(certsFetch).toHaveBeenCalledOnce();
+
+    await expect(
+      authenticateSchedulerOpsRequest(
+        new Request("https://api.example.com/_internal/scheduler/status", {
+          headers: { "CF-Access-Jwt-Assertion": rotatedAssertion },
+        }),
+        AUTH_CONFIG,
+        NOW + 60_001,
+        certsFetch,
+      ),
+    ).resolves.toEqual({
+      actorPrincipal: "cloudflare-access:operator-123",
+    });
+    expect(certsFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces concurrent JWKS loads and cools down upstream failures", async () => {
+    const signer = await createAccessSigner("concurrent-access-key");
+    const assertion = await signer.sign();
+    let releaseFetch: (() => void) | undefined;
+    const fetchGate = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+    const successfulFetch = vi.fn(async () => {
+      await fetchGate;
+      return Response.json({ keys: [signer.jwk] });
+    });
+    const request = () =>
+      new Request("https://api.example.com/_internal/scheduler/status", {
+        headers: { "CF-Access-Jwt-Assertion": assertion },
+      });
+    const attempts = Array.from({ length: 5 }, () =>
+      authenticateSchedulerOpsRequest(
+        request(),
+        AUTH_CONFIG,
+        NOW,
+        successfulFetch,
+      ),
+    );
+
+    try {
+      await vi.waitFor(() => {
+        expect(successfulFetch).toHaveBeenCalledOnce();
+      });
+    } finally {
+      releaseFetch?.();
+    }
+    await expect(Promise.all(attempts)).resolves.toEqual(
+      Array.from({ length: 5 }, () => ({
+        actorPrincipal: "cloudflare-access:operator-123",
+      })),
+    );
+
+    const failedFetch = vi.fn(async () => new Response(null, { status: 503 }));
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(
+        authenticateSchedulerOpsRequest(
+          request(),
+          AUTH_CONFIG,
+          NOW,
+          failedFetch,
+        ),
+      ).resolves.toBeUndefined();
+    }
+    expect(failedFetch).toHaveBeenCalledOnce();
+    await expect(
+      authenticateSchedulerOpsRequest(
+        request(),
+        AUTH_CONFIG,
+        NOW + 60_001,
+        failedFetch,
+      ),
+    ).resolves.toBeUndefined();
+    expect(failedFetch).toHaveBeenCalledTimes(2);
   });
 
   it("rejects spoofed actor headers and invalid Access JWT claims or signatures", async () => {
@@ -309,7 +455,7 @@ describe("scheduler ops authentication", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("rejects redirected or oversized Access JWKS responses", async () => {
+  it("rejects redirect indicators or oversized Access JWKS responses", async () => {
     const signer = await createAccessSigner();
     const assertion = await signer.sign();
     const request = new Request(
@@ -325,6 +471,32 @@ describe("scheduler ops authentication", () => {
         AUTH_CONFIG,
         NOW,
         async () => redirected,
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      authenticateSchedulerOpsRequest(
+        request,
+        AUTH_CONFIG,
+        NOW,
+        async (outboundRequest) => {
+          expect(outboundRequest.redirect).toBe("manual");
+          return new Response(null, {
+            status: 302,
+            headers: { Location: "https://attacker.example.com/jwks" },
+          });
+        },
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      authenticateSchedulerOpsRequest(
+        request,
+        AUTH_CONFIG,
+        NOW,
+        async () =>
+          Response.json(
+            { keys: [signer.jwk] },
+            { headers: { Location: "https://attacker.example.com/jwks" } },
+          ),
       ),
     ).resolves.toBeUndefined();
     await expect(

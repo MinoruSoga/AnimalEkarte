@@ -59,6 +59,35 @@ func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.
 	return s
 }
 
+// makeClinicScopedClinicalReadParents builds a fully consistent owner → pet →
+// medical-record graph plus an active doctor assignment. Read-isolation tests
+// can then make one relation intentionally cross-clinic without accidentally
+// failing a different patient/staff predicate first.
+func makeClinicScopedClinicalReadParents(
+	t *testing.T,
+	db *gorm.DB,
+	clinicID uint64,
+	label string,
+) (*model.Pet, *model.MedicalRecord, *model.Staff) {
+	t.Helper()
+
+	seedClinicsForFK(t, db, clinicID)
+	owner := makeTestOwner(t, db, clinicID, label+"飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, label+"ペット")
+	record := makeHistoryMedicalRecord(t, db, clinicID, pet.ID, label+"-MR", time.Now())
+	require.NoError(t, db.WithContext(context.Background()).Model(record).Update("owner_id", owner.ID).Error)
+	record.OwnerID = &owner.ID
+
+	doctor := makeDoctor(t, db, clinicID, label+"医師")
+	require.NoError(t, db.WithContext(context.Background()).Create(&model.StaffClinicAssignment{
+		StaffID:  doctor.ID,
+		ClinicID: clinicID,
+		IsMain:   true,
+	}).Error)
+
+	return pet, record, doctor
+}
+
 // makeShiftEntryWithType は shiftentry/repository_test.go の同名ヘルパーの最小限の複製
 // （BE8-4 batch13: shift_entry_repository_test.go の移動先パッケージから本パッケージの
 // reservation_type_occupation_repository_test.go が引き続き参照するため）。

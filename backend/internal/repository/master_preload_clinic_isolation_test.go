@@ -3,11 +3,10 @@ package repository
 // master_preload_clinic_isolation_test.go
 // クロステナント READ IDOR remediation follow-up — (b) single-clinic master Preload 隔離回帰テスト。
 //
-// 保護する不変条件: clinic-scoped マスタを FK 値で Preload する際、clinic_id 述語が無いと
-// 別クリニックのマスタ(名前/価格等)が応答に混入する。各 read は clinic_id スコープ Preload で
-// 別クリニックのマスタを返さず、同一クリニックのマスタは従来どおり返すこと。
-//
-// 各テストは対象 repo の Preload から "clinic_id = ?" を外すと cross-clinic ケースが失敗する。
+// 保護する不変条件: clinic-scoped マスタを FK 値で Preload する際、別クリニックの
+// マスタ(名前/価格等)を応答へ混入させない。必須マスタを指す Checkup は、現在の
+// relation scope により汚染行そのものを fail-closed で除外し、同一クリニックの
+// マスタと整合した患者・医師関係は従来どおり Preload する。
 
 import (
 	"context"
@@ -18,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -109,9 +109,23 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 
 func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	require.NoError(t, ensureAutoMigrated(
+		db,
+		&model.Company{},
+		&model.Clinic{},
+		&model.Owner{},
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.MedicalRecord{},
+		&model.Staff{},
+		&model.StaffClinicAssignment{},
+		&model.CheckupType{},
+		&model.Checkup{},
+	))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
+	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
+	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
@@ -119,32 +133,62 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeTestOwner(t, db, clinicA, "健診飼主A")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診ポチA")
-	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-CHK-A", time.Now())
+	petA, mrA, doctorA := makeClinicScopedClinicalReadParents(t, db, clinicA, "健診")
 	typeB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの健診種別")
 	typeA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの健診種別")
 
-	crossID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, typeB.ID)
-	legitID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, typeA.ID)
+	crossID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeB.ID)
+	legitID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeA.ID)
 
-	gotCross, err := repo.FindByID(ctx, clinicA, crossID)
-	require.NoError(t, err)
-	assert.Nil(t, gotCross.CheckupType, "別クリニックの健診種別マスタが Preload で混入してはならない")
+	tests := []struct {
+		name         string
+		id           uint64
+		wantNotFound bool
+		wantTypeID   uint64
+	}{
+		{
+			name:         "別クリニックの必須健診種別を指す行は取得対象外",
+			id:           crossID,
+			wantNotFound: true,
+		},
+		{
+			name:       "同一クリニックの健診種別と整合した患者医師関係を取得",
+			id:         legitID,
+			wantTypeID: typeA.ID,
+		},
+	}
 
-	gotLegit, err := repo.FindByID(ctx, clinicA, legitID)
-	require.NoError(t, err)
-	require.NotNil(t, gotLegit.CheckupType, "同一クリニックの健診種別は Preload されるべき")
-	assert.Equal(t, typeA.ID, gotLegit.CheckupType.ID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := repo.FindByID(ctx, clinicA, tt.id)
+			if tt.wantNotFound {
+				require.Error(t, err)
+				assert.True(t, apperrors.IsNotFound(err))
+				assert.Nil(t, got, "別クリニックの健診種別を参照する行を返してはならない")
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got.CheckupType, "同一クリニックの健診種別は Preload されるべき")
+			assert.Equal(t, tt.wantTypeID, got.CheckupType.ID)
+			require.NotNil(t, got.MedicalRecord)
+			require.NotNil(t, got.MedicalRecord.Pet)
+			require.NotNil(t, got.MedicalRecord.Pet.Owner)
+			require.NotNil(t, got.Doctor)
+			assert.Equal(t, doctorA.ID, got.Doctor.ID)
+		})
+	}
 }
 
-func makeCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, checkupTypeID uint64) uint64 {
+func makeCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, doctorID, checkupTypeID uint64) uint64 {
 	t.Helper()
 	pid := petID
+	did := doctorID
 	c := &model.Checkup{
 		ClinicID:        clinicID,
 		MedicalRecordID: mrID,
 		PetID:           &pid,
+		DoctorID:        &did,
 		CheckupTypeID:   checkupTypeID,
 		Date:            time.Now(),
 	}
@@ -235,7 +279,7 @@ func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsol
 func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}))
-	db.Exec("TRUNCATE TABLE reservations CASCADE")
+	require.NoError(t, db.Exec("TRUNCATE TABLE appointments CASCADE").Error)
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	repo := NewReservationAdminRepository(db)
 	ctx := context.Background()

@@ -47,9 +47,9 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		clinicB = uint64(2)
 	)
 
-	// clinic A のスタッフ。スタッフ所有権は呼び出し側（service/handler）で検証済みのため、
-	// ここでは型ID（reservation_type）のテナント越境のみを対象に検証する。
-	staffA := makeDoctor(t, db, clinicA, "除外テストA用スタッフ")
+	// clinic A に現在所属するスタッフ。repository は置換と所属解除を直列化するため、
+	// staff identity と active assignment の双方を lock する。
+	staffA := makeDoctorAssignedToClinic(t, db, clinicA, "除外テストA用スタッフ")
 
 	typeA := makeReservationType(t, db, clinicA)
 	typeB := makeReservationType(t, db, clinicB)

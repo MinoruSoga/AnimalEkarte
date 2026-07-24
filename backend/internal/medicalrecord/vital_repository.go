@@ -49,9 +49,11 @@ func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, m
 	return vitals, nil
 }
 
+// FindByID participates in an ambient transaction so Update can complete its
+// response re-fetch before commit and roll back when that re-fetch fails.
 func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
 		First(&vital).Error

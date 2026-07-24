@@ -1,6 +1,7 @@
 package lstep
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -10,26 +11,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
-const maxLineWebhookRequestBytes int64 = 2 * 1024 * 1024
-
-// OwnerResponder は紐付け成功時の飼主レスポンスを書き出す注入 closure。
-// owner の公開 DTO は internal/handler が単一正本として保持しており、owner domain 移行
-// （BE9-2E）まで lstep 側に複製しないため注入で解決する。
-type OwnerResponder func(c *gin.Context, o *model.Owner)
+const (
+	maxLineWebhookRequestBytes int64 = 2 * 1024 * 1024
+	maxLineLinkRequestBytes    int64 = 16 * 1024
+	maxLineLinkTokenChars            = 128
+	maxLineIDTokenChars              = 12 * 1024
+)
 
 // LineLinkHandler は LineLinkService の HTTP handler。
 type LineLinkHandler struct {
 	svc               LineLinkService
-	respondOwner      OwnerResponder
 	requirePermission PermissionMiddleware
 }
 
 // NewLineLinkHandler は LineLinkHandler を構築する。
-func NewLineLinkHandler(svc LineLinkService, respondOwner OwnerResponder, requirePermission PermissionMiddleware) *LineLinkHandler {
-	return &LineLinkHandler{svc: svc, respondOwner: respondOwner, requirePermission: requirePermission}
+func NewLineLinkHandler(svc LineLinkService, requirePermission PermissionMiddleware) *LineLinkHandler {
+	return &LineLinkHandler{svc: svc, requirePermission: requirePermission}
 }
 
 // linkTokenResponse は GenerateLineLinkToken のレスポンス。
@@ -105,14 +104,55 @@ func (h *LineLinkHandler) LinkLiffAccount(c *gin.Context) {
 		return
 	}
 	var req linkAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := decodeLineLinkAccountRequest(c, &req); err != nil {
+		httpapi.RespondError(c, err)
 		return
 	}
-	owner, err := h.svc.LinkAccount(c.Request.Context(), clinicID, req.toServiceInput())
+	_, err := h.svc.LinkAccount(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	h.respondOwner(c, owner)
+	c.Status(http.StatusNoContent)
+}
+
+func decodeLineLinkAccountRequest(c *gin.Context, req *linkAccountRequest) error {
+	if c.Request.ContentLength > maxLineLinkRequestBytes {
+		return apperrors.WrapPayloadTooLarge("LINE link request exceeds size limit")
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxLineLinkRequestBytes)
+
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(req); err != nil {
+		return lineLinkDecodeError(err)
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return apperrors.WrapInvalidInput("request body must contain one JSON object")
+		}
+		return lineLinkDecodeError(err)
+	}
+	if req.LinkToken == "" {
+		return apperrors.WrapInvalidInput("link_token is required")
+	}
+	if len(req.LinkToken) > maxLineLinkTokenChars {
+		return apperrors.WrapInvalidInput("link_token exceeds size limit")
+	}
+	if req.LineIDToken == "" {
+		return apperrors.WrapInvalidInput("line_id_token is required")
+	}
+	if len(req.LineIDToken) > maxLineIDTokenChars {
+		return apperrors.WrapInvalidInput("line_id_token exceeds size limit")
+	}
+	return nil
+}
+
+func lineLinkDecodeError(err error) error {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		return apperrors.WrapPayloadTooLarge("LINE link request exceeds size limit")
+	}
+	return apperrors.WrapInvalidInput("invalid LINE link request body")
 }

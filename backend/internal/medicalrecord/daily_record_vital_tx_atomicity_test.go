@@ -84,3 +84,76 @@ func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Commit(t *t
 	require.Len(t, got.VitalRecords, 1)
 	assert.Equal(t, petA.ID, got.VitalRecords[0].PetID)
 }
+
+func TestDailyRecordRepository_CreateCareLogParticipatesInAmbientTx(t *testing.T) {
+	db := setupDailyRecordTestDB(t)
+	repo := NewDailyRecordRepository(db)
+	ctx := context.Background()
+
+	const clinicID = uint64(1)
+	owner := testdb.MakeTestOwner(t, db, clinicID, "飼主A-care-log-tx")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ポチA-care-log-tx")
+	hospitalization := makeHospitalizationRec(t, db, clinicID, owner.ID, pet.ID, nil)
+	daily := makeDailyRecord(
+		t,
+		db,
+		clinicID,
+		hospitalization.ID,
+		time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
+	)
+
+	err := withTx(ctx, db, func(txCtx context.Context) error {
+		if err := repo.CreateCareLog(txCtx, &model.CareLog{
+			ClinicID:      clinicID,
+			DailyRecordID: daily.ID,
+			Time:          "09:00:00",
+			Type:          model.CareLogTypeFood,
+		}); err != nil {
+			return err
+		}
+		return errors.New("forced rollback after care log create")
+	})
+	require.EqualError(t, err, "forced rollback after care log create")
+
+	var count int64
+	require.NoError(t, db.Model(&model.CareLog{}).
+		Where("daily_record_id = ?", daily.ID).
+		Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestDailyRecordRepository_CreateStaffNoteParticipatesInAmbientTx(t *testing.T) {
+	db := setupDailyRecordTestDB(t)
+	repo := NewDailyRecordRepository(db)
+	ctx := context.Background()
+
+	const clinicID = uint64(1)
+	owner := testdb.MakeTestOwner(t, db, clinicID, "飼主A-staff-note-tx")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ポチA-staff-note-tx")
+	hospitalization := makeHospitalizationRec(t, db, clinicID, owner.ID, pet.ID, nil)
+	daily := makeDailyRecord(
+		t,
+		db,
+		clinicID,
+		hospitalization.ID,
+		time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC),
+	)
+
+	err := withTx(ctx, db, func(txCtx context.Context) error {
+		if err := repo.CreateStaffNote(txCtx, &model.StaffNote{
+			DailyRecordID: daily.ID,
+			Time:          "10:00:00",
+			Content:       "ambient tx rollback",
+		}); err != nil {
+			return err
+		}
+		return errors.New("forced rollback after staff note create")
+	})
+	require.EqualError(t, err, "forced rollback after staff note create")
+
+	var count int64
+	require.NoError(t, db.Model(&model.StaffNote{}).
+		Where("daily_record_id = ?", daily.ID).
+		Count(&count).Error)
+	assert.Zero(t, count)
+}

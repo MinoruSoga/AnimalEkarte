@@ -121,7 +121,7 @@ var n1Allowlist = map[string]bool{
 	// --- Category 1: request-bound, not real N+1 ---
 	// pets []CreatePetForOwnerInput is the request body of a single CreateWithPets call
 	// (a human filling in one "add owner + pets" form) — bounded by form size, not table size.
-	n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"): true,
+	n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceFinder.FindByID"): true,
 	// input.TrimmingOptionIDs is the request body of a single reservation create — bounded by
 	// how many trimming options one reservation can select (small, UI-constrained), not table size.
 	// BE-refactor.md E-8 moved this loop from ValidateAndCreate into the extracted
@@ -200,7 +200,8 @@ func analyzeFileN1(filename string, src []byte) (findings []n1Finding, allowHits
 	return findings, allowHits, rangeLoopsSeen, nil
 }
 
-// matchN1Call reports whether ce is a Pattern-1 (`<x>Repo.Find*`) or Pattern-2
+// matchN1Call reports whether ce is a Pattern-1 (`<x>Repo.Find*` or
+// consumer-port `<x>Finder.Find*`) or Pattern-2
 // (`settingsSvc.Get*`) call, returning "<field>.<Method>" for allowlist/diagnostic use.
 func matchN1Call(ce *ast.CallExpr) (callee string, matched bool) {
 	sel, ok := ce.Fun.(*ast.SelectorExpr)
@@ -209,11 +210,12 @@ func matchN1Call(ce *ast.CallExpr) (callee string, matched bool) {
 	}
 	recv, ok := sel.X.(*ast.SelectorExpr)
 	if !ok {
-		return "", false // not a `s.xxxRepo.Method(...)` / `s.settingsSvc.Method(...)` shape
+		return "", false // not a `s.xxxRepo.Method(...)` / `s.xxxFinder.Method(...)` / `s.settingsSvc.Method(...)` shape
 	}
 
 	switch {
-	case strings.HasSuffix(recv.Sel.Name, "Repo") && strings.HasPrefix(sel.Sel.Name, "Find"):
+	case (strings.HasSuffix(recv.Sel.Name, "Repo") || strings.HasSuffix(recv.Sel.Name, "Finder")) &&
+		strings.HasPrefix(sel.Sel.Name, "Find"):
 		return recv.Sel.Name + "." + sel.Sel.Name, true
 	case recv.Sel.Name == "settingsSvc" && strings.HasPrefix(sel.Sel.Name, "Get"):
 		return recv.Sel.Name + "." + sel.Sel.Name, true
@@ -307,6 +309,16 @@ func (s *xService) f(ctx context.Context, clinicID uint64, owners []Owner) {
 			want: 1,
 		},
 		{
+			name: "consumer-side Finder call inside range loop body is flagged",
+			src: `package p
+func (s *xService) f(ctx context.Context, clinicID uint64, pets []Pet) {
+	for _, pet := range pets {
+		s.insuranceFinder.FindByID(ctx, clinicID, pet.InsuranceID)
+	}
+}`,
+			want: 1,
+		},
+		{
 			name: "settingsSvc Get call inside range loop body is flagged (PERF-1/PERF-2 regression shape)",
 			src: `package p
 func (s *xService) f(ctx context.Context, clinicID uint64, owners []Owner) {
@@ -379,7 +391,7 @@ func (s *xService) f(ctx context.Context, clinicID uint64, owners []Owner) {
 			src: `package p
 func (s *xService) validateOwnerPetsInsuranceOwnership(ctx context.Context, clinicID uint64, pets []CreatePetForOwnerInput) error {
 	for i := range pets {
-		s.insuranceRepo.FindByID(ctx, clinicID, *pets[i].InsuranceID)
+		s.insuranceFinder.FindByID(ctx, clinicID, *pets[i].InsuranceID)
 	}
 	return nil
 }`,
@@ -454,7 +466,7 @@ func TestN1Lint_AllowlistEntriesAreLive(t *testing.T) {
 	_, allowHits, _ := walkServiceN1(t)
 
 	wantOccurrences := map[string]int{
-		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"):     1,
+		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceFinder.FindByID"):   1,
 		n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): 1,
 	}
 	if len(n1Allowlist) != len(wantOccurrences) {

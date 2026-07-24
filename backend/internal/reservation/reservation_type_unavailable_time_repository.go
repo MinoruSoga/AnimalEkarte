@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationTypeUnavailableTimeRepository は予約不可時間の永続化インターフェース
@@ -34,8 +34,8 @@ func (r *reservationTypeUnavailableTimeRepository) FindAll(
 	ctx context.Context, clinicID, reservationTypeID uint64,
 ) ([]model.ReservationTypeUnavailableTime, error) {
 	var results []model.ReservationTypeUnavailableTime
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").
 		Find(&results).Error
@@ -50,7 +50,7 @@ func (r *reservationTypeUnavailableTimeRepository) FindByID(
 ) (*model.ReservationTypeUnavailableTime, error) {
 	var result model.ReservationTypeUnavailableTime
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&result).Error
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *reservationTypeUnavailableTimeRepository) Delete(
 	ctx context.Context, clinicID, id uint64,
 ) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.ReservationTypeUnavailableTime{})
 	if result.Error != nil {

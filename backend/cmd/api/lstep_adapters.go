@@ -6,13 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
+	"github.com/animal-ekarte/backend/internal/audit"
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/owner"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/pet"
 )
 
 type lstepAggregationRepositoryAdapter struct {
@@ -55,19 +54,19 @@ func toLstepLTVRow(row *owner.OwnerLTVRow) lstep.OwnerLTVRow {
 	}
 }
 
-type lstepLifecycleAuditTxAdapter struct{ inner service.AuditTxLogger }
+type lstepLifecycleAuditTxAdapter struct{ inner audit.TxLogger }
 
 func (a lstepLifecycleAuditTxAdapter) LogEntryTx(ctx context.Context, entry *lstep.LifecycleAuditEntry) error {
-	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
+	return a.inner.LogEntryTx(ctx, &audit.Entry{
 		ClinicID: entry.ClinicID, ActorID: entry.ActorID, ActorType: entry.ActorType,
 		Action: entry.Action, Resource: entry.Resource, ResourceID: entry.ResourceID,
 	})
 }
 
-type lstepNoShowAuditTxAdapter struct{ inner service.AuditTxLogger }
+type lstepNoShowAuditTxAdapter struct{ inner audit.TxLogger }
 
 func (a lstepNoShowAuditTxAdapter) LogNoShowTransitionTx(ctx context.Context, entry *lstep.NoShowAuditEntry) error {
-	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
+	return a.inner.LogEntryTx(ctx, &audit.Entry{
 		ClinicID: &entry.ClinicID, ActorType: model.AuditActorTypeSystem,
 		Action: model.AuditActionReservationNoShow, Resource: model.AuditResourceReservation,
 		ResourceID: &entry.AppointmentID,
@@ -81,6 +80,23 @@ func (a lstepNoShowAuditTxAdapter) LogNoShowTransitionTx(ctx context.Context, en
 	})
 }
 
+type lstepLineLinkAuditTxAdapter struct{ inner audit.TxLogger }
+
+func (a lstepLineLinkAuditTxAdapter) LogOwnerLineLinkTx(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+) error {
+	return a.inner.LogEntryTx(ctx, &audit.Entry{
+		ClinicID:   &clinicID,
+		ActorType:  model.AuditActorTypeSystem,
+		Action:     model.AuditActionOwnerLineUserIDUpdate,
+		Resource:   "owner",
+		ResourceID: &ownerID,
+		OldValue:   map[string]any{"linked": false},
+		NewValue:   map[string]any{"linked": true},
+	})
+}
+
 type ownerLifecycleWriterAdapter struct{ inner owner.LstepRepository }
 
 func (a ownerLifecycleWriterAdapter) RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error {
@@ -91,7 +107,7 @@ func (a ownerLifecycleWriterAdapter) ClearLstepOptOut(ctx context.Context, clini
 	return a.inner.ClearLstepOptOut(ctx, clinicID, ownerID)
 }
 
-type petLifecycleWriterAdapter struct{ inner repository.PetRepository }
+type petLifecycleWriterAdapter struct{ inner pet.CompleteRepository }
 
 func (a petLifecycleWriterAdapter) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
 	return a.inner.Update(ctx, clinicID, petID, map[string]any{
@@ -105,31 +121,17 @@ func (a petLifecycleWriterAdapter) ClearDeath(ctx context.Context, clinicID, pet
 	})
 }
 
-func newLegacyLstepDependencies(app *lstep.Application, cipher *appcrypto.AESGCMCipher) *service.LegacyLstepDependencies {
-	return &service.LegacyLstepDependencies{
-		TagSync:       app.TagSync,
-		LineCustomers: app.LineCustomers,
-		EncryptCredential: func(value string) (string, error) {
-			return lstep.EncryptLineCredential(cipher, value)
-		},
-		DecryptCredential: func(ctx context.Context, value string) string {
-			return lstep.DecryptLineCredential(ctx, cipher, value)
-		},
-		NewLinePusher: func(channelToken string) reservation.LinePusher {
-			return lstep.NewLineMessagingService(channelToken)
-		},
-	}
-}
-
-func adaptPermissionAny(require func(...struct{ Resource, Action string }) gin.HandlerFunc) lstep.PermissionAnyMiddleware {
+func adaptPermissionAny(
+	require func(...auth.PermissionRequirement) gin.HandlerFunc,
+) lstep.PermissionAnyMiddleware {
 	return func(requirements ...lstep.PermissionRequirement) gin.HandlerFunc {
-		legacy := make([]struct{ Resource, Action string }, len(requirements))
+		target := make([]auth.PermissionRequirement, len(requirements))
 		for i, requirement := range requirements {
-			legacy[i] = struct{ Resource, Action string }{
+			target[i] = auth.PermissionRequirement{
 				Resource: requirement.Resource,
 				Action:   requirement.Action,
 			}
 		}
-		return require(legacy...)
+		return require(target...)
 	}
 }

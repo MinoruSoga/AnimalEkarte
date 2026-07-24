@@ -10,8 +10,9 @@ package repository
 // 呼ばれる読取/書込が `r.db.WithContext` 直参照で tx 非参加だった部分コミット/TOCTOU バグを、この
 // dbOrTx への統一で塞いだ。
 //
-// 本ゲートは「現在 dbOrTx を使う（= ambient tx 参加が意図された）メソッド集合」を inventory として固定する:
-//   - 固定メソッドが `dbOrTx` 使用をやめた（`r.db.WithContext` へ revert 等）→ tx 参加の regression → fail。
+// 本ゲートは「ambient tx 参加が意図されたメソッド集合」を inventory として固定する:
+//   - 固定メソッドが必要な参加形（DBOrTx / 明示helper / TxFromContext）をやめた
+//     （`r.db.WithContext` へ revert 等）→ tx 参加の regression → fail。
 //   - 未登録の新規メソッドが dbOrTx を使い始めた → allowlist 追加を強制 → レビュー時に「ambient tx
 //     参加が正しいか・atomicity/isolation テストを添えたか」を必ず問う。
 //
@@ -20,19 +21,20 @@ package repository
 // 「WithTx 内で呼ばれるのに dbOrTx を使っていない（= 参加漏れ）メソッド」の検出は、service→repository を
 // 跨ぐ手続き間データフロー解析（どの repo メソッドが WithTx クロージャ内で呼ばれるか）が必須で、go/ast
 // 単体では信頼できる規則が書けない（master_fk_write_inventory_lint と同じ taint 断念）。よって本ゲートは
-// 「dbOrTx を使う surface の固定と regression 検出」に絞る。参加漏れの正本ガードは各 tx フローの
+// 「明示された ambient-tx 参加 surface の固定と regression 検出」に絞る。参加漏れの正本ガードは各 tx フローの
 // atomicity テスト（accounting_repository_tx_atomicity_test.go / refund_repository_sum_tx_participation_test.go
 // / checkup_field_result_tx_atomicity_test.go 等）が担う。
 //
 // ─── Static scanning blind spots (BE9-1) ───────────────────────────────────────────
 //
-// This gate is a syntactic match over literal AST call shapes (see the `funcUsesDBOrTx` doc
-// comment below for the exact three shapes matched). It cannot see:
-//   - a dbOrTx-equivalent participation hidden behind a raw SQL string, or a renamed/aliased
-//     import of the dbOrTx helper (shadowing/aliasing is a documented existing limitation, not
+// This gate is a syntactic match over literal AST call shapes (see `funcUsesDBOrTx` and
+// `ambientTxParticipationExpectations` below). It cannot see:
+//   - a DBOrTx-equivalent participation hidden behind a raw SQL string, or a renamed/aliased
+//     import of the DBOrTx helper (shadowing/aliasing is a documented existing limitation, not
 //     new to BE9-1);
-//   - a method that SHOULD participate in an ambient tx but calls a helper that itself lacks
-//     dbOrTx (the taint-analysis limitation already documented above);
+//   - an arbitrary method that SHOULD participate in an ambient tx but is neither a literal
+//     DBOrTx user nor registered with an explicit helper/required-tx expectation (the
+//     taint-analysis limitation already documented above);
 //   - any dbOrTx-shaped call reachable only through a background job, cron, worker, or other
 //     code path that is not represented as a literal AST call shape in a plain .go file this
 //     scanner visits.
@@ -46,21 +48,22 @@ package repository
 // internal/lintscan.WalkInternalTreeT を使用。BE9-1・旧 repoSourceFS go:embed を置換）と
 // baseFileName / receiverMethodKey（audit_tx_inventory_lint_test.go）を再利用。モジュール全体の
 // internal/ 配下（internal/repository 以外の internal/service・internal/model 等も含む）を走査し、
-// 各 FuncDecl 本体に `dbOrTx(` 呼び出しがあるものを (keyFile | ReceiverType.Method) で列挙し、
-// allowlist と双方向突合する。internal/repository/** 由来のキーは legacyLintKey により旧
+// 各 FuncDecl 本体に DBOrTx 呼び出し、または明示登録された同等以上の参加形があるものを
+// (keyFile | ReceiverType.Method) で列挙し、allowlist と双方向突合する。
+// internal/repository/** 由来のキーは legacyLintKey により旧
 // repoSourceFS 相当の形（basename / 1階層以上の相対パス）へ正規化され、既存 allowlist のキー形が
 // そのまま一致し続ける。
 //
 // 注（syntactic match・sibling lint と同一設計）: `funcUsesDBOrTx` は
-//   1) Ident `dbOrTx`（parent package wrapper）
-//   2) Ident `DBOrTx`（same-package free name, e.g. inside repohelpers）
-//   3) Selector `repohelpers.DBOrTx`（domain subpackages）
+//   1) Ident `dbOrTx`（legacy wrapper shape; reintroduction regression detection）
+//   2) Ident `DBOrTx`（same-package free name inside persistence）
+//   3) Selector `persistence.DBOrTx`（canonical shared kernel）
 // を検出する。go/types の意味解決はしない。シャドーイングや別名 import は誤検知/見逃しの既知限界
 // （preload/audit-tx lint と同じ割り切り）。
 //
-// ambient Reorder 方針: `Reorder` が `reorderByClinicID` / `repohelpers.ReorderByClinicID` のみを
+// ambient Reorder 方針: `Reorder` がローカル helper / `persistence.ReorderByClinicID` のみを
 // 呼ぶ経路はメソッド本体に `dbOrTx`/`DBOrTx` が現れない。参加保証の正本は
-// `repohelpers.ReorderByClinicID`/`ReorderGlobal` 内の `DBOrTx`（free func・本 inventory の
+// `persistence.ReorderByClinicID`/`ReorderGlobal` 内の `DBOrTx`（free func・本 inventory の
 // receiver 走査外）であり、TestDBOrTxInventory_ReorderHelpersUseDBOrTx で固定する。
 // ドメイン Reorder を method inventory に載せる必要はない（allowlist 膨張と偽回帰を避ける）。
 
@@ -72,35 +75,44 @@ import (
 	"testing"
 )
 
-// dbOrTxParticipatingMethods は現worktreeで dbOrTx(ctx, r.db) を使う repository メソッドを
-// 固定する（key = "<file> | <ReceiverType>.<Method>"）。R1-1/R1-2 の tx 参加 surface を含む。
+// dbOrTxParticipatingMethods は現worktreeで ambient transaction に参加する repository
+// メソッドを固定する（key = "<file> | <ReceiverType>.<Method>"）。大半は DBOrTx を直接使い、
+// 明示された例外は ambientTxParticipationExpectations の同等以上の形を使う。
+// R1-1/R1-2 の tx 参加 surface を含む。
 // 追加/削除時はこのマップを更新し、新規は対応する atomicity/isolation テストを添えること。
 var dbOrTxParticipatingMethods = map[string]struct{}{
 	// auth persistence (BE9 auth Phase 1): global account/reset/blacklist data and
 	// clinic-scoped permission groups participate in the caller's ambient transaction.
-	"auth/account_repository.go|accountRepository.Create":                                                {},
-	"auth/account_repository.go|accountRepository.FindByEmail":                                           {},
-	"auth/account_repository.go|accountRepository.FindByID":                                              {},
-	"auth/account_repository.go|accountRepository.Update":                                                {},
-	"auth/password_reset_token_repository.go|passwordResetTokenRepository.Create":                        {},
-	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByAccountID":             {},
-	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByID":                    {},
-	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHash":               {},
-	"auth/permission_group_repository.go|permissionGroupRepository.CountUsageByGroupID":                  {},
-	"auth/permission_group_repository.go|permissionGroupRepository.Create":                               {},
-	"auth/permission_group_repository.go|permissionGroupRepository.Delete":                               {},
-	"auth/permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID":          {},
-	"auth/permission_group_repository.go|permissionGroupRepository.FindAll":                              {},
-	"auth/permission_group_repository.go|permissionGroupRepository.FindAllEffectivePermissionsByStaffID": {},
-	"auth/permission_group_repository.go|permissionGroupRepository.FindAllGroupIDsByStaffID":             {},
-	"auth/permission_group_repository.go|permissionGroupRepository.FindByID":                             {},
-	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                              {},
-	"auth/permission_group_repository.go|permissionGroupRepository.Update":                               {},
-	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                          {},
-	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                    {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                 {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                          {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                            {},
+	"auth/account_repository.go|accountRepository.Create":                                                 {},
+	"auth/account_repository.go|accountRepository.CompareAndSwapPasswordHash":                             {},
+	"auth/account_repository.go|accountRepository.FindByEmail":                                            {},
+	"auth/account_repository.go|accountRepository.FindByID":                                               {},
+	"auth/account_repository.go|accountRepository.FindByIDForUpdate":                                      {},
+	"auth/account_repository.go|accountRepository.UpdatePasswordHash":                                     {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.Create":                         {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.ConsumeByID":                    {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByAccountID":              {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByID":                     {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteIssued":                   {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindLatestByAccountIDForUpdate": {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHash":                {},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHashForUpdate":       {},
+	"auth/permission_group_repository.go|permissionGroupRepository.CountUsageByGroupID":                   {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Create":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Delete":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID":           {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAll":                               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAllEffectivePermissionsByStaffID":  {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindAllGroupIDsByStaffID":              {},
+	"auth/permission_group_repository.go|permissionGroupRepository.FindByID":                              {},
+	"auth/permission_group_repository.go|permissionGroupRepository.LockByIDForUpdate":                     {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                               {},
+	"auth/permission_group_repository.go|permissionGroupRepository.Update":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                           {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                     {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                  {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                           {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                             {},
 	// accounting (R1-1 money-path atomicity; appointment completion moved to the reservation
 	// write owner in BE9-2E-0 while retaining ambient transaction participation)
 	"billing/accounting_repository.go|accountingRepository.Create":             {},
@@ -110,12 +122,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/accounting_repository.go|accountingRepository.SavePayment":        {},
 	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":  {},
 	"billing/accounting_repository.go|accountingRepository.Update":             {},
-	// audit (#211 tx-internal)
-	"audit/repository.go|repository.CreateTx": {}, // BE8-4 batch22: moved from audit_repository.go
+	// Audit writes deliberately require an already-open ambient transaction and call
+	// persistence.TxFromContext directly. The explicit expectation below prevents weakening
+	// this fail-closed contract back to fallback DBOrTx behavior.
+	"audit/repository.go|repository.CreateTx": {},
 	// billing_confirmation (SD-2 系ガード監査: 会計医師確認 Confirm/Return が確定済みカルテ書込
 	// ガード対象と判明。billingConfirmationService.Confirm/Return の LockByIDForUpdate ambient tx
 	// に参加させる)
-	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update": {},
+	// Confirm/Return actor lock, GetOrCreate, and update share one transaction so
+	// an unassigned actor cannot create a pending row before authorization.
+	// Runtime: TestBillingConfirmationService_RuntimeActorIsolation and
+	// TestBillingConfirmationRepository_LockActiveStaffAssignment.
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Create":                    {},
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.FindByMedicalRecordID":     {},
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {},
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update":                    {},
 	// billing_item (R1-1)
 	"billing/billing_item_repository.go|billingItemRepository.Create":              {},
 	"billing/billing_item_repository.go|billingItemRepository.Delete":              {},
@@ -123,13 +144,22 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.FindByID":            {},
 	"billing/billing_item_repository.go|billingItemRepository.Update":              {},
 	"billing/billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
+	// Create validates every request-derived FK under shared locks in the same
+	// transaction. Runtime: billing_item_reference_repository_test.go.
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
-	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
-	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
-	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
+	// daily_record: parent/clinic relation validation and audit-coupled writes must
+	// remain on the service-owned ambient transaction.
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateCareLog":                  {},
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateStaffNote":                {},
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateVitalRecord":              {}, // AUD-006: FindOrCreate+CreateVital same ambient tx
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindByHospitalizationID":        {},
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindByHospitalizationIDAndDate": {},
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate":             {}, // BE8-4 batch6: moved from daily_record_repository.go
+	"medicalrecord/vital_repository.go|vitalRepository.FindByID":                                    {}, // response re-fetch must observe and govern the same tx mutation
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
 	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master
@@ -144,6 +174,19 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
+	// Checkup relation validation, mutation, and readback share the service tx.
+	// Runtime: checkup_repository_tx_atomicity_test.go; clinic/relation coverage:
+	// checkup_repository_test.go and checkup_service_test.go.
+	"medicalrecord/checkup_repository.go|checkupRepository.Create":                {},
+	"medicalrecord/checkup_repository.go|checkupRepository.Delete":                {},
+	"medicalrecord/checkup_repository.go|checkupRepository.FindByClinicID":        {},
+	"medicalrecord/checkup_repository.go|checkupRepository.FindByID":              {},
+	"medicalrecord/checkup_repository.go|checkupRepository.FindByMedicalRecordID": {},
+	"medicalrecord/checkup_repository.go|checkupRepository.FindByOwnerID":         {},
+	// Required ambient tx + parent-before-child row lock for finalize/delete serialization.
+	// Runtime: TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinalization.
+	"medicalrecord/checkup_repository.go|checkupRepository.LockByIDForUpdate": {},
+	"medicalrecord/checkup_repository.go|checkupRepository.Update":            {},
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
 	// estimateService の LockByIDForUpdate ambient tx に参加させる。FindByID は
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
@@ -156,10 +199,18 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for
 	// H-8d — same finalize-lock race as Update, now WithTx-wrapped in examinationService.Delete)
-	"medicalrecord/examination_repository.go|examinationRepository.Create":               {},
-	"medicalrecord/examination_repository.go|examinationRepository.Delete":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.CountItemsByExamID": {}, // Runtime: TestDB_ExaminationRepository_CountItemsByExamIDReadsAmbientTxAndRollsBack.
+	"medicalrecord/examination_repository.go|examinationRepository.Create":             {},
+	"medicalrecord/examination_repository.go|examinationRepository.Delete":             {},
+	// FindAll/FindByJobID must observe relation writes made earlier in the service
+	// tx. Runtime: examination_repository_relation_read_tx_test.go.
+	"medicalrecord/examination_repository.go|examinationRepository.FindAll":              {},
 	"medicalrecord/examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
 	"medicalrecord/examination_repository.go|examinationRepository.FindByID":             {},
+	"medicalrecord/examination_repository.go|examinationRepository.FindByJobID":          {},
+	// Required ambient tx lock serializes status/move/delete/result replacement.
+	// Runtime: TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpdate.
+	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":    {},
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
 	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
 	// medical_record_addendum
@@ -197,6 +248,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDeleteByClinicIDAndTagName": {},
+	// Public LINE account linking: token lock/CAS, owner row lock/update, and
+	// fail-closed audit must all remain on the service-owned ambient transaction.
+	// Runtime: line_link_token_repository_test.go,
+	// line_link_transaction_integration_test.go, and
+	// owner/repository_line_link_tx_test.go.
+	"lstep/line_link_token_repository.go|lineLinkTokenRepository.Consume":              {},
+	"lstep/line_link_token_repository.go|lineLinkTokenRepository.Create":               {},
+	"lstep/line_link_token_repository.go|lineLinkTokenRepository.LockUsableByRawToken": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},
@@ -204,18 +263,26 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineID":         {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Update":                   {},
 	// pet (BUG-407: lstepLifecycleService.HandlePetDeath/HandlePetRevival が status/deceased_at
-	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。runtime proof は
-	// pet_repository_tx_atomicity_test.go)
-	"pet_repository.go|petRepository.Update": {},
+	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
+	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
+	"pet/repository.go|repository.Update": {},
 	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
 	// remain in the caller's ambient transaction. Runtime:
 	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:
 	// TestPetRepository_Create_ReloadFailureRollsBackPet.
-	"pet/owner_registration.go|writer.Create": {},
+	"pet/owner_registration.go|writer.Create":                     {},
+	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {},
 	// BE9 owner reads stay inside the caller's ambient transaction. Public wrapper proof:
 	// TestOwnerRepository_FindByID_UsesAmbientTransaction; rollback-on-reload:
 	// TestOwnerRepository_CreateWithPets_ReloadFailureRollsBackGraph.
-	"owner_repository.go|ownerRepository.findOwnerByID": {},
+	// LINE webhook CAS writes preserve clinic/linked-ID/event-order predicates and
+	// roll back with the caller's transaction. Runtime:
+	// TestOwnerRepository_LineWebhookCASUpdates_RollBackWithAmbientTransaction.
+	"owner/repository.go|ownerRepository.findOwnerByID":        {},
+	"owner/repository.go|ownerRepository.LockLineLinkOwner":    {},
+	"owner/repository.go|ownerRepository.UpdateLineBlockedAt":  {},
+	"owner/repository.go|ownerRepository.UpdateLineFollowedAt": {},
+	"owner/repository.go|ownerRepository.UpdateLineUserID":     {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Create": {}, // BE8-4 batch7: moved from prescription_repository.go
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Update": {}, // BE8-4 batch7: moved from prescription_repository.go
@@ -244,6 +311,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository.go|reservationRepository.ExistsByStaffID":                                  {},
 	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
 	"reservation/reservation_repository.go|reservationRepository.FindAllByCategory":                                {},
+	"reservation/reservation_repository.go|reservationRepository.FindClinicIDsByStaffID":                           {},
 	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                              {},
 	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                                {},
 	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                                  {},
@@ -251,7 +319,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
 	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
 	"reservation/reservation_intent_repository.go|reservationRepository.AssertMedicalRecordDoctorInClinic":         {}, // BE9-2E-0 doctor guard; TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransaction
-	"reservation/reservation_intent_repository.go|reservationRepository.MarkNoShow":                                {}, // BE9-2E-0 atomic/idempotent transition
+	"reservation/reservation_intent_repository.go|reservationRepository.MarkNoShowAt":                              {}, // durable scheduler no-show transition at an explicit slot
 	"reservation/reservation_intent_repository.go|reservationRepository.UpdateForTrimming":                         {}, // BE9-2E-0 typed update + ambient-tx rollback test
 	"reservation/reservation_intent_repository.go|reservationRepository.acquireAppointmentLifecycleLock":           {}, // no-show/finalization serialization
 	"reservation/reservation_intent_repository.go|reservationRepository.assertActiveTrimmingReservationType":       {}, // new trimming writes require active clinic-scoped master
@@ -283,42 +351,67 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindAllWithChildren":           {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
-	// staff_clinic_assignment
-	"staffclinicassignment/repository.go|repository.CountByStaffAndClinic":      {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.Create":                     {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.Delete":                     {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.FindByStaffID":              {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
-	"staffclinicassignment/repository.go|repository.LockActiveByStaff":          {}, // SEC-STAFF: replacement serialization lock.
-	"staffclinicassignment/repository.go|repository.LockActiveByStaffAndClinic": {}, // SEC-STAFF: runtime proof TestStaffClinicAssignmentRepository_LockActiveByStaffAndClinic_HoldsShareLockUntilTransactionEnds.
-	"staffclinicassignment/repository.go|repository.RestoreOrCreate":            {}, // SEC-STAFF: FULL UNIQUE-safe assignment replacement.
-	// staff (uniform dbOrTx)
-	"staff_repository.go|staffRepository.CountBlockingReferencesByStaffID": {},
-	"staff_repository.go|staffRepository.Create":                           {},
-	"staff_repository.go|staffRepository.Delete":                           {},
-	"staff_repository.go|staffRepository.FindAll":                          {},
-	"staff_repository.go|staffRepository.FindByAccountID":                  {},
-	"staff_repository.go|staffRepository.FindByID":                         {},
-	"staff_repository.go|staffRepository.LockActiveByIDForShare":           {},
-	"staff_repository.go|staffRepository.LockActiveByIDForUpdate":          {},
-	"staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
-	"staff_repository.go|staffRepository.Reorder":                          {},
-	"staff_repository.go|staffRepository.Update":                           {},
-	"staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
+	// staff_clinic_assignment (moved into internal/staff). Runtime lock/replace proofs live in
+	// staff_clinic_assignment_*_test.go and staff_assignment_concurrency_test.go.
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic":      {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Create":                     {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Delete":                     {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffAndClinic":       {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffID":              {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.LockActiveByStaff":          {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.LockActiveByStaffAndClinic": {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.RestoreOrCreate":            {},
+	// staff (uniform DBOrTx; runtime atomicity/isolation proofs live in internal/staff)
+	"staff/staff_repository.go|staffRepository.CountBlockingReferencesByStaffID": {},
+	"staff/staff_repository.go|staffRepository.Create":                           {},
+	"staff/staff_repository.go|staffRepository.Delete":                           {},
+	"staff/staff_repository.go|staffRepository.FindAll":                          {},
+	"staff/staff_repository.go|staffRepository.FindByAccountID":                  {},
+	"staff/staff_repository.go|staffRepository.FindByID":                         {},
+	"staff/staff_repository.go|staffRepository.FindByIDInClinic":                 {},
+	"staff/staff_repository.go|staffRepository.LockActiveByIDForShare":           {},
+	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdate":          {},
+	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
+	"staff/staff_repository.go|staffRepository.Reorder":                          {},
+	"staff/staff_repository.go|staffRepository.Update":                           {},
+	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
-	"staff_repository.go|staffRepository.CreateForReservation":        {},
-	"staff_repository.go|staffRepository.UpdateForReservation":        {},
-	"staff_repository.go|staffRepository.SwapSortOrderForReservation": {},
-	// shift_entry (uniform dbOrTx)
-	"shiftentry/repository.go|repository.Create": {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"staff/staff_repository.go|staffRepository.CreateForReservation":        {},
+	"staff/staff_repository.go|staffRepository.UpdateForReservation":        {},
+	"staff/staff_repository.go|staffRepository.SwapSortOrderForReservation": {},
+	// occupation (moved into internal/staff; service-owned transaction and master-FK tests)
+	"staff/occupation_repository.go|occupationRepository.CountUsageByOccupationID": {},
+	"staff/occupation_repository.go|occupationRepository.Create":                   {},
+	"staff/occupation_repository.go|occupationRepository.Delete":                   {},
+	"staff/occupation_repository.go|occupationRepository.FindAll":                  {},
+	"staff/occupation_repository.go|occupationRepository.FindByID":                 {},
+	"staff/occupation_repository.go|occupationRepository.Update":                   {},
+	"staff/occupation_repository.go|occupationRepository.WithTx":                   {},
+	"staff/occupation_repository.go|occupationRepository.lockActiveByID":           {},
+	// shift_entry (uniform DBOrTx; Save/Delete concurrency proofs live in internal/staff)
+	"staff/shift_entry_repository.go|shiftEntryRepository.Create": {},
 	// ADR-006 論点#1 案A: reservation_schedule_repository.go から移動した予約用途 write
-	"shiftentry/repository.go|repository.SaveByStaffDate":  {},
-	"shiftentry/repository.go|repository.Delete":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.ExistsByStaffID":  {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.FindAll":          {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.FindByID":         {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.FindOnDutyStaffs": {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.Update":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
-	"shiftentry/repository.go|repository.ReplaceBreaks":    {}, // BE8-4 batch13: moved from shift_entry_repository.go; G6-2 repo-internal tx replace
+	"staff/shift_entry_repository.go|shiftEntryRepository.SaveByStaffDate":         {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.Delete":                  {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.DeleteByStaffDate":       {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.ExistsByStaffID":         {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.FindAll":                 {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.FindByID":                {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.FindClinicIDsByStaffID":  {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.FindOnDutyStaffs":        {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.LockActiveByIDForUpdate": {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.Update":                  {},
+	"staff/shift_entry_repository.go|shiftEntryRepository.ReplaceBreaks":           {},
+	// shift_template moved into internal/staff; the repository-owned break replacement and
+	// service transaction tests pin atomicity.
+	"staff/shift_template_repository.go|shiftTemplateRepository.Create":                  {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.Delete":                  {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.FindAll":                 {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.FindByID":                {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.LockActiveByIDForUpdate": {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.Update":                  {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.UpdateBreaks":            {},
+	"staff/shift_template_repository.go|shiftTemplateRepository.WithTx":                  {},
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
@@ -335,9 +428,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                                 {}, // BE8-4 batch3: moved from manual_article_repository.go
-	"owner_repository.go|ownerRepository.CreateWithPets":                                            {},
+	"owner/repository.go|ownerRepository.CreateWithPets":                                            {},
+	"owner/repository.go|ownerRepository.UpdateAndFind":                                             {},
+	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                         {},
+	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                          {},
 	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
-	"shifttemplate/repository.go|repository.UpdateBreaks":                                           {}, // BE8-4 batch12: moved from shift_template_repository.go
 	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},
@@ -365,28 +460,112 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic repository tx conversion.
 	// Permission-group ownership moved to internal/auth in BE9 auth Phase 1.
-	"clinic_repository.go|clinicRepository.Create":                            {},
-	"clinic_repository.go|clinicRepository.Update":                            {},
-	"clinic_repository.go|clinicRepository.Delete":                            {},
-	"clinic_repository.go|clinicRepository.FindByID":                          {},
-	"clinic_repository.go|clinicRepository.FindCompany":                       {},
-	"clinic_repository.go|clinicRepository.LockActiveByID":                    {},
-	"clinic_repository.go|clinicRepository.LockByIDForUpdate":                 {},
-	"clinic_repository.go|clinicRepository.CountOwnersByClinicID":             {},
-	"clinic_repository.go|clinicRepository.CountStaffByClinicID":              {},
-	"clinic_repository.go|clinicRepository.CountBlockingReferencesByClinicID": {},
+	"clinic/clinic_repository.go|clinicRepository.Create":                            {},
+	"clinic/clinic_repository.go|clinicRepository.Update":                            {},
+	"clinic/clinic_repository.go|clinicRepository.Delete":                            {},
+	"clinic/clinic_repository.go|clinicRepository.FindAll":                           {},
+	"clinic/clinic_repository.go|clinicRepository.FindByID":                          {},
+	"clinic/clinic_repository.go|clinicRepository.FindCompany":                       {},
+	"clinic/clinic_repository.go|clinicRepository.LockActiveByID":                    {},
+	"clinic/clinic_repository.go|clinicRepository.LockByIDForUpdate":                 {},
+	"clinic/clinic_repository.go|clinicRepository.CountOwnersByClinicID":             {},
+	"clinic/clinic_repository.go|clinicRepository.CountStaffByClinicID":              {},
+	"clinic/clinic_repository.go|clinicRepository.CountBlockingReferencesByClinicID": {},
 	// X-8 (Appendix-A tx-atomicity fix, commit 1e2d483c): reservation_staff repo-internal tx
 	// conversion. Allowlist backfill discovered during G6-2 (X-8 landed without registering these).
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
 	// BE-refactor.md H-7: FindByID を dbOrTx 化し、reservationStaffService.Update の
 	// tx 内所有権確認（GetByID）を ambient tx に参加させ TOCTOU 窓を閉じる。
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID":                {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType": {}, // assignment/capability SHARE-lock concurrency proof
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID":                                  {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllExcludedReservationTypes":           {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllExcludedReservationTypesByStaffIDs": {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                           {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                   {}, // assignment/capability SHARE-lock concurrency proof
+	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
+	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
+}
+
+type ambientTxParticipationShape uint8
+
+const (
+	ambientTxViaLocalDBOrTxHelper ambientTxParticipationShape = iota + 1
+	ambientTxRequired
+	ambientTxRequiredViaLocalHelper
+)
+
+type ambientTxParticipationExpectation struct {
+	shape      ambientTxParticipationShape
+	helperName string
+}
+
+// ambientTxParticipationExpectations pins methods that intentionally use a stronger or
+// wrapped ambient-transaction shape instead of a literal DBOrTx call in the method body.
+//
+// The helper shape is accepted only while both edges remain visible in the same source file:
+// the method must call the named helper, and that helper must call DBOrTx. The required shape
+// must keep a literal persistence.TxFromContext call, so it cannot silently weaken back to
+// fallback-on-base-DB behavior.
+var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpectation{
+	"auth/account_repository.go|accountRepository.CompareAndSwapPasswordHash": {
+		shape: ambientTxRequired,
+	},
+	"auth/account_repository.go|accountRepository.FindByIDForUpdate": {
+		shape: ambientTxRequired,
+	},
+	"auth/account_repository.go|accountRepository.UpdatePasswordHash": {
+		shape: ambientTxRequired,
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.Create": {
+		shape:      ambientTxViaLocalDBOrTxHelper,
+		helperName: "silentPasswordResetTokenDB",
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.ConsumeByID": {
+		shape: ambientTxRequired,
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteByAccountID": {
+		shape: ambientTxRequired,
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.DeleteIssued": {
+		shape:      ambientTxViaLocalDBOrTxHelper,
+		helperName: "silentPasswordResetTokenDB",
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindLatestByAccountIDForUpdate": {
+		shape: ambientTxRequired,
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHash": {
+		shape:      ambientTxViaLocalDBOrTxHelper,
+		helperName: "silentPasswordResetTokenDB",
+	},
+	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHashForUpdate": {
+		shape: ambientTxRequired,
+	},
+	"audit/repository.go|repository.CreateTx": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {
+		shape: ambientTxRequired,
+	},
+	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {
+		shape:      ambientTxRequiredViaLocalHelper,
+		helperName: "createPetsInTransaction",
+	},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create": {
+		shape:      ambientTxViaLocalDBOrTxHelper,
+		helperName: "silentTokenBlacklistDB",
+	},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI": {
+		shape:      ambientTxViaLocalDBOrTxHelper,
+		helperName: "silentTokenBlacklistDB",
+	},
 }
 
 // funcUsesDBOrTx reports whether a function body contains a call to dbOrTx / DBOrTx /
-// repohelpers.DBOrTx(...). Does not chase helpers (see Reorder ambient policy in file header).
+// persistence.DBOrTx(...). Does not chase helpers (see Reorder
+// ambient policy in file header).
 func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 	if fd.Body == nil {
 		return false
@@ -402,17 +581,18 @@ func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 		}
 		switch fun := ce.Fun.(type) {
 		case *ast.Ident:
-			// parent package wrapper `dbOrTx` or same-package `DBOrTx` (repohelpers).
+			// Legacy wrapper `dbOrTx` or same-package canonical `DBOrTx`.
 			if fun.Name == "dbOrTx" || fun.Name == "DBOrTx" {
 				found = true
 				return false
 			}
 		case *ast.SelectorExpr:
-			// domain subpackages: repohelpers.DBOrTx(ctx, r.db)
 			if fun.Sel != nil && fun.Sel.Name == "DBOrTx" {
-				if id, ok := fun.X.(*ast.Ident); ok && id.Name == "repohelpers" {
-					found = true
-					return false
+				if id, ok := fun.X.(*ast.Ident); ok {
+					if id.Name == "persistence" {
+						found = true
+						return false
+					}
 				}
 			}
 		}
@@ -421,28 +601,445 @@ func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 	return found
 }
 
-// walkRepositoryForDBOrTx enumerates every method (module-wide; BE9-1) that calls dbOrTx, keyed
-// by "<file> | <ReceiverType>.<Method>". Discovery is module-wide via moduleInternalSource
-// (internal/repository plus every other internal/ package); keys for internal/repository/**
-// files are legacyLintKey-normalized so existing allowlist entries keep matching unchanged.
+type ambientTxProducerMatcher func(*ast.CallExpr) bool
+
+func isPersistenceTxFromContext(call *ast.CallExpr) bool {
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || selector.Sel == nil || selector.Sel.Name != "TxFromContext" {
+		return false
+	}
+	packageIdent, ok := selector.X.(*ast.Ident)
+	return ok && packageIdent.Name == "persistence"
+}
+
+func isLocalHelperCall(helperName string) ambientTxProducerMatcher {
+	return func(call *ast.CallExpr) bool {
+		ident, ok := call.Fun.(*ast.Ident)
+		return ok && ident.Name == helperName
+	}
+}
+
+func expressionContainsProducer(expr ast.Expr, matches ambientTxProducerMatcher) bool {
+	found := false
+	ast.Inspect(expr, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if ok && matches(call) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func assignedProducerHandles(fd *ast.FuncDecl, matches ambientTxProducerMatcher) map[string]struct{} {
+	handles := make(map[string]struct{})
+	if fd.Body == nil {
+		return handles
+	}
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		assignment, ok := n.(*ast.AssignStmt)
+		if !ok || len(assignment.Lhs) != len(assignment.Rhs) {
+			return true
+		}
+		for i := range assignment.Rhs {
+			if !expressionContainsProducer(assignment.Rhs[i], matches) {
+				continue
+			}
+			ident, ok := assignment.Lhs[i].(*ast.Ident)
+			if ok && ident.Name != "_" {
+				handles[ident.Name] = struct{}{}
+			}
+		}
+		return true
+	})
+	return handles
+}
+
+func producerHandlesRemainDerived(
+	fd *ast.FuncDecl,
+	handles map[string]struct{},
+	matches ambientTxProducerMatcher,
+) bool {
+	if fd.Body == nil {
+		return false
+	}
+	valid := true
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if !valid {
+			return false
+		}
+		assignment, ok := n.(*ast.AssignStmt)
+		if !ok || len(assignment.Lhs) != len(assignment.Rhs) {
+			return true
+		}
+		for i := range assignment.Lhs {
+			ident, ok := assignment.Lhs[i].(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if _, tracked := handles[ident.Name]; !tracked {
+				continue
+			}
+			if (matches != nil && expressionContainsProducer(assignment.Rhs[i], matches)) ||
+				expressionDerivedFromHandle(assignment.Rhs[i], handles) {
+				continue
+			}
+			valid = false
+			return false
+		}
+		return true
+	})
+	return valid
+}
+
+func expressionDerivedFromHandle(expr ast.Expr, handles map[string]struct{}) bool {
+	switch typed := expr.(type) {
+	case *ast.Ident:
+		_, ok := handles[typed.Name]
+		return ok
+	case *ast.ParenExpr:
+		return expressionDerivedFromHandle(typed.X, handles)
+	case *ast.SelectorExpr:
+		return expressionDerivedFromHandle(typed.X, handles)
+	case *ast.CallExpr:
+		selector, ok := typed.Fun.(*ast.SelectorExpr)
+		return ok && expressionDerivedFromHandle(selector.X, handles)
+	case *ast.IndexExpr:
+		return expressionDerivedFromHandle(typed.X, handles)
+	case *ast.IndexListExpr:
+		return expressionDerivedFromHandle(typed.X, handles)
+	case *ast.TypeAssertExpr:
+		return expressionDerivedFromHandle(typed.X, handles)
+	default:
+		return false
+	}
+}
+
+// funcUsesProducedDBHandle requires the producer result to flow into the receiver side of a
+// selector call. Merely invoking TxFromContext/helper and then issuing the query through r.db
+// does not satisfy this shape.
+func funcUsesProducedDBHandle(fd *ast.FuncDecl, matches ambientTxProducerMatcher) bool {
+	if fd.Body == nil {
+		return false
+	}
+	handles := assignedProducerHandles(fd, matches)
+	if len(handles) > 0 && !producerHandlesRemainDerived(fd, handles, matches) {
+		return false
+	}
+	found := false
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if expressionContainsProducer(selector.X, matches) ||
+			expressionDerivedFromHandle(selector.X, handles) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func funcUsesNamedDBHandle(fd *ast.FuncDecl, handleName string) bool {
+	if fd.Body == nil || handleName == "" {
+		return false
+	}
+	handles := map[string]struct{}{handleName: {}}
+	if !producerHandlesRemainDerived(fd, handles, nil) {
+		return false
+	}
+	found := false
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && expressionDerivedFromHandle(selector.X, handles) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func funcForwardsProducedHandleToLocalHelper(
+	fd *ast.FuncDecl,
+	matches ambientTxProducerMatcher,
+	helperName string,
+) (int, bool) {
+	if fd.Body == nil || helperName == "" {
+		return 0, false
+	}
+	handles := assignedProducerHandles(fd, matches)
+	if len(handles) == 0 || !producerHandlesRemainDerived(fd, handles, matches) {
+		return 0, false
+	}
+	foundIndex := 0
+	found := false
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := call.Fun.(*ast.Ident)
+		if !ok || ident.Name != helperName {
+			return true
+		}
+		for i, argument := range call.Args {
+			if expressionContainsProducer(argument, matches) ||
+				expressionDerivedFromHandle(argument, handles) {
+				foundIndex = i
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return foundIndex, found
+}
+
+func parameterNameAt(fd *ast.FuncDecl, index int) (string, bool) {
+	if fd.Type == nil || fd.Type.Params == nil || index < 0 {
+		return "", false
+	}
+	current := 0
+	for _, field := range fd.Type.Params.List {
+		if len(field.Names) == 0 {
+			if current == index {
+				return "", false
+			}
+			current++
+			continue
+		}
+		for _, name := range field.Names {
+			if current == index {
+				return name.Name, name.Name != ""
+			}
+			current++
+		}
+	}
+	return "", false
+}
+
+func funcReturnsDBOrTxHandle(fd *ast.FuncDecl) bool {
+	if fd.Body == nil {
+		return false
+	}
+	handles := assignedProducerHandles(fd, funcUsesDBOrTxCall)
+	if len(handles) > 0 &&
+		!producerHandlesRemainDerived(fd, handles, funcUsesDBOrTxCall) {
+		return false
+	}
+	foundReturn := false
+	valid := true
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if !valid {
+			return false
+		}
+		returnStmt, ok := n.(*ast.ReturnStmt)
+		if !ok {
+			return true
+		}
+		for _, result := range returnStmt.Results {
+			if expressionContainsProducer(result, funcUsesDBOrTxCall) ||
+				expressionDerivedFromHandle(result, handles) {
+				foundReturn = true
+				continue
+			}
+			valid = false
+			return false
+		}
+		return true
+	})
+	return valid && foundReturn
+}
+
+func funcUsesDBOrTxCall(call *ast.CallExpr) bool {
+	switch fun := call.Fun.(type) {
+	case *ast.Ident:
+		return fun.Name == "dbOrTx" || fun.Name == "DBOrTx"
+	case *ast.SelectorExpr:
+		if fun.Sel == nil || fun.Sel.Name != "DBOrTx" {
+			return false
+		}
+		packageIdent, ok := fun.X.(*ast.Ident)
+		return ok && packageIdent.Name == "persistence"
+	default:
+		return false
+	}
+}
+
+func funcUsesRequiredAmbientTx(fd *ast.FuncDecl) bool {
+	return funcUsesProducedDBHandle(fd, isPersistenceTxFromContext)
+}
+
+func funcMatchesAmbientTxExpectation(
+	file *ast.File,
+	method *ast.FuncDecl,
+	expectation ambientTxParticipationExpectation,
+) bool {
+	switch expectation.shape {
+	case ambientTxViaLocalDBOrTxHelper:
+		for _, decl := range file.Decls {
+			helper, ok := decl.(*ast.FuncDecl)
+			if !ok ||
+				helper.Recv != nil ||
+				helper.Name == nil ||
+				helper.Name.Name != expectation.helperName {
+				continue
+			}
+			return funcReturnsDBOrTxHandle(helper) &&
+				funcUsesProducedDBHandle(method, isLocalHelperCall(expectation.helperName))
+		}
+		return false
+	case ambientTxRequired:
+		return funcUsesRequiredAmbientTx(method)
+	case ambientTxRequiredViaLocalHelper:
+		argumentIndex, ok := funcForwardsProducedHandleToLocalHelper(
+			method,
+			isPersistenceTxFromContext,
+			expectation.helperName,
+		)
+		if !ok {
+			return false
+		}
+		for _, decl := range file.Decls {
+			helper, ok := decl.(*ast.FuncDecl)
+			if !ok ||
+				helper.Recv != nil ||
+				helper.Name == nil ||
+				helper.Name.Name != expectation.helperName {
+				continue
+			}
+			parameterName, ok := parameterNameAt(helper, argumentIndex)
+			return ok && funcUsesNamedDBHandle(helper, parameterName)
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func detectAmbientTxParticipationExpectation(
+	file *ast.File,
+	method *ast.FuncDecl,
+) (ambientTxParticipationExpectation, bool) {
+	if funcUsesRequiredAmbientTx(method) {
+		return ambientTxParticipationExpectation{shape: ambientTxRequired}, true
+	}
+	for _, decl := range file.Decls {
+		helper, ok := decl.(*ast.FuncDecl)
+		if !ok || helper.Recv != nil || helper.Name == nil {
+			continue
+		}
+		helperName := helper.Name.Name
+		if funcReturnsDBOrTxHandle(helper) &&
+			funcUsesProducedDBHandle(method, isLocalHelperCall(helperName)) {
+			return ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: helperName,
+			}, true
+		}
+		if _, ok := funcForwardsProducedHandleToLocalHelper(
+			method,
+			isPersistenceTxFromContext,
+			helperName,
+		); ok {
+			expectation := ambientTxParticipationExpectation{
+				shape:      ambientTxRequiredViaLocalHelper,
+				helperName: helperName,
+			}
+			if funcMatchesAmbientTxExpectation(file, method, expectation) {
+				return expectation, true
+			}
+		}
+	}
+	return ambientTxParticipationExpectation{}, false
+}
+
+func parseAmbientTxSourceFile(t *testing.T, keyFile string, src []byte) *ast.File {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, keyFile, src, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", keyFile, err)
+	}
+	return file
+}
+
+func walkRepositoryForAmbientTxExpectations(
+	t *testing.T,
+) map[string]ambientTxParticipationExpectation {
+	t.Helper()
+	found := make(map[string]ambientTxParticipationExpectation)
+	for rawKey, src := range moduleInternalSource(t) {
+		keyFile := legacyLintKey(rawKey)
+		file := parseAmbientTxSourceFile(t, keyFile, src)
+		for _, decl := range file.Decls {
+			method, ok := decl.(*ast.FuncDecl)
+			if !ok || method.Recv == nil {
+				continue
+			}
+			expectation, ok := detectAmbientTxParticipationExpectation(file, method)
+			if !ok {
+				continue
+			}
+			found[keyFile+"|"+receiverMethodKey(method)] = expectation
+		}
+	}
+	return found
+}
+
+// walkRepositoryForDBOrTx enumerates every allowlisted ambient-transaction participant
+// (module-wide; BE9-1), keyed by "<file> | <ReceiverType>.<Method>". Most participants call
+// DBOrTx directly. Explicit expectations above preserve wrapped DBOrTx and required-transaction
+// shapes without making the scanner chase arbitrary helpers. Discovery is module-wide via
+// moduleInternalSource (internal/repository plus every other internal/ package); keys for
+// internal/repository/** files are legacyLintKey-normalized so existing allowlist entries keep
+// matching unchanged.
 func walkRepositoryForDBOrTx(t *testing.T) map[string]struct{} {
 	t.Helper()
 	found := map[string]struct{}{}
 	tree := moduleInternalSource(t)
 	for rawKey, src := range tree {
 		keyFile := legacyLintKey(rawKey)
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, keyFile, src, 0)
-		if err != nil {
-			t.Fatalf("parse %s: %v", keyFile, err)
-		}
+		f := parseAmbientTxSourceFile(t, keyFile, src)
 		for _, decl := range f.Decls {
 			fd, ok := decl.(*ast.FuncDecl)
 			if !ok || fd.Recv == nil {
 				continue
 			}
-			if funcUsesDBOrTx(fd) {
-				found[keyFile+"|"+receiverMethodKey(fd)] = struct{}{}
+			methodKey := keyFile + "|" + receiverMethodKey(fd)
+			if expectation, ok := ambientTxParticipationExpectations[methodKey]; ok {
+				if funcMatchesAmbientTxExpectation(f, fd, expectation) {
+					found[methodKey] = struct{}{}
+				}
+				continue
+			}
+			_, usesEquivalentShape := detectAmbientTxParticipationExpectation(f, fd)
+			if funcUsesDBOrTx(fd) || usesEquivalentShape {
+				found[methodKey] = struct{}{}
 			}
 		}
 	}
@@ -455,7 +1052,7 @@ func reconcileDBOrTxInventory(found, allow map[string]struct{}) []string {
 	for key := range found {
 		if _, ok := allow[key]; !ok {
 			violations = append(violations,
-				"repository method "+key+" newly uses dbOrTx but is NOT on dbOrTxParticipatingMethods. "+
+				"repository method "+key+" newly participates via DBOrTx but is NOT on dbOrTxParticipatingMethods. "+
 					"Add it to the allowlist AND ensure a tx atomicity/isolation test covers its ambient-tx "+
 					"participation (e.g. *_tx_atomicity_test.go). This gate forces that review.")
 		}
@@ -463,10 +1060,11 @@ func reconcileDBOrTxInventory(found, allow map[string]struct{}) []string {
 	for key := range allow {
 		if _, ok := found[key]; !ok {
 			violations = append(violations,
-				"allowlisted dbOrTx method "+key+" no longer calls dbOrTx (reverted to r.db.WithContext, or "+
-					"renamed/removed). If reverted, this is a tx-participation REGRESSION (R1-1/R1-2): the method "+
-					"will silently NOT join an ambient WithTx → partial-commit/TOCTOU. Restore dbOrTx, or if the "+
-					"method was intentionally removed/renamed, delete the stale allowlist entry.")
+				"allowlisted ambient-tx method "+key+" no longer matches its required DBOrTx, local-helper, or "+
+					"TxFromContext participation shape (or was renamed/removed). This is a tx-participation "+
+					"REGRESSION (R1-1/R1-2): the method may silently escape or weaken an ambient WithTx → "+
+					"partial-commit/TOCTOU. Restore the required shape, or if the method was intentionally "+
+					"removed/renamed, delete the stale allowlist entry.")
 		}
 	}
 	return violations
@@ -484,43 +1082,55 @@ func TestDBOrTxInventory_MatchesAllowlist(t *testing.T) {
 	for _, v := range reconcileDBOrTxInventory(found, dbOrTxParticipatingMethods) {
 		t.Error(v)
 	}
+	detectedExpectations := walkRepositoryForAmbientTxExpectations(t)
+	for key, detected := range detectedExpectations {
+		registered, ok := ambientTxParticipationExpectations[key]
+		if !ok {
+			t.Errorf(
+				"repository method %s uses a non-direct ambient-tx shape but has no "+
+					"ambientTxParticipationExpectations entry", key,
+			)
+			continue
+		}
+		if registered != detected {
+			t.Errorf(
+				"repository method %s ambient-tx shape changed: registered=%+v detected=%+v",
+				key,
+				registered,
+				detected,
+			)
+		}
+	}
 }
 
 // TestDBOrTxInventory_DiscoveryReachesModuleWideAndNestedPackages pins that the module-wide
 // discovery set (moduleInternalSource, backed by lintscan.WalkInternalTreeT; BE9-1)
-// walkRepositoryForDBOrTx iterates over reaches: (a) 1-level+ repository domain subpackages
-// (walkRepositoryForDBOrTx must still discover a dbOrTx usage keyed under one), (b) at least one
-// file from a DIFFERENT top-level internal/ package, and (c) 2+-level nesting (scanner
-// capability, proven via a synthetic tree).
+// walkRepositoryForDBOrTx iterates over reaches: (a) a real 2+-level production package,
+// (b) at least one file from a DIFFERENT top-level internal/ package, and (c) arbitrary deeper
+// nesting (scanner capability, proven via a synthetic tree).
 //
 // Renamed + strengthened from the pre-BE9-1
 // TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages, which only pinned the go:embed
 // glob's 1-level reach within internal/repository.
 func TestDBOrTxInventory_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
 	tree := moduleInternalSource(t)
-	nested := 0
-	for n := range tree {
-		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
-			nested++
-		}
-	}
-	if nested == 0 {
-		t.Fatal("no 1-level+ subpackage repository files in the module-wide discovered set walkRepositoryForDBOrTx iterates over")
+	if _, ok := tree["infra/smtp/sender.go"]; !ok {
+		t.Fatal("module-wide discovery does not include infra/smtp/sender.go; " +
+			"walkRepositoryForDBOrTx may have narrowed and would silently drop nested production packages")
 	}
 	// Reaching this line already proves every discovered file parsed cleanly: walkRepositoryForDBOrTx
-	// calls t.Fatalf internally on any parse failure for ANY discovered file, subpackage included.
+	// calls t.Fatalf internally on any parse failure for ANY discovered file.
 	found := walkRepositoryForDBOrTx(t)
-	sawNestedKey := false
+	sawTargetPackageKey := false
 	for k := range found {
 		if strings.Contains(k, "/") {
-			sawNestedKey = true
+			sawTargetPackageKey = true
 			break
 		}
 	}
-	if !sawNestedKey {
-		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a repository subpackage path " +
-			"(e.g. reservationtype/repository.go|...); either discovery stopped reaching subpackages, " +
-			"or the reservationtype dbOrTx usages were removed")
+	if !sawTargetPackageKey {
+		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a target package path " +
+			"(e.g. reservation/reservation_repository.go|...); discovery may have collapsed filenames")
 	}
 
 	assertDiscoversFileFromDifferentTopLevelPackage(t, tree)
@@ -553,9 +1163,9 @@ func (r *fooRepository) Qux() { _ = dbOrTx(ctx, r.db).Transaction(func(tx *gorm.
 			want: true,
 		},
 		{
-			name: "repohelpers.DBOrTx selector is detected",
+			name: "persistence.DBOrTx selector is detected",
 			src: `package p
-func (r *fooRepository) Sel() { _ = repohelpers.DBOrTx(ctx, r.db).Find(&x) }`,
+func (r *fooRepository) Canonical() { _ = persistence.DBOrTx(ctx, r.db).Find(&x) }`,
 			want: true,
 		},
 		{
@@ -623,17 +1233,17 @@ func (r *fooRepository) Bar() { _ = dbOrTx(ctx, r.db).Find(&x) }`
 }
 
 // TestDBOrTxInventory_ReorderHelpersUseDBOrTx pins the ambient-tx contract for Reorder:
-// repohelpers.ReorderByClinicID / ReorderGlobal must call DBOrTx so domain Reorder methods
+// persistence.ReorderByClinicID / ReorderGlobal must call DBOrTx so domain Reorder methods
 // that only delegate to those helpers still join ambient WithTx (paymentmethod, cage, …).
 func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 	tree := moduleInternalSource(t)
 
-	src, ok := tree["repository/repohelpers/scope.go"]
+	src, ok := tree["persistence/scope.go"]
 	if !ok {
-		t.Fatal("repository/repohelpers/scope.go not found in module-wide discovery set")
+		t.Fatal("persistence/scope.go not found in module-wide discovery set")
 	}
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "repohelpers/scope.go", src, 0)
+	f, err := parser.ParseFile(fset, "persistence/scope.go", src, 0)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -650,14 +1260,14 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 			continue
 		}
 		if !funcUsesDBOrTx(fd) {
-			t.Errorf("repohelpers.%s must call DBOrTx (ambient Reorder contract)", fd.Name.Name)
+			t.Errorf("persistence.%s must call DBOrTx (ambient Reorder contract)", fd.Name.Name)
 			continue
 		}
 		want[fd.Name.Name] = true
 	}
 	for name, seen := range want {
 		if !seen {
-			t.Errorf("repohelpers.%s not found in scope.go", name)
+			t.Errorf("persistence.%s not found in scope.go", name)
 		}
 	}
 
@@ -679,7 +1289,7 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 			continue
 		}
 		foundReorder = true
-		// Must call reorderByClinicID (local wrapper → repohelpers.ReorderByClinicID).
+		// Must call a local helper or persistence.ReorderByClinicID.
 		callsHelper := false
 		ast.Inspect(fd.Body, func(n ast.Node) bool {
 			ce, ok := n.(*ast.CallExpr)
@@ -697,7 +1307,7 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 			return true
 		})
 		if !callsHelper {
-			t.Error("paymentmethod.repository.Reorder must call reorderByClinicID or repohelpers.ReorderByClinicID")
+			t.Error("paymentmethod repository Reorder must call a DBOrTx-aware reorder helper")
 		}
 	}
 	if !foundReorder {
@@ -720,7 +1330,7 @@ func TestDBOrTxInventory_GateDetectsViolations(t *testing.T) {
 			"new_repository.go|newRepository.DoTx":                              {},
 		}
 		v := reconcileDBOrTxInventory(found, base)
-		if len(v) != 1 || !strings.Contains(v[0], "newly uses dbOrTx") {
+		if len(v) != 1 || !strings.Contains(v[0], "newly participates via DBOrTx") {
 			t.Fatalf("expected new-method violation, got %v", v)
 		}
 	})
@@ -730,4 +1340,220 @@ func TestDBOrTxInventory_GateDetectsViolations(t *testing.T) {
 			t.Fatalf("expected regression violation, got %v", v)
 		}
 	})
+}
+
+func TestDBOrTxInventory_EquivalentParticipationAnalyzer(t *testing.T) {
+	cases := []struct {
+		name        string
+		src         string
+		expectation ambientTxParticipationExpectation
+		want        bool
+	}{
+		{
+			name: "local helper backed by DBOrTx is accepted",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	return persistence.DBOrTx(ctx, fallback)
+}
+func (r *fooRepository) Create() { _ = silentDB(ctx, r.db).Create(&x) }`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: true,
+		},
+		{
+			name: "DBOrTx-backed helper assigned before use is accepted",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	db := persistence.DBOrTx(ctx, fallback)
+	return db.Session(&gorm.Session{})
+}
+func (r *fooRepository) Create() {
+	db := silentDB(ctx, r.db)
+	_ = db.Create(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: true,
+		},
+		{
+			name: "local helper that bypasses DBOrTx is rejected",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	return fallback.WithContext(ctx)
+}
+func (r *fooRepository) Create() { _ = silentDB(ctx, r.db).Create(&x) }`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: false,
+		},
+		{
+			name: "helper that discards DBOrTx and returns fallback is rejected",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	_ = persistence.DBOrTx(ctx, fallback)
+	return fallback.WithContext(ctx)
+}
+func (r *fooRepository) Create() { _ = silentDB(ctx, r.db).Create(&x) }`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: false,
+		},
+		{
+			name: "helper that rebinds DBOrTx handle to fallback is rejected",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	db := persistence.DBOrTx(ctx, fallback)
+	db = fallback.WithContext(ctx)
+	return db
+}
+func (r *fooRepository) Create() { _ = silentDB(ctx, r.db).Create(&x) }`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: false,
+		},
+		{
+			name: "method that stops calling its expected helper is rejected",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	return persistence.DBOrTx(ctx, fallback)
+}
+func (r *fooRepository) Create() { _ = r.db.WithContext(ctx).Create(&x) }`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: false,
+		},
+		{
+			name: "method that discards helper result and uses base DB is rejected",
+			src: `package p
+func silentDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
+	return persistence.DBOrTx(ctx, fallback)
+}
+func (r *fooRepository) Create() {
+	_ = silentDB(ctx, r.db)
+	_ = r.db.WithContext(ctx).Create(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxViaLocalDBOrTxHelper,
+				helperName: "silentDB",
+			},
+			want: false,
+		},
+		{
+			name: "required ambient transaction is accepted",
+			src: `package p
+func (r *fooRepository) Update() {
+	tx := persistence.TxFromContext(ctx)
+	_ = tx.WithContext(ctx).Updates(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape: ambientTxRequired,
+			},
+			want: true,
+		},
+		{
+			name: "required ambient transaction cannot weaken to fallback DBOrTx",
+			src: `package p
+func (r *fooRepository) Update() {
+	_ = persistence.DBOrTx(ctx, r.db).Updates(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape: ambientTxRequired,
+			},
+			want: false,
+		},
+		{
+			name: "required ambient transaction result cannot be discarded",
+			src: `package p
+func (r *fooRepository) Update() {
+	_ = persistence.TxFromContext(ctx)
+	_ = r.db.WithContext(ctx).Updates(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape: ambientTxRequired,
+			},
+			want: false,
+		},
+		{
+			name: "required ambient transaction handle cannot be rebound to base DB",
+			src: `package p
+func (r *fooRepository) Update() {
+	tx := persistence.TxFromContext(ctx)
+	tx = r.db
+	_ = tx.WithContext(ctx).Updates(&x)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape: ambientTxRequired,
+			},
+			want: false,
+		},
+		{
+			name: "required ambient transaction forwarded to local DB helper is accepted",
+			src: `package p
+func writeWithTx(ctx context.Context, tx *gorm.DB) error {
+	return tx.WithContext(ctx).Create(&x).Error
+}
+func (r *fooRepository) Create() error {
+	tx := persistence.TxFromContext(ctx)
+	return writeWithTx(ctx, tx)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxRequiredViaLocalHelper,
+				helperName: "writeWithTx",
+			},
+			want: true,
+		},
+		{
+			name: "forwarded helper that ignores required transaction is rejected",
+			src: `package p
+func writeWithTx(ctx context.Context, tx *gorm.DB) error {
+	return baseDB.WithContext(ctx).Create(&x).Error
+}
+func (r *fooRepository) Create() error {
+	tx := persistence.TxFromContext(ctx)
+	return writeWithTx(ctx, tx)
+}`,
+			expectation: ambientTxParticipationExpectation{
+				shape:      ambientTxRequiredViaLocalHelper,
+				helperName: "writeWithTx",
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, "fixture.go", []byte(tc.src), 0)
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			var method *ast.FuncDecl
+			for _, decl := range f.Decls {
+				fd, ok := decl.(*ast.FuncDecl)
+				if ok && fd.Recv != nil {
+					method = fd
+					break
+				}
+			}
+			if method == nil {
+				t.Fatal("fixture method not found")
+			}
+			got := funcMatchesAmbientTxExpectation(f, method, tc.expectation)
+			if got != tc.want {
+				t.Fatalf("funcMatchesAmbientTxExpectation = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }

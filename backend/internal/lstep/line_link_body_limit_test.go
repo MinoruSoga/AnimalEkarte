@@ -7,9 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type webhookReadTracker struct {
@@ -60,6 +63,31 @@ func TestReceiveLineWebhook_RejectsChunkedOversizedBodyBeforeService(t *testing.
 	request := httptest.NewRequest(http.MethodPost, "/line/webhook", body)
 	request.ContentLength = -1
 	request.Header.Set("X-Line-Signature", "signed")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, recorder.Code)
+	assert.False(t, serviceCalled)
+}
+
+func TestLinkLiffAccount_RejectsChunkedOversizedBodyBeforeService(t *testing.T) {
+	serviceCalled := false
+	svc := &mockLineLinkService{
+		linkAccountFn: func(context.Context, uint64, LinkAccountInput) (*model.Owner, error) {
+			serviceCalled = true
+			return &model.Owner{ID: 1}, nil
+		},
+	}
+	router := newPostLiffLinkAccountRouter(svc)
+	body := strings.NewReader(
+		`{"link_token":"` +
+			strings.Repeat("x", int(maxLineLinkRequestBytes)) +
+			`","line_id_token":"token"}`,
+	)
+	request := httptest.NewRequest(http.MethodPost, "/liff/1/link", body)
+	request.ContentLength = -1
+	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 
 	router.ServeHTTP(recorder, request)

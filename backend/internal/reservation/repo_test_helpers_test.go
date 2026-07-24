@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 var _ = time.Now // keep time import if unused by some subset
@@ -83,13 +83,13 @@ func makeReservation(t *testing.T, db *gorm.DB, clinicID uint64) *model.Reservat
 	return res
 }
 
-// testTransactorImpl は repository.Transactor.WithTx を repohelpers ベースで再現する
+// testTransactorImpl は production Transactor.WithTx を persistence kernel で再現する。
 // （repository import は facade 経由の循環になるため不可・prescription 先例）。
 type testTransactorImpl struct{ db *gorm.DB }
 
 func (t testTransactorImpl) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 

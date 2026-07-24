@@ -21,7 +21,7 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error) {
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
-	mCompletedCTE := completedBillingsCTE("id, completed_at")
+	mCompletedCTE := completedBillingsCTE("id, clinic_id, completed_at")
 
 	// Query 1: 日×支払方法別合計 (payment_splits のみ)
 	type mPmRow struct {
@@ -37,7 +37,9 @@ func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, cli
 			ps.payment_method_id,
 			COALESCE(SUM(ps.amount), 0) AS amount
 		FROM completed_billings cb
-		JOIN payment_splits ps ON ps.billing_id = cb.id
+		JOIN payment_splits ps
+		  ON ps.billing_id = cb.id
+		 AND ps.clinic_id = cb.clinic_id
 		GROUP BY date, ps.payment_method_id
 		ORDER BY date ASC
 		`, mArgs...).Scan(&mPmRows).Error; err != nil {

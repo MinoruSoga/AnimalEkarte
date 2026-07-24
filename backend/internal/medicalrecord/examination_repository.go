@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -18,6 +19,7 @@ import (
 type ExaminationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	// FindByJobID は clinic_id + job_id で絞り込んだ exams を日付降順で返す（Phase 4B.2）。
 	FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
@@ -41,13 +43,17 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 
 func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Examination{}).
-			Where("exams.clinic_id = ?", clinicID)
+		q := persistence.DBOrTx(ctx, r.db).Model(&model.Examination{}).
+			Where("exams.clinic_id = ?", clinicID).
+			Scopes(examinationPatientRelationsScope(clinicID))
 		if petID != nil {
 			q = q.Where("exams.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = exams.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins(
+				"JOIN pets ON pets.id = exams.pet_id AND pets.clinic_id = ? AND pets.deleted_at IS NULL",
+				clinicID,
+			).Where("pets.owner_id = ?", *ownerID)
 		}
 		if status != nil {
 			q = q.Where("exams.status = ?", *status)
@@ -67,7 +73,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	exams := make([]model.Examination, 0)
-	if err := buildBase().Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
+	if err := buildBase().Scopes(examinationReadPreloads(clinicID)).
 		Scopes(paginate(page, limit)).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
@@ -79,7 +85,28 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var exam model.Examination
 	err := persistence.DBOrTx(ctx, r.db).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
-		Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
+		Scopes(
+			examinationPatientRelationsScope(clinicID),
+			examinationReadPreloads(clinicID),
+		).
+		First(&exam).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
+	}
+	return &exam, nil
+}
+
+// LockByIDForUpdate serializes examination status, parent movement, result replacement,
+// and deletion. The lock is meaningful only while an ambient transaction remains open.
+func (r *examinationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("examination lock requires an ambient transaction")
+	}
+	var exam model.Examination
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
 		First(&exam).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
@@ -92,8 +119,9 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 // clinic scope は WHERE exams.clinic_id = ? で保証する（exam_results は clinic_id を持たないため JOIN で隔離）。
 func (r *examinationRepository) FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error) {
 	var exams []*model.Examination
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("exams.clinic_id = ? AND exams.job_id = ?", clinicID, jobID).
+		Scopes(examinationPatientRelationsScope(clinicID)).
 		Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Items").
 		Order("exams.date DESC, exams.created_at DESC").
@@ -138,9 +166,97 @@ func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 	return nil
 }
 
+func examinationReadPreloads(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.
+			Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Doctor", "deleted_at IS NULL AND is_active = TRUE AND staff_type = ?", model.StaffTypeDoctor).
+			Preload("Items")
+	}
+}
+
+// examinationPatientRelationsScope excludes polluted rows before their raw foreign IDs
+// reach an HTTP response. Required master data and every non-nil patient relation must
+// resolve inside the examination clinic, and a linked record must describe the same pet.
+func examinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(`
+			EXISTS (
+				SELECT 1 FROM exam_types scoped_exam_type
+				WHERE scoped_exam_type.id = exams.exam_type_id
+				  AND scoped_exam_type.clinic_id = ?
+				  AND scoped_exam_type.deleted_at IS NULL
+			)
+			AND (
+				exams.pet_id IS NULL OR EXISTS (
+					SELECT 1 FROM pets scoped_pet
+					JOIN owners scoped_pet_owner
+					  ON scoped_pet_owner.id = scoped_pet.owner_id
+					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
+					 AND scoped_pet_owner.deleted_at IS NULL
+					WHERE scoped_pet.id = exams.pet_id
+					  AND scoped_pet.clinic_id = ?
+					  AND scoped_pet.deleted_at IS NULL
+				)
+			)
+			AND (
+				exams.medical_record_id IS NULL OR EXISTS (
+					SELECT 1 FROM medical_records scoped_record
+					WHERE scoped_record.id = exams.medical_record_id
+					  AND scoped_record.clinic_id = ?
+					  AND scoped_record.deleted_at IS NULL
+					  AND (
+						scoped_record.owner_id IS NULL OR EXISTS (
+							SELECT 1 FROM owners scoped_record_owner
+							WHERE scoped_record_owner.id = scoped_record.owner_id
+							  AND scoped_record_owner.clinic_id = ?
+							  AND scoped_record_owner.deleted_at IS NULL
+						)
+					  )
+					  AND (
+						scoped_record.pet_id IS NULL OR EXISTS (
+							SELECT 1 FROM pets scoped_record_pet
+							JOIN owners scoped_record_pet_owner
+							  ON scoped_record_pet_owner.id = scoped_record_pet.owner_id
+							 AND scoped_record_pet_owner.clinic_id = scoped_record_pet.clinic_id
+							 AND scoped_record_pet_owner.deleted_at IS NULL
+							WHERE scoped_record_pet.id = scoped_record.pet_id
+							  AND scoped_record_pet.clinic_id = ?
+							  AND scoped_record_pet.deleted_at IS NULL
+							  AND (
+								scoped_record.owner_id IS NULL OR
+								scoped_record.owner_id = scoped_record_pet.owner_id
+							  )
+						)
+					  )
+					  AND (
+						exams.pet_id IS NULL OR
+						scoped_record.pet_id = exams.pet_id
+					  )
+				)
+			)
+			AND (
+				exams.doctor_id IS NULL OR EXISTS (
+					SELECT 1 FROM staff_clinic_assignments scoped_doctor_assignment
+					JOIN staffs scoped_doctor
+					  ON scoped_doctor.id = scoped_doctor_assignment.staff_id
+					 AND scoped_doctor.deleted_at IS NULL
+					 AND scoped_doctor.is_active = TRUE
+					 AND scoped_doctor.staff_type = ?
+					WHERE scoped_doctor_assignment.staff_id = exams.doctor_id
+					  AND scoped_doctor_assignment.clinic_id = ?
+					  AND scoped_doctor_assignment.deleted_at IS NULL
+				)
+			)
+		`, clinicID, clinicID, clinicID, clinicID, clinicID, model.StaffTypeDoctor, clinicID)
+	}
+}
+
 func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ExamResult{}).
 		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
 		Where("exams.clinic_id = ? AND exam_results.exam_id = ? ", clinicID, examID).
@@ -170,7 +286,7 @@ func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinic
 }
 
 // ReplaceItemsByExamID は exam_results を一括置換する（既存全削除→一括挿入をトランザクション内で実行）。
-// 親 exam の clinic_id 隔離はサービス層の FindByID で保証されている前提。
+// 親 exam は置換トランザクション内で clinic_id を再検証し、FOR UPDATE で固定する。
 // items の ExamID は本メソッド内で examID に強制上書きする（呼び出し側の指定ミスを防ぐ）。
 //
 // dbOrTx: ambient tx（Transactor.WithTx）内から呼ばれた場合は同一 tx に join し、.Transaction は
@@ -181,15 +297,16 @@ func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinic
 func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 	var deletedCount int64
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// 親 exam の存在 + clinic 隔離をトランザクション内で再確認（並行削除/clinic 越境を防ぐ）
-		var count int64
-		if err := tx.Model(&model.Examination{}).
+		// サービスを経由しない取込経路もあるため、親 exam を行ロックして
+		// status/move/delete と結果置換を直列化する。
+		var exam model.Examination
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", examID, clinicID).
-			Count(&count).Error; err != nil {
+			First(&exam).Error; err != nil {
 			return apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", examID))
 		}
-		if count == 0 {
-			return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", examID))
+		if exam.Status == model.ExaminationStatusConfirmed {
+			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 		}
 
 		// 既存 items を全削除（exam_results は CASCADE では消えないため明示削除）

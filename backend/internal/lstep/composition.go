@@ -11,7 +11,7 @@ import (
 
 // OwnerRepository is the union of owner operations consumed by LSTEP use cases.
 type OwnerRepository interface {
-	lstepOwnerRepo
+	lineLinkOwnerRepo
 	tagSyncOwnerRepo
 	checkupSyncOwnerRepo
 }
@@ -74,6 +74,7 @@ type Dependencies struct {
 	Transactor            Transactor
 	LifecycleAuditTx      LifecycleAuditTxLogger
 	NoShowAuditTx         NoShowAuditTxLogger
+	LineLinkAuditTx       LineLinkAuditTxLogger
 	AggregationRepository OwnerAggregationRepository
 }
 
@@ -92,7 +93,6 @@ type Application struct {
 // services have been constructed.
 type HandlerDependencies struct {
 	OwnerLineLinker      OwnerLineLinker
-	RespondOwner         OwnerResponder
 	RequirePermission    PermissionMiddleware
 	RequireAnyPermission PermissionAnyMiddleware
 }
@@ -128,7 +128,7 @@ func (a *Application) NewHandler(deps HandlerDependencies) *Handler {
 	return NewHandler(
 		NewLstepSettingsHandler(a.graph.settings, deps.RequirePermission),
 		NewLineSendHandler(a.graph.lineSend, deps.RequirePermission),
-		NewLineLinkHandler(a.graph.lineLink, deps.RespondOwner, deps.RequirePermission),
+		NewLineLinkHandler(a.graph.lineLink, deps.RequirePermission),
 		NewLineCustomerHandler(a.graph.lineCustomer, deps.RequirePermission),
 		a.graph.tag, a.graph.tagCodeMapping, a.graph.tagConfig, a.graph.tagSummary,
 		a.graph.checkupSync, a.graph.lifecycle, a.graph.deliveryMonitor,

@@ -7,7 +7,6 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import { useGetBillingConfirmation, useCreateBillingConfirmation, useCreateBillingReturn } from "../api/billing-confirmation";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
-import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
@@ -29,7 +28,6 @@ interface BillCheckProps {
 }
 
 export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0, recordClinicId }: BillCheckProps) {
-  const { user } = useAuth();
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -40,8 +38,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const createTreatmentMutation = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId, recordClinicId);
   const confirmMutation = useCreateBillingConfirmation(medicalRecordId);
-  const userId = Number(user?.id ?? 0);
-  const returnMutation = useCreateBillingReturn(medicalRecordId, userId);
+  const returnMutation = useCreateBillingReturn(medicalRecordId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
@@ -51,7 +48,6 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     startConfirmTransition(async () => {
       try {
         await confirmBillingAsync({
-          confirmed_by: Number(userId ?? 0),
           memo: "医師確認済み",
         });
         toast.success("会計確認を完了しました");
@@ -59,7 +55,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [canEdit, confirmBillingAsync, userId]);
+  }, [canEdit, confirmBillingAsync]);
 
   const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {

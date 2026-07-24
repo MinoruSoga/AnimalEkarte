@@ -24,12 +24,24 @@ import (
 func setupTreatmentHistoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	if err := testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
-		t.Fatalf("failed to migrate pets/treatments/procedures: %v", err)
+	if err := testdb.EnsureAutoMigrated(
+		db,
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.Consultation{},
+		&model.Procedure{},
+		&model.Medicine{},
+		&model.InventoryItem{},
+		&model.Treatment{},
+	); err != nil {
+		t.Fatalf("failed to migrate treatment read graph: %v", err)
 	}
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE consultations CASCADE")
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
+	db.Exec("TRUNCATE TABLE medicines CASCADE")
+	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db
@@ -159,12 +171,16 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 	procSurgery := makeProcedure(t, db, clinicA, "手術", model.AnesthesiaTypeNone, true)
 	// 麻酔なし・手術なし（通常処置）
 	procNormal := makeProcedure(t, db, clinicA, "通常処置", model.AnesthesiaTypeNone, false)
+	// 汚染 fixture: clinic A の treatment が clinic B の procedure を参照しても、
+	// procedure filter の list/count には混入させない。
+	procForeign := makeProcedure(t, db, clinicA+1, "別院の麻酔手術", model.AnesthesiaTypeGeneral, true)
 	// 投薬（procedure_id なし）
 	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "投薬", 3)
 
 	makeHistoryTreatmentWithProcedure(t, db, mr.ID, procAnesthesia.ID, "麻酔処置実施")
 	makeHistoryTreatmentWithProcedure(t, db, mr.ID, procSurgery.ID, "手術実施")
 	makeHistoryTreatmentWithProcedure(t, db, mr.ID, procNormal.ID, "通常処置実施")
+	makeHistoryTreatmentWithProcedure(t, db, mr.ID, procForeign.ID, "別院処置の汚染")
 
 	t.Run("AnesthesiaOnly returns only treatments linked to anesthetic procedures", func(t *testing.T) {
 		got, total, err := repo.FindHistoryByPetID(ctx, clinicA, pet.ID, model.PetTreatmentHistoryFilter{AnesthesiaOnly: true}, 1, 100)
@@ -189,8 +205,8 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 	t.Run("no filter returns all treatments including medicine", func(t *testing.T) {
 		got, total, err := repo.FindHistoryByPetID(ctx, clinicA, pet.ID, model.PetTreatmentHistoryFilter{}, 1, 100)
 		require.NoError(t, err)
-		assert.Equal(t, int64(4), total, "全 4 件（投薬+麻酔+手術+通常）")
-		assert.Len(t, got, 4)
+		assert.Equal(t, int64(5), total, "filter 未指定では既存の全 treatment を返す")
+		assert.Len(t, got, 5)
 	})
 }
 
@@ -523,11 +539,67 @@ func TestTreatmentRepository_FindUnbilledByPetID(t *testing.T) {
 		}
 	})
 
+	t.Run("foreign-clinic billing for the medical record does not suppress clinic treatment", func(t *testing.T) {
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FOREIGN-BILLING", time.Now())
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "別院会計汚染の治療", 0)
+		require.NoError(t, db.Create(&model.BillingConfirmation{
+			MedicalRecordID: mr.ID,
+			Status:          model.ConfirmationStatusConfirmed,
+		}).Error)
+		require.NoError(t, db.Create(&model.Billing{
+			ClinicID:        clinicB,
+			MedicalRecordID: &mr.ID,
+			Status:          model.BillingStatusWaiting,
+			ScheduledDate:   time.Now(),
+		}).Error)
+
+		got, err := repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.True(t, treatmentContentExists(got, "別院会計汚染の治療"))
+	})
+
+	t.Run("foreign-clinic billing item does not suppress clinic treatment", func(t *testing.T) {
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FOREIGN-BILLING-ITEM", time.Now())
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "別院会計明細汚染の治療", 0)
+		require.NoError(t, db.Create(&model.BillingConfirmation{
+			MedicalRecordID: mr.ID,
+			Status:          model.ConfirmationStatusConfirmed,
+		}).Error)
+
+		var tr model.Treatment
+		require.NoError(t, db.Where("medical_record_id = ?", mr.ID).First(&tr).Error)
+		billing := &model.Billing{
+			ClinicID:      clinicB,
+			Status:        model.BillingStatusWaiting,
+			ScheduledDate: time.Now(),
+		}
+		require.NoError(t, db.Create(billing).Error)
+		require.NoError(t, db.Create(&model.BillingItem{
+			BillingID:   billing.ID,
+			Category:    model.ItemCategoryOther,
+			Name:        "別院からの汚染明細",
+			TreatmentID: &tr.ID,
+		}).Error)
+
+		got, err := repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.True(t, treatmentContentExists(got, "別院会計明細汚染の治療"))
+	})
+
 	t.Run("clinic isolation: other clinic scope returns empty", func(t *testing.T) {
 		got, err := repo.FindUnbilledByPetID(ctx, clinicB, pet.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+}
+
+func treatmentContentExists(treatments []model.Treatment, content string) bool {
+	for _, treatment := range treatments {
+		if treatment.Content == content {
+			return true
+		}
+	}
+	return false
 }
 
 // TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate は #77 の
@@ -592,6 +664,21 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("foreign-clinic billing does not suppress clinic leftover", func(t *testing.T) {
+		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残し別院会計汚染ペット")
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FOREIGN-BILLING-LEFTOVER", date)
+		require.NoError(t, db.Create(&model.Billing{
+			ClinicID:        clinicB,
+			MedicalRecordID: &mr.ID,
+			Status:          model.BillingStatusWaiting,
+			ScheduledDate:   date,
+		}).Error)
+
+		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
 	})
 
 	t.Run("excludes draft (non-finalized) medical records", func(t *testing.T) {

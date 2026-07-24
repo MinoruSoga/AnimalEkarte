@@ -71,7 +71,12 @@
     "SCHEDULER_ENVIRONMENT": "production",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
-    "DB_SSL_MODE": "require",
+    "DB_SSL_MODE": "verify-full",
+    "DB_SSL_ROOT_CERT": "system",
+    // Cloudflare Containers はPlanetScaleへ直結するため、インスタンスごとの上限を
+    // stagingと同じ安全値へ固定してconnection slot枯渇を防ぐ。
+    "DB_MAX_OPEN_CONNS": "10",
+    "DB_MAX_IDLE_CONNS": "5",
 
     // <PLACEHOLDER-TRUSTED_PROXY_CIDR-VERIFY-POST-DEPLOY>
     // 上記ファイル冒頭コメント #2 参照。STG実測値(10.1.0.0/32)を「検証対象の候補」として

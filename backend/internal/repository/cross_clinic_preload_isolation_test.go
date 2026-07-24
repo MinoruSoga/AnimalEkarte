@@ -3,8 +3,8 @@ package repository
 // cross_clinic_preload_isolation_test.go
 // クロステナント READ IDOR remediation follow-up — (c) cross-clinic(#86)変種の master Preload 隔離。
 //
-// owner/pet の Insurance・reservation の ReservationType/Group は単一 clinicID だけでなく
-// 拠点横断(#86)の clinicID 集合でも読まれる。Preload は `clinic_id IN ?`(認可集合)でスコープし、
+// owner/pet の Insurance は単一 clinicID だけでなく拠点横断(#86)の clinicID 集合でも読まれる。
+// Preload は `clinic_id IN ?`(認可集合)でスコープし、
 //   (i)  別テナント単独の混入を拒否（FindByID）
 //   (ii) 拠点横断ユーザは認可済み複数 clinic のマスタを引き続き読める（FindByIDForClinics([A,B])）
 //   (iii)認可外 clinic のマスタは #86 でも隠れる（FindByIDForClinics([A]) で B のマスタは nil）
@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -118,6 +119,9 @@ func TestOwnerRepository_PetsInsurance_CrossClinicPreloadIsolation(t *testing.T)
 }
 
 // --- (c3) reservation: ReservationType / ReservationType.Group ---
+//
+// Reservation は master の clinic が認可集合に含まれるだけでは不十分で、関連を親 appointment の
+// clinic_id と相関させる。破損 FK を持つ親行は単一/複数医院 read のどちらでも fail-closed にする。
 
 func TestReservationRepository_ReservationType_CrossClinicPreloadIsolation(t *testing.T) {
 	db := setupTestDB(t)
@@ -144,23 +148,23 @@ func TestReservationRepository_ReservationType_CrossClinicPreloadIsolation(t *te
 	require.NotNil(t, gotLegit.ReservationType)
 	assert.Equal(t, rtA.ID, gotLegit.ReservationType.ID)
 
-	// (i) 別テナント診療区分は FindByID(単一)で混入しない
+	// (i) 別テナント診療区分を指す予約は FindByID(単一)で fail-closed になる
 	gotCross, err := repo.FindByID(ctx, clinicA, resCross.ID)
-	require.NoError(t, err)
-	assert.Nil(t, gotCross.ReservationType, "別クリニックの診療区分が混入してはならない")
+	require.Error(t, err)
+	assert.Nil(t, gotCross)
+	assert.True(t, apperrors.IsNotFound(err), "別クリニックの診療区分を指す予約は NotFound にする: %v", err)
 
-	// (ii) #86 [A,B] なら B の診療区分 + グループは見える
+	// (ii) #86 [A,B] でも、clinic A の予約と clinic B の診療区分は相関しない
 	gotBoth, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, resCross.ID)
-	require.NoError(t, err)
-	require.NotNil(t, gotBoth.ReservationType, "#86 認可済みなら B の診療区分は見えるべき")
-	assert.Equal(t, rtB.ID, gotBoth.ReservationType.ID)
-	require.NotNil(t, gotBoth.ReservationType.Group, "#86 認可済みなら B のグループも見えるべき")
-	assert.Equal(t, groupB.ID, gotBoth.ReservationType.Group.ID)
+	require.Error(t, err)
+	assert.Nil(t, gotBoth)
+	assert.True(t, apperrors.IsNotFound(err), "複数医院認可でも関連は予約自身の clinic と相関させる: %v", err)
 
-	// (iii) #86 [A] のみなら B の診療区分は隠れる
+	// (iii) #86 [A] のみでも同じ fail-closed 契約を維持する
 	gotA, err := repo.FindByIDForClinics(ctx, []uint64{clinicA}, resCross.ID)
-	require.NoError(t, err)
-	assert.Nil(t, gotA.ReservationType, "認可外 clinic の診療区分は #86 でも漏れてはならない")
+	require.Error(t, err)
+	assert.Nil(t, gotA)
+	assert.True(t, apperrors.IsNotFound(err), "認可外 clinic の診療区分を指す予約は NotFound にする: %v", err)
 }
 
 func makeReservationWithType(t *testing.T, db *gorm.DB, clinicID, reservationTypeID uint64) *model.Reservation {

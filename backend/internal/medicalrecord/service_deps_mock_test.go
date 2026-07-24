@@ -18,6 +18,7 @@ import (
 type mockMedicalRecordRepository struct {
 	findAllFn                         func(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	lockByIDForUpdateFn               func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	findByAppointmentIDFn             func(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
 	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
@@ -34,6 +35,10 @@ type mockMedicalRecordRepository struct {
 	findOwnersByFirstVisitFn    func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	findOwnersByLastVisitDaysFn func(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
 	findOwnersByNextVisitRecFn  func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	assertOwnerInClinicFn       func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn      func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertDoctorInClinicFn      func(ctx context.Context, clinicID, doctorID uint64) error
+	withTxFn                    func(ctx context.Context, fn func(context.Context) error) error
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -149,7 +154,52 @@ func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinic
 }
 
 func (m *mockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.FindByID(ctx, clinicID, id)
+	if m.lockByIDForUpdateFn != nil {
+		return m.lockByIDForUpdateFn(ctx, clinicID, id)
+	}
+	record, err := m.FindByID(ctx, clinicID, id)
+	if err != nil || record == nil {
+		return record, err
+	}
+	// Legacy service fixtures often specify only the fields relevant to the
+	// individual test. The default locker models a correctly scoped repository;
+	// tests for malformed/foreign locks use lockByIDForUpdateFn explicitly.
+	scoped := *record
+	if scoped.ID == 0 {
+		scoped.ID = id
+	}
+	if scoped.ClinicID == 0 {
+		scoped.ClinicID = clinicID
+	}
+	return &scoped, nil
+}
+
+func (m *mockMedicalRecordRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.assertOwnerInClinicFn != nil {
+		return m.assertOwnerInClinicFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockMedicalRecordRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerInClinicFn != nil {
+		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
+	}
+	return 1, nil
+}
+
+func (m *mockMedicalRecordRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
+	if m.assertDoctorInClinicFn != nil {
+		return m.assertDoctorInClinicFn(ctx, clinicID, doctorID)
+	}
+	return nil
+}
+
+func (m *mockMedicalRecordRepository) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	if m.withTxFn != nil {
+		return m.withTxFn(ctx, fn)
+	}
+	return fn(ctx)
 }
 
 // mockLstepTagSyncService satisfies checkupTagSyncer, vaccinationTagSyncer and prescriptionTagSyncer

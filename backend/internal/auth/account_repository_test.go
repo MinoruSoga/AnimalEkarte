@@ -10,12 +10,12 @@ package auth
 // 保護する不変条件:
 //   - FindByID / FindByEmail はソフトデリート済みアカウントを除外し、NotFound ラップされたエラーを返す。
 //   - Create は email の一意制約違反を AlreadyExists エラーに変換する（apperrors.FromGORM の23505ハンドリング）。
-//   - Update は指定フィールドのみを更新し（Save() による全フィールド上書き防止）、
-//     対象が存在しない場合は NotFound を返す。
+//   - credential や権限を更新する汎用 map API を公開しない。
 
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,14 +23,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupAccountTestDB は accounts テーブルを用意し、クリーンな状態でテストを開始できるようにする。
 func setupAccountTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Account{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Account{}))
 	db.Exec("TRUNCATE TABLE accounts CASCADE")
 	return db
 }
@@ -78,6 +78,34 @@ func TestRepository_FindByID(t *testing.T) {
 	})
 }
 
+func TestAccountRepository_FindByIDForUpdateRequiresAmbientTransaction(t *testing.T) {
+	repo := NewAccountRepository(nil)
+
+	account, err := repo.FindByIDForUpdate(context.Background(), 1)
+
+	assert.Nil(t, account)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ambient transaction")
+}
+
+func TestAccountRepository_CompareAndSwapPasswordHashRequiresAmbientTransaction(
+	t *testing.T,
+) {
+	repo := NewAccountRepository(nil)
+
+	swapped, err := repo.CompareAndSwapPasswordHash(
+		context.Background(),
+		1,
+		"old-hash",
+		"new-hash",
+		time.Now(),
+	)
+
+	assert.False(t, swapped)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ambient transaction")
+}
+
 func TestRepository_FindByEmail(t *testing.T) {
 	db := setupAccountTestDB(t)
 	repo := NewAccountRepository(db)
@@ -92,10 +120,12 @@ func TestRepository_FindByEmail(t *testing.T) {
 	})
 
 	t.Run("存在しないメールアドレスはNotFoundを返す", func(t *testing.T) {
-		got, err := repo.FindByEmail(ctx, "nonexistent@example.test")
+		const privateEmail = "nonexistent@example.test"
+		got, err := repo.FindByEmail(ctx, privateEmail)
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
+		assert.NotContains(t, err.Error(), privateEmail)
 	})
 
 	t.Run("ソフトデリート済みアカウントのメールアドレスはNotFoundを返す", func(t *testing.T) {
@@ -106,6 +136,7 @@ func TestRepository_FindByEmail(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
+		assert.NotContains(t, err.Error(), a.Email)
 	})
 }
 
@@ -139,40 +170,5 @@ func TestRepository_Create(t *testing.T) {
 		err := repo.Create(ctx, dup)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsAlreadyExists(err))
-	})
-}
-
-func TestRepository_Update(t *testing.T) {
-	db := setupAccountTestDB(t)
-	repo := NewAccountRepository(db)
-	ctx := context.Background()
-
-	t.Run("指定フィールドのみ更新される", func(t *testing.T) {
-		a := makeAccount(t, db, "update-target@example.test")
-		require.NoError(t, repo.Update(ctx, a.ID, map[string]any{"is_active": false}))
-
-		var stored model.Account
-		require.NoError(t, db.First(&stored, a.ID).Error)
-		assert.False(t, stored.IsActive)
-		assert.Equal(t, a.Email, stored.Email, "更新対象外のフィールドは変更されないべき")
-	})
-
-	t.Run("複数フィールドを同時に更新できる", func(t *testing.T) {
-		a := makeAccount(t, db, "update-multi@example.test")
-		require.NoError(t, repo.Update(ctx, a.ID, map[string]any{
-			"password_hash":   "new-hash",
-			"is_system_admin": true,
-		}))
-
-		var stored model.Account
-		require.NoError(t, db.First(&stored, a.ID).Error)
-		assert.Equal(t, "new-hash", stored.PasswordHash)
-		assert.True(t, stored.IsSystemAdmin)
-	})
-
-	t.Run("存在しないIDはNotFoundを返す", func(t *testing.T) {
-		err := repo.Update(ctx, uint64(9999999), map[string]any{"is_active": false})
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

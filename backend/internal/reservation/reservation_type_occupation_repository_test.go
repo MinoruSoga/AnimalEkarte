@@ -16,7 +16,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationTypeOccupationTestDB は ReservationTypeOccupationRepository のテスト用に DB を整備する。
@@ -26,10 +26,10 @@ import (
 // 経由で両テーブルも連鎖 TRUNCATE する。
 func setupReservationTypeOccupationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Occupation{}, &model.Staff{}, &model.ShiftEntry{},
 		&model.ReservationType{}, &model.ReservationTypeOccupation{},
 	))

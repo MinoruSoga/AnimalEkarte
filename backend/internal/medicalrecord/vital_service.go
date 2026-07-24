@@ -78,6 +78,9 @@ type vitalService struct {
 	repo              VitalRepository
 	medicalRecordRepo medicalRecordLocker
 	auditService      vitalAuditLogger
+	relations         ClinicalRelationVerifier
+	staffs            clinicalStaffLocker
+	staffAssignments  clinicalStaffAssignmentLocker
 	transactor        Transactor
 }
 
@@ -86,6 +89,28 @@ type vitalService struct {
 // 収める目的で注入する。
 func NewVitalService(repo VitalRepository, medicalRecordRepo medicalRecordLocker, auditService vitalAuditLogger, transactor Transactor) VitalService {
 	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService, transactor: transactor}
+}
+
+// NewVitalServiceWithRelationValidation は request 由来 staff_id の active staff + clinic
+// assignment 検証依存を注入する。検証と保存は transactor の同一トランザクションで実行する。
+func NewVitalServiceWithRelationValidation(
+	repo VitalRepository,
+	medicalRecordRepo medicalRecordLocker,
+	auditService vitalAuditLogger,
+	relations ClinicalRelationVerifier,
+	staffs clinicalStaffLocker,
+	staffAssignments clinicalStaffAssignmentLocker,
+	transactor Transactor,
+) VitalService {
+	return &vitalService{
+		repo:              repo,
+		medicalRecordRepo: medicalRecordRepo,
+		auditService:      auditService,
+		relations:         relations,
+		staffs:            staffs,
+		staffAssignments:  staffAssignments,
+		transactor:        transactor,
+	}
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
@@ -98,11 +123,23 @@ func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint6
 }
 
 func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	if input.ClinicID == 0 || medicalRecordID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id and medical_record_id are required")
+	}
 	if input.PetID == 0 {
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 	if input.Temperature == nil && input.HeartRate == nil && input.RespirationRate == nil && input.Weight == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	if s.repo == nil || s.medicalRecordRepo == nil {
+		return nil, apperrors.WrapInternalServerError("vital persistence dependencies are required")
+	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("vital transaction dependency is required")
 	}
 
 	vital := &model.VitalRecord{
@@ -122,8 +159,37 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// HC-006 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時のバイタル追加が確定済みカルテに混入する競合を防ぐ。
-		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID,
-			"failed to find medical record", "確定済みカルテにバイタルを追加できません"); err != nil {
+		parent, err := s.lockDraftParent(
+			txCtx,
+			input.ClinicID,
+			medicalRecordID,
+			"failed to find medical record",
+			"確定済みカルテにバイタルを追加できません",
+		)
+		if err != nil {
+			return err
+		}
+		if err := validateVitalMedicalRecordRelation(parent, input.ClinicID, medicalRecordID, input.PetID); err != nil {
+			return err
+		}
+		petID := input.PetID
+		if err := validateClinicalRelations(
+			txCtx,
+			s.relations,
+			input.ClinicID,
+			parent,
+			&petID,
+			nil,
+		); err != nil {
+			return err
+		}
+		if err := validateClinicalStaffReference(
+			txCtx,
+			input.ClinicID,
+			input.StaffID,
+			s.staffs,
+			s.staffAssignments,
+		); err != nil {
 			return err
 		}
 		if err := s.repo.Create(txCtx, vital); err != nil {
@@ -155,31 +221,104 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 }
 
 func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	fields := buildVitalUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	if clinicID == 0 || medicalRecordID == 0 || vitalID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id, medical_record_id, and vital_id are required")
+	}
+	if s.repo == nil || s.medicalRecordRepo == nil {
+		return nil, apperrors.WrapInternalServerError("vital persistence dependencies are required")
+	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("vital transaction dependency is required")
+	}
 	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get vital record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record")
 	}
-	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
+	if existing == nil || existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 
+	var result *model.VitalRecord
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// バイタル編集が確定済みカルテに混入する競合を防ぐ。
-		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
-			"failed to find medical record", "確定済みカルテのバイタルは編集できません"); err != nil {
+		parent, err := s.lockDraftParent(
+			txCtx,
+			clinicID,
+			medicalRecordID,
+			"failed to find medical record",
+			"確定済みカルテのバイタルは編集できません",
+		)
+		if err != nil {
 			return err
 		}
-
-		fields := buildVitalUpdate(input)
-		if len(fields) == 0 {
-			return apperrors.WrapInvalidInput("at least one field must be provided")
+		if err := validateVitalMedicalRecordRelation(parent, clinicID, medicalRecordID, existing.PetID); err != nil {
+			return err
+		}
+		petID := existing.PetID
+		if err := validateClinicalRelations(
+			txCtx,
+			s.relations,
+			clinicID,
+			parent,
+			&petID,
+			nil,
+		); err != nil {
+			return err
+		}
+		if existing.ClinicID != clinicID {
+			return apperrors.WrapNotFound("vital", "not found in medical record")
+		}
+		if err := validateClinicalStaffReference(
+			txCtx,
+			clinicID,
+			input.StaffID,
+			s.staffs,
+			s.staffAssignments,
+		); err != nil {
+			return err
 		}
 		if err := s.repo.Update(txCtx, clinicID, vitalID, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to update vital record", "error", err)
 			return apperrors.Wrap(err, "failed to update vital record")
+		}
+		result, err = s.repo.FindByID(txCtx, clinicID, vitalID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get vital record after update", "error", err)
+			return apperrors.Wrap(err, "failed to get vital record after update")
+		}
+		if err := validateUpdatedVitalRelation(
+			result,
+			clinicID,
+			medicalRecordID,
+			vitalID,
+			existing.PetID,
+		); err != nil {
+			return err
+		}
+		if err := validateClinicalStaffReference(
+			txCtx,
+			clinicID,
+			result.StaffID,
+			s.staffs,
+			s.staffAssignments,
+		); err != nil {
+			return err
+		}
+		if result.Staff != nil &&
+			(result.StaffID == nil ||
+				result.Staff.ID != *result.StaffID ||
+				!result.Staff.IsActive) {
+			return apperrors.WrapNotFound("staff", "nested relation")
 		}
 		return nil
 	}); err != nil {
@@ -190,11 +329,6 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	result, err := s.repo.FindByID(ctx, clinicID, vitalID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vital record after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get vital record after update")
-	}
 
 	// 監査ログ: update（best-effort）
 	if s.auditService != nil {
@@ -207,6 +341,59 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 
 	return result, nil
+}
+
+func validateUpdatedVitalRelation(
+	vital *model.VitalRecord,
+	clinicID, medicalRecordID, vitalID, petID uint64,
+) error {
+	if vital == nil ||
+		vital.ID != vitalID ||
+		vital.ClinicID != clinicID ||
+		vital.PetID != petID ||
+		vital.MedicalRecordID == nil ||
+		*vital.MedicalRecordID != medicalRecordID {
+		return apperrors.WrapNotFound("vital", "not found in medical record")
+	}
+	return nil
+}
+
+func (s *vitalService) lockDraftParent(
+	ctx context.Context,
+	clinicID, medicalRecordID uint64,
+	findErrMsg, conflictMsg string,
+) (*model.MedicalRecord, error) {
+	if s.medicalRecordRepo == nil {
+		return nil, apperrors.WrapInternalServerError("vital medical record validation dependency is required")
+	}
+	parent, err := s.medicalRecordRepo.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, findErrMsg, "error", err)
+		return nil, apperrors.Wrap(err, findErrMsg)
+	}
+	if parent == nil ||
+		parent.ID != medicalRecordID ||
+		parent.ClinicID != clinicID {
+		return nil, apperrors.WrapNotFound("medical_record", "relation")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict(conflictMsg)
+	}
+	return parent, nil
+}
+
+func validateVitalMedicalRecordRelation(
+	parent *model.MedicalRecord,
+	clinicID, medicalRecordID, petID uint64,
+) error {
+	if parent == nil ||
+		parent.ID != medicalRecordID ||
+		parent.ClinicID != clinicID ||
+		parent.PetID == nil ||
+		*parent.PetID != petID {
+		return apperrors.WrapNotFound("medical_record", "relation")
+	}
+	return nil
 }
 
 func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error {

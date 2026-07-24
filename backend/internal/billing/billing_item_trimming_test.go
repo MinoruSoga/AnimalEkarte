@@ -304,6 +304,52 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, items, "別クリニック/別ペット/status≠accounting/カテゴリ≠trimmingはすべて除外される")
 	})
+
+	t.Run("foreign master/detail corruption is excluded and foreign billing cannot suppress valid items", func(t *testing.T) {
+		db := setupBillingItemTrimmingTestDB(t)
+		repo := NewBillingItemRepository(db)
+		owner := testdb.MakeTestOwner(t, db, clinicA, "tenant-corruption-owner")
+		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "tenant-corruption-pet")
+		localType := makeTrimmingReservationType(t, db, clinicA)
+		foreignType := makeTrimmingReservationType(t, db, clinicB)
+
+		validAppointment := makeTrimmingAppointment(t, db, clinicA, pet.ID, localType.ID, model.ReservationStatusAccounting)
+		validCourse := makeTrimmingCourse(t, db, clinicA, "valid local course", priceOf(3000))
+		validOption := makeTrimmingOption(t, db, clinicA, "valid local option", priceOf(500))
+		attachTrimmingCourse(t, db, clinicA, validAppointment.ID, validCourse.ID)
+		attachTrimmingOption(t, db, validAppointment.ID, validOption.ID, 0)
+
+		// A foreign-clinic billing_item may satisfy the raw FK constraints, but
+		// it must not mark this clinic's valid appointment items as billed.
+		foreignBilling := makeTrimmingBilling(t, db, clinicB, model.BillingStatusWaiting)
+		makeTrimmingBillingItem(t, db, foreignBilling.ID, validAppointment.ID, &validCourse.ID, &validOption.ID)
+
+		foreignTypeAppointment := makeTrimmingAppointment(t, db, clinicA, pet.ID, foreignType.ID, model.ReservationStatusAccounting)
+		foreignTypeCourse := makeTrimmingCourse(t, db, clinicA, "foreign reservation type leak", priceOf(1000))
+		attachTrimmingCourse(t, db, clinicA, foreignTypeAppointment.ID, foreignTypeCourse.ID)
+
+		foreignCourseAppointment := makeTrimmingAppointment(t, db, clinicA, pet.ID, localType.ID, model.ReservationStatusAccounting)
+		foreignCourse := makeTrimmingCourse(t, db, clinicB, "foreign course leak", priceOf(1100))
+		attachTrimmingCourse(t, db, clinicA, foreignCourseAppointment.ID, foreignCourse.ID)
+
+		foreignDetailAppointment := makeTrimmingAppointment(t, db, clinicA, pet.ID, localType.ID, model.ReservationStatusAccounting)
+		foreignDetailCourse := makeTrimmingCourse(t, db, clinicA, "foreign detail leak", priceOf(1200))
+		attachTrimmingCourse(t, db, clinicB, foreignDetailAppointment.ID, foreignDetailCourse.ID)
+
+		foreignOptionAppointment := makeTrimmingAppointment(t, db, clinicA, pet.ID, localType.ID, model.ReservationStatusAccounting)
+		require.NoError(t, db.Create(&model.AppointmentTrimmingDetail{
+			ClinicID:      clinicA,
+			AppointmentID: foreignOptionAppointment.ID,
+		}).Error)
+		foreignOption := makeTrimmingOption(t, db, clinicB, "foreign option leak", priceOf(600))
+		attachTrimmingOption(t, db, foreignOptionAppointment.ID, foreignOption.ID, 0)
+
+		items, err := repo.FindUnbilledTrimmingItemsByPetID(ctx, clinicA, pet.ID)
+
+		require.NoError(t, err)
+		require.Len(t, items, 2)
+		assert.ElementsMatch(t, []string{"valid local course", "valid local option"}, []string{items[0].Name, items[1].Name})
+	})
 }
 
 func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing.T) {
@@ -340,5 +386,22 @@ func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing
 		count, err := repo.CountNonAccountingTrimmingByPetAndDate(ctx, clinicA, pet.ID, targetDate)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), count, "同日pending 1件 + JST境界内confirmed 1件 = 2件（accounting/completed/cancelled/翌日は除外）")
+	})
+
+	t.Run("foreign-clinic reservation type cannot classify a local appointment as trimming", func(t *testing.T) {
+		db := setupBillingItemTrimmingTestDB(t)
+		repo := NewBillingItemRepository(db)
+		owner := testdb.MakeTestOwner(t, db, clinicA, "count-tenant-owner")
+		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "count-tenant-pet")
+		localType := makeTrimmingReservationType(t, db, clinicA)
+		foreignType := makeTrimmingReservationType(t, db, 2)
+
+		makeTrimmingAppointment(t, db, clinicA, pet.ID, localType.ID, model.ReservationStatusPending)
+		makeTrimmingAppointment(t, db, clinicA, pet.ID, foreignType.ID, model.ReservationStatusPending)
+
+		count, err := repo.CountNonAccountingTrimmingByPetAndDate(ctx, clinicA, pet.ID, targetDate)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count, "only the clinic-owned reservation type may classify the appointment")
 	})
 }

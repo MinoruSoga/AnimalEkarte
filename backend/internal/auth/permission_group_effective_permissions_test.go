@@ -23,7 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupEffectivePermissionsTestDB は実効権限集約テスト用の DB を整備する。
@@ -31,8 +31,8 @@ import (
 // 本テストが追加で必要とする PermissionGroupRule も AutoMigrate + TRUNCATE 対象に含める。
 func setupEffectivePermissionsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Staff{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{}, &model.PermissionGroupRule{},
 	))
 	ensureStaffPermissionGroupsCreatedAt(t, db)

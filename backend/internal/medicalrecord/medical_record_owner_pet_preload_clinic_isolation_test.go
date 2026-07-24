@@ -25,7 +25,7 @@ func setupMedicalRecordOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestMedicalRecordRepository_FindByID_FindAll_DoesNotPreloadForeignOwnerPet(t *testing.T) {
+func TestMedicalRecordRepository_FindByIDAndFindAllRejectPollutedParent(t *testing.T) {
 	db := setupMedicalRecordOwnerPetPreloadDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
@@ -46,30 +46,18 @@ func TestMedicalRecordRepository_FindByID_FindAll_DoesNotPreloadForeignOwnerPet(
 	}
 	require.NoError(t, db.WithContext(ctx).Create(contaminated).Error)
 
-	t.Run("FindByID does not preload foreign owner/pet", func(t *testing.T) {
+	t.Run("FindByID rejects a parent with foreign owner/pet relations", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, contaminated.ID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, ownerBID, *got.OwnerID)
-		assert.Equal(t, petBID, *got.PetID)
-		assert.Nil(t, got.Owner, "foreign Owner must not be preloaded")
-		assert.Nil(t, got.Pet, "foreign Pet must not be preloaded")
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, got)
 	})
 
-	t.Run("FindAll does not preload foreign owner/pet", func(t *testing.T) {
+	t.Run("FindAll rejects a parent with foreign owner/pet relations", func(t *testing.T) {
 		items, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{}, 1, 50)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, total, int64(1))
-		var found *model.MedicalRecord
-		for i := range items {
-			if items[i].ID == contaminated.ID {
-				found = &items[i]
-				break
-			}
-		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.Owner, "foreign Owner must not be preloaded")
-		assert.Nil(t, found.Pet, "foreign Pet must not be preloaded")
+		assert.Zero(t, total)
+		assert.Empty(t, items, "polluted raw owner_id/pet_id must not reach the list response")
 	})
 
 	t.Run("FindAll does not use foreign owner or pet names as search predicates", func(t *testing.T) {
@@ -79,6 +67,185 @@ func TestMedicalRecordRepository_FindByID_FindAll_DoesNotPreloadForeignOwnerPet(
 			assert.Zero(t, total, "foreign relation name must not affect a clinic-local search")
 			assert.Empty(t, items)
 		}
+	})
+}
+
+func TestDB_MedicalRecordRepositoryFindByIDForClinicsCorrelatesRelationsToParentClinic(t *testing.T) {
+	type foreignRelations struct {
+		owner     *model.Owner
+		pet       *model.Pet
+		doctor    *model.Staff
+		enteredBy *model.Staff
+	}
+	tests := []struct {
+		name   string
+		mutate func(*model.MedicalRecord, foreignRelations)
+	}{
+		{
+			name: "foreign owner",
+			mutate: func(record *model.MedicalRecord, foreign foreignRelations) {
+				record.OwnerID = &foreign.owner.ID
+			},
+		},
+		{
+			name: "foreign pet",
+			mutate: func(record *model.MedicalRecord, foreign foreignRelations) {
+				record.PetID = &foreign.pet.ID
+			},
+		},
+		{
+			name: "foreign doctor",
+			mutate: func(record *model.MedicalRecord, foreign foreignRelations) {
+				record.DoctorID = &foreign.doctor.ID
+			},
+		},
+		{
+			name: "foreign entered-by staff",
+			mutate: func(record *model.MedicalRecord, foreign foreignRelations) {
+				record.EnteredBy = &foreign.enteredBy.ID
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := setupMedicalRecordOwnerPetPreloadDB(t)
+			repo := NewMedicalRecordRepository(db)
+			ctx := context.Background()
+			const clinicA, clinicB = uint64(1), uint64(2)
+			ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+			ownerA := makeTestOwner(t, db, clinicA, "詳細取得自院飼主")
+			petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "詳細取得自院ペット")
+			ownerB := makeTestOwner(t, db, clinicB, "詳細取得別院飼主")
+			petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "詳細取得別院ペット")
+			doctorB := makeMedicalRecordListStaff(t, db, clinicB, "詳細取得別院担当医", model.StaffTypeDoctor)
+			enteredByB := makeMedicalRecordListStaff(t, db, clinicB, "詳細取得別院入力者", model.StaffTypeNurse)
+			for _, staffID := range []uint64{doctorB.ID, enteredByB.ID} {
+				require.NoError(t, db.Create(&model.StaffClinicAssignment{
+					StaffID: staffID, ClinicID: clinicB,
+				}).Error)
+			}
+
+			record := &model.MedicalRecord{
+				ClinicID: clinicA, RecordNo: "DETAIL-PARENT-CORRELATION", Date: time.Now(),
+				OwnerID: &ownerA.ID, PetID: &petA.ID,
+			}
+			tt.mutate(record, foreignRelations{
+				owner: ownerB, pet: petB, doctor: doctorB, enteredBy: enteredByB,
+			})
+			require.NoError(t, db.WithContext(ctx).Create(record).Error)
+
+			got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, record.ID)
+
+			require.Error(t, err)
+			assert.True(t, apperrors.IsNotFound(err))
+			assert.Nil(t, got)
+		})
+	}
+
+	t.Run("staff assigned to the parent clinic remains visible when its primary clinic differs", func(t *testing.T) {
+		db := setupMedicalRecordOwnerPetPreloadDB(t)
+		repo := NewMedicalRecordRepository(db)
+		ctx := context.Background()
+		const clinicA, clinicB = uint64(1), uint64(2)
+		ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+		ownerA := makeTestOwner(t, db, clinicA, "詳細取得正常飼主")
+		petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "詳細取得正常ペット")
+		doctor := makeMedicalRecordListStaff(t, db, clinicB, "詳細取得兼務担当医", model.StaffTypeDoctor)
+		enteredBy := makeMedicalRecordListStaff(t, db, clinicB, "詳細取得兼務入力者", model.StaffTypeNurse)
+		for _, staffID := range []uint64{doctor.ID, enteredBy.ID} {
+			require.NoError(t, db.Create(&model.StaffClinicAssignment{
+				StaffID: staffID, ClinicID: clinicA,
+			}).Error)
+		}
+		record := &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "DETAIL-VALID-CROSS-PRIMARY-CLINIC", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &doctor.ID, EnteredBy: &enteredBy.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(record).Error)
+
+		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, record.ID)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.NotNil(t, got.Owner)
+		assert.Equal(t, ownerA.ID, got.Owner.ID)
+		require.NotNil(t, got.Pet)
+		assert.Equal(t, petA.ID, got.Pet.ID)
+		require.NotNil(t, got.Doctor)
+		assert.Equal(t, doctor.ID, got.Doctor.ID)
+		require.NotNil(t, got.EnteredByStaff)
+		assert.Equal(t, enteredBy.ID, got.EnteredByStaff.ID)
+	})
+
+	t.Run("soft-deleted same-clinic relations keep the historical parent", func(t *testing.T) {
+		db := setupMedicalRecordOwnerPetPreloadDB(t)
+		repo := NewMedicalRecordRepository(db)
+		ctx := context.Background()
+		const clinicID = uint64(1)
+		ensureVaccinationTestClinics(t, db, clinicID)
+
+		owner := makeTestOwner(t, db, clinicID, "履歴飼主")
+		pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "履歴ペット")
+		staff := makeMedicalRecordListStaff(t, db, clinicID, "退職済み担当者", model.StaffTypeDoctor)
+		assignment := &model.StaffClinicAssignment{StaffID: staff.ID, ClinicID: clinicID}
+		require.NoError(t, db.Create(assignment).Error)
+		record := &model.MedicalRecord{
+			ClinicID: clinicID, RecordNo: "DETAIL-HISTORICAL-RELATIONS", Date: time.Now(),
+			OwnerID: &owner.ID, PetID: &pet.ID, DoctorID: &staff.ID, EnteredBy: &staff.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(record).Error)
+
+		require.NoError(t, db.Delete(assignment).Error)
+		require.NoError(t, db.Delete(staff).Error)
+		require.NoError(t, db.Delete(pet).Error)
+		require.NoError(t, db.Delete(owner).Error)
+
+		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicID}, record.ID)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, record.ID, got.ID)
+		assert.Nil(t, got.Owner)
+		assert.Nil(t, got.Pet)
+		assert.Nil(t, got.Doctor)
+		assert.Nil(t, got.EnteredByStaff)
+	})
+
+	t.Run("vitals are correlated to the parent clinic and pet", func(t *testing.T) {
+		db := setupMedicalRecordOwnerPetPreloadDB(t)
+		repo := NewMedicalRecordRepository(db)
+		ctx := context.Background()
+		const clinicA, clinicB = uint64(1), uint64(2)
+		ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+		ownerA := makeTestOwner(t, db, clinicA, "バイタル自院飼主")
+		petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "バイタル自院ペット")
+		ownerB := makeTestOwner(t, db, clinicB, "バイタル別院飼主")
+		petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "バイタル別院ペット")
+		record := &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "DETAIL-VITAL-CORRELATION", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(record).Error)
+		recordID := record.ID
+		validVital := &model.VitalRecord{
+			ClinicID: clinicA, PetID: petA.ID, MedicalRecordID: &recordID, RecordedAt: time.Now(),
+		}
+		foreignVital := &model.VitalRecord{
+			ClinicID: clinicB, PetID: petB.ID, MedicalRecordID: &recordID, RecordedAt: time.Now(),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(validVital).Error)
+		require.NoError(t, db.WithContext(ctx).Create(foreignVital).Error)
+
+		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, record.ID)
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Len(t, got.Vitals, 1)
+		assert.Equal(t, validVital.ID, got.Vitals[0].ID)
 	})
 }
 

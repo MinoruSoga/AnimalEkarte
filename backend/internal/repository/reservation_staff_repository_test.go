@@ -33,6 +33,7 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{},
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.Reservation{},
 		&model.StaffReservationExclusion{}, &model.StaffReservationCapability{},
@@ -40,6 +41,7 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Exec(
 		"TRUNCATE TABLE staff_reservation_exclusions, staff_reservation_capabilities, "+
 			"staff_clinic_assignments, reservation_types, staffs CASCADE").Error)
+	seedClinicsForFK(t, db, 1, 2, 3)
 	return db
 }
 
@@ -74,6 +76,19 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 		require.NoError(t, err)
 		for _, s := range staffs {
 			assert.NotEqual(t, staff.ID, s.ID, "ソフトデリート済みスタッフは一覧に含まれてはならない")
+		}
+	})
+
+	t.Run("ソフトデリート済み所属だけのスタッフは含まれない", func(t *testing.T) {
+		staff := makeDoctorAssignedToClinic(t, db, clinicA, "FindAll所属解除テスト用スタッフ")
+		require.NoError(t, db.WithContext(ctx).
+			Where("staff_id = ? AND clinic_id = ?", staff.ID, clinicA).
+			Delete(&model.StaffClinicAssignment{}).Error)
+
+		staffs, err := repo.FindAll(ctx, clinicA)
+		require.NoError(t, err)
+		for _, item := range staffs {
+			assert.NotEqual(t, staff.ID, item.ID, "soft-delete 済み所属は一覧権限を与えてはならない")
 		}
 	})
 
@@ -177,10 +192,10 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff := makeDoctor(t, db, clinicA, "除外一覧単数テスト用スタッフ")
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧単数テスト用スタッフ")
 	rt1 := makeReservationType(t, db, clinicA)
 	rt2 := makeReservationType(t, db, clinicA)
-	otherStaff := makeDoctor(t, db, clinicA, "除外一覧単数対象外スタッフ")
+	otherStaff := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧単数対象外スタッフ")
 
 	require.NoError(t, db.WithContext(ctx).Create(&model.StaffReservationExclusion{
 		StaffID: staff.ID, ReservationTypeID: rt1.ID,
@@ -193,7 +208,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T
 	}).Error)
 
 	t.Run("指定staffIDの除外設定のみを返す", func(t *testing.T) {
-		items, err := repo.FindAllExcludedReservationTypes(ctx, staff.ID)
+		items, err := repo.FindAllExcludedReservationTypes(ctx, clinicA, staff.ID)
 		require.NoError(t, err)
 		require.Len(t, items, 2, "staff の除外設定2件のみ返るべき（他staffの1件は含まれない）")
 
@@ -207,25 +222,54 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T
 	})
 
 	t.Run("除外設定が無いstaffIDは空", func(t *testing.T) {
-		unrelated := makeDoctor(t, db, clinicA, "除外一覧単数無関係スタッフ")
-		items, err := repo.FindAllExcludedReservationTypes(ctx, unrelated.ID)
+		unrelated := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧単数無関係スタッフ")
+		items, err := repo.FindAllExcludedReservationTypes(ctx, clinicA, unrelated.ID)
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
 
 	t.Run("ソフトデリート済みReservationTypeはPreloadされない", func(t *testing.T) {
 		rtDeleted := makeReservationType(t, db, clinicA)
-		s := makeDoctor(t, db, clinicA, "除外一覧削除区分テスト用スタッフ")
+		s := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧削除区分テスト用スタッフ")
 		require.NoError(t, db.WithContext(ctx).Create(&model.StaffReservationExclusion{
 			StaffID: s.ID, ReservationTypeID: rtDeleted.ID,
 		}).Error)
 		require.NoError(t, db.WithContext(ctx).Delete(&model.ReservationType{}, rtDeleted.ID).Error)
 
-		items, err := repo.FindAllExcludedReservationTypes(ctx, s.ID)
+		items, err := repo.FindAllExcludedReservationTypes(ctx, clinicA, s.ID)
 		require.NoError(t, err)
-		require.Len(t, items, 1, "除外行自体はソフトデリートされた区分でも残るべき")
-		assert.Nil(t, items[0].ReservationType, "deleted_at IS NULL 条件により削除済み区分はPreloadされないべき")
+		assert.Empty(t, items, "削除済み予約区分のjunction行はレスポンス対象から除外する")
 	})
+}
+
+func TestReservationStaffRepository_FindAllExcludedReservationTypes_DoesNotLeakSharedStaffData(t *testing.T) {
+	db := setupReservationStaffRepoTestDB(t)
+	repo := NewReservationStaffRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	staff := makeDoctor(t, db, clinicA, "除外一覧多施設スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicA)
+	makeStaffClinicAssignment(t, db, staff.ID, clinicB)
+	typeA := makeReservationType(t, db, clinicA)
+	typeB := makeReservationType(t, db, clinicB)
+	require.NoError(t, db.Create(&model.StaffReservationExclusion{
+		StaffID:           staff.ID,
+		ReservationTypeID: typeA.ID,
+	}).Error)
+	require.NoError(t, db.Create(&model.StaffReservationExclusion{
+		StaffID:           staff.ID,
+		ReservationTypeID: typeB.ID,
+	}).Error)
+
+	items, err := repo.FindAllExcludedReservationTypes(ctx, clinicA, staff.ID)
+
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, typeA.ID, items[0].ReservationTypeID)
+	require.NotNil(t, items[0].ReservationType)
+	assert.Equal(t, clinicA, items[0].ReservationType.ClinicID)
+	assert.NotEqual(t, typeB.ID, items[0].ReservationTypeID)
 }
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t *testing.T) {
@@ -234,9 +278,9 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t 
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	staff1 := makeDoctor(t, db, clinicA, "除外一覧複数テスト用スタッフ1")
-	staff2 := makeDoctor(t, db, clinicA, "除外一覧複数テスト用スタッフ2")
-	staff3 := makeDoctor(t, db, clinicA, "除外一覧複数対象外スタッフ")
+	staff1 := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧複数テスト用スタッフ1")
+	staff2 := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧複数テスト用スタッフ2")
+	staff3 := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧複数対象外スタッフ")
 	rt1 := makeReservationType(t, db, clinicA)
 	rt2 := makeReservationType(t, db, clinicA)
 
@@ -251,7 +295,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t 
 	}).Error)
 
 	t.Run("指定staffIDsの除外設定のみを一括取得する（N+1回避）", func(t *testing.T) {
-		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, []uint64{staff1.ID, staff2.ID})
+		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, clinicA, []uint64{staff1.ID, staff2.ID})
 		require.NoError(t, err)
 		require.Len(t, items, 2, "staff1・staff2の除外設定のみ返るべき（staff3は含まれない）")
 
@@ -265,14 +309,14 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t 
 	})
 
 	t.Run("空のstaffIDsはnilを返しエラーなし", func(t *testing.T) {
-		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, []uint64{})
+		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, clinicA, []uint64{})
 		require.NoError(t, err)
 		assert.Nil(t, items)
 	})
 
 	t.Run("該当する除外設定がないstaffIDsは空", func(t *testing.T) {
-		unrelated := makeDoctor(t, db, clinicA, "除外一覧複数無関係スタッフ")
-		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, []uint64{unrelated.ID})
+		unrelated := makeDoctorAssignedToClinic(t, db, clinicA, "除外一覧複数無関係スタッフ")
+		items, err := repo.FindAllExcludedReservationTypesByStaffIDs(ctx, clinicA, []uint64{unrelated.ID})
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})

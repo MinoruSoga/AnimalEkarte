@@ -4,7 +4,8 @@ package repository
 // 含むため repository 残置。R④（appointment）移動時に internal/reservation へ移す。
 
 // reservation_owner_pet_preload_clinic_isolation_test.go — AUD-001
-// 汚染された Owner/Pet/LineCustomer FK を持つ予約から、別 clinic の個人情報が Preload されないことを検証する。
+// ReservationRepository は汚染された Owner/Pet FK を持つ予約を親行ごと fail-closed にし、
+// ReservationAdminRepository は別 clinic の Owner/Pet/LineCustomer を Preload しないことを検証する。
 
 import (
 	"context"
@@ -34,7 +35,7 @@ func setupReservationOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestReservationRepository_FindAll_FindByID_DoesNotPreloadForeignOwnerPet(t *testing.T) {
+func TestReservationRepository_FindAll_FindByID_FailClosedForForeignOwnerPet(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
@@ -61,30 +62,21 @@ func TestReservationRepository_FindAll_FindByID_DoesNotPreloadForeignOwnerPet(t 
 	}
 	require.NoError(t, db.WithContext(ctx).Create(contaminated).Error)
 
-	t.Run("FindByID does not preload foreign owner/pet", func(t *testing.T) {
+	t.Run("FindByID returns NotFound for a corrupted parent", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, contaminated.ID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, ownerBID, *got.OwnerID)
-		assert.Equal(t, petBID, *got.PetID)
-		assert.Nil(t, got.Owner, "foreign Owner must not be preloaded")
-		assert.Nil(t, got.Pet, "foreign Pet must not be preloaded")
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err), "corrupted reservation must fail closed as NotFound: %v", err)
 	})
 
-	t.Run("FindAll does not preload foreign owner/pet", func(t *testing.T) {
+	t.Run("FindAll excludes a corrupted parent from rows and count", func(t *testing.T) {
 		items, total, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 50, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, total, int64(1))
-		var found *model.Reservation
+		assert.Zero(t, total)
 		for i := range items {
-			if items[i].ID == contaminated.ID {
-				found = &items[i]
-				break
-			}
+			assert.NotEqual(t, contaminated.ID, items[i].ID, "corrupted reservation must be excluded")
 		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.Owner, "foreign Owner must not be preloaded")
-		assert.Nil(t, found.Pet, "foreign Pet must not be preloaded")
+		assert.Empty(t, items)
 	})
 }
 

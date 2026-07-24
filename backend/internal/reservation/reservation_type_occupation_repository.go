@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationTypeOccupationRepository は職種紐付けの永続化インターフェース
@@ -43,7 +43,7 @@ func (r *reservationTypeOccupationRepository) FindAll(
 	var results []model.ReservationTypeOccupation
 	err := r.db.WithContext(ctx).
 		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").
 		Find(&results).Error
@@ -59,7 +59,7 @@ func (r *reservationTypeOccupationRepository) FindByID(
 	var rto model.ReservationTypeOccupation
 	err := r.db.WithContext(ctx).
 		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ? AND occupation_id = ?", reservationTypeID, occupationID).
 		First(&rto).Error
 	if err != nil {
@@ -81,7 +81,7 @@ func (r *reservationTypeOccupationRepository) Delete(
 	ctx context.Context, clinicID, reservationTypeID, occupationID uint64,
 ) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ? AND occupation_id = ?", reservationTypeID, occupationID).
 		Delete(&model.ReservationTypeOccupation{})
 	if result.Error != nil {

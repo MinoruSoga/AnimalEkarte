@@ -71,6 +71,20 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	return fields
 }
 
+func effectiveCheckupRelations(existing *model.Checkup, input *UpdateCheckupInput) (petID, doctorID *uint64) {
+	petID = existing.PetID
+	doctorID = existing.DoctorID
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	if input.DoctorIDClear != nil && *input.DoctorIDClear {
+		doctorID = nil
+	} else if input.DoctorID != nil {
+		doctorID = input.DoctorID
+	}
+	return petID, doctorID
+}
+
 type CheckupService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error)
@@ -82,12 +96,26 @@ type CheckupService interface {
 	Wait()
 }
 
+type checkupMedicalRecordRepository interface {
+	medicalRecordFinder
+	medicalRecordLocker
+}
+
+// CheckupWriteDependencies carries the transaction and clinic-scoped relation
+// verifier required by Checkup Create/Update.
+type CheckupWriteDependencies struct {
+	RelationVerifier ClinicalRelationVerifier
+	Transactor       Transactor
+}
+
 type checkupService struct {
 	repo                 CheckupRepository
-	medicalRecordRepo    medicalRecordFinder
+	medicalRecordRepo    checkupMedicalRecordRepository
 	checkupTypeRepo      CheckupTypeRepository
 	lstepDeliveryTrigger checkupFollowUpTrigger
 	tagSyncSvc           checkupTagSyncer
+	relationVerifier     ClinicalRelationVerifier
+	transactor           Transactor
 	// wg は健診フォローアップトリガーの fire-and-forget goroutine を追跡する（BE-refactor.md B-1）。
 	wg sync.WaitGroup
 }
@@ -98,8 +126,34 @@ func (s *checkupService) Wait() {
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo CheckupRepository, medicalRecordRepo medicalRecordFinder, checkupTypeRepo CheckupTypeRepository, lstepDeliveryTrigger checkupFollowUpTrigger, tagSyncSvc checkupTagSyncer) CheckupService {
-	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, checkupTypeRepo: checkupTypeRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
+func NewCheckupService(
+	repo CheckupRepository,
+	medicalRecordRepo checkupMedicalRecordRepository,
+	checkupTypeRepo CheckupTypeRepository,
+	lstepDeliveryTrigger checkupFollowUpTrigger,
+	tagSyncSvc checkupTagSyncer,
+	writeDependencies ...CheckupWriteDependencies,
+) CheckupService {
+	var relationVerifier ClinicalRelationVerifier
+	var transactor Transactor
+	if len(writeDependencies) > 0 {
+		relationVerifier = writeDependencies[0].RelationVerifier
+		transactor = writeDependencies[0].Transactor
+	} else {
+		// A concrete dependency may intentionally implement the narrow views together.
+		// Production composition passes CheckupWriteDependencies explicitly.
+		relationVerifier, _ = medicalRecordRepo.(ClinicalRelationVerifier)
+		transactor, _ = medicalRecordRepo.(Transactor)
+	}
+	return &checkupService{
+		repo:                 repo,
+		medicalRecordRepo:    medicalRecordRepo,
+		checkupTypeRepo:      checkupTypeRepo,
+		lstepDeliveryTrigger: lstepDeliveryTrigger,
+		tagSyncSvc:           tagSyncSvc,
+		relationVerifier:     relationVerifier,
+		transactor:           transactor,
+	}
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -127,43 +181,58 @@ func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByC
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
-	parent, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find medical record")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("checkup write transaction dependency is required")
 	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
-	}
-	// クロステナント write 防止: checkup_type が caller の clinic に属することを検証する。
-	if input.CheckupTypeID != 0 {
-		if _, err := s.checkupTypeRepo.FindByID(ctx, input.ClinicID, input.CheckupTypeID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify checkup type ownership")
+
+	var created *model.Checkup
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
 		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
+		}
+		if err := validateClinicalRelations(txCtx, s.relationVerifier, input.ClinicID, parent, input.PetID, input.DoctorID); err != nil {
+			return err
+		}
+
+		// クロステナント write 防止: checkup_type が caller の clinic に属することを検証する。
+		if input.CheckupTypeID != 0 {
+			if _, err := s.checkupTypeRepo.FindByID(txCtx, input.ClinicID, input.CheckupTypeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify checkup type ownership")
+			}
+		}
+		checkup := &model.Checkup{
+			ClinicID:        input.ClinicID,
+			MedicalRecordID: medicalRecordID,
+			CheckupTypeID:   input.CheckupTypeID,
+			PetID:           input.PetID,
+			Date:            input.Date,
+			NextDate:        input.NextDate,
+			DoctorID:        input.DoctorID,
+			Result:          input.Result,
+		}
+		if err := s.repo.Create(txCtx, checkup); err != nil {
+			slog.ErrorContext(txCtx, "failed to create checkup", "error", err)
+			return apperrors.Wrap(err, "failed to create checkup")
+		}
+		created, err = s.repo.FindByID(txCtx, input.ClinicID, checkup.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get checkup after create", "error", err)
+			return apperrors.Wrap(err, "failed to get checkup after create")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	checkup := &model.Checkup{
-		ClinicID:        input.ClinicID,
-		MedicalRecordID: medicalRecordID,
-		CheckupTypeID:   input.CheckupTypeID,
-		PetID:           input.PetID,
-		Date:            input.Date,
-		NextDate:        input.NextDate,
-		DoctorID:        input.DoctorID,
-		Result:          input.Result,
-	}
-	if err := s.repo.Create(ctx, checkup); err != nil {
-		slog.ErrorContext(ctx, "failed to create checkup", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create checkup")
-	}
+
 	slog.InfoContext(ctx, "checkup created",
 		slog.Uint64("clinic_id", input.ClinicID),
-		slog.Uint64("checkup_id", checkup.ID),
+		slog.Uint64("checkup_id", created.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	created, err := s.repo.FindByID(ctx, input.ClinicID, checkup.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup after create", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get checkup after create")
-	}
 
 	// 健診フォローアップトリガー（非同期・非致命的）
 	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
@@ -190,72 +259,102 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 }
 
 func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error) {
-	// 親カルテ所属確認（clinic_id スコープ済み）
-	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get checkup")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("checkup write transaction dependency is required")
 	}
-	if existing.MedicalRecordID != medicalRecordID {
-		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
-	}
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
-	}
-	// クロステナント write 防止: 貼り替え先 checkup_type の所有権を検証する。
-	if err := validateOwnedMasterFK(ctx, "checkup type", clinicID, input.CheckupTypeID,
-		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.checkupTypeRepo.FindByID(actx, cid, mid)
+
+	var updated *model.Checkup
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		existing, err := s.repo.FindByID(txCtx, clinicID, checkupID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get checkup", "error", err)
+			return apperrors.Wrap(err, "failed to get checkup")
+		}
+		if existing.MedicalRecordID != medicalRecordID {
+			return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+		}
+		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
+		}
+		petID, doctorID := effectiveCheckupRelations(existing, input)
+		if err := validateClinicalRelations(txCtx, s.relationVerifier, clinicID, parent, petID, doctorID); err != nil {
 			return err
-		}); err != nil {
+		}
+
+		// クロステナント write 防止: 貼り替え先 checkup_type の所有権を検証する。
+		if err := validateOwnedMasterFK(txCtx, "checkup type", clinicID, input.CheckupTypeID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.checkupTypeRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+		fields := buildCheckupUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		if err := s.repo.Update(txCtx, clinicID, checkupID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update checkup", "error", err)
+			return apperrors.Wrap(err, "failed to update checkup")
+		}
+		updated, err = s.repo.FindByID(txCtx, clinicID, checkupID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get checkup after update", "error", err)
+			return apperrors.Wrap(err, "failed to get checkup after update")
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	fields := buildCheckupUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	if err := s.repo.Update(ctx, clinicID, checkupID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update checkup", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update checkup")
-	}
+
 	slog.InfoContext(ctx, "checkup updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("checkup_id", checkupID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	updated, err := s.repo.FindByID(ctx, clinicID, checkupID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get checkup after update")
-	}
 	s.resyncOwnerCheckupTags(ctx, clinicID, updated)
 	return updated, nil
 }
 
 func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error {
-	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to get checkup")
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("checkup write transaction dependency is required")
 	}
-	if existing.MedicalRecordID != medicalRecordID {
-		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+
+	var existing *model.Checkup
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Keep the same parent-before-child order as Create/Update so concurrent finalize and
+		// checkup writes cannot deadlock while the parent status guard remains stable.
+		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
+		}
+
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, checkupID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock checkup")
+		}
+		if locked.MedicalRecordID != medicalRecordID {
+			return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+		}
+		if err := s.repo.Delete(txCtx, clinicID, checkupID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete checkup", "error", err, "clinic_id", clinicID, "checkup_id", checkupID)
+			return apperrors.Wrap(err, "failed to delete checkup")
+		}
+		existing = locked
+		return nil
+	}); err != nil {
+		return err
 	}
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, checkupID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete checkup", "error", err, "clinic_id", clinicID, "checkup_id", checkupID)
-		return apperrors.Wrap(err, "failed to delete checkup")
-	}
+
 	slog.InfoContext(ctx, "checkup deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("checkup_id", checkupID),

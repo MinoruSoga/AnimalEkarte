@@ -8,8 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // lastHandlerSegment は internal/medicalrecord の同名ヘルパーと同一実装。
@@ -34,7 +32,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	h := NewHandler(
 		NewLstepSettingsHandler(nil, noopPermission),
 		NewLineSendHandler(nil, noopPermission),
-		NewLineLinkHandler(nil, func(_ *gin.Context, _ *model.Owner) {}, noopPermission),
+		NewLineLinkHandler(nil, noopPermission),
 		NewLineCustomerHandler(nil, noopPermission),
 		nil,
 		nil,

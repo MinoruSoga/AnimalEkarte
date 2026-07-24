@@ -17,6 +17,7 @@ type mockBillingConfirmationRepository struct {
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
 	createFn                func(ctx context.Context, review *model.BillingConfirmation) error
 	updateFn                func(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error
+	lockActiveActorFn       func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockBillingConfirmationRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
@@ -29,6 +30,13 @@ func (m *mockBillingConfirmationRepository) Create(ctx context.Context, review *
 
 func (m *mockBillingConfirmationRepository) Update(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error {
 	return m.updateFn(ctx, clinicID, reviewID, fields)
+}
+
+func (m *mockBillingConfirmationRepository) LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error {
+	if m.lockActiveActorFn == nil {
+		return nil
+	}
+	return m.lockActiveActorFn(ctx, clinicID, staffID)
 }
 
 // okMedRecForBilling は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
@@ -188,10 +196,15 @@ func TestBillingConfirmationService_Confirm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			findCount := 0
 			repo := &mockBillingConfirmationRepository{
 				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 					if tt.repoFindErr != nil {
 						return nil, tt.repoFindErr
+					}
+					findCount++
+					if findCount > 1 && tt.repoReturnReview != nil {
+						return tt.repoReturnReview, nil
 					}
 					return tt.repoReview, nil
 				},
@@ -273,10 +286,15 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			findCount := 0
 			repo := &mockBillingConfirmationRepository{
 				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 					if tt.repoFindErr != nil {
 						return nil, tt.repoFindErr
+					}
+					findCount++
+					if findCount > 1 && tt.repoReturnReview != nil {
+						return tt.repoReturnReview, nil
 					}
 					return tt.repoReview, nil
 				},
@@ -380,8 +398,8 @@ func TestBillingConfirmationService_Confirm_GetOrCreateError(t *testing.T) {
 	assert.Nil(t, review)
 }
 
-// TestBillingConfirmationService_Confirm_FindAfterUpdateError は Update 成功後の
-// 再取得（FindByMedicalRecordID）失敗が Confirm のエラーとして伝播することを検証する。
+// TestBillingConfirmationService_Confirm_FindAfterUpdateError は Update 後の
+// transaction 内再取得失敗が Confirm のエラーとして伝播することを検証する。
 func TestBillingConfirmationService_Confirm_FindAfterUpdateError(t *testing.T) {
 	findCount := 0
 	repo := &mockBillingConfirmationRepository{
@@ -437,8 +455,8 @@ func TestBillingConfirmationService_Return_NotConfirmedRejected(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
-// TestBillingConfirmationService_Return_FindAfterUpdateError は Update 成功後の
-// 再取得（FindByMedicalRecordID）失敗が Return のエラーとして伝播することを検証する。
+// TestBillingConfirmationService_Return_FindAfterUpdateError は Update 後の
+// transaction 内再取得失敗が Return のエラーとして伝播することを検証する。
 func TestBillingConfirmationService_Return_FindAfterUpdateError(t *testing.T) {
 	findCount := 0
 	repo := &mockBillingConfirmationRepository{
@@ -515,4 +533,60 @@ func TestBillingConfirmationService_Return_RejectsFinalizedParent(t *testing.T) 
 	assert.Nil(t, review)
 	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの会計確認差し戻しは Conflict(409) であるべき: %v", err)
 	assert.False(t, updateCalled, "確定済みカルテの会計確認は更新されてはならない")
+}
+
+func TestBillingConfirmationService_Confirm_RejectsActorWithoutActiveClinicAssignment(t *testing.T) {
+	updateCalled := false
+	actorChecked := false
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+		lockActiveActorFn: func(_ context.Context, clinicID, staffID uint64) error {
+			actorChecked = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(77), staffID)
+			return apperrors.WrapForbidden("active clinic assignment is required")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
+
+	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 77})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.True(t, actorChecked, "authenticated actor must be revalidated inside the write transaction")
+	assert.False(t, updateCalled, "actor without an active clinic assignment must not be persisted")
+}
+
+func TestBillingConfirmationService_Return_RejectsActorWithoutActiveClinicAssignment(t *testing.T) {
+	updateCalled := false
+	actorChecked := false
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusConfirmed}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+		lockActiveActorFn: func(_ context.Context, clinicID, staffID uint64) error {
+			actorChecked = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(88), staffID)
+			return apperrors.WrapForbidden("active clinic assignment is required")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
+
+	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 88, ReturnReason: "reason"})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.True(t, actorChecked, "authenticated actor must be revalidated inside the write transaction")
+	assert.False(t, updateCalled, "actor without an active clinic assignment must not be persisted")
 }

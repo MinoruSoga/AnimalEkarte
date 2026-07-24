@@ -118,16 +118,11 @@ func ParseClinicIDsParam(raw string) ([]uint64, error) {
 	return slices.Compact(requested), nil
 }
 
-// AuthorizeClinicIDs verifies that every requested clinic ID is either allowed for a
-// system_admin caller or a member of the caller's assigned clinic_ids.
+// AuthorizeClinicIDs verifies that every requested clinic ID is present in the
+// request-time trusted clinic_ids authority. The middleware resolves that set from
+// current active assignments for regular staff and from all active clinics for a
+// system administrator, so neither caller type may bypass this subset check.
 func AuthorizeClinicIDs(c *gin.Context, requested []uint64) bool {
-	isAdmin, ok := ExtractIsSystemAdmin(c)
-	if !ok {
-		return false
-	}
-	if isAdmin {
-		return true
-	}
 	allowed, ok := ExtractClinicIDs(c)
 	if !ok {
 		return false
@@ -145,7 +140,7 @@ func AuthorizeClinicIDs(c *gin.Context, requested []uint64) bool {
 // クエリパラメータ clinic_ids（カンマ区切り）が:
 //   - 無い場合: JWT/X-Clinic-ID 由来の現在の医院のみ（従来挙動・後方互換）
 //   - ある場合: 所属医院 (clinic_ids context) の部分集合であることを検証して採用。
-//     1件でも所属外が含まれれば 403。system_admin は X-Clinic-ID 検証と同様に全医院を許可。
+//     1件でも現在のactive clinic権限外なら403。system_adminのcontextには全active clinicが入る。
 //
 // 戻り値は必ず非空。検証失敗時は即座にHTTPエラーレスポンスを書いて (nil, false) を返す。
 // 呼び出し元は false 時に即 return すること。

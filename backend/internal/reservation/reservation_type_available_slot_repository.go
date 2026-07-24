@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationTypeAvailableSlotRepository は予約可能開始時刻の永続化インターフェース
@@ -33,7 +33,7 @@ func (r *reservationTypeAvailableSlotRepository) FindAll(
 ) ([]model.ReservationTypeAvailableSlot, error) {
 	var results []model.ReservationTypeAvailableSlot
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("available_type ASC, day_of_week ASC, specific_date ASC, start_time ASC, id ASC").
 		Find(&results).Error
@@ -48,7 +48,7 @@ func (r *reservationTypeAvailableSlotRepository) FindByID(
 ) (*model.ReservationTypeAvailableSlot, error) {
 	var result model.ReservationTypeAvailableSlot
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&result).Error
 	if err != nil {
@@ -70,7 +70,7 @@ func (r *reservationTypeAvailableSlotRepository) Delete(
 	ctx context.Context, clinicID, id uint64,
 ) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.ReservationTypeAvailableSlot{})
 	if result.Error != nil {

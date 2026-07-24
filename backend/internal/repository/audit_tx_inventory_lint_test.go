@@ -478,11 +478,11 @@ func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 
 // TestClinicalResultAuditTxInventory_DiscoveryReachesModuleWideAndNestedPackages pins that the
 // module-wide discovery set (moduleInternalSource, backed by lintscan.WalkInternalTreeT; BE9-1)
-// walkRepositoryForClinicalResultDeletes iterates over reaches: (a) 1-level+ repository domain
-// subpackages, (b) at least one file from a DIFFERENT top-level internal/ package, and (c)
-// 2+-level nesting (scanner capability, proven via a synthetic tree — see
+// walkRepositoryForClinicalResultDeletes iterates over reaches: (a) a real 2+-level production
+// package, (b) at least one file from a DIFFERENT top-level internal/ package, and (c) arbitrary
+// deeper nesting (scanner capability, proven via a synthetic tree — see
 // assertLintscanReachesTwoOrMoreNestingLevels). Also smoke-exercises the actual production walk
-// and confirms every reached repository subpackage file's raw source is independently parseable
+// and confirms every reached nested package file's raw source is independently parseable
 // via analyzeFileForClinicalResultDeletes.
 //
 // Renamed + strengthened from the pre-BE9-1
@@ -495,24 +495,19 @@ func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 // packages, and depth) and their source is parseable today.
 func TestClinicalResultAuditTxInventory_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
 	tree := moduleInternalSource(t)
-	nested := 0
-	for n := range tree {
-		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
-			nested++
-		}
-	}
-	if nested == 0 {
-		t.Fatal("no 1-level+ subpackage repository files in the module-wide discovered set walkRepositoryForClinicalResultDeletes iterates over")
+	if _, ok := tree["infra/smtp/sender.go"]; !ok {
+		t.Fatal("module-wide discovery does not include infra/smtp/sender.go; " +
+			"walkRepositoryForClinicalResultDeletes may have narrowed and would silently drop nested production packages")
 	}
 	// Smoke-exercise the actual production walk against the current discovered set — proves it
-	// does not t.Fatal/panic while subpackage AND non-repository files are present.
+	// does not t.Fatal/panic while nested and top-level target-package files are present.
 	_ = walkRepositoryForClinicalResultDeletes(t)
 	for rawKey, src := range tree {
-		if !strings.HasPrefix(rawKey, "repository/") || !strings.Contains(legacyLintKey(rawKey), "/") {
+		if strings.Count(rawKey, "/") < 2 {
 			continue
 		}
 		if _, err := analyzeFileForClinicalResultDeletes(legacyLintKey(rawKey), src); err != nil {
-			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse module-wide subpackage file %s: %v — "+
+			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse module-wide nested package file %s: %v — "+
 				"this lint's walk would silently skip it", rawKey, err)
 		}
 	}

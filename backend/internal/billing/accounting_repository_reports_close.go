@@ -17,7 +17,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)}
-	completedCTE := completedBillingsCTE("id")
+	completedCTE := completedBillingsCTE("id, clinic_id")
 
 	// Query 1: 支払方法別合計 (payment_splits のみ)
 	type pmRow struct {
@@ -29,7 +29,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		completedCTE+`
 		SELECT ps.payment_method_id, COALESCE(SUM(ps.amount), 0) AS amount
 		FROM payment_splits ps
-		WHERE ps.billing_id IN (SELECT id FROM completed_billings)
+		JOIN completed_billings cb
+		  ON cb.id = ps.billing_id
+		 AND cb.clinic_id = ps.clinic_id
 		GROUP BY ps.payment_method_id
 		`, cArgs...).Scan(&pmRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate payment splits for close")
@@ -81,7 +83,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	var detailRows []detailRow
 	if err := r.db.WithContext(ctx).Raw(`
 		WITH completed_billings AS (
-			SELECT id, completed_at, owner_id, pet_id, hospitalization_id
+			SELECT id, clinic_id, completed_at, owner_id, pet_id, hospitalization_id
 			FROM billings
 			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
 			  -- G7-3: sargable な直接比較に統一(CTE本体と同型)。DSN TimeZone=Asia/Tokyo 固定(config.go)のため
@@ -90,10 +92,12 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 			  AND completed_at < ?
 		),
 		refund_totals AS (
-			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
-			FROM billing_refunds
-			WHERE billing_id IN (SELECT id FROM completed_billings)
-			GROUP BY billing_id
+			SELECT br.billing_id, COALESCE(SUM(br.amount), 0) AS refund_amount
+			FROM billing_refunds br
+			JOIN completed_billings cb
+			  ON cb.id = br.billing_id
+			 AND cb.clinic_id = br.clinic_id
+			GROUP BY br.billing_id
 		),
 		billing_categories AS (
 			SELECT billing_id, MIN(category::text) AS category
@@ -112,10 +116,19 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 			ps.amount AS billing_amount,
 			COALESCE(rt.refund_amount, 0) AS refund_amount
 		FROM completed_billings cb
-		JOIN payment_splits ps ON ps.billing_id = cb.id
+		JOIN payment_splits ps
+		  ON ps.billing_id = cb.id
+		 AND ps.clinic_id = cb.clinic_id
 		JOIN billing_categories bc ON bc.billing_id = cb.id
-		LEFT JOIN owners o ON o.id = cb.owner_id AND o.deleted_at IS NULL
-		LEFT JOIN pets p ON p.id = cb.pet_id AND p.deleted_at IS NULL
+		LEFT JOIN owners o
+		  ON o.id = cb.owner_id
+		 AND o.clinic_id = cb.clinic_id
+		 AND o.deleted_at IS NULL
+		LEFT JOIN pets p
+		  ON p.id = cb.pet_id
+		 AND p.clinic_id = cb.clinic_id
+		 AND p.owner_id = cb.owner_id
+		 AND p.deleted_at IS NULL
 		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
 		ORDER BY cb.completed_at ASC
 	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)).

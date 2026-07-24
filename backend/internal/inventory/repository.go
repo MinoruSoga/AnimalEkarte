@@ -15,10 +15,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// Repository is the temporary full persistence surface retained for the legacy
-// repository aggregator. Domain consumers already depend on narrower,
-// consumer-owned interfaces. Remove this exported interface in BE9-2F after
-// the aggregator and its compatibility facade are removed.
+// Repository is the inventory persistence surface used by the domain service
+// and type-safe application composition.
 type Repository interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)

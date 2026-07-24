@@ -21,15 +21,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupPermissionGroupRepositoryTestDB は本ファイルの全テストで共有する DB を整備する。
 func setupPermissionGroupRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{},
 		&model.PermissionGroupRule{}, &model.StaffPermissionGroup{},
 	))
@@ -293,7 +293,7 @@ func TestPermissionGroupRepository_UpdateRules_SerializesParentDeletion(t *testi
 		if err := tx.Exec("SET LOCAL lock_timeout = '100ms'").Error; err != nil {
 			return err
 		}
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+		txCtx := persistence.WithTxValue(ctx, tx)
 		return repo.UpdateRules(txCtx, clinicID, group.ID, []model.PermissionGroupRule{
 			{Resource: "billing", CanView: true},
 		})

@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
@@ -35,7 +35,7 @@ func (r *lineReservationSettingRepository) FindAll(ctx context.Context) ([]model
 
 func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	var setting model.LineReservationSetting
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).First(&setting).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&setting).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_reservation_setting", "clinic")
 	}
@@ -44,7 +44,7 @@ func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, c
 
 func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns(lineReservationSettingUpdatableColumns()),

@@ -261,6 +261,7 @@ func TestListAccountings(t *testing.T) {
 			setupCtx: func(c *gin.Context) {
 				c.Set("clinic_id", "1")
 				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
 			},
 			svc: &mockAccountingService{
 				listForClinicsFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
@@ -1031,6 +1032,7 @@ func TestGetDailySummary(t *testing.T) {
 			setupCtx: func(c *gin.Context) {
 				c.Set("clinic_id", "1")
 				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
 			},
 			svc: &mockAccountingService{
 				getDailySummaryForClinicsFn: func(_ context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error) {
@@ -1066,6 +1068,7 @@ func TestGetDailySummary(t *testing.T) {
 			setupCtx: func(c *gin.Context) {
 				c.Set("clinic_id", "1")
 				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
 			},
 			svc: &mockAccountingService{
 				getDailySummaryForClinicsFn: func(_ context.Context, _ []uint64, _ string) ([]ClinicDailySummary, error) {

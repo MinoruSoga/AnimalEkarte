@@ -71,7 +71,7 @@ describe("notifySchedulerFailures", () => {
     expect(request.headers.get("Idempotency-Key")).toBe(
       `staging:${SCHEDULER_NAME}:1:no_show:transport`,
     );
-    expect(request.redirect).toBe("error");
+    expect(request.redirect).toBe("manual");
     expect(request.headers.get("Authorization")).toBe("Bearer alert-secret");
     const payload = await request.json();
     expect(payload).toEqual({
@@ -228,7 +228,7 @@ describe("notifySchedulerFailures", () => {
     errorLog.mockRestore();
   });
 
-  it("includes environment in alert idempotency and rejects redirects", async () => {
+  it("includes environment in alert idempotency and rejects all redirect indicators", async () => {
     const failure = {
       disposition: "executed" as const,
       ledger: {
@@ -247,38 +247,62 @@ describe("notifySchedulerFailures", () => {
       },
     };
     const requests: Request[] = [];
+    const followedRedirect = new Response(null, { status: 204 });
+    Object.defineProperty(followedRedirect, "redirected", { value: true });
+    const responses = [
+      followedRedirect,
+      new Response(null, {
+        status: 302,
+        headers: { Location: "https://attacker.example.com/alerts" },
+      }),
+      new Response(null, {
+        status: 200,
+        headers: { Location: "https://attacker.example.com/alerts" },
+      }),
+    ];
     const send = vi.fn(async (request: Request) => {
       requests.push(request);
-      const response = new Response(null, { status: 204 });
-      Object.defineProperty(response, "redirected", { value: true });
+      const response = responses.shift();
+      if (response === undefined) {
+        throw new Error("unexpected alert request");
+      }
       return response;
     });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    await expect(
-      notifySchedulerFailures(
-        [failure],
-        {
-          environment: "production",
-          allowedHost: "alerts.example.com",
-          webhookURL: "https://alerts.example.com/scheduler",
-          webhookSecret: "alert-secret",
-        },
-        send,
-      ),
-    ).rejects.toThrow("scheduler alert delivery failed");
-
-    expect(requests[0]?.headers.get("Idempotency-Key")).toBe(
-      `production:${SCHEDULER_NAME}:2:no_show:transport`,
-    );
-    expect(errorLog).toHaveBeenCalledWith(
-      "scheduler alert delivery failed",
-      expect.objectContaining({
-        event: "scheduler_alert_delivery_failed",
-        failure_code: "alert_delivery_redirect",
-      }),
-    );
-    errorLog.mockRestore();
+    try {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await expect(
+          notifySchedulerFailures(
+            [failure],
+            {
+              environment: "production",
+              allowedHost: "alerts.example.com",
+              webhookURL: "https://alerts.example.com/scheduler",
+              webhookSecret: "alert-secret",
+            },
+            send,
+          ),
+        ).rejects.toThrow("scheduler alert delivery failed");
+      }
+      expect(send).toHaveBeenCalledTimes(3);
+      expect(requests).toHaveLength(3);
+      for (const request of requests) {
+        expect(request.redirect).toBe("manual");
+        expect(request.headers.get("Idempotency-Key")).toBe(
+          `production:${SCHEDULER_NAME}:2:no_show:transport`,
+        );
+      }
+      expect(errorLog).toHaveBeenCalledWith(
+        "scheduler alert delivery failed",
+        expect.objectContaining({
+          event: "scheduler_alert_delivery_failed",
+          failure_code: "alert_delivery_redirect",
+        }),
+      );
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   it("times out alert delivery and emits a fixed transport failure code", async () => {

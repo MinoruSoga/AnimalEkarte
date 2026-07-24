@@ -13,15 +13,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTestDB は予約可能開始時刻テスト用に DB を整備する。
 // reservation_types CASCADE で reservation_type_available_slots も連鎖クリアされる（FK ON DELETE CASCADE）。
 func setupAvailableSlotRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ReservationType{}, &model.ReservationTypeAvailableSlot{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationType{}, &model.ReservationTypeAvailableSlot{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	return db
 }

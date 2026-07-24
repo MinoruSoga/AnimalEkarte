@@ -409,27 +409,6 @@ func TestOwnerRepository_FindAllWithLineUserIDCursor_TwoPages(t *testing.T) {
 	assert.Empty(t, page3, "全件消化後の次ページ取得は空を返す")
 }
 
-func TestOwnerRepository_FindAllByLineUserID(t *testing.T) {
-	db := setupOwnerPetIsolationTestDB(t)
-	repo := newTestRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	lineID := "U-cross-clinic"
-	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
-	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, ownerA.ID, &lineID))
-	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
-	require.NoError(t, repo.UpdateLineUserID(ctx, clinicB, ownerB.ID, &lineID))
-
-	got, err := repo.FindAllByLineUserID(ctx, lineID)
-	require.NoError(t, err)
-	ids := make([]uint64, len(got))
-	for i, o := range got {
-		ids[i] = o.ID
-	}
-	assert.ElementsMatch(t, []uint64{ownerA.ID, ownerB.ID}, ids, "clinic_idを問わず横断で全件返す")
-}
-
 func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 	db := setupOwnerPetIsolationTestDB(t)
 	repo := newTestRepository(db)
@@ -437,12 +416,16 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	owner := makeTestOwner(t, db, clinicA, "LINEフォロー飼主")
+	lineUserID := "U-follow-owner"
+	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineUserID))
 	pastBlock := time.Now().Add(-24 * time.Hour)
 	require.NoError(t, db.Model(&model.Owner{}).Where("id = ?", owner.ID).Update("line_blocked_at", pastBlock).Error)
 
 	t.Run("同一クリニックからの更新でフォロー日時がセットされブロック日時がリセットされる", func(t *testing.T) {
 		followedAt := time.Now()
-		require.NoError(t, repo.UpdateLineFollowedAt(ctx, clinicA, owner.ID, followedAt))
+		updated, err := repo.UpdateLineFollowedAt(ctx, clinicA, owner.ID, lineUserID, followedAt)
+		require.NoError(t, err)
+		assert.True(t, updated)
 
 		got, err := repo.FindByID(ctx, clinicA, owner.ID)
 		require.NoError(t, err)
@@ -453,11 +436,29 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 
 	t.Run("別クリニックからの更新は実データを変更しない（clinic_id述語で対象0件）", func(t *testing.T) {
 		other := makeTestOwner(t, db, clinicA, "変更されないはずの飼主")
-		require.NoError(t, repo.UpdateLineFollowedAt(ctx, clinicB, other.ID, time.Now()))
+		otherLineUserID := "U-follow-other"
+		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, other.ID, &otherLineUserID))
+		updated, err := repo.UpdateLineFollowedAt(ctx, clinicB, other.ID, otherLineUserID, time.Now())
+		require.NoError(t, err)
+		assert.False(t, updated)
 
 		got, err := repo.FindByID(ctx, clinicA, other.ID)
 		require.NoError(t, err)
 		assert.Nil(t, got.LineFollowedAt, "別クリニックからの呼び出しでは実際には更新されない")
+	})
+
+	t.Run("再連携後の古いLINE User IDイベントは更新しない", func(t *testing.T) {
+		other := makeTestOwner(t, db, clinicA, "再連携済み飼主")
+		currentLineUserID := "U-current-follow"
+		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, other.ID, &currentLineUserID))
+
+		updated, err := repo.UpdateLineFollowedAt(ctx, clinicA, other.ID, "U-stale-follow", time.Now())
+
+		require.NoError(t, err)
+		assert.False(t, updated)
+		got, findErr := repo.FindByID(ctx, clinicA, other.ID)
+		require.NoError(t, findErr)
+		assert.Nil(t, got.LineFollowedAt)
 	})
 }
 
@@ -465,16 +466,160 @@ func TestOwnerRepository_UpdateLineBlockedAt(t *testing.T) {
 	db := setupOwnerPetIsolationTestDB(t)
 	repo := newTestRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "LINEブロック飼主")
-	blockedAt := time.Now()
-	require.NoError(t, repo.UpdateLineBlockedAt(ctx, clinicA, owner.ID, blockedAt))
+	t.Run("同一クリニックからブロック日時を更新できる", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "LINEブロック飼主")
+		lineUserID := "U-block-owner"
+		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineUserID))
+		blockedAt := time.Now()
+		updated, err := repo.UpdateLineBlockedAt(ctx, clinicA, owner.ID, lineUserID, blockedAt)
+		require.NoError(t, err)
+		assert.True(t, updated)
 
-	got, err := repo.FindByID(ctx, clinicA, owner.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got.LineBlockedAt)
-	assert.WithinDuration(t, blockedAt, *got.LineBlockedAt, time.Second)
+		got, err := repo.FindByID(ctx, clinicA, owner.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.LineBlockedAt)
+		assert.WithinDuration(t, blockedAt, *got.LineBlockedAt, time.Second)
+	})
+
+	t.Run("別クリニックからの更新はNotFoundになる", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "変更されないブロック飼主")
+		lineUserID := "U-block-other"
+		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineUserID))
+
+		updated, err := repo.UpdateLineBlockedAt(ctx, clinicB, owner.ID, lineUserID, time.Now())
+
+		require.NoError(t, err)
+		assert.False(t, updated)
+		got, findErr := repo.FindByID(ctx, clinicA, owner.ID)
+		require.NoError(t, findErr)
+		assert.Nil(t, got.LineBlockedAt)
+	})
+
+	t.Run("再連携後の古いLINE User IDイベントは更新しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "再連携済みブロック飼主")
+		currentLineUserID := "U-current-block"
+		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &currentLineUserID))
+
+		updated, err := repo.UpdateLineBlockedAt(ctx, clinicA, owner.ID, "U-stale-block", time.Now())
+
+		require.NoError(t, err)
+		assert.False(t, updated)
+		got, findErr := repo.FindByID(ctx, clinicA, owner.ID)
+		require.NoError(t, findErr)
+		assert.Nil(t, got.LineBlockedAt)
+	})
+}
+
+func TestOwnerRepository_LineWebhookEventOrdering(t *testing.T) {
+	db := setupOwnerPetIsolationTestDB(t)
+	repo := newTestRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	base := time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC)
+	older := base.Add(time.Minute)
+	newer := base.Add(2 * time.Minute)
+
+	type eventStep struct {
+		eventType  string
+		eventAt    time.Time
+		wantUpdate bool
+	}
+	tests := []struct {
+		name          string
+		steps         []eventStep
+		wantFollowed  *time.Time
+		wantBlockedAt *time.Time
+	}{
+		{
+			name: "newer unfollow rejects an older follow",
+			steps: []eventStep{
+				{eventType: "unfollow", eventAt: newer, wantUpdate: true},
+				{eventType: "follow", eventAt: older, wantUpdate: false},
+			},
+			wantBlockedAt: &newer,
+		},
+		{
+			name: "newer follow rejects an older unfollow",
+			steps: []eventStep{
+				{eventType: "follow", eventAt: newer, wantUpdate: true},
+				{eventType: "unfollow", eventAt: older, wantUpdate: false},
+			},
+			wantFollowed: &newer,
+		},
+		{
+			name: "duplicate follow is an idempotent no-op",
+			steps: []eventStep{
+				{eventType: "follow", eventAt: newer, wantUpdate: true},
+				{eventType: "follow", eventAt: newer, wantUpdate: false},
+			},
+			wantFollowed: &newer,
+		},
+		{
+			name: "same timestamp unfollow wins and duplicates are no-op",
+			steps: []eventStep{
+				{eventType: "follow", eventAt: newer, wantUpdate: true},
+				{eventType: "unfollow", eventAt: newer, wantUpdate: true},
+				{eventType: "follow", eventAt: newer, wantUpdate: false},
+				{eventType: "unfollow", eventAt: newer, wantUpdate: false},
+			},
+			wantFollowed:  &newer,
+			wantBlockedAt: &newer,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner := makeTestOwner(t, db, clinicID, fmt.Sprintf("LINE順序テスト%d", i))
+			lineUserID := fmt.Sprintf("U-ordering-%d", i)
+			require.NoError(t, repo.UpdateLineUserID(ctx, clinicID, owner.ID, &lineUserID))
+
+			for _, step := range tt.steps {
+				var (
+					updated bool
+					err     error
+				)
+				switch step.eventType {
+				case "follow":
+					updated, err = repo.UpdateLineFollowedAt(
+						ctx,
+						clinicID,
+						owner.ID,
+						lineUserID,
+						step.eventAt,
+					)
+				case "unfollow":
+					updated, err = repo.UpdateLineBlockedAt(
+						ctx,
+						clinicID,
+						owner.ID,
+						lineUserID,
+						step.eventAt,
+					)
+				default:
+					t.Fatalf("unsupported event type: %s", step.eventType)
+				}
+				require.NoError(t, err)
+				assert.Equal(t, step.wantUpdate, updated)
+			}
+
+			got, err := repo.FindByID(ctx, clinicID, owner.ID)
+			require.NoError(t, err)
+			if tt.wantFollowed == nil {
+				assert.Nil(t, got.LineFollowedAt)
+			} else {
+				require.NotNil(t, got.LineFollowedAt)
+				assert.WithinDuration(t, *tt.wantFollowed, *got.LineFollowedAt, time.Millisecond)
+			}
+			if tt.wantBlockedAt == nil {
+				assert.Nil(t, got.LineBlockedAt)
+			} else {
+				require.NotNil(t, got.LineBlockedAt)
+				assert.WithinDuration(t, *tt.wantBlockedAt, *got.LineBlockedAt, time.Millisecond)
+			}
+		})
+	}
 }
 
 func TestOwnerRepository_UpdateLineUserID(t *testing.T) {

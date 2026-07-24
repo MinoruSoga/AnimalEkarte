@@ -8,17 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/lstep"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type capturingLstepLifecycleAuditTxLogger struct {
 	ctx context.Context
-	got *service.AuditLogInput
+	got *audit.Entry
 	err error
 }
 
-func (c *capturingLstepLifecycleAuditTxLogger) LogEntryTx(ctx context.Context, input *service.AuditLogInput) error {
+func (c *capturingLstepLifecycleAuditTxLogger) LogEntryTx(ctx context.Context, input *audit.Entry) error {
 	c.ctx = ctx
 	c.got = input
 	return c.err

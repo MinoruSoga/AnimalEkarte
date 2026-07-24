@@ -99,8 +99,16 @@ func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
 func setupMedicalRecordListTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.Inquiry{}))
-	db.Exec("TRUNCATE TABLE inquiries, medical_records, pets, animal_species, staffs CASCADE")
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.Staff{},
+		&model.StaffClinicAssignment{},
+		&model.Inquiry{},
+		&model.Billing{},
+	))
+	db.Exec("TRUNCATE TABLE billings, inquiries, staff_clinic_assignments, medical_records, pets, animal_species, staffs CASCADE")
 	return db
 }
 
@@ -157,6 +165,157 @@ func TestMedicalRecordRepository_FindAll_ClinicIsolation(t *testing.T) {
 	})
 }
 
+func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	ownerA := makeTestOwner(t, db, clinicA, "会計Preload隔離飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "会計Preload隔離ペット")
+	doctorA := makeMedicalRecordListStaff(t, db, clinicB, "カルテ一覧担当医A", model.StaffTypeDoctor)
+	enteredByA := makeMedicalRecordListStaff(t, db, clinicB, "カルテ一覧入力者A", model.StaffTypeNurse)
+	for _, staffID := range []uint64{doctorA.ID, enteredByA.ID} {
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{
+			StaffID: staffID, ClinicID: clinicA,
+		}).Error)
+	}
+	validRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-BILLING-VALID", Date: time.Now(),
+		OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &doctorA.ID, EnteredBy: &enteredByA.ID,
+	})
+	foreignOnlyRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-BILLING-FOREIGN-ONLY", Date: time.Now().Add(-time.Hour),
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	ownerB := makeTestOwner(t, db, clinicB, "会計Preload隔離飼主B")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "会計Preload隔離ペットB")
+	doctorB := makeMedicalRecordListStaff(t, db, clinicA, "カルテ一覧担当医B", model.StaffTypeDoctor)
+	enteredByB := makeMedicalRecordListStaff(t, db, clinicA, "カルテ一覧入力者B", model.StaffTypeNurse)
+	for _, staffID := range []uint64{doctorB.ID, enteredByB.ID} {
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{
+			StaffID: staffID, ClinicID: clinicB,
+		}).Error)
+	}
+	validRecordB := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicB, RecordNo: "MR-BILLING-VALID-B", Date: time.Now().Add(-2 * time.Hour),
+		OwnerID: &ownerB.ID, PetID: &petB.ID, DoctorID: &doctorB.ID, EnteredBy: &enteredByB.ID,
+	})
+
+	unassignedDoctor := makeMedicalRecordListStaff(t, db, clinicA, "カルテ一覧未所属医師", model.StaffTypeDoctor)
+	foreignEnteredBy := makeMedicalRecordListStaff(t, db, clinicB, "カルテ一覧別院入力者", model.StaffTypeNurse)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: foreignEnteredBy.ID, ClinicID: clinicB,
+	}).Error)
+	inactiveDoctor := makeMedicalRecordListStaff(t, db, clinicA, "カルテ一覧無効医師", model.StaffTypeDoctor)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: inactiveDoctor.ID, ClinicID: clinicA,
+	}).Error)
+	require.NoError(t, db.Model(inactiveDoctor).UpdateColumn("is_active", false).Error)
+	inactiveDoctorRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-INACTIVE-DOCTOR", Date: time.Now(),
+		OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &inactiveDoctor.ID,
+	})
+
+	pollutedRecords := []*model.MedicalRecord{
+		makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-FOREIGN-OWNER", Date: time.Now(),
+			OwnerID: &ownerB.ID,
+		}),
+		makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-FOREIGN-PET", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petB.ID,
+		}),
+		makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-UNASSIGNED-DOCTOR", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &unassignedDoctor.ID,
+		}),
+		makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-FOREIGN-ENTERED-BY", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID, EnteredBy: &foreignEnteredBy.ID,
+		}),
+	}
+
+	validBilling := &model.Billing{
+		ClinicID: clinicA, MedicalRecordID: &validRecord.ID,
+		Status: model.BillingStatusWaiting, ScheduledDate: time.Now(),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(validBilling).Error)
+	foreignForValid := &model.Billing{
+		ClinicID: clinicB, MedicalRecordID: &validRecord.ID,
+		Status: model.BillingStatusWaiting, ScheduledDate: time.Now(),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(foreignForValid).Error)
+	foreignOnly := &model.Billing{
+		ClinicID: clinicB, MedicalRecordID: &foreignOnlyRecord.ID,
+		Status: model.BillingStatusWaiting, ScheduledDate: time.Now(),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(foreignOnly).Error)
+	validBillingB := &model.Billing{
+		ClinicID: clinicB, MedicalRecordID: &validRecordB.ID,
+		Status: model.BillingStatusWaiting, ScheduledDate: time.Now(),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(validBillingB).Error)
+
+	// Both clinics are intentionally authorized. An IN-clause-only preload would
+	// still leak clinic B's polluted billing into clinic A's parent record.
+	got, total, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, MedicalRecordListFilters{}, 1, 100)
+	require.NoError(t, err)
+	require.EqualValues(t, 4, total)
+
+	byID := make(map[uint64]model.MedicalRecord, len(got))
+	for _, record := range got {
+		byID[record.ID] = record
+	}
+	validResult, ok := byID[validRecord.ID]
+	require.True(t, ok)
+	require.NotNil(t, validResult.Owner)
+	assert.Equal(t, ownerA.ID, validResult.Owner.ID)
+	require.NotNil(t, validResult.Pet)
+	assert.Equal(t, petA.ID, validResult.Pet.ID)
+	require.NotNil(t, validResult.Doctor)
+	assert.Equal(t, doctorA.ID, validResult.Doctor.ID)
+	require.NotNil(t, validResult.EnteredByStaff)
+	assert.Equal(t, enteredByA.ID, validResult.EnteredByStaff.ID)
+	require.NotNil(t, validResult.Billing, "same-clinic billing must be retained")
+	assert.Equal(t, validBilling.ID, validResult.Billing.ID)
+	assert.NotEqual(t, foreignForValid.ID, validResult.Billing.ID)
+
+	foreignOnlyResult, ok := byID[foreignOnlyRecord.ID]
+	require.True(t, ok)
+	assert.Nil(t, foreignOnlyResult.Billing, "foreign-clinic billing must not populate accounting data")
+
+	validResultB, ok := byID[validRecordB.ID]
+	require.True(t, ok)
+	require.NotNil(t, validResultB.Billing, "authorized clinic B's matching billing must be retained")
+	assert.Equal(t, validBillingB.ID, validResultB.Billing.ID)
+
+	inactiveDoctorResult, ok := byID[inactiveDoctorRecord.ID]
+	require.True(t, ok, "inactive same-clinic staff must not hide the medical-record history")
+	assert.Nil(t, inactiveDoctorResult.Doctor, "inactive staff is hidden by the current-relation preload")
+
+	for _, polluted := range pollutedRecords {
+		_, ok := byID[polluted.ID]
+		assert.False(t, ok, "polluted medical record %d must fail closed", polluted.ID)
+	}
+}
+
+func makeMedicalRecordListStaff(
+	t *testing.T,
+	db *gorm.DB,
+	primaryClinicID uint64,
+	name string,
+	staffType model.StaffType,
+) *model.Staff {
+	t.Helper()
+	staff := &model.Staff{
+		ClinicID: primaryClinicID, Name: name, StaffType: staffType, IsActive: true,
+	}
+	require.NoError(t, db.Create(staff).Error)
+	return staff
+}
+
 // TestMedicalRecordRepository_FindAll_Search は search が飼主名・ペット名・record_no・主訴を
 // 部分一致で横断検索できることを検証する（B-1 AC-2）。
 func TestMedicalRecordRepository_FindAll_Search(t *testing.T) {
@@ -170,10 +329,11 @@ func TestMedicalRecordRepository_FindAll_Search(t *testing.T) {
 	// makeTestOwner/makeSpeciesAndPet は NameKana を設定しないため、カタカナを含む語で検索すると
 	// NormalizeKana によりひらがな化されたパターンが生カタカナ列と文字種不一致でマッチしない
 	// （owner_repository_test.go の同種コメント参照）。カナ正規化の影響を受けない漢字で検証する。
-	petTarget := makeSpeciesAndPet(t, db, clinicA, ownerTarget.ID, "検索対象犬")
+	petForOwnerTarget := makeSpeciesAndPet(t, db, clinicA, ownerTarget.ID, "飼主検索用ペット")
+	petTarget := makeSpeciesAndPet(t, db, clinicA, ownerOther.ID, "検索対象犬")
 	petOther := makeSpeciesAndPet(t, db, clinicA, ownerOther.ID, "別のペット")
 
-	byOwnerName := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "R-OWNER", Date: time.Now(), OwnerID: &ownerTarget.ID, PetID: &petOther.ID})
+	byOwnerName := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "R-OWNER", Date: time.Now(), OwnerID: &ownerTarget.ID, PetID: &petForOwnerTarget.ID})
 	byPetName := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "R-PET", Date: time.Now(), OwnerID: &ownerOther.ID, PetID: &petTarget.ID})
 	byRecordNo := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "R-検索対象-999", Date: time.Now(), OwnerID: &ownerOther.ID, PetID: &petOther.ID})
 	byChiefComplaint := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "R-INQUIRY", Date: time.Now(), OwnerID: &ownerOther.ID, PetID: &petOther.ID})
@@ -237,6 +397,12 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 
 	doctorA := makeDoctor(t, db, clinicA, "担当医A")
 	doctorB := makeDoctor(t, db, clinicA, "担当医B")
+	ensureVaccinationTestClinics(t, db, clinicA)
+	for _, doctorID := range []uint64{doctorA.ID, doctorB.ID} {
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{
+			StaffID: doctorID, ClinicID: clinicA,
+		}).Error)
+	}
 
 	draft := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "F-DRAFT", Date: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC),

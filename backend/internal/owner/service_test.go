@@ -136,16 +136,22 @@ func (m *mockOwnerRepository) UpdateLineUserID(ctx context.Context, clinicID, id
 	return nil
 }
 
-func (m *mockOwnerRepository) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
-	return nil, nil
+func (m *mockOwnerRepository) UpdateLineFollowedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
 
-func (m *mockOwnerRepository) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-
-func (m *mockOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
+func (m *mockOwnerRepository) UpdateLineBlockedAt(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+	_ time.Time,
+) (bool, error) {
+	return true, nil
 }
 
 // ポインタヘルパー関数（ptrString は accounting_service_test.go で定義済み）

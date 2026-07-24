@@ -2,152 +2,69 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/handler"
-	"github.com/animal-ekarte/backend/internal/inventory"
-	"github.com/animal-ekarte/backend/internal/lstep"
-	"github.com/animal-ekarte/backend/internal/manualarticle"
-	"github.com/animal-ekarte/backend/internal/medicalrecord"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
-	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
-// TestRouteCompositionSmoke_NoPanic registers every route surface in main.go order.
-func TestRouteCompositionSmoke_NoPanic(t *testing.T) {
+func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	assert.NotPanics(t, func() {
-		r := gin.New()
-		legacyHandler := handler.New(
-			&config.Config{JWTSecret: "test-secret-for-route-registration"},
-			nil,
-			nil,
-			nil,
-		)
-		protected := legacyHandler.RegisterRoutes(ctx, r)
-
-		manualarticle.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
-		inventory.NewHandler(nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
-		trimming.NewHandlerWithPermission(nil, nil, nil, nil, routeSmokeNoopPermission).RegisterRoutes(protected)
-		newMedicalRecordRouteSmokeHandler().RegisterRoutes(protected)
-
-		lstepHandler := newLstepRouteSmokeHandler()
-		reservationHandler := newReservationRouteSmokeHandler(lstepHandler.LinkLiffAccount)
-		reservationHandler.RegisterRoutes(protected)
-		reservationHandler.RegisterLiffRoutes(r)
-
-		newBillingRouteSmokeHandler().RegisterRoutes(protected)
-		lstepHandler.RegisterRoutes(protected)
-		lstepHandler.RegisterWebhookRoutes(r)
+	composition := newRuntimeComposition(runtimeCompositionDependencies{
+		Config: &config.Config{
+			JWTSecret: "test-secret-for-route-registration",
+		},
 	})
-}
-
-func newMedicalRecordRouteSmokeHandler() *medicalrecord.Handler {
-	return medicalrecord.NewHandler(
-		medicalrecord.NewDiagnosisHandler(nil, nil),
-		medicalrecord.NewExamTypeHandler(nil),
-		medicalrecord.NewChiefComplaintHandler(nil),
-		medicalrecord.NewCheckupHandler(nil, nil),
-		medicalrecord.NewCheckupTypeHandler(nil),
-		medicalrecord.NewVaccineHandler(nil),
-		medicalrecord.NewVaccinationHandler(nil),
-		medicalrecord.NewPrescriptionHandler(nil),
-		medicalrecord.NewInquiryHandler(nil),
-		medicalrecord.NewInquiryTemplateHandler(nil),
-		medicalrecord.NewLabImportHandler(nil, nil, nil),
-		medicalrecord.NewLabReportHandler(nil),
-		medicalrecord.NewVitalHandler(nil, nil),
-		medicalrecord.NewClinicalPlanHandler(nil),
-		medicalrecord.NewMedicalRecordImageHandler(nil, nil, nil),
-		medicalrecord.NewTreatmentHandler(nil, nil),
-		medicalrecord.NewHospitalizationHandler(nil),
-		medicalrecord.NewHospitalizationPlanHandler(nil),
-		medicalrecord.NewDailyRecordHandler(nil),
-		medicalrecord.NewCarePlanItemHandler(nil),
-		medicalrecord.NewConsultationHandler(nil),
-		medicalrecord.NewProcedureHandler(nil),
-		medicalrecord.NewMedicineHandler(nil),
-		medicalrecord.NewMedicineDoseParamHandler(nil),
-		medicalrecord.NewCageHandler(nil),
-		medicalrecord.NewTreatmentPlanHandler(nil, nil, nil, nil),
-		medicalrecord.NewMedicalRecordHandler(nil),
-		medicalrecord.NewMedicalRecordAddendumHandler(nil),
-		medicalrecord.NewExaminationHandler(nil),
-		routeSmokeNoopPermission,
+	router := gin.New()
+	require.NoError(
+		t,
+		composition.registerRoutes(ctx, router, nil, false),
 	)
-}
 
-func newReservationRouteSmokeHandler(linkLiffAccount gin.HandlerFunc) *reservation.Handler {
-	return reservation.NewHandler(
-		reservation.NewReservationTypeHandler(nil, nil, nil, nil),
-		reservation.NewReservationTypeGroupHandler(nil),
-		reservation.NewReservationTypeLiffHandler(nil),
-		reservation.NewReservationStaffHandler(nil),
-		reservation.NewReservationScheduleHandler(nil),
-		reservation.NewReservationHandler(nil, nil, nil, nil),
-		reservation.NewReservationAdminHandler(nil, nil),
-		reservation.NewLineReservationSettingHandler(nil),
-		reservation.NewLiffHandler(nil, nil),
-		routeSmokeNoopHandler,
-		func(int) gin.HandlerFunc { return routeSmokeNoopHandler },
-		linkLiffAccount,
-		routeSmokeNoopPermission,
-	)
-}
+	routes := make(map[string]struct{}, len(router.Routes()))
+	for _, route := range router.Routes() {
+		routes[route.Method+" "+route.Path] = struct{}{}
+	}
+	// The contract scanner resolves 477 explicit target routes. Gin's StaticFS
+	// adds GET and HEAD for /uploads/*filepath, yielding 479 runtime routes.
+	require.Len(t, routes, 479)
+	for _, expected := range []string{
+		"GET /health",
+		"GET /uploads/*filepath",
+		"HEAD /uploads/*filepath",
+		"POST /api/v1/login",
+		"GET /api/v1/me",
+		"GET /api/v1/masters/permission-groups",
+		"GET /api/v1/owners",
+		"GET /api/v1/pets",
+		"GET /api/v1/masters/staffs",
+		"GET /api/v1/clinics",
+		"GET /api/v1/medical-records",
+		"GET /api/v1/reservations",
+		"GET /api/v1/accountings",
+		"GET /api/v1/lstep-settings",
+		"GET /api/liff/:clinicId/courses",
+		"POST /api/line/webhook",
+		"POST /_internal/scheduled-jobs/:jobAction",
+	} {
+		assert.Contains(t, routes, expected)
+	}
 
-func newBillingRouteSmokeHandler() *billing.Handler {
-	hasPermission := func(*gin.Context, string, string) bool { return true }
-	return billing.NewHandler(
-		billing.NewInsuranceHandler(nil),
-		billing.NewCampaignHandler(nil),
-		billing.NewPaymentMethodMasterHandler(nil),
-		billing.NewEstimateHandler(nil, hasPermission),
-		billing.NewBillingConfirmationHandler(nil, routeSmokeNoopPermission),
-		billing.NewBillingItemHandler(nil, routeSmokeNoopPermission),
-		billing.NewRefundHandler(nil, routeSmokeNoopPermission),
-		billing.NewAccountingHandler(nil, nil, hasPermission),
-		billing.NewCashRegisterHandler(nil, routeSmokeNoopPermission),
-		billing.NewAccountingReportHandler(nil, routeSmokeNoopPermission),
-		routeSmokeNoopPermission,
-	)
+	for _, protectedPath := range []string{
+		"/api/v1/masters/permission-groups",
+		"/api/v1/owners",
+	} {
+		request := httptest.NewRequest(http.MethodGet, protectedPath, nil)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		assert.Equal(t, http.StatusUnauthorized, response.Code, protectedPath)
+	}
 }
-
-func newLstepRouteSmokeHandler() *lstep.Handler {
-	return lstep.NewHandler(
-		lstep.NewLstepSettingsHandler(nil, routeSmokeNoopPermission),
-		lstep.NewLineSendHandler(nil, routeSmokeNoopPermission),
-		lstep.NewLineLinkHandler(nil, func(*gin.Context, *model.Owner) {}, routeSmokeNoopPermission),
-		lstep.NewLineCustomerHandler(nil, routeSmokeNoopPermission),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		routeSmokeNoopPermission,
-		func(...lstep.PermissionRequirement) gin.HandlerFunc { return routeSmokeNoopHandler },
-	)
-}
-
-func routeSmokeNoopPermission(string, string) gin.HandlerFunc {
-	return routeSmokeNoopHandler
-}
-
-func routeSmokeNoopHandler(*gin.Context) {}

@@ -410,7 +410,7 @@ func TestHospitalizationRepository_CountDailyRecordsByHospitalizationID(t *testi
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
 	ownerA := makeTestOwner(t, db, clinicA, "日次記録集計飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日次記録集計ポチ")
@@ -418,10 +418,16 @@ func TestHospitalizationRepository_CountDailyRecordsByHospitalizationID(t *testi
 
 	dr := &model.DailyRecord{ClinicID: clinicA, HospitalizationID: hospA.ID, Date: time.Now()}
 	require.NoError(t, db.WithContext(ctx).Create(dr).Error)
+	foreign := &model.DailyRecord{
+		ClinicID:          clinicB,
+		HospitalizationID: hospA.ID,
+		Date:              dr.Date.AddDate(0, 0, 1),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(foreign).Error)
 
 	count, err := repo.CountDailyRecordsByHospitalizationID(ctx, clinicA, hospA.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), count)
+	assert.Equal(t, int64(1), count, "foreign-clinic child rows must not affect the clinic-scoped count")
 }
 
 func TestHospitalizationRepository_CountTreatmentPlansByHospitalizationID(t *testing.T) {

@@ -255,19 +255,31 @@ func TestListOwners(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
-			name:  "system_admin can list any clinic_ids",
-			query: "page=1&limit=10&clinic_ids=99",
+			name:  "system_admin can list an active clinic from trusted authority",
+			query: "page=1&limit=10&clinic_ids=2",
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
 			},
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
-					assert.Equal(t, []uint64{99}, clinicIDs)
+					assert.Equal(t, []uint64{2}, clinicIDs)
 					return []model.Owner{}, 0, nil
 				},
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "system_admin cannot list a clinic outside trusted active authority",
+			query: "page=1&limit=10&clinic_ids=99",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 for malformed clinic_ids",
@@ -469,7 +481,27 @@ func TestCreateOwner(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
-			name: "system_admin can create owner in any clinic",
+			name: "system_admin can create owner in an active clinic from trusted authority",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 2
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
+					assert.Equal(t, uint64(2), clinicID)
+					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "system_admin cannot create owner outside trusted active authority",
 			body: func() map[string]any {
 				b := validBody()
 				b["clinic_id"] = 99
@@ -478,14 +510,10 @@ func TestCreateOwner(t *testing.T) {
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
 			},
-			svc: &mockOwnerService{
-				createWithPetsFn: func(_ context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
-					assert.Equal(t, uint64(99), clinicID)
-					return &model.Owner{ID: 1, ClinicID: clinicID, Name: input.OwnerName}, nil
-				},
-			},
-			wantStatus: http.StatusCreated,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "specified clinic equal to context clinic skips assignment check",

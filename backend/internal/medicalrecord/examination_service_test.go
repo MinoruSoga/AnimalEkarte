@@ -17,6 +17,7 @@ import (
 type mockExaminationRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	lockByIDForUpdateFn    func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn               func(ctx context.Context, exam *model.Examination) error
 	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
@@ -35,6 +36,13 @@ func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id u
 	}
 	mrID := uint64(1)
 	return &model.Examination{ID: id, Status: model.ExaminationStatusCompleted, MedicalRecordID: &mrID}, nil
+}
+
+func (m *mockExaminationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
+	if m.lockByIDForUpdateFn != nil {
+		return m.lockByIDForUpdateFn(ctx, clinicID, id)
+	}
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Examination) error {
@@ -540,6 +548,77 @@ func TestExaminationService_Update(t *testing.T) {
 	}
 }
 
+func TestExaminationService_UpdateUsesLockedExamStatus(t *testing.T) {
+	updateCalled := false
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusPending}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusConfirmed}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalled = true
+			return &model.Examination{ID: 1}, nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+	summary := "must not overwrite a concurrently confirmed exam"
+
+	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{ResultSummary: &summary})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.False(t, updateCalled, "the locked confirmed snapshot must block the update")
+}
+
+func TestExaminationService_UpdateLocksExamThenMedicalRecordsInStableOrder(t *testing.T) {
+	currentMedicalRecordID := uint64(30)
+	destinationMedicalRecordID := uint64(20)
+	order := make([]string, 0, 4)
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
+			order = append(order, "examination")
+			return &model.Examination{
+				ID: id, ClinicID: clinicID, MedicalRecordID: &currentMedicalRecordID,
+				ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Examination, error) {
+			order = append(order, "update")
+			return &model.Examination{ID: id, ClinicID: clinicID, MedicalRecordID: &destinationMedicalRecordID}, nil
+		},
+	}
+	records := &mockMedicalRecordRepository{
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			switch id {
+			case destinationMedicalRecordID:
+				order = append(order, "medical_record_20")
+			case currentMedicalRecordID:
+				order = append(order, "medical_record_30")
+			}
+			return &model.MedicalRecord{
+				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewExaminationService(repo, records, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{
+		MedicalRecordID: &destinationMedicalRecordID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, []string{
+		"examination",
+		"medical_record_20",
+		"medical_record_30",
+		"update",
+	}, order)
+}
+
 func TestExaminationService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -657,6 +736,33 @@ func TestExaminationService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExaminationService_DeleteUsesLockedExamRelations(t *testing.T) {
+	staleMedicalRecordID := uint64(10)
+	lockedMedicalRecordID := uint64(20)
+	var lockedParentID uint64
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, MedicalRecordID: &staleMedicalRecordID}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, MedicalRecordID: &lockedMedicalRecordID}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+	}
+	records := &mockMedicalRecordRepository{
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			lockedParentID = id
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewExaminationService(repo, records, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.NoError(t, err)
+	assert.Equal(t, lockedMedicalRecordID, lockedParentID, "delete must validate the parent from the locked exam snapshot")
 }
 
 func TestComputeExamResultStatus(t *testing.T) {
@@ -976,6 +1082,71 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 	})
 }
 
+func TestExaminationService_ReplaceItemsUsesLockedExamStatus(t *testing.T) {
+	replaceCalled := false
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusInProgress}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusConfirmed}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalled = true
+			return items, 0, nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 1, nil, []UpsertExamItemInput{{
+		Name:            "WBC",
+		InspectionValue: "5.0",
+	}})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.False(t, replaceCalled, "the locked confirmed snapshot must block result replacement")
+}
+
+func TestExaminationService_ReplaceItemsLocksParentFromLockedExam(t *testing.T) {
+	lockedMedicalRecordID := uint64(20)
+	staleMedicalRecordID := uint64(10)
+	var lockedParentID uint64
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
+			return &model.Examination{
+				ID: id, ClinicID: clinicID, MedicalRecordID: &staleMedicalRecordID,
+				ExamTypeID: 1, Status: model.ExaminationStatusInProgress,
+			}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
+			return &model.Examination{
+				ID: id, ClinicID: clinicID, MedicalRecordID: &lockedMedicalRecordID,
+				ExamTypeID: 1, Status: model.ExaminationStatusInProgress,
+			}, nil
+		},
+	}
+	records := &mockMedicalRecordRepository{
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			lockedParentID = id
+			return &model.MedicalRecord{
+				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewExaminationService(repo, records, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 1, nil, []UpsertExamItemInput{{
+		Name:            "WBC",
+		InspectionValue: "5.0",
+	}})
+
+	assert.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.Equal(t, lockedMedicalRecordID, lockedParentID)
+}
+
 // TestBuildExaminationUpdate は buildExaminationUpdate の全フィールド網羅とゼロ値挙動を検証する。
 func TestBuildExaminationUpdate(t *testing.T) {
 	medRecID := uint64(5)
@@ -1014,4 +1185,154 @@ func TestBuildExaminationUpdate(t *testing.T) {
 		fields := buildExaminationUpdate(UpdateExaminationInput{})
 		assert.Empty(t, fields)
 	})
+}
+
+func TestExaminationService_Create_RejectsInvalidClinicalRelations(t *testing.T) {
+	const (
+		clinicID       = uint64(1)
+		medicalRecord  = uint64(10)
+		recordOwnerID  = uint64(20)
+		recordPetID    = uint64(30)
+		otherPetID     = uint64(31)
+		assignedDoctor = uint64(40)
+	)
+
+	tests := []struct {
+		name      string
+		recordID  *uint64
+		petID     *uint64
+		doctorID  *uint64
+		configure func(repo *mockMedicalRecordRepository)
+		wantErr   bool
+	}{
+		{
+			name:     "rejects a medical record outside the clinic",
+			recordID: ptrUint64(999),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.lockByIDForUpdateFn = func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:     "rejects a different same-clinic patient",
+			recordID: ptrUint64(medicalRecord),
+			petID:    ptrUint64(otherPetID),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.findPetOwnerInClinicFn = func(_ context.Context, _, petID uint64) (uint64, error) {
+					if petID == recordPetID || petID == otherPetID {
+						return recordOwnerID, nil
+					}
+					return 0, apperrors.WrapNotFound("pet", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:     "rejects an inactive or unassigned doctor",
+			petID:    ptrUint64(recordPetID),
+			doctorID: ptrUint64(999),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.assertDoctorInClinicFn = func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("staff", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:     "accepts one active patient graph and assigned doctor",
+			recordID: ptrUint64(medicalRecord),
+			petID:    ptrUint64(recordPetID),
+			doctorID: ptrUint64(assignedDoctor),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalls := 0
+			repo := &mockExaminationRepository{
+				createFn: func(_ context.Context, exam *model.Examination) error {
+					createCalls++
+					exam.ID = 1
+					return nil
+				},
+			}
+			relations := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{
+						ID: id, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
+						PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+					}, nil
+				},
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return recordOwnerID, nil
+				},
+			}
+			if tt.configure != nil {
+				tt.configure(relations)
+			}
+			svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+			got, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
+				MedicalRecordID: tt.recordID, PetID: tt.petID, ExamTypeID: 1,
+				DoctorID: tt.doctorID, Date: time.Now(),
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				assert.Zero(t, createCalls)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			assert.Equal(t, 1, createCalls)
+		})
+	}
+}
+
+func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		examID        = uint64(2)
+		medicalRecord = uint64(10)
+		recordOwnerID = uint64(20)
+		recordPetID   = uint64(30)
+	)
+	otherPetID := uint64(31)
+	updateCalls := 0
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecord),
+				PetID: ptrUint64(recordPetID), ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalls++
+			return &model.Examination{ID: examID}, nil
+		},
+	}
+	relations := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
+				PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
+			if petID == recordPetID || petID == otherPetID {
+				return recordOwnerID, nil
+			}
+			return 0, apperrors.WrapNotFound("pet", "scoped")
+		},
+	}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{PetID: &otherPetID})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, updateCalls)
 }

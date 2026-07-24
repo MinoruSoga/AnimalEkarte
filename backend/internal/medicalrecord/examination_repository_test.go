@@ -30,7 +30,8 @@ func setupExaminationTestDB(t *testing.T) *gorm.DB {
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ExaminationType{}, &model.ExamTypeField{},
-		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{},
+		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
+		&model.MedicalRecord{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.Examination{}, &model.ExamResult{},
 	))
 	db.Exec("TRUNCATE TABLE exam_results CASCADE")
@@ -159,6 +160,124 @@ func TestExaminationRepository_FindByID(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestExaminationRepository_LockByIDForUpdateRequiresAmbientTransaction(t *testing.T) {
+	repo := NewExaminationRepository(nil)
+
+	got, err := repo.LockByIDForUpdate(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	repo := NewExaminationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	typeA := makeExamTypeMaster(t, db, clinicA, "検査関係スコープ種別A")
+	ownerA := makeTestOwner(t, db, clinicA, "検査関係スコープ飼主A")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "検査関係スコープペットA")
+	recordA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-EXAM-SCOPE-A", time.Now())
+	require.NoError(t, db.Model(recordA).Update("owner_id", ownerA.ID).Error)
+	recordA.OwnerID = &ownerA.ID
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+	validDoctor := makeDoctor(t, db, clinicB, "検査関係スコープ有効医師")
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: validDoctor.ID, ClinicID: clinicA,
+	}).Error)
+	valid := makeExaminationRec(t, db, &model.Examination{
+		ClinicID:        clinicA,
+		MedicalRecordID: &recordA.ID,
+		PetID:           &petA.ID,
+		ExamTypeID:      typeA.ID,
+		DoctorID:        &validDoctor.ID,
+		Date:            time.Now(),
+	})
+
+	unassignedDoctor := makeDoctor(t, db, clinicA, "検査関係スコープ未所属医師")
+	inactiveDoctor := makeDoctor(t, db, clinicA, "検査関係スコープ無効医師")
+	require.NoError(t, db.Model(inactiveDoctor).UpdateColumn("is_active", false).Error)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: inactiveDoctor.ID, ClinicID: clinicA,
+	}).Error)
+	nurse := makeDoctor(t, db, clinicA, "検査関係スコープ看護師")
+	require.NoError(t, db.Model(nurse).UpdateColumn("staff_type", model.StaffTypeNurse).Error)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: nurse.ID, ClinicID: clinicA,
+	}).Error)
+
+	typeB := makeExamTypeMaster(t, db, clinicB, "検査関係スコープ種別B")
+	ownerB := makeTestOwner(t, db, clinicB, "検査関係スコープ飼主B")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "検査関係スコープペットB")
+	recordB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-EXAM-SCOPE-B", time.Now())
+	require.NoError(t, db.Model(recordB).Update("owner_id", ownerB.ID).Error)
+	recordB.OwnerID = &ownerB.ID
+	pollutedOwnerPet := makeSpeciesAndPet(
+		t,
+		db,
+		clinicA,
+		ownerB.ID,
+		"検査関係スコープ別院飼主ペット",
+	)
+
+	polluted := []*model.Examination{
+		makeExaminationRec(t, db, &model.Examination{
+			ClinicID: clinicA, PetID: &petB.ID, ExamTypeID: typeA.ID, Date: time.Now(),
+		}),
+		makeExaminationRec(t, db, &model.Examination{
+			ClinicID:        clinicA,
+			MedicalRecordID: &recordB.ID,
+			PetID:           &petA.ID,
+			ExamTypeID:      typeA.ID,
+			Date:            time.Now(),
+		}),
+		makeExaminationRec(t, db, &model.Examination{
+			ClinicID: clinicA, PetID: &pollutedOwnerPet.ID, ExamTypeID: typeA.ID, Date: time.Now(),
+		}),
+		makeExaminationRec(t, db, &model.Examination{
+			ClinicID: clinicA, PetID: &petA.ID, ExamTypeID: typeB.ID, Date: time.Now(),
+		}),
+	}
+	for _, doctorID := range []uint64{unassignedDoctor.ID, inactiveDoctor.ID, nurse.ID} {
+		polluted = append(polluted, makeExaminationRec(t, db, &model.Examination{
+			ClinicID: clinicA, PetID: &petA.ID, ExamTypeID: typeA.ID,
+			DoctorID: &doctorID, Date: time.Now(),
+		}))
+	}
+	jobID := uuid.New()
+	jobScopedIDs := []uint64{valid.ID}
+	for _, item := range polluted {
+		jobScopedIDs = append(jobScopedIDs, item.ID)
+	}
+	require.NoError(t, db.Model(&model.Examination{}).
+		Where("id IN ?", jobScopedIDs).
+		Update("job_id", jobID).Error)
+
+	for _, item := range polluted {
+		got, err := repo.FindByID(ctx, clinicA, item.ID)
+		require.Error(t, err, "polluted examination %d must fail closed", item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, got)
+	}
+
+	listed, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, total)
+	require.Len(t, listed, 1)
+	assert.Equal(t, valid.ID, listed[0].ID)
+	require.NotNil(t, listed[0].Pet)
+	require.NotNil(t, listed[0].Pet.Owner)
+	assert.Equal(t, ownerA.ID, listed[0].Pet.Owner.ID)
+	require.NotNil(t, listed[0].Doctor)
+	assert.Equal(t, validDoctor.ID, listed[0].Doctor.ID)
+
+	byJob, err := repo.FindByJobID(ctx, clinicA, jobID)
+	require.NoError(t, err)
+	require.Len(t, byJob, 1)
+	assert.Equal(t, valid.ID, byJob[0].ID)
 }
 
 func TestExaminationRepository_FindByJobID(t *testing.T) {

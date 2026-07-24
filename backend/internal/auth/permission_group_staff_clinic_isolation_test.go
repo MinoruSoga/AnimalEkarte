@@ -21,15 +21,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupPermissionGroupStaffIsolationTestDB は権限グループ紐付け clinic_id 隔離テスト用の DB を整備する。
 func setupPermissionGroupStaffIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.PermissionGroup{}, &model.StaffPermissionGroup{},
 	))
@@ -244,7 +244,7 @@ func TestPermissionGroupRepository_UpdateStaffGroups_SerializesAssignmentRemoval
 		if err := tx.Exec("SET LOCAL lock_timeout = '100ms'").Error; err != nil {
 			return err
 		}
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+		txCtx := persistence.WithTxValue(ctx, tx)
 		return repo.UpdateStaffGroups(txCtx, clinic.ID, staff.ID, []uint64{group.ID})
 	})
 	release()

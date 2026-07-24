@@ -56,13 +56,12 @@ func (r *treatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicI
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
-		Preload("Consultation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(treatmentReadPreloads(clinicID)).
 		Order("treatments.sort_order ASC").
 		Find(&treatments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
+	sanitizeTreatmentMasterRelations(treatments, clinicID)
 	return treatments, nil
 }
 
@@ -71,10 +70,12 @@ func (r *treatmentRepository) FindByID(ctx context.Context, clinicID, id uint64)
 	err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Scopes(treatmentReadPreloads(clinicID)).
 		First(&treatment).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
 	}
+	sanitizeTreatmentMasterRelation(&treatment, clinicID)
 	return &treatment, nil
 }
 
@@ -84,13 +85,15 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 		Joins("JOIN medical_records mr ON mr.id = treatments.medical_record_id AND mr.deleted_at IS NULL").
 		Joins("JOIN billing_confirmations bc ON bc.medical_record_id = mr.id").
 		Where("mr.pet_id = ? AND mr.clinic_id = ? AND bc.status = 'confirmed' AND treatments.deleted_at IS NULL", petID, clinicID).
-		Where("NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL WHERE bi.treatment_id = treatments.id AND bi.deleted_at IS NULL AND b.status != 'cancelled')").
-		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = mr.id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
+		Where("NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = mr.clinic_id AND b.deleted_at IS NULL WHERE bi.treatment_id = treatments.id AND bi.deleted_at IS NULL AND b.status != 'cancelled')").
+		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = mr.id AND b.clinic_id = mr.clinic_id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
+		Scopes(treatmentReadPreloads(clinicID)).
 		Order("treatments.sort_order ASC, treatments.id ASC").
 		Find(&treatments).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
+	sanitizeTreatmentMasterRelations(treatments, clinicID)
 	return treatments, nil
 }
 
@@ -105,7 +108,7 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 		}
 		// #159: 処置 JOIN フィルタ（procedure_id が NULL 以外の行のみ通る INNER JOIN で暗黙 item_type 絞り込み）
 		if filter.AnesthesiaOnly || filter.IsSurgery {
-			q = q.Joins("JOIN procedures ON procedures.id = treatments.procedure_id AND procedures.deleted_at IS NULL")
+			q = q.Joins("JOIN procedures ON procedures.id = treatments.procedure_id AND procedures.clinic_id = medical_records.clinic_id AND procedures.deleted_at IS NULL")
 			if filter.AnesthesiaOnly {
 				q = q.Where("procedures.anesthesia != ?", string(model.AnesthesiaTypeNone))
 			}
@@ -123,15 +126,69 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 
 	treatments := make([]model.Treatment, 0)
 	if err := buildBase().
-		Preload("MedicalRecord", "deleted_at IS NULL").
-		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(treatmentReadPreloads(clinicID)).
 		Order("medical_records.date DESC, treatments.sort_order ASC, treatments.id DESC").
 		Scopes(paginate(page, limit)).
 		Find(&treatments).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("pet=%d", petID))
 	}
+	sanitizeTreatmentMasterRelations(treatments, clinicID)
 	return treatments, total, nil
+}
+
+func treatmentReadPreloads(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.
+			Preload("MedicalRecord", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Consultation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Inventory", "clinic_id = ? AND deleted_at IS NULL", clinicID)
+	}
+}
+
+// sanitizeTreatmentMasterRelations preserves the clinic-owned treatment row and
+// its clinical text while clearing polluted nullable master references. Scoped
+// preloads are the ownership proof: if a raw FK does not resolve to the exact
+// parent clinic, neither the association nor the raw ID may reach consumers.
+func sanitizeTreatmentMasterRelations(treatments []model.Treatment, clinicID uint64) {
+	for i := range treatments {
+		sanitizeTreatmentMasterRelation(&treatments[i], clinicID)
+	}
+}
+
+func sanitizeTreatmentMasterRelation(treatment *model.Treatment, clinicID uint64) {
+	if treatment == nil {
+		return
+	}
+	if treatment.ConsultationID != nil &&
+		(treatment.Consultation == nil ||
+			treatment.Consultation.ID != *treatment.ConsultationID ||
+			treatment.Consultation.ClinicID != clinicID) {
+		treatment.ConsultationID = nil
+		treatment.Consultation = nil
+	}
+	if treatment.ProcedureID != nil &&
+		(treatment.Procedure == nil ||
+			treatment.Procedure.ID != *treatment.ProcedureID ||
+			treatment.Procedure.ClinicID != clinicID) {
+		treatment.ProcedureID = nil
+		treatment.Procedure = nil
+	}
+	if treatment.MedicineID != nil &&
+		(treatment.Medicine == nil ||
+			treatment.Medicine.ID != *treatment.MedicineID ||
+			treatment.Medicine.ClinicID != clinicID) {
+		treatment.MedicineID = nil
+		treatment.Medicine = nil
+	}
+	if treatment.InventoryID != nil &&
+		(treatment.Inventory == nil ||
+			treatment.Inventory.ID != *treatment.InventoryID ||
+			treatment.Inventory.ClinicID != clinicID) {
+		treatment.InventoryID = nil
+		treatment.Inventory = nil
+	}
 }
 
 func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
@@ -143,7 +200,7 @@ func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.
 		Where("medical_records.status = ?", model.MedicalRecordStatusFinalized).
 		Where("DATE(medical_records.date) = DATE(?)", date).
 		Where("(bc.id IS NULL OR bc.status != 'confirmed')").
-		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = medical_records.id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
+		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = medical_records.id AND b.clinic_id = medical_records.clinic_id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d pet=%d", clinicID, petID))

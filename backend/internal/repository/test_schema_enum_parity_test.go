@@ -40,7 +40,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // createTypeRe extracts "CREATE TYPE <name> AS ENUM (...)" statements from 001_init.sql,
@@ -61,16 +61,16 @@ func extractSQLEnumTypes(sql string) map[string]string {
 	found := make(map[string]string)
 	for _, m := range createTypeRe.FindAllStringSubmatch(sql, -1) {
 		name, rawValues := m[1], m[2]
-		values := repotest.EnumValueRe.FindAllString(rawValues, -1) // BE8-3: repotest/repotest.go
+		values := testdb.EnumValueRe.FindAllString(rawValues, -1)
 		found[name] = "CREATE TYPE " + name + " AS ENUM (" + strings.Join(values, ", ") + ")"
 	}
 	return found
 }
 
-// goEnumTypes returns repotest.SharedTestSchemaEnumTypes as a name -> definition map.
+// goEnumTypes returns testdb.SharedTestSchemaEnumTypes as a name -> definition map.
 func goEnumTypes() map[string]string {
-	out := make(map[string]string, len(repotest.SharedTestSchemaEnumTypes))
-	for _, et := range repotest.SharedTestSchemaEnumTypes {
+	out := make(map[string]string, len(testdb.SharedTestSchemaEnumTypes))
+	for _, et := range testdb.SharedTestSchemaEnumTypes {
 		out[et.Name] = et.Create
 	}
 	return out

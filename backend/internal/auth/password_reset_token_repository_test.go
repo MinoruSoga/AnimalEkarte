@@ -26,15 +26,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupPasswordResetTokenTestDB は password_reset_tokens テーブルを用意し、
 // クリーンな状態でテストを開始できるようにする。
 func setupPasswordResetTokenTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.PasswordResetToken{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.PasswordResetToken{}))
 	db.Exec("TRUNCATE TABLE password_reset_tokens CASCADE")
 	return db
 }
@@ -136,7 +137,12 @@ func TestPasswordResetTokenRepository_DeleteByAccountID(t *testing.T) {
 	makePasswordResetToken(t, repo, targetAccountID, "target-hash-2", time.Now().Add(1*time.Hour))
 	makePasswordResetToken(t, repo, otherAccountID, "other-hash-1", time.Now().Add(1*time.Hour))
 
-	require.NoError(t, repo.DeleteByAccountID(ctx, targetAccountID))
+	require.NoError(t, persistence.NewTransactor(db).WithTx(
+		ctx,
+		func(txCtx context.Context) error {
+			return repo.DeleteByAccountID(txCtx, targetAccountID)
+		},
+	))
 
 	t.Run("対象アカウントの既存トークンはすべて削除される", func(t *testing.T) {
 		for _, hash := range []string{"target-hash-1", "target-hash-2"} {
@@ -153,6 +159,54 @@ func TestPasswordResetTokenRepository_DeleteByAccountID(t *testing.T) {
 		require.NotNil(t, got)
 		assert.Equal(t, otherAccountID, got.AccountID)
 	})
+}
+
+func TestPasswordResetTokenRepository_DeleteByAccountIDRequiresAmbientTransaction(
+	t *testing.T,
+) {
+	repo := NewPasswordResetTokenRepository(nil)
+
+	err := repo.DeleteByAccountID(context.Background(), 1)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ambient transaction")
+}
+
+func TestPasswordResetTokenRepository_FindLatestByAccountIDForUpdate(
+	t *testing.T,
+) {
+	db := setupPasswordResetTokenTestDB(t)
+	repo := NewPasswordResetTokenRepository(db)
+	ctx := context.Background()
+	const accountID = uint64(1)
+
+	older := &model.PasswordResetToken{
+		AccountID: accountID,
+		TokenHash: "latest-lock-older",
+		ExpiresAt: time.Now().Add(time.Hour),
+		CreatedAt: time.Now().Add(-time.Minute),
+	}
+	newer := &model.PasswordResetToken{
+		AccountID: accountID,
+		TokenHash: "latest-lock-newer",
+		ExpiresAt: time.Now().Add(time.Hour),
+		CreatedAt: time.Now(),
+	}
+	require.NoError(t, repo.Create(ctx, older))
+	require.NoError(t, repo.Create(ctx, newer))
+
+	var got *model.PasswordResetToken
+	require.NoError(t, persistence.NewTransactor(db).WithTx(
+		ctx,
+		func(txCtx context.Context) error {
+			var err error
+			got, err = repo.FindLatestByAccountIDForUpdate(txCtx, accountID)
+			return err
+		},
+	))
+
+	require.NotNil(t, got)
+	assert.Equal(t, newer.ID, got.ID)
 }
 
 // TestPasswordResetTokenRepository_Create_DuplicateTokenHash は token_hash に

@@ -227,8 +227,8 @@ func TestWalkInternalTreeT_RealRepo(t *testing.T) {
 	if _, ok := got["lintscan/lintscan.go"]; !ok {
 		t.Errorf(`expected "lintscan/lintscan.go" in result (this very package's production file); got %d keys`, len(got))
 	}
-	if _, ok := got["repository/repotest/repotest.go"]; !ok {
-		t.Errorf(`expected "repository/repotest/repotest.go" in result (a known nested production file); got %d keys`, len(got))
+	if _, ok := got["clinic/company/repository.go"]; !ok {
+		t.Errorf(`expected "clinic/company/repository.go" in result (a known nested production file); got %d keys`, len(got))
 	}
 
 	for k := range got {

@@ -36,26 +36,52 @@ func makeMedicineMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string)
 	return m
 }
 
-// setupTreatmentMasterPreloadTestDB は treatments + マスタ(procedures/medicines)隔離テスト用に DB を整備する。
+// setupTreatmentMasterPreloadTestDB は treatments + nullable マスタ隔離テスト用に DB を整備する。
 func setupTreatmentMasterPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Medicine{}, &model.Treatment{},
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.Consultation{},
+		&model.Procedure{},
+		&model.Medicine{},
+		&model.InventoryItem{},
+		&model.Treatment{},
 	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE consultations CASCADE")
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
+	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db
 }
 
-// TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation は
+func makeTreatmentConsultationMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Consultation {
+	t.Helper()
+	consultation := &model.Consultation{ClinicID: clinicID, Name: name, IsActive: true}
+	require.NoError(t, db.Create(consultation).Error)
+	return consultation
+}
+
+func makeTreatmentInventoryMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.InventoryItem {
+	t.Helper()
+	item := &model.InventoryItem{
+		ClinicID: clinicID, Name: name, Category: model.InventoryCategoryOther,
+		Quantity: 1, Unit: "個", Status: model.InventoryStatusSufficient,
+	}
+	require.NoError(t, db.Create(item).Error)
+	return item
+}
+
+// TestDB_TreatmentRepositoryClearsForeignNullableMasterFKs は
 // clinic A のカルテ配下の treatment が、別クリニック(B)のマスタを指す FK を持っていても
-// 別クリニックのマスタを Preload で漏らさないことを検証する。
-func TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation(t *testing.T) {
+// association だけでなく raw FK も response へ漏らさないことを検証する。
+func TestDB_TreatmentRepositoryClearsForeignNullableMasterFKs(t *testing.T) {
 	db := setupTreatmentMasterPreloadTestDB(t)
 	repo := NewTreatmentRepository(db)
 	ctx := context.Background()
@@ -71,16 +97,20 @@ func TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation(
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-PRELOAD-A", time.Now())
 
 	// clinic B のマスタ（漏れてはならないクロステナントデータ）
+	consultationB := makeTreatmentConsultationMaster(t, db, clinicB, "医院Bの診察マスタ")
 	procedureB := makeProcedure(t, db, clinicB, "医院Bの手技マスタ", model.AnesthesiaTypeNone, false)
 	medicineB := makeMedicineMaster(t, db, clinicB, "医院Bの薬剤マスタ")
+	inventoryB := makeTreatmentInventoryMaster(t, db, clinicB, "医院Bの在庫マスタ")
 
 	// clinic A の treatment に別クリニックのマスタ FK を植え付ける
 	// （write 側の clinic 未検証 / 過去のデータ汚染 #124/#125 を再現）。
 	cross := &model.Treatment{
 		MedicalRecordID: mrA.ID,
+		ConsultationID:  &consultationB.ID,
 		ProcedureID:     &procedureB.ID,
 		MedicineID:      &medicineB.ID,
-		ItemType:        model.TreatmentItemTypeProcedure,
+		InventoryID:     &inventoryB.ID,
+		ItemType:        model.TreatmentItemTypeOther,
 		Content:         "cross-clinic FK planted",
 		SortOrder:       0,
 	}
@@ -90,16 +120,50 @@ func TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation(
 	require.NoError(t, err)
 	require.Len(t, got, 1, "treatment 自体は clinic A 所属なので返る")
 
-	// treatment 行自体は clinic A のものなので返るが、Preload されるマスタは clinic B のもので、
-	// 応答に混入してはならない。clinic_id スコープ Preload なら nil になる。
+	assert.Nil(t, got[0].ConsultationID)
+	assert.Nil(t, got[0].ProcedureID)
+	assert.Nil(t, got[0].MedicineID)
+	assert.Nil(t, got[0].InventoryID)
+	assert.Nil(t, got[0].Consultation)
 	assert.Nil(t, got[0].Procedure, "別クリニックの手技マスタが Preload で混入してはならない")
 	assert.Nil(t, got[0].Medicine, "別クリニックの薬剤マスタが Preload で混入してはならない")
+	assert.Nil(t, got[0].Inventory)
+
+	response := toTreatmentResponse(&got[0])
+	assert.Nil(t, response.ConsultationID)
+	assert.Nil(t, response.ProcedureID)
+	assert.Nil(t, response.MedicineID)
+	assert.Nil(t, response.InventoryID)
+
+	byID, err := repo.FindByID(ctx, clinicA, cross.ID)
+	require.NoError(t, err)
+	assert.Nil(t, byID.ConsultationID)
+	assert.Nil(t, byID.ProcedureID)
+	assert.Nil(t, byID.MedicineID)
+	assert.Nil(t, byID.InventoryID)
+
+	history, total, err := repo.FindHistoryByPetID(
+		ctx,
+		clinicA,
+		petA.ID,
+		model.PetTreatmentHistoryFilter{},
+		1,
+		100,
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, total)
+	require.Len(t, history, 1)
+	historyResponse := toPetTreatmentHistoryResponse(&history[0])
+	assert.Nil(t, historyResponse.ProcedureID)
+	assert.Nil(t, historyResponse.ProcedureName)
+	assert.Nil(t, historyResponse.MedicineID)
+	assert.Nil(t, historyResponse.MedicineName)
 }
 
-// TestTreatmentRepository_FindByMedicalRecordID_SameClinicMasterPreloaded は
+// TestDB_TreatmentRepositoryRetainsSameClinicNullableMasterFKs は
 // clinic 隔離 Preload を追加しても同一クリニックの正当なマスタは従来どおり Preload されることを検証する
 // （修正が正規挙動を壊さないことの担保）。
-func TestTreatmentRepository_FindByMedicalRecordID_SameClinicMasterPreloaded(t *testing.T) {
+func TestDB_TreatmentRepositoryRetainsSameClinicNullableMasterFKs(t *testing.T) {
 	db := setupTreatmentMasterPreloadTestDB(t)
 	repo := NewTreatmentRepository(db)
 	ctx := context.Background()
@@ -110,14 +174,18 @@ func TestTreatmentRepository_FindByMedicalRecordID_SameClinicMasterPreloaded(t *
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "タマA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-PRELOAD-OK", time.Now())
 
+	consultationA := makeTreatmentConsultationMaster(t, db, clinicA, "医院Aの診察")
 	procedureA := makeProcedure(t, db, clinicA, "医院Aの手技", model.AnesthesiaTypeNone, false)
 	medicineA := makeMedicineMaster(t, db, clinicA, "医院Aの薬剤")
+	inventoryA := makeTreatmentInventoryMaster(t, db, clinicA, "医院Aの在庫")
 
 	legit := &model.Treatment{
 		MedicalRecordID: mrA.ID,
+		ConsultationID:  &consultationA.ID,
 		ProcedureID:     &procedureA.ID,
 		MedicineID:      &medicineA.ID,
-		ItemType:        model.TreatmentItemTypeProcedure,
+		InventoryID:     &inventoryA.ID,
+		ItemType:        model.TreatmentItemTypeOther,
 		Content:         "same-clinic FK",
 		SortOrder:       0,
 	}
@@ -127,8 +195,22 @@ func TestTreatmentRepository_FindByMedicalRecordID_SameClinicMasterPreloaded(t *
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 
+	require.NotNil(t, got[0].Consultation)
+	assert.Equal(t, consultationA.ID, got[0].Consultation.ID)
 	require.NotNil(t, got[0].Procedure, "同一クリニックの手技マスタは Preload されるべき")
 	assert.Equal(t, procedureA.ID, got[0].Procedure.ID)
 	require.NotNil(t, got[0].Medicine, "同一クリニックの薬剤マスタは Preload されるべき")
 	assert.Equal(t, medicineA.ID, got[0].Medicine.ID)
+	require.NotNil(t, got[0].Inventory)
+	assert.Equal(t, inventoryA.ID, got[0].Inventory.ID)
+	require.NotNil(t, got[0].ConsultationID)
+	require.NotNil(t, got[0].ProcedureID)
+	require.NotNil(t, got[0].MedicineID)
+	require.NotNil(t, got[0].InventoryID)
+
+	response := toTreatmentResponse(&got[0])
+	require.NotNil(t, response.ConsultationID)
+	require.NotNil(t, response.ProcedureID)
+	require.NotNil(t, response.MedicineID)
+	require.NotNil(t, response.InventoryID)
 }

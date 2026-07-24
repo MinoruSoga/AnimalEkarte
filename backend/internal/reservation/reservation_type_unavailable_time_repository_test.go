@@ -15,16 +15,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTestDB は予約不可時間テスト用に DB を整備する。
 // reservation_types CASCADE で reservation_type_unavailable_times も連鎖クリアされる（FK ON DELETE CASCADE）。
 func setupUnavailableTimeRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ReservationType{}, &model.ReservationTypeUnavailableTime{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationType{}, &model.ReservationTypeUnavailableTime{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	return db
 }
@@ -88,7 +88,7 @@ func TestReservationTypeUnavailableTimeRepository_FindAll_UsesAmbientTransaction
 			StartTime:         "10:00",
 			EndTime:           "11:00",
 		}
-		require.NoError(t, repohelpers.DBOrTx(txCtx, db).Create(unavailableTime).Error)
+		require.NoError(t, persistence.DBOrTx(txCtx, db).Create(unavailableTime).Error)
 
 		got, findErr := repo.FindAll(txCtx, clinicID, reservationType.ID)
 		require.NoError(t, findErr)

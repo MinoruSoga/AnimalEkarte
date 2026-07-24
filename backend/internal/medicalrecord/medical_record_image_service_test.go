@@ -36,6 +36,75 @@ func (m *mockMedicalRecordImageRepository) Delete(ctx context.Context, clinicID,
 	return m.deleteFn(ctx, clinicID, imageID)
 }
 
+type clinicalStaffLockerStub struct {
+	staff *model.Staff
+	err   error
+	calls int
+}
+
+func (s *clinicalStaffLockerStub) LockActiveByIDForShare(_ context.Context, id uint64) (*model.Staff, error) {
+	s.calls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.staff == nil {
+		return nil, nil
+	}
+	staff := *s.staff
+	if staff.ID == 0 {
+		staff.ID = id
+	}
+	return &staff, nil
+}
+
+type clinicalStaffAssignmentLockerStub struct {
+	assignment *model.StaffClinicAssignment
+	err        error
+	calls      int
+}
+
+func (s *clinicalStaffAssignmentLockerStub) LockActiveByStaffAndClinic(
+	_ context.Context,
+	staffID, clinicID uint64,
+) (*model.StaffClinicAssignment, error) {
+	s.calls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.assignment == nil {
+		return nil, nil
+	}
+	assignment := *s.assignment
+	if assignment.StaffID == 0 {
+		assignment.StaffID = staffID
+	}
+	if assignment.ClinicID == 0 {
+		assignment.ClinicID = clinicID
+	}
+	return &assignment, nil
+}
+
+type medicalRecordImageExaminationFinderStub struct {
+	exam  *model.Examination
+	err   error
+	calls int
+}
+
+func (s *medicalRecordImageExaminationFinderStub) FindByID(
+	_ context.Context,
+	_, _ uint64,
+) (*model.Examination, error) {
+	s.calls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.exam == nil {
+		return nil, nil
+	}
+	exam := *s.exam
+	return &exam, nil
+}
+
 // ---- Tests ----
 
 func TestMedicalRecordImageService_List(t *testing.T) {
@@ -181,7 +250,18 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 					return &model.MedicalRecord{ID: tt.medicalRecordID, Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
+			svc := NewMedicalRecordImageServiceWithRelationValidation(
+				repo,
+				medRecRepo,
+				&medicalRecordImageExaminationFinderStub{exam: &model.Examination{
+					ID: examID, ClinicID: 1, MedicalRecordID: ptrUint64(tt.medicalRecordID),
+				}},
+				&clinicalStaffLockerStub{staff: &model.Staff{ID: staffID, IsActive: true}},
+				&clinicalStaffAssignmentLockerStub{
+					assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: 1},
+				},
+				&mockCheckupTransactor{},
+			)
 
 			image, err := svc.Create(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -335,4 +415,138 @@ func TestMedicalRecordImageService_FinalizedGuard(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+}
+
+func TestMedicalRecordImageService_CreateRejectsInvalidRequestRelations(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		medicalRecord = uint64(10)
+		otherRecord   = uint64(11)
+		examinationID = uint64(20)
+		staffID       = uint64(30)
+	)
+
+	tests := []struct {
+		name       string
+		exam       *model.Examination
+		staff      *model.Staff
+		assignment *model.StaffClinicAssignment
+		wantErr    bool
+	}{
+		{
+			name: "accepts active same-clinic relations",
+			exam: &model.Examination{
+				ID: examinationID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecord),
+			},
+			staff:      &model.Staff{ID: staffID, IsActive: true},
+			assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+		},
+		{
+			name: "rejects examination belonging to another medical record",
+			exam: &model.Examination{
+				ID: examinationID, ClinicID: clinicID, MedicalRecordID: ptrUint64(otherRecord),
+			},
+			staff:      &model.Staff{ID: staffID, IsActive: true},
+			assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+			wantErr:    true,
+		},
+		{
+			name: "rejects examination belonging to another clinic",
+			exam: &model.Examination{
+				ID: examinationID, ClinicID: clinicID + 1, MedicalRecordID: ptrUint64(medicalRecord),
+			},
+			staff:      &model.Staff{ID: staffID, IsActive: true},
+			assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+			wantErr:    true,
+		},
+		{
+			name: "rejects inactive staff",
+			exam: &model.Examination{
+				ID: examinationID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecord),
+			},
+			staff:      &model.Staff{ID: staffID, IsActive: false},
+			assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID},
+			wantErr:    true,
+		},
+		{
+			name: "rejects staff without requested-clinic assignment",
+			exam: &model.Examination{
+				ID: examinationID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecord),
+			},
+			staff:      &model.Staff{ID: staffID, IsActive: true},
+			assignment: &model.StaffClinicAssignment{StaffID: staffID, ClinicID: clinicID + 1},
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalls := 0
+			repo := &mockMedicalRecordImageRepository{
+				createFn: func(_ context.Context, image *model.MedicalRecordImage) error {
+					createCalls++
+					image.ID = 1
+					return nil
+				},
+			}
+			medRecRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{
+						ID: gotRecordID, ClinicID: gotClinicID, Status: model.MedicalRecordStatusDraft,
+					}, nil
+				},
+			}
+			svc := NewMedicalRecordImageServiceWithRelationValidation(
+				repo,
+				medRecRepo,
+				&medicalRecordImageExaminationFinderStub{exam: tt.exam},
+				&clinicalStaffLockerStub{staff: tt.staff},
+				&clinicalStaffAssignmentLockerStub{assignment: tt.assignment},
+				&mockCheckupTransactor{},
+			)
+
+			got, err := svc.Create(context.Background(), clinicID, medicalRecord, &CreateMedicalRecordImageInput{
+				ImageURL: "https://example.com/image.jpg",
+				ExamID:   ptrUint64(examinationID),
+				StaffID:  ptrUint64(staffID),
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				assert.Zero(t, createCalls)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			assert.Equal(t, 1, createCalls)
+		})
+	}
+}
+
+func TestMedicalRecordImageService_CreateFailsClosedWithoutRelationDependencies(t *testing.T) {
+	createCalls := 0
+	repo := &mockMedicalRecordImageRepository{
+		createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
+			createCalls++
+			return nil
+		},
+	}
+	medRecRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
+
+	got, err := svc.Create(context.Background(), 1, 10, &CreateMedicalRecordImageInput{
+		ImageURL: "https://example.com/image.jpg",
+		ExamID:   ptrUint64(20),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, createCalls)
 }

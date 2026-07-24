@@ -20,7 +20,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -215,7 +215,7 @@ func TestLstepTagCodeMappingService_PutMappingsForTag_RollsBackPartialReplacemen
 		LstepTagCodeMappingRepository: baseRepo,
 		failAt:                        2,
 	}
-	svc := NewLstepTagCodeMappingService(failingRepo, repository.NewTransactor(db))
+	svc := NewLstepTagCodeMappingService(failingRepo, persistence.NewTransactor(db))
 
 	got, err := svc.PutMappingsForTag(ctx, clinicID, HlthHealthcheckDoneTag, []PutMappingEntry{
 		{CodeType: model.CodeTypePrescription, Codes: []string{"RX_NEW"}},

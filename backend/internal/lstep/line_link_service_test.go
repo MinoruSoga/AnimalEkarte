@@ -1,6 +1,7 @@
 package lstep
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -8,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -27,10 +29,11 @@ import (
 // line_link/line_send/line_customer の 3 service が同一 view を共有する。
 type mockLstepOwnerRepo struct {
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	findAllByLineUserIDFn  func(ctx context.Context, lineUserID string) ([]model.Owner, error)
+	lockLineLinkOwnerFn    func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	findByLineUserIDFn     func(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
 	updateLineUserIDFn     func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
-	updateLineFollowedAtFn func(ctx context.Context, clinicID, id uint64, t time.Time) error
-	updateLineBlockedAtFn  func(ctx context.Context, clinicID, id uint64, t time.Time) error
+	updateLineFollowedAtFn func(ctx context.Context, clinicID, id uint64, expectedLineUserID string, t time.Time) (bool, error)
+	updateLineBlockedAtFn  func(ctx context.Context, clinicID, id uint64, expectedLineUserID string, t time.Time) (bool, error)
 }
 
 func (m *mockLstepOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
@@ -39,11 +42,17 @@ func (m *mockLstepOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) 
 	}
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
-func (m *mockLstepOwnerRepo) FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error) {
-	if m.findAllByLineUserIDFn != nil {
-		return m.findAllByLineUserIDFn(ctx, lineUserID)
+func (m *mockLstepOwnerRepo) LockLineLinkOwner(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	if m.lockLineLinkOwnerFn != nil {
+		return m.lockLineLinkOwnerFn(ctx, clinicID, id)
 	}
-	return nil, nil
+	return &model.Owner{ID: id, ClinicID: clinicID}, nil
+}
+func (m *mockLstepOwnerRepo) FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error) {
+	if m.findByLineUserIDFn != nil {
+		return m.findByLineUserIDFn(ctx, clinicID, lineUserID)
+	}
+	return nil, apperrors.WrapNotFound("owner", "")
 }
 func (m *mockLstepOwnerRepo) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
 	if m.updateLineUserIDFn != nil {
@@ -51,25 +60,35 @@ func (m *mockLstepOwnerRepo) UpdateLineUserID(ctx context.Context, clinicID, id 
 	}
 	return nil
 }
-func (m *mockLstepOwnerRepo) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+func (m *mockLstepOwnerRepo) UpdateLineFollowedAt(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedLineUserID string,
+	t time.Time,
+) (bool, error) {
 	if m.updateLineFollowedAtFn != nil {
-		return m.updateLineFollowedAtFn(ctx, clinicID, id, t)
+		return m.updateLineFollowedAtFn(ctx, clinicID, id, expectedLineUserID, t)
 	}
-	return nil
+	return true, nil
 }
-func (m *mockLstepOwnerRepo) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
+func (m *mockLstepOwnerRepo) UpdateLineBlockedAt(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedLineUserID string,
+	t time.Time,
+) (bool, error) {
 	if m.updateLineBlockedAtFn != nil {
-		return m.updateLineBlockedAtFn(ctx, clinicID, id, t)
+		return m.updateLineBlockedAtFn(ctx, clinicID, id, expectedLineUserID, t)
 	}
-	return nil
+	return true, nil
 }
 
 // --- mock: LineLinkTokenRepository ---
 
 type mockLineLinkTokenRepo struct {
-	createFn      func(ctx context.Context, t *model.LineLinkToken) error
-	findByTokenFn func(ctx context.Context, token string) (*model.LineLinkToken, error)
-	markUsedFn    func(ctx context.Context, id uint64, usedAt time.Time) error
+	createFn          func(ctx context.Context, t *model.LineLinkToken) error
+	lockUsableTokenFn func(ctx context.Context, rawToken string, now time.Time) (*model.LineLinkToken, error)
+	consumeFn         func(ctx context.Context, id uint64, usedAt time.Time) error
 }
 
 func (m *mockLineLinkTokenRepo) Create(ctx context.Context, t *model.LineLinkToken) error {
@@ -78,15 +97,48 @@ func (m *mockLineLinkTokenRepo) Create(ctx context.Context, t *model.LineLinkTok
 	}
 	return nil
 }
-func (m *mockLineLinkTokenRepo) FindByToken(ctx context.Context, token string) (*model.LineLinkToken, error) {
-	if m.findByTokenFn != nil {
-		return m.findByTokenFn(ctx, token)
+func (m *mockLineLinkTokenRepo) LockUsableByRawToken(ctx context.Context, rawToken string, now time.Time) (*model.LineLinkToken, error) {
+	if m.lockUsableTokenFn != nil {
+		return m.lockUsableTokenFn(ctx, rawToken, now)
 	}
-	return nil, apperrors.WrapNotFound("link_token", token)
+	return nil, apperrors.WrapNotFound("link_token", "")
 }
-func (m *mockLineLinkTokenRepo) MarkUsed(ctx context.Context, id uint64, usedAt time.Time) error {
-	if m.markUsedFn != nil {
-		return m.markUsedFn(ctx, id, usedAt)
+func (m *mockLineLinkTokenRepo) Consume(ctx context.Context, id uint64, usedAt time.Time) error {
+	if m.consumeFn != nil {
+		return m.consumeFn(ctx, id, usedAt)
+	}
+	return nil
+}
+
+type immediateLineLinkTransactor struct{}
+
+func (immediateLineLinkTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(context.WithValue(ctx, lineLinkTxTestContextKey{}, true))
+}
+
+type lineLinkTxTestContextKey struct{}
+
+type rollbackLineLinkTransactor struct {
+	snapshot func() any
+	restore  func(any)
+}
+
+func (t rollbackLineLinkTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	before := t.snapshot()
+	err := fn(context.WithValue(ctx, lineLinkTxTestContextKey{}, true))
+	if err != nil {
+		t.restore(before)
+	}
+	return err
+}
+
+type mockLineLinkAuditTxLogger struct {
+	logFn func(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+func (m *mockLineLinkAuditTxLogger) LogOwnerLineLinkTx(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.logFn != nil {
+		return m.logFn(ctx, clinicID, ownerID)
 	}
 	return nil
 }
@@ -119,20 +171,36 @@ func newTestLineLinkService(
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
 ) LineLinkService {
-	return NewLineLinkService(ownerRepo, tokenRepo, settingRepo, &mockAuditService{}, nil)
+	return NewLineLinkService(
+		ownerRepo,
+		tokenRepo,
+		settingRepo,
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
+		nil,
+	)
 }
 
 // --- GenerateLinkToken tests ---
 
 func TestLineLinkService_GenerateLinkToken_Success(t *testing.T) {
+	var storedToken string
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{},
-		&mockLineLinkTokenRepo{},
+		&mockLineLinkTokenRepo{
+			createFn: func(_ context.Context, token *model.LineLinkToken) error {
+				storedToken = token.Token
+				return nil
+			},
+		},
 		&mockLineLinkSettingRepo{},
 	)
 	result, err := svc.GenerateLinkToken(context.Background(), 1, 42)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.Token)
+	assert.Len(t, result.Token, 43, "raw token must use unpadded base64url encoding")
+	assert.Len(t, storedToken, 43, "persisted SHA-256 base64url digest must fit varchar(64)")
+	assert.Equal(t, digestLineLinkToken(result.Token), storedToken)
+	assert.NotEqual(t, result.Token, storedToken, "raw bearer token must never be persisted")
 	assert.True(t, result.ExpiresAt.After(time.Now()))
 	assert.Contains(t, result.LiffURL, "liff.line.me")
 	assert.Contains(t, result.LiffURL, result.Token)
@@ -176,6 +244,8 @@ func makeLineSignature(body []byte, secret string) string {
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
+const testLineWebhookTimestamp int64 = 1_700_000_000_000
+
 func TestLineLinkService_HandleWebhook_InvalidSignature(t *testing.T) {
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{},
@@ -193,12 +263,12 @@ func TestLineLinkService_HandleWebhook_FollowEvent(t *testing.T) {
 
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
-				return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
+			findByLineUserIDFn: func(_ context.Context, clinicID uint64, uid string) (*model.Owner, error) {
+				return &model.Owner{ID: 10, ClinicID: clinicID, LineUserID: &uid}, nil
 			},
-			updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
+			updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 				followedAt = true
-				return nil
+				return true, nil
 			},
 		},
 		&mockLineLinkTokenRepo{},
@@ -208,7 +278,7 @@ func TestLineLinkService_HandleWebhook_FollowEvent(t *testing.T) {
 	payload := WebhookPayload{
 		Destination: "dest",
 		Events: []WebhookEvent{
-			{Type: "follow", Source: struct {
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: lineUserID}},
 		},
@@ -232,12 +302,12 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 	lineUserID := "Uabc123"
 	followedAt := false
 	ownerRepo := &mockLstepOwnerRepo{
-		findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
-			return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
+		findByLineUserIDFn: func(_ context.Context, clinicID uint64, uid string) (*model.Owner, error) {
+			return &model.Owner{ID: 10, ClinicID: clinicID, LineUserID: &uid}, nil
 		},
-		updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
+		updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 			followedAt = true
-			return nil
+			return true, nil
 		},
 	}
 	settingRepo := &mockLineLinkSettingRepo{
@@ -245,12 +315,19 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 			return []model.LineReservationSetting{{ClinicID: 1, LineChannelSecret: encSecret}}, nil
 		},
 	}
-	svc := NewLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo, &mockAuditService{}, cipher)
+	svc := NewLineLinkService(
+		ownerRepo,
+		&mockLineLinkTokenRepo{},
+		settingRepo,
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
+		cipher,
+	)
 
 	payload := WebhookPayload{
 		Destination: "dest",
 		Events: []WebhookEvent{
-			{Type: "follow", Source: struct {
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: lineUserID}},
 		},
@@ -270,12 +347,12 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent(t *testing.T) {
 
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, uid string) ([]model.Owner, error) {
-				return []model.Owner{{ID: 10, ClinicID: 1, LineUserID: &uid}}, nil
+			findByLineUserIDFn: func(_ context.Context, clinicID uint64, uid string) (*model.Owner, error) {
+				return &model.Owner{ID: 10, ClinicID: clinicID, LineUserID: &uid}, nil
 			},
-			updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
+			updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 				blockedAt = true
-				return nil
+				return true, nil
 			},
 		},
 		&mockLineLinkTokenRepo{},
@@ -285,7 +362,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent(t *testing.T) {
 	payload := WebhookPayload{
 		Destination: "dest",
 		Events: []WebhookEvent{
-			{Type: "unfollow", Source: struct {
+			{Type: "unfollow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: lineUserID}},
 		},
@@ -298,22 +375,182 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent(t *testing.T) {
 	assert.True(t, blockedAt)
 }
 
+func TestLineLinkService_HandleWebhook_ScopesOwnerMutationToSigningClinic(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{name: "follow only updates the signing clinic owner", eventType: "follow"},
+		{name: "unfollow only updates the signing clinic owner", eventType: "unfollow"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const signingClinicID uint64 = 2
+			lineUserID := "U-shared-across-clinics"
+			var scopedLookupClinicIDs []uint64
+			var updatedClinicIDs []uint64
+			var expectedLineUserIDs []string
+			var updateTimes []time.Time
+			ownerRepo := &mockLstepOwnerRepo{
+				findByLineUserIDFn: func(_ context.Context, clinicID uint64, uid string) (*model.Owner, error) {
+					scopedLookupClinicIDs = append(scopedLookupClinicIDs, clinicID)
+					return &model.Owner{ID: 20, ClinicID: clinicID, LineUserID: &uid}, nil
+				},
+				updateLineFollowedAtFn: func(_ context.Context, clinicID, _ uint64, expectedLineUserID string, eventAt time.Time) (bool, error) {
+					updatedClinicIDs = append(updatedClinicIDs, clinicID)
+					expectedLineUserIDs = append(expectedLineUserIDs, expectedLineUserID)
+					updateTimes = append(updateTimes, eventAt)
+					return true, nil
+				},
+				updateLineBlockedAtFn: func(_ context.Context, clinicID, _ uint64, expectedLineUserID string, eventAt time.Time) (bool, error) {
+					updatedClinicIDs = append(updatedClinicIDs, clinicID)
+					expectedLineUserIDs = append(expectedLineUserIDs, expectedLineUserID)
+					updateTimes = append(updateTimes, eventAt)
+					return true, nil
+				},
+			}
+			settingRepo := &mockLineLinkSettingRepo{
+				findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+					return []model.LineReservationSetting{
+						{ClinicID: 1, LineChannelSecret: "clinic-one-secret"},
+						{ClinicID: signingClinicID, LineChannelSecret: "clinic-two-secret"},
+					}, nil
+				},
+			}
+			svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo)
+			payload := WebhookPayload{
+				Events: []WebhookEvent{
+					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
+						UserID string `json:"userId"`
+					}{UserID: lineUserID}},
+				},
+			}
+			body, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			err = svc.HandleWebhook(
+				context.Background(),
+				body,
+				makeLineSignature(body, "clinic-two-secret"),
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, []uint64{signingClinicID}, scopedLookupClinicIDs)
+			assert.Equal(t, []uint64{signingClinicID}, updatedClinicIDs)
+			assert.Equal(t, []string{lineUserID}, expectedLineUserIDs)
+			assert.Equal(t, []time.Time{time.UnixMilli(testLineWebhookTimestamp)}, updateTimes)
+		})
+	}
+}
+
+func TestLineLinkService_HandleWebhook_RejectsAmbiguousSigningClinic(t *testing.T) {
+	lineUserID := "U-ambiguous-secret"
+	lookupCalled := false
+	updateCalled := false
+	ownerRepo := &mockLstepOwnerRepo{
+		findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+			lookupCalled = true
+			return &model.Owner{ID: 1, ClinicID: 1}, nil
+		},
+		updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+			updateCalled = true
+			return true, nil
+		},
+	}
+	settingRepo := &mockLineLinkSettingRepo{
+		findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+			return []model.LineReservationSetting{
+				{ClinicID: 1, LineChannelSecret: "shared-secret"},
+				{ClinicID: 2, LineChannelSecret: "shared-secret"},
+			}, nil
+		},
+	}
+	svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo)
+	payload := WebhookPayload{
+		Events: []WebhookEvent{
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
+				UserID string `json:"userId"`
+			}{UserID: lineUserID}},
+		},
+	}
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "shared-secret"))
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.False(t, lookupCalled)
+	assert.False(t, updateCalled)
+}
+
+func TestLineLinkService_HandleWebhook_DoesNotLogRawLineUserID(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{name: "follow failure", eventType: "follow"},
+		{name: "unfollow failure", eventType: "unfollow"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const lineUserID = "U-sensitive-personal-identifier"
+			var logBuffer bytes.Buffer
+			previousLogger := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuffer, nil)))
+			t.Cleanup(func() {
+				slog.SetDefault(previousLogger)
+			})
+
+			ownerRepo := &mockLstepOwnerRepo{
+				findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+					return nil, errors.New("db error")
+				},
+			}
+			svc := newTestLineLinkService(
+				ownerRepo,
+				&mockLineLinkTokenRepo{},
+				&mockLineLinkSettingRepo{},
+			)
+			payload := WebhookPayload{
+				Events: []WebhookEvent{
+					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
+						UserID string `json:"userId"`
+					}{UserID: lineUserID}},
+				},
+			}
+			body, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "secret"))
+
+			require.Error(t, err)
+			assert.NotContains(t, logBuffer.String(), lineUserID)
+		})
+	}
+}
+
 // --- LinkAccount tests ---
 // verifyLineIDToken は https://api.line.me/... を直接呼び出す設計のため、
 // ユニットテストでは LINE IDトークン検証失敗ケース（= Unauthorized）のみ確認する。
 
 func TestLineLinkService_LinkAccount_InvalidLineToken(t *testing.T) {
-	svc := newTestLineLinkService(
+	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
+		jsonRespClient(http.StatusBadRequest, `{"error":"invalid token"}`),
 	)
 	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{
 		LinkToken:   "any-token",
 		LineIDToken: "invalid-line-token",
 	})
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+	assert.ErrorIs(t, err, apperrors.ErrUnauthorized)
 }
 
 // --- verifyLineSignature tests ---
@@ -356,18 +593,30 @@ type errReadCloser struct{}
 func (errReadCloser) Read(_ []byte) (int, error) { return 0, errors.New("read error") }
 func (errReadCloser) Close() error               { return nil }
 
+type closeTrackingBody struct {
+	io.Reader
+	closed bool
+}
+
+func (b *closeTrackingBody) Close() error {
+	b.closed = true
+	return nil
+}
+
 func newTestLineLinkServiceFull(
 	ownerRepo *mockLstepOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
-	auditSvc *mockAuditService,
+	transactor Transactor,
+	auditTx LineLinkAuditTxLogger,
 	client *http.Client,
 ) *lineLinkService {
 	return &lineLinkService{
 		ownerRepo:         ownerRepo,
 		lineLinkTokenRepo: tokenRepo,
 		lineSettingRepo:   settingRepo,
-		auditSvc:          auditSvc,
+		transactor:        transactor,
+		auditTx:           auditTx,
 		httpClient:        client,
 	}
 }
@@ -425,8 +674,13 @@ func TestVerifyLineIDToken(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "returns invalid input when sub is empty",
+			name:    "returns error when sub is empty",
 			client:  jsonRespClient(http.StatusOK, `{"sub":""}`),
+			wantErr: true,
+		},
+		{
+			name:    "returns error when sub exceeds its bound",
+			client:  jsonRespClient(http.StatusOK, `{"sub":"`+strings.Repeat("U", maxLineUserIDChars+1)+`"}`),
 			wantErr: true,
 		},
 	}
@@ -448,18 +702,137 @@ func TestVerifyLineIDToken(t *testing.T) {
 	}
 }
 
+func TestVerifyLineIDToken_PropagatesContextAndClosesBoundedResponse(t *testing.T) {
+	type contextKey string
+	const requestKey contextKey = "request"
+	body := &closeTrackingBody{Reader: strings.NewReader(`{"sub":"Uabc123"}`)}
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "context-value", req.Context().Value(requestKey))
+		assert.Equal(t, http.MethodPost, req.Method)
+		assert.Equal(t, "application/x-www-form-urlencoded", req.Header.Get("Content-Type"))
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		}, nil
+	})}
+	ctx := context.WithValue(context.Background(), requestKey, "context-value")
+
+	got, err := verifyLineIDToken(ctx, "test-token", 1, &mockLineLinkSettingRepo{}, client)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Uabc123", got)
+	assert.True(t, body.closed)
+}
+
+func TestVerifyLineIDToken_RejectsOversizedResponse(t *testing.T) {
+	client := jsonRespClient(
+		http.StatusOK,
+		strings.Repeat("x", maxLineVerifyResponseBytes+1),
+	)
+
+	_, err := verifyLineIDToken(context.Background(), "test-token", 1, &mockLineLinkSettingRepo{}, client)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.ErrBadGateway)
+}
+
+func TestVerifyLineIDToken_NonOKResponseDoesNotLeakBody(t *testing.T) {
+	client := jsonRespClient(http.StatusUnauthorized, `{"error":"private LINE response"}`)
+
+	_, err := verifyLineIDToken(context.Background(), "test-token", 1, &mockLineLinkSettingRepo{}, client)
+
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "private LINE response")
+}
+
+func TestVerifyLineIDToken_PropagatesContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, req.Context().Err()
+	})}
+
+	_, err := verifyLineIDToken(ctx, "test-token", 1, &mockLineLinkSettingRepo{}, client)
+
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestVerifyLineIDToken_DoesNotFollowRedirects(t *testing.T) {
+	requestCount := 0
+	callerRedirectCount := 0
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		if requestCount == 1 {
+			return &http.Response{
+				StatusCode: http.StatusTemporaryRedirect,
+				Body:       io.NopCloser(strings.NewReader("redirect")),
+				Header: http.Header{
+					"Location": []string{"https://attacker.invalid/collect"},
+				},
+				Request: req,
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"sub":"U-exfiltrated"}`)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+	client := &http.Client{
+		Timeout:   3 * time.Second,
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			callerRedirectCount++
+			return nil
+		},
+	}
+
+	_, err := verifyLineIDToken(
+		context.Background(),
+		"sensitive-id-token",
+		1,
+		&mockLineLinkSettingRepo{},
+		client,
+	)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.ErrBadGateway)
+	assert.Equal(t, 1, requestCount, "LINE ID token must never be resent to a redirect target")
+	assert.Zero(t, callerRedirectCount, "caller redirect policy must be overridden for credential safety")
+	assert.Equal(t, 3*time.Second, client.Timeout)
+}
+
+func TestNewLineLinkService_DefaultHTTPClientHasTimeout(t *testing.T) {
+	svc := NewLineLinkService(
+		&mockLstepOwnerRepo{},
+		&mockLineLinkTokenRepo{},
+		&mockLineLinkSettingRepo{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
+		nil,
+	)
+
+	impl, ok := svc.(*lineLinkService)
+	require.True(t, ok)
+	require.NotNil(t, impl.httpClient)
+	assert.Positive(t, impl.httpClient.Timeout)
+}
+
 // --- LinkAccount additional branch tests ---
 
 func TestLineLinkService_LinkAccount_TokenNotFound(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
-				return nil, errors.New("not found")
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
+				return nil, apperrors.WrapNotFound("link_token", "")
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -473,12 +846,13 @@ func TestLineLinkService_LinkAccount_ClinicMismatch(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 2, OwnerID: 10}, nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -491,81 +865,56 @@ func TestLineLinkService_LinkAccount_ClinicMismatch(t *testing.T) {
 func TestLineLinkService_LinkAccount_OwnerNotFound(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-				return nil, errors.New("not found")
+			lockLineLinkOwnerFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return nil, apperrors.WrapNotFound("owner", "10")
 			},
 		},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
 	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid"})
 
 	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
 func TestLineLinkService_LinkAccount_AlreadyLinkedConflict(t *testing.T) {
 	existing := "Uold"
-	svc := newTestLineLinkServiceFull(
-		&mockLstepOwnerRepo{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
-				return &model.Owner{ID: id, LineUserID: &existing}, nil
-			},
-		},
-		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
-				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
-			},
-		},
-		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
-		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
-	)
-
-	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid", Force: false})
-
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-}
-
-func TestLineLinkService_LinkAccount_ForceOverridesExisting(t *testing.T) {
-	existing := "Uold"
 	updateCalled := false
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+			lockLineLinkOwnerFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 				return &model.Owner{ID: id, LineUserID: &existing}, nil
 			},
-			updateLineUserIDFn: func(_ context.Context, _, _ uint64, lineUserID *string) error {
+			updateLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string) error {
 				updateCalled = true
-				require.NotNil(t, lineUserID)
-				assert.Equal(t, "Uverified123", *lineUserID)
 				return nil
 			},
 		},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
-	owner, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid", Force: true})
+	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid"})
 
-	require.NoError(t, err)
-	require.NotNil(t, owner)
-	assert.True(t, updateCalled)
-	require.NotNil(t, owner.LineUserID)
-	assert.Equal(t, "Uverified123", *owner.LineUserID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.False(t, updateCalled, "public link flow must never overwrite an existing LINE user ID")
 }
 
 func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
@@ -576,12 +925,13 @@ func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
 			},
 		},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -590,19 +940,20 @@ func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLineLinkService_LinkAccount_MarkUsedError(t *testing.T) {
+func TestLineLinkService_LinkAccount_ConsumeError(t *testing.T) {
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
 			},
-			markUsedFn: func(_ context.Context, _ uint64, _ time.Time) error {
+			consumeFn: func(_ context.Context, _ uint64, _ time.Time) error {
 				return errors.New("db error")
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -611,39 +962,124 @@ func TestLineLinkService_LinkAccount_MarkUsedError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLineLinkService_LinkAccount_AuditLogFailureStillSucceeds(t *testing.T) {
+func TestLineLinkService_LinkAccount_AuditFailureFailsClosed(t *testing.T) {
+	auditCalled := false
 	svc := newTestLineLinkServiceFull(
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{
-			logLstepOperationFn: func(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{
+			logFn: func(_ context.Context, clinicID, ownerID uint64) error {
+				auditCalled = true
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(10), ownerID)
 				return errors.New("audit failure")
 			},
 		},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
-	owner, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid"})
+	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid"})
 
-	require.NoError(t, err, "audit log failure must not fail the overall link operation")
-	require.NotNil(t, owner)
+	require.Error(t, err)
+	assert.True(t, auditCalled)
 }
 
-func TestLineLinkService_LinkAccount_Success(t *testing.T) {
+func TestLineLinkService_LinkAccount_AuditFailureRollsBackOwnerAndTokenState(t *testing.T) {
+	type state struct {
+		lineUserID string
+		tokenUsed  bool
+	}
+	current := state{}
+	transactor := rollbackLineLinkTransactor{
+		snapshot: func() any { return current },
+		restore:  func(before any) { current = before.(state) },
+	}
 	svc := newTestLineLinkServiceFull(
-		&mockLstepOwnerRepo{},
+		&mockLstepOwnerRepo{
+			lockLineLinkOwnerFn: func(_ context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+				return &model.Owner{ID: ownerID, ClinicID: clinicID}, nil
+			},
+			updateLineUserIDFn: func(_ context.Context, _, _ uint64, lineUserID *string) error {
+				current.lineUserID = *lineUserID
+				return nil
+			},
+		},
 		&mockLineLinkTokenRepo{
-			findByTokenFn: func(_ context.Context, _ string) (*model.LineLinkToken, error) {
+			lockUsableTokenFn: func(_ context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
 				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
+			},
+			consumeFn: func(_ context.Context, _ uint64, _ time.Time) error {
+				current.tokenUsed = true
+				return nil
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockAuditService{},
+		transactor,
+		&mockLineLinkAuditTxLogger{
+			logFn: func(_ context.Context, _, _ uint64) error {
+				return errors.New("audit failure")
+			},
+		},
+		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
+	)
+
+	_, err := svc.LinkAccount(context.Background(), 1, LinkAccountInput{LinkToken: "tok", LineIDToken: "valid"})
+
+	require.Error(t, err)
+	assert.Empty(t, current.lineUserID)
+	assert.False(t, current.tokenUsed)
+}
+
+func TestLineLinkService_LinkAccount_SuccessUsesOneTransactionContext(t *testing.T) {
+	var txContext context.Context
+	assertTxContext := func(t *testing.T, ctx context.Context) {
+		t.Helper()
+		require.True(t, ctx.Value(lineLinkTxTestContextKey{}).(bool))
+		if txContext == nil {
+			txContext = ctx
+			return
+		}
+		assert.Same(t, txContext, ctx)
+	}
+	svc := newTestLineLinkServiceFull(
+		&mockLstepOwnerRepo{
+			findByIDFn: func(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+				assertTxContext(t, ctx)
+				return &model.Owner{ID: ownerID, ClinicID: clinicID}, nil
+			},
+			lockLineLinkOwnerFn: func(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+				assertTxContext(t, ctx)
+				return &model.Owner{ID: ownerID, ClinicID: clinicID}, nil
+			},
+			updateLineUserIDFn: func(ctx context.Context, _, _ uint64, _ *string) error {
+				assertTxContext(t, ctx)
+				return nil
+			},
+		},
+		&mockLineLinkTokenRepo{
+			lockUsableTokenFn: func(ctx context.Context, _ string, _ time.Time) (*model.LineLinkToken, error) {
+				assertTxContext(t, ctx)
+				return &model.LineLinkToken{ID: 1, ClinicID: 1, OwnerID: 10}, nil
+			},
+			consumeFn: func(ctx context.Context, _ uint64, _ time.Time) error {
+				assertTxContext(t, ctx)
+				return nil
+			},
+		},
+		&mockLineLinkSettingRepo{},
+		immediateLineLinkTransactor{},
+		&mockLineLinkAuditTxLogger{
+			logFn: func(ctx context.Context, _, _ uint64) error {
+				assertTxContext(t, ctx)
+				return nil
+			},
+		},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -672,9 +1108,15 @@ func TestLineLinkService_GenerateLinkToken_CreateError(t *testing.T) {
 }
 
 func TestLineLinkService_GenerateLinkToken_SettingRepoError(t *testing.T) {
+	createCalled := false
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{},
-		&mockLineLinkTokenRepo{},
+		&mockLineLinkTokenRepo{
+			createFn: func(_ context.Context, _ *model.LineLinkToken) error {
+				createCalled = true
+				return nil
+			},
+		},
 		&mockLineLinkSettingRepo{
 			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 				return nil, errors.New("db error")
@@ -683,6 +1125,7 @@ func TestLineLinkService_GenerateLinkToken_SettingRepoError(t *testing.T) {
 	)
 	_, err := svc.GenerateLinkToken(context.Background(), 1, 42)
 	assert.Error(t, err)
+	assert.False(t, createCalled, "setting lookup failure must not leave an unusable bearer token row")
 }
 
 // --- HandleWebhook additional branch tests ---
@@ -702,7 +1145,7 @@ func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 	handlerCalled := false
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
+			findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 				handlerCalled = true
 				return nil, nil
 			},
@@ -713,7 +1156,7 @@ func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 
 	payload := WebhookPayload{
 		Events: []WebhookEvent{
-			{Type: "follow", Source: struct {
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: ""}},
 		},
@@ -727,10 +1170,10 @@ func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 	assert.False(t, handlerCalled, "empty line_user_id events must be skipped")
 }
 
-func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnersErrorIsLoggedNotReturned(t *testing.T) {
+func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnerErrorIsPropagated(t *testing.T) {
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
+			findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 				return nil, errors.New("db error")
 			},
 		},
@@ -740,7 +1183,7 @@ func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnersErrorIsLoggedNotRet
 
 	payload := WebhookPayload{
 		Events: []WebhookEvent{
-			{Type: "follow", Source: struct {
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: "Uabc"}},
 		},
@@ -750,13 +1193,14 @@ func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnersErrorIsLoggedNotRet
 
 	err := svc.HandleWebhook(context.Background(), body, sig)
 
-	assert.NoError(t, err, "handleFollowEvent errors must be logged, not propagated")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to find owners by line user id")
 }
 
-func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnersErrorIsLoggedNotReturned(t *testing.T) {
+func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnerErrorIsPropagated(t *testing.T) {
 	svc := newTestLineLinkService(
 		&mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
+			findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 				return nil, errors.New("db error")
 			},
 		},
@@ -766,7 +1210,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnersErrorIsLoggedNotR
 
 	payload := WebhookPayload{
 		Events: []WebhookEvent{
-			{Type: "unfollow", Source: struct {
+			{Type: "unfollow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
 			}{UserID: "Uabc"}},
 		},
@@ -776,43 +1220,205 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnersErrorIsLoggedNotR
 
 	err := svc.HandleWebhook(context.Background(), body, sig)
 
-	assert.NoError(t, err, "handleUnfollowEvent errors must be logged, not propagated")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to find owners by line user id")
 }
 
 // --- handleFollowEvent / handleUnfollowEvent direct tests ---
 
-func TestHandleFollowEvent_UpdateErrorIsLoggedNotReturned(t *testing.T) {
+func TestHandleFollowEvent_UpdateErrorIsPropagated(t *testing.T) {
 	svc := &lineLinkService{
 		ownerRepo: &mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
-				return []model.Owner{{ID: 1, ClinicID: 1}}, nil
+			findByLineUserIDFn: func(_ context.Context, clinicID uint64, _ string) (*model.Owner, error) {
+				return &model.Owner{ID: 1, ClinicID: clinicID}, nil
 			},
-			updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
-				return errors.New("db error")
+			updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+				return false, errors.New("db error")
 			},
 		},
 	}
 
-	err := svc.handleFollowEvent(context.Background(), "Uabc", time.Now())
+	err := svc.handleFollowEvent(context.Background(), 1, "Uabc", time.Now())
 
-	assert.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update line_followed_at")
 }
 
-func TestHandleUnfollowEvent_UpdateErrorIsLoggedNotReturned(t *testing.T) {
+func TestHandleUnfollowEvent_UpdateErrorIsPropagated(t *testing.T) {
 	svc := &lineLinkService{
 		ownerRepo: &mockLstepOwnerRepo{
-			findAllByLineUserIDFn: func(_ context.Context, _ string) ([]model.Owner, error) {
-				return []model.Owner{{ID: 1, ClinicID: 1}}, nil
+			findByLineUserIDFn: func(_ context.Context, clinicID uint64, _ string) (*model.Owner, error) {
+				return &model.Owner{ID: 1, ClinicID: clinicID}, nil
 			},
-			updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
-				return errors.New("db error")
+			updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+				return false, errors.New("db error")
 			},
 		},
 	}
 
-	err := svc.handleUnfollowEvent(context.Background(), "Uabc", time.Now())
+	err := svc.handleUnfollowEvent(context.Background(), 1, "Uabc", time.Now())
 
-	assert.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update line_blocked_at")
+}
+
+func TestLineLinkService_HandleWebhook_StaleOrMappingChangedEventIsNoOp(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{name: "follow CAS no-op", eventType: "follow"},
+		{name: "unfollow CAS no-op", eventType: "unfollow"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lineUserID := "U-stale-or-relinked"
+			svc := newTestLineLinkService(
+				&mockLstepOwnerRepo{
+					findByLineUserIDFn: func(_ context.Context, clinicID uint64, _ string) (*model.Owner, error) {
+						return &model.Owner{ID: 1, ClinicID: clinicID, LineUserID: &lineUserID}, nil
+					},
+					updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+						return false, nil
+					},
+					updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+						return false, nil
+					},
+				},
+				&mockLineLinkTokenRepo{},
+				&mockLineLinkSettingRepo{},
+			)
+			payload := WebhookPayload{
+				Events: []WebhookEvent{
+					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
+						UserID string `json:"userId"`
+					}{UserID: lineUserID}},
+				},
+			}
+			body, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "secret"))
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestLineLinkService_HandleWebhook_NotFoundOwnerIsNoOp(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{name: "follow", eventType: "follow"},
+		{name: "unfollow", eventType: "unfollow"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
+			svc := newTestLineLinkService(
+				&mockLstepOwnerRepo{
+					findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+						return nil, apperrors.WrapNotFound("owner", "")
+					},
+					updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+						updateCalled = true
+						return true, nil
+					},
+					updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+						updateCalled = true
+						return true, nil
+					},
+				},
+				&mockLineLinkTokenRepo{},
+				&mockLineLinkSettingRepo{},
+			)
+			payload := WebhookPayload{
+				Events: []WebhookEvent{
+					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
+						UserID string `json:"userId"`
+					}{UserID: "U-not-linked"}},
+				},
+			}
+			body, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "secret"))
+
+			require.NoError(t, err)
+			assert.False(t, updateCalled)
+		})
+	}
+}
+
+func TestLineLinkService_HandleWebhook_OwnerScopeMismatchIsPropagated(t *testing.T) {
+	svc := newTestLineLinkService(
+		&mockLstepOwnerRepo{
+			findByLineUserIDFn: func(_ context.Context, _ uint64, uid string) (*model.Owner, error) {
+				return &model.Owner{ID: 1, ClinicID: 2, LineUserID: &uid}, nil
+			},
+		},
+		&mockLineLinkTokenRepo{},
+		&mockLineLinkSettingRepo{},
+	)
+	payload := WebhookPayload{
+		Events: []WebhookEvent{
+			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
+				UserID string `json:"userId"`
+			}{UserID: "U-scope-mismatch"}},
+		},
+	}
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "secret"))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "scope mismatch")
+}
+
+func TestLineLinkService_HandleWebhook_RejectsInvalidEventTimestamp(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp int64
+	}{
+		{name: "missing timestamp", timestamp: 0},
+		{name: "negative timestamp", timestamp: -1},
+		{name: "timestamp too far in the future", timestamp: time.Now().Add(10 * time.Minute).UnixMilli()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lookupCalled := false
+			svc := newTestLineLinkService(
+				&mockLstepOwnerRepo{
+					findByLineUserIDFn: func(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+						lookupCalled = true
+						return &model.Owner{ID: 1, ClinicID: 1}, nil
+					},
+				},
+				&mockLineLinkTokenRepo{},
+				&mockLineLinkSettingRepo{},
+			)
+			payload := WebhookPayload{
+				Events: []WebhookEvent{
+					{Type: "follow", Timestamp: tt.timestamp, Source: struct {
+						UserID string `json:"userId"`
+					}{UserID: "U-invalid-timestamp"}},
+				},
+			}
+			body, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "secret"))
+
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.False(t, lookupCalled)
+		})
+	}
 }
 
 // --- verifySignatureAnyClinic additional branch tests ---
@@ -826,9 +1432,10 @@ func TestVerifySignatureAnyClinic_FindAllError(t *testing.T) {
 		},
 	}
 
-	got := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "sig")
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "sig")
 
-	assert.False(t, got)
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
 }
 
 func TestVerifySignatureAnyClinic_EmptySecretSkipped(t *testing.T) {
@@ -845,9 +1452,10 @@ func TestVerifySignatureAnyClinic_EmptySecretSkipped(t *testing.T) {
 	body := []byte("body")
 	sig := makeLineSignature(body, "secret")
 
-	got := svc.verifySignatureAnyClinic(context.Background(), body, sig)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, sig)
 
-	assert.True(t, got, "should skip the empty-secret clinic and match the second")
+	assert.True(t, ok, "should skip the empty-secret clinic and match the second")
+	assert.Equal(t, uint64(2), clinicID)
 }
 
 func TestVerifySignatureAnyClinic_NoMatch(t *testing.T) {
@@ -858,6 +1466,7 @@ func TestVerifySignatureAnyClinic_NoMatch(t *testing.T) {
 			},
 		},
 	}
-	got := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "wrong-signature")
-	assert.False(t, got)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "wrong-signature")
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
 }

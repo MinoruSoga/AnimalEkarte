@@ -35,7 +35,7 @@ type mockReservationStaffService struct {
 	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
 	patchSortOrderFn         func(ctx context.Context, clinicID, id uint64, direction string) error
 	getExcludedFn            func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	listExcludedByStaffIDsFn func(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+	listExcludedByStaffIDsFn func(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
 }
 
 func (m *mockReservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -94,9 +94,9 @@ func (m *mockReservationStaffService) GetExcludedReservationTypes(ctx context.Co
 	return nil, nil
 }
 
-func (m *mockReservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffService) ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
 	if m.listExcludedByStaffIDsFn != nil {
-		return m.listExcludedByStaffIDsFn(ctx, staffIDs)
+		return m.listExcludedByStaffIDsFn(ctx, clinicID, staffIDs)
 	}
 	return map[uint64][]model.StaffReservationExclusion{}, nil
 }
@@ -127,7 +127,8 @@ func TestListReservationStaffs_ReturnsOK(t *testing.T) {
 					assert.Equal(t, uint64(1), clinicID)
 					return []model.Staff{{ID: 5, Name: "予約スタッフA", StaffType: model.StaffTypeDoctor}}, nil
 				},
-				listExcludedByStaffIDsFn: func(_ context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+				listExcludedByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					return map[uint64][]model.StaffReservationExclusion{}, nil
 				},
 			},
@@ -141,7 +142,7 @@ func TestListReservationStaffs_ReturnsOK(t *testing.T) {
 				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{}, nil
 				},
-				listExcludedByStaffIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+				listExcludedByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
 					return map[uint64][]model.StaffReservationExclusion{}, nil
 				},
 			},
@@ -171,7 +172,7 @@ func TestListReservationStaffs_ReturnsOK(t *testing.T) {
 				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 5, Name: "予約スタッフA"}}, nil
 				},
-				listExcludedByStaffIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+				listExcludedByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

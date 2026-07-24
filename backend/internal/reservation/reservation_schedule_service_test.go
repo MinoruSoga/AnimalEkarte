@@ -19,7 +19,7 @@ type mockReservationScheduleRepository struct {
 	findAllBreaksByEntryIDsFn       func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	findAllByDateFn                 func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	findAllBreaksByEntryIDFn        func(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-	saveFn                          func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	saveFn                          func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error)
 	deleteFn                        func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -58,11 +58,16 @@ func (m *mockReservationScheduleRepository) FindAllBreaksByEntryID(ctx context.C
 	return nil, nil
 }
 
-func (m *mockReservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
+func (m *mockReservationScheduleRepository) Save(
+	ctx context.Context,
+	clinicID uint64,
+	entry *model.ShiftEntry,
+	breaks []model.ShiftEntryBreak,
+) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 	if m.saveFn != nil {
 		return m.saveFn(ctx, clinicID, entry, breaks)
 	}
-	return nil
+	return nil, nil, false, nil
 }
 
 func (m *mockReservationScheduleRepository) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
@@ -146,91 +151,124 @@ func TestReservationScheduleService_Save(t *testing.T) {
 	end := "18:00:00"
 
 	tests := []struct {
-		name         string
-		input        *CreateReservationScheduleInput
-		findByDateFn func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
-		saveFn       func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
-		findBreaksFn func(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-		wantErr      bool
-		wantIsNew    bool
+		name       string
+		input      *CreateReservationScheduleInput
+		saveFn     func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error)
+		want       *ScheduleEntry
+		wantErr    bool
+		wantIsNew  bool
+		wantSaves  int
+		assertSave func(t *testing.T, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak)
 	}{
 		{
-			name:  "creates new schedule when none exists (not found)",
+			name:      "nil input is rejected before save",
+			input:     nil,
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			name:  "returns transaction-created aggregate",
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return nil, apperrors.WrapNotFound("shift_entry", "1")
+			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return &model.ShiftEntry{
+						ID:        100,
+						ClinicID:  clinicID,
+						StaffID:   staffID,
+						Date:      date,
+						ShiftType: model.ShiftTypeFull,
+						StartTime: &start,
+						EndTime:   &end,
+					},
+					[]model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+					true,
+					nil
 			},
-			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
-				entry.ID = 100
-				return nil
+			want: &ScheduleEntry{
+				Entry: model.ShiftEntry{
+					ID:        100,
+					ClinicID:  clinicID,
+					StaffID:   staffID,
+					Date:      date,
+					ShiftType: model.ShiftTypeFull,
+					StartTime: &start,
+					EndTime:   &end,
+				},
+				Breaks: []model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
 			},
 			wantErr:   false,
 			wantIsNew: true,
+			wantSaves: 1,
 		},
 		{
-			name:  "updates existing schedule",
+			name:  "returns transaction-updated aggregate",
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end, Breaks: []ReservationScheduleBreakInput{{Start: "12:00:00", End: "13:00:00"}}},
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: 5}, nil
+			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull},
+					[]model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+					false,
+					nil
 			},
-			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-				entry.ID = 5
-				assert.Len(t, breaks, 1)
-				return nil
+			want: &ScheduleEntry{
+				Entry:  model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull},
+				Breaks: []model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
 			},
 			wantErr:   false,
 			wantIsNew: false,
+			wantSaves: 1,
+			assertSave: func(t *testing.T, _ *model.ShiftEntry, breaks []model.ShiftEntryBreak) {
+				assert.Len(t, breaks, 1)
+			},
 		},
 		{
-			name:  "invalid shift times returns error before find",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &end, WorkEnd: &start}, // end before start
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return nil, errors.New("should not be called")
-			},
-			wantErr: true,
-		},
-		{
-			name:  "find by date repository error propagates",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return nil, errors.New("db error")
-			},
+			name:    "invalid shift times returns error before save",
+			input:   &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &end, WorkEnd: &start}, // end before start
 			wantErr: true,
 		},
 		{
 			name:  "repo save error propagates",
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: 5}, nil
+			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return nil, nil, false, errors.New("save error")
 			},
-			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
-				return errors.New("save error")
-			},
-			wantErr: true,
+			wantErr:   true,
+			wantSaves: 1,
 		},
 		{
-			name:  "find breaks after save error propagates",
+			name:  "nil transaction result is rejected",
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
-			findByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: 5}, nil
+			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return nil, nil, true, nil
 			},
-			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
-				entry.ID = 5
-				return nil
-			},
-			findBreaksFn: func(_ context.Context, _ uint64) ([]model.ShiftEntryBreak, error) {
-				return nil, errors.New("breaks error")
-			},
-			wantErr: true,
+			wantErr:   true,
+			wantSaves: 1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			readCalls := 0
+			saveCalls := 0
 			repo := &mockReservationScheduleRepository{
-				findAllByDateFn:          tt.findByDateFn,
-				saveFn:                   tt.saveFn,
-				findAllBreaksByEntryIDFn: tt.findBreaksFn,
+				findAllByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.ShiftEntry, error) {
+					readCalls++
+					return nil, errors.New("save must not pre-read")
+				},
+				findAllBreaksByEntryIDFn: func(_ context.Context, _ uint64) ([]model.ShiftEntryBreak, error) {
+					readCalls++
+					return nil, errors.New("save must not post-read")
+				},
+				saveFn: func(
+					ctx context.Context,
+					gotClinicID uint64,
+					entry *model.ShiftEntry,
+					breaks []model.ShiftEntryBreak,
+				) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+					saveCalls++
+					if tt.assertSave != nil {
+						tt.assertSave(t, entry, breaks)
+					}
+					return tt.saveFn(ctx, gotClinicID, entry, breaks)
+				},
 			}
 			svc := NewReservationScheduleService(repo)
 			result, isNew, err := svc.Save(context.Background(), clinicID, staffID, date, tt.input)
@@ -239,9 +277,11 @@ func TestReservationScheduleService_Save(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, result)
+				assert.Equal(t, tt.want, result)
 				assert.Equal(t, tt.wantIsNew, isNew)
 			}
+			assert.Zero(t, readCalls, "Save must use only the same-transaction repository result")
+			assert.Equal(t, tt.wantSaves, saveCalls)
 		})
 	}
 }

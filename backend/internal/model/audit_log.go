@@ -36,13 +36,16 @@ const (
 	AuditActorTypeStaff  = "staff"
 	AuditActorTypeSystem = "system"
 
-	AuditActionPermissionGroupCreate = "permission_group.create"
-	AuditActionPermissionGroupUpdate = "permission_group.update"
-	AuditActionPermissionGroupDelete = "permission_group.delete"
-	AuditActionPermissionRulesUpdate = "permission_rules.update"
-	AuditActionAuthLoginSuccess      = "auth.login.success"
-	AuditActionAuthLoginFailure      = "auth.login.failure"
-	AuditActionAuthLogout            = "auth.logout"
+	AuditActionPermissionGroupCreate    = "permission_group.create"
+	AuditActionPermissionGroupUpdate    = "permission_group.update"
+	AuditActionPermissionGroupDelete    = "permission_group.delete"
+	AuditActionPermissionRulesUpdate    = "permission_rules.update"
+	AuditActionAuthLoginSuccess         = "auth.login.success"
+	AuditActionAuthLoginFailure         = "auth.login.failure"
+	AuditActionAuthLogout               = "auth.logout"
+	AuditActionAuthPasswordChange       = "auth.password.change"
+	AuditActionAuthPasswordReset        = "auth.password.reset"
+	AuditActionAuthPasswordAdminReplace = "auth.password.admin_replace"
 
 	// Lステップ / LINE連携 監査アクション
 	AuditActionLstepSettingsSave     = "lstep.settings.save"
@@ -94,6 +97,7 @@ const (
 
 // audit_logs.resource 定数
 const (
+	AuditResourceAccount   = "account"
 	AuditResourceLabImport = "lab_import"
 	// #201 薬量自動計算
 	AuditResourceMedicineDoseParam = "medicine_dose_param"

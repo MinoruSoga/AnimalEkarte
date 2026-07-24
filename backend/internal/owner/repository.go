@@ -44,9 +44,19 @@ type LookupRepository interface {
 type LstepRepository interface {
 	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
 	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)
-	FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error)
-	UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
-	UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
+	LockLineLinkOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+	UpdateLineFollowedAt(
+		ctx context.Context,
+		clinicID, id uint64,
+		expectedLineUserID string,
+		eventAt time.Time,
+	) (bool, error)
+	UpdateLineBlockedAt(
+		ctx context.Context,
+		clinicID, id uint64,
+		expectedLineUserID string,
+		eventAt time.Time,
+	) (bool, error)
 	RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error
 	ClearLstepOptOut(ctx context.Context, clinicID, ownerID uint64) error
 }
@@ -326,7 +336,7 @@ func (r *ownerRepository) FindByLineUserID(ctx context.Context, clinicID uint64,
 		Where("line_user_id = ? AND deleted_at IS NULL", lineUserID).
 		First(&owner).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "owner", lineUserID)
+		return nil, apperrors.FromGORM(err, "owner", "")
 	}
 	return &owner, nil
 }
@@ -360,53 +370,83 @@ func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clini
 	return owners, nil
 }
 
-// FindAllByLineUserID は LINE User ID で飼主を全クリニック横断検索する（Webhook用）。
-func (r *ownerRepository) FindAllByLineUserID(ctx context.Context, lineUserID string) ([]model.Owner, error) {
-	var owners []model.Owner
-	err := r.db.WithContext(ctx).
-		Where("line_user_id = ? AND deleted_at IS NULL", lineUserID).
-		Find(&owners).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "owner", lineUserID)
-	}
-	return owners, nil
-}
-
-// UpdateLineFollowedAt は飼主の LINE フォロー日時を更新する。
-func (r *ownerRepository) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
-	err := r.db.WithContext(ctx).
+// UpdateLineFollowedAt は、署名元 clinic と現在の LINE User ID が一致し、
+// eventAt が既存の follow/block 時刻より新しい場合だけフォロー日時を更新する。
+// 更新対象がない（重複、古いイベント、再連携済み）場合は (false, nil) を返す。
+func (r *ownerRepository) UpdateLineFollowedAt(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedLineUserID string,
+	eventAt time.Time,
+) (bool, error) {
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Owner{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(map[string]any{"line_followed_at": t, "line_blocked_at": nil}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+		Where("id = ? AND line_user_id = ? AND deleted_at IS NULL", id, expectedLineUserID).
+		Where("(line_followed_at IS NULL OR line_followed_at < ?)", eventAt).
+		Where("(line_blocked_at IS NULL OR line_blocked_at < ?)", eventAt).
+		Updates(map[string]any{"line_followed_at": eventAt, "line_blocked_at": nil})
+	if result.Error != nil {
+		return false, apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return result.RowsAffected == 1, nil
 }
 
-// UpdateLineBlockedAt は飼主の LINE ブロック日時を更新する。
-func (r *ownerRepository) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
-	err := r.db.WithContext(ctx).
+// UpdateLineBlockedAt は、署名元 clinic と現在の LINE User ID が一致し、
+// eventAt が follow 以上かつ既存 block より新しい場合だけブロック日時を更新する。
+// 同時刻の follow/unfollow では unfollow を優先し、更新対象がなければ (false, nil) を返す。
+func (r *ownerRepository) UpdateLineBlockedAt(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedLineUserID string,
+	eventAt time.Time,
+) (bool, error) {
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Owner{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Update("line_blocked_at", t).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+		Where("id = ? AND line_user_id = ? AND deleted_at IS NULL", id, expectedLineUserID).
+		Where("(line_followed_at IS NULL OR line_followed_at <= ?)", eventAt).
+		Where("(line_blocked_at IS NULL OR line_blocked_at < ?)", eventAt).
+		Update("line_blocked_at", eventAt)
+	if result.Error != nil {
+		return false, apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return result.RowsAffected == 1, nil
+}
+
+// LockLineLinkOwner serializes public LINE account linking for one clinic-scoped
+// owner. It fails closed without the service-owned ambient transaction.
+func (r *ownerRepository) LockLineLinkOwner(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Owner, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("LINE link owner lock requires an ambient transaction")
+	}
+	var owner model.Owner
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		First(&owner).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return &owner, nil
 }
 
 // UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
 func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
-	err := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Owner{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
-		Update("line_user_id", lineUserID).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+		Update("line_user_id", lineUserID)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected != 1 {
+		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

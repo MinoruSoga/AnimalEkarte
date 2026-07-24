@@ -6,7 +6,8 @@
 // DB接続方針(docs/ops/infra/_archive/migration-cloudflare.md 試行9): Hyperdrive は Container 内非対応
 // (https://github.com/cloudflare/containers/issues/97 — Container は通常の Linux プロセスであり
 // Workers runtime 固有の Hyperdrive バインディングを直接利用できない)。そのため Container 内の
-// Go API は PlanetScale へ直結する(DB_HOST 等を envVars で直接注入。sslmode=require)。
+// Go API は PlanetScale へ直結する(DB_HOST 等を envVars で直接注入。
+// sslmode=verify-full + sslrootcert=system)。
 // Worker 側の HYPERDRIVE バインディングは Phase 4 では未使用(将来 Worker 自身が直接 DB を
 // 触るユースケースが増えた場合のために wrangler.jsonc の binding 自体は残す)。
 import { Container, getContainer } from "@cloudflare/containers";
@@ -57,6 +58,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     DB_PASSWORD: env.DB_PASSWORD,
     DB_NAME: env.DB_NAME,
     DB_SSL_MODE: env.DB_SSL_MODE,
+    DB_SSL_ROOT_CERT: env.DB_SSL_ROOT_CERT,
     // 接続プール上限(wrangler.jsonc vars 参照 — スロット枯渇防止のため CF では低値必須)
     DB_MAX_OPEN_CONNS: env.DB_MAX_OPEN_CONNS,
     DB_MAX_IDLE_CONNS: env.DB_MAX_IDLE_CONNS,
@@ -71,7 +73,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     CORS_ALLOWED_ORIGIN: env.CORS_ALLOWED_ORIGIN,
     FRONTEND_URL: env.FRONTEND_URL,
 
-    // SMTP(空文字許容 = 送信無効)
+    // SMTP(releaseではaccount recoveryを成立させるため全項目必須)
     SMTP_HOST: env.SMTP_HOST,
     SMTP_PORT: env.SMTP_PORT,
     SMTP_USER: env.SMTP_USER,
@@ -124,6 +126,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       DB_PASSWORD: this.envVars.DB_PASSWORD,
       DB_NAME: this.envVars.DB_NAME,
       DB_SSL_MODE: this.envVars.DB_SSL_MODE,
+      DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
     };
 
     const proc = await rawContainer.exec(["/app/migrate"], {

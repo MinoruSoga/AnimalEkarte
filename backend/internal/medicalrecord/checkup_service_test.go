@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -18,6 +19,7 @@ type mockCheckupRepository struct {
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error)
 	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
+	lockByIDForUpdateFn     func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
@@ -39,6 +41,13 @@ func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupI
 		return m.findByIDFn(ctx, clinicID, checkupID)
 	}
 	return nil, nil
+}
+
+func (m *mockCheckupRepository) LockByIDForUpdate(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
+	if m.lockByIDForUpdateFn != nil {
+		return m.lockByIDForUpdateFn(ctx, clinicID, checkupID)
+	}
+	return m.FindByID(ctx, clinicID, checkupID)
 }
 
 func (m *mockCheckupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
@@ -281,7 +290,12 @@ func TestCheckupService_Create(t *testing.T) {
 			}
 			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					record := &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}
+					if tt.input.PetID != nil {
+						record.OwnerID = ptrUint64(1)
+						record.PetID = tt.input.PetID
+					}
+					return record, nil
 				},
 			}
 			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
@@ -465,6 +479,61 @@ func TestCheckupService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckupService_DeleteLocksParentBeforeCheckup(t *testing.T) {
+	order := make([]string, 0, 2)
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: checkupID, MedicalRecordID: 10}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
+			order = append(order, "checkup")
+			return &model.Checkup{ID: checkupID, MedicalRecordID: 10}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+	}
+	records := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			order = append(order, "medical_record")
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewCheckupService(repo, records, okCheckupTypeRepo(), nil, nil)
+
+	err := svc.Delete(context.Background(), 1, 10, 20)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"medical_record", "checkup"}, order)
+}
+
+func TestCheckupService_DeleteRequiresTransactionDependency(t *testing.T) {
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: checkupID, MedicalRecordID: 10}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+	}
+	records := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewCheckupService(
+		repo,
+		records,
+		okCheckupTypeRepo(),
+		nil,
+		nil,
+		CheckupWriteDependencies{Transactor: nil},
+	)
+
+	err := svc.Delete(context.Background(), 1, 10, 20)
+
+	assert.Error(t, err)
 }
 
 func TestCheckupService_Create_SyncsCheckupTagBestEffort(t *testing.T) {
@@ -1041,4 +1110,166 @@ func TestCheckupService_Delete_MedicalRecordLookupError(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 1, 1)
 
 	assert.Error(t, err)
+}
+
+func TestCheckupService_Create_RejectsInvalidPatientAndDoctorRelations(t *testing.T) {
+	const (
+		clinicID       = uint64(1)
+		medicalRecord  = uint64(10)
+		recordOwnerID  = uint64(20)
+		recordPetID    = uint64(30)
+		otherPetID     = uint64(31)
+		assignedDoctor = uint64(40)
+	)
+
+	tests := []struct {
+		name      string
+		petID     *uint64
+		doctorID  *uint64
+		configure func(repo *mockMedicalRecordRepository)
+		wantErr   bool
+	}{
+		{
+			name:  "rejects a pet outside the clinic",
+			petID: ptrUint64(999),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.findPetOwnerInClinicFn = func(_ context.Context, _, _ uint64) (uint64, error) {
+					return 0, apperrors.WrapNotFound("pet", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:  "rejects a different same-clinic patient",
+			petID: ptrUint64(otherPetID),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.findPetOwnerInClinicFn = func(_ context.Context, _, petID uint64) (uint64, error) {
+					if petID == recordPetID || petID == otherPetID {
+						return recordOwnerID, nil
+					}
+					return 0, apperrors.WrapNotFound("pet", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:     "rejects an inactive or unassigned doctor",
+			petID:    ptrUint64(recordPetID),
+			doctorID: ptrUint64(999),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.findPetOwnerInClinicFn = func(_ context.Context, _, _ uint64) (uint64, error) {
+					return recordOwnerID, nil
+				}
+				repo.assertDoctorInClinicFn = func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("staff", "scoped")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:     "accepts the record patient and an active assigned doctor",
+			petID:    ptrUint64(recordPetID),
+			doctorID: ptrUint64(assignedDoctor),
+			configure: func(repo *mockMedicalRecordRepository) {
+				repo.findPetOwnerInClinicFn = func(_ context.Context, _, _ uint64) (uint64, error) {
+					return recordOwnerID, nil
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalls := 0
+			txCalls := 0
+			repo := &mockCheckupRepository{
+				createFn: func(_ context.Context, checkup *model.Checkup) error {
+					createCalls++
+					checkup.ID = 1
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+					return &model.Checkup{ID: 1, MedicalRecordID: medicalRecord, PetID: tt.petID, DoctorID: tt.doctorID}, nil
+				},
+			}
+			relations := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{
+						ID:       medicalRecord,
+						ClinicID: clinicID,
+						OwnerID:  ptrUint64(recordOwnerID),
+						PetID:    ptrUint64(recordPetID),
+						Status:   model.MedicalRecordStatusDraft,
+					}, nil
+				},
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return recordOwnerID, nil
+				},
+				withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+					txCalls++
+					return fn(ctx)
+				},
+			}
+			if tt.configure != nil {
+				tt.configure(relations)
+			}
+			svc := NewCheckupService(repo, relations, okCheckupTypeRepo(), nil, nil)
+
+			got, err := svc.Create(context.Background(), medicalRecord, &CreateCheckupInput{
+				ClinicID: clinicID, CheckupTypeID: 1, PetID: tt.petID, DoctorID: tt.doctorID, Date: time.Now(),
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				assert.Zero(t, createCalls)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			assert.Equal(t, 1, createCalls)
+			assert.Equal(t, 1, txCalls)
+		})
+	}
+}
+
+func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		medicalRecord = uint64(10)
+		recordOwnerID = uint64(20)
+		recordPetID   = uint64(30)
+	)
+	otherPetID := uint64(31)
+	updateCalls := 0
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 1, MedicalRecordID: medicalRecord, PetID: ptrUint64(recordPetID)}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalls++
+			return nil
+		},
+	}
+	relations := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
+				PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
+			if petID == recordPetID || petID == otherPetID {
+				return recordOwnerID, nil
+			}
+			return 0, apperrors.WrapNotFound("pet", "scoped")
+		},
+	}
+	svc := NewCheckupService(repo, relations, okCheckupTypeRepo(), nil, nil)
+
+	got, err := svc.Update(context.Background(), clinicID, medicalRecord, 1, &UpdateCheckupInput{PetID: &otherPetID})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, updateCalls)
 }

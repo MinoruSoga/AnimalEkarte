@@ -5,29 +5,15 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/dbconn"
-	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/infra"
-	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
-	inventorydomain "github.com/animal-ekarte/backend/internal/inventory"
+	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
-	"github.com/animal-ekarte/backend/internal/lstep"
-	"github.com/animal-ekarte/backend/internal/manualarticle"
-	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
-	"github.com/animal-ekarte/backend/internal/owner"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
-	"github.com/animal-ekarte/backend/internal/service"
-	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
 const (
@@ -35,116 +21,46 @@ const (
 	lineWebhookBurst             = 200
 )
 
-// manualArticleAuditAdapter adapts the shared audit kernel (internal/service.AuditService —
-// BE9-2A classification: "keep") to internal/manualarticle's own minimal AuditLogger
-// interface, so internal/manualarticle itself never imports internal/service (ADR-006
-// "aggregator 非経由"). This is exactly the kind of narrow, composition-root-only bridge
-// BE9-2B item 3 anticipates ("DI を main.go だけに限定せず、型安全な composition を維持する").
-type manualArticleAuditAdapter struct {
-	audit service.AuditService
-}
-
-func (a manualArticleAuditAdapter) LogEntry(ctx context.Context, entry manualarticle.AuditEntry) error {
-	return a.audit.LogEntry(ctx, &service.AuditLogInput{
-		ClinicID:   entry.ClinicID,
-		ActorID:    entry.ActorID,
-		ActorType:  entry.ActorType,
-		Action:     entry.Action,
-		Resource:   entry.Resource,
-		ResourceID: entry.ResourceID,
-		OldValue:   entry.OldValue,
-		NewValue:   entry.NewValue,
-		IPAddress:  entry.IPAddress,
-		UserAgent:  entry.UserAgent,
-	})
-}
-
-// medicalRecordAuditTxAdapter adapts internal/service's tx-internal audit logger
-// (AuditTxLogger.LogEntryTx over *service.AuditLogInput) to internal/medicalrecord's own
-// consumer-side AuditTxLogger view (LogEntryTx over *medicalrecord.AuditEntry), so
-// internal/medicalrecord never imports internal/service (ADR-006 aggregator 非経由). Used by
-// medicalrecord's checkupFieldResultService for its #211 fail-closed tx-internal deletion
-// audit. Moved here from internal/service/medicalrecord_middle_state.go in BE9-2D Batch C
-// (mirrors manualArticleAuditAdapter above).
-type medicalRecordAuditTxAdapter struct{ inner service.AuditTxLogger }
-
-func (a medicalRecordAuditTxAdapter) LogEntryTx(ctx context.Context, e *medicalrecord.AuditEntry) error {
-	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
-		ClinicID:   e.ClinicID,
-		ActorID:    e.ActorID,
-		ActorType:  e.ActorType,
-		Action:     e.Action,
-		Resource:   e.Resource,
-		ResourceID: e.ResourceID,
-		OldValue:   e.OldValue,
-		NewValue:   e.NewValue,
-		Metadata:   e.Metadata,
-	})
-}
-
-// trimmingAuditTxAdapter keeps trimming's durable mutation audit consumer-owned while
-// reusing the shared audit kernel at the composition root.
-type trimmingAuditTxAdapter struct{ inner service.AuditTxLogger }
-
-func (a trimmingAuditTxAdapter) LogEntryTx(ctx context.Context, e *trimming.AuditEntry) error {
-	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
-		ClinicID:   e.ClinicID,
-		ActorID:    e.ActorID,
-		ActorType:  e.ActorType,
-		Action:     e.Action,
-		Resource:   e.Resource,
-		ResourceID: e.ResourceID,
-		OldValue:   e.OldValue,
-		NewValue:   e.NewValue,
-		Metadata:   e.Metadata,
-	})
-}
-
-// labAuditAdapter adapts the shared audit kernel's non-tx logger (AuditService.LogEntry over
-// *service.AuditLogInput) to internal/medicalrecord's consumer-side AuditLogger view (LogEntry
-// over *medicalrecord.AuditEntry), so internal/medicalrecord never imports internal/service
-// (ADR-006 aggregator 非経由). Used by medicalrecord's labAuditLogger for its best-effort
-// (non-tx) lab-import audit trail. Moved here from internal/service/lab_middle_state.go in
-// BE9-2D sub-batch③ Batch C (mirrors medicalRecordAuditTxAdapter / manualArticleAuditAdapter).
-type labAuditAdapter struct{ audit service.AuditService }
-
-func (a labAuditAdapter) LogEntry(ctx context.Context, e *medicalrecord.AuditEntry) error {
-	return a.audit.LogEntry(ctx, &service.AuditLogInput{
-		ClinicID:   e.ClinicID,
-		ActorID:    e.ActorID,
-		ActorType:  e.ActorType,
-		Action:     e.Action,
-		Resource:   e.Resource,
-		ResourceID: e.ResourceID,
-		OldValue:   e.OldValue,
-		NewValue:   e.NewValue,
-		Metadata:   e.Metadata,
-	})
-}
-
-// medicalRecordAuditAdapter supplies both the unchanged medical-record change methods and the
-// generic best-effort audit entry used to observe reservation-cancel cleanup failures.
-type medicalRecordAuditAdapter struct {
-	service.AuditService
-}
-
-func (a medicalRecordAuditAdapter) LogEntry(ctx context.Context, e *medicalrecord.AuditEntry) error {
-	return a.AuditService.LogEntry(ctx, &service.AuditLogInput{
-		ClinicID: e.ClinicID, ActorID: e.ActorID, ActorType: e.ActorType,
-		Action: e.Action, Resource: e.Resource, ResourceID: e.ResourceID,
-		OldValue: e.OldValue, NewValue: e.NewValue, Metadata: e.Metadata,
-	})
-}
-
 func main() {
 	os.Exit(run())
 }
 
 func run() int {
-	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
 	cfg := config.Load()
+	initializeLogger(cfg)
+	if err := initializeRuntimeConfig(cfg); err != nil {
+		return 1
+	}
 
-	// ロガー初期化
+	db, sqlDB, err := openRuntimeDatabase(cfg)
+	if err != nil {
+		return 1
+	}
+	databaseOwnedByRunner := false
+	defer func() {
+		if databaseOwnedByRunner {
+			return
+		}
+		closeRuntimeDatabase(sqlDB)
+	}()
+
+	execution, err := prepareRuntimeExecution(cfg, db, sqlDB)
+	if err != nil {
+		return 1
+	}
+	databaseOwnedByRunner = true
+	if err := execution.run(); err != nil {
+		logger.Error(
+			"server lifecycle failed",
+			slog.String("error", err.Error()),
+		)
+		return 1
+	}
+	logger.Info("server stopped")
+	return 0
+}
+
+func initializeLogger(cfg *config.Config) {
 	logLevel := slog.LevelInfo
 	if cfg.LogLevel == "debug" {
 		logLevel = slog.LevelDebug
@@ -155,506 +71,173 @@ func run() int {
 		Output: os.Stdout,
 	})
 	logger.Info("starting Animal Ekarte API v2.0 (45 tables)")
+}
 
+func initializeRuntimeConfig(cfg *config.Config) error {
 	if err := config.ConfigureTimeZone(); err != nil {
-		slog.Error("timezone configuration failed", slog.String("error", err.Error()))
-		return 1
+		slog.Error(
+			"timezone configuration failed",
+			slog.String("error", err.Error()),
+		)
+		return err
 	}
-
-	// H2: TRUSTED_PROXY_CIDR（release必須）・STORAGE_TYPE=s3 時の S3_BUCKET/S3_REGION 必須検証は
-	// cfg.Validate() に集約済み（G9-2）
 	if err := cfg.Validate(); err != nil {
-		slog.Error("config validation failed", slog.String("error", err.Error()))
-		return 1
+		slog.Error(
+			"config validation failed",
+			slog.String("error", err.Error()),
+		)
+		return err
 	}
 	gin.SetMode(cfg.GinMode)
+	return nil
+}
 
-	// DB接続
-	db, err := dbconn.OpenGORM(cfg)
+func initializeIntegrationCipher(
+	cfg *config.Config,
+) (*appcrypto.AESGCMCipher, error) {
+	if cfg.IntegrationEncryptionKey == "" {
+		logger.Info(
+			"INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)",
+		)
+		return nil, nil
+	}
+	cipher, err := appcrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
 	if err != nil {
-		logger.Error("failed to connect to database", slog.String("error", err.Error()))
-		return 1
+		logger.Error(
+			"failed to initialize AES-GCM cipher",
+			slog.String("error", err.Error()),
+		)
+		return nil, err
 	}
-	logger.Info("database connected")
-	sqlDB, err := db.DB()
-	if err != nil {
-		logger.Error("failed to access database connection pool", slog.String("error", err.Error()))
-		return 1
-	}
-	databaseOwnedByRunner := false
-	defer func() {
-		if databaseOwnedByRunner {
-			return
-		}
-		if err := sqlDB.Close(); err != nil {
-			logger.Error("failed to close database connection pool", slog.String("error", err.Error()))
-		}
-	}()
+	logger.Info("integration cipher: AES-256-GCM enabled")
+	return cipher, nil
+}
 
-	// リポジトリ初期化
-	repos := repository.NewRepositories(db)
-	inventoryRepo := inventorydomain.New(db)
-	merchandiseItemRepo := inventorydomain.NewMerchandiseItemRepository(db)
-	inventorySvc := inventorydomain.NewInventoryService(inventoryRepo)
-	merchandiseItemSvc := inventorydomain.NewMerchandiseItemService(merchandiseItemRepo)
-	campaignSvc := billing.NewCampaignService(repos.Campaign, merchandiseItemRepo)
-
-	// 連携設定の暗号化 cipher 初期化（INTEGRATION_ENCRYPTION_KEY 未設定時は dev モード・暗号化なし）。
-	// lstep 連携（clinic_integrations）と LINE 予約設定（line_reservation_settings）で共有する（H-4）。
-	// NewServices に渡すため NewServices 呼び出しより前に初期化する。
-	var integrationCipher *appCrypto.AESGCMCipher
-	if cfg.IntegrationEncryptionKey != "" {
-		c, err := appCrypto.NewAESGCMCipher(cfg.IntegrationEncryptionKey)
-		if err != nil {
-			logger.Error("failed to initialize AES-GCM cipher", slog.String("error", err.Error()))
-			return 1
-		}
-		integrationCipher = c
-		logger.Info("integration cipher: AES-256-GCM enabled")
-	} else {
-		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
-	}
-
-	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
-	// NewServices に渡すため NewServices 呼び出しより前に初期化する（G9-1）。
-	var sharedStorage infra.FileStorage
-	if cfg.StorageType == "s3" {
-		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
-		if err != nil {
-			logger.Error("failed to initialize S3FileStorage", slog.String("error", err.Error()))
-			return 1
-		}
-		sharedStorage = s3fs
-		logger.Info("shared file storage: S3", slog.String("bucket", cfg.S3SharedBucket))
-	} else {
-		sharedStorage = infra.NewLocalFileStorage("/app/uploads/shared", "http://localhost:"+cfg.Port+"/uploads/shared")
+func initializeSharedStorage(
+	cfg *config.Config,
+) (infra.FileStorage, error) {
+	if cfg.StorageType != "s3" {
 		logger.Info("shared file storage: local filesystem")
+		return infra.NewLocalFileStorage(
+			"/app/uploads/shared",
+			"http://localhost:"+cfg.Port+"/uploads/shared",
+		), nil
 	}
-
-	// LSTEP production composition is owned by the target package. Cross-domain adapters stay
-	// at this composition root so internal/lstep never imports legacy aggregators.
-	auditSvc := service.NewAuditService(repos.Audit)
-	tx := repository.NewTransactor(repos.DB())
-	trimmingCourseRepo := trimming.NewTrimmingCourseRepository(db)
-	trimmingOptionRepo := trimming.NewTrimmingOptionRepository(db)
-	trimmingCourseTypeRepo := trimming.NewTrimmingCourseTypeRepository(db)
-	trimmingDetailRepo := trimming.NewAppointmentTrimmingDetailRepository(db)
-	trimmingSvc := trimming.NewTrimmingServiceWithAudit(
-		repos.Reservation,
-		repos.ReservationType,
-		repos.ReservationStaff,
-		repos.ReservationTypeUnavailableTime,
-		trimmingDetailRepo,
-		trimmingCourseRepo,
-		trimmingOptionRepo,
-		tx,
-		trimmingAuditTxAdapter{inner: auditSvc},
+	storage, err := infra.NewS3FileStorage(
+		context.Background(),
+		cfg.S3SharedBucket,
+		cfg.S3SharedRegion,
+		cfg.S3Endpoint,
 	)
-	trimmingCourseSvc := trimming.NewTrimmingCourseService(trimmingCourseRepo, trimmingCourseTypeRepo, tx)
-	trimmingOptionSvc := trimming.NewTrimmingOptionService(trimmingOptionRepo, tx)
-	trimmingCourseTypeSvc := trimming.NewTrimmingCourseTypeService(trimmingCourseTypeRepo, tx)
-	billingItemSvc := billing.NewBillingItemServiceWithCampaign(
-		repos.BillingItem,
-		repos.Accounting,
-		repos.Treatment,
-		tx,
-		trimmingCourseRepo,
-		trimmingOptionRepo,
-		repos.Campaign,
-		repos.Owner,
+	if err != nil {
+		logger.Error(
+			"failed to initialize S3FileStorage",
+			slog.String("error", err.Error()),
+		)
+		return nil, err
+	}
+	logger.Info(
+		"shared file storage: S3",
+		slog.String("bucket", cfg.S3SharedBucket),
 	)
-	lineReservationSettings := reservation.NewLineReservationSettingRepository(db)
-	lstepApp := lstep.NewApplication(&lstep.Dependencies{
-		DB:                    db,
-		Cipher:                integrationCipher,
-		SharedFileStorage:     sharedStorage,
-		Owners:                repos.Owner,
-		OwnerLifecycle:        ownerLifecycleWriterAdapter{inner: repos.Owner},
-		Pets:                  repos.Pet,
-		PetLifecycle:          petLifecycleWriterAdapter{inner: repos.Pet},
-		Vaccinations:          repos.Vaccination,
-		MedicalRecords:        repos.MedicalRecord,
-		Accounting:            repos.Accounting,
-		Prescriptions:         repos.Prescription,
-		Checkups:              repos.Checkup,
-		BillingItems:          repos.BillingItem,
-		ClinicSettings:        repos.ClinicSettings,
-		ReservationSettings:   lineReservationSettings,
-		Reservations:          repos.Reservation,
-		Clinics:               repos.Clinic,
-		Staff:                 repos.ReservationStaff,
-		Audit:                 auditSvc,
-		Transactor:            tx,
-		LifecycleAuditTx:      lstepLifecycleAuditTxAdapter{inner: auditSvc},
-		NoShowAuditTx:         lstepNoShowAuditTxAdapter{inner: auditSvc},
-		AggregationRepository: lstepAggregationRepositoryAdapter{inner: owner.NewLtvRepository(db)},
-	})
+	return storage, nil
+}
 
-	// Legacy services keep only real BE9-2E consumers and receive target-owned narrow ports.
-	svcs := service.NewServices(repos, &reservation.ReservationNotificationConfig{
-		SMTPHost:    cfg.SMTPHost,
-		SMTPPort:    cfg.SMTPPort,
-		SMTPUser:    cfg.SMTPUser,
-		SMTPPass:    cfg.SMTPPass,
-		SMTPFrom:    cfg.SMTPFrom,
-		FrontendURL: cfg.FrontendURL,
-	}, cfg.JWTSecret, auditSvc, newLegacyLstepDependencies(lstepApp, integrationCipher), lineReservationSettings)
-
-	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
-	var uploader infra.FileUploader
-	if cfg.StorageType == "s3" {
-		// S3_BUCKET/S3_REGION 必須検証は cfg.Validate() で起動時に済んでいる（G9-2）
-		s3Up, err := infra.NewS3Uploader(context.Background(), cfg.S3Bucket, cfg.S3Region, cfg.S3Endpoint, cfg.S3PublicBaseURL)
-		if err != nil {
-			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
-			return 1
-		}
-		uploader = s3Up
-		logger.Info("file uploader: S3", slog.String("bucket", cfg.S3Bucket), slog.String("region", cfg.S3Region))
-		// S3 API endpoint（R2 等）を使う構成で公開 base URL が未設定の場合、オブジェクト
-		// 公開 URL は API ホストを指しブラウザから参照できない。推測ドメインは捏造せず、
-		// 誤設定として起動時に警告する（P2-5: S3_PUBLIC_BASE_URL への実値投入は USER 運用）。
-		if cfg.S3Endpoint != "" && cfg.S3PublicBaseURL == "" {
-			logger.Warn("S3_PUBLIC_BASE_URL 未設定: オブジェクト公開 URL が S3 API ホストを指しブラウザから参照できません。R2 の公開ドメイン(custom domain / *.r2.dev)を S3_PUBLIC_BASE_URL に設定してください",
-				slog.String("s3_endpoint", cfg.S3Endpoint))
-		}
-	} else {
-		uploader = infra.NewLocalUploader("/app/uploads", "/uploads")
+func initializeUploader(
+	cfg *config.Config,
+) (infra.FileUploader, error) {
+	if cfg.StorageType != "s3" {
 		logger.Info("file uploader: local filesystem")
+		return infra.NewLocalUploader("/app/uploads", "/uploads"), nil
 	}
+	uploader, err := infra.NewS3Uploader(
+		context.Background(),
+		cfg.S3Bucket,
+		cfg.S3Region,
+		cfg.S3Endpoint,
+		cfg.S3PublicBaseURL,
+	)
+	if err != nil {
+		logger.Error(
+			"failed to initialize S3 uploader",
+			slog.String("error", err.Error()),
+		)
+		return nil, err
+	}
+	logger.Info(
+		"file uploader: S3",
+		slog.String("bucket", cfg.S3Bucket),
+		slog.String("region", cfg.S3Region),
+	)
+	if cfg.S3Endpoint != "" && cfg.S3PublicBaseURL == "" {
+		logger.Warn(
+			"S3_PUBLIC_BASE_URL 未設定: オブジェクト公開 URL が S3 API ホストを指しブラウザから参照できません。R2 の公開ドメイン(custom domain / *.r2.dev)を S3_PUBLIC_BASE_URL に設定してください",
+			slog.String("s3_endpoint", cfg.S3Endpoint),
+		)
+	}
+	return uploader, nil
+}
 
-	// ハンドラー初期化
-	h := handler.New(cfg, svcs, lstepApp, uploader)
-
-	// アプリケーションライフタイムコンテキスト（バックグラウンドゴルーチン管理用）
-	appCtx, appCancel := context.WithCancel(context.Background())
-	defer appCancel()
-
-	// ルーター設定
-	r := gin.New()
-	// H2: Set trusted proxies to prevent rate-limit bypass via X-Forwarded-For spoofing
-	// TRUSTED_PROXY_CIDR validation is done earlier via cfg.Validate(), so only build list here
-	var trustedProxies []string
+func newRouter(cfg *config.Config) (*gin.Engine, error) {
+	router := gin.New()
+	trustedProxies := []string{"127.0.0.1"}
 	if cfg.GinMode == "release" {
-		// Production: trust only the configured Cloudflare Worker-to-Container proxy CIDR.
+		trustedProxies = nil
 		if cfg.TrustedProxyCIDR != "" {
 			trustedProxies = []string{cfg.TrustedProxyCIDR}
 			slog.Info("rate-limit: trusting configured proxy CIDR")
 		}
-	} else {
-		// Development: trust localhost only
-		trustedProxies = []string{"127.0.0.1"}
 	}
-	if err := r.SetTrustedProxies(trustedProxies); err != nil {
-		logger.Error("failed to set trusted proxies", slog.String("error", err.Error()))
-		return 1
+	if err := router.SetTrustedProxies(trustedProxies); err != nil {
+		logger.Error(
+			"failed to set trusted proxies",
+			slog.String("error", err.Error()),
+		)
+		return nil, err
 	}
-	r.Use(gin.Recovery())
-	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
-	r.Use(middleware.RequestID())
-	r.Use(middleware.CORS(cfg.CORSAllowedOrigin))
-	r.Use(middleware.RequestLoggingMiddleware())
-	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
-	r.Use(middleware.SanitizeNullBytes())
-	// Durable Cloudflare coordinator -> Container only. The public Worker
-	// denies this prefix; the Go boundary still validates the complete
-	// deterministic schedule identity and applies its own 100s deadline.
-	registerScheduledJobRoutes(r, lstepApp.Batch)
-	protected := h.RegisterRoutes(appCtx, r)
+	router.Use(gin.Recovery())
+	router.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
+	router.Use(middleware.RequestID())
+	router.Use(middleware.CORS(cfg.CORSAllowedOrigin))
+	router.Use(middleware.RequestLoggingMiddleware())
+	router.Use(middleware.SanitizeNullBytes())
+	return router, nil
+}
 
-	// BE9-2B pilot: internal/manualarticle is composed here directly — it does not go
-	// through handler.Handler/service.Services/repository.Repositories. It reuses the same
-	// protected *gin.RouterGroup (so it inherits middleware.Auth's clinic_id/user_id/
-	// is_system_admin context) and the transitional h.RequirePermission method value (auth
-	// domain has not migrated yet; see internal/manualarticle/handler.go's PermissionMiddleware
-	// doc comment).
-	manualArticleHandler := manualarticle.NewHandler(
-		manualarticle.NewManualArticleService(manualarticle.New(db)),
-		manualArticleAuditAdapter{audit: svcs.Audit},
-		h.RequirePermission,
-	)
-	manualArticleHandler.RegisterRoutes(protected)
-
-	// BE9-2E inventory: compose the domain-owned repository, services, and routes
-	// directly. The legacy aggregators retain only compatibility facades until BE9-2F.
-	inventorydomain.NewHandler(
-		inventorySvc,
-		merchandiseItemSvc,
-		h.RequirePermission,
-	).RegisterRoutes(protected)
-	trimming.NewHandlerWithPermission(
-		trimmingSvc,
-		trimmingCourseSvc,
-		trimmingCourseTypeSvc,
-		trimmingOptionSvc,
-		h.RequirePermission,
-	).RegisterRoutes(protected)
-
-	// BE9-2C/2D (medicalrecord slice): same aggregator-non-経由 pattern as the BE9-2B
-	// manualarticle pilot above. The master-CRUD entities (diagnosis/exam/chief-complaint,
-	// BE9-2C) plus checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
-	// inquiry-template/prescription (BE9-2D) plus the lab import/report saga (BE9-2D
-	// sub-batch③, wired just below the checkup services) are composed here directly from repos
-	// rather than via svcs.* (their Services fields were removed — nothing else read them).
-	// Unlike the 2C master handlers (which never wrote audit entries), the 2D services need the
-	// same LSTEP tag-sync / delivery-trigger deps and tx/audit boundary the pre-move NewServices
-	// wired: the LSTEP deps come from the target-owned application result, tx from
-	// repository.NewTransactor(repos.DB()), and the
-	// tx-internal audit logger via medicalRecordAuditTxAdapter (lab's best-effort non-tx audit
-	// uses labAuditAdapter). checkupSvc is kept in scope for its graceful-shutdown drain
-	// (checkupSvc.Wait() below, replacing the old svcs.Checkup.Wait()).
-	mrTx := repository.NewTransactor(repos.DB())
-	mrAuditTxLogger := service.AuditTxLogger(auditSvc)
-	checkupSvc := medicalrecord.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepApp.DeliveryTrigger, lstepApp.TagSync)
-	checkupFieldResultSvc := medicalrecord.NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
-	checkupTypeSvc := medicalrecord.NewCheckupTypeService(repos.CheckupType)
-	vaccineSvc := medicalrecord.NewVaccineService(repos.Vaccine)
-	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepApp.TagSync, repos.Reservation, repos.MedicalRecord, mrTx)
-	prescriptionSvc := medicalrecord.NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepApp.TagSync, mrTx)
-	inquirySvc := medicalrecord.NewInquiryService(repos.Inquiry, repos.ChiefComplaintType)
-	inquiryTemplateSvc := medicalrecord.NewInquiryTemplateService(repos.InquiryTemplate)
-
-	// lab import/report saga (BE9-2D sub-batch③): moved from internal/service NewServices to
-	// here (leaf domain, no facade). labImportJobSvc is a single instance shared by the
-	// LabImportJob reads (get/events) and the LabResultImport commit path — preserving the
-	// pre-move sharing. examinationImportRepo/examinationReportRepo=repos.Examination,
-	// petFinder=repos.Pet, medicalRecordFinder=repos.MedicalRecord, ExamTypeRepository=
-	// repos.ExaminationType, dupChecker=medicalrecord.NewLabImportDuplicateCheckerDB (the
-	// repository facade was deleted in Batch B), and the non-tx best-effort audit trail flows
-	// through labAuditAdapter (mirrors the checkup tx-audit adapter above).
-	labImportJobSvc := medicalrecord.NewLabImportJobService(
-		medicalrecord.NewLabImportJobRepository(repos.DB()),
-		medicalrecord.NewLabImportEventRepository(repos.DB()),
-	)
-	labResultImportSvc := medicalrecord.NewLabResultImportService(
-		labImportJobSvc,
-		medicalrecord.NewLabImportExaminationService(
-			repos.Examination,
-			medicalrecord.NewLabImportDuplicateCheckerDB(repos.DB()),
-			repos.ExaminationType,
-			repos.Pet,
-			repos.MedicalRecord,
-		),
-	)
-	labAuditLogger := medicalrecord.NewLabAuditLogger(labAuditAdapter{audit: svcs.Audit})
-	labReportQuerySvc := medicalrecord.NewLabReportQueryService(repos.Examination)
-
-	// vital / clinical-plan / medical-record-image (BE9-2D sub-batch④a): moved from
-	// internal/service NewServices to here (their Services fields were removed). Same wiring the
-	// pre-move NewServices used: repos.* (Batch A facade aliases), mrTx, and svcs.Audit as the
-	// vital audit sink — svcs.Audit satisfies medicalrecord's vitalAuditLogger view directly (no
-	// adapter; signature is LogVitalChange field-for-field). The vital / image handlers take
-	// svcs.MedicalRecord as their medicalRecordGetter (the faithful port of the pre-move
-	// verifyMedicalRecordOwnership → svc.MedicalRecord.GetByID), and the image handler takes the
-	// same infra.FileUploader (uploader) that internal/handler.New injected.
-	vitalSvc := medicalrecord.NewVitalService(repos.Vital, repos.MedicalRecord, svcs.Audit, mrTx)
-	clinicalPlanSvc := medicalrecord.NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName)
-	medicalRecordImageSvc := medicalrecord.NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, mrTx)
-	// treatment (BE9-2D sub-batch④b): Phase 1 で WithTx+個別依存化済みの service を移動後、
-	// cross-package 依存は Batch A facade alias（repos.Treatment 等）の具象を structural typing で
-	// 注入する。audit は checkupFieldResult と同じ medicalRecordAuditTxAdapter 経由（tx 内 fail-closed）。
-	// hospitalization slice (BE9-2D ⑤): Phase 1 で WithTx+個別依存化済みの4 serviceを移動後、
-	// cross-package 依存（reservation/pet/cage/accounting/billingItem）は facade 具象の
-	// structural typing 注入。owner/pet link 検証は sharedkernel.OwnerPetLinkVerifier。
-	hospitalizationSvc := medicalrecord.NewHospitalizationServiceWithAudit(
-		repos.Hospitalization, repos.Reservation, repos.Pet, repos.Cage,
-		repos.CarePlanItem, repos.Accounting, repos.BillingItem, mrTx,
-		medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
-	hospitalizationPlanSvc := medicalrecord.NewHospitalizationPlanService(repos.HospitalizationPlan)
-	// masters slice (BE9-2D ⑥): consultation/procedure/medicine(+dose)/cage/treatment_plan。
-	consultationSvc := medicalrecord.NewConsultationService(repos.Consultation)
-	procedureSvc := medicalrecord.NewProcedureService(repos.Procedure)
-	medicineSvc := medicalrecord.NewMedicineServiceWithAudit(repos.Medicine, inventoryRepo, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
-	medicineDoseParamSvc := medicalrecord.NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
-	cageSvc := medicalrecord.NewCageService(repos.Cage)
-	treatmentPlanSvc := medicalrecord.NewTreatmentPlanService(repos.TreatmentPlan)
-	// medical record core slice (BE9-2D ⑦): 本体+addendum+examination。既存の
-	// LogMedicalRecordChange/LogAddendumCreate は埋め込んだ svcs.Audit へそのまま委譲し、
-	// 予約キャンセル後の失敗監査に必要な generic LogEntry だけを adapter で変換する。
-	medicalRecordSvc := medicalrecord.NewMedicalRecordService(
-		repos.MedicalRecord, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType,
-		repos.DiagnosisType, repos.DiagnosisName, lstepApp.LineCustomers, repos.Reservation,
-		lstepApp.DeliveryTrigger, medicalRecordAuditAdapter{AuditService: svcs.Audit}, mrTx, lstepApp.TagSync)
-	// reservation_handler（残置）が AutoCreateFromReservation 等に使うため Services へ注入。
-	svcs.MedicalRecord = medicalRecordSvc
-	// The compatibility aggregator constructs reservation services before the target-owned
-	// medical-record service exists. Replace those two instances before route composition so every
-	// cancellation entry point receives the same best-effort draft-cleanup view.
-	svcs.ReservationAdmin = reservation.NewReservationAdminServiceWithMedicalRecord(
-		repos.ReservationAdmin,
-		repos.Reservation,
-		repos.ReservationType,
-		mrTx,
-		repos.ReservationStaff,
-		repos.ReservationTypeUnavailableTime,
-		repos.ReservationTypeAvailableSlot,
-		medicalRecordSvc,
-	)
-	svcs.Liff = reservation.NewLiffServiceWithType(
-		lineReservationSettings,
-		repos.ReservationTypeLiff,
-		repos.ReservationType,
-		repos.ReservationStaff,
-		repos.ReservationSchedule,
-		repos.ReservationAdmin,
-		lstepApp.LineCustomers,
-		repos.Owner,
-		mrTx,
-		repos.Reservation,
-		svcs.ReservationNotifier,
-		repos.ReservationTypeUnavailableTime,
-		repos.ReservationTypeAvailableSlot,
-		repos.ReservationTypeOccupation,
-		trimmingCourseRepo,
-		trimmingOptionRepo,
-		trimmingDetailRepo,
-		repos.Vaccination,
-		medicalRecordSvc,
-	)
-	medicalRecordAddendumSvc := medicalrecord.NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, svcs.Audit)
-	examinationSvc := medicalrecord.NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
-	dailyRecordSvc := medicalrecord.NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, mrTx)
-	carePlanItemSvc := medicalrecord.NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan)
-	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
-		repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation,
-		inventoryRepo, repos.Vital, repos.MedicineDoseParam, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
-
-	medicalRecordHandler := medicalrecord.NewHandler(
-		medicalrecord.NewDiagnosisHandler(
-			medicalrecord.NewDiagnosisTypeService(repos.DiagnosisType),
-			medicalrecord.NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
-		),
-		medicalrecord.NewExamTypeHandler(medicalrecord.NewExamTypeService(repos.ExaminationType)),
-		medicalrecord.NewChiefComplaintHandler(medicalrecord.NewChiefComplaintTypeService(repos.ChiefComplaintType)),
-		medicalrecord.NewCheckupHandler(checkupSvc, checkupFieldResultSvc),
-		medicalrecord.NewCheckupTypeHandler(checkupTypeSvc),
-		medicalrecord.NewVaccineHandler(vaccineSvc),
-		medicalrecord.NewVaccinationHandler(vaccinationSvc),
-		medicalrecord.NewPrescriptionHandler(prescriptionSvc),
-		medicalrecord.NewInquiryHandler(inquirySvc),
-		medicalrecord.NewInquiryTemplateHandler(inquiryTemplateSvc),
-		medicalrecord.NewLabImportHandler(labResultImportSvc, labImportJobSvc, labAuditLogger),
-		medicalrecord.NewLabReportHandler(labReportQuerySvc),
-		medicalrecord.NewVitalHandler(vitalSvc, medicalRecordSvc),
-		medicalrecord.NewClinicalPlanHandler(clinicalPlanSvc),
-		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, medicalRecordSvc, uploader),
-		medicalrecord.NewTreatmentHandler(treatmentSvc, h.HasPermission),
-		medicalrecord.NewHospitalizationHandler(hospitalizationSvc),
-		medicalrecord.NewHospitalizationPlanHandler(hospitalizationPlanSvc),
-		medicalrecord.NewDailyRecordHandler(dailyRecordSvc),
-		medicalrecord.NewCarePlanItemHandler(carePlanItemSvc),
-		medicalrecord.NewConsultationHandler(consultationSvc),
-		medicalrecord.NewProcedureHandler(procedureSvc),
-		medicalrecord.NewMedicineHandler(medicineSvc),
-		medicalrecord.NewMedicineDoseParamHandler(medicineDoseParamSvc),
-		medicalrecord.NewCageHandler(cageSvc),
-		medicalrecord.NewTreatmentPlanHandler(treatmentPlanSvc, hospitalizationSvc, medicalRecordSvc, h.HasPermission),
-		medicalrecord.NewMedicalRecordHandler(medicalRecordSvc),
-		medicalrecord.NewMedicalRecordAddendumHandler(medicalRecordAddendumSvc),
-		medicalrecord.NewExaminationHandler(examinationSvc),
-		h.RequirePermission,
-	)
-	medicalRecordHandler.RegisterRoutes(protected)
-
-	// LIFF レートリミット store（cleanup goroutine は appCtx ライフタイム）
-	liffRateLimitStore := middleware.NewRateLimitStore(appCtx)
-	// LINE webhookはLIFFとは独立したIP別budgetを持ち、片方のburstで他方を枯渇させない。
-	webhookRateLimitStore := middleware.NewRateLimitStore(appCtx)
-
-	// lstep domain（BE9-2C L①〜）: target-owned application composes the full HTTP graph.
-	// LINE 紐付け callback は reservation の LIFF route へ narrow method として注入する。
-	lstepHandler := lstepApp.NewHandler(lstep.HandlerDependencies{
-		OwnerLineLinker:      svcs.Owner,
-		RespondOwner:         handler.RespondLinkedOwner,
-		RequirePermission:    h.RequirePermission,
-		RequireAnyPermission: adaptPermissionAny(h.RequirePermissionAny),
-	})
-
-	// reservation domain（BE9-2C R①〜）: reservation_type 系 master routes
-	reservationHandler := reservation.NewHandler(
-		reservation.NewReservationTypeHandler(svcs.ReservationType, svcs.ReservationTypeUnavailableTime, svcs.ReservationTypeAvailableSlot, svcs.ReservationTypeOccupation),
-		reservation.NewReservationTypeGroupHandler(svcs.ReservationTypeGroup),
-		reservation.NewReservationTypeLiffHandler(svcs.ReservationTypeLiff),
-		reservation.NewReservationStaffHandler(svcs.ReservationStaff),
-		reservation.NewReservationScheduleHandler(svcs.ReservationSchedule),
-		reservation.NewReservationHandler(svcs.Reservation, medicalRecordSvc, svcs.Liff, svcs.StaffClinicAssignment),
-		reservation.NewReservationAdminHandler(svcs.ReservationAdmin, svcs.StaffClinicAssignment),
-		reservation.NewLineReservationSettingHandler(svcs.LineReservationSetting),
-		reservation.NewLiffHandler(svcs.Liff, svcs.StaffClinicAssignment),
-		middleware.LiffAuth(lstepApp.LineCustomers, lineReservationSettings),
-		func(limit int) gin.HandlerFunc { return middleware.LiffRateLimit(liffRateLimitStore, limit) },
-		lstepHandler.LinkLiffAccount,
-		h.RequirePermission,
-	)
-	reservationHandler.RegisterRoutes(protected)
-	// LIFF 公開 API（JWT 認証なし・LINE ID トークン認証・rate limit store は appCtx で cleanup）
-	reservationHandler.RegisterLiffRoutes(r)
-
-	// billing domain（BE9-2C B①〜）: 会計系 master routes
-	billingHandler := billing.NewHandler(
-		billing.NewInsuranceHandler(svcs.Insurance),
-		billing.NewCampaignHandler(campaignSvc),
-		billing.NewPaymentMethodMasterHandler(svcs.PaymentMethodMaster),
-		billing.NewEstimateHandler(svcs.Estimate, h.HasPermission),
-		billing.NewBillingConfirmationHandler(svcs.BillingConfirmation, h.RequirePermission),
-		billing.NewBillingItemHandler(billingItemSvc, h.RequirePermission),
-		billing.NewRefundHandler(svcs.Refund, h.RequirePermission),
-		billing.NewAccountingHandler(svcs.Accounting, svcs.CashRegister, h.HasPermission),
-		billing.NewCashRegisterHandler(svcs.CashRegister, h.RequirePermission),
-		billing.NewAccountingReportHandler(svcs.AccountingReport, h.RequirePermission),
-		h.RequirePermission,
-	)
-	billingHandler.RegisterRoutes(protected)
-
-	// lstep domain（BE9-2C L①〜）
-	lstepHandler.RegisterRoutes(protected)
-	// LINE Webhook（JWT 認証なし・HMAC 署名検証）
-	lstepHandler.RegisterWebhookRoutes(r, middleware.RateLimit(webhookRateLimitStore, lineWebhookRequestsPerSecond, lineWebhookBurst))
-
-	// HTTPサーバー設定
-	server := &http.Server{
+func newHTTPServer(
+	cfg *config.Config,
+	router *gin.Engine,
+) *http.Server {
+	return &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           r,
+		Handler:           router,
 		ReadTimeout:       120 * time.Second,
 		WriteTimeout:      120 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    32 << 10,
 	}
+}
 
-	logger.Info("server starting",
-		slog.String("port", cfg.Port),
-	)
-
-	signalCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stopSignals()
-	runner := serverRunner{
-		server:           server,
-		address:          server.Addr,
-		backgroundCtx:    appCtx,
-		cancelBackground: appCancel,
-		shutdownTimeout:  130 * time.Second,
-		drainers: []func(){
-			func() {
-				// PERF-FOLLOWUP-05: password-reset email sends are fire-and-forget.
-				logger.Info("draining in-flight password reset email goroutines...")
-				svcs.PasswordReset.Wait()
-			},
-			func() {
-				logger.Info("draining in-flight reservation notification goroutines...")
-				svcs.ReservationNotifier.Wait()
-			},
-			func() {
-				logger.Info("draining in-flight checkup followup trigger goroutines...")
-				checkupSvc.Wait()
-			},
+func runtimeDrainers(composition runtimeComposition) []func() {
+	return []func(){
+		func() {
+			logger.Info(
+				"draining in-flight password reset email goroutines...",
+			)
+			composition.auth.DrainPasswordReset()
 		},
-		resources: []resourceCloser{sqlDB},
+		func() {
+			logger.Info(
+				"draining in-flight reservation notification goroutines...",
+			)
+			composition.reservation.DrainNotifications()
+		},
+		func() {
+			logger.Info(
+				"draining in-flight checkup followup trigger goroutines...",
+			)
+			composition.medicalRecord.DrainCheckups()
+		},
 	}
-	databaseOwnedByRunner = true
-	if err := runner.run(signalCtx); err != nil {
-		logger.Error("server lifecycle failed", slog.String("error", err.Error()))
-		return 1
-	}
-	logger.Info("server stopped")
-	return 0
 }

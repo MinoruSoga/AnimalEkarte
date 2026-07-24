@@ -11,8 +11,7 @@ import (
 
 const ErrMsgWeightZeroOrMore = "体重は0以上の値を入力してください"
 
-// ValidateGender validates the optional public pet-gender value.
-func ValidateGender(gender string) error {
+func validatePetGender(gender string) error {
 	if gender == "" {
 		return nil
 	}
@@ -25,7 +24,7 @@ func ValidateGender(gender string) error {
 }
 
 // validatePetStatus は生存ステータスの値がドメイン上有効かを検証する
-func ValidateStatus(status string) error {
+func validatePetStatus(status string) error {
 	if status == "" {
 		return nil
 	}
@@ -38,7 +37,7 @@ func ValidateStatus(status string) error {
 }
 
 // validatePetAcquisitionType は入手経路の値がドメイン上有効かを検証する
-func ValidateAcquisitionType(t string) error {
+func validatePetAcquisitionType(t string) error {
 	if t == "" {
 		return nil
 	}
@@ -52,7 +51,7 @@ func ValidateAcquisitionType(t string) error {
 }
 
 // validatePetDangerLevel は危険度の値がドメイン上有効かを検証する
-func ValidateDangerLevel(level string) error {
+func validatePetDangerLevel(level string) error {
 	if level == "" {
 		return nil
 	}
@@ -73,25 +72,19 @@ func validateCreatePetInput(input *CreatePetInput) error {
 	if input.Weight != nil && *input.Weight < 0 {
 		return apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
-	if err := ValidateGender(input.Gender); err != nil {
+	if err := validatePetGender(input.Gender); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet gender")
 	}
-	if err := ValidateStatus(input.Status); err != nil {
+	if err := validatePetStatus(input.Status); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet status")
 	}
-	if err := ValidateAcquisitionType(input.AcquisitionType); err != nil {
+	if err := validatePetAcquisitionType(input.AcquisitionType); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet acquisition type")
 	}
-	if err := ValidateDangerLevel(input.DangerLevel); err != nil {
+	if err := validatePetDangerLevel(input.DangerLevel); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet danger level")
 	}
 	return nil
-}
-
-// ValidateCreateInput validates and normalizes a pet create command.
-// It is exported for temporary legacy compatibility facades.
-func ValidateCreateInput(input *CreatePetInput) error {
-	return validateCreatePetInput(input)
 }
 
 func validateUpdatePetInput(input *UpdatePetInput) error {
@@ -106,25 +99,19 @@ func validateUpdatePetInput(input *UpdatePetInput) error {
 		return apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if input.Gender != nil {
-		if err := ValidateGender(*input.Gender); err != nil {
+		if err := validatePetGender(*input.Gender); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet gender")
 		}
 	}
 	if input.AcquisitionType != nil {
-		if err := ValidateAcquisitionType(*input.AcquisitionType); err != nil {
+		if err := validatePetAcquisitionType(*input.AcquisitionType); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet acquisition type")
 		}
 	}
 	if input.DangerLevel != nil {
-		if err := ValidateDangerLevel(*input.DangerLevel); err != nil {
+		if err := validatePetDangerLevel(*input.DangerLevel); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet danger level")
 		}
 	}
 	return nil
-}
-
-// ValidateUpdateInput validates and normalizes a pet update command.
-// It is exported for temporary legacy compatibility facades.
-func ValidateUpdateInput(input *UpdatePetInput) error {
-	return validateUpdatePetInput(input)
 }

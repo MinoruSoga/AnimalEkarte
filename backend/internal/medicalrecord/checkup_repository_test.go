@@ -36,12 +36,23 @@ import (
 func setupCheckupRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.Owner{},
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.MedicalRecord{},
+		&model.Staff{},
+		&model.StaffClinicAssignment{},
+		&model.CheckupType{},
+		&model.Checkup{},
+	))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db
 }
 
@@ -66,6 +77,15 @@ func makeCheckupWithDates(t *testing.T, db *gorm.DB, clinicID, mrID, petID, chec
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)
 	return c
+}
+
+func TestCheckupRepository_LockByIDForUpdateRequiresAmbientTransaction(t *testing.T) {
+	repo := NewCheckupRepository(nil)
+
+	got, err := repo.LockByIDForUpdate(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
 }
 
 func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T) {
@@ -141,6 +161,97 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 		assert.EqualValues(t, 3, total2)
 		assert.Equal(t, old.ID, got2[0].ID)
 	})
+}
+
+func TestCheckupRepository_PatientRelationsAreClinicScoped(t *testing.T) {
+	db := setupCheckupRepoTestDB(t)
+	repo := NewCheckupRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "健診関係スコープ飼主A")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診関係スコープペットA")
+	recordA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-CHECKUP-SCOPE-A", time.Now())
+	require.NoError(t, db.Model(recordA).Update("owner_id", ownerA.ID).Error)
+	recordA.OwnerID = &ownerA.ID
+	typeA := makeCheckupTypeMaster(t, db, clinicA, "健診関係スコープ種別A")
+	valid := makeCheckupWithDates(t, db, clinicA, recordA.ID, petA.ID, typeA.ID, time.Now(), nil)
+
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+	validDoctor := makeDoctor(t, db, clinicB, "健診関係スコープ有効医師")
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: validDoctor.ID, ClinicID: clinicA,
+	}).Error)
+	require.NoError(t, db.Model(valid).Update("doctor_id", validDoctor.ID).Error)
+	valid.DoctorID = &validDoctor.ID
+
+	unassignedDoctor := makeDoctor(t, db, clinicA, "健診関係スコープ未所属医師")
+	inactiveDoctor := makeDoctor(t, db, clinicA, "健診関係スコープ無効医師")
+	require.NoError(t, db.Model(inactiveDoctor).UpdateColumn("is_active", false).Error)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: inactiveDoctor.ID, ClinicID: clinicA,
+	}).Error)
+	nurse := makeDoctor(t, db, clinicA, "健診関係スコープ看護師")
+	require.NoError(t, db.Model(nurse).UpdateColumn("staff_type", model.StaffTypeNurse).Error)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: nurse.ID, ClinicID: clinicA,
+	}).Error)
+
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "健診関係スコープ飼主B")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "健診関係スコープペットB")
+	recordB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-CHECKUP-SCOPE-B", time.Now())
+	require.NoError(t, db.Model(recordB).Update("owner_id", ownerB.ID).Error)
+	recordB.OwnerID = &ownerB.ID
+	typeB := makeCheckupTypeMaster(t, db, clinicB, "健診関係スコープ種別B")
+
+	pollutedOwnerPet := makeSpeciesAndPet(
+		t,
+		db,
+		clinicA,
+		ownerB.ID,
+		"健診関係スコープ別院飼主ペット",
+	)
+	polluted := []*model.Checkup{
+		makeCheckupWithDates(t, db, clinicA, recordB.ID, petA.ID, typeA.ID, time.Now(), nil),
+		makeCheckupWithDates(t, db, clinicA, recordA.ID, petB.ID, typeA.ID, time.Now(), nil),
+		makeCheckupWithDates(t, db, clinicA, recordA.ID, pollutedOwnerPet.ID, typeA.ID, time.Now(), nil),
+		makeCheckupWithDates(t, db, clinicA, recordA.ID, petA.ID, typeB.ID, time.Now(), nil),
+		makeCheckupWithDates(t, db, clinicB, recordA.ID, petA.ID, typeA.ID, time.Now(), nil),
+	}
+	for _, doctorID := range []uint64{unassignedDoctor.ID, inactiveDoctor.ID, nurse.ID} {
+		item := makeCheckupWithDates(t, db, clinicA, recordA.ID, petA.ID, typeA.ID, time.Now(), nil)
+		require.NoError(t, db.Model(item).Update("doctor_id", doctorID).Error)
+		polluted = append(polluted, item)
+	}
+
+	for _, item := range polluted {
+		got, err := repo.FindByID(ctx, clinicA, item.ID)
+		require.Error(t, err, "polluted checkup %d must fail closed", item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, got)
+	}
+
+	listed, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 100)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, total)
+	require.Len(t, listed, 1)
+	assert.Equal(t, valid.ID, listed[0].ID)
+	require.NotNil(t, listed[0].MedicalRecord)
+	require.NotNil(t, listed[0].MedicalRecord.Pet)
+	require.NotNil(t, listed[0].MedicalRecord.Pet.Owner)
+	assert.Equal(t, ownerA.ID, listed[0].MedicalRecord.Pet.Owner.ID)
+	require.NotNil(t, listed[0].Doctor)
+	assert.Equal(t, validDoctor.ID, listed[0].Doctor.ID)
+
+	byRecord, err := repo.FindByMedicalRecordID(ctx, clinicA, recordA.ID)
+	require.NoError(t, err)
+	require.Len(t, byRecord, 1)
+	assert.Equal(t, valid.ID, byRecord[0].ID)
+
+	byOwner, err := repo.FindByOwnerID(ctx, clinicA, ownerA.ID)
+	require.NoError(t, err)
+	require.Len(t, byOwner, 1)
+	assert.Equal(t, valid.ID, byOwner[0].ID)
 }
 
 func TestCheckupRepository_FindByMedicalRecordID(t *testing.T) {

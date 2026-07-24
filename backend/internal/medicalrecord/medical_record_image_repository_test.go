@@ -34,13 +34,30 @@ import (
 func setupMedImageIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{}, &model.MedicalRecordImage{},
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.Owner{},
+		&model.AnimalSpecies{},
+		&model.Pet{},
+		&model.MedicalRecord{},
+		&model.Staff{},
+		&model.StaffClinicAssignment{},
+		&model.ExaminationType{},
+		&model.Examination{},
+		&model.MedicalRecordImage{},
 	))
-	db.Exec("TRUNCATE TABLE medical_record_images CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE pets CASCADE")
-	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	require.NoError(t, db.Exec(`
+		TRUNCATE TABLE
+			medical_record_images,
+			exams,
+			exam_types,
+			staff_clinic_assignments,
+			staffs,
+			medical_records,
+			pets,
+			animal_species
+		CASCADE
+	`).Error)
 	return db
 }
 
@@ -91,11 +108,15 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
 
 	owner := makeTestOwner(t, db, clinicA, "画像一覧飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "画像一覧犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-IMG-LIST", time.Now())
 	staff := makeDoctor(t, db, clinicA, "画像担当医")
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: staff.ID, ClinicID: clinicA,
+	}).Error)
 
 	first := makeMedRecordImage(t, db, mr.ID, "1-first.jpg")
 	require.NoError(t, db.Model(first).Update("staff_id", staff.ID).Error)
@@ -130,6 +151,141 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+}
+
+func TestDB_MedicalRecordImageRepositoryRejectsPollutedExamAndStaffRelations(t *testing.T) {
+	db := setupMedImageIsolationTestDB(t)
+	repo := NewMedicalRecordImageRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	ownerA := makeTestOwner(t, db, clinicA, "画像read関係飼主A")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "画像read関係患者A")
+	recordA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-READ-A", time.Now())
+	otherRecordA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-READ-A-OTHER", time.Now())
+	ownerB := makeTestOwner(t, db, clinicB, "画像read関係飼主B")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "画像read関係患者B")
+	recordB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-IMG-READ-B", time.Now())
+
+	examTypeA := makeExamTypeMaster(t, db, clinicA, "画像read関係検査A")
+	examTypeB := makeExamTypeMaster(t, db, clinicB, "画像read関係検査B")
+	validExam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicA, MedicalRecordID: &recordA.ID, PetID: &petA.ID,
+		ExamTypeID: examTypeA.ID, Date: time.Now(), Status: model.ExaminationStatusPending,
+	})
+	mismatchedExam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicA, MedicalRecordID: &otherRecordA.ID, PetID: &petA.ID,
+		ExamTypeID: examTypeA.ID, Date: time.Now(), Status: model.ExaminationStatusPending,
+	})
+	foreignExam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicB, MedicalRecordID: &recordB.ID, PetID: &petB.ID,
+		ExamTypeID: examTypeB.ID, Date: time.Now(), Status: model.ExaminationStatusPending,
+	})
+	deletedExam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicA, MedicalRecordID: &recordA.ID, PetID: &petA.ID,
+		ExamTypeID: examTypeA.ID, Date: time.Now(), Status: model.ExaminationStatusPending,
+	})
+	require.NoError(t, db.Delete(deletedExam).Error)
+
+	validStaff := makeImageRelationStaff(t, db, clinicB, "画像read有効担当者", true)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: validStaff.ID, ClinicID: clinicA,
+	}).Error)
+	foreignStaff := makeImageRelationStaff(t, db, clinicB, "画像read別院担当者", true)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: foreignStaff.ID, ClinicID: clinicB,
+	}).Error)
+	unassignedStaff := makeImageRelationStaff(t, db, clinicA, "画像read未所属担当者", true)
+	inactiveStaff := makeImageRelationStaff(t, db, clinicA, "画像read無効担当者", true)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: inactiveStaff.ID, ClinicID: clinicA,
+	}).Error)
+	require.NoError(t, db.Model(inactiveStaff).UpdateColumn("is_active", false).Error)
+	deletedStaff := makeImageRelationStaff(t, db, clinicA, "画像read削除担当者", true)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID: deletedStaff.ID, ClinicID: clinicA,
+	}).Error)
+	require.NoError(t, db.Delete(deletedStaff).Error)
+	deletedAssignmentStaff := makeImageRelationStaff(t, db, clinicA, "画像read削除所属担当者", true)
+	deletedAssignment := &model.StaffClinicAssignment{
+		StaffID: deletedAssignmentStaff.ID, ClinicID: clinicA,
+	}
+	require.NoError(t, db.Create(deletedAssignment).Error)
+	require.NoError(t, db.Delete(deletedAssignment).Error)
+
+	valid := makeMedRecordImageWithRelations(
+		t, db, recordA.ID, "valid-relations.jpg", &validExam.ID, &validStaff.ID,
+	)
+	withoutRelations := makeMedRecordImage(t, db, recordA.ID, "without-relations.jpg")
+	polluted := []*model.MedicalRecordImage{
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "foreign-exam.jpg", &foreignExam.ID, nil),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "mismatched-exam.jpg", &mismatchedExam.ID, nil),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "deleted-exam.jpg", &deletedExam.ID, nil),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "foreign-staff.jpg", nil, &foreignStaff.ID),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "unassigned-staff.jpg", nil, &unassignedStaff.ID),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "inactive-staff.jpg", nil, &inactiveStaff.ID),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "deleted-staff.jpg", nil, &deletedStaff.ID),
+		makeMedRecordImageWithRelations(t, db, recordA.ID, "deleted-assignment.jpg", nil, &deletedAssignmentStaff.ID),
+	}
+
+	listed, err := repo.FindByMedicalRecordID(ctx, clinicA, recordA.ID)
+	require.NoError(t, err)
+	require.Len(t, listed, 2)
+	byID := make(map[uint64]model.MedicalRecordImage, len(listed))
+	for _, image := range listed {
+		byID[image.ID] = image
+	}
+	validResult, ok := byID[valid.ID]
+	require.True(t, ok)
+	require.NotNil(t, validResult.Staff)
+	assert.Equal(t, validStaff.ID, validResult.Staff.ID)
+	_, ok = byID[withoutRelations.ID]
+	assert.True(t, ok)
+
+	for _, image := range polluted {
+		t.Run(image.FileName, func(t *testing.T) {
+			got, findErr := repo.FindByID(ctx, clinicA, image.ID)
+			require.Error(t, findErr)
+			assert.True(t, apperrors.IsNotFound(findErr))
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func makeImageRelationStaff(
+	t *testing.T,
+	db *gorm.DB,
+	clinicID uint64,
+	name string,
+	isActive bool,
+) *model.Staff {
+	t.Helper()
+	staff := &model.Staff{
+		ClinicID: clinicID, Name: name, IsActive: isActive, StaffType: model.StaffTypeDoctor,
+	}
+	require.NoError(t, db.Create(staff).Error)
+	return staff
+}
+
+func makeMedRecordImageWithRelations(
+	t *testing.T,
+	db *gorm.DB,
+	medicalRecordID uint64,
+	fileName string,
+	examID, staffID *uint64,
+) *model.MedicalRecordImage {
+	t.Helper()
+	image := &model.MedicalRecordImage{
+		MedicalRecordID: medicalRecordID,
+		ImageURL:        "https://example.test/" + fileName,
+		FileName:        fileName,
+		ImageType:       model.MedicalImageTypeOther,
+		ExamID:          examID,
+		StaffID:         staffID,
+	}
+	require.NoError(t, db.Create(image).Error)
+	return image
 }
 
 func TestMedicalRecordImageRepository_FindByID_NotFound(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
@@ -20,7 +20,12 @@ type ReservationScheduleRepository interface {
 	FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-	Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	Save(
+		ctx context.Context,
+		clinicID uint64,
+		entry *model.ShiftEntry,
+		breaks []model.ShiftEntryBreak,
+	) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error)
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -33,7 +38,12 @@ type reservationScheduleRepository struct {
 
 // shiftWriter は staff domain（shiftentry）の予約スケジュール用途 write の最小 view。
 type shiftWriter interface {
-	SaveByStaffDate(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	SaveByStaffDate(
+		ctx context.Context,
+		clinicID uint64,
+		entry *model.ShiftEntry,
+		breaks []model.ShiftEntryBreak,
+	) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error)
 	DeleteByStaffDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -51,7 +61,7 @@ func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clin
 
 	entries := make([]model.ShiftEntry, 0)
 	err = r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("staff_id = ? AND date >= ? AND date < ?",
 			staffID, start.Format(time.DateOnly), end.Format(time.DateOnly)).
 		Order("date ASC").
@@ -71,7 +81,7 @@ func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx contex
 	}
 	entries := make([]model.ShiftEntry, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("staff_id IN ? AND date >= ? AND date < ?",
 			staffIDs, from.Format(time.DateOnly), to.Format(time.DateOnly)).
 		Order("date ASC").
@@ -108,7 +118,7 @@ func (r *reservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Conte
 func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",
 			staffID, date.Format(time.DateOnly)).
 		First(&entry).Error
@@ -119,7 +129,12 @@ func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clini
 }
 
 // Save は shiftentry.SaveByStaffDate へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
-func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
+func (r *reservationScheduleRepository) Save(
+	ctx context.Context,
+	clinicID uint64,
+	entry *model.ShiftEntry,
+	breaks []model.ShiftEntryBreak,
+) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 	return r.entries.SaveByStaffDate(ctx, clinicID, entry, breaks)
 }
 

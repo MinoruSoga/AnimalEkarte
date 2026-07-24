@@ -138,7 +138,10 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		// （いずれも clinic_id 列を持つ）を LEFT JOIN すると曖昧になる。
 		// search/animal_species_id フィルタで JOIN が入るケースがあるため、
 		// ここでは常に medical_records.clinic_id を明示指定する。
-		q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("medical_records.clinic_id IN ?", clinicIDs)
+		q := r.db.WithContext(ctx).
+			Model(&model.MedicalRecord{}).
+			Where("medical_records.clinic_id IN ?", clinicIDs).
+			Scopes(medicalRecordListRelationsScope())
 		if needsPetJoin {
 			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL")
 		}
@@ -198,14 +201,118 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("EnteredByStaff", "deleted_at IS NULL").
+		Preload("Doctor", medicalRecordStaffPreload(clinicIDs, true)).
+		Preload("EnteredByStaff", medicalRecordStaffPreload(clinicIDs, false)).
 		Preload("Inquiry").
-		Preload("Billing", "deleted_at IS NULL").
+		Preload("Billing", medicalRecordBillingPreload(clinicIDs)).
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return records, total, nil
+}
+
+// medicalRecordListRelationsScope excludes parent rows whose clinic-owned relations point
+// outside the parent clinic. Soft-deleted same-clinic relations and historical staff
+// assignments remain valid evidence so that a retirement or deletion does not hide the
+// medical-record history; current relation visibility remains a Preload concern.
+func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(`
+			(
+				medical_records.owner_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM owners scoped_owner
+					WHERE scoped_owner.id = medical_records.owner_id
+					  AND scoped_owner.clinic_id = medical_records.clinic_id
+				)
+			)
+			AND (
+				medical_records.pet_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM pets scoped_pet
+					JOIN owners scoped_pet_owner
+					  ON scoped_pet_owner.id = scoped_pet.owner_id
+					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
+					WHERE scoped_pet.id = medical_records.pet_id
+					  AND scoped_pet.clinic_id = medical_records.clinic_id
+					  AND (
+						medical_records.owner_id IS NULL OR
+						scoped_pet.owner_id = medical_records.owner_id
+					  )
+				)
+			)
+			AND (
+				medical_records.doctor_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_doctor_assignment
+					JOIN staffs scoped_doctor
+					  ON scoped_doctor.id = scoped_doctor_assignment.staff_id
+					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
+					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
+				)
+			)
+			AND (
+				medical_records.entered_by IS NULL OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_entered_by_assignment
+					JOIN staffs scoped_entered_by
+					  ON scoped_entered_by.id = scoped_entered_by_assignment.staff_id
+					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
+					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
+				)
+			)
+		`)
+	}
+}
+
+func medicalRecordStaffPreload(clinicIDs []uint64, doctorOnly bool) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		query := db.Where(`
+			staffs.deleted_at IS NULL
+			AND staffs.is_active = TRUE
+			AND EXISTS (
+				SELECT 1
+				FROM staff_clinic_assignments scoped_assignment
+				WHERE scoped_assignment.staff_id = staffs.id
+				  AND scoped_assignment.clinic_id IN ?
+				  AND scoped_assignment.deleted_at IS NULL
+			)
+		`, clinicIDs)
+		if doctorOnly {
+			query = query.Where("staffs.staff_type = ?", model.StaffTypeDoctor)
+		}
+		return query
+	}
+}
+
+func medicalRecordBillingPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.
+			Where("billings.clinic_id IN ? AND billings.deleted_at IS NULL", clinicIDs).
+			Where(`
+				EXISTS (
+					SELECT 1
+					FROM medical_records billing_parent
+					WHERE billing_parent.id = billings.medical_record_id
+					  AND billing_parent.clinic_id = billings.clinic_id
+					  AND billing_parent.deleted_at IS NULL
+				)
+			`)
+	}
+}
+
+func medicalRecordVitalsPreload(db *gorm.DB) *gorm.DB {
+	return db.Where(`
+		vital_records.deleted_at IS NULL
+		AND EXISTS (
+			SELECT 1
+			FROM medical_records vital_parent
+			WHERE vital_parent.id = vital_records.medical_record_id
+			  AND vital_parent.clinic_id = vital_records.clinic_id
+			  AND vital_parent.deleted_at IS NULL
+			  AND vital_parent.pet_id = vital_records.pet_id
+		)
+	`)
 }
 
 // medicalRecordOrderClause は B-1 follow-up の列ソート server 化用 ORDER BY 句を組み立てる。
@@ -256,14 +363,16 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, cli
 	var record model.MedicalRecord
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Treatments", "deleted_at IS NULL").
-		Preload("Vitals").
+		Preload("Vitals", medicalRecordVitalsPreload).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("EnteredByStaff", "deleted_at IS NULL").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Preload("Inquiry").
-		Scopes(scope).Where("id = ?", id).First(&record).Error
+		Scopes(scope, medicalRecordListRelationsScope()).
+		Where("id = ?", id).
+		First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}

@@ -23,6 +23,7 @@ type mockBillingItemRepository struct {
 	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	hasFoodPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	validateCreateReferencesFn    func(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) error
 }
 
 func (m *mockBillingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
@@ -63,6 +64,12 @@ func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.C
 }
 func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
 	return 0, nil
+}
+func (m *mockBillingItemRepository) ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) error {
+	if m.validateCreateReferencesFn == nil {
+		return nil
+	}
+	return m.validateCreateReferencesFn(ctx, clinicID, billingID, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID)
 }
 
 func defaultMockBillingItemRepo() *mockBillingItemRepository {
@@ -133,6 +140,7 @@ func defaultMockBillingRepo() *mockAccountingRepository {
 // ---- Tests ----
 
 func TestBillingItemService_CreateItem(t *testing.T) {
+	merchandiseItemID := uint64(50)
 	treatmentID := uint64(100)
 	appointmentID := uint64(200)
 	trimmingCourseID := uint64(300)
@@ -146,6 +154,11 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 		wantErr       bool
 		checkDefaults func(t *testing.T, item *model.BillingItem)
 	}{
+		{
+			name:    "returns error for nil input",
+			input:   nil,
+			wantErr: true,
+		},
 		{
 			name: "creates item successfully with defaults",
 			input: &CreateBillingItemInput{
@@ -166,25 +179,27 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 		{
 			name: "creates item with explicit tax_type and source",
 			input: &CreateBillingItemInput{
-				ClinicID:         1,
-				BillingID:        10,
-				Category:         string(model.ItemCategoryMedicine),
-				Name:             "薬剤料",
-				UnitPrice:        500,
-				Quantity:         2,
-				TaxType:          string(model.TaxTypeIncluded),
-				TaxRate:          0.08,
-				Source:           string(model.ItemSourceMedicalRecord),
-				TreatmentID:      &treatmentID,
-				AppointmentID:    &appointmentID,
-				TrimmingCourseID: &trimmingCourseID,
-				TrimmingOptionID: &trimmingOptionID,
+				ClinicID:          1,
+				BillingID:         10,
+				Category:          string(model.ItemCategoryMedicine),
+				Name:              "薬剤料",
+				UnitPrice:         500,
+				Quantity:          2,
+				TaxType:           string(model.TaxTypeIncluded),
+				TaxRate:           0.08,
+				Source:            string(model.ItemSourceMedicalRecord),
+				MerchandiseItemID: &merchandiseItemID,
+				TreatmentID:       &treatmentID,
+				AppointmentID:     &appointmentID,
+				TrimmingCourseID:  &trimmingCourseID,
+				TrimmingOptionID:  &trimmingOptionID,
 			},
 			wantErr: false,
 			checkDefaults: func(t *testing.T, item *model.BillingItem) {
 				assert.Equal(t, model.TaxTypeIncluded, item.TaxType)
 				assert.Equal(t, 0.08, item.TaxRate)
 				assert.Equal(t, model.ItemSourceMedicalRecord, item.Source)
+				assert.Equal(t, &merchandiseItemID, item.MerchandiseItemID)
 				assert.Equal(t, &treatmentID, item.TreatmentID)
 				assert.Equal(t, &appointmentID, item.AppointmentID)
 				assert.Equal(t, &trimmingCourseID, item.TrimmingCourseID)
@@ -295,6 +310,53 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBillingItemService_CreateItem_FailsClosedWhenTransactionalReferenceValidationFails(t *testing.T) {
+	treatmentID := uint64(100)
+	appointmentID := uint64(200)
+	created := false
+	validated := false
+	repo := defaultMockBillingItemRepo()
+	repo.validateCreateReferencesFn = func(_ context.Context, clinicID, billingID uint64, _, gotTreatmentID, gotAppointmentID, _, _ *uint64) error {
+		validated = true
+		assert.Equal(t, uint64(1), clinicID)
+		assert.Equal(t, uint64(10), billingID)
+		assert.Equal(t, &treatmentID, gotTreatmentID)
+		assert.Equal(t, &appointmentID, gotAppointmentID)
+		return apperrors.WrapNotFound("billing_item_reference", "cross-clinic")
+	}
+	repo.createFn = func(_ context.Context, _ *model.BillingItem) error {
+		created = true
+		return nil
+	}
+	svc := NewBillingItemServiceWithCampaign(
+		repo,
+		defaultMockBillingRepo(),
+		defaultMockTreatmentRepo(),
+		&mockTransactor{},
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		nil,
+		nil,
+	)
+
+	item, err := svc.CreateItem(context.Background(), &CreateBillingItemInput{
+		ClinicID:      1,
+		BillingID:     10,
+		Category:      string(model.ItemCategoryMedicine),
+		Name:          "薬剤料",
+		UnitPrice:     500,
+		Quantity:      1,
+		Source:        string(model.ItemSourceMedicalRecord),
+		TreatmentID:   &treatmentID,
+		AppointmentID: &appointmentID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+	assert.True(t, validated, "request-derived references must be validated inside the write transaction")
+	assert.False(t, created, "invalid references must be rejected before persistence")
 }
 
 func TestBillingItemService_UpdateItem(t *testing.T) {

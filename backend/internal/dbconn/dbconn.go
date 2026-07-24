@@ -20,10 +20,15 @@ const JapanTimeZone = config.JapanTimeZone
 // stage-import's target vs stage source) reuse the same host/user/password
 // against multiple database names.
 type ConnParams struct {
-	Host, Port, User, Password, SSLMode string
+	Host        string
+	Port        string
+	User        string
+	Password    string
+	SSLMode     string
+	SSLRootCert string
 }
 
-// FromEnv reads DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_SSL_MODE, applying the
+// FromEnv reads DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_SSL_MODE/DB_SSL_ROOT_CERT, applying the
 // same defaults (port 5432, sslmode disable) all 4 cmd tools already used.
 // DB_HOST/DB_USER/DB_PASSWORD are required; DB_NAME is deliberately NOT read
 // here — each tool has different requiredness/defaults for it (e.g.
@@ -31,11 +36,12 @@ type ConnParams struct {
 // the caller.
 func FromEnv() (ConnParams, error) {
 	c := ConnParams{
-		Host:     os.Getenv("DB_HOST"),
-		Port:     EnvOr("DB_PORT", "5432"),
-		User:     os.Getenv("DB_USER"),
-		Password: os.Getenv("DB_PASSWORD"),
-		SSLMode:  EnvOr("DB_SSL_MODE", "disable"),
+		Host:        os.Getenv("DB_HOST"),
+		Port:        EnvOr("DB_PORT", "5432"),
+		User:        os.Getenv("DB_USER"),
+		Password:    os.Getenv("DB_PASSWORD"),
+		SSLMode:     EnvOr("DB_SSL_MODE", "disable"),
+		SSLRootCert: os.Getenv("DB_SSL_ROOT_CERT"),
 	}
 	if c.Host == "" || c.User == "" || c.Password == "" {
 		return ConnParams{}, fmt.Errorf("missing required DB env vars (DB_HOST, DB_USER, DB_PASSWORD)")
@@ -46,10 +52,14 @@ func FromEnv() (ConnParams, error) {
 // DSN builds a libpq-style connection string for dbname, with the fixed
 // TimeZone=Asia/Tokyo parameter every existing call site already appended.
 func (c ConnParams) DSN(dbname string) string {
-	return fmt.Sprintf(
+	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
 		c.Host, c.Port, c.User, c.Password, dbname, c.SSLMode, config.JapanTimeZone,
 	)
+	if c.SSLRootCert != "" {
+		dsn += " sslrootcert=" + c.SSLRootCert
+	}
+	return dsn
 }
 
 // localHosts is the superset guard (5 entries, including IPv6 loopback forms)

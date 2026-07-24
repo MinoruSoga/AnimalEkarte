@@ -25,7 +25,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -52,7 +52,7 @@ func TestMedicineInventoryRepository_Create_RollsBackWhenAmbientTxFails(t *testi
 
 	medicineRepo := medicalrecord.NewMedicineRepository(db)
 	inventoryRepo := inventory.New(db)
-	tx := repository.NewTransactor(db)
+	tx := persistence.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "原子性テスト薬剤"}
 
@@ -92,7 +92,7 @@ func TestMedicineInventoryRepository_Create_CommitsWithinAmbientTx(t *testing.T)
 
 	medicineRepo := medicalrecord.NewMedicineRepository(db)
 	inventoryRepo := inventory.New(db)
-	tx := repository.NewTransactor(db)
+	tx := persistence.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "コミットテスト薬剤"}
 
@@ -126,7 +126,7 @@ func TestMedicineRepository_Update_ReadsOwnWriteWithinAmbientTx(t *testing.T) {
 	const clinicA = uint64(1)
 
 	medicineRepo := medicalrecord.NewMedicineRepository(db)
-	tx := repository.NewTransactor(db)
+	tx := persistence.NewTransactor(db)
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "更新前"}
 	require.NoError(t, medicineRepo.Create(ctx, medicine))

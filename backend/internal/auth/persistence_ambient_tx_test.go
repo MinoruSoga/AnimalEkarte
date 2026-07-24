@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func TestAccountRepository_AmbientTransactionReadYourWritesAndRollback(t *testing.T) {
@@ -27,7 +27,7 @@ func TestAccountRepository_AmbientTransactionReadYourWritesAndRollback(t *testin
 		IsActive:     true,
 	}
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+		txCtx := persistence.WithTxValue(ctx, tx)
 		require.NoError(t, repo.Create(txCtx, account))
 
 		byID, findErr := repo.FindByID(txCtx, account.ID)
@@ -38,7 +38,12 @@ func TestAccountRepository_AmbientTransactionReadYourWritesAndRollback(t *testin
 		require.NoError(t, findErr)
 		assert.Equal(t, account.ID, byEmail.ID)
 
-		require.NoError(t, repo.Update(txCtx, account.ID, map[string]any{"password_hash": "updated-hash"}))
+		require.NoError(t, repo.UpdatePasswordHash(
+			txCtx,
+			account.ID,
+			"updated-hash",
+			time.Now(),
+		))
 		updated, findErr := repo.FindByID(txCtx, account.ID)
 		require.NoError(t, findErr)
 		assert.Equal(t, "updated-hash", updated.PasswordHash)
@@ -65,7 +70,7 @@ func TestPasswordResetTokenRepository_AmbientTransactionReadYourWritesAndRollbac
 			ExpiresAt: time.Now().Add(time.Hour),
 		}
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.Create(txCtx, token))
 			got, findErr := repo.FindByTokenHash(txCtx, token.TokenHash)
 			require.NoError(t, findErr)
@@ -88,7 +93,7 @@ func TestPasswordResetTokenRepository_AmbientTransactionReadYourWritesAndRollbac
 		forcedErr := errors.New("force password reset delete rollback")
 
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.DeleteByID(txCtx, byID.ID))
 			require.NoError(t, repo.DeleteByAccountID(txCtx, targetAccountID))
 
@@ -125,7 +130,7 @@ func TestTokenBlacklistRepository_AmbientTransactionReadYourWritesAndRollback(t 
 			ExpiresAt: time.Now().Add(time.Hour),
 		}
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.Create(txCtx, entry))
 			exists, existsErr := repo.ExistsByJTI(txCtx, entry.JTI)
 			require.NoError(t, existsErr)
@@ -148,7 +153,7 @@ func TestTokenBlacklistRepository_AmbientTransactionReadYourWritesAndRollback(t 
 		forcedErr := errors.New("force blacklist delete rollback")
 
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.DeleteExpired(txCtx))
 
 			var count int64
@@ -182,7 +187,7 @@ func TestPermissionGroupRepository_AmbientTransactionReadYourWritesAndRollback(t
 		forcedErr := errors.New("force permission rule rollback")
 
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.UpdateRules(txCtx, clinicID, group.ID, []model.PermissionGroupRule{
 				{Resource: "billing", CanView: true},
 			}))
@@ -211,7 +216,7 @@ func TestPermissionGroupRepository_AmbientTransactionReadYourWritesAndRollback(t
 		forcedErr := errors.New("force staff permission rollback")
 
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			require.NoError(t, repo.UpdateStaffGroups(txCtx, clinic.ID, staff.ID, []uint64{group.ID}))
 
 			groupIDs, findErr := repo.FindAllGroupIDsByStaffID(txCtx, clinic.ID, staff.ID)

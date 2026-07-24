@@ -8,13 +8,11 @@ import (
 
 // RegisterRoutes registers the 16 pet-owned authenticated routes.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	h.RegisterPetRoutes(rg)
-	h.RegisterAnimalSpeciesRoutes(rg)
+	h.registerPetRoutes(rg)
+	h.registerAnimalSpeciesRoutes(rg)
 }
 
-// RegisterPetRoutes is a temporary compatibility seam used by the legacy aggregate
-// handler until central composition cuts over to RegisterRoutes.
-func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
+func (h *Handler) registerPetRoutes(rg *gin.RouterGroup) {
 	pets := rg.Group("/pets")
 	pets.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListPets)
 	pets.GET("/:id", h.requirePermission(string(model.ResourceOwners), "view"), h.GetPet)
@@ -23,12 +21,10 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets.DELETE("/:id", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
 	pets.GET("/:id/first-visit", h.requirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
 
-	h.RegisterChronicConditionRoutes(pets)
+	h.registerChronicConditionRoutes(pets)
 }
 
-// RegisterChronicConditionRoutes registers the nested chronic-condition routes.
-// It remains exported only for the legacy aggregate-handler compatibility facade.
-func (h *Handler) RegisterChronicConditionRoutes(pets *gin.RouterGroup) {
+func (h *Handler) registerChronicConditionRoutes(pets *gin.RouterGroup) {
 	chronicConditions := pets.Group("/:id/chronic-conditions")
 	chronicConditions.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListChronicConditions)
 	chronicConditions.POST("", h.requirePermission(string(model.ResourceOwners), "create"), h.CreateChronicCondition)
@@ -36,9 +32,7 @@ func (h *Handler) RegisterChronicConditionRoutes(pets *gin.RouterGroup) {
 	chronicConditions.DELETE("/:cc_id", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteChronicCondition)
 }
 
-// RegisterAnimalSpeciesRoutes is a temporary compatibility seam used by the legacy
-// master route aggregate until central composition cuts over to RegisterRoutes.
-func (h *Handler) RegisterAnimalSpeciesRoutes(rg *gin.RouterGroup) {
+func (h *Handler) registerAnimalSpeciesRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 	masters.GET("/animal-species", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "view"), h.ListAnimalSpecies)
 	masters.POST("/animal-species", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "create"), h.CreateAnimalSpecies)

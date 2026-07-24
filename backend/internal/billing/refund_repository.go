@@ -30,8 +30,37 @@ func NewRefundRepository(db *gorm.DB) RefundRepository {
 }
 
 func (r *refundRepository) Create(ctx context.Context, refund *model.BillingRefund) error {
-	if err := persistence.DBOrTx(ctx, r.db).Create(refund).Error; err != nil {
-		return apperrors.FromGORM(err, "billing_refund", "")
+	if refund == nil || refund.BillingID == 0 || refund.ClinicID == 0 {
+		return apperrors.WrapInvalidInput(
+			"billing refund requires billing_id and clinic_id",
+		)
+	}
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		clinicID, err := lockBillingClinic(tx, refund.BillingID)
+		if err != nil {
+			if apperrors.IsNotFound(err) {
+				return apperrors.WrapInvalidInput("invalid billing reference")
+			}
+			return err
+		}
+		if clinicID != refund.ClinicID {
+			return apperrors.WrapInvalidInput("invalid billing reference")
+		}
+		if refund.RefundedBy != nil {
+			if err := lockActiveBillingStaffs(
+				tx,
+				clinicID,
+				[]uint64{*refund.RefundedBy},
+			); err != nil {
+				return err
+			}
+		}
+		if err := tx.Create(refund).Error; err != nil {
+			return apperrors.FromGORM(err, "billing_refund", "")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to create billing refund")
 	}
 	return nil
 }
@@ -39,11 +68,33 @@ func (r *refundRepository) Create(ctx context.Context, refund *model.BillingRefu
 func (r *refundRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
 	refunds := make([]model.BillingRefund, 0)
 	if err := r.db.WithContext(ctx).
-		Preload("RefundedByStaff", "deleted_at IS NULL").
-		Scopes(persistence.ClinicScope(clinicID)).Where("billing_id = ?", billingID).
+		Preload(
+			"RefundedByStaff",
+			scopedBillingStaffPreload([]uint64{clinicID}),
+		).
+		Preload(
+			"RefundedByStaff.ClinicAssignments",
+			scopedStaffAssignmentsPreload([]uint64{clinicID}),
+		).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("billing_id = ?", billingID).
+		Where(`EXISTS (
+			SELECT 1
+			FROM billings
+			WHERE billings.id = billing_refunds.billing_id
+			  AND billings.clinic_id = billing_refunds.clinic_id
+			  AND billings.deleted_at IS NULL
+		)`).
 		Order("created_at DESC").
 		Find(&refunds).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d", billingID))
+	}
+	for i := range refunds {
+		sanitizeBillingStaff(
+			&refunds[i].RefundedByStaff,
+			refunds[i].RefundedBy,
+			clinicID,
+		)
 	}
 	return refunds, nil
 }
@@ -55,7 +106,15 @@ func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billing
 	var total int64
 	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingRefund{}).
-		Scopes(persistence.ClinicScope(clinicID)).Where("billing_id = ?", billingID).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("billing_id = ?", billingID).
+		Where(`EXISTS (
+			SELECT 1
+			FROM billings
+			WHERE billings.id = billing_refunds.billing_id
+			  AND billings.clinic_id = billing_refunds.clinic_id
+			  AND billings.deleted_at IS NULL
+		)`).
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d", billingID))
@@ -67,7 +126,15 @@ func (r *refundRepository) SumByBillingIDAndPaymentMethod(ctx context.Context, c
 	var total int64
 	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingRefund{}).
-		Scopes(persistence.ClinicScope(clinicID)).Where("billing_id = ? AND payment_method = ?", billingID, method).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("billing_id = ? AND payment_method = ?", billingID, method).
+		Where(`EXISTS (
+			SELECT 1
+			FROM billings
+			WHERE billings.id = billing_refunds.billing_id
+			  AND billings.clinic_id = billing_refunds.clinic_id
+			  AND billings.deleted_at IS NULL
+		)`).
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d method=%s", billingID, method))

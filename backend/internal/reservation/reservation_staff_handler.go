@@ -36,7 +36,7 @@ func (h *ReservationStaffHandler) ListReservationStaffs(c *gin.Context) {
 	for i := range staffs {
 		staffIDs[i] = staffs[i].ID
 	}
-	excludedMap, err := h.svc.ListExcludedByStaffIDs(c.Request.Context(), staffIDs)
+	excludedMap, err := h.svc.ListExcludedByStaffIDs(c.Request.Context(), clinicID, staffIDs)
 	if err != nil {
 		respondError(c, err)
 		return

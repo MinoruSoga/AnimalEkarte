@@ -176,6 +176,7 @@ func applyMigrationsToTmpDB(ctx context.Context, conn dbconn.ConnParams, logger 
 		"DB_USER="+conn.User,
 		"DB_PASSWORD="+conn.Password,
 		"DB_SSL_MODE="+conn.SSLMode,
+		"DB_SSL_ROOT_CERT="+conn.SSLRootCert,
 		"DB_NAME="+tmpDBName,
 		"DB_RESET=false",
 	)

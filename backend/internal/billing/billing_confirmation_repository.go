@@ -2,9 +2,11 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -16,6 +18,7 @@ type BillingConfirmationRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
 	Create(ctx context.Context, review *model.BillingConfirmation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
 }
 
 type billingConfirmationRepository struct {
@@ -29,7 +32,7 @@ func NewBillingConfirmationRepository(db *gorm.DB) BillingConfirmationRepository
 
 func (r *billingConfirmationRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	var review model.BillingConfirmation
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN medical_records ON medical_records.id = billing_confirmations.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND billing_confirmations.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&review).Error
@@ -40,7 +43,7 @@ func (r *billingConfirmationRepository) FindByMedicalRecordID(ctx context.Contex
 }
 
 func (r *billingConfirmationRepository) Create(ctx context.Context, review *model.BillingConfirmation) error {
-	if err := r.db.WithContext(ctx).Create(review).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(review).Error; err != nil {
 		return apperrors.FromGORM(err, "billing_confirmation", "")
 	}
 	return nil
@@ -59,6 +62,40 @@ func (r *billingConfirmationRepository) Update(ctx context.Context, clinicID, id
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing_confirmation", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// LockActiveStaffAssignment verifies that the authenticated actor is an active,
+// non-deleted staff member with an active assignment to clinicID. The shared
+// row lock keeps both identity and assignment valid until the confirmation
+// write commits.
+func (r *billingConfirmationRepository) LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return apperrors.WrapInternalServerError("billing confirmation actor validation requires an active transaction")
+	}
+	if clinicID == 0 || staffID == 0 {
+		return apperrors.WrapForbidden("active clinic assignment is required")
+	}
+
+	var assignment model.StaffClinicAssignment
+	err := tx.WithContext(ctx).
+		Model(&model.StaffClinicAssignment{}).
+		Select("staff_clinic_assignments.*").
+		Joins("JOIN staffs ON staffs.id = staff_clinic_assignments.staff_id AND staffs.deleted_at IS NULL AND staffs.is_active = TRUE").
+		Where(
+			"staff_clinic_assignments.staff_id = ? AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL",
+			staffID,
+			clinicID,
+		).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		First(&assignment).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperrors.WrapForbidden("active clinic assignment is required")
+	}
+	if err != nil {
+		return apperrors.FromGORM(err, "staff_clinic_assignment", "actor validation")
 	}
 	return nil
 }

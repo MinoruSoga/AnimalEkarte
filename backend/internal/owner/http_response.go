@@ -1,10 +1,7 @@
 package owner
 
 import (
-	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -187,11 +184,4 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 		CreatedAt:              httpapi.LocalTime(o.CreatedAt),
 		UpdatedAt:              httpapi.LocalTime(o.UpdatedAt),
 	}
-}
-
-// RespondLinkedOwner は LIFF LINE 紐付け成功時の飼主レスポンスを書く。
-// internal/lstep.LineLinkHandler へ OwnerResponder として注入する（BE9-2C L②）。
-// owner DTO の正本を本 package に保ち、lstep 側への複製を避けるための橋渡し。
-func RespondLinkedOwner(c *gin.Context, o *model.Owner) {
-	c.JSON(http.StatusOK, toOwnerResponse(o))
 }

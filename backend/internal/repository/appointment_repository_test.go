@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 func TestParseJSTDate(t *testing.T) {
@@ -35,7 +36,7 @@ func TestParseJSTDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseJSTDate(tt.input)
+			got, err := reservation.ParseJSTDate(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -75,7 +76,7 @@ func TestAppointmentDayRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			start, end := appointmentDayRange(tt.input)
+			start, end := reservation.AppointmentDayRange(tt.input)
 
 			assert.Equal(t, tt.wantStart, start)
 			assert.Equal(t, tt.wantEnd, end)

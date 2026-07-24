@@ -18,6 +18,7 @@ import {
   SCHEDULER_OPS_PRINCIPAL,
   authenticateSchedulerOpsRequest,
   fetchWithTimeout,
+  isRedirectResponse,
   isStrictHostname,
   type ExternalRequestFetcher,
   type SchedulerOpsAuthConfig,
@@ -531,7 +532,7 @@ export async function notifySchedulerFailures(
       response = await fetchWithTimeout(
         new Request(endpoint, {
           method: "POST",
-          redirect: "error",
+          redirect: "manual",
           headers: {
             Authorization: `Bearer ${config.webhookSecret}`,
             "Content-Type": "application/json",
@@ -551,12 +552,13 @@ export async function notifySchedulerFailures(
       deliveryFailed = true;
       continue;
     }
-    if (response.redirected || !response.ok) {
+    const redirectResponse = isRedirectResponse(response);
+    if (redirectResponse || !response.ok) {
       console.error("scheduler alert delivery failed", {
         event: "scheduler_alert_delivery_failed",
         alert_key: alert.key,
         environment,
-        failure_code: response.redirected
+        failure_code: redirectResponse
           ? "alert_delivery_redirect"
           : "alert_delivery_http_status",
         status: response.status,

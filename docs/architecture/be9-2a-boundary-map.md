@@ -3,7 +3,8 @@
 > 対象: [BE-refactor.md BE9-2A](../../BE-refactor.md#be9-2a-boundary-mapとadrを確定する)。
 > 実行日: 2026-07-19。手法: codegraph(callers/callees/explore) + grep/rg + git log を第一手段とする再実測（旧 BE8/§9 の file-prefix 分類はそのまま正本にせず、再実測との差分を§6に記録）。
 > 分類マニフェスト（全761 production Go source row、未分類0件）: [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv)。移行後target packageの物理file数とは別指標。
-> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)、実装進捗・残作業・gateは[BE-refactor.md](../../BE-refactor.md#現在地と着手前ゲート2026-07-22-更新)を正本とする。
+> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)、現行実装状態とrelease gateは[BE-refactor.md](../../BE-refactor.md#be9-current-state)を正本とする。
+> **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
 ## 0. 結論（Success Criteria 対応）
 
@@ -12,6 +13,36 @@
 - 実測で見つかった生の双方向結合（cycle）は 10 組（当初7組として起票し、round1 reviewで`LstepTagSyncService`経由の3組を追加）。BE9-2A時点ではreservation↔staffだけ設計裁定が必要だったが、2026-07-20に案A（staffをwrite owner）を採用し、reservation Phase 0で実装済み。現在は全10組の解消方式が確定している（§5、§7.1）。
 - §9（旧 BE8-2、service のみの go/ast 実測）との差分は §6 に記録。最大の乖離は medicalrecord ドメイン（旧見積 96 file → 再実測 185 file）。
 
+### 0.1 移行後live-tree recensus（2026-07-24）
+
+classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保持するimmutable snapshotであり、移行後fileを追記・置換する台帳ではない。現行treeとの照合結果は次の通り。
+
+- target bucket 601 row: 旧path現存 **0** / removed or moved **601**。
+- keep bucket 160 row: present **136** / consolidation・責務移動・削除により旧pathなし **24**。
+- 旧layer: `internal/handler` directoryなし、`internal/service` production 0 / test-only 14、`internal/repository` production 0 / test-only 50。
+- production Go import: 旧`internal/handler|service|repository`へのedge 0。
+- composition: `cmd/api` production 22 file、target domainを直接importするfile 18。
+
+| target package | 現行production Go file |
+|---|---:|
+| medicalrecord | 180 |
+| lstep | 131 |
+| reservation | 77 |
+| billing | 71 |
+| staff | 31 |
+| auth | 26 |
+| trimming | 27 |
+| clinic | 24 |
+| pet | 22 |
+| owner | 17 |
+| inventory | 12 |
+| httpapi | 10 |
+| manualarticle | 6 |
+
+file分割、typed adapter、domain-owned composition/test helperの追加により、現行物理file数はsnapshotのtarget bucket行数と一致しない。移行完了判定は「旧pathの消滅」「現行target packageの存在」「production legacy import 0」「runtime/AST gate」で行い、行数一致だけで判定しない。
+
+2026-07-24のfollow-up hardeningでは、LINE webhookのcross-clinic readを受信前identity解決に必要なchannel-secret走査だけへ縮小し、一意に署名一致したclinicへowner lookup/updateをscopeした。更新はexpected LINE user IDとLINE event timestampを含むCASとし、stale・duplicate・out-of-order・再連携前IDを安全なno-op、同時刻をunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`、LINE ID token検証はredirect追従禁止とした。billing confirmation/returnは`Content-Type: application/json`（charset parameter可）を必須とし、不一致を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。これらは現行実装の安全境界であり、fresh DB migration、production deploy、Access policy/edge rate limit、alert/recovery rehearsalのrelease gateを完了扱いにしない。
+
 ## 1. 分類マニフェスト概要
 
 | bucket | files |
@@ -19,9 +50,9 @@
 | target:medicalrecord | 175 |
 | keep（現状維持・cross-cutting） | 160 |
 | target:lstep | 119 |
-| target:reservation | 77 |
+| target:reservation | 78 |
 | target:billing | 65 |
-| target:staff | 31 |
+| target:staff | 30 |
 | target:auth | 25 |
 | target:clinic | 25 |
 | target:trimming | 23 |
@@ -33,7 +64,7 @@
 | **削除** | **0** |
 | **合計** | **761** |
 
-検証: `awk 'END { print NR - 1 }' docs/architecture/be9-2a-classification-manifest.csv` = 761。bucket合計=761、`unclassified\|未分類\|未定\|TBD`の分類値は0件。現行filesystemの物理file数は移行後fileを含むため、このmanifest行数の検証には使用しない。
+検証: `awk 'END { print NR - 1 }' docs/architecture/be9-2a-classification-manifest.csv` = 761。bucket合計=761、`unclassified\|未分類\|未定\|TBD`の分類値は0件。`target:reservation=78` / `target:staff=30`は2026-07-23の`liff_service_availability_staff.go`再分類を反映済み。現行filesystemの物理file数は移行後fileを含むため、このmanifest行数の検証には使用しない。
 
 ### 1.1 分類手法
 
@@ -87,7 +118,7 @@
 - **route**: Yes — `/pets` + `/masters/animal-species`。
 - **tenant boundary**: **混在** — Pet/PetChronicConditionはclinic-scoped、AnimalSpeciesはglobal master（同一bucket内）。clinic-id-isolation lintがAnimalSpeciesクエリを誤検知しないようADRに明記が必要。
 
-### 3.3 staff (`target:staff` 31 source rows)
+### 3.3 staff (`target:staff` 30 source rows)
 
 - **owned**: `model.Staff`(ClinicID=home clinic)、`model.StaffClinicAssignment`(StaffID+ClinicID join、IsMainフラグ=マルチクリニック配属)、`model.ShiftEntry`/`ShiftTemplate`/`ShiftTemplateBreak`、`model.Occupation`。Route: `/masters/staffs`(CRUD+reorder+permission-groups+clinics+excluded/capable-reservation-types)、`/shifts`、`/shift-templates`、`/masters/occupations`。
 - **consumers**: auth(login/session)、reservation(admin/appointment/reservation_service)、trimming。
@@ -109,7 +140,7 @@
 - **route**: Yes — `/login`等 + 非route universal middleware export(`RequirePermission`)。
 - **tenant boundary**: **混在、cross-clinic-identity優勢** — Account/TokenBlacklist/PasswordResetTokenはclinic非依存(identity/session)。PermissionGroup/PermissionGroupRuleはclinic-scoped(クリニックごとのRBAC定義)。
 
-### 3.5 reservation (`target:reservation` 77 source rows)
+### 3.5 reservation (`target:reservation` 78 source rows)
 
 - **owned**: `model.Reservation`(table `appointments`)、`ReservationType(Group/UnavailableTime/AvailableSlot/Occupation)`、`LineReservationSetting`、`StaffReservationCapability/Exclusion`。Route: `/reservations`、`/clinics/:clinic_id/{line-reservation-settings,reservation-types,reservation-staffs,reservations,line-customers}`、`/api/liff/:clinicId/*`(公開LIFF予約、§2是正でreservation化)、`/masters/reservation-type(-group)s`(+unavailable-times/available-slots/occupations)。Repo: `AcquireBookingLock`/`LockAndFindByID`(pg_advisory_xact_lock/FOR UPDATE)。
 - **consumers**: billing(appointment charges)、medicalrecord(`AutoCreateFromReservation`)、lstep(`lstep_batch_service`のLINEバッチのみ、liff系は§2是正でreservation化済み)、trimming、staff。
@@ -122,7 +153,7 @@
 
 ### 3.6 trimming (`target:trimming` 23 source rows)
 
-**BE9-2E実装状態（2026-07-23、code tip `297a23fc7`）**: 23 source rowのproduction bodyとdomain-owned testを`internal/trimming`へ収束した。旧layerにはroute/composition/tygoの実consumerを持つcompatibility surface 13件（handler 5、repository 4、service 4）だけをBE9-2F期限で残す。handlerの`trimming_response.go`はtygoが旧pathを参照するcodegen carrierで、残る12件がthin facade/aliasである。HTTP behaviorはtarget handlerが所有するが、route registrationはBE9-2Fのconsumer切替までlegacy central handler/master routesに残る。route tuple/RBAC/OpenAPI、clinic isolation、status/error、public LIFF catalogの配置は不変。exact overlayのscoped gateはtest/race/vet/lintを通過し、target coverage 91.6%、fixed-tree reviewのcandidate起因CRITICAL/HIGHは0件。
+**Historical BE9-2E landing状態（2026-07-23、code tip `297a23fc7`）**: 23 source rowのproduction bodyとdomain-owned testを`internal/trimming`へ収束した。当時は旧layerにroute/composition/tygoの実consumerを持つcompatibility surface 13件（handler 5、repository 4、service 4）をBE9-2F期限で残していた。これらは2026-07-24のBE9-2Fでconsumer切替・削除済みであり、現行残量ではない。route tuple/RBAC/OpenAPI、clinic isolation、status/error、public LIFF catalogの配置は維持した。
 
 - **owned**: `model.TrimmingCourse`/`TrimmingOption`/`TrimmingCourseType`、`AppointmentTrimmingDetail/Option`(appointments 1:1拡張)。Route: `/trimmings`、`/masters/trimming-{courses,options,course-types}`、`/api/liff/:clinicId/trimming-{courses,options}`(read-only)。
 - **consumers**: billing(TrimmingCourseID所有権チェック)、reservation(結合、後述)、lstep/LIFF(顧客向けカタログ、§2是正後はreservation内のliffファイル経由)。
@@ -155,7 +186,7 @@
 - **fan-in/out**: `AccountingRepository`6consumer、`InsuranceRepository`3consumer(うち2はowner/pet外部)、`PaymentMethodMasterRepository`4consumer。
 - **tx**: Yes、広範(`s.transactor.WithTx`)。refund_serviceは行ロック+tx内再集計で原子性を確保。**ギャップ**: `cashRegisterService.Close`がcheck-then-createでtx/lockなし(同一期間の同時締め処理race)。
 - **route**: Yes（§1参照）。
-- **tenant boundary**: clinic-scoped(Billing/BillingRefund/Campaign/Insurance/PaymentMethodMaster/CashRegisterClose/Estimate)。`BillingConfirmation`、`BillingItem`、`Payment`は親経由の間接scope。BE9-2Aで検出した`billing_item_repository.go`のUpdate/Delete防御ギャップはBUG-417としてsubquery形式とcross-tenant testで修正済み（`2634f58fe`、§7.4）。
+- **tenant boundary**: clinic-scoped(Billing/BillingRefund/Campaign/Insurance/PaymentMethodMaster/CashRegisterClose/Estimate)。`BillingConfirmation`、`BillingItem`、`Payment`は親経由の間接scope。BE9-2Aで検出した`billing_item_repository.go`のUpdate/Delete防御ギャップはBUG-417としてsubquery形式とcross-tenant testで修正済み（`2634f58fe`、§7.4）。2026-07-24 hardeningではconfirmation/return actorを認証済みstaff contextから導出し、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiB上限・exact lowercase key/string値だけのstrict single objectへ限定、case variant・null・非string・unknown/trailing JSONを拒否し、trim後non-blankの`return_reason` 500文字・`memo` 1,000文字を強制した。
 - **discount_permission.go所在の確認**: authドメイン分類が正しい(5ハンドラファイル×3ドメインから呼ばれる純粋RBACヘルパー、billing固有ロジックなし)。billingへ移すとowner/medicalrecordハンドラがbillingをimportする逆結合が生じるため現状(auth)を維持。
 
 ### 3.9 inventory (`target:inventory` 12 source rows)
@@ -178,7 +209,7 @@
 - **fan-in/out**: `LstepTagSyncService`のfan-in=9呼び出し元/4+file、**カバリングテストなし**(リスクフラグ)。
 - **tx**: Yes(liff由来のbooking作成、CSV import、lifecycle)。配信バッチ(delivery/batch系)は意図的にtxなし・continue-on-errorのbest-effort設計。
 - **route**: Yes（§1参照）。
-- **tenant boundary**: **混在、3分類**——clinic-scoped多数、global-master(AutoManagedPrefix/ConditionTagMapping/SendPurposeTagPrefix)、**cross-clinic-identity(重要edge case)**: `POST /api/line/webhook`はclinic_idなし。署名検証(`verifySignatureAnyClinic`)が全クリニックのLINEチャネルシークレットを走査していずれか一致で受理(意図的——受信前にどのクリニックのwebhookか判別不能)。`ownerRepo.FindAllByLineUserID`が**意図的にunscopedなクロステナント読み取り**(1つのLINEアカウントが複数クリニックのownerに紐づき得るため)。書き込みは各マッチ行自身の`ClinicID`を使用しclient入力を使わないため書き込みパスは安全。ADR-002の「no unscoped read」不変条件に対する**証拠に基づく例外**として明記が必要。
+- **tenant boundary**: **混在、3分類**——clinic-scoped多数、global-master(AutoManagedPrefix/ConditionTagMapping/SendPurposeTagPrefix)、**cross-clinic-identity(重要edge case)**: `POST /api/line/webhook`はclinic IDなしで届くため、受信前identity解決に限って全`LineReservationSetting`のchannel secretを読む。これはADR-002の「no unscoped read」に対する限定例外であり、ownerを全clinic横断で検索する権限ではない。署名は一意に一致したclinic IDだけを受理し、異なるclinicで同じsecretが一致する曖昧系はfail closedとする。以後のowner lookupとfollow/unfollow updateはそのclinic IDへscopeし、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。更新CASは`clinic_id + owner id + expected line_user_id`を必須とし、正数かつ受信時刻+5分以内のLINE event timestampを保存済みfollow/unfollow時刻と比較する。followは両保存時刻より新しい場合だけ、unfollowは保存followと同時刻以上かつ保存unfollowより新しい場合だけ適用するため、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先となる。公開LIFF account linkはowner PIIを返さない`204 No Content`、LINE ID token検証のoutbound requestはredirectを追従しない。
 
 **L⑥後の実装境界（2026-07-22・core `849c27524` / final composition `962ce70e3`）**: SharedFileを含むroute/use case/persistence/testとproduction compositionは`internal/lstep`へ収束した。target側のtyped `Application`を`cmd/api`が組み立て、legacy `service.Services` / root `repository.Repositories`のLSTEP ownershipは0。SharedFile route 4本とPOSTのOR権限（owners edit / medical-records create / medical-records edit）、JWT clinic/staff scope、OpenAPI/storage/error contractを保存した。consumer 0のroot facade 16本と旧service adapter 3本は削除し、owner/pet/chronic-condition等の実consumerを持つ期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
 
@@ -384,7 +415,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**実装進捗（2026-07-23）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。今後のBE9はSession Aをclean local `main`の唯一writer兼integration owner、Session Bを同じimmutable baseから作る専用worktreeの非競合domain laneとし、開始前に6 domainのfrontierと全競合軸を再計測する。詳細・完了判定の正本は`BE-refactor.md`。
+**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細・release gateの正本は`BE-refactor.md`とする。
 
 ## 9. 実測手法の限界（正直な明記）
 

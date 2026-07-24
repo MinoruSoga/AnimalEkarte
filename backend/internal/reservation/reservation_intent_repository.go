@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -45,10 +45,10 @@ func (r *reservationRepository) CompleteForAccounting(
 	medicalRecordID, ownerID, petID *uint64,
 	scheduledDate time.Time,
 ) (int64, error) {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return 0, apperrors.WrapInternalServerError("accounting appointment completion requires an ambient transaction")
 	}
-	db := repohelpers.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db)
 	var totalAffected int64
 
 	// (1) 同日同一ペットの会計待ち予約を完了化する。
@@ -104,7 +104,7 @@ func (r *reservationRepository) BackfillForMedicalRecord(
 	clinicID, id uint64,
 	ownerID, petID, doctorID *uint64,
 ) error {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("medical record appointment preparation requires an ambient transaction")
 	}
 	current, err := r.LockAndFindByID(ctx, clinicID, id)
@@ -147,7 +147,7 @@ func (r *reservationRepository) BackfillForMedicalRecord(
 
 func (r *reservationRepository) assertGeneralMedicalRecordReservationType(ctx context.Context, clinicID, id uint64) error {
 	var reservationType model.ReservationType
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
 		Where("id = ? AND clinic_id = ? AND category = ? AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryGeneral).
@@ -167,8 +167,8 @@ func (r *reservationRepository) assertGeneralMedicalRecordReservationType(ctx co
 // to multiple clinics, so staff_clinic_assignments is authoritative rather than staffs.clinic_id.
 func (r *reservationRepository) assertStaffAssignedToClinic(ctx context.Context, clinicID, staffID uint64) error {
 	var assignment model.StaffClinicAssignment
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
@@ -187,8 +187,8 @@ func (r *reservationRepository) assertStaffAssignedToClinic(ctx context.Context,
 // broad staff repository capability through the appointment owner.
 func (r *reservationRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
 	var assignment model.StaffClinicAssignment
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.StaffClinicAssignment{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
@@ -223,11 +223,11 @@ func reservationBackfillValue(
 // finalization for one clinic-scoped appointment. Both callers must already own an ambient
 // transaction so the advisory lock remains held through their state change.
 func (r *reservationRepository) acquireAppointmentLifecycleLock(ctx context.Context, clinicID, id uint64) error {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("appointment lifecycle operation requires an ambient transaction")
 	}
 	lockKey := fmt.Sprintf("appointment-lifecycle:%d:%d", clinicID, id)
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).
 		Error; err != nil {
 		return apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
@@ -298,7 +298,7 @@ func (r *reservationRepository) MarkNoShowAt(
 	`
 
 	var previousStatus model.ReservationStatus
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Raw(
 			query,
 			clinicID,
@@ -381,7 +381,7 @@ func (r *reservationRepository) resolveTrimmingOwnerForPet(
 
 func (r *reservationRepository) assertTrimmingReservationType(ctx context.Context, clinicID, id uint64) error {
 	var reservationType model.ReservationType
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
 		Where("id = ? AND clinic_id = ? AND category = ? AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryTrimming).
@@ -394,7 +394,7 @@ func (r *reservationRepository) assertTrimmingReservationType(ctx context.Contex
 
 func (r *reservationRepository) assertActiveTrimmingReservationType(ctx context.Context, clinicID, id uint64) error {
 	var reservationType model.ReservationType
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
 		Where("id = ? AND clinic_id = ? AND category = ? AND is_active = true AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryTrimming).
@@ -442,7 +442,7 @@ func (r *reservationRepository) LockTrimmingByID(ctx context.Context, clinicID, 
 }
 
 func requireTrimmingAmbientTransaction(ctx context.Context) error {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("trimming appointment write requires an ambient transaction")
 	}
 	return nil
@@ -564,7 +564,7 @@ func (r *reservationRepository) UpdateForTrimming(
 	if len(fields) == 0 {
 		return r.FindTrimmingByID(ctx, clinicID, id)
 	}
-	query := repohelpers.DBOrTx(ctx, r.db).
+	query := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
 		Where("appointments.clinic_id = ? AND appointments.id = ? AND appointments.deleted_at IS NULL", clinicID, id).
 		Where("appointments.status = ?", current.Status).
@@ -606,7 +606,7 @@ func (r *reservationRepository) DeleteForTrimming(ctx context.Context, clinicID,
 	if count > 0 {
 		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
 	}
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("appointments.clinic_id = ? AND appointments.id = ? AND appointments.deleted_at IS NULL", clinicID, id).
 		Where(`EXISTS (
 			SELECT 1 FROM reservation_types rt

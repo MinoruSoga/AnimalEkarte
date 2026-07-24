@@ -141,25 +141,3 @@ func validatePetDangerLevel(level string) error {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
 	}
 }
-
-// ValidateCreateInput is exported only for the temporary legacy service
-// validation facade. New owner consumers should use Service.CreateWithPets.
-func ValidateCreateInput(input *CreateOwnerInput) error {
-	return validateCreateOwnerInput(input)
-}
-
-// ValidateUpdateInput is exported only for the temporary legacy service
-// validation facade. New owner consumers should use Service.Update.
-func ValidateUpdateInput(input *UpdateOwnerInput) error {
-	return validateUpdateOwnerInput(input)
-}
-
-// ValidateDiscountRate is exported for the temporary legacy validator facade.
-func ValidateDiscountRate(rate float64) error {
-	return validateDiscountRate(rate)
-}
-
-// ValidateMembershipType is exported for the temporary legacy validator facade.
-func ValidateMembershipType(membershipType model.MembershipType) error {
-	return validateMembershipType(membershipType)
-}

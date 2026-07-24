@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 func clinicBoolPtr(value bool) *bool {
@@ -30,11 +30,11 @@ type mockClinicRepository struct {
 	deleteFn                func(ctx context.Context, id uint64) error
 	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
 	countStaffByClinicIDFn  func(ctx context.Context, clinicID uint64) (int64, error)
-	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]repository.ClinicDependencyCount, error)
+	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]clinicdomain.ClinicDependencyCount, error)
 }
 
 // DeleteSoftDeletedByClinicID keeps the shared permission-group mock compatible with
-// repository.PermissionGroupRepository after the write owner gains clinic cleanup.
+// clinic.PermissionGroupWriter after the write owner gains clinic cleanup.
 // Clinic transaction tests use mockClinicPermissionGroupWriter below when they need
 // to observe or fail the cleanup call.
 func (m *mockPermissionGroupRepository) DeleteSoftDeletedByClinicID(_ context.Context, _ uint64) error {
@@ -112,7 +112,7 @@ func (m *mockClinicRepository) CountStaffByClinicID(ctx context.Context, clinicI
 	return m.countStaffByClinicIDFn(ctx, clinicID)
 }
 
-func (m *mockClinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]repository.ClinicDependencyCount, error) {
+func (m *mockClinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]clinicdomain.ClinicDependencyCount, error) {
 	if m.countBlockingRefsFn == nil {
 		return nil, nil
 	}
@@ -816,7 +816,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 		staffCount    int64
 		countOwnerErr error
 		countStaffErr error
-		blockingRefs  []repository.ClinicDependencyCount
+		blockingRefs  []clinicdomain.ClinicDependencyCount
 		blockingErr   error
 		lockErr       error
 		repoErr       error
@@ -892,7 +892,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			id:           1,
 			ownerCount:   0,
 			staffCount:   0,
-			blockingRefs: []repository.ClinicDependencyCount{{Label: "予約", Count: 2}},
+			blockingRefs: []clinicdomain.ClinicDependencyCount{{Label: "予約", Count: 2}},
 			wantErr:      true,
 			wantConflict: true,
 		},
@@ -934,7 +934,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			id:           1,
 			ownerCount:   0,
 			staffCount:   0,
-			blockingRefs: []repository.ClinicDependencyCount{{Label: "権限グループ", Count: 1}},
+			blockingRefs: []clinicdomain.ClinicDependencyCount{{Label: "権限グループ", Count: 1}},
 			repoErr:      nil,
 			wantErr:      true,
 			wantConflict: true,
@@ -968,7 +968,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 				countStaffByClinicIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.staffCount, tt.countStaffErr
 				},
-				countBlockingRefsFn: func(_ context.Context, _ uint64) ([]repository.ClinicDependencyCount, error) {
+				countBlockingRefsFn: func(_ context.Context, _ uint64) ([]clinicdomain.ClinicDependencyCount, error) {
 					return tt.blockingRefs, tt.blockingErr
 				},
 				deleteFn: func(_ context.Context, _ uint64) error {
@@ -1038,7 +1038,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			calls = append(calls, "count-staff")
 			return 0, nil
 		}
-		repo.countBlockingRefsFn = func(ctx context.Context, id uint64) ([]repository.ClinicDependencyCount, error) {
+		repo.countBlockingRefsFn = func(ctx context.Context, id uint64) ([]clinicdomain.ClinicDependencyCount, error) {
 			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
 			assert.Equal(t, clinicID, id)
 			calls = append(calls, "count-blocking-references")
@@ -1145,8 +1145,8 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			t.Fatal("clinic delete must not run for an active permission group")
 			return nil
 		})
-		repo.countBlockingRefsFn = func(_ context.Context, _ uint64) ([]repository.ClinicDependencyCount, error) {
-			return []repository.ClinicDependencyCount{{Label: "権限グループ", Count: 1}}, nil
+		repo.countBlockingRefsFn = func(_ context.Context, _ uint64) ([]clinicdomain.ClinicDependencyCount, error) {
+			return []clinicdomain.ClinicDependencyCount{{Label: "権限グループ", Count: 1}}, nil
 		}
 		pgRepo := &mockClinicPermissionGroupWriter{
 			mockPermissionGroupRepository: &mockPermissionGroupRepository{},

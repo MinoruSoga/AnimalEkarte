@@ -45,11 +45,27 @@ process.stdin.on('end', () => {
     const issues = [];
     const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
+    // Scan the repo the commit actually targets: `git -C <dir>` / `cd <dir> && git commit`
+    // aimed at another repo must not be judged by this project's staged files — and must
+    // still be secret-scanned against its own staged files.
+    let scanDir = projectDir;
+    const dirMatch =
+      command.match(/\bgit\s+-C\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/) ||
+      command.match(/(?:^|&&|;)\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/);
+    if (dirMatch) {
+      const rawDir = dirMatch[1] || dirMatch[2] || dirMatch[3] || '';
+      const expanded = rawDir.replace(/^~(?=$|\/)/, process.env.HOME || '~');
+      if (expanded && fs.existsSync(expanded)) {
+        scanDir = path.resolve(expanded);
+      }
+    }
+    const isProjectRepo = scanDir === path.resolve(projectDir);
+
     // --- 1. Check staged files for console.log / debugger ---
     let stagedFiles = [];
     try {
       const output = execSync('git diff --cached --name-only --diff-filter=ACM', {
-        cwd: projectDir,
+        cwd: scanDir,
         encoding: 'utf8',
         timeout: 10000,
       }).trim();
@@ -64,7 +80,7 @@ process.stdin.on('end', () => {
       let content;
       try {
         content = execSync(`git show ":${file}"`, {
-          cwd: projectDir,
+          cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
         });
@@ -110,7 +126,7 @@ process.stdin.on('end', () => {
       let content;
       try {
         content = execSync(`git show ":${file}"`, {
-          cwd: projectDir,
+          cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
         });
@@ -139,7 +155,7 @@ process.stdin.on('end', () => {
     }
 
     // --- 4. Mirror sync (regenerate .agents/ and .codex/agents+commands) ---
-    if (process.env.SYNC_MIRRORS_DISABLED !== '1') {
+    if (isProjectRepo && process.env.SYNC_MIRRORS_DISABLED !== '1') {
       const mirrorTriggerFiles = stagedFiles.filter(
         f => f.startsWith('.claude/skills/')
           || f.startsWith('.claude/commands/')

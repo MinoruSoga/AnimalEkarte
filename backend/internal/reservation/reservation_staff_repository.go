@@ -4,25 +4,28 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationStaffRepository は予約スタッフ（staffs の予約用ラッパー）のデータアクセスインターフェース
 type ReservationStaffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	LockForMutation(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
-	FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
+	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 	UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error
 	// ReservationCapabilities
 	FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
@@ -46,14 +49,18 @@ type staffsWriter interface {
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
-func NewReservationStaffRepository(db *gorm.DB, staff staffsWriter) ReservationStaffRepository {
+func NewReservationStaffRepository(
+	db *gorm.DB,
+	staff staffsWriter,
+) ReservationStaffRepository {
 	return &reservationStaffRepository{db: db, staff: staff}
 }
 
 func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
 	var staffs []model.Staff
 	err := r.db.WithContext(ctx).
-		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id"+
+			" AND sca.clinic_id = ? AND sca.deleted_at IS NULL", clinicID).
 		Where("staffs.deleted_at IS NULL").
 		Order("staffs.sort_order ASC, staffs.id ASC").
 		Find(&staffs).Error
@@ -71,8 +78,8 @@ func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint6
 // staff → assignment → capability の順を明示する。
 func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	db := repohelpers.DBOrTx(ctx, r.db)
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	if err := db.
@@ -82,8 +89,8 @@ func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id 
 	}
 
 	var assignment model.StaffClinicAssignment
-	assignmentDB := repohelpers.DBOrTx(ctx, r.db)
-	if repohelpers.TxFromContext(ctx) != nil {
+	assignmentDB := persistence.DBOrTx(ctx, r.db)
+	if persistence.TxFromContext(ctx) != nil {
 		assignmentDB = assignmentDB.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	if err := assignmentDB.
@@ -96,6 +103,51 @@ func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id 
 		)
 	}
 	return &staff, nil
+}
+
+func lockReservationStaffMutationScope(
+	tx *gorm.DB,
+	clinicID, staffID uint64,
+) (*model.Staff, error) {
+	var staff model.Staff
+	if err := tx.
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", staffID).
+		First(&staff).Error; err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"reservation_staff",
+			strconv.FormatUint(staffID, 10),
+		)
+	}
+
+	var assignment model.StaffClinicAssignment
+	if err := tx.
+		Select("id").
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("staff_id = ? AND clinic_id = ? AND deleted_at IS NULL", staffID, clinicID).
+		First(&assignment).Error; err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"staff_clinic_assignment",
+			fmt.Sprintf("staff=%d,clinic=%d", staffID, clinicID),
+		)
+	}
+	return &staff, nil
+}
+
+// LockForMutation は reservation staff の mutation ownership を
+// staff -> scoped assignment の正規順で取得する。
+func (r *reservationStaffRepository) LockForMutation(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError(
+			"reservation staff mutation lock requires an active transaction",
+		)
+	}
+	return lockReservationStaffMutationScope(persistence.DBOrTx(ctx, r.db), clinicID, id)
 }
 
 // Create は staffRepository.CreateForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
@@ -113,33 +165,27 @@ func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinic
 	return r.staff.SwapSortOrderForReservation(ctx, clinicID, id, direction)
 }
 
-// BE-refactor.md R2-5 (D12) レビュー結果: clinic_id 述語なしを意図的に維持する
-// (preload_clinic_scope_lint_test.go の site-exception と同一の判断)。
-// staff_reservation_exclusions は clinic_id カラムを持たず、staffID にも clinicID 引数が無い。
-// 貫通させるには reservation_staff_service (6箇所) + staff_service_permissions の呼び出し元まで
-// シグネチャ変更が連鎖し、書込側は UpdateExcludedReservationTypes で既にクリニック所有権検証済み。
-// 残存リスクは過去汚染データによる ReservationType 名の低severity漏洩のみ（P1 follow-up として記録済み）。
-func (r *reservationStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+// FindAllExcludedReservationTypes scopes the clinic-less junction
+// through its reservation_types master. This is required for shared staff:
+// staff_id alone spans every clinic assignment and would disclose another
+// clinic's reservation type IDs and names.
+func (r *reservationStaffRepository) FindAllExcludedReservationTypes(
+	ctx context.Context,
+	clinicID, staffID uint64,
+) ([]model.StaffReservationExclusion, error) {
 	var items []model.StaffReservationExclusion
-	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
-		Where("staff_id = ?", staffID).
-		Find(&items).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_staff", "")
-	}
-	return items, nil
-}
-
-// FindAllExcludedReservationTypesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
-func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
-	if len(staffIDs) == 0 {
-		return nil, nil
-	}
-	var items []model.StaffReservationExclusion
-	err := r.db.WithContext(ctx).
-		Preload("ReservationType", "deleted_at IS NULL").
-		Where("staff_id IN ?", staffIDs).
+	err := persistence.DBOrTx(ctx, r.db).
+		Joins(
+			"JOIN reservation_types ON reservation_types.id = staff_reservation_exclusions.reservation_type_id"+
+				" AND reservation_types.clinic_id = ? AND reservation_types.deleted_at IS NULL",
+			clinicID,
+		).
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("staff_reservation_exclusions.staff_id = ?", staffID).
+		Where(
+			"EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staff_reservation_exclusions.staff_id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)",
+			clinicID,
+		).
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff_reservation_exclusion", "")
@@ -147,30 +193,80 @@ func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(c
 	return items, nil
 }
 
-// UpdateExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
-func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error {
-	// テナント越境 write 防止: 除外対象の予約区分IDが呼び出し元クリニックに属することを検証する。
-	// staff_reservation_exclusions は自前 clinic_id を持たないため、ここで型IDの所有権を
-	// 確認しなければ別クリニックの予約区分IDを書き込めてしまう（UpdateReservationCapabilities と対称）。
-	// スタッフ所有権は呼び出し側（service/handler）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
-	// BE-refactor.md X-8: repohelpers.DBOrTx(ctx, r.db) にすることで、この所有権検証読み取りも後続の書込と
-	// 同一 ambient tx 内で行われる（ambient tx 内で先行コミットされた ReservationType の変更も見える）。
-	if err := repohelpers.ValidateClinicScopedMasterIDs(ctx, repohelpers.DBOrTx(ctx, r.db), clinicID, courseIDs,
-		&model.ReservationType{}, "reservation_type",
-		"reservation_type_ids contains invalid reservation type"); err != nil {
+// FindAllExcludedReservationTypesByStaffIDs は複数スタッフの除外コースを医院スコープで一括取得する（N+1回避）
+func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(
+	ctx context.Context,
+	clinicID uint64,
+	staffIDs []uint64,
+) ([]model.StaffReservationExclusion, error) {
+	if len(staffIDs) == 0 {
+		return nil, nil
+	}
+	var items []model.StaffReservationExclusion
+	err := persistence.DBOrTx(ctx, r.db).
+		Joins(
+			"JOIN reservation_types ON reservation_types.id = staff_reservation_exclusions.reservation_type_id"+
+				" AND reservation_types.clinic_id = ? AND reservation_types.deleted_at IS NULL",
+			clinicID,
+		).
+		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("staff_reservation_exclusions.staff_id IN ?", staffIDs).
+		Where(
+			"EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staff_reservation_exclusions.staff_id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)",
+			clinicID,
+		).
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff_reservation_exclusion", "")
+	}
+	return items, nil
+}
+
+func lockReservationJunctionWriteScope(
+	tx *gorm.DB,
+	clinicID, staffID uint64,
+	reservationTypeIDs []uint64,
+) error {
+	if _, err := lockReservationStaffMutationScope(tx, clinicID, staffID); err != nil {
 		return err
 	}
-	// BE-refactor.md X-8: repohelpers.DBOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
-	// そのネスト tx（SAVEPOINT）として参加する。過去は r.db.WithContext(ctx).Transaction(...) で
-	// 常に独立した新規 tx を開始しており、reservationStaffService.Create の外側 WithTx が rollback
-	// しても本メソッドの DELETE→INSERT は既にコミット済みのため巻き戻らなかった。
-	return repohelpers.ReplaceJunctionInTransaction(repohelpers.DBOrTx(ctx, r.db), func(tx *gorm.DB) error {
-		// BE-refactor.md H-2: staff_reservation_exclusions は自前 clinic_id を持たないため、
-		// staff_id のみで DELETE すると多施設所属スタッフ（staff_clinic_assignments）が
-		// 他クリニックで正当に保持する除外設定まで削除してしまう（UpdateReservationCapabilities
-		// は junction 自体に clinic_id 列を持ち対称に scope 済み — deleteJunctionByClinicAndStaff 参照）。
-		// reservation_types.clinic_id のサブクエリで削除対象を clinicID にスコープする。
-		if err := repohelpers.DeleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
+	return lockReservationTypesForShare(tx, clinicID, reservationTypeIDs)
+}
+
+func lockReservationTypesForShare(
+	tx *gorm.DB,
+	clinicID uint64,
+	reservationTypeIDs []uint64,
+) error {
+	if len(reservationTypeIDs) == 0 {
+		return nil
+	}
+	sortedIDs := append([]uint64(nil), reservationTypeIDs...)
+	sort.Slice(sortedIDs, func(i, j int) bool { return sortedIDs[i] < sortedIDs[j] })
+	var reservationTypes []model.ReservationType
+	if err := tx.
+		Select("id").
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, sortedIDs).
+		Order("id ASC").
+		Find(&reservationTypes).Error; err != nil {
+		return apperrors.FromGORM(err, "reservation_type", "")
+	}
+	if len(reservationTypes) != len(sortedIDs) {
+		return apperrors.WrapInvalidInput(
+			"reservation_type_ids contains invalid reservation type",
+		)
+	}
+	return nil
+}
+
+// UpdateExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
+func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := lockReservationJunctionWriteScope(tx, clinicID, staffID, courseIDs); err != nil {
+			return err
+		}
+		if err := persistence.DeleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
 			&model.StaffReservationExclusion{}, &model.ReservationType{}, "reservation_type_id",
 			"staff_reservation_exclusion", fmt.Sprintf("%d", staffID)); err != nil {
 			return err
@@ -185,8 +281,11 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 				ReservationTypeID: cid,
 			})
 		}
-		return repohelpers.InsertJunctionRowsInBatches(tx, items, "staff_reservation_exclusion", "")
-	}, "failed to replace excluded reservation types")
+		return persistence.InsertJunctionRowsInBatches(tx, items, "staff_reservation_exclusion", "")
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace excluded reservation types")
+	}
+	return nil
 }
 
 func (r *reservationStaffRepository) FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error) {
@@ -217,20 +316,11 @@ func (r *reservationStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ct
 }
 
 func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
-	if _, err := r.FindByID(ctx, clinicID, staffID); err != nil {
-		return err
-	}
-	// BE-refactor.md X-8: repohelpers.DBOrTx(ctx, r.db) にすることで、この所有権検証読み取りも後続の書込と
-	// 同一 ambient tx 内で行われる（UpdateExcludedReservationTypes と対称）。
-	if err := repohelpers.ValidateClinicScopedMasterIDs(ctx, repohelpers.DBOrTx(ctx, r.db), clinicID, typeIDs,
-		&model.ReservationType{}, "reservation_type",
-		"reservation_type_ids contains invalid reservation type"); err != nil {
-		return err
-	}
-	// BE-refactor.md X-8: repohelpers.DBOrTx(ctx, r.db).Transaction(...) で ambient tx 参加を統一する
-	// （UpdateExcludedReservationTypes と対称）。
-	return repohelpers.ReplaceJunctionInTransaction(repohelpers.DBOrTx(ctx, r.db), func(tx *gorm.DB) error {
-		if err := repohelpers.DeleteJunctionByClinicAndStaff(tx, clinicID, staffID,
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := lockReservationJunctionWriteScope(tx, clinicID, staffID, typeIDs); err != nil {
+			return err
+		}
+		if err := persistence.DeleteJunctionByClinicAndStaff(tx, clinicID, staffID,
 			&model.StaffReservationCapability{}, "staff_reservation_capability", fmt.Sprintf("%d", staffID)); err != nil {
 			return err
 		}
@@ -245,14 +335,17 @@ func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.C
 				ReservationTypeID: typeID,
 			})
 		}
-		return repohelpers.InsertJunctionRowsInBatches(tx, items, "staff_reservation_capability", "")
-	}, "failed to replace capable reservation types")
+		return persistence.InsertJunctionRowsInBatches(tx, items, "staff_reservation_capability", "")
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace capable reservation types")
+	}
+	return nil
 }
 
 func (r *reservationStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
 	var capability model.StaffReservationCapability
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.StaffReservationCapability{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.StaffReservationCapability{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.

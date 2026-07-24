@@ -1,11 +1,11 @@
 # BE-refactor — Go/Gin公式baseline上のdomain/capability移行
 
-> **ACTIVE (2026-07-24再照合)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-24)**: trimming reconstruction `297a23fc7`はmerge commit `490756325`でlocal `main`へcode landing済みで、残るtrimming作業はBE9-2Fのcentral consumer cutover・期限付きfacade 13件の撤去と、構造移行から分離した安全・release判断である。残6 domainのWave 2a recensusは完了し、次pairはA=auth / B=inventory。現在は別ownerのWIPによりfresh clean/quiescent `B0`を固定できないためWave 2bをHOLDする。残順 = WIP隔離 + fresh `B0` → AUTH-PREP/auth + INV-SEC P1/inventory（最大2 lane）→ 残frontier再計測 → BE9-2F → BE9-3 → BE9-4。
-> **進捗・残作業・技術債の正本は「[現在地と着手前ゲート](#be9-current-state)」節**（本行に履歴を蓄積すると二重管理になるため、以後この行は1行サマリーに留める）。
+> **CURRENT (2026-07-24再照合): BE9 CODE COMPLETE / RELEASE PENDING**。13 target package（owner / pet / staff / auth / reservation / trimming / medicalrecord / billing / inventory / lstep / clinic / manualarticle / httpapi）は全て現行domain packageへ移行済み。旧`internal/handler` directoryは削除され、旧`internal/service`はtest-only 14 file、旧`internal/repository`はtest-only 50 fileで、3旧layerのproduction implementationとproduction import edgeはいずれも0件。
+> **release pending**: code未完了ではなく、明示承認を要するfresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifactとratchet、production deploy/configuration、scheduler/observability/alert/recovery rehearsal、LINE webhook redelivery/error statisticsのConsole有効化と再送rehearsalが未実施。これらを完了するまで「release ready」「production deployed」とは表現しない。
+> **Session A/Bは非現行の履歴**: 2026-07-23までの並行実行計画は完了した移行のcoordination recordとしてのみ保持し、新規作業割当・開始gateとして使用しない。現行状態とrelease gateの正本は「[現在地とrelease gate](#be9-current-state)」節。
 > **BE8 SUPERSEDED**: 固定layerをGo/Gin公式要件として扱う方針は[ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md)、層優先subpackage/repository→service→handler移行は実測に基づく[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md)により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
-## Active task: BE9 — 新コード規約をbackend実装・自動検査へ適用する（High）
+## BE9 — 新コード規約をbackend実装・自動検査へ適用する（CODE COMPLETE / RELEASE PENDING）
 
 ### 目的と非目的
 
@@ -63,24 +63,25 @@ backend/
 
 規模は**BE9-2Aで分類manifestを再実測済み**（全761 production Go source row、未分類0件。正本 = [be9-2a-classification-manifest.csv](docs/architecture/be9-2a-classification-manifest.csv) / boundary map）。これは移行後target packageの物理file数ではない。1 sourceを複数fileへ分割する移行やtarget package内の新規composition fileにより両者は一致しない。旧filename-prefixベースの暫定集計は正本として継承しない — 最大の乖離はmedicalrecord（旧見積96 file → BE9-2A初回分類185 source row、現行分類175 source row）。
 
-| 状態 | target domain | classification manifest source数 | 実績・着手方針 |
-|---|---|---:|---|
-| **済** | medicalrecord | 175 | 最大domain・**完了（2026-07-21、完了時inventory 185）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
-| **済** | lstep | 119 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`・L⑥`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。現行`internal/lstep`はproduction Go 131 file。内部分割しない（論点#2裁定・単一`internal/lstep`） |
-| **済** | reservation | 77 | **完了（2026-07-21）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
-| **済** | billing | 65 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
-| **BE9-2E移行・qualification済 / BE9-2F待ち** | trimming | 23 | reconstruction `297a23fc7`をmerge commit `490756325`でmainへ統合し、same-tree静的同等性とexact-source runtime gateはPASS。実consumerを持つcompatibility surface 13件はconsumer 0証明後のBE9-2Fで撤去 |
-| **BLOCKED（Wave 2a recensus済・2026-07-23）** | staff | 30（行624是正済） | live 30 file/3,647L/route 31。SEC-STAFF 3 blocker現存を実証: ①assignment全置換のclinicIDs無検証=cross-tenant write可（staff_service_account.go:140）②shift Createのstaff所属未検証（shift_entry_service.go:142）③multi-clinic deleteの全clinic波及（staff_repository.go:141・削除セマンティクス設計裁定要）。加えてstaff→auth/reservationの旧layer具象参照のinterface逆転が未設計。①②はAUTH-PREP後に独立security batchで先行可・③は次wave裁定。csvimportとの交差はschema-level（staffs contract不変が条件）でcode batch不要 |
-| **READY #1（Wave 2a裁定・Session A lane）** | auth | 25 | live 25/2,846L/route 14・drift 0。blocker 4件中3件は解消を実証: fail-open=PO-005裁定で現状維持（blocker解除。WARN止まり→通知経路接続はnon-gating別batch⑥）・PermissionGroup ID一覧scope=D12裁定の意図的維持（`permission_group_repository.go:176-181`コード内文書化済み）・password-reset=`c2a0340d5` settlement。残=global authorizer cutoverのみで、これはbatch scope外（`permission_middleware.go`/`discount_permission.go`は移動対象から除外・BE9-2F central cutoverでA直列実施）。前提=AUTH-PREP batch④（staff側AccountRepository直依存・clinic側permission_groups直write経路のconsumer-side interface逆転） |
-| **BLOCKED / 実装未着手** | clinic | 25 | cross-clinic Create/Delete認可、auth-owned PermissionGroup write/delete、`hasPermission` ownershipの是正が先。**Wave 2a**: `hasPermission`実体がclinic_handler.go:49にありauth laneが凍結するpermission middlewareと直接衝突＝auth完了までpair不可 |
-| **BLOCKED / 実装未着手** | pet | 18 | Owner preloadのclinic predicate欠落とowner側pets直接writeによるwrite-owner重複の解消が先。**Wave 2a**: pet↔ownerはpets write-owner重複（owner_repository.go:189 vs pet_repository.go:218）で相互entanglement・単独migrate不可＝一体または連続waveで扱う |
-| **BLOCKED / 実装未着手** | owner | 13 | Pets/Pets.Owner preloadのclinic predicate、pet write owner、commit後reload semanticsの確定が先。LSTEP `OwnerResponder` closure注入の最終解消先 |
-| **READY #2（Wave 2a裁定・Session B lane）** | inventory | 12 | live 12/1,247L/route 11・drift 0。前提=INV-SEC P1 batch⑤: `DecreaseStock`のclinic-scope化（または同一tx内lock/recheck）+cross-clinic negative test+medicalrecord view/call site/mock 2箇所の追随をB candidateで完結し、Aがmaster_fk共有lint理由文を直後のA-authored central commitで同期する。2 commitを不可分のlanding unitとし、両方のcombined exact treeがgreenになるまでP1完了としない。P1遅延時のB縮退先=BUG-421〜425（todo.md・非競合実証済み）。**countercheck訂正1**: csvimport cutoverのLOCK TABLEは19テーブル全体で`merchandise_items`を含む＝cutover実行と移行batchを重ねない |
-| 済 | manualarticle 6 / httpapi 12 | 18計 | BE9-2B pilotで移行完了 |
+| 状態 | target domain | classification manifest source数（BE9-2A snapshot） | 現行production Go file（2026-07-24 live tree） | 実績・着手方針 |
+|---|---|---:|---:|---|
+| **済** | medicalrecord | 175 | 180 | 最大domain・**完了（2026-07-21、完了時inventory 185）**。①`538cdb34`→②`14f00f6c`→③lab saga`75c55c48`→④a`e3eb253e`→④b`cd8fd984d`+`6508faab0`→共有カーネル昇格`f93299f1c`→⑤`d4e227cf8`+`f024b09e7`→⑥`a21977e91`→⑦`d4d7ef068`。⑧checkup_syncは論点#7でlstepへ帰属変更（L③b） |
+| **済** | lstep | 119 | 131 | L①`6bae6095d`・L②`2ef112227`・L③a`d333d63ac`・L③b`ba5767e88`+`5fdfa11fa`・L④`62a09f62e`+`860bd5020`・L⑥`849c27524`+`962ce70e3`+`8238395e2`+`bd3f53987`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でlanding完遂 / release pending。BE9-2E-0は`de15c7903`で完遂。内部分割しない（論点#2裁定・単一`internal/lstep`） |
+| **済** | reservation | 78 | 77 | **完了（2026-07-21、2026-07-23分類是正）**。Phase 0（論点#1案A=staff書込一本化・`3dc35694e`）→R①`c4c95698d`→R②`227792859`→R③`00afe3898`→R④`94bdcb94b`→R⑤`de5f0d348`→R⑥`0ee22c180` |
+| **済** | billing | 65 | 71 | **完了（2026-07-21）**。前提のBUG-417（`billing_item_repository.go`防御ギャップ）是正済み`2634f58fe`→B①`22b2094e1`→B②`9a1e8bad7`→B③`d2e01da75`→B④`7fc7649f5`→B⑤+B⑥`24420376c` |
+| **済** | trimming | 23 | 27 | **完了（2026-07-24）**。`internal/trimming`へ収束し、central composition/route/tygo consumerと期限付きfacadeを撤去 |
+| **済** | staff | 30 | 31 | **完了（2026-07-24）**。`internal/staff`へ収束し、配属・shift・multi-clinic writeをclinic-scoped transaction/lockとauthorization testで固定 |
+| **済** | auth | 25 | 26 | **完了（2026-07-24）**。`internal/auth`へ収束し、session/refresh family、password reset、cookie/credential audit、permission write boundaryをhardening |
+| **済** | clinic | 25 | 24 | **完了（2026-07-24）**。`internal/clinic`へ収束し、auth-owned permission writeをconsumer-side interfaceへ逆転 |
+| **済** | pet | 18 | 22 | **完了（2026-07-24）**。`internal/pet`へ収束し、owner preload scopeとpet write ownerを固定 |
+| **済** | owner | 13 | 17 | **完了（2026-07-24）**。`internal/owner`へ収束し、pet lifecycleはconsumer-side intentへ限定 |
+| **済** | inventory | 12 | 12 | **完了（2026-07-24）**。`internal/inventory`へ収束し、stock mutationをclinic-scoped transaction/lockで固定 |
+| **済** | manualarticle | 6 | 6 | BE9-2B pilotで移行完了 |
+| **済** | httpapi | 12 | 10 | BE9-2Bでcross-resource Gin response/error helperとして移行完了 |
 
 暫定表を機械的な固定順にはしない。各batch開始時に、①target依存graphがacyclic、②tenant/認可/transaction/clinical safetyのbaseline testが存在、③route/API/SQL互換性とrollback単位が定義済み、の3条件を満たす**ready frontier**を作る。その中からproduction行数、file数、旧aggregator/call-site削減量が最大のdomain/subdomainを選ぶ（largest-ready）。小規模domainは、大規模targetのcycle解消・直接依存解除に必要な場合だけ先行し、解除後は直ちに大規模targetへ戻る。
 
-trimmingを除くBE9-2E未着手6 domainはclassification manifest 123 row・fixed tree上の旧source実在も123本で一致する（2026-07-23 Wave 2aでstaff分類の`liff_service_availability_staff.go`をreservationへ再分類是正済み・staff 31→30 / reservation 77→78）。trimming 23 rowは残量へ含めず、完全移動10 rowとBE9-2F期限のcompatibility surface 13件として追跡する。
+2026-07-23のWave 2aでは、当時未着手だった6 domainがclassification manifest 123 row・fixed tree上の旧source 123本で一致していた（`liff_service_availability_staff.go`をreservationへ再分類し、staff 31→30 / reservation 77→78へ是正）。この123 rowとtrimming 23 rowは2026-07-24までに全てtarget packageへ収束し、旧pathは現存しない。現在値はboundary mapの「移行後live-tree recensus」を正本とする。
 
 ### BE9-0: 旧規約の実効面をinventory化する
 
@@ -404,7 +405,9 @@ landing実行結果:
 3. cross-cutting packageは実際の複数consumerがある場合だけ維持し、所有者が1domainへ収束したcodeはそのdomainへ移す。
 4. 各domainのbusiness fact、source of truth、write owner、owner外のwrite call-siteを着手前に列挙し、直接writeをowner APIへ収束させる。挙動変更が必要なら移動batchと分ける。
 
-**Trimmingの完了証跡と残作業**:
+**BE9-2E最終結果（2026-07-24）**: trimmingに続きauth / inventory / clinic / owner / pet / staffをtarget packageへ収束し、boundary mapの13 target packageは全て移行済み。旧source pathとcentral legacy consumerは0件で、期限付きfacadeはBE9-2Fで撤去済み。以下のtrimming記録は2026-07-23時点のlanding/qualification履歴であり、現行残作業を表さない。
+
+**Historical: trimming landing証跡**:
 
 - **BE9-2E移行・same-tree qualification = COMPLETE**。reconstruction `297a23fc71dda13c8fe6984b9083b93f256db684` / tree `deac925c8bf8eec3396c14b97e44429069a7dc0d`はmerge commit `490756325ab8d553ceed7ce0be6fc57920d0d9bc`でlocal `main`へ統合済み。main `853137184`とreconstructionのbackend差分は0、`internal/trimming` subtreeは双方`3f83919866f117db1d930098537e2a3fb79599c4`である。`1e7faf56e`までbackend差分0を再確認済み。その後のWIP settlement 2 commit（`c2a0340d5`=password reset・`db6600e73`=csvimport）のbackend変更は`internal/service`と`internal/csvimport`に限られ、`internal/trimming` subtree hashは2026-07-23 HEAD `d130655f9`でも不変（qualification失効なし）。
 - exact Docker source、atomic global DB lease、scoped build/vet、gofmt、target lint 0、DB-backed trimming全test、race、coverage 91.6%、handler/repository/reservation/serviceの隣接gateはPASS。Go/healthcare独立reviewは移行差分の新規CRITICAL/HIGH/MEDIUM 0/0/0で、Session B handoffは`bcc46bb40`で完了済み。unchanged backendへ同じqualificationを未完了扱いで再要求しない。
@@ -427,7 +430,7 @@ landing実行結果:
 
 **完了条件**: `internal/handler`、`internal/service`、`internal/repository`にproduction implementationが0件。残すdirectory/fileがある場合は、domain packageへ置けない具体的consumer理由とADR-006の例外記録が必要。全target packageは単独test可能でimport cycleが0件。
 
-**残量の実測（2026-07-22・L⑥ code tip `bd3f53987`）**: `_test.go`を除くGo fileは`internal/handler` **77**、`internal/service` **55**、`internal/repository` **106**（root 81 + nested 25）の計238。repository root 81本のうち66本は少なくとも1つの型aliasを含み、実装残量と同一視しない。LSTEP composition facadeは0本。`Repositories.Transaction` method/`TransactionFn`は残るが、non-test production call-siteは0件で、BE9-2Fで機構ごと削除する。以後の規模見積はこの値をbaselineとし、各domain landing後に同じ条件で再計測する。
+**完遂（2026-07-24 live-tree recensus）**: `_test.go`を除く旧layer Go fileは`internal/handler` **0**（directory削除）、`internal/service` **0**、`internal/repository` **0**。残る`service` 14 fileと`repository` 50 fileは全て移行済みpackageの互換性を検証するtest-only資産であり、production import edgeは0件。旧aggregator、期限付きfacade、旧`Repositories.Transaction`機構、central legacy route/composition consumerは撤去済み。`cmd/api`はproduction 22 fileの明示composition rootで、うち18 fileがtarget domain packageを直接importする。
 
 ### BE9-3: Gin HTTP境界・production lifecycleを公式checklistで監査する
 
@@ -439,15 +442,19 @@ landing実行結果:
 
 **完了条件**: [Go/Gin backend review](.claude/refs/go-gin-backend-review.md)の全項目にPASSまたは根拠付きN/Aがあり、cross-tenant requestと内部error非漏洩のnegative testがある。
 
+**完遂（2026-07-24）**: route/authn/authz/clinic ownership、bindingとrequest body上限、trusted proxy/CORS/cookie、session/refresh family、password reset、SMTP TLS、DB TLS/pool、storage、credential audit、server lifecycle、schedulerの停止・再実行・監査・lease/idempotencyを監査し、検出したhigh-risk差分を独立test付きで是正した。system adminを含むrequest指定`clinic_id` / `clinic_ids`はrequest-timeのactive clinic authorityの部分集合だけを許可し、owner作成・横断一覧・staff assignment表示のinactive clinic bypassをnegative testで閉じた。production serverは`http.Server`のtimeout、signal shutdown、background worker drain、DB close順序を所有する。schedulerは手動run/catchupとpause/resume/statusを備えるが、production deploy・alert/recovery rehearsalはrelease gateに残す。
+
 ### BE9-4: verification・移行完了
 
 - scoped gate: 新scanner/packageと変更対象packageをDocker経由でtest/race/vetする。full `go test ./...`とfull lintは自動実行せず、最終gateとしてユーザー手動実行を依頼する。
-- `rg -n 'go-package-conventions|gin-architecture-compliance|golang-gin-clean-arch' .`が0件。
+- `rg -n 'go-package-conventions|gin-architecture-compliance|golang-gin-clean-arch' --glob '*.go' --glob '*.ts' --glob '*.tsx' --glob '*.js' --glob '*.mjs' --glob '*.yaml' --glob '*.yml' --glob '*.json' .`が0件。Markdownの履歴・gate説明自身は検索対象に含めない。
 - active code/testの旧P1–P18参照は、同名の別project phaseやhistorical fixtureを除き0件。例外にはsemanticな説明を付ける。
 - `bash .claude/scripts/sync-agents-skills.sh`が成功し、各`.claude/rules/*.md`と対応する`.agents/rules/*.md`を`cmp`して差分0件を確認する。`.agents/skills`には生成されたcommand互換wrapperも含むため、`.claude` treeとの全体一致は合否条件にしない。
 - `bash scripts/check-docs-symbol-drift.sh`、今回追加・変更したlocal Markdown linkの存在確認、対象fileを限定した`git diff --check`がPASS。
 - L⑤ migrationのrunner/checksum/unit/precheckをBE9内で完了する。fresh DB実適用は承認を要するrelease-readiness gateとして結果を別途記録し、それまでは`BE9 code complete / release pending`であってrelease readyとはしない。
 - `BE-refactor.md`のBE9を完了化し、旧BE8本文は履歴として削除またはarchiveするかを別途判断する。
+
+**判定（2026-07-24）: CODE GATE COMPLETE / RELEASE PENDING**。domain cutover、legacy production-zero、route composition smoke（477 explicit contract route + Gin StaticFS GET/HEAD = runtime 479 route）、OpenAPI route一致、package-scoped test/race/vet、security/clinic-isolation/database/Go reviewを変更treeへ適用する。fresh DB migration、remote CI/full coverage artifact/ratchet、production deploy/ops rehearsalはlocal code gateと分離し、未実施のrelease gateとして下記現在地へ残す。禁止されているwhole-repository commandを自動実行したことやproductionへdeployしたことを意味しない。
 
 ### 実装順序とbatch境界
 
@@ -457,7 +464,9 @@ landing実行結果:
 
 <a id="be9-parallel-sessions"></a>
 
-### 2セッション並行実行計画（Session A = clean `main` / Session B = isolated worktree）
+### Historical coordination record: 2セッション並行実行計画（SUPERSEDED / 実行禁止）
+
+> 2026-07-24に全domain移行とBE9-2F/3/4のcode gateが完了したため、Session A/B、Wave、`B0`、worktree割当は現行の開始条件ではない。以下は当時の競合回避・統合判断を再現するための履歴であり、新しいagentが実行してはならない。未完了なのはこの並行計画ではなく、`#be9-current-state`に列挙したrelease gateだけである。
 
 Session Aをcanonical local `main`の唯一writer兼integration owner、Session Bを同じimmutable baseから作る専用branch/worktreeのdomain laneとする。A用・integration用の追加worktreeは作らない。並行化するのは相互非競合なdomain-local実装期間だけで、central/shared surface、共有DB gate、Session B candidateのmain反映はSession Aが直列化する。独立検証は固定commit/treeを読む一時的なread-only reviewer agentsへ分離し、長寿命のSession C/Dは置かない。taskのscope・完了条件は各BE9節、現在の進捗・残債務は「[現在地と着手前ゲート](#be9-current-state)」、package/file分類はclassification manifestとboundary mapを正とする。
 
@@ -499,21 +508,56 @@ Session Aをcanonical local `main`の唯一writer兼integration owner、Session 
 
 <a id="be9-current-state"></a>
 
-### 現在地と着手前ゲート（2026-07-24 更新）
+### 現在地とrelease gate（2026-07-24 最終reconciliation）
 
-**現在domain = trimming BE9-2E移行・qualification COMPLETE / BE9-2F central cutover待ち**: reconstruction `297a23fc7`はmainへ統合済みで、exact-source DB-backed test、race、coverage 91.6%、scoped build/vet/target lint、独立reviewまでPASSしている。13件のcompatibility surfaceとcentral route/composition/tygo consumerはBE9-2Fで収束する。残6 domainのWave 2a recensusは完了し（2026-07-23・B0=`44bd0fabb`）、production pair = **A=auth / B=inventory** を確定した（詳細は「現在の実行状態」節）。
+**BE9 implementation = CODE COMPLETE**:
 
-**旧3layer残量**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
+- 13 target packageは全て移行済み。classification manifestのtarget 601 source rowは旧path現存0件で、現在のdomain packageにproduction code/testが存在する。
+- 旧3layerのproduction implementationは0件。`internal/handler`はdirectoryごと削除され、`internal/service` 14 fileと`internal/repository` 50 fileは全て`_test.go`。production codeから旧3layerへのGo importは0件。
+- `cmd/api`は22 production Go fileへ分割した明示composition rootであり、18 fileがtarget domainを直接importする。巨大な旧`Handler` / `Services` / `Repositories` aggregatorとcompatibility facadeは残らない。
+- BUG-421〜428、TEST-ROUTES-01、FMT-BE-01はsource/testへ反映済みで、active task台帳から退役した。trimmingのclinic predicate/audit/transaction、lstep mapping replace、terminal status、checkup cap/abort、cancel cleanup、全domain route compositionを回帰testで固定した。
+- migration manifestは761 rowを維持するimmutableなBE9-2A source-path snapshotとして扱う。内訳はtarget 601 row全て旧path削除、keep 160 rowのうち136 present / 24 consolidated or removed。移行後の物理file数との1:1一致は要求しない。
 
-**現在の実行状態 = Wave 2a完了（2026-07-23・B0=`44bd0fabb` / tree=`5295021` / behind 0・ahead 2=divergenceなし・push待ちのみ=USER専権）**: 6 domain並列recensus（10エージェント・独立countercheck 3レーン全て反証不成立/confidence high）でproduction pairを確定した。**ranking = staff(30f/3,647L) > auth(25f/2,846L) > clinic(25f/2,706L) > pet(18f/2,339L) > owner(13f/2,319L) > inventory(12f/1,247L)、pair = A=auth / B=inventory・pair_ok**。LOC最大のstaffはSEC-STAFF 3 blocker現存+interface逆転未設計でready外、clinicはauth laneと衝突、pet↔ownerは相互entanglement。競合は11軸+共有carrier/fixture/repohelpers面でzeroを独立再実測。countercheck訂正の記録: ①csvimport cutover lockは19テーブル全体（`merchandise_items`含む）②master_fk prefix追加は両laneとも`master_fk_write_inventory_lint_test.go:594`の同一行編集（A専有handoffで直列化）③dbortx allowlistキーは非交差だが近接。prerequisites ①manifest行624是正・②auth blocker re-scopeは本docs batchで実施済み。cross_tenant_master_fk_write_test.goのmock依存はinventory=inventory_service_test.go定義mock（medicalrecord先例のcarrier残置要）・auth=A専有共有carrierで、両laneが同一fileへ書く必要はない。
+**2026-07-24 follow-up hardening（現行sourceへ同期）**:
 
-**次の実行（Wave 2b）**: ④**AUTH-PREP batch**（behavior-preserving・A実施）: staff側`repository.AccountRepository`直依存とclinic側permission_groups直write経路（clinic_service.go:269,347 / clinic_repository.go:117）をconsumer-side interfaceへ逆転しauth acyclic条件を成立させる（受け入れ=`TestPermissionGroupRepository_ClinicCreateTxRollback_OnSecondGroupCreateFailure` green維持）→ Aが`main`でauth domain-local縦移動（**`permission_middleware.go`/`discount_permission.go`は凍結・移動対象外** — manifest上target:authだがglobal barrierとしてBE9-2F central cutoverへ分離、この乖離は意図的とhandoff文書へ明記）。Bは`B0`（A landing後はnew tip）から専用worktreeを作り、⑤**INV-SEC P1 batch**（DecreaseStock clinic-scope化+cross-clinic negative test+medicalrecord view/call site/mock追随をB candidate内で完結し、Aがmaster_fk共有lint理由文を直後のcentral commitで同期。combined exact treeがgreenになるまで不可分のlanding unit）→ inventory縦移動。P1遅延時のB縮退先=BUG-421〜425（BUG-426〜428も代替在庫）。non-gating並行可: ⑥PO-005維持条件のfail-open通知経路接続（keep-tier独立batch）・⑦SEC-STAFF batch①②（AUTH-PREP着地後に直列・staff_service_account.go hunk重複回避）。DB-backed testはglobal test lease（規則7）で直列化。その後、残4 domain（staff→clinic→pet+owner）→ BE9-2F（consumer 0 facade撤去・`repos.Transaction`機構削除）→ BE9-3 → BE9-4へ進む。
+- LINE webhookは、受信前にclinic identityを判別するため全`LineReservationSetting`のchannel secretを読む限定例外だけをunscopedとする。署名が一意に一致したclinic IDを以後のowner lookup/updateへ必須scopeとして渡し、異なるclinicで同じsecretが一致する曖昧系はfail closedにする。owner未登録のtyped NotFoundだけをno-opとし、真のlookup/update errorは成功へ畳み込まずnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`のCASとし、LINE event timestamp（正数かつ受信時刻+5分以内）を保存値と比較する。followは既存follow/unfollowの両時刻より新しい場合だけ、unfollowは既存followと同時刻以上かつ既存unfollowより新しい場合だけ適用するため、stale・duplicate・out-of-order・再連携前IDのeventは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先となる。DB errorはnon-2xxへ伝播する。
+- 公開LIFF account link成功時はowner情報を返さず`204 No Content`とし、PIIをresponseへ再露出しない。LINE ID token検証のoutbound HTTPはcallerのredirect policyを上書きしてredirectを追従せず、credentialを別originへ再送しない。
+- billing confirmation/returnは`Content-Type: application/json`（charset parameter可）だけを受理し、欠落または他media typeはserviceを呼ばず415とする。bodyは8 KiB上限の単一strict JSON objectに限定し、exact lowercase property名とstring値だけを許可してcase variant・null・非string・unknown field・trailing JSON・oversizeを拒否する。trim後の`return_reason`はnon-blankかつ500文字、`memo`は1,000文字を上限とし、actor IDはrequest bodyではなく認証済みstaff contextから導出する。
+- scheduler opsのCloudflare Access JWKSは固定team domainとtransport単位で10分cacheし、同時fetchを1本へ集約する。unknown `kid`またはupstream failure後のrefreshは60秒cooldownし、cooldown中はfail closedとする。鍵rotation直後は最大60秒の一時拒否を許容し、未検証JWTによるJWKS fetch増幅を防ぐ。これはWorker isolate内のdefense-in-depthであり、production Access policy・edge rate limit・運用rehearsalの代替にはしない。
 
-**Session B開始状態（2026-07-24 live preflight） = HOLD / production未着手 / `WT-B`未作成**: canonical `main`には別ownerのtracked/untracked WIPが`Makefile`、backend csvimport、deploy docs、frontendに存在し、clean/quiescent gateを満たしていない。このためWave 2b用`B0`は未固定であり、branch/worktree、INV-SEC P1、inventory移行、DB/runtime testは開始しない。既存WIPをstash・clean・restore・commitで代行解消せず、全writer退避後の連続2 snapshotが一致してからfresh `B0` packetを作り、Session B用worktreeを1つだけ生成する。
+**同一source local qualification（2026-07-24）**: global DB lease取得時のhost/container `backend/{cmd,internal}/**/*.go` SHA-256 manifestは`9a646e1a0180a8d77bb38b95ccc4cbaf79aa6c4032ab7c5ecfae16ec664690da`で一致した。leaseを`2026-07-24T10:01:06Z`から`10:03:58Z`まで単独取得し、LINE owner lookup/CAS/order/ambient-tx rollbackとlink token transaction、`internal/billing`全testおよび全race、旧`internal/repository`全testおよび全race、auth active-clinic authority、medicalrecord parent/child lock concurrencyを`-p 1`でPASSした。lease解放後はproduction codeを変更せず、secret scannerのtest-fixture誤検知を避けるため`staff/credential_audit_transaction_test.go`の架空文字列だけを変更し、当該testのraceを再実行した。この時点のhost/container全Go manifestは`516ed1fccf901829ff7e647540d38529d8d50924447c5621c17aa7594d583b10`で一致する。route composition、OpenAPI route/date/billing/LIFF contract、scoped vet、scheduler Node test 48件とworker typecheck、LIFF/billing frontend test 6件、docs symbol drift/self-test/diff-checkもPASSした。
+
+**最終clinic相関follow-up（2026-07-24）**: 独立clinic-isolation監査で、複数医院`{A,B}`を認可された利用者に対し、clinic Aのmedical record / reservationへ破損FKで結ばれたclinic B関連をIN-scope Preloadできる問題を検出した。medical recordはOwner、Pet/Pet.Owner、Doctor、EnteredByStaffを親recordの`clinic_id`へ相関させ、Vitalsも親recordのclinicとpetへ相関させる。reservationはOwner、Pet/Pet.Owner、ReservationType/Group、Doctor、CreatedByStaff、LineCustomerを親appointmentの`clinic_id`へ相関させる。cross-clinic FKとOwner/Pet不一致を持つ破損親は一覧・単件ともNotFound相当でfail-closedにする一方、soft-delete済みの同一clinic関連と過去のstaff assignmentは履歴親行/countを消さず、現在の関連を表示するかはPreload側で判定する。最終worktree/container全Go manifestは`8be69a66dfe697602bc3aefb7a9799af2005f84afc6074a1b7bdd97df3a0333d`で一致し、commit candidate indexの全Go manifestは`8fe7fcaafcc8bcf2c5a959f1e646a56e16b95d823f0717363a486e503865eb0c`。両者の差分は別ownerの保護対象`cmd/csv-import/main_test.go`と未追跡`cmd/migrate/sql_migrations_integration_test.go`だけで、今回再検証した`internal/medicalrecord`・`internal/reservation`・旧`internal/repository`はworktreeとindexが一致する。global DB leaseを`2026-07-24T10:34:24Z`から`10:36:38Z`まで単独取得し、両domainの複数医院汚染・履歴保持・Vitals相関回帰testを`-race`でPASS、3 packageの全通常testをPASS、`internal/reservation`・旧`internal/repository`の全raceをPASSした。Go・clinic isolation・PostgreSQL/GORMの独立再reviewはいずれもApprove（CRITICAL/HIGH/MEDIUM 0）。再配属後も過去カルテにstaff nameを表示する既存の明示的LOWは継承する。これはlocal code gateの証跡であり、fresh DB migration、remote CI/full coverage、外部設定、production rehearsalを完了したことは意味しない。
+
+**Known LOW residual（LINE redelivery）**: ownerを同じLINE User IDへ再紐付けした直後に`line_followed_at` / `line_blocked_at`のwatermarkが両方nilの場合、そのIDに対する非常に古い正規署名済みeventのredeliveryはtimestamp CASの初期比較を通り得る。expected LINE user ID CASにより別ID・別clinicへの波及はなく、現時点でこのfollow/block watermarkを業務判断に使うruntime decision consumerも存在しないためseverityはLOWとする。release rehearsalでは同一ID再紐付け直後の古いredeliveryを観測対象に含め、consumer追加や実害観測時にlink時watermark初期化またはevent ID/last-event persistenceを再評価する。
+
+**RELEASE PENDING（code gapではない）**:
+
+1. explicit approval下でfresh DBへ`002_lstep_snapshot_import_clinic_fk.sql`を実適用し、runner記録、checksum、rollback方針を確認する。
+2. remote CIでfull coverage artifactとratchetを確定し、local scoped verificationをrelease evidenceへ昇格する。
+3. production環境の実値（DB TLS、CORS/frontend URL、S3、SMTP、scheduler ops secret、alert webhook等）をsecret manager経由で設定し、production deployを実施する。
+4. schedulerのpause/resume/status、manual run/catchup、Workers/Container logs、alert、失敗回復、rollbackをproduction相当環境でrehearsalする。
+5. LINE webhook code deploy後に、LINE Developers Consoleで既定OFFのWebhook redeliveryとError statistics aggregationを明示的に有効化する。test channel/accountでcontrolled non-2xxからredeliveryを確認し、duplicate・out-of-order・同時刻unfollow優先・上記LOW residualをrehearsalする。Webhook errorsのnon-2xx、connection failure、timeoutを監視し、実施時刻・channel・結果・rollbackを記録する。
+
+この更新ではfresh DB migration、remote push/CI、production deploy、LINE Developers Consoleを含む外部設定変更、ops rehearsalを実行していない。したがって最終表現は **BE9 code complete / release pending** であり、release readyではない。
+
+#### Historical execution ledger（SUPERSEDED / 以下は現行状態ではない）
+
+> 以下は2026-07-23〜24のWave/Session開始判断と当時の未解消taskを残す監査履歴である。上記最終reconciliationおよび`todo.md`と矛盾する場合は上記を優先し、下記から作業を再開しない。
+
+**Historical snapshot — 当時のdomain = trimming BE9-2E移行・qualification COMPLETE / BE9-2F central cutover待ち**: reconstruction `297a23fc7`はmainへ統合済みで、exact-source DB-backed test、race、coverage 91.6%、scoped build/vet/target lint、独立reviewまでPASSしている。13件のcompatibility surfaceとcentral route/composition/tygo consumerはBE9-2Fで収束する。残6 domainのWave 2a recensusは完了し（2026-07-23・B0=`44bd0fabb`）、production pair = **A=auth / B=inventory** を確定した（詳細は「現在の実行状態」節）。
+
+**Historical snapshot — 当時の旧3layer残量**: `_test.go`を除きhandler 70 / service 55 / repository 103（root 81 + nested 22）の計228。LSTEP composition facadeは0本。trimming compatibility surface 13件を含み、削除条件はBE9-2Fで扱う。詳細と再計測条件は[BE9-2F](#be9-2f-legacy-layer-removal)を正本とする。
+
+**Historical snapshot — 当時の実行状態 = Wave 2a完了（2026-07-23・B0=`44bd0fabb` / tree=`5295021` / behind 0・ahead 2=divergenceなし・push待ちのみ=USER専権）**: 6 domain並列recensus（10エージェント・独立countercheck 3レーン全て反証不成立/confidence high）でproduction pairを確定した。**ranking = staff(30f/3,647L) > auth(25f/2,846L) > clinic(25f/2,706L) > pet(18f/2,339L) > owner(13f/2,319L) > inventory(12f/1,247L)、pair = A=auth / B=inventory・pair_ok**。LOC最大のstaffはSEC-STAFF 3 blocker現存+interface逆転未設計でready外、clinicはauth laneと衝突、pet↔ownerは相互entanglement。競合は11軸+共有carrier/fixture/repohelpers面でzeroを独立再実測。countercheck訂正の記録: ①csvimport cutover lockは19テーブル全体（`merchandise_items`含む）②master_fk prefix追加は両laneとも`master_fk_write_inventory_lint_test.go:594`の同一行編集（A専有handoffで直列化）③dbortx allowlistキーは非交差だが近接。prerequisites ①manifest行624是正・②auth blocker re-scopeは本docs batchで実施済み。cross_tenant_master_fk_write_test.goのmock依存はinventory=inventory_service_test.go定義mock（medicalrecord先例のcarrier残置要）・auth=A専有共有carrierで、両laneが同一fileへ書く必要はない。
+
+**Historical plan — 当時の次の実行（Wave 2b）**: ④**AUTH-PREP batch**（behavior-preserving・A実施）: staff側`repository.AccountRepository`直依存とclinic側permission_groups直write経路（clinic_service.go:269,347 / clinic_repository.go:117）をconsumer-side interfaceへ逆転しauth acyclic条件を成立させる（受け入れ=`TestPermissionGroupRepository_ClinicCreateTxRollback_OnSecondGroupCreateFailure` green維持）→ Aが`main`でauth domain-local縦移動（**`permission_middleware.go`/`discount_permission.go`は凍結・移動対象外** — manifest上target:authだがglobal barrierとしてBE9-2F central cutoverへ分離、この乖離は意図的とhandoff文書へ明記）。Bは`B0`（A landing後はnew tip）から専用worktreeを作り、⑤**INV-SEC P1 batch**（DecreaseStock clinic-scope化+cross-clinic negative test+medicalrecord view/call site/mock追随をB candidate内で完結し、Aがmaster_fk共有lint理由文を直後のcentral commitで同期。combined exact treeがgreenになるまで不可分のlanding unit）→ inventory縦移動。P1遅延時のB縮退先=BUG-421〜425（BUG-426〜428も代替在庫）。non-gating並行可: ⑥PO-005維持条件のfail-open通知経路接続（keep-tier独立batch）・⑦SEC-STAFF batch①②（AUTH-PREP着地後に直列・staff_service_account.go hunk重複回避）。DB-backed testはglobal test lease（規則7）で直列化。その後、残4 domain（staff→clinic→pet+owner）→ BE9-2F（consumer 0 facade撤去・`repos.Transaction`機構削除）→ BE9-3 → BE9-4へ進む。
+
+**Historical preflight — Session B開始状態（2026-07-24当時） = HOLD / production未着手 / `WT-B`未作成**: canonical `main`には別ownerのtracked/untracked WIPが`Makefile`、backend csvimport、deploy docs、frontendに存在し、clean/quiescent gateを満たしていない。このためWave 2b用`B0`は未固定であり、branch/worktree、INV-SEC P1、inventory移行、DB/runtime testは開始しない。既存WIPをstash・clean・restore・commitで代行解消せず、全writer退避後の連続2 snapshotが一致してからfresh `B0` packetを作り、Session B用worktreeを1つだけ生成する。
 
 **Session B AC-0 prompt/eval bootstrap（2026-07-24） = COMPLETE / product開始条件とは独立**: raw assistant outputから抽出したcorrected exact artifact `~/.codex/session-prompts/20260724T004544-session-b-inv-sec-p1-original-assistant-exact.txt`（32,395 bytes、SHA-256 `066ffa9d848c920ae52e6a45face44824f1633980014629f5b7eeaf3b5fbbdc3`）はfull validatorがexit 0・`ok: true`・`failedChecks: []`。transport-damage fixture `animalekarte-session-b-inv-sec-p1-transport-indent.md`（SHA-256 `5be03f8ce9f98b391f5cb80624892f35119243eb17a1a514e9a00fa11f4f6d12`）はexpected-invalid / actual-invalidを維持し、`~/.claude` commit `d82d6e1`でvalidator self-test、enforcement-hook self-test、eval corpus 28/28が全てexit 0。これはprompt/eval readinessだけを閉じた証跡であり、Session B product execution、branch/worktree、Docker、DB、product testは0のまま。実行には上記preflight HOLDを解消したfresh `B0` packetが別途必要で、corrected artifactはその後の別Codex sessionでのみ使用する。
 
-**未解消の技術債とgate（起票状態を明記。2026-07-23全件処置: 21エージェント並列調査+敵対検証の上、todo.md/q&a.html/phase2.htmlへ起票・登録済み）**:
+**Historical inventory — 当時の未解消技術債とgate（2026-07-24実装済み）**:
 - **起票済み BUG-421（todo.md・LOWへ確定）**: trimming course usage countは`appointments.clinic_id`をscopeするが、`appointment_trimming_details.clinic_id`を直接制約しない。調査確定: 書込3系統（trimming/LIFF/csvimport）は全てclinic強制済みで現行の混入経路なし — defense-in-depth欠落のみ。修正=述語1行+破損行subtest（RED→GREEN）。複合FK化は次回trimming系DDL変更に相乗りする別判断。
 - **起票済み BUG-422（todo.md・MEDIUM・設計確定）**: trimming CUDにactor-awareなdurable clinical audit sinkがない（監査配線ゼロをgrep+middleware/trigger探索で実証）。設計は既存パターンの完全再利用で確定 — consumer-side AuditEntry/AuditTxLogger port + main.go adapter + WithTx内fail-closed LogEntryTx。Delete最優先。
 - **起票済み BUG-423（todo.md・MEDIUM）**: trimming masterの`CountUsage`確認からsoft deleteまでが非原子的でTOCTOUを持つ（course/option/course_typeの3マスタとも確認）。修正方式=tx内delete-then-recheck。course_typeはwrite側tx化+SHARE lock分岐追加もセットでないと閉じない。

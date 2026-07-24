@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -45,14 +46,8 @@ func (m *mockLineLinkService) HandleWebhook(ctx context.Context, body []byte, si
 
 // ---- helpers ----
 
-// testRespondOwner は本番の handler.RespondLinkedOwner と同じ contract（200 + owner JSON）を持つ
-// test 用 OwnerResponder。owner DTO の形は internal/handler 側の test が担保する。
-func testRespondOwner(c *gin.Context, o *model.Owner) {
-	c.JSON(http.StatusOK, gin.H{"id": o.ID, "clinic_id": o.ClinicID})
-}
-
 func newHandlerWithLineLinkSvc(svc LineLinkService) *LineLinkHandler {
-	return NewLineLinkHandler(svc, testRespondOwner, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
+	return NewLineLinkHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 func newPostGenerateLineLinkTokenRouter(svc LineLinkService, withClinicID bool) *gin.Engine {
@@ -155,13 +150,15 @@ func TestPostLiffLinkAccount(t *testing.T) {
 		body       []byte
 		svc        *mockLineLinkService
 		wantStatus int
+		wantBody   string
 	}{
 		{
-			name:       "200 success",
+			name:       "204 success without owner PII",
 			clinicID:   "1",
 			body:       validBody,
 			svc:        &mockLineLinkService{},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusNoContent,
+			wantBody:   "",
 		},
 		{
 			name:       "400 bad clinic ID",
@@ -215,6 +212,83 @@ func TestPostLiffLinkAccount(t *testing.T) {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantStatus == http.StatusNoContent {
+				assert.Equal(t, tt.wantBody, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestPostLiffLinkAccount_RejectsForceAndMultipleJSONValues(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "force overwrite field",
+			body: `{"link_token":"tok","line_id_token":"id-token","force":true}`,
+		},
+		{
+			name: "multiple JSON values",
+			body: `{"link_token":"tok","line_id_token":"id-token"} {}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serviceCalled := false
+			svc := &mockLineLinkService{
+				linkAccountFn: func(_ context.Context, _ uint64, _ LinkAccountInput) (*model.Owner, error) {
+					serviceCalled = true
+					return &model.Owner{ID: 1}, nil
+				},
+			}
+			router := newPostLiffLinkAccountRouter(svc)
+			req := httptest.NewRequest(http.MethodPost, "/liff/1/link", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, req)
+
+			assert.Equal(t, http.StatusBadRequest, recorder.Code)
+			assert.False(t, serviceCalled)
+		})
+	}
+}
+
+func TestPostLiffLinkAccount_RejectsTokenFieldCaps(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "link token too long",
+			body: `{"link_token":"` + strings.Repeat("x", maxLineLinkTokenChars+1) + `","line_id_token":"id-token"}`,
+		},
+		{
+			name: "LINE ID token too long",
+			body: `{"link_token":"token","line_id_token":"` + strings.Repeat("x", maxLineIDTokenChars+1) + `"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serviceCalled := false
+			svc := &mockLineLinkService{
+				linkAccountFn: func(_ context.Context, _ uint64, _ LinkAccountInput) (*model.Owner, error) {
+					serviceCalled = true
+					return &model.Owner{ID: 1}, nil
+				},
+			}
+			router := newPostLiffLinkAccountRouter(svc)
+			req := httptest.NewRequest(http.MethodPost, "/liff/1/link", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			router.ServeHTTP(recorder, req)
+
+			assert.Equal(t, http.StatusBadRequest, recorder.Code)
+			assert.False(t, serviceCalled)
 		})
 	}
 }

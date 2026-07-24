@@ -31,9 +31,10 @@ package service
 //     are added): medicineDoseParamService.Upsert, staffService.Set{Excluded,Capable}ReservationTypeIDs,
 //     staffService.SetPermissionGroupIDs (PermissionGroup; mitigated — repo UpdateStaffGroups
 //     does a clinic-scoped IN-check), reservationTypeService.LinkOccupation (mitigated — FindByID).
-//  3. A master FK propagated through a non-`model.` cross-package struct parameter. Today
-//     there are none; knownSafeParamQualifiers pins this so a new external param qualifier
-//     fails closed and is forced into review.
+//  3. A master FK propagated through a non-`model.` cross-package struct parameter. The sole
+//     reviewed occurrence is owner.PetRegistrationIntent at the pet owner-registration adapter;
+//     knownSafeParamQualifiers plus knownReviewedExternalParamOccurrences pin both its exact
+//     type and call site so any new external command fails closed and is forced into review.
 //  4. (field-name/shape matching limits, independent of role scope) A master-FK-bearing DTO reached only via an UNREGISTERED
 //     field name (not a key of clinicScopedMasterFKField) is invisible by design — this gate
 //     detects by field-name matching, not exhaustive type inspection. A struct type reachable
@@ -158,12 +159,10 @@ var clinicScopedMasterFKField = map[string]string{
 	"TargetItemIDs":   "MerchandiseItem (campaign_target_items.merchandise_item_id)",
 }
 
-// knownSafeParamQualifiers are package qualifiers (the `pkg` in `pkg.Type`) that a service
-// method parameter may use without the gate being able to introspect the type for master
-// FKs. None of these resolve to a service-local DTO that could carry a clinic-scoped master
-// FK field. A NEW qualifier appearing in a method parameter trips
-// TestMasterFKWriteInventory_NoUnknownCrossPackageParam — forcing review of whether that
-// external type carries a master FK (closing the cross-package false-negative gap).
+// knownSafeParamQualifiers are package qualifiers (the `pkg` in `pkg.Type`) for which every
+// parameter type is infrastructure/read-only and cannot carry a clinic-scoped master FK.
+// A qualifier whose commands may carry a master FK must not be listed here; use the exact
+// type-and-occurrence allowlist below instead.
 var knownSafeParamQualifiers = map[string]struct{}{
 	"context": {}, // context.Context
 	"time":    {}, // time.Time
@@ -192,6 +191,9 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// gorm.DB is a transaction/query handle passed to repository-oriented helpers. It is not a
 	// request DTO and cannot carry a clinic-scoped master foreign key.
 	"gorm": {},
+	// auth.Transactor / PasswordResetConfig / AuthAuditEntry are infrastructure and audit
+	// boundary values. None contains a clinic-scoped master foreign key.
+	"auth": {},
 	// lstep.LifecycleAuditEntry is the transaction-local audit adapter input at the
 	// composition boundary. It carries clinic/actor/resource IDs and audit labels only;
 	// it is not a persistence write DTO and cannot carry a clinic-scoped master FK.
@@ -201,6 +203,16 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// deleted lab_middle_state.go). Batch C relocated lab construction — and that adapter — to
 	// cmd/api/main.go, so the service package no longer holds any *medicalrecord.* parameter and
 	// the exemption is removed again (mirrors sub-batch②'s medicalrecord_middle_state.go lifecycle).
+}
+
+// knownReviewedExternalParamOccurrences is deliberately narrower than a qualifier-wide
+// exemption. owner.PetRegistrationIntent carries nested InsuranceID values, so only the
+// reviewed pet adapter occurrence is accepted. A new owner command, or reuse of the same
+// command at another write entrypoint, must fail TestMasterFKWriteInventory_NoUnknownCrossPackageParam.
+var knownReviewedExternalParamOccurrences = map[string]map[string]struct{}{
+	"owner.PetRegistrationIntent": {
+		"pet.OwnerRegistrationAdapter.CreateForOwnerRegistration": {},
+	},
 }
 
 // masterFKWriteStatus records WHY a master-FK write is on the allowlist. The gate does not
@@ -246,6 +258,7 @@ type masterFKWriteEntry struct {
 var masterFKWriteAllowlist = []masterFKWriteEntry{
 	// ── guarded (FindByID ownership check covers every master FK; most have runtime isolation tests) ──
 	{"accountingService.Update", statusGuarded, []string{"PaymentMethodID"}, "(moved to internal/billing in B④): resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID"},
+	{"billingItemService.CreateItem", statusGuarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "internal/billing/billing_item_service.go persists MerchandiseItemID and, inside the write transaction, billingItemRepository.ValidateCreateReferences locks and validates MerchandiseItemID plus attached TrimmingCourseID/TrimmingOptionID against the authenticated clinic before Create; tests: TestBillingItemRepository_ValidateCreateReferences, TestBillingItemService_CreateItem_RuntimeReferenceIsolation"},
 	{"campaignService.Create", statusGuarded, []string{"TargetItemIDs"}, "campaign_service.go: validateOwnedMerchandiseItemIDs loops merchandiseItemRepo.FindByID(ctx, clinicID, id) over every TargetItemIDs entry (X-5); test: TestCampaignService_Create_RejectsCrossClinicTargetItemFK"},
 	{"campaignService.Update", statusGuarded, []string{"TargetItemIDs"}, "as Create — validateOwnedMerchandiseItemIDs guards *input.TargetItemIDs before ReplaceTargets (X-5); test: TestCampaignService_Update_RejectsCrossClinicTargetItemFK"},
 	{"carePlanItemService.Create", statusGuarded, []string{"HospitalizationPlanID", "MedicineID", "ProcedureID"}, "internal/medicalrecord/care_plan_item_service.go (BE9-2D ⑤, moved from internal/service): validateMasterFKs now covers all three — medicine/procedure (pre-existing) plus hospPlanRepo.FindByID(ctx, clinicID, HospitalizationPlanID) (X-14); test: TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK"},
@@ -261,15 +274,13 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"examinationService.Update", statusGuarded, []string{"ExamTypeID"}, "examTypeRepo.FindByID when non-nil (03bf1cb5); test present"},
 	{"hospitalizationService.Create", statusGuarded, []string{"CageID"}, "internal/medicalrecord/hospitalization_service.go (BE9-2D ⑤, moved from internal/service): s.cageRepo.FindByID(ctx, clinicID, CageID) when non-nil (X-14); test: TestHospitalizationService_Create_RejectsCrossClinicCageFK"},
 	{"hospitalizationService.Update", statusGuarded, []string{"CageID"}, "as Create (internal/medicalrecord/hospitalization_service.go) — s.cageRepo.FindByID(ctx, clinicID, *CageID) when non-nil (X-14); test: TestHospitalizationService_Update_RejectsCrossClinicCageFK"},
-	{"ownerService.CreateWithPets", statusGuarded, []string{"InsuranceID"}, "owner_service_core.go: validateOwnerPetsInsuranceOwnership loops insuranceRepo.FindByID(ctx, clinicID, id) over every nested Pets[i].InsuranceID before repo.CreateWithPets (X-14 batch U5); test: TestOwnerService_CreateWithPets_RejectsCrossClinicInsuranceID"},
-	{"petService.Create", statusGuarded, []string{"InsuranceID"}, "pet_service.go: insuranceRepo.FindByID(ctx, clinicID, InsuranceID) when non-nil — guard pre-existing, dedicated isolation test added (X-14 batch U5); test: TestPetService_Create_RejectsCrossClinicInsuranceID"},
-	{"petService.Update", statusGuarded, []string{"InsuranceID"}, "pet_service.go: insuranceRepo.FindByID(ctx, clinicID, **InsuranceID) when non-nil and non-NULL — guard pre-existing, dedicated isolation test added (X-14 batch U5); test: TestPetService_Update_RejectsCrossClinicInsuranceID"},
+	{"ownerService.CreateWithPets", statusGuarded, []string{"InsuranceID"}, "internal/owner/service_core.go: validateOwnerPetsInsuranceOwnership loops insuranceFinder.FindByID(ctx, clinicID, id) over every nested Pets[i].InsuranceID before repo.CreateWithPets; test: TestOwnerService_CreateWithPets_MapsMissingInsuranceToInvalidInput (internal/owner/service_error_contract_test.go)"},
+	{"petService.Create", statusGuarded, []string{"InsuranceID"}, "internal/pet/service.go: insuranceRepo.FindByID(ctx, clinicID, InsuranceID) when non-nil; test: TestPetService_Create/rejects_insurance_not_in_clinic (internal/pet/service_test.go)"},
+	{"petService.Update", statusGuarded, []string{"InsuranceID"}, "internal/pet/service.go: insuranceRepo.FindByID(ctx, clinicID, **InsuranceID) when non-nil and non-NULL; test: TestPetService_Update_InsuranceValidation (internal/pet/service_test.go)"},
 	{"trimmingCourseService.Create", statusGuarded, []string{"CourseTypeID"}, "trimming_course_service.go:118 courseTypeRepo.FindByID when non-nil (#73)"},
 	{"vaccinationService.Create", statusGuarded, []string{"VaccineID"}, "internal/medicalrecord/vaccination_service.go (BE9-2D, moved from internal/service): vaccineRepo.FindByID(ctx, clinicID, VaccineID) inside the relation-validation transaction (#125, BUG-420); test: TestVaccinationService_Create_RejectsCrossClinicVaccine"},
 	{"vaccinationService.Update", statusGuarded, []string{"VaccineID"}, "internal/medicalrecord/vaccination_service.go (BE9-2D): validates the merged effective VaccineID on every PATCH inside the relation-validation transaction (BUG-420); test: TestVaccinationService_Update_RejectsCrossClinicVaccine"},
 
-	// ── known-unguarded: at least one master FK persisted without an ownership check (residual, high-priority) ──
-	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "PARTIAL (X-4): TrimmingCourseID/TrimmingOptionID now guarded via trimmingCourseRepo/trimmingOptionRepo.FindByID(ctx, clinicID, id) before persist; test: TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK. MerchandiseItemID remains unguarded but is a DEAD field for this write path — CreateItem never assigns input.MerchandiseItemID onto model.BillingItem (billing_item_service.go, item struct literal), so it carries no actual cross-tenant persistence risk today; out of scope for X-4."},
 	{"checkupTypeService.Create", statusGuarded, []string{"ParentID"}, "internal/medicalrecord/checkup_type_service.go (BE9-2D, moved from internal/service): validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestCheckupTypeService_Create_RejectsCrossClinicParentFK (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
 	{"checkupTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); internal/medicalrecord/checkup_type_service.go; test: TestCheckupTypeService_Update_RejectsCrossClinicParentFK"},
 	{"consultationService.Create", statusGuarded, []string{"ParentID"}, "internal/medicalrecord/consultation_service.go (BE9-2D ⑥, moved): validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestConsultationService_Create_RejectsCrossClinicParentFK"},
@@ -288,15 +299,15 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"reservationAdminService.Create", statusGuarded, []string{"ReservationTypeID"}, "appointment_admin_service.go:124 reservation.CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, ...) unconditionally calls typeRepo.FindByID(ctx, clinicID, ReservationTypeID) before persist (X-14 U6b); test: TestReservationAdminService_Create_RejectsCrossClinicReservationType"},
 	{"reservationService.Create", statusGuarded, []string{"ReservationTypeID"}, "reservation_service.go: added unconditional s.typeRepo.FindByID(ctx, input.ClinicID, ReservationTypeID) before persist — closes the shortcut-route hole where reception/exam_room/record_shortcut routes (or advanced statuses) set enforceBookingConstraints=false and previously skipped the FindByID embedded in reservation.CheckReservationTypeCapacity (X-14 U6b); test: TestReservationService_Create_RejectsCrossClinicReservationType"},
 	{"reservationService.Update", statusGuarded, []string{"ReservationTypeID"}, "reservation_service.go:389 updateWithConflictCheck unconditionally calls reservation.CheckReservationTypeCapacity → typeRepo.FindByID(ctx, clinicID, resolvedReservationTypeID) whenever ReservationTypeID changes (needsConflictCheck gate); pre-existing guard, dedicated isolation test added (X-14 U6b); test: TestReservationService_Update_RejectsCrossClinicReservationType"},
-	{"reservationStaffService.Create", statusGuarded, []string{"ExcludedTypeIDs"}, "reservation_staff_repository.go:227-238 UpdateExcludedReservationTypes counts clinic_id=? AND id IN ? AND deleted_at IS NULL before DELETE/INSERT and rejects on mismatch; pre-existing repo-level guard (X-14 U6b); test: TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation"},
-	{"reservationStaffService.Update", statusGuarded, []string{"ExcludedTypeIDs"}, "as Create — same repo-level Count guard in UpdateExcludedReservationTypes (X-14 U6b); test: TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation"},
+	{"reservationStaffService.Create", statusGuarded, []string{"ExcludedTypeIDs"}, "internal/reservation/reservation_staff_repository.go: lockReservationTypesForShare takes deterministic clinic-scoped FOR SHARE locks and rejects cardinality mismatch before DELETE/INSERT; tests: TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation, TestReservationStaffCapabilityValidation_HoldsShareLocks"},
+	{"reservationStaffService.Update", statusGuarded, []string{"ExcludedTypeIDs"}, "as Create — the same deterministic clinic-scoped FOR SHARE + cardinality guard runs before replacement; tests: TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation, TestReservationStaffCapabilityValidation_HoldsShareLocks"},
 	{"reservationTypeService.Create", statusGuarded, []string{"GroupID", "ParentID"}, "ParentID validated via validateReservationTypeParent (pre-existing); GroupID now validated via new validateReservationTypeGroup → groupRepo.FindByID(ctx, clinicID, *GroupID) (X-14 U6b, groupRepo DI added to NewReservationTypeService); test: TestReservationTypeService_Create_RejectsCrossClinicGroupID"},
 	{"reservationTypeService.Update", statusGuarded, []string{"GroupID", "ParentID"}, "as Create — validateReservationTypeGroup guards *input.GroupID before repo.Update; validateReservationTypeParent guards ParentID (X-14 U6b); test: TestReservationTypeService_Update_RejectsCrossClinicGroupID, TestReservationTypeService_Update_RejectsCrossClinicParentID"},
 	{"liffService.CreateReservation", statusGuarded, []string{"ReservationTypeID", "TrimmingCourseID", "TrimmingOptionIDs"}, "liffService.CreateReservation delegates the whole write graph to reservationValidators.ValidateAndCreate; the validator checks active/public clinic-owned masters plus explicit staff capability and reservation visibility inside the write tx, then atomically writes appointment/detail/options; tests: TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK, TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActive"},
 	{"reservationValidators.ValidateAndCreate", statusGuarded, []string{"ReservationTypeID", "TrimmingCourseID", "TrimmingOptionIDs"}, "reservation_validators.go: type/course/option FindByID calls run in the ambient write tx, LIFF explicit staff must be active and reservation-visible, and concrete repositories hold SHARE locks through appointment/detail/options persistence (hard fail, no orphan appointment); tests: TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationType, TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK, TestReservationValidators_ValidateAndCreate_RejectsHiddenStaffDirectPost, TestReservationValidators_ValidateAndCreate_RejectsInactiveStaffDirectPost, TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGraph"},
-	{"staffService.Create", statusGuarded, []string{"OccupationID"}, "staff_service_core.go: validateOccupationOwnership occupationRepo.FindByID(ctx, clinicID, *OccupationID) before persist (X-14 batch U7, occupationRepo now a mandatory NewStaffService dependency); test: TestStaffService_Create_RejectsCrossClinicOccupationID"},
-	{"staffService.CreateWithAccount", statusGuarded, []string{"OccupationID"}, "as Create — validateOccupationOwnership guards *input.OccupationID before persist (X-14 batch U7); test: TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID"},
-	{"staffService.Update", statusGuarded, []string{"OccupationID"}, "as Create — validateOccupationOwnership guards *input.OccupationID before repo.Update (X-14 batch U7); test: TestStaffService_Update_RejectsCrossClinicOccupationID"},
+	{"staffService.Create", statusGuarded, []string{"OccupationID"}, "internal/staff/staff_service_core.go: lockOccupationOwnership calls occupationRepo.LockActiveByIDForShare(ctx, clinicID, *OccupationID) inside the write transaction before persist; tests: TestStaffService_Create_RejectsCrossClinicOccupationID (internal/service/staff_cross_tenant_test.go), TestStaffServiceCore_Create_LocksOccupationInsideWriteTransaction (internal/staff/staff_service_core_test.go)"},
+	{"staffService.CreateWithAccount", statusGuarded, []string{"OccupationID"}, "internal/staff/staff_service_account.go: the write transaction calls lockOccupationOwnership before account/staff/assignment writes; test: TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID (internal/service/staff_cross_tenant_test.go)"},
+	{"staffService.Update", statusGuarded, []string{"OccupationID"}, "internal/staff/staff_service_core.go: the write transaction locks staff, assignments, then the clinic-scoped occupation before repo.Update; tests: TestStaffService_Update_RejectsCrossClinicOccupationID (internal/service/staff_cross_tenant_test.go), TestStaffServiceCore_Update_UsesStaffAssignmentOccupationLockOrder (internal/staff/staff_service_core_update_delete_test.go)"},
 	{"treatmentService.Create", statusGuarded, []string{"ConsultationID", "InventoryID", "MedicineID", "ProcedureID"}, "internal/medicalrecord/treatment_service.go (BE9-2D ④b, moved from internal/service): validateTreatmentMasterFKs covers all four — medicine/procedure/consultation (pre-existing, 03bf1cb5) plus Inventory.FindByID(ctx, clinicID, InventoryID); DecreaseStock(ctx, clinicID, InventoryID, qty) independently scopes the atomic stock update (X-14a / INV-SEC P1); test: TestTreatmentService_Create_RejectsCrossClinicInventoryFK"},
 	{"treatmentService.Update", statusGuarded, []string{"ConsultationID", "InventoryID", "MedicineID", "ProcedureID"}, "as Create — validateTreatmentMasterFKs guards InventoryID before persist (X-14a); test: TestTreatmentService_Update_RejectsCrossClinicInventoryFK"},
 	{"trimmingCourseService.Update", statusGuarded, []string{"CourseTypeID"}, "internal/trimming/trimming_course_service.go (BE9-2E): Update now mirrors Create — courseTypeRepo.FindByID(ctx, clinicID, *CourseTypeID) before buildTrimmingCourseUpdate persists course_type_id (X-14b, symmetric with Create's guard); test: TestTrimmingCourseService_Update_RejectsCrossClinicCourseTypeFK"},
@@ -348,11 +359,34 @@ type mfkWriteFinding struct {
 	masterFKs []string // sorted unique
 }
 
+type mfkExternalParam struct {
+	dir       string
+	qualifier string
+	typeName  string
+	receiver  string
+	method    string
+	file      string
+	line      int
+}
+
+func (p mfkExternalParam) qualifiedType() string {
+	return p.qualifier + "." + p.typeName
+}
+
+func (p mfkExternalParam) occurrence() string {
+	parts := make([]string, 0, 3)
+	if p.dir != "" {
+		parts = append(parts, p.dir)
+	}
+	parts = append(parts, p.receiver, p.method)
+	return strings.Join(parts, ".")
+}
+
 type mfkStats struct {
-	filesParsed     int
-	structsIndexed  int
-	methodsScanned  int
-	externalParamQs map[string]struct{} // observed non-stdlib-builtin param qualifiers
+	filesParsed    int
+	structsIndexed int
+	methodsScanned int
+	externalParams []mfkExternalParam
 	// wholeTreeFilesDiscovered is the file count lintscan.WalkInternalTreeT(t) returned BEFORE
 	// the service-write role filter (isServiceWriteRolePackage) narrowed it down. Populated only
 	// by analyzeRealServiceSource (zero when analyzeServicePackage is called directly on inline
@@ -400,6 +434,23 @@ func localStructName(expr ast.Expr) (name, qualifier string) {
 	default:
 		return "", ""
 	}
+}
+
+// qualifiedStructName returns the package qualifier and selected type name reachable from
+// expr by peeling pointers and slices/arrays. Keeping the selected name (rather than recording
+// only the qualifier) lets the external-param gate make exact type-and-occurrence exceptions.
+func qualifiedStructName(expr ast.Expr) (qualifier, typeName string) {
+	switch t := expr.(type) {
+	case *ast.StarExpr:
+		return qualifiedStructName(t.X)
+	case *ast.ArrayType:
+		return qualifiedStructName(t.Elt)
+	case *ast.SelectorExpr:
+		if pkg, ok := t.X.(*ast.Ident); ok {
+			return pkg.Name, t.Sel.Name
+		}
+	}
+	return "", ""
 }
 
 // masterFKsOf returns the set of clinic-scoped master FK field names that (dir, structName)
@@ -462,7 +513,7 @@ func sortedKeys(set map[string]struct{}) []string {
 func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFinding, mfkStats) {
 	t.Helper()
 	fset := token.NewFileSet()
-	stats := mfkStats{externalParamQs: map[string]struct{}{}}
+	stats := mfkStats{}
 
 	index := map[mfkStructKey][]mfkFieldEntry{}
 	parsed := make([]*ast.File, 0, len(files))
@@ -532,7 +583,16 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 				for _, p := range fd.Type.Params.List {
 					child, qualifier := localStructName(p.Type)
 					if qualifier != "" {
-						stats.externalParamQs[qualifier] = struct{}{}
+						qualifiedParamQualifier, qualifiedParamType := qualifiedStructName(p.Type)
+						stats.externalParams = append(stats.externalParams, mfkExternalParam{
+							dir:       dir,
+							qualifier: qualifiedParamQualifier,
+							typeName:  qualifiedParamType,
+							receiver:  recv,
+							method:    fd.Name.Name,
+							file:      baseName(fname),
+							line:      fset.Position(fd.Pos()).Line,
+						})
 						continue
 					}
 					if child == "" {
@@ -602,6 +662,7 @@ var serviceWriteRolePackagePrefixes = []string{
 	"trimming/",
 	"inventory/",
 	"pet/",
+	"owner/",
 	"staff/",
 	"clinic/",
 	"auth/",
@@ -820,8 +881,8 @@ func TestMasterFKWriteInventory_GateDetectsViolations(t *testing.T) {
 	})
 }
 
-// TestMasterFKWriteInventory_StatusesAreLive proves the status taxonomy is exercised (not a
-// dead enum) and that the guarded/known-unguarded split actually reflects the codebase.
+// TestMasterFKWriteInventory_StatusesAreLive pins the current audited state:
+// every enumerated write is guarded and no known-unguarded residual remains.
 func TestMasterFKWriteInventory_StatusesAreLive(t *testing.T) {
 	counts := map[masterFKWriteStatus]int{}
 	for _, e := range masterFKWriteAllowlist {
@@ -830,23 +891,96 @@ func TestMasterFKWriteInventory_StatusesAreLive(t *testing.T) {
 	if counts[statusGuarded] == 0 {
 		t.Error("no 'guarded' allowlist entries; the guarded write sites (treatment/vaccination/…) drifted")
 	}
-	if counts[statusKnownUnguarded] == 0 {
-		t.Error("no 'known-unguarded' allowlist entries; the residual high-priority list is empty — verify, don't assume")
+	if counts[statusKnownUnguarded] != 0 {
+		t.Errorf(
+			"known-unguarded master-FK writes were reintroduced: %d",
+			counts[statusKnownUnguarded],
+		)
 	}
+}
+
+func isReviewedExternalParam(param mfkExternalParam) bool {
+	if _, ok := knownSafeParamQualifiers[param.qualifier]; ok {
+		return true
+	}
+	occurrences, ok := knownReviewedExternalParamOccurrences[param.qualifiedType()]
+	if !ok {
+		return false
+	}
+	_, ok = occurrences[param.occurrence()]
+	return ok
 }
 
 // TestMasterFKWriteInventory_NoUnknownCrossPackageParam closes the cross-package false-negative
 // gap: a service method receiving a struct from a package the gate cannot introspect could hide
-// a master FK. All such qualifiers must be in knownSafeParamQualifiers (none of which is a
-// service-local DTO). A NEW qualifier trips this and forces review.
+// a master FK. Infrastructure-only qualifiers may be accepted wholesale; master-bearing command
+// packages require an exact qualified type + write-entrypoint occurrence. Any other external
+// parameter trips this gate and forces review.
 func TestMasterFKWriteInventory_NoUnknownCrossPackageParam(t *testing.T) {
 	_, stats := analyzeRealServiceSource(t)
-	for q := range stats.externalParamQs {
-		if _, ok := knownSafeParamQualifiers[q]; !ok {
-			t.Errorf("service method parameter uses unknown package qualifier %q. If %q.<Type> cannot "+
-				"carry a clinic-scoped master FK, add it to knownSafeParamQualifiers; otherwise the gate "+
-				"must be extended to introspect it (cross-package master-FK propagation).", q, q)
+	for _, param := range stats.externalParams {
+		if !isReviewedExternalParam(param) {
+			t.Errorf("%s:%d: %s receives unreviewed external parameter %s. If every %s type is "+
+				"infrastructure-only, add the qualifier to knownSafeParamQualifiers; if the type can "+
+				"carry a clinic-scoped master FK, review and pin only this exact type + occurrence.",
+				param.file, param.line, param.occurrence(), param.qualifiedType(), param.qualifier)
 		}
+	}
+}
+
+func TestMasterFKWriteInventory_ExternalParamExceptionIsExactAndLive(t *testing.T) {
+	reviewed := mfkExternalParam{
+		dir:       "pet",
+		qualifier: "owner",
+		typeName:  "PetRegistrationIntent",
+		receiver:  "OwnerRegistrationAdapter",
+		method:    "CreateForOwnerRegistration",
+	}
+	if !isReviewedExternalParam(reviewed) {
+		t.Fatal("the exact reviewed owner.PetRegistrationIntent adapter occurrence must be accepted")
+	}
+
+	for _, param := range []mfkExternalParam{
+		{
+			dir:       "pet",
+			qualifier: "owner",
+			typeName:  "FutureWriteCommand",
+			receiver:  "OwnerRegistrationAdapter",
+			method:    "CreateForOwnerRegistration",
+		},
+		{
+			dir:       "pet",
+			qualifier: "owner",
+			typeName:  "PetRegistrationIntent",
+			receiver:  "AnotherAdapter",
+			method:    "CreateForOwnerRegistration",
+		},
+		{
+			dir:       "pet",
+			qualifier: "owner",
+			typeName:  "PetRegistrationIntent",
+			receiver:  "OwnerRegistrationAdapter",
+			method:    "AnotherWrite",
+		},
+	} {
+		if isReviewedExternalParam(param) {
+			t.Errorf("owner exception is too broad: unexpectedly accepted %s at %s",
+				param.qualifiedType(), param.occurrence())
+		}
+	}
+
+	_, stats := analyzeRealServiceSource(t)
+	observed := false
+	for _, param := range stats.externalParams {
+		if param.qualifiedType() == reviewed.qualifiedType() &&
+			param.occurrence() == reviewed.occurrence() {
+			observed = true
+			break
+		}
+	}
+	if !observed {
+		t.Fatalf("reviewed external-param exception is stale: %s at %s was not observed",
+			reviewed.qualifiedType(), reviewed.occurrence())
 	}
 }
 
@@ -1074,6 +1208,7 @@ func TestMasterFKWriteInventory_RoleFilterPackageScope(t *testing.T) {
 	}{
 		{"service/foo.go", true},
 		{"service/sub/deep/foo.go", true}, // prefix-based, not depth-limited
+		{"owner/foo.go", true},
 		{"model/foo.go", false},
 		{"handler/foo.go", false},
 		{"repository/foo.go", false},
@@ -1089,19 +1224,20 @@ func TestMasterFKWriteInventory_RoleFilterPackageScope(t *testing.T) {
 // TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes proves the BE9-2 extension-point
 // claim in serviceWriteRolePackagePrefixes's doc comment: admitting a future domain package
 // requires only a DATA addition to a prefix list, not a logic change. It builds a LOCAL copy of
-// the prefix list (simulating a future BE9-2 change that appends "owner/"), feeds it through the
+// the prefix list (simulating a future BE9-2 change that appends "futureowner/"), feeds it through the
 // SAME matchesRolePackagePrefixes primitive isServiceWriteRolePackage itself uses, and asserts
 // the simulated-future path is now admitted while model/handler paths remain excluded — all
 // without ever mutating the production serviceWriteRolePackagePrefixes var.
 func TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes(t *testing.T) {
-	future := append(append([]string{}, serviceWriteRolePackagePrefixes...), "owner/")
+	future := append(append([]string{}, serviceWriteRolePackagePrefixes...), "futureowner/")
 
 	cases := []struct {
 		key  string
 		want bool
 	}{
-		{"owner/foo.go", true},   // admitted only via the simulated future prefix
-		{"service/foo.go", true}, // still admitted via the existing production prefix
+		{"futureowner/foo.go", true}, // admitted only via the simulated future prefix
+		{"owner/foo.go", true},       // admitted via the production owner prefix
+		{"service/foo.go", true},     // still admitted via the existing production prefix
 		{"model/foo.go", false},
 		{"handler/foo.go", false},
 	}
@@ -1113,12 +1249,12 @@ func TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes(t *testing.T
 
 	// The production var itself must be untouched by this simulation.
 	for _, p := range serviceWriteRolePackagePrefixes {
-		if p == "owner/" {
+		if p == "futureowner/" {
 			t.Fatal("serviceWriteRolePackagePrefixes must not be mutated by this test")
 		}
 	}
-	if isServiceWriteRolePackage("owner/foo.go") {
-		t.Fatal(`isServiceWriteRolePackage("owner/foo.go") must still be false: the production ` +
+	if isServiceWriteRolePackage("futureowner/foo.go") {
+		t.Fatal(`isServiceWriteRolePackage("futureowner/foo.go") must still be false: the production ` +
 			"var was not changed, only a local copy was")
 	}
 }

@@ -32,14 +32,49 @@ type MedicalRecordImageService interface {
 }
 
 type medicalRecordImageService struct {
-	repo       MedicalRecordImageRepository
-	medRec     medicalRecordLocker
-	transactor Transactor
+	repo             MedicalRecordImageRepository
+	medRec           medicalRecordLocker
+	examinations     medicalRecordImageExaminationFinder
+	staffs           clinicalStaffLocker
+	staffAssignments clinicalStaffAssignmentLocker
+	transactor       Transactor
+}
+
+type medicalRecordImageExaminationFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+}
+
+type clinicalStaffLocker interface {
+	LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error)
+}
+
+type clinicalStaffAssignmentLocker interface {
+	LockActiveByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (*model.StaffClinicAssignment, error)
 }
 
 // NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
 func NewMedicalRecordImageService(repo MedicalRecordImageRepository, medRec medicalRecordLocker, transactor Transactor) MedicalRecordImageService {
 	return &medicalRecordImageService{repo: repo, medRec: medRec, transactor: transactor}
+}
+
+// NewMedicalRecordImageServiceWithRelationValidation は、request 由来の exam_id / staff_id を
+// 保存トランザクション内で検証する依存を明示的に注入する。
+func NewMedicalRecordImageServiceWithRelationValidation(
+	repo MedicalRecordImageRepository,
+	medRec medicalRecordLocker,
+	examinations medicalRecordImageExaminationFinder,
+	staffs clinicalStaffLocker,
+	staffAssignments clinicalStaffAssignmentLocker,
+	transactor Transactor,
+) MedicalRecordImageService {
+	return &medicalRecordImageService{
+		repo:             repo,
+		medRec:           medRec,
+		examinations:     examinations,
+		staffs:           staffs,
+		staffAssignments: staffAssignments,
+		transactor:       transactor,
+	}
 }
 
 func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -52,8 +87,20 @@ func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalR
 }
 
 func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate medical image type")
+	}
+	if clinicID == 0 || medicalRecordID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_id and medical_record_id are required")
+	}
+	if s.repo == nil || s.medRec == nil {
+		return nil, apperrors.WrapInternalServerError("medical record image persistence dependencies are required")
+	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("medical record image transaction dependency is required")
 	}
 	imageType := input.ImageType
 	if imageType == "" {
@@ -83,6 +130,18 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 			"failed to find medical record", "確定済みカルテに画像を追加できません"); err != nil {
 			return err
 		}
+		if err := s.validateExaminationReference(txCtx, clinicID, medicalRecordID, input.ExamID); err != nil {
+			return err
+		}
+		if err := validateClinicalStaffReference(
+			txCtx,
+			clinicID,
+			input.StaffID,
+			s.staffs,
+			s.staffAssignments,
+		); err != nil {
+			return err
+		}
 
 		if err := s.repo.Create(txCtx, image); err != nil {
 			slog.ErrorContext(txCtx, "failed to create record image", "error", err)
@@ -97,6 +156,69 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		slog.Uint64("image_id", image.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return image, nil
+}
+
+func (s *medicalRecordImageService) validateExaminationReference(
+	ctx context.Context,
+	clinicID, medicalRecordID uint64,
+	examinationID *uint64,
+) error {
+	if examinationID == nil {
+		return nil
+	}
+	if *examinationID == 0 {
+		return apperrors.WrapInvalidInput("exam_id must be greater than zero")
+	}
+	if s.examinations == nil {
+		return apperrors.WrapInternalServerError("medical record image examination validation dependency is required")
+	}
+	examination, err := s.examinations.FindByID(ctx, clinicID, *examinationID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify image examination ownership")
+	}
+	if examination == nil ||
+		examination.ID != *examinationID ||
+		examination.ClinicID != clinicID ||
+		examination.MedicalRecordID == nil ||
+		*examination.MedicalRecordID != medicalRecordID {
+		return apperrors.WrapNotFound("examination", "relation")
+	}
+	return nil
+}
+
+func validateClinicalStaffReference(
+	ctx context.Context,
+	clinicID uint64,
+	staffID *uint64,
+	staffs clinicalStaffLocker,
+	assignments clinicalStaffAssignmentLocker,
+) error {
+	if staffID == nil {
+		return nil
+	}
+	if *staffID == 0 {
+		return apperrors.WrapInvalidInput("staff_id must be greater than zero")
+	}
+	if staffs == nil || assignments == nil {
+		return apperrors.WrapInternalServerError("clinical staff validation dependencies are required")
+	}
+
+	staff, err := staffs.LockActiveByIDForShare(ctx, *staffID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify clinical staff")
+	}
+	if staff == nil || staff.ID != *staffID || !staff.IsActive {
+		return apperrors.WrapNotFound("staff", "active assignment")
+	}
+
+	assignment, err := assignments.LockActiveByStaffAndClinic(ctx, *staffID, clinicID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify clinical staff assignment")
+	}
+	if assignment == nil || assignment.StaffID != *staffID || assignment.ClinicID != clinicID {
+		return apperrors.WrapNotFound("staff", "active assignment")
+	}
+	return nil
 }
 
 func (s *medicalRecordImageService) Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error {

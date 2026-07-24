@@ -7148,14 +7148,15 @@ components:
           description: 予約可能日数の上限
     LiffLinkAccountRequest:
       type: object
+      additionalProperties: false
       required: [link_token, line_id_token]
       properties:
         link_token:
           type: string
+          maxLength: 128
         line_id_token:
           type: string
-        force:
-          type: boolean
+          maxLength: 12288
     LiffCourse:
       type: object
       properties:
@@ -8618,6 +8619,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     TooManyRequests:
       description: レート制限を超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PayloadTooLarge:
+      description: リクエストボディが上限を超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: Content-Type が application/json ではない
       content:
         application/json:
           schema:
@@ -18542,6 +18555,7 @@ paths:
     post:
       operationId: confirmBillingConfirmation
       summary: 会計医師確認
+      description: 確認者は認証済みスタッフコンテキストから決定され、request body では指定しない
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -18556,12 +18570,12 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
-                confirmed_by:
-                  type: integer
-                  format: int64
                 memo:
                   type: string
+                  maxLength: 1000
+                  description: 前後の空白を除去した会計確認メモ
       responses:
         '200':
           description: 確認成功
@@ -18573,12 +18587,23 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '500':
           $ref: '#/components/responses/InternalError'
   /medical-records/{id}/billing-confirmation/return:
     post:
       operationId: returnBillingConfirmation
       summary: 会計差し戻し
+      description: 差し戻し者は認証済みスタッフコンテキストから決定され、request body では指定しない
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -18593,14 +18618,20 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              required:
+                - return_reason
               properties:
-                returned_by:
-                  type: integer
-                  format: int64
                 return_reason:
                   type: string
+                  minLength: 1
+                  maxLength: 500
+                  pattern: '\S'
+                  description: 前後の空白を除去後、空白以外を1文字以上含む差し戻し理由
                 memo:
                   type: string
+                  maxLength: 1000
+                  description: 前後の空白を除去した差し戻しメモ
       responses:
         '200':
           description: 差し戻し成功
@@ -18612,6 +18643,16 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -21385,18 +21426,30 @@ paths:
             schema:
               $ref: '#/components/schemas/LiffLinkAccountRequest'
       responses:
-        '200':
-          description: 紐付け成功
+        '204':
+          description: 紐付け成功。レスポンスボディなし。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          description: リクエストボディが16KiBの上限を超過
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Owner'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+        '502':
+          description: LINE IDトークン検証サービスの応答エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/liff/{clinicId}/profile:
     servers:
       - url: http://localhost:8080

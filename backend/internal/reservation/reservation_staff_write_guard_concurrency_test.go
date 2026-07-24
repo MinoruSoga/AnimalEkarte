@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 type reservationStaffWriteOperation string
@@ -80,7 +80,7 @@ type reservationStaffWriteGuardFixture struct {
 func makeReservationStaffWriteGuardClinic(t *testing.T, db *gorm.DB) *model.Clinic {
 	t.Helper()
 
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}))
 	company := &model.Company{Name: "予約書込競合ガード法人"}
 	require.NoError(t, db.Create(company).Error)
 

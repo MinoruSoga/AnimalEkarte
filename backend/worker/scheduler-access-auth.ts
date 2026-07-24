@@ -5,6 +5,9 @@ export const SCHEDULER_OPS_PRINCIPAL = "scheduler-ops-secret-v1" as const;
 const MAX_ACCESS_JWT_BYTES = 16 * 1_024;
 const MAX_JWKS_BYTES = 64 * 1_024;
 const EXTERNAL_REQUEST_TIMEOUT_MS = 5_000;
+const MIN_SCHEDULER_OPS_SECRET_BYTES = 32;
+const ACCESS_JWKS_CACHE_TTL_MS = 10 * 60_000;
+const ACCESS_JWKS_REFRESH_COOLDOWN_MS = 60_000;
 
 export interface SchedulerOpsAuthConfig {
   automationSecret?: string;
@@ -30,6 +33,31 @@ interface CloudflareAccessJWTPayload {
 }
 
 export type ExternalRequestFetcher = (request: Request) => Promise<Response>;
+
+interface AccessJWKSCacheEntry {
+  readonly jwks?: unknown;
+  readonly expiresAt?: number;
+  readonly refreshAfter: number;
+  readonly inFlight?: Promise<unknown>;
+}
+
+// Cloudflare Access is the first authentication boundary in production, but
+// the Worker still validates its assertion. Cache by the fixed configured team
+// domain and transport so an unverified, self-generated JWT cannot force one
+// outbound JWKS request per attempt. The cooldown also bounds unknown-kid and
+// upstream-failure refreshes, while a later refresh still admits rotated keys.
+const accessJWKSCacheByFetcher = new WeakMap<
+  ExternalRequestFetcher,
+  Map<string, AccessJWKSCacheEntry>
+>();
+
+export function isRedirectResponse(response: Response): boolean {
+  return (
+    response.redirected ||
+    (response.status >= 300 && response.status < 400) ||
+    response.headers.has("Location")
+  );
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -238,11 +266,96 @@ function selectAccessVerificationJWK(
   );
 }
 
+function accessJWKSCacheFor(
+  send: ExternalRequestFetcher,
+): Map<string, AccessJWKSCacheEntry> {
+  const existing = accessJWKSCacheByFetcher.get(send);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created = new Map<string, AccessJWKSCacheEntry>();
+  accessJWKSCacheByFetcher.set(send, created);
+  return created;
+}
+
+async function fetchAccessJWKS(
+  teamDomain: string,
+  send: ExternalRequestFetcher,
+): Promise<unknown> {
+  return await fetchWithTimeoutAndConsume(
+    new Request(`https://${teamDomain}/cdn-cgi/access/certs`, {
+      method: "GET",
+      redirect: "manual",
+      headers: { Accept: "application/json" },
+    }),
+    send,
+    async (response, signal) => {
+      if (!response.ok || isRedirectResponse(response)) {
+        throw new Error("invalid_access_jwks_response");
+      }
+      return await readBoundedResponseJSON(response, MAX_JWKS_BYTES, signal);
+    },
+  );
+}
+
+async function resolveAccessVerificationJWK(
+  teamDomain: string,
+  keyID: string,
+  now: number,
+  send: ExternalRequestFetcher,
+): Promise<JsonWebKey | undefined> {
+  const cache = accessJWKSCacheFor(send);
+  const cached = cache.get(teamDomain);
+  if (
+    cached?.jwks !== undefined &&
+    cached.expiresAt !== undefined &&
+    now < cached.expiresAt
+  ) {
+    const cachedKey = selectAccessVerificationJWK(cached.jwks, keyID);
+    if (cachedKey !== undefined) {
+      return cachedKey;
+    }
+  }
+  if (cached?.inFlight !== undefined) {
+    return selectAccessVerificationJWK(await cached.inFlight, keyID);
+  }
+  if (cached !== undefined && now < cached.refreshAfter) {
+    return undefined;
+  }
+
+  const inFlight = fetchAccessJWKS(teamDomain, send);
+  cache.set(teamDomain, {
+    ...cached,
+    refreshAfter: now + ACCESS_JWKS_REFRESH_COOLDOWN_MS,
+    inFlight,
+  });
+  try {
+    const jwks = await inFlight;
+    cache.set(teamDomain, {
+      jwks,
+      expiresAt: now + ACCESS_JWKS_CACHE_TTL_MS,
+      refreshAfter: now + ACCESS_JWKS_REFRESH_COOLDOWN_MS,
+    });
+    return selectAccessVerificationJWK(jwks, keyID);
+  } catch (error) {
+    cache.set(teamDomain, {
+      jwks: cached?.jwks,
+      expiresAt: cached?.expiresAt,
+      refreshAfter: now + ACCESS_JWKS_REFRESH_COOLDOWN_MS,
+    });
+    throw error;
+  }
+}
+
 export function isAuthorizedSchedulerOpsRequest(
   request: Request,
   secret: string | undefined,
 ): boolean {
-  if (!secret) {
+  if (
+    secret === undefined ||
+    new TextEncoder().encode(secret).byteLength <
+      MIN_SCHEDULER_OPS_SECRET_BYTES
+  ) {
     return false;
   }
   const authorization = request.headers.get("Authorization") ?? "";
@@ -297,25 +410,12 @@ export async function authenticateSchedulerOpsRequest(
       return undefined;
     }
 
-    const jwks = await fetchWithTimeoutAndConsume(
-      new Request(`https://${teamDomain}/cdn-cgi/access/certs`, {
-        method: "GET",
-        redirect: "error",
-        headers: { Accept: "application/json" },
-      }),
+    const jwk = await resolveAccessVerificationJWK(
+      teamDomain,
+      header.kid,
+      now,
       send,
-      async (response, signal) => {
-        if (!response.ok || response.redirected) {
-          throw new Error("invalid_access_jwks_response");
-        }
-        return await readBoundedResponseJSON(
-          response,
-          MAX_JWKS_BYTES,
-          signal,
-        );
-      },
     );
-    const jwk = selectAccessVerificationJWK(jwks, header.kid);
     if (jwk === undefined) {
       return undefined;
     }

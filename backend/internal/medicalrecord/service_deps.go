@@ -76,10 +76,7 @@ type vaccinationTagSyncer interface {
 
 // vaccinationRelationVerifier は接種記録の Pet→Owner と担当医の現在所属を検証する最小 view。
 // 具象は reservation domain の store だが、medicalrecord は consumer-side interface のみを持つ。
-type vaccinationRelationVerifier interface {
-	sharedkernel.OwnerPetLinkVerifier
-	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
-}
+type vaccinationRelationVerifier = ClinicalRelationVerifier
 
 // prescriptionTagSyncer は prescriptionService が使う LstepTagSyncService の最小 view。nil 許容。
 type prescriptionTagSyncer interface {

@@ -74,19 +74,14 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 }
 
 func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
+	if input == nil {
+		return nil, false, apperrors.WrapInvalidInput("schedule input is required")
+	}
 	shiftType := model.ShiftType(input.ShiftType)
 	startTime := sharedkernel.NormalizeTimeString(input.WorkStart)
 	endTime := sharedkernel.NormalizeTimeString(input.WorkEnd)
 	if err := sharedkernel.ValidateShiftTimes(shiftType, startTime, endTime); err != nil {
 		return nil, false, err
-	}
-
-	// 既存レコードの有無を確認し、新規作成かどうかを判定する
-	existing, err := s.repo.FindAllByDate(ctx, clinicID, staffID, date)
-	isNew := err != nil || existing == nil
-	if err != nil && !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to find schedule before upsert", "error", err, "clinic_id", clinicID)
-		return nil, false, apperrors.Wrap(err, "failed to find schedule before upsert")
 	}
 
 	entry := &model.ShiftEntry{
@@ -106,21 +101,21 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 		})
 	}
 
-	if err := s.repo.Save(ctx, clinicID, entry, breaks); err != nil {
+	savedEntry, savedBreaks, created, err := s.repo.Save(ctx, clinicID, entry, breaks)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert schedule")
 	}
-	// Upsert後に DB から最新の breaks を取得（ID が振られた状態で返す）
-	savedBreaks, err := s.repo.FindAllBreaksByEntryID(ctx, entry.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load schedule breaks after upsert", "error", err, "clinic_id", clinicID)
-		return nil, false, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
+	if savedEntry == nil {
+		return nil, false, apperrors.WrapInternalServerError(
+			"schedule repository returned an empty save result",
+		)
 	}
 	slog.InfoContext(ctx, "schedule upserted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("staff_id", staffID),
 		slog.String("date", date.Format(time.DateOnly)))
-	return &ScheduleEntry{Entry: *entry, Breaks: savedBreaks}, isNew, nil
+	return &ScheduleEntry{Entry: *savedEntry, Breaks: savedBreaks}, created, nil
 }
 
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {

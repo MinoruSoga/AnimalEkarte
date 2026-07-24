@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationTypeGroupRepository is the data access interface for reservation type groups.
@@ -31,7 +31,7 @@ func NewReservationTypeGroupRepository(db *gorm.DB) ReservationTypeGroupReposito
 func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
 	var list []model.ReservationTypeGroup
 	if err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&list).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type_group", "")
@@ -40,13 +40,13 @@ func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID u
 }
 
 func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
-	return repohelpers.FindByIDScoped[model.ReservationTypeGroup](ctx, r.db, "reservation_type_group", clinicID, id)
+	return persistence.FindByIDScoped[model.ReservationTypeGroup](ctx, r.db, "reservation_type_group", clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("group_id = ? AND deleted_at IS NULL", groupID).Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "reservation_type", "")
 	}
@@ -61,16 +61,16 @@ func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.Re
 }
 
 func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, ids, "sort_order")
 }

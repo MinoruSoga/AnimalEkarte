@@ -9,27 +9,27 @@ import (
 )
 
 func TestValidatePetGender(t *testing.T) {
-	assert.NoError(t, ValidateGender(""))
-	assert.NoError(t, ValidateGender(string(model.PetGenderMale)))
-	assert.Error(t, ValidateGender("invalid_gender"))
+	assert.NoError(t, validatePetGender(""))
+	assert.NoError(t, validatePetGender(string(model.PetGenderMale)))
+	assert.Error(t, validatePetGender("invalid_gender"))
 }
 
 func TestValidatePetStatus(t *testing.T) {
-	assert.NoError(t, ValidateStatus(""))
-	assert.NoError(t, ValidateStatus(string(model.PetStatusAlive)))
-	assert.Error(t, ValidateStatus("invalid_status"))
+	assert.NoError(t, validatePetStatus(""))
+	assert.NoError(t, validatePetStatus(string(model.PetStatusAlive)))
+	assert.Error(t, validatePetStatus("invalid_status"))
 }
 
 func TestValidatePetAcquisitionType(t *testing.T) {
-	assert.NoError(t, ValidateAcquisitionType(""))
-	assert.NoError(t, ValidateAcquisitionType(string(model.AcquisitionTypePurchase)))
-	assert.Error(t, ValidateAcquisitionType("invalid_acquisition"))
+	assert.NoError(t, validatePetAcquisitionType(""))
+	assert.NoError(t, validatePetAcquisitionType(string(model.AcquisitionTypePurchase)))
+	assert.Error(t, validatePetAcquisitionType("invalid_acquisition"))
 }
 
 func TestValidatePetDangerLevel(t *testing.T) {
-	assert.NoError(t, ValidateDangerLevel(""))
-	assert.NoError(t, ValidateDangerLevel(string(model.DangerLevelLow)))
-	assert.Error(t, ValidateDangerLevel("invalid_danger"))
+	assert.NoError(t, validatePetDangerLevel(""))
+	assert.NoError(t, validatePetDangerLevel(string(model.DangerLevelLow)))
+	assert.Error(t, validatePetDangerLevel("invalid_danger"))
 }
 
 func TestValidateCreatePetInput(t *testing.T) {

@@ -14,7 +14,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // makeReservationType はテスト用予約区分を1件作成する。
@@ -29,16 +28,6 @@ func makeReservationType(t *testing.T, db *gorm.DB, clinicID uint64) *model.Rese
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(rt).Error)
 	return rt
-}
-
-// parseJSTDate は reservation.ParseJSTDate への delegate（appointment 系残留 test 用・R④で解消）。
-func parseJSTDate(value string) (time.Time, error) {
-	return reservation.ParseJSTDate(value)
-}
-
-// appointmentDayRange は reservation.AppointmentDayRange への delegate（同上・R④で解消）。
-func appointmentDayRange(date time.Time) (start, end time.Time) {
-	return reservation.AppointmentDayRange(date)
 }
 
 // setupReservationIsolationTestDB — R③移動元と同一実装のcarrier複製（count_clinic_scope_isolation用）。

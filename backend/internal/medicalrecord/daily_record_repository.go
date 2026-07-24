@@ -38,7 +38,7 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 
 func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
@@ -53,7 +53,7 @@ func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, cli
 
 func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
 		Preload("CareLogs", "clinic_id = ?", clinicID).
@@ -89,7 +89,7 @@ func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model
 }
 
 func (r *dailyRecordRepository) CreateCareLog(ctx context.Context, cr *model.CareLog) error {
-	err := r.db.WithContext(ctx).Create(cr).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(cr).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "care_log", "")
 	}
@@ -97,7 +97,7 @@ func (r *dailyRecordRepository) CreateCareLog(ctx context.Context, cr *model.Car
 }
 
 func (r *dailyRecordRepository) CreateStaffNote(ctx context.Context, sn *model.StaffNote) error {
-	err := r.db.WithContext(ctx).Create(sn).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(sn).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "staff_note", "")
 	}

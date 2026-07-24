@@ -10,10 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// MerchandiseItemRepository is the temporary full persistence surface retained
-// for the legacy repository aggregator. Domain consumers already depend on
-// narrower, consumer-owned interfaces. Remove this exported interface in BE9-2F
-// after the aggregator and its compatibility facade are removed.
+// MerchandiseItemRepository is the merchandise-item persistence surface used
+// by the domain service and type-safe application composition.
 type MerchandiseItemRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)

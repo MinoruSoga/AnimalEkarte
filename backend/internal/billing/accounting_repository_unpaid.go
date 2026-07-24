@@ -53,6 +53,35 @@ type OwnerUnpaidBalance struct {
 	Count       int64 `json:"count"`
 }
 
+// validBillingOwnerPetScope excludes a billing whose optional owner or pet
+// relation crosses a clinic boundary or whose pet belongs to another owner.
+// NULL owner/pet values remain valid for direct billings.
+func validBillingOwnerPetScope(db *gorm.DB) *gorm.DB {
+	return db.Where(`
+		(
+			billings.owner_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM owners AS billing_owner
+				WHERE billing_owner.id = billings.owner_id
+				  AND billing_owner.clinic_id = billings.clinic_id
+				  AND billing_owner.deleted_at IS NULL
+			)
+		)
+		AND (
+			billings.pet_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM pets AS billing_pet
+				WHERE billing_pet.id = billings.pet_id
+				  AND billing_pet.clinic_id = billings.clinic_id
+				  AND billing_pet.owner_id = billings.owner_id
+				  AND billing_pet.deleted_at IS NULL
+			)
+		)
+	`)
+}
+
 // FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date BETWEEN startDate AND endDate) の billings を
 // 会計単位で返す。#120
 func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
@@ -61,6 +90,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).
 		Scopes(persistence.ClinicScope(clinicID)).
+		Scopes(validBillingOwnerPetScope).
 		Where("status = ?", model.BillingStatusWaiting).
 		Where("scheduled_date BETWEEN ? AND ?", startDate, endDate)
 
@@ -85,7 +115,12 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 
 	base := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
+		Joins(
+			"JOIN owners ON owners.id = billings.owner_id"+
+				" AND owners.clinic_id = billings.clinic_id"+
+				" AND owners.deleted_at IS NULL",
+		).
+		Scopes(validBillingOwnerPetScope).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusWaiting).
 		Where("billings.scheduled_date BETWEEN ? AND ?", startDate, endDate)
@@ -120,6 +155,7 @@ func (r *accountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, o
 	if err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(persistence.ClinicScope(clinicID)).
+		Scopes(validBillingOwnerPetScope).
 		Where("owner_id = ? AND status = ?", ownerID, model.BillingStatusWaiting).
 		Select("COALESCE(SUM(total_amount), 0) AS total_amount, COUNT(id) AS count").
 		Scan(&result).Error; err != nil {
@@ -140,7 +176,12 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 	// 前月繰越(< firstDay) + 当月未払い(firstDay〜lastDay) = 次月繰越(<= lastDay)。
 	base := r.db.WithContext(ctx).
 		Table("billings").
-		Joins("JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
+		Joins(
+			"JOIN owners ON owners.id = billings.owner_id"+
+				" AND owners.clinic_id = billings.clinic_id"+
+				" AND owners.deleted_at IS NULL",
+		).
+		Scopes(validBillingOwnerPetScope).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusWaiting).
 		Where("billings.scheduled_date <= ?", lastDay)
@@ -159,9 +200,25 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 	// ページネーション用件数（飼主+ペットの組み合わせ数）
 	if err := r.db.WithContext(ctx).Raw(`
 		SELECT COUNT(*) FROM (
-			SELECT 1 FROM billings
+			SELECT 1
+			FROM billings
+			JOIN owners
+			  ON owners.id = billings.owner_id
+			 AND owners.clinic_id = billings.clinic_id
+			 AND owners.deleted_at IS NULL
 			WHERE billings.clinic_id = ? AND billings.deleted_at IS NULL
 			  AND billings.status = ? AND billings.scheduled_date <= ?
+			  AND (
+				billings.pet_id IS NULL
+				OR EXISTS (
+					SELECT 1
+					FROM pets AS billing_pet
+					WHERE billing_pet.id = billings.pet_id
+					  AND billing_pet.clinic_id = billings.clinic_id
+					  AND billing_pet.owner_id = billings.owner_id
+					  AND billing_pet.deleted_at IS NULL
+				)
+			  )
 			GROUP BY billings.owner_id, billings.pet_id
 		) sub
 	`, clinicID, model.BillingStatusWaiting, lastDay).Scan(&total).Error; err != nil {
@@ -170,17 +227,22 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 
 	// 飼主+ペット単位集約（CASE WHEN で3列同時集計）
 	if err := base.Session(&gorm.Session{}).
-		Joins("LEFT JOIN pets ON pets.id = billings.pet_id AND pets.deleted_at IS NULL").
+		Joins(
+			"LEFT JOIN pets ON pets.id = billings.pet_id"+
+				" AND pets.clinic_id = billings.clinic_id"+
+				" AND pets.owner_id = billings.owner_id"+
+				" AND pets.deleted_at IS NULL",
+		).
 		Select(`
 			billings.owner_id AS owner_id,
 			owners.name AS owner_name,
-			billings.pet_id AS pet_id,
+			pets.id AS pet_id,
 			COALESCE(pets.name, '') AS pet_name,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN billings.total_amount ELSE 0 END), 0) AS prev_month_carryover,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN billings.total_amount ELSE 0 END), 0) AS current_month_unpaid,
 			COALESCE(SUM(billings.total_amount), 0) AS next_month_carryover
 		`, firstDay, firstDay, lastDay).
-		Group("billings.owner_id, owners.name, billings.pet_id, COALESCE(pets.name, '')").
+		Group("billings.owner_id, owners.name, pets.id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").
 		Scopes(persistence.Paginate(page, limit)).
 		Scan(&items).Error; err != nil {

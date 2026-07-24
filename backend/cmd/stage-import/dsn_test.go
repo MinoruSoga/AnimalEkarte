@@ -90,7 +90,15 @@ func TestTargetDSNAcceptsLocalHostAndAppliesDefaults(t *testing.T) {
 }
 
 func TestStageDSNAppliesDefaults(t *testing.T) {
-	for _, key := range []string{"STAGE_DB_HOST", "STAGE_DB_PORT", "STAGE_DB_USER", "STAGE_DB_PASSWORD", "STAGE_DB_NAME", "STAGE_DB_SSL_MODE"} {
+	for _, key := range []string{
+		"STAGE_DB_HOST",
+		"STAGE_DB_PORT",
+		"STAGE_DB_USER",
+		"STAGE_DB_PASSWORD",
+		"STAGE_DB_NAME",
+		"STAGE_DB_SSL_MODE",
+		"STAGE_DB_SSL_ROOT_CERT",
+	} {
 		t.Setenv(key, "")
 	}
 
@@ -110,6 +118,9 @@ func TestStageDSNAppliesDefaults(t *testing.T) {
 	if got.SSLMode != "disable" {
 		t.Errorf("stageDSN().SSLMode = %q, want default disable", got.SSLMode)
 	}
+	if got.SSLRootCert != "" {
+		t.Errorf("stageDSN().SSLRootCert = %q, want empty default", got.SSLRootCert)
+	}
 }
 
 func TestStageDSNHonoursEnvOverrides(t *testing.T) {
@@ -117,9 +128,16 @@ func TestStageDSNHonoursEnvOverrides(t *testing.T) {
 	t.Setenv("STAGE_DB_PORT", "5433")
 	t.Setenv("STAGE_DB_USER", "custom-user")
 	t.Setenv("STAGE_DB_NAME", "custom-db")
+	t.Setenv("STAGE_DB_SSL_MODE", "verify-full")
+	t.Setenv("STAGE_DB_SSL_ROOT_CERT", "system")
 
 	got := stageDSN()
-	if got.Host != "custom-host" || got.Port != "5433" || got.User != "custom-user" || got.name != "custom-db" {
+	if got.Host != "custom-host" ||
+		got.Port != "5433" ||
+		got.User != "custom-user" ||
+		got.name != "custom-db" ||
+		got.SSLMode != "verify-full" ||
+		got.SSLRootCert != "system" {
 		t.Fatalf("stageDSN() = %+v, want overrides applied", got)
 	}
 }

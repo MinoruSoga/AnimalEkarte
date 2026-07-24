@@ -25,10 +25,12 @@ func (r *accountingRepository) sumRefundsForCompletedBillings(ctx context.Contex
 	args := []any{clinicID, model.BillingStatusCompleted, start, end}
 	var total int64
 	if err := r.db.WithContext(ctx).Raw(
-		completedBillingsCTE("id")+`
+		completedBillingsCTE("id, clinic_id")+`
 		SELECT COALESCE(SUM(br.amount), 0)
 		FROM billing_refunds br
-		WHERE br.billing_id IN (SELECT id FROM completed_billings)
+		JOIN completed_billings cb
+		  ON cb.id = br.billing_id
+		 AND cb.clinic_id = br.clinic_id
 		`, args...).Scan(&total).Error; err != nil {
 		return 0, err
 	}

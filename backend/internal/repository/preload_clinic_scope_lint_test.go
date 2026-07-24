@@ -175,28 +175,7 @@ type preloadSiteException struct {
 	reason      string
 }
 
-var preloadClinicScopeSiteExceptions = []preloadSiteException{
-	{
-		file:        "staff_repository.go",
-		assoc:       "Occupation",
-		predicate:   "deleted_at IS NULL",
-		occurrences: 1, // FindByID(id) only; FindAll is clinic_id-scoped
-		reason: "FindByID(id) is a cross-clinic identity/auth lookup with no clinicID param; " +
-			"the Occupation NAME leak is low severity; threading clinicID would break the " +
-			"identity-lookup contract used by auth/service callers. TODO: scope via a dedicated " +
-			"call or drop the preload.",
-	},
-	{
-		file:        "reservation/reservation_staff_repository.go",
-		assoc:       "ReservationType",
-		predicate:   "deleted_at IS NULL",
-		occurrences: 2, // covers FindAllExcludedReservationTypes + ...ByStaffIDs (2 call sites)
-		reason: "FindAllExcludedReservationTypes(ByStaffIDs) key by staff_id with no clinicID " +
-			"param; threading it cascades through the service+handler layers. Writes validate " +
-			"reservation_type clinic ownership (UpdateExcludedReservationTypes). Residual: " +
-			"cross-clinic type NAME via past pollution, low severity. TODO: plumb clinicID.",
-	},
-}
+var preloadClinicScopeSiteExceptions []preloadSiteException
 
 type preloadFinding struct {
 	file   string
@@ -602,7 +581,7 @@ func TestPreloadClinicScope_ExemptionsAreLive(t *testing.T) {
 	if stats.globalExempt == 0 {
 		t.Error("no global-exempt Preloads encountered; globalExemptAssoc may be dead code or assoc names drifted")
 	}
-	if stats.siteExempt == 0 {
+	if len(preloadClinicScopeSiteExceptions) > 0 && stats.siteExempt == 0 {
 		t.Error("no site exceptions matched; preloadClinicScopeSiteExceptions is stale (the exempted site was fixed or moved)")
 	}
 }
@@ -720,10 +699,22 @@ func TestPreloadClinicScope_ExceptionDoesNotCrossSubpackageBasenameCollision(t *
 // the normal scoped form: the same (file, assoc) with a clinic_id predicate is NOT exempted,
 // and an exception only matches its exact unscoped predicate string.
 func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
-	if !isSiteExcepted("staff_repository.go", "Occupation", "deleted_at IS NULL") {
-		t.Error("expected staff_repository.go Occupation deleted_at-only preload to be a known exception")
+	original := preloadClinicScopeSiteExceptions
+	t.Cleanup(func() { preloadClinicScopeSiteExceptions = original })
+	preloadClinicScopeSiteExceptions = []preloadSiteException{
+		{
+			file:        "synthetic/repository.go",
+			assoc:       "Occupation",
+			predicate:   "deleted_at IS NULL",
+			occurrences: 1,
+			reason:      "exact-match analyzer fixture; production waivers remain empty",
+		},
 	}
-	if isSiteExcepted("staff_repository.go", "Occupation", "clinic_id = ? AND deleted_at IS NULL") {
+
+	if !isSiteExcepted("synthetic/repository.go", "Occupation", "deleted_at IS NULL") {
+		t.Error("expected the synthetic Occupation deleted_at-only preload to match exactly")
+	}
+	if isSiteExcepted("synthetic/repository.go", "Occupation", "clinic_id = ? AND deleted_at IS NULL") {
 		t.Error("a clinic_id-scoped Occupation preload must NOT be treated as an exception")
 	}
 	if isSiteExcepted("vaccine_repository.go", "Vaccine", "deleted_at IS NULL") {
@@ -732,8 +723,8 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 }
 
 // TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages pins that moduleInternalSource
-// (backed by lintscan.WalkInternalTreeT) actually reaches: (a) 1-level+ repository domain
-// subpackages, (b) at least one file from a DIFFERENT top-level internal/ package (proving real
+// (backed by lintscan.WalkInternalTreeT) actually reaches: (a) a real 2+-level production
+// package, (b) at least one file from a DIFFERENT top-level internal/ package (proving real
 // module-wide reach, not just internal/repository reach), and (c) 2+-level nesting (a scanner
 // CAPABILITY proof via a synthetic tree — see assertLintscanReachesTwoOrMoreNestingLevels for why
 // the real repository cannot exercise this today). preload_clinic_scope / audit_tx_inventory /
@@ -748,28 +739,26 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 func TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
 	tree := moduleInternalSource(t)
 
-	foundNestedSubpackageCanary := false
-	nestedRepositorySubpackages := 0
+	foundNestedPackageCanary := false
+	nestedProductionFiles := 0
 	for n := range tree {
-		if n == "repository/shiftentry/repository.go" {
-			foundNestedSubpackageCanary = true
+		if n == "infra/smtp/sender.go" {
+			foundNestedPackageCanary = true
 		}
-		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
-			nestedRepositorySubpackages++
+		if strings.Count(n, "/") >= 2 {
+			nestedProductionFiles++
 		}
 	}
-	if !foundNestedSubpackageCanary {
-		t.Fatal("module-wide discovery does not include repository/shiftentry/repository.go; " +
-			"lintscan's walk may have narrowed and would silently drop 1-level domain subpackages " +
+	if !foundNestedPackageCanary {
+		t.Fatal("module-wide discovery does not include infra/smtp/sender.go; " +
+			"lintscan's walk may have narrowed and would silently drop nested production packages " +
 			"from preload/audit-tx/dbortx clinical-safety coverage without any other test catching it")
 	}
-	// Floor, not an exact pin: grows as the repository strangler split proceeds (47 nested
-	// non-test files across domains + repohelpers/repotest as of 2026-07-19). A broken/narrowed
-	// discovery walk would drop this near 0.
+	// Floor, not an exact pin: a broken/narrowed discovery walk would drop this near 0.
 	const nestedFloor = 10
-	if nestedRepositorySubpackages < nestedFloor {
-		t.Fatalf("only %d nested (1-level+ subpackage) repository source files discovered, want >= %d; "+
-			"lintscan's walk may have narrowed", nestedRepositorySubpackages, nestedFloor)
+	if nestedProductionFiles < nestedFloor {
+		t.Fatalf("only %d nested production source files discovered, want >= %d; "+
+			"lintscan's walk may have narrowed", nestedProductionFiles, nestedFloor)
 	}
 
 	assertDiscoversFileFromDifferentTopLevelPackage(t, tree)

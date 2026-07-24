@@ -49,18 +49,3 @@ func validatePostalCodeFormat(postalCode string) error {
 	}
 	return nil
 }
-
-// ValidateEmailFormat is exported for the temporary legacy validator facade.
-func ValidateEmailFormat(email string) error {
-	return validateEmailFormat(email)
-}
-
-// ValidatePhoneFormat is exported for the temporary legacy validator facade.
-func ValidatePhoneFormat(phone string) error {
-	return validatePhoneFormat(phone)
-}
-
-// ValidatePostalCodeFormat is exported for the temporary legacy validator facade.
-func ValidatePostalCodeFormat(postalCode string) error {
-	return validatePostalCodeFormat(postalCode)
-}

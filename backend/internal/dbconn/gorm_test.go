@@ -84,6 +84,7 @@ func TestOpenGORMWith_UsesConfigDSNAndAppliesPoolSettings(t *testing.T) {
 		DBPass:         "secret",
 		DBName:         "ekarte",
 		DBSSLMode:      "verify-full",
+		DBSSLRootCert:  "system",
 		DBMaxOpenConns: 23,
 		DBMaxIdleConns: 7,
 	}
@@ -107,7 +108,7 @@ func TestOpenGORMWith_UsesConfigDSNAndAppliesPoolSettings(t *testing.T) {
 	if gotDB != wantDB {
 		t.Fatalf("openGORMWith() DB = %p, want %p", gotDB, wantDB)
 	}
-	wantDSN := "host=database.internal port=5433 user=app password=secret dbname=ekarte sslmode=verify-full TimeZone=Asia/Tokyo"
+	wantDSN := "host=database.internal port=5433 user=app password=secret dbname=ekarte sslmode=verify-full TimeZone=Asia/Tokyo sslrootcert=system"
 	if gotDSN != wantDSN {
 		t.Fatalf("openGORMWith() DSN = %q, want %q", gotDSN, wantDSN)
 	}

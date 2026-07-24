@@ -28,6 +28,12 @@ func (m *mockReservationStaffRepositoryForCapability) FindByID(ctx context.Conte
 	}
 	return &model.Staff{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
 }
+func (m *mockReservationStaffRepositoryForCapability) LockForMutation(
+	_ context.Context,
+	clinicID, id uint64,
+) (*model.Staff, error) {
+	return &model.Staff{ID: id, ClinicID: clinicID}, nil
+}
 func (m *mockReservationStaffRepositoryForCapability) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
@@ -43,10 +49,10 @@ func (m *mockReservationStaffRepositoryForCapability) CountUsageByStaffID(_ cont
 func (m *mockReservationStaffRepositoryForCapability) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
-func (m *mockReservationStaffRepositoryForCapability) FindAllExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepositoryForCapability) FindAllExcludedReservationTypes(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
-func (m *mockReservationStaffRepositoryForCapability) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffRepositoryForCapability) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
 func (m *mockReservationStaffRepositoryForCapability) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {

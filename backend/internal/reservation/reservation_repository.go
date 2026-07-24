@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // staffAssignedToClinicsCond は Preload した staff（Doctor / CreatedByStaff）を、指定クリニック集合の
@@ -19,6 +19,89 @@ import (
 // staffs.clinic_id（主所属）単純スコープでは共有スタッフを誤って隠す。assignment-EXISTS で多医院所属を
 // 尊重しつつ、別テナント単独所属スタッフ名の漏洩を防ぐ。予約は現在/未来データのため履歴表示の回帰はない。
 const staffAssignedToClinicsCond = "deleted_at IS NULL AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id IN ? AND sca.deleted_at IS NULL)"
+
+// reservationRelationsMatchParentClinic は、各 appointment 自身の clinic_id と関連行の
+// clinic_id を相関させる。soft-delete 済みの同一 clinic 関連と過去の staff assignment は予約履歴の
+// 親行/countを維持するため許容し、現在の関連を応答へ表示するかは Preload 側の条件に委ねる。
+// cross-clinic FK と Owner/Pet 不一致だけは、一覧/単件のどちらでも親行ごと fail-closed にする。
+func reservationRelationsMatchParentClinic(q *gorm.DB) *gorm.DB {
+	return q.Where(`
+		EXISTS (
+			SELECT 1
+			FROM reservation_types scoped_reservation_type
+			WHERE scoped_reservation_type.id = appointments.reservation_type_id
+			  AND scoped_reservation_type.clinic_id = appointments.clinic_id
+			  AND (
+				scoped_reservation_type.group_id IS NULL
+				OR EXISTS (
+					SELECT 1
+					FROM reservation_type_groups scoped_reservation_type_group
+					WHERE scoped_reservation_type_group.id = scoped_reservation_type.group_id
+					  AND scoped_reservation_type_group.clinic_id = appointments.clinic_id
+				)
+			  )
+		)
+		AND (
+			appointments.owner_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM owners scoped_owner
+				WHERE scoped_owner.id = appointments.owner_id
+				  AND scoped_owner.clinic_id = appointments.clinic_id
+			)
+		)
+		AND (
+			appointments.pet_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM pets scoped_pet
+				WHERE scoped_pet.id = appointments.pet_id
+				  AND scoped_pet.clinic_id = appointments.clinic_id
+				  AND (
+					appointments.owner_id IS NULL
+					OR scoped_pet.owner_id = appointments.owner_id
+				  )
+				  AND EXISTS (
+					SELECT 1
+					FROM owners scoped_pet_owner
+					WHERE scoped_pet_owner.id = scoped_pet.owner_id
+					  AND scoped_pet_owner.clinic_id = appointments.clinic_id
+				  )
+			)
+		)
+		AND (
+			appointments.line_customer_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM line_customers scoped_line_customer
+				WHERE scoped_line_customer.id = appointments.line_customer_id
+				  AND scoped_line_customer.clinic_id = appointments.clinic_id
+			)
+		)
+		AND (
+			appointments.doctor_id IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM staffs scoped_doctor
+				JOIN staff_clinic_assignments scoped_doctor_assignment
+				  ON scoped_doctor_assignment.staff_id = scoped_doctor.id
+				 AND scoped_doctor_assignment.clinic_id = appointments.clinic_id
+				WHERE scoped_doctor.id = appointments.doctor_id
+			)
+		)
+		AND (
+			appointments.created_by IS NULL
+			OR EXISTS (
+				SELECT 1
+				FROM staffs scoped_creator
+				JOIN staff_clinic_assignments scoped_creator_assignment
+				  ON scoped_creator_assignment.staff_id = scoped_creator.id
+				 AND scoped_creator_assignment.clinic_id = appointments.clinic_id
+				WHERE scoped_creator.id = appointments.created_by
+			)
+		)
+	`)
+}
 
 // ReservationCRUDRepository は owner package 内のコア persistence 操作。
 // package 外の consumer はこの interface ではなく、必要な read operation と
@@ -130,6 +213,12 @@ type ReservationQueryRepository interface {
 	AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
+// StaffAssignmentUsageRepository exposes the batch dependency lookup needed
+// when the staff owner removes clinic assignments.
+type StaffAssignmentUsageRepository interface {
+	FindClinicIDsByStaffID(ctx context.Context, clinicIDs []uint64, staffID uint64) ([]uint64, error)
+}
+
 // ReservationRepository は owner package 内の3つのrepository capabilityを合成する。
 // 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
 type ReservationRepository interface {
@@ -144,6 +233,7 @@ type ReservationRepository interface {
 type ReservationStore interface {
 	ReservationRepository
 	ReservationIntentRepository
+	StaffAssignmentUsageRepository
 }
 
 type reservationRepository struct {
@@ -164,7 +254,9 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return reservations, 0, nil
 	}
 
-	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).Scopes(repohelpers.ClinicScopeIn(clinicIDs))
+	q := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScopeIn(clinicIDs), reservationRelationsMatchParentClinic)
 	switch {
 	case date != nil:
 		// 単日フィルタ（当日受付など）
@@ -191,7 +283,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	if err := reservationListPreloads(q, clinicIDs, false).
-		Scopes(repohelpers.Paginate(page, limit)).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
@@ -212,8 +304,10 @@ func (r *reservationRepository) findReservationByID(ctx context.Context, clinicI
 		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
 	var reservation model.Reservation
-	err := reservationListPreloads(repohelpers.DBOrTx(ctx, r.db), clinicIDs, true).
-		Scopes(repohelpers.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&reservation).Error
+	err := reservationListPreloads(persistence.DBOrTx(ctx, r.db), clinicIDs, true).
+		Scopes(persistence.ClinicScopeIn(clinicIDs), reservationRelationsMatchParentClinic).
+		Where("id = ?", id).
+		First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -239,8 +333,8 @@ func reservationListPreloads(q *gorm.DB, clinicIDs []uint64, withCreatedByStaff 
 }
 
 func (r *reservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(reservation).Error; err != nil {
-		if repohelpers.IsUniqueConstraintErr(err) {
+	if err := persistence.DBOrTx(ctx, r.db).Create(reservation).Error; err != nil {
+		if persistence.IsUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("reservation", reservation.StartTime.String())
 		}
 		return apperrors.FromGORM(err, "reservation", "")
@@ -249,14 +343,14 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 }
 
 func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Reservation{})
+	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Reservation{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -268,8 +362,8 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 
 func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("reservation_type_id = ? AND deleted_at IS NULL", reservationTypeID).
 		Count(&count).Error
 	if err != nil {
@@ -280,8 +374,8 @@ func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, c
 
 func (r *reservationRepository) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("doctor_id = ? AND deleted_at IS NULL", staffID).
 		Count(&count).Error
 	if err != nil {
@@ -290,11 +384,34 @@ func (r *reservationRepository) ExistsByStaffID(ctx context.Context, clinicID, s
 	return count > 0, nil
 }
 
+func (r *reservationRepository) FindClinicIDsByStaffID(
+	ctx context.Context,
+	clinicIDs []uint64,
+	staffID uint64,
+) ([]uint64, error) {
+	result := make([]uint64, 0)
+	if len(clinicIDs) == 0 {
+		return result, nil
+	}
+
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScopeIn(clinicIDs)).
+		Where("doctor_id = ? AND deleted_at IS NULL", staffID).
+		Distinct().
+		Order("clinic_id ASC").
+		Pluck("clinic_id", &result).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", "")
+	}
+	return result, nil
+}
+
 // CountMedicalRecordsByReservationID は予約を参照しているカルテの件数を返す（BUG-201）
 // BE-refactor.md R2-5 (D12): clinic_id 述語を追加（medical_records は clinic_id カラムを直接持つ）。
 func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, clinicID, reservationID uint64) (int64, error) {
 	var count int64
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Where("appointment_id = ? AND clinic_id = ? AND deleted_at IS NULL", reservationID, clinicID).
 		Count(&count).Error; err != nil {
@@ -309,11 +426,11 @@ func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.C
 // ロールバックした時点で自動解放される（明示的な unlock 不要）。dbOrTx でトランザクション
 // 内の ambient tx に参加する。
 func (r *reservationRepository) AcquireBookingLock(ctx context.Context, clinicID uint64) error {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("booking lock requires an ambient transaction")
 	}
 	lockKey := fmt.Sprintf("appointments:%d", clinicID)
-	if err := repohelpers.DBOrTx(ctx, r.db).Exec(
+	if err := persistence.DBOrTx(ctx, r.db).Exec(
 		"SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
 		lockKey,
 	).Error; err != nil {
@@ -329,7 +446,7 @@ func (r *reservationRepository) LockAndFindByID(ctx context.Context, clinicID, i
 		return nil, err
 	}
 	var appt model.Reservation
-	err := repohelpers.DBOrTx(ctx, r.db).Raw(
+	err := persistence.DBOrTx(ctx, r.db).Raw(
 		`SELECT * FROM appointments WHERE clinic_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE`,
 		clinicID, id,
 	).Scan(&appt).Error
@@ -352,7 +469,7 @@ func (r *reservationRepository) HasDoctorConflict(ctx context.Context, clinicID,
 	if excludeID != nil {
 		excl = *excludeID
 	}
-	err := repohelpers.DBOrTx(ctx, r.db).Raw(`
+	err := persistence.DBOrTx(ctx, r.db).Raw(`
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL
@@ -373,7 +490,7 @@ func (r *reservationRepository) HasDoctorConflict(ctx context.Context, clinicID,
 // CountOnDutyDoctors は当日の出勤医師数を返す。
 func (r *reservationRepository) CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).Raw(`
+	err := persistence.DBOrTx(ctx, r.db).Raw(`
 		SELECT COUNT(DISTINCT se.staff_id)
 		FROM shift_entries se
 		JOIN staffs s ON s.id = se.staff_id
@@ -401,7 +518,7 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 	if excludeID != nil {
 		excl = *excludeID
 	}
-	err := repohelpers.DBOrTx(ctx, r.db).Raw(`
+	err := persistence.DBOrTx(ctx, r.db).Raw(`
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL
@@ -419,7 +536,7 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 }
 
 func requireReservationRowLockTransaction(ctx context.Context) error {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("reservation row lock requires an ambient transaction")
 	}
 	return nil
@@ -427,7 +544,7 @@ func requireReservationRowLockTransaction(ctx context.Context) error {
 
 func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
 	var count int64
-	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTime)
 	if excludeID != nil {
@@ -458,7 +575,7 @@ func (r *reservationRepository) CountByTypeAndStartTimes(ctx context.Context, cl
 		return result, nil
 	}
 	var rows []countByTypeAndStartTimeRow
-	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Select("start_time, COUNT(*) AS count").
 		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTimes).
@@ -479,8 +596,8 @@ func (r *reservationRepository) CountByTypeAndStartTimes(ctx context.Context, cl
 // 日次・月次制限チェックで使用する。
 func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
 			customerID, start, end,
 		).Count(&count).Error
@@ -495,7 +612,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	reservations := make([]model.Reservation, 0)
 	var total int64
 
-	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Where("appointments.clinic_id = ?", clinicID).
 		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.clinic_id = appointments.clinic_id AND reservation_types.deleted_at IS NULL").
 		Where("reservation_types.category = ?", category)
@@ -537,7 +654,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Preload("TrimmingDetail", "clinic_id = ?", clinicID).
 		Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("TrimmingDetail.Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.Paginate(page, limit)).
+		Scopes(persistence.Paginate(page, limit)).
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "appointment", "")
@@ -550,8 +667,8 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinicID uint64, date time.Time, source model.ReservationSource) (int64, error) {
 	var count int64
 	start, end := AppointmentDayRange(date)
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ? AND source = ? AND deleted_at IS NULL", start, end, source).
 		Count(&count).Error
 	if err != nil {
@@ -574,7 +691,7 @@ func (r *reservationRepository) FindNoShowCandidatesAt(
 	evaluatedAt time.Time,
 ) ([]model.Reservation, error) {
 	var reservations []model.Reservation
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ? AND deleted_at IS NULL AND status IN ? AND end_time <= CAST(? AS timestamptz) - interval '4 hours'",
 			clinicID,
 			[]string{string(model.ReservationStatusConfirmed), string(model.ReservationStatusPending)},
@@ -612,12 +729,12 @@ func ParseJSTDate(value string) (time.Time, error) {
 // 別 clinic / 未存在を区別せず NotFound を返す。dbOrTx で ambient tx に参加する。
 func (r *reservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
 	var id uint64
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.Owner{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.Owner{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Select("id").
 		Where("id = ?", ownerID).
 		Take(&id).Error
@@ -631,8 +748,8 @@ func (r *reservationRepository) AssertOwnerInClinic(ctx context.Context, clinicI
 // transaction 内では両行を共有ロックし、検証後から予約writeまでの clinic/owner 関係変更を防ぐ。
 func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
 	var pet model.Pet
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.Pet{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.Pet{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
@@ -649,12 +766,12 @@ func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinic
 // AssertLineCustomerInClinic は line_customers を clinic スコープで存在確認する（AUD-001）。
 func (r *reservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
 	var id uint64
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.LineCustomer{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.LineCustomer{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Select("id").
 		Where("id = ?", lineCustomerID).
 		Take(&id).Error

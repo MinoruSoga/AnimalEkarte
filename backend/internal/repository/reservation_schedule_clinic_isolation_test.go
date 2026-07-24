@@ -27,9 +27,14 @@ import (
 func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	// AutoMigrate より先に共有テーブルをクリア（テスト isolation）
-	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}))
+	require.NoError(t, ensureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{}, &model.Staff{},
+		&model.StaffClinicAssignment{}, &model.ShiftEntry{},
+	))
+	require.NoError(t, db.Exec(
+		"TRUNCATE TABLE shift_entries, staff_clinic_assignments, staffs CASCADE",
+	).Error)
+	seedClinicsForFK(t, db, 1, 2)
 	return db
 }
 
@@ -123,7 +128,7 @@ func TestReservationScheduleRepository_Delete_ClinicIsolation(t *testing.T) {
 	)
 	date := time.Date(2026, 6, 26, 0, 0, 0, 0, time.UTC)
 
-	staffA := makeDoctor(t, db, clinicA, "削除テストA用スタッフ")
+	staffA := makeDoctorAssignedToClinic(t, db, clinicA, "削除テストA用スタッフ")
 	makeShiftEntry(t, db, clinicA, staffA.ID, date)
 
 	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {

@@ -105,6 +105,22 @@ func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
 	return fields
 }
 
+func effectiveExaminationRelations(existing *model.Examination, input UpdateExaminationInput) (medicalRecordID, petID, doctorID *uint64) {
+	medicalRecordID = existing.MedicalRecordID
+	petID = existing.PetID
+	doctorID = existing.DoctorID
+	if input.MedicalRecordID != nil {
+		medicalRecordID = input.MedicalRecordID
+	}
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	if input.DoctorID != nil {
+		doctorID = input.DoctorID
+	}
+	return medicalRecordID, petID, doctorID
+}
+
 type ExaminationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
@@ -123,10 +139,32 @@ type examinationService struct {
 	examTypeRepo ExamTypeRepository
 	auditTx      AuditTxLogger
 	transactor   Transactor
+	relations    ClinicalRelationVerifier
 }
 
-func NewExaminationService(repo ExaminationRepository, medRec medicalRecordLocker, examTypeRepo ExamTypeRepository, auditTx AuditTxLogger, transactor Transactor) ExaminationService {
-	return &examinationService{repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, auditTx: auditTx, transactor: transactor}
+func NewExaminationService(
+	repo ExaminationRepository,
+	medRec medicalRecordLocker,
+	examTypeRepo ExamTypeRepository,
+	auditTx AuditTxLogger,
+	transactor Transactor,
+	relationVerifier ...ClinicalRelationVerifier,
+) ExaminationService {
+	var relations ClinicalRelationVerifier
+	if len(relationVerifier) > 0 {
+		relations = relationVerifier[0]
+	} else {
+		// A concrete dependency may intentionally implement both narrow views.
+		// Production composition passes the verifier explicitly.
+		relations, _ = medRec.(ClinicalRelationVerifier)
+	}
+	if transactor == nil {
+		transactor, _ = medRec.(Transactor)
+	}
+	return &examinationService{
+		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo,
+		auditTx: auditTx, transactor: transactor, relations: relations,
+	}
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -148,6 +186,9 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *examinationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
+	}
 	status := input.Status
 	if status == "" {
 		status = model.ExaminationStatusPending
@@ -165,14 +206,19 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// HC-005 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
-		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
-		// 確定と同時の検査追加が確定済みカルテに混入する競合を防ぐ。
+		var record *model.MedicalRecord
 		if input.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *input.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテに検査を追加できません"); err != nil {
+			var err error
+			record, err = lockClinicalMedicalRecord(txCtx, s.medRec, clinicID, *input.MedicalRecordID)
+			if err != nil {
 				return err
 			}
+			if record.Status == model.MedicalRecordStatusFinalized {
+				return apperrors.WrapConflict("確定済みカルテに検査を追加できません")
+			}
+		}
+		if err := validateClinicalRelations(txCtx, s.relations, clinicID, record, input.PetID, input.DoctorID); err != nil {
+			return err
 		}
 
 		// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
@@ -197,24 +243,37 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 }
 
 func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get examination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get examination")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
-	if existing.Status == model.ExaminationStatusConfirmed {
-		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	fields := buildExaminationUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
 	var exam *model.Examination
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockByIDForUpdate の
-		// 行ロックで finalize と直列化し、確定と同時の検査編集が確定済みカルテに混入する競合を防ぐ。
-		if existing.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテの検査は編集できません"); err != nil {
-				return err
-			}
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to lock examination", "error", err)
+			return apperrors.Wrap(err, "failed to lock examination")
+		}
+		if locked.Status == model.ExaminationStatusConfirmed {
+			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+		}
+
+		medicalRecordID, petID, doctorID := effectiveExaminationRelations(locked, input)
+		record, err := s.lockExaminationUpdateMedicalRecords(
+			txCtx,
+			clinicID,
+			locked.MedicalRecordID,
+			medicalRecordID,
+		)
+		if err != nil {
+			return err
+		}
+		if err := validateClinicalRelations(txCtx, s.relations, clinicID, record, petID, doctorID); err != nil {
+			return err
 		}
 
 		// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
@@ -226,10 +285,6 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return err
 		}
 
-		fields := buildExaminationUpdate(input)
-		if len(fields) == 0 {
-			return apperrors.WrapInvalidInput("at least one field must be provided")
-		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
@@ -243,6 +298,38 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
 	return exam, nil
+}
+
+func (s *examinationService) lockExaminationUpdateMedicalRecords(
+	ctx context.Context,
+	clinicID uint64,
+	currentID, effectiveID *uint64,
+) (*model.MedicalRecord, error) {
+	ids := make([]uint64, 0, 2)
+	if currentID != nil {
+		ids = append(ids, *currentID)
+	}
+	if effectiveID != nil && (currentID == nil || *effectiveID != *currentID) {
+		ids = append(ids, *effectiveID)
+	}
+	if len(ids) == 2 && ids[0] > ids[1] {
+		ids[0], ids[1] = ids[1], ids[0]
+	}
+
+	var effective *model.MedicalRecord
+	for _, recordID := range ids {
+		record, err := lockClinicalMedicalRecord(ctx, s.medRec, clinicID, recordID)
+		if err != nil {
+			return nil, err
+		}
+		if record.Status == model.MedicalRecordStatusFinalized {
+			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
+		}
+		if effectiveID != nil && recordID == *effectiveID {
+			effective = record
+		}
+	}
+	return effective, nil
 }
 
 // ListItems は検査項目一覧を返す。clinic_id 隔離は repository の JOIN 条件で保証する。
@@ -269,40 +356,15 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 //  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
 //     tx を rollback する（best-effort ではなく fail-closed。BE-refactor.md R1-2・#211 と同方針）。
 func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, examID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find examination")
-	}
-	if existing.Status == model.ExaminationStatusConfirmed {
-		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
 
-	// #124 防止: request の exam_type_field が caller の clinic に属する当該検査種別の
-	// フィールドであることを検証する。別 clinic / 別種別のフィールドを紐付けると、その
-	// フィールドが持つ基準値・単位が検査結果に誤適用される（#124 実害と同型・クロステナント）。
-	// 03bf1cb5 は親 exam_type_id のみ検証しており、この field 経路は未検証だった。
 	hasFieldRef := false
 	for _, in := range inputs {
 		if in.ExamTypeFieldID != nil {
 			hasFieldRef = true
 			break
-		}
-	}
-	if hasFieldRef {
-		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, existing.ExamTypeID)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
-		}
-		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
-		for i := range examType.Items {
-			validFieldIDs[examType.Items[i].ID] = struct{}{}
-		}
-		for _, in := range inputs {
-			if in.ExamTypeFieldID != nil {
-				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
-					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
-				}
-			}
 		}
 	}
 
@@ -332,6 +394,46 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 	// が発見した無監査ギャップ）。スナップショットも同一 tx 内で取得し TOCTOU 窓を作らない。
 	var saved []model.ExamResult
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, examID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock examination")
+		}
+		if locked.Status == model.ExaminationStatusConfirmed {
+			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+		}
+		if locked.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(
+				txCtx,
+				s.medRec,
+				clinicID,
+				*locked.MedicalRecordID,
+				"failed to find medical record",
+				"確定済みカルテの検査結果は編集できません",
+			); err != nil {
+				return err
+			}
+		}
+
+		// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
+		// 検査種別フィールドであることを同じ transaction 内で検証する。
+		if hasFieldRef {
+			examType, err := s.examTypeRepo.FindByID(txCtx, clinicID, locked.ExamTypeID)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to verify exam type ownership")
+			}
+			validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
+			for i := range examType.Items {
+				validFieldIDs[examType.Items[i].ID] = struct{}{}
+			}
+			for _, in := range inputs {
+				if in.ExamTypeFieldID != nil {
+					if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+						return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+					}
+				}
+			}
+		}
+
 		before, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, examID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", examID, "clinic_id", clinicID)
@@ -393,17 +495,20 @@ func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
 }
 
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find examination")
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock examination")
+		}
 		// HC-003 + BE-refactor.md H-8d: 親カルテが確定済みの場合は削除拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ
 		// （Update :215-227 と対称・nil ガード込み）。
-		if existing.MedicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
+		if locked.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *locked.MedicalRecordID,
 				"failed to find medical record", "確定済みカルテの検査は削除できません"); err != nil {
 				return err
 			}

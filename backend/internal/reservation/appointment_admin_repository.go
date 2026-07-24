@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ReservationAdminRepository は管理者向け予約管理のデータアクセスインターフェース
@@ -43,7 +43,7 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("LineCustomer", "clinic_id = ?", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Find(&items).Error
@@ -66,7 +66,7 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 		Preload("LineCustomer", "clinic_id = ?", clinicID).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Find(&items).Error
@@ -82,7 +82,7 @@ func (r *reservationAdminRepository) FindTimeRangesByDateRange(ctx context.Conte
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
 		Select("id", "doctor_id", "start_time", "end_time", "status").
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", from, to).
 		Order("start_time ASC").
 		Find(&items).Error
@@ -93,14 +93,14 @@ func (r *reservationAdminRepository) FindTimeRangesByDateRange(ctx context.Conte
 }
 
 func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Reservation) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(ra).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(ra).Error; err != nil {
 		return apperrors.FromGORM(err, "appointment", "")
 	}
 	return nil
 }
 
 func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Reservation{}, "appointment", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Reservation{}, "appointment", clinicID, id)
 }
 
 func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
@@ -108,7 +108,7 @@ func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, cl
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
 		Find(&items).Error
@@ -125,7 +125,7 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
 	}
@@ -135,7 +135,7 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Reservation{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND line_customer_id = ? AND status != ?",
 			id, customerID, model.ReservationStatusCancelled).
 		// Q7: キャンセルは予約管理から消す（ソフトデリート）。status を残しつつ deleted_at をセット

@@ -244,11 +244,12 @@ func guardLocalTarget(host string) error {
 func stageDSN() dsn {
 	return dsn{
 		ConnParams: dbconn.ConnParams{
-			Host:     dbconn.EnvOr("STAGE_DB_HOST", "old-db-postgres"),
-			Port:     dbconn.EnvOr("STAGE_DB_PORT", "5432"),
-			User:     dbconn.EnvOr("STAGE_DB_USER", "postgres"),
-			Password: os.Getenv("STAGE_DB_PASSWORD"),
-			SSLMode:  dbconn.EnvOr("STAGE_DB_SSL_MODE", "disable"),
+			Host:        dbconn.EnvOr("STAGE_DB_HOST", "old-db-postgres"),
+			Port:        dbconn.EnvOr("STAGE_DB_PORT", "5432"),
+			User:        dbconn.EnvOr("STAGE_DB_USER", "postgres"),
+			Password:    os.Getenv("STAGE_DB_PASSWORD"),
+			SSLMode:     dbconn.EnvOr("STAGE_DB_SSL_MODE", "disable"),
+			SSLRootCert: os.Getenv("STAGE_DB_SSL_ROOT_CERT"),
 		},
 		name: dbconn.EnvOr("STAGE_DB_NAME", "ani_legacy"),
 	}

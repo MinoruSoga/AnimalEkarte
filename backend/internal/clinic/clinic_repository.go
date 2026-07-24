@@ -22,7 +22,9 @@ func NewClinicRepository(db *gorm.DB) ClinicRepository {
 
 func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
-	err := r.db.WithContext(ctx).Order("name ASC").Find(&clinics).Error
+	err := persistence.DBOrTx(ctx, r.db).
+		Order("name ASC").
+		Find(&clinics).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinic", "")
 	}

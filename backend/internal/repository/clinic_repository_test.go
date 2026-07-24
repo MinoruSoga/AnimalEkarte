@@ -21,6 +21,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // setupClinicTestDB は clinic_repository のテスト用に DB を整備する。
@@ -157,8 +158,8 @@ func TestClinicRepository_LockActiveByID_SourceContract(t *testing.T) {
 	require.NotEqual(t, -1, methodEndOffset)
 	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
 
-	assert.Contains(t, methodSource, "repohelpers.TxFromContext(ctx)")
-	assert.Contains(t, methodSource, "repohelpers.DBOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, "persistence.TxFromContext(ctx)")
+	assert.Contains(t, methodSource, "persistence.DBOrTx(ctx, r.db)")
 	assert.Contains(t, methodSource, `clause.Locking{Strength: "SHARE"}`)
 	assert.Contains(t, methodSource, `Where("id = ? AND is_active = ?", id, true)`)
 	assert.Contains(t, methodSource, `apperrors.FromGORM`)
@@ -311,8 +312,8 @@ func TestClinicRepository_LockByIDForUpdate_SourceContract(t *testing.T) {
 	require.NotEqual(t, -1, methodEndOffset)
 	methodSource := string(source)[methodStart : methodStart+methodEndOffset]
 
-	assert.Contains(t, methodSource, "repohelpers.TxFromContext(ctx)")
-	assert.Contains(t, methodSource, "repohelpers.DBOrTx(ctx, r.db)")
+	assert.Contains(t, methodSource, "persistence.TxFromContext(ctx)")
+	assert.Contains(t, methodSource, "persistence.DBOrTx(ctx, r.db)")
 	assert.Contains(t, methodSource, `clause.Locking{Strength: "UPDATE"}`)
 	assert.Contains(t, methodSource, `Where("id = ?", id)`)
 	assert.NotContains(t, methodSource, "is_active")
@@ -528,7 +529,7 @@ func TestClinicRepository_Delete(t *testing.T) {
 			require.NoError(t, repo.Delete(txCtx, clinic.ID))
 
 			var count int64
-			require.NoError(t, dbOrTx(txCtx, db).Unscoped().Model(&model.PermissionGroup{}).Where("id = ?", pg.ID).Count(&count).Error)
+			require.NoError(t, persistence.DBOrTx(txCtx, db).Unscoped().Model(&model.PermissionGroup{}).Where("id = ?", pg.ID).Count(&count).Error)
 			assert.Equal(t, int64(1), count, "clinic repository must not delete permission-group-owned rows")
 			return rollbackErr
 		})

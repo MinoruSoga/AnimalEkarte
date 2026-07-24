@@ -44,7 +44,6 @@ func TestLinkAccountRequest_ToServiceInput(t *testing.T) {
 	req := linkAccountRequest{
 		LinkToken:   "token",
 		LineIDToken: "line-token",
-		Force:       true,
 	}
 
 	input := req.toServiceInput()
@@ -54,8 +53,5 @@ func TestLinkAccountRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.LineIDToken != req.LineIDToken {
 		t.Errorf("LineIDToken = %q, want %q", input.LineIDToken, req.LineIDToken)
-	}
-	if !input.Force {
-		t.Error("Force = false, want true")
 	}
 }

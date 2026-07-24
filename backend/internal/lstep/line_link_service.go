@@ -6,13 +6,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -32,13 +33,14 @@ type LinkTokenResult struct {
 type LinkAccountInput struct {
 	LinkToken   string `json:"link_token"`
 	LineIDToken string `json:"line_id_token"`
-	Force       bool   `json:"force"`
 }
 
 // WebhookEvent は LINE Webhook イベントを表す最小構造体。
 type WebhookEvent struct {
-	Type   string `json:"type"`
-	Source struct {
+	Type           string `json:"type"`
+	Timestamp      int64  `json:"timestamp"`
+	WebhookEventID string `json:"webhookEventId"`
+	Source         struct {
 		UserID string `json:"userId"`
 	} `json:"source"`
 }
@@ -57,34 +59,45 @@ type LineLinkService interface {
 }
 
 type lineLinkService struct {
-	ownerRepo         lstepOwnerRepo
+	ownerRepo         lineLinkOwnerRepo
 	lineLinkTokenRepo LineLinkTokenRepository
 	lineSettingRepo   lstepLineSettingReader
-	auditSvc          lstepAuditLogger
+	transactor        Transactor
+	auditTx           LineLinkAuditTxLogger
 	// cipher は Webhook 署名検証時に line_channel_secret を復号するために使う（H-4）。
 	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 	cipher *crypto.AESGCMCipher
-	// httpClient は LINE ID Token 検証 API 呼び出しに使う。テスト容易性のためのシームで、
-	// 本番では http.DefaultClient と等価に振る舞う（挙動変更なし）。
+	// httpClient は LINE ID Token 検証 API 呼び出しに使う。
 	httpClient *http.Client
 }
+
+const (
+	lineLinkTokenBytes         = 32
+	lineLinkTokenTTL           = 24 * time.Hour
+	lineVerifyHTTPTimeout      = 5 * time.Second
+	maxLineVerifyResponseBytes = 64 * 1024
+	maxLineUserIDChars         = 64
+	maxLineWebhookFutureSkew   = 5 * time.Minute
+)
 
 // NewLineLinkService は LineLinkService を初期化して返す。
 // cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
 func NewLineLinkService(
-	ownerRepo lstepOwnerRepo,
+	ownerRepo lineLinkOwnerRepo,
 	lineLinkTokenRepo LineLinkTokenRepository,
 	lineSettingRepo lstepLineSettingReader,
-	auditSvc lstepAuditLogger,
+	transactor Transactor,
+	auditTx LineLinkAuditTxLogger,
 	cipher *crypto.AESGCMCipher,
 ) LineLinkService {
 	return &lineLinkService{
 		ownerRepo:         ownerRepo,
 		lineLinkTokenRepo: lineLinkTokenRepo,
 		lineSettingRepo:   lineSettingRepo,
-		auditSvc:          auditSvc,
+		transactor:        transactor,
+		auditTx:           auditTx,
 		cipher:            cipher,
-		httpClient:        http.DefaultClient,
+		httpClient:        &http.Client{Timeout: lineVerifyHTTPTimeout},
 	}
 }
 
@@ -97,18 +110,25 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 
-	// 64バイトのランダムトークン生成
-	tokenBytes := make([]byte, 32)
+	// Read configuration before writing so a setting failure cannot leave an
+	// unusable bearer-token row behind.
+	setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find line reservation setting")
+	}
+
+	tokenBytes := make([]byte, lineLinkTokenBytes)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, apperrors.Wrap(fmt.Errorf("failed to generate token: %w", err), "internal error")
 	}
-	token := hex.EncodeToString(tokenBytes)
-	expiresAt := time.Now().Add(24 * time.Hour)
+	rawToken := base64.RawURLEncoding.EncodeToString(tokenBytes)
+	expiresAt := time.Now().Add(lineLinkTokenTTL)
 
 	t := &model.LineLinkToken{
 		ClinicID:  clinicID,
 		OwnerID:   owner.ID,
-		Token:     token,
+		Token:     digestLineLinkToken(rawToken),
 		ExpiresAt: expiresAt,
 	}
 	if err := s.lineLinkTokenRepo.Create(ctx, t); err != nil {
@@ -116,23 +136,20 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 		return nil, apperrors.Wrap(err, "failed to create link token")
 	}
 
-	// LIFF URL 構築（clinic の LIFF ID を使用）
-	setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find line reservation setting")
-	}
-
 	liffURL := ""
 	if setting.LiffID != "" {
 		// FE の LiffLinkPage（frontend/liff/src/pages/LiffLinkPage.tsx）は
 		// token と clinic_id の両方をクエリから読む（clinic_id 欠落だと useLiffLink が
 		// 即座に「無効なURL」エラーで停止する・SD-14）。
-		liffURL = fmt.Sprintf("https://liff.line.me/%s?token=%s&clinic_id=%d", setting.LiffID, token, clinicID)
+		query := url.Values{
+			"token":     {rawToken},
+			"clinic_id": {fmt.Sprintf("%d", clinicID)},
+		}
+		liffURL = fmt.Sprintf("https://liff.line.me/%s?%s", setting.LiffID, query.Encode())
 	}
 
 	return &LinkTokenResult{
-		Token:     token,
+		Token:     rawToken,
 		ExpiresAt: expiresAt,
 		LiffURL:   liffURL,
 	}, nil
@@ -140,60 +157,79 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 
 // LinkAccount は LINE ID Token を検証してトークン対応の飼い主に LINE User ID を紐付ける。
 func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error) {
-	// 1. LINE ID Token 検証 → LINE User ID 取得
+	if input.LinkToken == "" || len(input.LinkToken) > maxLineLinkTokenChars {
+		return nil, apperrors.WrapInvalidInput("invalid link token")
+	}
+	if input.LineIDToken == "" || len(input.LineIDToken) > maxLineIDTokenChars {
+		return nil, apperrors.WrapInvalidInput("invalid LINE ID token")
+	}
+	if s.transactor == nil || s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("LINE link transaction dependencies are not configured")
+	}
+
 	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, clinicID, s.lineSettingRepo, s.httpClient)
 	if err != nil {
-		return nil, apperrors.WrapUnauthorized(fmt.Sprintf("invalid line id token: %v", err))
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+		if errors.Is(err, apperrors.ErrUnauthorized) || errors.Is(err, apperrors.ErrBadGateway) {
+			return nil, err
+		}
+		slog.ErrorContext(ctx, "LINE ID token verification failed", "error", err)
+		return nil, apperrors.WrapInternalServerError("LINE ID token verification unavailable")
 	}
 
-	// 2. link_token でオーナーを特定
-	lt, err := s.lineLinkTokenRepo.FindByToken(ctx, input.LinkToken)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid or expired link token")
-	}
-	if lt.ClinicID != clinicID {
-		return nil, apperrors.WrapInvalidInput("link token clinic mismatch")
-	}
+	lookupAt := time.Now()
+	var linkedOwner *model.Owner
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		linkToken, err := s.lineLinkTokenRepo.LockUsableByRawToken(txCtx, input.LinkToken, lookupAt)
+		if err != nil {
+			if apperrors.IsNotFound(err) {
+				return apperrors.WrapInvalidInput("invalid or expired link token")
+			}
+			return apperrors.Wrap(err, "failed to lock link token")
+		}
+		if linkToken.ClinicID != clinicID {
+			return apperrors.WrapInvalidInput("link token clinic mismatch")
+		}
 
-	// 3. 既存 line_user_id チェック
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, lt.OwnerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner for link account", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find owner")
-	}
+		owner, err := s.ownerRepo.LockLineLinkOwner(txCtx, clinicID, linkToken.OwnerID)
+		if err != nil {
+			if apperrors.IsNotFound(err) {
+				return apperrors.WrapInvalidInput("invalid or expired link token")
+			}
+			return apperrors.Wrap(err, "failed to lock owner")
+		}
+		if owner.LineUserID != nil && *owner.LineUserID != "" {
+			return apperrors.WrapConflict("line user id already set")
+		}
+		if err := s.ownerRepo.UpdateLineUserID(txCtx, clinicID, linkToken.OwnerID, &lineUserID); err != nil {
+			return apperrors.Wrap(err, "failed to update line user id")
+		}
+		if err := s.lineLinkTokenRepo.Consume(txCtx, linkToken.ID, time.Now()); err != nil {
+			return apperrors.Wrap(err, "failed to consume link token")
+		}
+		if err := s.auditTx.LogOwnerLineLinkTx(txCtx, clinicID, linkToken.OwnerID); err != nil {
+			return apperrors.Wrap(err, "failed to write LINE link audit")
+		}
 
-	if owner.LineUserID != nil && *owner.LineUserID != "" && !input.Force {
-		// 既に別の LINE User ID が設定済み
-		return nil, apperrors.WrapConflict("line user id already set")
+		reloaded, err := s.ownerRepo.FindByID(txCtx, clinicID, linkToken.OwnerID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to reload linked owner")
+		}
+		reloaded.LineUserID = &lineUserID
+		linkedOwner = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-
-	// 4. LINE User ID を更新
-	if err := s.ownerRepo.UpdateLineUserID(ctx, clinicID, lt.OwnerID, &lineUserID); err != nil {
-		slog.ErrorContext(ctx, "failed to update line user id", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update line user id")
-	}
-
-	// 5. トークン使用済みマーク
-	if err := s.lineLinkTokenRepo.MarkUsed(ctx, lt.ID, time.Now()); err != nil {
-		slog.ErrorContext(ctx, "failed to mark link token used — aborting to prevent duplicate use", "error", err)
-		// トークンのマーク失敗は即座に返す（二重使用リスク排除）
-		return nil, apperrors.Wrap(err, "failed to mark link token used")
-	}
-
-	// 6. 監査ログ
-	ownerID := lt.OwnerID
-	if err := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "link_line_user_id", "owner", &ownerID); err != nil {
-		slog.WarnContext(ctx, "audit log failed for line user id link", "error", err, "owner_id", ownerID)
-	}
-
-	owner.LineUserID = &lineUserID
-	return owner, nil
+	return linkedOwner, nil
 }
 
-// HandleWebhook は LINE Webhook を処理する。署名検証はハンドラ層で行う。
+// HandleWebhook は LINE Webhook を処理する。
 func (s *lineLinkService) HandleWebhook(ctx context.Context, body []byte, signature string) error {
-	// 署名検証（全クリニックのいずれかで検証成功すれば可）
-	if !s.verifySignatureAnyClinic(ctx, body, signature) {
+	clinicID, ok := s.verifySignatureAnyClinic(ctx, body, signature)
+	if !ok {
 		return apperrors.WrapInvalidInput("invalid line signature")
 	}
 
@@ -202,61 +238,104 @@ func (s *lineLinkService) HandleWebhook(ctx context.Context, body []byte, signat
 		return apperrors.WrapInvalidInput("invalid webhook body")
 	}
 
-	now := time.Now()
+	receivedAt := time.Now()
+	var eventErrors []error
 	for _, event := range payload.Events {
 		lineUserID := event.Source.UserID
 		if lineUserID == "" {
 			continue
 		}
+		if event.Type != "follow" && event.Type != "unfollow" {
+			continue
+		}
+		eventAt, err := lineWebhookEventTime(event.Timestamp, receivedAt)
+		if err != nil {
+			eventErrors = append(eventErrors, err)
+			continue
+		}
 		switch event.Type {
 		case "follow":
-			if err := s.handleFollowEvent(ctx, lineUserID, now); err != nil {
-				slog.ErrorContext(ctx, "failed to handle follow event", "error", err, "line_user_id", lineUserID)
+			if err := s.handleFollowEvent(ctx, clinicID, lineUserID, eventAt); err != nil {
+				eventErrors = append(eventErrors, err)
 			}
 		case "unfollow":
-			if err := s.handleUnfollowEvent(ctx, lineUserID, now); err != nil {
-				slog.ErrorContext(ctx, "failed to handle unfollow event", "error", err, "line_user_id", lineUserID)
+			if err := s.handleUnfollowEvent(ctx, clinicID, lineUserID, eventAt); err != nil {
+				eventErrors = append(eventErrors, err)
 			}
 		}
 	}
-	return nil
+	return errors.Join(eventErrors...)
 }
 
-func (s *lineLinkService) handleFollowEvent(ctx context.Context, lineUserID string, now time.Time) error {
-	owners, err := s.ownerRepo.FindAllByLineUserID(ctx, lineUserID)
+func lineWebhookEventTime(timestamp int64, receivedAt time.Time) (time.Time, error) {
+	if timestamp <= 0 {
+		return time.Time{}, apperrors.WrapInvalidInput("invalid LINE webhook event timestamp")
+	}
+	eventAt := time.UnixMilli(timestamp)
+	if eventAt.After(receivedAt.Add(maxLineWebhookFutureSkew)) {
+		return time.Time{}, apperrors.WrapInvalidInput("invalid LINE webhook event timestamp")
+	}
+	return eventAt, nil
+}
+
+func (s *lineLinkService) handleFollowEvent(
+	ctx context.Context,
+	clinicID uint64,
+	lineUserID string,
+	eventAt time.Time,
+) error {
+	owner, err := s.ownerRepo.FindByLineUserID(ctx, clinicID, lineUserID)
 	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil
+		}
 		return apperrors.Wrap(err, "failed to find owners by line user id")
 	}
-	for i := range owners {
-		o := &owners[i]
-		if err := s.ownerRepo.UpdateLineFollowedAt(ctx, o.ClinicID, o.ID, now); err != nil {
-			slog.ErrorContext(ctx, "failed to update line_followed_at", "error", err, "owner_id", o.ID)
-		}
+	if owner == nil || owner.ClinicID != clinicID {
+		return apperrors.WrapInternalServerError("LINE webhook owner scope mismatch")
+	}
+	if _, err := s.ownerRepo.UpdateLineFollowedAt(ctx, clinicID, owner.ID, lineUserID, eventAt); err != nil {
+		return apperrors.Wrap(err, "failed to update line_followed_at")
 	}
 	return nil
 }
 
-func (s *lineLinkService) handleUnfollowEvent(ctx context.Context, lineUserID string, now time.Time) error {
-	owners, err := s.ownerRepo.FindAllByLineUserID(ctx, lineUserID)
+func (s *lineLinkService) handleUnfollowEvent(
+	ctx context.Context,
+	clinicID uint64,
+	lineUserID string,
+	eventAt time.Time,
+) error {
+	owner, err := s.ownerRepo.FindByLineUserID(ctx, clinicID, lineUserID)
 	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil
+		}
 		return apperrors.Wrap(err, "failed to find owners by line user id")
 	}
-	for i := range owners {
-		o := &owners[i]
-		if err := s.ownerRepo.UpdateLineBlockedAt(ctx, o.ClinicID, o.ID, now); err != nil {
-			slog.ErrorContext(ctx, "failed to update line_blocked_at", "error", err, "owner_id", o.ID)
-		}
+	if owner == nil || owner.ClinicID != clinicID {
+		return apperrors.WrapInternalServerError("LINE webhook owner scope mismatch")
+	}
+	if _, err := s.ownerRepo.UpdateLineBlockedAt(ctx, clinicID, owner.ID, lineUserID, eventAt); err != nil {
+		return apperrors.Wrap(err, "failed to update line_blocked_at")
 	}
 	return nil
 }
 
-// verifySignatureAnyClinic は全クリニックの LINE Channel Secret で署名を検証する。
-func (s *lineLinkService) verifySignatureAnyClinic(ctx context.Context, body []byte, signature string) bool {
+// verifySignatureAnyClinic は全クリニックの LINE Channel Secret で署名を検証し、
+// 一意に一致した clinic ID を返す。複数 clinic の secret が一致した場合は、
+// 更新先を安全に決定できないため fail closed とする。
+func (s *lineLinkService) verifySignatureAnyClinic(
+	ctx context.Context,
+	body []byte,
+	signature string,
+) (uint64, bool) {
 	settings, err := s.lineSettingRepo.FindAll(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load line settings for signature verification", "error", err)
-		return false
+		return 0, false
 	}
+	var matchedClinicID uint64
 	for i := range settings {
 		setting := &settings[i]
 		// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
@@ -265,10 +344,17 @@ func (s *lineLinkService) verifySignatureAnyClinic(ctx context.Context, body []b
 			continue
 		}
 		if verifyLineSignature(body, signature, secret) {
-			return true
+			if setting.ClinicID == 0 {
+				return 0, false
+			}
+			if matchedClinicID != 0 && matchedClinicID != setting.ClinicID {
+				slog.ErrorContext(ctx, "ambiguous LINE webhook signature")
+				return 0, false
+			}
+			matchedClinicID = setting.ClinicID
 		}
 	}
-	return false
+	return matchedClinicID, matchedClinicID != 0
 }
 
 // verifyLineSignature は LINE HMAC-SHA256 署名を検証する。
@@ -280,42 +366,71 @@ func verifyLineSignature(body []byte, signature, channelSecret string) bool {
 }
 
 // verifyLineIDToken は LINE API でIDトークンを検証し LINE User ID を返す。
-// client は呼び出しに使う *http.Client（テスト容易性のためのシーム）。nil の場合は http.DefaultClient を使う。
 func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo lstepLineSettingReader, client *http.Client) (string, error) {
 	setting, err := settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return "", apperrors.Wrap(err, "failed to get line channel id")
 	}
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: lineVerifyHTTPTimeout}
+	}
+	safeClient := *client
+	safeClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
 
-	resp, err := client.PostForm(line.VerifyEndpoint, url.Values{
+	form := url.Values{
 		"id_token":  {idToken},
 		"client_id": {setting.LineChannelID},
-	})
+	}
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		line.VerifyEndpoint,
+		strings.NewReader(form.Encode()),
+	)
 	if err != nil {
-		return "", apperrors.Wrap(err, "line id token verify request failed")
+		return "", apperrors.Wrap(err, "failed to create LINE verify request")
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := safeClient.Do(req)
+	if err != nil {
+		return "", errors.Join(
+			apperrors.WrapBadGateway("LINE ID token verification request failed"),
+			err,
+		)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxLineVerifyResponseBytes+1))
 	if err != nil {
-		return "", apperrors.Wrap(err, "failed to read verify response")
+		return "", errors.Join(
+			apperrors.WrapBadGateway("failed to read LINE verification response"),
+			err,
+		)
+	}
+	if len(bodyBytes) > maxLineVerifyResponseBytes {
+		return "", apperrors.WrapBadGateway("LINE verification response exceeds size limit")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", apperrors.WrapInvalidInput(fmt.Sprintf("line id token verify failed: status=%d body=%s", resp.StatusCode, string(bodyBytes)))
+		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnauthorized {
+			return "", apperrors.WrapUnauthorized("invalid LINE ID token")
+		}
+		return "", apperrors.WrapBadGateway("LINE ID token verification failed")
 	}
 
 	var result struct {
 		Sub string `json:"sub"`
 	}
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return "", apperrors.Wrap(err, "failed to parse verify response")
+		return "", errors.Join(
+			apperrors.WrapBadGateway("invalid LINE verification response"),
+			err,
+		)
 	}
-	if result.Sub == "" {
-		return "", apperrors.WrapInvalidInput("empty sub in verify response")
+	if result.Sub == "" || len(result.Sub) > maxLineUserIDChars {
+		return "", apperrors.WrapBadGateway("invalid LINE verification response")
 	}
 	return result.Sub, nil
 }

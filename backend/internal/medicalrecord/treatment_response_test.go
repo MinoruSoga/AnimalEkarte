@@ -72,3 +72,43 @@ func TestToTreatmentResponse_DoseFieldsOmittedWhenUncalculated(t *testing.T) {
 	assert.NotContains(t, string(body), "dose_amount_unit")
 	assert.NotContains(t, string(body), "dose_param_snapshot")
 }
+
+func TestTreatmentResponsesRejectLoadedMastersOutsideParentClinic(t *testing.T) {
+	const (
+		clinicA       = uint64(1)
+		clinicB       = uint64(2)
+		consultation  = uint64(10)
+		procedure     = uint64(20)
+		medicine      = uint64(30)
+		inventory     = uint64(40)
+		medicalRecord = uint64(50)
+	)
+	treatment := &model.Treatment{
+		ID:              1,
+		MedicalRecordID: medicalRecord,
+		ItemType:        model.TreatmentItemTypeOther,
+		ConsultationID:  ptrUint64(consultation),
+		ProcedureID:     ptrUint64(procedure),
+		MedicineID:      ptrUint64(medicine),
+		InventoryID:     ptrUint64(inventory),
+		MedicalRecord:   &model.MedicalRecord{ID: medicalRecord, ClinicID: clinicA},
+		Consultation:    &model.Consultation{ID: consultation, ClinicID: clinicB, Name: "別院診察"},
+		Procedure:       &model.Procedure{ID: procedure, ClinicID: clinicB, Name: "別院処置"},
+		Medicine:        &model.Medicine{ID: medicine, ClinicID: clinicB, Name: "別院薬剤"},
+		Inventory:       &model.InventoryItem{ID: inventory, ClinicID: clinicB, Name: "別院在庫"},
+	}
+
+	response := toTreatmentResponse(treatment)
+	assert.Nil(t, response.ConsultationID)
+	assert.Nil(t, response.ProcedureID)
+	assert.Nil(t, response.MedicineID)
+	assert.Nil(t, response.InventoryID)
+
+	historyResponse := toPetTreatmentHistoryResponse(treatment)
+	assert.Nil(t, historyResponse.ProcedureID)
+	assert.Nil(t, historyResponse.ProcedureName)
+	assert.Nil(t, historyResponse.MedicineID)
+	assert.Nil(t, historyResponse.MedicineName)
+	assert.Nil(t, historyResponse.Anesthesia)
+	assert.Nil(t, historyResponse.IsSurgery)
+}

@@ -29,11 +29,14 @@ func setupCapabilityIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db,
-		&model.Staff{}, &model.StaffClinicAssignment{},
+		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.StaffReservationCapability{},
 	))
 	// 親 reservation_types を CASCADE で初期化（capabilities も連鎖クリア）。
-	db.Exec("TRUNCATE TABLE staff_reservation_capabilities, staff_clinic_assignments, reservation_types, staffs CASCADE")
+	require.NoError(t, db.Exec(
+		"TRUNCATE TABLE staff_reservation_capabilities, staff_clinic_assignments, reservation_types, staffs CASCADE",
+	).Error)
+	seedClinicsForFK(t, db, 1, 2)
 	return db
 }
 

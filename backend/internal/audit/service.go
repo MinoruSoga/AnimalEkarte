@@ -4,11 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
+
+const maxAuditUserAgentBytes = 1024
 
 // Service is the regular audit-writing contract.
 type Service interface {
@@ -99,6 +102,18 @@ func normalizeIPAddress(ip string) *string {
 	return &ip
 }
 
+func normalizeAuditUserAgent(userAgent string) string {
+	normalized := strings.ToValidUTF8(userAgent, "\uFFFD")
+	if len(normalized) <= maxAuditUserAgentBytes {
+		return normalized
+	}
+	end := maxAuditUserAgentBytes
+	for end > 0 && !utf8.RuneStart(normalized[end]) {
+		end--
+	}
+	return normalized[:end]
+}
+
 func buildLog(input *Entry) (*model.AuditLog, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("audit log input is required")
@@ -114,7 +129,7 @@ func buildLog(input *Entry) (*model.AuditLog, error) {
 		NewValue:   MarshalJSON(input.NewValue),
 		Metadata:   MarshalJSON(input.Metadata),
 		IPAddress:  normalizeIPAddress(input.IPAddress),
-		UserAgent:  input.UserAgent,
+		UserAgent:  normalizeAuditUserAgent(input.UserAgent),
 	}, nil
 }
 
@@ -130,11 +145,13 @@ func (s *service) Log(ctx context.Context, log *model.AuditLog) error {
 	if err := ValidateLog(log); err != nil {
 		return err
 	}
-	if err := s.repository.Create(ctx, log); err != nil {
+	normalizedLog := *log
+	normalizedLog.UserAgent = normalizeAuditUserAgent(log.UserAgent)
+	if err := s.repository.Create(ctx, &normalizedLog); err != nil {
 		slog.ErrorContext(ctx, "audit_write_failed",
-			"action", log.Action,
-			"resource", log.Resource,
-			"clinic_id", *log.ClinicID,
+			"action", normalizedLog.Action,
+			"resource", normalizedLog.Resource,
+			"clinic_id", *normalizedLog.ClinicID,
 			"error", err,
 		)
 		return apperrors.Wrap(err, "failed to create audit log")
@@ -160,6 +177,7 @@ func (s *service) LogEntryTx(ctx context.Context, input *Entry) error {
 	if err := ValidateLog(log); err != nil {
 		return err
 	}
+	log.UserAgent = normalizeAuditUserAgent(log.UserAgent)
 	if err := s.repository.CreateTx(ctx, log); err != nil {
 		return apperrors.Wrap(err, "failed to create audit log")
 	}
@@ -179,7 +197,7 @@ func (s *service) LogAuthLogin(
 		Action:    action,
 		Resource:  "auth",
 		IPAddress: normalizeIPAddress(ipAddress),
-		UserAgent: userAgent,
+		UserAgent: normalizeAuditUserAgent(userAgent),
 	})
 }
 
@@ -273,7 +291,7 @@ func (s *service) LogClinicSwitch(
 		OldValue:  MarshalJSON(map[string]any{"clinic_id": fromClinicID}),
 		NewValue:  MarshalJSON(map[string]any{"clinic_id": toClinicID}),
 		IPAddress: normalizeIPAddress(ipAddress),
-		UserAgent: userAgent,
+		UserAgent: normalizeAuditUserAgent(userAgent),
 	})
 }
 

@@ -39,14 +39,15 @@ type treatmentResponse struct {
 }
 
 func toTreatmentResponse(t *model.Treatment) treatmentResponse {
+	masterIDs := treatmentMasterIDsForResponse(t)
 	return treatmentResponse{
 		ID:                strconv.FormatUint(t.ID, 10),
 		MedicalRecordID:   strconv.FormatUint(t.MedicalRecordID, 10),
 		ItemType:          string(t.ItemType),
-		ConsultationID:    uint64PtrToStringPtr(t.ConsultationID),
-		ProcedureID:       uint64PtrToStringPtr(t.ProcedureID),
-		MedicineID:        uint64PtrToStringPtr(t.MedicineID),
-		InventoryID:       uint64PtrToStringPtr(t.InventoryID),
+		ConsultationID:    masterIDs.consultation,
+		ProcedureID:       masterIDs.procedure,
+		MedicineID:        masterIDs.medicine,
+		InventoryID:       masterIDs.inventory,
 		UnitPrice:         t.UnitPrice,
 		Quantity:          t.Quantity,
 		Selected:          t.IsSelected,
@@ -90,6 +91,7 @@ type petTreatmentHistoryResponse struct {
 }
 
 func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryResponse {
+	masterIDs := treatmentMasterIDsForResponse(t)
 	resp := petTreatmentHistoryResponse{
 		ID:              strconv.FormatUint(t.ID, 10),
 		MedicalRecordID: strconv.FormatUint(t.MedicalRecordID, 10),
@@ -100,18 +102,18 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 		Quantity:        t.Quantity,
 		UnitPrice:       t.UnitPrice,
 		Status:          string(t.Status),
-		MedicineID:      uint64PtrToStringPtr(t.MedicineID),
-		ProcedureID:     uint64PtrToStringPtr(t.ProcedureID),
+		MedicineID:      masterIDs.medicine,
+		ProcedureID:     masterIDs.procedure,
 	}
 	// 診療日は medical_records.date 由来（treatments.created_at は入力時刻なので使わない）。
 	if t.MedicalRecord != nil {
 		resp.Date = httpapi.LocalTimePtr(&t.MedicalRecord.Date)
 	}
-	if t.Medicine != nil {
+	if masterIDs.medicine != nil && t.Medicine != nil {
 		name := t.Medicine.Name
 		resp.MedicineName = &name
 	}
-	if t.Procedure != nil {
+	if masterIDs.procedure != nil && t.Procedure != nil {
 		name := t.Procedure.Name
 		resp.ProcedureName = &name
 		anesthesia := string(t.Procedure.Anesthesia)
@@ -120,6 +122,73 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 		resp.IsSurgery = &isSurgery
 	}
 	return resp
+}
+
+type treatmentResponseMasterIDs struct {
+	consultation *string
+	procedure    *string
+	medicine     *string
+	inventory    *string
+}
+
+func treatmentMasterIDsForResponse(treatment *model.Treatment) treatmentResponseMasterIDs {
+	if treatment == nil {
+		return treatmentResponseMasterIDs{}
+	}
+
+	var consultationID, consultationClinicID uint64
+	if treatment.Consultation != nil {
+		consultationID, consultationClinicID = treatment.Consultation.ID, treatment.Consultation.ClinicID
+	}
+	var procedureID, procedureClinicID uint64
+	if treatment.Procedure != nil {
+		procedureID, procedureClinicID = treatment.Procedure.ID, treatment.Procedure.ClinicID
+	}
+	var medicineID, medicineClinicID uint64
+	if treatment.Medicine != nil {
+		medicineID, medicineClinicID = treatment.Medicine.ID, treatment.Medicine.ClinicID
+	}
+	var inventoryID, inventoryClinicID uint64
+	if treatment.Inventory != nil {
+		inventoryID, inventoryClinicID = treatment.Inventory.ID, treatment.Inventory.ClinicID
+	}
+
+	return treatmentResponseMasterIDs{
+		consultation: treatmentMasterIDForResponse(
+			treatment.ConsultationID, consultationID, consultationClinicID, treatment.MedicalRecord,
+		),
+		procedure: treatmentMasterIDForResponse(
+			treatment.ProcedureID, procedureID, procedureClinicID, treatment.MedicalRecord,
+		),
+		medicine: treatmentMasterIDForResponse(
+			treatment.MedicineID, medicineID, medicineClinicID, treatment.MedicalRecord,
+		),
+		inventory: treatmentMasterIDForResponse(
+			treatment.InventoryID, inventoryID, inventoryClinicID, treatment.MedicalRecord,
+		),
+	}
+}
+
+func treatmentMasterIDForResponse(
+	referenceID *uint64,
+	loadedID, loadedClinicID uint64,
+	parent *model.MedicalRecord,
+) *string {
+	if referenceID == nil {
+		return nil
+	}
+	// Freshly-created writes have no preloaded parent/masters; the service has
+	// already validated those request-derived IDs transactionally. Repository
+	// reads always preload and sanitize the parent/master graph.
+	if parent == nil && loadedID == 0 {
+		return uint64PtrToStringPtr(referenceID)
+	}
+	if parent == nil ||
+		loadedID != *referenceID ||
+		loadedClinicID != parent.ClinicID {
+		return nil
+	}
+	return uint64PtrToStringPtr(referenceID)
 }
 
 // uint64PtrToStringPtr は *uint64 を *string に変換するヘルパー。

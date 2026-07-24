@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type failingLiffTrimmingDetailRepository struct {
@@ -21,7 +21,7 @@ type failingLiffTrimmingDetailRepository struct {
 }
 
 func (r failingLiffTrimmingDetailRepository) Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
-	return repohelpers.DBOrTx(ctx, r.db).Create(detail).Error
+	return persistence.DBOrTx(ctx, r.db).Create(detail).Error
 }
 
 func (r failingLiffTrimmingDetailRepository) SetOptions(context.Context, uint64, uint64, []uint64) error {
@@ -38,22 +38,22 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 	staffRepo := NewReservationStaffRepository(db, nil)
 	courseRepo := &mockTrimmingCourseFinder{findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
 		var course model.TrimmingCourse
-		query := repohelpers.DBOrTx(ctx, db)
-		if repohelpers.TxFromContext(ctx) != nil {
+		query := persistence.DBOrTx(ctx, db)
+		if persistence.TxFromContext(ctx) != nil {
 			query = query.Clauses(clause.Locking{Strength: "SHARE"})
 		}
-		if err := query.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&course).Error; err != nil {
+		if err := query.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&course).Error; err != nil {
 			return nil, err
 		}
 		return &course, nil
 	}}
 	optionRepo := &mockTrimmingOptionFinder{findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
 		var option model.TrimmingOption
-		query := repohelpers.DBOrTx(ctx, db)
-		if repohelpers.TxFromContext(ctx) != nil {
+		query := persistence.DBOrTx(ctx, db)
+		if persistence.TxFromContext(ctx) != nil {
 			query = query.Clauses(clause.Locking{Strength: "SHARE"})
 		}
-		if err := query.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&option).Error; err != nil {
+		if err := query.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&option).Error; err != nil {
 			return nil, err
 		}
 		return &option, nil

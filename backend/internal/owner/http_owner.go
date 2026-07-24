@@ -67,7 +67,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	// #84: 登録時の医院指定 (Q11=A 所属医院のみ / Q12=A 登録フォームのみ)。
 	// req.ClinicID はユーザー入力のためここでの所属検証が唯一の防壁。
 	// 検証なしで service へ渡すとクロステナント書き込みになる。
-	// system_admin は X-Clinic-ID 検証 (middleware/auth.go) と同様に全医院を許可する。
+	// system_admin も middleware が確定した active clinic 集合の範囲だけを許可する。
 	if req.ClinicID != nil && *req.ClinicID != clinicID {
 		if !httpapi.AuthorizeClinicIDs(c, []uint64{*req.ClinicID}) {
 			return

@@ -2,10 +2,12 @@ package repository
 
 // audit_repository_test.go — AuditRepository の統合テスト（内部カバレッジ向上）。
 //
-// 対象: Create / CreateTx / MarshalAuditJSON
+// 対象: Create / CreateTx
 // 検証観点: 正常系（永続化される）、CreateTx の ambient tx 参加（#211: 同一 tx の rollback で
-//           監査ログも巻き戻る）、CreateTx の ambient tx 不在時の後方互換（Create と等価）、
-//           MarshalAuditJSON の nil/正常値/マーシャル不可な値。
+//           監査ログも巻き戻る）。
+//
+// ambient tx 不在時の fail-closed contract と MarshalJSON の純粋関数 contract は
+// internal/audit の unit tests が直接検証するため、legacy facade 経由の重複 test は削除した。
 
 import (
 	"context"
@@ -71,27 +73,6 @@ func TestAuditRepository_Create(t *testing.T) {
 	})
 }
 
-// TestAuditRepository_CreateTx_NoAmbientTx は ambient tx が無い場合、Create と等価に
-// base db へ書き込まれることを検証する（後方互換）。
-func TestAuditRepository_CreateTx_NoAmbientTx(t *testing.T) {
-	db := setupAuditTestDB(t)
-	repo := NewAuditRepository(db)
-	ctx := context.Background()
-
-	log := &model.AuditLog{
-		ClinicID:  uint64Ptr(1),
-		ActorType: model.AuditActorTypeSystem,
-		Action:    model.AuditActionBillingRefundCreate,
-		Resource:  "billing_refund",
-	}
-	require.NoError(t, repo.CreateTx(ctx, log))
-	assert.NotZero(t, log.ID)
-
-	var count int64
-	require.NoError(t, db.WithContext(ctx).Model(&model.AuditLog{}).Where("id = ?", log.ID).Count(&count).Error)
-	assert.Equal(t, int64(1), count)
-}
-
 // TestAuditRepository_CreateTx_AmbientTxCommit は Transactor.WithTx 内から CreateTx を呼ぶと
 // 同一トランザクションに参加し、正常終了（コミット）で永続化されることを検証する（#211）。
 func TestAuditRepository_CreateTx_AmbientTxCommit(t *testing.T) {
@@ -153,22 +134,4 @@ func TestAuditRepository_CreateTx_AmbientTxRollback(t *testing.T) {
 	var count int64
 	require.NoError(t, db.WithContext(ctx).Model(&model.AuditLog{}).Where("id = ?", createdID).Count(&count).Error)
 	assert.Equal(t, int64(0), count, "ロールバックされた tx 内の監査ログ書込は巻き戻る")
-}
-
-// TestMarshalAuditJSON は監査ログ用 JSON シリアライズヘルパーの純粋関数としての挙動を検証する。
-func TestMarshalAuditJSON(t *testing.T) {
-	t.Run("nil は nil を返す", func(t *testing.T) {
-		assert.Nil(t, MarshalAuditJSON(nil))
-	})
-
-	t.Run("構造体は妥当な JSON バイト列を返す", func(t *testing.T) {
-		got := MarshalAuditJSON(map[string]any{"key": "value"})
-		require.NotNil(t, got)
-		assert.JSONEq(t, `{"key":"value"}`, string(got))
-	})
-
-	t.Run("マーシャル不可な値（channel）は nil を返す（ベストエフォート）", func(t *testing.T) {
-		got := MarshalAuditJSON(make(chan int))
-		assert.Nil(t, got)
-	})
 }

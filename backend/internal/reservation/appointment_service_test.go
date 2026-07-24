@@ -535,6 +535,9 @@ func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing
 func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 	now := time.Now()
 	doctorID := uint64(10)
+	transactionActive := false
+	transactionCalls := 0
+	capabilityChecked := false
 	repo := &mockReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
 			t.Fatal("reservation must not be created when staff cannot handle reservation type")
@@ -543,18 +546,31 @@ func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 	}
 	staffRepo := &mockReservationStaffRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.True(t, transactionActive, "staff must be validated inside the write transaction")
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, doctorID, id)
 			return &model.Staff{ID: id, IsActive: true}, nil
 		},
 		supportsReservationTypeFn: func(_ context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+			assert.True(t, transactionActive, "staff capability must be validated inside the write transaction")
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, doctorID, staffID)
 			assert.Equal(t, uint64(5), reservationTypeID)
+			capabilityChecked = true
 			return false, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, staffRepo, nil)
+	tx := &mockTransactor{
+		withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			transactionCalls++
+			transactionActive = true
+			defer func() {
+				transactionActive = false
+			}()
+			return fn(ctx)
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, tx, staffRepo, nil)
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -567,6 +583,54 @@ func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+	assert.Equal(t, 1, transactionCalls)
+	assert.True(t, capabilityChecked)
+}
+
+func TestReservationService_Create_FailsClosedWithoutTransactor(t *testing.T) {
+	doctorID := uint64(10)
+	tests := []struct {
+		name     string
+		doctorID *uint64
+	}{
+		{
+			name:     "doctor assigned",
+			doctorID: &doctorID,
+		},
+		{
+			name:     "doctor unassigned",
+			doctorID: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockReservationRepository{
+				createFn: func(_ context.Context, _ *model.Reservation) error {
+					createCalled = true
+					return nil
+				},
+			}
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+			now := time.Now()
+
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         now,
+				EndTime:           now.Add(30 * time.Minute),
+				ReservationTypeID: 5,
+				DoctorID:          tt.doctorID,
+			})
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			assert.False(t, createCalled)
+			var appErr *apperrors.AppError
+			require.ErrorAs(t, err, &appErr)
+			assert.Equal(t, "INTERNAL", appErr.Code)
+		})
+	}
 }
 
 func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
@@ -905,6 +969,11 @@ func TestReservationService_Update_RecheckInResetsCheckedInAt(t *testing.T) {
 func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testing.T) {
 	doctorID := uint64(10)
 	nextTypeID := uint64(5)
+	start := time.Now()
+	end := start.Add(30 * time.Minute)
+	transactionActive := false
+	transactionCalls := 0
+	capabilityChecked := false
 	repo := &mockReservationRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
 			assert.Equal(t, uint64(1), clinicID)
@@ -914,6 +983,21 @@ func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testin
 				ClinicID:          clinicID,
 				ReservationTypeID: 4,
 				DoctorID:          &doctorID,
+				StartTime:         start,
+				EndTime:           end,
+			}, nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			assert.True(t, transactionActive, "reservation must be locked inside the write transaction")
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), id)
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          clinicID,
+				ReservationTypeID: 4,
+				DoctorID:          &doctorID,
+				StartTime:         start,
+				EndTime:           end,
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
@@ -923,18 +1007,31 @@ func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testin
 	}
 	staffRepo := &mockReservationStaffRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+			assert.True(t, transactionActive, "staff must be validated inside the write transaction")
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, doctorID, id)
 			return &model.Staff{ID: id, IsActive: true}, nil
 		},
 		supportsReservationTypeFn: func(_ context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+			assert.True(t, transactionActive, "staff capability must be validated inside the write transaction")
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, doctorID, staffID)
 			assert.Equal(t, nextTypeID, reservationTypeID)
+			capabilityChecked = true
 			return false, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, staffRepo, nil)
+	tx := &mockTransactor{
+		withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			transactionCalls++
+			transactionActive = true
+			defer func() {
+				transactionActive = false
+			}()
+			return fn(ctx)
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, tx, staffRepo, nil)
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
 		ReservationTypeID: &nextTypeID,
@@ -943,6 +1040,57 @@ func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testin
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+	assert.Equal(t, 1, transactionCalls)
+	assert.True(t, capabilityChecked)
+}
+
+func TestReservationService_Update_FailsClosedWithoutTransactor(t *testing.T) {
+	doctorID := uint64(10)
+	ownerID := uint64(20)
+	tests := []struct {
+		name  string
+		input *UpdateReservationInput
+	}{
+		{
+			name:  "conflict check branch",
+			input: &UpdateReservationInput{DoctorID: &doctorID},
+		},
+		{
+			name:  "owner pet validation branch",
+			input: &UpdateReservationInput{OwnerID: &ownerID},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
+			repo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+					return &model.Reservation{
+						ID:                id,
+						ClinicID:          clinicID,
+						ReservationTypeID: 5,
+						StartTime:         time.Now(),
+						EndTime:           time.Now().Add(30 * time.Minute),
+					}, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					updateCalled = true
+					return nil, nil
+				},
+			}
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+
+			result, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			assert.False(t, updateCalled)
+			var appErr *apperrors.AppError
+			require.ErrorAs(t, err, &appErr)
+			assert.Equal(t, "INTERNAL", appErr.Code)
+		})
+	}
 }
 
 func TestReservationService_Update_RejectsLineCheckedInWithoutOwnerPet(t *testing.T) {

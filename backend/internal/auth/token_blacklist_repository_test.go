@@ -22,15 +22,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTokenBlacklistTestDB は token_blacklist テーブルを用意し、
 // クリーンな状態でテストを開始できるようにする。
 func setupTokenBlacklistTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.TokenBlacklist{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.TokenBlacklist{}))
 	db.Exec("TRUNCATE TABLE token_blacklist CASCADE")
 	return db
 }

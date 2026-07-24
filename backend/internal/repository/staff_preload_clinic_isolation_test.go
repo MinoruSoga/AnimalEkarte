@@ -6,8 +6,9 @@ package repository
 // staff は staff_clinic_assignments による多医院所属のため、staffs.clinic_id（主所属）単純スコープでは
 // 共有医師を誤って隠す。reservation の Doctor/CreatedByStaff は assignment-EXISTS でスコープし、
 //   (i)  共有医師（主所属が別 clinic でも当該 clinic に配属済み）は表示される（非破壊）
-//   (ii) 当該 clinic に未配属のスタッフ名は漏れない（クロステナント拒否）
-//   (iii)#86 認可集合に配属 clinic が含まれれば表示される
+//   (ii) 当該 clinic に未配属のスタッフを指す予約は親行ごと fail-closed になる
+//   (iii)#86 認可集合に staff の配属 clinic が含まれても、予約自身の clinic と相関しなければ
+//        親行ごと fail-closed になる
 // を満たすこと。注: 既往カルテ等の履歴 preload は退職スタッフ名の表示を保つため意図的に scope しない
 // （repository/CLAUDE.md 参照）。本テストは現在/未来データである reservation のみを対象とする。
 
@@ -22,6 +23,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -92,14 +94,15 @@ func TestReservationRepository_DoctorPreload_MultiClinicStaffIsolation(t *testin
 	require.NotNil(t, gotShared.Doctor, "主所属が B でも A 配属の共有医師は表示されるべき")
 	assert.Equal(t, staffShared.ID, gotShared.Doctor.ID)
 
-	// (ii) clinic A 未配属のスタッフ名は漏れない
+	// (ii) clinic A 未配属のスタッフを指す予約は親行ごと fail-closed になる
 	gotBOnly, err := repo.FindByID(ctx, clinicA, resBOnly.ID)
-	require.NoError(t, err)
-	assert.Nil(t, gotBOnly.Doctor, "clinic A に未配属のスタッフ名が漏れてはならない")
+	require.Error(t, err)
+	assert.Nil(t, gotBOnly)
+	assert.True(t, apperrors.IsNotFound(err), "clinic A に未配属のスタッフを指す予約は NotFound にする: %v", err)
 
-	// (iii) #86: 認可集合 [A,B] なら B 配属の医師は表示される
+	// (iii) #86: 認可集合 [A,B] でも、clinic A の予約と clinic B 単独医師は相関しない
 	gotForBoth, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, resBOnly.ID)
-	require.NoError(t, err)
-	require.NotNil(t, gotForBoth.Doctor, "#86 で B も認可済みなら B 配属医師は見えるべき")
-	assert.Equal(t, staffBOnly.ID, gotForBoth.Doctor.ID)
+	require.Error(t, err)
+	assert.Nil(t, gotForBoth)
+	assert.True(t, apperrors.IsNotFound(err), "複数医院認可でも関連は予約自身の clinic と相関させる: %v", err)
 }

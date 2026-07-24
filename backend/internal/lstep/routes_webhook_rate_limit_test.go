@@ -7,8 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestRegisterWebhookRoutes_AppliesInjectedRateLimitBeforeHandler(t *testing.T) {
@@ -19,7 +17,7 @@ func TestRegisterWebhookRoutes_AppliesInjectedRateLimitBeforeHandler(t *testing.
 	h := NewHandler(
 		NewLstepSettingsHandler(nil, noopPermission),
 		NewLineSendHandler(nil, noopPermission),
-		NewLineLinkHandler(nil, func(_ *gin.Context, _ *model.Owner) {}, noopPermission),
+		NewLineLinkHandler(nil, noopPermission),
 		NewLineCustomerHandler(nil, noopPermission),
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		noopPermission,

@@ -90,7 +90,7 @@ func TestReservationStaffDeleteSourceContract(t *testing.T) {
 
 	for _, file := range []string{
 		"reservation_staff_repository.go",
-		"../repository/staff_repository.go",
+		"../staff/staff_repository.go",
 	} {
 		source, err := os.ReadFile(file)
 		require.NoError(t, err)
@@ -104,11 +104,11 @@ func TestReservationStaffDeleteSourceContract(t *testing.T) {
 	require.Contains(t, deleteBody, "s.staffDeleter.Delete(ctx, clinicID, id)")
 	assert.False(t, strings.Contains(deleteBody, "s.repo.Delete(ctx, clinicID, id)"))
 
-	compositionSource, err := os.ReadFile("../service/service.go")
+	compositionSource, err := os.ReadFile("../../cmd/api/composition_reservation.go")
 	require.NoError(t, err)
 	assert.Contains(
 		t,
 		string(compositionSource),
-		"reservation.NewReservationStaffService(repos.ReservationStaff, tx, staffSvc)",
+		"reservation.NewReservationStaffService(repositories.ReservationStaff, dependencies.Transactor, dependencies.StaffDeleter)",
 	)
 }

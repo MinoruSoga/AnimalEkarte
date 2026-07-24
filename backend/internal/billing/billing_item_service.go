@@ -85,6 +85,9 @@ func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 }
 
 func validateCreateBillingItemInput(input *CreateBillingItemInput) error {
+	if input == nil {
+		return apperrors.WrapInvalidInput("請求明細は必須です")
+	}
 	if input.BillingID == 0 {
 		return apperrors.WrapInvalidInput("請求IDは必須です")
 	}
@@ -262,6 +265,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		TaxRate:               taxRate,
 		IsInsuranceApplicable: input.IsInsuranceApplicable,
 		Source:                source,
+		MerchandiseItemID:     input.MerchandiseItemID,
 		TreatmentID:           input.TreatmentID,
 		AppointmentID:         input.AppointmentID,
 		TrimmingCourseID:      input.TrimmingCourseID,
@@ -269,12 +273,27 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		SortOrder:             input.SortOrder,
 	}
 
-	// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)
-	if item.DiscountAmount == 0 {
-		item.DiscountAmount = s.resolveAutoDiscount(ctx, input)
-	}
-
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.ValidateCreateReferences(
+			txCtx,
+			input.ClinicID,
+			input.BillingID,
+			input.MerchandiseItemID,
+			input.TreatmentID,
+			input.AppointmentID,
+			input.TrimmingCourseID,
+			input.TrimmingOptionID,
+		); err != nil {
+			slog.WarnContext(txCtx, "billing item references rejected", "error", err)
+			return apperrors.Wrap(err, "failed to validate billing item references")
+		}
+
+		// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
+		// request-derived merchandise_item_id is validated before it participates in discount lookup.
+		if item.DiscountAmount == 0 {
+			item.DiscountAmount = s.resolveAutoDiscount(txCtx, input)
+		}
+
 		if err := s.repo.Create(txCtx, item); err != nil {
 			slog.ErrorContext(txCtx, "failed to create billing item", "error", err)
 			return apperrors.Wrap(err, "failed to create billing item")
@@ -288,16 +307,16 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
-		slog.InfoContext(txCtx, "billing item created",
-			slog.Uint64("clinic_id", input.ClinicID),
-			slog.Uint64("billing_id", input.BillingID),
-			slog.Uint64("item_id", item.ID),
-		)
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create billing item in transaction")
 	}
 
+	slog.InfoContext(ctx, "billing item created",
+		slog.Uint64("clinic_id", input.ClinicID),
+		slog.Uint64("billing_id", input.BillingID),
+		slog.Uint64("item_id", item.ID),
+	)
 	return item, nil
 }
 
