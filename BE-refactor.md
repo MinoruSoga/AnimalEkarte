@@ -597,43 +597,47 @@ landing実行結果:
 
 **論点#7（登録時・2026-07-20 sub-batch②）**: checkup_sync系（`internal/service/checkup_sync_service{,_create,_metadata,_preview}.go`+handler 3 file+`internal/repository/checkupsync/`）のdomain帰属 — manifestはtarget:medicalrecordだが、依存の実質はlstep domain（`lstep.Client`直import・CPM純関数kernel `CalculateCPMStage`への依存でこのkernelは複製禁止コメント付き・owner/pet/tagCache repo・LstepSettings・route=`/clinics/:clinic_id/lstep/checkup-sync`・権限=ResourceOwners）。sub-batch②では移動せず`internal/service`残留。**発火タイミング=lstep domainのBE9-2C着手時**: (a) lstepへ帰属変更（推奨・manifest訂正）か (b) CPM kernelを独立packageへ先行抽出してmedicalrecordへ移すかを決める。
 
-### BE9-2B/2C実績からの申し送り（以降の各batchで踏む・sub-batch②分は末尾に追記）
+### BE9-2B/2C実績からの申し送り（Historical batch rules / current backend lessons）
 
-- **handler側固定gateの追随を各batchに含める**: domain移行はroute snapshot（`handler/testdata/route_snapshot.golden`）とOpenAPI route drift（`apicontract/openapi_route_drift_test.go`の`migratedDomainRoutePackages`への新domain登録）の更新を必ず伴う（BE9-2B/2Cで実地確認）。batch計画時にこれら固定gateを事前列挙する。
-- **domain packageのroute登録は単一エントリポイント必須**: `openapi_route_drift_test.go`の`buildFuncsFromDir`はbare名でfunc mapを構築するため、同名メソッドが複数struct上にあるとroute setがdrift検知から**静かに脱落**する。per-entity複数`RegisterRoutes`は禁止、`<domain>.Handler.RegisterRoutes` 1本に集約する（BE9-2C sub-batch①で発見・設計修正済み）。
+> BE9は完了済み。以下のbatch実行規則はclosedであり、現行有効と明示された知見のみが生きた制約である。
+
+- **当時のhandler側固定gate追随規則（closed）**: domain移行はroute snapshot（`handler/testdata/route_snapshot.golden`）とOpenAPI route drift（`apicontract/openapi_route_drift_test.go`の`migratedDomainRoutePackages`への新domain登録）の更新を必ず伴う（BE9-2B/2Cで実地確認）。batch計画時にこれら固定gateを事前列挙することとしていた。
+- **現行有効な制約・知見 — domain packageのroute登録は単一エントリポイント必須**: `openapi_route_drift_test.go`の`buildFuncsFromDir`はbare名でfunc mapを構築するため、同名メソッドが複数struct上にあるとroute setがdrift検知から**静かに脱落**する。per-entity複数`RegisterRoutes`は禁止、`<domain>.Handler.RegisterRoutes` 1本に集約する（BE9-2C sub-batch①で発見・設計修正済み）。
 - **master-FK-write lintの`knownSafeParamQualifiers`への`"gin"`追加は対応済み**（sub-batch①）。以後のdomain移行でhandler層がスキャン対象に入っても追加作業は不要。`serviceWriteRolePackagePrefixes`への新domain prefix追加は初回のみ必要。
-- **fan-in 0の旧実装はfacade化せず完全削除が既定**（manualarticle/sub-batch①の先例）。型aliasで延命するのはfan-in>0（他domainの旧実装が依存）の場合のみで、削除期限を持たせる。
-- **共有validation kernelの複製debtは解消済み**: 2026-07-21の専用batch（`f93299f1c`）で`internal/sharedkernel`へ単一実装化し、service/medicalrecord側は移行中の1行delegateに縮小した。delegateは各consumerのdomain移行時に除去し、sharedkernelへ新規追加する場合は複数consumerとacyclicな依存面を再確認する。
-- **cross-domain依存の解消パターン**: Audit依存 = consumer-side interface（`AuditLogger`）+ `main.go`のadapter、Permission依存 = middleware関数型注入（auth domain未移行のため）。BE9-2C以降も同型を使う。
-- **旧layer側は薄いdelegating facadeで互換維持**（呼び出し側無変更）。facade削除はBE9-2Fまで持ち越し、削除期限を持たせる。
-- **docs数値ゲートの追随**: `scripts/check-docs-symbol-drift.sh`の「ハンドラー数」チェック（`internal/handler/*_handler.go`のfile数）はBE9のhandler分散で測定基盤が溶解したため、docs側の宣言（`docs/spec/specification.md`）を削除して恒久解消済み（2026-07-20。宣言が復活しない限り3cチェックは発火しない）。**各batch完了時に同スクリプトを実行して他の数値宣言のドリフトも確認する**（sub-batch①ではこの1件が漏れていた）。
-- **共有テストDBフレーク**（旧BE8 §5 row 6）はBE9でも生きている: `go test -p 1 ./internal/repository/...`で本batchが触れないファイルの赤は退行でない（pre-batch再現を確認して続行）。**`-p 1`を外すとstaffclinicassignment/checkupsync等の無関係packageで`deadlock detected`が出る（2026-07-21 L②レビューで再実測）**——`-p 1`付きなら消えるため並列DB競合の環境要因。恒久対処=該当テストの`setupIsolatedTestDB`化はfollow-upのまま未着手。
-- **（sub-batch②）移動test fileが定義するmockを残留testが共有している場合はmock carrier fileを残す**: `internal/service/be9_2d_mock_carriers_test.go`先例（6 mock・残置理由コメント付き）。carrier解消は当該残留consumerのdomain移行時。
-- **（sub-batch②）中間状態でgateを弱めたら復元をbatch完了条件に含める**: Batch中間状態のための一時的なlint緩和（例: `knownSafeParamQualifiers`への追加）はコード内に"REMOVE"マーカーを書き、最終batchの完了条件＝除去+green再実測とする。
-- **（sub-batch②）response file移動時はopenapi_date_format_drift_test.goのscan dir拡張を確認**: drift entryはbasename keyingのため、移動でscan対象から外れると「drift解消」の誤シグナルになる。`responseScanDirs`へ移行先dirを追加する（route driftの`migratedDomainRoutePackages`と同型の追随gate）。
-- **（sub-batch②）大規模移行は3batch順次（repository→service→handler+配線）が安定**: 各batch間もコンパイル可能に保つには、中間状態でService集約structのfield型をmedicalrecord型へ付け替える（service→medicalrecord importは方向的に合法）。旧handlerは method set 同一のため無変更で通る。
-- **（④b）tx機構の変換は移動と別コミットに分離する（refactor-then-move）**: repo-swap機構（repos.Transaction）依存のserviceは、先にWithTx+dbOrTx化をbehavior-preservingで完遂・レビュー・コミットしてから移す。旧機構でtx-bound cloneにより「暗黙に」tx参加していたreadは、WithTx化で明示的にdbOrTx化しないとtx外へ漏れる（vital FindByMedicalRecordIDで実際に必要になった）——変換時は閉包内の全read/writeについてdbOrTx対応を実測すること。
-- **（④b）並行性証明テストはproduction実機構をpinしている**: tx機構を変えたら、その機構を使う実DB並行性テスト（X-11系）も同じbatchで追随させる。追随後のgreenが新機構の挙動証明を兼ねる（旧機構のまま残すと「productionが使っていない機構の証明」に劣化する）。
-- **（④b）master-FK write gateのcross-package qualifierはtype aliasで回避する**: 移動済みdomainの型をservice層シグネチャに晒すとNoUnknownCrossPackageParamが発火する。`knownSafeParamQualifiers`へのqualifier追加は当該package全型の包括safe化＝恒久弱体化なので禁じ手。service側に`type X = medicalrecord.X`のtransitional aliasを置き無修飾へ戻す（型同一・gate実効維持・当該domain移行時に解消）。
-- **（④b）安全許可集合マップ（eligibleMedicineUnitsForPerWeight等）は複製禁止**: 共有シンボルが「安全側の許可集合」を定義する場合、複製はドリフト＝安全性劣化源。消費者が複数domainに跨るなら定義側kernelごと帰属domainへ移し、残留消費者は修飾importで参照する。
+- **当時のfan-in 0旧実装の扱い（closed）**: facade化せず完全削除が既定（manualarticle/sub-batch①の先例）。型aliasで延命するのはfan-in>0（他domainの旧実装が依存）の場合のみで、削除期限を持たせることとしていた。
+- **現行有効な制約・知見 — 共有validation kernelの複製debtは解消済み**: 2026-07-21の専用batch（`f93299f1c`）で`internal/sharedkernel`へ単一実装化し、service/medicalrecord側は移行中の1行delegateに縮小した。delegateは各consumerのdomain移行時に除去し、sharedkernelへ新規追加する場合は複数consumerとacyclicな依存面を再確認する。
+- **現行有効な制約・知見 — cross-domain依存の解消パターン**: Audit依存 = consumer-side interface（`AuditLogger`）+ `main.go`のadapter、Permission依存 = middleware関数型注入（auth domain未移行のため）。BE9-2C以降も同型を使う。
+- **当時の旧layer互換規則（closed）**: 旧layer側は薄いdelegating facadeで互換維持する（呼び出し側無変更）こととしていた。facade削除はBE9-2Fまで持ち越し、削除期限を持たせる計画だった。
+- **当時のdocs数値ゲート追随規則（closed）**: `scripts/check-docs-symbol-drift.sh`の「ハンドラー数」チェック（`internal/handler/*_handler.go`のfile数）はBE9のhandler分散で測定基盤が溶解したため、docs側の宣言（`docs/spec/specification.md`）を削除して恒久解消済み（2026-07-20。宣言が復活しない限り3cチェックは発火しない）。各batch完了時に同スクリプトを実行して他の数値宣言のドリフトも確認することとしていた（sub-batch①ではこの1件が漏れていた）。
+- **現行有効な環境知見 — 共有テストDBフレーク**（旧BE8 §5 row 6）はBE9完了後のbackend test実行でも現在も有効: `go test -p 1 ./internal/repository/...`で本batchが触れないファイルの赤は退行でない（pre-batch再現を確認して続行）。**`-p 1`を外すとstaffclinicassignment/checkupsync等の無関係packageで`deadlock detected`が出る（2026-07-21 L②レビューで再実測）**——`-p 1`付きなら消えるため並列DB競合の環境要因。恒久対処=該当テストの`setupIsolatedTestDB`化は現在も未実施のopen follow-up。
+- **当時の（sub-batch②）mock carrier規則（closed）**: 移動test fileが定義するmockを残留testが共有している場合はmock carrier fileを残すこととしていた: `internal/service/be9_2d_mock_carriers_test.go`先例（6 mock・残置理由コメント付き）。carrier解消は当該残留consumerのdomain移行時とする計画だった。
+- **当時の（sub-batch②）中間gate復元規則（closed）**: 中間状態でgateを弱めたら復元をbatch完了条件に含めることとしていた。Batch中間状態のための一時的なlint緩和（例: `knownSafeParamQualifiers`への追加）はコード内に"REMOVE"マーカーを書き、最終batchの完了条件＝除去+green再実測とする計画だった。
+- **現行有効な制約・知見 — response file移動時はscan dir拡張を確認**（sub-batch②の記録）: drift entryはbasename keyingのため、移動でscan対象から外れると「drift解消」の誤シグナルになる。`responseScanDirs`へ移行先dirを追加する（route driftの`migratedDomainRoutePackages`と同型の追随gate）。
+- **当時の（sub-batch②）大規模移行規則（closed）**: 大規模移行は3batch順次（repository→service→handler+配線）が安定としていた。各batch間もコンパイル可能に保つには、中間状態でService集約structのfield型をmedicalrecord型へ付け替える（service→medicalrecord importは方向的に合法）。旧handlerは method set 同一のため無変更で通ることとしていた。
+- **当時の（④b）tx機構変換規則（closed）**: tx機構の変換は移動と別コミットに分離する（refactor-then-move）こととしていた。repo-swap機構（repos.Transaction）依存のserviceは、先にWithTx+dbOrTx化をbehavior-preservingで完遂・レビュー・コミットしてから移す計画だった。旧機構でtx-bound cloneにより「暗黙に」tx参加していたreadは、WithTx化で明示的にdbOrTx化しないとtx外へ漏れる（vital FindByMedicalRecordIDで実際に必要になった）——変換時は閉包内の全read/writeについてdbOrTx対応を実測することとしていた。
+- **現行有効な制約・知見 — 並行性証明テストはproduction実機構をpinしている**: tx機構を変えたら、その機構を使う実DB並行性テスト（X-11系）も同じbatchで追随させる。追随後のgreenが新機構の挙動証明を兼ねる（旧機構のまま残すと「productionが使っていない機構の証明」に劣化する）。
+- **当時の（④b）master-FK write gate規則（closed）**: 移動済みdomainの型をservice層シグネチャに晒すとNoUnknownCrossPackageParamが発火するため、`knownSafeParamQualifiers`へのqualifier追加は当該package全型の包括safe化＝恒久弱体化なので禁じ手とし、service側に`type X = medicalrecord.X`のtransitional aliasを置き無修飾へ戻す（型同一・gate実効維持・当該domain移行時に解消）こととしていた。
+- **現行有効な制約・知見 — 安全許可集合マップ（eligibleMedicineUnitsForPerWeight等）は複製禁止**: 共有シンボルが「安全側の許可集合」を定義する場合、複製はドリフト＝安全性劣化源。消費者が複数domainに跨るなら定義側kernelごと帰属domainへ移し、残留消費者は修飾importで参照する。
 - **（履歴）rule-of-three検討は共有kernel昇格batchで解決済み**: sub-batch②時点では原本service+複製medicalrecordの2箇所だったが、2026-07-21に`internal/sharedkernel`へ単一実装化した。今後の追加はliteralな3個目を待たず、複数consumer、恒久的なdomain境界、acyclicな依存面を根拠に判断する。
 
 ---
 
 ## Superseded history: BE8（以下は実行禁止）
 
+> 以下のBE8本文は全て閉じた履歴であり、いかなる残作業も実行しない（DO NOT APPLY）。
+
 ## 0. 要約
 
 backend/ 全体を実測評価した結果、**問題は service / repository / handler の3層フラット肥大に集中**しており、他の 12 internal パッケージ・cmd/・worker/・migrations/・直下ファイルは健全（§1.5 で個別に判定根拠を明示 — 触らないこと自体が決定事項）。方針は「層優先 × ドメインサブパッケージ」を正式規約とし、strangler 方式で repository → service → handler の順に段階統一する。**一斉移動は禁止**。
 
-**進捗（2026-07-19 時点）**: BE8-0/1/2/3/8（lint 網羅性固定・規約明文化・service 依存グラフ実測=§9・repotest 基盤・errors→apperrors）は完了。**BE8-4（repository 分割）は batch28 まで実施済み（サブパッケージ 42 ドメイン）。ただし残るフラット未分割実装 52 本のうち安全な葉はほぼ枯渇** — 大半が forbidden クラスタ（reservation/medical_record/accounting/LSTEP=40 本）・名指し除外（6 本）・強結合（pet/owner/staff/vital=4 本）で、境界マップ確定なしに着手できない。確実に残る安全な葉は `vaccination` ほぼ 1 本。BE8-5（service 202f）・BE8-7（handler 269f）は未着手で、いずれもクラスタ境界マップ確定を要する大物。
+**当時の進捗（2026-07-19 時点）**: BE8-0/1/2/3/8（lint 網羅性固定・規約明文化・service 依存グラフ実測=§9・repotest 基盤・errors→apperrors）は完了。**BE8-4（repository 分割）は batch28 まで実施済み（サブパッケージ 42 ドメイン）。ただし残るフラット未分割実装 52 本のうち安全な葉はほぼ枯渇** — 大半が forbidden クラスタ（reservation/medical_record/accounting/LSTEP=40 本）・名指し除外（6 本）・強結合（pet/owner/staff/vital=4 本）で、境界マップ確定なしに着手できない。確実に残る安全な葉は `vaccination` ほぼ 1 本。当時BE8-5（service 202f）・BE8-7（handler 269f）は未着手で、いずれもクラスタ境界マップ確定を要する大物だった。
 
 ---
 
-## 1. 現状実測
+## 1. 現状実測（Historical / DO NOT APPLY）
 
 ```bash
-# 再実測コマンド（着手時に必ず実行）
+# 再実測コマンド（BE8当時の手順記録）
 cd backend
 for d in internal/*/; do
   n=$(find "$d" -maxdepth 1 -name "*.go" | grep -vc _test); t=$(find "$d" -maxdepth 1 -name "*.go" | grep -c _test)
@@ -645,9 +649,9 @@ done
 
 | パッケージ | impl + test | 行数 | 判定 |
 |---|---|---|---|
-| **service** | 202 + 202 | **131,093** | **是正対象（BE8-5・未着手）** — 完全フラット |
-| **handler** | 269 + 206 | **95,040** | **是正対象（BE8-7・未着手）** — フラット（サブ dir は testdata のみ） |
-| **repository** | 93(flat) + 164 | **53,221** | **是正対象（BE8-4・進行中）** — ドメインサブパッケージ **42 個** + repohelpers + repotest。フラット直下 93 本 = facade 41 + 未分割実装 52（内訳・残候補は §6 BE8-4）。**安全な葉はほぼ枯渇** |
+| **service** | 202 + 202 | **131,093** | **Historical / closed: 当時の是正対象（BE8-5・未着手）** — 完全フラット |
+| **handler** | 269 + 206 | **95,040** | **Historical / closed: 当時の是正対象（BE8-7・未着手）** — フラット（サブ dir は testdata のみ） |
+| **repository** | 93(flat) + 164 | **53,221** | **Historical / closed: 当時の是正対象（BE8-4・進行中）** — ドメインサブパッケージ **42 個** + repohelpers + repotest。フラット直下 93 本 = facade 41 + 未分割実装 52（内訳・残候補は §6 BE8-4）。**安全な葉はほぼ枯渇** |
 | model | 85 + 18 | 5,751 | 現状維持（§8 — GORM モデルは FK 相互参照で分割すると cycle 不可避） |
 | middleware | 9 + 8 | 2,343 | 健全 |
 | infra | 7 + 2 | 1,450 | 健全（既にサブ dir 4 個で目標形） |
@@ -667,7 +671,7 @@ repository サブパッケージ（2026-07-19 実測 42 ドメイン）: `accoun
 | `cmd/`（api, migrate, lstep-migrate, seed-export, stage-import, coverage-ratchet） | 6 バイナリ + `_archive`（underscore prefix で Go ビルド対象外） | 公式レイアウト準拠。変更不要 |
 | `worker/`（index.ts ほか） | TypeScript の Cloudflare Worker ラッパ | Go スコープ外。配置は妥当（backend デプロイ単位に同梱） |
 | `migrations/` | 001_init.sql + seeds | 独自規約あり（migrations/CLAUDE.md）。本計画のスコープ外 |
-| backend/ 直下のバイナリ・成果物（`api`, `migrate`, `lstep-migrate`, `seed-old-db`, `stage-import`, `coverage.out`, `tmp/`） | **全て gitignored を確認済み**（git ls-files / check-ignore 実測） | 衛生問題なし。`seed-old-db` は対応する cmd/ が既に無い stale ローカルバイナリ — 見つけたら手元で消してよい（git 影響なし） |
+| backend/ 直下のバイナリ・成果物（`api`, `migrate`, `lstep-migrate`, `seed-old-db`, `stage-import`, `coverage.out`, `tmp/`） | **全て gitignored を確認済み**（git ls-files / check-ignore 実測） | 当時の判断記録: 衛生問題なし。`seed-old-db` は対応する cmd/ が既に無い stale ローカルバイナリだったため、当時は手元で消してよいと判断した（git 影響なし） |
 | `backend/docs/`（api.yaml） | OpenAPI 正本 | 変更不要 |
 | Dockerfile.dev / .production / entrypoint.sh / tygo.yaml / CODING_RULES.md | 設定・規約ファイル | 公式レイアウト上、非 Go ファイルのルート配置は正当 |
 
@@ -684,9 +688,9 @@ repository サブパッケージ（2026-07-19 実測 42 ドメイン）: `accoun
 
 ---
 
-## 3. 目標構成（決定）
+## 3. 目標構成（Historical / DO NOT APPLY）
 
-**採用 = Option B: 層優先を維持し、各層内をドメインサブパッケージ化**
+**Historical adoption record (DO NOT APPLY) = Option B: 層優先を維持し、各層内をドメインサブパッケージ化**
 
 ```
 backend/internal/
@@ -700,7 +704,7 @@ backend/internal/
     servicehelpers/     # 必要になった時点で新設（先行して作らない — YAGNI）
     reservation/        # package reservation（service 側）
     ...
-  handler/              # BE8-7: service 完了後に同方式で分割（testdata/ は共有のまま）
+  handler/              # Historical BE8-7: service 完了後に同方式で分割（testdata/ は共有のまま）
   model/                # 現状維持（§8 — 分割しない決定）
 ```
 
@@ -711,129 +715,129 @@ backend/internal/
 
 ---
 
-## 4. 移行方式 = strangler（一斉移動禁止）
+## 4. 移行方式 = strangler（一斉移動禁止、Historical / DO NOT APPLY）
 
-- **新規ドメインは必ずサブパッケージで作る**（BE8-1 で規約化済み・即日発効中）。
-- **既存フラットファイルは、そのドメインに実装変更が入るときに移す**。移動だけの巨大 PR を作らない。ただし BE8-4/5 の計画バッチ（葉ドメインから 5〜10 ファイル単位）は例外として許可。
-- 完了の定義 = フラット直下に .go が残っていない状態（facade を最終的に剥がす）。期限は設けない。
+- **当時は新規ドメインを必ずサブパッケージで作る**（BE8-1 で規約化済み・即日発効中）としていた。
+- **当時は既存フラットファイルを、そのドメインに実装変更が入るときに移す**こととしていた。移動だけの巨大 PR は作らず、BE8-4/5 の計画バッチ（葉ドメインから 5〜10 ファイル単位）を例外として許可していた。
+- 当時の完了の定義は、フラット直下に .go が残っていない状態（facade を最終的に剥がす）であり、期限は設けなかった。
 
 ---
 
-## 5. 制約・地雷（着手前に必読・残バッチが踏む生きた制約）
+## 5. 制約・地雷（Historical / DO NOT APPLY）
 
 | # | 地雷 | 実測根拠 | 対処 |
 |---|------|---------|------|
-| 1 | **自作 lint の走査範囲は「1階層まで」** — `repoSourceFS` の embed は `//go:embed *.go */*.go`。`repository/<domain>/*.go`（1階層サブパッケージ）は**カバー済み**。audit_tx / dbortx の 2 lint も同じ repoSourceFS を共有。**盲点 = ①2階層目以降（`<domain>/<subdir>/*.go` は 3 lint 全てから不可視）②service 側を走査する lint は存在しない** | `preload_clinic_scope_lint_test.go:35`。BE8-0 でライブ実証済み | **旧計画上の制約。現行のpackage設計ルールではない**。lintの実装上の走査範囲としてのみ扱う |
-| 1-2 | **【生きた運用手順】3 lint の allowlist キーは「root=basename・1階層サブパッケージ=相対パス」に統一済み**（BE8-0 で preload/audit_tx を dbortx 方式へ統一）。**キーが統一されたことは「バッチがもうキーに触れない」を意味しない** — フラットファイルをサブパッケージへ移すと、そのファイルのキーが `staff_repository.go` → `staff/repository.go` のように **basename→相対パスへ必ず変わる** | dbortx の既存 allowlist に `reservationtype/repository.go\|repository.FindAll` 等の相対パスキーが実在 | **BE8-4/5 の各バッチで、移動したファイルの該当 allowlist エントリを basename→相対パスへ手動更新する**（移動を戻す必要はなくキーを更新すればよい）。この手順を BE8-4 手順テンプレ ④ に恒久保持 |
-| 2 | **サブパッケージからテスト基盤が使える（BE8-3 で解決済み）** — `setupTestDB` 系は当初 `_test.go` 内定義でパッケージ外 import 不能だったが、`repository/repotest`（深さ1）へ抽出して export 済み | grep 実測・commit aa0dd6804 | 新規サブパッケージのテストは `repotest.SetupTestDB` 等を使う。先例雛形 = `paymentmethod/repository_test.go` |
-| 3 | **DI 配線 = `cmd/api/main.go`**（`service.New*` を直接呼ぶ。他に `handler/auth_session.go`・`cmd/lstep-migrate/main.go` が service を参照）。移動バッチごとに main.go の import/呼び出しが変わる | grep 実測 | 各バッチで main.go を必ず diff 確認。コンストラクタは stutter 命名のまま — 移動時はリネームしない（§3） |
-| 4 | **同一パッケージ内のドメイン間参照は import に現れない** — 分割して初めて cycle がコンパイルエラー化する | Go 言語仕様 | §9 の依存グラフで葉から抽出。cycle は consumer 側 interface で切る — **in-repo 先例**: `reservation_service.go:125` の `typeRepo reservationTypeFinder`（小文字ローカル interface）。この形を標準とする |
+| 1 | **旧実装の履歴: 自作 lint の走査範囲は「1階層まで」** — `repoSourceFS` の embed は `//go:embed *.go */*.go`。`repository/<domain>/*.go`（1階層サブパッケージ）は**カバー済み**。audit_tx / dbortx の 2 lint も同じ repoSourceFS を共有。**盲点 = ①2階層目以降（`<domain>/<subdir>/*.go` は 3 lint 全てから不可視）②service 側を走査する lint は存在しない** | `preload_clinic_scope_lint_test.go:35`。BE8-0 でライブ実証済み | **旧計画上の制約。現行のpackage設計ルールではない**。lintの実装上の走査範囲としてのみ扱う。**現行は`lintscan.WalkInternalTreeT`（`internal/**`全tree walk）へ移行済み** |
+| 1-2 | **当時の運用手順（closed）: 3 lint の allowlist キーは「root=basename・1階層サブパッケージ=相対パス」に統一済み**（BE8-0 で preload/audit_tx を dbortx 方式へ統一）。**当時はキーが統一されたことを「バッチがもうキーに触れない」とは解釈しなかった** — フラットファイルをサブパッケージへ移すと、そのファイルのキーが `staff_repository.go` → `staff/repository.go` のように **basename→相対パスへ変わる**と記録していた | dbortx の既存 allowlist に `reservationtype/repository.go\|repository.FindAll` 等の相対パスキーが実在 | **当時はBE8-4/5 の各バッチで、移動したファイルの該当 allowlist エントリを basename→相対パスへ手動更新する**（移動を戻す必要はなくキーを更新すればよい）こととしていた。この手順を BE8-4 手順テンプレ ④ に恒久保持する計画だった |
+| 2 | **当時のテスト基盤記録（BE8-3 で解決済み）** — `setupTestDB` 系は当初 `_test.go` 内定義でパッケージ外 import 不能だったが、`repository/repotest`（深さ1）へ抽出して export 済み | grep 実測・commit aa0dd6804 | 当時は新規サブパッケージのテストで `repotest.SetupTestDB` 等を使い、先例雛形を `paymentmethod/repository_test.go` としていた |
+| 3 | **当時のDI配線記録 = `cmd/api/main.go`**（`service.New*` を直接呼ぶ。他に `handler/auth_session.go`・`cmd/lstep-migrate/main.go` が service を参照）。移動バッチごとに main.go の import/呼び出しが変わる | grep 実測 | 当時は各バッチで main.go をdiff確認し、コンストラクタは stutter 命名のまま移動時にリネームしないこととしていた（§3） |
+| 4 | **当時の分割時の注意**: 同一パッケージ内のドメイン間参照は import に現れず、分割して初めて cycle がコンパイルエラー化する | Go 言語仕様 | 当時は§9 の依存グラフで葉から抽出し、cycle は consumer 側 interface で切ることとしていた — **in-repo 先例**: `reservation_service.go:125` の `typeRepo reservationTypeFinder`（小文字ローカル interface） |
 | 5 | パス参照の追随対象: directory CLAUDE.md・`docs/architecture/overview.md`・`.claude/refs/go-gin-backend-review.md`・scoped 検証規約・**top-level `backend/*.md`（README.md / CODING_RULES.md）**。**ci.yml は `backend/**` 一括フィルタのため追随不要**（確認済み） | `ci.yml:46`。BE8-8 で top-level backend/*.md の漏れが顕在化 | **旧計画の履歴**。現行review正本は `go-gin-backend-review.md` |
-| 6 | **共有テスト DB フレーク** — `TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID`（`appointment_trimming_options` FK 違反）等が累積テスト DB 状態で非決定論的に赤くなり、`go test -p 1 ./internal/repository/...` が単発で緑にならないことがある | batch26-28 で顕在化。pre-batch コードでも再現。repository/CLAUDE.md「共有テスト DB」節記載のフレーク級 | **本バッチが触れないファイルの赤は退行でない**（pre-batch A/B 比較 + 連続再実行で確認して続行）。恒久対処 = 該当テストの `setupIsolatedTestDB` 化（別タスク・follow-up。検証ゲートを毎バッチ毀損するため優先度高） |
+| 6 | **当時の共有テストDBフレーク記録** — `TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID`（`appointment_trimming_options` FK 違反）等が累積テスト DB 状態で非決定論的に赤くなり、`go test -p 1 ./internal/repository/...` が単発で緑にならないことがある | batch26-28 で顕在化。pre-batch コードでも再現。repository/CLAUDE.md「共有テスト DB」節記載のフレーク級 | **当時は本バッチが触れないファイルの赤を退行とせず**（pre-batch A/B 比較 + 連続再実行で確認して続行）としていた。恒久対処 = 該当テストの `setupIsolatedTestDB` 化（別タスク・follow-up。検証ゲートを毎バッチ毀損するため優先度高） |
 
 ---
 
-## 6. タスク分割（この順で実行）
+## 6. タスク分割（Historical / DO NOT APPLY）
 
 ### 完了済み（実施ログは git 履歴が正本。生きた制約は §5・§9 へ移設済み）
 
 - **BE8-0/1/2/3/8 ✅（履歴）** — lint 網羅性固定／旧規約明文化（現在は `.claude/rules/go-gin-backend-guidelines.md` に置換）／service 依存グラフ実測／repotest 基盤／`internal/errors`→`internal/apperrors` リネーム。詳細は git 履歴。
 
-### BE8-4: repository 残りフラットファイルの段階分割 — **進行中（batch28 まで実施済み・安全な葉ほぼ枯渇）**
+### BE8-4: repository 残りフラットファイルの段階分割 — **Historical / DO NOT APPLY（当時は進行中、batch28 まで実施済み・安全な葉ほぼ枯渇）**
 
 - **実施済み（batch1-28・commit は git 履歴）**: 計 42 ドメインをサブパッケージ化（一覧 = §1）。直近 batch20-28 = trimmingoption / procedure / audit / account / checkup / consultation / trimmingcourse / diagnosistype / diagnosisname。**罠の実例**: `account`（ログインアカウント・葉）と `accounting`（会計・forbidden）は別物／`trimmingcourse`（コースマスタ・葉）と `trimming`（AppointmentTrimmingDetail・reservation cluster）は別物。名前で判断せず実装を見る。
-- **手順テンプレ（確定・各バッチで踏む）**:
-  1. 新規サブパッケージへ実装+テストを新規作成（`Repository`/`repository`/`New` の**非 stutter 命名**）。テストは `repotest.SetupTestDB` 等を使う。**real-DDL 例外**: テストが 001_init.sql の実 DDL（`inet` 等 AutoMigrate が再現しない型）に依存する場合はフラットの real-DDL ハーネスに残置してよい（先例 = audit batch22 の `ip_address inet`・X-3 ドリフト回避。実装は facade 経由でフラットテストから実行されカバレッジ欠落なし）。
-  2. `repohelpers.X` 直接呼び出し。フラット非公開ヘルパ置換（`medicalRecordTenantScope`→`repohelpers.MedicalRecordTenantScope` 等）は **package 修飾子のみで同一 SQL を発行**することを diff で確認。**paginate は共有ヘルパ未整備のため local-copy**（procedure/inventory/checkup/diagnosistype/diagnosisname に既存。rule-of-three 超過 → `repohelpers.Paginate` hoist は別バッチ・follow-up）。
-  3. **旧フラットファイルは型名維持の facade 化**（`type XxxRepository = <domain>.Repository`・必要なら `var Fn = <domain>.Fn` 再エクスポート）で service/handler 呼び出し側を無変更に保つ。
-  4. **【必須・§5 row 1-2】3 lint 該当エントリの allowlist キーを basename→相対パスへ手動更新**（例: `staff_repository.go|...` → `staff/repository.go|...`）。該当は移動ファイルが該当パターンを含む場合のみ。
-  5. scoped 検証: `go test -p 1 ./internal/repository/...`（**`-p 1` 必須**）+ 3 lint（`-run` 関数名 prefix・`Lint` 単独不可）+ golangci-lint scoped（`docker compose run --rm --no-deps --entrypoint golangci-lint backend run --max-same-issues 0 --max-issues-per-linter 0 ./internal/repository/...`・**フレッシュキャッシュ必須**）。**判定は「本バッチ変更ファイルに新規 issue 0」**（既存 pre-existing debt 5 件=gofmt×4+wrapcheck×1 は対象外）。**§5 row 6 フレーク注意**: 本バッチが触れないファイルの赤は退行でない（pre-batch 再現を確認して続行）。
-- **残 = 未分割実装 52 本。ただし安全な葉はほぼ枯渇**（内訳・2026-07-19 実測）:
+- **手順テンプレ（Historical / DO NOT APPLY）**:
+  1. 当時は新規サブパッケージへ実装+テストを新規作成していた（`Repository`/`repository`/`New` の**非 stutter 命名**）。テストは `repotest.SetupTestDB` 等を使っていた。**real-DDL 例外**: テストが 001_init.sql の実 DDL（`inet` 等 AutoMigrate が再現しない型）に依存する場合はフラットの real-DDL ハーネスに残置してよいとしていた（先例 = audit batch22 の `ip_address inet`・X-3 ドリフト回避。実装は facade 経由でフラットテストから実行されカバレッジ欠落なし）。
+  2. 当時は `repohelpers.X` を直接呼び出していた。フラット非公開ヘルパ置換（`medicalRecordTenantScope`→`repohelpers.MedicalRecordTenantScope` 等）は **package 修飾子のみで同一 SQL を発行**することを diff で確認していた。**paginate は共有ヘルパ未整備のため local-copy**（procedure/inventory/checkup/diagnosistype/diagnosisname に既存。rule-of-three 超過 → `repohelpers.Paginate` hoist は別バッチ・follow-up）としていた。
+  3. 当時は**旧フラットファイルを型名維持の facade 化**（`type XxxRepository = <domain>.Repository`・必要なら `var Fn = <domain>.Fn` 再エクスポート）し、service/handler 呼び出し側を無変更に保っていた。
+  4. 当時は**§5 row 1-2の3 lint該当エントリのallowlistキーをbasename→相対パスへ手動更新**（例: `staff_repository.go|...` → `staff/repository.go|...`）していた。該当は移動ファイルが該当パターンを含む場合のみとしていた。
+  5. 当時はscoped検証として `go test -p 1 ./internal/repository/...`（**`-p 1` 必須**）+ 3 lint（`-run` 関数名 prefix・`Lint` 単独不可）+ golangci-lint scoped（`docker compose run --rm --no-deps --entrypoint golangci-lint backend run --max-same-issues 0 --max-issues-per-linter 0 ./internal/repository/...`・**フレッシュキャッシュ必須**）を実行していた。**判定は「本バッチ変更ファイルに新規 issue 0」**（既存 pre-existing debt 5 件=gofmt×4+wrapcheck×1 は対象外）だった。**§5 row 6 フレーク注意**として、本バッチが触れないファイルの赤は退行でない（pre-batch 再現を確認して続行）としていた。
+- **当時の残 = 未分割実装 52 本。ただし安全な葉はほぼ枯渇**（内訳・2026-07-19 実測）:
   - **forbidden クラスタ 40 本**（repository/CLAUDE.md「Forbidden in drive-by tasks」・**境界マップ確定まで着手不可**）: reservation 系 8（reservation/schedule/staff/type_liff/type_occupation/appointment/appointment_admin/trimming）・medical_record 系 13（medical_record ±addendum/image/owner_visit・care_plan_item・clinical_plan・treatment±plan・examination・hospitalization±plan・inquiry・pet_chronic_condition）・accounting/billing 系 5（accounting/billing_confirmation/billing_item/cash_register_close/estimate）・LSTEP/line 系 14（lstep_* 10 + line_* 4）。
   - **名指し除外 6 本**: `ltv`（`kana_normalize.go` を owner/pet/medical_record と共有し切り出すと真の import cycle。unblock = `kana_normalize.go` を repohelpers へ hoist・別バッチ判断）・`lab_import`（3 コンストラクタ）・`permission_group`（5 ファイルで閾値超）・`medicine`+`medicine_dose_param`（#201 薬量計算隣接）・`clinic`（`isUniqueConstraintErr` 非公開ヘルパで move-not-modify 不成立・repohelpers hoist 別ステップ要）。
   - **強結合 4 本**（batch26-28 で却下）: `pet`/`owner`/`staff`/`vital`（medical_record/line/billing クラスタに結合）。
   - **統合推奨 1 本**: `checkup_field` は既分割 `checkup/` へ統合すべき（単独分割非推奨）。
-  - **確実に残る安全な葉 = `vaccination` ほぼ 1 本**（batch28 で検証済み・次バッチ着手可）。他は上記のいずれかに該当。**即着手できる clean-leaf 在庫は事実上尽きた** — 以降の価値は上記ゲート付き作業（cluster 境界マップ・kana_normalize/paginate/isUniqueConstraintErr の hoist）と facade 剥がしに移る。
-- **facade 剥がし方針**: 未着手・申し送り継続（41 facade をフラットから最終的に空にする段階。呼び出し側全変更の churn を要するため責任者判断）。
+- **当時の判断で確実に残る安全な葉 = `vaccination` ほぼ 1 本**（batch28 で検証済み）。他は上記のいずれかに該当。当時は**即着手できる clean-leaf 在庫が事実上尽きた**とし、以降の価値を上記ゲート付き作業（cluster 境界マップ・kana_normalize/paginate/isUniqueConstraintErr の hoist）と facade 剥がしに置いていた。
+- **facade 剥がし方針（Historical / closed）**: 当時は未着手・申し送り継続（41 facade をフラットから最終的に空にする段階。呼び出し側全変更の churn を要するため責任者判断）としていた。
 
-### BE8-5: service の段階分割（BE8-4 完了後・未着手）
+### BE8-5: service の段階分割（Historical / DO NOT APPLY; 当時はBE8-4完了後・未着手）
 
-- BE8-4 と同じ手順テンプレ。追加事項: ドメイン間参照は consumer 側 interface（§3）で切ってから移動する。cycle が出たら **移動を戻すのではなく interface 抽出で解決**する。抽出順は §9（sinks-first / reverse-topological）。**service を走査する自作 lint は存在しない**（§5 row 1）ため、BE8-5 開始時に「service にも同種 lint が必要か」を判断事項として起票する。
-- **完了条件**: service フラット直下が空になる。
+- 当時はBE8-4と同じ手順テンプレを用いていた。追加事項として、ドメイン間参照は consumer 側 interface（§3）で切ってから移動し、cycle が出たら **移動を戻すのではなく interface 抽出で解決**することとしていた。抽出順は §9（sinks-first / reverse-topological）だった。**service を走査する自作 lint は存在しない**（§5 row 1）ため、BE8-5 開始時に「service にも同種 lint が必要か」を判断事項として起票する計画だった。
+- **当時の完了条件**: service フラット直下が空になることとしていた。
 
-### BE8-6: ドキュメント同期（各フェーズ末に反復）
+### BE8-6: ドキュメント同期（Historical / DO NOT APPLY）
 
-- `docs/architecture/overview.md`・`go-gin-backend-review.md`・`docs/spec/screens/` の該当 doc のパッケージパス記述を更新。`scripts/check-docs-symbol-drift.sh` green を確認する、という旧計画上の記録。
+- 当時は `docs/architecture/overview.md`・`go-gin-backend-review.md`・`docs/spec/screens/` の該当 doc のパッケージパス記述を更新し、`scripts/check-docs-symbol-drift.sh` green を確認する計画だった、という旧計画上の記録。
 
-### BE8-7: handler 層の分割（BE8-5 完了後・未着手）
+### BE8-7: handler 層の分割（Historical / DO NOT APPLY; 当時はBE8-5完了後・未着手）
 
-- **規模**: 269 + 206 test = 475 files / 9.5万行（3層で最多ファイル数）。サブ dir は `testdata/` のみ — 分割後も `testdata/` は共有位置に残す。
-- **作業**: BE8-4/5 と同じ手順テンプレ。handler 固有の追加確認: ①ルート登録（`handler.go`・`master_routes.go`・`reservation_line_routes.go`）が全ハンドラを参照するため、バッチごとに登録側の import 更新が必須 ②handler 内 lint（`medical_record_image_handler_test.go`・`lab_report_handler_test.go` 等の allowlist 型テスト）の走査範囲を BE8-0 方式で先に確認 ③P5（RequirePermission 必須）等の handler 系 P ルールの検査機構がパッケージ分割に耐えるか確認。
-- **完了条件**: handler フラット直下がルート登録ファイル・lint テスト・testdata のみになる。
-- **判断ゲート**: BE8-5 完了時点の実測（ビルド時間・見つけにくさの実感）で「handler は分割せず現状維持」へ倒すことも許可する。その場合は §8 へ理由付きで移す。
-
----
-
-## 7. 凍結条件（解除済み・履歴）
-
-- **凍結解除済み（2026-07-18）**: Go-live 完了（ユーザー明示確認）+ PR #186 MERGED + main CI green の 3 条件成立。以後 BE8-3/4/8 の本番コードパスに触れる作業を実施。
-- BE8-1（規約）・BE8-2（依存グラフ）は本番バイナリに触れないため凍結中（2026-07-17）に先行実施済み。
-
-## 8. やらないこと（決定済み・再評価しない）
-
-- **Option A（ドメイン優先の全面転換: `internal/reservation/{handler,service,repository}`）** — 理由: ①層別 CLAUDE.md・P1-P18 lint 体系・scoped 検証規約がすべて層パスを前提としており波及が桁違い ②repository の先行分割が Option B 形であり方向転換は二重の手戻り。再提案しない。
-- **pkg/ ディレクトリ新設** — self-contained serverで外部module向け公開libraryの実consumerがないため、project decisionとして`internal/`で完結させる。Go公式が`pkg/`を禁止しているという意味ではない。
-- **model の分割** — GORM モデル 85 files は FK・Preload で相互参照しており、ドメイン分割すると model 間 import cycleが生じるため一括分割しない。Go公式例の`internal/model/`は説明例であり、この判断の根拠は本projectの実測依存である。
-- **§1.5 の健全領域への変更**（cmd/・worker/・migrations/・小規模パッケージ）— 触らないことが決定事項。改善提案が出たら①要件から検証する。
-- **移動と同時の公開型リネーム** — diff 爆発防止。リネームは別コミット。
+- **当時の規模**: 269 + 206 test = 475 files / 9.5万行（3層で最多ファイル数）。サブ dir は `testdata/` のみ — 分割後も `testdata/` は共有位置に残す計画だった。
+- **当時の作業記録**: BE8-4/5 と同じ手順テンプレを用い、handler 固有の追加確認として、①ルート登録（`handler.go`・`master_routes.go`・`reservation_line_routes.go`）が全ハンドラを参照するため登録側の import 更新、②handler 内 lint（`medical_record_image_handler_test.go`・`lab_report_handler_test.go` 等の allowlist 型テスト）の走査範囲確認、③P5（RequirePermission 必須）等の handler 系 P ルールの検査機構の耐性確認をバッチごとに行う計画だった。
+- **当時の完了条件**: handler フラット直下がルート登録ファイル・lint テスト・testdata のみになることとしていた。
+- **当時の判断ゲート**: BE8-5 完了時点の実測（ビルド時間・見つけにくさの実感）で「handler は分割せず現状維持」へ倒すことも許可していた。その場合は §8 へ理由付きで移すこととしていた。
 
 ---
 
-## 9. service ドメイン依存グラフと抽出順（2026-07-17 go/ast 実測・BE8-2 の出力／BE8-5 の入力）
+## 7. 凍結条件（Historical / DO NOT APPLY）
 
-### 9.1 実測手法
+- **当時の凍結解除記録（2026-07-18）**: Go-live 完了（ユーザー明示確認）+ PR #186 MERGED + main CI green の 3 条件成立により、BE8-3/4/8 の本番コードパスに触れる作業を実施した。
+- BE8-1（規約）・BE8-2（依存グラフ）は本番バイナリに触れないため、当時の凍結中（2026-07-17）に先行実施済みだった。
 
-- 使い捨て go/ast スクリプト（scratchpad のみ・リポジトリ非コミット）で `internal/service/*.go`（実装 202 files）を 2 パス解析。
+## 8. やらないこと（Historical / DO NOT APPLY）
+
+- **当時のOption A却下記録（ドメイン優先の全面転換: `internal/reservation/{handler,service,repository}`）** — 理由: ①層別 CLAUDE.md・P1-P18 lint 体系・scoped 検証規約がすべて層パスを前提としており波及が桁違い ②repository の先行分割が Option B 形であり方向転換は二重の手戻り。再提案しないこととしていた。
+- **当時はpkg/ディレクトリを新設しない** — self-contained serverで外部module向け公開libraryの実consumerがないため、project decisionとして`internal/`で完結させていた。Go公式が`pkg/`を禁止しているという意味ではない。
+- **当時はmodelを分割しない** — GORM モデル 85 files は FK・Preload で相互参照しており、ドメイン分割すると model 間 import cycleが生じるため一括分割しないこととしていた。Go公式例の`internal/model/`は説明例であり、この判断の根拠は本projectの実測依存である。
+- **当時は§1.5 の健全領域へ変更しない**（cmd/・worker・migrations・小規模パッケージ）ことを決定していた。改善提案が出たら①要件から検証する計画だった。
+- **当時は移動と同時に公開型をリネームしない** — diff 爆発防止のため、リネームは別コミットとしていた。
+
+---
+
+## 9. service ドメイン依存グラフと抽出順（Historical / DO NOT APPLY; 2026-07-17 go/ast 実測・BE8-2 の出力／BE8-5 の入力）
+
+### 9.1 実測手法（Historical / DO NOT APPLY）
+
+- 当時は使い捨て go/ast スクリプト（scratchpad のみ・リポジトリ非コミット）で `internal/service/*.go`（実装 202 files）を 2 パス解析していた。
   - **Pass 1**: 全ファイルのトップレベル識別子（`Recv==nil` の func・type・var/const）→ 定義ドメインのマップを構築。**メソッドは名前衝突（`Create`/`Update` 等）で汚染するため除外**。
   - **Pass 2**: 各ファイルの USE 参照（`ast.Ident`）を走査し、宣言サイト（FuncDecl/TypeSpec/Field/ValueSpec 名）と `SelectorExpr.Sel`（`x.Foo` の `.Foo`）を除外。マップに存在し **かつ定義ドメイン ≠ 自ファイルドメイン** の参照のみをドメイン間エッジとして計上。
 - ドメイン境界 = ファイル名 prefix。`reservation_type`/`reservation_staff`/`checkup_sync` は first-token だと親（reservation/checkup）に吸収されるため明示分離。残りは第 1 underscore トークン。全 69 ドメイン・773 エッジ。
 
-### 9.2 計測の限界（正直な明記）
+### 9.2 計測の限界（Historical / DO NOT APPLY）
 
 - **メソッド経由・interface 経由の依存は検出されない**（`f.svc.DoThing()` や §5 の `reservationTypeFinder` ローカル interface）。これは欠陥ではなく設計通り — 測っているのは「`git mv` でサブパッケージ化したとき**コンパイルを壊す構文的識別子結合**」であり、実行時配線ではない。**`out-dom=0` のドメインは、他ドメインへの残依存があってもそれは既に interface 化されている ⟹ 抽出しても cycle にならない**。
 - 逆に **incoming（in-ref）はローカル変数名の衝突で過大計上され得る**。incoming は cycle 安全性ではなく「抽出時に import 追随が必要なファイル数の目安（churn）」として使う。
 
-### 9.3 コンポジションルートの発見（抽出順の主軸が変わる根拠）
+### 9.3 コンポジションルートの発見（Historical / DO NOT APPLY）
 
 `service.go`（`Service` 集約 struct + `NewService`）は **59 ドメインの `NewXxxService` を参照する out-dom=59 の合成ルート**。このため実ドメインは全て「root からの incoming エッジ 1 本」を持ち、**被参照ゼロの純粋な葉は `service` 自身しか存在しない**。表中の `in-dom=1` の大半はこの root 配線であり、ドメイン間結合ではない。
 
-→ 抽出安全性の主軸は **outgoing（依存の向き）**。抽出後 `service.go` は必ず `service/<D>` を import する（配線エッジ）。**D が親パッケージ残留の識別子を参照する（out-dom>0）と D→親 の逆 import が生じ cycle 化**する。従って **`out-dom=0` のシンクから逆トポロジカル順に抽出する**。
+→ 当時の抽出安全性の主軸は **outgoing（依存の向き）**だった。抽出後 `service.go` は `service/<D>` を import する（配線エッジ）ことになり、**D が親パッケージ残留の識別子を参照する（out-dom>0）と D→親 の逆 import が生じ cycle 化**するため、当時は **`out-dom=0` のシンクから逆トポロジカル順に抽出する**計画だった。
 
-### 9.4 抽出段階（reverse-topological・sinks-first）
+### 9.4 抽出段階（Historical / DO NOT APPLY; reverse-topological・sinks-first）
 
 | 段階 | ドメイン | files | in(dom/ref) | out(dom/ref) | 根拠 |
 |------|---------|:---:|:---:|:---:|------|
 | **①雛形** | **daily** | 1 | 1 / 2 | **0 / 0** | 純粋シンク・in は root のみ・churn ゼロ。テンプレ実証用 |
 | **①雛形** | **inventory** | 1 | 1 / 2 | **0 / 0** | 同上 |
 | **①雛形** | **manual** | 1 | 1 / 2 | **0 / 0** | 同上 |
-| ②共有カーネル | audit | 2 | 16 / 86 | **0 / 0** | out=0 で常時 cycle-safe。高 fan-in — 先に抜くと多数の依存元がシンク化し②以降を解錠 |
+| ②共有カーネル | audit | 2 | 16 / 86 | **0 / 0** | 当時はout=0 で常時 cycle-safeと評価し、高 fan-inのため先に抜くと多数の依存元がシンク化し②以降を解錠すると記録した |
 | ②共有カーネル | update (update_fields) | 1 | 7 / 8 | **0 / 0** | 同上（共有 update ヘルパ） |
 | ②共有カーネル | timeslot | 1 | 4 / 64 | **0 / 0** | 同上（in-ref は概算） |
 | ②共有カーネル | dose | 3 | 2 / 19 | **0 / 0** | 用量計算の純粋シンク |
 | ②その他シンク | reservation_staff, token, species, account, shared, smtp, go | 各1〜2 | 低 | **0 / 0** | いずれも out=0・機械的に移せる葉 |
-| ③解錠後の準シンク | validators (out-dom=2), company / chronic / clinical / care / refund / vaccination / prescription ほか out-dom=1 群 | 各1〜2 | 低〜中 | 1〜2 / 低 | ②抽出で残依存が消えるとシンク化。**validators は in-dom=37 の最大 fan-in — 残 2 依存を先に解決 or interface 化してから** |
-| ④結合コア（最後尾） | lstep | 48 | 12 / 62 | 3 / 15 | out-dom=3 の準シンクだが **48 files — 単一バッチ不可。tag_sync / health_tag / delivery / settings / batch / csv でサブバッチ必須** |
+| ③解錠後の準シンク | validators (out-dom=2), company / chronic / clinical / care / refund / vaccination / prescription ほか out-dom=1 群 | 各1〜2 | 低〜中 | 1〜2 / 低 | 当時は②抽出で残依存が消えるとシンク化するとし、**validators は in-dom=37 の最大 fan-in — 残 2 依存を先に解決 or interface 化してから**と記録した |
+| ④結合コア（当時の最後尾） | lstep | 48 | 12 / 62 | 3 / 15 | out-dom=3 の準シンクだが **48 files — 単一バッチ不可。tag_sync / health_tag / delivery / settings / batch / csv でサブバッチ必須**と当時は記録した |
 | ④結合コア | liff | 11 | 3 / 4 | 5 / **80** | 高 outgoing（80 refs）。依存先を先に抽出 |
 | ④結合コア | accounting(6) / reservation_type(9) / treatment(3) / trimming(4) / medicine(2) / estimate / appointment(3) | — | 中 | 4〜6 / 中 | 相互結合。依存解決後に |
-| ④結合コア（**厳守最後尾**） | reservation | 4 | 9 / 34 | 5 / 15 | 高結合。in/out 双方大 |
-| ④結合コア（**厳守最後尾**） | medical_record | 9 | 8 / 24 | 4 / 23 | finalized ガード（142f5ebe）の臨床安全コア。最後に移す |
+| ④結合コア（当時の最後尾） | reservation | 4 | 9 / 34 | 5 / 15 | 高結合。in/out 双方大 |
+| ④結合コア（当時の最後尾） | medical_record | 9 | 8 / 24 | 4 / 23 | finalized ガード（142f5ebe）の臨床安全コア。当時は最後に移す計画だった |
 
-> **注記**: `service`（`service.go`, in-dom=0）は合成ルートであり**親パッケージに残す — 抽出対象ではない**。表の `in-dom=1` は全て root 配線（依存結合ではない）。
+> **Historical note / DO NOT APPLY**: `service`（`service.go`, in-dom=0）は合成ルートであり、当時は**親パッケージに残す — 抽出対象ではない**とした。表の `in-dom=1` は全て root 配線（依存結合ではない）。
 
-### 9.5 最初の 3 バッチ（BE8-5 着手順・確定）
+### 9.5 最初の 3 バッチ（Historical / DO NOT APPLY; BE8-5 当時の着手順）
 
-1. **daily**（`daily_record_service.go`）— out=0・被参照は root のみ。サブパッケージ雛形（BE8-3 の repotest 基盤）を service 側で実証。
-2. **inventory**（`inventory_service.go`）— 同型の純粋シンク。手順テンプレの反復確認。
-3. **manual**（`manual_article_service.go`）— 同上。3 本で「1 ドメイン = git mv + package 宣言 + service.go の import 1 行 + scoped test」の型を固める。
+1. 当時は **daily**（`daily_record_service.go`）— out=0・被参照は root のみ — をサブパッケージ雛形（BE8-3 の repotest 基盤）として service 側で実証する計画だった。
+2. 当時は **inventory**（`inventory_service.go`）— 同型の純粋シンク — で手順テンプレを反復確認する計画だった。
+3. 当時は **manual**（`manual_article_service.go`）— 同上 — で、「1 ドメイン = git mv + package 宣言 + service.go の import 1 行 + scoped test」の型を固める計画だった。
 
-3 本完了後、**②共有カーネル（audit → update → timeslot → dose）** を抜いて多数の準シンクを解錠 → ③ → ④結合コアの順。lstep(48f) と medical_record(臨床安全) は最後尾。
+当時は3本完了後、**②共有カーネル（audit → update → timeslot → dose）** を抜いて多数の準シンクを解錠 → ③ → ④結合コアの順とし、lstep(48f) と medical_record(臨床安全)を最後尾に置く計画だった。
