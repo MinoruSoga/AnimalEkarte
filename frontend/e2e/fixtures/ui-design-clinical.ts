@@ -11,7 +11,7 @@ import type {
   MeClinicInfo,
   MeResponse,
   ResourcePermission,
-} from "../../src/types/generated/handler-responses";
+} from "../../src/types/generated/auth-responses";
 import type {
   AnimalSpecies,
   Cage,
