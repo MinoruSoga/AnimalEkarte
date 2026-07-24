@@ -96,7 +96,7 @@ describe("useMasterSave", () => {
     expect(toast.error).toHaveBeenCalledTimes(1);
   });
 
-  it("(b) editTargetId===nullの場合はcreateMutation経路を通る", () => {
+  it("permissions absent: editTargetId===nullの場合は従来どおりcreateMutation経路を通る", () => {
     const { crud, setEditTarget } = buildCrud(null);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>(
       (_vars, opts) => opts?.onSuccess?.(savedEntity),
@@ -122,7 +122,7 @@ describe("useMasterSave", () => {
     expect(setEditTarget).toHaveBeenCalledWith(null);
   });
 
-  it("(c) editTargetIdが存在する場合はupdateMutation経路を通り、idとリクエストを渡す", () => {
+  it("permissions absent: editTargetIdが存在する場合は従来どおりupdateMutation経路を通り、idとリクエストを渡す", () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -150,6 +150,196 @@ describe("useMasterSave", () => {
     expect(createMutate).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith("更新しました");
     expect(setEditTarget).toHaveBeenCalledWith(null);
+  });
+
+  it("permissions engaged: canCreateがtrueでない場合はcreate mutationとpost-save処理を発行しない", () => {
+    const { crud, startSaveTransition } = buildCrud("new");
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const onSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: { canCreate: false, canEdit: true },
+        validate: () => null,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+        onSuccess,
+      }),
+    );
+
+    act(() => result.current.handleSave({ name: "拒否対象" }));
+
+    expect(startSaveTransition).not.toHaveBeenCalled();
+    expect(createMutate).not.toHaveBeenCalled();
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("permissions engaged: canEditがtrueでない場合はupdate mutationとpost-save処理を発行しない", () => {
+    const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
+    const { crud, startSaveTransition } = buildCrud(editTarget);
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const onSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: { canCreate: true, canEdit: false },
+        validate: () => null,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+        onSuccess,
+      }),
+    );
+
+    act(() => result.current.handleSave({ name: "拒否対象" }));
+
+    expect(startSaveTransition).not.toHaveBeenCalled();
+    expect(createMutate).not.toHaveBeenCalled();
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("permissions engaged: canCreateがtrueなら従来のcreate payloadを維持する", () => {
+    const { crud } = buildCrud("new");
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: { canCreate: true, canEdit: false },
+        validate: () => null,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+      }),
+    );
+
+    act(() => result.current.handleSave({ name: "新規グループ" }));
+
+    expect(createMutate).toHaveBeenCalledWith(
+      { name: "新規グループ" },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it("permissions engaged: canEditがtrueなら従来のupdate payloadを維持する", () => {
+    const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
+    const { crud } = buildCrud(editTarget);
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: { canCreate: false, canEdit: true },
+        validate: () => null,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+      }),
+    );
+
+    act(() => result.current.handleSave({ name: "更新後のグループ" }));
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      { id: "42", req: { name: "更新後のグループ" } },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("permissions engaged: 権限剥奪後はcaptured済みhandleSaveでも最新のdenyを使う", () => {
+    const { crud } = buildCrud("new");
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const options = {
+      crud,
+      createMutation,
+      updateMutation,
+      validate: () => null,
+      toCreateRequest: (d: TestForm) => ({ name: d.name }),
+      toUpdateRequest: (d: TestForm) => ({ name: d.name }),
+    };
+
+    const { result, rerender } = renderHook(
+      ({ canCreate }: { canCreate: boolean }) =>
+        useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+          ...options,
+          permissions: { canCreate, canEdit: false },
+        }),
+      { initialProps: { canCreate: true } },
+    );
+    const capturedHandleSave = result.current.handleSave;
+
+    rerender({ canCreate: false });
+    act(() => capturedHandleSave({ name: "拒否対象" }));
+
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("permissions absentからengaged denyへ変わった後はcaptured済みhandleSaveも拒否する", () => {
+    const { crud } = buildCrud("new");
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
+
+    const { result, rerender } = renderHook(
+      ({ engage }: { engage: boolean }) =>
+        useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+          crud,
+          createMutation,
+          updateMutation,
+          permissions: engage ? { canCreate: false, canEdit: false } : undefined,
+          validate: () => null,
+          toCreateRequest: (d) => ({ name: d.name }),
+          toUpdateRequest: (d) => ({ name: d.name }),
+        }),
+      { initialProps: { engage: false } },
+    );
+    const capturedHandleSave = result.current.handleSave;
+
+    rerender({ engage: true });
+    act(() => capturedHandleSave({ name: "拒否対象" }));
+
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("permissions engaged: deny時も既存validationを先に実行する", () => {
+    const { crud, startSaveTransition } = buildCrud("new");
+    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
+    const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const validate = vi.fn(() => "名称は必須です");
+
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: { canCreate: false, canEdit: false },
+        validate,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+      }),
+    );
+
+    act(() => result.current.handleSave({ name: "" }));
+
+    expect(validate).toHaveBeenCalledWith({ name: "" });
+    expect(result.current.validationError).toBe("名称は必須です");
+    expect(toast.error).toHaveBeenCalledWith("名称は必須です");
+    expect(startSaveTransition).not.toHaveBeenCalled();
+    expect(createMutate).not.toHaveBeenCalled();
   });
 
   it("editTarget==='new'の場合はcreateMutation経路を通る(editTargetIdはnull扱い)", () => {

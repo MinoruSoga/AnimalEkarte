@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect } from "react";
+import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect, useLayoutEffect } from "react";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
@@ -19,6 +19,10 @@ import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilte
 /** Minimum shape required for entities managed by useMasterCRUD */
 interface MasterEntity {
   id: string;
+}
+
+interface MasterCRUDPermissions {
+  canDelete: boolean;
 }
 
 interface UseMasterCRUDOptions<T extends MasterEntity> {
@@ -48,6 +52,9 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
    * 指定された場合、別行クリック・パネル閉じ・新規作成時に確認ダイアログを出す。
    */
   dirtyGuard?: { confirmDiscard: () => boolean };
+
+  /** When provided, engage the delete permission guard at the mutation boundary. */
+  permissions?: MasterCRUDPermissions;
 }
 
 export interface UseMasterCRUDReturn<T extends MasterEntity> {
@@ -159,6 +166,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   searchFilter = defaultSearchFilter,
   activeFilterApply = defaultActiveFilterApply,
   dirtyGuard,
+  permissions,
 }: UseMasterCRUDOptions<T>): UseMasterCRUDReturn<T> {
   // ── State ──
   const [editTarget, setEditTarget] = useState<T | "new" | null>(null);
@@ -167,6 +175,14 @@ export function useMasterCRUD<T extends MasterEntity>({
   // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
   const pendingDeleteRef = useRef<T | null>(null);
   useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
+  const permissionsEngaged = permissions !== undefined;
+  const canDelete = permissions?.canDelete;
+  const permissionsRef = useRef<MasterCRUDPermissions | undefined>(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = permissionsEngaged
+      ? { canDelete: canDelete === true }
+      : undefined;
+  }, [permissionsEngaged, canDelete]);
   const [isSavePending, startSaveTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
@@ -230,6 +246,11 @@ export function useMasterCRUD<T extends MasterEntity>({
   const handleDeleteConfirm = useCallback(() => {
     const target = pendingDeleteRef.current;
     if (!target) return;
+    const currentPermissions = permissionsRef.current;
+    if (currentPermissions !== undefined) {
+      const isAllowed = currentPermissions.canDelete === true;
+      if (!isAllowed) return;
+    }
     deleteMutation.mutate(target.id, {
       onSuccess: () => {
         setPendingDelete(null);

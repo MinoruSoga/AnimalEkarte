@@ -64,9 +64,10 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   }, [formData, onSave]);
 
   const handleNameChange = useCallback((value: string) => {
+    if (readOnly) return;
     setFormDataDirty((prev) => ({ ...prev, name: value }));
     if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  }, [readOnly, setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setFormDataDirty((prev) => ({ ...prev, description: event.target.value }));
@@ -110,6 +111,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
+      <fieldset disabled={readOnly} className="contents">
       <StatusToggleButton
         isActive={formData.isActive}
         onToggle={handleToggleActive}
@@ -143,6 +145,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         onRuleChange={handleRuleChange}
         disabled={readOnly}
       />
+      </fieldset>
     </MasterSidePanel>
   );
 });

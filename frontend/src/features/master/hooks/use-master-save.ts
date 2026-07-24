@@ -1,4 +1,4 @@
-import { useCallback, useState, type TransitionStartFunction } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type TransitionStartFunction } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -17,6 +17,11 @@ interface MasterSaveCrud<T extends MasterEntity> {
   startSaveTransition: TransitionStartFunction;
 }
 
+interface MasterSavePermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+}
+
 interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> {
   crud: MasterSaveCrud<T>;
   createMutation: UseMutationResult<T, Error, TCreate>;
@@ -29,6 +34,8 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
   toUpdateRequest: (data: TForm) => TUpdate;
   /** Optional: post-save hook for additional operations (e.g., setting related data) */
   onSuccess?: (saved: T, formData: TForm) => Promise<void> | void;
+  /** When provided, engage action-specific permission guards at the mutation boundary. */
+  permissions?: MasterSavePermissions;
 }
 
 // ─────────────────────────────────────────────────
@@ -43,6 +50,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   toCreateRequest,
   toUpdateRequest,
   onSuccess,
+  permissions,
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
   const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
@@ -51,6 +59,15 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   // crudHandleClose calls confirmDiscard() which shows window.confirm when isDirtyRef is still stale
   const crudSetEditTarget = crud.setEditTarget;
   const crudStartSave = crud.startSaveTransition;
+  const permissionsEngaged = permissions !== undefined;
+  const canCreate = permissions?.canCreate;
+  const canEdit = permissions?.canEdit;
+  const permissionsRef = useRef<MasterSavePermissions | undefined>(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = permissionsEngaged
+      ? { canCreate: canCreate === true, canEdit: canEdit === true }
+      : undefined;
+  }, [permissionsEngaged, canCreate, canEdit]);
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -63,6 +80,14 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         return;
       }
       setValidationError(null);
+
+      const currentPermissions = permissionsRef.current;
+      if (currentPermissions !== undefined) {
+        const isAllowed = editTargetId !== null
+          ? currentPermissions.canEdit === true
+          : currentPermissions.canCreate === true;
+        if (!isAllowed) return;
+      }
 
       crudStartSave(() => {
         if (editTargetId !== null) {

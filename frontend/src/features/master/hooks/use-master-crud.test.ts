@@ -303,7 +303,7 @@ describe("useMasterCRUD", () => {
     expect(result.current.editTarget).toEqual(data[0]);
   });
 
-  it("handleDeleteRequestはpendingDeleteを設定し、handleDeleteConfirmはその対象IDでmutateする", async () => {
+  it("permissions absent: handleDeleteConfirmは従来どおり対象IDでmutateする", async () => {
     const mutate = vi.fn(
       (_id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) => opts?.onSuccess?.(),
     );
@@ -324,6 +324,96 @@ describe("useMasterCRUD", () => {
     expect(result.current.pendingDelete).toBeNull();
     expect(result.current.editTarget).toBeNull();
     expect(toast.success).toHaveBeenCalledWith("テストを削除しました");
+  });
+
+  it("permissions engaged: canDeleteがtrueでない場合はdelete mutationを発行しない", async () => {
+    const mutate = vi.fn();
+    const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
+    const { result } = renderHook(() =>
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: { canDelete: false },
+      }),
+    );
+
+    act(() => result.current.handleDeleteRequest(data[0]));
+    await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
+    act(() => result.current.handleDeleteConfirm());
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(result.current.pendingDelete).toEqual(data[0]);
+  });
+
+  it("permissions engaged: canDeleteがtrueなら従来どおり対象IDでmutateする", async () => {
+    const mutate = vi.fn();
+    const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
+    const { result } = renderHook(() =>
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: { canDelete: true },
+      }),
+    );
+
+    act(() => result.current.handleDeleteRequest(data[0]));
+    await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
+    act(() => result.current.handleDeleteConfirm());
+
+    expect(mutate).toHaveBeenCalledWith(
+      "1",
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
+  });
+
+  it("permissions engaged: 権限剥奪後はcaptured済みhandleDeleteConfirmでも最新のdenyを使う", async () => {
+    const mutate = vi.fn();
+    const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
+    const { result, rerender } = renderHook(
+      ({ canDelete }: { canDelete: boolean }) =>
+        useMasterCRUD<TestEntity>({
+          data,
+          deleteMutation,
+          entityLabel: "テスト",
+          permissions: { canDelete },
+        }),
+      { initialProps: { canDelete: true } },
+    );
+
+    act(() => result.current.handleDeleteRequest(data[0]));
+    await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
+    const capturedHandleDeleteConfirm = result.current.handleDeleteConfirm;
+
+    rerender({ canDelete: false });
+    act(() => capturedHandleDeleteConfirm());
+
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("permissions absentからengaged denyへ変わった後はcaptured済みhandleDeleteConfirmも拒否する", async () => {
+    const mutate = vi.fn();
+    const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
+    const { result, rerender } = renderHook(
+      ({ engage }: { engage: boolean }) =>
+        useMasterCRUD<TestEntity>({
+          data,
+          deleteMutation,
+          entityLabel: "テスト",
+          permissions: engage ? { canDelete: false } : undefined,
+        }),
+      { initialProps: { engage: false } },
+    );
+
+    act(() => result.current.handleDeleteRequest(data[0]));
+    await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
+    const capturedHandleDeleteConfirm = result.current.handleDeleteConfirm;
+
+    rerender({ engage: true });
+    act(() => capturedHandleDeleteConfirm());
+
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("pendingDeleteRefは常に最新のpendingDeleteを参照する(連続request後は最後の対象を削除する)", async () => {

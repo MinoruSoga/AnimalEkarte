@@ -43,7 +43,7 @@ const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
 ];
 
 export function PermissionGroupSettings() {
-  const { canEdit } = usePermission(ResourceMasterPermission);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterPermission);
   const { data } = useGetPermissionGroups();
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
@@ -70,6 +70,7 @@ export function PermissionGroupSettings() {
       return true;
     },
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
@@ -90,6 +91,7 @@ export function PermissionGroupSettings() {
     crud,
     createMutation,
     updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => {
       if (!d.name.trim()) return "グループ名は必須です";
       if (!d.color) return "カラーは必須です";
