@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useRef, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -44,6 +44,10 @@ export function HospitalizationForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
+  const canDeleteRef = useRef(canDelete);
+  useEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
@@ -64,7 +68,7 @@ export function HospitalizationForm() {
       petSelection,
       formAction,
       formState,
-  } = useHospitalizationForm(hospitalizationId);
+  } = useHospitalizationForm(hospitalizationId, canSubmit === true);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -108,7 +112,7 @@ export function HospitalizationForm() {
   }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
-    if (!hospitalizationId) return;
+    if (!hospitalizationId || canDeleteRef.current !== true) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(hospitalizationId, {
         onSuccess: () => {

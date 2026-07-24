@@ -26,7 +26,7 @@ import {
   updateTreatmentPlanField,
 } from "./use-hospitalization-form-model";
 
-export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
+export function useHospitalizationForm(id?: string, canSubmit = false) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -49,6 +49,11 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+  const canSubmitRef = useRef(canSubmit);
+  useEffect(() => {
+    canSubmitRef.current = canSubmit;
+  }, [canSubmit]);
+  const isMutationAllowed = useCallback(() => canSubmitRef.current === true, []);
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
@@ -59,9 +64,11 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
       const pet = selectedPets[0];
       try {
         if (isEdit && id) {
+          if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
           await updateHospitalization(id, buildUpdateHospitalizationRequest(formData));
           toast.success("入院情報を更新しました");
         } else {
+          if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
           await createHospitalization(buildCreateHospitalizationRequest(formData, pet));
           toast.success("入院情報を登録しました");
         }

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo, useState, useCallback, useMemo, useTransition } from "react";
+import { memo, useState, useCallback, useEffect, useMemo, useRef, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -46,6 +46,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     dischargeDate,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
+    const canCreateRef = useRef(canCreate);
+    useEffect(() => {
+        canCreateRef.current = canCreate;
+    }, [canCreate]);
+    const isMutationAllowed = useCallback(() => canCreateRef.current === true, []);
     const { user } = useAuth();
     const currentUserId = Number(user?.id ?? 0);
     // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
@@ -81,6 +86,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     const [isStaffNotePending, startStaffNoteTransition] = useTransition();
 
     const handleCreateDailyRecord = useCallback(() => {
+        if (!isMutationAllowed()) return;
         startCreateRecordTransition(async () => {
             try {
                 await createDailyRecord.mutateAsync(selectedDate);
@@ -88,10 +94,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                 handleApiError(error, "日次記録の作成");
             }
         });
-    }, [createDailyRecord, selectedDate]);
+    }, [createDailyRecord, isMutationAllowed, selectedDate]);
 
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
+            if (!isMutationAllowed()) return;
             startVitalTransition(async () => {
                 try {
                     await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
@@ -100,11 +107,12 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                 }
             });
         },
-        [createVital, currentUserId]
+        [createVital, currentUserId, isMutationAllowed]
     );
 
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRequest) => {
+            if (!isMutationAllowed()) return;
             startCareLogTransition(async () => {
                 try {
                     await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
@@ -113,11 +121,12 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                 }
             });
         },
-        [createCareLog, currentUserId]
+        [createCareLog, currentUserId, isMutationAllowed]
     );
 
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRequest) => {
+            if (!isMutationAllowed()) return;
             startStaffNoteTransition(async () => {
                 try {
                     await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
@@ -126,7 +135,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                 }
             });
         },
-        [createStaffNote, currentUserId]
+        [createStaffNote, currentUserId, isMutationAllowed]
     );
 
     const vitals = record?.vital_records ?? [];

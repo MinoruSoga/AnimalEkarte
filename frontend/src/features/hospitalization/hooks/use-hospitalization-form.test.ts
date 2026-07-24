@@ -10,6 +10,10 @@ async function submitForm(action: ReturnType<typeof useHospitalizationForm>["for
   });
 }
 
+function renderHospitalizationForm(id?: string, canSubmit = true) {
+  return renderHook(() => useHospitalizationForm(id, canSubmit));
+}
+
 // ──────────────────────────────────────────────────────────
 // モック定義
 // vi.mock はホイストされるため、参照する変数は vi.hoisted で先に定義する
@@ -107,22 +111,22 @@ describe("useHospitalizationForm", () => {
   // ──────────────────────────
   describe("初期状態", () => {
     it("id なし → isEdit = false", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
       expect(result.current.isEdit).toBe(false);
     });
 
     it("id あり → isEdit = true", () => {
-      const { result } = renderHook(() => useHospitalizationForm("10"));
+      const { result } = renderHospitalizationForm("10");
       expect(result.current.isEdit).toBe(true);
     });
 
     it("formState の初期値は success: false", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
       expect(result.current.formState.success).toBe(false);
     });
 
     it("isSaving の初期値は false", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
       expect(result.current.isSaving).toBe(false);
     });
   });
@@ -133,7 +137,7 @@ describe("useHospitalizationForm", () => {
   describe("バリデーション: selectedPets が空の場合", () => {
     it("selectedPets が空 → success: false かつ fieldErrors.pet が定義される", async () => {
       // selectedPets は空（デフォルト）
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -144,7 +148,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("selectedPets が空 → createHospitalization は呼ばれない", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -174,7 +178,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -183,7 +187,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("createHospitalization に pet_id と owner_id が渡される", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -196,7 +200,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("成功時 → toast.success が呼ばれる", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -204,7 +208,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("成功時 → formState.success = true", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -214,11 +218,19 @@ describe("useHospitalizationForm", () => {
     it("createHospitalization が失敗した場合 → formState.success = false", async () => {
       mockCreateHospitalization.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
+    });
+
+    it("作成権限なし → createHospitalization は呼ばれない", async () => {
+      const { result } = renderHospitalizationForm(undefined, false);
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).not.toHaveBeenCalled();
     });
   });
 
@@ -243,7 +255,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
@@ -252,7 +264,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("updateHospitalization に id が渡される", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
@@ -263,7 +275,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("成功時 → toast.success が呼ばれる（更新メッセージ）", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
@@ -271,7 +283,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("成功時 → formState.success = true", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
@@ -281,11 +293,19 @@ describe("useHospitalizationForm", () => {
     it("updateHospitalization が失敗した場合 → formState.success = false", async () => {
       mockUpdateHospitalization.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
+    });
+
+    it("編集権限なし → updateHospitalization は呼ばれない", async () => {
+      const { result } = renderHospitalizationForm("42", false);
+
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).not.toHaveBeenCalled();
     });
   });
 
@@ -294,7 +314,7 @@ describe("useHospitalizationForm", () => {
   // ──────────────────────────
   describe("handleFormDataChange", () => {
     it("handleFormDataChange でフォームデータを部分更新できる", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       act(() => {
         result.current.handleFormDataChange({ memo: "テストメモ" });
@@ -304,7 +324,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("hospitalizationType を変更できる", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       act(() => {
         result.current.handleFormDataChange({ hospitalizationType: "ホテル" });
@@ -335,7 +355,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = false (デフォルト) → create 時 insurance_company_name: null, insurance_number: null", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
@@ -348,7 +368,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = true → create 時 保険フィールドが渡される", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       act(() => {
         result.current.handleFormDataChange({
@@ -370,7 +390,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = false → create 時 保険フィールドが null になる（文字列があっても）", async () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       act(() => {
         result.current.handleFormDataChange({
@@ -391,7 +411,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = false → update 時 保険フィールドが null になる", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       act(() => {
         result.current.handleFormDataChange({
@@ -414,7 +434,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = true → update 時 保険フィールドが渡される", async () => {
-      const { result } = renderHook(() => useHospitalizationForm("42"));
+      const { result } = renderHospitalizationForm("42");
 
       act(() => {
         result.current.handleFormDataChange({
@@ -442,7 +462,7 @@ describe("useHospitalizationForm", () => {
   // ──────────────────────────
   describe("treatmentPlans", () => {
     it("保険対象flagをbilling計算契約へ明示的に変換する", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
 
       result.current.calculateTotals();
 
@@ -456,7 +476,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("addTreatmentPlan で計画を追加できる", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
       const initialCount = result.current.treatmentPlans.length;
 
       act(() => {
@@ -467,7 +487,7 @@ describe("useHospitalizationForm", () => {
     });
 
     it("removeTreatmentPlan で計画を削除できる", () => {
-      const { result } = renderHook(() => useHospitalizationForm());
+      const { result } = renderHospitalizationForm();
       const firstPlanId = result.current.treatmentPlans[0]?.id;
 
       if (firstPlanId) {

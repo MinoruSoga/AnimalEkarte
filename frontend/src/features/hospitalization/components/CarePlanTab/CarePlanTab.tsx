@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, memo } from "react";
 
 // External
 import { Loader2 } from "lucide-react";
@@ -19,8 +19,24 @@ interface CarePlanTabProps {
     hospitalizationId: string;
 }
 
+type CarePlanMutation = "create" | "edit" | "delete";
+
+const PERMISSION_BY_MUTATION = {
+    create: "canCreate",
+    edit: "canEdit",
+    delete: "canDelete",
+} as const;
+
 export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
     const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
+    const permissionsRef = useRef({ canCreate, canEdit, canDelete });
+    useEffect(() => {
+        permissionsRef.current = { canCreate, canEdit, canDelete };
+    }, [canCreate, canDelete, canEdit]);
+    const isMutationAllowed = useCallback(
+        (action: CarePlanMutation) => permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true,
+        []
+    );
     const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
     const createItem = useCreateCarePlanItem(hospitalizationId);
     const updateItem = useUpdateCarePlanItem(hospitalizationId);
@@ -39,6 +55,7 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: Care
 
     const handleSaveEdit = useCallback(
         (itemId: string, input: UpdateCarePlanItemInput) => {
+            if (!isMutationAllowed("edit")) return;
             updateItem.mutate(
                 { itemId, input },
                 {
@@ -48,11 +65,12 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: Care
                 }
             );
         },
-        [updateItem]
+        [isMutationAllowed, updateItem]
     );
 
     const handleDelete = useCallback(
         (itemId: string) => {
+            if (!isMutationAllowed("delete")) return;
             setDeletingId(itemId);
             deleteItem.mutate(itemId, {
                 onSettled: () => {
@@ -60,14 +78,15 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: Care
                 },
             });
         },
-        [deleteItem]
+        [deleteItem, isMutationAllowed]
     );
 
     const handleAdd = useCallback(
         (input: CreateCarePlanItemInput) => {
+            if (!isMutationAllowed("create")) return;
             createItem.mutate(input);
         },
-        [createItem]
+        [createItem, isMutationAllowed]
     );
 
     const itemRows = useMemo(() => {
