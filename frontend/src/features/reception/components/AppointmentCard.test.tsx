@@ -2,6 +2,14 @@ import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  DangerLevelHigh,
+  DangerLevelLow,
+  PetStatusAlive,
+  PetStatusDeceased,
+} from "@/types/generated/models";
+import { C } from "@/lib/design-tokens";
+
 import { AppointmentCard } from "./AppointmentCard";
 import type { ReceptionAppointment } from "../api/types";
 
@@ -36,19 +44,22 @@ const baseAppointment: ReceptionAppointment = {
   status: "checked_in",
   notes: undefined,
   source: "manual",
+  petStatus: PetStatusAlive,
+  petDangerLevel: DangerLevelLow,
 };
 
 function renderCard(
   appointment: ReceptionAppointment = baseAppointment,
   columnTitle = "受付済",
   onRecordOpen = vi.fn(),
+  onCardClick = vi.fn(),
 ) {
   return render(
     <DndContext>
       <AppointmentCard
         appointment={appointment}
         columnTitle={columnTitle}
-        onCardClick={vi.fn()}
+        onCardClick={onCardClick}
         onRecordOpen={onRecordOpen}
       />
     </DndContext>,
@@ -193,5 +204,86 @@ describe("AppointmentCard", () => {
 
     expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toBeInTheDocument();
+  });
+
+  it("死亡した一般診療の badge を表示してカルテ・会計を抑止し、card click は維持する", () => {
+    const onCardClick = vi.fn();
+    const deceasedAppointment = {
+      ...baseAppointment,
+      petStatus: PetStatusDeceased,
+    };
+
+    renderCard(deceasedAppointment, "受付済", vi.fn(), onCardClick);
+
+    expect(screen.getByText("【死亡】")).toHaveClass(C.bgDanger, C.textWhite);
+    expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ポチの会計/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("山田"));
+    expect(onCardClick).toHaveBeenCalledTimes(1);
+    expect(onCardClick).toHaveBeenCalledWith(deceasedAppointment);
+  });
+
+  it("死亡したトリミング予約の施術・会計を抑止する", () => {
+    renderCard({
+      ...baseAppointment,
+      reservationType: "シャンプーコース",
+      reservationCategory: "trimming",
+      petStatus: PetStatusDeceased,
+    });
+
+    expect(screen.getByText("【死亡】")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ポチのトリミング記録/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ポチの会計/ })).not.toBeInTheDocument();
+  });
+
+  it("死亡した入院予約の会計・入院登録を抑止する", () => {
+    renderCard({
+      ...baseAppointment,
+      reservationType: "入院",
+      petStatus: PetStatusDeceased,
+    });
+
+    expect(screen.getByText("【死亡】")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ポチの会計/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ポチの入院登録/ })).not.toBeInTheDocument();
+  });
+
+  it("危険度 high の警告 badge を表示し、既存のカルテ・会計 action は維持する", () => {
+    renderCard({
+      ...baseAppointment,
+      petDangerLevel: DangerLevelHigh,
+    });
+
+    expect(screen.getByText("⚠ 危険")).toHaveClass(
+      C.bgDanger10,
+      C.danger,
+      C.borderDanger20,
+    );
+    expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
+  });
+
+  it("生存かつ危険度 low では badge を表示せず、既存 action を維持する", () => {
+    renderCard();
+
+    expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
+  });
+
+  it("pet sentinel が未判定の場合は badge を表示せず、既存 action を維持する", () => {
+    renderCard({
+      ...baseAppointment,
+      petStatus: undefined,
+      petDangerLevel: undefined,
+    });
+
+    expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
   });
 });

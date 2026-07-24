@@ -23,6 +23,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
+import {
+  DangerLevelHigh,
+  PetStatusDeceased,
+} from "@/types/generated/models";
 
 // Types
 import type { ReceptionAppointment } from "../api/types";
@@ -84,6 +88,8 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
+  const isDeceased = appointment.petStatus === PetStatusDeceased;
+  const isHighDanger = appointment.petDangerLevel === DangerLevelHigh;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
     ? columnTitle === "受付済"
@@ -161,6 +167,16 @@ export const AppointmentCard = memo(function AppointmentCard({
             <div className={`flex items-center gap-1 ${C.text60}`}>
               <Dog className={`${ICON.xs} flex-shrink-0`} />
               <p className="text-base truncate">{appointment.petType} - {appointment.petName}</p>
+              {isDeceased ? (
+                <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}>
+                  【死亡】
+                </span>
+              ) : null}
+              {isHighDanger ? (
+                <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
+                  ⚠ 危険
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -185,41 +201,43 @@ export const AppointmentCard = memo(function AppointmentCard({
           </div>
 
           {/* ミニアクションボタン */}
-          <div className={`flex flex-wrap items-center gap-1 pt-0.5 border-t ${C.borderDivider}`}>
-            {canOpenRecordFromCard ? (
-              <button
-                type="button"
-                aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-                className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
-                onClick={handleKarteClick}
-              >
-                {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
-                <span>{isTrimming ? "施術" : "カルテ"}</span>
-              </button>
-            ) : null}
-            {columnTitle !== "診療中" ? (
-              <button
-                type="button"
-                aria-label={`${appointment.petName}の会計`}
-                className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
-                onClick={handleAccountingClick}
-              >
-                <CreditCard className={`${ICON.xs} shrink-0`} />
-                <span>会計</span>
-              </button>
-            ) : null}
-            {columnTitle !== "診療中" && isHospitalization ? (
-              <button
-                type="button"
-                aria-label={`${appointment.petName}の入院登録`}
-                className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
-                onClick={handleHospitalizationClick}
-              >
-                <BedDouble className={`${ICON.xs} shrink-0`} />
-                <span>入院</span>
-              </button>
-            ) : null}
-          </div>
+          {isDeceased ? null : (
+            <div className={`flex flex-wrap items-center gap-1 pt-0.5 border-t ${C.borderDivider}`}>
+              {canOpenRecordFromCard ? (
+                <button
+                  type="button"
+                  aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
+                  onClick={handleKarteClick}
+                >
+                  {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
+                  <span>{isTrimming ? "施術" : "カルテ"}</span>
+                </button>
+              ) : null}
+              {columnTitle !== "診療中" ? (
+                <button
+                  type="button"
+                  aria-label={`${appointment.petName}の会計`}
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
+                  onClick={handleAccountingClick}
+                >
+                  <CreditCard className={`${ICON.xs} shrink-0`} />
+                  <span>会計</span>
+                </button>
+              ) : null}
+              {columnTitle !== "診療中" && isHospitalization ? (
+                <button
+                  type="button"
+                  aria-label={`${appointment.petName}の入院登録`}
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
+                  onClick={handleHospitalizationClick}
+                >
+                  <BedDouble className={`${ICON.xs} shrink-0`} />
+                  <span>入院</span>
+                </button>
+              ) : null}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

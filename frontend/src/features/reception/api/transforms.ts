@@ -1,6 +1,10 @@
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
-import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
+import type {
+  DangerLevel,
+  PetStatus,
+  Reservation as BackendReceptionReservation,
+} from "@/types/generated/models";
 
 interface CustomerFieldsJSON {
   customer_name?: string;
@@ -82,6 +86,13 @@ export function transformReservationToReceptionAppointment(
     ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : undefined)
     ?? cf.pets?.[0]?.type
     ?? "犬";
+  const petSentinelFields: {
+    petStatus?: PetStatus;
+    petDangerLevel?: DangerLevel;
+  } = {
+    petStatus: reservation.pet?.status,
+    petDangerLevel: reservation.pet?.danger_level,
+  };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
@@ -93,6 +104,7 @@ export function transformReservationToReceptionAppointment(
     ownerName,
     petType,
     petName,
+    ...petSentinelFields,
     visitType: visitTypeToJapanese(reservation.visit_type),
     reservationType: reservation.reservation_type?.name ?? "",
     reservationTypeId: optionalID(reservation.reservation_type_id),
