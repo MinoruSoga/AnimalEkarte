@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
 
@@ -20,10 +20,17 @@ vi.mock("react-router", () => ({
   }),
 }));
 
-const mockUseGetPets = vi.fn(() => ({ data: [] as Pet[] }));
+const mockUseGetPets = vi.fn(
+  (_ownerId?: string, _options?: { includeDeceased?: boolean }) => ({
+    data: [] as Pet[],
+  }),
+);
 
 vi.mock("@/hooks/use-pet", () => ({
-  useGetPets: () => mockUseGetPets(),
+  useGetPets: (
+    ownerId?: string,
+    options?: { includeDeceased?: boolean },
+  ) => mockUseGetPets(ownerId, options),
 }));
 
 const katakanaOwnerPet = {
@@ -34,6 +41,7 @@ const katakanaOwnerPet = {
   ownerNameKana: "ヤマダハナコ",
   petNameKana: "ポチ",
   species: "犬",
+  status: "生存",
 } as unknown as Pet;
 
 const hiraganaOwnerPet = {
@@ -47,6 +55,42 @@ const hiraganaOwnerPet = {
 } as unknown as Pet;
 
 describe("usePetSelectionPage", () => {
+  beforeEach(() => {
+    navigate.mockClear();
+    mockUseGetPets.mockClear();
+    mockUseGetPets.mockReturnValue({ data: [] });
+  });
+
+  it("死亡個体を含める option で共有一覧を取得する", () => {
+    renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    expect(mockUseGetPets).toHaveBeenCalledWith(undefined, {
+      includeDeceased: true,
+    });
+  });
+
+  it("死亡個体は callback 境界で選択を拒否する", () => {
+    const deceasedPet = { ...katakanaOwnerPet, status: "死亡" } as Pet;
+    mockUseGetPets.mockReturnValue({ data: [deceasedPet] });
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    act(() => {
+      result.current.handleSelect(deceasedPet);
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it("ペット選択後も既存クエリと state を作成画面へ引き継ぐ", () => {
     mockUseGetPets.mockReturnValue({ data: [katakanaOwnerPet] });
     const { result } = renderHook(() =>
@@ -64,6 +108,26 @@ describe("usePetSelectionPage", () => {
       "/trimming/new?appointmentId=88&visitDate=2026-05-29&petId=10",
       { state: locationState },
     );
+  });
+
+  it("生死不明の個体は従来どおり選択できる", () => {
+    const unknownStatusPet = {
+      ...katakanaOwnerPet,
+      status: undefined,
+    } as Pet;
+    mockUseGetPets.mockReturnValue({ data: [unknownStatusPet] });
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    act(() => {
+      result.current.handleSelect(unknownStatusPet);
+    });
+
+    expect(navigate).toHaveBeenCalledOnce();
   });
 
   describe("かな正規化フィルタ", () => {

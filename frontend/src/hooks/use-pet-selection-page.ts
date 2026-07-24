@@ -29,7 +29,9 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
-  const { data: pets = [] } = useGetPets();
+  const { data: pets = [] } = useGetPets(undefined, {
+    includeDeceased: true,
+  });
 
   const filteredPets = useMemo(() => {
     return pets.filter((pet) => {
@@ -61,6 +63,8 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   }, []);
 
   const handleSelect = useCallback((pet: Pet) => {
+    if (pet.status === "死亡") return;
+
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("petId", pet.id);
     navigate(`${config.selectPath}?${nextParams.toString()}`, { state: location.state });

@@ -17,6 +17,28 @@ const PET = {
 } satisfies Pet;
 
 describe("PetSelectionResultsTable row actions", () => {
+  it("危険度が高の個体だけ非色警告を表示する", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={[
+          { ...PET, id: "pet-high", name: "ハイ", dangerLevel: "高" },
+          { ...PET, id: "pet-medium", name: "ミドル", dangerLevel: "中" },
+          { ...PET, id: "pet-unknown", name: "未判定" },
+        ]}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("⚠ 危険")).toHaveLength(1);
+    expect(screen.getByText("ハイ").parentElement).toHaveTextContent("⚠ 危険");
+    expect(screen.getByText("ミドル").parentElement).not.toHaveTextContent(
+      "⚠ 危険",
+    );
+    expect(screen.getByText("未判定").parentElement).not.toHaveTextContent(
+      "⚠ 危険",
+    );
+  });
+
   it("行は選択せず、固有名の44px native buttonだけが選択する", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
@@ -32,16 +54,27 @@ describe("PetSelectionResultsTable row actions", () => {
     expect(onSelect).toHaveBeenCalledWith(PET);
   });
 
-  it("死亡個体は非色依存の名前で選択不可になる", () => {
+  it("死亡個体は非色依存の名前で選択不可になる", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
     render(
       <PetSelectionResultsTable
         pets={[{ ...PET, status: "死亡" }]}
-        onSelect={vi.fn()}
+        onSelect={onSelect}
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "死亡・選択不可: ポチ (ID pet-1)" }),
-    ).toBeDisabled();
+    const selectButton = screen.getByRole("button", {
+      name: "死亡・選択不可: ポチ (ID pet-1)",
+    });
+    expect(selectButton).toBeDisabled();
+    expect(selectButton).toHaveTextContent("選択不可");
+    expect(screen.getByText("死亡")).toBeInTheDocument();
+    expect(selectButton.closest("tr")).toHaveClass(
+      "opacity-60",
+      "grayscale-[0.5]",
+    );
+    await user.click(selectButton);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

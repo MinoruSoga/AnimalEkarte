@@ -54,7 +54,16 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerId}</TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerName}</TableCell>
                   <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.petNumber || "-"}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.name}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                    <span className="flex items-center gap-1.5">
+                      <span>{pet.name}</span>
+                      {pet.dangerLevel === "高" ? (
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
+                          ⚠ 危険
+                        </span>
+                      ) : null}
+                    </span>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {pet.status ? (
                       <Badge
