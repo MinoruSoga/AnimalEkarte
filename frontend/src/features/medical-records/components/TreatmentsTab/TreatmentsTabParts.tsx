@@ -1,5 +1,6 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
@@ -10,16 +11,16 @@ import { TreatmentRow } from "./TreatmentRow";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
-      <th scope="col" className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
-      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
+      <TableHead className="w-10" />
+      <TableHead className="w-24">種別</TableHead>
+      <TableHead>内容</TableHead>
+      <TableHead className="w-16 text-center">保険</TableHead>
+      <TableHead className="w-28 text-right">単価</TableHead>
+      <TableHead className="w-20 text-right">数量</TableHead>
+      <TableHead className="w-28 text-right">値引き</TableHead>
+      <TableHead className="w-28 text-right">小計</TableHead>
+      <TableHead>メモ</TableHead>
+      <TableHead className="w-28 text-right" />
     </tr>
   </thead>
 );
@@ -76,9 +77,9 @@ export function TreatmentsTable({
       <tbody>
         {treatments.length === 0 ? (
           <tr>
-            <td colSpan={10} className={STYLE.tableEmptySm}>
+            <TableCell data-empty-state colSpan={10} className={STYLE.tableEmptySm}>
               治療明細がありません。下の「明細を追加」ボタンから追加してください。
-            </td>
+            </TableCell>
           </tr>
         ) : (
           treatments.map((treatment, index) => {

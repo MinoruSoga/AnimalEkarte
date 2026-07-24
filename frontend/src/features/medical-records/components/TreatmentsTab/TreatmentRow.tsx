@@ -3,6 +3,7 @@ import { memo, useState, useCallback, useMemo, useRef, useEffect, useLayoutEffec
 
 // Internal
 import { Input } from "@/components/ui/input";
+import { TableCell } from "@/components/ui/table";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
@@ -255,7 +256,7 @@ export const TreatmentRow = memo(function TreatmentRow({
       <TreatmentTypeCell itemType={treatment.item_type} />
 
       {/* 内容 */}
-      <td className="px-3 py-2 min-w-[160px]">
+      <TableCell className="min-w-[160px]">
         {editField === "content" ? (
           <Input
             ref={inputRef}
@@ -275,12 +276,12 @@ export const TreatmentRow = memo(function TreatmentRow({
             )}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentInsuranceCell checked={treatment.is_insurance} onChange={handleInsuranceChange} />
 
       {/* 単価 */}
-      <td className="px-3 py-2 w-28 text-right">
+      <TableCell className="w-28 text-right">
         {editField === "unit_price" ? (
           <>
             <Input
@@ -303,10 +304,10 @@ export const TreatmentRow = memo(function TreatmentRow({
             {formatCurrency(treatment.unit_price)}
           </button>
         )}
-      </td>
+      </TableCell>
 
       {/* 数量 */}
-      <td className="px-3 py-2 w-20 text-right">
+      <TableCell className="w-20 text-right">
         {editField === "quantity" ? (
           <Input
             ref={inputRef}
@@ -369,10 +370,10 @@ export const TreatmentRow = memo(function TreatmentRow({
             {treatment.dose_weight_kg != null ? `（体重${treatment.dose_weight_kg}kg）` : ""}
           </div>
         ) : null}
-      </td>
+      </TableCell>
 
       {/* 値引き */}
-      <td className="px-3 py-2 w-28 text-right">
+      <TableCell className="w-28 text-right">
         {editField === "discount_amount" ? (
           <>
             <Input
@@ -401,12 +402,12 @@ export const TreatmentRow = memo(function TreatmentRow({
               : "—"}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentSubtotalCell subtotal={subtotal} />
 
       {/* メモ */}
-      <td className="px-3 py-2 min-w-[120px]">
+      <TableCell className="min-w-[120px]">
         {editField === "memo" ? (
           <Input
             ref={inputRef}
@@ -424,7 +425,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             {treatment.memo || <span className={C.text30}>メモ</span>}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentRowActions
         isFirst={isFirst}

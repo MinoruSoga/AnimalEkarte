@@ -2,6 +2,7 @@ import { memo, useCallback, useState, type ChangeEvent } from "react";
 import { Check, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
@@ -55,38 +56,38 @@ export const CheckupEditRow = memo(function CheckupEditRow({
 
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
-      <td className="px-3 py-2">
+      <TableCell>
         <DatePicker
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
           className="h-8 w-full"
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <CheckupTypeSelect
           value={form.checkup_type_id ?? ""}
           checkupTypes={checkupTypes}
           onChange={(value) => handleChange("checkup_type_id", value ? Number(value) : null)}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <DatePicker
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
           className="h-8 w-full"
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <StaffSelect
           value={form.doctor_id ?? ""}
           staffs={staffs}
           emptyLabel="-"
           onChange={(value) => handleChange("doctor_id", value ? Number(value) : null)}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="text"
           value={form.result ?? ""}
@@ -95,8 +96,8 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           aria-label={`結果 (${checkup.date})`}
           className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
-      </td>
-      <td className="px-2 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
@@ -117,7 +118,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
             <X className={ICON.xs} />
           </button>
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 });
@@ -143,11 +144,11 @@ export function CheckupDisplayRow({
 }: CheckupDisplayRowProps) {
   return (
     <tr className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}>
-      <td className={`px-3 text-sm ${C.text}`}>{checkup.date}</td>
-      <td className={`px-3 text-sm ${C.text}`}>
+      <TableCell className={C.text}>{checkup.date}</TableCell>
+      <TableCell className={C.text}>
         {checkup.checkup_type?.name ?? checkup.checkup_type_id}
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>
+      </TableCell>
+      <TableCell className={C.text60}>
         {checkup.next_date ? (
           <div className="flex items-center gap-1.5">
             <span>{checkup.next_date}</span>
@@ -156,12 +157,12 @@ export function CheckupDisplayRow({
         ) : (
           "-"
         )}
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>
+      </TableCell>
+      <TableCell className={C.text60}>
         {checkup.doctor?.name ?? (checkup.doctor_id ? checkup.doctor_id : "-")}
-      </td>
-      <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
-      <td className="px-2">
+      </TableCell>
+      <TableCell className={C.text}>{checkup.result}</TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           {canEdit && !isFinalized ? (
             <button
@@ -180,7 +181,7 @@ export function CheckupDisplayRow({
             />
           ) : null}
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 }

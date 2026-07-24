@@ -1,4 +1,5 @@
 import { C, PALETTE } from "@/lib/design-tokens";
+import { TableCell, TableHead } from "@/components/ui/table";
 
 import type { VisitConversionSummaryResponse } from "../api/get-lstep-visit-conversion";
 import { TriggerTypeLabels } from "../constants/trigger-types";
@@ -75,29 +76,29 @@ function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse 
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55} min-w-[180px]`}>
+            <TableHead className={`${C.text55} min-w-[180px]`}>
               トリガー種別
-            </th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>送信件数</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>来院件数</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>来院率</th>
+            </TableHead>
+            <TableHead className={`text-right ${C.text55}`}>送信件数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>来院件数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>来院率</TableHead>
           </tr>
         </thead>
         <tbody>
           {data.rows.map((row) => (
             <tr key={row.trigger_type} className={`border-b ${C.borderLight}`}>
-              <td className={`px-3 py-2 ${C.text80}`}>
+              <TableCell className={C.text80}>
                 {TriggerTypeLabels[row.trigger_type] ?? row.trigger_type}
-              </td>
-              <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+              </TableCell>
+              <TableCell className={`text-right ${C.text60} tabular-nums`}>
                 {row.delivered_count.toLocaleString()}
-              </td>
-              <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+              </TableCell>
+              <TableCell className={`text-right ${C.text60} tabular-nums`}>
                 {row.visited_count.toLocaleString()}
-              </td>
-              <td className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55} tabular-nums`}>
+              </TableCell>
+              <TableCell className={`text-right font-semibold ${C.text55} tabular-nums`}>
                 {formatPercent(row.visit_rate)}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { UploadCloud } from "lucide-react";
 
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { requireStoredClinicId } from "@/lib/current-clinic";
@@ -138,33 +139,33 @@ function CsvImportHistoryTable() {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55}`}>ファイル名</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>総行数</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>成功</th>
-            <th className={`text-right px-3 py-2 text-2xs font-semibold ${C.text55}`}>失敗</th>
-            <th className={`text-center px-3 py-2 text-2xs font-semibold ${C.text55}`}>ステータス</th>
-            <th className={`text-left px-3 py-2 text-2xs font-semibold ${C.text55}`}>アップロード日時</th>
+            <TableHead className={C.text55}>ファイル名</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>総行数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>成功</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>失敗</TableHead>
+            <TableHead className={`text-center ${C.text55}`}>ステータス</TableHead>
+            <TableHead className={C.text55}>アップロード日時</TableHead>
           </tr>
         </thead>
         <tbody>
           {data.map((item) => (
             <tr key={item.id} className={`border-b ${C.borderLight}`}>
-              <td className={`px-3 py-2 ${C.text80} max-w-[240px] truncate`} title={item.file_name}>
+              <TableCell className={`${C.text80} max-w-[240px] truncate`} title={item.file_name}>
                 {item.file_name}
-              </td>
-              <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+              </TableCell>
+              <TableCell className={`text-right ${C.text60} tabular-nums`}>
                 {item.row_count.toLocaleString()}
-              </td>
-              <td className="text-right px-3 py-2 tabular-nums" style={{ color: PALETTE.successGreen }}>
+              </TableCell>
+              <TableCell className="text-right tabular-nums" style={{ color: PALETTE.successGreen }}>
                 {item.success_count.toLocaleString()}
-              </td>
-              <td
-                className="text-right px-3 py-2 tabular-nums"
+              </TableCell>
+              <TableCell
+                className="text-right tabular-nums"
                 style={{ color: item.error_count > 0 ? PALETTE.danger : undefined }}
               >
                 {item.error_count.toLocaleString()}
-              </td>
-              <td className="text-center px-3 py-2">
+              </TableCell>
+              <TableCell className="text-center">
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full ${
                     item.status === "completed"
@@ -176,10 +177,10 @@ function CsvImportHistoryTable() {
                 >
                   {CSV_STATUS_LABELS[item.status] ?? item.status}
                 </span>
-              </td>
-              <td className={`px-3 py-2 ${C.text60} text-xs`}>
+              </TableCell>
+              <TableCell className={C.text60}>
                 {formatJSTDateTimeLocal(item.created_at).replace("T", " ")}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>

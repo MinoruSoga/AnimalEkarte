@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
@@ -207,34 +207,34 @@ export const ItemListCard = memo(function ItemListCard({
                       <table className="w-full">
                         <thead>
                           <tr className={`border-b ${C.bgPage} text-2xs font-semibold`}>
-                            <th className="px-3 py-2 text-left">品目名</th>
-                            <th className="px-3 py-2 text-left w-[70px]">区分</th>
-                            <th className="px-3 py-2 text-right w-[90px]">単価</th>
-                            <th className="px-3 py-2 text-right w-[60px]">税率</th>
-                            <th className="px-3 py-2 text-left w-[80px]">操作</th>
+                            <TableHead>品目名</TableHead>
+                            <TableHead className="w-[70px]">区分</TableHead>
+                            <TableHead className="w-[90px] text-right">単価</TableHead>
+                            <TableHead className="w-[60px] text-right">税率</TableHead>
+                            <TableHead className="w-[80px]">操作</TableHead>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredMerchandise.map((item) => (
                             <tr key={item.id} className={`border-b ${C.hoverBgLight} transition-colors`}>
-                              <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
-                              <td className={`px-3 py-2 text-sm ${C.text50}`}>
+                              <TableCell className="font-medium">{item.name}</TableCell>
+                              <TableCell className={C.text50}>
                                 {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-right font-mono">
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
                                 {formatCurrency(item.unitPrice)}
-                              </td>
-                              <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
+                              </TableCell>
+                              <TableCell className={`text-right ${C.text50}`}>
                                 {item.taxRate === DEFAULT_STANDARD_TAX_RATE ? "10%" : item.taxRate === DEFAULT_REDUCED_TAX_RATE ? "8%" : `${item.taxRate * 100}%`}
-                              </td>
-                              <td className="px-3 py-2 text-sm">
+                              </TableCell>
+                              <TableCell>
                                 <DataTableRowButton
                                   aria-label={`追加: ${item.name} (ID ${item.id})`}
                                   onClick={() => handleSelectMerchandise(item)}
                                 >
                                   追加
                                 </DataTableRowButton>
-                              </td>
+                              </TableCell>
                             </tr>
                           ))}
                         </tbody>

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
@@ -191,13 +192,13 @@ export function CashRegisterHistoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className={STYLE.tableHeaderRow}>
-                    <th className={`${STYLE.tableHeaderCell} text-left`}>日付</th>
-                    <th className={`${STYLE.tableHeaderCell} text-left`}>区分</th>
-                    <th className={`${STYLE.tableHeaderCell} text-right`}>理論現金</th>
-                    <th className={`${STYLE.tableHeaderCell} text-right`}>実際の現金</th>
-                    <th className={`${STYLE.tableHeaderCell} text-right`}>差額</th>
-                    <th className={`${STYLE.tableHeaderCell} text-left`}>担当者</th>
-                    <th className={`${STYLE.tableHeaderCell} text-left`}>締め時刻</th>
+                    <TableHead>日付</TableHead>
+                    <TableHead>区分</TableHead>
+                    <TableHead className="text-right">理論現金</TableHead>
+                    <TableHead className="text-right">実際の現金</TableHead>
+                    <TableHead className="text-right">差額</TableHead>
+                    <TableHead>担当者</TableHead>
+                    <TableHead>締め時刻</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,34 +214,34 @@ export function CashRegisterHistoryPage() {
                           isHighlighted ? C.bgBrandLight40 : STYLE.tableRow
                         }`}
                       >
-                        <td className={`px-4 py-3 ${C.text}`}>
+                        <TableCell className={C.text}>
                           <DataTableRowButton
                             aria-label={`締め詳細: ${close.closeDate} ${PERIOD_LABELS[close.period]} (ID ${close.id})`}
                             onClick={() => setSelectedClose(close)}
                           >
                             {close.closeDate}
                           </DataTableRowButton>
-                        </td>
-                        <td className={`px-4 py-3 ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={C.text}>
                           {PERIOD_LABELS[close.period]}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={`text-right ${C.text}`}>
                           {formatCurrency(close.theoreticalCash ?? 0)}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={`text-right ${C.text}`}>
                           {formatCurrency(close.actualCash ?? 0)}
-                        </td>
-                        <td className={`px-4 py-3 text-right font-medium ${diffClass(diff)}`}>
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${diffClass(diff)}`}>
                           {formatDiff(diff)}
-                        </td>
-                        <td className={`px-4 py-3 ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={C.text}>
                           {close.closedByStaffName ?? "—"}
-                        </td>
-                        <td className={`px-4 py-3 ${C.text60}`}>
+                        </TableCell>
+                        <TableCell className={C.text60}>
                           {close.closedAt
                             ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")
                             : "—"}
-                        </td>
+                        </TableCell>
                       </tr>
                     );
                   })}
