@@ -1,4 +1,4 @@
-package repotest
+package testdb
 
 // repotest_test.go — BE8-3: db_setup_test.go（旧 backend/internal/repository/db_setup_test.go）
 // から移設した純粋ヘルパーの単体テスト。DB接続不要。
