@@ -440,6 +440,61 @@ func TestCreateAuditReportRejectsUnsafeLocations(t *testing.T) {
 	}
 }
 
+func TestCreateAuditReportRejectsInvalidRoots(t *testing.T) {
+	tempDir := t.TempDir()
+	missingRoot := filepath.Join(tempDir, "missing")
+	if _, err := createAuditReport(filepath.Join(missingRoot, "report.json"), missingRoot, auditReport{}); err == nil {
+		t.Fatal("missing report root was accepted")
+	}
+
+	fileRoot := filepath.Join(tempDir, "file-root")
+	if err := os.WriteFile(fileRoot, []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := createAuditReport(filepath.Join(fileRoot, "report.json"), fileRoot, auditReport{}); err == nil {
+		t.Fatal("non-directory report root was accepted")
+	}
+
+	actualRoot := filepath.Join(tempDir, "actual")
+	if err := os.Mkdir(actualRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	symlinkRoot := filepath.Join(tempDir, "symlink")
+	if err := os.Symlink(actualRoot, symlinkRoot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := createAuditReport(filepath.Join(symlinkRoot, "report.json"), symlinkRoot, auditReport{}); err == nil {
+		t.Fatal("symlinked report root was accepted")
+	}
+}
+
+func TestReplaceAuditReportRejectsUnwritableFiles(t *testing.T) {
+	closedPath := filepath.Join(t.TempDir(), "closed.json")
+	closed, err := os.Create(closedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := closed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceAuditReport(closed, auditReport{}); err == nil || !strings.Contains(err.Error(), "seek") {
+		t.Fatalf("closed file error = %v, want seek failure", err)
+	}
+
+	readOnlyPath := filepath.Join(t.TempDir(), "read-only.json")
+	if err := os.WriteFile(readOnlyPath, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	readOnly, err := os.Open(readOnlyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer readOnly.Close() //nolint:errcheck // test cleanup
+	if err := replaceAuditReport(readOnly, auditReport{}); err == nil || !strings.Contains(err.Error(), "truncate") {
+		t.Fatalf("read-only file error = %v, want truncate failure", err)
+	}
+}
+
 func TestBuildTargetPoolConfigUsesStructuredValues(t *testing.T) {
 	t.Setenv("PGHOST", "db,evil.invalid")
 	t.Setenv("PGPORT", "5432,5432")
@@ -469,6 +524,12 @@ func TestBuildTargetPoolConfigUsesStructuredValues(t *testing.T) {
 	}
 	if _, err := buildTargetPoolConfig(dbconn.ConnParams{Host: "db", Port: "bad", SSLMode: "disable"}, "animalekarte"); err == nil {
 		t.Fatal("invalid port was accepted")
+	}
+	if _, err := buildTargetPoolConfig(dbconn.ConnParams{Host: "db", Port: "5432", SSLMode: "require"}, "animalekarte"); err == nil {
+		t.Fatal("non-disabled SSL mode was accepted")
+	}
+	if _, err := buildTargetPoolConfig(dbconn.ConnParams{Host: "db", Port: "0", SSLMode: "disable"}, "animalekarte"); err == nil {
+		t.Fatal("zero port was accepted")
 	}
 }
 
