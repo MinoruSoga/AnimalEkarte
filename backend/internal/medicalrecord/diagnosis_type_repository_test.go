@@ -27,14 +27,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupDiagnosisTypeTestDB は diagnosis_types / diagnosis_names 用に DB を整備する。
 func setupDiagnosisTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
 	return db

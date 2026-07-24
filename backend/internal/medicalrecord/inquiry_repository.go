@@ -3,7 +3,7 @@ package medicalrecord
 // inquiry_repository.go — InquiryRepository の実装。
 // Moved from internal/repository/inquiry_repository.go — BE9-2D roll-up. Type/constructor names
 // are unchanged; the internal/repository facade re-exports them as aliases so no caller changes.
-// Package-private clinicScope is swapped for repohelpers.ClinicScope (this package must not
+// Package-private clinicScope is swapped for persistence.ClinicScope (this package must not
 // import internal/repository — that would be an import cycle via the facade).
 
 import (
@@ -14,7 +14,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // InquiryRepository は医療記録問診の永続化インターフェース
@@ -48,7 +48,7 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 	// Verify the medical_record belongs to this clinic and is still draft before upserting.
 	var mr model.MedicalRecord
 	if err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", inquiry.MedicalRecordID).
 		First(&mr).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "inquiry", fmt.Sprintf("medical_record_id=%d", inquiry.MedicalRecordID))

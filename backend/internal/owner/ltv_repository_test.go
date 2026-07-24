@@ -10,12 +10,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupLTVTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	return repotest.SetupTestDB(t)
+	return testdb.SetupTestDB(t)
 }
 
 func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {

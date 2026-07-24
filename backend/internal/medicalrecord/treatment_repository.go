@@ -9,11 +9,11 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Moved from internal/repository (BE9-2D sub-batch④b). The former package-private dbOrTx is
-// swapped for repohelpers.DBOrTx (identical ambient-tx participation); paginate resolves to this
+// swapped for persistence.DBOrTx (identical ambient-tx participation); paginate resolves to this
 // package's pagination.go (same predicate). External callers only ever saw this via the
 // internal/repository facade (TreatmentRepository alias), so no call site changes.
 
@@ -151,11 +151,11 @@ func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.
 	return count, nil
 }
 
-// Create は repohelpers.DBOrTx(ctx, r.db) で ambient tx（Transactor.WithTx）に参加する（BE9-2D ④b）。
+// Create は persistence.DBOrTx(ctx, r.db) で ambient tx（Transactor.WithTx）に参加する（BE9-2D ④b）。
 // treatmentService.Create が lockDraftMedicalRecord の行ロック・在庫減算・逸脱監査と同一 tx で
 // 呼ぶため、tx 非参加だと X-11 finalize 直列化と atomicity（CLAUDE.md 不変条件）が壊れる。
 func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(treatment).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(treatment).Error; err != nil {
 		return apperrors.FromGORM(err, "treatment", "")
 	}
 	return nil
@@ -166,7 +166,7 @@ func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, f
 	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Treatment{}).
 		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
@@ -182,7 +182,7 @@ func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, f
 // Delete は dbOrTx で ambient tx に参加する（Create と同じ理由、BE9-2D ④b）。
 func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.Treatment{})
 	if result.Error != nil {
@@ -195,7 +195,7 @@ func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
 				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", u.ID, u.ClinicID).

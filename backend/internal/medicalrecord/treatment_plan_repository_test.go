@@ -20,7 +20,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTreatmentPlanTestDB は treatment_plans / hospitalizations / medical_records を整備する。
@@ -28,8 +28,8 @@ import (
 // AutoMigrate しない（master_preload_clinic_isolation_test.go の既存パターンを踏襲）。
 func setupTreatmentPlanTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Hospitalization{}, &model.TreatmentPlan{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Hospitalization{}, &model.TreatmentPlan{}))
 	db.Exec("TRUNCATE TABLE treatment_plans CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")

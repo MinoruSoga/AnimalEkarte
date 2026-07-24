@@ -26,15 +26,15 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupMedicineInventoryTxTestDB は BUG-429 の Create フロー（medicine + inventory_items）を
 // 単一トランザクションで検証するために両テーブルを整備する。
 func setupMedicineInventoryTxTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Medicine{}, &model.InventoryItem{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Medicine{}, &model.InventoryItem{}))
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
 	return db

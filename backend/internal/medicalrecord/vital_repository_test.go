@@ -2,7 +2,7 @@ package medicalrecord
 
 // vital_repository_test.go — VitalRepository の統合テスト（内部カバレッジ向上）。
 // 移動元 internal/repository（BE9-2D sub-batch④a）。setupTestDB/ensureAutoMigrated は
-// repotest.SetupTestDB/EnsureAutoMigrated 直呼びへ、makeTestOwner はこの package の共有
+// testdb.SetupTestDB/EnsureAutoMigrated 直呼びへ、makeTestOwner はこの package の共有
 // repotest ラッパーを再利用（vaccination_repository_test.go 先例）。
 //
 // 対象: FindByMedicalRecordID / FindByID / Create / Update / Delete
@@ -19,15 +19,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupVitalTestDB は vital_records と、その FK 先である
 // pets/animal_species/staffs/daily_records を整備する（medical_records は core AutoMigrate 済み）。
 func setupVitalTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.DailyRecord{}, &model.VitalRecord{},
 	))
 	db.Exec("TRUNCATE TABLE vital_records CASCADE")
@@ -131,7 +131,7 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
 
 	// 別クリニックの vital が同じ medical_record_id 値を偽装しても混入しないことを検証する
-	// （repohelpers.ClinicScope は vital_records.clinic_id で直接フィルタするため、他クリニックの行は
+	// （persistence.ClinicScope は vital_records.clinic_id で直接フィルタするため、他クリニックの行は
 	//  同一 MedicalRecordID を指していても除外される想定）。
 	crossClinicVital := &model.VitalRecord{ClinicID: clinicB, PetID: petA.ID, MedicalRecordID: &mrA.ID, RecordedAt: time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC), Notes: "越境"}
 	require.NoError(t, repo.Create(ctx, crossClinicVital))

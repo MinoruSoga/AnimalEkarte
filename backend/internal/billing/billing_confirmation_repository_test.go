@@ -17,15 +17,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupBillingConfirmationTestDB は billing_confirmations と、その FK 先である staffs を整備する
 // （medical_records は core AutoMigrate 済み）。
 func setupBillingConfirmationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}, &model.BillingConfirmation{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}, &model.BillingConfirmation{}))
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db

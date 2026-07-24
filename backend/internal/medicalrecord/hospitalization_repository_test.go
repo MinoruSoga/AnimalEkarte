@@ -15,7 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupHospitalizationRepoTestDB は hospitalizations とその子テーブル群を整備する。
@@ -32,8 +32,8 @@ func makeCageMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *mo
 
 func setupHospitalizationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Staff{},
 		&model.Medicine{}, &model.Procedure{}, &model.HospitalizationPlan{},
 		&model.Hospitalization{}, &model.CarePlanItem{}, &model.DailyRecord{}, &model.TreatmentPlan{},

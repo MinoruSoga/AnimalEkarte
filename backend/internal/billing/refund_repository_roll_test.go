@@ -19,7 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupRefundRepoTestDB は billing_refunds の FK/Preload テストに必要な staffs テーブルを
@@ -29,8 +29,8 @@ import (
 // setupStaffOccupationPreloadTestDB と同様のパターン）。
 func setupRefundRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}))
 	return db
 }
 

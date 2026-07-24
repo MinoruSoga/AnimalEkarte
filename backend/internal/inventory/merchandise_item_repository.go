@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // MerchandiseItemRepository is the temporary full persistence surface retained
@@ -33,7 +33,7 @@ func NewMerchandiseItemRepository(db *gorm.DB) MerchandiseItemRepository {
 
 func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
 	items := make([]model.MerchandiseItem, 0)
-	q := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID))
 	if category != "" {
 		q = q.Where("category = ?", category)
 	}
@@ -44,7 +44,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	return repohelpers.FindByIDScoped[model.MerchandiseItem](ctx, r.db, "merchandise_item", clinicID, id)
+	return persistence.FindByIDScoped[model.MerchandiseItem](ctx, r.db, "merchandise_item", clinicID, id)
 }
 
 func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {
@@ -55,14 +55,14 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 }
 
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids, "sort_order")
 }
 
 // CountUsageByMerchandiseItemID returns billing_items + estimate_items references (BUG-109).
@@ -90,5 +90,5 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
 }

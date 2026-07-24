@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // BillingConfirmationRepository は会計医師確認のデータアクセスインターフェース
@@ -46,11 +46,11 @@ func (r *billingConfirmationRepository) Create(ctx context.Context, review *mode
 	return nil
 }
 
-// Update は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（billingConfirmationService.Confirm/Return が
+// Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（billingConfirmationService.Confirm/Return が
 // SD-2/X-11 と同種の確定済みカルテガードのため LockByIDForUpdate の行ロックと同一 tx に束ねる）。
 func (r *billingConfirmationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// Restrict update to rows belonging to this clinic via subquery on medical_records
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingConfirmation{}).
 		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
 		Updates(fields)

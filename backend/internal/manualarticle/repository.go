@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository は取扱説明書（マニュアル）のデータアクセスインターフェース
@@ -60,7 +60,7 @@ func (r *repository) FindByCategoryAndSlug(ctx context.Context, category model.M
 // Upsert は category+slug で UNIQUE 制約を利用した upsert を実行する。
 // 履歴テーブルへの記録も同一トランザクション内で行う。
 func (r *repository) Upsert(ctx context.Context, article *model.ManualArticle, editorStaffID *uint64) (*model.ManualArticle, error) {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存レコード取得
 		var existing model.ManualArticle
 		findErr := tx.Where("category = ? AND slug = ?", article.Category, article.Slug).First(&existing).Error

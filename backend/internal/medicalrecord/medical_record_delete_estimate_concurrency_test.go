@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type blockingMedicalRecordDeleteRepository struct {
@@ -45,7 +45,7 @@ func createEstimateForLockedMedicalRecord(ctx context.Context, db *gorm.DB, repo
 		if _, err := repo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID); err != nil {
 			return err
 		}
-		return repohelpers.DBOrTx(txCtx, db).Create(&model.Estimate{
+		return persistence.DBOrTx(txCtx, db).Create(&model.Estimate{
 			ClinicID:        clinicID,
 			EstimateNo:      estimateNo,
 			MedicalRecordID: &medicalRecordID,
@@ -70,7 +70,7 @@ func TestMedicalRecordService_DeleteSerializesWithEstimateCreation(t *testing.T)
 				if _, err := repo.LockByIDForUpdate(txCtx, clinicID, record.ID); err != nil {
 					return err
 				}
-				if err := repohelpers.DBOrTx(txCtx, db).Create(&model.Estimate{
+				if err := persistence.DBOrTx(txCtx, db).Create(&model.Estimate{
 					ClinicID: clinicID, EstimateNo: "EST-FIRST", MedicalRecordID: &record.ID,
 					Status: model.EstimateStatusDraft,
 				}).Error; err != nil {

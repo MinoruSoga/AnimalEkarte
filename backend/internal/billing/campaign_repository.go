@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CampaignRepository は割引キャンペーンマスタのデータアクセスインターフェース (#81)
@@ -40,7 +40,7 @@ func NewCampaignRepository(db *gorm.DB) CampaignRepository {
 func (r *campaignRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
 	var ms []model.Campaign
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("TargetCategories").
 		Preload("TargetItems").
 		Order("sort_order ASC, start_date DESC").
@@ -54,7 +54,7 @@ func (r *campaignRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 func (r *campaignRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error) {
 	var m model.Campaign
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("TargetCategories").
 		Preload("TargetItems").
 		First(&m, id).Error
@@ -75,7 +75,7 @@ func (r *campaignRepository) Create(ctx context.Context, m *model.Campaign) (*mo
 func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Campaign{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
@@ -90,7 +90,7 @@ func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fi
 // ReplaceTargets は campaign の対象カテゴリ・対象商品を全削除→再作成で差し替える。
 // 呼び出し側(service)で campaign の所有(clinic_id)を確認済みであること。
 func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("campaign_id = ?", campaignID).Delete(&model.CampaignTargetCategory{}).Error; err != nil {
 			return apperrors.FromGORM(err, "campaign_target_category", "")
 		}
@@ -116,7 +116,7 @@ func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint
 
 func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.Campaign{})
 	if result.Error != nil {
@@ -129,7 +129,7 @@ func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *campaignRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids, "sort_order")
 }
 
 func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (cond string, args []any) {
@@ -145,8 +145,8 @@ func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, me
 func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
 	cond, args := r.buildApplicableCond(category, merchandiseItemID)
 	var campaign model.Campaign
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
 		Where(cond, args...).
 		Order("discount_value DESC").
@@ -163,8 +163,8 @@ func (r *campaignRepository) FindApplicableForItem(ctx context.Context, clinicID
 func (r *campaignRepository) FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error) {
 	cond, args := r.buildApplicableCond(category, merchandiseItemID)
 	var campaigns []*model.Campaign
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
 		Where(cond, args...).
 		Order("discount_value DESC").

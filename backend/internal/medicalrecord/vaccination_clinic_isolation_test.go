@@ -13,7 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type vaccinationRelationVerifierStub struct {
@@ -65,7 +65,7 @@ func (t vaccinationTestTransactor) WithTx(ctx context.Context, fn func(context.C
 		return fn(ctx)
 	}
 	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 

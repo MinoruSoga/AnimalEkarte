@@ -3,9 +3,9 @@ package medicalrecord
 // checkup_field_repository.go — CheckupTypeFieldRepository / CheckupFieldResultRepository の実装。
 // Moved from internal/repository/checkup_field_repository.go — BE9-2D roll-up. Type/constructor
 // names are unchanged; the internal/repository facade re-exports them as aliases so no caller
-// changes. Package-private clinicScope/dbOrTx are swapped for repohelpers.ClinicScope/DBOrTx
+// changes. Package-private clinicScope/dbOrTx are swapped for persistence.ClinicScope/DBOrTx
 // (this package must not import internal/repository — that would be an import cycle via the
-// facade). The dbOrTx→repohelpers.DBOrTx rename keeps the same ambient-tx participation
+// facade). The dbOrTx→persistence.DBOrTx rename keeps the same ambient-tx participation
 // (dbortx_inventory_lint matches all three call shapes); the audit_tx / dbortx inventory
 // allowlist keys are updated to the medicalrecord/ path.
 
@@ -18,7 +18,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CheckupTypeFieldRepository は健診パッケージのフィールド定義マスタ（checkup_type_fields）アクセス。
@@ -50,7 +50,7 @@ func NewCheckupTypeFieldRepository(db *gorm.DB) CheckupTypeFieldRepository {
 func (r *checkupTypeFieldRepository) FindByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) ([]model.CheckupTypeField, error) {
 	fields := make([]model.CheckupTypeField, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("checkup_type_id = ?", checkupTypeID).
 		Order("sort_order ASC, id ASC").
 		Find(&fields).Error
@@ -72,8 +72,8 @@ func (r *checkupFieldResultRepository) FindByCheckupID(ctx context.Context, clin
 	results := make([]model.CheckupFieldResult, 0)
 	// dbOrTx: ambient tx 内から呼ばれた場合は同一 tx で読む（#211 置換後の read-your-writes /
 	// 置換前スナップショットを削除と同一 tx で一貫取得）。tx 外では base db（従来挙動）。
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		// P3.1: clinic-scoped マスタ Preload は clinic_id 述語必須。
 		Preload("CheckupTypeField", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("checkup_id = ?", checkupID).
@@ -117,7 +117,7 @@ func (r *checkupFieldResultRepository) ReplaceForCheckup(ctx context.Context, cl
 	// 後続の監査書込が失敗して caller が tx を rollback すると削除も巻き戻る（#211 fail-closed 原子性）。
 	// ambient tx が無い場合は base db で独立トランザクションを開く（従来挙動＝後方互換）。
 	var deletedCount int64
-	err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 本クロージャ引数 tx が savepoint レベルの tx ハンドル。キャプチャされる ctx は外側（ambient）tx を
 		// txKey に持つため、内部処理は必ず引数 tx を使い dbOrTx(ctx,…) で取り直さないこと
 		// （同一 *sql.Tx なので実害はないが、将来の抽出リファクタで別ハンドルにすり替わる罠を避ける）。

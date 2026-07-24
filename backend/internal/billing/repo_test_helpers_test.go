@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
@@ -29,7 +29,7 @@ type testTransactorImpl struct{ db *gorm.DB }
 
 func (t testTransactorImpl) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 

@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type reservationCancelCleanupAuditCapture struct {
@@ -35,7 +35,7 @@ func assertBoundedCleanupContext(ctx context.Context, t *testing.T) {
 	t.Helper()
 
 	assert.NoError(t, ctx.Err())
-	assert.Nil(t, repohelpers.TxFromContext(ctx))
+	assert.Nil(t, persistence.TxFromContext(ctx))
 	deadline, ok := ctx.Deadline()
 	if assert.True(t, ok, "cleanup context must have a deadline") {
 		remaining := time.Until(deadline)
@@ -322,7 +322,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
-		parentWithTx := repohelpers.WithTxValue(context.Background(), &gorm.DB{})
+		parentWithTx := persistence.WithTxValue(context.Background(), &gorm.DB{})
 		parentCtx, cancelParent := context.WithCancel(parentWithTx)
 		cancelParent()
 

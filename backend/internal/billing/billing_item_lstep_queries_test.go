@@ -22,17 +22,17 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 	ctx := context.Background()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewBillingItemRepository(db)
 	const clinicA, clinicB = uint64(1), uint64(2)
 	since := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "G11-5飼主1")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "G11-5飼主1")
 	completedAt := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
 	billing := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, completedAt)
 	billing.OwnerID = &owner.ID
@@ -50,7 +50,7 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 		earlyBilling := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
 		earlyItem := &model.BillingItem{BillingID: earlyBilling.ID, Category: model.ItemCategoryGoods, Name: "対象商品早期"}
 		require.NoError(t, db.WithContext(ctx).Create(earlyItem).Error)
-		ownerEarly := repotest.MakeTestOwner(t, db, clinicA, "G11-5飼主early")
+		ownerEarly := testdb.MakeTestOwner(t, db, clinicA, "G11-5飼主early")
 		earlyBilling.OwnerID = &ownerEarly.ID
 		require.NoError(t, db.WithContext(ctx).Save(earlyBilling).Error)
 
@@ -66,7 +66,7 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 	})
 
 	t.Run("別ownerならfalse", func(t *testing.T) {
-		otherOwner := repotest.MakeTestOwner(t, db, clinicA, "G11-5別飼主")
+		otherOwner := testdb.MakeTestOwner(t, db, clinicA, "G11-5別飼主")
 		ok, err := repo.HasItemByOwnerSince(ctx, clinicA, otherOwner.ID, since, []string{"対象商品A"})
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -79,7 +79,7 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 	})
 
 	t.Run("soft-deleted billingならfalse", func(t *testing.T) {
-		deletedOwner := repotest.MakeTestOwner(t, db, clinicA, "G11-5削除済み飼主")
+		deletedOwner := testdb.MakeTestOwner(t, db, clinicA, "G11-5削除済み飼主")
 		deletedBilling := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, completedAt)
 		deletedBilling.OwnerID = &deletedOwner.ID
 		require.NoError(t, db.WithContext(ctx).Save(deletedBilling).Error)
@@ -101,14 +101,14 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 
 func TestBillingItemRepository_HasFoodPurchaseByOwnerSince(t *testing.T) {
 	ctx := context.Background()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewBillingItemRepository(db)
 	const clinicA = uint64(1)
 	since := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	completedAt := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
 
 	t.Run("names指定時はname INで判定する", func(t *testing.T) {
-		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-5フード飼主1")
+		owner := testdb.MakeTestOwner(t, db, clinicA, "G11-5フード飼主1")
 		billing := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, completedAt)
 		billing.OwnerID = &owner.ID
 		require.NoError(t, db.WithContext(ctx).Save(billing).Error)
@@ -125,7 +125,7 @@ func TestBillingItemRepository_HasFoodPurchaseByOwnerSince(t *testing.T) {
 	})
 
 	t.Run("names未指定時はcategory=foodへフォールバックする", func(t *testing.T) {
-		owner := repotest.MakeTestOwner(t, db, clinicA, "G11-5フード飼主2")
+		owner := testdb.MakeTestOwner(t, db, clinicA, "G11-5フード飼主2")
 		billing := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, completedAt)
 		billing.OwnerID = &owner.ID
 		require.NoError(t, db.WithContext(ctx).Save(billing).Error)
@@ -135,7 +135,7 @@ func TestBillingItemRepository_HasFoodPurchaseByOwnerSince(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, ok, "names未指定時はcategory=foodで判定")
 
-		nonFoodOwner := repotest.MakeTestOwner(t, db, clinicA, "G11-5非フード飼主")
+		nonFoodOwner := testdb.MakeTestOwner(t, db, clinicA, "G11-5非フード飼主")
 		nonFoodBilling := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, completedAt)
 		nonFoodBilling.OwnerID = &nonFoodOwner.ID
 		require.NoError(t, db.WithContext(ctx).Save(nonFoodBilling).Error)

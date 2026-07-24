@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CheckupTypeRepository is the data access interface for checkup types.
@@ -35,7 +35,7 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 
 func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}
@@ -43,7 +43,7 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 }
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	return repohelpers.FindByIDScoped[model.CheckupType](ctx, r.db, "checkup_type", clinicID, id)
+	return persistence.FindByIDScoped[model.CheckupType](ctx, r.db, "checkup_type", clinicID, id)
 }
 
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
@@ -55,18 +55,18 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 }
 
 func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id)
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids, "sort_order")
 }
 
 // CountUsageByCheckupTypeID は定期健診種別を参照している checkups の件数を返す（BUG-107）
@@ -75,7 +75,7 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Checkup{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("checkup_type_id = ? AND deleted_at IS NULL", checkupTypeID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_type", "")
@@ -88,7 +88,7 @@ func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, cli
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_type", "")

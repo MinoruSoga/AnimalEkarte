@@ -20,7 +20,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupLstepTagCacheTestDB は lstep_tag_cache テーブルを用意する。
@@ -30,8 +30,8 @@ import (
 // UpsertTag の ON CONFLICT を意味のある形で検証するため、明示的に追加する。
 func setupLstepTagCacheTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepTagCache{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCache{}))
 	db.Exec("TRUNCATE TABLE lstep_tag_cache CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_tag_cache_conflict
 		ON lstep_tag_cache (clinic_id, owner_id, tag_name)`)
@@ -239,10 +239,10 @@ func TestLstepTagCacheRepository_FindOwnersByTag(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
-	tanaka := repotest.MakeTestOwner(t, db, clinicA, "田中太郎")
-	yamada := repotest.MakeTestOwner(t, db, clinicA, "山田花子")
-	deletedOwner := repotest.MakeTestOwner(t, db, clinicA, "削除済み飼い主")
-	otherClinicOwner := repotest.MakeTestOwner(t, db, clinicB, "別クリニック飼い主")
+	tanaka := testdb.MakeTestOwner(t, db, clinicA, "田中太郎")
+	yamada := testdb.MakeTestOwner(t, db, clinicA, "山田花子")
+	deletedOwner := testdb.MakeTestOwner(t, db, clinicA, "削除済み飼い主")
+	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼い主")
 
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "dormant_365d", "auto", "reason-tanaka"))
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "manual_note", "manual", ""))

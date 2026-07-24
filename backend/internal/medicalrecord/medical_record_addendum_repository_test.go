@@ -18,15 +18,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupMedicalRecordAddendumTestDB は medical_record_addenda と、その FK 先である
 // pets/animal_species/staffs/medical_records を整備する。
 func setupMedicalRecordAddendumTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.MedicalRecordAddendum{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.MedicalRecordAddendum{}))
 	db.Exec("TRUNCATE TABLE medical_record_addenda CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")

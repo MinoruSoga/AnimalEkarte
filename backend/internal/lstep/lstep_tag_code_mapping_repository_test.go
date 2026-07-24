@@ -21,14 +21,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupLstepTagCodeMappingTestDB は lstep_tag_code_mappings テーブルを用意する。
 func setupLstepTagCodeMappingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepTagCodeMapping{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCodeMapping{}))
 	db.Exec("TRUNCATE TABLE lstep_tag_code_mappings CASCADE")
 	return db
 }

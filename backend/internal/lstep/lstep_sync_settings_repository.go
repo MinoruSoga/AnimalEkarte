@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LstepSyncSettingsRepository はクリニックごとのLステップ同期設定を管理する。
@@ -39,7 +39,7 @@ func (r *lstepSyncSettingsRepository) FindByClinicID(ctx context.Context, clinic
 
 func (r *lstepSyncSettingsRepository) Upsert(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error) {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(settings.ClinicID)).
+		Scopes(persistence.ClinicScope(settings.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_sync_enabled", "sync_enabled_at", "updated_at"}),

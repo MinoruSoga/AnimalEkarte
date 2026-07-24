@@ -13,7 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupHospitalizationPlanRepoTestDB は hospitalization_plans と、使用状況集計で必要になる
@@ -22,8 +22,8 @@ import (
 // （master_preload_clinic_isolation_test.go と同じ組み合わせ）。
 func setupHospitalizationPlanRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{},
 		&model.Medicine{}, &model.Procedure{},
 		&model.HospitalizationPlan{}, &model.Hospitalization{}, &model.CarePlanItem{},

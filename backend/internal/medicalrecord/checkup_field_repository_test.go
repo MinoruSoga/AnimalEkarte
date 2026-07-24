@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCheckupFieldTestDB は setupIsolatedTestDB（呼び出し毎に使い捨ての新規 DB 接続）を使う。
@@ -29,7 +29,7 @@ import (
 // （詳細は setupIsolatedTestDB のコメント参照）。
 func setupCheckupFieldTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupIsolatedTestDB(t)
+	db := testdb.SetupIsolatedTestDB(t)
 	// checkup_field_type ENUM は migration 010 で新設。setupTestDB のハードコード一覧に
 	// 含まれないため、本テストで明示的に作成する（exam_result_status は setupTestDB が作成済み）。
 	db.Exec("DROP TABLE IF EXISTS checkup_field_results CASCADE")

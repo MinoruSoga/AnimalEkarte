@@ -24,7 +24,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupAccountingIsolationTestDB は accounting clinic_id 隔離テスト用の DB を整備する。
@@ -33,8 +33,8 @@ import (
 // billings / payments / billing_refunds / owners は setupTestDB が既に AutoMigrate 済み。
 func setupAccountingIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.BillingItem{}, &model.PaymentSplit{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.BillingItem{}, &model.PaymentSplit{}))
 	return db
 }
 

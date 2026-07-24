@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // DiagnosisNameRepository is the data access interface for diagnosis names. Moved from
@@ -35,7 +35,7 @@ func NewDiagnosisNameRepository(db *gorm.DB) DiagnosisNameRepository {
 
 func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(repohelpers.ClinicScope(clinicID))
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(persistence.ClinicScope(clinicID))
 	}
 	var total int64
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -54,7 +54,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 func (r *diagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	buildBase := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
-			Scopes(repohelpers.ClinicScope(clinicID)).
+			Scopes(persistence.ClinicScope(clinicID)).
 			Where("diagnosis_type_id = ?", categoryID)
 	}
 	var total int64
@@ -75,7 +75,7 @@ func (r *diagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clini
 // typeID が非 nil の場合は該当カテゴリのみ、nil の場合はクリニック全件を返す。
 // is_active = true のレコードのみを返す（CODE-QUALITY-232）。
 func (r *diagnosisNameRepository) FindAllByFilter(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
-	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(repohelpers.ClinicScope(clinicID)).
+	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(persistence.ClinicScope(clinicID)).
 		Where("is_active = ?", true)
 	if typeID != nil {
 		q = q.Where("diagnosis_type_id = ?", *typeID)
@@ -88,7 +88,7 @@ func (r *diagnosisNameRepository) FindAllByFilter(ctx context.Context, clinicID 
 }
 
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
-	return repohelpers.FindByIDScoped[model.DiagnosisName](ctx, r.db, "diagnosis_name", clinicID, id)
+	return persistence.FindByIDScoped[model.DiagnosisName](ctx, r.db, "diagnosis_name", clinicID, id)
 }
 
 func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.DiagnosisName) error {
@@ -100,7 +100,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 }
 
 func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
@@ -108,7 +108,7 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint6
 
 func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
@@ -126,7 +126,7 @@ func (r *diagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Contex
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Scopes(repohelpers.MedicalRecordTenantScope("clinical_plans", clinicID)).
+		Scopes(persistence.MedicalRecordTenantScope("clinical_plans", clinicID)).
 		Where("(clinical_plans.diagnosis_name_id = ? OR clinical_plans.diagnosis_2_name_id = ?) AND clinical_plans.deleted_at IS NULL", diagnosisNameID, diagnosisNameID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "clinical_plan", "")
@@ -136,5 +136,5 @@ func (r *diagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Contex
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)
 func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, ids, "sort_order")
 }

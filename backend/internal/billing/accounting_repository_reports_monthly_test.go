@@ -16,14 +16,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupMonthlyReportTestDB は GetMonthlyReport 系テスト用に cash_register_closes を追加整備する。
 func setupMonthlyReportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupAccountingIsolationTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.CashRegisterClose{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.CashRegisterClose{}))
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	return db
 }

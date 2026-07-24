@@ -16,14 +16,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupInquiryTemplateTestDB は inquiry_templates テーブルを整備する。
 func setupInquiryTemplateTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.InquiryTemplate{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.InquiryTemplate{}))
 	db.Exec("TRUNCATE TABLE inquiry_templates CASCADE")
 	return db
 }

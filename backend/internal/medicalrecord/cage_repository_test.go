@@ -14,15 +14,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCageRepositoryTestDB は cages テーブルと、CountUsageByCageID が参照する
 // hospitalizations / owners / pets / animal_species を用意する。
 func setupCageRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Cage{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Hospitalization{},
 	))
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")

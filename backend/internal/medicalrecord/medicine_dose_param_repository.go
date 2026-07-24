@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // MedicineDoseParamRepository は薬剤 × 種の投与量パラメータの永続化（#201）。
@@ -33,9 +33,9 @@ func NewMedicineDoseParamRepository(db *gorm.DB) MedicineDoseParamRepository {
 
 func (r *medicineDoseParamRepository) FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error) {
 	params := make([]model.MedicineDoseParam, 0)
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicineDoseParam{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("medicine_id = ?", medicineID).
 		Order("species ASC").
 		Find(&params).Error; err != nil {
@@ -48,8 +48,8 @@ func (r *medicineDoseParamRepository) FindByMedicineID(ctx context.Context, clin
 // 該当パラメータがなければ NotFound を返す（呼び出し側は fail-closed で手動入力へ）。
 func (r *medicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
 	var param model.MedicineDoseParam
-	if err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	if err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("medicine_id = ? AND species = ?", medicineID, species).
 		First(&param).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medicine_dose_param", fmt.Sprintf("%d/%s", medicineID, species))
@@ -61,16 +61,16 @@ func (r *medicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Conte
 // 呼び出し側がセットした param.ClinicID は信頼せず上書きする（クロステナント書込防止）。
 func (r *medicineDoseParamRepository) Create(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error {
 	param.ClinicID = clinicID
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(param).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(param).Error; err != nil {
 		return apperrors.FromGORM(err, "medicine_dose_param", "")
 	}
 	return nil
 }
 
 func (r *medicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicineDoseParam{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
@@ -80,16 +80,16 @@ func (r *medicineDoseParamRepository) Update(ctx context.Context, clinicID, id u
 		return nil, apperrors.WrapNotFound("medicine_dose_param", fmt.Sprintf("%d", id))
 	}
 	var param model.MedicineDoseParam
-	if err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&param).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&param).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medicine_dose_param", fmt.Sprintf("%d", id))
 	}
 	return &param, nil
 }
 
 func (r *medicineDoseParamRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.MedicineDoseParam{})
 	if result.Error != nil {

@@ -15,17 +15,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestAccountingRepository_SumPaidByOwner_SumsCompletedOnlyForOwner(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "LTV飼主")
-	other := repotest.MakeTestOwner(t, db, clinicID, "別飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "LTV飼主")
+	other := testdb.MakeTestOwner(t, db, clinicID, "別飼主")
 
 	completed1 := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 3000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	completed2 := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 5000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC)}
@@ -42,24 +42,24 @@ func TestAccountingRepository_SumPaidByOwner_SumsCompletedOnlyForOwner(t *testin
 }
 
 func TestAccountingRepository_SumPaidByOwner_ZeroWhenNoCompletedBillings(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "未会計飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "未会計飼主")
 	total, err := repo.SumPaidByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
 }
 
 func TestAccountingRepository_SumPaidByOwner_ClinicIsolation(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "医院A飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "医院A飼主")
 	billing := &model.Billing{ClinicID: clinicA, OwnerID: &owner.ID, TotalAmount: 4000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
@@ -69,12 +69,12 @@ func TestAccountingRepository_SumPaidByOwner_ClinicIsolation(t *testing.T) {
 }
 
 func TestAccountingRepository_MaxSingleVisitAmountByOwner_ReturnsMaxOfCompleted(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "最大来院飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "最大来院飼主")
 	for _, amt := range []int64{10_000, 35_000, 8_000} {
 		b := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: amt, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 		require.NoError(t, db.WithContext(ctx).Create(b).Error)
@@ -89,26 +89,26 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ReturnsMaxOfCompleted(
 }
 
 func TestAccountingRepository_MaxSingleVisitAmountByOwner_ZeroWhenNoCompletedBillings(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "会計なし飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "会計なし飼主")
 	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), maxAmount)
 }
 
 func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExcludesOldBillings(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	now := time.Now()
 
-	high := repotest.MakeTestOwner(t, db, clinicID, "高額飼主")
-	low := repotest.MakeTestOwner(t, db, clinicID, "低額飼主")
+	high := testdb.MakeTestOwner(t, db, clinicID, "高額飼主")
+	low := testdb.MakeTestOwner(t, db, clinicID, "低額飼主")
 
 	// 直近365日以内（対象）
 	b1 := &model.Billing{ClinicID: clinicID, OwnerID: &high.ID, TotalAmount: 30_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -10), CompletedAt: timePtr(now.AddDate(0, 0, -10))}
@@ -117,7 +117,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExclu
 	require.NoError(t, db.WithContext(ctx).Create(b2).Error)
 
 	// 365日超過（除外対象）— high の売上を追加してしまうと除外検証にならないため別飼主で作成
-	tooOld := repotest.MakeTestOwner(t, db, clinicID, "365日超過飼主")
+	tooOld := testdb.MakeTestOwner(t, db, clinicID, "365日超過飼主")
 	oldBilling := &model.Billing{ClinicID: clinicID, OwnerID: &tooOld.ID, TotalAmount: 99_999, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -400), CompletedAt: timePtr(now.AddDate(0, 0, -400))}
 	require.NoError(t, db.WithContext(ctx).Create(oldBilling).Error)
 
@@ -138,7 +138,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExclu
 }
 
 func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesNullOwnerID(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
@@ -154,14 +154,14 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesNullOwnerID(t *t
 }
 
 func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	now := time.Now()
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "医院A飼主")
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院B飼主")
 	bA := &model.Billing{ClinicID: clinicA, OwnerID: &ownerA.ID, TotalAmount: 1_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -1), CompletedAt: timePtr(now.AddDate(0, 0, -1))}
 	bB := &model.Billing{ClinicID: clinicB, OwnerID: &ownerB.ID, TotalAmount: 9_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -1), CompletedAt: timePtr(now.AddDate(0, 0, -1))}
 	require.NoError(t, db.WithContext(ctx).Create(bA).Error)
@@ -175,14 +175,14 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testi
 }
 
 func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwnerReference(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	now := time.Now()
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "医院A飼主")
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院B飼主")
 	valid := &model.Billing{
 		ClinicID: clinicA, OwnerID: &ownerA.ID, TotalAmount: 1_000,
 		Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
@@ -202,14 +202,14 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwner
 }
 
 func TestAccountingRepository_LTVAggregates_ExcludeMismatchedMedicalRecordOwnerAndAllowDirectBilling(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	now := time.Now()
 
-	owner := repotest.MakeTestOwner(t, db, clinicID, "集計対象飼主")
-	otherOwner := repotest.MakeTestOwner(t, db, clinicID, "別飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "集計対象飼主")
+	otherOwner := testdb.MakeTestOwner(t, db, clinicID, "別飼主")
 	medicalRecord := &model.MedicalRecord{
 		ClinicID: clinicID, OwnerID: &otherOwner.ID, Date: now, RecordNo: "LTV-OWNER-MISMATCH",
 	}

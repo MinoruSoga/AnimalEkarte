@@ -14,7 +14,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository is the data access interface for daily records.
@@ -39,7 +39,7 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
+		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
 		Preload("CareLogs", "clinic_id = ?", clinicID).
@@ -54,7 +54,7 @@ func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, cli
 func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
+		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
 		Preload("CareLogs", "clinic_id = ?", clinicID).
 		Preload("StaffNotes").
@@ -71,7 +71,7 @@ func (r *dailyRecordRepository) FindOrCreateByDate(ctx context.Context, clinicID
 		HospitalizationID: hospitalizationID,
 		Date:              date,
 	}
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where(model.DailyRecord{ClinicID: clinicID, HospitalizationID: hospitalizationID, Date: date}).
 		FirstOrCreate(&record)
 	if result.Error != nil {
@@ -81,7 +81,7 @@ func (r *dailyRecordRepository) FindOrCreateByDate(ctx context.Context, clinicID
 }
 
 func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(vr).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(vr).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "vital_record", "")
 	}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // DiagnosisTypeRepository is the data access interface for diagnosis types (categories).
@@ -35,7 +35,7 @@ func NewDiagnosisTypeRepository(db *gorm.DB) DiagnosisTypeRepository {
 
 func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(repohelpers.ClinicScope(clinicID))
+		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(persistence.ClinicScope(clinicID))
 	}
 	var total int64
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -56,7 +56,7 @@ func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uin
 	var category model.DiagnosisType
 	err := r.db.WithContext(ctx).
 		Preload("Names", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&category).Error
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&category).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
@@ -72,7 +72,7 @@ func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.Di
 }
 
 func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
@@ -80,7 +80,7 @@ func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint6
 
 func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.DiagnosisType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
@@ -97,7 +97,7 @@ func (r *diagnosisTypeRepository) CountChildrenByParentID(ctx context.Context, c
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("diagnosis_type_id = ? AND deleted_at IS NULL", categoryID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
@@ -107,5 +107,5 @@ func (r *diagnosisTypeRepository) CountChildrenByParentID(ctx context.Context, c
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
 func (r *diagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, ids, "sort_order")
 }

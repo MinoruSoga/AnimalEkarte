@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CreateCheckupInput は健診記録作成の入力DTO
@@ -170,10 +170,10 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
 		svc := s.lstepDeliveryTrigger
-		// repohelpers.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
+		// persistence.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
 		// goroutine 境界を跨ぐ WithoutCancel は ambient tx を剥がすこと（BE-refactor.md B-2）。
-		bgCtx := repohelpers.DetachTx(ctx)
+		bgCtx := persistence.DetachTx(ctx)
 		s.wg.Add(1)
 		goSafe("checkup followup trigger", func() {
 			defer s.wg.Done()

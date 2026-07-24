@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CarePlanItemRepository はケアプランアイテムのデータアクセスインターフェース
@@ -36,7 +36,7 @@ func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
 // FOR UPDATE 保持中に読み billing_items へ変換する read＝旧 repos.Transaction の tx-bound clone と等価維持）。
 func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items := make([]model.CarePlanItem, 0)
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("care_plan_items.sort_order ASC").

@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
@@ -47,7 +47,7 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 // FindByID も Update 後の再読込（txCtx 付き）で呼ばれるため対象に含める。
 func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.id = ?", id).
 		First(&item).Error
@@ -59,7 +59,7 @@ func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint6
 
 func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
 	items := make([]model.BillingItem, 0)
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.billing_id = ?", billingID).
 		Order("sort_order ASC, id ASC").
@@ -70,7 +70,7 @@ func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, b
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(item).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(item).Error; err != nil {
 		return apperrors.FromGORM(err, "billing_item", "")
 	}
 	return nil
@@ -80,7 +80,7 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 // UPDATE/DELETE SQL へ伝播せず実質 no-op だった——service 層の事前 FindByID gate に
 // 依存しない repository 層 defense-in-depth を回復）。
 func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
 		Where("billing_items.id = ?", id).
 		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
@@ -96,7 +96,7 @@ func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64,
 
 // Delete は clinic 述語を EXISTS subquery で強制する（BUG-417・Update と同型）。
 func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Delete(&model.BillingItem{}, "billing_items.id = ?", id)
 	if result.Error != nil {
@@ -109,9 +109,9 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", billingID).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", billingID).
 		Updates(map[string]any{
 			"subtotal":     subtotal,
 			"tax_total":    taxTotal,

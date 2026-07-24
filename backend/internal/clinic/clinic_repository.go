@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type clinicRepository struct {
@@ -46,11 +46,11 @@ func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([
 // LockActiveByID holds a SHARE lock on an active clinic until the caller's
 // transaction ends. It fails closed without an ambient transaction.
 func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return nil, apperrors.WrapInternalServerError("clinic lock requires an active transaction")
 	}
 	var clinic model.Clinic
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Where("id = ? AND is_active = ?", id, true).
 		First(&clinic).Error
@@ -64,11 +64,11 @@ func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*mode
 // transaction ends. It intentionally includes inactive clinics because
 // deactivation followed by physical deletion is an existing supported flow.
 func (r *clinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error) {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return nil, apperrors.WrapInternalServerError("clinic update lock requires an active transaction")
 	}
 	var clinic model.Clinic
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).
 		First(&clinic).Error
@@ -80,7 +80,7 @@ func (r *clinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*m
 
 func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	var clinic model.Clinic
-	err := repohelpers.DBOrTx(ctx, r.db).First(&clinic, "id = ?", id).Error
+	err := persistence.DBOrTx(ctx, r.db).First(&clinic, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", id))
 	}
@@ -89,7 +89,7 @@ func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clin
 
 func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
 	var company model.Company
-	err := repohelpers.DBOrTx(ctx, r.db).First(&company).Error
+	err := persistence.DBOrTx(ctx, r.db).First(&company).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "company", "singleton")
 	}
@@ -101,9 +101,9 @@ func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, err
 // のまま tx 非参加だと、途中で失敗しても既にオートコミット済みの行は WithTx のロールバックで
 // 巻き戻らず、デフォルト権限グループなしの孤児クリニックが生成しうるバグがあった。
 func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(clinic).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(clinic).Error
 	if err != nil {
-		if repohelpers.IsUniqueConstraintErr(err) {
+		if persistence.IsUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("clinic", clinic.Name)
 		}
 		return apperrors.FromGORM(err, "clinic", "")
@@ -112,7 +112,7 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 }
 
 func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	result := repohelpers.DBOrTx(ctx, r.db).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
 	}
@@ -126,7 +126,7 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 // is owned by PermissionGroupRepository and must be orchestrated by the service in
 // the same Transactor.WithTx callback before this delete.
 func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).Delete(&model.Clinic{}, "id = ?", id)
+	result := persistence.DBOrTx(ctx, r.db).Delete(&model.Clinic{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
 	}
@@ -138,9 +138,9 @@ func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
 
 func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Owner{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("deleted_at IS NULL").
+		Scopes(persistence.ClinicScope(clinicID)).Where("deleted_at IS NULL").
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "owner", fmt.Sprintf("clinic_id=%d", clinicID))
@@ -150,7 +150,7 @@ func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID u
 
 func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
 		Where("staffs.deleted_at IS NULL").
@@ -188,7 +188,7 @@ func (r *clinicRepository) CountBlockingReferencesByClinicID(ctx context.Context
 		}
 
 		var count int64
-		if err := repohelpers.DBOrTx(ctx, r.db).
+		if err := persistence.DBOrTx(ctx, r.db).
 			Table(check.table).
 			Where(query, clinicID).
 			Count(&count).Error; err != nil {

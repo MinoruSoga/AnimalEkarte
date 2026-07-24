@@ -9,28 +9,28 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	repotest.CloseSharedTestDB()
+	testdb.CloseSharedTestDB()
 	os.Exit(code)
 }
 
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	return repotest.SetupTestDB(t)
+	return testdb.SetupTestDB(t)
 }
 
 func setupIsolatedTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	return repotest.SetupIsolatedTestDB(t)
+	return testdb.SetupIsolatedTestDB(t)
 }
 
 func ensureAutoMigrated(db *gorm.DB, models ...any) error {
-	return repotest.EnsureAutoMigrated(db, models...)
+	return testdb.EnsureAutoMigrated(db, models...)
 }
 
 func setClinicID(c *gin.Context) {
@@ -110,7 +110,7 @@ func newTestTransactor(db *gorm.DB) Transactor {
 
 func (t *testTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
 	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 

@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // seedDormantOwners は clinicID に休眠飼い主（最終来院が oldDate）を count 件一括作成し、
@@ -52,7 +52,7 @@ func seedDormantOwners(t *testing.T, db *gorm.DB, clinicID uint64, count int, ol
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ExactlyOnePage(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -82,7 +82,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ExactlyOnePage(t 
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_TwoPages(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -117,7 +117,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_TwoPages(t *testi
 // TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation は
 // 別クリニックの休眠飼い主が混入しないことを検証する（clinicScope の回帰防止）。
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -133,7 +133,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation(t
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursorAt_UsesSuppliedEvaluationTime(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	store := NewMedicalRecordRepository(db)
 	repo, ok := store.(DormantOwnerEntriesAtRepository)
 	require.True(t, ok)
@@ -177,7 +177,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursorAt_UsesSuppliedEva
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSameClinic(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -235,7 +235,7 @@ func makeVisitRecordForOwnerVisitTest(t *testing.T, db *gorm.DB, rec *model.Medi
 }
 
 func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -292,7 +292,7 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 }
 
 func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -349,7 +349,7 @@ func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {
 }
 
 func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -414,7 +414,7 @@ func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
 }
 
 func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -483,7 +483,7 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 // TestMedicalRecordRepository_FindOwnersByNextVisitRecommended は Raw SQL による
 // clinic_id 二重指定（横テナント漏洩防止・削除禁止コメント対象）が実際に機能することを検証する。
 func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -562,7 +562,7 @@ func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) 
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntries(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
@@ -131,7 +131,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Scopes(repohelpers.Paginate(page, limit)).
+		Scopes(persistence.Paginate(page, limit)).
 		// 順序の安定性: owners.name_kana ASC を主キーに、pets.id ASC を一意タイブレーカとする
 		// （#266: 同一 kana でもページ送りで行の重複/欠落が起きないようにする）。
 		Order("owners.name_kana ASC, pets.id ASC").
@@ -161,7 +161,7 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Scopes(repohelpers.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
+		Scopes(persistence.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
@@ -171,7 +171,7 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
 	var pets []model.Pet
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("AnimalSpecies").
 		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
 		Order("created_at ASC").
@@ -185,7 +185,7 @@ func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID ui
 func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
@@ -198,7 +198,7 @@ func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64)
 func (r *repository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
@@ -217,7 +217,7 @@ func (r *repository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64,
 	}
 	var rows []ownerPetCount
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Select("owner_id, COUNT(*) AS count").
 		Where("owner_id IN ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerIDs).
 		Group("owner_id").
@@ -264,10 +264,10 @@ func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
 // status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
 // ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	db := repohelpers.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db)
 	result := db.
 		Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
@@ -275,7 +275,7 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 	if result.RowsAffected == 0 {
 		var count int64
 		if err := db.Model(&model.Pet{}).
-			Scopes(repohelpers.ClinicScope(clinicID)).
+			Scopes(persistence.ClinicScope(clinicID)).
 			Where("id = ?", id).
 			Count(&count).Error; err != nil {
 			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
@@ -305,7 +305,7 @@ func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) err
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
+	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}

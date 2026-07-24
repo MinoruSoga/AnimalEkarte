@@ -9,12 +9,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	repotest.CloseSharedTestDB()
+	testdb.CloseSharedTestDB()
 	os.Exit(code)
 }
 
@@ -25,7 +25,7 @@ func makeTestOwner(
 	name string,
 ) *model.Owner {
 	t.Helper()
-	return repotest.MakeTestOwner(t, db, clinicID, name)
+	return testdb.MakeTestOwner(t, db, clinicID, name)
 }
 
 func makeSpeciesAndPet(

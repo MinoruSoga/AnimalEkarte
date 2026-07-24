@@ -8,12 +8,12 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // VitalRepository はバイタル記録のデータアクセスインターフェース。
 // Moved from internal/repository (BE9-2D sub-batch④a). The former package-private clinicScope/dbOrTx
-// are swapped for repohelpers.ClinicScope/DBOrTx (identical predicate / ambient-tx participation);
+// are swapped for persistence.ClinicScope/DBOrTx (identical predicate / ambient-tx participation);
 // every external caller only ever saw this via the internal/repository facade (VitalRepository alias),
 // so no call site changes.
 type VitalRepository interface {
@@ -33,14 +33,14 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
-// FindByMedicalRecordID は repohelpers.DBOrTx で ambient tx に参加する（BE9-2D ④b）。
+// FindByMedicalRecordID は persistence.DBOrTx で ambient tx に参加する（BE9-2D ④b）。
 // treatmentService の dose 体重解決（resolveDoseWeight）が保存 tx 内から読む read で、旧
 // repos.Transaction（tx-bound clone）では暗黙に tx 参加していた。WithTx 化後も同一 tx で読み、
 // 並行 vital 変更による dose スナップショット TOCTOU を作らない（#201 B-2 security review MEDIUM-1）。
 func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
-	if err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	if err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", medicalRecordID).
 		Order("vital_records.recorded_at ASC").
 		Find(&vitals).Error; err != nil {
@@ -52,7 +52,7 @@ func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, m
 func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
 		First(&vital).Error
 	if err != nil {
@@ -61,22 +61,22 @@ func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 	return &vital, nil
 }
 
-// Create は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
+// Create は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
 // LockByIDForUpdate の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
 // vital_records.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
 // デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(vital).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(vital).Error; err != nil {
 		return apperrors.FromGORM(err, "vital", "")
 	}
 	return nil
 }
 
-// Update は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
+// Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.VitalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
 		Updates(fields)
 	if result.Error != nil {
@@ -88,10 +88,10 @@ func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, field
 	return nil
 }
 
-// Delete は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
+// Delete は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vital_records.id = ?", id).
 		Delete(&model.VitalRecord{})
 	if result.Error != nil {

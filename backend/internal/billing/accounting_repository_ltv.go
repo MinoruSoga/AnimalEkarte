@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // validBillingOwnerMedicalRecordScope keeps direct billings, but excludes a
@@ -30,7 +30,7 @@ func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, own
 	var total int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Scopes(validBillingOwnerMedicalRecordScope).
 		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
 		Select("COALESCE(SUM(total_amount), 0)").
@@ -46,7 +46,7 @@ func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, 
 	var maxAmount int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Scopes(validBillingOwnerMedicalRecordScope).
 		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
 		Select("COALESCE(MAX(total_amount), 0)").

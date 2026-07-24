@@ -27,7 +27,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupDiagnosisNameTestDB は diagnosis_types / diagnosis_names / clinical_plans 用に DB を整備する。
@@ -35,8 +35,8 @@ import (
 // 満たせるよう pets/animal_species も migrate する（treatment_repository_test.go と同じ理由）。
 func setupDiagnosisNameTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
 	))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
@@ -293,7 +293,7 @@ func TestDiagnosisNameRepository_CountUsageByDiagnosisNameID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "診断使用状況飼主")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "診断使用状況飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "診断使用状況ペット")
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "分類A")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "使用状況診断名")

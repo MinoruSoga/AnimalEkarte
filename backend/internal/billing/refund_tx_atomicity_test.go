@@ -23,8 +23,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeBillingForRefund は billing_refunds の FK を満たす最小 Billing を作成して返す。
@@ -48,7 +48,7 @@ func makeBillingForRefund(t *testing.T, db *gorm.DB, clinicID uint64) *model.Bil
 // (repository imports this subpackage via its facade).
 func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 
@@ -62,7 +62,7 @@ func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error
 //   - 本テストを実行 → INSERT が独立 tx で即 commit → rollback 対象外 → count=1 で FAIL
 //   - 元に戻す → GREEN
 func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -95,7 +95,7 @@ func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 // ambient tx 内で refund INSERT が成功し commit されると
 // billing_refunds テーブルに行が永続化されることを検証する。
 func TestRefundRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

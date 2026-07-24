@@ -22,14 +22,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func beginAmbientPetTransaction(t *testing.T, db *gorm.DB) (*gorm.DB, context.Context) {
 	t.Helper()
 	tx := db.Begin()
 	require.NoError(t, tx.Error)
-	return tx, repohelpers.WithTxValue(context.Background(), tx)
+	return tx, persistence.WithTxValue(context.Background(), tx)
 }
 
 func TestPetRepository_RecordDeath_RollsBackWithAmbientTransaction(t *testing.T) {

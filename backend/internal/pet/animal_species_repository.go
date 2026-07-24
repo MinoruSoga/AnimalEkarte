@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository is the data access interface for animal species (global master).
@@ -83,5 +83,5 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
-	return repohelpers.ReorderGlobal(ctx, r.db, &model.AnimalSpecies{}, "animal_species", ids, "sort_order")
+	return persistence.ReorderGlobal(ctx, r.db, &model.AnimalSpecies{}, "animal_species", ids, "sort_order")
 }

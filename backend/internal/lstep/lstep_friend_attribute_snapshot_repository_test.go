@@ -19,7 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupLstepFriendAttributeSnapshotTestDB は lstep_friend_attribute_snapshots テーブルを用意する。
@@ -28,8 +28,8 @@ import (
 // BulkCreate の ON CONFLICT DoNothing を意味のある形で検証するため、ここで明示的に複合 UNIQUE を追加する。
 func setupLstepFriendAttributeSnapshotTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepCsvImport{}, &model.LstepFriendAttributeSnapshot{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepCsvImport{}, &model.LstepFriendAttributeSnapshot{}))
 	db.Exec("TRUNCATE TABLE lstep_friend_attribute_snapshots CASCADE")
 	db.Exec("TRUNCATE TABLE lstep_csv_imports CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_friend_snapshot_conflict

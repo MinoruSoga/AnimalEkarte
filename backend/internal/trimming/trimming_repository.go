@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // AppointmentTrimmingDetailRepository はトリミング詳細の CRUD を提供する。
@@ -29,8 +29,8 @@ func NewAppointmentTrimmingDetailRepository(db *gorm.DB) AppointmentTrimmingDeta
 
 func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
 	var detail model.AppointmentTrimmingDetail
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("appointment_id = ?", appointmentID).
@@ -42,7 +42,7 @@ func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Co
 }
 
 func (r *appointmentTrimmingDetailRepository) Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(detail).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(detail).Error; err != nil {
 		return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
@@ -63,8 +63,8 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 		"style_image":      detail.StyleImage,
 		"completed_image":  detail.CompletedImage,
 	}
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(detail.ClinicID)).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(detail.ClinicID)).
 		Model(&model.AppointmentTrimmingDetail{}).
 		Where("appointment_id = ?", detail.AppointmentID).
 		Updates(fields)
@@ -81,7 +81,7 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 // WithTx コンテキスト内から呼ばれた場合は外側のトランザクションに参加する（savepoint）。
 // 単独呼び出しの場合は Clear + Replace を単一トランザクションで実行する。
 func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Options の many2many join には foreignKey:AppointmentID を使うが、GORM の Association()
 		// は付随して自モデル行（appointment_trimming_details）の touch-update も行うため、
 		// primaryKey(ID) が設定された実インスタンスが必要（#212 の追加発現。AppointmentID のみの

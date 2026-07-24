@@ -8,12 +8,12 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // MedicalRecordImageRepository は診療画像のデータアクセス層。
 // Moved from internal/repository (BE9-2D sub-batch④a). The former package-private dbOrTx/
-// medicalRecordTenantScope are swapped for repohelpers.DBOrTx/MedicalRecordTenantScope (identical
+// medicalRecordTenantScope are swapped for persistence.DBOrTx/MedicalRecordTenantScope (identical
 // ambient-tx participation / join predicate); every external caller only ever saw this via the
 // internal/repository facade (MedicalRecordImageRepository alias), so no call site changes.
 type MedicalRecordImageRepository interface {
@@ -45,19 +45,19 @@ func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context
 	return images, nil
 }
 
-// Create は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 / BE-refactor.md X-11、
+// Create は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 / BE-refactor.md X-11、
 // examination_repository.go Create と同じ理由 — LockByIDForUpdate の行ロックと同一 tx で
 // 直列化しないとデッドロックしうる）。
 func (r *medicalRecordImageRepository) Create(ctx context.Context, image *model.MedicalRecordImage) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(image).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(image).Error; err != nil {
 		return apperrors.FromGORM(err, "medical_record_image", "")
 	}
 	return nil
 }
 
-// Delete は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、SD-2）。
+// Delete は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、SD-2）。
 func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("medical_record_images.id = ? AND medical_record_images.medical_record_id IN "+
 			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.MedicalRecordImage{})
@@ -70,12 +70,12 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id 
 	return nil
 }
 
-// FindByID は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Delete の事前所有権チェックが
+// FindByID は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Delete の事前所有権チェックが
 // 同一 tx 内の一貫した読み取りになるよう、Create/Delete と同じ理由で揃える）。
 func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.MedicalRecordTenantScope("medical_record_images", clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.MedicalRecordTenantScope("medical_record_images", clinicID)).
 		Where("medical_record_images.id = ?", id).
 		Preload("Staff", "deleted_at IS NULL").
 		First(&image).Error

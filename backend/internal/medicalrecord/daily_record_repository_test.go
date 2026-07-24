@@ -11,7 +11,7 @@ package medicalrecord
 //
 // makeSpeciesAndPet/makeHospitalizationRec はフラット package の同名ヘルパーの複製
 // （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
-// makeTestOwner は repotest.MakeTestOwner に直接委譲する。
+// makeTestOwner は testdb.MakeTestOwner に直接委譲する。
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func makeHospitalizationRec(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, cageID *uint64) *model.Hospitalization {
@@ -50,8 +50,8 @@ func makeHospitalizationRec(t *testing.T, db *gorm.DB, clinicID, ownerID, petID 
 // および入院・ペットの前提テーブルを用意する。
 func setupDailyRecordTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{},
 		&model.Pet{},
 		&model.Hospitalization{},
@@ -94,12 +94,12 @@ func TestDailyRecordRepository_FindByHospitalizationID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "入院飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	hospOther := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "入院飼主B")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "入院飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	hospB := makeHospitalizationRec(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
@@ -150,7 +150,7 @@ func TestDailyRecordRepository_FindByHospitalizationIDAndDate(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
@@ -183,7 +183,7 @@ func TestDailyRecordRepository_FindOrCreateByDate(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 6, 7, 0, 0, 0, 0, time.UTC)
@@ -211,7 +211,7 @@ func TestDailyRecordRepository_CreateVitalRecord(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 
 	weight := 3.5
@@ -226,7 +226,7 @@ func TestDailyRecordRepository_CreateCareLog(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())
@@ -242,7 +242,7 @@ func TestDailyRecordRepository_CreateStaffNote(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())

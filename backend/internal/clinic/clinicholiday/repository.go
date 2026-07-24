@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository は個別休診日のデータアクセスインターフェース
@@ -31,7 +31,7 @@ func New(db *gorm.DB) Repository {
 func (r *repository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("date ASC")
 
 	if yearMonth != "" {
@@ -49,7 +49,7 @@ func (r *repository) Save(ctx context.Context, clinicID uint64, holiday *model.C
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "date"}},
 			DoUpdates: clause.AssignmentColumns([]string{"reason", "updated_at"}),
@@ -63,7 +63,7 @@ func (r *repository) Save(ctx context.Context, clinicID uint64, holiday *model.C
 
 func (r *repository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("date = ?", date.Format(time.DateOnly)).
 		Delete(&model.ClinicHoliday{})
 	if result.Error != nil {
@@ -78,7 +78,7 @@ func (r *repository) Delete(ctx context.Context, clinicID uint64, date time.Time
 func (r *repository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
 	var holiday model.ClinicHoliday
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("date = ?", date.Format(time.DateOnly)).
 		First(&holiday)
 	if result.Error != nil {

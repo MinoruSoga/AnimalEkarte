@@ -11,20 +11,20 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	repotest.CloseSharedTestDB()
+	testdb.CloseSharedTestDB()
 	os.Exit(code)
 }
 
 func setupOwnerPetIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.AnimalSpecies{},
 		&model.Pet{},
@@ -42,7 +42,7 @@ func makeTestOwner(
 	name string,
 ) *model.Owner {
 	t.Helper()
-	return repotest.MakeTestOwner(t, db, clinicID, name)
+	return testdb.MakeTestOwner(t, db, clinicID, name)
 }
 
 func makeSpeciesAndPet(
@@ -80,7 +80,7 @@ func (r *testPetRegistrar) CreateForOwnerRegistration(
 	ctx context.Context,
 	intent PetRegistrationIntent,
 ) ([]model.Pet, error) {
-	tx := repohelpers.TxFromContext(ctx)
+	tx := persistence.TxFromContext(ctx)
 	if tx == nil {
 		return nil, fmt.Errorf("ambient transaction is required")
 	}

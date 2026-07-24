@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
@@ -80,7 +80,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 	}
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(repohelpers.ClinicScopeIn(clinicIDs))
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
 		if search != "" {
 			// NormalizeKana で検索語のカタカナをひらがなに正規化。
 			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
@@ -106,7 +106,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Scopes(repohelpers.Paginate(page, limit)).Order("created_at DESC").
+		Scopes(persistence.Paginate(page, limit)).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
@@ -126,7 +126,7 @@ func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []ui
 // Preload するペット・飼主・保険マスタも同じ集合で clinic 隔離する
 // （破損したowner/pet関連やinsurance_idから別クリニックのデータが混入するのを防止）。
 func (r *ownerRepository) findOwnerByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
-	return r.findOwnerByIDWithDB(ctx, repohelpers.DBOrTx(ctx, r.db), clinicIDs, id)
+	return r.findOwnerByIDWithDB(ctx, persistence.DBOrTx(ctx, r.db), clinicIDs, id)
 }
 
 func (r *ownerRepository) findOwnerByIDWithDB(
@@ -144,7 +144,7 @@ func (r *ownerRepository) findOwnerByIDWithDB(
 		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Scopes(repohelpers.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
+		Scopes(persistence.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
@@ -153,7 +153,7 @@ func (r *ownerRepository) findOwnerByIDWithDB(
 
 func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).First(&owner, "email = ?", email).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&owner, "email = ?", email).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -166,7 +166,7 @@ func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, emai
 // FindByPhone は clinic_id + phone に一致するオーナーを返す。見つからない場合は nil を返す。
 func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).First(&owner, "phone = ?", phone).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&owner, "phone = ?", phone).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -186,7 +186,7 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 	}
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("name = ? AND phone = ? AND deleted_at IS NULL", name, phone).
 		Limit(2). // 2件以上あるかだけ判定すればよい
 		Find(&owners).Error
@@ -200,11 +200,11 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
 		// 1. 飼主を作成
 		if err := tx.Omit(clause.Associations).Create(owner).Error; err != nil {
-			if repohelpers.IsUniqueConstraintErr(err) {
+			if persistence.IsUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
 			return apperrors.FromGORM(err, "owner", "")
@@ -273,9 +273,9 @@ func (r *ownerRepository) UpdateAndFind(
 	fields map[string]any,
 ) (*model.Owner, error) {
 	var loaded *model.Owner
-	err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txCtx := repohelpers.WithTxValue(ctx, tx)
-		if err := repohelpers.UpdateScopedByID(
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(
 			txCtx,
 			tx,
 			&model.Owner{},
@@ -301,7 +301,7 @@ func (r *ownerRepository) UpdateAndFind(
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id)
 }
 
 // CountPetsByOwnerID は指定されたオーナーに紐付いているペット数を返す
@@ -309,7 +309,7 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error
 	if err != nil {
@@ -322,7 +322,7 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 func (r *ownerRepository) FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error) {
 	var owner model.Owner
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_user_id = ? AND deleted_at IS NULL", lineUserID).
 		First(&owner).Error
 	if err != nil {
@@ -335,7 +335,7 @@ func (r *ownerRepository) FindByLineUserID(ctx context.Context, clinicID uint64,
 func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error) {
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_user_id IS NOT NULL AND deleted_at IS NULL").
 		Find(&owners).Error
 	if err != nil {
@@ -349,7 +349,7 @@ func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID ui
 func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error) {
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_user_id IS NOT NULL AND deleted_at IS NULL AND id > ?", afterID).
 		Order("id ASC").
 		Limit(limit).
@@ -376,7 +376,7 @@ func (r *ownerRepository) FindAllByLineUserID(ctx context.Context, lineUserID st
 func (r *ownerRepository) UpdateLineFollowedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
 	err := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		Updates(map[string]any{"line_followed_at": t, "line_blocked_at": nil}).Error
 	if err != nil {
@@ -389,7 +389,7 @@ func (r *ownerRepository) UpdateLineFollowedAt(ctx context.Context, clinicID, id
 func (r *ownerRepository) UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error {
 	err := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		Update("line_blocked_at", t).Error
 	if err != nil {
@@ -402,7 +402,7 @@ func (r *ownerRepository) UpdateLineBlockedAt(ctx context.Context, clinicID, id 
 func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
 	err := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		Update("line_user_id", lineUserID).Error
 	if err != nil {
@@ -417,7 +417,7 @@ func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []
 	}
 	var owners []*model.Owner
 	if err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id IN ?", ids).
 		Find(&owners).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "owner", "")
@@ -433,9 +433,9 @@ func (r *ownerRepository) RecordLstepOptOut(
 	at time.Time,
 	reason string,
 ) error {
-	return repohelpers.UpdateScopedByID(
+	return persistence.UpdateScopedByID(
 		ctx,
-		repohelpers.DBOrTx(ctx, r.db),
+		persistence.DBOrTx(ctx, r.db),
 		&model.Owner{},
 		"owner",
 		clinicID,
@@ -454,9 +454,9 @@ func (r *ownerRepository) ClearLstepOptOut(
 	ctx context.Context,
 	clinicID, ownerID uint64,
 ) error {
-	return repohelpers.UpdateScopedByID(
+	return persistence.UpdateScopedByID(
 		ctx,
-		repohelpers.DBOrTx(ctx, r.db),
+		persistence.DBOrTx(ctx, r.db),
 		&model.Owner{},
 		"owner",
 		clinicID,

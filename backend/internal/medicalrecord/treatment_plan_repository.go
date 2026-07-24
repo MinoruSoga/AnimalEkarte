@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type TreatmentPlanRepository interface {
@@ -32,7 +32,7 @@ func NewTreatmentPlanRepository(db *gorm.DB) TreatmentPlanRepository {
 func (r *treatmentPlanRepository) clinicScopeQuery(ctx context.Context, clinicID uint64) *gorm.DB {
 	return r.db.WithContext(ctx).
 		Model(&model.TreatmentPlan{}).
-		Scopes(repohelpers.ClinicScope(clinicID))
+		Scopes(persistence.ClinicScope(clinicID))
 }
 
 func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {

@@ -9,7 +9,7 @@ package medicalrecord
 // makeSpeciesAndPet/makeHistoryMedicalRecord は medicalrecord テストパッケージ共有の
 // ローカルコピー（diagnosis_name_repository_test.go 定義）をそのまま使う。makeCheckupRec は
 // checkup_field 系テストも参照する共有ヘルパーとして本ファイルに 1 箇所だけ定義する。
-// makeTestOwner はフラット側と同様 repotest.MakeTestOwner に委譲する。
+// makeTestOwner はフラット側と同様 testdb.MakeTestOwner に委譲する。
 
 import (
 	"context"
@@ -22,15 +22,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCheckupTypeTestDB は checkup_types / checkups 周りを整備する。
 // CountUsageByCheckupTypeID は checkups を JOIN 相当で参照するため owner/pet/medical_record も揃える。
 func setupCheckupTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
@@ -226,7 +226,7 @@ func TestCheckupTypeRepository_CountUsageByCheckupTypeID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "健診種別使用飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "健診種別使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "使用ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CTUSE", time.Now().UTC())
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "使用中の健診種別"}

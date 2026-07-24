@@ -38,7 +38,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChildWrite は X-11 の
@@ -46,8 +46,8 @@ import (
 // finalize の UPDATE がブロックされ続け、子書込 tx の commit（ロック解放）後にのみ finalize が
 // 完了することを検証する。
 func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChildWrite(t *testing.T) {
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90101)
 	owner := makeTestOwner(t, db, clinicID, "X-11 太郎")
@@ -128,8 +128,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 // 既に status=finalized を観測し、Treatment が作成されず Conflict を返すことを検証する
 // （旧・check-then-act のみの failure mode が再現しないことの確認）。
 func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinalizeCommits(t *testing.T) {
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90102)
 	owner := makeTestOwner(t, db, clinicID, "X-11 花子")
@@ -176,8 +176,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 // status=finalized を観測し、Conflict を返し治療が削除されないことを検証する
 // （treatment_service.go Delete の Transactor.WithTx tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterFinalizeCommits(t *testing.T) {
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90103)
 	owner := makeTestOwner(t, db, clinicID, "H-8f 太郎")
@@ -227,8 +227,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 // status=finalized を観測し、Conflict を返し並び順が変更されないことを検証する
 // （treatment_service.go BulkUpdateSortOrder の Transactor.WithTx tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejectedAfterFinalizeCommits(t *testing.T) {
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90104)
 	owner := makeTestOwner(t, db, clinicID, "H-8f 花子")

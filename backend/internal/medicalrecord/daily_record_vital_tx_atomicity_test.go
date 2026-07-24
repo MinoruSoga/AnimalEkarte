@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Rollback(t *testing.T) {
@@ -23,7 +23,7 @@ func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Rollback(t 
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A-AUD006")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A-AUD006")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA-AUD006")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
@@ -60,7 +60,7 @@ func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Commit(t *t
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A-AUD006b")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A-AUD006b")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA-AUD006b")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)

@@ -8,7 +8,7 @@ package inventory
 //
 // makeSpeciesAndPet/makeHistoryMedicalRecord はフラット package の同名ヘルパーの複製
 // （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
-// makeTestOwner はフラット側と同様 repotest.MakeTestOwner に直接委譲する。
+// makeTestOwner はフラット側と同様 testdb.MakeTestOwner に直接委譲する。
 
 import (
 	"context"
@@ -22,8 +22,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupInventoryTestDB は inventory_items と CountUsageByInventoryID の JOIN 先
@@ -32,8 +32,8 @@ import (
 // AutoMigrate 対象に含める（makeHistoryMedicalRecord は実在の pet.ID を要求する）。
 func setupInventoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
 		&model.InventoryItem{}, &model.Treatment{}, &model.Vaccine{}, &model.Medicine{},
 	))
@@ -306,7 +306,7 @@ func TestInventoryRepository_DecreaseStock_AmbientTxRollback(t *testing.T) {
 	forcedErr := errors.New("force rollback after stock decrease")
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+		txCtx := persistence.WithTxValue(ctx, tx)
 		if err := repo.DecreaseStock(txCtx, clinicA, item.ID, 3); err != nil {
 			return err
 		}
@@ -399,7 +399,7 @@ func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "在庫使用飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "在庫使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "在庫使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-INV-001", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	inventoryID := item.ID

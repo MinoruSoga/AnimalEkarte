@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 const (
@@ -112,7 +112,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 func (s *medicalRecordService) DeleteDraftFromReservation(ctx context.Context, clinicID, reservationID uint64) {
 	// 予約キャンセルは既に確定済みのため、request cancellation や呼出元の ambient tx に
 	// cleanup/audit を巻き込まない。一方で同期 best-effort 処理の上限は明示的に制限する。
-	cleanupCtx, cancel := context.WithTimeout(repohelpers.DetachTx(ctx), reservationDraftCleanupTimeout)
+	cleanupCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), reservationDraftCleanupTimeout)
 	defer cancel()
 
 	record, err := s.repo.FindByAppointmentID(cleanupCtx, clinicID, reservationID)
@@ -156,7 +156,7 @@ func (s *medicalRecordService) auditReservationDraftCleanupFailure(
 	category reservationDraftCleanupFailureCategory,
 ) {
 	// cleanup lookup/Delete が timeout を使い切っても、失敗監査には独立した実行予算を与える。
-	auditCtx, cancel := context.WithTimeout(repohelpers.DetachTx(ctx), reservationDraftCleanupTimeout)
+	auditCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), reservationDraftCleanupTimeout)
 	defer cancel()
 
 	audit, ok := s.auditService.(AuditLogger)

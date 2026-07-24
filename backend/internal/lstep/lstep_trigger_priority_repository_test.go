@@ -19,7 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupLstepTriggerPriorityTestDB は lstep_trigger_priorities テーブルを用意する。
@@ -28,8 +28,8 @@ import (
 // ON CONFLICT をそのまま検証できる。
 func setupLstepTriggerPriorityTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.LstepTriggerPriority{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTriggerPriority{}))
 	db.Exec("TRUNCATE TABLE lstep_trigger_priorities CASCADE")
 	return db
 }

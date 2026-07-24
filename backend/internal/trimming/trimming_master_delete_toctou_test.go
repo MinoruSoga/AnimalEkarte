@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type trimmingMasterDeleteTOCTOUFixture struct {
@@ -25,7 +25,7 @@ type trimmingMasterDeleteTOCTOUFixture struct {
 
 func reportTrimmingDeleteBackendPID(ctx context.Context, db *gorm.DB, backendPID chan<- int) error {
 	var pid int
-	if err := repohelpers.DBOrTx(ctx, db).Raw("SELECT pg_backend_pid()").Scan(&pid).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, db).Raw("SELECT pg_backend_pid()").Scan(&pid).Error; err != nil {
 		return err
 	}
 	select {
@@ -68,7 +68,7 @@ func setupTrimmingCourseDeleteTOCTOUFixture(t *testing.T) trimmingMasterDeleteTO
 			if _, err := baseRepo.FindByID(txCtx, clinicID, course.ID); err != nil {
 				return err
 			}
-			return repohelpers.DBOrTx(txCtx, db).Create(&model.AppointmentTrimmingDetail{
+			return persistence.DBOrTx(txCtx, db).Create(&model.AppointmentTrimmingDetail{
 				ClinicID:      clinicID,
 				AppointmentID: appointment.ID,
 				CourseID:      &course.ID,
@@ -116,7 +116,7 @@ func setupTrimmingOptionDeleteTOCTOUFixture(t *testing.T) trimmingMasterDeleteTO
 			if _, err := baseRepo.FindByID(txCtx, clinicID, option.ID); err != nil {
 				return err
 			}
-			return repohelpers.DBOrTx(txCtx, db).Create(&model.AppointmentTrimmingOption{
+			return persistence.DBOrTx(txCtx, db).Create(&model.AppointmentTrimmingOption{
 				AppointmentID: appointment.ID,
 				OptionID:      option.ID,
 			}).Error
@@ -162,7 +162,7 @@ func setupTrimmingCourseTypeDeleteTOCTOUFixture(t *testing.T) trimmingMasterDele
 			if _, err := baseRepo.FindByID(txCtx, clinicID, courseType.ID); err != nil {
 				return err
 			}
-			return repohelpers.DBOrTx(txCtx, db).Create(&model.TrimmingCourse{
+			return persistence.DBOrTx(txCtx, db).Create(&model.TrimmingCourse{
 				ClinicID:     clinicID,
 				Name:         "course using type",
 				CourseTypeID: &courseType.ID,
@@ -259,7 +259,7 @@ func TestTrimmingMasterDelete_TOCTOU(t *testing.T) {
 					t.Cleanup(func() {
 						_ = writerTx.Rollback().Error
 					})
-					writerCtx := repohelpers.WithTxValue(context.Background(), writerTx)
+					writerCtx := persistence.WithTxValue(context.Background(), writerTx)
 					require.NoError(t, fixture.lockAndInsertUsage(writerCtx))
 
 					deleteCtx, cancelDelete := context.WithTimeout(context.Background(), 5*time.Second)

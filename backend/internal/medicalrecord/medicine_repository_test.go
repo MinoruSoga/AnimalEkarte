@@ -17,15 +17,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupMedicineRepositoryTestDB は medicines テーブルを用意する。
 // setupTestDB は medicine_calculation_type 等の ENUM のみ作成するため、テーブル自体は AutoMigrate で用意する。
 func setupMedicineRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Medicine{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Medicine{}))
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	return db
 }
@@ -267,7 +267,7 @@ func TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage(t *testing.T) 
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.MedicalRecord{}, &model.Treatment{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.MedicalRecord{}, &model.Treatment{}))
 
 	medA := makeMedicine(t, db, clinicA, "使用中薬剤")
 

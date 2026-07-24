@@ -25,7 +25,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeBillingForItemTx は billing_item tx-atomicity テスト用の最小 Billing を作成する。
@@ -43,7 +43,7 @@ func makeBillingForItemTx(t *testing.T, db *gorm.DB, clinicID uint64) *model.Bil
 var errSentinelBillingItemTx = errors.New("simulated post-write failure in ambient tx")
 
 func TestBillingItemRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -73,7 +73,7 @@ func TestBillingItemRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) 
 }
 
 func TestBillingItemRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -101,7 +101,7 @@ func TestBillingItemRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
 // billing_item_service.CreateItem の実フローを模し、明細作成 + 合計更新のどちらかが
 // 揃ってロールバックされることを検証する（部分コミット防止の直接証明）。
 func TestBillingItemRepository_CreateThenUpdateBillingTotals_RollsBackTogether(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -144,7 +144,7 @@ func TestBillingItemRepository_CreateThenUpdateBillingTotals_RollsBackTogether(t
 }
 
 func TestBillingItemRepository_UpdateBillingTotals_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -162,7 +162,7 @@ func TestBillingItemRepository_UpdateBillingTotals_CommitsWithinAmbientTx(t *tes
 }
 
 func TestBillingItemRepository_Delete_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

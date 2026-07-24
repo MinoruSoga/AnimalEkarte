@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type MedicalRecordAddendumRepository interface {
@@ -29,7 +29,7 @@ func NewMedicalRecordAddendumRepository(db *gorm.DB) MedicalRecordAddendumReposi
 }
 
 func (r *medicalRecordAddendumRepository) Create(ctx context.Context, addendum *model.MedicalRecordAddendum) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(addendum).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(addendum).Error; err != nil {
 		return apperrors.FromGORM(err, "medical_record_addendum", "")
 	}
 	return nil
@@ -37,8 +37,8 @@ func (r *medicalRecordAddendumRepository) Create(ctx context.Context, addendum *
 
 func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordAddendum, error) {
 	var addendum model.MedicalRecordAddendum
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&addendum).Error
 	if err != nil {
@@ -49,8 +49,8 @@ func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID
 
 func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error) {
 	var addenda []*model.MedicalRecordAddendum
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("created_at ASC").
 		Find(&addenda).Error

@@ -24,7 +24,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeMedicineMaster は internal/repository/isolation_test_helpers_test.go の同名ヘルパーの
@@ -39,8 +39,8 @@ func makeMedicineMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string)
 // setupTreatmentMasterPreloadTestDB は treatments + マスタ(procedures/medicines)隔離テスト用に DB を整備する。
 func setupTreatmentMasterPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Medicine{}, &model.Treatment{},
 	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")

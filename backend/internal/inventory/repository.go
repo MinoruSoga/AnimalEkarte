@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository is the temporary full persistence surface retained for the legacy
@@ -64,7 +64,7 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64, category, sta
 	items := make([]model.InventoryItem, 0)
 	var total int64
 
-	q := repohelpers.DBOrTx(ctx, r.db).Model(&model.InventoryItem{}).Scopes(repohelpers.ClinicScope(clinicID))
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.InventoryItem{}).Scopes(persistence.ClinicScope(clinicID))
 	if category != nil {
 		q = q.Where("category = ?", *category)
 	}
@@ -101,12 +101,12 @@ func inventoryStatusFilterClause(status string) string {
 }
 
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
-	return repohelpers.FindByIDScoped[model.InventoryItem](ctx, repohelpers.DBOrTx(ctx, r.db), "inventory_item", clinicID, id)
+	return persistence.FindByIDScoped[model.InventoryItem](ctx, persistence.DBOrTx(ctx, r.db), "inventory_item", clinicID, id)
 }
 
 func (r *repository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
 	item.ClinicID = clinicID
-	err := repohelpers.DBOrTx(ctx, r.db).Create(item).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(item).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("inventory_item", item.Name)
@@ -117,14 +117,14 @@ func (r *repository) Create(ctx context.Context, clinicID uint64, item *model.In
 }
 
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
 }
 
 // DecreaseStock は clinic_id + id + active row を同じ UPDATE 述語で検証して quantity のみを減算する。
@@ -133,7 +133,7 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 // model.DeriveInventoryStatus で quantity/min_stock_level から都度導出する
 // （internal/inventory/inventory_response.go の toInventoryResponse を参照）。
 func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
 		UpdateColumn("quantity", gorm.Expr("quantity - ?", int(quantity)))
@@ -150,8 +150,8 @@ func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, qua
 // (clinic_id, name, category=medicine) で特定して削除する（BUG-381）。
 // マッチなしは no-op（エラーなし）で返す。複数マッチは全件削除。
 func (r *repository) DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("name = ? AND category = ?", name, model.InventoryCategoryMedicine).
 		Delete(&model.InventoryItem{})
 	if result.Error != nil {
@@ -163,9 +163,9 @@ func (r *repository) DeleteByNameAndMedicineCategory(ctx context.Context, clinic
 // UpdateNameByMedicineCategory は TASK-215 で薬剤名変更時に連携在庫の name を同期する。
 // (clinic_id, oldName, category=medicine) にマッチするレコードを newName に更新する（マッチなしは no-op）。
 func (r *repository) UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("name = ? AND category = ?", oldName, model.InventoryCategoryMedicine).
 		Update("name", newName)
 	if result.Error != nil {
@@ -179,25 +179,25 @@ func (r *repository) UpdateNameByMedicineCategory(ctx context.Context, clinicID 
 func (r *repository) CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error) {
 	var treatmentCount, vaccineCount, medicineCount int64
 	// treatments は clinic_id を直接持たないため medical_records を JOIN してテナント分離
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Treatment{}).
-		Scopes(repohelpers.MedicalRecordTenantScope("treatments", clinicID)).
+		Scopes(persistence.MedicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.inventory_id = ? AND treatments.deleted_at IS NULL", inventoryID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
 	}
 	// vaccines は clinic_id を直接持つ
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccine{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
 		Count(&vaccineCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
 	}
 	// medicines は clinic_id を直接持つ
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Medicine{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
 		Count(&medicineCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))

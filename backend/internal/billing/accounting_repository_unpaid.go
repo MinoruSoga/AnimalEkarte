@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // MonthlyUnpaidOwnerPet は飼主+ペット単位の月次未納繰越集約結果。#114
@@ -60,7 +60,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("status = ?", model.BillingStatusWaiting).
 		Where("scheduled_date BETWEEN ? AND ?", startDate, endDate)
 
@@ -68,7 +68,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := q.Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Items", "deleted_at IS NULL").
-		Scopes(repohelpers.Paginate(page, limit)).
+		Scopes(persistence.Paginate(page, limit)).
 		Order("scheduled_date ASC, created_at ASC").
 		Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
@@ -103,7 +103,7 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		Select("billings.owner_id AS owner_id, owners.name AS owner_name, COUNT(billings.id) AS count, COALESCE(SUM(billings.total_amount), 0) AS total_amount, MIN(billings.scheduled_date)::text AS oldest_scheduled, MAX(billings.scheduled_date)::text AS latest_scheduled").
 		Group("billings.owner_id, owners.name").
 		Order("oldest_scheduled ASC").
-		Scopes(repohelpers.Paginate(page, limit)).
+		Scopes(persistence.Paginate(page, limit)).
 		Scan(&aggregates).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
@@ -119,7 +119,7 @@ func (r *accountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, o
 	// （#120/#114 と同一スコープ。裸の clinic_id 述語ではなく規約ヘルパーに統一）。
 	if err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND status = ?", ownerID, model.BillingStatusWaiting).
 		Select("COALESCE(SUM(total_amount), 0) AS total_amount, COUNT(id) AS count").
 		Scan(&result).Error; err != nil {
@@ -182,7 +182,7 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 		`, firstDay, firstDay, lastDay).
 		Group("billings.owner_id, owners.name, billings.pet_id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").
-		Scopes(repohelpers.Paginate(page, limit)).
+		Scopes(persistence.Paginate(page, limit)).
 		Scan(&items).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}

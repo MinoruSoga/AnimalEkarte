@@ -16,17 +16,17 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupInquiryTestDB は inquiries テーブルを整備する。
-// medical_records は repotest.SetupTestDB のコア AutoMigrate で既に用意済みのため再定義しない。
+// medical_records は testdb.SetupTestDB のコア AutoMigrate で既に用意済みのため再定義しない。
 // ChiefComplaintType は inquiries.chief_complaint_type_id の FK 参照先のため、
 // (存在しないIDを直接書き込むとFK違反になる) AutoMigrate 対象に含める。
 func setupInquiryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Inquiry{}, &model.ChiefComplaintType{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Inquiry{}, &model.ChiefComplaintType{}))
 	db.Exec("TRUNCATE TABLE inquiries CASCADE")
 	db.Exec("TRUNCATE TABLE chief_complaint_types CASCADE")
 	return db

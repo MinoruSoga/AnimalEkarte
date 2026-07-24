@@ -20,15 +20,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupVaccineRepositoryTestDB は vaccines テーブルと、CountUsageByVaccineID が参照する
 // vaccinations / owners / pets / animal_species を用意する。
 func setupVaccineRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Vaccine{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccination{},
 	))
 	db.Exec("TRUNCATE TABLE vaccinations CASCADE")

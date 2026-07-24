@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // OwnerVisitSummary は飼い主のカルテ集計結果（Lステップタグ同期用）。
@@ -32,7 +32,7 @@ type DormantOwnerEntry struct {
 func (r *medicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ?", ownerID).
 		Order("created_at DESC").
 		First(&record).Error
@@ -59,7 +59,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 	oneYearAgo := time.Now().In(time.Local).AddDate(-1, 0, 0)
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Select(`MIN(date) AS first_visit_at,
 			MAX(date) AS last_visit_at,

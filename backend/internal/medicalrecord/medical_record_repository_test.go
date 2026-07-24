@@ -12,8 +12,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeMedicalRecordForPet はテスト用カルテ 1 件を作成する。deleted=true なら論理削除する。
@@ -35,8 +35,8 @@ func makeMedicalRecordForPet(t *testing.T, db *gorm.DB, clinicID, petID uint64, 
 // 期待: 同一ペット・同一医院の有効カルテのうち最古の date を返し、
 // 論理削除カルテ・別医院カルテ・別ペットのカルテは集計から除外する。捏造はしない（無ければ nil）。
 func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 	// 共有テスト DB の他テスト残骸と混ざらないよう、FK 連鎖ごと初期化する。
 	db.Exec("TRUNCATE TABLE medical_records, pets, animal_species CASCADE")
 
@@ -98,8 +98,8 @@ func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
 // を整備した上で、B-1 で追加した search/filter 用の JOIN 対象データが他テストと混ざらないよう TRUNCATE する。
 func setupMedicalRecordListTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.Inquiry{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.Inquiry{}))
 	db.Exec("TRUNCATE TABLE inquiries, medical_records, pets, animal_species, staffs CASCADE")
 	return db
 }
@@ -583,7 +583,7 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 		tx := db.Begin()
 		require.NoError(t, tx.Error)
 		defer tx.Rollback()
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+		txCtx := persistence.WithTxValue(ctx, tx)
 		_, err := repo.Update(txCtx, clinicA, rec.ID, map[string]any{
 			"status": model.MedicalRecordStatusFinalized,
 		}, nil)

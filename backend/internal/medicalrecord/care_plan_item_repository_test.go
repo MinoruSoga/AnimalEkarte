@@ -21,15 +21,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCarePlanItemTestDB は hospitalizations 経由の clinic_id 隔離と Medicine/Procedure Preload
 // を検証するために必要なテーブル一式を用意する。
 func setupCarePlanItemTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{},
 		&model.Pet{},
 		&model.Hospitalization{},

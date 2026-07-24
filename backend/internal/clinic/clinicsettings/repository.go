@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository は締め時間設定のデータアクセスインターフェース
@@ -39,7 +39,7 @@ func New(db *gorm.DB) Repository {
 
 func (r *repository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).First(&s).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&s).Error
 	if err != nil {
 		wrapped := apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 		if errors.Is(wrapped, apperrors.ErrNotFound) {
@@ -58,7 +58,7 @@ func (r *repository) FindByClinicID(ctx context.Context, clinicID uint64) (*mode
 
 func (r *repository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -85,7 +85,7 @@ func (r *repository) UpdateCPMVersion(ctx context.Context, clinicID uint64, vers
 		CPMVersion:          version,
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"cpm_version", "updated_at"}),
@@ -109,7 +109,7 @@ func (r *repository) UpdateDormantThresholds(ctx context.Context, clinicID uint6
 		DormantPrevention365Days: thresholds.Stage365,
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -139,7 +139,7 @@ func (r *repository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64,
 		CPMV2NoahThreshold:   thresholds.Noah,
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -179,7 +179,7 @@ func (r *repository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64,
 		CPMV1LTVBreakLow:      thresholds.LTVBreakLow,
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -216,7 +216,7 @@ func (r *repository) UpdateHealthPreventionThresholds(ctx context.Context, clini
 		VaccineDeadlineDays:          thresholds.VaccineDeadline,
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{

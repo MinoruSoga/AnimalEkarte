@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type AccountingRepository interface {
@@ -58,12 +58,12 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 }
 
 func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(repohelpers.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScope(clinicID))
 	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(repohelpers.ClinicScopeIn(clinicIDs))
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
 	return r.findBillingsWithFilters(ctx, q, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
@@ -93,7 +93,7 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
-		Scopes(repohelpers.Paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		Scopes(persistence.Paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := r.attachRefundTotals(ctx, billings); err != nil {
@@ -136,11 +136,11 @@ func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings 
 }
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(repohelpers.DBOrTx(ctx, r.db).Scopes(repohelpers.ClinicScope(clinicID)), []uint64{clinicID}, id)
+	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)), []uint64{clinicID}, id)
 }
 
 func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(repohelpers.DBOrTx(ctx, r.db).Scopes(repohelpers.ClinicScopeIn(clinicIDs)), clinicIDs, id)
+	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScopeIn(clinicIDs)), clinicIDs, id)
 }
 
 // findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、返金合計を計算して返す。
@@ -175,12 +175,12 @@ func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, clinicIDs []
 // 別セッションで即座に解放され、TOCTOU 防止が機能しない（過去は r.db.WithContext(ctx) 直参照だった）。
 func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Items", "deleted_at IS NULL").
 		Preload("Payments", "deleted_at IS NULL").
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
 		Preload("PaymentSplits").
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).First(&billing).Error
 	if err != nil {
@@ -200,8 +200,8 @@ func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id
 // 参加する（dbOrTx が無ければ従来どおり db.WithContext(ctx) と等価・挙動保存）。
 func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(accounting).Error; err != nil {
-		if repohelpers.IsUniqueConstraintErr(err) {
+	if err := persistence.DBOrTx(ctx, r.db).Create(accounting).Error; err != nil {
+		if persistence.IsUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("billing", accounting.ScheduledDate.String())
 		}
 		return apperrors.FromGORM(err, "billing", "")
@@ -215,13 +215,13 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 // BE-refactor.md R1-2: Cancel が本メソッドを ambient tx（監査と原子化）から呼ぶため dbOrTx で参加する。
 // ambient tx が無ければ従来どおり db.WithContext(ctx) と等価（挙動保存）。
 func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
-	if err := updateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Billing{}, "billing", clinicID, billingID, fields); err != nil {
+	if err := updateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Billing{}, "billing", clinicID, billingID, fields); err != nil {
 		return nil, err
 	}
 	var billing model.Billing
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("PaymentSplits").
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
@@ -249,7 +249,7 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 	}
 
 	var existing model.Payment
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("billing_id = ?", payment.BillingID).
 		First(&existing).Error
 
@@ -259,14 +259,14 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
 		}
 		// レコードなし → 新規作成
-		if err := repohelpers.DBOrTx(ctx, r.db).Create(payment).Error; err != nil {
+		if err := persistence.DBOrTx(ctx, r.db).Create(payment).Error; err != nil {
 			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
 		}
 		return nil
 	}
 
 	// 既存レコード → map で更新（ゼロ値も反映）
-	if err := repohelpers.DBOrTx(ctx, r.db).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Payment{}).
 		Where("billing_id = ?", payment.BillingID).
 		Updates(fields).Error; err != nil {
@@ -279,7 +279,7 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 // SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 // splits が空の場合は既存レコードを削除のみ行う。
 // P4: DELETE に clinic_id = ? を付与しテナント越境削除を防ぐ（splits[0].ClinicID = 呼び出し元の clinicID）。
-// BE-refactor.md R1-1 (D2): repohelpers.DBOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
+// BE-refactor.md R1-1 (D2): persistence.DBOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
 // その中のネスト tx（SAVEPOINT）として参加する。過去は r.db.WithContext(ctx).Transaction(...) で
 // 常に独立した新規 tx を開始しており、ambient tx が rollback しても本メソッドの書込は
 // 既にコミット済みのため巻き戻らない部分コミットのバグがあった。
@@ -289,7 +289,7 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 	}
 	billingID := splits[0].BillingID
 	clinicID := splits[0].ClinicID
-	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("billing_id = ? AND clinic_id = ?", billingID, clinicID).Delete(&model.PaymentSplit{}).Error; err != nil {
 			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
 		}

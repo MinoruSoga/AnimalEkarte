@@ -14,7 +14,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type HospitalizationRepository interface {
@@ -44,7 +44,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Scopes(repohelpers.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Scopes(persistence.ClinicScope(clinicID))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -73,7 +73,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet.AnimalSpecies").
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -82,7 +82,7 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("CarePlanItems").
 		Preload("DailyRecords").
 		Preload("TreatmentPlans", "deleted_at IS NULL").
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
 	}
@@ -98,8 +98,8 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 // FOR UPDATE 直列化と退院status更新をbilling書込と同一 tx に保つ＝二重会計防止の要）。
 func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
@@ -109,7 +109,7 @@ func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clini
 }
 
 func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(hospitalization).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(hospitalization).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("hospitalization", hospitalization.StartDate.String())
@@ -120,9 +120,9 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 }
 
 func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
@@ -134,9 +134,9 @@ func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND status != ?", id, model.HospitalizationStatusDischarged).
 		Updates(fields)
 	if result.Error != nil {
@@ -149,7 +149,7 @@ func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, c
 }
 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
+	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}
@@ -189,7 +189,7 @@ func (r *hospitalizationRepository) CountTreatmentPlansByHospitalizationID(ctx c
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.TreatmentPlan{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("treatment_plans.hospitalization_id = ? AND treatment_plans.deleted_at IS NULL", hospitalizationID).
 		Count(&count).Error
 	if err != nil {

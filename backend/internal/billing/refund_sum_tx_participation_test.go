@@ -26,11 +26,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -67,7 +67,7 @@ func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t 
 }
 
 func TestRefundRepository_SumByBillingIDAndPaymentMethod_SeesUncommittedInsertWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

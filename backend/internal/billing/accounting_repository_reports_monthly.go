@@ -6,7 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // GetMonthlyReport は指定年月の月次売上レポートを集計する。FEAT-368
@@ -140,7 +140,7 @@ func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, cli
 	var billingCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("status = ?", model.BillingStatusCompleted).
 		// G7-3: sargable な直接比較に統一(idx_billings_clinic_completed_at partial index を使えるようにする)。
 		Where("completed_at >= ?", start).

@@ -17,14 +17,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupPetChronicConditionTestDB は pet_chronic_condition_repository のテスト用に DB を整備する。
 func setupPetChronicConditionTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.PetChronicCondition{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.PetChronicCondition{}))
 	db.Exec("TRUNCATE TABLE pet_chronic_conditions CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db

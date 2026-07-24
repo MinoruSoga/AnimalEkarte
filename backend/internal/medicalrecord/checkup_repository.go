@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CheckupFilters はクリニック横断一覧のフィルタ条件。
@@ -52,7 +52,7 @@ func NewCheckupRepository(db *gorm.DB) CheckupRepository {
 func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Checkup{}).
-			Scopes(repohelpers.ClinicScope(clinicID))
+			Scopes(persistence.ClinicScope(clinicID))
 		if filters.StartDate != nil {
 			q = q.Where("date >= ?", *filters.StartDate)
 		}
@@ -130,7 +130,7 @@ func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("MedicalRecord", "deleted_at IS NULL").
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&checkup).Error
 	if err != nil {
@@ -148,9 +148,9 @@ func (r *checkupRepository) Create(ctx context.Context, checkup *model.Checkup) 
 }
 
 func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return repohelpers.UpdateScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id, fields)
+	return persistence.UpdateScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id, fields)
 }
 
 func (r *checkupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id)
 }

@@ -10,7 +10,7 @@ package medicalrecord
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - Delete はソフトデリートであり、以後 FindByID / FindActiveByOwner から除外される。
 //
-// makeTestOwner は repotest.MakeTestOwner に直接委譲する。withTx は repository.Transactor.WithTx
+// makeTestOwner は testdb.MakeTestOwner に直接委譲する。withTx は repository.Transactor.WithTx
 // を import cycle なしで再現する repohelpers 直結ヘルパー（BE8-4 方針）。
 
 import (
@@ -24,13 +24,13 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()
-	return repotest.MakeTestOwner(t, db, clinicID, name)
+	return testdb.MakeTestOwner(t, db, clinicID, name)
 }
 
 // withTx mirrors repository.Transactor.WithTx (repohelpers-based ambient tx) without
@@ -38,7 +38,7 @@ func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *mod
 // (repository imports this subpackage via its facade).
 func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 
@@ -46,8 +46,8 @@ func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error
 // owners / medical_records は setupTestDB がすでに用意する。
 func setupPrescriptionTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Prescription{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Prescription{}))
 	db.Exec("TRUNCATE TABLE prescriptions CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")

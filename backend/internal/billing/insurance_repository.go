@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // InsuranceRepository is the data access interface for insurance masters.
@@ -30,7 +30,7 @@ func NewInsuranceRepository(db *gorm.DB) InsuranceRepository {
 
 func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
 	insurances := make([]model.Insurance, 0)
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&insurances).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&insurances).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "insurance", "")
 	}
@@ -38,7 +38,7 @@ func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 }
 
 func (r *insuranceRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
-	return repohelpers.FindByIDScoped[model.Insurance](ctx, r.db, "insurance", clinicID, id)
+	return persistence.FindByIDScoped[model.Insurance](ctx, r.db, "insurance", clinicID, id)
 }
 
 func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insurance) error {
@@ -50,21 +50,21 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 }
 
 func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id)
 }
 
 func (r *insuranceRepository) CountUsageByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("insurance_id = ? AND deleted_at IS NULL", insuranceID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
@@ -73,5 +73,5 @@ func (r *insuranceRepository) CountUsageByInsuranceID(ctx context.Context, clini
 }
 
 func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, ids, "sort_order")
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // SharedFileRepository は shared_files テーブルへのアクセスインターフェース。
@@ -38,7 +38,7 @@ func (r *sharedFileRepository) Create(ctx context.Context, f *model.SharedFile) 
 func (r *sharedFileRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.SharedFile, error) {
 	var f model.SharedFile
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&f).Error
 	if err != nil {
@@ -50,7 +50,7 @@ func (r *sharedFileRepository) FindByID(ctx context.Context, clinicID, id uint64
 func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error) {
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("created_at DESC").
 		Find(&files).Error
 	if err != nil {
@@ -61,7 +61,7 @@ func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 
 func (r *sharedFileRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.SharedFile{})
 	if result.Error != nil {

@@ -20,15 +20,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCashRegisterCloseTestDB は cash_register_closes と ClosedByStaff Preload に必要な
 // staffs テーブルを用意する。
 func setupCashRegisterCloseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db

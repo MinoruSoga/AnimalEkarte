@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CashRegisterCloseRepository はレジ締めレコードのデータアクセスインターフェース
@@ -40,7 +40,7 @@ func (r *cashRegisterCloseRepository) Create(ctx context.Context, c *model.CashR
 func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {
 	q := r.db.WithContext(ctx).
 		Model(&model.CashRegisterClose{}).
-		Scopes(repohelpers.ClinicScope(clinicID))
+		Scopes(persistence.ClinicScope(clinicID))
 	if startDate != nil {
 		q = q.Where("close_date >= ?", startDate)
 	}
@@ -68,7 +68,7 @@ func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint
 func (r *cashRegisterCloseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error) {
 	var c model.CashRegisterClose
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Preload("ClosedByStaff", "deleted_at IS NULL").
 		First(&c).Error
@@ -82,7 +82,7 @@ func (r *cashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, clinic
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.CashRegisterClose{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("close_date = ?", date.Format(time.DateOnly)).
 		Count(&count).Error
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *cashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, clinic
 func (r *cashRegisterCloseRepository) FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error) {
 	var c model.CashRegisterClose
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("close_date = ? AND period = ?", date, period).
 		First(&c).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

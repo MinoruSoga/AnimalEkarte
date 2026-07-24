@@ -35,7 +35,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
@@ -57,7 +57,7 @@ func makeBillingForAccountingTx(t *testing.T, db *gorm.DB, clinicID uint64) *mod
 // TestAccountingRepository_Update_RollsBackWhenAmbientTxFails は、Cancel の R1-2 移行で
 // Update が初めて ambient tx 内から呼ばれるようになったため、その tx 参加を検証する。
 func TestAccountingRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -81,7 +81,7 @@ func TestAccountingRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T) {
 }
 
 func TestAccountingRepository_Update_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -120,7 +120,7 @@ func TestAccountingRepository_FindByID_SeesAmbientTransactionState(t *testing.T)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			db := repotest.SetupTestDB(t)
+			db := testdb.SetupTestDB(t)
 			ctx := context.Background()
 			const clinicID = uint64(1)
 
@@ -155,7 +155,7 @@ func TestAccountingRepository_FindByID_SeesAmbientTransactionState(t *testing.T)
 }
 
 func TestAccountingService_Update_PostCloseMissingAuditDependencyRollsBack(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -185,7 +185,7 @@ func TestAccountingService_Update_PostCloseMissingAuditDependencyRollsBack(t *te
 // ─── SavePayment ─────────────────────────────────────────────────────────────
 
 func TestAccountingRepository_SavePayment_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -214,7 +214,7 @@ func TestAccountingRepository_SavePayment_RollsBackWhenAmbientTxFails(t *testing
 }
 
 func TestAccountingRepository_SavePayment_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -240,7 +240,7 @@ func TestAccountingRepository_SavePayment_CommitsWithinAmbientTx(t *testing.T) {
 // ─── SavePaymentSplits（部分コミットの実証: r.db.Transaction が独立 tx を開始する誤り） ──
 
 func TestAccountingRepository_SavePaymentSplits_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -268,7 +268,7 @@ func TestAccountingRepository_SavePaymentSplits_RollsBackWhenAmbientTxFails(t *t
 }
 
 func TestAccountingRepository_SavePaymentSplits_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -301,7 +301,7 @@ func TestAccountingRepository_SavePaymentSplits_CommitsWithinAmbientTx(t *testin
 // CompleteForAccounting 側が非参加だと reloadAppointmentStatus が Completed のまま
 // FAIL する——旧 X-12 failure mode の反対方向だが、本質は同じ「一部だけ確定する部分コミット」）。
 func TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -313,7 +313,7 @@ func TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails
 	}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "X-12ロールバック飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "X-12ロールバック飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12ロールバックペット")
 	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))
@@ -347,7 +347,7 @@ func TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails
 }
 
 func TestReservationRepository_CompleteForAccounting_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -359,7 +359,7 @@ func TestReservationRepository_CompleteForAccounting_CommitsWithinAmbientTx(t *t
 	}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "X-12コミット飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "X-12コミット飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12コミットペット")
 	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))
@@ -389,7 +389,7 @@ func TestReservationRepository_CompleteForAccounting_CommitsWithinAmbientTx(t *t
 // セッションで即コミットされるため、後続失敗時も billing 行が残ってしまう（旧 X-12 Create failure mode:
 // medical_record_id が NULL の手動会計・トリミング会計はリトライで二重 billing を作りうる）。
 func TestAccountingRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -418,7 +418,7 @@ func TestAccountingRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 }
 
 func TestAccountingRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -461,7 +461,7 @@ func TestAccountingRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
 // バグ時（r.db.WithContext(ctx) 直参照）は FOR UPDATE が単一ステートメントの暗黙 tx で
 // 即座に解放されるため、後続呼び出しはブロックされず即完了する（本テストは FAIL する）。
 func TestAccountingRepository_LockAndFindByID_BlocksConcurrentAmbientTx(t *testing.T) {
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	const clinicA = uint64(1)
 
 	billing := makeBillingForAccountingTx(t, db, clinicA)

@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository is the data access interface for procedures.
@@ -36,14 +36,14 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository {
 
 func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(repohelpers.MaxMasterListRows).Find(&procedures).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
 }
 
 func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	return repohelpers.FindByIDScoped[model.Procedure](ctx, r.db, "procedure", clinicID, id)
+	return persistence.FindByIDScoped[model.Procedure](ctx, r.db, "procedure", clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.Procedure) error {
@@ -54,14 +54,14 @@ func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.P
 }
 
 func (r *procedureRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id)
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
@@ -70,7 +70,7 @@ func (r *procedureRepositoryImpl) CountUsageByProcedureID(ctx context.Context, c
 	var treatmentCount, carePlanCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Scopes(repohelpers.MedicalRecordTenantScope("treatments", clinicID)).
+		Scopes(persistence.MedicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.procedure_id = ? AND treatments.deleted_at IS NULL", procedureID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
@@ -86,7 +86,7 @@ func (r *procedureRepositoryImpl) CountUsageByProcedureID(ctx context.Context, c
 }
 
 func (r *procedureRepositoryImpl) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids, "sort_order")
 }
 
 // CountChildrenByParentID は指定した処置の子処置数を返す (BUG-390)
@@ -94,7 +94,7 @@ func (r *procedureRepositoryImpl) CountChildrenByParentID(ctx context.Context, c
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Procedure{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", parentID))

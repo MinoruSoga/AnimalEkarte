@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // InquiryTemplateRepository is the data access interface for inquiry templates.
@@ -35,7 +35,7 @@ func NewInquiryTemplateRepository(db *gorm.DB) InquiryTemplateRepository {
 func (r *inquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
 	templates := make([]model.InquiryTemplate, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, title ASC").
 		Find(&templates).Error
 	if err != nil {
@@ -45,7 +45,7 @@ func (r *inquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	return repohelpers.FindByIDScoped[model.InquiryTemplate](ctx, r.db, "inquiry_template", clinicID, id)
+	return persistence.FindByIDScoped[model.InquiryTemplate](ctx, r.db, "inquiry_template", clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
@@ -57,14 +57,14 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 }
 
 func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id)
 }
 
 // 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す。
@@ -75,5 +75,5 @@ func (r *inquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Cont
 }
 
 func (r *inquiryTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, ids, "sort_order")
 }

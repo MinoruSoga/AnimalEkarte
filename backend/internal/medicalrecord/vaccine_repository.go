@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // VaccineRepository is the data access interface for vaccines (master).
@@ -37,11 +37,11 @@ func NewVaccineRepository(db *gorm.DB) VaccineRepository {
 
 func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	vaccines := make([]model.Vaccine, 0)
-	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Scopes(repohelpers.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Scopes(persistence.ClinicScope(clinicID))
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}
-	if err := q.Order("sort_order ASC, name ASC").Limit(repohelpers.MaxMasterListRows).Find(&vaccines).Error; err != nil {
+	if err := q.Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&vaccines).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", "")
 	}
 	return vaccines, nil
@@ -49,11 +49,11 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 
 func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
 	var vaccine model.Vaccine
-	db := repohelpers.DBOrTx(ctx, r.db)
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
-	if err := db.Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error; err != nil {
+	if err := db.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
 	}
 	return &vaccine, nil
@@ -67,18 +67,18 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 }
 
 func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id)
 }
 
 func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids, "sort_order")
 }
 
 // CountUsageByVaccineID returns vaccination references (BUG-107).
@@ -86,7 +86,7 @@ func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID,
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vaccine_id = ? AND deleted_at IS NULL", vaccineID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
@@ -99,7 +99,7 @@ func (r *vaccineRepository) CountChildrenByParentID(ctx context.Context, clinicI
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", parentID))

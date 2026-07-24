@@ -2,7 +2,7 @@ package medicalrecord
 
 // clinical_plan_repository_test.go — ClinicalPlanRepository の統合テスト（内部カバレッジ向上）。
 // 移動元 internal/repository（BE9-2D sub-batch④a）。setupTestDB/ensureAutoMigrated は
-// repotest.SetupTestDB/EnsureAutoMigrated 直呼びへ書き換え（vaccination_repository_test.go 先例）。
+// testdb.SetupTestDB/EnsureAutoMigrated 直呼びへ書き換え（vaccination_repository_test.go 先例）。
 //
 // 対象: FindByMedicalRecordID / Create / Update / Delete
 // 検証観点: 正常系、DiagnosisType/DiagnosisName の clinic_id 述語付き Preload、
@@ -23,15 +23,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupClinicalPlanTestDB は clinical_plans と、その Preload 先である
 // diagnosis_types/diagnosis_names を整備する（medical_records は core AutoMigrate 済み）。
 func setupClinicalPlanTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{}))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")

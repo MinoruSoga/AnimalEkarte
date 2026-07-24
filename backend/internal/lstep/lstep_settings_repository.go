@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LstepSettingsRepository は clinic_integrations テーブルへのアクセスインターフェース。
@@ -32,7 +32,7 @@ func NewLstepSettingsRepository(db *gorm.DB) LstepSettingsRepository {
 func (r *lstepSettingsRepository) FindByClinicAndService(ctx context.Context, clinicID uint64, service string) ([]*model.ClinicIntegration, error) {
 	var records []*model.ClinicIntegration
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("service = ?", service).
 		Find(&records).Error
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *lstepSettingsRepository) FindByClinicAndService(ctx context.Context, cl
 
 func (r *lstepSettingsRepository) Upsert(ctx context.Context, integration *model.ClinicIntegration) error {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(integration.ClinicID)).
+		Scopes(persistence.ClinicScope(integration.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "service"}, {Name: "key_name"}},
 			DoUpdates: clause.AssignmentColumns([]string{"key_value", "updated_at"}),
@@ -57,7 +57,7 @@ func (r *lstepSettingsRepository) Upsert(ctx context.Context, integration *model
 
 func (r *lstepSettingsRepository) DeleteByClinicAndService(ctx context.Context, clinicID uint64, service string) error {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("service = ?", service).
 		Delete(&model.ClinicIntegration{}).Error
 	if err != nil {

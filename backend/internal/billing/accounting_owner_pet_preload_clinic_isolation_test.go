@@ -14,13 +14,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupAccountingOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupAccountingIsolationTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db
@@ -33,7 +33,7 @@ func TestAccountingRepository_FindByID_FindAll_Update_DoesNotPreloadForeignOwner
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bのペット")
 	ownerBID, petBID := ownerB.ID, petB.ID
 

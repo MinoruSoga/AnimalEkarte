@@ -24,19 +24,19 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTrimmingCourseTestDB は trimming_courses / appointment_trimming_details / appointments 周りを整備する。
 func setupTrimmingCourseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	// TRUNCATE first: 他テストが残した orphan 行を除去してから AutoMigrate（FK 検証を通すため）。
 	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
 	db.Exec("TRUNCATE TABLE trimming_courses CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.AppointmentTrimmingDetail{},
 	))

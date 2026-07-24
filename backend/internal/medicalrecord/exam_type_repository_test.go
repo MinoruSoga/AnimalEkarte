@@ -27,7 +27,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupExamTypeTestDB は exam_types / exam_type_fields / exams を整備する。
@@ -35,8 +35,8 @@ import (
 // checkup_type と異なり medical_record/pet/owner の同時整備は不要）。
 func setupExamTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{}))
 	db.Exec("TRUNCATE TABLE exams CASCADE")
 	db.Exec("TRUNCATE TABLE exam_type_fields CASCADE")
 	db.Exec("TRUNCATE TABLE exam_types CASCADE")

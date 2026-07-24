@@ -15,7 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTreatmentHistoryTestDB は setupTestDB を拡張し pets / treatments / procedures 周りを整備する。
@@ -23,8 +23,8 @@ import (
 // medical_records.pet_id は pets への FK があるため pets/animal_species/owners も用意する。
 func setupTreatmentHistoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	if err := repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
+	db := testdb.SetupTestDB(t)
+	if err := testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
 		t.Fatalf("failed to migrate pets/treatments/procedures: %v", err)
 	}
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
@@ -200,7 +200,7 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 func setupTreatmentBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTreatmentHistoryTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
 	db.Exec("TRUNCATE TABLE billing_items CASCADE")
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
 	return db

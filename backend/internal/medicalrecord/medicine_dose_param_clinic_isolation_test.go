@@ -21,7 +21,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 var (
@@ -33,7 +33,7 @@ var (
 // setupTestDB は 001 の ENUM のみ作成するため、#201 で追加した ENUM はここで作成する。
 func setupMedicineDoseParamIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	// DROP TABLE/DROP TYPE を含む破壊的リセットはプロセス全体で一度だけ実行する（sync.Once）。
 	// setupTestDB が全テストで DB 接続プールを共有するため、毎テスト DROP TYPE すると別テストが
 	// 保持する古い型 OID 参照のキャッシュ済み prepared statement が "cache lookup failed"
@@ -68,7 +68,7 @@ func setupMedicineDoseParamSchema(db *gorm.DB) error {
 	if err := db.AutoMigrate(&model.Medicine{}, &model.MedicineDoseParam{}); err != nil {
 		return fmt.Errorf("failed to migrate medicine dose param schema: %w", err)
 	}
-	repotest.MarkAutoMigrated(&model.Medicine{}, &model.MedicineDoseParam{})
+	testdb.MarkAutoMigrated(&model.Medicine{}, &model.MedicineDoseParam{})
 	return nil
 }
 

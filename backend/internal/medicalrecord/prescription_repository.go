@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // PrescriptionRepository is the data access interface for prescriptions.
@@ -37,7 +37,7 @@ func NewPrescriptionRepository(db *gorm.DB) PrescriptionRepository {
 func (r *prescriptionRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
 	prescriptions := make([]model.Prescription, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("prescribed_at DESC").
 		Find(&prescriptions).Error
@@ -50,7 +50,7 @@ func (r *prescriptionRepository) FindByMedicalRecordID(ctx context.Context, clin
 func (r *prescriptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Prescription, error) {
 	var prescription model.Prescription
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&prescription).Error
 	if err != nil {
@@ -76,7 +76,7 @@ func (r *prescriptionRepository) FindActiveByOwner(ctx context.Context, clinicID
 // prescriptions.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
 // デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *prescriptionRepository) Create(ctx context.Context, prescription *model.Prescription) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(prescription).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(prescription).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "prescription", "")
 	}
@@ -85,9 +85,9 @@ func (r *prescriptionRepository) Create(ctx context.Context, prescription *model
 
 // Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Prescription{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
@@ -101,8 +101,8 @@ func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64
 
 // Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8e）。
 func (r *prescriptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.Prescription{})
 	if result.Error != nil {

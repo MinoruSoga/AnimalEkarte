@@ -5,7 +5,7 @@ package medicalrecord
 // 移動元: consultation_repository_test.go（BE8-4 batch25）。makeSpeciesAndPet/
 // makeHistoryMedicalRecord はフラット package の同名ヘルパーの複製（BE8-4: import cycle を
 // 避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。makeTestOwner は
-// フラット側と同様 repotest.MakeTestOwner に直接委譲する。
+// フラット側と同様 testdb.MakeTestOwner に直接委譲する。
 //
 // 保護する不変条件:
 //   - FindAll/FindByID/Update/Delete/Reorder は clinic_id で正しく分離される。
@@ -25,15 +25,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupConsultationTestDB は consultations と、CountUsageByConsultationID の JOIN 先
 // treatments/medical_records/pets/animal_species を整備する。
 func setupConsultationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Consultation{}, &model.AnimalSpecies{}, &model.Pet{}, &model.Treatment{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Consultation{}, &model.AnimalSpecies{}, &model.Pet{}, &model.Treatment{}))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
 	db.Exec("TRUNCATE TABLE consultations CASCADE")
@@ -271,7 +271,7 @@ func TestConsultationRepository_CountUsageByConsultationID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := repotest.MakeTestOwner(t, db, clinicA, "診察使用飼主")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "診察使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "診察使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "CONS-USAGE-1", time.Now())
 	consultation := makeConsultation(t, db, clinicA, "使用中診察", nil)

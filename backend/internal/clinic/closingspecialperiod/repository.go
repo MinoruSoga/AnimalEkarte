@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Repository is the data access interface for special closing periods.
@@ -35,7 +35,7 @@ func New(db *gorm.DB) Repository {
 func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
 	var periods []model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("start_date ASC").
 		Find(&periods).Error
 	if err != nil {
@@ -47,7 +47,7 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.Clos
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&p).Error
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.
 func (r *repository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_date <= ? AND end_date >= ?", date, date).
 		First(&p).Error
 	if err != nil {
@@ -80,12 +80,12 @@ func (r *repository) Create(ctx context.Context, p *model.ClosingSpecialPeriod) 
 }
 
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	var p model.ClosingSpecialPeriod
 	if err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&p).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "closing_special_period", fmt.Sprintf("%d", id))
@@ -95,7 +95,7 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.ClosingSpecialPeriod{})
 	if result.Error != nil {
@@ -110,7 +110,7 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 func (r *repository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
 	q := r.db.WithContext(ctx).
 		Model(&model.ClosingSpecialPeriod{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_date <= ? AND end_date >= ?", endDate, startDate)
 	if excludeID != nil {
 		q = q.Where("id != ?", *excludeID)

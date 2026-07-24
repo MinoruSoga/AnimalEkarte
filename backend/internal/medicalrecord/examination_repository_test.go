@@ -21,14 +21,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupExaminationTestDB は exams / exam_results / exam_types / pets / owners / staffs を整備する。
 func setupExaminationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ExaminationType{}, &model.ExamTypeField{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{},
 		&model.Examination{}, &model.ExamResult{},

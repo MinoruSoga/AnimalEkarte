@@ -10,7 +10,7 @@ package medicalrecord
 //   - LabImportDuplicateCheckerDB.IsDuplicate は (clinic_id, exam_type_id, date, pet_id) の
 //     複合キーで判定し、ソフトデリート済み exam は重複扱いしない。
 //
-// setupTestDB → repotest.SetupTestDB, ensureAutoMigrated → repotest.EnsureAutoMigrated に置換
+// setupTestDB → testdb.SetupTestDB, ensureAutoMigrated → testdb.EnsureAutoMigrated に置換
 // （medicalrecord-local セットアップ・sub-batch①/②先例）。makeTestOwner / makeSpeciesAndPet は
 // medicalrecord 内の既存ヘルパーを流用。makeExamRec と makeLabImportExamTypeMaster はフラット側の
 // 定義を本 package へ移植（前者は preload テスト用に repository 側にも残る別 package コピー、後者は
@@ -28,7 +28,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeExamRec はテスト用の Examination を作成して返す（重複判定の下地・Date は now()）。
@@ -45,8 +45,8 @@ func makeExamRec(t *testing.T, db *gorm.DB, clinicID, petID, examTypeID uint64) 
 // exams 周辺のテーブルを整備する。
 func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	// repotest.SetupTestDB の共通 ENUM リストには lab_import_jobs 専用の2型
+	db := testdb.SetupTestDB(t)
+	// testdb.SetupTestDB の共通 ENUM リストには lab_import_jobs 専用の2型
 	// (lab_import_job_status / lab_import_source_type、migrations/001_init.sql に定義。
 	// 旧 005_add_lab_import_tables.sql は 2026-07-04 に統合済み・docs/architecture/erd.md §4.3) が
 	// 含まれないため、AutoMigrate 前にここで明示的に作成する（無ければ CREATE TABLE が
@@ -61,7 +61,7 @@ func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	} {
 		require.NoError(t, db.Exec(stmt).Error)
 	}
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.LabImportJob{}, &model.LabImportEvent{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{},
 	))

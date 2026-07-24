@@ -25,18 +25,18 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ambient tx 内で置換後に後続処理（監査書込）が失敗 → 削除がロールバックし既存 items が残存する。
 // fail-closed（監査なしの検査結果削除を許さない）の DB-backed 正本テスト。
 // testTransactor は repository.NewTransactor の test-local 等価物（medicalrecord は
-// internal/repository を import できないため。repohelpers.WithTxValue で ctx-txKey に参加）。
+// internal/repository を import できないため。persistence.WithTxValue で ctx-txKey に参加）。
 type testTransactor struct{ db *gorm.DB }
 
 func (t testTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(repohelpers.WithTxValue(ctx, tx))
+		return fn(persistence.WithTxValue(ctx, tx))
 	})
 }
 

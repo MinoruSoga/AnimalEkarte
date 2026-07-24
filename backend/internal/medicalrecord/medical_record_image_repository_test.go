@@ -10,7 +10,7 @@ package medicalrecord
 //
 // setupMedImageIsolationTestDB / makeMedRecordImage は残留側 pet_write_medimage_clinic_isolation_test.go
 // で定義されており package をまたいで import できないため、medicalrecord 側でローカルに再構築する
-// （挙動同一。setupTestDB/ensureAutoMigrated → repotest.SetupTestDB/EnsureAutoMigrated 直呼びのみ差分）。
+// （挙動同一。setupTestDB/ensureAutoMigrated → testdb.SetupTestDB/EnsureAutoMigrated 直呼びのみ差分）。
 // makeTestOwner / makeSpeciesAndPet / makeDoctor / makeHistoryMedicalRecord は既存の medicalrecord
 // 共有ヘルパーを再利用する（重複定義しない）。
 
@@ -25,7 +25,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupMedImageIsolationTestDB は medical_record_image テスト用に DB を整える。
@@ -33,8 +33,8 @@ import (
 // （setupTestDB/ensureAutoMigrated → repotest 直呼びのみ差分・AutoMigrate model set は同一）。
 func setupMedImageIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{}, &model.MedicalRecordImage{},
 	))
 	db.Exec("TRUNCATE TABLE medical_record_images CASCADE")
@@ -59,7 +59,7 @@ func makeMedRecordImage(t *testing.T, db *gorm.DB, medicalRecordID uint64, fileN
 
 func TestMedicalRecordImageRepository_Create(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()
@@ -86,7 +86,7 @@ func TestMedicalRecordImageRepository_Create(t *testing.T) {
 
 func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()

@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // TagSummaryRow はタグ集計クエリの結果行。
@@ -78,7 +78,7 @@ func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, owner
 		SyncedAt: time.Now(),
 	}
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "owner_id"}, {Name: "tag_name"}},
 			DoUpdates: clause.AssignmentColumns([]string{"category", "reason", "synced_at"}),
@@ -92,7 +92,7 @@ func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, owner
 
 func (r *lstepTagCacheRepository) DeleteTag(ctx context.Context, clinicID, ownerID uint64, tagName string) error {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND tag_name = ?", ownerID, tagName).
 		Delete(&model.LstepTagCache{}).Error
 	if err != nil {
@@ -103,7 +103,7 @@ func (r *lstepTagCacheRepository) DeleteTag(ctx context.Context, clinicID, owner
 
 func (r *lstepTagCacheRepository) DeleteAllByOwner(ctx context.Context, clinicID, ownerID uint64) error {
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ?", ownerID).
 		Delete(&model.LstepTagCache{}).Error
 	if err != nil {
@@ -115,7 +115,7 @@ func (r *lstepTagCacheRepository) DeleteAllByOwner(ctx context.Context, clinicID
 func (r *lstepTagCacheRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error) {
 	var records []*model.LstepTagCache
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ?", ownerID).
 		Find(&records).Error
 	if err != nil {
@@ -131,7 +131,7 @@ func (r *lstepTagCacheRepository) FindByOwners(ctx context.Context, clinicID uin
 	}
 	var records []*model.LstepTagCache
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id IN ?", ownerIDs).
 		Find(&records).Error
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type ExaminationRepository interface {
@@ -77,7 +77,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	var exam model.Examination
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
 		Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
 		First(&exam).Error
@@ -104,30 +104,30 @@ func (r *examinationRepository) FindByJobID(ctx context.Context, clinicID uint64
 	return exams, nil
 }
 
-// Create は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
+// Create は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
 // LockByIDForUpdate の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
 // examinations.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
 // デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *examinationRepository) Create(ctx context.Context, exam *model.Examination) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(exam).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(exam).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "exam", "")
 	}
 	return nil
 }
 
-// Update は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
+// Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Examination{}, "exam", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Examination{}, "exam", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
-// Delete は repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8d）。
+// Delete は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8d）。
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.Examination{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
@@ -157,7 +157,7 @@ func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID
 // ReplaceItemsByExamID 置換直後の read-your-writes に必須。tx 外呼び出し時は base db＝従来挙動）。
 func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
 	items := make([]model.ExamResult, 0)
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ExamResult{}).
 		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
 		Where("exams.clinic_id = ? AND exam_results.exam_id = ?", clinicID, examID).
@@ -180,7 +180,7 @@ func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinic
 // 第 2 戻り値 deletedCount は DELETE の RowsAffected — サービス層の監査ゲートに使う。
 func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 	var deletedCount int64
-	err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 親 exam の存在 + clinic 隔離をトランザクション内で再確認（並行削除/clinic 越境を防ぐ）
 		var count int64
 		if err := tx.Model(&model.Examination{}).

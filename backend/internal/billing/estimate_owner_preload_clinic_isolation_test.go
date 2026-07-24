@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupEstimateOwnerPreloadDB(t *testing.T) *gorm.DB {
@@ -31,7 +31,7 @@ func TestEstimateRepository_FindByID_FindAll_DoesNotPreloadForeignOwner(t *testi
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := repotest.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
 	ownerBID := ownerB.ID
 	contaminated := &model.Estimate{
 		ClinicID: clinicA,

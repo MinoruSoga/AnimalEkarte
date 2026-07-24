@@ -13,7 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
@@ -225,13 +225,13 @@ func medicalRecordOrderClause(sort, order string) string {
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return r.findMedicalRecordByID(ctx, []uint64{clinicID}, repohelpers.ClinicScope(clinicID), id)
+	return r.findMedicalRecordByID(ctx, []uint64{clinicID}, persistence.ClinicScope(clinicID), id)
 }
 
 func (r *medicalRecordRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	db := repohelpers.DBOrTx(ctx, r.db).Model(&model.MedicalRecord{})
-	if repohelpers.TxFromContext(ctx) != nil {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.MedicalRecord{})
+	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
@@ -247,14 +247,14 @@ func (r *medicalRecordRepository) FindByAppointmentID(ctx context.Context, clini
 }
 
 func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
-	return r.findMedicalRecordByID(ctx, clinicIDs, repohelpers.ClinicScopeIn(clinicIDs), id)
+	return r.findMedicalRecordByID(ctx, clinicIDs, persistence.ClinicScopeIn(clinicIDs), id)
 }
 
 // findMedicalRecordByID は scope（単一/複数クリニック）を受け取りカルテを1件取得する共通実装。
 // AUD-008: Create/Update の ambient tx 内から呼ばれるため dbOrTx で read-your-writes を保証する。
 func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, clinicIDs []uint64, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Treatments", "deleted_at IS NULL").
 		Preload("Vitals").
 		Preload("Doctor", "deleted_at IS NULL").
@@ -271,7 +271,7 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, cli
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	err := repohelpers.DBOrTx(ctx, r.db).Create(record).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(record).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
@@ -287,9 +287,9 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 // （draft のまま = version不一致、draft でない = 従来どおり not-draft）。再読自体が
 // 失敗した場合は情報を出し過ぎないよう従来の not-draft Conflict にフォールバックする。
 func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error) {
-	q := repohelpers.DBOrTx(ctx, r.db).
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)
 	if expectedVersion != nil {
 		q = q.Where("version = ?", *expectedVersion)
@@ -301,9 +301,9 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 	if result.RowsAffected == 0 {
 		if expectedVersion != nil {
 			var current model.MedicalRecord
-			err := repohelpers.DBOrTx(ctx, r.db).
+			err := persistence.DBOrTx(ctx, r.db).
 				Model(&model.MedicalRecord{}).
-				Scopes(repohelpers.ClinicScope(clinicID)).
+				Scopes(persistence.ClinicScope(clinicID)).
 				Where("id = ?", id).
 				First(&current).Error
 			if err == nil && current.Status == model.MedicalRecordStatusDraft {
@@ -317,10 +317,10 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	db := repohelpers.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db)
 	result := db.
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).
 		Delete(&model.MedicalRecord{})
 	if result.Error != nil {
@@ -338,7 +338,7 @@ func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint6
 	}
 	if err := db.
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Select("status").
 		Where("id = ?", id).
 		Take(&current).Error; err != nil {
@@ -352,7 +352,7 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("pet_id = ? AND deleted_at IS NULL", petID).
 		Count(&count).Error
 	if err != nil {
@@ -370,7 +370,7 @@ func (r *medicalRecordRepository) FindFirstVisitDateByPetID(ctx context.Context,
 	}
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("pet_id = ? AND deleted_at IS NULL", petID).
 		Select("MIN(date) AS min_date").
 		Scan(&result).Error
@@ -385,7 +385,7 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error
 	if err != nil {
@@ -395,14 +395,14 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 }
 
 // LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11: finalize-child-write-race）。
-// repohelpers.DBOrTx(ctx, r.db) で ambient tx に参加する（accounting_repository.go の LockAndFindByID と同型）。
+// persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（accounting_repository.go の LockAndFindByID と同型）。
 // 参加しないと FOR UPDATE ロックは単一 SELECT 文の終了と同時に解放され、確定(finalize)との
 // 直列化が機能しない。ステータスに関わらずロック取得後の record を返し、finalized 判定は呼び出し元
 // （各サービスの子書込トランザクション）に委ねる。
 func (r *medicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	err := repohelpers.DBOrTx(ctx, r.db).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).First(&record).Error
 	if err != nil {
@@ -416,7 +416,7 @@ func (r *medicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicI
 // clinic_idでscopeし、Deleteの親カルテrow lockと同じambient transactionへ参加する。
 func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error) {
 	var count int64
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Estimate{}).
 		Where("medical_record_id = ? AND clinic_id = ? AND deleted_at IS NULL", medicalRecordID, clinicID).
 		Count(&count).Error

@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ChiefComplaintTypeRepository is the data access interface for chief complaint types.
@@ -33,7 +33,7 @@ func NewChiefComplaintTypeRepository(db *gorm.DB) ChiefComplaintTypeRepository {
 func (r *chiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	categories := make([]model.ChiefComplaintType, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *chiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uin
 }
 
 func (r *chiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
-	return repohelpers.FindByIDScoped[model.ChiefComplaintType](ctx, r.db, "chief_complaint_type", clinicID, id)
+	return persistence.FindByIDScoped[model.ChiefComplaintType](ctx, r.db, "chief_complaint_type", clinicID, id)
 }
 
 func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
@@ -55,14 +55,14 @@ func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *mod
 }
 
 func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids, "sort_order")
 }
 
 // CountUsageByChiefComplaintTypeID returns inquiry references.
@@ -71,7 +71,7 @@ func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx cont
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
-		Scopes(repohelpers.MedicalRecordTenantScope("inquiries", clinicID)).
+		Scopes(persistence.MedicalRecordTenantScope("inquiries", clinicID)).
 		Where("inquiries.chief_complaint_type_id = ? AND inquiries.deleted_at IS NULL", id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")
@@ -80,5 +80,5 @@ func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx cont
 }
 
 func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id)
 }

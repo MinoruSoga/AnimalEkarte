@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LstepTagCodeMappingRepository は per-clinic コード→タグ マッピングのリポジトリ。
@@ -54,7 +54,7 @@ func (r *lstepTagCodeMappingRepository) FindByClinicIDAndTagName(ctx context.Con
 }
 
 func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(mapping).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(mapping).Error; err != nil {
 		return apperrors.FromGORM(err, "lstep_tag_code_mapping", "create")
 	}
 	return nil
@@ -62,8 +62,8 @@ func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *mod
 
 func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	now := time.Now()
-	result := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		Update("deleted_at", now)
 	if result.Error != nil {
@@ -77,8 +77,8 @@ func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID
 
 func (r *lstepTagCodeMappingRepository) SoftDeleteByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) error {
 	now := time.Now()
-	err := repohelpers.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.LstepTagCodeMapping{}).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("tag_name = ? AND deleted_at IS NULL", tagName).
 		Update("deleted_at", now).Error
 	if err != nil {

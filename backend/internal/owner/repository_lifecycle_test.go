@@ -12,7 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func TestOwnerRepository_RecordAndClearLstepOptOut(t *testing.T) {
@@ -79,7 +79,7 @@ func TestOwnerRepository_LstepOptOutLifecycle_JoinsAmbientTransaction(t *testing
 		at := time.Date(2026, 7, 24, 10, 0, 0, 0, time.UTC)
 
 		txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			if err := repo.RecordLstepOptOut(txCtx, clinicID, record.ID, at, "rollback"); err != nil {
 				return err
 			}
@@ -107,7 +107,7 @@ func TestOwnerRepository_LstepOptOutLifecycle_JoinsAmbientTransaction(t *testing
 		require.NoError(t, repo.RecordLstepOptOut(ctx, clinicID, record.ID, at, "keep"))
 
 		txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			txCtx := repohelpers.WithTxValue(ctx, tx)
+			txCtx := persistence.WithTxValue(ctx, tx)
 			if err := repo.ClearLstepOptOut(txCtx, clinicID, record.ID); err != nil {
 				return err
 			}

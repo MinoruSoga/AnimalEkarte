@@ -11,7 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ---- HospitalizationPlan ----
@@ -34,7 +34,7 @@ func NewHospitalizationPlanRepository(db *gorm.DB) HospitalizationPlanRepository
 
 func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
 	plans := make([]model.HospitalizationPlan, 0)
-	err := r.db.WithContext(ctx).Scopes(repohelpers.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&plans).Error
+	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&plans).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization_plan", "")
 	}
@@ -42,7 +42,7 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
-	return repohelpers.FindByIDScoped[model.HospitalizationPlan](ctx, r.db, "hospitalization_plan", clinicID, id)
+	return persistence.FindByIDScoped[model.HospitalizationPlan](ctx, r.db, "hospitalization_plan", clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
@@ -54,14 +54,14 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 }
 
 func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id)
 }
 
 // CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。
@@ -80,5 +80,5 @@ func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx co
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return repohelpers.ReorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids, "sort_order")
 }

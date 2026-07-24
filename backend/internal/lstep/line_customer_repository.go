@@ -9,7 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LineCustomerRepository は予約顧客のデータアクセスインターフェース
@@ -34,7 +34,7 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 	// 自クリニックにスコープしフォールバックさせる。
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Order("created_at DESC").
 		Find(&items).Error
 	if err != nil {
@@ -53,7 +53,7 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Owner.Pets", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Owner.Pets.AnimalSpecies").
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).First(&c).Error
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))
 	}
@@ -63,7 +63,7 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 func (r *lineCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
 	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
-		Scopes(repohelpers.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_user_id = ?", lineUserID).
 		First(&c).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -86,7 +86,7 @@ func (r *lineCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, c
 func (r *lineCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Update("additional_fields", fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))
@@ -97,7 +97,7 @@ func (r *lineCustomerRepository) UpdateAdditionalFields(ctx context.Context, cli
 func (r *lineCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
-		Scopes(repohelpers.ClinicScope(clinicID)).Where("id = ?", id).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Update("owner_id", ownerID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))

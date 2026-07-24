@@ -13,7 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CreatePetDraft is the pet-owned immutable input for every pet create path.
@@ -122,8 +122,8 @@ func (w *writer) Create(ctx context.Context, intent CreateIntent) (*model.Pet, e
 	}
 
 	var loaded *model.Pet
-	err := repohelpers.DBOrTx(ctx, w.db).Transaction(func(tx *gorm.DB) error {
-		txCtx := repohelpers.WithTxValue(ctx, tx)
+	err := persistence.DBOrTx(ctx, w.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
 		created, err := createPetsInTransaction(txCtx, tx, OwnerRegistrationIntent{
 			ClinicID: intent.ClinicID,
 			OwnerID:  intent.OwnerID,
@@ -145,7 +145,7 @@ func (w *writer) CreateForOwnerRegistration(
 	ctx context.Context,
 	intent OwnerRegistrationIntent,
 ) ([]model.Pet, error) {
-	tx := repohelpers.TxFromContext(ctx)
+	tx := persistence.TxFromContext(ctx)
 	if tx == nil {
 		return nil, apperrors.WrapInternalServerError("owner registration pet write requires an ambient transaction")
 	}

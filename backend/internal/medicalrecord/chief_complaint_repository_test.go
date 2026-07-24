@@ -22,15 +22,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupChiefComplaintTypeRepositoryTestDB は chief_complaint_types テーブルと、
 // CountUsageByChiefComplaintTypeID が JOIN する medical_records / inquiries を用意する。
 func setupChiefComplaintTypeRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ChiefComplaintType{}, &model.MedicalRecord{}, &model.Inquiry{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ChiefComplaintType{}, &model.MedicalRecord{}, &model.Inquiry{}))
 	db.Exec("TRUNCATE TABLE inquiries CASCADE")
 	db.Exec("TRUNCATE TABLE chief_complaint_types CASCADE")
 	return db

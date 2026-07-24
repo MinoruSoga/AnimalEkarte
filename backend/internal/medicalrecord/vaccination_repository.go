@@ -17,7 +17,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type VaccinationRepository interface {
@@ -44,7 +44,7 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 
 func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
-		q := repohelpers.DBOrTx(ctx, r.db).Model(&model.Vaccination{}).
+		q := persistence.DBOrTx(ctx, r.db).Model(&model.Vaccination{}).
 			Where("vaccinations.clinic_id = ?", clinicID).
 			Scopes(vaccinationPatientRelationsScope(clinicID))
 		if petID != nil || ownerID != nil {
@@ -84,7 +84,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 // pets テーブルを JOIN し、飼い主に属する生存ペットのワクチンのみ取得する。
 func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
 	vaccinations := make([]model.Vaccination, 0)
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL").
 		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND owners.id = ?", clinicID, ownerID).
@@ -100,7 +100,7 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
-	err := vaccinationReadPreloads(repohelpers.DBOrTx(ctx, r.db), clinicID).
+	err := vaccinationReadPreloads(persistence.DBOrTx(ctx, r.db), clinicID).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
 		Scopes(vaccinationPatientRelationsScope(clinicID)).
 		First(&vaccination).Error
@@ -111,11 +111,11 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 }
 
 func (r *vaccinationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
-	if repohelpers.TxFromContext(ctx) == nil {
+	if persistence.TxFromContext(ctx) == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination lock requires an ambient transaction")
 	}
 	var vaccination model.Vaccination
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
 		First(&vaccination).Error
@@ -126,21 +126,21 @@ func (r *vaccinationRepository) LockByIDForUpdate(ctx context.Context, clinicID,
 }
 
 func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {
-	if err := repohelpers.DBOrTx(ctx, r.db).Create(vaccination).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(vaccination).Error; err != nil {
 		return apperrors.FromGORM(err, "vaccination", "")
 	}
 	return nil
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	if err := repohelpers.UpdateScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return repohelpers.DeleteScopedByID(ctx, repohelpers.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id)
 }
 
 const vaccinationAssignedDoctorCond = "staffs.deleted_at IS NULL AND staffs.is_active = TRUE AND staffs.staff_type = 'doctor' AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)"
@@ -217,7 +217,7 @@ func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context,
 	target := targetDate.Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
-	err := repohelpers.DBOrTx(ctx, r.db).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL").
 		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").

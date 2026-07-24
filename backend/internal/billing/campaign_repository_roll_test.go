@@ -18,14 +18,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCampaignTestDB は campaigns / campaign_target_categories / campaign_target_items を整備する。
-// campaign_discount_type ENUM は repotest.SetupTestDB の共通リストに含まれないため、ここで個別に作成する。
+// campaign_discount_type ENUM は testdb.SetupTestDB の共通リストに含まれないため、ここで個別に作成する。
 func setupCampaignTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	require.NoError(t, db.Exec(`
 DO $$
 BEGIN
@@ -34,7 +34,7 @@ BEGIN
     END IF;
 END
 $$;`).Error)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
 	db.Exec("TRUNCATE TABLE campaign_target_items CASCADE")
 	db.Exec("TRUNCATE TABLE campaign_target_categories CASCADE")
 	db.Exec("TRUNCATE TABLE campaigns CASCADE")
