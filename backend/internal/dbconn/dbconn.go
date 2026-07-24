@@ -1,6 +1,5 @@
-// Package dbconn centralizes the DSN construction, env-var reading, and
-// local-host safety guard that were previously duplicated (and drifted) across
-// cmd/migrate, cmd/seed-export, cmd/stage-import, cmd/seed-old-db (G10-5).
+// Package dbconn centralizes runtime database connection setup and the
+// DSN/environment safety helpers shared by database command tools.
 package dbconn
 
 import (

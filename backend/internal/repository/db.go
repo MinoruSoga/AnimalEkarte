@@ -1,34 +1,17 @@
 package repository
 
 import (
-	"time"
-
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/dbconn"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
+// NewDB temporarily preserves the repository package API for existing
+// consumers. Remove this delegate when BE9-2F moves them to dbconn.OpenGORM.
 func NewDB(cfg *config.Config) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{})
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to open database connection")
-	}
-
-	// DB接続プール設定
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, apperrors.Wrap(err, "get sql.DB")
-	}
-	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)
-	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
-
-	return db, nil
+	return dbconn.OpenGORM(cfg)
 }
 
 // isUniqueConstraintErr はPostgreSQLのユニーク制約違反（23505）を判定する
