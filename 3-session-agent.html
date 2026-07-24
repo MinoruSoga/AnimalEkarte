@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3セッション開発計画 — Readiness View（2026-07-25 / 納品当日）</title>
+<style>
+  :root {
+    --ink: #172033;
+    --sub: #526079;
+    --line: #dce3ec;
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --accent: #2858a4;
+    --done: #237a4b;
+    --current: #9a6700;
+    --wait: #667085;
+    --risk: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.65;
+  }
+  main { max-width: 1160px; margin: 0 auto; }
+  h1 { margin: 0; padding-bottom: 10px; border-bottom: 3px solid var(--ink); font-size: 24px; }
+  h2 { margin-top: 38px; font-size: 19px; }
+  h3 { margin: 0 0 6px; font-size: 15px; }
+  a { color: var(--accent); }
+  code { padding: 1px 5px; border-radius: 4px; background: #edf1f6; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); font-size: 13.5px; }
+  th, td { padding: 9px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: #eaf0f7; }
+  ul { margin: 7px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .meta { margin: 10px 0 0; color: var(--sub); font-size: 13px; }
+  .notice, .gate {
+    margin: 18px 0;
+    padding: 12px 15px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--accent);
+    border-radius: 7px;
+    background: var(--panel);
+    font-size: 13.5px;
+  }
+  .gate { border-left-color: var(--risk); background: #fff7f6; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+  .card p { margin: 0; font-size: 13.5px; }
+  .status { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11.5px; white-space: nowrap; }
+  .status.done { background: var(--done); }
+  .status.current { background: var(--current); }
+  .status.wait { background: var(--wait); }
+  .status.risk { background: var(--risk); }
+  .table-wrap { overflow-x: auto; }
+  .small { color: var(--sub); font-size: 12.5px; }
+  @media (max-width: 820px) {
+    body { padding: 16px; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>3セッション開発計画 — Readiness View</h1>
+<p class="meta">
+同期日: 2026-07-25 ／ <b>納品日: 2026-07-25（本日・7/18から延期）</b><br>
+<b>正本は GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）</b>。本fileはIssue群を3セッションで着手するためのガイドviewであり、正本ではない。<br>
+決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（DEC-1〜20・OPS-13〜17）／ 実装キュー: <code>todo.md</code>（BUG-429〜432）。Issue題名・本文中の「7/18」は旧納品日である。
+</p>
+
+<div class="notice">
+本HTMLは進捗と着手順を一目で確認するためのガイドviewであり、受け入れ条件・実行手順・決裁内容を複製しない。差異がある場合は常に各Issue・q&amp;a.html・todo.mdを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（2026-07-25時点 31件・全件を本viewに記載）。
+</div>
+
+<h2>現在地（2026-07-25）</h2>
+<div class="grid">
+  <section class="card">
+    <h3>納品</h3>
+    <p><span class="status risk">本日</span> Go-live 2026-07-25</p>
+  </section>
+  <section class="card">
+    <h3>UATブロッカー</h3>
+    <p><span class="status risk">CRITICAL</span> <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a> 一覧白画面（フルデータ規模）</p>
+  </section>
+  <section class="card">
+    <h3>決裁状況</h3>
+    <p><span class="status done">DEC-1/9/14〜19裁定済み</span> <span class="status wait">残=DEC-10（課金・USER）</span></p>
+  </section>
+  <section class="card">
+    <h3>BE9 backend refactor</h3>
+    <p><span class="status done">CODE COMPLETE</span> <span class="status risk">release gate=OPS-13〜17</span></p>
+  </section>
+</div>
+
+<h2>納品（本日）クリティカルパス</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>順</th><th>項目</th><th>Issue/台帳</th><th>所有</th><th>状態</th></tr>
+  <tr>
+    <td>1</td>
+    <td>飼主・ペット一覧のサーバサイドページネーション配線＋<code>fetch-limits</code>使用箇所の横断棚卸し（BE APIは対応済み・FE配線のみ）。STG実URLで実測確認まで</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a></td>
+    <td>dev</td>
+    <td><span class="status current">最優先</span></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>cutoverは正式21表csv-import経路（F6 runbook）で実施 — stage-importは本番使用禁止・DEC-20で退役確定（BUG-430は退役で解消）。<b>実ブロッカーはデータ側</b>: producer bundle完成（billings.completed_at・payment graph・crosswalk = USER/PO入力）</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a> / q&amp;a.html DEC-20 / todo.md BUG-430</td>
+    <td>USER＋dev</td>
+    <td><span class="status risk">bundle待ち</span></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>全業務シナリオ通し確認（UAT代行）— #266修正が前提</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
+    <td>dev → USER</td>
+    <td><span class="status wait">#266待ち</span></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>BE9 release gate 5件（fresh DB migration実適用／remote CI／production secrets+deploy／scheduler rehearsal／LINE Console redelivery）</td>
+    <td><a href="q&amp;a.html#ops">q&amp;a.html OPS-13〜17</a></td>
+    <td>USER承認</td>
+    <td><span class="status risk">未着手</span></td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>credential rotation・履歴対応＋GitHub Actions billing復旧→最新main全必須job green。#99（旧ECS deploy経路撤去）／#109（CI認証二重管理解消）はmitigationの実地確認が必要</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
+    <td>USER専権</td>
+    <td><span class="status risk">未完</span></td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>#201 設計A実装（DEC-1境界付き裁定済み — 既存マスタ上限の物理ブロック化・新臨床値なし。臨床残余=マスタ値/warning帯/欠落挙動表の事後確認）／#261 PO決裁は残</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / q&amp;a.html DEC-1</td>
+    <td>dev（#261のみPO）</td>
+    <td><span class="status current">#201着手可</span></td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>OPS群: 旧Access移行cutover(#250・BUG-430完了後)・締め時間投入(#252)・スタッフアカウント発行(#255・先方スタッフ一覧待ち)・マニュアル(#256)・切替手順(#257)・納品ドキュメント(#258)</td>
+    <td>#250 #252 #255 #256 #257 #258</td>
+    <td>USER中心</td>
+    <td><span class="status wait">進行中</span></td>
+  </tr>
+</table>
+</div>
+
+<h2>開発セッション配分（納品後・#260裁定＋DEC-14〜20反映）</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Session</th><th>領域</th><th>Issue（着手順・ゲートは各Issue/#260/q&amp;a.html参照）</th></tr>
+  <tr><td><b>S1</b></td><td>検査</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a>（Phase順・legacy snapshot先行）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> 残=USERのDB適用と臨床責任者のseed確認のみ</td></tr>
+  <tr><td><b>S2</b></td><td>カルテ／飼主</td><td>#230 → #232 → #237 → #238（ready）。<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>=DEC-14裁定済み（案A danger_reason・BUG-431先行）で着手可。#235=phase2送り（DEC-19）。<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a>=DEC-17裁定済み — サイグラム即実装可（S）・生年月日=BUG-432是正とセット（S〜M）・複数飼主=Issue追記後（L）</td></tr>
+  <tr><td><b>S3</b></td><td>会計／医院間リンク</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a>=DEC-16裁定済み（contract確定・BUG-430先行）で着手可 → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（#251のBE実装後）。<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a>=DEC-15裁定済み（7項目＋単独権限＋group soft-delete・BUG-429先行）— #249/#230/#232と直列化。#212=phase2送り（DEC-19）</td></tr>
+  <tr><td colspan="2">USER/外部待ち</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a> Lステップ再開=先方API有効化待ち／DEC-9（ADR-003起票）／DEC-10（Sentry課金）</td></tr>
+</table>
+</div>
+
+<div class="notice">
+<b>並行実行ルール（#260要約）:</b> 「全件ready・同一checkoutで完全並列」は撤回済み。並列時は独立worktree＋file ownership＋単一integration ownerの直列取り込み。migrationは作成直前に実ファイル最大番号を再計算し<code>max+1</code>、作成とintegrationは単一担当が直列化する。確認ダイアログを安全装置にしない。scoped verificationのみ自動実行。#239⇔#249/#230/#232、#230⇔#262カルテヘッダ統合は競合面があるため直列化する。
+</div>
+
+<div class="gate">
+<b>安全境界:</b> push・migration実適用・credential/billing変更・STG/PROD操作・GitHub Issueへの書き込みは本viewから自動実行しない。すべて明示承認を要する。DEC-14〜20のIssueへの転記も外部書き込みとしてUSER承認後に行う。
+</div>
+
+<p class="small">ファイル名<code>3-session-agent.html</code>は既存リンク互換のため維持。本fileは<code>52880142d</code>の台帳一本化で一時削除されたが、「Issueを3セッションで着手するためのガイドview」という役割定義（正本=各Issue・受け入れ条件を複製しない）でUSER指示により復元した（2026-07-25）。役割登録=todo.md「正本の境界」表。BE9の旧計画文書は退役済み（境界の正本=ADR-006／boundary map、release gate=q&amp;a.html OPS-13〜17）。</p>
+
+</main>
+</body>
+</html>

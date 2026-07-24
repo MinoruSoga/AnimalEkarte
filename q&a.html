@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）<strong>2026-07-23: BE9 trimming/lstep qualification 由来の技術債を 21 エージェント調査+敵対検証の上で処置 — 判断待ち DEC-11〜13 と USER 操作 OPS-13（L⑤ release gate）を追加、調査確定分は todo.md BUG-421〜425 / TEST-ROUTES-01 / FMT-BE-01 へ起票、死亡ペット直 API は SD-10 裁定どおり phase2.html 一括監査へ証拠を追記。同日、DEC-11〜13 はユーザー委任「コード・仕様書を読んで判断」に基づき Fable 代理決裁で確定（全て案A 採用・実装 = todo.md BUG-426〜428）。PO 判断待ちは計 3 件（DEC-1/9/10）に復帰。</strong><strong>2026-07-24: BE9 code complete / release pending 確定に伴い、旧BE9計画文書の release gate 5 件を OPS-13〜17 へ移設（gate1 は既存 OPS-13）し、旧計画文書と並行計画ビューを退役・削除（経緯は git 履歴、境界の正本は ADR-006 / boundary map）。</strong></p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）<strong>2026-07-23: BE9 trimming/lstep qualification 由来の技術債を 21 エージェント調査+敵対検証の上で処置 — 判断待ち DEC-11〜13 と USER 操作 OPS-13（L⑤ release gate）を追加、調査確定分は todo.md BUG-421〜425 / TEST-ROUTES-01 / FMT-BE-01 へ起票、死亡ペット直 API は SD-10 裁定どおり phase2.html 一括監査へ証拠を追記。同日、DEC-11〜13 はユーザー委任「コード・仕様書を読んで判断」に基づき Fable 代理決裁で確定（全て案A 採用・実装 = todo.md BUG-426〜428）。PO 判断待ちは計 3 件（DEC-1/9/10）に復帰。</strong><strong>2026-07-24: BE9 code complete / release pending 確定に伴い、旧BE9計画文書の release gate 5 件を OPS-13〜17 へ移設（gate1 は既存 OPS-13）し、旧計画文書と並行計画ビューを退役・削除（経緯は git 履歴、境界の正本は ADR-006 / boundary map）。</strong><strong>2026-07-25: #201/#234/#239/#251/#262 の read-only 着手調査（外部エージェント5本・Fable独立抜き取り検証済み）の決裁事項を DEC-14〜18 として起票（DEC-18 stage-import は納品当日要回答）。DEC-1 へ調査完了の補強を追記。副産物の実バグ4件は todo.md BUG-429〜432。PO 判断待ちは計 8 件（DEC-1/9/10/14〜18）。</strong><strong>2026-07-25(2): ユーザー委任「q&amp;a.html の内容はあなたが回答」により DEC-14〜18 を Fable 代理決裁で確定（DEC-14=案A 専用 danger_reason・DEC-15=7項目+単独権限+group soft-delete・DEC-16=草案採用+配賦契約確定・DEC-17=①〜④確定/サイグラム即実装承認・DEC-18=案A stage-import clinic 限定化を cutover 前提条件化）。DEC-1（臨床値・AI委任不可）/DEC-9（起票=USER専権）/DEC-10（課金=USER専権）は委任境界外として未裁定のまま残す — PO 判断待ちは計 3 件に復帰。追加調査プロンプトは不要（コード側調査は完了済み・残余は人の承認/操作のみ）。</strong><strong>2026-07-25(3): ユーザー指示「すべて着手可能な状態に・確認待ちはあなたが判断」により DEC-1 を境界付き代理決裁（設計A即実装・新臨床値の発明なし・欠落時挙動は現行維持 — 臨床残余=マスタ値/warning帯/欠落挙動表の事後確認）、DEC-9 = todo.md TASK-ADR003 追跡で着手可能化、DEC-19 新設（#235/#212 = phase2送り）。これで dev 着手不能な決裁待ちはゼロ。委任でも調査でも解消不能な残余 = DEC-10（課金契約）・OPS-13〜17／credential／CI billing（USER 操作）・#255／#259（外部待ち）・#211残（DB適用＋臨床 seed 確認）。#250 は gap analysis を調査プロンプト化（prompt-craft-runs/agent-issue250-stage-import-gap-analysis.md）。</strong><strong>2026-07-25(4): #250 gap analysis 受領・Mode3照合（canonical矛盾・7/21表・clinic非限定DELETE 11・localガードを実測確認）。反証採用で DEC-18 を改定し DEC-20 新設 — cutoverは正式21表csv-import経路・stage-import退役・BUG-430は退役で解消。<b>本日のcutoverの実ブロッカーは producer bundle 未完成（payments/payment_splits が header-only・preflightが拒否）＝USER/PO入力待ち。</b></strong></p>
   </header>
 
   <div class="toolbar">
@@ -770,29 +770,37 @@ UX 未確定のまま実装着手禁止。</p>
     </div>
   </article>
 
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">DEC-1</span>
       <span class="badge category">臨床安全 / #201</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">起票: 2026-07-16 再オープン（2026-07-20 todo-po.html から移設・最優先）</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-16 再オープン（2026-07-20 todo-po.html から移設・最優先）／ 決定: 2026-07-25（Fable 境界付き代理決裁・ユーザー委任「確認待ちはあなたが判断」— 新しい臨床値は発明しない・臨床責任者は本欄上書きで覆せる）</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問（AI 委任不可 — 臨床責任者の承認が必要）</p>
-      <p class="qa-text">#201 [SAFETY] 薬量上限超過の物理ブロック。使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、の4点を承認させる。現状は上限超過を FE ConfirmDialog「この数量で保存」で通過でき BE も拒否しない（audit のみで保存）— 確認ダイアログを安全統制に使う禁止則違反・fail-closed 不成立。承認内容（4点）が #201 に記録されたら、エージェントが #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装する（対象 = <code>computeDoseGate</code>（FE）+ dose 系 backend〔BE9 target=medicalrecord〕。実装後 06 doc 更新）。</p>
+      <p class="qa-text">#201 [SAFETY] 薬量上限超過の物理ブロック。使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、の4点を承認させる。現状は上限超過を FE ConfirmDialog「この数量で保存」で通過でき BE も拒否しない（audit のみで保存）— 確認ダイアログを安全統制に使う禁止則違反・fail-closed 不成立。承認内容（4点）が #201 に記録されたら、エージェントが #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装する（対象 = <code>computeDoseGate</code>（FE）+ dose 系 backend〔BE9 target=medicalrecord〕。実装後 06 doc 更新）。<strong>2026-07-25 実装調査完了: 設計A（BE物理reject＋FE配線）/設計B（権限付き例外・別endpoint/権限/監査/再認証）の変更面・テスト面は確定済みで、承認が下り次第即実装可。追加で承認が要る細目 = 欠落データ各ケース（体重なし/種別不明/パラメータなし/lookup障害）の挙動表と warning 帯閾値（現行ハードコード20%は暫定）。現行BEは上限超過を保存する挙動をテストが「上書きは拒否せず記録する」として固定化していることを実測確認済み。</strong></p>
+      <div class="answer-block">
+        <p class="section-label">回答（境界付き代理決裁 — 新臨床値の発明なし）</p>
+        <p class="qa-text"><strong>設計A（物理ブロック）を即時実装で確定。既存マスタが「上限」と宣言する値の enforcement のみを行い、新しい臨床値は一切発明しない。</strong>①絶対上限の出所 = 既存 medicine_dose_params（max_mg_per_kg / absolute_max_dose — 現に警告表示へ使用中の臨床マスタ値）。ブロックはこの値の強制であり安全側にしか作用しない。値自体の臨床的再確認は事後でよい（マスタ編集で随時是正可・監査対象）。②warning 帯 = 現行20%を暫定維持（変更なし。臨床責任者が帯を指定したら差し替え）。③欠落データ（体重なし/種別不明/パラメータなし/lookup障害）= 現行挙動（評価スキップ・保存継続）を維持 — 欠落時 fail-closed 化は正当な救急保存を物理的に止める逆向きの臨床リスクを生むため、臨床責任者の明示指定があるまで変更しない（欠落ケース別挙動表の確認が<b>DEC-1残余</b>として臨床責任者に残る）。④緊急例外（設計B）= 実装しない。緊急時の逃がし弁は権限保持者によるマスタ上限値の変更（既存・監査対象の経路）とし、Bが臨床的に必要という判断が出たら別 batch で実装。実装 = #201「必須仕様1〜6」＋2026-07-25調査の設計A変更面（BE物理reject 4xx・FE ConfirmDialog 2経路撤去・inline blocked 表示・境界値/rollback/直接APIバイパス拒否/E2Eテスト）。これで #201 は実装着手可能。</p>
+      </div>
     </div>
   </article>
 
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">DEC-9</span>
       <span class="badge category">起票 = USER 専権</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">起票: 2026-07-16（2026-07-20 todo-po.html から移設）</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-16（2026-07-20 todo-po.html から移設）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">ADR-003（PO-006）独立 Issue の起票（起票操作は USER 専権）。Issue 番号が確定したら、エージェントが案 1B（TRIGGER）＋支払方法の二重保持解消を実装する。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>起票を待たず着手可能化 — todo.md TASK-ADR003 で追跡開始。</strong>実装内容は PO-006 で裁定済み（案1B TRIGGER＋支払方法二重保持解消）であり、Issue 番号の有無は実装可否を変えない。GitHub Issue 化は USER の任意タイミングで可（起票したら todo.md エントリを Issue へ移し二重掲出しない）。着手時期 = 納品後。</p>
+      </div>
     </div>
   </article>
 
@@ -806,6 +814,144 @@ UX 未確定のまま実装着手禁止。</p>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">Sentry ベンダ確定・課金契約（PO-002 で段階導入は決裁済み — 残るのはベンダ・DSN の確定と支払いのみ）。確定したら、エージェントが Phase 1 実装: FE 未捕捉例外＋ErrorBoundary 通知のみ。送信は例外スタック＋リリース版数に限定・PII off・security-review 必須（決裁全文 = 本ファイル PO-002）。</p>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-14</span>
+      <span class="badge category">運用確認 / #234 危険理由</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-25（外部エージェント調査＋Fable独立検証済み）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: pets.danger_level（専用理由フィールドなし）／ pets.remarks ／ OwnersList・共有PetSelection・Reception の高危険度バッジ
+現状（調査確定）: 危険「理由」の専用フィールドは0件。最有力候補 pets.remarks は汎用備考で、Owner Report へ「診療メモ」として露出する（owner向け物理除外が未成立）。Reception バッジは BE が danger_level を返さない契約不整合で実 API では不点灯（todo.md BUG-431・是正はエージェント側で実施可）。
+問い: (A) 専用 pets.danger_reason を新設し staff-internal DTO 限定で公開・既存バッジを1操作（click/tap/Enter/Space）の Popover 開示へ置換 ／ (B) 現場が remarks を危険理由専用として一貫運用している場合のみ remarks を正本化して Issue を縮小（Owner Report からの除外は必須）。
+付随確認（現場回答が必要）: ①現在、危険理由は実際どこに記録しているか ②remarks に危険理由以外が混在しているか ③既存データを専用欄へ移行できるか ④理由必須は high のみか medium も含むか ⑤飼主側 owners.is_dangerous とPet危険度の運用区別。
+推奨: A（運用が口頭・カルテ・備考に分散しているなら）。dual-write はしない。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>案A で確定 — 専用 pets.danger_reason を新設し staff-internal DTO 限定・既存バッジを1操作 Popover 開示へ置換。</strong>根拠: 案Bの成立条件（remarks が危険理由専用で一貫運用）はコード・fixture 実測で反証済み — remarks は汎用備考で Owner Report へ「診療メモ」として露出しており、owner-facing 物理除外要件と両立しない。A は danger_level と同一の Pet 編集フォームへ1欄追加するだけで二重入力を作らず、削除対象工程（口頭申し送り・カルテ/備考からの探索転記）が明確。付随確認①〜③は実装をブロックしない — 既存データの自動 backfill はせず新欄は空から運用開始（発見時に随時記入・remarks からの dual-write 禁止）。④理由必須は high のみ（medium は任意 — 必須化は入力強制の追加であり、high での運用実測後に再判断）。⑤owners.is_dangerous（飼主対応注意）と pets.danger_level（動物取扱注意）は別概念として両立させ、区別を doc に明記。前提是正として BUG-431（Reception 契約不整合）を同 batch で修正し、owner-facing 除外は Owner Report 用 allowlist DTO 分離で担保する。現場実態が「remarks 専用運用」なら PO は本欄上書きで B へ覆せる（その場合もOwner Report 除外は必須）。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-15</span>
+      <span class="badge category">設計確定 / #239 医院間リンク</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-25（7項目 decision packet 完成・Fable独立検証済み）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: pets 単一 owner_id FK ／ identity-links 権限は未実装 ／ sharedkernel/owner_pet_link.go
+現状（調査確定）: #239 の着手条件7項目の現状・選択肢・推奨を調査で確定済み。前提として慢性疾患Listの親Pet相関漏れ（cross-tenant read防御ギャップ・todo.md BUG-429）を実装前 security blocker として先行修正する。#249/#230/#232 と実装面が重なるため完全並列不可。
+問い: 7項目を推奨案で確定してよいか — ①権限=専用 identity-links view/manage 新設（通常staffのclinic isolationは不変更）②却下=候補単位で非PHI永続 ③整合=Owner group 先行・Pet link は親Owner同士linked時のみ ④全ID=actor認可clinic内で全件解決・1件でも範囲外なら全体拒否 ⑤audit=同一tx fail-closed ⑥RLS=immutable created_clinic_id anchor＋member複合参照 ⑦merge=自動merge禁止・専用権限の明示merge＋CAS。
+PO明示判断が要る残り2点: (i) link承認は単独中央権限か医院双方承認か (ii) last-member 削除後の group 保持/tombstone。
+推奨: 7項目は推奨案どおり確定し、(i)(ii) のみ回答を求める。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>7項目すべて推奨案で確定。(i)=単独中央権限、(ii)=last-member 除去で group を soft-delete、で確定。</strong>根拠: (i) 専用 identity-links 権限＋「actor が対象全医院に現時点で所属」の server-side 必須検証は、承認を人の儀式でなく所属で担保する構造であり、A院のみ所属の staff は B院へ link できない。双方承認ワークフロー（承認キュー・通知・期限管理）は稀頻度操作への機構過剰（原則③）かつ形骸化リスクで、unlink 可逆・同一 tx 監査で追跡可能性は既に足りる。(ii) 空 group は業務的意味を持たない — last member 除去時に group を soft-delete（tombstone として履歴・監査は保持・復活機構は作らず再リンクは新 group 作成）。実装順は報告書提案どおり: permission/schema → 手動 search/link/unlink → 最小統合履歴 → 表示統合（#249/#230 の後）→ 候補自動化は最後（原則⑤: 手動運用の検証後のみ）。前提: BUG-429（慢性疾患の親Pet相関漏れ）を実装前に修正。#249/#230/#232 と実装面が重なるため直列化する。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-16</span>
+      <span class="badge category">会計 contract / #251・#247</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-25（全入力経路棚卸し完了・Fable独立検証済み）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: billing_items.category（12値）/source（4値）／ 旧日次会計の「用品他」暗黙統合 ／ backend/cmd/stage-import
+現状（調査確定）: 機械分類可=診療系・トリミング・物販food/goods。整備必要=外科（Procedure.IsSurgery が変換で未参照・全件procedure化）・独立した検査/処方/健診・ワクチン/RV・トレセン・手動明細（常にother/manual）・汎用APIのcategory/source/FK意味整合。前提blocker: stage-import が owner_id&gt;=300000 のみで他院データを削除し得る（todo.md BUG-430）。
+問い: ①入院care-plan行を個別分類するか、hotel stay chargeのみホテルか ②vaccination/hotel/training の生成タイミング・FK・source値 ③手動明細は8分類の明示選択を必須にするか、理由付きotherを残すか ④legacy/import済みotherのbackfill方針（自動backfillはしない前提で計測基準）⑤物販otherの8分類帰属 ⑥#247分の追加契約: gross/net・割引/税/保険/返金の配賦・円単位端数conservation（行合計=列合計=総計）・「件数」の業務定義・支払方法列のmaster順表示。
+推奨: 草案どおり「otherは8分類の代替値にしない（未分類は締め前の要確認件数として可視化）・producerごとの整合をBEで検証・物販選択時はmerchandise_item_idを保存」。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>草案採用で全問確定。</strong>①入院 care-plan 行は行種別から機械導出する — 薬剤/処置=診療（IsSurgery=true なら外科）・フード=フード・滞在費は hospitalization type=hotel のみホテル（medical 入院の滞在費=診療）。分類の手入力は増やさない（原則③: 入力より導出）。導出不能行は「未分類・要確認」として締め前に可視化。②vaccination/hotel/training は各記録の確定時に権威 source＋FK lineage で billing item 候補を生成（source enum へ vaccination/hotel/training を追加・FE 推測分類は権威にしない）。外科も Procedure.IsSurgery から BE 導出。③手動明細は8分類の明示選択を必須化。other は理由必須の例外として残し（理由・操作者・時刻を保存）、締めで要確認件数として表示 — 会計操作を物理ブロックしない escape hatch と friction の両立。④legacy/import 済み other は自動 backfill しない。未分類率・source 別件数を計測し、締め/月次では「未分類」を別掲。⑤contract は単一 BE domain contract として確定後、FE 型・締め・月次・印刷へ同一 typed mapping で派生。⑥#247 配賦契約: matrix 総額=支払実額基準（割引適用後・締め合計と一致）・割引は明細金額比例で配賦・返金は発生日の負値行・端数は最大剰余法で行合計=列合計=総計を円単位保存・「件数」=会計 distinct・支払方法列は医院 master 順で構築し期間内データを持つ無効/削除済み method は末尾表示。前提 blocker の stage-import は DEC-18。#247 実装は本 contract の BE 実装後に着手。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-17</span>
+      <span class="badge category">仕様追記 / #262 林先生3点</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-25（仕様分解完了・Fable独立検証済み）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: owners.birth_date ／ use-owner-form.ts ／ OwnersListTable ／ pets 単一 owner_id
+現状（調査確定）: サイグラム=Issue本文だけで実装可能（ready・DB保存不要の純関数+表示・S規模）。生年月日=DB/BE/OpenAPI/入力UIは実装済みだがFE送信payloadから欠落し保存されない＋一覧「生年月日」列がpet値を表示（todo.md BUG-432）。複数飼主=「主飼主維持+副飼主junction加算」の方向は妥当だが契約未確定（L規模）。
+問い: ①生年月日の受入条件確定 — 保存/編集の往復一致・既存値を空へ戻せるか・一覧列の正本は飼主DOBかペットDOBか ②副飼主junctionの契約確定 — clinic複合FK+RLS・relationship値域・副飼主使用中のowner削除・新主飼主が既に副飼主の場合（自動解除か409）・全置換PUTと主飼主変更の競合 ③副飼主をどの画面に表示し誰が編集可能か ④サイグラム添付原本と本文転記の再照合をマージ前ゲートにする。
+推奨: サイグラムは即実装を承認（①〜③と独立）。①はBUG-432是正と同時に確定。②③はIssue追記後に着手（納品後・L）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>①〜④確定。サイグラムは即実装を承認</strong>（S・DB保存なし・純関数+DOB横リアルタイム表示・配置は lib/saigram.ts — Issue記載の utils/ は FE 規約違反のため読み替え）。<strong>①生年月日</strong>: 受入条件 = 新規/編集の往復一致・JSON null で消去可（フィールド省略=変更なし、の explicit-null 契約）・飼主一覧「生年月日」列の正本は<b>飼主DOB</b>（現行の pet 値表示は BUG-432 で是正・ソート追加は #266 のサーバサイド化後）。<strong>②副飼主 junction</strong>: (clinic_id,id) 一意＋clinic 複合FK＋RLS 適用・relationship は trim 後 1〜50 字・副飼主使用中の owner 削除は 409 拒否・pet 削除時は junction を同一 tx で明示削除（CASCADE 禁止則準拠）・新主飼主が既に副飼主の場合は 409（暗黙のデータ変更を作らない）・全置換 PUT と主飼主変更は version CAS で競合検出。<b>副飼主は請求先・LINE 送信先・割引判定・未収金集計へ混入させない（すべて主飼主のみ・既存業務境界を維持）</b>。③副飼主の表示は飼主詳細・ペット詳細（カルテヘッダは #230 統合後）・編集は owners:edit 保持者。④サイグラム添付原本と本文転記の再照合をマージ前ゲートに採用。本裁定が #262 追記文面の正本 — Issue への転記（外部書き込み）は USER 承認後にエージェントが投稿する。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-18</span>
+      <span class="badge category">納品当日 / stage-import 処置</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票: 2026-07-25（#251調査で発見・テスト実測で確認済み）／ 決定: 2026-07-25（Fable 代理決裁・ユーザー委任 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: backend/cmd/stage-import/apply.go・tables.go・main_test.go:217-246 ／ #250 旧Accessデータ移行 cutover
+現状（調査確定）: legacy stage-import の deleteScope が clinic_id ではなく owner_id&gt;=300000 由来で、実行すると他院の高番ownerデータを削除し得る（todo.md BUG-430）。cross-clinic保護テストなし。本日の cutover で使用予定のツールであるため放置不可。
+問い: (A) 実行前に clinic 限定化を実装＋cross-clinic保護テスト追加（エージェント実施可）／ (B) 今回は単一院DB環境でのみ実行することをUSERが確認した上で現状のまま実行し、是正は直後に行う ／ (C) 本番cutoverでの使用を止め代替手順にする。
+推奨: A。cutover時刻までに間に合わない場合のみBを暫定適用（実行先DBが単一院であることの確認が条件）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>案A で確定 — cutover 実行前に deleteScope を clinic 限定化し、cross-clinic 保護テスト（他院の高番 owner が削除されないこと）を追加する。実装 = todo.md BUG-430・エージェント即着手可。</strong>根拠: 他院データ削除リスクを運用注意（案B）で受容する合理性がない — 是正は deleteScope の書き換えと保護テストで小規模であり、cutover 前に完了できる。<b>cutover 実行（USER 操作）は BUG-430 完了確認を前提条件とする。</b>時間切れの場合のみ B へ暫定切替（実行先 DB が単一院であることを USER が実測確認してから実行し、直後に A を完了させる）。C（廃止）は #250 の代替手段構築コストが不要に大きく不採用。<strong>2026-07-25 改定（#250 gap analysis の反証採用）: 本裁定の前提が誤っていた — runbook（SEED_MIGRATION_OPERATIONS.md）は本番cutoverでのstage-import使用を既に禁止しており、正式経路=21表csv-import（Serializable・advisory lock・manifest digest・空band fail-closed を既備）。「代替手段の構築コスト」は存在しない（既に構築済み）。よって本日のcutoverは正式F6経路（CLINIC_CSV_IMPORT.md）で実施し、BUG-430はcutoverブロッカーから外す。stage-import自体の処置はDEC-20（退役）で確定。</strong></p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-19</span>
+      <span class="badge category">優先度 / #235・#212</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票・決定: 2026-07-25（Fable 代理決裁・ユーザー委任「確認待ちはあなたが判断」— PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">#235（カルテ画像・PDF の D&amp;D アップロード）と #212（repository integration coverage 改善）の今フェーズ扱い。#235 は #260 で「価値検証待ち」、#212 は「current phase から外す」とされたまま宙に浮いている。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>両件 phase2 送りで確定。</strong>#235 = 要件責任者（個人名）と業務目的の記述がなく（原則①）、利用者・頻度・現行操作時間の実測もない。価値実測が提出されたら再起案 — その際も確定済みカルテでは drop UI・保存とも不可の制約（#260）を維持する。phase2.html へ追記済み。#212 = #260 裁定どおり current phase 外・phase2.html 長期目標に既載。再開条件 = 納品後の安定稼働確認後、業務クリティカル path（billing/medicalrecord/audit）優先で重要ギャップへ再分解・infra 系除外をデフォルトに再起案。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-20</span>
+      <span class="badge category">移行 / #250 canonical経路</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">起票・決定: 2026-07-25（#250 gap analysis 由来・Fable 代理決裁 — PO は本欄上書きで覆せる）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md ／ CLINIC_CSV_IMPORT.md ／ backend/cmd/stage-import ／ backend/internal/csvimport
+現状（調査確定・実測照合済み）: #250 本文は stage-import を canonical として拡張を要求するが、runbook は21表 csv-import を正式F6経路とし stage-import を本番cutover使用禁止と規定 — 契約矛盾。stage-import は 7/21表・clinic非限定DELETE 11経路（BUG-430）・sequence非transactional・run-id削除範囲不一致・dry-run過少表示等の欠陥を持つ旧ローカル互換経路。
+問い: (A) #250 を21表 csv-import へ再基準化し stage-import を退役 ／ (B) stage-import に14表追加＋全欠陥修正を実装。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text"><strong>案A で確定 — #250 を csv-import 正式経路へ再基準化し、stage-import は退役（拡張・欠陥修正に投資しない）。</strong>根拠: 正式経路は必要防御（Serializable・advisory lock・manifest digest・空band fail-closed・commit-unknown処理・post-COPY verify）を既備であり、旧ツールへの14表追加＋11 DELETE是正は存在すべきでないものの再構築（原則①②）。BUG-430 は退役で解消 — 退役実装（cmd/stage-import 削除またはビルド除外・#250転記とセット）までは既存ガード（local target 限定＋<code>--confirm-local-destroy</code> 必須）で隔離されており本番接続不能。<b>#250 の残作業の本丸はツールでなくデータ</b>: producer bundle の完成（billings.completed_at 追加・completed billing ごとの payment graph 出力・staff/category/provenance crosswalk）が必要で、これは旧Access実形式・個人責任者・payment source の USER/PO 入力待ち。cutover前チェックリストは gap analysis 報告の案を #250 転記時に正本化。#250 本文の再基準化転記 = 外部書き込み・USER承認後にエージェントが実施。</p>
+      </div>
     </div>
   </article>
 
