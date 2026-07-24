@@ -1,0 +1,49 @@
+package pet
+
+import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// RegisterRoutes registers the 16 pet-owned authenticated routes.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	h.RegisterPetRoutes(rg)
+	h.RegisterAnimalSpeciesRoutes(rg)
+}
+
+// RegisterPetRoutes is a temporary compatibility seam used by the legacy aggregate
+// handler until central composition cuts over to RegisterRoutes.
+func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
+	pets := rg.Group("/pets")
+	pets.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListPets)
+	pets.GET("/:id", h.requirePermission(string(model.ResourceOwners), "view"), h.GetPet)
+	pets.POST("", h.requirePermission(string(model.ResourceOwners), "create"), h.CreatePet)
+	pets.PATCH("/:id", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdatePet)
+	pets.DELETE("/:id", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
+	pets.GET("/:id/first-visit", h.requirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
+
+	h.RegisterChronicConditionRoutes(pets)
+}
+
+// RegisterChronicConditionRoutes registers the nested chronic-condition routes.
+// It remains exported only for the legacy aggregate-handler compatibility facade.
+func (h *Handler) RegisterChronicConditionRoutes(pets *gin.RouterGroup) {
+	chronicConditions := pets.Group("/:id/chronic-conditions")
+	chronicConditions.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListChronicConditions)
+	chronicConditions.POST("", h.requirePermission(string(model.ResourceOwners), "create"), h.CreateChronicCondition)
+	chronicConditions.PATCH("/:cc_id", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateChronicCondition)
+	chronicConditions.DELETE("/:cc_id", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteChronicCondition)
+}
+
+// RegisterAnimalSpeciesRoutes is a temporary compatibility seam used by the legacy
+// master route aggregate until central composition cuts over to RegisterRoutes.
+func (h *Handler) RegisterAnimalSpeciesRoutes(rg *gin.RouterGroup) {
+	masters := rg.Group("/masters")
+	masters.GET("/animal-species", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "view"), h.ListAnimalSpecies)
+	masters.POST("/animal-species", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "create"), h.CreateAnimalSpecies)
+	masters.PATCH("/animal-species/reorder", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "edit"), h.ReorderAnimalSpecies)
+	masters.GET("/animal-species/:id", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "view"), h.GetAnimalSpecies)
+	masters.PATCH("/animal-species/:id", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "edit"), h.UpdateAnimalSpecies)
+	masters.DELETE("/animal-species/:id", h.requirePermission(string(model.ResourceMasterAnimalSpecies), "delete"), h.DeleteAnimalSpecies)
+}
