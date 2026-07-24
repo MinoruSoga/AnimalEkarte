@@ -6,9 +6,10 @@ import { useNavigate, useSearchParams } from "react-router";
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
+import { isPastJSTDate } from "@/lib/jst-date";
 
 // External
-import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";
+import { Plus, Syringe, Calendar, User, Pencil, Trash2, AlertTriangle } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -210,6 +211,7 @@ export function VaccinationList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: VaccinationRecord) => {
+    const overdue = isPastJSTDate(r.nextDate);
     const actions = [
       ...(canEdit ? [{ label: "編集", icon: Pencil, onClick: () => handleEdit(r.id) }] : []),
       ...(canDelete ? [{ label: "削除", icon: Trash2, onClick: () => setPendingDeleteId(r.id), variant: "destructive" as const }] : []),
@@ -227,7 +229,17 @@ export function VaccinationList() {
           </DataTableRowLink>
         </TableCell>
         <TableCell className={`font-medium ${C.text}`}>{r.vaccineName}</TableCell>
-        <TableCell className={`font-mono ${C.text}`}>{r.nextDate}</TableCell>
+        <TableCell className={`font-mono ${overdue ? C.danger : C.text}`}>
+          {overdue ? (
+            <span className="inline-flex items-center gap-1.5">
+              <AlertTriangle className={`${ICON.xs} shrink-0`} />
+              <span>
+                {r.nextDate}
+                <span className="ml-1.5 text-xs font-medium">（期限超過）</span>
+              </span>
+            </span>
+          ) : r.nextDate}
+        </TableCell>
         <TableCell className="text-right">
           {/* BUG-089: 行操作ドロップダウン（編集・削除） */}
           {actions.length > 0 ? (

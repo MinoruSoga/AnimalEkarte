@@ -27,6 +27,11 @@ export function todayJSTISO(): string {
   return formatJSTDate(new Date());
 }
 
+export function isPastJSTDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  return date < todayJSTISO();
+}
+
 export function toJSTWallDate(value: Date | string): Date {
   const jstDate = toJSTParts(value);
   return new Date(

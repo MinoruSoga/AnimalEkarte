@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Calendar, Syringe, AlertTriangle, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C, ICON } from "@/lib/design-tokens";
+import { isPastJSTDate } from "@/lib/jst-date";
 import type { VaccinationRecord } from "@/types";
 
 interface VaccinationCardProps {
@@ -10,19 +11,12 @@ interface VaccinationCardProps {
   className?: string;
 }
 
-function isOverdue(nextDate: string): boolean {
-  if (!nextDate) return false;
-  const next = new Date(nextDate);
-  if (isNaN(next.getTime())) return false;
-  return next < new Date();
-}
-
 export const VaccinationCard = memo(function VaccinationCard({
   vaccination,
   onClick,
   className,
 }: VaccinationCardProps) {
-  const overdue = isOverdue(vaccination.nextDate);
+  const overdue = isPastJSTDate(vaccination.nextDate);
 
   return (
     <Card

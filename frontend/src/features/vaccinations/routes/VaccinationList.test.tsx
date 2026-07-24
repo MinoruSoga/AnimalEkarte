@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { C } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationList } from "./VaccinationList";
 
@@ -89,5 +90,60 @@ describe("VaccinationList row navigation accessibility", () => {
     renderPage();
 
     expect(screen.getByRole("button", { name: /vac-1/ })).toBeInTheDocument();
+  });
+});
+
+describe("VaccinationList 次回予定の期限超過表示", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-23T15:30:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderWithNextDate(nextDate: string) {
+    mockUseFilterVaccinations.mockReturnValue({
+      data: [{ ...vaccination, nextDate }],
+      allVaccinations: [{ ...vaccination, nextDate }],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+  }
+
+  function getNextDateCell() {
+    const row = screen.getByText(vaccination.petName).closest("tr");
+    return row?.querySelectorAll("td")[4] ?? null;
+  }
+
+  it("過去日だけをdanger表現で期限超過表示する", () => {
+    renderWithNextDate("2026-07-23");
+
+    const cell = getNextDateCell();
+    expect(cell).toHaveClass("font-mono", C.danger);
+    expect(cell).toHaveTextContent("2026-07-23");
+    expect(cell).toHaveTextContent("（期限超過）");
+  });
+
+  it("未来日は現状の通常表示を維持する", () => {
+    renderWithNextDate("2026-07-25");
+
+    const cell = getNextDateCell();
+    expect(cell).toHaveClass("font-mono", C.text);
+    expect(cell).not.toHaveClass(C.danger);
+    expect(cell).toHaveTextContent("2026-07-25");
+    expect(cell).not.toHaveTextContent("期限超過");
+  });
+
+  it("空欄は現状の空セル表示を維持する", () => {
+    renderWithNextDate("");
+
+    const cell = getNextDateCell();
+    expect(cell).toHaveClass("font-mono", C.text);
+    expect(cell).not.toHaveClass(C.danger);
+    expect(cell).toHaveTextContent(/^\s*$/);
+    expect(cell).not.toHaveTextContent("期限超過");
   });
 });
