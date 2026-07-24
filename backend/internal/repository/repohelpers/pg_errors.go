@@ -1,20 +1,15 @@
 package repohelpers
 
 import (
-	"errors"
-
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// IsUniqueConstraintErr はPostgreSQLのユニーク制約違反（23505）を判定する
-// （BE9-2C R①: repository/db.go から昇格。owner/pet/staff/reservation 等の恒久ドメイン跨ぎ）。
+// IsUniqueConstraintErr delegates to persistence.
 func IsUniqueConstraintErr(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+	return persistence.IsUniqueConstraintErr(err)
 }
 
-// IsFKConstraintErr はPostgreSQLの外部キー制約違反（23503）を判定する
+// IsFKConstraintErr delegates to persistence.
 func IsFKConstraintErr(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+	return persistence.IsFKConstraintErr(err)
 }
