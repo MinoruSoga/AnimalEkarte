@@ -177,7 +177,7 @@ export function MedicalRecordStickyHeader({
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        onOwnerClick={!isNewRecord && !isFinalized ? onOwnerClick : undefined}
+        onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>

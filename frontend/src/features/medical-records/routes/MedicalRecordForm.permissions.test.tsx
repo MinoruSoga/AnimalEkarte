@@ -1,0 +1,191 @@
+import type { ReactNode } from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MedicalRecordForm } from "./MedicalRecordForm";
+
+const mockDeleteRecord = vi.hoisted(() => vi.fn());
+const mockUsePermission = vi.hoisted(() => vi.fn());
+
+vi.mock("react-router", () => ({
+  useParams: () => ({ id: "record-1" }),
+  useNavigate: () => vi.fn(),
+}));
+
+vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
+  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock("@/hooks/use-permission", () => ({
+  usePermission: mockUsePermission,
+}));
+
+vi.mock("../hooks/use-medical-record-form", () => ({
+  useMedicalRecordForm: () => ({
+    isNewRecord: false,
+    activeTab: "問診",
+    setActiveTab: vi.fn(),
+    selectedPet: {
+      id: "pet-1",
+      ownerId: "owner-1",
+      ownerName: "飼主",
+      name: "ペット",
+      petNumber: "P-1",
+      species: "犬",
+      status: "生存",
+    },
+    isPetLoading: false,
+    shouldRedirectToSelectPet: false,
+    notFound: false,
+    handleBack: vi.fn(),
+    formAction: vi.fn(),
+    formState: {},
+    isSaving: false,
+    isFinalized: false,
+    isCreating: false,
+    treatmentPlanItems: [],
+    setTreatmentPlanItems: vi.fn(),
+    chiefComplaint: "",
+    setChiefComplaint: vi.fn(),
+    chiefComplaintTypeId: null,
+    setChiefComplaintTypeId: vi.fn(),
+    treatmentPolicy: "",
+    setTreatmentPolicy: vi.fn(),
+    plan: "",
+    setPlan: vi.fn(),
+    assessment: "",
+    setAssessment: vi.fn(),
+    diagnosis1CategoryId: null,
+    setDiagnosis1CategoryId: vi.fn(),
+    diagnosis1NameId: null,
+    setDiagnosis1NameId: vi.fn(),
+    diagnosis2CategoryId: null,
+    setDiagnosis2CategoryId: vi.fn(),
+    diagnosis2NameId: null,
+    setDiagnosis2NameId: vi.fn(),
+    ownerDiscountRate: 0,
+    visitType: "再診",
+    visitCount: 1,
+    handleChangeDoctor: vi.fn(),
+    handleVisitTypeChange: vi.fn(),
+    pendingOwnerChange: null,
+    requestOwnerChange: vi.fn(),
+    confirmOwnerChange: vi.fn(),
+    cancelOwnerChange: vi.fn(),
+    nextVisitDate: "",
+    handleNextVisitDateChange: vi.fn(),
+    handleNextVisitDatePatch: vi.fn(),
+    isNextVisitDateValid: true,
+    handleNextVisitDateValidChange: vi.fn(),
+    recommendationReason: null,
+    setRecommendationReason: vi.fn(),
+    recordDate: "2026-08-01",
+    handleChangeDate: vi.fn(),
+    handleFinalize: vi.fn(),
+    isFinalizeSaving: false,
+  }),
+}));
+
+vi.mock("../api/get-medical-records", () => ({
+  useGetPetMedicalHistory: () => ({ historyItems: [] }),
+}));
+vi.mock("../api/get-medical-record", () => ({
+  useGetMedicalRecord: () => ({ data: { clinicId: "clinic-1" } }),
+}));
+vi.mock("../api/clinical-plan", () => ({
+  useGetClinicalPlan: () => ({ data: undefined }),
+}));
+vi.mock("../api/treatments", () => ({
+  useGetTreatments: () => ({ data: [] }),
+}));
+vi.mock("../api/delete-medical-record", () => ({
+  useDeleteMedicalRecord: () => ({ mutate: mockDeleteRecord, isPending: false }),
+}));
+vi.mock("../hooks/use-medical-record-dirty-fields", () => ({
+  useMedicalRecordDirtyFields: () => ({
+    handleSetAssessment: vi.fn(),
+    handleSetChiefComplaint: vi.fn(),
+    handleSetChiefComplaintTypeId: vi.fn(),
+    handleSetDiagnosis1CategoryId: vi.fn(),
+    handleSetDiagnosis1NameId: vi.fn(),
+    handleSetDiagnosis2CategoryId: vi.fn(),
+    handleSetDiagnosis2NameId: vi.fn(),
+    handleSetPlan: vi.fn(),
+    handleSetTreatmentPolicy: vi.fn(),
+  }),
+}));
+vi.mock("../hooks/use-medical-record-form-modals", () => ({
+  useMedicalRecordFormModals: () => ({
+    isDeleteConfirmOpen: true,
+    setIsDeleteConfirmOpen: vi.fn(),
+    isFinalizeConfirmOpen: false,
+    setIsFinalizeConfirmOpen: vi.fn(),
+    isVitalsOpen: false,
+    setIsVitalsOpen: vi.fn(),
+    isPrinting: false,
+    isStaffModalOpen: false,
+    isOwnerSearchOpen: false,
+    setIsOwnerSearchOpen: vi.fn(),
+    handleStaffModalOpenChange: vi.fn(),
+    handleOpenStaffModal: vi.fn(),
+    handleOpenOwnerSearch: vi.fn(),
+    handlePrintClick: vi.fn(),
+  }),
+}));
+vi.mock("../hooks/use-medical-record-post-save", () => ({
+  useMedicalRecordPostSave: () => ({
+    handleRegisterClinicalPlanSave: vi.fn(),
+    handleRegisterEstimateSave: vi.fn(),
+  }),
+}));
+vi.mock("@/hooks/use-owner-line-tags", () => ({
+  useGetOwnerLineTags: () => ({ data: undefined }),
+}));
+vi.mock("@/hooks/use-unsaved-changes", () => ({
+  useUnsavedChanges: () => ({ isDirty: false, markDirty: vi.fn(), markClean: vi.fn() }),
+}));
+vi.mock("@/hooks/use-title", () => ({ useTitle: vi.fn() }));
+vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
+
+vi.mock("../components/MedicalRecordFormPanels", () => ({
+  MedicalRecordStickyHeader: () => null,
+  MedicalRecordTabsArea: () => <input aria-label="clinical field" />,
+}));
+vi.mock("../components/MedicalRecordFormActions", () => ({
+  MedicalRecordFloatingActions: () => null,
+  MedicalRecordFinalizeDialog: () => null,
+  MedicalRecordPrintArea: () => null,
+}));
+vi.mock("../components/MedicalRecordFormModals", () => ({
+  MedicalRecordFormModals: ({ onConfirmDelete }: { onConfirmDelete: () => void }) => (
+    <button type="button" onClick={onConfirmDelete}>confirm delete</button>
+  ),
+}));
+vi.mock("../components/MedicalRecordAddenda", () => ({ MedicalRecordAddenda: () => null }));
+vi.mock("@/components/shared/NavigationBlocker", () => ({ NavigationBlocker: () => null }));
+vi.mock("@/components/shared/DataStates", () => ({ LoadingFallback: () => null, ErrorFallback: () => null }));
+vi.mock("@/components/shared/UnifiedTabs", () => ({
+  UnifiedTabsRoot: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockUsePermission.mockReturnValue({ canEdit: false, canCreate: true, canDelete: false });
+});
+
+describe("MedicalRecordForm — mutation permission boundary", () => {
+  it("canDelete=falseではdelete mutationを発行せず、canEdit=falseではfieldsetを無効化する", () => {
+    render(<MedicalRecordForm />);
+
+    expect(screen.getByRole("group")).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "confirm delete" }));
+
+    expect(mockDeleteRecord).not.toHaveBeenCalled();
+  });
+});
