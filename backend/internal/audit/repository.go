@@ -35,9 +35,15 @@ func (r *repository) Create(ctx context.Context, log *model.AuditLog) error {
 	return nil
 }
 
-// CreateTx participates in an ambient persistence transaction when one exists.
+// CreateTx participates in the caller's ambient persistence transaction.
+// Missing transaction context fails closed so audit writes cannot escape the
+// business transaction through the base database connection.
 func (r *repository) CreateTx(ctx context.Context, log *model.AuditLog) error {
-	if err := persistence.DBOrTx(ctx, r.db).Create(log).Error; err != nil {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return apperrors.WrapInternalServerError("audit log write requires an ambient transaction")
+	}
+	if err := tx.WithContext(ctx).Create(log).Error; err != nil {
 		return apperrors.FromGORM(err, "audit_log", "")
 	}
 	return nil
