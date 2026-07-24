@@ -1,7 +1,6 @@
 package medicalrecord
 
-// Moved from internal/repository (BE9-2D ⑦ Batch A). 旧 package-private helper は repohelpers
-// 同等物へ置換（同一述語/ambient-tx参加）。外部は internal/repository の facade alias 経由で不変。
+// Moved from internal/repository (BE9-2D ⑦ Batch A).
 
 import (
 	"context"
@@ -15,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // MedicalRecordListFilters はカルテ一覧のフィルタ条件（B-1: server-side pagination/search 拡張）。
@@ -171,7 +171,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		}
 		if filters.Search != "" {
 			// NormalizeKana で検索語のカタカナをひらがなに正規化し、DB 列の translate() 正規化値と統一比較する（owner_repository.go と同型）。
-			pattern := "%" + repohelpers.EscapeLike(repohelpers.NormalizeKana(filters.Search)) + "%"
+			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
@@ -181,9 +181,9 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\')`,
 				pattern,
 				pattern,
-				repohelpers.KanaSourceChars, repohelpers.KanaTargetChars, pattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
 				pattern,
-				repohelpers.KanaSourceChars, repohelpers.KanaTargetChars, pattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
 				pattern,
 			)
 		}

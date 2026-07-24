@@ -10,7 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // 最終来院分類バケット名の定数（C-10）。
@@ -100,9 +100,9 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
 		whereArgs = append(
 			whereArgs,
-			repohelpers.KanaSourceChars,
-			repohelpers.KanaTargetChars,
-			"%"+repohelpers.EscapeLike(repohelpers.NormalizeKana(params.Search))+"%",
+			textsearch.KanaSourceChars,
+			textsearch.KanaTargetChars,
+			"%"+textsearch.EscapeLike(textsearch.NormalizeKana(params.Search))+"%",
 		)
 	}
 

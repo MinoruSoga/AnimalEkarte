@@ -22,7 +22,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // ---- escapeLike（純粋関数・DB不要） ----
@@ -30,8 +30,8 @@ import (
 func TestEscapeLike(t *testing.T) {
 	// ltv_repository_test.go の TestEscapeLikePattern と同一の入出力パターンで、
 	// 同等のエスケープロジック（\ → %  → _ の順）を持つ escapeLike を検証する。
-	assert.Equal(t, `100\%\_\\`, repohelpers.EscapeLike(`100%_\`))
-	assert.Equal(t, `normal`, repohelpers.EscapeLike(`normal`))
+	assert.Equal(t, `100\%\_\\`, textsearch.EscapeLike(`100%_\`))
+	assert.Equal(t, `normal`, textsearch.EscapeLike(`normal`))
 }
 
 // ---- FindAll ----

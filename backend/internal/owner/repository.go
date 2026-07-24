@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // ServiceRepository is the minimal owner persistence view consumed by the
@@ -83,14 +84,14 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		if search != "" {
 			// NormalizeKana で検索語のカタカナをひらがなに正規化。
 			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + repohelpers.EscapeLike(repohelpers.NormalizeKana(search)) + "%"
+			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
 			q = q.Where(
 				`(name ILIKE ? ESCAPE '\'`+
 					` OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
 					` OR email ILIKE ? ESCAPE '\')`,
 				pattern,
-				repohelpers.KanaSourceChars, repohelpers.KanaTargetChars, pattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
 				pattern,
 				pattern,
 			)

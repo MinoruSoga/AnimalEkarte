@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // PetListFilters はペット一覧のフィルタ条件（#266: サーバサイド pagination/search 拡張）。
@@ -106,7 +107,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		if filters.Search != "" {
 			// NormalizeKana で検索語のカタカナをひらがなに正規化。
 			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + repohelpers.EscapeLike(repohelpers.NormalizeKana(filters.Search)) + "%"
+			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
@@ -114,9 +115,9 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.phone ILIKE ? ESCAPE '\')`,
 				pattern,
-				repohelpers.KanaSourceChars, repohelpers.KanaTargetChars, pattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
 				pattern,
-				repohelpers.KanaSourceChars, repohelpers.KanaTargetChars, pattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
 				pattern,
 			)
 		}
