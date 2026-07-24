@@ -89,7 +89,7 @@
   </section>
   <section class="card">
     <h3>UATブロッカー</h3>
-    <p><span class="status risk">CRITICAL</span> <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a> 一覧白画面（フルデータ規模）</p>
+    <p><span class="status done">#266 dev完了</span> <span class="status wait">残=STG実測（USER）</span></p>
   </section>
   <section class="card">
     <h3>決裁状況</h3>
@@ -107,10 +107,10 @@
   <tr><th>順</th><th>項目</th><th>Issue/台帳</th><th>所有</th><th>状態</th></tr>
   <tr>
     <td>1</td>
-    <td>飼主・ペット一覧のサーバサイドページネーション配線＋<code>fetch-limits</code>使用箇所の横断棚卸し（BE APIは対応済み・FE配線のみ）。STG実URLで実測確認まで</td>
+    <td>飼主・ペット一覧のサーバサイド化（45b4cfc54）＋<code>fetch-limits</code>棚卸し・bounded fix（f367a3dd6・棚卸しコメント投稿済み）は完了。残 = STG実URLでの3秒以内表示実測とFEフルゲート手動実行</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a></td>
-    <td>dev</td>
-    <td><span class="status current">最優先</span></td>
+    <td>USER</td>
+    <td><span class="status wait">STG実測待ち</span></td>
   </tr>
   <tr>
     <td>2</td>
@@ -173,7 +173,7 @@
 </div>
 
 <div class="gate">
-<b>安全境界:</b> push・migration実適用・credential/billing変更・STG/PROD操作・GitHub Issueへの書き込みは本viewから自動実行しない。すべて明示承認を要する。DEC-14〜20のIssueへの転記も外部書き込みとしてUSER承認後に行う。
+<b>安全境界:</b> push・migration実適用・credential/billing変更・STG/PROD操作・GitHub Issueへの書き込みは本viewから自動実行しない。すべて明示承認を要する。DEC-1/14〜20の各Issueへの転記＋#250 cutoverチェックリスト正本化は2026-07-25にUSER承認のうえ転記完了（#201/#234/#239/#251/#247/#262/#250/#235/#212）。
 </div>
 
 <p class="small">ファイル名<code>3-session-agent.html</code>は既存リンク互換のため維持。本fileは<code>52880142d</code>の台帳一本化で一時削除されたが、「Issueを3セッションで着手するためのガイドview」という役割定義（正本=各Issue・受け入れ条件を複製しない）でUSER指示により復元した（2026-07-25）。役割登録=todo.md「正本の境界」表。BE9の旧計画文書は退役済み（境界の正本=ADR-006／boundary map、release gate=q&amp;a.html OPS-13〜17）。</p>
