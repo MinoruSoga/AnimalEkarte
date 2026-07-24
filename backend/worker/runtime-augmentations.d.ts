@@ -5,6 +5,13 @@ interface Env {
   DB_MAX_OPEN_CONNS: string;
   DB_MAX_IDLE_CONNS: string;
   S3_PUBLIC_BASE_URL: string;
+  SCHEDULER_ENVIRONMENT: string;
+  SCHEDULER_OPS_SECRET: string;
+  SCHEDULER_ACCESS_TEAM_DOMAIN: string;
+  SCHEDULER_ACCESS_AUDIENCE: string;
+  SCHEDULER_ALERT_ALLOWED_HOST: string;
+  SCHEDULER_ALERT_WEBHOOK_URL: string;
+  SCHEDULER_ALERT_WEBHOOK_SECRET: string;
 }
 
 declare namespace Cloudflare {
@@ -12,6 +19,13 @@ declare namespace Cloudflare {
     DB_MAX_OPEN_CONNS: string;
     DB_MAX_IDLE_CONNS: string;
     S3_PUBLIC_BASE_URL: string;
+    SCHEDULER_ENVIRONMENT: string;
+    SCHEDULER_OPS_SECRET: string;
+    SCHEDULER_ACCESS_TEAM_DOMAIN: string;
+    SCHEDULER_ACCESS_AUDIENCE: string;
+    SCHEDULER_ALERT_ALLOWED_HOST: string;
+    SCHEDULER_ALERT_WEBHOOK_URL: string;
+    SCHEDULER_ALERT_WEBHOOK_SECRET: string;
   }
 }
 

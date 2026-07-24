@@ -6,11 +6,54 @@ import {
   type ScheduledJobOutcome,
   type ScheduledJobRequest,
 } from "./scheduled-jobs";
+import {
+  cronForManualSlot,
+  failureCodeForOutcome,
+  internalFailureLedger,
+  logLeaseExpired,
+  normalizeControl,
+  outcomeLedger,
+  reconcilePendingManualOperation,
+  sameControlIntent,
+  sameManualIntent,
+  summarizeActive,
+  summarizeLedger,
+  summarizeSchedulerOperation,
+  terminalManualOperation,
+  validateOperationIdentity,
+  type ActiveScheduledRun,
+  type CoordinatorStorage,
+  type CoordinatorTransaction,
+  type LatestScheduledRun,
+  type RunDisposition,
+  type RunFailureCode,
+  type ScheduledRunLedger,
+  type ScheduledRunResult,
+  type SchedulerControl,
+  type SchedulerControlCommand,
+  type SchedulerControlOperation,
+  type SchedulerManualCommand,
+  type SchedulerManualDriver,
+  type SchedulerManualOperation,
+  type SchedulerOperation,
+  type SchedulerOperationIndex,
+  type SchedulerOpsRateLimitDecision,
+  type SchedulerStatus,
+} from "./scheduler-coordinator-records";
+import {
+  pruneSchedulerHistory,
+  putSchedulerOperation,
+  type SchedulerHistoryConfig,
+} from "./scheduler-history";
+import {
+  consumeSchedulerOpsRateLimit,
+  SCHEDULER_OPS_RATE_LIMIT,
+  SCHEDULER_OPS_RATE_WINDOW_MS,
+} from "./scheduler-rate-limit";
 
 export { SCHEDULED_JOB_LEASE_MS };
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
-export const RUN_LEDGER_RETENTION_MS = 35 * DAY_MS;
+export { SCHEDULER_OPS_RATE_LIMIT, SCHEDULER_OPS_RATE_WINDOW_MS };
+export * from "./scheduler-coordinator-records";
 
 // The fence protects Durable Object ledger finalization; it cannot undo Go
 // side effects that already started. Safety therefore also depends on the
@@ -21,143 +64,38 @@ const ACTIVE_KEY = "scheduler:active";
 const FENCE_KEY = "scheduler:fence";
 const RUN_KEY_PREFIX = "scheduler:run:";
 const LATEST_KEY_PREFIX = "scheduler:latest:";
+const OPERATION_KEY_PREFIX = "scheduler:operation:";
+const OPERATION_INDEX_PREFIX = "scheduler:operation-index:";
+const OPERATION_RESULT_KEY_PREFIX = "scheduler:operation-result:";
+const OPERATION_DRIVER_KEY_PREFIX = "scheduler:operation-driver:";
+const MANUAL_DRIVER_LEASE_MS = 2 * SCHEDULED_JOB_LEASE_MS;
 
-export interface CoordinatorTransaction {
-  get<T>(key: string): Promise<T | undefined>;
-  put<T>(key: string, value: T): Promise<void>;
-  delete(key: string): Promise<boolean>;
-}
-
-export interface CoordinatorStorage extends CoordinatorTransaction {
-  list<T>(options: { prefix: string }): Promise<Map<string, T>>;
-  transaction<T>(closure: (transaction: CoordinatorTransaction) => Promise<T>): Promise<T>;
-}
-
-export interface SchedulerControl {
-  version: 1;
-  paused: boolean;
-  changedAt: number;
-}
-
-export interface ActiveScheduledRun {
-  version: 1;
-  scheduler: typeof SCHEDULER_NAME;
-  runId: string;
-  runKey: string;
-  cron: string;
-  job: ScheduledJobName;
-  scheduledTime: number;
-  fenceToken: number;
-  claimedAt: number;
-  leaseExpiresAt: number;
-}
-
-export type RunLedgerStatus = "running" | "paused" | "success" | "partial" | "failed";
-export type RunFailureCode =
-  | "job_partial"
-  | "job_failed"
-  | "transport"
-  | "stale"
-  | "busy"
-  | "lease_expired"
-  | "fenced";
-
-export interface ScheduledRunLedger {
-  version: 1;
-  scheduler: typeof SCHEDULER_NAME;
-  runId: string;
-  runKey: string;
-  cron: string;
-  job: ScheduledJobName;
-  scheduledTime: number;
-  fenceToken: number;
-  status: RunLedgerStatus;
-  startedAt: number;
-  finishedAt?: number;
-  outcome?: ScheduledJobOutcome;
-  failureCode?: RunFailureCode;
-}
-
-interface LatestScheduledRun {
-  version: 1;
-  job: ScheduledJobName;
-  scheduledTime: number;
-  runId: string;
-  updatedAt: number;
-}
-
-export type RunDisposition =
-  | "executed"
-  | "paused"
-  | "stale"
-  | "duplicate"
-  | "busy"
-  | "fenced";
-
-export interface ScheduledRunResult {
-  disposition: RunDisposition;
-  ledger?: ScheduledRunLedger;
-  active?: ActiveScheduledRun;
-}
+const HISTORY_CONFIG: SchedulerHistoryConfig = {
+  runKeyPrefix: RUN_KEY_PREFIX,
+  operationKeyPrefix: OPERATION_KEY_PREFIX,
+  operationIndexPrefix: OPERATION_INDEX_PREFIX,
+  operationResultKeyPrefix: OPERATION_RESULT_KEY_PREFIX,
+  operationDriverKeyPrefix: OPERATION_DRIVER_KEY_PREFIX,
+};
 
 type JobExecutor = (request: ScheduledJobRequest) => Promise<ScheduledJobOutcome>;
+
+interface ManualRunContext {
+  requestId: string;
+  driverKey: string;
+  driverToken: string;
+  resultKey: string;
+}
 
 type ClaimResult =
   | { disposition: "claimed"; active: ActiveScheduledRun; ledger: ScheduledRunLedger }
   | { disposition: Exclude<RunDisposition, "executed" | "fenced">; ledger?: ScheduledRunLedger; active?: ActiveScheduledRun };
-
-function failureCodeForOutcome(outcome: ScheduledJobOutcome): RunFailureCode | undefined {
-  if (outcome.outcome === "partial") {
-    return "job_partial";
-  }
-  if (outcome.outcome === "failed") {
-    return "job_failed";
-  }
-  return undefined;
-}
-
-function outcomeLedger(
-  ledger: ScheduledRunLedger,
-  now: number,
-  outcome: ScheduledJobOutcome,
-  failureCode?: RunFailureCode,
-): ScheduledRunLedger {
-  return {
-    ...ledger,
-    status: outcome.outcome,
-    finishedAt: now,
-    outcome,
-    ...(failureCode === undefined ? {} : { failureCode }),
-  };
-}
-
-function internalFailureLedger(
-  ledger: ScheduledRunLedger,
-  now: number,
-  failureCode: RunFailureCode,
-): ScheduledRunLedger {
-  return {
-    version: ledger.version,
-    scheduler: ledger.scheduler,
-    runId: ledger.runId,
-    runKey: ledger.runKey,
-    cron: ledger.cron,
-    job: ledger.job,
-    scheduledTime: ledger.scheduledTime,
-    fenceToken: ledger.fenceToken,
-    status: "failed",
-    startedAt: ledger.startedAt,
-    finishedAt: now,
-    failureCode,
-  };
-}
 
 export class SchedulerCoordinator {
   constructor(
     private readonly storage: CoordinatorStorage,
     private readonly clock: () => number = Date.now,
   ) {}
-
   static runKey(job: ScheduledJobName, scheduledTime: number): string {
     return `${RUN_KEY_PREFIX}${scheduledTime.toString().padStart(13, "0")}:${job}`;
   }
@@ -167,27 +105,368 @@ export class SchedulerCoordinator {
   }
 
   async getControl(): Promise<SchedulerControl> {
-    return (
-      (await this.storage.get<SchedulerControl>(CONTROL_KEY)) ?? {
-        version: 1,
-        paused: false,
-        changedAt: 0,
-      }
-    );
-  }
-
-  async setPaused(paused: boolean): Promise<SchedulerControl> {
-    const control: SchedulerControl = {
-      version: 1,
-      paused,
-      changedAt: this.clock(),
-    };
-    await this.storage.put(CONTROL_KEY, control);
-    return control;
+    return normalizeControl(await this.storage.get<SchedulerControl>(CONTROL_KEY));
   }
 
   async getActive(): Promise<ActiveScheduledRun | undefined> {
     return this.storage.get<ActiveScheduledRun>(ACTIVE_KEY);
+  }
+  async consumeOpsRateLimit(
+    actorPrincipal: string,
+    now: number = this.clock(),
+  ): Promise<SchedulerOpsRateLimitDecision> {
+    return consumeSchedulerOpsRateLimit(this.storage, actorPrincipal, now);
+  }
+
+  async getStatus(limit: number): Promise<SchedulerStatus> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) {
+      throw new Error("status limit must be between 1 and 50");
+    }
+    await pruneSchedulerHistory(this.storage, this.clock(), HISTORY_CONFIG);
+    const [control, active, runMap, operationIndexMap] = await Promise.all([
+      this.getControl(),
+      this.getActive(),
+      this.storage.list<ScheduledRunLedger>({
+        prefix: RUN_KEY_PREFIX,
+        reverse: true,
+        limit,
+      }),
+      this.storage.list<SchedulerOperationIndex>({
+        prefix: OPERATION_INDEX_PREFIX,
+        reverse: true,
+        limit,
+      }),
+    ]);
+    const recentRuns = [...runMap.values()]
+      .sort(
+        (left, right) =>
+          right.scheduledTime - left.scheduledTime ||
+          right.startedAt - left.startedAt ||
+          right.runId.localeCompare(left.runId),
+      )
+      .slice(0, limit)
+      .map(summarizeLedger);
+
+    const operations: SchedulerOperation[] = [];
+    for (const index of operationIndexMap.values()) {
+      const operation = await this.storage.get<SchedulerOperation>(
+        `${OPERATION_KEY_PREFIX}${index.requestId}`,
+      );
+      if (operation === undefined) {
+        continue;
+      }
+      if (operation.kind === "manual_run" && operation.status === "pending") {
+        const result = await this.storage.get<SchedulerManualOperation>(
+          `${OPERATION_RESULT_KEY_PREFIX}${operation.requestId}`,
+        );
+        operations.push(result ?? operation);
+      } else {
+        operations.push(operation);
+      }
+    }
+    const recentOperations = operations
+      .sort(
+        (left, right) =>
+          right.requestedAt - left.requestedAt ||
+          right.requestId.localeCompare(left.requestId),
+      )
+      .map(summarizeSchedulerOperation);
+
+    return {
+      version: 1,
+      scheduler: SCHEDULER_NAME,
+      control,
+      ...(active === undefined ? {} : { active: summarizeActive(active) }),
+      recentRuns,
+      recentOperations,
+    };
+  }
+
+  async setControl(command: SchedulerControlCommand): Promise<SchedulerControlOperation> {
+    validateOperationIdentity(command);
+    if (typeof command.paused !== "boolean") {
+      throw new Error("paused must be a boolean");
+    }
+    if (!Number.isSafeInteger(command.expectedRevision) || command.expectedRevision < 0) {
+      throw new Error("expectedRevision must be a non-negative integer");
+    }
+    await pruneSchedulerHistory(this.storage, this.clock(), HISTORY_CONFIG);
+    const now = this.clock();
+    const operationKey = `${OPERATION_KEY_PREFIX}${command.requestId}`;
+
+    return this.storage.transaction(async (transaction) => {
+      const existing = await transaction.get<SchedulerOperation>(operationKey);
+      if (existing !== undefined) {
+        if (existing.kind !== "control" || !sameControlIntent(existing, command)) {
+          throw new Error("request_id_conflict");
+        }
+        return existing;
+      }
+
+      const current = normalizeControl(await transaction.get<SchedulerControl>(CONTROL_KEY));
+      if (current.revision !== command.expectedRevision) {
+        const rejected: SchedulerControlOperation = {
+          version: 1,
+          kind: "control",
+          requestId: command.requestId,
+          actorPrincipal: command.actorPrincipal,
+          reason: command.reason.trim(),
+          requestedAt: now,
+          status: "rejected",
+          rejectionCode: "revision_conflict",
+          expectedRevision: command.expectedRevision,
+          requestedPaused: command.paused,
+          control: current,
+        };
+        await putSchedulerOperation(
+          transaction,
+          operationKey,
+          OPERATION_INDEX_PREFIX,
+          rejected,
+        );
+        return rejected;
+      }
+
+      const nextControl: SchedulerControl = {
+        version: 1,
+        revision: current.revision + 1,
+        paused: command.paused,
+        changedAt: now,
+      };
+      const operation: SchedulerControlOperation = {
+        version: 1,
+        kind: "control",
+        requestId: command.requestId,
+        actorPrincipal: command.actorPrincipal,
+        reason: command.reason.trim(),
+        requestedAt: now,
+        status: "completed",
+        expectedRevision: command.expectedRevision,
+        requestedPaused: command.paused,
+        control: nextControl,
+      };
+      await transaction.put(CONTROL_KEY, nextControl);
+      await putSchedulerOperation(
+        transaction,
+        operationKey,
+        OPERATION_INDEX_PREFIX,
+        operation,
+      );
+      return operation;
+    });
+  }
+
+  async runManual(
+    command: SchedulerManualCommand,
+    execute: JobExecutor,
+  ): Promise<SchedulerManualOperation> {
+    validateOperationIdentity(command);
+    if (command.mode !== "catch_up") {
+      throw new Error("manual mode must be catch_up");
+    }
+    await pruneSchedulerHistory(this.storage, this.clock(), HISTORY_CONFIG);
+    const operationKey = `${OPERATION_KEY_PREFIX}${command.requestId}`;
+    const resultKey = `${OPERATION_RESULT_KEY_PREFIX}${command.requestId}`;
+    const driverKey = `${OPERATION_DRIVER_KEY_PREFIX}${command.requestId}`;
+    const runKey = SchedulerCoordinator.runKey(command.job, command.scheduledTime);
+    const replay = await this.storage.transaction(async (transaction) => {
+      const existing = await transaction.get<SchedulerOperation>(operationKey);
+      if (existing === undefined) {
+        return undefined;
+      }
+      if (
+        existing.kind !== "manual_run" ||
+        !sameManualIntent(existing, command)
+      ) {
+        throw new Error("request_id_conflict");
+      }
+      const result = await transaction.get<SchedulerManualOperation>(resultKey);
+      if (result !== undefined) {
+        await transaction.delete(driverKey);
+        return result;
+      }
+      if (existing.status !== "pending") {
+        return existing;
+      }
+      const recovered = reconcilePendingManualOperation(
+        existing,
+        await transaction.get<ScheduledRunLedger>(runKey),
+      );
+      if (recovered !== undefined) {
+        await transaction.put(resultKey, recovered);
+        await transaction.delete(driverKey);
+      }
+      return recovered;
+    });
+    if (replay !== undefined) {
+      return replay;
+    }
+    const now = this.clock();
+    const cron = cronForManualSlot(command.job, command.scheduledTime, now);
+    const driverToken = crypto.randomUUID();
+    const begin = await this.storage.transaction<
+      | { kind: "existing"; operation: SchedulerManualOperation }
+      | { kind: "pending"; operation: SchedulerManualOperation }
+    >(async (transaction) => {
+      const transactionNow = this.clock();
+      const existing = await transaction.get<SchedulerOperation>(operationKey);
+      if (existing !== undefined) {
+        if (
+          existing.kind !== "manual_run" ||
+          !sameManualIntent(existing, command)
+        ) {
+          throw new Error("request_id_conflict");
+        }
+        const result = await transaction.get<SchedulerManualOperation>(resultKey);
+        if (result !== undefined) {
+          await transaction.delete(driverKey);
+          return { kind: "existing", operation: result };
+        }
+        if (existing.status !== "pending") {
+          return { kind: "existing", operation: existing };
+        }
+        const recovered = reconcilePendingManualOperation(
+          existing,
+          await transaction.get<ScheduledRunLedger>(runKey),
+        );
+        if (recovered !== undefined) {
+          await transaction.put(resultKey, recovered);
+          await transaction.delete(driverKey);
+          return { kind: "existing", operation: recovered };
+        }
+        const driver = await transaction.get<SchedulerManualDriver>(driverKey);
+        if (driver !== undefined && driver.leaseExpiresAt > transactionNow) {
+          return { kind: "existing", operation: existing };
+        }
+        await transaction.put(driverKey, {
+          version: 1,
+          token: driverToken,
+          leaseExpiresAt: transactionNow + MANUAL_DRIVER_LEASE_MS,
+        } satisfies SchedulerManualDriver);
+        return { kind: "pending", operation: existing };
+      }
+
+      const base: Omit<SchedulerManualOperation, "status"> = {
+        version: 1,
+        kind: "manual_run",
+        requestId: command.requestId,
+        actorPrincipal: command.actorPrincipal,
+        reason: command.reason.trim(),
+        requestedAt: now,
+        mode: command.mode,
+        job: command.job,
+        cron,
+        scheduledTime: command.scheduledTime,
+      };
+      if ((await transaction.get<ScheduledRunLedger>(runKey)) !== undefined) {
+        const rejected: SchedulerManualOperation = {
+          ...base,
+          status: "rejected",
+          rejectionCode: "slot_already_recorded",
+        };
+        await putSchedulerOperation(
+          transaction,
+          operationKey,
+          OPERATION_INDEX_PREFIX,
+          rejected,
+        );
+        return { kind: "existing", operation: rejected };
+      }
+      const control = normalizeControl(await transaction.get<SchedulerControl>(CONTROL_KEY));
+      if (control.paused) {
+        const rejected: SchedulerManualOperation = {
+          ...base,
+          status: "rejected",
+          rejectionCode: "scheduler_paused",
+        };
+        await putSchedulerOperation(
+          transaction,
+          operationKey,
+          OPERATION_INDEX_PREFIX,
+          rejected,
+        );
+        return { kind: "existing", operation: rejected };
+      }
+      const active = await transaction.get<ActiveScheduledRun>(ACTIVE_KEY);
+      if (active !== undefined && active.leaseExpiresAt > transactionNow) {
+        const rejected: SchedulerManualOperation = {
+          ...base,
+          status: "rejected",
+          rejectionCode: "scheduler_busy",
+        };
+        await putSchedulerOperation(
+          transaction,
+          operationKey,
+          OPERATION_INDEX_PREFIX,
+          rejected,
+        );
+        return { kind: "existing", operation: rejected };
+      }
+
+      const pending: SchedulerManualOperation = {
+        ...base,
+        status: "pending",
+      };
+      await putSchedulerOperation(
+        transaction,
+        operationKey,
+        OPERATION_INDEX_PREFIX,
+        pending,
+      );
+      await transaction.put(driverKey, {
+        version: 1,
+        token: driverToken,
+        leaseExpiresAt: transactionNow + MANUAL_DRIVER_LEASE_MS,
+      } satisfies SchedulerManualDriver);
+      return { kind: "pending", operation: pending };
+    });
+
+    if (begin.kind === "existing") {
+      return begin.operation;
+    }
+
+    const result = await this.run(
+      command.job,
+      cron,
+      command.scheduledTime,
+      execute,
+      {
+        requestId: command.requestId,
+        driverKey,
+        driverToken,
+        resultKey,
+      },
+    );
+    const recovered = reconcilePendingManualOperation(
+      begin.operation,
+      result.ledger,
+    );
+    if (
+      result.disposition === "duplicate" &&
+      result.ledger?.status === "running" &&
+      result.ledger.manualRequestId === command.requestId
+    ) {
+      return begin.operation;
+    }
+    const terminal =
+      recovered ?? terminalManualOperation(begin.operation, result);
+    return this.storage.transaction(async (transaction) => {
+      const existingResult = await transaction.get<SchedulerManualOperation>(resultKey);
+      if (existingResult !== undefined) {
+        await transaction.delete(driverKey);
+        return existingResult;
+      }
+      const driver = await transaction.get<SchedulerManualDriver>(driverKey);
+      if (
+        driver?.token !== driverToken ||
+        driver.leaseExpiresAt <= this.clock()
+      ) {
+        return begin.operation;
+      }
+      await transaction.put(resultKey, terminal);
+      await transaction.delete(driverKey);
+      return terminal;
+    });
   }
 
   async run(
@@ -195,12 +474,17 @@ export class SchedulerCoordinator {
     cron: string,
     scheduledTime: number,
     execute: JobExecutor,
+    manual?: ManualRunContext,
   ): Promise<ScheduledRunResult> {
     this.validateInvocation(job, cron, scheduledTime);
-    const now = this.clock();
-    await this.pruneLedgers(now);
+    await pruneSchedulerHistory(this.storage, this.clock(), HISTORY_CONFIG);
 
-    const claim = await this.claim(job, cron, scheduledTime, now);
+    const claim = await this.claim(
+      job,
+      cron,
+      scheduledTime,
+      manual,
+    );
     if (claim.disposition !== "claimed") {
       return claim;
     }
@@ -238,12 +522,33 @@ export class SchedulerCoordinator {
     job: ScheduledJobName,
     cron: string,
     scheduledTime: number,
-    now: number,
+    manual?: ManualRunContext,
   ): Promise<ClaimResult> {
     const runKey = SchedulerCoordinator.runKey(job, scheduledTime);
     const runId = SchedulerCoordinator.runId(job, scheduledTime);
 
     return this.storage.transaction(async (transaction) => {
+      const now = this.clock();
+      if (manual !== undefined) {
+        const driver = await transaction.get<SchedulerManualDriver>(
+          manual.driverKey,
+        );
+        const result = await transaction.get<SchedulerManualOperation>(
+          manual.resultKey,
+        );
+        if (
+          result !== undefined ||
+          driver?.token !== manual.driverToken ||
+          driver.leaseExpiresAt <= now
+        ) {
+          return { disposition: "duplicate" };
+        }
+        await transaction.put(manual.driverKey, {
+          version: 1,
+          token: manual.driverToken,
+          leaseExpiresAt: now + MANUAL_DRIVER_LEASE_MS,
+        } satisfies SchedulerManualDriver);
+      }
       const existing = await transaction.get<ScheduledRunLedger>(runKey);
       const currentActive = await transaction.get<ActiveScheduledRun>(ACTIVE_KEY);
       if (existing !== undefined) {
@@ -257,7 +562,11 @@ export class SchedulerCoordinator {
       }
 
       const latest = await transaction.get<LatestScheduledRun>(`${LATEST_KEY_PREFIX}${job}`);
-      if (latest !== undefined && scheduledTime < latest.scheduledTime) {
+      if (
+        manual === undefined &&
+        latest !== undefined &&
+        scheduledTime < latest.scheduledTime
+      ) {
         const staleLedger: ScheduledRunLedger = {
           version: 1,
           scheduler: SCHEDULER_NAME,
@@ -276,8 +585,22 @@ export class SchedulerCoordinator {
         return { disposition: "stale", ledger: staleLedger };
       }
 
+      const putLatest = async () => {
+        if (latest === undefined || scheduledTime >= latest.scheduledTime) {
+          await transaction.put(`${LATEST_KEY_PREFIX}${job}`, {
+            version: 1,
+            job,
+            scheduledTime,
+            runId,
+            updatedAt: now,
+          } satisfies LatestScheduledRun);
+        }
+      };
       const control = await transaction.get<SchedulerControl>(CONTROL_KEY);
       if (control?.paused === true) {
+        if (manual !== undefined) {
+          return { disposition: "paused" };
+        }
         const pausedLedger: ScheduledRunLedger = {
           version: 1,
           scheduler: SCHEDULER_NAME,
@@ -292,18 +615,15 @@ export class SchedulerCoordinator {
           finishedAt: now,
         };
         await transaction.put(runKey, pausedLedger);
-        await transaction.put(`${LATEST_KEY_PREFIX}${job}`, {
-          version: 1,
-          job,
-          scheduledTime,
-          runId,
-          updatedAt: now,
-        } satisfies LatestScheduledRun);
+        await putLatest();
         return { disposition: "paused", ledger: pausedLedger };
       }
 
       if (currentActive !== undefined) {
         if (currentActive.leaseExpiresAt > now) {
+          if (manual !== undefined) {
+            return { disposition: "busy", active: currentActive };
+          }
           const busyLedger: ScheduledRunLedger = {
             version: 1,
             scheduler: SCHEDULER_NAME,
@@ -319,13 +639,7 @@ export class SchedulerCoordinator {
             failureCode: "busy",
           };
           await transaction.put(runKey, busyLedger);
-          await transaction.put(`${LATEST_KEY_PREFIX}${job}`, {
-            version: 1,
-            job,
-            scheduledTime,
-            runId,
-            updatedAt: now,
-          } satisfies LatestScheduledRun);
+          await putLatest();
           return { disposition: "busy", ledger: busyLedger, active: currentActive };
         }
         await this.expireActive(transaction, currentActive, now);
@@ -360,26 +674,18 @@ export class SchedulerCoordinator {
         cron,
         job,
         scheduledTime,
+        ...(manual === undefined ? {} : { manualRequestId: manual.requestId }),
         fenceToken,
         status: "running",
         startedAt: now,
       };
-      const latestRun: LatestScheduledRun = {
-        version: 1,
-        job,
-        scheduledTime,
-        runId,
-        updatedAt: now,
-      };
-
       await transaction.put(FENCE_KEY, fenceToken);
       await transaction.put(ACTIVE_KEY, active);
       await transaction.put(runKey, ledger);
-      await transaction.put(`${LATEST_KEY_PREFIX}${job}`, latestRun);
+      await putLatest();
       return { disposition: "claimed", active, ledger };
     });
   }
-
   private async reconcileDuplicate(
     transaction: CoordinatorTransaction,
     existing: ScheduledRunLedger,
@@ -400,6 +706,7 @@ export class SchedulerCoordinator {
 
     const failed = internalFailureLedger(existing, now, "lease_expired");
     await transaction.put(existing.runKey, failed);
+    logLeaseExpired(failed);
     if (active?.runId === existing.runId) {
       await transaction.delete(ACTIVE_KEY);
     }
@@ -413,10 +720,9 @@ export class SchedulerCoordinator {
   ): Promise<void> {
     const ledger = await transaction.get<ScheduledRunLedger>(active.runKey);
     if (ledger?.status === "running") {
-      await transaction.put(
-        active.runKey,
-        internalFailureLedger(ledger, now, "lease_expired"),
-      );
+      const failed = internalFailureLedger(ledger, now, "lease_expired");
+      await transaction.put(active.runKey, failed);
+      logLeaseExpired(failed);
     }
     await transaction.delete(ACTIVE_KEY);
   }
@@ -464,18 +770,6 @@ export class SchedulerCoordinator {
     });
   }
 
-  private async pruneLedgers(now: number): Promise<void> {
-    const cutoff = now - RUN_LEDGER_RETENTION_MS;
-    const ledgers = await this.storage.list<ScheduledRunLedger>({ prefix: RUN_KEY_PREFIX });
-    const expiredKeys = [...ledgers.entries()]
-      .filter(([, ledger]) => ledger.status !== "running" && ledger.scheduledTime < cutoff)
-      .map(([key]) => key)
-      .sort((left, right) => left.localeCompare(right));
-
-    for (const key of expiredKeys) {
-      await this.storage.delete(key);
-    }
-  }
 }
 
 export async function runScheduledPlan(

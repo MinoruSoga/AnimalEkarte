@@ -43,6 +43,7 @@
   "vars": {
     "GIN_MODE": "release",
     "LOG_LEVEL": "info",
+    "SCHEDULER_ENVIRONMENT": "staging",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
     // PlanetScale Postgres はTLS必須。証明書検証はスキップしつつ暗号化のみ要求する
@@ -155,6 +156,16 @@
       // 試行10(P4-5): POST /_internal/migrate 用の管理シークレット。Bearer token として使用。
       // JWT_SECRET等とは独立させる(用途混同・ローテーション影響範囲を分離するため)。
       "MIGRATE_RUN_SECRET",
+      // BE9-3: scheduler status/control/catch-up 専用。MIGRATE/JWT と共有しない。
+      "SCHEDULER_OPS_SECRET",
+      // Cloudflare Access の署名済み operator identity。JWT は Worker 内で
+      // team-domain JWKS / issuer / audience / exp / nbf を検証し、任意 header は信用しない。
+      "SCHEDULER_ACCESS_TEAM_DOMAIN",
+      "SCHEDULER_ACCESS_AUDIENCE",
+      // 失敗通知先 URL 自体も credential を含み得るため secret として扱う。
+      "SCHEDULER_ALERT_ALLOWED_HOST",
+      "SCHEDULER_ALERT_WEBHOOK_URL",
+      "SCHEDULER_ALERT_WEBHOOK_SECRET",
       "JWT_SECRET",
       "INTEGRATION_ENCRYPTION_KEY",
       "SMTP_HOST",

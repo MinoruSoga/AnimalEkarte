@@ -16,12 +16,23 @@ import { dispatchScheduledEvent } from "./scheduled-handler";
 import {
   SchedulerCoordinator,
   runScheduledPlan,
-  type SchedulerControl,
+  type SchedulerControlCommand,
+  type SchedulerControlOperation,
+  type SchedulerManualCommand,
+  type SchedulerManualOperation,
+  type SchedulerStatus,
   type ScheduledRunResult,
 } from "./scheduler-coordinator";
 import {
+  SCHEDULER_OPS_PREFIX,
+  handleSchedulerOpsRequest,
+  isInternalProxyPath,
+  notifySchedulerFailures,
+  type SchedulerAlertConfig,
+  type SchedulerOpsAuthConfig,
+} from "./scheduler-ops";
+import {
   SCHEDULER_NAME,
-  isScheduledJobsInternalPath,
   runScheduledJobRequest,
 } from "./scheduled-jobs";
 
@@ -158,17 +169,36 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     );
   }
 
-  // 外部 HTTP からは公開しない。Workers RPC binding 経由の運用制御だけを許可し、
-  // 新規シークレットや既存シークレットの用途流用を避ける。
-  async setScheduledJobsPaused(paused: boolean): Promise<SchedulerControl> {
-    if (typeof paused !== "boolean") {
-      throw new Error("paused must be a boolean");
-    }
-    return new SchedulerCoordinator(this.ctx.storage).setPaused(paused);
+  async getScheduledJobsStatus(limit: number): Promise<SchedulerStatus> {
+    return new SchedulerCoordinator(this.ctx.storage).getStatus(limit);
   }
 
-  async getScheduledJobsControl(): Promise<SchedulerControl> {
-    return new SchedulerCoordinator(this.ctx.storage).getControl();
+  async consumeScheduledJobsOpsRateLimit(
+    actorPrincipal: string,
+    now: number,
+  ) {
+    return new SchedulerCoordinator(this.ctx.storage).consumeOpsRateLimit(
+      actorPrincipal,
+      now,
+    );
+  }
+
+  async setScheduledJobsControl(
+    command: SchedulerControlCommand,
+  ): Promise<SchedulerControlOperation> {
+    return new SchedulerCoordinator(this.ctx.storage).setControl(command);
+  }
+
+  async runScheduledJobManually(
+    command: SchedulerManualCommand,
+  ): Promise<SchedulerManualOperation> {
+    const coordinator = new SchedulerCoordinator(this.ctx.storage);
+    return coordinator.runManual(command, (scheduledRequest) =>
+      runScheduledJobRequest(
+        (internalRequest) => this.containerFetch(internalRequest),
+        scheduledRequest,
+      ),
+    );
   }
 }
 
@@ -180,7 +210,27 @@ export default {
     if (url.pathname === "/_internal/migrate") {
       return handleMigrateRequest(request, env);
     }
-    if (isScheduledJobsInternalPath(url.pathname)) {
+    if (
+      url.pathname === SCHEDULER_OPS_PREFIX ||
+      url.pathname.startsWith(`${SCHEDULER_OPS_PREFIX}/`)
+    ) {
+      const coordinator = getContainer(env.API_CONTAINER, SCHEDULER_NAME);
+      return handleSchedulerOpsRequest(
+        request,
+        schedulerOpsAuthConfig(env),
+        coordinator,
+        Date.now(),
+        async (operation) => {
+          if (operation.result !== undefined) {
+            await notifySchedulerFailures(
+              [operation.result],
+              schedulerAlertConfig(env),
+            );
+          }
+        },
+      );
+    }
+    if (isInternalProxyPath(url.pathname)) {
       return new Response(JSON.stringify({ error: "not_found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -205,10 +255,14 @@ export default {
     const container = getContainer(env.API_CONTAINER);
     try {
       return await container.fetch(forwardedRequest);
-    } catch (err) {
+    } catch {
       // Container 起動失敗(イメージ・メモリ等)・タイムアウト時、Workers既定の500本文では
       // フロントエンドがJSONエラーとして解釈できないため、明示的なフォールバックを返す。
-      console.error("container fetch failed", err);
+      // 例外本文・stack は外部応答や機密値を含み得るためログへ出さない。
+      console.error("container fetch failed", {
+        event: "container_fetch_failed",
+        failure_code: "container_unavailable",
+      });
       return new Response(JSON.stringify({ error: "service_unavailable" }), {
         status: 503,
         headers: { "Content-Type": "application/json" },
@@ -219,21 +273,48 @@ export default {
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     const coordinator = getContainer(env.API_CONTAINER, SCHEDULER_NAME);
     try {
-      await dispatchScheduledEvent(controller, (cron, scheduledTime) =>
-        coordinator.runScheduledJobs(cron, scheduledTime),
+      await dispatchScheduledEvent(
+        controller,
+        async (cron, scheduledTime) => {
+          const results = await coordinator.runScheduledJobs(
+            cron,
+            scheduledTime,
+          );
+          await notifySchedulerFailures(results, schedulerAlertConfig(env));
+          return results;
+        },
       );
     } catch {
       // cron と scheduledTime は Cloudflare 設定由来で PII/secret を含まない。
       // Go 応答本文や例外詳細は記録せず、失敗種別は永続 run ledger で確認する。
       console.error("scheduled invocation failed", {
+        event: "scheduler_invocation_failed",
         scheduler: SCHEDULER_NAME,
         cron: controller.cron,
         scheduled_time: controller.scheduledTime,
+        failure_code: "scheduled_invocation_failed",
       });
       throw new Error("scheduled invocation failed");
     }
   },
 };
+
+function schedulerAlertConfig(env: Env): SchedulerAlertConfig {
+  return {
+    environment: env.SCHEDULER_ENVIRONMENT || "unconfigured",
+    webhookURL: env.SCHEDULER_ALERT_WEBHOOK_URL,
+    webhookSecret: env.SCHEDULER_ALERT_WEBHOOK_SECRET,
+    allowedHost: env.SCHEDULER_ALERT_ALLOWED_HOST,
+  };
+}
+
+function schedulerOpsAuthConfig(env: Env): SchedulerOpsAuthConfig {
+  return {
+    automationSecret: env.SCHEDULER_OPS_SECRET,
+    accessTeamDomain: env.SCHEDULER_ACCESS_TEAM_DOMAIN,
+    accessAudience: env.SCHEDULER_ACCESS_AUDIENCE,
+  };
+}
 
 // P4-5(試行10): migrate one-shot 管理エンドポイント。POST + Bearer secret必須。
 // GET/その他メソッドは405、secret不一致・未設定は401(存在の有無を分けない — enumeration対策)。
@@ -256,8 +337,11 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   try {
     const result = await container.runMigrate();
     return toMigrateResponse(result);
-  } catch (err) {
-    console.error("migrate exec failed", err);
+  } catch {
+    console.error("migrate exec failed", {
+      event: "migrate_exec_failed",
+      failure_code: "migrate_exec_failed",
+    });
     return new Response(JSON.stringify({ error: "migrate_exec_failed" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

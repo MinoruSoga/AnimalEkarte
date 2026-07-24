@@ -68,6 +68,7 @@
   "vars": {
     "GIN_MODE": "release",
     "LOG_LEVEL": "info",
+    "SCHEDULER_ENVIRONMENT": "production",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
     "DB_SSL_MODE": "require",
@@ -167,6 +168,12 @@
       "AWS_SECRET_ACCESS_KEY",
       // STG と同一名だが値は別物。STG の値を使い回さないこと(ファイル冒頭コメント #4 参照)。
       "MIGRATE_RUN_SECRET",
+      "SCHEDULER_OPS_SECRET",
+      "SCHEDULER_ACCESS_TEAM_DOMAIN",
+      "SCHEDULER_ACCESS_AUDIENCE",
+      "SCHEDULER_ALERT_ALLOWED_HOST",
+      "SCHEDULER_ALERT_WEBHOOK_URL",
+      "SCHEDULER_ALERT_WEBHOOK_SECRET",
       "JWT_SECRET",
       "INTEGRATION_ENCRYPTION_KEY",
       "SMTP_HOST",

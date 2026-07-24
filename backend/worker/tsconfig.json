@@ -16,6 +16,11 @@
     "./migrate-exec.ts",
     "./scheduled-handler.ts",
     "./scheduled-jobs.ts",
-    "./scheduler-coordinator.ts"
+    "./scheduler-access-auth.ts",
+    "./scheduler-coordinator.ts",
+    "./scheduler-coordinator-records.ts",
+    "./scheduler-history.ts",
+    "./scheduler-rate-limit.ts",
+    "./scheduler-ops.ts"
   ]
 }
