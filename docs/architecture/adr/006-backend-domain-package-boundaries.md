@@ -21,7 +21,7 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 2026-07-24のfollow-up hardeningでは、LINE webhookの全setting-secret readを受信前identity解決だけの限定例外とし、一意に署名一致したclinicへowner lookup/updateをscopeした。duplicate secretによる曖昧系はfail closed、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`とLINE event timestampを使うCASとし、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`とし、LINE ID token検証はredirectを追従しない。billing confirmation/returnは認証済みstaffをactorとし、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。
 
-本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`BE-refactor.md`](../../../BE-refactor.md#be9-current-state)のrelease gateとして未実施である。
+本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`q&a.html` OPS-13〜17](../../../q&a.html#ops)のrelease gateとして未実施である。
 
 ## Decision
 
@@ -57,7 +57,7 @@ backend/internal/
 - clinical safety、clinic isolation、authorization、auditabilityは効率化より優先する。package配置だけを安全性の証拠にせず、runtime testとapplication invariantで検証する。
 - `internal/csvimport` は医院カットオーバー専用のcross-domain例外として、固定21表・固定列契約だけを単一transactionで扱う。`payments.billing_id`一意性と同じ`billing_id`を使うpayment_splits論理親子、completed billingのpayment/completed_at、cash/credit-cardの明示seed binding、split整合もcommit前とread-only REPEATABLE READ verifyで検証する。通常applicationから再利用できる汎用write APIは公開せず、manifest digest、clinic band、6つの明示seed binding、全件検証を満たすoperator commandからのみ呼ぶ。
 
-**Historical landing status (2026-07-22; final outcomeは上記Implementation outcome)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[BE-refactor.md BE9-2E-0](../../../BE-refactor.md#be9-2e-0-write-owner)のruntime/AST gateで回帰を防ぐ。
+**Historical landing status (2026-07-22; final outcomeは上記Implementation outcome)**: `staffs`/`shift_entries`と`appointments`のwrite owner一本化は完了した。`appointments`は`de15c7903`で独立したowner外writeとgeneric field-update APIを撤去し、[`appointment_write_owner_lint_test.go`](../../../backend/internal/reservation/appointment_write_owner_lint_test.go)のAST gateで回帰を防ぐ。
 
 L⑥（core `849c27524` / final composition `962ce70e3`）でLSTEPのproduction compositionをtarget package側のtyped `lstep.Application`へ収束した。`cmd/api`が`lstep.Dependencies`からapplicationを組み立て、旧`service.NewServices` / `service.Services`とroot `repository.Repositories`はLSTEP/SharedFileを所有しない。legacy domainへはtyped resultの必要最小限だけを渡し、owner/pet lifecycleはconsumer-side intent interface、legacy DTO/audit変換はcomposition root adapterで接続する。このcutoverでconsumer 0のroot facadeと旧service adapterを削除し、期限付きcompatibility surfaceだけをBE9-2E/2Fへ残した。
 
@@ -82,7 +82,7 @@ LIFF予約はtransactor・reservation repositoryを必須とし、public/active�
 
 通常カルテのsoft deleteは対象カルテを`FOR UPDATE`したtransaction内で見積依存を再確認し、`clinic_id + id + status=draft`を単一DELETE条件に含める。見積Createも親カルテ行を先にlockするため両者は直列化され、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定処理が先行した場合や既に非draftの場合もConflictとし、確定済みカルテを削除しない。
 
-予約キャンセル後のdraftカルテcleanupもこの通常削除経路へ委譲し、旧repository bypassは持たない。一方、予約更新とカルテcleanupは既存contractどおり別transactionのbest-effortであり、部分成功時の再収束方式はBE9-2Eまでのcross-domain orchestration判断として`BE-refactor.md`に残す。これはowner外の`appointments` write例外ではない。
+予約キャンセル後のdraftカルテcleanupもこの通常削除経路へ委譲し、旧repository bypassは持たない。一方、予約更新とカルテcleanupは既存contractどおり別transactionのbest-effortであり、部分成功時の再収束方式はBE9-2Eまでのcross-domain orchestration判断としてgit履歴（旧`BE-refactor.md`・2026-07-24退役）に記録済みである。これはowner外の`appointments` write例外ではない。
 
 締め後の会計編集はtransaction内監査を必須とし、監査dependency欠落または監査write失敗時は編集自体をrollbackする。
 
@@ -150,7 +150,7 @@ master-FK-write lint（実装fileはmigration中の`backend/internal/service/mas
 
 ## 論点の解決記録（起票時の着手前ゲート）
 
-BE9-2B完了時点では後続phaseの着手前ゲートとして残していたが、2026-07-21までに以下6項目はすべて裁定、検証または是正済みである。起票時の根拠と実装条件を履歴として残し、新しい未解決事項は`BE-refactor.md`の「現在地と着手前ゲート」へ登録する。
+BE9-2B完了時点では後続phaseの着手前ゲートとして残していたが、2026-07-21までに以下6項目はすべて裁定、検証または是正済みである。起票時の根拠と実装条件を履歴として残し、新しい未解決事項は[`todo.md`](../../../todo.md)（実装タスク）または[`q&a.html`](../../../q&a.html)（決裁・USER操作）へ登録する。
 
 > **2026-07-20 委任裁定／2026-07-22状態同期**: ユーザー（MinoruSoga）がPO判断をAIへ委任したため、アーキテクチャ判断である論点#1〜#4を裁定した。論点#6は当時Openの技術的是正ゲートとして残したが、2026-07-21のbilling Phase 0で是正済み。臨床安全に関わる判断（#201等）は本委任の対象外であり、このADRでは裁定していない。
 
@@ -182,4 +182,4 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 - [ADR-005: Go/Gin公式ベースラインとpackage architecture](005-go-gin-backend-guidelines.md)
 - [ADR-002: マルチテナント設計 — clinic_id完全隔離](002-multitenancy-clinic-id-isolation.md)
 - [go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md)
-- [BE-refactor.md BE9-2A](../../../BE-refactor.md#be9-2a-boundary-mapとadrを確定する)
+- 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）

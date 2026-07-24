@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）<strong>2026-07-23: BE9 trimming/lstep qualification 由来の技術債を 21 エージェント調査+敵対検証の上で処置 — 判断待ち DEC-11〜13 と USER 操作 OPS-13（L⑤ release gate）を追加、調査確定分は todo.md BUG-421〜425 / TEST-ROUTES-01 / FMT-BE-01 へ起票、死亡ペット直 API は SD-10 裁定どおり phase2.html 一括監査へ証拠を追記。同日、DEC-11〜13 はユーザー委任「コード・仕様書を読んで判断」に基づき Fable 代理決裁で確定（全て案A 採用・実装 = todo.md BUG-426〜428）。PO 判断待ちは計 3 件（DEC-1/9/10）に復帰。</strong></p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）<strong>2026-07-23: BE9 trimming/lstep qualification 由来の技術債を 21 エージェント調査+敵対検証の上で処置 — 判断待ち DEC-11〜13 と USER 操作 OPS-13（L⑤ release gate）を追加、調査確定分は todo.md BUG-421〜425 / TEST-ROUTES-01 / FMT-BE-01 へ起票、死亡ペット直 API は SD-10 裁定どおり phase2.html 一括監査へ証拠を追記。同日、DEC-11〜13 はユーザー委任「コード・仕様書を読んで判断」に基づき Fable 代理決裁で確定（全て案A 採用・実装 = todo.md BUG-426〜428）。PO 判断待ちは計 3 件（DEC-1/9/10）に復帰。</strong><strong>2026-07-24: BE9 code complete / release pending 確定に伴い、旧BE9計画文書の release gate 5 件を OPS-13〜17 へ移設（gate1 は既存 OPS-13）し、旧計画文書と並行計画ビューを退役・削除（経緯は git 履歴、境界の正本は ADR-006 / boundary map）。</strong></p>
   </header>
 
   <div class="toolbar">
@@ -904,7 +904,7 @@ UX 未確定のまま実装着手禁止。</p>
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
 </table>
 
-<h2 id="ops">USER 操作（承認・実行待ち・13 件）</h2>
+<h2 id="ops">USER 操作（承認・実行待ち・17 件）</h2>
 <p class="section-intro">上から順に消化を推奨（旧 todo.md U-系を継承・OPS-系へ改番、旧番号は括弧内）。「完了後のエージェント作業」は、完了の合図をもらったエージェントが次に何をすべきかの指示。</p>
 
 <article class="task" data-task="OPS-1">
@@ -996,7 +996,31 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <article class="task" data-task="OPS-13">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-13 (BE9 L⑤)</span></label><h3 class="task-title"><code>002_lstep_snapshot_import_clinic_fk.sql</code> の fresh DB 実適用（release gate）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">BE9 L⑤ の追記専用 migration を fresh DB へ実適用し、checksum・rollback 方針を確認する（DB reset・migration 適用はエージェント実行禁止のため USER 実行）。OPS-2（<code>DB_RESET=true</code> 再適用）と同一実行で兼ねてよい。完了条件: fresh 適用 green + schema_migrations 記録確認。完了までは BE9 L⑤ は「landing完遂 / release pending」（BE-refactor.md）。完了後のエージェント作業: BE-refactor.md の L⑤/BE9-4 節を release 済みへ更新。</p>
+  <p class="task-desc">BE9 L⑤ の追記専用 migration を fresh DB へ実適用し、runner 記録・checksum・rollback 方針を確認する（DB reset・migration 適用はエージェント実行禁止のため USER 実行）。OPS-2（<code>DB_RESET=true</code> 再適用）と同一実行で兼ねてよい。完了条件: fresh 適用 green + schema_migrations の runner 記録・checksum・rollback 方針確認。完了までは BE9 L⑤ は release pending（BE9 の経緯は git 履歴、境界の正本は ADR-006）。完了後のエージェント作業: 本カードをチェック済みへ更新し、release evidence を記録する。</p>
+</article>
+
+<article class="task" data-task="OPS-14">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-14 (BE9 gate2)</span></label><h3 class="task-title">remote CI の full coverage artifact / ratchet 確定</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">USER が push して remote CI を実行する（push・remote 操作はエージェント実行禁止）。CI green を確認し、full coverage artifact と coverage ratchet を確定して、local scoped verification を release evidence へ昇格する。完了条件: remote CI green + full coverage artifact 保存 + ratchet 確認 + release evidence 記録。完了後のエージェント作業: 証跡を確認して本カードをチェック済みへ更新する。</p>
+</article>
+
+<article class="task" data-task="OPS-15">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-15 (BE9 gate3)</span></label><h3 class="task-title">production 実値設定と deploy</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">production 環境の実値（DB TLS、CORS/frontend URL、S3、SMTP、scheduler ops secret、alert webhook 等）を secret manager 経由で設定し、production deploy を USER が実施する（secret 値の共有・設定、deploy、remote 操作はエージェント実行禁止）。完了条件: 必須実値の設定確認 + production deploy green + rollback 先確認。完了後のエージェント作業: 値そのものを取得せず設定・deploy 証跡を確認し、本カードをチェック済みへ更新する。</p>
+</article>
+
+<article class="task" data-task="OPS-16">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-16 (BE9 gate4)</span></label><h3 class="task-title">scheduler / observability / recovery の production 相当 rehearsal</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">production 相当環境で scheduler の pause/resume/status、manual run/catchup、Workers/Container logs、alert、失敗回復、rollback を USER が rehearsal する（production 操作・deploy はエージェント実行禁止）。完了条件: 全操作・log・alert・失敗回復・rollback の成功と実施時刻・環境・結果の記録。完了後のエージェント作業: 記録を確認して本カードをチェック済みへ更新し、release evidence へ反映する。</p>
+</article>
+
+<article class="task" data-task="OPS-17">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-17 (BE9 gate5)</span></label><h3 class="task-title">LINE webhook redelivery / Error statistics の有効化と rehearsal</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">LINE webhook code deploy 後、USER が LINE Developers Console で既定 OFF の Webhook redelivery と Error statistics aggregation を明示的に有効化する（deploy・Console 操作はエージェント実行禁止）。test channel/account で controlled non-2xx を発生させて redelivery を確認し、duplicate・out-of-order・同時刻 unfollow 優先・下記 LOW residual を rehearsal する。Webhook errors の non-2xx、connection failure、timeout を監視し、実施時刻・channel・結果・rollback を記録する。Known LOW residual: owner を同じ LINE User ID へ再紐付けした直後に <code>line_followed_at</code> / <code>line_blocked_at</code> の watermark が両方 nil の場合、その ID に対する非常に古い正規署名済み event の redelivery は timestamp CAS の初期比較を通り得る。expected LINE user ID CAS により別 ID・別 clinic への波及はなく、現時点でこの follow/block watermark を業務判断に使う runtime decision consumer も存在しないため severity は LOW。release rehearsal では同一 ID 再紐付け直後の古い redelivery を観測対象に含め、consumer 追加や実害観測時に link 時 watermark 初期化または event ID/last-event persistence を再評価する。完了条件: Console 2設定 ON + controlled redelivery と全順序ケース確認 + Webhook errors 監視 + 実施記録・rollback 確認。完了後のエージェント作業: 証跡を確認して本カードをチェック済みへ更新し、LOW residual の観測結果を release evidence へ記録する。</p>
 </article>
 
 <h2 id="cf">Cloudflare 移行 — 完了・旧チェックリスト退役</h2>

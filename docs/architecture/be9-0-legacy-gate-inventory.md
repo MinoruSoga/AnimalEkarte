@@ -1,6 +1,6 @@
 # BE9-0: 旧規約(P1–P18)の実効面 inventory
 
-> 対象: [BE-refactor.md BE9-0](../../BE-refactor.md#be9-0-旧規約の実効面をinventory化する)。
+> 対象: 旧BE-refactor.md BE9-0（2026-07-24退役・経緯はgit履歴）。
 > 実行日: 2026-07-19。scan コマンド: `rg -n --pcre2 '\bP(1[0-8]|[1-9])(\.[0-9]+)?\b' backend .github scripts .claude/scripts`
 > before: 185 件 / after: 148 件（37件を意味化改名・除去）。
 > **本doc が正本**（BE-refactor.md へのインライン複製はしない — 二重管理禁止）。

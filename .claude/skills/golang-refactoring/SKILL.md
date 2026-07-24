@@ -12,7 +12,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
 
 > ⚠️ **ANIMALEKARTE PROJECT OVERRIDE (BE9 — community defaults belowより優先)**
 >
-> - 移行順序、landing ownership、並行化、現在地の正本は、[`BE-refactor.md` active BE9](../../../BE-refactor.md)、[landing matrix](../../../BE-refactor.md#be9-lstep-landing-matrix)、[2-session ownership plan](../../../BE-refactor.md#be9-parallel-sessions)、[current state](../../../BE-refactor.md#be9-current-state)とする。`Superseded history: BE8`以降を実行手順として使わない。
+> - BE9移行は2026-07-24にcode complete（release pending）。境界の正本は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)と[boundary map](../../../docs/architecture/be9-2a-boundary-map.md)、完遂経緯はgit履歴とする。旧BE8およびSession A/Bの履歴を実行手順として使わない。
 > - PR/push/`gh`等の外部操作は自動実行しない。Session Aはcleanかつquiescentなlocal `main`の唯一writer、Session Bは同じimmutable baseから作る専用branch/worktreeのwriterとする。既存のdirty差分を共有worktreeから変更・破棄せず、central surface、handoff、共有DB lease条件を満たす場合だけ並行化する。
 > - bareなGo commandとfull-repository commandは、このskillとreferencesにあるcommunity例も含めて実行しない。[`.claude/CLAUDE.md`](../../CLAUDE.md)とBE9のbatchごとのgateに従い、変更package/fileだけをDocker経由で検証する。full test/lint等が必要ならユーザー手動gateとして提示する。
 > - DIは`main.go`だけに限定しない。closure/struct/constructorを使い、`cmd/api`または必要最小限のcomposition packageで型安全に組み立てる。package globalやuntyped context injectionを新設しない。

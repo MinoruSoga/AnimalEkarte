@@ -1,9 +1,9 @@
 # BE9-2A: domain boundary map — target package boundaries、依存グラフ、ADR-006 の入力
 
-> 対象: [BE-refactor.md BE9-2A](../../BE-refactor.md#be9-2a-boundary-mapとadrを確定する)。
+> 対象: 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）。
 > 実行日: 2026-07-19。手法: codegraph(callers/callees/explore) + grep/rg + git log を第一手段とする再実測（旧 BE8/§9 の file-prefix 分類はそのまま正本にせず、再実測との差分を§6に記録）。
 > 分類マニフェスト（全761 production Go source row、未分類0件）: [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv)。移行後target packageの物理file数とは別指標。
-> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)、現行実装状態とrelease gateは[BE-refactor.md](../../BE-refactor.md#be9-current-state)を正本とする。
+> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gateは[`q&a.html` OPS-13〜17](../../q&a.html#ops)を正本とする。
 > **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
 ## 0. 結論（Success Criteria 対応）
@@ -94,7 +94,7 @@ file分割、typed adapter、domain-owned composition/test helperの追加によ
 
 凡例: **owned** = owned types/routes/queries, **deps** = 許可依存（このドメインが依存してよい他ドメイン）, **tx** = transaction使用, **tenant** = tenant boundary分類。
 
-この節のcall-site、変更頻度、物理pathはBE9-2A時点のinventory snapshotであり、見出しの数値はclassification manifestのsource-row数である。分類訂正は§2、設計裁定はADR-006、移行後の物理file数と実装状態はBE-refactor.mdを優先する。
+この節のcall-site、変更頻度、物理pathはBE9-2A時点のinventory snapshotであり、見出しの数値はclassification manifestのsource-row数である。分類訂正は§2、設計裁定はADR-006を正本とし、移行は2026-07-24に完了済み、完遂経緯はgit履歴を優先する。
 
 ### 3.1 owner (`target:owner` 13 source rows)
 
@@ -399,7 +399,7 @@ brief(タスク前提)は「reservation/trimmingがClinicHoliday/ClosingSettings
 
 **解決（2026-07-21）**: BUG-417として、Treatment等と同じsubquery形式へ是正し、Update/Deleteのcross-tenant分離testを追加した（`2634f58fe`）。billing B①以降の前提gateを充足済み。
 
-**BE9-2A時点のtier2記録**: `EstimateItem`、`CampaignTargetCategory`/`CampaignTargetItem`、`ShiftEntryBreak`/`ShiftTemplateBreak`、`AppointmentTrimmingOption`の書き込みパスは当時のinventoryでは未検証だった。現行の合否判断は各移行batchのruntime isolation testとBE-refactor.mdを優先する。
+**BE9-2A時点のtier2記録**: `EstimateItem`、`CampaignTargetCategory`/`CampaignTargetItem`、`ShiftEntryBreak`/`ShiftTemplateBreak`、`AppointmentTrimmingOption`の書き込みパスは当時のinventoryでは未検証だった。現行の合否判断は各移行batchのruntime isolation testを優先する（移行は2026-07-24完了・経緯はgit履歴）。
 
 ## 8. lstepドメイン内部のBE9-2A時点リスク比較（履歴、DAGノードではない）
 
@@ -415,7 +415,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細・release gateの正本は`BE-refactor.md`とする。
+**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細はgit履歴、release gateの正本は[`q&a.html` OPS-13〜17](../../q&a.html#ops)とする。
 
 ## 9. 実測手法の限界（正直な明記）
 

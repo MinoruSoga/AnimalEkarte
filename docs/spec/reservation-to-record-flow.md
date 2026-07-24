@@ -355,7 +355,7 @@ UI と仕様上は「対応可能コース」として扱う。
 - LIFFからの予約作成はtransactor・reservation repositoryを必須とし、LINE顧客が同clinicに属すること、予約区分が同clinicでactive・公開中・非internalであること、明示staffが同clinicに所属してその予約区分へ対応可能かつ`is_active=true`・`reservation_visible=true`であること、trimming course/optionが同clinicでactiveであることをwrite transaction内で再検証する。LINE顧客と参照master/assignment/capability行はcommitまで固定し、appointment、trimming detail、optionsを原子的に保存する。必須依存または詳細・option保存に失敗した場合、appointmentだけを残さない。
 - トリミング一覧で予約区分、pet、ownerをJOINするときは、関連行の`clinic_id`が`appointments.clinic_id`と一致することを必須とし、別clinicのmaster/pet/ownerを誤参照する破損データを表示・絞り込み根拠にしない。nested Preloadでは末尾のcourse/optionだけでなく中間の`appointment_trimming_details`にもclinic predicateを付ける。
 
-実装上のpackage境界とtransaction ownershipは[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md#appointments-write-ownerの実装決定be9-2e-0)、移行・検証状態は[BE-refactor.md BE9-2E-0](../../BE-refactor.md#be9-2e-0-write-owner)を正本とする。
+実装上のpackage境界とtransaction ownershipは[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md#appointments-write-ownerの実装決定be9-2e-0)、検証gateは[`appointment_write_owner_lint_test.go`](../../backend/internal/reservation/appointment_write_owner_lint_test.go)を正本とする（移行は2026-07-24完了・経緯はgit履歴）。
 
 ## 6. 画面別の改善仕様
 

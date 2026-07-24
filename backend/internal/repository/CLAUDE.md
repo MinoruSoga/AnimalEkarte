@@ -1,6 +1,6 @@
 # Persistence Packages
 
-このdirectoryは未移行persistence実装と期限付きcompatibility facadeのmigration surfaceであり、新規production実装の追加先ではない。新規実装は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)のtarget domain packageへ置く。ここを変更するのは、未移行実装の保守・安全修正、domain移動、または実consumerと削除phaseを持つcompatibility変更に限る。repository pattern自体はGo/Gin公式要件ではなく、詳細は[`BE-refactor.md`](../../../BE-refactor.md)に従う。
+このdirectoryはBE9移行完了後（2026-07-24）のtest-only surfaceであり、production実装は0件、新規production実装の追加先ではない。新規実装は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)のtarget domain packageへ置く。既存testは移行後の互換性と回帰検出のために維持する。repository pattern自体はGo/Gin公式要件ではなく、package/data ownershipの正本はADR-006と[boundary map](../../../docs/architecture/be9-2a-boundary-map.md)とする。
 
 ## Review points
 

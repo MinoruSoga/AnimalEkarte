@@ -29,7 +29,7 @@ description: AnimalEkarte backendのセキュリティ・データ分離に関�
 - schema migration は project の migration 規約と ADR に従い、application 起動時の暗黙 `AutoMigrate` に依存しない。
 - foreign key、unique constraint、transaction を application check の代替ではなく、追加の防御として使う。
 - destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。
-- business factごとにsource of truthとwrite ownerを1つにする。`appointments`とそのlifecycleは`reservation`、`staffs`と`shift_entries`は`staff`がwrite ownerであり、BE9-2E-0で収束済みの境界を[`BE-refactor.md`](../../BE-refactor.md#be9-2e-0-write-owner)の自動gateで維持する。
+- business factごとにsource of truthとwrite ownerを1つにする。`appointments`とそのlifecycleは`reservation`、`staffs`と`shift_entries`は`staff`がwrite ownerであり、BE9-2E-0で収束済みの境界を[`appointment_write_owner_lint_test.go`](../../backend/internal/reservation/appointment_write_owner_lint_test.go)の自動gateで維持する。
 - write owner以外のdomainはbusiness intentを表すconsumer-side interfaceまたは明示的orchestrationを通し、任意fieldを変更できるgeneric update APIや独立したpersistence writeを公開しない。
 - appointmentに紐づく通常カルテは一般診療予約だけを対象とし、appointmentごとにactive recordを最大1件とする。カルテ日付は予約日時のJST日付から導出し、紐づいている間は独立変更させない。削除は対象カルテをlockしたtransaction内で見積依存を再確認してから`clinic_id + id + status=draft`の原子的条件付きsoft deleteを行う。見積Createも同じ親行を先にlockし、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定との競合でも確定済みカルテを削除しない。予約検証、重複確認、transaction依存の欠落や失敗を成功扱いにしない。
 - cross-domain writeはtransaction owner、全参加write、rollback範囲を明示し、部分成功でbusiness factを不整合にしない。意図的なsaga/best-effort処理は、補償、再試行、監査、部分失敗contractを持たせる。

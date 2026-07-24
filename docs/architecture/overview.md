@@ -42,14 +42,14 @@ Handler → Service → Repository、Clean Architecture、repository pattern、l
 
 - top-level packageは`internal/<domain>`を基本とし、route、use case、transaction、persistence、testを業務能力ごとのvertical sliceとして扱う。
 - domain内の責務は別file/型に分けられるが、`handler`、`service`、`repository` subpackageを機械的には作らない。実際のconsumer、依存方向、変更周期が分かれた場合だけpackageを分離する。
-- business factにはsource of truthとwrite ownerを1つだけ置く。`appointments`とそのlifecycleは`reservation`がwrite ownerであり、medicalrecord、trimming、billing、lstep等は独立したappointment write実装を持たない。この境界はBE9-2E-0で収束済みで、実装状態と回帰gateは[BE-refactor.md BE9-2E-0](../../BE-refactor.md#be9-2e-0-write-owner)で追跡する。
+- business factにはsource of truthとwrite ownerを1つだけ置く。`appointments`とそのlifecycleは`reservation`がwrite ownerであり、medicalrecord、trimming、billing、lstep等は独立したappointment write実装を持たない。この境界はBE9-2E-0で収束済みで、[`appointment_write_owner_lint_test.go`](../../backend/internal/reservation/appointment_write_owner_lint_test.go)のAST gateで回帰を検出する。
 - cross-domain操作はbusiness intentを表すconsumer側の最小interfaceまたは明示的orchestrationを通す。owner外へ任意field更新APIを公開せず、複数domainにまたがるwriteはtransaction ownerとatomicityを明示する。
 - migration facadeは薄いdelegate/type aliasに限定し、旧実装と新実装を二重のwrite pathとして残さない。
 - 自動化は安全な手動pathを置き換えるのではなく同じuse caseを再利用し、停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 
 BE9の構造移行後、production実装は`internal/<domain>`へ収束した。旧`internal/handler`は削除済みで、旧`internal/service`と`internal/repository`に残るGo fileは、移行後のpackageを対象にする互換・回帰testだけである。production codeから旧3 packageへのimport edgeはない。
 
-`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`smtptransport`、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡とrelease gateは[`BE-refactor.md`](../../BE-refactor.md)を正本とする。
+`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`smtptransport`、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡はgit履歴と[ADR-006](adr/006-backend-domain-package-boundaries.md)、release gateは[`q&a.html` OPS-13〜17](../../q&a.html#ops)を正本とする。
 
 この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 
