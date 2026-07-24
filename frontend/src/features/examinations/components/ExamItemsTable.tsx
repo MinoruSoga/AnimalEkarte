@@ -50,7 +50,7 @@ function StatusBadge({ status }: { status?: "normal" | "high" | "low" }) {
     return (
       <Badge
         variant="outline"
-        className={`h-8 px-3 text-xs ${C.textBrand} ${C.borderBrand} ${C.bgBrand5}`}
+        className={`h-8 px-3 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
       >
         LOW
       </Badge>
@@ -117,7 +117,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
             item.isAbnormal
               ? item.status === "high"
                 ? C.bgDanger8
-                : C.bgBrandLight8
+                : C.bgStatusBlueLight
               : C.bgWhite
           } text-sm ${C.text} items-center h-12`}
         >

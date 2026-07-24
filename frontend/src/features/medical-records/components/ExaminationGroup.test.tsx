@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { ExaminationGroup } from "./ExaminationGroup";
 import type { ExamGroup } from "../api/get-record-examinations";
 import type { ExamResult } from "@/lib/transforms/examination";
-import { STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // shared transformExamResult が返す ViewModel 形状をフィクスチャに使う。
 // ここで snake_case フィールドを使ってしまうと型エラーになり、共有型のズレを検知できる。
@@ -91,7 +91,8 @@ describe("ExaminationGroup", () => {
         })}
       />,
     );
-    expect(screen.getByText("HIGH")).toBeInTheDocument();
+    expect(screen.getByText("HIGH")).toHaveClass(C.bgDanger, C.hoverBgDanger90);
+    expect(screen.getByText("95")).toHaveClass(C.danger, "font-bold");
     expect(screen.queryByText("LOW")).not.toBeInTheDocument();
   });
 
@@ -103,7 +104,12 @@ describe("ExaminationGroup", () => {
         })}
       />,
     );
-    expect(screen.getByText("LOW")).toBeInTheDocument();
+    expect(screen.getByText("LOW")).toHaveClass(
+      C.textStatusBlue,
+      C.borderBlue400,
+      C.bgStatusBlueLight,
+    );
+    expect(screen.getByText("95")).toHaveClass(C.textStatusBlue, "font-bold");
     expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
   });
 
