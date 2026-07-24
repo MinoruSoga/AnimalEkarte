@@ -76,8 +76,6 @@ type Repositories struct {
 	CashRegisterClose    CashRegisterCloseRepository
 	// LSTEP-BE-009: 処方薬記録
 	Prescription PrescriptionRepository
-	// LSTEP-BE-010: LTV集計
-	Ltv LtvRepository
 	// LSTEP-BE-012: 慢性疾患フラグ
 	ChronicCondition PetChronicConditionRepository
 	// 認証: refresh_token JTI ブラックリスト
@@ -157,7 +155,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Campaign:             NewCampaignRepository(db),
 		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 		Prescription:         NewPrescriptionRepository(db),
-		Ltv:                  NewLtvRepository(db),
 		ChronicCondition:     NewPetChronicConditionRepository(db),
 		TokenBlacklist:       NewTokenBlacklistRepository(db),
 		// lab import: BE9-2D sub-batch③ — moved to internal/medicalrecord (leaf domain, no facade).

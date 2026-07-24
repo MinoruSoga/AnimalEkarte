@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/lstep"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/owner"
 )
 
 type aggregationAdapterRepository struct {
-	params *repository.FindOwnerLTVParams
-	rows   []repository.OwnerLTVRow
+	params *owner.FindOwnerLTVParams
+	rows   []owner.OwnerLTVRow
 	err    error
 }
 
-func (r *aggregationAdapterRepository) FindOwnerLTV(_ context.Context, params *repository.FindOwnerLTVParams) ([]repository.OwnerLTVRow, error) {
+func (r *aggregationAdapterRepository) FindOwnerLTV(_ context.Context, params *owner.FindOwnerLTVParams) ([]owner.OwnerLTVRow, error) {
 	r.params = params
 	return r.rows, r.err
 }
@@ -32,7 +32,7 @@ func TestLstepAggregationRepositoryAdapter_MapsContract(t *testing.T) {
 	lastVisitBucket := "within_3m"
 	lastVisitDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	firstVisitDate := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	repo := &aggregationAdapterRepository{rows: []repository.OwnerLTVRow{{
+	repo := &aggregationAdapterRepository{rows: []owner.OwnerLTVRow{{
 		OwnerID:              9,
 		OwnerName:            "owner",
 		LineUserID:           &lineUserID,

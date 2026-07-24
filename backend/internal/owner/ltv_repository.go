@@ -1,4 +1,4 @@
-package repository
+package owner
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
 // 最終来院分類バケット名の定数（C-10）。
@@ -97,7 +98,12 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	if params.Search != "" {
 		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
 		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
-		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLike(NormalizeKana(params.Search))+"%")
+		whereArgs = append(
+			whereArgs,
+			repohelpers.KanaSourceChars,
+			repohelpers.KanaTargetChars,
+			"%"+repohelpers.EscapeLike(repohelpers.NormalizeKana(params.Search))+"%",
+		)
 	}
 
 	// 期間決定（AGG-BE-001/002/003）

@@ -13,6 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/infra"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
@@ -22,6 +23,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/service"
@@ -168,7 +170,7 @@ func run() int {
 	gin.SetMode(cfg.GinMode)
 
 	// DB接続
-	db, err := repository.NewDB(cfg)
+	db, err := dbconn.OpenGORM(cfg)
 	if err != nil {
 		logger.Error("failed to connect to database", slog.String("error", err.Error()))
 		return 1
@@ -285,7 +287,7 @@ func run() int {
 		Transactor:            tx,
 		LifecycleAuditTx:      lstepLifecycleAuditTxAdapter{inner: auditSvc},
 		NoShowAuditTx:         lstepNoShowAuditTxAdapter{inner: auditSvc},
-		AggregationRepository: lstepAggregationRepositoryAdapter{inner: repos.Ltv},
+		AggregationRepository: lstepAggregationRepositoryAdapter{inner: owner.NewLtvRepository(db)},
 	})
 
 	// Legacy services keep only real BE9-2E consumers and receive target-owned narrow ports.

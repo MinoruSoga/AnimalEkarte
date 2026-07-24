@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/owner"
 )
 
 // Config はバッチ実行の設定。
@@ -65,7 +65,7 @@ type migrationTagSync interface {
 type Migrator struct {
 	cfg     Config
 	db      *gorm.DB
-	owners  repository.OwnerRepository
+	owners  owner.LstepRepository
 	tagSync migrationTagSync
 	logger  *slog.Logger
 	records []ProgressRecord
@@ -76,7 +76,7 @@ type Migrator struct {
 func NewMigrator(
 	cfg Config,
 	db *gorm.DB,
-	owners repository.OwnerRepository,
+	owners owner.LstepRepository,
 	tagSync migrationTagSync,
 	logger *slog.Logger,
 ) *Migrator {

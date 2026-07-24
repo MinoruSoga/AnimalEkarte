@@ -9,17 +9,18 @@ import (
 	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type lstepAggregationRepositoryAdapter struct {
-	inner repository.LtvRepository
+	inner owner.LtvRepository
 }
 
 func (a lstepAggregationRepositoryAdapter) FindOwnerLTV(ctx context.Context, params *lstep.FindOwnerLTVParams) ([]lstep.OwnerLTVRow, error) {
-	rows, err := a.inner.FindOwnerLTV(ctx, toLegacyLTVParams(params))
+	rows, err := a.inner.FindOwnerLTV(ctx, toOwnerLTVParams(params))
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +31,8 @@ func (a lstepAggregationRepositoryAdapter) FindOwnerLTV(ctx context.Context, par
 	return result, nil
 }
 
-func toLegacyLTVParams(params *lstep.FindOwnerLTVParams) *repository.FindOwnerLTVParams {
-	return &repository.FindOwnerLTVParams{
+func toOwnerLTVParams(params *lstep.FindOwnerLTVParams) *owner.FindOwnerLTVParams {
+	return &owner.FindOwnerLTVParams{
 		ClinicID: params.ClinicID, Sort: params.Sort,
 		MinTotalAmount: params.MinTotalAmount, MaxTotalAmount: params.MaxTotalAmount,
 		MinVisitCount: params.MinVisitCount, LineLinked: params.LineLinked,
@@ -42,7 +43,7 @@ func toLegacyLTVParams(params *lstep.FindOwnerLTVParams) *repository.FindOwnerLT
 	}
 }
 
-func toLstepLTVRow(row *repository.OwnerLTVRow) lstep.OwnerLTVRow {
+func toLstepLTVRow(row *owner.OwnerLTVRow) lstep.OwnerLTVRow {
 	return lstep.OwnerLTVRow{
 		OwnerID: row.OwnerID, OwnerName: row.OwnerName, LineUserID: row.LineUserID,
 		LstepOptOut: row.LstepOptOut, TotalAmount: row.TotalAmount,
@@ -80,18 +81,14 @@ func (a lstepNoShowAuditTxAdapter) LogNoShowTransitionTx(ctx context.Context, en
 	})
 }
 
-type ownerLifecycleWriterAdapter struct{ inner repository.OwnerRepository }
+type ownerLifecycleWriterAdapter struct{ inner owner.LstepRepository }
 
 func (a ownerLifecycleWriterAdapter) RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error {
-	return a.inner.Update(ctx, clinicID, ownerID, map[string]any{
-		"lstep_opt_out": true, "lstep_opt_out_at": at, "lstep_opt_out_reason": reason,
-	})
+	return a.inner.RecordLstepOptOut(ctx, clinicID, ownerID, at, reason)
 }
 
 func (a ownerLifecycleWriterAdapter) ClearLstepOptOut(ctx context.Context, clinicID, ownerID uint64) error {
-	return a.inner.Update(ctx, clinicID, ownerID, map[string]any{
-		"lstep_opt_out": false, "lstep_opt_out_at": nil, "lstep_opt_out_reason": nil,
-	})
+	return a.inner.ClearLstepOptOut(ctx, clinicID, ownerID)
 }
 
 type petLifecycleWriterAdapter struct{ inner repository.PetRepository }

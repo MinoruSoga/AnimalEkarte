@@ -1,25 +1,21 @@
 package repository
 
-// db_test.go — NewDB / isUniqueConstraintErr / isFKConstraintErr の単体テスト。
+// db_test.go — dbconn.OpenGORM の runtime integration test。
 //
 // 保護する不変条件:
-//   - NewDB は有効な DSN であればプール設定（MaxOpenConns=50 等）を適用した *gorm.DB を返す。
-//   - NewDB は DSN 解析に失敗した場合 nil と "failed to open database connection" でラップしたエラーを返す
+//   - dbconn.OpenGORM は有効な DSN であればプール設定（MaxOpenConns=50 等）を適用した *gorm.DB を返す。
+//   - dbconn.OpenGORM は DSN 解析に失敗した場合 nil と "failed to open database connection" でラップしたエラーを返す
 //     （ネットワーク接続を必要としない sslmode 不正で決定的に再現する）。
-//   - isUniqueConstraintErr / isFKConstraintErr は pgconn.PgError の SQLSTATE (23505 / 23503) を
-//     errors.As のラップ解除込みで判定し、非PGエラー・nilはfalseを返す。
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
 // testDBConfig は getTestDatabaseConnection (ltv_repository_test.go) と同じ既定値で
@@ -61,12 +57,12 @@ func testDBConfig(t *testing.T) *config.Config {
 	}
 }
 
-func TestNewDB(t *testing.T) {
+func TestOpenGORMRuntime(t *testing.T) {
 	t.Run("有効なDSNでプール設定込みの接続を返す", func(t *testing.T) {
 		// setupTestDB を経由してテストDBの存在を保証する（CREATE DATABASE の副作用を再利用）。
 		_ = setupTestDB(t)
 
-		db, err := NewDB(testDBConfig(t))
+		db, err := dbconn.OpenGORM(testDBConfig(t))
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
@@ -83,59 +79,9 @@ func TestNewDB(t *testing.T) {
 		cfg := testDBConfig(t)
 		cfg.DBSSLMode = "not-a-real-sslmode"
 
-		db, err := NewDB(cfg)
+		db, err := dbconn.OpenGORM(cfg)
 		require.Error(t, err)
 		assert.Nil(t, db)
 		assert.Contains(t, err.Error(), "failed to open database connection")
-	})
-}
-
-func TestIsUniqueConstraintErr(t *testing.T) {
-	t.Run("23505は一意制約違反として検出される", func(t *testing.T) {
-		err := &pgconn.PgError{Code: "23505"}
-		assert.True(t, isUniqueConstraintErr(err))
-	})
-
-	t.Run("fmt.Errorfでラップされていてもerrors.Asで解除して検出される", func(t *testing.T) {
-		wrapped := fmt.Errorf("insert failed: %w", &pgconn.PgError{Code: "23505"})
-		assert.True(t, isUniqueConstraintErr(wrapped))
-	})
-
-	t.Run("別のPGエラーコードはfalse", func(t *testing.T) {
-		err := &pgconn.PgError{Code: "23503"}
-		assert.False(t, isUniqueConstraintErr(err))
-	})
-
-	t.Run("PG以外のエラーはfalse", func(t *testing.T) {
-		assert.False(t, isUniqueConstraintErr(errors.New("plain error")))
-	})
-
-	t.Run("nilはfalse", func(t *testing.T) {
-		assert.False(t, isUniqueConstraintErr(nil))
-	})
-}
-
-func TestIsFKConstraintErr(t *testing.T) {
-	t.Run("23503はFK制約違反として検出される", func(t *testing.T) {
-		err := &pgconn.PgError{Code: "23503"}
-		assert.True(t, isFKConstraintErr(err))
-	})
-
-	t.Run("fmt.Errorfでラップされていてもerrors.Asで解除して検出される", func(t *testing.T) {
-		wrapped := fmt.Errorf("delete failed: %w", &pgconn.PgError{Code: "23503"})
-		assert.True(t, isFKConstraintErr(wrapped))
-	})
-
-	t.Run("別のPGエラーコードはfalse", func(t *testing.T) {
-		err := &pgconn.PgError{Code: "23505"}
-		assert.False(t, isFKConstraintErr(err))
-	})
-
-	t.Run("PG以外のエラーはfalse", func(t *testing.T) {
-		assert.False(t, isFKConstraintErr(errors.New("plain error")))
-	})
-
-	t.Run("nilはfalse", func(t *testing.T) {
-		assert.False(t, isFKConstraintErr(nil))
 	})
 }

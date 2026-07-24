@@ -11,11 +11,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/lstep"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
+	"github.com/animal-ekarte/backend/internal/owner"
+	"github.com/animal-ekarte/backend/internal/pet"
 )
 
 func main() {
@@ -69,14 +73,16 @@ func run() int {
 		return 1
 	}
 
-	db, err := repository.NewDB(cfg)
+	db, err := dbconn.OpenGORM(cfg)
 	if err != nil {
 		log.Error("failed to connect to database", slog.String("error", err.Error()))
 		return 1
 	}
 	log.Info("database connected")
 
-	repos := repository.NewRepositories(db)
+	petWriter := pet.NewWriter(db)
+	ownerRepo := owner.NewRepository(db, pet.NewOwnerRegistrationAdapter(petWriter))
+	petRepo := pet.NewRepositoryWithWriter(db, petWriter)
 
 	var cipher *appCrypto.AESGCMCipher
 	if cfg.IntegrationEncryptionKey != "" {
@@ -96,17 +102,17 @@ func run() int {
 	)
 	tagSyncSvc := lstep.NewLstepTagSyncService(
 		settingsSvc,
-		repos.Owner,
-		repos.Vaccination,
-		repos.MedicalRecord,
-		repos.Accounting,
+		ownerRepo,
+		medicalrecord.NewVaccinationRepository(db),
+		medicalrecord.NewMedicalRecordRepository(db),
+		billing.NewAccountingRepository(db),
 		lstep.NewLstepTagCacheRepository(db),
-		repos.Pet,
-		repos.Prescription,
-		repos.Checkup,
+		petRepo,
+		medicalrecord.NewPrescriptionRepository(db),
+		medicalrecord.NewCheckupRepository(db),
 		lstep.NewLstepSyncErrorCounterRepository(db),
 		lstep.NewLstepTagCodeMappingRepository(db),
-		repos.BillingItem,
+		billing.NewBillingItemRepository(db),
 		lstep.NewLstepTagConfigRepository(db),
 	)
 
@@ -120,7 +126,7 @@ func run() int {
 		ResumeFrom:      *resumeFrom,
 	}
 
-	m := NewMigrator(migCfg, db, repos.Owner, tagSyncSvc, log)
+	m := NewMigrator(migCfg, db, ownerRepo, tagSyncSvc, log)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
