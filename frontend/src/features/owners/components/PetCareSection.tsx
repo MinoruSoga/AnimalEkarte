@@ -117,6 +117,7 @@ export function PetCareSection({
               petGender={formData.gender}
               birthDate={formData.birthDate}
               deceasedAt={formData.deceasedAt ?? null}
+              petStatus={formData.status}
               canEdit={canEdit}
               onRecorded={({ deceasedAt }) =>
                 setFormData((prev) => ({ ...prev, status: "死亡", deceasedAt }))
