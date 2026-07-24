@@ -8,6 +8,7 @@ import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
 import { useDeleteVaccination } from "../api/delete-vaccination";
+import { jstDateStartISOString } from "@/lib/jst-date";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -57,6 +58,16 @@ function runFormAction(action: (payload: FormData) => void) {
       action(new FormData());
     });
   });
+}
+
+const ALLOWED_MUTATION_PERMISSIONS = {
+  canCreate: true,
+  canEdit: true,
+  canDelete: true,
+} as const;
+
+function renderVaccinationForm(id?: string) {
+  return renderHook(() => useVaccinationForm(id, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // ──────────────────────────────────────────────────────────
@@ -128,7 +139,7 @@ describe("useVaccinationForm", () => {
   describe("新規登録時のバリデーション", () => {
     it("BUG-074: vaccineId 未選択 → fieldErrors.vaccineId がセットされる", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
 
       act(() => { result.current.form.setDate("2026-07-01"); });
       runFormAction(result.current.formAction);
@@ -139,7 +150,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("vaccineId が '0' の場合も未選択扱いでエラーになる", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => {
         result.current.form.setVaccineId("0");
         result.current.form.setDate("2026-07-01");
@@ -152,7 +163,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("接種日未入力 → fieldErrors.date がセットされる", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setVaccineId("1"); });
       runFormAction(result.current.formAction);
 
@@ -162,7 +173,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("BUG-024: 接種日が未来日 → fieldErrors.date がセットされる", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => {
         result.current.form.setVaccineId("1");
         result.current.form.setDate("2026-07-11"); // today=2026-07-10 JST
@@ -175,7 +186,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("BUG-096: 次回予定日が本日より前 → fieldErrors.nextDate がセットされる", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => {
         result.current.form.setVaccineId("1");
         result.current.form.setDate("2026-07-01");
@@ -189,7 +200,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("BUG-024: 次回予定日が接種日以前（同日） → fieldErrors.nextDate がセットされる", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => {
         result.current.form.setVaccineId("1");
         result.current.form.setDate("2026-07-10"); // = today
@@ -215,7 +226,7 @@ describe("useVaccinationForm", () => {
           nextScheduleType: "1year",
         },
       } as ReturnType<typeof useGetVaccination>);
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
 
       act(() => { result.current.form.setDate(""); });
       runFormAction(result.current.formAction);
@@ -230,7 +241,7 @@ describe("useVaccinationForm", () => {
       vi.mocked(useGetVaccination).mockReturnValue({
         data: { id: "10", petId: "5", vaccineId: "1", date: "2026-07-01", nextDate: "", nextScheduleType: "1year" },
       } as ReturnType<typeof useGetVaccination>);
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
 
       act(() => { result.current.form.setDate("2026-07-11"); });
       runFormAction(result.current.formAction);
@@ -250,7 +261,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useUpdateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
       act(() => {
         result.current.form.setDate("2026-01-01");
         result.current.form.setNextDate("2026-02-01"); // 過去日だが date より後なので唯一の nextDate 制約は満たす
@@ -266,7 +277,7 @@ describe("useVaccinationForm", () => {
       vi.mocked(useGetVaccination).mockReturnValue({
         data: { id: "10", petId: "5", vaccineId: "1", date: "2026-07-01", nextDate: "", nextScheduleType: "1year" },
       } as ReturnType<typeof useGetVaccination>);
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
 
       act(() => {
         result.current.form.setDate("2026-07-05");
@@ -289,7 +300,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useUpdateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
       act(() => {
         result.current.form.setDate("2026-07-05");
         result.current.form.setNextDate("2026-07-20");
@@ -315,7 +326,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useUpdateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
       act(() => {
         result.current.form.setDate("2026-07-05");
         result.current.form.setNextDate("2026-07-20");
@@ -341,7 +352,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useUpdateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
       act(() => {
         result.current.form.setDate("2026-07-05");
         result.current.form.setNextDate("2026-07-20");
@@ -359,14 +370,25 @@ describe("useVaccinationForm", () => {
   });
 
   describe("新規登録: SD-1 回帰", () => {
-    it("supplemental が createMutation の payload に含まれる（サイレント消失防止）", async () => {
+    it("第3象限: 作成権限あり・編集権限なし・IDなしでも従来の create payload を維持する", async () => {
       const mockMutateAsync = vi.fn().mockResolvedValue({});
+      const mockUpdateAsync = vi.fn().mockResolvedValue({});
       vi.mocked(useCreateVaccination).mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       } as ReturnType<typeof useCreateVaccination>);
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockUpdateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderHook(() =>
+        useVaccinationForm(undefined, {
+          canCreate: true,
+          canEdit: false,
+          canDelete: false,
+        }),
+      );
       act(() => {
         result.current.petSelection.setSelectedPets([
           { id: "5", ownerId: "1", name: "ポチ" } as Parameters<typeof result.current.petSelection.setSelectedPets>[0][number],
@@ -380,9 +402,21 @@ describe("useVaccinationForm", () => {
       await waitFor(() => {
         expect(result.current.formState.success).toBe(true);
       });
-      expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ supplemental: "補助説明テキスト" })
-      );
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        medical_record_id: null,
+        pet_id: 5,
+        vaccine_id: 1,
+        date: jstDateStartISOString("2026-07-01"),
+        next_date: jstDateStartISOString("2027-07-01"),
+        lot1: undefined,
+        lot2: undefined,
+        lot3: undefined,
+        lot4: undefined,
+        remarks: undefined,
+        supplemental: "補助説明テキスト",
+        next_schedule_type: "1year",
+      });
+      expect(mockUpdateAsync).not.toHaveBeenCalled();
     });
   });
 
@@ -394,7 +428,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useCreateVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => {
         result.current.petSelection.setSelectedPets([
           { id: "5", ownerId: "1", name: "ポチ" } as Parameters<typeof result.current.petSelection.setSelectedPets>[0][number],
@@ -419,7 +453,7 @@ describe("useVaccinationForm", () => {
   // ──────────────────────────
   describe("次回予定日の自動計算（BUG-026）", () => {
     it("setVaccineId で狂犬病ワクチン(id=2)を選択 → nextScheduleType=1year かつ nextDate が自動計算される", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setDate("2026-07-01"); });
       await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
 
@@ -432,7 +466,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("setDate で接種日を変更 → 現在の nextScheduleType に基づき nextDate が再計算される", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setNextScheduleType("3weeks"); });
       await waitFor(() => expect(result.current.form.nextScheduleType).toBe("3weeks"));
 
@@ -444,7 +478,7 @@ describe("useVaccinationForm", () => {
     });
 
     it("setNextScheduleType で種別を変更 → 既存の接種日を基準に nextDate が再計算される", async () => {
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setDate("2026-07-01"); });
       await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
 
@@ -465,7 +499,7 @@ describe("useVaccinationForm", () => {
         data: [{ id: "14", name: "狂犬病ワクチン", isActive: true, interval: "1ヶ月" }],
       } as ReturnType<typeof useGetAllVaccinesMaster>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setDate("2026-07-01"); });
       await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
 
@@ -482,7 +516,7 @@ describe("useVaccinationForm", () => {
         data: [{ id: "3", name: "ワクチンエキゾ", isActive: true, interval: "" }],
       } as ReturnType<typeof useGetAllVaccinesMaster>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.form.setDate("2026-07-01"); });
       await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
 
@@ -502,7 +536,7 @@ describe("useVaccinationForm", () => {
         ],
       } as ReturnType<typeof useGetAllVaccinesMaster>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
 
       expect(result.current.form.vaccineOptions).toEqual([
         { value: "11", label: "混合ワクチン5種（犬）" },
@@ -524,7 +558,7 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useDeleteVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm("10"));
+      const { result } = renderVaccinationForm("10");
       const onSuccess = vi.fn();
       act(() => { result.current.handleDelete(onSuccess); });
 
@@ -542,10 +576,134 @@ describe("useVaccinationForm", () => {
         isPending: false,
       } as ReturnType<typeof useDeleteVaccination>);
 
-      const { result } = renderHook(() => useVaccinationForm());
+      const { result } = renderVaccinationForm();
       act(() => { result.current.handleDelete(); });
 
       expect(mockMutate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("mutation permission boundary (FE12-02 U8)", () => {
+    it("作成権限なしでは有効な新規入力でも create mutation を発行しない", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+
+      const { result } = renderHook(() =>
+        useVaccinationForm(undefined, {
+          canCreate: false,
+          canEdit: true,
+          canDelete: true,
+        }),
+      );
+      act(() => {
+        result.current.petSelection.setSelectedPets([
+          { id: "5", ownerId: "1", name: "ポチ" } as Parameters<
+            typeof result.current.petSelection.setSelectedPets
+          >[0][number],
+        ]);
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(false);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("編集権限なしでは有効な編集入力でも update mutation を発行しない", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+
+      const { result } = renderHook(() =>
+        useVaccinationForm("10", {
+          canCreate: true,
+          canEdit: false,
+          canDelete: true,
+        }),
+      );
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(false);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("削除権限なしでは編集IDがあっても delete mutation を発行しない", () => {
+      const mockMutate = vi.fn();
+      vi.mocked(useDeleteVaccination).mockReturnValue({
+        mutate: mockMutate,
+        isPending: false,
+      } as ReturnType<typeof useDeleteVaccination>);
+
+      const { result } = renderHook(() =>
+        useVaccinationForm("10", {
+          canCreate: true,
+          canEdit: true,
+          canDelete: false,
+        }),
+      );
+
+      act(() => {
+        result.current.handleDelete();
+      });
+
+      expect(mockMutate).not.toHaveBeenCalled();
+    });
+
+    it("作成権限が剥奪された後は取得済み formAction でも create mutation を発行しない", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+      const { result, rerender } = renderHook(
+        ({ canCreate }: { canCreate: boolean }) =>
+          useVaccinationForm(undefined, {
+            canCreate,
+            canEdit: true,
+            canDelete: true,
+          }),
+        { initialProps: { canCreate: true } },
+      );
+      act(() => {
+        result.current.petSelection.setSelectedPets([
+          { id: "5", ownerId: "1", name: "ポチ" } as Parameters<
+            typeof result.current.petSelection.setSelectedPets
+          >[0][number],
+        ]);
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+      const capturedAction = result.current.formAction;
+
+      rerender({ canCreate: false });
+      runFormAction(capturedAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(false);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
     });
   });
 });

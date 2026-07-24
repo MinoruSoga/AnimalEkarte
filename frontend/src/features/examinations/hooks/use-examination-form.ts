@@ -30,6 +30,18 @@ const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
   Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
 ) as Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed">;
 
+interface ExaminationMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<ExaminationMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
 // テンプレ（exam_type_fields）から ExamItemRow の初期行を組み立てる。
 // status/isAbnormal は backend が保存後に導出するため未設定で開始する。
 function buildRowsFromTemplate(fields: ExamTypeFieldRow[]): ExamItemRow[] {
@@ -65,7 +77,11 @@ function rowsToRequest(items: ExamItemRow[]): UpsertExamItemRequest[] {
 }
 
 // v2: added handleDelete, isDeleting
-export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
+export function useExaminationForm(
+  id?: string,
+  medicalRecordIdParam?: string,
+  permissions: Readonly<ExaminationMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -85,6 +101,15 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const deleteMutation = useDeleteExamination();
   const { data: existingItems } = useGetExaminationItems(id ?? "");
   const updateItemsMutation = useUpdateExaminationItems();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof ExaminationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
 
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
@@ -241,6 +266,9 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
                 : jstDateStartISOString(current.date)
               : undefined,
           };
+          if (!isMutationAllowed("canEdit")) {
+            return { success: false, timestamp: Date.now() };
+          }
           await updateMutation.mutateAsync({ id, req });
           if (!isConfirmed) {
             await updateItemsMutation.mutateAsync({ id, req: itemsReq });
@@ -257,6 +285,9 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
             result_summary: current.resultSummary,
             machine: current.machine,
           };
+          if (!isMutationAllowed("canCreate")) {
+            return { success: false, timestamp: Date.now() };
+          }
           const created = await createMutation.mutateAsync(req);
           // 新規作成後に items を保存。items が空なら呼ばない（不要な PUT を回避）。
           if (!isConfirmed && itemsReq.items.length > 0 && created?.id) {
@@ -287,6 +318,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
+    if (!isMutationAllowed("canDelete")) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(id, {
         onSuccess: () => {
@@ -295,7 +327,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         },
       });
     });
-  }, [isEdit, id, deleteMutation, startDeleteTransition]);
+  }, [isEdit, id, isMutationAllowed, deleteMutation, startDeleteTransition]);
 
   const isSaving = isPending || updateItemsMutation.isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;

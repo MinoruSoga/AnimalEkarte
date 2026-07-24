@@ -34,6 +34,7 @@ export function ExaminationForm() {
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
   const { canEdit, canCreate, canDelete } = usePermission("examinations");
+  const canSubmit = id ? canEdit : canCreate;
 
   const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
   const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
@@ -59,9 +60,11 @@ export function ExaminationForm() {
     isDeleting,
     formItems,
     setInspectionValue,
-  } = useExaminationForm(id, medicalRecordId ?? undefined);
-
-  const canSubmit = isEdit ? canEdit : canCreate;
+  } = useExaminationForm(
+    id,
+    medicalRecordId ?? undefined,
+    { canCreate, canEdit, canDelete },
+  );
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 

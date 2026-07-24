@@ -35,6 +35,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("vaccinations");
+  const canSubmit = id ? canEdit : canCreate;
 
   const {
     isEdit,
@@ -47,9 +48,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     handleDelete,
     isDeleting,
     historyFilter,
-  } = useVaccinationForm(id);
-
-  const canSubmit = isEdit ? canEdit : canCreate;
+  } = useVaccinationForm(id, { canCreate, canEdit, canDelete });
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
