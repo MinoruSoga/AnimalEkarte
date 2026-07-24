@@ -56,7 +56,7 @@ const EXAM_GROUPS: ExamGroup[] = [
 
 beforeEach(() => {
   vi.mocked(useGetRecordExaminations).mockReturnValue({
-    data: EXAM_GROUPS,
+    data: { items: EXAM_GROUPS, isTruncated: false },
     isLoading: false,
     refetch: vi.fn(),
   } as unknown as ReturnType<typeof useGetRecordExaminations>);
@@ -67,6 +67,18 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     render(<MedicalRecordExamination petId="1" />);
     expect(screen.getByText("グルコース")).toBeInTheDocument();
     expect(screen.getByText("ビリルビン")).toBeInTheDocument();
+  });
+
+  it("100件で打ち切られた場合は履歴の省略を表示する", () => {
+    vi.mocked(useGetRecordExaminations).mockReturnValue({
+      data: { items: EXAM_GROUPS, isTruncated: true },
+      isLoading: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetRecordExaminations>);
+
+    render(<MedicalRecordExamination petId="1" />);
+
+    expect(screen.getByText("直近100件を表示しています")).toBeInTheDocument();
   });
 
   it("ひらがな「ぐるこーす」でカタカナ検査名「グルコース」にヒットする", async () => {

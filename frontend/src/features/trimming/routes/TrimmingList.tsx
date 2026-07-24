@@ -24,6 +24,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 import type { TrimmingUI } from "@/types";
 import { paths } from "@/config/paths";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
@@ -56,7 +57,14 @@ export function TrimmingList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allTrimmings, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, filters, activeFilters);
+  const {
+    data: filteredRecords,
+    allTrimmings,
+    isTruncated,
+    isLoading,
+    error,
+    deleteRecord,
+  } = useFilterTrimmingRecords(deferredKeyword, filters, activeFilters);
   const { isValidStaff } = useStaffValidation();
 
   // js-cache-function-results: ロード済みデータから種・担当の選択肢を動的生成
@@ -165,6 +173,11 @@ export function TrimmingList() {
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
+        {isTruncated ? (
+          <p className={`text-xs ${C.text50}`} role="status">
+            取得上限の{HISTORY_FETCH_LIMIT}件を対象に検索・絞り込みしています
+          </p>
+        ) : null}
         <TrimmingListTable
           records={paginatedData}
           filteredCount={filteredRecords.length}
