@@ -136,9 +136,6 @@ const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
  * 新規fileはbaseline 0、既存fileも件数増加分だけをgating violationとして扱う。
  */
 export const C18_RAW_CELL_BASELINE = new Map([
-  [path.join("src", "components", "shared", "OwnerSearchModal", "OwnerSearchModal.tsx"), 10],
-  [path.join("src", "features", "closing-settings", "components", "StandardClosingTimeSection.tsx"), 6],
-  [path.join("src", "features", "hospitalization", "components", "HospitalizationTreatmentTable.tsx"), 18],
   [path.join("src", "features", "owner-report", "components", "CheckupHistorySection.tsx"), 4],
   [path.join("src", "features", "owner-report", "components", "ExaminationHistorySection.tsx"), 6],
 ]);

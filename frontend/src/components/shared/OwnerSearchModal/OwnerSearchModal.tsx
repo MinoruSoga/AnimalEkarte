@@ -9,6 +9,7 @@ import { Search, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { EmptyState } from "@/components/shared/DataStates";
@@ -170,28 +171,28 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 <thead>
                   {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ */}
                   <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>飼主No</th>
-                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>飼主名</th>
-                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>電話番号</th>
-                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>住所</th>
-                    <th className={`px-3 py-2 text-left text-2xs font-semibold uppercase ${C.text55}`}>操作</th>
+                    <TableHead className={C.text55}>飼主No</TableHead>
+                    <TableHead className={C.text55}>飼主名</TableHead>
+                    <TableHead className={C.text55}>電話番号</TableHead>
+                    <TableHead className={C.text55}>住所</TableHead>
+                    <TableHead className={C.text55}>操作</TableHead>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOwners.map((owner) => (
                     <tr key={owner.id} className={`border-b ${C.borderDivider} ${C.hoverBgLight} transition-colors`}>
-                      <td className={`px-3 py-2.5 text-sm ${C.text60} font-mono`}>{owner.id}</td>
-                      <td className={`px-3 py-2.5 text-sm font-medium ${C.text}`}>{owner.name}</td>
-                      <td className={`px-3 py-2.5 text-sm ${C.text}`}>{owner.phone || "-"}</td>
-                      <td className={`px-3 py-2.5 text-sm ${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</td>
-                      <td className="px-3 py-2.5 text-sm">
+                      <TableCell className={`${C.text60} font-mono`}>{owner.id}</TableCell>
+                      <TableCell className={`font-medium ${C.text}`}>{owner.name}</TableCell>
+                      <TableCell className={C.text}>{owner.phone || "-"}</TableCell>
+                      <TableCell className={`${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</TableCell>
+                      <TableCell>
                         <DataTableRowButton
                           aria-label={`選択: 飼主 ${owner.name} (ID ${owner.id})`}
                           onClick={() => handleRowClick(owner)}
                         >
                           選択
                         </DataTableRowButton>
-                      </td>
+                      </TableCell>
                     </tr>
                   ))}
                 </tbody>
