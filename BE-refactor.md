@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B2 完了**（B2は未commit。B3〜B14未着手） | 下記batch表・下記B1/B2実行ledger・下記E12補正根拠 |
+| BE10-2 B1〜B14 Go移設 | **B1・B2 完了**（commit済み。B3〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`・下記batch表・下記B1/B2実行ledger・下記E12補正根拠 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -611,9 +611,9 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 
 | batch | file / unit | 先行 | `D` | `C` | `D ∩ C` |
 |---:|---|---:|---|---|---|
-| B0 ✅完了 | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
-| B1 ✅完了 | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
-| B2 ✅完了（未commit） | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
+| B0 ✅完了 `27d95aacd` | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
+| B1 ✅完了 `718f6c9b3` | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
+| B2 ✅完了 `134e7953b` | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
 | B3 | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
 | B4 | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
@@ -1012,7 +1012,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
 #### BE10-2 B2 実行ledger（2026-07-25）
 
-- 実行状態: `完了（未commit）`。serviceのclinic系test 4 fileとpermission-group doubleを`internal/clinic`へ移設し、clinic bridgeはB2 consumerが消えたsymbolだけを撤去した。
+- 実行状態: `完了`（commit `134e7953b`）。serviceのclinic系test 4 fileとpermission-group doubleを`internal/clinic`へ移設し、clinic bridgeはB2 consumerが消えたsymbolだけを撤去した。
 - 変更file:
   - `backend/internal/clinic/clinic_holiday_service_test.go`（移設）
   - `backend/internal/clinic/clinic_service_test.go`（移設）
