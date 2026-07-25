@@ -127,4 +127,16 @@
 - `internal/lintscan` package は 2026-07-25 時点で **green**（R-4 = `9ca93f249` の stale sentinel 是正、BUG-438 = `296ea7bb7` の CASCADE allowlist 登録で残 FAIL 2件が解消済み）。したがって本件は「ゲートが赤い」問題ではなく、**live read 経路 `Preload("Items")` を機械的に守る手段が無い**という再発防止の穴として残っている。
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
 
+### R-1: clinic request/input間の型変換に対するstaticcheck S1016是正
+
+- 対象: `backend/internal/clinic/closing_settings_request.go:11`, `:46`。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput` と `UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput` をstruct literalではなく型変換で書くべきという既存`staticcheck S1016` 2件。宣言元は同fileの`:3`/`:37`と`backend/internal/clinic/closing_settings_service.go:63`/`:80`。
+- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/clinic/... ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0`
+- 発見元: BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、当該unitが持ち込んだ問題ではない。BE10ではdrive-by修正を禁止しているため修正せず、本タスクへ移管した。
+
+### R-2: testdb AutoMigrate errorのwrapcheck是正
+
+- 対象: `backend/internal/testdb/testdb.go:100`。`gorm.DB.AutoMigrate`のerrorを未wrapで返している既存`wrapcheck` 1件。
+- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/clinic/... ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0`
+- 発見元: BE10-2 B0のlint baseline。B0の変更前後で同一であり、BE10ではdrive-by修正を禁止しているため修正せず、本タスクへ移管した。
+
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。

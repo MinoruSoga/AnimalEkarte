@@ -699,18 +699,15 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 - [ ] **AC-BE10-6 package gate**: BE10-1/2の決定後に専用gateとmutation自己テストを追加し、実treeでPASSする。
 - [ ] **AC-BE10状態収束**: BE10-1〜6がすべて`完了`または再開条件付き`判断待ち`で確定し、`未着手`/`対応中`が0件となる。
 - [ ] **todo.mdへ戻す条件**: 判断が確定し直ちに実装可能になったunitだけを`todo.md`の「個別タスク詳細」へ一意なtaskとして移す。移管時は本書側から当該仕様本文を削除し、同じ内容を二重掲出しない。
-- [ ] **残余課題の住所確定（round終了の前提）**: 下記「BE10外の残余課題」の未完了3件（R-1 / R-2 / R-4）を`todo.md`の「個別タスク詳細」へ移し、本書からの参照を消す。本書はround終了時に削除されるため、移管前に削除すると3件が失われる。R-3は完了済みのため移管不要。
+- [x] **残余課題の住所確定（round終了の前提）**: 未完了のR-1 / R-2を`todo.md`の「個別タスク詳細」へ移し、本書から仕様本文を削除した。R-4は`9ca93f249`で解消済みのため移管対象外、R-3は完了済みのため移管不要。
 - [ ] **round終了**: 全unitの収束、残余リスク、scoped verificationを記録後、本ファイルを削除する。恒久規約はADR-006/CODING_RULES、完了証跡はgit履歴とtest/gateを正本とする。
 
 ## BE10外の残余課題（`todo.md`へ移管して本書から消す）
 
-BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった既存の技術債。未完了は**R-1 / R-2 / R-4 の3件**。本書の削除で失わないため、round終了前に`todo.md`へ移す。**BE10のどのunitでもdrive-by修正しない。**
+BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった既存の技術債。未完了のR-1 / R-2は`todo.md`の「個別タスク詳細」へ移管済み。R-4は`9ca93f249`で解消済み、R-3は完了済みであり、本節に未完了課題は残らない。
 
 | # | 対象 | 内容 | 発見元 |
 |---|---|---|---|
-| R-1 | `backend/internal/clinic/closing_settings_request.go:11`, `:46` | 既存`staticcheck S1016` 2件。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput`、`UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput`をstruct literalではなく型変換で書くべきという指摘。宣言元は`closing_settings_request.go:3`/`:37`と`closing_settings_service.go:63`/`:80` | BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、本unitが持ち込んだものではない |
-| R-2 | `backend/internal/testdb/testdb.go:100` | 既存`wrapcheck` 1件。`gorm.DB.AutoMigrate`のerrorを未wrapで返している | BE10-2 B0のlint baseline。B0の変更前後で同一 |
-| R-4 | `backend/internal/lintscan/lintscan_test.go:230-231` | `TestWalkInternalTreeT_RealRepo` が `clinic/company/repository.go` の存在を assert しているが、**BE10-1 の clinic subpackage 統合（`0301ae0e2`）で同 file は削除済み**のため失敗し続けている。`./internal/lintscan/...` を誰も実行していなかったため露出が遅れた。修正はこの assert を現存する nested production file へ差し替える（walk の網羅性を確認する意図は維持する） | BE10-2 B4 の baseline。**BE10-1 が持ち込んだ回帰**であり B4 起因ではない |
 | R-3 | `backend/internal/service/staff_shift_security_integration_test.go:147` の setup | **完了（2026-07-25）**。2 dependency-count 関数が参照する全17表を列挙し、shared test schema / 現setupで未整備だった12表をsetup内で整備した。対象2 testと`go test ./internal/service/... -count=1 -p 1 -v`はPASS、baseline PASS→FAILは0、production code無変更 | BE10-2 B1 の E12。**B1 起因ではないことを確定済み**（commit `14c6702db`） |
 
 ## 実行規則（B5b以降の全unitへ適用）
