@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B6 完了**（B7〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=（履歴取り込み識別子は調整セッションが記録） |
+| BE10-2 B1〜B14 Go移設 | **B1〜B6 完了**（B7〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=`b76150f44` |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -515,7 +515,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 ✅完了 `b28c4a105` | repository lint **4 file**→`lintscan`、reconciliation gateのpath修復（B4回帰の是正） | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels`, `clinicScopedMasterAssoc`, `siblingPackageDir` + `I(files) local-only` | `∅`（4 consumer gateを同時移設。`migration_cascade`をB5bへ分離した結果として成立） | `∅` |
 | B5b ✅完了 `59b9d1873` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
-| B6 ✅完了 （識別子は調整セッションが記録） | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設。本unitで再検算して`C = ∅`を確認。Phase 0未記載の`target_repository_test_facades_test.go` audit bridgeもconsumer 0となり同時撤去） | `∅` |
+| B6 ✅完了 `b76150f44` | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設。本unitで再検算して`C = ∅`を確認。Phase 0未記載の`target_repository_test_facades_test.go` audit bridgeもconsumer 0となり同時撤去） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
 | B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
 | B9 | cross-clinic file分割 + insurance + owner/pet 3 file + pet/medimage分割 | B0,B8 | `makeInsuranceMaster`, `makePetWithInsurance`, `setupOwnerPetIsolationTestDB` + `I(files) local-only` | `∅`（全consumer同時移設またはB0 export化） | `∅` |
