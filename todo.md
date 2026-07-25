@@ -50,7 +50,7 @@
 
 - read-only調査。BUG-429（`acb3e4929`で修正済）と同型の防御ギャップが他packageに残っていないかを確定する。過去のクロステナントread IDOR監査（13 repo修正）はBE-012（慢性疾患）より前に実施されており、BUG-429はその監査漏れだった。以後に追加された子テーブルreadに同じ漏れがある可能性は実在する。
 - 検出対象: 子テーブルが `pet_id` 単一FK（clinic複合FKでない）を持ち、read述語が `clinic_id = ? AND pet_id = ?` 相当のみで親petsへの相関JOIN/EXISTSを欠くもの。修正済みの参照実装は `backend/internal/pet/chronic_condition_repository.go:37,52`。
-- 成果物: 該当package/メソッドの file:line 一覧と、各々の実害経路判定（service層で親所有検証が先行するか＝防御されているか、BUG-429の`List`のように素通しか）。修正は本タスクに含めず、件数確定後に別途起票する。
+- 成果物: 該当package/メソッドの file:line 一覧と、各々の実害経路判定（service層で親所有検証が先行するか＝防御されているか、BUG-429の`List`のように素通しか）。修正は本タスクに含めず、件数確定後に別途起票する（→ **2026-07-25 に BUG-434 として起票済み**。掃引=本節・修正=BUG-434 で分離する）。
 - 相関にpets側の `deleted_at` / `deceased_at` を含めないこと（含めるとsoft-delete済・死亡ペットの履歴が黙って消える挙動回帰になる）。これは掃引結果を修正へ展開する際の必須制約。
 - 出典: BUG-429対応時に判明したNew Work（2026-07-25）。
 - **セッション分類 = S3（#239 の先行条件）**。台帳は BUG-429 を「#239実装前のsecurity blocker」と分類しており、本掃引はその同一欠陥クラス（`pet_id` 単一FKで親pets clinic相関を欠くread）の全数である。加えて #239「医院別レコードを残す同一owner/petリンクと所属院内の統合履歴」は**意図された cross-clinic read を新設する**機能であり、意図しない漏洩を残したまま実装すると両者を区別できなくなる。よって残9件の修正は #239 着手前に完了させる。
@@ -559,5 +559,29 @@
 - HIGH。DB（`owners.birth_date`）・BE DTO・OpenAPI・DatePickerは実装済みだが、`frontend/src/features/owners/hooks/use-owner-form.ts` のcreate/update送信payloadにowner birthDateが含まれず、入力しても保存されない。さらに `OwnersListTable.tsx` の「生年月日」列はownerでなくpetの生年月日を表示している。
 - 対応: payloadへbirth_date追加＋既存値を空へ戻す契約（JSON null vs 省略）の確定＋一覧列の正本（飼主DOB/ペットDOB）確定。#262の前提是正。
 - 出典: #262調査 Completion Report（2026-07-25）。grepで整合確認済み。
+
+### BUG-434: 単一pet_id FK read経路のcross-clinic IDOR 9件（SEC-SWEEP-01 掃引結果の修正）
+
+- **CRITICAL 7 / HIGH 2**。SEC-SWEEP-01（本書上部・掃引は AUDIT COMPLETE）で確定した state (C) = 素通し9経路を修正する。BUG-429（`acb3e4929`）と同型で、子テーブルreadの述語が `clinic_id = ? AND pet_id = ?` 相当のみで親petsへの相関JOIN/EXISTSを欠くため、他院のpet_idを指定すると当該院のデータが返る。掃引完了後も修正タスクが未起票だったため本エントリで起票する（2026-07-25）。
+- **参照実装（この形へ揃える）**: `backend/internal/pet/chronic_condition_repository.go:37,52`
+- **必須制約**: 相関に pets 側の `deleted_at` / `deceased_at` を含めない（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。
+- **対象 = state (C) 9件のみ**（state (B) 3件はcallerのclinic-scoped取得で防御済みのため対象外）:
+
+| 重大度 | 経路 | 位置 |
+|---|---|---|
+| CRITICAL | `billingItemRepository.FindUnbilledTrimmingItemsByPetID` | `backend/internal/billing/billing_item_repository.go:342-346,369-374` |
+| CRITICAL | `accountingRepository.FindAll` | `backend/internal/billing/accounting_repository.go:192-194,205-210` |
+| CRITICAL | `accountingRepository.FindAllForClinics` | `backend/internal/billing/accounting_repository.go:197-210`（multi-clinic分岐） |
+| CRITICAL | `hospitalizationRepository.FindAll` | `backend/internal/medicalrecord/hospitalization_repository.go:47-50` |
+| CRITICAL | `treatmentRepository.FindUnbilledByPetID` | `backend/internal/medicalrecord/treatment_repository.go:82-92` |
+| CRITICAL | `treatmentRepository.FindHistoryByPetID` | `backend/internal/medicalrecord/treatment_repository.go:100-105` |
+| CRITICAL | `checkupFieldResultRepository.FindByPetID` | `backend/internal/medicalrecord/checkup_field_repository.go:88-96` |
+| HIGH | `billingItemRepository.CountNonAccountingTrimmingByPetAndDate` | `backend/internal/billing/billing_item_repository.go:424-426` |
+| HIGH | `treatmentRepository.CountFinalizedUnconfirmedByPetAndDate` | `backend/internal/medicalrecord/treatment_repository.go:194-203` |
+
+- **担当の切り方**: 領域別（S1/S2/S3）へ分割せず**1セッション1オーナーで9件まとめて**修正する。修正パターンが単一のため分割すると実装のばらつき・レビュー重複・file ownership衝突を生む。ownership = `backend/internal/{billing,medicalrecord}`。
+- **順序依存**: S2 #237（カルテ内検索へ治療内容・処方薬名・処置名を追加）は `treatment_repository.go` に触るため、**本修正を #237 より先に完了させる**。未修正のまま検索経路を足すと、防御されていないreadを拡張することになる。
+- 検証（scoped）: `docker compose exec backend go test ./internal/billing/... ./internal/medicalrecord/...` ＋ 各経路へclinic isolation testを追加（他院pet_id指定で0件/404になることを確認）。`./...` は禁止コマンドのため使わない。
+- 出典: SEC-SWEEP-01 実行結果（2026-07-25・本書上部の同名節）。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
