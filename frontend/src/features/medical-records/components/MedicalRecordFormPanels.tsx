@@ -174,6 +174,9 @@ export function MedicalRecordStickyHeader({
         status={selectedPet.status === "死亡" ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         species={selectedPet.species}
+        gender={selectedPet.gender}
+        neuteredDate={selectedPet.neuteredDate}
+        breed={selectedPet.breed}
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
