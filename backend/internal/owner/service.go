@@ -92,12 +92,13 @@ type CreateOwnerInput struct {
 	Pets         []CreatePetForOwnerInput
 }
 
-// UpdateOwnerInput は飼主更新の入力DTO（全フィールドポインタ型: nil = 未指定, 非nil = 更新対象）
+// UpdateOwnerInput は飼主更新の入力DTO（nil = 未指定, 非nil = 更新対象）
 // ビジネスルールは Service 層で検証する。
 type UpdateOwnerInput struct {
-	OwnerName      *string
-	OwnerNameKana  *string
-	BirthDate      *time.Time
+	OwnerName     *string
+	OwnerNameKana *string
+	// BirthDate は nil=未指定 / &nil=NULLクリア / &&value=更新対象。
+	BirthDate      **time.Time
 	Company        *string
 	PostalCode     *string
 	Address1       *string

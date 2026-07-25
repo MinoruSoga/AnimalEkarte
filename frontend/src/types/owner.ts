@@ -73,8 +73,10 @@ export interface CreateOwnerRequest {
 
 /**
  * 飼主更新リクエスト — updateOwnerRequest Go struct に準拠（全フィールド optional）
- * FE3-6: CreateOwnerRequest とフィールド集合が完全一致（clinic_id 除く全フィールドが optional）だったため
- * 手書き二重定義を廃し派生型化。値・フィールド集合は変更していない。
+ * birth_date は PATCH で null を送ると既存値を消去する。
  * @see backend/internal/owner/http_request.go updateOwnerRequest
  */
-export type UpdateOwnerRequest = Partial<Omit<CreateOwnerRequest, "clinic_id">>;
+export type UpdateOwnerRequest =
+  Partial<Omit<CreateOwnerRequest, "clinic_id" | "birth_date">> & {
+    birth_date?: string | null;
+  };

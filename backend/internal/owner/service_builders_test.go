@@ -38,11 +38,12 @@ func TestBuildOwnerUpdate(t *testing.T) {
 		membershipType := model.MembershipTypeMember
 		dmPref := true
 		dmPreferencePtr := &dmPref
+		birthDatePtr := &birthDate
 
 		input := &UpdateOwnerInput{
 			OwnerName:      &name,
 			OwnerNameKana:  &nameKana,
-			BirthDate:      &birthDate,
+			BirthDate:      &birthDatePtr,
 			Company:        &company,
 			PostalCode:     &postalCode,
 			Address1:       &address1,
@@ -63,7 +64,9 @@ func TestBuildOwnerUpdate(t *testing.T) {
 
 		assert.Equal(t, name, fields[colOwnerName])
 		assert.Equal(t, nameKana, fields[colOwnerNameKana])
-		assert.Equal(t, birthDate, fields[colBirthDate])
+		require.NotNil(t, fields[colBirthDate])
+		assert.Equal(t, birthDate, *fields[colBirthDate].(*time.Time))
+		assert.False(t, fields[colBirthDate].(*time.Time).IsZero())
 		assert.Equal(t, company, fields[colCompany])
 		assert.Equal(t, postalCode, fields[colPostalCode])
 		assert.Equal(t, address1, fields[colAddress1])
@@ -90,6 +93,17 @@ func TestBuildOwnerUpdate(t *testing.T) {
 
 		assert.Contains(t, fields, colDMPreference)
 		assert.Nil(t, fields[colDMPreference])
+	})
+
+	t.Run("BirthDate pointing at a nil time pointer clears the column", func(t *testing.T) {
+		input := &UpdateOwnerInput{}
+		var nilTimePtr *time.Time
+		input.BirthDate = &nilTimePtr
+
+		fields := buildOwnerUpdate(input)
+
+		assert.Contains(t, fields, colBirthDate)
+		assert.Nil(t, fields[colBirthDate])
 	})
 }
 

@@ -182,7 +182,10 @@ export function useOwnerForm(
         };
 
         if (isEdit && id) {
-          const updateData: UpdateOwnerRequest = ownerRequestPayload;
+          const updateData: UpdateOwnerRequest = {
+            ...ownerRequestPayload,
+            birth_date: ownerData.birthDate || null,
+          };
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
           toast.success("飼主情報を更新しました");
@@ -190,6 +193,7 @@ export function useOwnerForm(
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
+            birth_date: ownerData.birthDate || undefined,
             // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };

@@ -3,8 +3,10 @@ package owner
 import (
 	"encoding/json"
 	"net/url"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -65,6 +67,39 @@ func (f *nullableUint64RequestField) UnmarshalJSON(data []byte) error {
 }
 
 func (f nullableUint64RequestField) toServiceInput() **uint64 {
+	if !f.set {
+		return nil
+	}
+	return &f.value
+}
+
+// nullableDateRequestField は PATCH DTO で「未送信」と「JSON null」を区別する。
+// set フラグでフィールド存在を保持し、service 層の **time.Time
+// （nil / &nil / &&value）へ変換する。
+type nullableDateRequestField struct {
+	set   bool
+	value *time.Time
+}
+
+func (f *nullableDateRequestField) UnmarshalJSON(data []byte) error {
+	f.set = true
+	if string(data) == "null" {
+		f.value = nil
+		return nil
+	}
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return apperrors.WrapInvalidInput(httpapi.FlexibleDateInvalidInputMsg)
+	}
+	value, err := httpapi.ParseFlexibleDate(raw)
+	if err != nil {
+		return apperrors.WrapInvalidInput(httpapi.FlexibleDateInvalidInputMsg)
+	}
+	f.value = &value
+	return nil
+}
+
+func (f nullableDateRequestField) toServiceInput() **time.Time {
 	if !f.set {
 		return nil
 	}
@@ -180,7 +215,7 @@ func (r *createOwnerRequest) toServiceInput() CreateOwnerInput {
 type updateOwnerRequest struct {
 	OwnerName      *string                  `json:"owner_name"`
 	OwnerNameKana  *string                  `json:"owner_name_kana"`
-	BirthDate      *jsonDate                `json:"birth_date"`
+	BirthDate      nullableDateRequestField `json:"birth_date"`
 	Company        *string                  `json:"company"`
 	PostalCode     *string                  `json:"postal_code"`
 	Address1       *string                  `json:"address1"`
@@ -208,7 +243,7 @@ func (r *updateOwnerRequest) toServiceInput() *UpdateOwnerInput {
 	return &UpdateOwnerInput{
 		OwnerName:      r.OwnerName,
 		OwnerNameKana:  r.OwnerNameKana,
-		BirthDate:      jsonDatePtr(r.BirthDate),
+		BirthDate:      r.BirthDate.toServiceInput(),
 		Company:        r.Company,
 		PostalCode:     r.PostalCode,
 		Address1:       r.Address1,

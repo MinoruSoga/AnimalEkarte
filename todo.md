@@ -78,11 +78,17 @@
 - 対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。①②は生成基盤の変更を伴うため納品後が妥当。納品前は、新規に生成型のフィールドへ依存する実装を書くときに**そのフィールドが応答DTOに実在するかを都度確認する**運用で凌ぐ。
 - 出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。
 
-### BUG-432: 飼主生年月日がフォームから保存されない＋一覧列がpet値を表示
+### BUG-432: 飼主生年月日がフォームから保存されない
 
-- HIGH。DB（`owners.birth_date`）・BE DTO・OpenAPI・DatePickerは実装済みだが、`frontend/src/features/owners/hooks/use-owner-form.ts` のcreate/update送信payloadにowner birthDateが含まれず、入力しても保存されない。さらに `OwnersListTable.tsx` の「生年月日」列はownerでなくpetの生年月日を表示している。
-- 対応: payloadへbirth_date追加＋既存値を空へ戻す契約（JSON null vs 省略）の確定＋一覧列の正本（飼主DOB/ペットDOB）確定。#262の前提是正。
+- HIGH。DB（`owners.birth_date`）・BE DTO・OpenAPI・DatePickerは実装済みだが、`frontend/src/features/owners/hooks/use-owner-form.ts` のcreate/update送信payloadにowner birthDateが含まれず、入力しても保存されない。
+- 対応: payloadへbirth_date追加＋既存値を空へ戻す契約（JSON null vs 省略）の確定。#262の前提是正。
 - 出典: #262調査 Completion Report（2026-07-25）。grepで整合確認済み。
+- **BLOCKED（2026-07-25・BUG-432実装unit）**。backend の現行更新契約では既存値の NULL 化を表現できない。`birth_date` の省略と JSON `null` はどちらも `BirthDate == nil` となり更新対象外、空文字は non-nil のゼロ時刻となって `birth_date` 更新 map に入るため、FE だけでは安全な空化 payload を作れない（`backend/internal/owner/http_request.go:183,211`、`http_date.go:15-33`、`service_builders.go:19-21`）。backend 変更は当該unitのscope外だったため、source/test実装は開始していない。
+- 一覧は `pets: Pet[]` を `data={pets}` / `renderRow={(pet)}` で描画するペット行であり、同行もペット番号・ペット名・生死・種・体重を表示する。したがって「生年月日」列の正本は現行どおり `pet.birthDate` で、飼主DOBへ差し替える修正は不要（`frontend/src/features/owners/components/OwnersListTable.tsx:34-36,112-127,209-231`）。起票時の「一覧列が誤り」という前提は実測で否定された。
+- gate: saved prompt validator PASS（exit 0）。owners baseline は `docker compose exec frontend npx vitest run src/features/owners` → `Test Files 20 passed` / `Tests 108 passed`（exit 0）。backend 契約の scoped test は `docker compose exec backend go test ./internal/owner -run 'Test(UpdateOwnerRequest_DMPreferenceNullableJSON|CreatePetForOwnerRequest_ToServiceInput|CreateOwnerRequest_ToServiceInput|BuildOwnerUpdate|OwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate)$'` → `ok github.com/animal-ekarte/backend/internal/owner 0.325s`。変更は本台帳のみ。
+- **COMPLETE（2026-07-25・BUG-432 v2）**。update の `birth_date` を同package既存nullable fieldと同じ tri-state（未送信=保持 / JSON `null`=DB NULL / 日付文字列=更新）へ変更し、空文字はzero timeを書かずinvalid inputとして拒否する。create受け口と `jsonDate` は変更していない。FEはcreate/updateで入力日を送出し、編集時の空欄を `birth_date: null` として送る。`UpdateOwnerRequest` のみ `string | null` を許容する。
+- 変更ファイル: `backend/internal/owner/http_request.go`, `http_request_test.go`, `service.go`, `service_builders.go`, `service_builders_test.go`, `frontend/src/types/owner.ts`, `frontend/src/features/owners/hooks/use-owner-form.ts`, `use-owner-form.test.ts`, `todo.md`。OpenAPI は既に `Owner.birth_date` が `type: string` / `format: date` / `nullable: true` のため無変更。`OwnersListTable.tsx` も上記の誤診撤回どおり無変更。
+- gates: backend owner baseline `ok github.com/animal-ekarte/backend/internal/owner 3.472s`、実装後 `ok github.com/animal-ekarte/backend/internal/owner 3.475s`。frontend owners baseline `20 files / 108 tests`、実装後 `21 files / 111 tests`（いずれもexit 0）。`gofmt -l` stdout 0行、`go vet ./internal/owner/` exit 0、scoped ESLint stdout 0行・exit 0。
 
 ### BUG-435: 生成FE型が陳腐化したままmainに乗っていた（codegen-check未励行）
 

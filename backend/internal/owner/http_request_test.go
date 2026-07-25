@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,57 @@ func TestUpdateOwnerRequest_DMPreferenceNullableJSON(t *testing.T) {
 		err := json.Unmarshal([]byte(`{"dm_preference":"yes"}`), &req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "真偽値の形式が正しくありません")
+	})
+}
+
+func TestUpdateOwnerRequest_BirthDateNullableJSON(t *testing.T) {
+	t.Run("omitted means no update", func(t *testing.T) {
+		var req updateOwnerRequest
+		require.NoError(t, json.Unmarshal([]byte(`{}`), &req))
+
+		input := req.toServiceInput()
+		fields := buildOwnerUpdate(input)
+
+		assert.Nil(t, input.BirthDate)
+		assert.NotContains(t, fields, colBirthDate)
+	})
+
+	t.Run("null clears birth_date", func(t *testing.T) {
+		var req updateOwnerRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"birth_date":null}`), &req))
+
+		input := req.toServiceInput()
+		fields := buildOwnerUpdate(input)
+
+		require.NotNil(t, input.BirthDate)
+		assert.Nil(t, *input.BirthDate)
+		assert.Contains(t, fields, colBirthDate)
+		assert.Nil(t, fields[colBirthDate])
+	})
+
+	t.Run("date updates birth_date without zero time", func(t *testing.T) {
+		var req updateOwnerRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"birth_date":"1990-04-01"}`), &req))
+
+		input := req.toServiceInput()
+		fields := buildOwnerUpdate(input)
+
+		require.NotNil(t, input.BirthDate)
+		require.NotNil(t, *input.BirthDate)
+		assert.Equal(t, "1990-04-01", (**input.BirthDate).Format("2006-01-02"))
+		assert.False(t, (**input.BirthDate).IsZero())
+		storedBirthDate, ok := fields[colBirthDate].(*time.Time)
+		require.True(t, ok)
+		assert.Equal(t, "1990-04-01", storedBirthDate.Format("2006-01-02"))
+		assert.False(t, storedBirthDate.IsZero())
+	})
+
+	t.Run("empty string is rejected instead of producing zero time", func(t *testing.T) {
+		var req updateOwnerRequest
+		err := json.Unmarshal([]byte(`{"birth_date":""}`), &req)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "日付の形式が正しくありません")
 	})
 }
 
