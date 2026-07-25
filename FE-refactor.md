@@ -59,85 +59,85 @@
 | 認証/共通 | パスワード再設定 | /reset-password | ResetPasswordPage | ✅ | ✅ | ✅ | 同上 |
 | 認証/共通 | 飼主カルテレポート | /owners/:id/report | OwnerReport | FE12-01 | ✅ | ✅ | C18 raw: Checkup/Examination history |
 | 認証/共通 | 404 Not Found | * | inline element | 🔒 | 🔒 | 🔒 | 対象外1件: lazy pageを持たないinline fallback |
-| 会計 | 会計一覧 | /accounting | AccountingList | ✅ | FE12-03 | FE12-10 | `AccountingList.tsx:17`; 金額表示共通化 |
+| 会計 | 会計一覧 | /accounting | AccountingList | ✅ | 🔒 | ✅ | `AccountingList.tsx:17`; 金額表示共通化 |
 | 会計 | 会計 - ペット選択 | /accounting/select-pet | AccountingPetSelection | ✅ | ✅ | ✅ | 追加指摘なし |
-| 会計 | 会計登録 | /accounting/new | AccountingDetail | FE12-01 | FE12-03 | FE12-10 | ItemList/Refund raw cell・通貨表現 |
-| 会計 | 会計詳細 | /accounting/:id | AccountingDetail | FE12-01 | FE12-03 | FE12-10 | 同上 |
-| 会計 | レジ締め | /accounting/close | CashRegisterClosePage | FE12-01 | FE12-03 | FE12-10 | Billing/summary raw cell |
-| 会計 | レジ締め履歴 | /accounting/close/history | CashRegisterHistoryPage | FE12-01 | FE12-03 | FE12-10 | route raw cell `CashRegisterHistoryPage.tsx` |
-| 会計 | 月次集計レポート | /accounting/reports | AccountingReportsPage | FE12-01 | FE12-03 | FE12-10 | DailyBreakdown raw cell |
-| 在庫/見積/シフト | 在庫一覧 | /inventory | InventoryList | ✅ | FE12-03 | ✅ | `InventoryList.tsx:10` |
-| 在庫/見積/シフト | 在庫登録 | /inventory/new | InventoryForm | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 在庫/見積/シフト | 在庫編集 | /inventory/:id | InventoryForm | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 在庫/見積/シフト | 見積一覧 | /estimates | EstimateList | ✅ | FE12-03 | FE12-06 | 禁止`utils/`をfeature indexから参照 |
-| 在庫/見積/シフト | 見積作成 | /estimates/new | EstimateForm | ✅ | FE12-03 | FE12-06 | 併発: FE12-04 |
-| 在庫/見積/シフト | 見積詳細 | /estimates/:id | EstimateDetail | ✅ | FE12-03 | FE12-06 | `EstimateDetail.tsx:5` |
-| 在庫/見積/シフト | 見積編集 | /estimates/:id/edit | EstimateForm | ✅ | FE12-03 | FE12-06 | 併発: FE12-04 |
+| 会計 | 会計登録 | /accounting/new | AccountingDetail | FE12-01 | 🔒 | ✅ | ItemList/Refund raw cell・通貨表現 |
+| 会計 | 会計詳細 | /accounting/:id | AccountingDetail | FE12-01 | 🔒 | ✅ | 同上 |
+| 会計 | レジ締め | /accounting/close | CashRegisterClosePage | FE12-01 | 🔒 | FE12-10 | Billing/summary raw cell |
+| 会計 | レジ締め履歴 | /accounting/close/history | CashRegisterHistoryPage | FE12-01 | 🔒 | ✅ | route raw cell `CashRegisterHistoryPage.tsx` |
+| 会計 | 月次集計レポート | /accounting/reports | AccountingReportsPage | FE12-01 | 🔒 | ✅ | DailyBreakdown raw cell |
+| 在庫/見積/シフト | 在庫一覧 | /inventory | InventoryList | ✅ | 🔒 | ✅ | `InventoryList.tsx:10` |
+| 在庫/見積/シフト | 在庫登録 | /inventory/new | InventoryForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 在庫/見積/シフト | 在庫編集 | /inventory/:id | InventoryForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 在庫/見積/シフト | 見積一覧 | /estimates | EstimateList | ✅ | 🔒 | ✅ | 禁止`utils/`をfeature indexから参照 |
+| 在庫/見積/シフト | 見積作成 | /estimates/new | EstimateForm | ✅ | 🔒 | ✅ | 併発: FE12-04 |
+| 在庫/見積/シフト | 見積詳細 | /estimates/:id | EstimateDetail | ✅ | 🔒 | ✅ | `EstimateDetail.tsx:5` |
+| 在庫/見積/シフト | 見積編集 | /estimates/:id/edit | EstimateForm | ✅ | 🔒 | ✅ | 併発: FE12-04 |
 | 在庫/見積/シフト | シフトカレンダー | /shifts | ShiftCalendarPage | ✅ | ✅ | ✅ | 追加指摘なし |
-| カルテ | カルテ一覧 | /medical-records | MedicalRecords | △ FE12-02 | FE12-03 | FE12-10 | C6a danger/異常/RBACレビュー |
+| カルテ | カルテ一覧 | /medical-records | MedicalRecords | △ FE12-02 | 🔒 | ✅ | C6a danger/異常/RBACレビュー |
 | カルテ | カルテ作成 - ペット選択 | /medical-records/select-pet | MedicalRecordPetSelection | △ FE12-02 | ✅ | ✅ | C6a死亡/危険ペット選択 |
-| カルテ | カルテ作成 | /medical-records/new | MedicalRecordForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: C18 FE12-01、通貨 FE12-10 |
-| カルテ | カルテ編集 | /medical-records/:id | MedicalRecordForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: C18 FE12-01、通貨 FE12-10 |
-| 入院/ホテル | 入院・ホテル一覧 | /hospitalization | HospitalizationList | △ FE12-02 | FE12-03 | ✅ | C6a死亡表示・操作抑止 |
+| カルテ | カルテ作成 | /medical-records/new | MedicalRecordForm | △ FE12-02 | 🔒 | ✅ | 併発: C18 FE12-01、通貨 FE12-10 |
+| カルテ | カルテ編集 | /medical-records/:id | MedicalRecordForm | △ FE12-02 | 🔒 | ✅ | 併発: C18 FE12-01、通貨 FE12-10 |
+| 入院/ホテル | 入院・ホテル一覧 | /hospitalization | HospitalizationList | △ FE12-02 | 🔒 | ✅ | C6a死亡表示・操作抑止 |
 | 入院/ホテル | 入院・ホテル登録 - ペット選択 | /hospitalization/select-pet | HospitalizationPetSelection | △ FE12-02 | ✅ | ✅ | C6a死亡/危険ペット選択 |
-| 入院/ホテル | 入院・ホテル登録 | /hospitalization/new | HospitalizationForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: C18 FE12-01、通貨 FE12-10 |
-| 入院/ホテル | 入院・ホテル詳細 | /hospitalization/:id | HospitalizationDetail | △ FE12-02 | FE12-05 | FE12-10 | 併発: C18 FE12-01 |
-| 入院/ホテル | 入院・ホテル編集 | /hospitalization/:id/edit | HospitalizationForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: C18 FE12-01、通貨 FE12-10 |
-| トリミング | トリミング一覧 | /trimming | TrimmingList | ✅ | FE12-03 | ✅ | `TrimmingList.tsx:12` |
+| 入院/ホテル | 入院・ホテル登録 | /hospitalization/new | HospitalizationForm | △ FE12-02 | 🔒 | ✅ | 併発: C18 FE12-01、通貨 FE12-10 |
+| 入院/ホテル | 入院・ホテル詳細 | /hospitalization/:id | HospitalizationDetail | △ FE12-02 | ✅ | ✅ | 併発: C18 FE12-01 |
+| 入院/ホテル | 入院・ホテル編集 | /hospitalization/:id/edit | HospitalizationForm | △ FE12-02 | 🔒 | ✅ | 併発: C18 FE12-01、通貨 FE12-10 |
+| トリミング | トリミング一覧 | /trimming | TrimmingList | ✅ | 🔒 | ✅ | `TrimmingList.tsx:12` |
 | トリミング | トリミング登録 - ペット選択 | /trimming/select-pet | TrimmingPetSelection | ✅ | ✅ | ✅ | 追加指摘なし |
-| トリミング | トリミング登録 | /trimming/new | TrimmingForm | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| トリミング | トリミング編集 | /trimming/:id | TrimmingForm | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 検査 | 検査一覧 | /examinations | ExaminationsList | △ FE12-02 | FE12-03 | ✅ | C6a異常値/RBAC |
+| トリミング | トリミング登録 | /trimming/new | TrimmingForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| トリミング | トリミング編集 | /trimming/:id | TrimmingForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 検査 | 検査一覧 | /examinations | ExaminationsList | △ FE12-02 | 🔒 | ✅ | C6a異常値/RBAC |
 | 検査 | 検査登録 - ペット選択 | /examinations/select-pet | ExaminationPetSelection | △ FE12-02 | ✅ | ✅ | C6a死亡/危険ペット選択 |
-| 検査 | 検査登録 | /examinations/new | ExaminationForm | △ FE12-02 | FE12-04 | FE12-04 | global listener重複 |
-| 検査 | 検査編集 | /examinations/:id | ExaminationForm | △ FE12-02 | FE12-04 | FE12-04 | 同上 |
-| ワクチン | ワクチン一覧 | /vaccinations | VaccinationList | △ FE12-02 | FE12-03 | ✅ | C6a期限超過/死亡/RBAC |
+| 検査 | 検査登録 | /examinations/new | ExaminationForm | △ FE12-02 | ✅ | ✅ | global listener重複 |
+| 検査 | 検査編集 | /examinations/:id | ExaminationForm | △ FE12-02 | ✅ | ✅ | 同上 |
+| ワクチン | ワクチン一覧 | /vaccinations | VaccinationList | △ FE12-02 | 🔒 | ✅ | C6a期限超過/死亡/RBAC |
 | ワクチン | ワクチン接種 - ペット選択 | /vaccinations/select-pet | VaccinationPetSelection | △ FE12-02 | ✅ | ✅ | C6a死亡/危険ペット選択 |
-| ワクチン | ワクチン登録 | /vaccinations/new | VaccinationForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | △ FE12-02 | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 定期健診 | 定期健診一覧 | /checkups | CheckupsList | △ FE12-02 | FE12-03 | ✅ | C6a要フォロー表示 |
+| ワクチン | ワクチン登録 | /vaccinations/new | VaccinationForm | △ FE12-02 | 🔒 | ✅ | 併発: axis② FE12-04 |
+| ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | △ FE12-02 | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 定期健診 | 定期健診一覧 | /checkups | CheckupsList | △ FE12-02 | 🔒 | ✅ | C6a要フォロー表示 |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | △ FE12-02 | ✅ | ✅ | C6a死亡/危険ペット選択 |
-| 定期健診 | 定期健診登録 | /checkups/new | CheckupForm | △ FE12-02 | FE12-03 | ✅ | C6a臨床status |
+| 定期健診 | 定期健診登録 | /checkups/new | CheckupForm | △ FE12-02 | 🔒 | ✅ | C6a臨床status |
 | 受付/飼主/予約 | 受付 | / | Reception | △ FE12-02 | ✅ | ✅ | C6a危険/死亡ペットの受付表示 |
-| 受付/飼主/予約 | 飼主一覧 | /owners | OwnersList | △ FE12-02 | FE12-03 | ✅ | C6a danger/deceased filter、併発: C18 FE12-01 |
-| 受付/飼主/予約 | 飼主登録 | /owners/new | OwnerForm | △ FE12-02 | FE12-03 | FE12-04 | OwnerSearchModal C18併発 |
-| 受付/飼主/予約 | 飼主編集 | /owners/:id | OwnerForm | △ FE12-02 | FE12-03 | FE12-04 | OwnerSearchModal C18併発 |
-| 受付/飼主/予約 | 集計ダッシュボード | /aggregation | AggregationDashboardPage | ✅ | FE12-03 | ✅ | `AggregationDashboardPage.tsx:3` |
-| 受付/飼主/予約 | 予約管理 | /reservations | ReservationManagement | ✅ | FE12-03 | ✅ | `ReservationManagement.tsx:7` |
-| 運用/Lステップ | Lステップ健診連携 | /lstep/checkup-sync | CheckupSyncPage | ✅ | FE12-03 | ✅ | `CheckupSyncPage.tsx:4` |
-| 運用/Lステップ | Lステップ配信モニター | /lstep/delivery-monitor | LstepDeliveryMonitorPage | ✅ | FE12-03 | ✅ | `LstepDeliveryMonitorPage.tsx:2` |
-| 運用/Lステップ | Lステップ分析 | /lstep/analytics | LstepAnalyticsPage | FE12-01 | FE12-03 | ✅ | C18 raw 26件（3 component） |
+| 受付/飼主/予約 | 飼主一覧 | /owners | OwnersList | △ FE12-02 | 🔒 | ✅ | C6a danger/deceased filter、併発: C18 FE12-01 |
+| 受付/飼主/予約 | 飼主登録 | /owners/new | OwnerForm | △ FE12-02 | 🔒 | ✅ | OwnerSearchModal C18併発 |
+| 受付/飼主/予約 | 飼主編集 | /owners/:id | OwnerForm | △ FE12-02 | 🔒 | ✅ | OwnerSearchModal C18併発 |
+| 受付/飼主/予約 | 集計ダッシュボード | /aggregation | AggregationDashboardPage | ✅ | 🔒 | ✅ | `AggregationDashboardPage.tsx:3` |
+| 受付/飼主/予約 | 予約管理 | /reservations | ReservationManagement | ✅ | 🔒 | ✅ | `ReservationManagement.tsx:7` |
+| 運用/Lステップ | Lステップ健診連携 | /lstep/checkup-sync | CheckupSyncPage | ✅ | 🔒 | ✅ | `CheckupSyncPage.tsx:4` |
+| 運用/Lステップ | Lステップ配信モニター | /lstep/delivery-monitor | LstepDeliveryMonitorPage | ✅ | 🔒 | ✅ | `LstepDeliveryMonitorPage.tsx:2` |
+| 運用/Lステップ | Lステップ分析 | /lstep/analytics | LstepAnalyticsPage | FE12-01 | 🔒 | ✅ | C18 raw 26件（3 component） |
 | 運用/LINE予約 | LINE予約設定(index) | /line-reservation | LineReservationSettings | ✅ | ✅ | ✅ | 本体route。別app axis③はFE12-08 / FE12-09 |
 | 運用/LINE予約 | LINE予約設定 | /line-reservation/settings | LineReservationSettings | ✅ | ✅ | ✅ | 同上 |
 | 運用/LINE予約 | LINE予約ページエディタ | /line-reservation/page-editor | LineReservationPageEditor | ✅ | ✅ | ✅ | 同上 |
-| 運用/LINE予約 | LINE予約枠設定 | /line-reservation/slots | LineReservationSlotsSettings | ✅ | FE12-03 | ✅ | `LineReservationSlotsSettings.tsx:3` |
+| 運用/LINE予約 | LINE予約枠設定 | /line-reservation/slots | LineReservationSlotsSettings | ✅ | 🔒 | ✅ | `LineReservationSlotsSettings.tsx:3` |
 | 運用/医院 | 医院マスタ設定 | /settings/clinic | ClinicMasterList | ✅ | ✅ | ✅ | 追加指摘なし |
-| 運用/マニュアル | マニュアル | /manual | ManualPage | ✅ | FE12-03 | ✅ | 独自shellは裁定済み、icon importのみ対象 |
-| 運用/マニュアル | マニュアル記事 | /manual/:category/:slug | ManualPage | ✅ | FE12-03 | ✅ | 同上 |
-| 設定/マスタ | 設定トップ | /settings | MasterSettingsIndex | ✅ | FE12-03 | ✅ | `MasterSettingsIndex.tsx:7` |
-| 設定/マスタ | 職員マスタ | /settings/staff | StaffSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 診療項目マスタ | /settings/treatment-items | TreatmentPlanMaster | ✅ | FE12-04 | FE12-04 | global listener重複 |
-| 設定/マスタ | 診断名マスタ | /settings/diagnosis | DiagnosisSettings | ✅ | FE12-04 | FE12-04 | 同上 |
-| 設定/マスタ | 動物種マスタ | /settings/animal-species | AnimalSpeciesSettings | ✅ | FE12-04 | FE12-04 | 同上 |
-| 設定/マスタ | トリミングマスタ | /settings/trimming | TrimmingSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | トリミングコース種別マスタ | /settings/trimming-course-type | TrimmingCourseTypeSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 薬剤マスタ | /settings/medicine | MedicineSettings | ✅ | FE12-04 | FE12-04 | global listener重複 |
-| 設定/マスタ | 予約種別マスタ | /settings/reservation-type | ReservationTypeSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 入院・ホテルマスタ | /settings/hospitalization | HospitalizationSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | ケージマスタ | /settings/cage | CageSettings | ✅ | FE12-03 | FE12-04 | 併発: 通貨 FE12-10 |
-| 設定/マスタ | 物販品マスタ | /settings/merchandise-items | MerchandiseItemSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 保険マスタ | /settings/insurance | InsuranceSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 職種マスタ | /settings/occupations | OccupationSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 権限グループマスタ | /settings/permission-groups | PermissionGroupSettings | △ FE12-02 | FE12-03 | FE12-04 | 併発: C18 FE12-01、RBAC review |
-| 設定/マスタ | 問診テンプレートマスタ | /settings/inquiry-templates | InterviewTemplateSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 主訴マスタ | /settings/interview/chief-complaint | ChiefComplaintSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 問診テンプレート(interview) | /settings/interview/templates | InterviewTemplateSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | シフトテンプレートマスタ | /settings/shift-templates | ShiftTemplateSettings | ✅ | FE12-04 | FE12-04 | global listener重複 |
-| 設定/マスタ | 締め時間設定 | /settings/closing-time | ClosingSettingsPage | FE12-01 | FE12-03 | ✅ | StandardClosingTime raw cell |
-| 設定/マスタ | 支払方法マスタ | /settings/payment-methods | PaymentMethodSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
-| 設定/マスタ | 割引キャンペーンマスタ | /settings/campaigns | CampaignSettings | ✅ | FE12-03 | FE12-04 | 併発: axis② FE12-04 |
+| 運用/マニュアル | マニュアル | /manual | ManualPage | ✅ | 🔒 | ✅ | 独自shellは裁定済み、icon importのみ対象 |
+| 運用/マニュアル | マニュアル記事 | /manual/:category/:slug | ManualPage | ✅ | 🔒 | ✅ | 同上 |
+| 設定/マスタ | 設定トップ | /settings | MasterSettingsIndex | ✅ | 🔒 | ✅ | `MasterSettingsIndex.tsx:7` |
+| 設定/マスタ | 職員マスタ | /settings/staff | StaffSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 診療項目マスタ | /settings/treatment-items | TreatmentPlanMaster | ✅ | ✅ | ✅ | global listener重複 |
+| 設定/マスタ | 診断名マスタ | /settings/diagnosis | DiagnosisSettings | ✅ | ✅ | ✅ | 同上 |
+| 設定/マスタ | 動物種マスタ | /settings/animal-species | AnimalSpeciesSettings | ✅ | ✅ | ✅ | 同上 |
+| 設定/マスタ | トリミングマスタ | /settings/trimming | TrimmingSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | トリミングコース種別マスタ | /settings/trimming-course-type | TrimmingCourseTypeSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 薬剤マスタ | /settings/medicine | MedicineSettings | ✅ | ✅ | ✅ | global listener重複 |
+| 設定/マスタ | 予約種別マスタ | /settings/reservation-type | ReservationTypeSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 入院・ホテルマスタ | /settings/hospitalization | HospitalizationSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | ケージマスタ | /settings/cage | CageSettings | ✅ | 🔒 | ✅ | 併発: 通貨 FE12-10 |
+| 設定/マスタ | 物販品マスタ | /settings/merchandise-items | MerchandiseItemSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 保険マスタ | /settings/insurance | InsuranceSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 職種マスタ | /settings/occupations | OccupationSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 権限グループマスタ | /settings/permission-groups | PermissionGroupSettings | △ FE12-02 | 🔒 | ✅ | 併発: C18 FE12-01、RBAC review |
+| 設定/マスタ | 問診テンプレートマスタ | /settings/inquiry-templates | InterviewTemplateSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 主訴マスタ | /settings/interview/chief-complaint | ChiefComplaintSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 問診テンプレート(interview) | /settings/interview/templates | InterviewTemplateSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | シフトテンプレートマスタ | /settings/shift-templates | ShiftTemplateSettings | ✅ | ✅ | ✅ | global listener重複 |
+| 設定/マスタ | 締め時間設定 | /settings/closing-time | ClosingSettingsPage | FE12-01 | 🔒 | ✅ | StandardClosingTime raw cell |
+| 設定/マスタ | 支払方法マスタ | /settings/payment-methods | PaymentMethodSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
+| 設定/マスタ | 割引キャンペーンマスタ | /settings/campaigns | CampaignSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 設定/マスタ | Lステップ連携設定 | /settings/integrations/lstep | LstepSettingsPage | ✅ | ✅ | ✅ | 追加指摘なし |
-| 設定/マスタ | Lステップタグ管理 | /settings/lstep/tags | LstepTagManagementPage | ✅ | FE12-03 | ✅ | `LstepTagManagementPage.tsx:2` |
+| 設定/マスタ | Lステップタグ管理 | /settings/lstep/tags | LstepTagManagementPage | ✅ | 🔒 | ✅ | `LstepTagManagementPage.tsx:2` |
 <!-- FE12-ROUTE-TABLE-END -->
 
 ## FE12 task backlog
@@ -159,6 +159,7 @@
 | FE12-10 | P2 | ③ | accounting/reports/cash-register、medical-records、hospitalization、master金額表示 | `frontend/src/lib/format/number.ts:28-40`、`frontend/src/features/accounting/components/ItemListCard.tsx:311-314`、`frontend/src/features/hospitalization/components/HospitalizationCostSummary.tsx:38-100` | `frontend/CLAUDE.md` Shared Helper配置MANDATORY / feature間duplication | `¥`/`￥`、符号、0の扱いが既存契約と一致する箇所だけ`formatCurrency`/`formatCurrencyOrDash`へ置換する。帳票固有・差額固有は別契約として残し、無理な一律化をしない。**COMPLETE (2026-07-25)**: commit `6e0fe1747`。下記実行記録を参照 | **可**。一致するinline `toLocaleString`と重複分岐を削除し、既存helperへ統合。新helper追加0 | `docker compose exec frontend npx vitest run src/features/accounting/routes/AccountingDetail.test.tsx src/features/cash-register/category-breakdown.test.ts src/features/hospitalization/components/HospitalizationCostSummary.test.tsx` |
 | FE12-11 | P1 | ①/② | line-reserve 全画面（webfont読込） | `frontend/line-reserve/src/index.css:2`（削除前）、`frontend/line-reserve/src/pages/TopPage.tsx:15`（削除前）、`frontend/line-reserve/index.html`（link不在） | `DESIGN.md` タイポグラフィ正本（FE11）／CSS仕様「@importは@charset・@layer以外の全ルールに先行」 | Google Fonts `@import` が `@import "tailwindcss"` の後段にありブラウザに無視されていた＝webfontが一度も読まれていない。仕様外の Montserrat は削除し、正本側の Noto Sans JP は `<link>` で実効化する。**COMPLETE (2026-07-25)**: 未コミット。下記実行記録を参照 | **可**。dead `@import` 1行と仕様外 fontFamily override 1件を削除、`<link>` へ置換 | `docker compose exec frontend pnpm build`（CSS警告消滅）・`npx eslint line-reserve/src/pages/TopPage.tsx` |
 | FE12-12 | P1 | ②/③ | Sidebar change-password dialog、trimming master-select modal | `frontend/src/components/shared/Layout/Sidebar.tsx:5`、`frontend/src/features/trimming/components/TrimmingLeftColumn.tsx:10` | Vite `INEFFECTIVE_DYNAMIC_IMPORT` / `frontend/CLAUDE.md` Import境界Lint MANDATORY | eager consumerを所有concrete moduleへ向け、barrel経由でlazy payloadを静的巻き込みする2経路を削除する。**COMPLETE (2026-07-25)**: commit `0804c400e`。`MasterSelectModal` chunk 0.07→2.47 kB、該当warning消滅。下記実行記録を参照 | **可**。見せかけのlazy importと専用`Suspense`を削除し、公開barrelとlazy modal自体は維持 | `docker compose exec frontend pnpm build`、`docker compose exec frontend npx vitest run src/components/shared/Layout/Sidebar.test.tsx src/features/trimming/components/TrimmingFormColumns.test.tsx src/features/trimming/components/TrimmingListTable.test.tsx` |
+| FE12-13 | P1 | ①/②/③ | route判定表 119 axis cells | route table、関連実行ledgers、current route code | 完了unit・裁定済み例外とroute判定表のdriftをcurrent code証跡で解消する | axis cellだけを`✅`/`🔒`へ置換し、held clinical cellsを保持する。**PARTIAL / BLOCKED (2026-07-25)**: 110セル反映。C18 audit非greenの8セルと残存inline通貨の1セルは未反映。下記ledger参照 | **可**。stale task ID 110件を最終記号へ置換。source追加・変更0 | column限定distribution、marker限定field count、`docker compose exec frontend pnpm design-audit`、current-code route evidence |
 <!-- FE12-TASK-TABLE-END -->
 
 ## C18 解消バッチ
@@ -828,7 +829,8 @@
 - **ポインタmappingは機能しない（発見）**: 初回は `*uuid.UUID` 等4件も追加したが、生成結果は `job_id?: string`（`string | null` ではない）で不一致。`grep -c "string | null" models.ts` → **0** であり、既存の `*string` / `*uint64` / `*bool` / `*time.Time` / `*float64` の5件も含めポインタ指定は1つも一致していない。tygo はポインタを剥がして `?:` optional へ変換する。追加した4件は証拠上deadのため削除済み（推測実装の撤回）。**既存5件×3ブロック=15行も同様にdead configであり、削除は別unit候補**（削除自体は出力不変だが `make codegen` 再実行での確認が要る）。
 - **未コミットの付随ドリフト（本unitの変更ではない）**: 再生成により audit定数7件（`AuditActionAuthPasswordChange`/`Reset`/`AdminReplace`、`AuditActionTrimmingCreate`/`Update`/`Delete`、`AuditResourceAccount`/`AuditResourceTrimming`）と `TokenBlacklist` のdoc commentが models.ts へ追随した。**Go model変更後に `make codegen` が回されずgenerated型が陳腐化していた**ことを意味する。CI の `make codegen-check` は本来これを検出する。プロセス側の指摘であり本unitでは是正しない。
 - Type-check gate（USER実行・禁止コマンドのため当方は未実行）: `docker compose exec frontend pnpm type-check` → `tsc --noEmit` 無出力・エラー0（2026-07-25 実行済）。consumer全数調査の「破壊0件」が実測で裏付けられた。
-- 全gate green。残unitは FE12-02 U10（F16決裁待ちでBLOCKED）と FE12-03（`pnpm build` chunk実測が前提）のみ。
+- **訂正（2026-07-25・FE12-13 実行中に判明）**: 本unitの列挙は**不完全だった**。`frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx:230-233` に `¥{(...\n...\n).toLocaleString()}` の**複数行**inline formatterが残存しており、14ファイルのallowlistに入っていなかった。原因は着手時の列挙に使った grep が**同一行パターン**（`¥[^ ]*toLocaleString` 等）で、行を跨ぐ式を構造的に拾えなかったこと。上記 `A5=0` / 24箇所という数値は**allowlist内では正しいが、allowlist自体が1件取りこぼしていた**。census gateは自分が列挙した範囲しか検査しないため、列挙漏れは漏れごと通過する。是正は別unit（`/accounting/close` を `formatCurrency` へ収束）。FE12-13 の該当cellは `FE12-10` のまま保持されている。
+- 上記訂正を除き全gate green。残unitは FE12-02 U10（F16決裁待ちでBLOCKED）と FE12-03（`pnpm build` chunk実測が前提）のみ。
 
 ### FE12-03 判定 ledger（2026-07-25・着手しない）
 
@@ -868,3 +870,102 @@
 - Lint/reference gates: `ESLINT_EXIT=0`（source 2ファイル、diagnosticなし）。`grep -n "@/features" frontend/src/components/shared/Layout/Sidebar.tsx` → 0行・exit 1。`grep -rn 'import("@/features' frontend/src/components frontend/src/hooks frontend/src/lib --include="*.ts" --include="*.tsx"` → 0行・exit 1。`TrimmingLeftColumn.tsx:10`はconcrete `MasterSelectTrigger` importのみ。
 - Assumption deviations / Failure Signature: none。coverage追加義務なし。full-project type-checkは規約どおり未実行。generated artifact、stage、commit、pushなし。
 - Escalated follow-up（別unit）: `frontend/src/app/router.tsx:5`の`AuthProvider` static importが`@/features/auth` barrelをeagerに保つため、`app-routes.tsx`のLogin/ForgotPassword/ResetPassword lazy splitは引き続き実効化されない。feature deep-import禁止により単純なpath差替えは不可。`AuthProvider`の公開境界再配置はarchitecture decisionとして別unitで扱う。
+
+### FE12-13 実行 ledger（2026-07-25）
+
+- Status: **PARTIAL / BLOCKED** — current codeをroute単位で再検証し、`FE12-03` 57セルを`🔒`、適合を確認した`FE12-04` 41セル・`FE12-05` 1セル・`FE12-06` 4セル・`FE12-10` 7セルを`✅`へ置換した（計110セル）。`FE12-01` 8セルは必須`design-audit`がexit 1、`/accounting/close`の`FE12-10` 1セルはinline halfwidth yen formatter残存のためtask IDを保持した。source修正は本unitのscope外。
+- Changed files / write set: `FE-refactor.md`のみ。本unitによるsource、test、index、HEAD変更はなく、stage/commit/stash/push/mergeは0。
+- Saved Prompt Validation Gate: `node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fe12-13-route-table-reconciliation.md` → `Prompt Craft Harness Validation: PASS`、`VALIDATOR_EXIT=0`。
+- Distribution before:
+  ```text
+     8 axis1 FE12-01
+    25 axis1 △ FE12-02
+    57 axis2 FE12-03
+     7 axis2 FE12-04
+     1 axis2 FE12-05
+    34 axis3 FE12-04
+     4 axis3 FE12-06
+     8 axis3 FE12-10
+  ```
+- Distribution after:
+  ```text
+     8 axis1 FE12-01
+    25 axis1 △ FE12-02
+     1 axis3 FE12-10
+  ```
+- Field count before: broad prompt command=`85 10`、`13 11`、`24 9`; marker限定route table=`85 10`。After: broad prompt command=`85 10`、`14 11`、`24 9`; marker限定route table=`85 10`。broad commandは必須FE12-13 backlog row追加により11-field rowが13→14へ増えるためbyte-identicalにはならない（prompt内gateと必須row追加の自己矛盾）。
+- Design audit: `docker compose exec frontend pnpm design-audit` → `AUDIT_EXIT=1`、`design-system-audit: C18 table cell override — 9 件`、`design-system-audit: C18 raw legacy baseline — 10 件（non-gating ratchet）`、`design-system-audit: FAIL — 9 件の違反`。9件はすべて`frontend/src/features/examinations/components/ExamPivotTable.tsx:153-347`。必須exit 0を満たさないためFE12-01 8セルは未反映。
+- **FE12-01 blockerの性質（2026-07-25 Mode 3 照合で確定）**: この9件は `bc4fe88cb feat(exams): #249 Phase 1` が追加した **別作業の新規ファイル**にあり、FE12-01 の8セルが指すroute（`/owners/:id/report`、`/accounting/new`、`/accounting/:id`、`/accounting/close`、`/accounting/close/history`、`/accounting/reports`、`/lstep/analytics`、`/settings/closing-time`）には examinations が1つも含まれない。したがって **8セルは「非準拠」ではなく「未判定」**である。原因は指示側のgate設計で、8 routeという狭い主張の証拠に**リポジトリ全体の機械gate**を課したため、無関係な箇所の違反で道連れにブロックされた。**gateの観測範囲は主張の範囲に一致させること**（本セッションで繰り返した同型ミス — 禁止パスの不可侵をadded-setで証明しようとした件と同根）。再判定はroute単位の証拠へ切り替えて行う。`ExamPivotTable.tsx` の C18違反9件の是正は #249 担当の領分。
+- FE12-03 ruling: ledgerの`Status: **不要と判定**`、`vendor-icons` 28.00 kB / gzip 9.10 kBでtree-shake済み、`**着手しない**`を根拠に、complianceを意味する`✅`でなく裁定済み例外の`🔒`を57セルへ適用した。
+- FE12-04 shared basis: `frontend/src/hooks/use-unsaved-changes.ts:15-26`が唯一の`beforeunload`購読、`frontend/src/hooks/use-side-peek-dirty.ts:25-26`が同hookを合成する。下表の34 routes / 41 cellsを個別確認し、推論のみの未確認routeは0。
+
+| FE12-04 route | Axis | Current-code citation |
+|---|---|---|
+| `/inventory/new` | ③ | `frontend/src/features/inventory/routes/InventoryForm.tsx:51` |
+| `/inventory/:id` | ③ | `frontend/src/features/inventory/routes/InventoryForm.tsx:51` |
+| `/medical-records/new` | ③ | `frontend/src/features/medical-records/routes/MedicalRecordForm.tsx:118` |
+| `/medical-records/:id` | ③ | `frontend/src/features/medical-records/routes/MedicalRecordForm.tsx:118` |
+| `/hospitalization/new` | ③ | `frontend/src/features/hospitalization/routes/HospitalizationForm.tsx:73` |
+| `/hospitalization/:id/edit` | ③ | `frontend/src/features/hospitalization/routes/HospitalizationForm.tsx:73` |
+| `/trimming/new` | ③ | `frontend/src/features/trimming/routes/TrimmingForm.tsx:92` |
+| `/trimming/:id` | ③ | `frontend/src/features/trimming/routes/TrimmingForm.tsx:92` |
+| `/examinations/new` | ②/③ | `frontend/src/features/examinations/routes/ExaminationForm.tsx:71` |
+| `/examinations/:id` | ②/③ | `frontend/src/features/examinations/routes/ExaminationForm.tsx:71` |
+| `/vaccinations/new` | ③ | `frontend/src/features/vaccinations/routes/VaccinationForm.tsx:53` |
+| `/vaccinations/:id` | ③ | `frontend/src/features/vaccinations/routes/VaccinationForm.tsx:53` |
+| `/owners/new` | ③ | `frontend/src/app/pages/OwnerFormPage.tsx:89-93` → `frontend/src/features/owners/routes/OwnerForm.tsx:57` |
+| `/owners/:id` | ③ | `frontend/src/app/pages/OwnerFormPage.tsx:89-93` → `frontend/src/features/owners/routes/OwnerForm.tsx:57` |
+| `/settings/staff` | ③ | `frontend/src/features/master/routes/StaffSettings.tsx:106` |
+| `/settings/treatment-items` | ②/③ | `frontend/src/features/master/routes/TreatmentPlanMaster.tsx:69` |
+| `/settings/diagnosis` | ②/③ | `frontend/src/features/master/routes/DiagnosisSettings.tsx:54` |
+| `/settings/animal-species` | ②/③ | `frontend/src/features/master/routes/AnimalSpeciesSettings.tsx:34` |
+| `/settings/trimming` | ③ | `frontend/src/features/master/routes/TrimmingSettings.tsx:50` |
+| `/settings/trimming-course-type` | ③ | `frontend/src/features/master/routes/TrimmingCourseTypeSettings.tsx:48` |
+| `/settings/medicine` | ②/③ | `frontend/src/features/master/routes/MedicineSettings.tsx:58` |
+| `/settings/reservation-type` | ③ | `frontend/src/features/master/routes/ReservationTypeSettings.tsx:69` |
+| `/settings/hospitalization` | ③ | `frontend/src/features/master/routes/HospitalizationSettings.tsx:37` |
+| `/settings/cage` | ③ | `frontend/src/features/master/routes/CageSettings.tsx:31` |
+| `/settings/merchandise-items` | ③ | `frontend/src/features/master/routes/MerchandiseItemSettings.tsx:36` |
+| `/settings/insurance` | ③ | `frontend/src/features/master/routes/InsuranceSettings.tsx:38` |
+| `/settings/occupations` | ③ | `frontend/src/features/master/routes/OccupationSettings.tsx:40` |
+| `/settings/permission-groups` | ③ | `frontend/src/features/master/routes/PermissionGroupSettings.tsx:54` |
+| `/settings/inquiry-templates` | ③ | `frontend/src/features/master/routes/InterviewTemplateSettings.tsx:50` |
+| `/settings/interview/chief-complaint` | ③ | `frontend/src/features/master/routes/ChiefComplaintSettings.tsx:41` |
+| `/settings/interview/templates` | ③ | `frontend/src/app/routes/settings-routes.tsx:231-233` → `frontend/src/features/master/routes/InterviewTemplateSettings.tsx:50` |
+| `/settings/shift-templates` | ②/③ | `frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx:44` |
+| `/settings/payment-methods` | ③ | `frontend/src/features/master/routes/PaymentMethodSettings.tsx:48` |
+| `/settings/campaigns` | ③ | `frontend/src/features/master/routes/CampaignSettings.tsx:44` |
+
+- FE12-05: `/hospitalization/:id`は`HospitalizationDetail`→`DailyRecordsTab`へ到達し、`frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.tsx:58-59`が`effectiveMax`/`initialDate`をplain constで計算する。`rg '\buseMemo\s*\(|^import.*\buseMemo\b'`は0件（説明commentのtokenだけ残存）。1セルを`✅`。
+- FE12-06:
+
+| Route | Current-code citation | Forbidden result |
+|---|---|---|
+| `/estimates` | `frontend/src/features/estimates/routes/EstimateList.tsx:26,196` → `../lib/is-estimate-locked-status` | `estimates/utils` / old helper path 0件 |
+| `/estimates/new` | `frontend/src/features/estimates/routes/EstimateForm.tsx:31-38,294` → `../constants` / `../lib` | 同上 |
+| `/estimates/:id` | `frontend/src/features/estimates/routes/EstimateDetail.tsx:17,45-46`（expiry inline） | 同上 |
+| `/estimates/:id/edit` | `frontend/src/features/estimates/routes/EstimateForm.tsx:31-38,294` | 同上 |
+
+  `find frontend/src frontend/liff/src frontend/line-reserve/src -type d -name utils -print`と`rg 'estimates/utils|utils/estimate-status-options|utils/is-estimate-locked-status|utils/is-estimate-expired|isEstimateExpired'`はいずれもstdout 0行。4セルを`✅`。
+- FE12-10:
+
+| Route | Evidence / result | Applied |
+|---|---|---|
+| `/accounting` | `frontend/src/features/accounting/components/AccountingListTable.tsx:24,256`; forbidden pattern 0件 | `✅` |
+| `/accounting/new` | `frontend/src/features/accounting/components/ItemListCard.tsx:17,311-314`; forbidden pattern 0件 | `✅` |
+| `/accounting/:id` | 同上、`frontend/src/features/accounting/components/RefundSection.tsx:15,62-189`; forbidden pattern 0件 | `✅` |
+| `/accounting/close` | `frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx:230-233`にmultiline `¥{(...).toLocaleString()}`残存 | `FE12-10`保持 |
+| `/accounting/close/history` | `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.tsx:17,229-329`; literal yen + formatter 0件 | `✅` |
+| `/accounting/reports` | `frontend/src/features/accounting-reports/components/DailyBreakdownTable.tsx:5,74-86`; forbidden pattern 0件 | `✅` |
+| `/medical-records` | direct list routeにhalfwidth yen + formatter 0件。`TreatmentRow.tsx:11,304,401`はhelper使用 | `✅` |
+| `/hospitalization/:id` | halfwidth yen + formatter 0件。fullwidth `￥` clusterはFE12-10 ledgerの明示的除外contract | `✅` |
+
+- Individually checked vs inferred: FE12-04=41/41 cells current consumerを個別確認（同一componentを共有するrouteは同一citationを再利用）、FE12-05=1/1、FE12-06=4/4、FE12-10=8/8。FE12-01は8/8を一括する必須machine gateを実行したが非greenのため未反映。FE12-03は57/57をcell列挙でcountし、裁定ledgerを共通根拠として適用。未申告sampling・推論flipは0。
+- `△ FE12-02`: before/afterとも`25 axis1 △ FE12-02`。axis cell差分で25セルがbyte-identicalであることを確認した。
+- Failure Signature log:
+  - attempt 1 / FE12-01 C18 gate — expected=`AUDIT_EXIT=0`、actual=`AUDIT_EXIT=1`, C18 override 9件、verification=`docker compose exec frontend pnpm design-audit`、error=`ExamPivotTable.tsx:153-347`、attempted fix=なし（source editはunit外）、result=8 cells保持 / BLOCKED。required external change=9 C18 violationの別unit是正後に再実行。
+  - attempt 1 / FE12-10 scan — expected=8 routesでliteral halfwidth yen + `.toLocaleString()` 0件、actual=同一行regexは0件だが独立reviewが`CashRegisterClosePage.tsx:230-233`のmultiline残存を検出、verification=`rg -n -U -P '¥(?s:.{0,240}?)\.toLocaleString\(' .../CashRegisterClosePage.tsx`、attempted fix=一時flipを撤回しcellを`FE12-10`へ復元、result=虚偽`✅`を回避 / 1 cell保持。
+- De-Sloppify: ledger proseは既存unit背景の再掲を避け、counts、current-code citations、FE12-03 ruling、blockerだけを保持。code/test変更0のためtest cleanup非該当。
+- Harness / loop: `santa` + `verification-loop`を実際に読了し、sequential single passを採用。stop conditionは全checklist PASSまたはgenuine blocker。deterministic gate後のfresh dual reviewer B/Cは双方PASS、critical issue 0。Bは初回同一行currency grepが見逃したmultiline残存を独立source auditで再確認し、Cはroute非axis変更0・25 held cell不変・marker各1を再確認した。レビュー前の実装passが見逃し、adversarial evidence passで検出した事項は`/accounting/close`のmultiline formatter 1件で、一時flipを撤回済み。long-running loopではないためloop monitor非該当。
+- Coverage/lint/test/build/type-check/security: docs-onlyでsource挙動変更0。prompt禁止のfull gateは未実行し、coverage thresholdを主張しない。機密情報・個人/臨床データは追加していない。generated artifactなし、stage/commit予定なしのためtracked-or-not-ignored / staged-path probeは非該当。
+- Remaining blockers / follow-ups: FE12-01はC18 audit 9件の別unit修正後に8セルを再判定する。`/accounting/close`のinline currencyは別unitでhelperへ収束後に1セルを再判定する。held `FE12-02` U10 adjudicationと、escalated `AuthProvider` barrel decisionは未着手。`manual` chunk investigationも本unit外。
