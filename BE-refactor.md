@@ -4,10 +4,24 @@
 
 - 更新日: 2026-07-25
 - 要件責任者: MinoruSoga
-- baseline HEAD: `3ea5fb067`
+- 監査baseline HEAD: `3ea5fb067`（下記「監査baseline」節の実測時点。以後の進捗で更新しない歴史的anchor）
 - 位置づけ: backendフォルダ構成監査から確定した修正候補だけを扱うround-scoped plan。BE10完了時に本ファイルを削除し、完了履歴はgit履歴と実装時の検証資産を正本とする。
 - 本期の業務目的: package境界の判断根拠と残存物の退役条件を明示し、同じ手動監査・誤検出・台帳探索を繰り返す工程を削除する。
-- 本期は計画起票のみ。BE10-1〜BE10-6の実装、Go code、`.gitignore`、`q&a.html`、ADR、scriptsの変更は行わない。
+
+### 進捗サマリー（2026-07-25 時点）
+
+| unit | 状態 | 証跡 |
+|---|---|---|
+| BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
+| BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
+| BE10-2 B0 `testdb` fixture export | **完了**（未commit） | 下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
+| BE10-2 B1〜B14 Go移設 | 未着手 | 下記batch表 |
+| BE10-3 空directory削除 | 未着手 | — |
+| BE10-4 ignore未登録 | 判断待ち | — |
+| BE10-5 `q&a.html` path drift | 未着手 | — |
+| BE10-6 package境界gate | 未着手 | BE10-1/2の判断確定後に着手 |
+
+進行原則: 1 unitずつ実行し、unit完了は次unitの着手を認可しない。各unit完了時に該当節へ実行ledgerを追記し、本表と`状態`行を同時に更新する。
 - 重複禁止:
   - `todo.md`: 直ちに着手可能な実装タスクだけを置く。本書のBE10項目を複製しない。
   - `BE-pending.md`: 着手保留・任意検証の正本。本書と重複させない。
@@ -252,7 +266,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A5のdirectory/file/consumer再実測、変更時はclinic packageの既存runtime test、route/RBAC/OpenAPI contractのscoped verificationを実行する。
 - severity: MEDIUM
 - 前提・依存: folder移動をclinic isolation・認可・臨床安全の証明にしない。route/RBAC/OpenAPIの挙動を変えない移動だけを許容し、既存runtime testを維持する。
-- 状態: 完了（2026-07-25・下記実行ledger）。残余リスクは`closing_settings_request.go`の既存`staticcheck S1016` 2件だが、これは本unitが持ち込んだものではなく別unitで扱う。
+- 状態: 完了（2026-07-25・commit `0301ae0e2`・下記実行ledger）。残余リスクは「BE10外の残余課題」R-1として別unitへ切り出した。
 
 #### BE10-1 実行ledger（2026-07-25）
 
@@ -369,7 +383,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定。B0〜B14のGo移設は未着手）
+- 状態: 対応中（Phase 0計画確定、B0完了。B1〜B14のGo移設は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -597,7 +611,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 
 | batch | file / unit | 先行 | `D` | `C` | `D ∩ C` |
 |---:|---|---:|---|---|---|
-| B0 | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
+| B0 ✅完了 | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
 | B1 | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B2 | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `∅`（`mockTransactor`原本はstaff用に残す） | `∅` |
 | B3 | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
@@ -706,6 +720,186 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
 </details>
 
+#### BE10-2 B0 実行ledger（2026-07-25）
+
+- 実行状態: `完了`。scoped実装・等価性・build/vet/test/gofmt/lint比較・legacy無変更・D6bの一時stage probeを完了した。
+- 変更file:
+  - `backend/internal/testdb/fixtures.go`（新規。指定6 exportのみ）
+  - `BE-refactor.md`（本ledger）
+- scope: B0のみ。B1〜B14、BE10-3〜BE10-6、`internal/repository`、`internal/service`は変更していない。
+- Saved Prompt Validation Gate:
+
+  ```text
+  $ node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-2-b0-testdb-fixture-exports.md
+  Prompt Craft Harness Validation: PASS
+  Profile: standard (declared-risk-tier)
+  Target: agent (detected)
+  Quality mode: standard
+  validator_exit_status=0
+  ```
+
+- D1 baseline:
+
+  ```text
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte rev-parse --short HEAD
+  3cf2eb8e6
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte status --porcelain -- backend BE-refactor.md
+   M backend/internal/pet/chronic_condition_repository.go
+   M backend/internal/pet/chronic_condition_repository_test.go
+  ```
+
+  上記2 pathはB0開始前から存在するallowlist外の他writer差分として保存し、本unitでは触れていない。生成時HEAD `bcbdb5101`との差はContext差分であり、Assumption deviationではない。
+
+- D1/D9 scoped lint（両回とも同一command）:
+
+  ```text
+  $ docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM --entrypoint golangci-lint backend run ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0
+  internal/testdb/testdb.go:100:10: error returned from external package is unwrapped: sig: func (*gorm.io/gorm.DB).AutoMigrate(dst ...interface{}) error (wrapcheck)
+                  return err
+                         ^
+  1 issues:
+  * wrapcheck: 1
+  ```
+
+  baseline/変更後ともexit=1。Compose timestamp・一時container ID行を除いたdiagnostic diffは`(empty)`、exit=0、新規指摘は0件。`testdb.go:100`の1件はpre-existingで、本unitでは修正していない。baseline保存先は`/tmp/animalekarte-be10-2-b0-d1.y9pHR2/lint-baseline.txt`、変更後は同directoryの`lint-after.txt`。
+
+- D2 source body baseline: `/tmp/animalekarte-be10-2-b0-d2.ZHO5YD`へ6 `.src`を保存した。行数は次のとおり。
+
+  ```text
+         6 makeDoctor.src
+        13 makeHistoryMedicalRecord.src
+         6 makeInsuranceMaster.src
+         8 makePetWithInsurance.src
+        13 makeSpeciesAndPet.src
+         9 seedClinicsForFK.src
+        55 total
+  ```
+
+- D3 package-local依存: 6 bodyはいずれもrepository package-local helperを呼ばない。既存`testdb` exportへの差し替え、同file内の非export helper追加はともに0件。
+- D4 export surface:
+
+  ```text
+  $ grep -n '^func [A-Z]' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/*.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:17:func MakeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:32:func MakeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:40:func MakeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:55:func SeedClinicsForFK(t *testing.T, db *gorm.DB, clinicIDs ...uint64) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:66:func MakeInsurance(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Insurance {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/fixtures.go:74:func MakePetWithInsurance(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, insuranceID *uint64, name string) *model.Pet {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/surface_test.go:9:func TestExportedSchemaSurface(t *testing.T) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:59:func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:109:func MarkAutoMigrated(models ...any) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:119:func CloseSharedTestDB() {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:129:func SetupTestDB(t *testing.T) *gorm.DB {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:156:func EnsureClinicSettingsTable(t *testing.T, db *gorm.DB) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:198:func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go:218:func SetupIsolatedTestDB(t *testing.T) *gorm.DB {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb_test.go:15:func TestQuotePostgresIdentifier(t *testing.T) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb_test.go:40:func TestIsDuplicateDatabaseError(t *testing.T) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb_test.go:80:func TestEnumValuesEqual_TestEnumAppendedValues(t *testing.T) {
+  non_test_export_count=13
+  ```
+
+  `_test.go`内の`Test*`は上の非test export countから除外した。指定6名は各1件、既存7名も各1件で衝突なし。
+
+- D5 body逐語照合: 6件ともsignatureの関数名変更（許容分類①）だけで、body差分は0行。
+
+  ```text
+  makeSpeciesAndPet:
+  1c1
+  < func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+  ---
+  > func MakeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+
+  makeDoctor:
+  1c1
+  < func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+  ---
+  > func MakeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+
+  makeHistoryMedicalRecord:
+  1c1
+  < func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+  ---
+  > func MakeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+
+  seedClinicsForFK:
+  1c1
+  < func seedClinicsForFK(t *testing.T, db *gorm.DB, clinicIDs ...uint64) {
+  ---
+  > func SeedClinicsForFK(t *testing.T, db *gorm.DB, clinicIDs ...uint64) {
+
+  makeInsuranceMaster:
+  1c1
+  < func makeInsuranceMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Insurance {
+  ---
+  > func MakeInsurance(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Insurance {
+
+  makePetWithInsurance:
+  1c1
+  < func makePetWithInsurance(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, insuranceID *uint64, name string) *model.Pet {
+  ---
+  > func MakePetWithInsurance(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, insuranceID *uint64, name string) *model.Pet {
+  ```
+
+- D7/D8 scoped verification:
+
+  ```text
+  $ docker compose exec backend go build ./internal/testdb/...
+  (empty)
+  build_exit_status=0
+  $ docker compose exec backend go vet ./internal/testdb/...
+  (empty)
+  vet_exit_status=0
+  $ docker compose exec backend go test ./internal/testdb/... -count=1 -p 1
+  ok  	github.com/animal-ekarte/backend/internal/testdb	0.002s
+  test_exit_status=0
+  $ docker compose exec backend gofmt -l internal/testdb/
+  (empty)
+  gofmt_exit_status=0
+  ```
+
+- D6 legacy無変更:
+
+  ```text
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte diff --name-only -- backend/internal/repository backend/internal/service
+  (empty)
+  $ grep -rn 'func makeSpeciesAndPet\|func makeDoctor(\|func makeHistoryMedicalRecord\|func seedClinicsForFK\|func makeInsuranceMaster\|func makePetWithInsurance' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/isolation_test_helpers_test.go:26:func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/isolation_test_helpers_test.go:55:func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/be9_2c_r3_test_helper_carrier_test.go:64:func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/staff_preload_clinic_isolation_test.go:31:func seedClinicsForFK(t *testing.T, db *gorm.DB, clinicIDs ...uint64) {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/cross_clinic_preload_isolation_test.go:26:func makeInsuranceMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Insurance {
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/cross_clinic_preload_isolation_test.go:33:func makePetWithInsurance(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, insuranceID *uint64, name string) *model.Pet {
+  ```
+
+- De-Sloppify: 新規fileに未使用import・重複helper・console log・commented-out codeはなく、copyしたbodyを変更するcleanupは行っていない。cleanup差分0のため追加の再検証対象なし。
+- D6b tracked/staged-path probe:
+
+  ```text
+  $ git check-ignore -v backend/internal/testdb/fixtures.go
+  (empty)
+  check_ignore_exit_status=1
+  $ git add backend/internal/testdb/fixtures.go BE-refactor.md
+  git_add_exit_status=0
+  $ git diff --cached --name-only
+  BE-refactor.md
+  backend/internal/testdb/fixtures.go
+  cached_names_exit_status=0
+  $ git restore --staged backend/internal/testdb/fixtures.go BE-refactor.md
+  restore_staged_exit_status=0
+  $ git status --porcelain -- backend BE-refactor.md
+   M BE-refactor.md
+   M backend/internal/pet/chronic_condition_repository.go
+   M backend/internal/pet/chronic_condition_repository_test.go
+  ?? backend/internal/testdb/fixtures.go
+  d6b_status_diff_exit_status=0
+  ```
+
+  D6b前後のporcelainはbyte同一で、indexはprobe前の状態へ復元した。
+- Failure Signature log: none。
+- Assumption deviations: none。
+
 ### BE10-3 — 空の`internal/repository/*` 15 directory
 
 - 規約根拠: `backend/CODING_RULES.md:17`の機械的複製を避ける方針。git管理下のpackage違反ではなくworking-tree残骸である。
@@ -779,12 +973,24 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
 ## Acceptance Checklist
 
-- [ ] **AC-BE10-1 clinic境界**: BE10-1が「parent統合」または「ADR根拠追加」のどちらかで判断確定し、実装した場合はroute/RBAC/OpenAPI/runtime testを維持して`完了`となる。実装不能な外部判断が残る場合は、判断者・必要入力・再開条件を記録して`判断待ち`とする。
-- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先が確定し、移設完了後にlegacy production/test/importが0である。未決なら必要なowner決裁と再開条件を記録して`判断待ち`とする。
+- [x] **AC-BE10-1 clinic境界**: 「①parent統合」で確定し実装完了（`0301ae0e2`）。route/RBAC/OpenAPIは非変更、test名と`clinic_id`述語は逐語一致、build/vet/test/gofmtはgreen、独立レビュー2本severity 0。
+- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B1〜B14を完了させ、legacy production/test/importが0になること。B0は完了。
 - [ ] **AC-BE10-3 空directory**: 他session所有権確認後に15 directoryを削除し、同じ`find`が0件となる。
 - [ ] **AC-BE10-4 ignore/削除**: `.ruff_cache`、`.wrangler`、空`.git`についてignoreまたは削除方針を確定し、選択した検証がPASSする。tool再生成の判断待ちは再開条件付きで記録する。
 - [ ] **AC-BE10-5 docs drift**: `q&a.html`の5行を現行pathへ更新し、旧layer path grepが0件となる。
 - [ ] **AC-BE10-6 package gate**: BE10-1/2の決定後に専用gateとmutation自己テストを追加し、実treeでPASSする。
 - [ ] **AC-BE10状態収束**: BE10-1〜6がすべて`完了`または再開条件付き`判断待ち`で確定し、`未着手`/`対応中`が0件となる。
 - [ ] **todo.mdへ戻す条件**: 判断が確定し直ちに実装可能になったunitだけを`todo.md`の「個別タスク詳細」へ一意なtaskとして移す。移管時は本書側を実行ledgerに更新し、同じ仕様本文を二重掲出しない。
+- [ ] **残余課題の住所確定（round終了の前提）**: 下記「BE10外の残余課題」2件を`todo.md`の「個別タスク詳細」へ移し、本書からの参照を消す。本書はround終了時に削除されるため、移管前に削除すると2件が失われる。
 - [ ] **round終了**: 全unitの収束、残余リスク、scoped verificationを記録後、本ファイルを削除する。恒久規約はADR-006/CODING_RULES、完了証跡はgit履歴とtest/gateを正本とする。
+
+## BE10外の残余課題（`todo.md`へ移管して本書から消す）
+
+BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった既存の技術債。本書の削除で失わないため、round終了前に`todo.md`へ移す。**BE10のどのunitでもdrive-by修正しない。**
+
+| # | 対象 | 内容 | 発見元 |
+|---|---|---|---|
+| R-1 | `backend/internal/clinic/closing_settings_request.go:11`, `:46` | 既存`staticcheck S1016` 2件。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput`、`UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput`をstruct literalではなく型変換で書くべきという指摘。宣言元は`closing_settings_request.go:3`/`:37`と`closing_settings_service.go:63`/`:80` | BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、本unitが持ち込んだものではない |
+| R-2 | `backend/internal/testdb/testdb.go:100` | 既存`wrapcheck` 1件。`gorm.DB.AutoMigrate`のerrorを未wrapで返している | BE10-2 B0のlint baseline。B0の変更前後で同一 |
+
+いずれもproduction runtimeに影響しない（`internal/testdb`はproduction importer 0件のtest専用package、`closing_settings_request.go`はDTO変換）。修正は独立unitで行い、scoped lintで0件化を確認する。
