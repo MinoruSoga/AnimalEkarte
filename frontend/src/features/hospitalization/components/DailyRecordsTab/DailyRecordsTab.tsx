@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo, useState, useCallback, useEffect, useMemo, useRef, useTransition } from "react";
+import { memo, useState, useCallback, useEffect, useRef, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -55,14 +55,8 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     const currentUserId = Number(user?.id ?? 0);
     // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
     const today = getTodayStr();
-    const effectiveMax = useMemo(
-        () => (dischargeDate && dischargeDate < today ? dischargeDate : today),
-        [dischargeDate, today]
-    );
-    const initialDate = useMemo(
-        () => clampDate(today, admissionDate, effectiveMax),
-        [today, admissionDate, effectiveMax]
-    );
+    const effectiveMax = dischargeDate && dischargeDate < today ? dischargeDate : today;
+    const initialDate = clampDate(today, admissionDate, effectiveMax);
 
     const [selectedDate, setSelectedDate] = useState(initialDate);
 
