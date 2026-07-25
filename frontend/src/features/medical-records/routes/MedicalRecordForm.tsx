@@ -56,6 +56,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     activeTab,
     setActiveTab,
     selectedPet,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
@@ -289,6 +290,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       >
       <MedicalRecordStickyHeader
         selectedPet={selectedPet}
+        cohabitingPets={cohabitingPets}
         staffName={staffName}
         visitType={visitType}
         visitCount={visitCount ?? 0}

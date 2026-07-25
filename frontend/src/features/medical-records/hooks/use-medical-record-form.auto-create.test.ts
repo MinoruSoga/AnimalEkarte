@@ -53,7 +53,10 @@ function runFormAction(action: (payload: FormData) => void) {
   });
 }
 
-vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
+  useGetPets: vi.fn(() => ({ data: [], isLoading: false, isError: false })),
+}));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));

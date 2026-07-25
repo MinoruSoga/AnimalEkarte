@@ -1,10 +1,13 @@
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
+import { Link } from "react-router";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
+import { cn } from "@/lib/utils";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
 import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
@@ -29,6 +32,7 @@ import type { InterviewHistoryItem } from "../types";
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
+  cohabitingPets: Pet[];
   staffName: string;
   visitType: string;
   visitCount: number;
@@ -47,8 +51,47 @@ interface MedicalRecordStickyHeaderProps {
   hasLineIntegration?: boolean;
 }
 
+const CohabitingPetChips = memo(function CohabitingPetChips({
+  pets,
+}: {
+  pets: Pet[];
+}) {
+  return (
+    <section
+      aria-label="同居ペット"
+      className={cn(
+        "flex items-center gap-1.5 overflow-x-auto rounded-md p-2 [&::-webkit-scrollbar]:hidden",
+        C.bgPage30,
+      )}
+      style={{ scrollbarWidth: "none" }}
+    >
+      <span className={`shrink-0 text-xs ${C.text50}`}>同居ペット</span>
+      <div className="flex min-w-max gap-1.5">
+        {pets.map((pet) => {
+          const label = pet.species ? `${pet.name}（${pet.species}）` : pet.name;
+          return (
+            <Link
+              key={pet.id}
+              to={`${paths.medicalRecords.getHref()}?pet_id=${encodeURIComponent(pet.id)}`}
+              className={cn(
+                "h-8 shrink-0 rounded-md border bg-white px-2.5 text-sm leading-8 whitespace-nowrap transition-colors",
+                C.text,
+                C.borderMedium,
+                C.hoverBgLight,
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+});
+
 export function MedicalRecordStickyHeader({
   selectedPet,
+  cohabitingPets,
   staffName,
   visitType,
   visitCount,
@@ -183,6 +226,9 @@ export function MedicalRecordStickyHeader({
         onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
+      {!isNewRecord && cohabitingPets.length > 0 ? (
+        <CohabitingPetChips pets={cohabitingPets} />
+      ) : null}
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
         <UnifiedTabsList items={tabs} />
       </div>

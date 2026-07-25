@@ -14,6 +14,10 @@ interface GetPetsOptions {
   includeDeceased?: boolean;
 }
 
+interface GetPetsQueryOptions {
+  enabled?: boolean;
+}
+
 /**
  * Shared hook for fetching a single pet by ID.
  * Uses the same query key as features/pets to share React Query cache.
@@ -35,7 +39,11 @@ export function useGetPet(petId: string) {
  * Shared hook for fetching a list of pets, optionally filtered by ownerId.
  * Uses the same query key as features/pets to share React Query cache.
  */
-export function useGetPets(ownerId?: string, options: GetPetsOptions = {}) {
+export function useGetPets(
+  ownerId?: string,
+  options: GetPetsOptions = {},
+  queryOptions: GetPetsQueryOptions = {},
+) {
   return useQuery({
     queryKey: queryKeys.pets.list(ownerId, options),
     queryFn: async (): Promise<Pet[]> => {
@@ -46,6 +54,7 @@ export function useGetPets(ownerId?: string, options: GetPetsOptions = {}) {
       const { data } = await axios.get<PetListResponse>("/v1/pets", { params });
       return data.data.map(transformBackendPetToFrontend);
     },
+    enabled: queryOptions.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

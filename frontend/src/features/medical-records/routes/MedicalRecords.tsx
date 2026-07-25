@@ -1,6 +1,6 @@
 // React/Framework
 import { useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 // Auth
 import { useClinicScope } from "@/hooks/use-clinic-scope";
@@ -86,6 +86,8 @@ const MEDICAL_RECORDS_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
 export function MedicalRecords() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const petId = searchParams.get("pet_id") || undefined;
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMedicalRecords);
   const { canView: canViewAccounting } = usePermission(ResourceAccounting);
   const {
@@ -117,7 +119,7 @@ export function MedicalRecords() {
   }, [staffs, activeSpecies]);
 
   // rerender-derived-state-no-effect: 検索/フィルタが変わったら1ページ目へリセット（useEffect不使用）
-  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}`;
+  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
   const {
     currentPage,
     sortKey,
@@ -132,6 +134,7 @@ export function MedicalRecords() {
     searchTerm: deferredSearch,
     activeFilters,
     clinicIds: clinicIdsForApi,
+    petId,
     page: currentPage,
     limit: PAGE_SIZE,
     sort: sortKey,

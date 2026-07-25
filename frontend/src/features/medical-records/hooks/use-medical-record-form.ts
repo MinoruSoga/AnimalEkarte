@@ -1,8 +1,8 @@
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useState, useRef, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetPet } from "@/hooks/use-pet";
+import { useGetPet, useGetPets } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
@@ -29,6 +29,15 @@ import {
   normalizeAppointmentId,
   normalizeVisitDate,
 } from "./use-medical-record-form-model";
+import type { Pet } from "@/types";
+
+export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
+  return pets.filter((pet) =>
+    pet.ownerId === selectedPet.ownerId
+    && pet.id !== selectedPet.id
+    && pet.status !== "死亡"
+  );
+}
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -99,6 +108,18 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // Petデータを取得
   const { data: selectedPet, isLoading: isPetLoading } = useGetPet(resolvedPetId);
+  const cohabitingOwnerId = !isNewRecord ? selectedPet?.ownerId : undefined;
+  const { data: ownerPets = [] } = useGetPets(
+    cohabitingOwnerId,
+    { includeDeceased: true },
+    { enabled: Boolean(cohabitingOwnerId) },
+  );
+  const cohabitingPets = useMemo(
+    () => !isNewRecord && selectedPet
+      ? selectCohabitingPets(ownerPets, selectedPet)
+      : [],
+    [isNewRecord, ownerPets, selectedPet],
+  );
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
@@ -238,6 +259,7 @@ export function useMedicalRecordForm(recordId?: string) {
     visitType,
     setVisitType,
     selectedPet: selectedPet ?? null,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,

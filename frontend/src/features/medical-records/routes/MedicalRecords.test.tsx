@@ -135,14 +135,32 @@ function LocationProbe() {
   );
 }
 
-function renderPage() {
+function renderPage(initialEntry = "/medical-records") {
   return render(
-    <MemoryRouter initialEntries={["/medical-records"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <MedicalRecords />
       <LocationProbe />
     </MemoryRouter>,
   );
 }
+
+describe("MedicalRecords pet_id route filter", () => {
+  it("URL の pet_id をAPIフィルタへ渡す", () => {
+    renderPage("/medical-records?pet_id=22");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ petId: "22" }),
+    );
+  });
+
+  it("pet_id が無いURLでは従来どおりpetIdを未指定にする", () => {
+    renderPage();
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ petId: undefined }),
+    );
+  });
+});
 
 describe("MedicalRecords 一覧テーブル (DESIGN.md ex-data-table-cell)", () => {
   it("テーブルヘッダーが sectionLabel（eyebrow 相当）で表示される", () => {
