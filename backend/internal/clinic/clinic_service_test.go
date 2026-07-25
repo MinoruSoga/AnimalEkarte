@@ -1,4 +1,4 @@
-package service
+package clinic
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -30,7 +29,7 @@ type mockClinicRepository struct {
 	deleteFn                func(ctx context.Context, id uint64) error
 	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
 	countStaffByClinicIDFn  func(ctx context.Context, clinicID uint64) (int64, error)
-	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]clinicdomain.ClinicDependencyCount, error)
+	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error)
 }
 
 // DeleteSoftDeletedByClinicID keeps the shared permission-group mock compatible with
@@ -112,7 +111,7 @@ func (m *mockClinicRepository) CountStaffByClinicID(ctx context.Context, clinicI
 	return m.countStaffByClinicIDFn(ctx, clinicID)
 }
 
-func (m *mockClinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]clinicdomain.ClinicDependencyCount, error) {
+func (m *mockClinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error) {
 	if m.countBlockingRefsFn == nil {
 		return nil, nil
 	}
@@ -163,7 +162,7 @@ func TestClinicService_ListClinics(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinics, err := svc.ListClinics(context.Background())
 
@@ -218,7 +217,7 @@ func TestClinicService_ListClinicsByStaffID(t *testing.T) {
 				},
 			}
 			pgRepo := &mockPermissionGroupRepository{}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinics, err := svc.ListClinicsByStaffID(context.Background(), tt.staffID)
 
@@ -279,7 +278,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinic, err := svc.GetClinicByID(context.Background(), tt.id)
 
@@ -348,7 +347,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			result, err := svc.CreateClinic(context.Background(), tt.input)
 
@@ -405,7 +404,7 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 		},
 	}
 
-	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新規院"})
 
@@ -480,8 +479,8 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			name: "updates clinic successfully and returns fresh record from DB",
 			id:   1,
 			input: &UpdateClinicInput{
-				Name:    strPtr("更新後院"),
-				Address: strPtr("東京都渋谷区"),
+				Name:    clinicStringPtr("更新後院"),
+				Address: clinicStringPtr("東京都渋谷区"),
 			},
 			repoClinic: &model.Clinic{
 				ID:        1,
@@ -496,7 +495,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 		{
 			name:        "returns not found error when clinic does not exist",
 			id:          999,
-			input:       &UpdateClinicInput{Name: strPtr("存在しない院")},
+			input:       &UpdateClinicInput{Name: clinicStringPtr("存在しない院")},
 			repoClinic:  nil,
 			repoFindErr: apperrors.WrapNotFound("clinic", "999"),
 			wantErr:     true,
@@ -505,7 +504,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 		{
 			name:  "returns error on update failure",
 			id:    1,
-			input: &UpdateClinicInput{Name: strPtr("更新後院")},
+			input: &UpdateClinicInput{Name: clinicStringPtr("更新後院")},
 			repoClinic: &model.Clinic{
 				ID:        1,
 				CompanyID: 5,
@@ -530,7 +529,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.input)
 
@@ -559,7 +558,7 @@ func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, nil)
 
@@ -581,7 +580,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{})
 
@@ -602,7 +601,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{StandardTaxRate: &invalidRate})
 
@@ -626,9 +625,9 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
-	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: strPtr("新院名")})
+	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: clinicStringPtr("新院名")})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -640,11 +639,11 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 // 指定フィールドは実カラム名付きでマップへ入り、nil フィールドは省略される（既存値保持）。
 func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 	t.Run("指定した帳票設定が実カラム名付きで更新マップへ入る", func(t *testing.T) {
-		fields, err := buildClinicUpdate(&UpdateClinicInput{
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentShowLogo:                clinicBoolPtr(true),
 			AccountingDocumentShowRegistrationWarning: clinicBoolPtr(false),
 			AccountingDocumentShowItemCategory:        clinicBoolPtr(false),
-			AccountingDocumentFooterNote:              strPtr("ご来院ありがとうございました。"),
+			AccountingDocumentFooterNote:              clinicStringPtr("ご来院ありがとうございました。"),
 		})
 
 		assert.NoError(t, err)
@@ -655,8 +654,8 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 	})
 
 	t.Run("空フッター文字列も明示更新として反映される（明示クリア可能）", func(t *testing.T) {
-		fields, err := buildClinicUpdate(&UpdateClinicInput{
-			AccountingDocumentFooterNote: strPtr(""),
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{
+			AccountingDocumentFooterNote: clinicStringPtr(""),
 		})
 
 		assert.NoError(t, err)
@@ -666,7 +665,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 	})
 
 	t.Run("未指定（nil）の帳票設定は更新マップへ入らない（PATCH: 既存値保持）", func(t *testing.T) {
-		fields, err := buildClinicUpdate(&UpdateClinicInput{Name: strPtr("更新後院")})
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{Name: clinicStringPtr("更新後院")})
 
 		assert.NoError(t, err)
 		for _, col := range []string{
@@ -687,7 +686,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 
 	t.Run("#190: セクション表示トグルが実カラム名付きで更新マップへ入る", func(t *testing.T) {
 		f := false
-		fields, err := buildClinicUpdate(&UpdateClinicInput{
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentShowClinicHeader:   &f,
 			AccountingDocumentShowOwnerPetInfo:   &f,
 			AccountingDocumentShowItemsTable:     &f,
@@ -703,7 +702,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 
 	t.Run("#190: 有効なセクション順序が更新マップへ入る", func(t *testing.T) {
 		order := []string{"payment_summary", "items_table", "clinic_header", "owner_pet_info", "footer_note"}
-		fields, err := buildClinicUpdate(&UpdateClinicInput{
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentSectionOrder: &order,
 		})
 
@@ -715,7 +714,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 
 	t.Run("#190: 空の順序配列はデフォルト順リセットとして更新マップへ入る", func(t *testing.T) {
 		empty := []string{}
-		fields, err := buildClinicUpdate(&UpdateClinicInput{
+		fields, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentSectionOrder: &empty,
 		})
 
@@ -727,7 +726,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 
 	t.Run("#190: 未知のセクションキーはエラーになる", func(t *testing.T) {
 		invalid := []string{"clinic_header", "unknown_section"}
-		_, err := buildClinicUpdate(&UpdateClinicInput{
+		_, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentSectionOrder: &invalid,
 		})
 
@@ -737,7 +736,7 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 
 	t.Run("#190: 重複セクションキーはエラーになる", func(t *testing.T) {
 		dup := []string{"clinic_header", "items_table", "clinic_header"}
-		_, err := buildClinicUpdate(&UpdateClinicInput{
+		_, err := BuildClinicUpdate(&UpdateClinicInput{
 			AccountingDocumentSectionOrder: &dup,
 		})
 
@@ -757,37 +756,37 @@ func TestBuildClinicUpdate_TaxRateValidation(t *testing.T) {
 	}{
 		{
 			name:             "有効な税率は更新マップへ入る",
-			standardTaxRate:  ptrFloat64(0.10),
-			reducedTaxRate:   ptrFloat64(0.08),
+			standardTaxRate:  clinicFloat64Ptr(0.10),
+			reducedTaxRate:   clinicFloat64Ptr(0.08),
 			wantErr:          false,
 			wantStandardRate: 0.10,
 			wantReducedRate:  0.08,
 		},
 		{
 			name:            "standard_tax_rate が1を超える場合はエラー",
-			standardTaxRate: ptrFloat64(1.5),
+			standardTaxRate: clinicFloat64Ptr(1.5),
 			wantErr:         true,
 		},
 		{
 			name:            "standard_tax_rate が負の場合はエラー",
-			standardTaxRate: ptrFloat64(-0.1),
+			standardTaxRate: clinicFloat64Ptr(-0.1),
 			wantErr:         true,
 		},
 		{
 			name:           "reduced_tax_rate が1を超える場合はエラー",
-			reducedTaxRate: ptrFloat64(1.1),
+			reducedTaxRate: clinicFloat64Ptr(1.1),
 			wantErr:        true,
 		},
 		{
 			name:           "reduced_tax_rate が負の場合はエラー",
-			reducedTaxRate: ptrFloat64(-0.01),
+			reducedTaxRate: clinicFloat64Ptr(-0.01),
 			wantErr:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fields, err := buildClinicUpdate(&UpdateClinicInput{
+			fields, err := BuildClinicUpdate(&UpdateClinicInput{
 				StandardTaxRate: tt.standardTaxRate,
 				ReducedTaxRate:  tt.reducedTaxRate,
 			})
@@ -816,7 +815,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 		staffCount    int64
 		countOwnerErr error
 		countStaffErr error
-		blockingRefs  []clinicdomain.ClinicDependencyCount
+		blockingRefs  []ClinicDependencyCount
 		blockingErr   error
 		lockErr       error
 		repoErr       error
@@ -892,7 +891,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			id:           1,
 			ownerCount:   0,
 			staffCount:   0,
-			blockingRefs: []clinicdomain.ClinicDependencyCount{{Label: "予約", Count: 2}},
+			blockingRefs: []ClinicDependencyCount{{Label: "予約", Count: 2}},
 			wantErr:      true,
 			wantConflict: true,
 		},
@@ -934,7 +933,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			id:           1,
 			ownerCount:   0,
 			staffCount:   0,
-			blockingRefs: []clinicdomain.ClinicDependencyCount{{Label: "権限グループ", Count: 1}},
+			blockingRefs: []ClinicDependencyCount{{Label: "権限グループ", Count: 1}},
 			repoErr:      nil,
 			wantErr:      true,
 			wantConflict: true,
@@ -968,7 +967,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 				countStaffByClinicIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.staffCount, tt.countStaffErr
 				},
-				countBlockingRefsFn: func(_ context.Context, _ uint64) ([]clinicdomain.ClinicDependencyCount, error) {
+				countBlockingRefsFn: func(_ context.Context, _ uint64) ([]ClinicDependencyCount, error) {
 					return tt.blockingRefs, tt.blockingErr
 				},
 				deleteFn: func(_ context.Context, _ uint64) error {
@@ -978,7 +977,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			err := svc.DeleteClinic(context.Background(), tt.id)
 
@@ -1038,7 +1037,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			calls = append(calls, "count-staff")
 			return 0, nil
 		}
-		repo.countBlockingRefsFn = func(ctx context.Context, id uint64) ([]clinicdomain.ClinicDependencyCount, error) {
+		repo.countBlockingRefsFn = func(ctx context.Context, id uint64) ([]ClinicDependencyCount, error) {
 			assert.Equal(t, txMarker, ctx.Value(clinicDeleteTxMarkerKey{}))
 			assert.Equal(t, clinicID, id)
 			calls = append(calls, "count-blocking-references")
@@ -1053,7 +1052,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 				return nil
 			},
 		}
-		tx := &mockTransactor{
+		tx := &clinicServiceTransactorDouble{
 			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
 				txCtx := context.WithValue(ctx, clinicDeleteTxMarkerKey{}, txMarker)
 				return fn(txCtx)
@@ -1088,7 +1087,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &mockTransactor{}).
+		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, cleanupErr)
@@ -1109,7 +1108,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &mockTransactor{}).
+		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, deleteErr)
@@ -1132,7 +1131,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &mockTransactor{withTxErr: txErr}).
+		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{withTxErr: txErr}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, txErr)
@@ -1145,8 +1144,8 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			t.Fatal("clinic delete must not run for an active permission group")
 			return nil
 		})
-		repo.countBlockingRefsFn = func(_ context.Context, _ uint64) ([]clinicdomain.ClinicDependencyCount, error) {
-			return []clinicdomain.ClinicDependencyCount{{Label: "権限グループ", Count: 1}}, nil
+		repo.countBlockingRefsFn = func(_ context.Context, _ uint64) ([]ClinicDependencyCount, error) {
+			return []ClinicDependencyCount{{Label: "権限グループ", Count: 1}}, nil
 		}
 		pgRepo := &mockClinicPermissionGroupWriter{
 			mockPermissionGroupRepository: &mockPermissionGroupRepository{},
@@ -1156,7 +1155,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 		txCalled := false
-		tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		tx := &clinicServiceTransactorDouble{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
 			txCalled = true
 			return fn(ctx)
 		}}

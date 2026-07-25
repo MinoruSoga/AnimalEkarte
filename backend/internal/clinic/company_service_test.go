@@ -1,4 +1,4 @@
-package service
+package clinic
 
 import (
 	"context"
@@ -125,7 +125,7 @@ func TestBuildCompanyUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildCompanyUpdate(tt.input)
+			got := BuildCompanyUpdate(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
 	}

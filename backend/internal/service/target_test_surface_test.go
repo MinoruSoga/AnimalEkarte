@@ -9,45 +9,12 @@ import (
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
 
-func NewClinicHolidayService(repo clinicdomain.ClinicHolidayRepository) clinicdomain.ClinicHolidayService {
-	return clinicdomain.NewClinicHolidayService(repo)
-}
-
-type CreateClinicInput = clinicdomain.CreateClinicInput
-type UpdateClinicInput = clinicdomain.UpdateClinicInput
-
 func NewClinicService(
 	repo clinicdomain.ClinicRepository,
 	permissionGroupRepo clinicdomain.PermissionGroupWriter,
 	transactor clinicdomain.Transactor,
 ) clinicdomain.ClinicService {
 	return clinicdomain.NewClinicService(repo, permissionGroupRepo, transactor)
-}
-
-func buildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
-	return clinicdomain.BuildClinicUpdate(input)
-}
-
-type UpdateClinicSettingsInput = clinicdomain.UpdateClinicSettingsInput
-type CreateSpecialPeriodInput = clinicdomain.CreateSpecialPeriodInput
-type UpdateSpecialPeriodInput = clinicdomain.UpdateSpecialPeriodInput
-
-func NewClosingSettingsService(
-	settingsRepo clinicdomain.ClinicSettingsRepository,
-	periodRepo clinicdomain.ClosingSpecialPeriodRepository,
-	holidayRepo clinicdomain.ClinicHolidayRepository,
-) clinicdomain.ClosingSettingsService {
-	return clinicdomain.NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
-}
-
-type UpdateCompanyInput = clinicdomain.UpdateCompanyInput
-
-func NewCompanyService(repo clinicdomain.CompanyRepository) clinicdomain.CompanyService {
-	return clinicdomain.NewCompanyService(repo)
-}
-
-func buildCompanyUpdate(input *UpdateCompanyInput) map[string]any {
-	return clinicdomain.BuildCompanyUpdate(input)
 }
 
 type SetClinicAssignmentsInput = staffdomain.SetClinicAssignmentsInput
@@ -98,3 +65,8 @@ func strPtr(value string) *string {
 func ptrFloat64(value float64) *float64 {
 	return &value
 }
+
+var (
+	_ = strPtr
+	_ = ptrFloat64
+)

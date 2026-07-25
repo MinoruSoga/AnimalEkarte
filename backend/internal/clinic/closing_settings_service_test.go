@@ -1,4 +1,4 @@
-package service
+package clinic
 
 import (
 	"context"
@@ -9,12 +9,11 @@ import (
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
-	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type mockClinicSettingsRepository struct {
-	clinicdomain.ClinicSettingsRepository
+	ClinicSettingsRepository
 	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
 	saveFn           func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
 }
@@ -34,7 +33,7 @@ func (m *mockClinicSettingsRepository) Save(ctx context.Context, clinicID uint64
 }
 
 type mockClosingSpecialPeriodRepository struct {
-	clinicdomain.ClosingSpecialPeriodRepository
+	ClosingSpecialPeriodRepository
 	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
 	findByDateFn   func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
@@ -94,7 +93,7 @@ func (m *mockClosingSpecialPeriodRepository) CheckOverlap(ctx context.Context, c
 }
 
 type mockClosingClinicHolidayRepository struct {
-	clinicdomain.ClinicHolidayRepository
+	ClinicHolidayRepository
 	findByDateFn         func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
 	findAllByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
 }
