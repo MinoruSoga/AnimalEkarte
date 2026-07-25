@@ -21,6 +21,7 @@ export async function createAccountingItemsSequentially(
       tax_rate: item.taxRate,
       is_insurance_applicable: item.isInsuranceApplicable,
       source: item.source,
+      merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
       treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
       appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
       trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,

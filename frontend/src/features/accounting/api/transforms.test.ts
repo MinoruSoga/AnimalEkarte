@@ -93,6 +93,21 @@ describe("transformToAccounting", () => {
     expect(result.items[0].trimmingOptionId).toBe("40");
   });
 
+  it("merchandise_item_id を merchandiseItemId に変換する", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      items: [{ ...item, merchandise_item_id: 50 }],
+    });
+
+    expect(result.items[0].merchandiseItemId).toBe("50");
+  });
+
+  it("merchandise_item_id が無い明細では merchandiseItemId は undefined", () => {
+    const result = transformToAccounting({ ...minimal, items: [item] });
+
+    expect(result.items[0].merchandiseItemId).toBeUndefined();
+  });
+
   it("tax_rate 0.08 は 0.08 として保持する", () => {
     const result = transformToAccounting({
       ...minimal,

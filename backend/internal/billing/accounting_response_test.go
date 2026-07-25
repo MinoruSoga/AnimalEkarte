@@ -326,6 +326,31 @@ func TestToBillingItemResponse(t *testing.T) {
 	}
 }
 
+// #251 U2a-1 / BUG-436: 物販マスタ由来の provenance は応答DTOでも往復しなければならない。
+// 応答に載らないと frontend 側の型だけが当該フィールドを持ち、実行時は常に undefined になる
+// （BUG-433 と同型のサイレントな乖離）。
+func TestToBillingItemResponse_MerchandiseItemIDRoundTrips(t *testing.T) {
+	merchandiseID := uint64(77)
+
+	t.Run("emits merchandise_item_id when the item carries it", func(t *testing.T) {
+		got := ToBillingItemResponse(&model.BillingItem{
+			ID: 1, BillingID: 10, Category: model.ItemCategoryGoods, Name: "療法食",
+			UnitPrice: 1200, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+			MerchandiseItemID: &merchandiseID,
+		})
+		require.NotNil(t, got.MerchandiseItemID)
+		assert.Equal(t, merchandiseID, *got.MerchandiseItemID)
+	})
+
+	t.Run("omits merchandise_item_id for manually entered items", func(t *testing.T) {
+		got := ToBillingItemResponse(&model.BillingItem{
+			ID: 2, BillingID: 10, Category: model.ItemCategoryOther, Name: "手入力",
+			UnitPrice: 500, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+		})
+		assert.Nil(t, got.MerchandiseItemID)
+	})
+}
+
 // ---- toPaymentResponse ----
 
 func TestToPaymentResponse(t *testing.T) {

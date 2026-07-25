@@ -932,6 +932,36 @@ func TestBillingItemService_GetDiscountSuggestions(t *testing.T) {
 	}
 }
 
+func TestBillingItemService_GetDiscountSuggestions_PassesMerchandiseItemID(t *testing.T) {
+	merchandiseItemID := uint64(77)
+	repo := defaultMockBillingItemRepo()
+	repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
+		return &model.BillingItem{
+			ID:                1,
+			BillingID:         10,
+			UnitPrice:         1000,
+			Quantity:          1,
+			Category:          model.ItemCategoryGoods,
+			MerchandiseItemID: &merchandiseItemID,
+		}, nil
+	}
+	campaignRepo := &mockCampaignRepository{
+		findAllApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, got *uint64) ([]*model.Campaign, error) {
+			assert.Equal(t, &merchandiseItemID, got)
+			return nil, nil
+		},
+	}
+	svc := &billingItemService{
+		repo:         repo,
+		billingRepo:  defaultMockBillingRepo(),
+		campaignRepo: campaignRepo,
+	}
+
+	_, err := svc.GetDiscountSuggestions(context.Background(), 1, 1)
+
+	assert.NoError(t, err)
+}
+
 // ---- CreateItem: additional validation and transaction-error branches ----
 
 func TestBillingItemService_CreateItem_QuantityValidation(t *testing.T) {

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
-import type { Accounting, PaymentMethod } from "../types";
+import type { Accounting, AddAccountingItemInput, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
@@ -129,7 +129,7 @@ interface AccountingDetailColumnsProps {
   canCreate: boolean;
   canDelete: boolean;
   onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
+  onAddItem: (input: AddAccountingItemInput) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
   onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;

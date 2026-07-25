@@ -20,7 +20,7 @@ import type { TaxType } from "@/types/generated/models";
 
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
-import type { AccountingItem, ItemCategory } from "../types";
+import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
 
 import { AccountingItemRow } from "./AccountingItemRow";
 
@@ -53,7 +53,7 @@ interface ItemListCardProps {
   totalAmount: number;
   newItemOpen: boolean;
   onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
+  onAddItem: (input: AddAccountingItemInput) => void;
   onDeleteItem: (id: string) => void;
   accountingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
@@ -101,7 +101,13 @@ export const ItemListCard = memo(function ItemListCard({
 
   const handleSelectMerchandise = useCallback(
     (item: FrontendMerchandiseItem) => {
-      onAddItem(item.name, String(item.unitPrice), item.category, item.taxRate);
+      onAddItem({
+        name: item.name,
+        price: String(item.unitPrice),
+        category: item.category,
+        taxRate: item.taxRate,
+        merchandiseItemId: item.id,
+      });
     },
     [onAddItem],
   );
@@ -117,7 +123,7 @@ export const ItemListCard = memo(function ItemListCard({
     }
 
     setManualPriceError("");
-    onAddItem(name, manualPrice, "other");
+    onAddItem({ name, price: manualPrice, category: "other" });
     setManualName("");
     setManualPrice("");
     onNewItemOpenChange(false);

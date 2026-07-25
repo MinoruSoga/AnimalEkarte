@@ -235,6 +235,11 @@ components:
           type: integer
           format: int64
           nullable: true
+        merchandise_item_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 物販マスタ由来の明細に紐づく商品ID（#251 U2a-1／BUG-436）
         sort_order:
           type: integer
         created_at:

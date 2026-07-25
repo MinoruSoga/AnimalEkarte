@@ -127,6 +127,7 @@ type BillingItemResponse struct {
 	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
 	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
+	MerchandiseItemID     *uint64   `json:"merchandise_item_id,omitempty"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`
 }
@@ -154,6 +155,7 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		AppointmentID:         item.AppointmentID,
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,
+		MerchandiseItemID:     item.MerchandiseItemID,
 		SortOrder:             item.SortOrder,
 		CreatedAt:             httpapi.LocalTime(item.CreatedAt),
 	}

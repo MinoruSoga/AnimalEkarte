@@ -11,7 +11,7 @@ import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 import { createBillingItem } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
-import type { AccountingItem, ItemCategory } from "../types";
+import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
 
 interface UseAccountingItemActionsParams {
   accountingId: string | undefined;
@@ -35,7 +35,7 @@ export function useAccountingItemActions({
   startItemUpdateTransition,
 }: UseAccountingItemActionsParams) {
   const handleAddItem = useCallback(
-    (name: string, price: string, category: string, taxRate?: number) => {
+    ({ name, price, category, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
       const unitPrice = parseInt(price, 10);
       const qty = 1;
       const rate = taxRate ?? DEFAULT_STANDARD_TAX_RATE;
@@ -54,6 +54,7 @@ export function useAccountingItemActions({
         subtotal: unitPrice * qty,
         isInsuranceApplicable: false,
         source: "manual",
+        merchandiseItemId,
       };
 
       setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
@@ -72,6 +73,7 @@ export function useAccountingItemActions({
               tax_rate: rate,
               is_insurance_applicable: false,
               source: "manual",
+              merchandise_item_id: merchandiseItemId ? Number(merchandiseItemId) : undefined,
             });
             await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
             setLocalItems(null);

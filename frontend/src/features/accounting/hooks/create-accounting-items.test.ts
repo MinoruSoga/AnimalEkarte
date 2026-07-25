@@ -38,6 +38,20 @@ const ITEMS = [
 ] satisfies AccountingItem[];
 
 describe("createAccountingItems", () => {
+  it("商品マスタ由来の明細では merchandise_item_id を送る", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [{ ...ITEMS[0], merchandiseItemId: "77" }],
+      createItem,
+    );
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ merchandise_item_id: 77 }),
+    );
+  });
+
   it("明細作成が失敗した時点で後続POSTを止め、会計の部分失敗を限定する", async () => {
     const createItem = vi.fn()
       .mockResolvedValueOnce({})
