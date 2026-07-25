@@ -46,7 +46,10 @@
 - Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）と着手時期の前倒し反映は、いずれも 2026-07-25 に USER 承認のうえ完了済み（live read-back で実測確認）。todo.md / q&a.html DEC-21 / #251 本文の3者は同期済み。以後 contract の参照先は #251 本文と DEC-21 とし、本エントリは着手時期と実装スコープのみを持つ。
 - **U1 完了（`2154dc9de`・2026-07-25）**: category resolver を `backend/internal/sharedkernel/item_category_resolver.go` へ新設し、BE 導出の3経路（入院退院会計・外来診療明細・トリミング明細）を集約。②の other 固定撤廃と surgery 導出、④の hotel 到達経路を実装済み。`model.ItemCategory` 具体定数を参照する production ファイルは 4 → 3 に減少。resolver は error を返さない全域関数（退院処理の tx 閉包内にあるため、マスタ不整合で臨床業務を止めない）。
 - **U1 で判明した scope の限界**: カテゴリ決定点は4つあり、うち `billing_item_service.go:258`（手入力・物販）は client 送出値をそのまま永続化する。含意(a)「category authority を BE resolver に一本化し FE/client は保持しない」の達成には API 契約変更が要るため U2 送り。
-- **残ユニット**: U2 = 手入力経路の BE 導出化（API 契約変更・FE 調整要）。U3 = ③ ワクチン接種記録からの明細自動生成＋`billing_items` への VaccineID provenance 列 migration（停止手段・失敗通知・監査・idempotency 必須）。U4 = ④ training の新規 source 設計。U5 = 含意(b) 締め集計の allowlist 化。
+- **残ユニット**: U2 = 手入力・物販経路（下記のとおり U2a/U2b に再分解）。U3 = ③ ワクチン接種記録からの明細自動生成＋`billing_items` への VaccineID provenance 列 migration（停止手段・失敗通知・監査・idempotency 必須）。U4 = ④ training の新規 source 設計。U5 = 含意(b) 締め集計の allowlist 化。
+- **U2 の再分解（2026-07-25 実測により当初定義「API 契約変更要」を訂正）**: API 契約は BE/OpenAPI 側に既に存在し、FE が使っていないだけである。
+  - **U2a = 物販経路の master 由来導出（着手可・納品前に収まる）**。`merchandise_items.category`（`item_category NOT NULL`）が正本であるにもかかわらず、`ItemListCard.tsx:104` が master の category を値コピーして送出しており二重管理になっている。かつ `merchandise_item_id` を送らないため master への link 自体が切れている（BUG-436）。修正 = FE payload へ `merchandise_item_id` を追加し、BE `CreateItem` は `MerchandiseItemID != nil` のとき master の Category で上書きする（作成時 derive・以後はスナップショット。マスタ改称で過去明細が遡及変化してはならない）。BUG-436 を同時に解消する。
+  - **U2b = 純手入力経路（導出元が存在しない）**。provenance が無いため導出は原理的に不可能であり、含意(a) の「FE/client は category を保持しない」はこの経路では達成できない。正しい終端は「12値 validated 受理」であり、BE 側は `validators_billing_item.go:14`（12値検証）で**既に完了している**。残る欠陥は FE の `ItemListCard.tsx:120` が `"other"` 固定で category を送っている点のみ（利用者は選択できず、締め集計で手入力明細が全て other へ落ちる）。カテゴリ選択 UI を足すか "other" 固定を仕様として明文化するかは入力工程を増やす判断であり **USER 決裁**。
 - **含意(b) の優先度を実測で再評価（要 USER 確認）**: `billing_items.category` は PostgreSQL enum `item_category`（`001_init.sql:108`・12値）の `NOT NULL` 列であり、typo/legacy 文字列は at rest で存在し得ない。(b) は現時点の typo 防御としては no-op。意味を持つのは「将来 enum に値を追加した際に締め表の表示リストが追随せず黙って落とす」ドリフト防御であり、納品前クリティカルではない。DEC-21 は USER 本人裁定のため、この降格の可否は USER 判断とする。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
 
@@ -86,5 +89,13 @@
 - 実害: FEが存在しない定数を参照しても型検査が通らないだけで安全側だが、逆に**BEが追加した定数をFEが使えない**状態が黙って続く。BUG-433（生成型がドメインモデル由来で応答DTOと不一致）とは別問題であり、そちらは構造の誤り、本件は同期の欠落。
 - 対応: `make codegen-check` のCI配線状況を実測し、未配線なら追加する。配線済みなら失敗が無視された経路を塞ぐ。
 - 出典: FE12-07 実行時に判明したNew Work（2026-07-25・`git diff frontend/src/types/generated/models.ts` 実測）。FE-refactor.md 範囲外のためこちらへ記載。
+
+### BUG-436: 会計画面が `merchandise_item_id` を送らず、個別商品指定キャンペーンが一度も適用されない
+
+- HIGH（サイレント機能不全）。BE は完全に配線済み: `backend/internal/billing/billing_item_request.go:52,85` が `merchandise_item_id` を受理し、`billing_item_service.go:281` の `ValidateCreateReferences` で所有権検証、OpenAPI（`backend/docs/api.yaml:5601`）にも定義がある。**FE の `CreateBillingItemRequest`（`frontend/src/features/accounting/api/create-billing-item.ts:6-19`）に当該フィールドが存在せず**、`use-accounting-item-actions.ts:65-75` も `create-accounting-items.ts:14-27` も送出しない。
+- 実害: `campaign_repository.go:135-143` の `buildApplicableCond` は `merchandiseItemID != nil` のときだけ `campaign_target_items` を OR 条件へ加える。FE が常に nil のため、**個別商品指定キャンペーン（`campaign_target_items`）は会計画面からの明細追加で一度も発火しない**。カテゴリ指定キャンペーンのみが効いている。BUG-431（危険度バッジが実 API で点灯しなかった）と同型で、型検査もテストも通るため検出されない。
+- 副次: `billing_items.merchandise_item_id` が常に NULL のため、物販明細から商品マスタへの provenance が失われている。`inventory/merchandise_item_repository.go:68` の `CountUsageByMerchandiseItemID`（マスタ削除ガード）も billing 側の利用を数えられない。
+- 対応: TASK-251 U2a と同一の修正で解消する（FE payload へ `merchandise_item_id` 追加）。本エントリは「なぜ直ったか」を追跡可能にするための独立起票であり、実装は U2a に含める。
+- 出典: TASK-251 U2 スコープ再評価時に判明（2026-07-25・FE/BE 双方のコード実測）。live データ（`campaign_target_items` の行有無）は未確認のため、露出の大きさは要実測。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
