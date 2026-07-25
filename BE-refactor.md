@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B4 完了**（commit済み。B5〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`・下記実行ledger・下記batch表・下記E12補正根拠 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B5 完了**（commit済み。B5bを新設。B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`・下記実行ledger・下記batch表・下記E12補正根拠 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -383,7 +383,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B4完了・commit済み。B5〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B5完了・commit済み。B5bを新設。B6〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -616,7 +616,8 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B2 ✅完了 `134e7953b` | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
 | B3 ✅完了 `36f283f37` | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
 | B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
-| B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
+| B5 ✅完了 `b28c4a105` | repository lint **4 file**→`lintscan`、reconciliation gateのpath修復（B4回帰の是正） | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels`, `clinicScopedMasterAssoc`, `siblingPackageDir` + `I(files) local-only` | `∅`（4 consumer gateを同時移設。`migration_cascade`をB5bへ分離した結果として成立） | `∅` |
+| B5b | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
 | B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
@@ -1157,7 +1158,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
 #### BE10-2 B3 実行ledger（2026-07-25）
 
-- 実行状態: `完了（hash 追記待ち）`。serviceのstaff系test 3 fileとstaff用`mockTransactor`を`internal/staff`へ移設し、B2から持ち越された`NewClinicService` / `strPtr` / `ptrFloat64` / liveness anchorを含む`target_test_surface_test.go`を削除した。
+- 実行状態: **完了**（commit `36f283f37`）。serviceのstaff系test 3 fileとstaff用`mockTransactor`を`internal/staff`へ移設し、B2から持ち越された`NewClinicService` / `strPtr` / `ptrFloat64` / liveness anchorを含む`target_test_surface_test.go`を削除した。
 - 変更file:
   - `backend/internal/staff/staff_clinic_assignment_reservation_race_test.go`（移設）
   - `backend/internal/staff/staff_cross_tenant_test.go`（移設）
@@ -1622,3 +1623,34 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
   - F7 command wrapper attempt 1: exact Docker commandの実行前にwrapper JavaScriptが`Unexpected identifier 'pipefail'`で失敗。shellを正しく渡して同じ検証commandを再実行し、attempt 2でPASS。test自体のretryは0。
   - F10 patch attempts 1–2: contextの引用符を誤ってescapeしたため`Invalid Context`、file変更なし。2-strikeで対象行のexact bytesを再読し、literal引用符の最小patchでattempt 3 PASS。同一failureを3回は繰り返していない。
 - Assumption deviations: none。
+
+#### BE10-2 B5 実行ledger（2026-07-25）
+
+- 状態: **完了**（commit `b28c4a105`）。実装は差分レベルで検証済み。実行agentは `BLOCKED` を報告したが、その原因は本unitの欠陥ではなくgate定義の不備と並行writerのWIPであり、独立照合で `COMPLETE` と裁定した。
+- 対象: `internal/repository` の lint gate **4 file** を `internal/lintscan` へ移設。
+  - `audit_tx_inventory_lint_test.go`（686行・7 test）
+  - `dbortx_inventory_lint_test.go`（1559行・7 test）
+  - `preload_clinic_scope_lint_test.go`（842行・9 test）
+  - `preload_master_model_reconciliation_test.go`（508行・4 test）
+  - 合計27 test。すべて `package repository` → `package lintscan`。
+- **計画からの逸脱1: B5を5 fileから4 fileへ縮小し、B5bを新設した。** Phase 0のB5行は `migration_cascade_lint_test.go` を含め `C = ∅` としていたが、**この `C = ∅` は誤りである**。同 file の `const migrationsDir = "../../migrations"`（`:39`）を、移設先へ同行しない残留2 file が消費している（`billings_hospitalization_unique_migration_test.go:19`、`test_schema_enum_parity_test.go:125`）。実際の `C = {migrationsDir}` であり、単独移設は残留側のcompileを壊す。一方 `migration_cascade_lint_test.go` は他4 fileと双方向に依存がなく（全宣言のcross-productで確認）、`preload_master_model_reconciliation_test.go` は `preload_clinic_scope_lint_test.go` の `clinicScopedMasterAssoc` を実コードで消費する（`:271` `len(...)`、`:272` `range ...`）ため分離不可。よって前者だけをB5bへ送った。
+- **計画からの逸脱2: B4が `internal/repository` の2 gateを壊していた事実を発見し、本unitで復旧した。** B4は `internal/service/master_fk_write_inventory_lint_test.go` を `internal/lintscan` へ移設したが、`internal/repository/preload_master_model_reconciliation_test.go` が同fileを**文字列pathで読み取っていた**（`:324` `siblingPackageDir(t, "service")` + `:325` `filepath.Join(dir, "master_fk_write_inventory_lint_test.go")`）。この依存はcompile / `go vet` / lintのいずれにも現れない。**B4のtest gateが移設元 `internal/repository` を対象に含めなかったため観測されず、2 gateが死んだままmainへ入った。** 復旧は引数1 tokenの変更（`"service"` → `"lintscan"`）で足りた。`siblingPackageDir` の実装（`filepath.Join(cwd, "..", name)`）は不変とした。
+- 実装差分（生成側が `git show HEAD:<旧path>` との直接diffで全数照合。過不足なし）:
+  - `audit_tx_inventory_lint_test.go` / `dbortx_inventory_lint_test.go`: **`package` 行1行のみ**（`1c1`）。allowlist entry・status値・analyzer実装・assertion・test名すべて無変更。
+  - `preload_clinic_scope_lint_test.go`: `package` 行 + self-import 2行削除（`:67` 空行・`:68` import）+ code qualifier 3件（`:448` `WalkInternalTreeT(t)`、`:506` / `:820` `WalkInternalTree(internalDir)`）。**コメント/文字列内の `lintscan.` 10件は逐語維持**（移設後 `:16` `:20` `:439` `:481` `:490` `:506` `:510` `:724` `:791` `:820`）。`legacyLintKey` の `repository/` 正規化とdiscovery assertionは無変更。
+  - `preload_master_model_reconciliation_test.go`: `package` 行 + `internal/service`→`internal/lintscan` 6件 + `internal/repository`→`internal/lintscan` 2件 + `service.clinicScopedMasterFKField`→`lintscan.` 1件 + `repository.clinicScopedMasterAssoc`→`lintscan.` 1件 + `siblingPackageDir` 引数1件。gate機構（AST source text読み取り）は維持し、同package化を利用した直接識別子参照へは書き換えていない。
+- 検証（生成側が独立に再実行）:
+  - `go vet ./internal/repository/... ./internal/lintscan/...` = **exit 0**。
+  - `internal/lintscan`: 52 test / 50 PASS / 2 FAIL。
+  - `TestMasterModelReconciliation_ExemptionsAreLive`: **FAIL → PASS**（復旧完遂）。
+  - `TestMasterModelReconciliation_RealSourceIsConsistent`: FAIL。ただし**失敗理由が `no such file or directory` から実比較の違反検出へ変わった**。すなわちgateは復旧して機能している。
+  - test名和集合: 212 → 212 で不変（消失・増加0）。
+  - lint: baseline 3件から新規0件。
+  - `migration_cascade_lint_test.go` と `lintscan_test.go` のdiffは空。production（`lintscan.go` / `model` / `migrations`）に本unitからの変更なし。
+- **復旧したgateが即座に検出した実違反（本unitの対象外・別owner）**: `model "ExamTypeField" is registered in lintscan.clinicScopedMasterFKField and has a ClinicID column, but is missing from lintscan.clinicScopedMasterAssoc`。並行セッションが `backend/internal/model/examination_type.go` に `ClinicID` を追加中（未コミットWIP・`005_exam_reference_ranges_and_clinic_fk.sql` と `exam_reference_range.go` を同時に追加）で、read側の `clinicScopedMasterAssoc` 登録も `masterModelReadWriteExemptions` の例外登録も無い。**B4以降このgateは死んでいたため、B5が復旧するまでこの追加は無検出で通過する状態だった。** B5単独をcommitしたmainでは `model.ExamTypeField` に `ClinicID` が無いためgateはgreenになる。本件は `todo.md` のバグ台帳へ起票済み。
+- **本unitで判明したprompt側の欠陥2件（B6以降に適用する規則）**:
+  1. **絶対gateを他writer所有のproduction状態へ束縛してはならない。** 「gateがFAIL→PASSすること」を完了条件にしたが、このgateのPASSは `internal/model` の内容に依存し、それは並行writerの所有物である。正しい定義は「gateの失敗様式がpath errorから実比較の実行へ変わること」であり、実比較の結果はunitの管轄外である。違反が出た場合はroutingすべきfindingsであってunitの失敗ではない。
+  2. **production無変更gateをworktree全体のdiffで測ってはならない。** 共有worktreeに並行writerがいる限り構造的に充足不能である。正しくは「当unit自身のchanged-path集合にproduction pathが含まれない」というscoped gateにする。
+  3. **移設unitのtest / lint gateは移設元packageと移設先packageの両方を必ず含める。** B4がこれを外して実害を出した。B6〜B14はすべて `internal/repository` を drain するため、全batchでこの規則を適用する。
+- Failure Signature log: 実行agent側でI14が3-strikeに到達しBLOCKED。生成側の照合により、原因はgate定義の不備（上記1）と並行WIPであり実装欠陥ではないと確定した。I15 / I18 / I19 / I21のBLOCKEDはすべてI14に連鎖したものである。
+- Assumption deviations: 実行agentのI3 / I4の宣言件数（107 / 71）は生成側実測（108 / 68）と抽出方式の差で一致しなかった。両者とも衝突0件・`D ∩ C` 実consumer 0件で結論が一致し、`go vet` exit 0で裏付けられたため実質差なしと判定した。
