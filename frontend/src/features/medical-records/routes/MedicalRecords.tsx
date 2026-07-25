@@ -208,7 +208,7 @@ export function MedicalRecords() {
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."
+          searchPlaceholder="飼主名、ペット名、カルテNo、主訴、治療内容・メモ、処置・薬剤・診察・在庫品名で検索..."
           count={total}
         />
 

@@ -10328,6 +10328,11 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: search
+          in: query
+          description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴、治療内容、治療メモ、処置名、薬剤名、診察名、在庫品名を部分一致で横断検索
+          schema:
+            type: string
       responses:
         '200':
           description: カルテ一覧
