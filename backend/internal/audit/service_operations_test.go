@@ -1,4 +1,4 @@
-package service
+package audit
 
 import (
 	"bytes"
@@ -15,12 +15,12 @@ import (
 
 func TestAuditService_LogEntry(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 	clinicID := uint64(1)
 	actorID := uint64(2)
 	resourceID := uint64(3)
 
-	err := svc.LogEntry(context.Background(), &AuditLogInput{
+	err := svc.LogEntry(context.Background(), &Entry{
 		ClinicID:   &clinicID,
 		ActorID:    &actorID,
 		ActorType:  "staff",
@@ -50,11 +50,11 @@ func TestAuditService_LogEntry(t *testing.T) {
 func TestAuditService_LogEntry_Validation(t *testing.T) {
 	tests := []struct {
 		name  string
-		input *AuditLogInput
+		input *Entry
 	}{
 		{
 			name: "clinic_id missing",
-			input: &AuditLogInput{
+			input: &Entry{
 				ActorID:   ptrUint64ForAuditTest(2),
 				ActorType: model.AuditActorTypeStaff,
 				Action:    "update",
@@ -63,7 +63,7 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 		},
 		{
 			name: "staff actor requires actor_id",
-			input: &AuditLogInput{
+			input: &Entry{
 				ClinicID:  ptrUint64ForAuditTest(1),
 				ActorType: model.AuditActorTypeStaff,
 				Action:    "update",
@@ -72,7 +72,7 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 		},
 		{
 			name: "system actor must not have actor_id",
-			input: &AuditLogInput{
+			input: &Entry{
 				ClinicID:  ptrUint64ForAuditTest(1),
 				ActorID:   ptrUint64ForAuditTest(2),
 				ActorType: model.AuditActorTypeSystem,
@@ -82,7 +82,7 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 		},
 		{
 			name: "unknown actor type",
-			input: &AuditLogInput{
+			input: &Entry{
 				ClinicID:  ptrUint64ForAuditTest(1),
 				ActorID:   ptrUint64ForAuditTest(2),
 				ActorType: "account",
@@ -95,7 +95,7 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAuditRepository{}
-			svc := NewAuditService(repo)
+			svc := NewService(repo)
 
 			err := svc.LogEntry(context.Background(), tt.input)
 
@@ -120,10 +120,10 @@ func TestAuditService_Log_RecordsFailureObservability(t *testing.T) {
 			return errors.New("db down")
 		},
 	}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 	clinicID := uint64(7)
 
-	err := svc.LogEntry(context.Background(), &AuditLogInput{
+	err := svc.LogEntry(context.Background(), &Entry{
 		ClinicID:  &clinicID,
 		ActorType: model.AuditActorTypeSystem,
 		Action:    "batch_dormant_detect",
@@ -150,10 +150,10 @@ func TestAuditService_Log_Success_NoFailureLog(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prevLogger) })
 
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 	clinicID := uint64(7)
 
-	err := svc.LogEntry(context.Background(), &AuditLogInput{
+	err := svc.LogEntry(context.Background(), &Entry{
 		ClinicID:  &clinicID,
 		ActorType: model.AuditActorTypeSystem,
 		Action:    "batch_dormant_detect",
@@ -166,7 +166,7 @@ func TestAuditService_Log_Success_NoFailureLog(t *testing.T) {
 
 func TestAuditService_LogAuthLogin_RequiresClinicAndStaff(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 	staffID := uint64(2)
 
 	err := svc.LogAuthLogin(context.Background(), nil, &staffID, model.AuditActionAuthLoginFailure, "127.0.0.1", "test-agent")
@@ -254,7 +254,7 @@ func TestValidateAuditLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateAuditLog(tt.log)
+			err := ValidateLog(tt.log)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -268,7 +268,7 @@ func TestValidateAuditLog(t *testing.T) {
 // 経由してエラーを返すことを確認する。
 func TestAuditService_Log_NilLog(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.Log(context.Background(), nil)
 
@@ -281,16 +281,16 @@ func TestAuditService_Log_NilLog(t *testing.T) {
 func TestAuditService_LogEntryTx(t *testing.T) {
 	t.Run("success writes via CreateTx", func(t *testing.T) {
 		repo := &mockAuditRepository{}
-		svc := NewAuditService(repo)
-		auditTxLogger, ok := svc.(AuditTxLogger)
-		if !assert.True(t, ok, "auditService must implement AuditTxLogger") {
+		svc := NewService(repo)
+		auditTxLogger, ok := svc.(TxLogger)
+		if !assert.True(t, ok, "auditService must implement TxLogger") {
 			return
 		}
 
 		clinicID := uint64(1)
 		actorID := uint64(2)
 
-		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+		err := auditTxLogger.LogEntryTx(context.Background(), &Entry{
 			ClinicID:  &clinicID,
 			ActorID:   &actorID,
 			ActorType: model.AuditActorTypeStaff,
@@ -307,10 +307,10 @@ func TestAuditService_LogEntryTx(t *testing.T) {
 
 	t.Run("validation error is returned without hitting repo", func(t *testing.T) {
 		repo := &mockAuditRepository{}
-		svc := NewAuditService(repo)
-		auditTxLogger := svc.(AuditTxLogger)
+		svc := NewService(repo)
+		auditTxLogger := svc.(TxLogger)
 
-		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+		err := auditTxLogger.LogEntryTx(context.Background(), &Entry{
 			ActorType: model.AuditActorTypeStaff,
 			Action:    "replace",
 			Resource:  "checkup_field_result",
@@ -326,11 +326,11 @@ func TestAuditService_LogEntryTx(t *testing.T) {
 				return errors.New("tx write failed")
 			},
 		}
-		svc := NewAuditService(repo)
-		auditTxLogger := svc.(AuditTxLogger)
+		svc := NewService(repo)
+		auditTxLogger := svc.(TxLogger)
 
 		clinicID := uint64(1)
-		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+		err := auditTxLogger.LogEntryTx(context.Background(), &Entry{
 			ClinicID:  &clinicID,
 			ActorType: model.AuditActorTypeSystem,
 			Action:    "replace",
@@ -345,7 +345,7 @@ func TestAuditService_LogEntryTx(t *testing.T) {
 // 既存の LogLstepOperation 呼び出しが互換動作（actor_type / clinic_id / metadata=nil）を維持することを検証する。
 func TestAuditService_LogLstepOperation_BackwardCompat(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	staffID := uint64(42)
 	resourceID := uint64(100)
@@ -375,7 +375,7 @@ func TestAuditService_LogLstepOperation_BackwardCompat(t *testing.T) {
 // TestAuditService_LogLstepOperation_SystemActor は actorID=nil でシステム扱いになることを検証する。
 func TestAuditService_LogLstepOperation_SystemActor(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.LogLstepOperation(context.Background(), 1, nil, "batch_dormant_detect", "clinic", nil)
 	assert.NoError(t, err)
@@ -392,7 +392,7 @@ func TestAuditService_LogLstepOperation_SystemActor(t *testing.T) {
 // metadata が jsonb 用のバイト列として正しくシリアライズされ Repository に渡ることを検証する。
 func TestAuditService_LogLstepOperationWithMetadata_PersistsJSON(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	staffID := uint64(7)
 
@@ -447,7 +447,7 @@ func TestAuditService_LogLstepOperationWithMetadata_PersistsJSON(t *testing.T) {
 // audit_logs.metadata に NULL が保存される（後方互換: LogLstepOperation と同等）ことを検証する。
 func TestAuditService_LogLstepOperationWithMetadata_NilMetadata(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.LogLstepOperationWithMetadata(context.Background(), 1, nil,
 		"batch_no_show_detect", "clinic", nil, nil)
@@ -467,7 +467,7 @@ func TestAuditService_LogLstepOperationWithMetadata_RepoError(t *testing.T) {
 			return errors.New("db down")
 		},
 	}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.LogLstepOperationWithMetadata(context.Background(), 1, nil,
 		"bulk_add_tag", "owner", nil, map[string]any{"requested_count": 10})
@@ -478,7 +478,7 @@ func TestAuditService_LogLstepOperationWithMetadata_RepoError(t *testing.T) {
 // resource="medical_record", old_value=nil, new_value 設定の確認。
 func TestAuditService_LogMedicalRecordChange_Create(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	staffID := uint64(10)
 	recordID := uint64(99)
@@ -504,7 +504,7 @@ func TestAuditService_LogMedicalRecordChange_Create(t *testing.T) {
 // old_value / new_value 両方にデータが入ることを確認。
 func TestAuditService_LogMedicalRecordChange_Update(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	staffID := uint64(10)
 	recordID := uint64(99)
@@ -531,7 +531,7 @@ func TestAuditService_LogMedicalRecordChange_Update(t *testing.T) {
 // TestAuditService_LogMedicalRecordChange_SystemActor は actorID=nil でシステム扱いになることを確認。
 func TestAuditService_LogMedicalRecordChange_SystemActor(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.LogMedicalRecordChange(context.Background(), 1, nil, "delete", 99, map[string]any{"status": "draft"}, nil)
 	assert.NoError(t, err)
@@ -547,7 +547,7 @@ func TestAuditService_LogMedicalRecordChange_SystemActor(t *testing.T) {
 // metadata に含まれることを確認する（AUDIT-H1）。
 func TestAuditService_LogVitalChange(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	staffID := uint64(20)
 	vitalID := uint64(55)
@@ -576,7 +576,7 @@ func TestAuditService_LogVitalChange(t *testing.T) {
 // old/new_value に clinic_id が含まれることを確認する（FEAT-374 Phase 2）。
 func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	actorID := uint64(5)
 	fromClinicID := uint64(1)
@@ -616,7 +616,7 @@ func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {
 // TestAuditService_LogClinicSwitch_SystemActor は actorID=nil でシステム扱いになることを確認する。
 func TestAuditService_LogClinicSwitch_SystemActor(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	err := svc.LogClinicSwitch(context.Background(), nil, 1, 3, "", "")
 	assert.NoError(t, err)
@@ -640,7 +640,7 @@ func TestAuditActionConstants_Billing(t *testing.T) {
 // new_value に before_text/after_text/reason が含まれることを確認する（AUDIT-H1）。
 func TestAuditService_LogAddendumCreate(t *testing.T) {
 	repo := &mockAuditRepository{}
-	svc := NewAuditService(repo)
+	svc := NewService(repo)
 
 	actorID := uint64(30)
 	addendumID := uint64(11)

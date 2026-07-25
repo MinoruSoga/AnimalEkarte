@@ -5,22 +5,9 @@ package service
 // unique. The aliases below bind those tests directly to their target domains.
 
 import (
-	auditdomain "github.com/animal-ekarte/backend/internal/audit"
 	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
-	"github.com/animal-ekarte/backend/internal/model"
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
-
-type AuditTxLogger = auditdomain.TxLogger
-type AuditLogInput = auditdomain.Entry
-
-func NewAuditService(repo auditdomain.Repository) auditdomain.Kernel {
-	return auditdomain.NewService(repo)
-}
-
-func validateAuditLog(log *model.AuditLog) error {
-	return auditdomain.ValidateLog(log)
-}
 
 func NewClinicHolidayService(repo clinicdomain.ClinicHolidayRepository) clinicdomain.ClinicHolidayService {
 	return clinicdomain.NewClinicHolidayService(repo)
