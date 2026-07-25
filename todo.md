@@ -78,18 +78,6 @@
 - 対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。①②は生成基盤の変更を伴うため納品後が妥当。納品前は、新規に生成型のフィールドへ依存する実装を書くときに**そのフィールドが応答DTOに実在するかを都度確認する**運用で凌ぐ。
 - 出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。
 
-### BUG-432: 飼主生年月日がフォームから保存されない
-
-- HIGH。DB（`owners.birth_date`）・BE DTO・OpenAPI・DatePickerは実装済みだが、`frontend/src/features/owners/hooks/use-owner-form.ts` のcreate/update送信payloadにowner birthDateが含まれず、入力しても保存されない。
-- 対応: payloadへbirth_date追加＋既存値を空へ戻す契約（JSON null vs 省略）の確定。#262の前提是正。
-- 出典: #262調査 Completion Report（2026-07-25）。grepで整合確認済み。
-- **BLOCKED（2026-07-25・BUG-432実装unit）**。backend の現行更新契約では既存値の NULL 化を表現できない。`birth_date` の省略と JSON `null` はどちらも `BirthDate == nil` となり更新対象外、空文字は non-nil のゼロ時刻となって `birth_date` 更新 map に入るため、FE だけでは安全な空化 payload を作れない（`backend/internal/owner/http_request.go:183,211`、`http_date.go:15-33`、`service_builders.go:19-21`）。backend 変更は当該unitのscope外だったため、source/test実装は開始していない。
-- 一覧は `pets: Pet[]` を `data={pets}` / `renderRow={(pet)}` で描画するペット行であり、同行もペット番号・ペット名・生死・種・体重を表示する。したがって「生年月日」列の正本は現行どおり `pet.birthDate` で、飼主DOBへ差し替える修正は不要（`frontend/src/features/owners/components/OwnersListTable.tsx:34-36,112-127,209-231`）。起票時の「一覧列が誤り」という前提は実測で否定された。
-- gate: saved prompt validator PASS（exit 0）。owners baseline は `docker compose exec frontend npx vitest run src/features/owners` → `Test Files 20 passed` / `Tests 108 passed`（exit 0）。backend 契約の scoped test は `docker compose exec backend go test ./internal/owner -run 'Test(UpdateOwnerRequest_DMPreferenceNullableJSON|CreatePetForOwnerRequest_ToServiceInput|CreateOwnerRequest_ToServiceInput|BuildOwnerUpdate|OwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate)$'` → `ok github.com/animal-ekarte/backend/internal/owner 0.325s`。変更は本台帳のみ。
-- **COMPLETE（2026-07-25・BUG-432 v2）**。update の `birth_date` を同package既存nullable fieldと同じ tri-state（未送信=保持 / JSON `null`=DB NULL / 日付文字列=更新）へ変更し、空文字はzero timeを書かずinvalid inputとして拒否する。create受け口と `jsonDate` は変更していない。FEはcreate/updateで入力日を送出し、編集時の空欄を `birth_date: null` として送る。`UpdateOwnerRequest` のみ `string | null` を許容する。
-- 変更ファイル: `backend/internal/owner/http_request.go`, `http_request_test.go`, `service.go`, `service_builders.go`, `service_builders_test.go`, `frontend/src/types/owner.ts`, `frontend/src/features/owners/hooks/use-owner-form.ts`, `use-owner-form.test.ts`, `todo.md`。OpenAPI は既に `Owner.birth_date` が `type: string` / `format: date` / `nullable: true` のため無変更。`OwnersListTable.tsx` も上記の誤診撤回どおり無変更。
-- gates: backend owner baseline `ok github.com/animal-ekarte/backend/internal/owner 3.472s`、実装後 `ok github.com/animal-ekarte/backend/internal/owner 3.475s`。frontend owners baseline `20 files / 108 tests`、実装後 `21 files / 111 tests`（いずれもexit 0）。`gofmt -l` stdout 0行、`go vet ./internal/owner/` exit 0、scoped ESLint stdout 0行・exit 0。
-
 ### BUG-435: 生成FE型が陳腐化したままmainに乗っていた（codegen-check未励行）
 
 - MEDIUM。FE12-07 で `make codegen` を回したところ、意図した型mapping修正（`any` 17→0）とは無関係な追随差分が同時に出た: audit定数7件（`AuditActionAuthPasswordChange` / `Reset` / `AdminReplace`、`AuditActionTrimmingCreate` / `Update` / `Delete`、`AuditResourceAccount` / `AuditResourceTrimming`）と `TokenBlacklist` のdoc comment。つまり **Go model を変更した際に `make codegen` が回されず、`frontend/src/types/generated/models.ts` が陳腐化した状態でmainに乗っていた**。
@@ -97,15 +85,6 @@
 - 実害: FEが存在しない定数を参照しても型検査が通らないだけで安全側だが、逆に**BEが追加した定数をFEが使えない**状態が黙って続く。BUG-433（生成型がドメインモデル由来で応答DTOと不一致）とは別問題であり、そちらは構造の誤り、本件は同期の欠落。
 - 対応: `make codegen-check` のCI配線状況を実測し、未配線なら追加する。配線済みなら失敗が無視された経路を塞ぐ。
 - 出典: FE12-07 実行時に判明したNew Work（2026-07-25・`git diff frontend/src/types/generated/models.ts` 実測）。FE-refactor.md 範囲外のためこちらへ記載。
-
-### BUG-436: 会計画面が `merchandise_item_id` を送らず、個別商品指定キャンペーンが一度も適用されない
-
-- HIGH（サイレント機能不全）。BE は完全に配線済み: `backend/internal/billing/billing_item_request.go:52,85` が `merchandise_item_id` を受理し、`billing_item_service.go:281` の `ValidateCreateReferences` で所有権検証、OpenAPI（`backend/docs/api.yaml:5601`）にも定義がある。**FE の `CreateBillingItemRequest`（`frontend/src/features/accounting/api/create-billing-item.ts:6-19`）に当該フィールドが存在せず**、`use-accounting-item-actions.ts:65-75` も `create-accounting-items.ts:14-27` も送出しない。
-- 実害: `campaign_repository.go:135-143` の `buildApplicableCond` は `merchandiseItemID != nil` のときだけ `campaign_target_items` を OR 条件へ加える。FE が常に nil のため、**個別商品指定キャンペーン（`campaign_target_items`）は会計画面からの明細追加で一度も発火しない**。カテゴリ指定キャンペーンのみが効いている。BUG-431（危険度バッジが実 API で点灯しなかった）と同型で、型検査もテストも通るため検出されない。
-- 副次: `billing_items.merchandise_item_id` が常に NULL のため、物販明細から商品マスタへの provenance が失われている。`inventory/merchandise_item_repository.go:68` の `CountUsageByMerchandiseItemID`（マスタ削除ガード）も billing 側の利用を数えられない。
-- 対応: TASK-251 U2a と同一の修正で解消する（FE payload へ `merchandise_item_id` 追加）。本エントリは「なぜ直ったか」を追跡可能にするための独立起票であり、実装は U2a に含める。
-- **解消済み（`33690944e`・2026-07-25・TASK-251 U2a-1）**。FE の送出漏れに加え、`GetDiscountSuggestions` の nil ハードコードと応答 DTO の欠落という同根の欠陥 2 件も同時に是正した。
-- 出典: TASK-251 U2 スコープ再評価時に判明（2026-07-25・FE/BE 双方のコード実測）。live データ（`campaign_target_items` の行有無）は未確認のため、露出の大きさは要実測。
 
 ### BUG-437: `ExamTypeField` に `ClinicID` を追加したが read 側 clinic-scope registry へ未登録（cross-tenant read IDOR の再発リスク）
 
@@ -117,26 +96,7 @@
 - **部分対応・BLOCKED（2026-07-25・working tree）**: ①登録を選択し、read 側 registry に一意な association 名 `"ExamTypeField": "ExamTypeField"` を追加した。`Items` は `ExamResult` / `BillingItem` / `EstimateItem` / `LabExamResultItem` にも使われる汎用名のため登録していない。`ExamTypeField` へ解決する既存の `Preload("Items")` 2件（`backend/internal/medicalrecord/exam_type_repository.go:37,46`）は既に `"clinic_id = ?"` を持ち、DB-backed cross-tenant test も green なので現行 runtime read は安全。`masterModelReadWriteExemptions` と write 側 `clinicScopedMasterFKField` は無変更。
 - 変更ファイル: `backend/internal/lintscan/preload_clinic_scope_lint_test.go`, `todo.md`。検証: 対象照合ゲート = `ok   github.com/animal-ekarte/backend/internal/lintscan 0.008s`、read lint（登録直後・最終）= `ok   github.com/animal-ekarte/backend/internal/lintscan 0.352s` / `0.355s`、DB-backed cross-tenant test = `ok   github.com/animal-ekarte/backend/internal/medicalrecord 0.260s`、`gofmt -l` = stdout 0 行、`go vet ./internal/lintscan/` = exit 0。
 - 独立 clinic-isolation / code review で HIGH 1件が残った。read lint は Preload path の末尾 association 名だけで registry を引き、未登録名を無視する（`backend/internal/lintscan/preload_clinic_scope_lint_test.go:245-256`）。live read は `Items` なので、この2件から `clinic_id` を削除しても lint は検出しない。`Items` の一律登録は上記の同名別モデルを誤検出するため不可。解消には親 model / site を識別する context-aware rule または association 構造変更が必要で、いずれも本 unit の registry 登録予算を超える。したがって照合ゲートは green だが、機械的な再発防止が未完成のため BUG-437 は未解消。
-- `internal/lintscan` package の FAIL 集合は対象ゲート分だけ減り、残件は `TestWalkInternalTreeT_RealRepo` 1件のみ（`lintscan_test.go:231: expected "clinic/company/repository.go" in result (a known nested production file); got 785 keys`）。根本原因は `0301ae0e2` の clinic package flatten 後も、実在しない旧 sentinel path を期待していること。修正は本 unit の対象外。
+- `internal/lintscan` package は 2026-07-25 時点で **green**（R-4 = `9ca93f249` の stale sentinel 是正、BUG-438 = `296ea7bb7` の CASCADE allowlist 登録で残 FAIL 2件が解消済み）。したがって本件は「ゲートが赤い」問題ではなく、**live read 経路 `Preload("Items")` を機械的に守る手段が無い**という再発防止の穴として残っている。
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
-
-### BUG-438: 未レビューの `ON DELETE CASCADE` が `005_exam_reference_ranges_and_clinic_fk.sql` で main に入り、CASCADE 台帳ゲートが赤いまま放置されている
-
-- HIGH（安全ゲートの赤放置＋未レビュー CASCADE）。`b4d10e083`（#249 Phase 2 U1）が追加した `backend/migrations/005_exam_reference_ranges_and_clinic_fk.sql:41` に `ON DELETE CASCADE` が1件あるが、`migrationCascadeAllowlist` は `001_init.sql: 53` しか pin していない。したがって `TestMigrationCascadeInventory_NoUnreviewedCascade` は 2026-07-25 時点の main で FAIL する。**BUG-437 と同一の変更（`b4d10e083`）由来の、2件目の未検出すり抜けである。**
-- 実害の評価（BE10-2 B5b の baseline 実測）: 005 は `001_init.sql:704` の `exam_type_id bigint NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE`（制約名 `exam_type_fields_exam_type_id_fkey`）を DROP し、同じ CASCADE 挙動を `(exam_type_id, clinic_id) → exam_types(id, clinic_id)` の複合 FK として貼り直している。削除伝播の意味は変わらず、tenant 整合性はむしろ強化される。これは allowlist コメントが既にレビュー済みとして記録している `checkup_type_fields` の複合 FK 置換（旧 `002_checkup_field_clinic_composite_fk.sql`）と同型である。
-- 対応（当該変更の owner が選ぶ）: ① `migrationCascadeAllowlist` へ `"005_exam_reference_ranges_and_clinic_fk.sql": 1` を、上記の behavior-preserving な複合 FK 置換であるという理由を allowlist コメントへ明記した上で追加する ② CASCADE を RESTRICT / SET NULL へ変更する新規 migration を追記する。**ゲートを黙らせる目的だけの ① は禁止**である。
-- 再現: `docker compose exec -T backend go test ./internal/lintscan/ -run TestMigrationCascadeInventory -count=1`（BE10-2 B5b による移設後の所在。移設前は `./internal/repository/`）
-- 出典: BE10-2 B5b の baseline 実測（2026-07-25）。`BE-refactor.md`「実行規則」2項に従い、gate の実比較が出した違反として本台帳へ routing した。B5b 自身は allowlist を変更しない。
-
-### R-4: `TestWalkInternalTreeT_RealRepo` の stale nested sentinel 是正
-
-- **COMPLETE（2026-07-25・working tree）**。`clinic/company/repository.go` は clinic package flatten 後に消えた旧パスだったため、合成 fixture が `sub/nested/deeper/file2.go` で深さ2以上の再帰を既に検証していることを確認したうえで、実リポジトリ側 sentinel を `infra/crypto/aes_gcm.go` へ差し替えた。新 sentinel は `/` を2つ含み、実リポジトリでも walker の深さ2以上への再帰を引き続き検証する。
-- 変更ファイル: `backend/internal/lintscan/lintscan_test.go`, `todo.md`。`backend/internal/lintscan/lintscan.go` と `backend/internal/lintscan/preload_clinic_scope_lint_test.go` は無変更。
-- RED: `docker compose exec backend go test ./internal/lintscan/ -run TestWalkInternalTreeT_RealRepo -count=1` → `--- FAIL: TestWalkInternalTreeT_RealRepo (0.05s)` / `lintscan_test.go:231: expected "clinic/company/repository.go" in result (a known nested production file); got 785 keys` / `FAIL github.com/animal-ekarte/backend/internal/lintscan 0.048s`（exit 1）。
-- stale path 実測: `ls backend/internal/clinic/company/repository.go 2>&1` → `ls: backend/internal/clinic/company/repository.go: No such file or directory`（exit 1）、`ls backend/internal/clinic/company_repository.go 2>&1` → `backend/internal/clinic/company_repository.go`（exit 0）。
-- nested production inventory: `find backend/internal -mindepth 3 -name '*.go' ! -name '*_test.go' ! -path '*/testdata/*' | sort` → `backend/internal/infra/crypto/aes_gcm.go`, `backend/internal/infra/httpx/retry.go`, `backend/internal/infra/line/client.go`, `backend/internal/infra/line/errors.go`, `backend/internal/infra/line/push.go`, `backend/internal/infra/lstep/breed_codes.go`, `backend/internal/infra/lstep/client.go`, `backend/internal/infra/lstep/errors.go`, `backend/internal/infra/lstep/tag.go`, `backend/internal/infra/lstep/user.go`, `backend/internal/infra/smtp/sender.go`（11件）。
-- GREEN: 対象 test の同一 command → `ok github.com/animal-ekarte/backend/internal/lintscan 0.047s`（exit 0）。`docker compose exec backend go test ./internal/lintscan/ -count=1` → `ok github.com/animal-ekarte/backend/internal/lintscan 1.590s`（exit 0）。
-- static gates: `git status --porcelain -- backend/internal/lintscan/lintscan.go` → stdout 0行（exit 0）。`docker compose exec backend gofmt -l internal/lintscan/lintscan_test.go` → stdout 0行（exit 0）。`docker compose exec backend go vet ./internal/lintscan/` → stdout 0行（exit 0）。
-- Assumption 逸脱: なし。対象は既存アサーション1本のみで、`infra/crypto/aes_gcm.go` は実在する独立 utility かつ進行中の `infra/lstep` 作業領域を避ける候補として prompt の推奨どおり採用した。coverage 閾値は production 行無変更の本 unit では主張せず、全体 gate は実行していない。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
