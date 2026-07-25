@@ -103,11 +103,11 @@
 
 ### BUG-437: `ExamTypeField` に `ClinicID` を追加したが read 側 clinic-scope registry へ未登録（cross-tenant read IDOR の再発リスク）
 
-- HIGH（clinic 分離）。作業中の変更 `backend/internal/model/examination_type.go` が `ExamTypeField` に `ClinicID uint64` を追加している（未コミット WIP。`backend/migrations/005_exam_reference_ranges_and_clinic_fk.sql` と `backend/internal/model/exam_reference_range.go` が同時進行）。write 側 registry には既に登録済み（`backend/internal/lintscan/master_fk_write_inventory_lint_test.go:129` の `"ExamTypeFieldID": "ExamTypeField (sub-master of ExaminationType, #124)"`）だが、**read 側の `clinicScopedMasterAssoc`（`backend/internal/lintscan/preload_clinic_scope_lint_test.go`）に entry が無く、`masterModelReadWriteExemptions` の例外にも入っていない**。
+- HIGH（clinic 分離）。**`b4d10e083`（#249 Phase 2 U1）で main に入っている。現在 `main` でゲートが FAIL する。** 同 commit が `backend/internal/model/examination_type.go:32` の `ExamTypeField` に `ClinicID uint64` を追加した。write 側 registry には既に登録済み（`backend/internal/lintscan/master_fk_write_inventory_lint_test.go:129` の `"ExamTypeFieldID": "ExamTypeField (sub-master of ExaminationType, #124)"`）だが、**read 側の `clinicScopedMasterAssoc`（`backend/internal/lintscan/preload_clinic_scope_lint_test.go`）に entry が無く、`masterModelReadWriteExemptions` の例外にも入っていない**。
 - 実害: clinic-scoped master を FK 値で Preload する際に `clinic_id` 述語が無いと、汚染された FK（#124/#125 の write 側検証ギャップ、または是正前データ）に対して**他院の master 名・値が返る**。b3638d5e で手作業修正した cross-tenant read IDOR と同型である。
 - 検出経路: BE10-2 B5（`b28c4a105`）が `TestMasterModelReconciliation_RealSourceIsConsistent` を復旧した直後に検出した。**B4（`c430072d8`）以降このゲートは `no such file or directory` で死んでおり、B5 が直すまでこの追加は無検出で通過する状態だった。**
 - 対応（3択・当該変更の owner が選ぶ）: ① Preload が既に存在するなら `clinicScopedMasterAssoc` へ association 名を登録する ② `internal/model` に association field が無いなら `masterModelReadWriteExemptions` へ理由付きで追加する ③ `ClinicID` の追加を撤回する。**ゲートを黙らせる目的だけの ② は禁止**。
-- 再現: `docker compose exec backend go test ./internal/lintscan/ -run TestMasterModelReconciliation_RealSourceIsConsistent -count=1`（当該 WIP が worktree にある状態で FAIL する）。
+- 再現: `docker compose exec backend go test ./internal/lintscan/ -run TestMasterModelReconciliation_RealSourceIsConsistent -count=1`（`b4d10e083` 以降の main で FAIL する。2026-07-25 に実測）。**このゲートが green に戻るまで `internal/lintscan` の FAIL 集合は R-4 と本件の2件である。**
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
