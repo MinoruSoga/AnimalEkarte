@@ -1117,3 +1117,231 @@
   DIFF_CHECK_EXIT=0
   ```
   書き込み対象の自己申告3 pathと一致し、allowlist内。test 2本とaudit scriptは変更0、cached pathは0。
+
+### FE12-15 未参照 owner-report component / C18 raw ratchet 撤去 ledger（2026-07-25）
+
+- **Status**: COMPLETE。未参照の
+  `CheckupHistorySection` / `ExaminationHistorySection` と隣接 test を削除し、
+  管理対象が 0 件になった C18 raw 件数 ratchet を撤去した。C18 の未移行負債は
+  0 件になり、allowlist / `PrintArea` 除外外の raw cell を先送りする経路は以後存在しない。
+- **Risk / safety**: Local write。allowlist 外 path、`C18_RAW_CELL_ALLOWLIST`、
+  `checkC18` の検出ロジック、index / `HEAD` / remote は変更していない。safety
+  boundary event は 0。
+- **Saved Prompt Validation Gate**:
+  ```text
+  $ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fe12-15-dead-owner-report-components-and-c18-ratchet-removal.md
+  Prompt Craft Harness Validation: PASS
+  VALIDATOR_EXIT=0
+  ```
+- **Binding pre-read**:
+  - `AGENTS.md`
+  - `.claude/CLAUDE.md`
+  - `.claude/rules/claude-code-usage.md`
+  - `.claude/rules/go-gin-backend-guidelines.md`
+  - `~/.agents/codex/AGENTS.md`
+  - `.codex/config.toml`
+  - `frontend/CLAUDE.md`
+  - `frontend/src/features/CLAUDE.md`
+  - `docs/product-philosophy.md`
+  - `docs/spec/ui-design-compliance.md`
+  - `FE-refactor.md` の直前 closeout ledger
+  - `~/.agents/skills/tdd-workflow/SKILL.md`
+  - `~/.agents/skills/verification-loop/SKILL.md`
+  - `~/.agents/skills/react-testing/SKILL.md`
+- **Step 0 scoped baseline**:
+  ```text
+  BASELINE_LINES=0
+  ```
+- **AC-01 / Step 1-A — 削除前参照走査**:
+  ```text
+  frontend/src/features/owner-report/components/CheckupHistorySection.tsx:7:interface CheckupHistorySectionProps {
+  frontend/src/features/owner-report/components/CheckupHistorySection.tsx:54:export function CheckupHistorySection({ petId }: CheckupHistorySectionProps) {
+  frontend/src/features/owner-report/components/ExaminationHistorySection.tsx:7:interface ExaminationHistorySectionProps {
+  frontend/src/features/owner-report/components/ExaminationHistorySection.tsx:15:export function ExaminationHistorySection({ petId }: ExaminationHistorySectionProps) {
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:4:import { ExaminationHistorySection } from "./ExaminationHistorySection";
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:55:describe("ExaminationHistorySection", () => {
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:57:    render(<ExaminationHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:65:    render(<ExaminationHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:83:    render(<ExaminationHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:92:    render(<ExaminationHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx:100:    render(<ExaminationHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx:4:import { CheckupHistorySection } from "./CheckupHistorySection";
+  frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx:45:describe("CheckupHistorySection", () => {
+  frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx:47:    render(<CheckupHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx:67:    render(<CheckupHistorySection petId="1" />);
+  frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx:76:    render(<CheckupHistorySection petId="1" />);
+  REF_SCAN_EXIT=0
+  ```
+  自身の定義と隣接 test 以外の一致は 0。`owner-report/index.ts` は
+  `export { OwnerReport } from "./routes/OwnerReport";` のみで対象 component の re-export は 0。
+- **AC-05 / Step 1-B — audit before**:
+  ```text
+  AUDIT_BEFORE_EXIT=0
+  design-system-audit: C18 table cell override — 0 件
+  design-system-audit: C18 raw legacy baseline — 10 件（non-gating ratchet）
+  design-system-audit: C19 table row onClick — 0 件
+  design-system-audit: PASS — 違反 0 件
+  ```
+- **AC-07 / AC-08 / Step 1-C — suites before**:
+  ```text
+  ℹ tests 61
+  ℹ suites 0
+  ℹ pass 61
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  AUDIT_TESTS_BEFORE_EXIT=0
+
+   Test Files  15 passed (15)
+        Tests  89 passed (89)
+  OWNER_TESTS_BEFORE_EXIT=0
+  ```
+- **Step 2 — `surface` 読み手走査**:
+  ```text
+  BEFORE
+  frontend/scripts/design-system-audit.mjs:632:        surface: "raw",
+  frontend/scripts/design-system-audit.mjs:664:            surface: isRawCell ? "raw" : "primitive",
+  frontend/scripts/design-system-audit.mjs:834:          if (v.surface === "raw" && rawBaselineRemaining > 0) {
+
+  AFTER
+  frontend/scripts/design-system-audit.mjs:358: * checkC15 は本体アプリの route/page surface に残る named white/black color を検出する。
+  frontend/scripts/design-system-audit.test.mjs:220:        '    <div className="bg-white p-5">surface</div>',
+  SURFACE_SCAN_EXIT=0
+  ```
+  ratchet 分岐撤去後、violation object の `surface` 読み手は 0。残る 2 件は C15
+  の英単語と C15 fixture 本文であり、C18 metadata ではないため `surface` 書き込み 2 件も削除した。
+- **component 削除だけを反映した中間 audit**:
+  ```text
+  AUDIT_AFTER_DELETE_EXIT=0
+  design-system-audit: C18 table cell override — 0 件
+  design-system-audit: C18 raw legacy baseline — 0 件（non-gating ratchet）
+  design-system-audit: C19 table row onClick — 0 件
+  design-system-audit: PASS — 違反 0 件
+  ```
+- **削除した 4 file / 行数**:
+  ```text
+  110 frontend/src/features/owner-report/components/CheckupHistorySection.tsx
+   81 frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx
+   85 frontend/src/features/owner-report/components/ExaminationHistorySection.tsx
+  104 frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx
+  380 total
+  ```
+- **撤去した ratchet 機構（撤去前位置）**:
+  - `frontend/scripts/design-system-audit.mjs:135-141`:
+    `C18_RAW_CELL_BASELINE` コメント / Map 宣言。
+  - `frontend/scripts/design-system-audit.mjs:632,664`: C18 violation の `surface` metadata。
+  - `frontend/scripts/design-system-audit.mjs:773`: result の `c18RawBaseline` field。
+  - `frontend/scripts/design-system-audit.mjs:832-839`:
+    `rawBaselineRemaining` と `surface` による non-gating 振り分け。
+  - `frontend/scripts/design-system-audit.mjs:909`: `C18 raw legacy baseline` 出力行。
+  - `frontend/scripts/design-system-audit.test.mjs:1031-1054`:
+    ratchet 専用 test 1 件。
+- **AC-02 / AC-03 / AC-04 / Step 4-A〜4-C**:
+  ```text
+  missing frontend/src/features/owner-report/components/CheckupHistorySection.tsx
+  missing frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx
+  missing frontend/src/features/owner-report/components/ExaminationHistorySection.tsx
+  missing frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx
+  COMPONENT_SCAN_EXIT=1
+  RATCHET_SCAN_EXIT=1
+  ```
+- **AC-09 / Step 4-D — CI dependency**:
+  ```text
+  $ rg -n 'raw legacy baseline|C18_RAW_CELL_BASELINE|c18RawBaseline' Makefile .github
+  CI_SCAN_EXIT=1
+  ```
+  stdout 0 行。`make ci` / workflow は撤去識別子・出力行へ依存していない。
+- **AC-05 / Step 5 — audit after**:
+  ```text
+  AUDIT_AFTER_EXIT=0
+  design-system-audit: C18 table cell override — 0 件
+  design-system-audit: C19 table row onClick — 0 件
+  design-system-audit: PASS — 違反 0 件
+  RAW_OUTPUT_SCAN_EXIT=1
+  ```
+- **AC-06 / Step 6 — gating 検出能力**: 既存 test
+  `collectViolations: raw th/td override を C18 に集計し allowlist は除外する`
+  を引用し、新規 test は追加していない。この test は non-allowlisted
+  `src/features/widget/components/RawBrokenTable.tsx` の raw `<th className="py-2">`
+  / `<td className="px-3">` を `result.c18` の 2 件として assert し、allowlisted
+  `ManualContent.tsx` は除外する。
+  ```text
+  ✔ collectViolations: raw th/td override を C18 に集計し allowlist は除外する (5.131133ms)
+  ℹ tests 60
+  ℹ suites 0
+  ℹ pass 60
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  AC06_TEST_NAME_GREP_EXIT=0
+  AUDIT_TESTS_AFTER_EXIT=0
+  ```
+- **AC-07 / AC-08 / AC-10 — suites / lint after**:
+  ```text
+  ℹ tests 60
+  ℹ pass 60
+  ℹ fail 0
+  AUDIT_TESTS_AFTER_EXIT=0
+
+   Test Files  13 passed (13)
+        Tests  81 passed (81)
+  OWNER_TESTS_AFTER_EXIT=0
+
+  ESLINT_CLEAN_EXIT=0
+  ESLINT_STDOUT_LINES=0
+  ```
+  audit suite は ratchet 専用 test 1 件の削除だけで 61→60。owner-report は
+  `CheckupHistorySection.test.tsx` 3件と `ExaminationHistorySection.test.tsx` 5件の
+  削除だけで 15→13 files / 89→81 tests。新規失敗 0。
+- **Harness / loop / coverage**: `tdd-workflow`、`verification-loop`、
+  `react-testing` を実際に読み、sequential + de-sloppify overlay を採用。
+  RED は before 実測、GREEN は同一 scoped gate の after 実測。prompt が禁止する
+  full lint / test / build / type-check / install / `make ci` は未実行。削除 unit のため
+  coverage threshold は主張しない。生成物・export・write-back artifact はなく、
+  index に触れず commit 予定もないため tracked-or-not-ignored / staged-path probe は非該当。
+- **Assumption deviations**: なし。CI dependency は 0 件で、AC-06 は既存 test が
+  gating 集計を直接検証していた。
+- **Failure Signature log**: なし。期待された RED/baseline 以外の gate failure は 0。
+- **De-Sloppify**: ratchet 識別子・説明・出力・専用 test の残骸走査は 0 件。
+  新規 helper / abstraction / allowlist entry / console log / commented-out code /
+  unrelated formatting は 0。
+- **Subagent orchestration**: read-only explorer 2名を使用。参照・生存 consumer の
+  再走査と、CI dependency / AC-06 existing-test の独立調査を分担した。CI agent の
+  stdout 0 / exit 1 evidence と existing-test finding は採用したが、AC-09 を
+  `BLOCKED` とした status 解釈は acceptance criterion と逆のため棄却した。
+- **AC-11 final allowlist attribution**:
+  ```text
+  FINAL_SCOPED_STATUS
+   D frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx
+   D frontend/src/features/owner-report/components/CheckupHistorySection.tsx
+   D frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx
+   D frontend/src/features/owner-report/components/ExaminationHistorySection.tsx
+   M FE-refactor.md
+   M frontend/scripts/design-system-audit.mjs
+   M frontend/scripts/design-system-audit.test.mjs
+  COMM_ADDED
+   D frontend/src/features/owner-report/components/CheckupHistorySection.test.tsx
+   D frontend/src/features/owner-report/components/CheckupHistorySection.tsx
+   D frontend/src/features/owner-report/components/ExaminationHistorySection.test.tsx
+   D frontend/src/features/owner-report/components/ExaminationHistorySection.tsx
+   M FE-refactor.md
+   M frontend/scripts/design-system-audit.mjs
+   M frontend/scripts/design-system-audit.test.mjs
+  CACHED_PATHS
+  DIFF_CHECK_EXIT=0
+  PROTECTED_LOGIC_DIFF_SCAN_EXIT=1
+  ```
+  最初の編集前 baseline 0 行に対する増分は自己申告した allowlist 7 path と一致。
+  scoped cached path は 0。`C18_RAW_CELL_ALLOWLIST`、PrintArea rule、
+  `isC18RawCellExemptFile`、C18 regex / token / detection condition の追加削除差分は 0。
+- **AC-13 Independent review**: fresh reviewer role を使用し、CRITICAL / HIGH /
+  MEDIUM / LOW finding はすべて 0、AC-13 PASS。削除が4 file / 380行に閉じること、
+  生存 consumer の無変更、allowlist / PrintArea / `checkC18` 検出ロジックの不変、
+  ratchet 残骸 0、AC-06 が `result.c18` への gating 集計を直接 assert すること、
+  total が `c18` / `c19` を含むこと、CI dependency 0、ledger 件数差と7-path
+  scopeを独立に再照合した。採用 finding は 0、棄却 finding も 0。
+- **Remaining risks / follow-up**: full-project gates は本 unit の禁止範囲で未実行。
+  統合時の CI 所掌として残す。FE12-02 U10 / F16 / F9、M-01〜M-05、manual chunk、
+  `AuthProvider` barrel、task backlog は未着手のまま。

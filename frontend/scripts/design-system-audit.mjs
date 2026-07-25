@@ -131,14 +131,6 @@ export const C18_RAW_CELL_ALLOWLIST = new Set([
 ]);
 /** C18: print 帳票（MonthlyReportPrintArea / DailyAccountingPrintArea / ClosePrintArea 等）の basename パターン。 */
 const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
-/**
- * 既存raw tableの移行負債を件数でratchetする。値は2026-07-24時点のstrict C18検出数。
- * 新規fileはbaseline 0、既存fileも件数増加分だけをgating violationとして扱う。
- */
-export const C18_RAW_CELL_BASELINE = new Map([
-  [path.join("src", "features", "owner-report", "components", "CheckupHistorySection.tsx"), 4],
-  [path.join("src", "features", "owner-report", "components", "ExaminationHistorySection.tsx"), 6],
-]);
 
 /**
  * isC18RawCellExemptFile は raw th/td 検査の対象外ファイルか判定する。
@@ -629,7 +621,6 @@ export function checkC18(text, relPath = "") {
       violations.push({
         lineNumber: firstLineNumber,
         text: openingTag.split("\n")[0].trim(),
-        surface: "raw",
       });
       openingTagRe.lastIndex = endIndex;
       continue;
@@ -661,7 +652,6 @@ export function checkC18(text, relPath = "") {
           violations.push({
             lineNumber: firstLineNumber + segment.lineOffset + index,
             text: line.trim(),
-            surface: isRawCell ? "raw" : "primitive",
           });
         }
       });
@@ -770,7 +760,7 @@ async function walk(dir, exts, excludeNames) {
  * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC19 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c18RawBaseline: [], c19: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -829,14 +819,8 @@ export async function collectViolations(cwd) {
         for (const v of checkC16(text, relPath)) {
           result.c16.push({ file: relPath, ...v });
         }
-        let rawBaselineRemaining = C18_RAW_CELL_BASELINE.get(relPath) ?? 0;
         for (const v of checkC18(text, relPath)) {
-          if (v.surface === "raw" && rawBaselineRemaining > 0) {
-            result.c18RawBaseline.push({ file: relPath, ...v });
-            rawBaselineRemaining -= 1;
-          } else {
-            result.c18.push({ file: relPath, ...v });
-          }
+          result.c18.push({ file: relPath, ...v });
         }
         for (const v of checkC19(text, relPath)) {
           result.c19.push({ file: relPath, ...v });
@@ -906,7 +890,6 @@ async function main() {
   printGroup("C16 非仕様 spacing(*-5)", result.c16);
   printGroup("C17 CSS shadow 直書き", result.c17);
   printGroup("C18 table cell override", result.c18);
-  console.log(`design-system-audit: C18 raw legacy baseline — ${result.c18RawBaseline.length} 件（non-gating ratchet）`);
   printGroup("C19 table row onClick", result.c19);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length

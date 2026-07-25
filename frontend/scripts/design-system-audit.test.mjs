@@ -1028,31 +1028,6 @@ test("collectViolations: raw th/td override を C18 に集計し allowlist は�
   }
 });
 
-test("collectViolations: 既存raw baselineは件数まで非gating、増加分だけをC18違反にする", async () => {
-  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
-  try {
-    const componentDir = path.join(
-      root,
-      "src",
-      "features",
-      "owner-report",
-      "components",
-    );
-    mkdirSync(componentDir, { recursive: true });
-    writeFileSync(
-      path.join(componentDir, "CheckupHistorySection.tsx"),
-      Array.from({ length: 5 }, (_, index) => `<td>legacy-${index}</td>`).join("\n"),
-    );
-
-    const result = await collectViolations(root);
-    assert.equal(result.c18RawBaseline.length, 4);
-    assert.equal(result.c18.length, 1);
-    assert.equal(result.c18[0].lineNumber, 5);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
 test("checkC19: DataTableRow / SortableDataTableRow の single-line onClick を検出する", () => {
   assert.equal(typeof audit.checkC19, "function");
 
