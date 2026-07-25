@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B4 完了**（B1〜B3 commit済み、B4 hash追記待ち。B5〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=下記実行ledger・下記batch表・下記E12補正根拠 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B4 完了**（commit済み。B5〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`・下記実行ledger・下記batch表・下記E12補正根拠 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -383,7 +383,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B4完了。B1〜B3はcommit済み、B4はhash追記待ち。B5〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B4完了・commit済み。B5〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -615,7 +615,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B1 ✅完了 `718f6c9b3` | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B2 ✅完了 `134e7953b` | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
 | B3 ✅完了 `36f283f37` | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
-| B4 ✅完了（hash追記待ち） | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
+| B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
@@ -1255,7 +1255,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
 #### BE10-2 B4 実行ledger（2026-07-25）
 
-- 実行状態: `完了（hash追記待ち）`。serviceに残っていたmaster-FK/N+1 lint test 2 fileを`internal/lintscan`へ、update-fields testを`internal/sharedkernel`へ移設した。`internal/service`のGo fileは0件になったが、directory自体と`CLAUDE.md` / `.DS_Store`の後始末は本unitの対象外であり、削除していない。
+- 実行状態: `完了`（commit `c430072d8`）。serviceに残っていたmaster-FK/N+1 lint test 2 fileを`internal/lintscan`へ、update-fields testを`internal/sharedkernel`へ移設した。`internal/service`のGo fileは0件になったが、directory自体と`CLAUDE.md` / `.DS_Store`の後始末は本unitの対象外であり、削除していない。
 - 変更file:
   - `backend/internal/lintscan/master_fk_write_inventory_lint_test.go`（移設）
   - `backend/internal/lintscan/n1_lint_test.go`（移設）
