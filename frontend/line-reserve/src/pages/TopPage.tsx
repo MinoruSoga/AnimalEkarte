@@ -12,7 +12,7 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       {/* ヘッダー */}
       <header className="bg-noah-teal text-white py-5 px-4 text-center">
-        <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Montserrat', 'Noto Sans JP', sans-serif" }}>
+        <h1 className="text-lg font-bold tracking-tight">
           {settings.header_text || 'ノア動物病院'}
         </h1>
         <p className="text-sm text-white/80 mt-1">オンライン予約</p>
