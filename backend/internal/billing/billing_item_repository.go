@@ -344,6 +344,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		JOIN trimming_courses tc ON tc.id = atd.course_id AND tc.clinic_id = a.clinic_id AND tc.deleted_at IS NULL
 		WHERE a.clinic_id = ?
 		  AND a.pet_id = ?
+		  AND EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id)
 		  AND a.status = ?
 		  AND rt.category = ?
 		  AND COALESCE(tc.price, 0) > 0
@@ -372,6 +373,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		JOIN trimming_options topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL
 		WHERE a.clinic_id = ?
 		  AND a.pet_id = ?
+		  AND EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id)
 		  AND a.status = ?
 		  AND rt.category = ?
 		  AND COALESCE(topt.price, 0) > 0
@@ -424,6 +426,7 @@ func (r *billingItemRepository) CountNonAccountingTrimmingByPetAndDate(ctx conte
 		Model(&model.Reservation{}).
 		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.clinic_id = appointments.clinic_id AND rt.deleted_at IS NULL").
 		Where("appointments.clinic_id = ? AND appointments.pet_id = ? AND appointments.deleted_at IS NULL", clinicID, petID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = appointments.pet_id AND p.clinic_id = appointments.clinic_id)").
 		Where("rt.category = ?", model.ReservationTypeCategoryTrimming).
 		Where("appointments.status NOT IN ?", []model.ReservationStatus{
 			model.ReservationStatusAccounting,

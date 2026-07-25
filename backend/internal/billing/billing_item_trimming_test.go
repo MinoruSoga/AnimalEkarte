@@ -352,6 +352,36 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 	})
 }
 
+func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID_RejectsCorruptCrossClinicPetRelation(
+	t *testing.T,
+) {
+	db := setupBillingItemTrimmingTestDB(t)
+	repo := NewBillingItemRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "cross-clinic trimming owner")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "cross-clinic trimming pet")
+	reservationTypeA := makeTrimmingReservationType(t, db, clinicA)
+	appointment := makeTrimmingAppointment(
+		t,
+		db,
+		clinicA,
+		petB.ID,
+		reservationTypeA.ID,
+		model.ReservationStatusAccounting,
+	)
+	course := makeTrimmingCourse(t, db, clinicA, "corrupt relation course", priceOf(3000))
+	option := makeTrimmingOption(t, db, clinicA, "corrupt relation option", priceOf(500))
+	attachTrimmingCourse(t, db, clinicA, appointment.ID, course.ID)
+	attachTrimmingOption(t, db, appointment.ID, option.ID, 0)
+
+	items, err := repo.FindUnbilledTrimmingItemsByPetID(ctx, clinicA, petB.ID)
+
+	require.NoError(t, err)
+	assert.Empty(t, items, "clinic A appointment must not resolve a clinic B pet")
+}
+
 func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -404,4 +434,35 @@ func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), count, "only the clinic-owned reservation type may classify the appointment")
 	})
+}
+
+func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate_RejectsCorruptCrossClinicPetRelation(
+	t *testing.T,
+) {
+	db := setupBillingItemTrimmingTestDB(t)
+	repo := NewBillingItemRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "cross-clinic trimming count owner")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "cross-clinic trimming count pet")
+	reservationTypeA := makeTrimmingReservationType(t, db, clinicA)
+	makeTrimmingAppointment(
+		t,
+		db,
+		clinicA,
+		petB.ID,
+		reservationTypeA.ID,
+		model.ReservationStatusPending,
+	)
+
+	count, err := repo.CountNonAccountingTrimmingByPetAndDate(
+		ctx,
+		clinicA,
+		petB.ID,
+		time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+	)
+
+	require.NoError(t, err)
+	assert.Zero(t, count, "clinic A appointment must not count a clinic B pet")
 }

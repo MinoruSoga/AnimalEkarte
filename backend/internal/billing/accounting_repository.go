@@ -206,6 +206,7 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	billings := make([]model.Billing, 0)
 	var total int64
 
+	q = q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}

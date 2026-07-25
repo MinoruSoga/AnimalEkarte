@@ -26,7 +26,7 @@ func setupAccountingOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestAccountingRepository_FindByID_FindAll_Update_DoesNotPreloadForeignOwnerPet(t *testing.T) {
+func TestAccountingRepository_FindByID_Update_DoesNotPreloadForeignOwnerPet(t *testing.T) {
 	db := setupAccountingOwnerPetPreloadDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -56,22 +56,6 @@ func TestAccountingRepository_FindByID_FindAll_Update_DoesNotPreloadForeignOwner
 		assert.Nil(t, got.Pet, "foreign Pet must not be preloaded")
 	})
 
-	t.Run("FindAll does not preload foreign owner/pet", func(t *testing.T) {
-		items, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 50)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, total, int64(1))
-		var found *model.Billing
-		for i := range items {
-			if items[i].ID == contaminated.ID {
-				found = &items[i]
-				break
-			}
-		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.Owner, "foreign Owner must not be preloaded")
-		assert.Nil(t, found.Pet, "foreign Pet must not be preloaded")
-	})
-
 	t.Run("Update refetch does not preload foreign owner/pet", func(t *testing.T) {
 		memo := "aud-002-preload"
 		got, err := repo.Update(ctx, clinicA, contaminated.ID, map[string]any{"memo": memo})
@@ -82,6 +66,107 @@ func TestAccountingRepository_FindByID_FindAll_Update_DoesNotPreloadForeignOwner
 		assert.Nil(t, got.Owner, "foreign Owner must not be preloaded on Update refetch")
 		assert.Nil(t, got.Pet, "foreign Pet must not be preloaded on Update refetch")
 	})
+}
+
+func TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation(
+	t *testing.T,
+) {
+	db := setupAccountingOwnerPetPreloadDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "cross-clinic billing owner")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "cross-clinic billing pet")
+	petBID := petB.ID
+	makeBillingWith(t, db, billingFixtureOpts{
+		ClinicID:      clinicA,
+		OwnerID:       &ownerA.ID,
+		PetID:         &petBID,
+		TotalAmount:   1500,
+		Status:        model.BillingStatusWaiting,
+		ScheduledDate: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	})
+
+	items, total, err := repo.FindAll(
+		ctx,
+		clinicA,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		1,
+		50,
+	)
+
+	require.NoError(t, err)
+	assert.Zero(t, total)
+	assert.Empty(t, items, "clinic A billing must not resolve a clinic B pet")
+}
+
+func TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRelation(
+	t *testing.T,
+) {
+	db := setupAccountingOwnerPetPreloadDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "cross-clinic multi billing owner")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "cross-clinic multi billing pet")
+	petBID := petB.ID
+	makeBillingWith(t, db, billingFixtureOpts{
+		ClinicID:      clinicA,
+		OwnerID:       &ownerA.ID,
+		PetID:         &petBID,
+		TotalAmount:   1600,
+		Status:        model.BillingStatusWaiting,
+		ScheduledDate: time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
+	})
+
+	items, total, err := repo.FindAllForClinics(
+		ctx,
+		[]uint64{clinicA},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		1,
+		50,
+	)
+
+	require.NoError(t, err)
+	assert.Zero(t, total)
+	assert.Empty(t, items, "authorized clinics must not resolve a pet outside their scope")
+}
+
+func TestAccountingRepository_FindAll_PreservesBillingWithoutPet(t *testing.T) {
+	db := setupAccountingOwnerPetPreloadDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	billing := makeBillingRet(t, db, clinicA)
+
+	items, total, err := repo.FindAll(
+		ctx,
+		clinicA,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		1,
+		50,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	assert.Equal(t, billing.ID, items[0].ID)
+	assert.Nil(t, items[0].PetID)
 }
 
 func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
@@ -191,7 +276,7 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 		assert.Nil(t, updated.Pet)
 	})
 
-	t.Run("multi-clinic reads still require each exact billing parent", func(t *testing.T) {
+	t.Run("multi-clinic detail sanitizes while list excludes cross-clinic pet relation", func(t *testing.T) {
 		got, err := repo.FindByIDForClinics(
 			ctx,
 			[]uint64{clinicA, clinicB},
@@ -220,9 +305,7 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 				break
 			}
 		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.Owner)
-		assert.Nil(t, found.Pet)
+		assert.Nil(t, found, "list must exclude a billing whose pet belongs to another clinic")
 	})
 
 	t.Run("pet is removed when its billing owner relation is invalid", func(t *testing.T) {

@@ -116,6 +116,352 @@
 - Failure Signature 3: completeness addendum attempt 1はpatch行prefix欠落で`Invalid patch hunk`、attempt 2は古いsummary contextで不一致。いずれもwriteなし。current exact contextを再読して適用成功。
 - Failure Signature 4: unique-inventory置換 attempt 1はBUG-430境界文字列の仮定違いで`BUG-430 boundary not found`、writeなし。実見出しを再読してattempt 2で成功。
 
+##### medicalrecord remediation unit（2026-07-25）
+
+- **判定: UNIT COMPLETE / focused isolation 5件 PASS / package regression 1件 BLOCKED（既存test DB schema gap）**。`hospitalizationRepository.FindAll`、`treatmentRepository.FindUnbilledByPetID`、`treatmentRepository.FindHistoryByPetID`、`treatmentRepository.CountFinalizedUnconfirmedByPetAndDate`、`checkupFieldResultRepository.FindByPetID` の全5件で、clinic A childがclinic B petを参照する破損FKをREDで再現し、clinic-only親相関後にGREENを確認した。FAIL残存なし。
+- Risk Tier: Local write。safety boundary eventなし。commit / push / PRなし。
+- 変更code/test（本unit attribution、6ファイルのみ）:
+  - `backend/internal/medicalrecord/hospitalization_repository.go`
+  - `backend/internal/medicalrecord/hospitalization_repository_test.go`
+  - `backend/internal/medicalrecord/treatment_repository.go`
+  - `backend/internal/medicalrecord/treatment_repository_test.go`
+  - `backend/internal/medicalrecord/checkup_field_repository.go`
+  - `backend/internal/medicalrecord/checkup_field_repository_test.go`
+- ledger write: 本 subsection。promptの「write only」列挙外だが、同prompt Execution Flow の「このsectionへoutcome append」が後段で明示されているため、既存の本file差分を保持したままその必須ledger writeだけを追加した。
+- 最終predicate（live aliasとの差異なし）:
+  - `EXISTS (SELECT 1 FROM pets p WHERE p.id = hospitalizations.pet_id AND p.clinic_id = hospitalizations.clinic_id)`
+  - `EXISTS (SELECT 1 FROM pets p WHERE p.id = mr.pet_id AND p.clinic_id = mr.clinic_id)`
+  - `EXISTS (SELECT 1 FROM pets p WHERE p.id = medical_records.pet_id AND p.clinic_id = medical_records.clinic_id)`（history / countの2件）
+  - `EXISTS (SELECT 1 FROM pets p WHERE p.id = checkups.pet_id AND p.clinic_id = checkups.clinic_id)`
+- `pets.deleted_at` / `pets.deceased_at` / pet status条件は追加していない。同一clinicのsoft-delete済み・死亡pet履歴を親相関だけで隠さない。
+- `GET /api/v1/pets/:id/treatment-history` はowner-facingではなくstaff-only。`backend/internal/auth/http_routes.go:83-88` のAuthenticate+CSRF付きprotected groupへ `backend/cmd/api/composition_runtime.go:560-566` がmedicalrecord routesを登録し、`backend/internal/medicalrecord/routes.go:263-267` でさらに `ResourceMedicalRecords/view` permissionを要求する。LIFF owner routesとは別surface。
+
+###### focused RED → GREEN evidence
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation`
+
+```text
+--- FAIL: TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation (0.31s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	0.312s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.344s
+```
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run TestTreatmentRepository_FindUnbilledByPetID_RejectsCorruptCrossClinicPetRelation`
+
+```text
+--- FAIL: TestTreatmentRepository_FindUnbilledByPetID_RejectsCorruptCrossClinicPetRelation (0.35s)
+        Error:      	Should be empty, but was [{3 97 medicine <nil> <nil> <nil> <nil> 0 1 false pending 別医院ペット由来治療   false 0 0 0 <nil> <nil> <nil> <nil> [] {0001-01-01 00:00:00 +0000 UTC false} 2026-07-25 14:49:21.420119 +0900 JST 2026-07-25 14:49:21.420119 +0900 JST 0x4000102e00 <nil> <nil> <nil> <nil>}]
+        Test:       	TestTreatmentRepository_FindUnbilledByPetID_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	0.358s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.326s
+```
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run TestTreatmentRepository_FindHistoryByPetID_RejectsCorruptCrossClinicPetRelation`
+
+```text
+--- FAIL: TestTreatmentRepository_FindHistoryByPetID_RejectsCorruptCrossClinicPetRelation (0.27s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestTreatmentRepository_FindHistoryByPetID_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	0.279s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.342s
+```
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate_RejectsCorruptCrossClinicPetRelation`
+
+```text
+--- FAIL: TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate_RejectsCorruptCrossClinicPetRelation (0.32s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	0.323s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.393s
+```
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run TestCheckupFieldResultRepository_FindByPetID_RejectsCorruptCrossClinicPetRelation`
+
+```text
+--- FAIL: TestCheckupFieldResultRepository_FindByPetID_RejectsCorruptCrossClinicPetRelation (0.28s)
+        Error:      	Should be empty, but was [{1 1 39 <nil> 別医院ペット由来結果 boolean  <nil>  <nil> [] <nil> <nil> false normal 1 2026-07-25 14:51:19.237085 +0900 JST 2026-07-25 14:51:19.237085 +0900 JST <nil> 0x40001388f0}]
+        Test:       	TestCheckupFieldResultRepository_FindByPetID_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	0.288s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.328s
+```
+
+format後のtreatment 3件再確認:
+
+`docker compose exec backend go test ./internal/medicalrecord/... -run 'TestTreatmentRepository_(FindUnbilledByPetID|FindHistoryByPetID|CountFinalizedUnconfirmedByPetAndDate)_RejectsCorruptCrossClinicPetRelation'`
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.493s
+```
+
+###### widened / static / scope gates
+
+- package regression: `docker compose exec backend go test ./internal/medicalrecord/...` → **BLOCKED（本unit外の既存test DB schema gap）**。verbatim failure signature:
+
+```text
+ERROR: relation "estimates" does not exist (SQLSTATE 42P01)
+panic: test timed out after 10m0s
+	running tests:
+		TestMedicalRecordService_DeleteSerializesWithEstimateCreation (9m43s)
+		TestMedicalRecordService_DeleteSerializesWithEstimateCreation/estimate_commit_wins_and_delete_conflicts (9m43s)
+FAIL	github.com/animal-ekarte/backend/internal/medicalrecord	600.149s
+FAIL
+```
+
+このfailureは5対象method/testと無関係で、prompt指定どおりsame-clinic regression itemだけをBLOCKEDとした。DB reset / migration applyは実行していない。
+
+- touched methodのpre-existing direct coverage: `docker compose exec backend go test ./internal/medicalrecord/... -run '^(TestHospitalizationRepository_FindAll|TestTreatmentRepository_FindHistoryByPetID|TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters|TestTreatmentRepository_FindUnbilledByPetID|TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate|TestCheckupFieldResultRepository_FindByPetID_FieldPreloadClinicIsolation)$'`:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	1.096s
+```
+
+- `docker compose exec backend gofmt -l ./internal/medicalrecord/hospitalization_repository.go ./internal/medicalrecord/hospitalization_repository_test.go ./internal/medicalrecord/treatment_repository.go ./internal/medicalrecord/treatment_repository_test.go ./internal/medicalrecord/checkup_field_repository.go ./internal/medicalrecord/checkup_field_repository_test.go` → gofmt path outputなし、exit 0。
+- `docker compose exec backend go vet ./internal/medicalrecord/...` → stdoutなし、exit 0。
+- `git diff --check -- backend/internal/medicalrecord/` → outputなし、exit 0。
+- `git diff -- backend/internal/medicalrecord/ | grep '^+' | grep -nE "deleted_at|deceased_at"` → outputなし、exit 1（no-matchが期待値）。
+- `git status --porcelain -- backend/internal/medicalrecord/`:
+
+```text
+ M backend/internal/medicalrecord/checkup_field_repository.go
+ M backend/internal/medicalrecord/checkup_field_repository_test.go
+ M backend/internal/medicalrecord/hospitalization_repository.go
+ M backend/internal/medicalrecord/hospitalization_repository_test.go
+ M backend/internal/medicalrecord/treatment_repository.go
+ M backend/internal/medicalrecord/treatment_repository_test.go
+```
+
+- saved prompt validation: `node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-secsweep-medicalrecord-idor-fix.md`:
+
+```text
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Target: agent (detected)
+Quality mode: standard
+```
+
+exit 0。
+
+###### harness / review / failure signature
+
+- Harness Selection: `tdd`。`~/.agents/skills/golang-testing/SKILL.md`を実読し、5 methodを順次RED→GREEN。project policyが固定coverage thresholdをenforceしないためcoverage thresholdは追加していない。
+- Execution Loop: sequential。DB-backed testを並列実行せず、stop conditionはchecklistがPASSまたはgenuine BLOCKEDになること。long-lived loop monitorは非該当。
+- De-Sloppify: language/framework behaviorだけのtest、console/log、commented-out code、broad fallback、drive-by cleanupなし。format後に最小affected testを再実行してPASS。
+- Independent Review: Go reviewer、database reviewer、security reviewer、clinic-isolation auditorが全てAPPROVE。CRITICAL/HIGH/MEDIUM findings 0。review findingsは全て採用、rejectなし。
+- Subagents: route evidence agentがstaff-only判定を提供。database pre-reviewがalias・fixture・Count/List shared baseを確認。planner laneはread-only探索から応答せずinterruptしたため、main agentの明示checklist+database pre-reviewをplanning fallbackに使用。
+- Failure Signature M1（format、attempt 1）: expected=`gofmt -l` empty、actual=`./internal/medicalrecord/treatment_repository.go`、fix=scoped `gofmt -w`、result=再実行outputなし / exit 0。
+- Failure Signature M2（no-liveness gate、attempt 1）: expected=no match、actual=既存 `treatments.deleted_at` 行がchain追加のdiff artifactとしてmatch、fix=元行をbyte-preserveして `q = q.Where(EXISTS...)` を独立追加、result=outputなし / exit 1、focused history test再PASS。
+- Failure Signature M3（package regression、attempt 1）: expected=package PASS、actual=`relation "estimates" does not exist`後にconcurrency test timeout、fix=本unit外かつDB reset禁止のためなし、result=このitemのみBLOCKED。required external change=test DBへbinding schemaを整備するか、当該test setupで`estimates`を確実に作る。
+- Harness Improvement Feedback:
+  - P1: `medical_record_delete_estimate_concurrency_test.go` は`estimates`欠落時に即FAILせずchannel待機から10分timeoutする。fixture setupをfail-fast化する。
+  - P2: planner roleがbounded read-only taskで応答しなかった。role側のtool/time budgetを短くする。
+- prompt defect / Eval Regression Capture: not needed。promptのunrelated environment blocker分離規則が今回正しく機能した。
+- remaining risk/follow-up: billing packageの4 exposuresは未変更・未検証で、nullable `pet_id` accounting handlingを含む別unitが必要。grandchild correlationとstatic lintも本unit外のまま。
+
+##### billing remediation unit（2026-07-25）
+
+- **判定: UNIT COMPLETE / focused isolation 4件 PASS / nullable regression PASS / package failure signature RESOLVED**。`billingItemRepository.FindUnbilledTrimmingItemsByPetID`、`billingItemRepository.CountNonAccountingTrimmingByPetAndDate`、`accountingRepository.FindAll`、`accountingRepository.FindAllForClinics` の全4件で、clinic A rowがclinic B petを参照する破損FKをREDで再現し、clinic-only親相関後にGREENを確認した。nullable `billings.pet_id` も修正前後でGREEN。FAIL残存なし。
+- Risk Tier: Local write。safety boundary eventなし。commit / push / PRなし。
+- 変更code/test（本unit attribution、4ファイルのみ）:
+  - `backend/internal/billing/billing_item_repository.go`
+  - `backend/internal/billing/billing_item_trimming_test.go`
+  - `backend/internal/billing/accounting_repository.go`
+  - `backend/internal/billing/accounting_owner_pet_preload_clinic_isolation_test.go`
+- ledger write: 本 subsection。promptの「write only」列挙外だが、同prompt Execution Flow の「このsectionへoutcome append」が後段で明示されているため、既存の本file差分を保持したままその必須ledger writeだけを追加した。
+- 最終predicate（live aliasとの差異なし）:
+  - raw trimming course / optionの両branch: `EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id)`
+  - trimming count: `EXISTS (SELECT 1 FROM pets p WHERE p.id = appointments.pet_id AND p.clinic_id = appointments.clinic_id)`
+  - accounting shared helper（1回のみ）: `(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))`
+- `pets.deleted_at` / `pets.deceased_at` / pet status条件は追加していない。同一clinicのsoft-delete済み・死亡pet履歴を親相関だけで隠さず、petなしbillingも保持する。
+
+###### focused RED → GREEN evidence
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID_RejectsCorruptCrossClinicPetRelation$'`
+
+```text
+--- FAIL: TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID_RejectsCorruptCrossClinicPetRelation (0.31s)
+        Error:      	Should be empty, but was [{... corrupt relation course ...} {... corrupt relation option ...}]
+        Test:       	TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/billing	0.319s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/billing	0.317s
+```
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate_RejectsCorruptCrossClinicPetRelation$'`
+
+```text
+--- FAIL: TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate_RejectsCorruptCrossClinicPetRelation (0.35s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate_RejectsCorruptCrossClinicPetRelation
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/billing	0.357s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/billing	0.316s
+```
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation$'`
+
+```text
+--- FAIL: TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation (0.28s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation
+        Error:      	Should be empty, but was [{...}]
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/billing	0.287s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/billing	0.322s
+```
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRelation$'`
+
+```text
+--- FAIL: TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRelation (0.49s)
+        Error:      	Should be zero, but was 1
+        Test:       	TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRelation
+        Error:      	Should be empty, but was [{...}]
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/billing	0.499s
+FAIL
+```
+
+同command GREEN:
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/billing	0.302s
+```
+
+nullable regression:
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestAccountingRepository_FindAll_PreservesBillingWithoutPet$'`
+
+```text
+修正前: ok  	github.com/animal-ekarte/backend/internal/billing	0.299s
+修正後: ok  	github.com/animal-ekarte/backend/internal/billing	0.311s
+```
+
+###### widened / static / scope gates
+
+- package regression command（prompt指定どおりfocused 5件GREEN後に1回）: `docker compose exec backend go test ./internal/billing/...`。唯一のfailureは本修正と直接競合する旧assertionで、cross-clinic pet破損billingがmulti-clinic listに残ることを期待していた。
+
+```text
+--- FAIL: TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation (0.08s)
+    --- FAIL: TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation/multi-clinic_reads_still_require_each_exact_billing_parent (0.00s)
+        accounting_owner_pet_preload_clinic_isolation_test.go:308:
+            Error: Expected value not to be nil.
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/billing	10.608s
+FAIL
+```
+
+旧list assertionを「cross-clinic pet relationはlistから除外」へreconcile後、failure unit全体を再検証:
+
+`docker compose exec backend go test ./internal/billing/... -run '^TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation$'`
+
+```text
+ok  	github.com/animal-ekarte/backend/internal/billing	0.341s
+```
+
+full package runでは上記以外のfailureはなく、その後のproduction変更はないためpackage failure signatureはresolvedと判定した。
+
+- raw UNION branch anti-vacuous gate:
+
+```text
+WHERE a.clinic_id = ? count: 2
+EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id) count: 2
+```
+
+- accounting shared helper predicate count: `1`。
+- `docker compose exec backend gofmt -l ./internal/billing/billing_item_repository.go ./internal/billing/accounting_repository.go ./internal/billing/billing_item_trimming_test.go ./internal/billing/accounting_owner_pet_preload_clinic_isolation_test.go` → gofmt path outputなし、exit 0。
+- `docker compose exec backend go vet ./internal/billing/...` → diagnosticなし、exit 0。
+- `git diff --check -- backend/internal/billing/ todo.md` → outputなし、exit 0。
+- `git diff -- backend/internal/billing/ | grep '^+' | grep -nE 'p\.deleted_at|p\.deceased_at|p\.status|pets\.deleted_at|pets\.deceased_at|pets\.status'` → outputなし、exit 1（no-matchが期待値）。
+- `git status --porcelain=v1 -- backend/internal/billing/ todo.md`:
+
+```text
+ M backend/internal/billing/accounting_owner_pet_preload_clinic_isolation_test.go
+ M backend/internal/billing/accounting_repository.go
+ M backend/internal/billing/billing_item_repository.go
+ M backend/internal/billing/billing_item_trimming_test.go
+ M todo.md
+```
+
+- saved prompt validation: `node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-secsweep-billing-idor-fix.md`:
+
+```text
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Target: agent (detected)
+Quality mode: standard
+```
+
+exit 0。
+
+###### harness / review / failure signature
+
+- Harness Selection: `tdd`。`~/.agents/skills/golang-testing/SKILL.md`を全文実読し、4 exposed methodを順次RED→GREEN、nullable回帰を修正前後GREENで確認した。project policyが固定coverage thresholdをenforceしないためcoverage thresholdは追加していない。
+- Execution Loop: sequential。DB-backed testを並列実行せず、stop conditionはchecklistがPASSまたはgenuine BLOCKEDになること。long-lived loop monitorは非該当。
+- De-Sloppify: language/framework behaviorだけのtest、console/log、commented-out code、broad fallback、drive-by cleanupなし。format、vet、diff、alias、branch count、no-liveness、scopeを再確認した。
+- Independent Review: Go reviewer、database reviewer、security reviewer、clinic-isolation auditorが全てAPPROVE。CRITICAL/HIGH/MEDIUM findings 0。review findingsは全て採用、rejectなし。
+- Subagents: plannerとdatabase pre-reviewが2 raw branch、unaliased `appointments`、shared helper 1回、nullable contract、corrupt-FK fixtureを独立確認。final review 4 laneも全て完了。
+- Failure Signature B1（package regression、attempt 1）: expected=`docker compose exec backend go test ./internal/billing/...` PASS、actual=既存testがcross-clinic corrupt billingのlist残存を期待してFAIL、verification=`TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation/multi-clinic_reads_still_require_each_exact_billing_parent`、error=`Expected value not to be nil`、fix=detail readのsanitize期待は保持し、listだけ新しいfail-closed contractへ更新、result=最小subtest `ok ... 0.312s`、failure function全体 `ok ... 0.341s`。同failure signatureの再発なし。
+- assumption deviation: `todo.md` はprompt冒頭のwrite allowlist外だが、同promptがSEC-SWEEP sectionへのoutcome appendを必須化しているためledger appendだけを実施。既存medicalrecord ledgerと他owner WIPはbyte-preserveした。
+- Harness Improvement Feedback: package commandの単純な「1回」制約と、related failure後の再実行範囲が競合し得る。今回のようにfull packageで唯一のfailureがin-scope assertionの場合、smallest failing functionのGREENをpackage gate解決証拠として許容する旨を明文化する。
+- prompt defect / Eval Regression Capture: not needed。nullable contract、branch parity、failure reconciliation、review要件は明確だった。
+- remediation status: SEC-SWEEP-01のmedicalrecord 5件 + billing 4件、計9 exposuresはcode/test complete。grandchild correlation sweepとstatic lintは意図的にdeferredした別deliverableのまま。
+
 ##### full classification inventory (global unique methods)
 
 - 同一fileが複数tableを読む場合も exported method は全体で1回だけ分類する。`tables` はconsumer associationであり、stateはmethod全体のpet-key readについて解決済み。global totals: A=8 / B=3 / C=9 / D=334 / total=354。
@@ -585,3 +931,11 @@
 - 出典: SEC-SWEEP-01 実行結果（2026-07-25・本書上部の同名節）。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
+
+### BUG-435: 生成FE型が陳腐化したままmainに乗っていた（codegen-check未励行）
+
+- MEDIUM。FE12-07 で `make codegen` を回したところ、意図した型mapping修正（`any` 17→0）とは無関係な追随差分が同時に出た: audit定数7件（`AuditActionAuthPasswordChange` / `Reset` / `AdminReplace`、`AuditActionTrimmingCreate` / `Update` / `Delete`、`AuditResourceAccount` / `AuditResourceTrimming`）と `TokenBlacklist` のdoc comment。つまり **Go model を変更した際に `make codegen` が回されず、`frontend/src/types/generated/models.ts` が陳腐化した状態でmainに乗っていた**。
+- `Makefile:349` に `codegen-check: codegen` + `git diff --exit-code frontend/src/types/generated/` が存在し、本来これがCIで検出する。検出されなかった理由（CIに未配線／配線済みだが未実行／実行され無視された）は未確認。
+- 実害: FEが存在しない定数を参照しても型検査が通らないだけで安全側だが、逆に**BEが追加した定数をFEが使えない**状態が黙って続く。BUG-433（生成型がドメインモデル由来で応答DTOと不一致）とは別問題であり、そちらは構造の誤り、本件は同期の欠落。
+- 対応: `make codegen-check` のCI配線状況を実測し、未配線なら追加する。配線済みなら失敗が無視された経路を塞ぐ。
+- 出典: FE12-07 実行時に判明したNew Work（2026-07-25・`git diff frontend/src/types/generated/models.ts` 実測）。FE-refactor.md 範囲外のためこちらへ記載。
