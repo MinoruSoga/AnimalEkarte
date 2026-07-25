@@ -43,8 +43,7 @@
   - 含意(b) 締め集計の未知値 fail-closed = 生カラム無制限 GROUP BY（`backend/internal/billing/accounting_repository_reports_close.go:44`・`cash_register_service.go:265`）を12値 allowlist 経由にし typo/legacy を締め表へ黙って通さない（受け入れ条件「unknown/legacy を黙って変換しない」）。
   - 含意(d) 全書込経路（treatment/hospitalization/vaccination/trimming/merchandise/manual）を同一 typed category source に集約。
 - #247（月次統合表）は本 TASK の contract 完了後に着手。
-- Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）は 2026-07-25 に USER 承認のうえ完了済み（実測確認済み）。以後 contract の参照先は #251 本文と DEC-21 とし、本エントリは着手時期と実装スコープのみを持つ。
-- ⚠️ 未同期: #251 本文は「着手時期 = 納品後 S3」のままである。前倒しを Issue 側へ反映するには外部書込の承認が要る。
+- Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）と着手時期の前倒し反映は、いずれも 2026-07-25 に USER 承認のうえ完了済み（live read-back で実測確認）。todo.md / q&a.html DEC-21 / #251 本文の3者は同期済み。以後 contract の参照先は #251 本文と DEC-21 とし、本エントリは着手時期と実装スコープのみを持つ。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。
 
 ### SEC-SWEEP-01: 単一pet_id FKを持つread経路の親pets clinic相関 全数掃引
