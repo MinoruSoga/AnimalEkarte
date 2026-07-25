@@ -51,8 +51,14 @@ const migrationsDir = "../../migrations"
 //	  （checkup_type_fields.checkup_type_id → checkup_types の単一列 CASCADE FK を複合FK
 //	  （clinic_id 込み）へ置換するもの。挙動は既存 CASCADE から変更しない behavior-preserving）。
 //	  合計 53（docs/architecture/erd.md §4.3 参照）。
+//
+//	005_exam_reference_ranges_and_clinic_fk.sql: exam_type_fields の単一列 CASCADE FK を
+//	（exam_type_id, clinic_id）の複合FKへ置換するもの。削除伝播の意味は変わらずテナント整合性を強化する。
+//	001 に記録済みの checkup_type_fields 複合FK置換と同型で、新設 exam_reference_ranges は
+//	RESTRICT のみで新規 CASCADE を持ち込まない。合計1件。
 var migrationCascadeAllowlist = map[string]int{
 	"001_init.sql": 53,
+	"005_exam_reference_ranges_and_clinic_fk.sql": 1,
 }
 
 // countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
