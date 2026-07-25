@@ -365,11 +365,346 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 
 - 規約根拠: `backend/CODING_RULES.md:114`は、残すlegacy facade/adapterにconsumerと削除phaseを要求する。
 - 現状: `internal/service`はproduction 0/test 14、`internal/repository`はproduction 0/test 50。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下にはA6のlint gate test 6件が残る。
-- 修正内容: 2 packageの削除条件、担当、期限を決め、lint gate test 6件の移設先を確定する。移設先が確定するまで実働gateを削除しない。
-- 検証方法: A4/A6を再実行し、移設後はlegacy production/test file 0、旧path import 0、移設先のscoped test PASSを確認する。
+- 修正内容: 下記Phase 0で64 test fileの移設先、helper gap、移設batch、2 packageの削除条件・担当・期限を確定した。移設先が確定するまで実働gateを削除しない。
+- 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 判断待ち
+- 状態: 対応中（Phase 0計画確定。B0〜B14のGo移設は未着手）
+
+#### BE10-2 Phase 0 計画確定ledger（2026-07-25）
+
+- Phase 0状態: `完了`。実測baselineはHEAD `ef32784d3`、`service=14`、`repository=50`、production Go file `0`、未分類`0`。
+- 変更範囲: 本ledgerだけ。Go file、`internal/testdb`、ADR、`todo.md`、`BE-pending.md`は変更していない。
+- Product Philosophy gate: 本unitは新しい業務機能を追加せず、BE9完了後の二重test surfaceとbridgeを削除する計画である。②削除を先に行い、新packageや新helper方式を作らない。
+
+##### helper実測と`internal/testdb`対応
+
+`grep -rn '^func '`の実測では、`func Test`で始まる定義をservice 79件、repository 188件除外した後、非Test定義はservice 112件、repository 238件だった。receiver methodも含む。さらに`:= func(`はservice 3件、repository 8件あったが、11件ともfunction-local closureでcross-file依存ではない。
+
+同一file内だけで定義・消費されるhelper、mock receiver method、function-local closureはfileと同時に移し、`internal/testdb` exportは追加しない。batchを制約するcross-file helperだけを次表に全件示す（コメントだけのhitはconsumerに数えない）。
+
+| local helper / surface | 実consumer | 対応exportまたはgap判定 |
+|---|---|---|
+| `setupTestDB` | repository 30 file | `testdb.SetupTestDB`（既存、signature/実装一致） |
+| `setupIsolatedTestDB` | `audit_real_ddl`、`preload_followup` | `testdb.SetupIsolatedTestDB`（既存、signature/実装一致） |
+| `ensureClinicSettingsTable` | `clinic_repository` | `testdb.EnsureClinicSettingsTable`（既存、生DDL実装一致） |
+| `makeTestOwner` | repository 11 file | `testdb.MakeTestOwner`（既存、signature/実装一致） |
+| `ensureAutoMigrated` | repository 27 file | `testdb.EnsureAutoMigrated`（既存、signature/実装一致） |
+| `markAutoMigrated` | cross-file consumer 0 | `testdb.MarkAutoMigrated`（既存）。定義bridgeは最終削除 |
+| `TestMain` | package lifecycleのみ | `testdb.CloseSharedTestDB`は既存。移設先ごとのtest process終了でpoolは破棄されるため、legacy `TestMain`は不要として削除 |
+| `makeSpeciesAndPet` | owner/pet/reservation/medicalrecord test | gap: B0で同一実装を`testdb.MakeSpeciesAndPet`としてexport追加 |
+| `makeDoctor` | reservation/medicalrecord test | gap: B0で`testdb.MakeDoctor`をexport追加 |
+| `makeHistoryMedicalRecord` | medicalrecord test | gap: B0で`testdb.MakeHistoryMedicalRecord`をexport追加 |
+| `seedClinicsForFK` | reservation test | gap: B0で`testdb.SeedClinicsForFK`をexport追加 |
+| `makeInsuranceMaster` / `makePetWithInsurance` | billing/owner/pet test | gap: B0で`testdb.MakeInsurance` / `testdb.MakePetWithInsurance`をexport追加 |
+| `makeReservationType` / `setupReservationIsolationTestDB` / `makeReservation` | reservation test群 | gap: `internal/reservation`のtest helperへ移す。domain固有のため`testdb`へ追加しない |
+| `makeMedicineMaster` / `makeProcedure` / `makeClinicScopedClinicalReadParents` | medicalrecord test群 | gap: `internal/medicalrecord`のtest helperへ移す |
+| `makeShiftEntryWithType` | consumer 0 | 不要。carrier削除時に削除 |
+| `makeBillingWith` / `makeBilling` | carrierとclinic blocking-count test | gap: clinic test内で最小fixtureを再定義し、2 carrierは不要として削除 |
+| `setupClinicTestDB` | `clinic_repository`、`clinic_permission_group_tx_atomicity` | gap: `internal/clinic`のtest helperへ移す |
+| `setupOwnerPetIsolationTestDB` | owner/pet/medicalrecord test | gap: 各移設先で`testdb.SetupTestDB` + 必要modelだけを準備し、共有helperは削除 |
+| `makeInsuranceMaster` / `makePetWithInsurance` | `cross_clinic_preload`、`insurance_repository` | 上記B0 exportへ差し替え |
+| `makeDiagnosisTypeMaster` / `makeDiagnosisNameRec` | `master_preload`、`diagnosis_repository` | gap: B10で`internal/medicalrecord` test helperへ移す |
+| `makeShiftEntry` | reservation schedule test | gap: B8で`internal/reservation` test helperへ移す |
+| reservation staff helper群（`makeDoctorAssignedToClinic`、`setup*IsolationTestDB`、`setupReservationStaffTxAtomicityTestDB`） | reservation staff 7 file | gap: B8で7 fileと同時に`internal/reservation`へ移す |
+| `seedClinicsForFK` / `makeStaffClinicAssignment` | reservation read test群 | `seedClinicsForFK`はB0 export、`makeStaffClinicAssignment`はB8でreservation内再定義 |
+| `awaitStaffTestSignal` / `awaitStaffTestError` | staff race test 2 file | gap: B12で2 fileと同時に`internal/staff`へ移す |
+| preload lint共有helper（`moduleInternalSource`、`legacyLintKey`、`baseFileName`、`receiverMethodKey`、2 discovery assertion） | preload/audit-tx/db-or-tx 3 gate | gap: B5で3 gateを同時に`internal/lintscan`へ移す |
+| `target_repository_test_facades_test.go`のalias/wrapper全件 | repository 33 file | 不要。各fileを実在するdomain constructorへ直接接続し、B14でfacade削除 |
+| `target_test_surface_test.go`のalias/wrapper全件 | service 8 file | 不要。audit/clinic/staffの実在symbolへ直接接続し、B3でbridge削除 |
+| `mockAuditRepository` / `mockPermissionGroupRepository` | audit/clinic各1 file | gap: B1/B2で各target domain testへ分割移設 |
+| `mockTransactor` | clinic/staff各1 file | gap: B2/B3で各target domain test内に最小再定義 |
+
+同file扱いにした定義も未列挙にしないため、`grep '^func '`とclosure探索から得た完全なfile別定義inventoryを以下に固定する。重複名はinline analyzer fixture上の別定義であり、意図的に重複表示する。この一覧のうち上のcross-file表に無い定義はすべて「移設先domain内で同fileのまま再定義」と判定する。
+
+<details>
+<summary>非Test helper / receiver method / closure 定義inventory（64 file）</summary>
+
+```text
+service/audit_clinic_test_doubles_test.go: mockAuditRepository.recordLog, mockAuditRepository.Create, mockAuditRepository.CreateTx, mockPermissionGroupRepository.Create, mockPermissionGroupRepository.UpdateRules
+service/audit_service_test.go: ptrUint64ForAuditTest
+service/clinic_holiday_service_test.go: mockClinicHolidayRepository.FindAllByYearMonth, mockClinicHolidayRepository.Save, mockClinicHolidayRepository.Delete, mockClinicHolidayRepository.FindByDate
+service/clinic_service_test.go: clinicBoolPtr, mockPermissionGroupRepository.DeleteSoftDeletedByClinicID, mockClinicPermissionGroupWriter.DeleteSoftDeletedByClinicID, mockClinicRepository.FindAll, mockClinicRepository.FindByStaffID, mockClinicRepository.FindByID, mockClinicRepository.LockActiveByID, mockClinicRepository.LockByIDForUpdate, mockClinicRepository.FindCompany, mockClinicRepository.Create, mockClinicRepository.Update, mockClinicRepository.Delete, mockClinicRepository.CountOwnersByClinicID, mockClinicRepository.CountStaffByClinicID, mockClinicRepository.CountBlockingReferencesByClinicID, closure:findRule, closure:newRepository
+service/clinic_test_transactor_test.go: mockTransactor.WithTx
+service/closing_settings_service_test.go: mockClinicSettingsRepository.FindByClinicID, mockClinicSettingsRepository.Save, mockClosingSpecialPeriodRepository.FindAll, mockClosingSpecialPeriodRepository.FindByID, mockClosingSpecialPeriodRepository.FindByDate, mockClosingSpecialPeriodRepository.Create, mockClosingSpecialPeriodRepository.Update, mockClosingSpecialPeriodRepository.Delete, mockClosingSpecialPeriodRepository.CheckOverlap, mockClosingClinicHolidayRepository.FindByDate, mockClosingClinicHolidayRepository.FindAllByYearMonth
+service/company_service_test.go: mockCompanyRepository.FindSingleton, mockCompanyRepository.Update
+service/master_fk_write_inventory_lint_test.go: mfkDirOf, mfkExternalParam.qualifiedType, mfkExternalParam.occurrence, mfkKey, isIDType, localStructName, qualifiedStructName, masterFKsOf, sortedKeys, analyzeServicePackage, baseName, isServiceWriteRolePackage, matchesRolePackagePrefixes, analyzeRealServiceSource, equalStringSets, reconcileMasterFKWrites, joinSet, isReviewedExternalParam
+service/n1_lint_test.go: n1AllowlistKey, analyzeFileN1, matchN1Call, baseNameN1, walkServiceN1, xService.f (10 fixture definitions), xService.validateOwnerPetsInsuranceOwnership, closure:fn
+service/staff_clinic_assignment_reservation_race_test.go: blockingAssignmentRaceReservationRepository.Create, observedAssignmentRaceStaffUpdateLocker.LockActiveByIDForUpdate, blockingAssignmentRaceClinicLookup.LockActiveByID, observedAssignmentRaceReservationStaffRepository.FindByID, setupStaffAssignmentReservationRaceTest, newAssignmentRaceStaffService, newAssignmentRaceReservationService
+service/staff_cross_tenant_test.go: crossTenantStaffRepository.Create, crossTenantStaffRepository.LockActiveByIDForUpdateInClinic, crossTenantStaffRepository.Update, crossTenantStaffAccountStore.FindByEmail, crossTenantStaffAccountStore.Create, crossTenantStaffAccountStore.UpdatePasswordHash, crossTenantStaffAccountStore.DeletePasswordResetTokens, crossTenantStaffAssignmentRepository.Create, crossTenantStaffAssignmentRepository.LockActiveByStaff, rejectingCrossTenantOccupationRepository.LockActiveByIDForShare, mockReservationForStaff.ExistsByStaffID, mockReservationForStaff.FindClinicIDsByStaffID
+service/staff_shift_security_integration_test.go: blockingStaffClinicLookup.LockActiveByID, observedStaffClinicLookup.LockActiveByID, blockingClinicDeleteRepository.Delete, blockingShiftEntryCreateRepository.Create, observedShiftStaffLocker.LockActiveByIDForShare, observedStaffDeleteLocker.LockActiveByIDForUpdateInClinic, observedStaffAssignmentLocker.LockActiveByIDForUpdate, blockingStaffDeleteRepository.Delete, setupStaffShiftSecurityIntegrationTest
+service/target_test_surface_test.go: NewAuditService, validateAuditLog, NewClinicHolidayService, NewClinicService, buildClinicUpdate, NewClosingSettingsService, NewCompanyService, buildCompanyUpdate, NewStaffService, NewShiftEntryService, strPtr, ptrFloat64
+service/update_fields_test.go: none
+repository/appointment_admin_repository_test.go: setupReservationAdminTestDB, makeLineCustomerForAdmin, makeAdminReservationAt
+repository/appointment_repository_test.go: none
+repository/audit_real_ddl_test.go: setupAuditRealDDLTestDB
+repository/audit_repository_test.go: setupAuditTestDB, uint64Ptr
+repository/audit_tx_inventory_lint_test.go: analyzeFileForClinicalResultDeletes, clinicalResultModelFromArg, receiverMethodKey, auditInventoryKey, walkRepositoryForClinicalResultDeletes, aggregateClinicalResultFindings, reconcileClinicalResultDeletes, examinationRepository.ReplaceItemsByExamID, checkupFieldResultRepository.ReplaceForCheckup, examinationRepository.DoubleDelete, vaccineRepository.Delete, vitalRepository.Delete, someRepo.BrokenDelete, someRepo.WrongPkg, purgeExamResults, examinationRepository.BulkDelete, examinationRepository.CleanupExamResults
+repository/be9_2c_r3_test_helper_carrier_test.go: makeReservationType, setupReservationIsolationTestDB, makeReservation, makeSpeciesAndPet, makeBilling
+repository/billing_test_fixtures_test.go: makeBillingWith
+repository/billings_hospitalization_unique_migration_test.go: stripSQLLineComments
+repository/billings_hospitalization_unique_test.go: setupBillingsHospitalizationUniqueTestDB, makeHospBilling
+repository/checkup_migration_ddl_helpers_test.go: readCheckupMigration010, extractCreateTableDDL
+repository/clinic_permission_group_tx_atomicity_test.go: none
+repository/clinic_repository_test.go: setupClinicTestDB, makeClinicFixture
+repository/closing_special_period_repository_test.go: setupClosingSpecialPeriodRepositoryTestDB, makeClosingSpecialPeriod
+repository/count_clinic_scope_isolation_test.go: setupEstimateIsolationTestDB
+repository/cross_clinic_preload_isolation_test.go: makeInsuranceMaster, makePetWithInsurance, setupInsurancePreloadTestDB, makeReservationWithType
+repository/db_setup_test.go: setupTestDB, setupIsolatedTestDB, ensureClinicSettingsTable, makeTestOwner, ensureAutoMigrated, markAutoMigrated
+repository/db_test.go: testDBConfig
+repository/dbortx_inventory_lint_test.go: funcUsesDBOrTx, isPersistenceTxFromContext, isLocalHelperCall, expressionContainsProducer, assignedProducerHandles, producerHandlesRemainDerived, expressionDerivedFromHandle, funcUsesProducedDBHandle, funcUsesNamedDBHandle, funcForwardsProducedHandleToLocalHelper, parameterNameAt, funcReturnsDBOrTxHandle, funcUsesDBOrTxCall, funcUsesRequiredAmbientTx, funcMatchesAmbientTxExpectation, detectAmbientTxParticipationExpectation, parseAmbientTxSourceFile, walkRepositoryForAmbientTxExpectations, walkRepositoryForDBOrTx, reconcileDBOrTxInventory, fooRepository.Bar (2 fixture definitions), fooRepository.Baz, fooRepository.Qux, fooRepository.Canonical, fooRepository.Cap, fooRepository.Nope, fooRepository.Reorder, silentDB (7 fixture definitions), fooRepository.Create (9 fixture definitions), fooRepository.Update (4 fixture definitions), writeWithTx (2 fixture definitions)
+repository/diagnosis_repository_test.go: setupDiagnosisRepoTestDB
+repository/insurance_repository_test.go: setupInsuranceRepositoryTestDB
+repository/isolation_test_helpers_test.go: makeMedicineMaster, makeHistoryMedicalRecord, makeProcedure, makeDoctor, makeClinicScopedClinicalReadParents, makeShiftEntryWithType
+repository/master_preload_clinic_isolation_test.go: makeCageMaster, makeCheckupTypeMaster, makeDiagnosisTypeMaster, makeDiagnosisNameRec, makeHospitalizationRec, makeCheckupRec
+repository/migration_cascade_lint_test.go: countCascadeOccurrences, reconcileMigrationCascade, walkMigrationsForCascade
+repository/owner_pet_clinic_isolation_test.go: setupOwnerPetIsolationTestDB
+repository/owner_pet_create_write_owner_test.go: ownerRegistrationWriterFunc.CreateForOwnerRegistration
+repository/owner_pet_relationship_preload_clinic_isolation_test.go: makeOwnerPetRelationshipTestPet, makeOwnerPetRelationshipTestSpecies
+repository/payment_method_master_repository_test.go: setupPaymentMethodMasterRepoTestDB, makePaymentMethodMaster, makePaymentMethodBilling, makePaymentForBilling
+repository/pet_write_medimage_clinic_isolation_test.go: setupMedImageIsolationTestDB, makeMedRecordImage
+repository/preload_clinic_scope_lint_test.go: siteExceptionKey, analyzeFilePreloads, preloadHasClinicScope, funcLitHasClinicScope, preloadFailDetail, isSiteExcepted, stringLitValue, clinicScopedIntermediatePrefixes, preloadReceiverChainHasScopedAssociation, lastAssocSegment, baseFileName, isInSet, moduleInternalSource, legacyLintKey, assertDiscoversFileFromDifferentTopLevelPackage, assertLintscanReachesTwoOrMoreNestingLevels, walkRepositoryPreloads
+repository/preload_followup_clinic_isolation_test.go: makeExamRec, setupPreloadTrimmingDetailTestDB
+repository/preload_master_model_reconciliation_test.go: extractModelClinicScopedStructs, structHasClinicIDField, fieldNamed, isUint64OrPtrUint64, extractStringMapValues, canonicalModelName, reconcileMasterModelCoverage, readSideMasterModelNames, siblingPackageDir, loadModelClinicScopedStructs, loadWriteSideMasterModelNames
+repository/reservation_owner_pet_preload_clinic_isolation_test.go: setupReservationOwnerPetPreloadDB
+repository/reservation_schedule_clinic_isolation_test.go: setupScheduleIsolationTestDB, makeShiftEntry
+repository/reservation_schedule_repository_test.go: setupReservationScheduleCRUDTestDB
+repository/reservation_staff_capability_preload_clinic_isolation_test.go: setupReservationStaffCapabilityPreloadTestDB, makeStaffReservationCapability, closure:assertPreloadIsolation
+repository/reservation_staff_capability_write_clinic_isolation_test.go: setupCapabilityIsolationTestDB, makeDoctorAssignedToClinic, closure:countCapabilities
+repository/reservation_staff_exclusion_clinic_isolation_test.go: setupExclusionIsolationTestDB, closure:countExclusions, closure:exclusionExists
+repository/reservation_staff_junction_lock_race_test.go: replaceReservationJunction, countReservationJunction, revokeStaffAssignmentWithIdentityLock
+repository/reservation_staff_repository_test.go: setupReservationStaffRepoTestDB, closure:containsID, closure:sortOrderOf
+repository/reservation_staff_repository_tx_atomicity_test.go: setupReservationStaffTxAtomicityTestDB
+repository/reservation_staff_service_readback_atomicity_test.go: failingReservationStaffReadbackRepository.LockForMutation, failingReservationStaffReadbackRepository.FindByID, failingReservationStaffReadbackRepository.FindAllExcludedReservationTypes
+repository/rls_effectiveness_test.go: setupAppPrivateRLSFunctions, closure:exec, closure:asRole
+repository/rls_role_privilege_test.go: none
+repository/staff_occupation_write_race_test.go: setupStaffOccupationWriteRaceDB, makeStaffOccupationRaceClinic, coordinatedOccupationRepository.LockActiveByIDForShare, coordinatedOccupationRepository.LockActiveByIDForUpdate, awaitStaffOccupationMutation, makeUnassignedOccupationRaceStaff
+repository/staff_preload_clinic_isolation_test.go: seedClinicsForFK, makeStaffClinicAssignment, makeReservationWithDoctor
+repository/staff_shift_graph_atomicity_test.go: setupStaffShiftGraphAtomicityDB, makeShiftGraphStaff, makeShiftGraphEntry, failingShiftEntryBreakRepository.ReplaceBreaks, pausingShiftEntryLockRepository.LockActiveByIDForUpdate, awaitStaffTestSignal, awaitStaffTestError, failingShiftTemplateBreakRepository.UpdateBreaks, makeShiftGraphTemplate
+repository/staff_update_security_test.go: setupStaffUpdateSecurityDB, makeStaffUpdateClinic, makeAccountStaffForUpdate, newStaffUpdateServiceForDB, noopStaffUpdateCredentialAuditTxLogger.LogEntryTx, staffUpdateCredentialAudit, failAfterStaffAccountUpdate.UpdatePasswordHash
+repository/target_repository_test_facades_test.go: targetStaffAccountStore.DeletePasswordResetTokens, NewAccountRepository, NewAccountingRepository, NewReservationAdminRepository, NewAuditRepository, NewCarePlanItemRepository, NewCheckupRepository, NewClinicRepository, NewClinicalPlanRepository, NewClosingSpecialPeriodRepository, NewDiagnosisTypeRepository, NewDiagnosisNameRepository, NewEstimateRepository, NewExaminationRepository, NewHospitalizationRepository, NewInsuranceRepository, NewMedicalRecordImageRepository, NewMedicalRecordRepository, NewOccupationRepository, NewOwnerRepository, NewOwnerRepositoryWithPetWriter, NewPaymentMethodMasterRepository, NewPermissionGroupRepository, NewPetRepository, NewPetRepositoryWithWriter, NewReservationRepository, NewReservationScheduleRepository, NewReservationStaffRepository, NewShiftEntryRepository, NewShiftTemplateRepository, NewStaffClinicAssignmentRepository, NewStaffRepository, NewTransactor, txFromContext
+repository/test_schema_enum_parity_test.go: extractSQLEnumTypes, goEnumTypes, reconcileTestSchemaEnumParity
+repository/transactor_test.go: setupTransactorTestDB
+```
+
+</details>
+
+`internal/testdb/testdb.go`の現行export面は`EnsureAutoMigrated`、`MarkAutoMigrated`、`CloseSharedTestDB`、`SetupTestDB`、`EnsureClinicSettingsTable`、`MakeTestOwner`、`SetupIsolatedTestDB`の7件。B0で追加する6 export以外を「対応あり」と扱わない。
+
+##### 64 file分類（未分類0）
+
+表中`DB`は上表の既存`testdb` 6対応、`RF`/`SF`はrepository/serviceのtest-only facadeを直接domain symbolへ置換、`local`は同fileのhelper/receiver/closureをfileと同時に移すことを表す。
+
+| legacy file | 移設先 / 削除 | 根拠symbol（現行実在path） | local helper処理 | batch |
+|---|---|---|---|---:|
+| `service/audit_clinic_test_doubles_test.go` | `audit`と`clinic`へ分割後削除 | consumersは`audit_service_test.go`と`clinic_service_test.go` | mock2型を各domainへ移す | B1/B2 |
+| `service/audit_service_test.go` | `audit` | `audit.NewService` (`internal/audit/service.go:62`) | `SF NewAuditService/validateAuditLog`を直接化、audit mock同時移設 | B1 |
+| `service/clinic_holiday_service_test.go` | `clinic` | `clinic.NewClinicHolidayService` (`internal/clinic/clinic_holiday_service.go:24`) | `SF`、local mock methods | B2 |
+| `service/clinic_service_test.go` | `clinic` | `clinic.NewClinicService` / `BuildClinicUpdate` (`internal/clinic/clinic_service.go:273/85`) | `SF`、clinic mock、`mockTransactor`、local closures | B2 |
+| `service/clinic_test_transactor_test.go` | `clinic`/`staff`へ再定義後削除 | consumersはclinic/staff test | `mockTransactor`を各domain内再定義 | B2/B3 |
+| `service/closing_settings_service_test.go` | `clinic` | `clinic.NewClosingSettingsService` (`internal/clinic/closing_settings_service.go:106`) | `SF`、local mocks | B2 |
+| `service/company_service_test.go` | `clinic` | `clinic.NewCompanyService` / `BuildCompanyUpdate` (`internal/clinic/company_service.go:92/43`) | `SF`、local mock | B2 |
+| `service/master_fk_write_inventory_lint_test.go` | `lintscan` | `lintscan.WalkInternalTreeT` (`internal/lintscan/lintscan.go:158`) | local analyzer一式を同時移設 | B4 |
+| `service/n1_lint_test.go` | `lintscan` | `lintscan.WalkInternalTreeT` (`internal/lintscan/lintscan.go:158`) | local analyzer/closuresを同時移設 | B4 |
+| `service/staff_clinic_assignment_reservation_race_test.go` | `staff` | `staff.NewStaffService` (`internal/staff/staff_service.go:172`) | `SF`、既存`testdb` direct、local doubles | B3 |
+| `service/staff_cross_tenant_test.go` | `staff` | `staff.NewStaffService` (`internal/staff/staff_service.go:172`) | `SF`、local doubles、transactor再定義 | B3 |
+| `service/staff_shift_security_integration_test.go` | `staff` | `staff.NewShiftEntryService` (`internal/staff/shift_entry_service.go:100`) | `SF`、既存`testdb` direct、local doubles | B3 |
+| `service/target_test_surface_test.go` | 削除 | alias先は`audit`/`clinic`/`staff`に実在 | B1〜B3で8 consumerを直接化後に不要 | B3 |
+| `service/update_fields_test.go` | `sharedkernel` | `sharedkernel.SetNullableUint64Field` (`internal/sharedkernel/validators.go:88`) | helperなし | B4 |
+| `repository/appointment_admin_repository_test.go` | `reservation` | `reservation.NewReservationAdminRepository` (`internal/reservation/appointment_admin_repository.go:33`) | `DB`、`RF`、reservation helper群 | B8 |
+| `repository/appointment_repository_test.go` | `reservation` | `reservation.ParseJSTDate` / `AppointmentDayRange` (`internal/reservation/reservation_repository.go:720/713`) | helperなし | B8 |
+| `repository/audit_real_ddl_test.go` | `audit` | `audit.NewRepository` (`internal/audit/repository.go:26`) | `DB isolated`、DDL helper、`RF` | B6 |
+| `repository/audit_repository_test.go` | `audit` | `audit.NewRepository` (`internal/audit/repository.go:26`) | `setupAuditRealDDLTestDB`、`RF` | B6 |
+| `repository/audit_tx_inventory_lint_test.go` | `lintscan` | module-wide sourceを`lintscan.WalkInternalTreeT`で取得 | preload lint共有helper、local analyzer | B5 |
+| `repository/be9_2c_r3_test_helper_carrier_test.go` | helper分配後削除 | reservation/pet/billingの一時carrier | B0 exportまたはtarget-localへ分配 | B14 |
+| `repository/billing_test_fixtures_test.go` | 削除 | consumerは上記carrierだけ | clinic側最小fixtureへ置換後不要 | B14 |
+| `repository/billings_hospitalization_unique_migration_test.go` | `billing` | `billings(hospitalization_id)` business constraint | local SQL normalizer | B11 |
+| `repository/billings_hospitalization_unique_test.go` | `billing` | `billing.NewAccountingRepository` (`internal/billing/accounting_repository.go:56`) | `DB`、`RF`、local fixture | B11 |
+| `repository/checkup_migration_ddl_helpers_test.go` | `audit`へ移して名称修正 | consumerは`audit_real_ddl_test.go`だけ | local DDL reader/extractor | B6 |
+| `repository/clinic_permission_group_tx_atomicity_test.go` | `clinic` | clinic Createとpermission groupの同一tx回帰 | `setupClinicTestDB`、`RF` | B7 |
+| `repository/clinic_repository_test.go` | `clinic` | `clinic.ClinicRepository` (`internal/clinic/clinic_repository.go`) | `DB`、`RF`、clinic helper、billing fixture再定義 | B7 |
+| `repository/closing_special_period_repository_test.go` | `clinic` | `clinic.NewClosingSpecialPeriodRepository` (`internal/clinic/closing_special_period_repository.go`) | `DB`、`RF`、local fixture | B7 |
+| `repository/count_clinic_scope_isolation_test.go` | `medicalrecord`/`reservation`/`billing`へtest単位分割 | 3 repositoryのCount method | `DB`、reservation helper、local estimate setup | B10 |
+| `repository/cross_clinic_preload_isolation_test.go` | `pet`/`owner`/`reservation`へtest単位分割 | `pet.Repository`、`owner.Repository`、`reservation.ReservationStore` | `DB`、B0 insurance/pet exports、`RF` | B9 |
+| `repository/db_setup_test.go` | 削除 | 全実装は既に`internal/testdb/testdb.go`へ委譲 | 36 consumerをdirect exportへ置換後不要 | B14 |
+| `repository/db_test.go` | `dbconn` | `dbconn.OpenGORM` (`internal/dbconn/gorm.go:29`) | `testDBConfig`は同file移設、`DB` | B13 |
+| `repository/dbortx_inventory_lint_test.go` | `lintscan` | module-wide sourceを`lintscan.WalkInternalTreeT`で取得 | preload/audit lint共有helper、local analyzer | B5 |
+| `repository/diagnosis_repository_test.go` | `medicalrecord` | `medicalrecord.NewDiagnosisTypeRepository` (`internal/medicalrecord/diagnosis_type_repository.go:32`) | `DB`、diagnosis helper | B10 |
+| `repository/insurance_repository_test.go` | `billing` | `billing.NewInsuranceRepository` (`internal/billing/insurance_repository.go:27`) | `DB`、B0 insurance/pet exports、`RF` | B9 |
+| `repository/isolation_test_helpers_test.go` | helper分配後削除 | medicalrecord/reservationの10 consumer | B0 exportまたはtarget-localへ分配 | B14 |
+| `repository/master_preload_clinic_isolation_test.go` | `medicalrecord`/`reservation`へtest単位分割 | medicalrecord 5 repository + reservation admin 1 | `DB`、`RF`、medicalrecord helper | B10 |
+| `repository/migration_cascade_lint_test.go` | `lintscan` | migration CASCADE inventory gate | local analyzer。相対path gapを同batch修正 | B5 |
+| `repository/owner_pet_clinic_isolation_test.go` | `owner`/`pet`へtest単位分割 | `owner.Repository` / `pet.Repository` | `DB`、`RF`、owner/pet setup | B9 |
+| `repository/owner_pet_create_write_owner_test.go` | `owner`/`pet`へtest単位分割 | owner/pet write owner実装 (`internal/owner/repository.go`, `internal/pet/repository.go`) | `DB`、`RF`、local writer double | B9 |
+| `repository/owner_pet_relationship_preload_clinic_isolation_test.go` | `owner`/`pet`へtest単位分割 | owner/pet Preload contract | `DB`、`RF`、local fixtures | B9 |
+| `repository/payment_method_master_repository_test.go` | `billing` | `billing.NewPaymentMethodMasterRepository` (`internal/billing/payment_method_master_repository.go:27`) | `DB`、`RF`、local fixtures | B11 |
+| `repository/pet_write_medimage_clinic_isolation_test.go` | `pet`/`medicalrecord`へtest単位分割 | pet Update + `medicalrecord.NewMedicalRecordImageRepository` (`internal/medicalrecord/medical_record_image_repository.go:31`) | `DB`、B0 fixture exports、`RF` | B9 |
+| `repository/preload_clinic_scope_lint_test.go` | `lintscan` | `lintscan.WalkInternalTreeT` | 3 lint共有helperの定義owner | B5 |
+| `repository/preload_followup_clinic_isolation_test.go` | `medicalrecord`/`trimming`/`reservation`へtest単位分割 | examination、trimming detail、reservation repository | `DB`、`RF`、local fixtures | B10 |
+| `repository/preload_master_model_reconciliation_test.go` | `lintscan` | model/read-write registry reconciliation gate | cwd/service-file固定gapを同batch修正 | B5 |
+| `repository/reservation_owner_pet_preload_clinic_isolation_test.go` | `reservation` | `reservation.NewReservationRepository` (`internal/reservation/reservation_repository.go:244`) | `DB`、`RF`、reservation helper群 | B8 |
+| `repository/reservation_schedule_clinic_isolation_test.go` | `reservation` | `reservation.NewReservationScheduleRepository` (`internal/reservation/reservation_schedule_repository.go:50`) | `DB`、`RF`、schedule helper | B8 |
+| `repository/reservation_schedule_repository_test.go` | `reservation` | 同上 | `DB`、`RF`、schedule helper | B8 |
+| `repository/reservation_staff_capability_preload_clinic_isolation_test.go` | `reservation` | `reservation.NewReservationStaffRepository` (`internal/reservation/reservation_staff_repository.go:52`) | `DB`、`RF`、reservation staff helper | B8 |
+| `repository/reservation_staff_capability_write_clinic_isolation_test.go` | `reservation` | 同上 | `DB`、`RF`、reservation staff helper/local closure | B8 |
+| `repository/reservation_staff_exclusion_clinic_isolation_test.go` | `reservation` | 同上 | `DB`、`RF`、reservation staff helper/local closures | B8 |
+| `repository/reservation_staff_junction_lock_race_test.go` | `reservation` | 同上 | `RF`、tx/capability helper群 | B8 |
+| `repository/reservation_staff_repository_test.go` | `reservation` | 同上 | `DB`、`RF`、staff helper/local closures | B8 |
+| `repository/reservation_staff_repository_tx_atomicity_test.go` | `reservation` | 同上 | `DB`、`RF`、tx helper | B8 |
+| `repository/reservation_staff_service_readback_atomicity_test.go` | `reservation` | `reservation.NewReservationStaffService` (`internal/reservation/reservation_staff_service.go`) | `RF`、reservation staff helper、local double methods | B8 |
+| `repository/rls_effectiveness_test.go` | `persistence` | RLS/transaction-scoped GUCのcross-cutting DB invariant | `DB`、local closures | B13 |
+| `repository/rls_role_privilege_test.go` | `persistence` | DB role privilege preflight | `DB` | B13 |
+| `repository/staff_occupation_write_race_test.go` | `staff` | `staff.NewOccupationRepository` (`internal/staff/occupation_repository.go:33`) | `DB`、`RF`、staff signal helper | B12 |
+| `repository/staff_preload_clinic_isolation_test.go` | `reservation` | test対象は`ReservationRepository.Doctor` Preload | `DB`、`RF`、B0 seed export、reservation helper | B8 |
+| `repository/staff_shift_graph_atomicity_test.go` | `staff` | `staff.NewShiftEntryService` / shift template repository | `DB`、`RF`、staff signal helper | B12 |
+| `repository/staff_update_security_test.go` | `staff` | `staff.NewStaffService` (`internal/staff/staff_service.go:172`) | `DB`、`RF`、local doubles | B12 |
+| `repository/target_repository_test_facades_test.go` | 削除 | alias先9 packageに全symbol実在 | 33 consumerを直接constructorへ置換後不要 | B14 |
+| `repository/test_schema_enum_parity_test.go` | `testdb` | `testdb.SharedTestSchemaEnumTypes` (`internal/testdb/testdb.go:269`) | local analyzer、migration pathをmodule root化 | B13 |
+| `repository/transactor_test.go` | `persistence` | `persistence.NewTransactor` / `TxFromContext` (`internal/persistence/transactor.go:21`, `tx.go:19`) | `DB`、`RF`、local setup | B13 |
+
+##### 共有test infra 9 file
+
+consumer数は同じlegacy package内の実file集合で数えた。`db_setup_test.go`は`setupTestDB`単体のconsumerがContextどおり30 file、同fileの6 helper全体のconsumer unionが36 fileだった。
+
+| file | consumer file数 | 判定 | 根拠 |
+|---|---:|---|---|
+| `repository/db_setup_test.go` | 36 | 不要になるので削除 | 6 helperは既存`testdb` exportへのthin bridge。全consumer direct化後に役割0 |
+| `repository/db_test.go` | 0 | `dbconn`へ移す | `OpenGORM`だけを検証し、`testDBConfig`は同file内 |
+| `repository/isolation_test_helpers_test.go` | 10 | `testdb`へ一部吸収、残りはdomainへ移して削除 | 6 helperのうちcross-domain fixtureはB0 export、medicalrecord固有はdomain-local、consumer 0の1件は削除 |
+| `repository/billing_test_fixtures_test.go` | 1 | 不要になるので削除 | consumerは一時carrierだけ。clinic側の必要fixtureをlocal化すると役割0 |
+| `repository/be9_2c_r3_test_helper_carrier_test.go` | 18 | 不要になるので削除 | コメントどおりBE9移設中のcarrier。B0/target domainへ分配後に役割0 |
+| `repository/target_repository_test_facades_test.go` | 33 | 不要になるので削除 | alias/wrapper先が9 target packageに実在し、全consumer直接化後にbridge不要 |
+| `service/target_test_surface_test.go` | 8 | 不要になるので削除 | alias/wrapper先がaudit/clinic/staffに実在し、全consumer直接化後にbridge不要 |
+| `service/audit_clinic_test_doubles_test.go` | 2 | 移設先domainへ分割移動 | audit mockとclinic mockのconsumerが各1 fileで明確 |
+| `service/clinic_test_transactor_test.go` | 2 | 移設先domainで再定義後削除 | clinic/staffそれぞれに小さいtest-only transactorを置き、cross-domain共有を残さない |
+
+##### lint gate 6件
+
+| lint gate | 移設先 | source discovery再確認 |
+|---|---|---|
+| `repository/audit_tx_inventory_lint_test.go` | `lintscan` | `moduleInternalSource`→`lintscan.WalkInternalTreeT`; package非依存 |
+| `repository/dbortx_inventory_lint_test.go` | `lintscan` | 同上。preload/audit helper依存があるため3 file同時移設 |
+| `repository/preload_clinic_scope_lint_test.go` | `lintscan` | `moduleInternalSource` (`:446-448`)が`WalkInternalTreeT`; package非依存 |
+| `service/master_fk_write_inventory_lint_test.go` | `lintscan` | `analyzeRealServiceSource` (`:703-705`)が`WalkInternalTreeT`; discoveryはpackage非依存、role prefix filterは意図したcontent scope |
+| `service/n1_lint_test.go` | `lintscan` | `walkServiceN1` (`:243`)が`WalkInternalTreeT`; package非依存 |
+| `repository/migration_cascade_lint_test.go` | `lintscan` | **gapあり**: `migrationsDir="../../migrations"` (`:39`) と`os.ReadDir` (`:102`) は現在と移設先が同じ深さなら動くがlocation-independentではない。B5で`lintscan.FindModuleRoot`由来のabsolute migration dirへ変更する |
+
+BE9-1の「5 gateのproduction source discoveryがpackage非依存」は実装で再確認できた。6件目のmigration gateはGo source discoveryを行わず、上記relative-path gapを持つため「6件すべて非依存」とは判定しない。
+
+##### 実行batchとhelper集合検算
+
+B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記載したhelperの和集合、`D=I(当該batchのfile)`、`C`をbatch後もlegacyに残るfileが消費するhelperと定義する。次表の`D`欄は`D`のうちcross-file consumerを持つ要素を全名列挙し、同file内だけの要素は完全inventoryと直後のfile manifestから機械的に復元できる`I(files) local-only`と記す。local-only要素のconsumerは定義fileと同時に移るため`C`へ入らない。各batchで移動fileは既存`testdb` export、B0 export、または同batch内helperだけを参照する。
+
+| batch | file / unit | 先行 | `D` | `C` | `D ∩ C` |
+|---:|---|---:|---|---|---|
+| B0 | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
+| B1 | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
+| B2 | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `∅`（`mockTransactor`原本はstaff用に残す） | `∅` |
+| B3 | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
+| B4 | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
+| B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
+| B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
+| B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
+| B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
+| B9 | cross-clinic file分割 + insurance + owner/pet 3 file + pet/medimage分割 | B0,B8 | `makeInsuranceMaster`, `makePetWithInsurance`, `setupOwnerPetIsolationTestDB` + `I(files) local-only` | `∅`（全consumer同時移設またはB0 export化） | `∅` |
+| B10 | count/master-preload/preload-followupをtest単位分割 + diagnosis→各domain | B0,B8,B9 | `makeDiagnosisTypeMaster`, `makeDiagnosisNameRec` + `I(files) local-only` | `∅`（diagnosis consumer同時移設） | `∅` |
+| B11 | billing unique migration/runtime + payment-method 3 file→`billing` | B0,B10 | `I(files) local-only` | `∅` | `∅` |
+| B12 | staff occupation/shift/update 3 file→`staff` | B0 | `awaitStaffTestSignal`, `awaitStaffTestError` | `∅`（2 consumer同時移設） | `∅` |
+| B13 | db test→`dbconn`、RLS/transactor→`persistence`、enum parity→`testdb` | B0 | `I(files) local-only` | `∅` | `∅` |
+| B14 | repository `db_setup`、isolation/billing/BE9 carrier、target facadeを削除 | B1〜B13 | `I(db_setup_test.go, isolation_test_helpers_test.go, billing_test_fixtures_test.go, be9_2c_r3_test_helper_carrier_test.go, target_repository_test_facades_test.go)`（要素全名は上のfile別inventory） | `∅`（64 testのtarget移設完了済み） | `∅` |
+
+batchごとの含有fileは次のとおり。分割fileは同じ原本の対象部分を複数batchに明記している。
+
+- B0: legacy fileなし（`testdb` export追加だけ）。
+- B1: `service/audit_clinic_test_doubles_test.go`（audit部分）、`service/audit_service_test.go`。
+- B2: `service/audit_clinic_test_doubles_test.go`（clinic部分）、`service/clinic_holiday_service_test.go`、`service/clinic_service_test.go`、`service/clinic_test_transactor_test.go`（clinic部分）、`service/closing_settings_service_test.go`、`service/company_service_test.go`。
+- B3: `service/clinic_test_transactor_test.go`（staff部分）、`service/staff_clinic_assignment_reservation_race_test.go`、`service/staff_cross_tenant_test.go`、`service/staff_shift_security_integration_test.go`、`service/target_test_surface_test.go`。
+- B4: `service/master_fk_write_inventory_lint_test.go`、`service/n1_lint_test.go`、`service/update_fields_test.go`。
+- B5: `repository/audit_tx_inventory_lint_test.go`、`repository/dbortx_inventory_lint_test.go`、`repository/migration_cascade_lint_test.go`、`repository/preload_clinic_scope_lint_test.go`、`repository/preload_master_model_reconciliation_test.go`。
+- B6: `repository/audit_real_ddl_test.go`、`repository/audit_repository_test.go`、`repository/checkup_migration_ddl_helpers_test.go`。
+- B7: `repository/clinic_permission_group_tx_atomicity_test.go`、`repository/clinic_repository_test.go`、`repository/closing_special_period_repository_test.go`。
+- B8: `repository/appointment_admin_repository_test.go`、`repository/appointment_repository_test.go`、`repository/reservation_owner_pet_preload_clinic_isolation_test.go`、`repository/reservation_schedule_clinic_isolation_test.go`、`repository/reservation_schedule_repository_test.go`、`repository/reservation_staff_capability_preload_clinic_isolation_test.go`、`repository/reservation_staff_capability_write_clinic_isolation_test.go`、`repository/reservation_staff_exclusion_clinic_isolation_test.go`、`repository/reservation_staff_junction_lock_race_test.go`、`repository/reservation_staff_repository_test.go`、`repository/reservation_staff_repository_tx_atomicity_test.go`、`repository/reservation_staff_service_readback_atomicity_test.go`、`repository/staff_preload_clinic_isolation_test.go`。
+- B9: `repository/cross_clinic_preload_isolation_test.go`、`repository/insurance_repository_test.go`、`repository/owner_pet_clinic_isolation_test.go`、`repository/owner_pet_create_write_owner_test.go`、`repository/owner_pet_relationship_preload_clinic_isolation_test.go`、`repository/pet_write_medimage_clinic_isolation_test.go`。
+- B10: `repository/count_clinic_scope_isolation_test.go`、`repository/diagnosis_repository_test.go`、`repository/master_preload_clinic_isolation_test.go`、`repository/preload_followup_clinic_isolation_test.go`。
+- B11: `repository/billings_hospitalization_unique_migration_test.go`、`repository/billings_hospitalization_unique_test.go`、`repository/payment_method_master_repository_test.go`。
+- B12: `repository/staff_occupation_write_race_test.go`、`repository/staff_shift_graph_atomicity_test.go`、`repository/staff_update_security_test.go`。
+- B13: `repository/db_test.go`、`repository/rls_effectiveness_test.go`、`repository/rls_role_privilege_test.go`、`repository/test_schema_enum_parity_test.go`、`repository/transactor_test.go`。
+- B14: `repository/be9_2c_r3_test_helper_carrier_test.go`、`repository/billing_test_fixtures_test.go`、`repository/db_setup_test.go`、`repository/isolation_test_helpers_test.go`、`repository/target_repository_test_facades_test.go`。
+
+各batchは移設・直接接続・helper解消だけのstructural-only unitとし、behavior/security修正は別unitへ分離する。各batchの実装unitは移動先packageだけのDocker scoped testを必須とし、B5はlint gate自身のlocation-agnostic self-test、B14はlegacy file/import 0の静的gateを追加する。B0〜B14の実装は本Phase 0の対象外である。
+
+##### 削除条件・担当・期限
+
+- `internal/service`
+  - 削除条件: B1〜B4完了、14 fileのtarget移設またはbridge削除、production/test/import 0、移設先`audit`/`clinic`/`staff`/`lintscan`/`sharedkernel` scoped test green。
+  - 担当: MinoruSoga（実装owner）。各batchのGo reviewは当該実装unitのreviewerが担当する。
+  - 期限: 2026-07-31。
+- `internal/repository`
+  - 削除条件: B0/B5〜B14完了、50 fileのtarget移設またはcarrier/facade削除、lint gate 6件とenum/RLS/DDL gateの移設先green、production/test/import 0。空子directory削除はBE10-3であり本条件へ混ぜない。
+  - 担当: MinoruSoga（実装owner）。clinic isolation/transaction testを含むbatchは当該専門reviewを追加する。
+  - 期限: 2026-08-08。
+
+期限超過時は削除条件を緩めず、本節を`判断待ち`へ戻して未完batch、blocker、再開条件を記録する。
+
+<details>
+<summary>Phase 0 verification ledger</summary>
+
+- Changed files: `BE-refactor.md`のみ。Go file変更なし。
+- Saved prompt validator: `node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-2-phase0-legacy-test-retirement-plan.md`
+
+  ```text
+  Prompt Craft Harness Validation: PASS
+  Profile: standard (declared-risk-tier)
+  Target: agent (detected)
+  Quality mode: standard
+  exit=0
+  ```
+
+- C1 baseline: `git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte rev-parse --short HEAD`は`ef32784d3`。`git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte status --porcelain -- backend BE-refactor.md todo.md`は`(empty)`。
+- C2: 指定2 pathへの`find ... -maxdepth 1 -name '*.go'`結果は上の64行分類表と同じservice 14 / repository 50。`find ... -not -name '*_test.go' | wc -l`は`0`。
+- C3: package別`grep -rn '^func '`とhelper別`grep -rln`の結果は上のhelper表/inventoryへ固定した。`func Test`除外後はservice 112 / repository 238、除外した`func Test`はservice 79 / repository 188、function-local closureはservice 3 / repository 8。
+- C4: `grep -n '^func [A-Z]' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/testdb/testdb.go`
+
+  ```text
+  59:func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
+  109:func MarkAutoMigrated(models ...any) {
+  119:func CloseSharedTestDB() {
+  129:func SetupTestDB(t *testing.T) *gorm.DB {
+  156:func EnsureClinicSettingsTable(t *testing.T, db *gorm.DB) {
+  198:func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
+  218:func SetupIsolatedTestDB(t *testing.T) *gorm.DB {
+  ```
+
+- C5/C8 count reconciliation:
+
+  ```text
+  helper_inventory total=64 service=14 repository=50
+  classification total=64 service=14 repository=50
+  classified=64 manifest_unique=64 missing=0
+  ```
+
+- C6: helper consumerのsame-package file unionは`db_setup=36`（`setupTestDB`単体30）、`db_test=0`、`isolation=10`、`billing fixtures=1`、`BE9 carrier=18`、`repository target facade=33`、`service target surface=8`、`audit/clinic doubles=2`、`clinic transactor=2`。
+- C7: `find /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/service /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository -maxdepth 1 -name '*lint*_test.go' | sort`
+
+  ```text
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/audit_tx_inventory_lint_test.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/dbortx_inventory_lint_test.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/migration_cascade_lint_test.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/repository/preload_clinic_scope_lint_test.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/service/master_fk_write_inventory_lint_test.go
+  /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/service/n1_lint_test.go
+  ```
+
+- C9: `grep -n '削除条件\|担当\|期限' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/BE-refactor.md`でservice/repository両方の3項目を確認した。
+- C10 final: `git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte status --porcelain -- backend BE-refactor.md todo.md`は` M BE-refactor.md`。`git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte diff --name-only -- backend`は`(empty)`。
+- C11: `grep -n 'BE10-2' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/todo.md /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/BE-pending.md`は`(empty)`、exit=1（0 hit）。
+- `git diff --check -- BE-refactor.md`: `(empty)`、exit=0。
+- Failure Signature log:
+  - C5 supplementary count / attempt 1: expected=64行、actual=0行、verification=Node parser、error signature=parserが旧heading `64 test file分類`とbacktickなしrow patternへ依存、fix=現行heading `64 file分類`と実row patternに合わせて最小化、result=`classification total=64 service=14 repository=50` / PASS。成果物の分類内容に欠落はなかった。
+- De-Sloppify: 対象外。Goコード・testを変更しておらず、本unitは計画文書だけである。
+- Assumption deviations: none。
+
+</details>
 
 ### BE10-3 — 空の`internal/repository/*` 15 directory
 
