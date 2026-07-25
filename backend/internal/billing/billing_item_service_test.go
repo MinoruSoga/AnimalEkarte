@@ -510,6 +510,7 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 					Quantity:    1,
 					IsInsurance: true,
 					SortOrder:   2,
+					Procedure:   &model.Procedure{IsSurgery: true},
 				},
 			}, nil
 		},
@@ -521,7 +522,7 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 	assert.NoError(t, err)
 	if assert.Len(t, items, 2) {
 		assert.Equal(t, model.ItemSourceMedicalRecord, items[0].Source)
-		assert.Equal(t, model.ItemCategoryProcedure, items[0].Category)
+		assert.Equal(t, model.ItemCategorySurgery, items[0].Category)
 		assert.Equal(t, ptrUint64(10), items[0].TreatmentID)
 		assert.Equal(t, model.ItemSourceTrimming, items[1].Source)
 		assert.Equal(t, model.ItemCategoryTrimming, items[1].Category)
@@ -590,19 +591,47 @@ func TestBuildBillingItemUpdate(t *testing.T) {
 	}
 }
 
-// ---- treatmentTypeToItemCategory (pure function) ----
+// ---- treatmentTypeToItemCategory (resolver delegation) ----
 
 func TestTreatmentTypeToItemCategory(t *testing.T) {
 	tests := []struct {
 		name string
-		in   model.TreatmentItemType
+		in   *model.Treatment
 		want model.ItemCategory
 	}{
-		{"consultation maps to examination", model.TreatmentItemTypeConsultation, model.ItemCategoryExamination},
-		{"procedure maps to procedure", model.TreatmentItemTypeProcedure, model.ItemCategoryProcedure},
-		{"medicine maps to medicine", model.TreatmentItemTypeMedicine, model.ItemCategoryMedicine},
-		{"other maps to other (default)", model.TreatmentItemTypeOther, model.ItemCategoryOther},
-		{"unknown type falls back to other (default)", model.TreatmentItemType("unknown"), model.ItemCategoryOther},
+		{
+			"consultation maps to examination",
+			&model.Treatment{ItemType: model.TreatmentItemTypeConsultation},
+			model.ItemCategoryExamination,
+		},
+		{
+			"procedure without loaded master maps to procedure",
+			&model.Treatment{ItemType: model.TreatmentItemTypeProcedure},
+			model.ItemCategoryProcedure,
+		},
+		{
+			"surgical procedure maps to surgery",
+			&model.Treatment{
+				ItemType:  model.TreatmentItemTypeProcedure,
+				Procedure: &model.Procedure{IsSurgery: true},
+			},
+			model.ItemCategorySurgery,
+		},
+		{
+			"medicine maps to medicine",
+			&model.Treatment{ItemType: model.TreatmentItemTypeMedicine},
+			model.ItemCategoryMedicine,
+		},
+		{
+			"other maps to other",
+			&model.Treatment{ItemType: model.TreatmentItemTypeOther},
+			model.ItemCategoryOther,
+		},
+		{
+			"unknown type falls back to other",
+			&model.Treatment{ItemType: model.TreatmentItemType("unknown")},
+			model.ItemCategoryOther,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

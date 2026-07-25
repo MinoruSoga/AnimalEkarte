@@ -446,7 +446,7 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 	return model.BillingItem{
 		ID:                    t.ID,
 		BillingID:             0,
-		Category:              treatmentTypeToItemCategory(t.ItemType),
+		Category:              treatmentTypeToItemCategory(t),
 		Name:                  t.Content,
 		UnitPrice:             t.UnitPrice,
 		Quantity:              t.Quantity,
@@ -459,17 +459,12 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 	}
 }
 
-func treatmentTypeToItemCategory(t model.TreatmentItemType) model.ItemCategory {
-	switch t {
-	case model.TreatmentItemTypeConsultation:
-		return model.ItemCategoryExamination
-	case model.TreatmentItemTypeProcedure:
-		return model.ItemCategoryProcedure
-	case model.TreatmentItemTypeMedicine:
-		return model.ItemCategoryMedicine
-	default:
-		return model.ItemCategoryOther
-	}
+func treatmentTypeToItemCategory(t *model.Treatment) model.ItemCategory {
+	return sharedkernel.ResolveItemCategory(sharedkernel.ItemCategoryResolverInput{
+		Source:            model.ItemSourceMedicalRecord,
+		TreatmentItemType: t.ItemType,
+		IsSurgery:         t.Procedure != nil && t.Procedure.IsSurgery,
+	})
 }
 
 // GetDiscountSuggestions は指定明細に適用可能な割引候補を返す (#81 Q-I スタッフ選択)。

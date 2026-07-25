@@ -511,7 +511,12 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			item := &carePlanItems[i]
 			billingItem := &model.BillingItem{
 				BillingID: billing.ID,
-				Category:  model.ItemCategoryOther,
+				Category: sharedkernel.ResolveItemCategory(sharedkernel.ItemCategoryResolverInput{
+					Source:              model.ItemSourceHospitalization,
+					CarePlanType:        item.Type,
+					IsSurgery:           item.Procedure != nil && item.Procedure.IsSurgery,
+					HospitalizationType: locked.HospitalizationType,
+				}),
 				Name:      item.Name,
 				UnitPrice: item.UnitPrice,
 				Quantity:  1.0,

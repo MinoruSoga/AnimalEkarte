@@ -1025,14 +1025,26 @@ func TestHospitalizationService_DischargeWithBilling_BillingCreateError(t *testi
 
 func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testing.T) {
 	items := []model.CarePlanItem{
-		{ID: 1, Name: "食事介助", UnitPrice: 1000},
-		{ID: 2, Name: "点滴", UnitPrice: 2000},
+		{ID: 1, Type: model.CarePlanTypeFood, Name: "食事介助", UnitPrice: 1000},
+		{
+			ID:        2,
+			Type:      model.CarePlanTypeTreatment,
+			Name:      "手術",
+			UnitPrice: 2000,
+			Procedure: &model.Procedure{IsSurgery: true},
+		},
 	}
 	var createdItems []*model.BillingItem
 	totalsUpdated := false
 	hospRepo := &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
+			return &model.Hospitalization{
+				ID:                  id,
+				Status:              model.HospitalizationStatusAdmitted,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				PetID:               5,
+				OwnerID:             2,
+			}, nil
 		},
 		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
@@ -1072,6 +1084,8 @@ func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testin
 	assert.NotNil(t, result.AccountingID)
 	assert.Equal(t, uint64(55), *result.AccountingID)
 	assert.Len(t, createdItems, 2)
+	assert.Equal(t, model.ItemCategoryFood, createdItems[0].Category)
+	assert.Equal(t, model.ItemCategorySurgery, createdItems[1].Category)
 	assert.True(t, totalsUpdated)
 }
 

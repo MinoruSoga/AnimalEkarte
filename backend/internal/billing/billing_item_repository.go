@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
@@ -399,9 +400,11 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 	for i, row := range rows {
 		appointmentID := row.AppointmentID
 		items = append(items, model.BillingItem{
-			ID:                    uint64(i + 1),
-			BillingID:             0,
-			Category:              model.ItemCategoryTrimming,
+			ID:        uint64(i + 1),
+			BillingID: 0,
+			Category: sharedkernel.ResolveItemCategory(sharedkernel.ItemCategoryResolverInput{
+				Source: model.ItemSourceTrimming,
+			}),
 			Name:                  row.Name,
 			UnitPrice:             row.UnitPrice,
 			Quantity:              1,
