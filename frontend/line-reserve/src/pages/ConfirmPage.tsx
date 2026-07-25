@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useActionState } from 'react';
 import axios from 'axios';
 import liff from '@line/liff';
 import { z } from 'zod';
@@ -27,6 +27,10 @@ interface ConfirmPageProps {
   onConfirm: (reservationId: number, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
+}
+
+interface ConfirmFormState {
+  error: string | null;
 }
 
 function formatTime(hhmm: string): string {
@@ -85,15 +89,14 @@ export function ConfirmPage({
   onSlotTaken,
   onBack,
 }: ConfirmPageProps) {
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
   const { current, total } = getStepProgress('confirm', flow.courseCategory === 'trimming');
 
-  const handleConfirm = useCallback(async () => {
-    if (!flow.courseId) return;
-    setSubmitting(true);
-    setError(null);
+  async function confirmAction(
+    previousState: ConfirmFormState,
+    _formData: FormData,
+  ): Promise<ConfirmFormState> {
+    if (!flow.courseId) return previousState;
 
     try {
       const reservation = await liffApi.createReservation(
@@ -124,19 +127,20 @@ export function ConfirmPage({
       );
       await sendLiffMessage(flow, reservation.notes);
       onConfirm(reservation.id, reservation.notes);
+      return { error: null };
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         const parsed = slotTakenResponseSchema.safeParse(err.response.data);
         const message = (parsed.success && parsed.data.error) || '選択された時間枠は既に予約が入っています。';
         const redirectStep = (parsed.success && parsed.data.redirect_step) || 4;
         onSlotTaken(message, redirectStep);
-        return;
+        return { error: null };
       }
-      setError('予約の確定に失敗しました。もう一度お試しください。');
-    } finally {
-      setSubmitting(false);
+      return { error: '予約の確定に失敗しました。もう一度お試しください。' };
     }
-  }, [clinicId, idToken, flow, onConfirm, onSlotTaken]);
+  }
+
+  const [formState, formAction, isPending] = useActionState(confirmAction, { error: null });
 
   const petDisplay = flow.customerInfo.pets.length > 0
     ? flow.customerInfo.pets.map(p => p.type ? `${p.name}（${p.type}）` : p.name).join('、')
@@ -209,21 +213,21 @@ export function ConfirmPage({
             </div>
           ) : null}
 
-          {error ? (
+          {formState.error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <p className="text-sm text-red-700" role="alert">{error}</p>
+              <p className="text-sm text-red-700" role="alert">{formState.error}</p>
             </div>
           ) : null}
         </div>
 
-        <div className="px-4 py-6 space-y-3">
+        <form action={formAction} className="px-4 py-6 space-y-3">
           {privacyPolicy ? (
             <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
           ) : null}
-          <PrimaryButton onClick={handleConfirm} disabled={submitting}>
-            {submitting ? '送信中...' : '予約を確定する'}
+          <PrimaryButton type="submit" disabled={isPending}>
+            {isPending ? '送信中...' : '予約を確定する'}
           </PrimaryButton>
-        </div>
+        </form>
       </div>
     </div>
   );
