@@ -92,7 +92,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
       <div className="flex flex-col gap-4 pl-1">
         {!isLoading
           ? examGroups.map((group) => (
-              <ExaminationGroup key={group.id} group={group} />
+              <ExaminationGroup key={group.id} group={group} petId={petId} />
             ))
           : null}
       </div>

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExaminationForm } from "./ExaminationForm";
@@ -10,13 +10,20 @@ const mocks = vi.hoisted(() => ({
   canEdit: true,
   canDelete: false,
   useExaminationForm: vi.fn(),
+  useGetExaminations: vi.fn(),
+  historyPanel: vi.fn(),
+  searchParams: "",
+  setSearchParams: vi.fn(),
 }));
 
 vi.mock("react-router", () => ({
   useNavigate: () => vi.fn(),
   useLocation: () => ({ state: undefined }),
   useParams: () => ({ id: mocks.id }),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [
+    new URLSearchParams(mocks.searchParams),
+    mocks.setSearchParams,
+  ],
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -44,7 +51,7 @@ vi.mock("../hooks/use-examination-form", () => ({
 }));
 
 vi.mock("../api/get-examinations", () => ({
-  useGetExaminations: () => ({ data: [] }),
+  useGetExaminations: mocks.useGetExaminations,
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
@@ -72,7 +79,10 @@ vi.mock("../components/ExaminationFormFields", () => ({
 }));
 
 vi.mock("../components/ExaminationHistoryPanel", () => ({
-  ExaminationHistoryPanel: () => null,
+  ExaminationHistoryPanel: (props: unknown) => {
+    mocks.historyPanel(props);
+    return <button type="button">履歴表示切替</button>;
+  },
 }));
 
 beforeEach(() => {
@@ -80,6 +90,11 @@ beforeEach(() => {
   mocks.canCreate = false;
   mocks.canEdit = true;
   mocks.canDelete = false;
+  mocks.searchParams = "";
+  mocks.setSearchParams.mockReset();
+  mocks.historyPanel.mockReset();
+  mocks.useGetExaminations.mockReset();
+  mocks.useGetExaminations.mockReturnValue({ data: [] });
   mocks.useExaminationForm.mockReset();
   mocks.useExaminationForm.mockImplementation(() => ({
     formData: { status: "依頼中", petId: "pet-1" },
@@ -133,5 +148,49 @@ describe("ExaminationForm — mutation permission wiring", () => {
         canDelete: true,
       },
     );
+  });
+});
+
+describe("ExaminationForm — history pivot wiring", () => {
+  it("petIdをserver-side filterへ渡し、historyView=pivotを初期表示へ反映する", () => {
+    mocks.searchParams = "petId=pet-1&medicalRecordId=record-1&historyView=pivot";
+
+    render(<ExaminationForm />);
+
+    expect(mocks.useGetExaminations).toHaveBeenLastCalledWith({
+      petId: "pet-1",
+      startDate: undefined,
+      endDate: undefined,
+    });
+    expect(mocks.historyPanel).toHaveBeenLastCalledWith(
+      expect.objectContaining({ historyView: "pivot" }),
+    );
+  });
+
+  it("表示切替時に既存query parameterを保持する", () => {
+    mocks.searchParams = "petId=pet-1&medicalRecordId=record-1";
+    render(<ExaminationForm />);
+
+    const props = mocks.historyPanel.mock.lastCall?.[0] as {
+      onHistoryViewChange: (view: "cards" | "pivot") => void;
+    };
+    act(() => props.onHistoryViewChange("pivot"));
+
+    const nextParams = mocks.setSearchParams.mock.lastCall?.[0] as URLSearchParams;
+    expect(nextParams.toString()).toBe(
+      "petId=pet-1&medicalRecordId=record-1&historyView=pivot",
+    );
+  });
+
+  it("view-only時も読み取り専用の履歴切替をdisabled fieldset外に置く", () => {
+    mocks.canEdit = false;
+    mocks.id = "exam-1";
+
+    render(<ExaminationForm />);
+
+    const historyToggle = screen.getByRole("button", { name: "履歴表示切替" });
+    expect(historyToggle.closest("fieldset")).toBeNull();
+    expect(historyToggle.closest("form")).toBeNull();
+    expect(historyToggle).not.toBeDisabled();
   });
 });

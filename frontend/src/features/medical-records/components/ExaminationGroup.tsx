@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { memo } from "react";
+import { Link, useLocation } from "react-router";
 
 // External
 import { CheckCircle } from "lucide-react";
@@ -8,15 +9,27 @@ import { CheckCircle } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { paths } from "@/config/paths";
 import type { ExamGroup } from "../api/get-record-examinations";
 
 interface ExaminationGroupProps {
   group: ExamGroup;
+  petId?: string;
 }
 
 export const ExaminationGroup = memo(function ExaminationGroup({
   group,
+  petId,
 }: ExaminationGroupProps) {
+  const location = useLocation();
+  const historyLocation = `${location.pathname}${location.search}`;
+  const pivotHref = petId
+    ? `${paths.examinations.detail.getHref(group.id)}?${new URLSearchParams({
+        petId,
+        historyView: "pivot",
+      }).toString()}`
+    : undefined;
+
   return (
     <div className="flex flex-col gap-2">
       <div className={`flex items-center justify-between w-full border-b ${C.borderPrimary20} pb-2`}>
@@ -31,13 +44,22 @@ export const ExaminationGroup = memo(function ExaminationGroup({
             {group.machine}
           </Badge>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-10 text-sm ${C.text60} ${C.hoverText}`}
-        >
-          詳細を表示
-        </Button>
+        {pivotHref ? (
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className={`h-10 text-sm ${C.text60} ${C.hoverText}`}
+          >
+            <Link
+              to={pivotHref}
+              state={{ from: historyLocation }}
+              aria-label={`${group.date}の検歴を表示`}
+            >
+              検歴を表示
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden overflow-x-auto`}>

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 
 import { MedicalRecordExamination } from "./MedicalRecordExamination";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
@@ -63,8 +64,16 @@ beforeEach(() => {
 });
 
 describe("MedicalRecordExamination — カナ混同検索", () => {
+  function renderExaminations() {
+    return render(
+      <MemoryRouter>
+        <MedicalRecordExamination petId="1" />
+      </MemoryRouter>,
+    );
+  }
+
   it("空の検索語は全グループを表示する", () => {
-    render(<MedicalRecordExamination petId="1" />);
+    renderExaminations();
     expect(screen.getByText("グルコース")).toBeInTheDocument();
     expect(screen.getByText("ビリルビン")).toBeInTheDocument();
   });
@@ -76,14 +85,14 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useGetRecordExaminations>);
 
-    render(<MedicalRecordExamination petId="1" />);
+    renderExaminations();
 
     expect(screen.getByText("直近100件を表示しています")).toBeInTheDocument();
   });
 
   it("ひらがな「ぐるこーす」でカタカナ検査名「グルコース」にヒットする", async () => {
     const user = userEvent.setup();
-    render(<MedicalRecordExamination petId="1" />);
+    renderExaminations();
 
     await user.type(screen.getByPlaceholderText("WBC, Cre, etc..."), "ぐるこーす");
 
@@ -95,7 +104,7 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
 
   it("カタカナ「グルコース」でカタカナ検査名にヒットする (かな統一検索)", async () => {
     const user = userEvent.setup();
-    render(<MedicalRecordExamination petId="1" />);
+    renderExaminations();
 
     await user.type(screen.getByPlaceholderText("WBC, Cre, etc..."), "グルコース");
 
@@ -107,7 +116,7 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
 
   it("ひらがな「びりるびん」でカタカナ検査名「ビリルビン」にヒットする", async () => {
     const user = userEvent.setup();
-    render(<MedicalRecordExamination petId="1" />);
+    renderExaminations();
 
     await user.type(screen.getByPlaceholderText("WBC, Cre, etc..."), "びりるびん");
 
@@ -115,5 +124,24 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
       expect(screen.getByText("ビリルビン")).toBeInTheDocument();
       expect(screen.queryByText("グルコース")).not.toBeInTheDocument();
     });
+  });
+
+  it("各検査グループへ対象petIdを渡して時系列導線を構成する", () => {
+    renderExaminations();
+
+    const firstDetailLink = screen.getByRole("link", {
+      name: "2026-01-01 10:00の検歴を表示",
+    });
+    const secondDetailLink = screen.getByRole("link", {
+      name: "2026-01-02 10:00の検歴を表示",
+    });
+    expect(firstDetailLink).toHaveAttribute(
+      "href",
+      "/examinations/1?petId=1&historyView=pivot",
+    );
+    expect(secondDetailLink).toHaveAttribute(
+      "href",
+      "/examinations/2?petId=1&historyView=pivot",
+    );
   });
 });

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 
 import { ExaminationGroup } from "./ExaminationGroup";
 import type { ExamGroup } from "../api/get-record-examinations";
@@ -33,9 +35,17 @@ const makeGroup = (overrides: Partial<ExamGroup> = {}): ExamGroup => ({
   ...overrides,
 });
 
+function renderGroup(group = makeGroup()) {
+  return render(
+    <MemoryRouter>
+      <ExaminationGroup group={group} petId="7" />
+    </MemoryRouter>,
+  );
+}
+
 describe("ExaminationGroup", () => {
   it("ヘッダ列（項目名・結果値・単位・基準値・判定）を描画する", () => {
-    render(<ExaminationGroup group={makeGroup()} />);
+    renderGroup();
     expect(screen.getByText("項目名")).toBeInTheDocument();
     expect(screen.getByText("結果値")).toBeInTheDocument();
     expect(screen.getByText("単位")).toBeInTheDocument();
@@ -44,7 +54,7 @@ describe("ExaminationGroup", () => {
   });
 
   it("ヘッダ行が DESIGN.md ex-data-table-cell（sectionLabel）で表示される", () => {
-    render(<ExaminationGroup group={makeGroup()} />);
+    renderGroup();
     const headerRow = screen.getByText("項目名").parentElement;
     expect(headerRow).not.toBeNull();
     for (const cls of STYLE.sectionLabel.split(" ")) {
@@ -53,29 +63,23 @@ describe("ExaminationGroup", () => {
   });
 
   it("date と machine をヘッダに表示する", () => {
-    render(
-      <ExaminationGroup
-        group={makeGroup({ date: "2026-04-29 10:00", machine: "DRI-CHEM" })}
-      />,
-    );
+    renderGroup(makeGroup({ date: "2026-04-29 10:00", machine: "DRI-CHEM" }));
     expect(screen.getByText("2026-04-29 10:00")).toBeInTheDocument();
     expect(screen.getByText("DRI-CHEM")).toBeInTheDocument();
   });
 
   it("項目名・結果値・単位・基準値（referenceValue）を表示する", () => {
-    render(
-      <ExaminationGroup
-        group={makeGroup({
-          items: [
-            makeItem({
-              name: "GLU",
-              result: "95",
-              unit: "mg/dL",
-              referenceValue: "70-110",
-            }),
-          ],
-        })}
-      />,
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "GLU",
+            result: "95",
+            unit: "mg/dL",
+            referenceValue: "70-110",
+          }),
+        ],
+      }),
     );
     expect(screen.getByText("GLU")).toBeInTheDocument();
     expect(screen.getByText("95")).toBeInTheDocument();
@@ -84,12 +88,10 @@ describe("ExaminationGroup", () => {
   });
 
   it("status=high のとき HIGH バッジを表示する", () => {
-    render(
-      <ExaminationGroup
-        group={makeGroup({
-          items: [makeItem({ status: "high", isAbnormal: true })],
-        })}
-      />,
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "high", isAbnormal: true })],
+      }),
     );
     expect(screen.getByText("HIGH")).toHaveClass(C.bgDanger, C.hoverBgDanger90);
     expect(screen.getByText("95")).toHaveClass(C.danger, "font-bold");
@@ -97,12 +99,10 @@ describe("ExaminationGroup", () => {
   });
 
   it("status=low のとき LOW バッジを表示する", () => {
-    render(
-      <ExaminationGroup
-        group={makeGroup({
-          items: [makeItem({ status: "low", isAbnormal: true })],
-        })}
-      />,
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "low", isAbnormal: true })],
+      }),
     );
     expect(screen.getByText("LOW")).toHaveClass(
       C.textStatusBlue,
@@ -114,19 +114,57 @@ describe("ExaminationGroup", () => {
   });
 
   it("複数行を全て描画する", () => {
-    render(
-      <ExaminationGroup
-        group={makeGroup({
-          items: [
-            makeItem({ id: "1", name: "GLU" }),
-            makeItem({ id: "2", name: "BUN" }),
-            makeItem({ id: "3", name: "ALT" }),
-          ],
-        })}
-      />,
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({ id: "1", name: "GLU" }),
+          makeItem({ id: "2", name: "BUN" }),
+          makeItem({ id: "3", name: "ALT" }),
+        ],
+      }),
     );
     expect(screen.getByText("GLU")).toBeInTheDocument();
     expect(screen.getByText("BUN")).toBeInTheDocument();
     expect(screen.getByText("ALT")).toBeInTheDocument();
+  });
+
+  it("検歴を表示の1操作で対象ペットの時系列ピボットへ遷移する", async () => {
+    const user = userEvent.setup();
+
+    function LocationProbe() {
+      const location = useLocation();
+      return (
+        <output>
+          {location.pathname}
+          {location.search}
+          {JSON.stringify(location.state)}
+        </output>
+      );
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/medical-records/55?tab=examinations"]}>
+        <Routes>
+          <Route
+            path="/medical-records/:id"
+            element={<ExaminationGroup group={makeGroup()} petId="7" />}
+          />
+          <Route path="/examinations/:id" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("link", {
+        name: "2026-04-29 10:00の検歴を表示",
+      }),
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "/examinations/100?petId=7&historyView=pivot",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      '{"from":"/medical-records/55?tab=examinations"}',
+    );
   });
 });
