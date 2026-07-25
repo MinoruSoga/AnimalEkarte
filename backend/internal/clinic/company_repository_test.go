@@ -1,6 +1,6 @@
-package company
+package clinic
 
-// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
+// company_repository_test.go — 法人情報 data access の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindSingleton / Update
 // 検証観点: 正常系（id=1 固定シングルトン）、レコード不在時の NotFound。
@@ -34,7 +34,7 @@ func setupCompanyTestDB(t *testing.T) *gorm.DB {
 // TestCompanyRepository_FindSingleton はシングルトン取得の正常系・NotFound を検証する。
 func TestCompanyRepository_FindSingleton(t *testing.T) {
 	db := setupCompanyTestDB(t)
-	repo := New(db)
+	repo := NewCompanyRepository(db)
 	ctx := context.Background()
 
 	t.Run("レコードが無ければ NotFound を返す", func(t *testing.T) {
@@ -57,7 +57,7 @@ func TestCompanyRepository_FindSingleton(t *testing.T) {
 // TestCompanyRepository_Update は部分更新の正常系・NotFound を検証する。
 func TestCompanyRepository_Update(t *testing.T) {
 	db := setupCompanyTestDB(t)
-	repo := New(db)
+	repo := NewCompanyRepository(db)
 	ctx := context.Background()
 
 	t.Run("レコードが無ければ NotFound を返す", func(t *testing.T) {

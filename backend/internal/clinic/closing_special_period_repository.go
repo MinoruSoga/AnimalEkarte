@@ -1,5 +1,4 @@
-// Package closingspecialperiod owns closing_special_periods data access within the clinic domain.
-package closingspecialperiod
+package clinic
 
 import (
 	"context"
@@ -14,25 +13,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// Repository is the data access interface for special closing periods.
-type Repository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
-	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
-	Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
-}
+type closingSpecialPeriodRepository struct{ db *gorm.DB }
 
-type repository struct{ db *gorm.DB }
-
-// New constructs a Repository.
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
-}
-
-func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
 	var periods []model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
@@ -44,7 +27,7 @@ func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.Clos
 	return periods, nil
 }
 
-func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
@@ -56,7 +39,7 @@ func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.
 	return &p, nil
 }
 
-func (r *repository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
@@ -72,14 +55,14 @@ func (r *repository) FindByDate(ctx context.Context, clinicID uint64, date time.
 	return &p, nil
 }
 
-func (r *repository) Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
 	if err := r.db.WithContext(ctx).Create(p).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "closing_special_period", "")
 	}
 	return p, nil
 }
 
-func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
 	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
 		return nil, err
 	}
@@ -93,7 +76,7 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 	return &p, nil
 }
 
-func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *closingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
@@ -107,7 +90,7 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return nil
 }
 
-func (r *repository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
+func (r *closingSpecialPeriodRepository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
 	q := r.db.WithContext(ctx).
 		Model(&model.ClosingSpecialPeriod{}).
 		Scopes(persistence.ClinicScope(clinicID)).

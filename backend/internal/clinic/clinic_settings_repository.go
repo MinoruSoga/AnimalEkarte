@@ -1,5 +1,4 @@
-// Package clinicsettings owns clinic_settings data access within the clinic domain.
-package clinicsettings
+package clinic
 
 import (
 	"context"
@@ -14,30 +13,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// Repository は締め時間設定のデータアクセスインターフェース
-type Repository interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
-	// UpdateCPMVersion は cpm_version のみを対象とした UPSERT。
-	UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error
-	// UpdateDormantThresholds は dormant_prevention_*_days 4 カラムを対象とした UPSERT。
-	UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error
-	// UpdateCPMV2Thresholds は cpm_v2_*_threshold 4 カラムを対象とした UPSERT。
-	UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error
-	// UpdateCPMV1Thresholds は cpm_v1_* 13 カラムを対象とした UPSERT。
-	UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error
-	// UpdateHealthPreventionThresholds は health_prevention_lookback_days / vaccine_deadline_days を対象とした UPSERT。
-	UpdateHealthPreventionThresholds(ctx context.Context, clinicID uint64, thresholds model.HealthPreventionThresholds) error
-}
+type clinicSettingsRepository struct{ db *gorm.DB }
 
-type repository struct{ db *gorm.DB }
-
-// New は Repository を初期化して返す
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
-}
-
-func (r *repository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
 	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&s).Error
 	if err != nil {
@@ -56,7 +34,7 @@ func (r *repository) FindByClinicID(ctx context.Context, clinicID uint64) (*mode
 	return &s, nil
 }
 
-func (r *repository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
+func (r *clinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
@@ -76,7 +54,7 @@ func (r *repository) Save(ctx context.Context, clinicID uint64, s *model.ClinicS
 	return s, nil
 }
 
-func (r *repository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
+func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
 	s := &model.ClinicSettings{
 		ClinicID:            clinicID,
 		ClosingAmPmBoundary: "14:00",
@@ -97,7 +75,7 @@ func (r *repository) UpdateCPMVersion(ctx context.Context, clinicID uint64, vers
 	return nil
 }
 
-func (r *repository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
+func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
 	s := &model.ClinicSettings{
 		ClinicID:                 clinicID,
 		ClosingAmPmBoundary:      "14:00",
@@ -127,7 +105,7 @@ func (r *repository) UpdateDormantThresholds(ctx context.Context, clinicID uint6
 	return nil
 }
 
-func (r *repository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
+func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
 	s := &model.ClinicSettings{
 		ClinicID:             clinicID,
 		ClosingAmPmBoundary:  "14:00",
@@ -158,7 +136,7 @@ func (r *repository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64,
 }
 
 //nolint:gocritic // hugeParam: thresholds は immutable DTO として interface に揃える設計
-func (r *repository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
+func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
 	s := &model.ClinicSettings{
 		ClinicID:              clinicID,
 		ClosingAmPmBoundary:   "14:00",
@@ -206,7 +184,7 @@ func (r *repository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64,
 	return nil
 }
 
-func (r *repository) UpdateHealthPreventionThresholds(ctx context.Context, clinicID uint64, thresholds model.HealthPreventionThresholds) error {
+func (r *clinicSettingsRepository) UpdateHealthPreventionThresholds(ctx context.Context, clinicID uint64, thresholds model.HealthPreventionThresholds) error {
 	s := &model.ClinicSettings{
 		ClinicID:                     clinicID,
 		ClosingAmPmBoundary:          "14:00",

@@ -1,5 +1,4 @@
-// Package clinicholiday owns clinic_holidays data access within the clinic domain.
-package clinicholiday
+package clinic
 
 import (
 	"context"
@@ -13,22 +12,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// Repository は個別休診日のデータアクセスインターフェース
-type Repository interface {
-	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
-	FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
-	Delete(ctx context.Context, clinicID uint64, date time.Time) error
-}
+type clinicHolidayRepository struct{ db *gorm.DB }
 
-type repository struct{ db *gorm.DB }
-
-// New は Repository を初期化して返す
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
-}
-
-func (r *repository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
@@ -45,7 +31,7 @@ func (r *repository) FindAllByYearMonth(ctx context.Context, clinicID uint64, ye
 	return holidays, nil
 }
 
-func (r *repository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).
@@ -61,7 +47,7 @@ func (r *repository) Save(ctx context.Context, clinicID uint64, holiday *model.C
 	return holiday, nil
 }
 
-func (r *repository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
+func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("date = ?", date.Format(time.DateOnly)).
@@ -75,7 +61,7 @@ func (r *repository) Delete(ctx context.Context, clinicID uint64, date time.Time
 	return nil
 }
 
-func (r *repository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
 	var holiday model.ClinicHoliday
 	result := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).

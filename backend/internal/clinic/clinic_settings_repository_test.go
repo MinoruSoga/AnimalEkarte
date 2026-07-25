@@ -1,10 +1,9 @@
-package clinicsettings
+package clinic
 
-// repository_test.go — Repository の統合テスト。
+// clinic_settings_repository_test.go — clinic settings data access の統合テスト。
 //
 // clinic_settings は clinics(id) への1:1（PK=clinic_id）。makeClinicFixture（フラット package の
-// clinic_repository_test.go 同名ヘルパーの複製。BE8-4: import cycle を避けるための最小限の重複、
-// 移動時の型リネームはしない方針の対象外）で都度新規 clinic を作り、他テストの残存行と衝突しない
+// clinic_repository_test.go 由来の共有 helper）で都度新規 clinic を作り、他テストの残存行と衝突しない
 // clinic_id を得てから検証する。
 
 import (
@@ -19,7 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-// setupClinicSettingsTestDB は clinicsettings.Repository のテスト用に DB を整備する。
+// setupClinicSettingsTestDB は clinic settings data access のテスト用に DB を整備する。
 //
 // FIXED (2026-07-13, Issue #212 → #236 BUG#3): 元々 ensureAutoMigrated(db, &model.ClinicSettings{}) が
 // "invalid input syntax for type timestamp with time zone: 14:00" (SQLSTATE 22007) で失敗し
@@ -43,21 +42,9 @@ func setupClinicSettingsTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeClinicFixture は新規 company + clinic を作成して返す（フラット package の
-// clinic_repository_test.go 同名ヘルパーの複製 — BE8-4 import cycle 回避のための最小限の重複）。
-func makeClinicFixture(t *testing.T, db *gorm.DB, name string) *model.Clinic {
-	t.Helper()
-	ctx := context.Background()
-	company := &model.Company{Name: "テスト法人_" + name}
-	require.NoError(t, db.WithContext(ctx).Create(company).Error)
-	clinic := &model.Clinic{CompanyID: company.ID, Name: name}
-	require.NoError(t, db.WithContext(ctx).Create(clinic).Error)
-	return clinic
-}
-
 func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 
 	t.Run("行が存在しなければデフォルト値を返す(エラーなし)", func(t *testing.T) {
@@ -101,7 +88,7 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 
 func TestClinicSettingsRepository_Save(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "Save用クリニック")
 
@@ -130,7 +117,7 @@ func TestClinicSettingsRepository_Save(t *testing.T) {
 
 func TestClinicSettingsRepository_UpdateCPMVersion(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "CPMバージョン更新用")
 
@@ -159,7 +146,7 @@ func TestClinicSettingsRepository_UpdateCPMVersion(t *testing.T) {
 
 func TestClinicSettingsRepository_UpdateDormantThresholds(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "休眠閾値更新用")
 
@@ -193,7 +180,7 @@ func TestClinicSettingsRepository_UpdateDormantThresholds(t *testing.T) {
 
 func TestClinicSettingsRepository_UpdateCPMV2Thresholds(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "CPMV2閾値更新用")
 
@@ -212,7 +199,7 @@ func TestClinicSettingsRepository_UpdateCPMV2Thresholds(t *testing.T) {
 
 func TestClinicSettingsRepository_UpdateCPMV1Thresholds(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "CPMV1閾値更新用")
 
@@ -236,7 +223,7 @@ func TestClinicSettingsRepository_UpdateCPMV1Thresholds(t *testing.T) {
 
 func TestClinicSettingsRepository_UpdateHealthPreventionThresholds(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
-	repo := New(db)
+	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "健診予防閾値更新用")
 

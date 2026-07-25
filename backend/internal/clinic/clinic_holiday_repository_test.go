@@ -1,9 +1,6 @@
-package clinicholiday
+package clinic
 
-// repository_test.go — Repository の統合テスト。
-//
-// makeClinicFixture はフラット package の clinic_repository_test.go 同名ヘルパーの複製
-// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
+// clinic_holiday_repository_test.go — 個別休診日 data access の統合テスト。
 
 import (
 	"context"
@@ -19,7 +16,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-// setupClinicHolidayTestDB は clinicholiday.Repository のテスト用に DB を整備する。
+// setupClinicHolidayTestDB は個別休診日 data access のテスト用に DB を整備する。
 func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
@@ -39,8 +36,7 @@ func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeClinicFixture は新規 company + clinic を作成して返す（フラット package の
-// clinic_repository_test.go 同名ヘルパーの複製 — BE8-4 import cycle 回避のための最小限の重複）。
+// makeClinicFixture は新規 company + clinic を作成して返す。
 func makeClinicFixture(t *testing.T, db *gorm.DB, name string) *model.Clinic {
 	t.Helper()
 	ctx := context.Background()
@@ -53,7 +49,7 @@ func makeClinicFixture(t *testing.T, db *gorm.DB, name string) *model.Clinic {
 
 func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := New(db)
+	repo := NewClinicHolidayRepository(db)
 	ctx := context.Background()
 
 	clinicA := makeClinicFixture(t, db, "休診日一覧A")
@@ -94,7 +90,7 @@ func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 
 func TestClinicHolidayRepository_Save(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := New(db)
+	repo := NewClinicHolidayRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "休診日Save用")
 	date := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
@@ -124,7 +120,7 @@ func TestClinicHolidayRepository_Save(t *testing.T) {
 
 func TestClinicHolidayRepository_Delete(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := New(db)
+	repo := NewClinicHolidayRepository(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "休診日Delete用")
 	date := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
@@ -148,7 +144,7 @@ func TestClinicHolidayRepository_Delete(t *testing.T) {
 
 func TestClinicHolidayRepository_FindByDate(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := New(db)
+	repo := NewClinicHolidayRepository(db)
 	ctx := context.Background()
 
 	clinicA := makeClinicFixture(t, db, "休診日単件A")

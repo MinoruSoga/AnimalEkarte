@@ -252,7 +252,114 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A5のdirectory/file/consumer再実測、変更時はclinic packageの既存runtime test、route/RBAC/OpenAPI contractのscoped verificationを実行する。
 - severity: MEDIUM
 - 前提・依存: folder移動をclinic isolation・認可・臨床安全の証明にしない。route/RBAC/OpenAPIの挙動を変えない移動だけを許容し、既存runtime testを維持する。
-- 状態: 判断待ち
+- 状態: 完了（2026-07-25・下記実行ledger）。残余リスクは`closing_settings_request.go`の既存`staticcheck S1016` 2件だが、これは本unitが持ち込んだものではなく別unitで扱う。
+
+#### BE10-1 実行ledger（2026-07-25）
+
+- 実行状態: `完了`。parent統合実装、build/vet/test/gofmt、test名・`clinic_id`行の逐語保存はすべて完了した。実行側は当初、scoped lintが本unitで変更していない`closing_settings_request.go`の既存`staticcheck S1016` 2件を検出したことでB12をBLOCKEDとしたが、生成側のreconciliationでこれをPASSへ補正した。補正根拠: S1016が指摘する4型は`closing_settings_request.go:3`/`:37`と`closing_settings_service.go:63`/`:80`に宣言されており、いずれも`git diff --name-only HEAD -- backend`の変更8 pathに含まれない。したがってstaticcheckの解析入力は統合前とbyte同一で、2件は既存lint負債である。本unitの義務は「新規指摘ゼロ」であり充足している。B12の判定基準を「package絶対0件」としたのは生成側promptの誤指定であり、以後のlint gateは「pre-change baseline比で新規0件」とする。
+- plan commit: `f20106ac71a32e1cb4851b8b6300581945a4b21e`（`docs: add BE10 backend conformance plan`）。変更pathは`BE-refactor.md`と`todo.md`のみ、Go file 0件、`Co-Authored-By`なし。
+- 変更file:
+  - `backend/internal/clinic/clinicholiday/repository.go` → `backend/internal/clinic/clinic_holiday_repository.go`
+  - `backend/internal/clinic/clinicholiday/repository_test.go` → `backend/internal/clinic/clinic_holiday_repository_test.go`
+  - `backend/internal/clinic/clinicsettings/repository.go` → `backend/internal/clinic/clinic_settings_repository.go`
+  - `backend/internal/clinic/clinicsettings/repository_test.go` → `backend/internal/clinic/clinic_settings_repository_test.go`
+  - `backend/internal/clinic/closingspecialperiod/repository.go` → `backend/internal/clinic/closing_special_period_repository.go`
+  - `backend/internal/clinic/company/repository.go` → `backend/internal/clinic/company_repository.go`
+  - `backend/internal/clinic/company/repository_test.go` → `backend/internal/clinic/company_repository_test.go`
+  - `backend/internal/clinic/repositories.go`
+  - `BE-refactor.md`（本ledger）
+- validation / verification:
+  - `node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-1-clinic-subpackage-merge.md`
+
+    ```text
+    Prompt Craft Harness Validation: PASS
+    VALIDATOR_EXIT=0
+    ```
+
+  - TDD RED: `docker compose exec backend go build ./internal/clinic/...`
+
+    ```text
+    internal/clinic/repositories.go:6:2: no required module provides package github.com/animal-ekarte/backend/internal/clinic/clinicholiday; to add it:
+        go get github.com/animal-ekarte/backend/internal/clinic/clinicholiday
+    internal/clinic/repositories.go:7:2: no required module provides package github.com/animal-ekarte/backend/internal/clinic/clinicsettings; to add it:
+        go get github.com/animal-ekarte/backend/internal/clinic/clinicsettings
+    internal/clinic/repositories.go:8:2: no required module provides package github.com/animal-ekarte/backend/internal/clinic/closingspecialperiod; to add it:
+        go get github.com/animal-ekarte/backend/internal/clinic/closingspecialperiod
+    internal/clinic/repositories.go:9:2: no required module provides package github.com/animal-ekarte/backend/internal/clinic/company; to add it:
+        go get github.com/animal-ekarte/backend/internal/clinic/company
+    found packages clinic (clinic_handler.go) and clinicholiday (clinic_holiday_repository.go) in /app/internal/clinic
+    RED_BUILD_EXIT=1
+    ```
+
+  - B7: `grep -rh '^func Test' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/clinic | sed 's/(.*//' | sort`の移動前後`diff -u`
+
+    ```text
+    (empty)
+    B7_DIFF_EXIT=0
+    ```
+
+  - B8: `grep -rh 'clinic_id' /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/clinic | sed 's/^[[:space:]]*//' | sort`の移動前後`diff -u`
+
+    ```text
+    (empty)
+    B8_RETRY_DIFF_EXIT=0
+    ```
+
+  - B9: `docker compose exec backend go build ./internal/clinic/...`
+
+    ```text
+    B9_BUILD_EXIT=0
+    ```
+
+  - B9: `docker compose exec backend go vet ./internal/clinic/...`
+
+    ```text
+    go: downloading github.com/stretchr/testify v1.11.1
+    go: downloading gopkg.in/yaml.v3 v3.0.1
+    go: downloading github.com/davecgh/go-spew v1.1.1
+    go: downloading github.com/pmezard/go-difflib v1.0.0
+    B9_VET_EXIT=0
+    ```
+
+  - B10: `docker compose exec backend go test ./internal/clinic/... -count=1 -p 1`
+
+    ```text
+    ok  	github.com/animal-ekarte/backend/internal/clinic	0.482s
+    B10_TEST_EXIT=0
+    ```
+
+  - B11: `docker compose exec backend gofmt -l internal/clinic/`
+
+    ```text
+    (empty)
+    B11_GOFMT_EXIT=0
+    ```
+
+  - B12: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-1-20260725-1023 --entrypoint golangci-lint backend run --max-same-issues 0 --max-issues-per-linter 0 ./internal/clinic/...`
+
+    ```text
+    internal/clinic/closing_settings_request.go:11:9: S1016: should convert r (type UpdateClinicSettingsRequest) to UpdateClinicSettingsInput instead of using struct literal (staticcheck)
+        return UpdateClinicSettingsInput{
+               ^
+    internal/clinic/closing_settings_request.go:46:9: S1016: should convert r (type UpdateSpecialPeriodRequest) to UpdateSpecialPeriodInput instead of using struct literal (staticcheck)
+        return UpdateSpecialPeriodInput{
+               ^
+    2 issues:
+    * staticcheck: 2
+    B12_LINT_EXIT=1
+    ```
+
+  - B12 provenance: `git diff --name-only HEAD -- backend/internal/clinic/closing_settings_request.go`は空。`git show HEAD:backend/internal/clinic/closing_settings_request.go | shasum -a 256`とworking treeの`shasum -a 256`はいずれも`f674f459265478700a4574edc2d1f8c33cf8a9de3420f898465faa7e4dfe597a`。
+- Failure Signature log:
+  - B6 / attempt 1: expected=clinic直下のsubdirectory 0件、actual=移動元4 directoryが空のまま残存、verification=`find ... -mindepth 1 -maxdepth 1 -type d`、error signature=4 path出力、fix=各directoryが空であることを確認して4 exact pathだけ`rmdir`、result=再実行empty/PASS。
+  - B8 / attempt 1: expected=移動前後の`clinic_id`行diff 0、actual=移動残骸コメント整理で2行差分、verification=B1と同一pipelineの保存結果を`diff -u`、error signature=production queryではなく`clinic_settings_repository_test.go`コメント2行、fix=baselineの該当2行を逐語復元、result=retry diff empty/PASS。
+  - B12 / attempt 1: expected=scoped lint 0、actual=未変更fileの`S1016` 2件、verification=上記fresh-cache scoped lint、error signature=`closing_settings_request.go:11:9`と`:46:9`、fix=scope外drive-by修正を行わずHEADとのbyte同一性をSHA-256で証明、result=BLOCKED。再開条件は別unitで既存2件を解消後に同じB12 commandを再実行すること。
+- De-Sloppify: 移動元subpackage import、旧package宣言、旧`New`、旧`repository` receiver、重複fixture、未使用import、空directoryを確認し、残存0。query、GORM順序、error、assertion、test名、route/RBAC/OpenAPIは変更なし。
+- Independent Review Gate:
+  - reviewer role: `PASS`。CRITICAL 0 / HIGH 0 / MEDIUM 0 / LOW 0。B14(a) query/`clinic_id`逐語保存、(b) test/assertion非欠落、(c) identifier改名と意味保存、(d) allowlist、(e) route/RBAC/OpenAPI非変更の5観点すべてPASS。Must Fix / Should Fix / Nitsなし。B12の2件は`closing_settings_request.go`がHEADとbyte同一であるため本diff由来ではないとの判定。
+  - clinic-isolation-auditor role: `Approve`。CRITICAL 0 / HIGH 0 / MEDIUM 0。4 production repositoryのmethod bodyをreceiver型名だけ正規化して比較したSHA-256は移動前後で全件一致。`clinic_id` inventoryは移動前後とも100行、`diff -u` empty。query predicate、GORM呼び出し順、transaction利用有無、error変換、`RowsAffected`、companyのsingleton制約に変更なし。
+  - 採用・却下: 両passの全判定を採用。修正要求0件のためcode patchなし。SQL新規作成がないため専用database reviewはB8逐語diffとclinic-isolation-auditorのproduction body hash比較で代替した。auth/secret/外部write変更がないためsecurity-review、route変更がないためE2Eは実行していない。
+- Assumption deviations: none。
 
 ### BE10-2 — legacy test-only packageの削除phase未記録
 
