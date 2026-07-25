@@ -87,9 +87,10 @@ components:
       type: object
       description: |
         ペットサマリー（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤ形
-        petSummaryResponse（7消費者共通: MedicalRecord/Hospitalization/Reservation/
-        Trimming/Vaccination/Examination/Pet の pet フィールド）に合わせ、weight・
-        status に加え #231 で breed を追加（トリミング一覧の犬種列向け。空文字は未設定）。
+        petSummaryResponse の共有base fields（7消費者: MedicalRecord/Hospitalization/
+        Reservation/Trimming/Vaccination/Examination/Pet の pet フィールド）に合わせ、
+        weight・status に加え #231 で breed を追加（トリミング一覧の犬種列向け。
+        空文字は未設定）。
       properties:
         id:
           type: integer
@@ -114,6 +115,17 @@ components:
         owner:
           $ref: '#/components/schemas/OwnerSummary'
           nullable: true
+    ReservationPetSummary:
+      description: 受付・予約管理のスタッフ向けペットサマリー
+      allOf:
+        - $ref: '#/components/schemas/PetSummary'
+        - type: object
+          properties:
+            danger_level:
+              type: string
+              enum: [low, medium, high]
+              readOnly: true
+              description: 受付での臨床安全表示に使用する危険度
     StaffSummary:
       type: object
       description: スタッフサマリー（Preload時のみ含まれる）
@@ -1355,7 +1367,7 @@ components:
           format: date-time
           nullable: true
         pet:
-          $ref: '#/components/schemas/PetSummary'
+          $ref: '#/components/schemas/ReservationPetSummary'
           description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
         reservation_type:

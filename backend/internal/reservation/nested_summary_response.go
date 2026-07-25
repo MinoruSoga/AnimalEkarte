@@ -4,17 +4,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// nested_summary_response.go — documented local copies (BE9-2C R③（medicalrecord先例のbyte-copy）) of the small,
-// shared nested-summary response DTOs and their converters that live in
-// internal/handler ({staff,pet,owner}_response.go). The reservation response bodies moved
-// into this package embed these summaries (Doctor, CreatedByStaff, Owner, Pet),
-// but internal/handler already imports internal/reservation — so reservation cannot
-// import internal/handler back without creating an import cycle (ADR-006 aggregator 非経由).
-// These are unexported, behavior-identical copies (same JSON field tags → byte-identical
-// output) following the "文書化付き unexported local copy" precedent established by
-// sub-batch①'s validators.go. The originals stay in internal/handler (still used by ~10
-// other, not-yet-migrated handlers); a later batch that migrates those handlers can collapse
-// the duplication.
+// nested_summary_response.go contains reservation-local copies of the small nested-summary
+// DTOs and converters established during BE9. Shared fields stay aligned where applicable;
+// reservation-specific staff response fields are documented on the local DTO.
 
 // staffSummaryResponse mirrors internal/handler.staffSummaryResponse (staff_response.go).
 type staffSummaryResponse struct {
@@ -57,34 +49,35 @@ type animalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-// petSummaryResponse mirrors internal/handler.petSummaryResponse (pet_response.go). Only the
-// fields the vaccination list response actually serializes are populated by toPetSummary,
-// identical to the original.
+// petSummaryResponse is the staff-facing reservation pet summary. DangerLevel intentionally
+// exists only in this domain copy to support the Reception clinical-safety badge.
 type petSummaryResponse struct {
-	ID        uint64   `json:"id"`
-	Name      string   `json:"name"`
-	PetNumber string   `json:"pet_number"`
-	Weight    *float64 `json:"weight,omitempty"`
-	Status    string   `json:"status,omitempty"`
-	Breed     string   `json:"breed,omitempty"`
+	ID          uint64   `json:"id"`
+	Name        string   `json:"name"`
+	PetNumber   string   `json:"pet_number"`
+	Weight      *float64 `json:"weight,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	DangerLevel string   `json:"danger_level,omitempty"`
+	Breed       string   `json:"breed,omitempty"`
 
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	Owner         *ownerSummaryResponse         `json:"owner,omitempty"`
 }
 
-// toPetSummary mirrors internal/handler.toPetSummary. nil の場合は nil を返す。
+// toPetSummary maps a pet into the reservation-local summary. nil の場合は nil を返す。
 func toPetSummary(p *model.Pet) *petSummaryResponse {
 	if p == nil {
 		return nil
 	}
 	resp := &petSummaryResponse{
-		ID:        p.ID,
-		Name:      p.Name,
-		PetNumber: p.PetNumber,
-		Weight:    p.Weight,
-		Status:    string(p.Status),
-		Breed:     p.Breed,
-		Owner:     toOwnerSummary(p.Owner),
+		ID:          p.ID,
+		Name:        p.Name,
+		PetNumber:   p.PetNumber,
+		Weight:      p.Weight,
+		Status:      string(p.Status),
+		DangerLevel: string(p.DangerLevel),
+		Breed:       p.Breed,
+		Owner:       toOwnerSummary(p.Owner),
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &animalSpeciesSummaryResponse{

@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -65,6 +66,43 @@ func TestToReservationResponseIncludesNestedReservationType(t *testing.T) {
 	}
 	if resp.Doctor == nil || resp.Doctor.Name != "佐藤 医師" {
 		t.Fatalf("doctor summary = %#v, want name %q", resp.Doctor, "佐藤 医師")
+	}
+}
+
+func TestToReservationResponseIncludesPetDangerLevel(t *testing.T) {
+	resp := toReservationResponse(&model.Reservation{
+		ID:       1,
+		ClinicID: 1,
+		Pet: &model.Pet{
+			ID:          20,
+			Name:        "ポチ",
+			DangerLevel: model.DangerLevelHigh,
+		},
+	})
+
+	body, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	var payload struct {
+		Pet struct {
+			DangerLevel *string `json:"danger_level"`
+		} `json:"pet"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if resp.Pet == nil {
+		t.Fatal("pet summary is nil")
+	}
+	if got, want := resp.Pet.DangerLevel, string(model.DangerLevelHigh); got != want {
+		t.Fatalf("response pet.danger_level = %q, want %q", got, want)
+	}
+	if payload.Pet.DangerLevel == nil {
+		t.Fatalf("reservation JSON = %s, want pet.danger_level", body)
+	}
+	if got, want := *payload.Pet.DangerLevel, string(model.DangerLevelHigh); got != want {
+		t.Fatalf("pet.danger_level = %q, want %q", got, want)
 	}
 }
 
