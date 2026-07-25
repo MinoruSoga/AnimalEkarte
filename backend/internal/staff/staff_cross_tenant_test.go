@@ -1,4 +1,4 @@
-package service
+package staff
 
 import (
 	"context"
@@ -9,11 +9,10 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
 
 type crossTenantStaffRepository struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	createCalled bool
 	updateCalled bool
 }
@@ -70,7 +69,7 @@ func (*crossTenantStaffAccountStore) DeletePasswordResetTokens(context.Context, 
 }
 
 type crossTenantStaffAssignmentRepository struct {
-	staffdomain.StaffClinicAssignmentRepository
+	StaffClinicAssignmentRepository
 	createCalled bool
 }
 
@@ -93,7 +92,7 @@ func (*crossTenantStaffAssignmentRepository) LockActiveByStaff(
 }
 
 type rejectingCrossTenantOccupationRepository struct {
-	staffdomain.OccupationRepository
+	OccupationRepository
 	lockCalled bool
 }
 
@@ -106,9 +105,9 @@ func (r *rejectingCrossTenantOccupationRepository) LockActiveByIDForShare(
 	return nil, apperrors.WrapNotFound("occupation", "foreign")
 }
 
-type mockReservationForStaff struct{}
+type stubReservationForStaff struct{}
 
-func (*mockReservationForStaff) ExistsByStaffID(
+func (*stubReservationForStaff) ExistsByStaffID(
 	context.Context,
 	uint64,
 	uint64,
@@ -116,7 +115,7 @@ func (*mockReservationForStaff) ExistsByStaffID(
 	return false, nil
 }
 
-func (*mockReservationForStaff) FindClinicIDsByStaffID(
+func (*stubReservationForStaff) FindClinicIDsByStaffID(
 	context.Context,
 	[]uint64,
 	uint64,
@@ -130,7 +129,7 @@ func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := staffdomain.NewStaffService(
+	svc := NewStaffService(
 		staffRepo,
 		nil,
 		assignmentRepo,
@@ -143,7 +142,7 @@ func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 		&mockTransactor{},
 	)
 
-	staff, err := svc.Create(context.Background(), &staffdomain.CreateStaffInput{
+	staff, err := svc.Create(context.Background(), &CreateStaffInput{
 		ClinicID:     1,
 		Name:         "clinic scoped occupation",
 		OccupationID: &occupationID,
@@ -163,7 +162,7 @@ func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testin
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := staffdomain.NewStaffService(
+	svc := NewStaffService(
 		staffRepo,
 		accountRepo,
 		assignmentRepo,
@@ -176,7 +175,7 @@ func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testin
 		&mockTransactor{},
 	)
 
-	staff, err := svc.CreateWithAccount(context.Background(), &staffdomain.CreateStaffWithAccountInput{
+	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID:     1,
 		Name:         "clinic scoped occupation",
 		Email:        "staff@example.com",
@@ -198,7 +197,7 @@ func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := staffdomain.NewStaffService(
+	svc := NewStaffService(
 		staffRepo,
 		nil,
 		assignmentRepo,
@@ -211,7 +210,7 @@ func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 		&mockTransactor{},
 	)
 
-	staff, err := svc.Update(context.Background(), 1, 7, &staffdomain.UpdateStaffInput{
+	staff, err := svc.Update(context.Background(), 1, 7, &UpdateStaffInput{
 		OccupationID:        &occupationID,
 		AuthorizedClinicIDs: []uint64{1},
 	})

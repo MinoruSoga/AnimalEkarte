@@ -1,9 +1,7 @@
-package service
+package staff
 
 import "context"
 
-// mockTransactor is the test-only transaction boundary used by the retained
-// clinic target-domain regression suite.
 type mockTransactor struct {
 	withTxErr error
 	withTxFn  func(ctx context.Context, fn func(ctx context.Context) error) error

@@ -1,4 +1,4 @@
-package service
+package staff
 
 import (
 	"context"
@@ -11,35 +11,34 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	authdomain "github.com/animal-ekarte/backend/internal/auth"
-	clinicdomain "github.com/animal-ekarte/backend/internal/clinic"
+	"github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 type blockingStaffClinicLookup struct {
-	clinicdomain.ClinicRepository
+	clinic.ClinicRepository
 	locked  chan struct{}
 	release chan struct{}
 }
 
 func (r *blockingStaffClinicLookup) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
-	clinic, err := r.ClinicRepository.LockActiveByID(ctx, id)
+	clinicRecord, err := r.ClinicRepository.LockActiveByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	close(r.locked)
 	select {
 	case <-r.release:
-		return clinic, nil
+		return clinicRecord, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
 }
 
 type observedStaffClinicLookup struct {
-	clinicdomain.ClinicRepository
+	clinic.ClinicRepository
 	started chan struct{}
 }
 
@@ -49,7 +48,7 @@ func (r *observedStaffClinicLookup) LockActiveByID(ctx context.Context, id uint6
 }
 
 type blockingClinicDeleteRepository struct {
-	clinicdomain.ClinicRepository
+	clinic.ClinicRepository
 	deleted chan struct{}
 	release chan struct{}
 }
@@ -68,7 +67,7 @@ func (r *blockingClinicDeleteRepository) Delete(ctx context.Context, id uint64) 
 }
 
 type blockingShiftEntryCreateRepository struct {
-	staffdomain.ShiftEntryRepository
+	ShiftEntryRepository
 	created chan struct{}
 	release chan struct{}
 }
@@ -87,7 +86,7 @@ func (r *blockingShiftEntryCreateRepository) Create(ctx context.Context, entry *
 }
 
 type observedShiftStaffLocker struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	started chan struct{}
 }
 
@@ -100,7 +99,7 @@ func (r *observedShiftStaffLocker) LockActiveByIDForShare(
 }
 
 type observedStaffDeleteLocker struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	started chan struct{}
 }
 
@@ -113,7 +112,7 @@ func (r *observedStaffDeleteLocker) LockActiveByIDForUpdateInClinic(
 }
 
 type observedStaffAssignmentLocker struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	started chan struct{}
 }
 
@@ -126,7 +125,7 @@ func (r *observedStaffAssignmentLocker) LockActiveByIDForUpdate(
 }
 
 type blockingStaffDeleteRepository struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	deleted chan struct{}
 	release chan struct{}
 }
@@ -146,7 +145,7 @@ func (r *blockingStaffDeleteRepository) Delete(ctx context.Context, clinicID, st
 
 func setupStaffShiftSecurityIntegrationTest(
 	t *testing.T,
-) (*gorm.DB, *model.Clinic, *model.Staff, staffdomain.StaffClinicAssignmentRepository) {
+) (*gorm.DB, *model.Clinic, *model.Staff, StaffClinicAssignmentRepository) {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(
@@ -184,30 +183,30 @@ func setupStaffShiftSecurityIntegrationTest(
 
 	company := &model.Company{Name: "SEC-STAFF integration company"}
 	require.NoError(t, db.Create(company).Error)
-	clinic := &model.Clinic{CompanyID: company.ID, Name: "SEC-STAFF integration clinic", IsActive: true}
-	require.NoError(t, db.Create(clinic).Error)
+	clinicRecord := &model.Clinic{CompanyID: company.ID, Name: "SEC-STAFF integration clinic", IsActive: true}
+	require.NoError(t, db.Create(clinicRecord).Error)
 	staff := &model.Staff{
-		ClinicID:  clinic.ID,
+		ClinicID:  clinicRecord.ID,
 		Name:      "SEC-STAFF integration staff",
 		IsActive:  true,
 		StaffType: model.StaffTypeDoctor,
 	}
 	require.NoError(t, db.Create(staff).Error)
-	assignmentRepo := staffdomain.NewStaffClinicAssignmentRepository(db)
+	assignmentRepo := NewStaffClinicAssignmentRepository(db)
 	require.NoError(t, assignmentRepo.Create(context.Background(), &model.StaffClinicAssignment{
 		StaffID:  staff.ID,
-		ClinicID: clinic.ID,
+		ClinicID: clinicRecord.ID,
 		IsMain:   true,
 	}))
-	return db, clinic, staff, assignmentRepo
+	return db, clinicRecord, staff, assignmentRepo
 }
 
 func TestShiftEntryService_Create_RejectsSoftDeletedStaffWithActiveAssignmentDatabase(t *testing.T) {
-	db, clinic, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
+	db, clinicRecord, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
 	require.NoError(t, db.Delete(&model.Staff{}, staff.ID).Error)
 
-	staffRepo := staffdomain.NewStaffRepository(db)
-	shiftRepo := staffdomain.NewShiftEntryRepository(db)
+	staffRepo := NewStaffRepository(db)
+	shiftRepo := NewShiftEntryRepository(db)
 	svc := NewShiftEntryService(
 		shiftRepo,
 		staffRepo,
@@ -215,7 +214,7 @@ func TestShiftEntryService_Create_RejectsSoftDeletedStaffWithActiveAssignmentDat
 		persistence.NewTransactor(db),
 	)
 
-	entry, err := svc.Create(context.Background(), clinic.ID, &CreateShiftEntryInput{
+	entry, err := svc.Create(context.Background(), clinicRecord.ID, &CreateShiftEntryInput{
 		StaffID:   staff.ID,
 		Date:      time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
 		ShiftType: string(model.ShiftTypeOff),
@@ -230,9 +229,9 @@ func TestShiftEntryService_Create_RejectsSoftDeletedStaffWithActiveAssignmentDat
 }
 
 func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *testing.T) {
-	db, clinic, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
-	staffRepo := staffdomain.NewStaffRepository(db)
-	baseShiftRepo := staffdomain.NewShiftEntryRepository(db)
+	db, clinicRecord, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
+	staffRepo := NewStaffRepository(db)
+	baseShiftRepo := NewShiftEntryRepository(db)
 	blockingShiftRepo := &blockingShiftEntryCreateRepository{
 		ShiftEntryRepository: baseShiftRepo,
 		created:              make(chan struct{}),
@@ -248,7 +247,7 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 		observedDeleteRepo,
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
+		&stubReservationForStaff{},
 		baseShiftRepo,
 		nil,
 		nil,
@@ -261,7 +260,7 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 	defer cancel()
 	shiftDone := make(chan error, 1)
 	go func() {
-		_, err := shiftSvc.Create(ctx, clinic.ID, &CreateShiftEntryInput{
+		_, err := shiftSvc.Create(ctx, clinicRecord.ID, &CreateShiftEntryInput{
 			StaffID:   staff.ID,
 			Date:      time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
 			ShiftType: string(model.ShiftTypeOff),
@@ -276,7 +275,7 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 
 	deleteDone := make(chan error, 1)
 	go func() {
-		deleteDone <- staffSvc.Delete(ctx, clinic.ID, staff.ID)
+		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID)
 	}()
 	select {
 	case <-observedDeleteRepo.started:
@@ -303,8 +302,8 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 }
 
 func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *testing.T) {
-	db, clinic, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
-	baseStaffRepo := staffdomain.NewStaffRepository(db)
+	db, clinicRecord, staff, assignmentRepo := setupStaffShiftSecurityIntegrationTest(t)
+	baseStaffRepo := NewStaffRepository(db)
 	blockingDeleteRepo := &blockingStaffDeleteRepository{
 		StaffRepository: baseStaffRepo,
 		deleted:         make(chan struct{}),
@@ -314,13 +313,13 @@ func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *te
 		StaffRepository: baseStaffRepo,
 		started:         make(chan struct{}),
 	}
-	shiftRepo := staffdomain.NewShiftEntryRepository(db)
+	shiftRepo := NewShiftEntryRepository(db)
 	transactor := persistence.NewTransactor(db)
 	staffSvc := NewStaffService(
 		blockingDeleteRepo,
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
+		&stubReservationForStaff{},
 		shiftRepo,
 		nil,
 		nil,
@@ -334,7 +333,7 @@ func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *te
 	defer cancel()
 	deleteDone := make(chan error, 1)
 	go func() {
-		deleteDone <- staffSvc.Delete(ctx, clinic.ID, staff.ID)
+		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID)
 	}()
 	select {
 	case <-blockingDeleteRepo.deleted:
@@ -344,7 +343,7 @@ func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *te
 
 	shiftDone := make(chan error, 1)
 	go func() {
-		_, err := shiftSvc.Create(ctx, clinic.ID, &CreateShiftEntryInput{
+		_, err := shiftSvc.Create(ctx, clinicRecord.ID, &CreateShiftEntryInput{
 			StaffID:   staff.ID,
 			Date:      time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
 			ShiftType: string(model.ShiftTypeOff),
@@ -385,12 +384,12 @@ func TestStaffSetAssignmentsAndShiftCreate_ShiftWinnerPreservesAssignmentDatabas
 	}
 	require.NoError(t, db.Create(targetClinic).Error)
 
-	baseStaffRepo := staffdomain.NewStaffRepository(db)
+	baseStaffRepo := NewStaffRepository(db)
 	observedAssignmentLocker := &observedStaffAssignmentLocker{
 		StaffRepository: baseStaffRepo,
 		started:         make(chan struct{}),
 	}
-	baseShiftRepo := staffdomain.NewShiftEntryRepository(db)
+	baseShiftRepo := NewShiftEntryRepository(db)
 	blockingShiftRepo := &blockingShiftEntryCreateRepository{
 		ShiftEntryRepository: baseShiftRepo,
 		created:              make(chan struct{}),
@@ -402,12 +401,12 @@ func TestStaffSetAssignmentsAndShiftCreate_ShiftWinnerPreservesAssignmentDatabas
 		observedAssignmentLocker,
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
+		&stubReservationForStaff{},
 		baseShiftRepo,
 		nil,
 		nil,
 		nil,
-		clinicdomain.NewClinicRepository(db),
+		clinic.NewClinicRepository(db),
 		transactor,
 	)
 
@@ -476,24 +475,24 @@ func TestStaffSetAssignmentsAndShiftCreate_AssignmentWinnerPreventsOrphanShiftDa
 	}
 	require.NoError(t, db.Create(targetClinic).Error)
 
-	baseClinicRepo := clinicdomain.NewClinicRepository(db)
+	baseClinicRepo := clinic.NewClinicRepository(db)
 	blockingClinicLookup := &blockingStaffClinicLookup{
 		ClinicRepository: baseClinicRepo,
 		locked:           make(chan struct{}),
 		release:          make(chan struct{}),
 	}
-	baseStaffRepo := staffdomain.NewStaffRepository(db)
+	baseStaffRepo := NewStaffRepository(db)
 	observedShiftLocker := &observedShiftStaffLocker{
 		StaffRepository: baseStaffRepo,
 		started:         make(chan struct{}),
 	}
-	shiftRepo := staffdomain.NewShiftEntryRepository(db)
+	shiftRepo := NewShiftEntryRepository(db)
 	transactor := persistence.NewTransactor(db)
 	staffSvc := NewStaffService(
 		baseStaffRepo,
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
+		&stubReservationForStaff{},
 		shiftRepo,
 		nil,
 		nil,
@@ -567,7 +566,7 @@ func TestStaffSetAssignmentsAndClinicDelete_AssignmentWinnerPreservesClinicAndAs
 		IsActive:  true,
 	}
 	require.NoError(t, db.Create(targetClinic).Error)
-	baseClinicRepo := clinicdomain.NewClinicRepository(db)
+	baseClinicRepo := clinic.NewClinicRepository(db)
 	lockingClinicLookup := &blockingStaffClinicLookup{
 		ClinicRepository: baseClinicRepo,
 		locked:           make(chan struct{}),
@@ -575,18 +574,18 @@ func TestStaffSetAssignmentsAndClinicDelete_AssignmentWinnerPreservesClinicAndAs
 	}
 	transactor := persistence.NewTransactor(db)
 	staffSvc := NewStaffService(
-		staffdomain.NewStaffRepository(db),
+		NewStaffRepository(db),
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
-		staffdomain.NewShiftEntryRepository(db),
+		&stubReservationForStaff{},
+		NewShiftEntryRepository(db),
 		nil,
 		nil,
 		nil,
 		lockingClinicLookup,
 		transactor,
 	)
-	clinicSvc := NewClinicService(
+	clinicSvc := clinic.NewClinicService(
 		baseClinicRepo,
 		authdomain.NewPermissionGroupRepository(db),
 		transactor,
@@ -629,7 +628,7 @@ func TestStaffSetAssignmentsAndClinicDelete_AssignmentWinnerPreservesClinicAndAs
 	require.NoError(t, findAssignmentsErr)
 	require.Len(t, assignments, 1)
 	assert.Equal(t, targetClinic.ID, assignments[0].ClinicID)
-	updatedStaff, findStaffErr := staffdomain.NewStaffRepository(db).FindByID(context.Background(), staff.ID)
+	updatedStaff, findStaffErr := NewStaffRepository(db).FindByID(context.Background(), staff.ID)
 	require.NoError(t, findStaffErr)
 	assert.Equal(t, targetClinic.ID, updatedStaff.ClinicID)
 }
@@ -642,14 +641,14 @@ func TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchang
 		IsActive:  true,
 	}
 	require.NoError(t, db.Create(targetClinic).Error)
-	baseClinicRepo := clinicdomain.NewClinicRepository(db)
+	baseClinicRepo := clinic.NewClinicRepository(db)
 	blockingDeleteRepo := &blockingClinicDeleteRepository{
 		ClinicRepository: baseClinicRepo,
 		deleted:          make(chan struct{}),
 		release:          make(chan struct{}),
 	}
 	transactor := persistence.NewTransactor(db)
-	clinicSvc := NewClinicService(
+	clinicSvc := clinic.NewClinicService(
 		blockingDeleteRepo,
 		authdomain.NewPermissionGroupRepository(db),
 		transactor,
@@ -672,11 +671,11 @@ func TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchang
 		started:          make(chan struct{}),
 	}
 	staffSvc := NewStaffService(
-		staffdomain.NewStaffRepository(db),
+		NewStaffRepository(db),
 		nil,
 		assignmentRepo,
-		&mockReservationForStaff{},
-		staffdomain.NewShiftEntryRepository(db),
+		&stubReservationForStaff{},
+		NewShiftEntryRepository(db),
 		nil,
 		nil,
 		nil,
@@ -714,7 +713,7 @@ func TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchang
 	require.NoError(t, findAssignmentsErr)
 	require.Len(t, assignments, 1)
 	assert.Equal(t, sourceClinic.ID, assignments[0].ClinicID)
-	unchangedStaff, findStaffErr := staffdomain.NewStaffRepository(db).FindByID(context.Background(), staff.ID)
+	unchangedStaff, findStaffErr := NewStaffRepository(db).FindByID(context.Background(), staff.ID)
 	require.NoError(t, findStaffErr)
 	assert.Equal(t, sourceClinic.ID, unchangedStaff.ClinicID)
 }

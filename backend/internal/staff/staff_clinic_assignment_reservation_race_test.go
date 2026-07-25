@@ -1,4 +1,4 @@
-package service
+package staff
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -45,7 +44,7 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {
-	staffdomain.StaffRepository
+	StaffRepository
 	started      chan struct{}
 	returned     chan struct{}
 	startedOnce  sync.Once
@@ -125,9 +124,9 @@ type assignmentRaceFixture struct {
 	targetClinic      *model.Clinic
 	staff             *model.Staff
 	reservationType   *model.ReservationType
-	staffRepo         staffdomain.StaffRepository
-	assignmentRepo    staffdomain.StaffClinicAssignmentRepository
-	shiftRepo         staffdomain.ShiftEntryRepository
+	staffRepo         StaffRepository
+	assignmentRepo    StaffClinicAssignmentRepository
+	shiftRepo         ShiftEntryRepository
 	clinicRepo        clinicdomain.ClinicRepository
 	reservationRepo   reservation.ReservationStore
 	reservationStaff  reservation.ReservationStaffRepository
@@ -181,8 +180,8 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 	}
 	require.NoError(t, db.Create(staff).Error)
 
-	staffRepo := staffdomain.NewStaffRepository(db)
-	assignmentRepo := staffdomain.NewStaffClinicAssignmentRepository(db)
+	staffRepo := NewStaffRepository(db)
+	assignmentRepo := NewStaffClinicAssignmentRepository(db)
 	require.NoError(t, assignmentRepo.Create(context.Background(), &model.StaffClinicAssignment{
 		StaffID:  staff.ID,
 		ClinicID: sourceClinic.ID,
@@ -214,7 +213,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 		reservationType:  reservationType,
 		staffRepo:        staffRepo,
 		assignmentRepo:   assignmentRepo,
-		shiftRepo:        staffdomain.NewShiftEntryRepository(db),
+		shiftRepo:        NewShiftEntryRepository(db),
 		clinicRepo:       clinicdomain.NewClinicRepository(db),
 		reservationRepo:  reservationRepo,
 		reservationStaff: reservationStaff,
@@ -235,7 +234,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 
 func newAssignmentRaceStaffService(
 	fixture *assignmentRaceFixture,
-	staffRepo staffdomain.StaffRepository,
+	staffRepo StaffRepository,
 	clinicRepo StaffAssignmentClinicLookup,
 ) StaffService {
 	return NewStaffService(

@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1・B2 完了**（commit済み。B3〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`・下記batch表・下記B1/B2実行ledger・下記E12補正根拠 |
+| BE10-2 B1〜B14 Go移設 | **B1・B2 完了**（commit済み。B3 完了・hash追記待ち。B4〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`hash追記待ち`・下記batch表・下記B1/B2/B3実行ledger・下記E12補正根拠 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -383,7 +383,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B2完了。B3〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B3完了。B3はhash追記待ち、B4〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -614,7 +614,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B0 ✅完了 `27d95aacd` | `testdb`に6 fixture export追加（legacy file移動なし） | — | `∅` | `∅` | `∅` |
 | B1 ✅完了 `718f6c9b3` | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B2 ✅完了 `134e7953b` | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
-| B3 | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
+| B3 ✅完了（hash追記待ち） | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
 | B4 | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
@@ -1154,6 +1154,104 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 
   上記12 physical pathだけが本unit由来で全件allowlist内。baselineから存在した`backend/internal/medicalrecord` 6 fileと、実行中に別writerが追加した`backend/tygo.yaml`・`backend/internal/billing` 2 fileは本unit外として保持した。baseline/current HEADはいずれも`14c6702db`、増分commit 0、indexは空で本unit差分はworktreeに残っている。
 - `NewClinicService` carryover: `staff_shift_security_integration_test.go:589,652`のconsumerが残るためwrapperと`clinicdomain` importをB3へ持ち越した。B2では撤去しないことが本unitの仕様である。
+
+#### BE10-2 B3 実行ledger（2026-07-25）
+
+- 実行状態: `完了（hash 追記待ち）`。serviceのstaff系test 3 fileとstaff用`mockTransactor`を`internal/staff`へ移設し、B2から持ち越された`NewClinicService` / `strPtr` / `ptrFloat64` / liveness anchorを含む`target_test_surface_test.go`を削除した。
+- 変更file:
+  - `backend/internal/staff/staff_clinic_assignment_reservation_race_test.go`（移設）
+  - `backend/internal/staff/staff_cross_tenant_test.go`（移設）
+  - `backend/internal/staff/staff_shift_security_integration_test.go`（移設）
+  - `backend/internal/staff/transactor_doubles_test.go`（新規）
+  - `backend/internal/service/staff_clinic_assignment_reservation_race_test.go`（消滅）
+  - `backend/internal/service/staff_cross_tenant_test.go`（消滅）
+  - `backend/internal/service/staff_shift_security_integration_test.go`（消滅）
+  - `backend/internal/service/clinic_test_transactor_test.go`（消滅）
+  - `backend/internal/service/target_test_surface_test.go`（消滅）
+  - `backend/internal/service/master_fk_write_inventory_lint_test.go`（文字列リテラル内pathのみ更新）
+  - `BE-refactor.md`
+- scope: B3のみ。B4〜B14、BE10-3〜BE10-6、R-1/R-2、production code、model、migrationは変更していない。
+- Saved Prompt Validation Gate:
+
+  ```text
+  $ node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-2-b3-staff-test-migration-bridge-removal.md
+  Prompt Craft Harness Validation: PASS
+  validator_exit=0
+  prompt_sha256=0cc18d5049daa03754f00cacf8766fdf773101403cbf07fe7cef8a51004ca48e
+  ```
+
+- H1 baseline:
+
+  ```text
+  temporary_evidence_dir=/tmp/animalekarte-be10-2-b3-r2.rIHe1v
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte rev-parse --short HEAD
+  0736cd6f9
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte status --porcelain -- backend BE-refactor.md
+  (empty)
+  source_test_names=12
+  test_exit=0 pass_lines=413 fail_lines=0
+  lint_exit=1 diagnostics=16
+  ```
+
+- H2/H5: 移設元保存行数は429/223/720、`mockTransactor`保存bodyは14行。package-level宣言の全数照合はmoving 22、destination 260、衝突は`mockReservationForStaff`のみ、test名衝突0、`stubReservationForStaff`は既存0件。承認済み解決として移動側だけを`stubReservationForStaff`へ機械置換した。
+- H3 consumer境界: `target_test_surface_test.go`の宣言は、3 staff test移設後にservice側実consumer 0。`NewClinicService`は`clinic.NewClinicService`へ直接接続し、`NewStaffService` / `NewShiftEntryService` / input aliasは`package staff`の実symbolへ直接化した。`strPtr` / `ptrFloat64`はbridge内liveness anchorだけが残存理由だったため、bridge file削除で同時解消した。
+- H4 文字列リテラル依存: `master_fk_write_inventory_lint_test.go`の旧path literalは3件（allowlist reasonの説明文のみ）、`n1_lint_test.go`は0件。`masterFKWriteStatus` commentは「The gate does not verify these」、`reconcileMasterFKWrites`はkey/status/masterFKs/real sourceだけを検証し、reason内pathの実在は検証しない。記録を事実に合わせるため3 literalだけを`internal/staff/staff_cross_tenant_test.go`へ更新した。allowlist key/status/masterFKs/lint logic/test名は変更していない。
+- H7/H8: 移設3 fileの差分はpackage行、`staffdomain`自己import除去と実名化、`clinic` import/qualifier、`mockReservationForStaff`→`stubReservationForStaff`、gofmt import整列のみ。`clinic` importで既存local名がshadow警告になったため、そのlocal bindingと参照だけを`clinicRecord`へ機械改名した。assertion、test名、fixture値、error文言、呼び出し順序の変更は0。
+- H9/H10/H11/H12: `mockTransactor` body diffは無出力・exit=0。`clinic_test_transactor_test.go`、`target_test_surface_test.go`、移設元3 fileはいずれも不在（`ls` exit=1）。`comm -23 names.src names.dst`は無出力、`internal/staff`のtest名は301件。
+- H13 vet:
+
+  ```text
+  $ docker compose exec backend go vet ./internal/staff/... ./internal/service/... ./internal/clinic/...
+  (Composeの未設定DB変数warning 3行のみ)
+  vet_exit=0
+  ```
+
+  H13→H7補完ループは0周。
+
+- H14 scoped test:
+
+  ```text
+  $ docker compose exec backend go test ./internal/staff/... ./internal/service/... ./internal/clinic/... -count=1 -p 1 -v
+  PASS
+  ok  	github.com/animal-ekarte/backend/internal/staff
+  PASS
+  ok  	github.com/animal-ekarte/backend/internal/service
+  PASS
+  ok  	github.com/animal-ekarte/backend/internal/clinic
+  test_exit=0 pass_before=413 pass_after=413 fail_before=0 fail_after=0
+  $ diff /tmp/animalekarte-be10-2-b3-r2.rIHe1v/test.base.names /tmp/animalekarte-be10-2-b3-r2.rIHe1v/test.current.names
+  (empty)
+  normalized_diff_exit=0
+  ```
+
+  `TestMasterFKWriteInventory_*`と`TestN1Lint_*`は全件PASS。
+
+- H15/H16:
+
+  ```text
+  $ docker compose exec backend gofmt -l internal/staff/ internal/service/
+  (empty)
+  gofmt_exit=0
+  $ docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-b3-r2-after-<random> --entrypoint golangci-lint backend run --max-same-issues 0 --max-issues-per-linter 0 ./internal/staff/... ./internal/service/... ./internal/clinic/...
+  16 issues:
+  * gocritic: 9
+  * revive: 1
+  * staticcheck: 4
+  * unparam: 1
+  * unused: 1
+  lint_exit=1 diagnostic_diff_exit=0 base_diagnostics=16 after_diagnostics=16 new_diagnostics=0
+  ```
+
+- H17: `git diff --name-only -- backend/internal/model backend/migrations`は無出力。`backend/internal/staff` / `backend/internal/clinic`の本unit変更は全て`_test.go`。
+- Failure Signature log:
+  - H1 lint wrapper / attempt 1: lint本体はbaseline 16件を出力したが、zsh予約変数`status`への代入でwrapperが失敗。変数名を`lint_exit`へ変更したattempt 2で`lint_exit=1`と16診断を保存した。
+  - H16 / attempt 1: expected=baseline比new lint 0、actual=`clinic` importが既存local変数をshadowして`gocritic/importShadow` 5件追加、fix=fixture値・assertion・呼出順を変えずlocal bindingと参照だけを`clinicRecord`へ機械改名、result=baseline/after各16診断・diagnostic diff 0・new 0。
+  - H14 / shared-DB retry: full suite再検証中にlock timeout/deadlock 2件、その後に前回失敗runが残したpassword reset tokenによるduplicate 1件を観測。各失敗testを最小単位で再実行して原因を分離し、token残骸は`TestPasswordResetTokenRepository_DeleteByID_SingleUse`の既存test setupでcleanupした（手動DELETE、DB reset、migration適用なし）。最終同一scoped suiteはPASS 413 / FAIL 0、baseline名diff 0。
+- Assumption deviations: H4のpath literalは実在検証されない説明文だが、事実性維持のため更新した。`clinic` import名を維持すると既存local名がlint shadowになるため、H16 new 0を満たす最小の機械改名として`clinicRecord`を採用した。
+- De-Sloppify: 未使用import、bridge死参照、service側staff bridge残骸、重複helper統合の誤適用を確認。移設test、既存staff helper、`stubReservationForStaff`は削除・統合していない。
+- H19 tracking safety: 実行前indexは空。bare `git reset`後、新規4 fileの`git check-ignore -v`は各exit=1。allowlist 11 physical pathを明示`git add`したcached一覧はrename集約後の7 pathだけで全件allowlist内。明示`git restore --staged`後のcached pathは0件。
+- H20 Independent Review Gate: explorer由来のfresh independent reviewで(a)移設testの意味変化なし、(b)12 test名/assertion欠落なし、(c)bridge全consumer調査妥当、(d)文字列literalは3件更新・取りこぼしなし、(e)allowlist外/production変更なしを確認。CRITICAL/HIGH/MEDIUM/LOWはいずれも0。DB-backed suiteはreview pass内で並列実行していない。
+- H21/H22: baseline scoped porcelainは空、afterの11 physical pathは全件allowlist内。baseline HEAD=`0736cd6f9`、current HEAD=`070043aed`。増分commitは`10abd8258`（`todo.md`）、`0804c400e`（frontend 3 file）、`070043aed`（`FE-refactor.md`）だけで、いずれもB3 allowlistを含まない。本unit変更はindexを空に戻したworktreeに残しており、commit/push/PRは実施していない。
 
 ### BE10-3 — 空の`internal/repository/*` 15 directory
 
