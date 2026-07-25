@@ -20,7 +20,7 @@ cd "$ROOT"
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 
 step=0
-total=16
+total=18
 
 begin_step() {
   step=$((step + 1))
@@ -64,6 +64,12 @@ node --test frontend/scripts/check-eslint-disable-rationale.test.mjs
 begin_step "Design primary CTA guard"
 node scripts/check-design-primary-cta.mjs
 bash scripts/check-design-primary-cta.test.sh
+
+begin_step "A4 rehearsal isolation contract"
+node --test scripts/check-a4-rehearsal-compose.test.mjs \
+  scripts/check-a4-env-file.test.mjs \
+  scripts/check-a4-resource-boundary.test.mjs \
+  scripts/write-a4-runtime-report.test.mjs
 
 begin_step "Design system audit (C1/C3/C5/C6/C7/C8/C9)"
 node frontend/scripts/design-system-audit.mjs --cwd frontend

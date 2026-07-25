@@ -37,6 +37,7 @@
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（#253・7/18 Go-live 前提構築）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG スキーマ初期化後の seed 復元・検証手順。
 - **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
+- **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 > PR #49 Post-Merge Smoke Checklist（PR固有の使い切りチェックリスト）・CRUD スモーク自動化戦略

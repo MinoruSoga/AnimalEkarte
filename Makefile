@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -147,6 +147,69 @@ csv-import:
 csv-import-verify:
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+
+# ============================================================================
+# A4 UI rehearsal: isolated, disposable, localhost-only full stack
+# ============================================================================
+# Required variables:
+#   A4_COMPOSE_PROJECT=animalekarte-a4-<clinic/run slug>
+#   A4_RUN_ID=<migration run ID>
+#   A4_TARGET_RELEASE_COMMIT=<clean canonical 40-char HEAD>
+# Stack startup does not import data. Use only the explicit a4-csv-import-*
+# targets against this project's DB, then collect owner-only evidence in old_db.
+A4_REHEARSAL_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${A4_ENV_FILE}" \
+	-p "$${A4_COMPOSE_PROJECT}" \
+	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml
+A4_CSV_IMPORT_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${A4_ENV_FILE}" \
+	-p "$${A4_COMPOSE_PROJECT}" \
+	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml \
+	-f docker-compose.csv-import.yml
+export A4_COMPOSE_PROJECT A4_RUN_ID A4_TARGET_RELEASE_COMMIT A4_ENV_FILE
+
+a4-rehearsal-contract-test:
+	@node --test scripts/check-a4-rehearsal-compose.test.mjs \
+		scripts/check-a4-env-file.test.mjs \
+		scripts/check-a4-resource-boundary.test.mjs \
+		scripts/write-a4-runtime-report.test.mjs
+
+a4-rehearsal-config-check:
+	@node scripts/check-a4-rehearsal-compose.mjs
+
+a4-rehearsal-up: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs start
+	$(A4_REHEARSAL_DC) up -d --build --wait --wait-timeout 1200 db backend frontend
+
+a4-rehearsal-ps:
+	$(A4_REHEARSAL_DC) ps db backend frontend
+
+a4-csv-import-preflight: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
+
+a4-csv-import: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
+
+a4-csv-import-verify: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+
+a4-rehearsal-runtime-report: a4-rehearsal-config-check
+	@node scripts/write-a4-runtime-report.mjs
+
+# Explicit stop/cleanup path for the disposable project. The project name is
+# mandatory, so this cannot fall back to the normal development stack.
+a4-rehearsal-down:
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	$(A4_REHEARSAL_DC) down --volumes --remove-orphans
 
 # ============================================================================
 # stage-import: legacy direct-DB compatibility path (not the F6 cutover route)
@@ -338,6 +401,12 @@ help:
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
 	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
+	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"
+	@echo "  a4-rehearsal-config-check A4 Composeのlocalhost/network/volume契約検査"
+	@echo "  a4-rehearsal-up          A4専用disposable stackをbuild/start"
+	@echo "  a4-csv-import-*          A4専用DBへのcanonical preflight/apply/verify"
+	@echo "  a4-rehearsal-runtime-report 稼働中A4 stackのowner-only証跡生成"
+	@echo "  a4-rehearsal-down        指定A4 projectと専用volumeを明示破棄"
 	@echo "  stage-import-dry-run      旧direct-DB互換経路のdry-run（F6では使用しない）"
 	@echo "  stage-import              旧direct-DB互換経路（F6では使用しない）"
 	@echo "  verify-stage-import       stage 投入後の検証（空clinic/orphan/collision等・exit 0でPASS）"
