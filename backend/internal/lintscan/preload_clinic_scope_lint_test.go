@@ -90,6 +90,7 @@ var clinicScopedMasterAssoc = map[string]string{
 	"Cage":            "Cage",
 	"Insurance":       "Insurance",
 	"ExaminationType": "ExaminationType",
+	"ExamTypeField":   "ExamTypeField",
 	"CheckupType":     "CheckupType",
 	// #211: 健診パッケージのフィールド定義マスタ（checkup_type_fields, clinic_id 列あり）。
 	// checkup_field_results.CheckupTypeField として clinic_id 述語付きで Preload される。
