@@ -18,6 +18,14 @@ packages:
       time.Time: "string"
       gorm.DeletedAt: "string | null"
       pq.StringArray: "string[]"
+      # FE12-07: 未マップ型は tygo が `any` へ潰す（frontend/CLAUDE.md Type Safety MANDATORY 違反）。
+      # JSON 系は `unknown` にして消費側へ境界検証を強制する。値の形は Go 側でも
+      # 非構造化なので、`any` のまま素通しにすると型検査が嘘をつく。
+      # UUID は wire 上ただの文字列であり `string` が実態。
+      json.RawMessage: "unknown"
+      datatypes.JSON: "unknown"
+      uuid.UUID: "string"
+      pq.Int64Array: "number[]"
       "uint64": "number"
       "uint": "number"
       "*uint64": "number | null"
@@ -39,6 +47,14 @@ packages:
       time.Time: "string"
       gorm.DeletedAt: "string | null"
       pq.StringArray: "string[]"
+      # FE12-07: 未マップ型は tygo が `any` へ潰す（frontend/CLAUDE.md Type Safety MANDATORY 違反）。
+      # JSON 系は `unknown` にして消費側へ境界検証を強制する。値の形は Go 側でも
+      # 非構造化なので、`any` のまま素通しにすると型検査が嘘をつく。
+      # UUID は wire 上ただの文字列であり `string` が実態。
+      json.RawMessage: "unknown"
+      datatypes.JSON: "unknown"
+      uuid.UUID: "string"
+      pq.Int64Array: "number[]"
       "uint64": "number"
       "uint": "number"
       "*uint64": "number | null"
@@ -60,6 +76,14 @@ packages:
       time.Time: "string"
       gorm.DeletedAt: "string | null"
       pq.StringArray: "string[]"
+      # FE12-07: 未マップ型は tygo が `any` へ潰す（frontend/CLAUDE.md Type Safety MANDATORY 違反）。
+      # JSON 系は `unknown` にして消費側へ境界検証を強制する。値の形は Go 側でも
+      # 非構造化なので、`any` のまま素通しにすると型検査が嘘をつく。
+      # UUID は wire 上ただの文字列であり `string` が実態。
+      json.RawMessage: "unknown"
+      datatypes.JSON: "unknown"
+      uuid.UUID: "string"
+      pq.Int64Array: "number[]"
       "uint64": "number"
       "uint": "number"
       "*uint64": "number | null"
