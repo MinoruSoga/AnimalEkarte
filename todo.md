@@ -545,12 +545,6 @@
 - 対応方針変更（2026-07-25 DEC-20）: **stage-import退役で解消**（deleteScope修正には投資しない）。本番cutoverはrunbook既定の21表csv-import正式経路であり本ツールは本番使用禁止・local限定＋`--confirm-local-destroy`ガード既存。退役実装=cmd/stage-import削除またはビルド除外（#250再基準化転記とセット・USER承認後）。
 - 出典: #251調査 Completion Report（2026-07-25）。テスト実測で確認済み。
 
-### BUG-431: Reception危険度バッジのAPI契約不整合（サイレント機能不全）
-
-- HIGH。`frontend/src/features/reception/api/transforms.ts:94` が `reservation.pet?.danger_level` を読むが、backendの `backend/internal/reservation/nested_summary_response.go` petSummaryResponseは当該キーを返さない。fixtureでは表示できるが実APIでは危険バッジが点灯しない。
-- 対応: petSummaryResponseへ danger_level を追加（staff-internal限定・owner向け経路へ流さない）か、FE参照を削除するかを確定して是正。#234の前提是正。
-- 出典: #234調査 Completion Report（2026-07-25）。両ファイルgrepで確認済み。
-
 ### BUG-432: 飼主生年月日がフォームから保存されない＋一覧列がpet値を表示
 
 - HIGH。DB（`owners.birth_date`）・BE DTO・OpenAPI・DatePickerは実装済みだが、`frontend/src/features/owners/hooks/use-owner-form.ts` のcreate/update送信payloadにowner birthDateが含まれず、入力しても保存されない。さらに `OwnersListTable.tsx` の「生年月日」列はownerでなくpetの生年月日を表示している。
