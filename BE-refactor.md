@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B5 完了**（commit済み。B5bを新設。B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`・下記batch表 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B5b 完了**（B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`34d05c869`・下記batch表 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -180,7 +180,7 @@ find /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/service
 /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/internal/service/n1_lint_test.go
 ```
 
-この6件のうち5件はB4（`c430072d8`）とB5（`b28c4a105`）で`internal/lintscan`へ移設済みである。2026-07-25時点でlegacy配下に残るのは`internal/repository/migration_cascade_lint_test.go`の1件だけで、その移設はB5bが担う。上の`find`出力はA6実行時点の記録であり、現況は本注記が正本である。
+この6件はB4（`c430072d8`）、B5（`b28c4a105`）、B5bですべて`internal/lintscan`へ移設済みであり、legacy配下のlint gateは0件になった。上の`find`出力はA6実行時点の記録であり、現況は本注記が正本である。
 
 ### A7 ignore未登録
 
@@ -273,12 +273,12 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 ### BE10-2 — legacy test-only packageの削除phase未記録
 
 - 規約根拠: `backend/CODING_RULES.md:114`は、残すlegacy facade/adapterにconsumerと削除phaseを要求する。
-- 現状（2026-07-25・B5完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **46**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは`migration_cascade_lint_test.go`の**1件**だけである（他5件はB4/B5で`internal/lintscan`へ移設済み）。
+- 現状（2026-07-25・B5完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **45**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した。
 - 修正内容: 下記Phase 0で64 test fileの移設先、helper gap、移設batch、2 packageの削除条件・担当・期限を確定した。移設先が確定するまで実働gateを削除しない。
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B5完了・commit済み。B5bを新設。B6〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B5b完了。B6〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -500,7 +500,7 @@ consumer数は同じlegacy package内の実file集合で数えた。`db_setup_te
 
 BE9-1の「5 gateのproduction source discoveryがpackage非依存」は実装で再確認できた。6件目のmigration gateはGo source discoveryを行わず、上記relative-path gapを持つため「6件すべて非依存」とは判定しない。
 
-**進捗（2026-07-25）**: 上表の5件は移設完了（`service/`の2件はB4 `c430072d8`、`repository/`の3件はB5 `b28c4a105`）。残るのは`repository/migration_cascade_lint_test.go`の1件で、担当はB5bである。**同gateの移設方針は上表の記載から変更した** — `lintscan.FindModuleRoot`由来のabsolute pathへ作り替えるのではなく、`migrationsDir`を消費する残留2 fileと合わせてB5bで解決する（B5の実測で`C = {migrationsDir}`が判明したため。詳細は下記「実行規則」4項）。移設先は`lintscan`のままである。
+**進捗（2026-07-25）**: `migration_cascade_lint_test.go`を含む6件すべての`internal/lintscan`への移設が完了した。`migrationsDir`を消費していた残留2 fileも自己完結し、移設方針は「相対 path を維持したまま consumer を解消する」で確定した。
 
 ##### 実行batchとhelper集合検算
 
@@ -514,7 +514,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B3 ✅完了 `36f283f37` | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
 | B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 ✅完了 `b28c4a105` | repository lint **4 file**→`lintscan`、reconciliation gateのpath修復（B4回帰の是正） | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels`, `clinicScopedMasterAssoc`, `siblingPackageDir` + `I(files) local-only` | `∅`（4 consumer gateを同時移設。`migration_cascade`をB5bへ分離した結果として成立） | `∅` |
-| B5b | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
+| B5b ✅完了 `34d05c869` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
 | B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
@@ -692,7 +692,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 ## Acceptance Checklist
 
 - [x] **AC-BE10-1 clinic境界**: 「①parent統合」で確定し実装完了（`0301ae0e2`）。route/RBAC/OpenAPIは非変更、test名と`clinic_id`述語は逐語一致、build/vet/test/gofmtはgreen、独立レビュー2本severity 0。
-- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B5b・B6〜B14を完了させ、legacy production/test/importが0になること。B0〜B5は完了（`b28c4a105`まで）。
+- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B6〜B14を完了させ、legacy production/test/importが0になること。B0〜B5bは完了。
 - [ ] **AC-BE10-3 空directory**: 他session所有権確認後に15 directoryを削除し、同じ`find`が0件となる。
 - [ ] **AC-BE10-4 ignore/削除**: `.ruff_cache`、`.wrangler`、空`.git`についてignoreまたは削除方針を確定し、選択した検証がPASSする。tool再生成の判断待ちは再開条件付きで記録する。
 - [ ] **AC-BE10-5 docs drift**: `q&a.html`の5行を現行pathへ更新し、旧layer path grepが0件となる。
@@ -751,3 +751,6 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
    ①test名和集合の変更前後一致（消失・増加0）②修復対象gateの失敗様式の変化 ③FAIL集合の全数列挙、の3本立てにする。
 
 7. **DB共有suiteは`-p 1`で実行する。** 並行実行するとshared test DBで衝突し偽のFAILが出る（B2 / B3 / B5で実測）。
+
+8. **gate test を移設したら、package を明示列挙している実行配線も同じ unit で追随させる。**（B4 / B5 で実害）
+   `scripts/run-local-ci.sh` の inventory gates step は `./internal/repository/` と `./internal/service/` を明示列挙しており、B4 / B5 の移設に追随しなかったため、3 gate が `-run` 不一致で空振りし、`./internal/service/` 側は Go file 0 で build error になっていた。**`-run` の不一致は「テスト0件で成功」として通る**ため、compile / vet / package 単位の test では検出できない。B6〜B14 も同 step と `Makefile` の明示列挙を毎回確認する。

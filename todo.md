@@ -114,6 +114,14 @@
 - `internal/lintscan` package の FAIL 集合は対象ゲート分だけ減り、残件は `TestWalkInternalTreeT_RealRepo` 1件のみ（`lintscan_test.go:231: expected "clinic/company/repository.go" in result (a known nested production file); got 785 keys`）。根本原因は `0301ae0e2` の clinic package flatten 後も、実在しない旧 sentinel path を期待していること。修正は本 unit の対象外。
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
 
+### BUG-438: 未レビューの `ON DELETE CASCADE` が `005_exam_reference_ranges_and_clinic_fk.sql` で main に入り、CASCADE 台帳ゲートが赤いまま放置されている
+
+- HIGH（安全ゲートの赤放置＋未レビュー CASCADE）。`b4d10e083`（#249 Phase 2 U1）が追加した `backend/migrations/005_exam_reference_ranges_and_clinic_fk.sql:41` に `ON DELETE CASCADE` が1件あるが、`migrationCascadeAllowlist` は `001_init.sql: 53` しか pin していない。したがって `TestMigrationCascadeInventory_NoUnreviewedCascade` は 2026-07-25 時点の main で FAIL する。**BUG-437 と同一の変更（`b4d10e083`）由来の、2件目の未検出すり抜けである。**
+- 実害の評価（BE10-2 B5b の baseline 実測）: 005 は `001_init.sql:704` の `exam_type_id bigint NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE`（制約名 `exam_type_fields_exam_type_id_fkey`）を DROP し、同じ CASCADE 挙動を `(exam_type_id, clinic_id) → exam_types(id, clinic_id)` の複合 FK として貼り直している。削除伝播の意味は変わらず、tenant 整合性はむしろ強化される。これは allowlist コメントが既にレビュー済みとして記録している `checkup_type_fields` の複合 FK 置換（旧 `002_checkup_field_clinic_composite_fk.sql`）と同型である。
+- 対応（当該変更の owner が選ぶ）: ① `migrationCascadeAllowlist` へ `"005_exam_reference_ranges_and_clinic_fk.sql": 1` を、上記の behavior-preserving な複合 FK 置換であるという理由を allowlist コメントへ明記した上で追加する ② CASCADE を RESTRICT / SET NULL へ変更する新規 migration を追記する。**ゲートを黙らせる目的だけの ① は禁止**である。
+- 再現: `docker compose exec -T backend go test ./internal/lintscan/ -run TestMigrationCascadeInventory -count=1`（BE10-2 B5b による移設後の所在。移設前は `./internal/repository/`）
+- 出典: BE10-2 B5b の baseline 実測（2026-07-25）。`BE-refactor.md`「実行規則」2項に従い、gate の実比較が出した違反として本台帳へ routing した。B5b 自身は allowlist を変更しない。
+
 ### R-4: `TestWalkInternalTreeT_RealRepo` の stale nested sentinel 是正
 
 - **COMPLETE（2026-07-25・working tree）**。`clinic/company/repository.go` は clinic package flatten 後に消えた旧パスだったため、合成 fixture が `sub/nested/deeper/file2.go` で深さ2以上の再帰を既に検証していることを確認したうえで、実リポジトリ側 sentinel を `infra/crypto/aes_gcm.go` へ差し替えた。新 sentinel は `/` を2つ含み、実リポジトリでも walker の深さ2以上への再帰を引き続き検証する。

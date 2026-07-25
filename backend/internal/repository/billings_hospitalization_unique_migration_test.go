@@ -16,7 +16,7 @@ import (
 const billingsHospitalizationUniqueMigration = "001_init.sql"
 
 func TestBillingsHospitalizationUniqueMigration_PartialUniqueIndexSQL(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(migrationsDir, billingsHospitalizationUniqueMigration))
+	raw, err := os.ReadFile(filepath.Join("../../migrations", billingsHospitalizationUniqueMigration)) //nolint:gocritic // B5b requires this relative path.
 	if err != nil {
 		t.Fatalf("read %s: %v", billingsHospitalizationUniqueMigration, err)
 	}

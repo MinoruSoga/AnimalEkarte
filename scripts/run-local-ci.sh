@@ -73,11 +73,9 @@ node --test frontend/scripts/design-system-audit.test.mjs
 require_compose_service backend
 
 begin_step "Inventory gates (preload / master-FK / audit-tx / CASCADE / OpenAPI date / dbOrTx)"
-compose exec -T backend go test ./internal/repository/ \
-  -run 'TestPreloadClinicScope|TestClinicalResultAuditTxInventory|TestMigrationCascadeInventory|TestDBOrTxInventory' \
+compose exec -T backend go test ./internal/lintscan/ \
+  -run 'TestPreloadClinicScope|TestClinicalResultAuditTxInventory|TestMigrationCascadeInventory|TestDBOrTxInventory|TestMasterFKWriteInventory' \
   -count=1
-compose exec -T backend go test ./internal/service/ \
-  -run TestMasterFKWriteInventory -count=1
 compose exec -T backend go test ./internal/apicontract/ \
   -run TestOpenAPIDateFormatDrift -count=1
 

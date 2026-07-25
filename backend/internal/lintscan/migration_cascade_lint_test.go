@@ -1,4 +1,4 @@
-package repository
+package lintscan
 
 // migration_cascade_lint_test.go — BE-refactor.md R3-1 (D9・P0)
 //
@@ -24,9 +24,11 @@ package repository
 //
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
-// migrations/*.sql は backend/internal/repository/ の兄弟ディレクトリのため go:embed の
-// 相対パス制約（".." 不可）に抵触する。既存の checkup_field_cascade_test.go / rls_migration_test.go
-// と同じ os.ReadFile("../../migrations/...") 相対パス方式を使う。
+// migrations/*.sql は backend/internal/lintscan/ から2階層上の backend/migrations/ にあり、
+// ".." を使えない go:embed の相対パス制約に抵触する。internal/lintscan は internal/<package> と
+// 同じ深さなので、既存の checkup_field_cascade_test.go / rls_migration_test.go と同じ
+// os.ReadFile("../../migrations/...") 相対パス方式を維持し、directory 読み取りが壊れた場合は
+// minDDLFiles の floor が vacuous pass を防ぐ。
 
 import (
 	"os"

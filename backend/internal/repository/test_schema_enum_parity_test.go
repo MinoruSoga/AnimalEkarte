@@ -23,7 +23,7 @@ package repository
 //
 // migrations/*.sql is a sibling directory of internal/repository/, so go:embed's relative
 // path restriction (no "..") applies here too. Reuses the same os.ReadFile relative-path
-// approach as migration_cascade_lint_test.go (migrationsDir const).
+// approach as the other migration-reading tests in this repo ("../../migrations" relative path).
 //
 // ─── Deliberate exceptions ──────────────────────────────────────────────────────────
 //
@@ -122,7 +122,7 @@ func reconcileTestSchemaEnumParity(sqlTypes, goTypes, allowlist map[string]strin
 // versa (modulo documented exceptions). A floor guards against a vacuous pass if the extraction
 // regex silently breaks.
 func TestTestSchemaEnumParity(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(migrationsDir, "001_init.sql"))
+	raw, err := os.ReadFile(filepath.Join("../../migrations", "001_init.sql")) //nolint:gocritic // B5b requires this relative path.
 	if err != nil {
 		t.Fatalf("read 001_init.sql: %v", err)
 	}
