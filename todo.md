@@ -28,12 +28,12 @@
 
 ### TASK-ADR003: 予約⇔会計の支払方法二重保持解消（ADR-003 案1B TRIGGER）
 
-- PO-006 裁定済み。DEC-9（2026-07-25 q&a.html）で GitHub Issue 起票を待たず本書追跡へ変更。着手時期 = 納品後。
+- PO-006 裁定済み。DEC-9（2026-07-25 q&a.html）で GitHub Issue 起票を待たず本書追跡へ変更。**着手時期 = 納品前（2026-07-26〜27）** — 2026-07-25 の納品日 7/27 延期（理由=残作業の全対応）に伴い「納品後」から前倒し。
 - 内容の正本 = q&a.html PO-006／DEC-9。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。
 
 ### TASK-251: 締め集計 category contract 確定実装（#251・8→12分類）
 
-- 業務決裁確定（q&a.html DEC-21・**USER 本人裁定** 2026-07-25）。着手時期 = 納品後（S3）。contract 正本 = DEC-21（本エントリは実装スコープの入口であり決裁の「なぜ」は複製しない）。
+- 業務決裁確定（q&a.html DEC-21・**USER 本人裁定** 2026-07-25）。**着手時期 = 納品前（2026-07-26〜27）** — 2026-07-25 の納品日 7/27 延期（理由=残作業の全対応）に伴い S3 送りから前倒し。contract 正本 = DEC-21・#251 本文（本エントリは実装スコープと着手時期の入口であり決裁の「なぜ」は複製しない）。
 - Phase 0 棚卸し（外部エージェント調査・Fable spot-verify）で確定した実装スコープ:
   - ① 正式カテゴリ = 12分類（enum 現状追認）。#251 タイトル「8分類」→「12分類」修正は Issue 本文転記（USER 承認後）に含める。
   - ② hospitalization 退院会計の other 固定を撤廃し CarePlanItem.Type／Procedure.IsSurgery→category resolver（`backend/internal/medicalrecord/hospitalization_service.go:431`）。treatment 経路（`backend/internal/billing/billing_item_service.go:405,462`）と共通化＝category contract 単一ソース化。
@@ -43,7 +43,8 @@
   - 含意(b) 締め集計の未知値 fail-closed = 生カラム無制限 GROUP BY（`backend/internal/billing/accounting_repository_reports_close.go:44`・`cash_register_service.go:265`）を12値 allowlist 経由にし typo/legacy を締め表へ黙って通さない（受け入れ条件「unknown/legacy を黙って変換しない」）。
   - 含意(d) 全書込経路（treatment/hospitalization/vaccination/trimming/merchandise/manual）を同一 typed category source に集約。
 - #247（月次統合表）は本 TASK の contract 完了後に着手。
-- Issue #251 本文への決裁転記（タイトル12分類修正含む）＝外部書込・USER 承認後にエージェント実施。転記後は本エントリを Issue 追跡へ移し二重掲出しない。
+- Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）は 2026-07-25 に USER 承認のうえ完了済み（実測確認済み）。以後 contract の参照先は #251 本文と DEC-21 とし、本エントリは着手時期と実装スコープのみを持つ。
+- ⚠️ 未同期: #251 本文は「着手時期 = 納品後 S3」のままである。前倒しを Issue 側へ反映するには外部書込の承認が要る。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。
 
 ### SEC-SWEEP-01: 単一pet_id FKを持つread経路の親pets clinic相関 全数掃引
