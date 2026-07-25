@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B5b 完了**（B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`34d05c869`・下記batch表 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B5b 完了**（B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -514,7 +514,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B3 ✅完了 `36f283f37` | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
 | B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 ✅完了 `b28c4a105` | repository lint **4 file**→`lintscan`、reconciliation gateのpath修復（B4回帰の是正） | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels`, `clinicScopedMasterAssoc`, `siblingPackageDir` + `I(files) local-only` | `∅`（4 consumer gateを同時移設。`migration_cascade`をB5bへ分離した結果として成立） | `∅` |
-| B5b ✅完了 `34d05c869` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
+| B5b ✅完了 `59b9d1873` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
 | B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
