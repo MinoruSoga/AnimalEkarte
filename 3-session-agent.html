@@ -72,20 +72,20 @@
 
 <h1>3セッション開発計画 — Readiness View</h1>
 <p class="meta">
-同期日: 2026-07-25 ／ <b>納品日: 2026-07-27（残作業を全て対応するため 2026-07-25 に延期決定。7/18 → 7/25 → 7/27）</b><br>
+同期日: 2026-07-26 ／ <b>納品日: 2026-07-27（残作業を全て対応するため 2026-07-25 に延期決定。7/18 → 7/25 → 7/27）</b><br>
 <b>正本は GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）</b>。本fileはIssue群を3セッションで着手するためのガイドviewであり、正本ではない。<br>
 決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（DEC・OPS）／ 実装キュー: <code>todo.md</code>（着手可能タスクの正本。本viewは件数もタスクIDも列挙しない — 必ずドリフトするため）。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
 </p>
 
 <div class="notice">
-本HTMLは進捗と着手順を一目で確認するためのガイドviewであり、受け入れ条件・実行手順・決裁内容を複製しない。差異がある場合は常に各Issue・q&amp;a.html・todo.mdを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（2026-07-25時点 31件・全件を本viewに記載）。
+本HTMLは進捗と着手順を一目で確認するためのガイドviewであり、受け入れ条件・実行手順・決裁内容を複製しない。差異がある場合は常に各Issue・q&amp;a.html・todo.mdを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（2026-07-26時点 31件・全件を本viewに記載）。
 </div>
 
-<h2>現在地（2026-07-25）</h2>
+<h2>現在地（2026-07-26）</h2>
 <div class="grid">
   <section class="card">
     <h3>納品</h3>
-    <p><span class="status risk">残り2日</span> Go-live 2026-07-27</p>
+    <p><span class="status risk">残り1日</span> Go-live 2026-07-27</p>
   </section>
   <section class="card">
     <h3>UATブロッカー</h3>
@@ -142,10 +142,10 @@
   </tr>
   <tr>
     <td>6</td>
-    <td>#201 設計A実装（DEC-1境界付き裁定済み — 既存マスタ上限の物理ブロック化・新臨床値なし。臨床残余=マスタ値/warning帯/欠落挙動表の事後確認）／#261 PO決裁は残</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a>=<b>dev完了</b>（<code>fa119abb9</code>・絶対上限超過をBEで物理reject＋FEのConfirmDialog解除2経路を撤去）。残 = <b>#261 PO決裁</b>と、臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯・欠落ケース別挙動表）</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / q&amp;a.html DEC-1</td>
-    <td>dev（#261のみPO）</td>
-    <td><span class="status current">#201着手可</span></td>
+    <td>PO＋臨床責任者</td>
+    <td><span class="status wait">#261・臨床確認待ち</span></td>
   </tr>
   <tr>
     <td>7</td>
