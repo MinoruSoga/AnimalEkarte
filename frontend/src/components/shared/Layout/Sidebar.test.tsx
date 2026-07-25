@@ -11,7 +11,7 @@ vi.mock("./SidebarItems", () => ({
   SidebarItemWithPermission: () => null,
 }));
 
-vi.mock("@/features/auth", () => ({
+vi.mock("@/components/shared/ChangePasswordDialog/ChangePasswordDialog", () => ({
   ChangePasswordDialog: () => <div data-testid="change-password-dialog" />,
 }));
 

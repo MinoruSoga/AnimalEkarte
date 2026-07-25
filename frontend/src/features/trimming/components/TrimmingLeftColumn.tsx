@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
+import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal/MasterSelectTrigger";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 

@@ -1,16 +1,13 @@
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { ChevronDown, PanelLeftClose, PanelLeft, KeyRound, LogOut, User } from "lucide-react";
-import { useState, useEffect, memo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { SidebarItemWithPermission } from "./SidebarItems";
 import { sidebarMenuSections, type SidebarMenuSection } from "./sidebar-menu";
-
-const ChangePasswordDialog = lazy(() =>
-  import("@/features/auth").then((m) => ({ default: m.ChangePasswordDialog })),
-);
 
 interface SidebarSectionProps {
   section: SidebarMenuSection;
@@ -191,13 +188,11 @@ export const Sidebar = memo(function Sidebar() {
                 <LogOut className={ICON.action} />
               </button>
             </div>
-            <Suspense fallback={null}>
-              <ChangePasswordDialog
-                open={isChangePasswordOpen}
-                onOpenChange={setIsChangePasswordOpen}
-                onSuccess={logout}
-              />
-            </Suspense>
+            <ChangePasswordDialog
+              open={isChangePasswordOpen}
+              onOpenChange={setIsChangePasswordOpen}
+              onSuccess={logout}
+            />
           </>
         ) : (
           <button
