@@ -117,7 +117,7 @@ describe("TreatmentsTab — マスタ選択時の投与量 hard gate (P1-7)", ()
     server.resetHandlers();
   });
 
-  it("フォールバック quantity=1 が安全域外の場合、確認なしで create しない", async () => {
+  it("フォールバック quantity=1 が上限超過の場合、create せず inline で保存不可理由を表示する", async () => {
     installUnsafeMedicineHandlers();
     let createCalled = false;
     server.use(
@@ -134,57 +134,10 @@ describe("TreatmentsTab — マスタ選択時の投与量 hard gate (P1-7)", ()
 
     await user.click(await screen.findByRole("button", { name: "劇薬Aを選択" }));
 
-    // hard gate ダイアログが出て、create はまだ走らない
-    expect(await screen.findByText("投与量を確認してください")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/上限.*保存できません/);
     expect(createCalled).toBe(false);
-  });
-
-  it("hard gate で確認すると quantity=1 のまま create される", async () => {
-    installUnsafeMedicineHandlers();
-    let capturedBody: unknown = null;
-    server.use(
-      http.post("*/v1/medical-records/:id/treatments", async ({ request }) => {
-        capturedBody = await request.json();
-        return HttpResponse.json({ id: "new-1" }, { status: 201 });
-      })
-    );
-
-    const user = userEvent.setup();
-    render(<TreatmentsTab medicalRecordId={MEDICAL_RECORD_ID} petSpecies="dog" />, {
-      wrapper: createTestWrapper(),
-    });
-
-    await user.click(await screen.findByRole("button", { name: "劇薬Aを選択" }));
-    await screen.findByText("投与量を確認してください");
-    await user.click(screen.getByRole("button", { name: "この数量で追加する" }));
-
-    await waitFor(() => expect(capturedBody).not.toBeNull());
-    expect((capturedBody as { quantity: number }).quantity).toBe(1);
-  });
-
-  it("hard gate をキャンセルすると create されない", async () => {
-    installUnsafeMedicineHandlers();
-    let createCalled = false;
-    server.use(
-      http.post("*/v1/medical-records/:id/treatments", async () => {
-        createCalled = true;
-        return HttpResponse.json({ id: "new-1" }, { status: 201 });
-      })
-    );
-
-    const user = userEvent.setup();
-    render(<TreatmentsTab medicalRecordId={MEDICAL_RECORD_ID} petSpecies="dog" />, {
-      wrapper: createTestWrapper(),
-    });
-
-    await user.click(await screen.findByRole("button", { name: "劇薬Aを選択" }));
-    await screen.findByText("投与量を確認してください");
-    await user.click(screen.getByRole("button", { name: "キャンセル" }));
-
-    await waitFor(() =>
-      expect(screen.queryByText("投与量を確認してください")).not.toBeInTheDocument()
-    );
-    expect(createCalled).toBe(false);
+    expect(screen.queryByText("投与量を確認してください")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /この数量で追加/ })).not.toBeInTheDocument();
   });
 
   it("medicineId を持たない選択（per-weight 対象外）では gate を出さず即座に create する", async () => {

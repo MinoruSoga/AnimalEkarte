@@ -288,6 +288,9 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		if derr != nil {
 			return derr // species 不一致など fail-closed
 		}
+		if eval != nil && eval.ExceedsCapSaved {
+			return apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
+		}
 		if eval != nil {
 			doseEval = eval
 			applyDoseSnapshotToTreatment(txCtx, treatment, eval)
@@ -422,16 +425,28 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		}
 
 		if doseRelevant {
-			effItemType, effMedicineID, effQty := effectiveDoseInputs(existing, input)
+			// 親行ロックの取得後に treatment を再読込し、並行する部分 PATCH が更新した
+			// medicine/quantity と今回の入力を最新の組み合わせで評価する。
+			current, err := s.treatmentRepo.FindByID(txCtx, clinicID, treatmentID)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to reload treatment for dose validation")
+			}
+			if current.MedicalRecordID != medicalRecordID {
+				return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
+			}
+			effItemType, effMedicineID, effQty := effectiveDoseInputs(current, input)
 			eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 			if derr != nil {
 				return derr // species 不一致など fail-closed
+			}
+			if eval != nil && eval.ExceedsCapSaved {
+				return apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
 			}
 			if eval != nil {
 				doseEval = eval
 				doseMedicineID = *effMedicineID
 				maps.Copy(fields, doseSnapshotColumns(txCtx, eval))
-			} else if treatmentHasDoseSnapshot(existing) {
+			} else if treatmentHasDoseSnapshot(current) {
 				// per_weight 対象でなくなった（薬剤/item_type 変更）→ stale スナップショットをクリア（L-3）。
 				maps.Copy(fields, clearedDoseColumns())
 			}

@@ -5,7 +5,6 @@ import { memo, useState, useCallback, useMemo, useRef, useEffect, useLayoutEffec
 import { Input } from "@/components/ui/input";
 import { TableCell } from "@/components/ui/table";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 import { calculateDose } from "@/lib/medicine-dose";
 import { formatCurrency } from "@/lib/format/number";
@@ -24,7 +23,7 @@ import {
   TreatmentSubtotalCell,
   TreatmentTypeCell,
 } from "./TreatmentRowParts";
-import { computeDoseGate, type DoseGateResult } from "./treatment-row-dose-gate";
+import { computeDoseGate } from "./treatment-row-dose-gate";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -44,7 +43,7 @@ interface TreatmentRowProps {
   autoFocusQuantity?: boolean;
   /** autoFocusQuantity 完了後に親へ通知するコールバック */
   onAutoFocusDone?: () => void;
-  /** #201: 投与量自動計算プレビュー・hard gate 判定に使うコンテキスト */
+  /** #201: 投与量自動計算プレビュー・保存ゲート判定に使うコンテキスト */
   doseContext: MedicineDoseContext;
 }
 
@@ -79,7 +78,7 @@ export const TreatmentRow = memo(function TreatmentRow({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // #201: 投与量自動計算（薬剤行のみ）。medicine_id が無い/薬剤以外の行は全て null に落ちる
-  // （fail-closed・既存の手動入力挙動は完全に不変）。
+  // （評価情報が無い場合は既存の手動入力・保存挙動を維持する）。
   const isMedicineRow = treatment.item_type === "medicine" && !!treatment.medicine_id;
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
@@ -100,8 +99,10 @@ export const TreatmentRow = memo(function TreatmentRow({
   // react-review-201 HIGH-2: 警告テキストを aria-describedby で数量セルに紐付けるための安定 id。
   const doseWarningId = `dose-warning-${treatment.id}`;
 
-  // hard gate 確認ダイアログ（丸め境界越え・著しい逸脱・安全域外は確認必須。警告への格下げ禁止）。
-  const [pendingGate, setPendingGate] = useState<{ quantity: number; result: DoseGateResult } | null>(null);
+  // #201: 保存操作で検出した絶対上限超過を、保存値が更新されるまでインライン表示する。
+  const [attemptedDoseBlockReason, setAttemptedDoseBlockReason] = useState("");
+  const doseBlockReason = attemptedDoseBlockReason || currentGate.blockReason;
+  const hasDoseMessage = doseBlockReason !== "" || currentGate.warning !== "none";
 
   // 外部からの treatment 変更を反映
   useEffect(() => {
@@ -110,6 +111,7 @@ export const TreatmentRow = memo(function TreatmentRow({
     setLocalQuantity(String(treatment.quantity));
     setLocalDiscountAmount(String(treatment.discount_amount));
     setLocalMemo(treatment.memo);
+    setAttemptedDoseBlockReason("");
   }, [treatment]);
 
   // フォーカス時に input を選択
@@ -172,33 +174,17 @@ export const TreatmentRow = memo(function TreatmentRow({
     setEditField(null);
     if (val === treatment.quantity) return;
 
-    // #201: 丸め境界越え・著しい逸脱・安全域外は確認ダイアログ必須（hard gate）。
-    // PRODUCT_PHILOSOPHY の確認ダイアログ禁止より臨床安全（SPECIFICATION 2.1）を優先する。
+    // #201: マスタの絶対上限超過だけを物理ブロックする。
+    // 下限未満・推奨値からの乖離・評価情報不足は保存を継続する。
     const gate = computeDoseGate(doseCalcInput, val);
-    if (gate.requiresConfirm) {
-      setPendingGate({ quantity: val, result: gate });
+    if (gate.isBlocked) {
+      setLocalQuantity(String(treatment.quantity));
+      setAttemptedDoseBlockReason(gate.blockReason);
       return;
     }
+    setAttemptedDoseBlockReason("");
     onUpdate(treatment.id, { quantity: val });
   }, [localQuantity, treatment.quantity, treatment.id, onUpdate, doseCalcInput]);
-
-  const handleGateConfirm = useCallback(() => {
-    if (!pendingGate) return;
-    onUpdate(treatment.id, { quantity: pendingGate.quantity });
-    setPendingGate(null);
-  }, [pendingGate, treatment.id, onUpdate]);
-
-  const handleGateCancel = useCallback(() => {
-    // 上書きを取り消し、表示中の quantity を保存値へ戻す（round-trip の安全側）。
-    // healthcare-review-201 NOTE: Radix AlertDialogAction は onConfirm 実行後にも
-    // onOpenChange(false) 経由でこの handleGateCancel を呼ぶ（ConfirmDialog.tsx:36-42）。
-    // handleGateConfirm は pendingGate.quantity を確定値として先に onUpdate 済みなので無害だが、
-    // ここで treatment.quantity（更新前の古い値）に一瞬戻る。mutation 完了後は上の useEffect が
-    // 新しい treatment.quantity へ再同期するため最終表示は正しい。将来この関数を変更する際、
-    // 「確定後に revert される」ように見えても実際は競合ではないことに注意。
-    setLocalQuantity(String(treatment.quantity));
-    setPendingGate(null);
-  }, [treatment.quantity]);
 
   const commitDiscountAmount = useCallback(() => {
     const val = parseFloat(localDiscountAmount) || 0;
@@ -246,7 +232,6 @@ export const TreatmentRow = memo(function TreatmentRow({
   const subtotal = treatment.unit_price * treatment.quantity - treatment.discount_amount;
 
   return (
-    <>
     <tr
       className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors ${
         !treatment.is_selected ? "opacity-50" : ""
@@ -319,7 +304,9 @@ export const TreatmentRow = memo(function TreatmentRow({
             onBlur={commitQuantity}
             onKeyDown={(e) => handleKeyDown(e, commitQuantity)}
             className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
-            aria-describedby={currentGate.warning !== "none" ? doseWarningId : undefined}
+            aria-label="数量"
+            aria-describedby={hasDoseMessage ? doseWarningId : undefined}
+            aria-invalid={doseBlockReason !== "" ? true : undefined}
           />
         ) : (
           <button type="button"
@@ -331,14 +318,22 @@ export const TreatmentRow = memo(function TreatmentRow({
                   : C.text
             }`}
             onClick={() => setEditField("quantity")}
-            aria-describedby={currentGate.warning !== "none" ? doseWarningId : undefined}
+            aria-describedby={hasDoseMessage ? doseWarningId : undefined}
           >
             {treatment.quantity}
           </button>
         )}
         {/* #201: 色だけに依存しない警告表示（react-review-201 HIGH-2）。アイコン/接頭辞テキスト併用 +
             aria-describedby で読み上げ可能にする。 */}
-        {currentGate.warning !== "none" ? (
+        {doseBlockReason ? (
+          <div
+            id={doseWarningId}
+            role="alert"
+            className={`text-xs text-right mt-0.5 ${C.textRed700}`}
+          >
+            ⚠ {doseBlockReason}
+          </div>
+        ) : currentGate.warning !== "none" ? (
           <div
             id={doseWarningId}
             role="alert"
@@ -436,18 +431,5 @@ export const TreatmentRow = memo(function TreatmentRow({
         onDelete={handleDelete}
       />
     </tr>
-    {/* #201: hard gate — 丸め境界越え・著しい逸脱・安全域外は確認必須（警告への格下げ禁止） */}
-    <ConfirmDialog
-      open={pendingGate !== null}
-      onClose={handleGateCancel}
-      onConfirm={handleGateConfirm}
-      title="投与量を確認してください"
-      description={pendingGate?.result.reason || ""}
-      confirmLabel="この数量で保存する"
-      cancelLabel="キャンセル"
-      variant="destructive"
-      isPending={false}
-    />
-    </>
   );
 });

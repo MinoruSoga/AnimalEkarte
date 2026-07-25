@@ -6,6 +6,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -33,6 +35,9 @@ type doseSaveFixture struct {
 	// audit は非nilフラグ + 逸脱 audit の捕捉（entries []*AuditEntry）/失敗注入（logEntryTxErr）。
 	audit   *mockTreatmentAuditTxLogger
 	created *model.Treatment
+
+	createCalls int
+	updateCalls int
 }
 
 // newSvc は個別依存注入コンストラクタ（BE9-2D ④b）で fixture の mock を配線する。
@@ -88,6 +93,7 @@ func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, pa
 	}
 	f.treatRepo = &mockTreatmentRepository{
 		createFn: func(_ context.Context, tr *model.Treatment) error {
+			f.createCalls++
 			tr.ID = 99
 			f.created = tr
 			return nil
@@ -107,15 +113,16 @@ func medicineCreateInput(qty float64) *CreateTreatmentInput {
 	}
 }
 
-func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
+func TestTreatmentDoseSave_Create(t *testing.T) {
 	const clinicID = uint64(1)
 
-	t.Run("推奨どおり保存: スナップショット永続化・逸脱 audit なし", func(t *testing.T) {
+	t.Run("上限ちょうどは保存できる", func(t *testing.T) {
 		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
 		svc := f.newSvc()
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2)) // computed=2錠
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2)) // 20mg == cap 20mg
 		require.NoError(t, err)
+		assert.Equal(t, 1, f.createCalls)
 		require.NotNil(t, f.created)
 		require.NotNil(t, f.created.DoseAmountMg, "スナップショット dose_amount_mg が永続化されること")
 		assert.InDelta(t, 20.0, *f.created.DoseAmountMg, 1e-6)
@@ -125,21 +132,118 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 		assert.Empty(t, f.audit.entries, "上限内・乖離なしでは逸脱 audit は発火しない")
 	})
 
-	t.Run("回帰: 範囲外 quantity で保存 → 逸脱 audit 記録（silent 過量保存の閉鎖）", func(t *testing.T) {
+	t.Run("上限を safetyEpsilon より大きく超えると InvalidInput で拒否し永続化しない", func(t *testing.T) {
 		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
 		svc := f.newSvc()
+		qty := (20 + 2*safetyEpsilon) / 10
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(5)) // 5錠=50mg > cap 20mg
-		require.NoError(t, err, "上書きは拒否せず記録する")
-		require.NotNil(t, f.created.DoseAmountMg)
-		assert.InDelta(t, 50.0, *f.created.DoseAmountMg, 1e-6)
-		require.Len(t, f.audit.entries, 1, "逸脱は audit に1件記録される")
-		entry := f.audit.entries[0]
-		assert.Equal(t, model.AuditActionTreatmentDoseDeviation, entry.Action)
-		assert.Equal(t, model.AuditResourceTreatmentDose, entry.Resource)
-		require.NotNil(t, entry.ActorID)
-		assert.Equal(t, uint64(3), *entry.ActorID, "実施者が記録される")
-		assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
+		got, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(qty))
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err), "上限超過は400へマップされる InvalidInput: %v", err)
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusBadRequest, status)
+		assert.ErrorContains(t, err, "上限")
+		assert.Zero(t, f.createCalls, "拒否時は treatmentRepo.Create を呼ばない")
+		assert.Nil(t, f.created)
+		assert.Empty(t, f.audit.entries, "拒否された保存に逸脱 audit を書かない")
+	})
+
+	t.Run("BelowMinSaved のみは保存でき audit を記録する", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		minMgPerKg := 4.5
+		maxMgPerKg := 10.0
+		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return &model.MedicineDoseParam{
+				ID: 1, ClinicID: 1, MedicineID: 50,
+				Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+				DosePerKg: 5, MinMgPerKg: &minMgPerKg, MaxMgPerKg: &maxMgPerKg,
+			}, nil
+		}
+		svc := f.newSvc()
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(1.7))
+		require.NoError(t, err)
+		assert.Equal(t, 1, f.createCalls)
+		require.Len(t, f.audit.entries, 1)
+		newValue, ok := f.audit.entries[0].NewValue.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, true, newValue["below_min"])
+		assert.Equal(t, false, newValue["exceeds_max"])
+	})
+
+	t.Run("DeviatesFromComputed のみは保存でき audit を記録する", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		maxMgPerKg := 10.0
+		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return &model.MedicineDoseParam{
+				ID: 1, ClinicID: 1, MedicineID: 50,
+				Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+				DosePerKg: 5, MaxMgPerKg: &maxMgPerKg,
+			}, nil
+		}
+		svc := f.newSvc()
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(3))
+		require.NoError(t, err)
+		assert.Equal(t, 1, f.createCalls)
+		require.Len(t, f.audit.entries, 1)
+		newValue, ok := f.audit.entries[0].NewValue.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, false, newValue["below_min"])
+		assert.Equal(t, false, newValue["exceeds_max"])
+	})
+
+	t.Run("情報欠落時は従来どおり評価をスキップして保存する", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			setup func(*doseSaveFixture)
+		}{
+			{
+				name: "体重なし",
+				setup: func(f *doseSaveFixture) {
+					f.vitalRepo.listByMedicalRecordIDFn = func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+						return nil, nil
+					}
+				},
+			},
+			{
+				name: "当該種の dose param なし",
+				setup: func(f *doseSaveFixture) {
+					f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+						return nil, apperrors.WrapNotFound("medicine_dose_param", "50/dog")
+					}
+				},
+			},
+			{
+				name: "種別を dose species へ正規化できない",
+				setup: func(f *doseSaveFixture) {
+					f.mrRepo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						petID := uint64(7)
+						return &model.MedicalRecord{
+							Status: model.MedicalRecordStatusDraft,
+							PetID:  &petID,
+							Pet:    &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "鳥"}},
+						}, nil
+					}
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+				tt.setup(f)
+				svc := f.newSvc()
+
+				_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(5))
+				require.NoError(t, err)
+				assert.Equal(t, 1, f.createCalls)
+				require.NotNil(t, f.created)
+				assert.Nil(t, f.created.DoseAmountMg)
+				assert.Empty(t, f.audit.entries)
+			})
+		}
 	})
 
 	t.Run("species 不一致は fail-closed（保存中止）", func(t *testing.T) {
@@ -150,6 +254,20 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2))
 		require.Error(t, err, "species 不一致では保存してはならない")
 		assert.True(t, apperrors.IsConflict(err), "fail-closed は Conflict: %v", err)
+		assert.Zero(t, f.createCalls)
+	})
+
+	t.Run("dose param 読込エラーは従来どおり fail-closed", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return nil, errors.New("dose param lookup failed")
+		}
+		svc := f.newSvc()
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2))
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "failed to load dose param")
+		assert.Zero(t, f.createCalls)
 	})
 
 	t.Run("後方互換: calculation_type=none は再検証なし・スナップショットなし", func(t *testing.T) {
@@ -168,18 +286,26 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 	// （fail-closed。treatment/在庫減算のみが成功し監査だけ欠落する部分コミットを許さない）。
 	t.Run("逸脱 audit 失敗は Create 全体をロールバックする（fail-closed）", func(t *testing.T) {
 		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		maxMgPerKg := 10.0
+		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return &model.MedicineDoseParam{
+				ID: 1, ClinicID: 1, MedicineID: 50,
+				Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+				DosePerKg: 5, MaxMgPerKg: &maxMgPerKg,
+			}, nil
+		}
 		f.audit.logEntryTxErr = errAuditWriteFailed
 		svc := f.newSvc()
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(5)) // 5錠=50mg > cap 20mg → 逸脱
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(3)) // 上限内の推奨値乖離
 		require.Error(t, err, "audit 失敗は treatment 作成全体を失敗させる")
 	})
 }
 
-// TestTreatmentService_Update_DoseRevalidation は Update 経路の逸脱 audit（BE-refactor.md R1-2 で
+// TestTreatmentDoseSave_Update は Update 経路の逸脱 audit（BE-refactor.md R1-2 で
 // Create と同じ auditDoseDeviationTx 経路に統一）を固定する。quantity 変更で再評価対象になり、
 // 逸脱時は audit 記録・audit 失敗時は Update 全体が fail-closed で失敗することを検証する。
-func TestTreatmentService_Update_DoseRevalidation(t *testing.T) {
+func TestTreatmentDoseSave_Update(t *testing.T) {
 	const clinicID = uint64(1)
 	const treatmentID = uint64(200)
 
@@ -193,29 +319,142 @@ func TestTreatmentService_Update_DoseRevalidation(t *testing.T) {
 		}
 		f.treatRepo = &mockTreatmentRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) { return existing, nil },
-			updateFn:   func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				f.updateCalls++
+				return nil
+			},
 		}
 		return f
 	}
 
-	t.Run("範囲外 quantity への更新 → 逸脱 audit 記録", func(t *testing.T) {
+	t.Run("上限を safetyEpsilon より大きく超える更新は InvalidInput で拒否し既存行を変えない", func(t *testing.T) {
 		f := newUpdateFixture(t)
 		svc := f.newSvc()
 
-		qty := 5.0 // 5錠=50mg > cap 20mg
-		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
-		require.NoError(t, err, "上書きは拒否せず記録する")
-		require.Len(t, f.audit.entries, 1)
-		assert.Equal(t, model.AuditActionTreatmentDoseDeviation, f.audit.entries[0].Action)
+		qty := (20 + 2*safetyEpsilon) / 10
+		got, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusBadRequest, status)
+		assert.Zero(t, f.updateCalls)
+		assert.Empty(t, f.audit.entries)
+	})
+
+	t.Run("下限未満・推奨値乖離・評価情報なしは保存を継続する", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			quantity  float64
+			setup     func(*doseSaveFixture)
+			wantAudit bool
+		}{
+			{
+				name:     "BelowMinSaved",
+				quantity: 1.7,
+				setup: func(f *doseSaveFixture) {
+					minMgPerKg := 4.5
+					maxMgPerKg := 10.0
+					f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+						return &model.MedicineDoseParam{
+							ID: 1, ClinicID: 1, MedicineID: 50,
+							Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+							DosePerKg: 5, MinMgPerKg: &minMgPerKg, MaxMgPerKg: &maxMgPerKg,
+						}, nil
+					}
+				},
+				wantAudit: true,
+			},
+			{
+				name:     "DeviatesFromComputed",
+				quantity: 3,
+				setup: func(f *doseSaveFixture) {
+					maxMgPerKg := 10.0
+					f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+						return &model.MedicineDoseParam{
+							ID: 1, ClinicID: 1, MedicineID: 50,
+							Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+							DosePerKg: 5, MaxMgPerKg: &maxMgPerKg,
+						}, nil
+					}
+				},
+				wantAudit: true,
+			},
+			{
+				name:     "体重なし",
+				quantity: 5,
+				setup: func(f *doseSaveFixture) {
+					f.vitalRepo.listByMedicalRecordIDFn = func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+						return nil, nil
+					}
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				f := newUpdateFixture(t)
+				tt.setup(f)
+				svc := f.newSvc()
+
+				qty := tt.quantity
+				_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+				require.NoError(t, err)
+				assert.Equal(t, 1, f.updateCalls)
+				if tt.wantAudit {
+					assert.Len(t, f.audit.entries, 1)
+				} else {
+					assert.Empty(t, f.audit.entries)
+				}
+			})
+		}
+	})
+
+	t.Run("親行ロック後の最新 treatment と部分 PATCH を合成して上限を再評価する", func(t *testing.T) {
+		f := newUpdateFixture(t)
+		medID := uint64(50)
+		beforeLock := &model.Treatment{
+			ID: treatmentID, MedicalRecordID: 100, ItemType: model.TreatmentItemTypeMedicine,
+			MedicineID: &medID, Quantity: 1,
+		}
+		afterConcurrentUpdate := &model.Treatment{
+			ID: treatmentID, MedicalRecordID: 100, ItemType: model.TreatmentItemTypeMedicine,
+			MedicineID: &medID, Quantity: 5,
+		}
+		findCalls := 0
+		f.treatRepo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.Treatment, error) {
+			findCalls++
+			if findCalls == 1 {
+				return beforeLock, nil
+			}
+			return afterConcurrentUpdate, nil
+		}
+		svc := f.newSvc()
+
+		newMedicineID := uint64(51)
+		got, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{MedicineID: &newMedicineID})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Equal(t, 2, findCalls, "事前確認後、親行ロック内で最新 treatment を再取得する")
+		assert.Zero(t, f.updateCalls)
 	})
 
 	// BE-refactor.md R1-2: audit 失敗は Update 全体を fail-closed で失敗させる。
 	t.Run("逸脱 audit 失敗は Update 全体をロールバックする（fail-closed）", func(t *testing.T) {
 		f := newUpdateFixture(t)
+		maxMgPerKg := 10.0
+		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+			return &model.MedicineDoseParam{
+				ID: 1, ClinicID: 1, MedicineID: 50,
+				Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration,
+				DosePerKg: 5, MaxMgPerKg: &maxMgPerKg,
+			}, nil
+		}
 		f.audit.logEntryTxErr = errAuditWriteFailed
 		svc := f.newSvc()
 
-		qty := 5.0
+		qty := 3.0
 		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
 		require.Error(t, err, "audit 失敗は treatment 更新全体を失敗させる")
 	})
