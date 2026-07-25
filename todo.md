@@ -53,6 +53,7 @@
 - 成果物: 該当package/メソッドの file:line 一覧と、各々の実害経路判定（service層で親所有検証が先行するか＝防御されているか、BUG-429の`List`のように素通しか）。修正は本タスクに含めず、件数確定後に別途起票する。
 - 相関にpets側の `deleted_at` / `deceased_at` を含めないこと（含めるとsoft-delete済・死亡ペットの履歴が黙って消える挙動回帰になる）。これは掃引結果を修正へ展開する際の必須制約。
 - 出典: BUG-429対応時に判明したNew Work（2026-07-25）。
+- **セッション分類 = S3（#239 の先行条件）**。台帳は BUG-429 を「#239実装前のsecurity blocker」と分類しており、本掃引はその同一欠陥クラス（`pet_id` 単一FKで親pets clinic相関を欠くread）の全数である。加えて #239「医院別レコードを残す同一owner/petリンクと所属院内の統合履歴」は**意図された cross-clinic read を新設する**機能であり、意図しない漏洩を残したまま実装すると両者を区別できなくなる。よって残9件の修正は #239 着手前に完了させる。
 
 
 #### SEC-SWEEP-01 実行結果（2026-07-25）
@@ -544,6 +545,14 @@
 - CRITICAL。`backend/cmd/stage-import` のdeleteScopeが `owner_id >= 300000`（pets経由の継承含む）でclinic_id非限定。実行すると他院の高番ownerデータを削除し得る。`backend/cmd/stage-import/main_test.go:217-246` がこの挙動をテストで固定化している（cross-clinic保護テストは無い）。
 - 対応方針変更（2026-07-25 DEC-20）: **stage-import退役で解消**（deleteScope修正には投資しない）。本番cutoverはrunbook既定の21表csv-import正式経路であり本ツールは本番使用禁止・local限定＋`--confirm-local-destroy`ガード既存。退役実装=cmd/stage-import削除またはビルド除外（#250再基準化転記とセット・USER承認後）。
 - 出典: #251調査 Completion Report（2026-07-25）。テスト実測で確認済み。
+
+### BUG-433: 生成FE型がGoドメインモデル由来のため、応答DTOに無いフィールドが型上は存在扱いになる
+
+- HIGH（サイレント機能不全の生成器）。**S3/S2いずれにも属さない横断課題**。`frontend/src/types/generated/models.ts` は tygo が `backend/internal/model/` から生成しており（同ファイル冒頭コメント）、OpenAPI／応答DTOからではない。このため FE の型は *Goドメインモデル* を写し、HTTP が実際に返す *応答DTO* とは一致しない。DTOに無いフィールドは実行時 `undefined` なのに型検査は通る。
+- 実害の実例: BUG-431（受付の危険度バッジが実APIで一度も点灯しなかった・`463e07424` で修正）は本ドリフトの1インスタンスに過ぎない。fixtureは型どおり作られるためテストでも検出されない。
+- 実測された残存ギャップ: 生成 `Pet` は31プロパティ、修正後の予約pet DTOは9。残22フィールド（`clinic_id` `owner_id` `animal_species_id` `name_kana` `gender` `birth_date` `color` `blood_type` `microchip_number` `neutered_date` `acquisition_type` `food` `environment` `phone` `last_visit` `insurance_id` `remarks` `deceased_at` `deceased_reason` `created_at` `updated_at` `insurance`）は型上は利用可能だがワイヤに存在しない。他モデル（Owner/Reservation等）も同構造。
+- 対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。①②は生成基盤の変更を伴うため納品後が妥当。納品前は、新規に生成型のフィールドへ依存する実装を書くときに**そのフィールドが応答DTOに実在するかを都度確認する**運用で凌ぐ。
+- 出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。
 
 ### BUG-432: 飼主生年月日がフォームから保存されない＋一覧列がpet値を表示
 
