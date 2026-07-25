@@ -81,6 +81,40 @@ func TestExamTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	}
 }
 
+func TestExamTypeRepository_ItemsPreload_ClinicIsolation(t *testing.T) {
+	db := setupExamTypeTestDB(t)
+	repo := NewExamTypeRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	examType := makeExamTypeMaster(t, db, clinicA, "医院Aの検査種別")
+	fieldA := &model.ExamTypeField{
+		ExamTypeID: examType.ID,
+		ClinicID:   clinicA,
+		Name:       "医院Aの項目",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(fieldA).Error)
+	fieldB := &model.ExamTypeField{
+		ExamTypeID: examType.ID,
+		ClinicID:   clinicB,
+		Name:       "医院Bの汚染項目",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(fieldB).Error)
+
+	all, err := repo.FindAll(ctx, clinicA)
+	require.NoError(t, err)
+	require.Len(t, all, 1)
+	require.Len(t, all[0].Items, 1)
+	assert.Equal(t, fieldA.ID, all[0].Items[0].ID)
+	assert.NotEqual(t, fieldB.ID, all[0].Items[0].ID)
+
+	one, err := repo.FindByID(ctx, clinicA, examType.ID)
+	require.NoError(t, err)
+	require.Len(t, one.Items, 1)
+	assert.Equal(t, fieldA.ID, one.Items[0].ID)
+	assert.Equal(t, clinicA, one.Items[0].ClinicID)
+}
+
 func TestExamTypeRepository_FindByID(t *testing.T) {
 	db := setupExamTypeTestDB(t)
 	repo := NewExamTypeRepository(db)
