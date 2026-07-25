@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
 
@@ -150,9 +151,9 @@ function StatusBadge({ status }: { status: ExamResult["status"] }) {
 function PivotValueCell({ item }: { item: ExamResult | undefined }) {
   if (!item) {
     return (
-      <td className={`min-w-24 border-l p-2 text-center ${C.borderMedium}`}>
+      <TableCell className={`min-w-24 border-l text-center ${C.borderMedium}`}>
         -
-      </td>
+      </TableCell>
     );
   }
 
@@ -164,15 +165,15 @@ function PivotValueCell({ item }: { item: ExamResult | undefined }) {
         : C.bgWhite;
 
   return (
-    <td
+    <TableCell
       data-status={item.status}
-      className={`min-w-24 border-l p-2 text-center ${C.borderMedium} ${statusClass}`}
+      className={`min-w-24 border-l text-center ${C.borderMedium} ${statusClass}`}
     >
       <div className="flex min-h-8 items-center justify-center gap-2">
         <span className="font-mono">{item.inspectionValue}</span>
         <StatusBadge status={item.status} />
       </div>
-    </td>
+    </TableCell>
   );
 }
 
@@ -303,34 +304,33 @@ export function ExamPivotTable({
           <table className={`min-w-full border-collapse text-sm ${C.text}`}>
             <thead>
               <tr className={`${C.bgPage} ${STYLE.sectionLabel}`}>
-                <th scope="col" className="min-w-36 p-2 text-left">
+                <TableHead className="min-w-36">
                   項目名
-                </th>
-                <th scope="col" className={`min-w-20 border-l p-2 ${C.borderMedium}`}>
+                </TableHead>
+                <TableHead className={`min-w-20 border-l text-center ${C.borderMedium}`}>
                   単位
-                </th>
-                <th scope="col" className={`min-w-24 border-l p-2 ${C.borderMedium}`}>
+                </TableHead>
+                <TableHead className={`min-w-24 border-l text-center ${C.borderMedium}`}>
                   基準値
-                </th>
+                </TableHead>
                 {displayedExaminations.map((examination) => (
-                  <th
+                  <TableHead
                     key={examination.id}
-                    scope="col"
                     aria-label={getExaminationColumnLabel(
                       examination,
                       displayedExaminations,
                     )}
-                    className={`min-w-24 border-l p-2 text-center ${C.borderMedium}`}
+                    className={`min-w-24 border-l text-center ${C.borderMedium}`}
                   >
                     {examination.date}
-                  </th>
+                  </TableHead>
                 ))}
               </tr>
             </thead>
             <tbody>
               {visibleRows.map((row) => (
                 <tr key={row.key} className={`border-t ${C.borderMedium}`}>
-                  <th scope="row" className="p-2 text-left font-medium">
+                  <TableHead scope="row">
                     <span>{row.label}</span>
                     {row.isLegacy ? (
                       <Badge
@@ -340,13 +340,13 @@ export function ExamPivotTable({
                         未マッピング
                       </Badge>
                     ) : null}
-                  </th>
-                  <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+                  </TableHead>
+                  <TableCell className={`border-l text-center ${C.borderMedium} ${C.text60}`}>
                     {row.unit}
-                  </td>
-                  <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+                  </TableCell>
+                  <TableCell className={`border-l text-center ${C.borderMedium} ${C.text60}`}>
                     {row.reference}
-                  </td>
+                  </TableCell>
                   {displayedExaminations.map((examination) => (
                     <PivotValueCell
                       key={examination.id}

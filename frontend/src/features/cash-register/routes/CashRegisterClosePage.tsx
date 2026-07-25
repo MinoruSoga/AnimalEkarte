@@ -227,10 +227,10 @@ export function CashRegisterClosePage() {
                   <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
                     <span className={C.text70}>消費税合計</span>
                     <span className={C.text}>
-                      ¥{(
+                      {formatCurrency(
                         preview.aggregate.taxBreakdown.standard.taxAmount +
-                        preview.aggregate.taxBreakdown.reduced.taxAmount
-                      ).toLocaleString()}
+                          preview.aggregate.taxBreakdown.reduced.taxAmount,
+                      )}
                     </span>
                   </div>
                 </section>

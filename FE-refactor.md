@@ -57,15 +57,15 @@
 | 認証/共通 | ログイン | /login | Login | ✅ | ✅ | ✅ | 静的strictとページ実装に追加指摘なし |
 | 認証/共通 | パスワードを忘れた方 | /forgot-password | ForgotPasswordPage | ✅ | ✅ | ✅ | 同上 |
 | 認証/共通 | パスワード再設定 | /reset-password | ResetPasswordPage | ✅ | ✅ | ✅ | 同上 |
-| 認証/共通 | 飼主カルテレポート | /owners/:id/report | OwnerReport | FE12-01 | ✅ | ✅ | C18 raw: Checkup/Examination history |
+| 認証/共通 | 飼主カルテレポート | /owners/:id/report | OwnerReport | ✅ | ✅ | ✅ | C18 raw: Checkup/Examination history |
 | 認証/共通 | 404 Not Found | * | inline element | 🔒 | 🔒 | 🔒 | 対象外1件: lazy pageを持たないinline fallback |
 | 会計 | 会計一覧 | /accounting | AccountingList | ✅ | 🔒 | ✅ | `AccountingList.tsx:17`; 金額表示共通化 |
 | 会計 | 会計 - ペット選択 | /accounting/select-pet | AccountingPetSelection | ✅ | ✅ | ✅ | 追加指摘なし |
-| 会計 | 会計登録 | /accounting/new | AccountingDetail | FE12-01 | 🔒 | ✅ | ItemList/Refund raw cell・通貨表現 |
-| 会計 | 会計詳細 | /accounting/:id | AccountingDetail | FE12-01 | 🔒 | ✅ | 同上 |
-| 会計 | レジ締め | /accounting/close | CashRegisterClosePage | FE12-01 | 🔒 | FE12-10 | Billing/summary raw cell |
-| 会計 | レジ締め履歴 | /accounting/close/history | CashRegisterHistoryPage | FE12-01 | 🔒 | ✅ | route raw cell `CashRegisterHistoryPage.tsx` |
-| 会計 | 月次集計レポート | /accounting/reports | AccountingReportsPage | FE12-01 | 🔒 | ✅ | DailyBreakdown raw cell |
+| 会計 | 会計登録 | /accounting/new | AccountingDetail | ✅ | 🔒 | ✅ | ItemList/Refund raw cell・通貨表現 |
+| 会計 | 会計詳細 | /accounting/:id | AccountingDetail | ✅ | 🔒 | ✅ | 同上 |
+| 会計 | レジ締め | /accounting/close | CashRegisterClosePage | ✅ | 🔒 | ✅ | Billing/summary raw cell |
+| 会計 | レジ締め履歴 | /accounting/close/history | CashRegisterHistoryPage | ✅ | 🔒 | ✅ | route raw cell `CashRegisterHistoryPage.tsx` |
+| 会計 | 月次集計レポート | /accounting/reports | AccountingReportsPage | ✅ | 🔒 | ✅ | DailyBreakdown raw cell |
 | 在庫/見積/シフト | 在庫一覧 | /inventory | InventoryList | ✅ | 🔒 | ✅ | `InventoryList.tsx:10` |
 | 在庫/見積/シフト | 在庫登録 | /inventory/new | InventoryForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 在庫/見積/シフト | 在庫編集 | /inventory/:id | InventoryForm | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
@@ -106,7 +106,7 @@
 | 受付/飼主/予約 | 予約管理 | /reservations | ReservationManagement | ✅ | 🔒 | ✅ | `ReservationManagement.tsx:7` |
 | 運用/Lステップ | Lステップ健診連携 | /lstep/checkup-sync | CheckupSyncPage | ✅ | 🔒 | ✅ | `CheckupSyncPage.tsx:4` |
 | 運用/Lステップ | Lステップ配信モニター | /lstep/delivery-monitor | LstepDeliveryMonitorPage | ✅ | 🔒 | ✅ | `LstepDeliveryMonitorPage.tsx:2` |
-| 運用/Lステップ | Lステップ分析 | /lstep/analytics | LstepAnalyticsPage | FE12-01 | 🔒 | ✅ | C18 raw 26件（3 component） |
+| 運用/Lステップ | Lステップ分析 | /lstep/analytics | LstepAnalyticsPage | ✅ | 🔒 | ✅ | C18 raw 26件（3 component） |
 | 運用/LINE予約 | LINE予約設定(index) | /line-reservation | LineReservationSettings | ✅ | ✅ | ✅ | 本体route。別app axis③はFE12-08 / FE12-09 |
 | 運用/LINE予約 | LINE予約設定 | /line-reservation/settings | LineReservationSettings | ✅ | ✅ | ✅ | 同上 |
 | 運用/LINE予約 | LINE予約ページエディタ | /line-reservation/page-editor | LineReservationPageEditor | ✅ | ✅ | ✅ | 同上 |
@@ -133,7 +133,7 @@
 | 設定/マスタ | 主訴マスタ | /settings/interview/chief-complaint | ChiefComplaintSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 設定/マスタ | 問診テンプレート(interview) | /settings/interview/templates | InterviewTemplateSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 設定/マスタ | シフトテンプレートマスタ | /settings/shift-templates | ShiftTemplateSettings | ✅ | ✅ | ✅ | global listener重複 |
-| 設定/マスタ | 締め時間設定 | /settings/closing-time | ClosingSettingsPage | FE12-01 | 🔒 | ✅ | StandardClosingTime raw cell |
+| 設定/マスタ | 締め時間設定 | /settings/closing-time | ClosingSettingsPage | ✅ | 🔒 | ✅ | StandardClosingTime raw cell |
 | 設定/マスタ | 支払方法マスタ | /settings/payment-methods | PaymentMethodSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 設定/マスタ | 割引キャンペーンマスタ | /settings/campaigns | CampaignSettings | ✅ | 🔒 | ✅ | 併発: axis② FE12-04 |
 | 設定/マスタ | Lステップ連携設定 | /settings/integrations/lstep | LstepSettingsPage | ✅ | ✅ | ✅ | 追加指摘なし |
@@ -969,3 +969,151 @@
 - Harness / loop: `santa` + `verification-loop`を実際に読了し、sequential single passを採用。stop conditionは全checklist PASSまたはgenuine blocker。deterministic gate後のfresh dual reviewer B/Cは双方PASS、critical issue 0。Bは初回同一行currency grepが見逃したmultiline残存を独立source auditで再確認し、Cはroute非axis変更0・25 held cell不変・marker各1を再確認した。レビュー前の実装passが見逃し、adversarial evidence passで検出した事項は`/accounting/close`のmultiline formatter 1件で、一時flipを撤回済み。long-running loopではないためloop monitor非該当。
 - Coverage/lint/test/build/type-check/security: docs-onlyでsource挙動変更0。prompt禁止のfull gateは未実行し、coverage thresholdを主張しない。機密情報・個人/臨床データは追加していない。generated artifactなし、stage/commit予定なしのためtracked-or-not-ignored / staged-path probeは非該当。
 - Remaining blockers / follow-ups: FE12-01はC18 audit 9件の別unit修正後に8セルを再判定する。`/accounting/close`のinline currencyは別unitでhelperへ収束後に1セルを再判定する。held `FE12-02` U10 adjudicationと、escalated `AuthProvider` barrel decisionは未着手。`manual` chunk investigationも本unit外。
+
+### FE12 closeout — C18 primitive・通貨統合・route 9セル再判定（2026-07-25）
+
+- **Status**: COMPLETE。`ExamPivotTable.tsx` の raw cell opening 9件を指定どおり `TableHead` / `TableCell` へ移行し、`CashRegisterClosePage.tsx` の消費税合計1箇所を既存 `formatCurrency` へ統合した。route判定表はcurrent-code traceが成立した8個の軸①と1個の軸③だけを`✅`へ変更した。
+- **Changed files / write set**: `frontend/src/features/examinations/components/ExamPivotTable.tsx`、`frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx`、`FE-refactor.md`。隣接test 2本はbaseline/finalともpassし、意図した表示値を変更するassertionもなかったため変更なし。`frontend/scripts/design-system-audit.mjs`、index、HEAD、remoteは変更せず、stage / commit / stash / push / mergeは0。
+- **Saved Prompt Validation Gate**:
+  ```text
+  $ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fe12-14-c18-closeout-and-route-readjudication.md
+  Prompt Craft Harness Validation: PASS
+  VALIDATOR_EXIT=0
+  ```
+- **Binding pre-read**:
+  - `AGENTS.md`
+  - `.claude/CLAUDE.md`
+  - `.claude/rules/claude-code-usage.md`
+  - `.claude/rules/go-gin-backend-guidelines.md`
+  - `~/.agents/codex/AGENTS.md`
+  - `.codex/config.toml`
+  - `frontend/CLAUDE.md`
+  - `frontend/src/features/CLAUDE.md`
+  - `docs/spec/design-system.md`
+  - `DESIGN.md`
+  - `docs/spec/ui-design-compliance.md`
+  - `docs/product-philosophy.md`
+  - `FE-refactor.md`
+  - `~/.agents/skills/tdd-workflow/SKILL.md`
+  - `~/.agents/skills/react-testing/SKILL.md`
+  - `~/.agents/skills/verification-loop/SKILL.md`
+- **Step 0 scoped baseline**: 指定5 pathへの`git status --porcelain ... | sort`はstdout 0行。source 4 pathを含めdirty pathは0で、他owner差分への上書きなし。
+- **RED — design audit**:
+  ```text
+  AUDIT_BEFORE_EXIT=1
+  design-system-audit: C18 table cell override — 9 件
+    src/features/examinations/components/ExamPivotTable.tsx:153: <td className={`min-w-24 border-l p-2 text-center ${C.borderMedium}`}>
+    src/features/examinations/components/ExamPivotTable.tsx:167: <td
+    src/features/examinations/components/ExamPivotTable.tsx:306: <th scope="col" className="min-w-36 p-2 text-left">
+    src/features/examinations/components/ExamPivotTable.tsx:309: <th scope="col" className={`min-w-20 border-l p-2 ${C.borderMedium}`}>
+    src/features/examinations/components/ExamPivotTable.tsx:312: <th scope="col" className={`min-w-24 border-l p-2 ${C.borderMedium}`}>
+    src/features/examinations/components/ExamPivotTable.tsx:316: <th
+    src/features/examinations/components/ExamPivotTable.tsx:333: <th scope="row" className="p-2 text-left font-medium">
+    src/features/examinations/components/ExamPivotTable.tsx:344: <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+    src/features/examinations/components/ExamPivotTable.tsx:347: <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+  design-system-audit: C18 raw legacy baseline — 10 件（non-gating ratchet）
+  design-system-audit: FAIL — 9 件の違反
+  ```
+- **RED — raw cell / inline currency**:
+  ```text
+  153:      <td className={`min-w-24 border-l p-2 text-center ${C.borderMedium}`}>
+  167:    <td
+  306:                <th scope="col" className="min-w-36 p-2 text-left">
+  309:                <th scope="col" className={`min-w-20 border-l p-2 ${C.borderMedium}`}>
+  312:                <th scope="col" className={`min-w-24 border-l p-2 ${C.borderMedium}`}>
+  316:                  <th
+  333:                  <th scope="row" className="p-2 text-left font-medium">
+  344:                  <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+  347:                  <td className={`border-l p-2 text-center ${C.borderMedium} ${C.text60}`}>
+  RAW_CELL_CHECK=FAIL
+  230:                      ¥{(
+  231:                        preview.aggregate.taxBreakdown.standard.taxAmount +
+  232:                        preview.aggregate.taxBreakdown.reduced.taxAmount
+  233:                      ).toLocaleString()}
+  ```
+- **Scoped test baseline**:
+  ```text
+  Test Files  2 passed (2)
+       Tests  12 passed (12)
+  BASELINE_TESTS_EXIT=0
+  ```
+  内訳は`ExamPivotTable.test.tsx`=`10 tests`、`CashRegisterClosePage.test.tsx`=`2 tests`。
+- **Exam-only GREEN**:
+  ```text
+  design-system-audit: C18 table cell override — 0 件
+  design-system-audit: C18 raw legacy baseline — 10 件（non-gating ratchet）
+  design-system-audit: PASS — 違反 0 件
+  Test Files  1 passed (1)
+       Tests  10 passed (10)
+  ```
+- **Final GREEN — audit / tests / raw / currency / lint**:
+  ```text
+  AUDIT_AFTER_EXIT=0
+  design-system-audit: C18 table cell override — 0 件
+  design-system-audit: C18 raw legacy baseline — 10 件（non-gating ratchet）
+  design-system-audit: PASS — 違反 0 件
+  TESTS_AFTER_EXIT=0
+   ✓ src/features/cash-register/routes/CashRegisterClosePage.test.tsx (2 tests)
+   ✓ src/features/examinations/components/ExamPivotTable.test.tsx (10 tests)
+  Test Files  2 passed (2)
+       Tests  12 passed (12)
+  RAW_CELL_CHECK=PASS
+  CURRENCY_SCAN_EXIT=1
+  CURRENCY_SCAN_STDOUT=0 lines
+  ESLINT_AFTER_EXIT=0
+  ESLINT_STDOUT=0 lines
+  ```
+  ESLint対象は変更source 2本だけ。`git status --porcelain -- frontend/scripts/design-system-audit.mjs`もstdout 0行。
+- **表示・臨床意味の保持**: 列内容・順序・幅、`min-w-*`、`border-l`、`data-status`、同日検査の`aria-label`、行ヘッダ`scope="row"`を保持した。異常高値`C.bgDanger8`・異常低値`C.bgStatusBlueLight`・通常`C.bgWhite`を保持し、primitiveの基底paddingを使うため全9箇所の`p-2`を削除した。309/312はbody列との中央揃えを保つ`text-center`を指定した。333の12px/600 muted化は承認済みの意図した変更で、`text-sm` / `font-medium`を戻していない。
+- **通貨契約**: `formatCurrency`は`frontend/src/lib/format/number.ts:28-31`でnon-null numberを`¥${amount.toLocaleString("ja-JP")}`として返す。合計式と0の扱いを変えず、`formatCurrencyOrDash`は使っていない。既存test 2件は前後ともpassしたが消費税合計文字列を直接assertしないため、表示同値はhelper実装と変更差分のfresh reviewも併用して確認した。
+- **Route判定表 before / after**:
+  ```text
+  BEFORE
+     8 axis1 FE12-01
+    25 axis1 △ FE12-02
+     1 axis3 FE12-10
+  AFTER
+    25 axis1 △ FE12-02
+  FIELD_COUNT_BEFORE
+    85 10
+  FIELD_COUNT_AFTER
+    85 10
+  ```
+- **9セルのcurrent-code trace**:
+
+| Route | Axis | Before | After | Route → raw cell holder | Classification |
+|---|---:|---|---|---|---|
+| `/owners/:id/report` | ① | `FE12-01` | `✅` | `OwnerReport` → `OwnerClinicalBriefing` → `OwnerClinicalHistoryPanel` → `ClinicalHistoryMatrix.tsx:133-201` | allowlist |
+| `/accounting/new` | ① | `FE12-01` | `✅` | `AccountingDetail` → `AccountingDocument.tsx:189-214` | allowlist |
+| `/accounting/:id` | ① | `FE12-01` | `✅` | `AccountingDetail` → `AccountingDocument.tsx:189-214` | allowlist |
+| `/accounting/close` | ① | `FE12-01` | `✅` | `CashRegisterClosePage` → `ClosePrintArea.tsx:67-194` | PrintArea |
+| `/accounting/close/history` | ① | `FE12-01` | `✅` | route tableは`TableHead` / `TableCell`、route固有raw cellなし | 該当なし |
+| `/accounting/reports` | ① | `FE12-01` | `✅` | `AccountingReportsPage` → `MonthlyReportPrintArea.tsx:48-138` | PrintArea |
+| `/lstep/analytics` | ① | `FE12-01` | `✅` | analytics 3 sectionは`TableHead` / `TableCell`、route固有raw cellなし | 該当なし |
+| `/settings/closing-time` | ① | `FE12-01` | `✅` | `ClosingSettingsPage` → `StandardClosingTimeSection`は`TableHead` / `TableCell` | 該当なし |
+| `/accounting/close` | ③ | `FE12-10` | `✅` | `CashRegisterClosePage.tsx:230-233`が`formatCurrency(a + b)`、multiline forbidden scan 0 hit | 該当なし |
+
+- **`✅`と`🔒`の区別**: 実描画経路にallowlist対象または`PrintArea`名前規則のraw cellが残るrouteも、画面用tableはprimitive準拠済みで、残るraw cellは密度レポートまたはprint帳票として画面用デザイン体系の適用対象外であるため、routeの現行適合を表す`✅`とした。`✅`は「route内のraw opening tagが物理的に0件」という意味ではない。
+- **未参照baseline component**: `CheckupHistorySection.tsx`と`ExaminationHistorySection.tsx`はproduction treeで定義以外の識別子参照0件、隣接testからのみ参照され、`owner-report/index.ts`もexportしていない。C18 baseline 10件は`/owners/:id/report`の実描画経路外。削除は本unit外であり、別unitのdead-code確認候補として保持する。
+- **既知follow-up**: `FE12-01` / `FE12-10` / `FE12-13`のtask backlog行は本unitの9セル解決後に記述が古くなるが、9列表のfield数破損riskを避けるため本unitでは意図的にscope外。見落としではなく既知follow-upである。`△ FE12-02` 25セル、U10、F16/F9裁定、M-01〜M-05実機実測、owner-report baseline component削除、manual chunk、AuthProvider barrelには着手していない。
+- **Assumption deviations**: なし。309/312は指定どおり`text-center`、消費税合計は`¥`と3桁カンマ区切りを維持した。
+- **Failure Signature log**:
+  - AC-12 independent reviewer、expected=review result、actual=reviewer / React reviewerの初回2 callが同じHTTP 503で結果未生成、verification=agent status、error=`503 Service Unavailable`、attempt 1/2、attempted fix=transient service recovery待ち後に汎用reviewerを1回だけ再実行、result=attempt 3でreview完了・CRITICAL/HIGH/MEDIUM/LOWすべて0。bounded retryの3-strikeで収束し、同じcallの追加反復なし。
+  - 実装gateのFAILなし。REDは期待された着手前gateであり、実装後は同一gateが1回でGREENになった。
+- **De-Sloppify**: 新規test・helper・abstract・comment・console出力なし。既存testの緩和なし。指定2 sourceの最小置換と9セル、ledger以外のdrive-by変更なし。
+- **Independent review**: fresh汎用reviewerを使用。列構成・順序・幅・中央揃え、`data-status`、`aria-label`、`scope="row"`、異常高/低/通常背景、通貨合計・0契約、route marker内9セルのみの変更、9 route trace、audit/test/ESLint/raw/currency/field-count/allowlist attributionを再確認し、CRITICAL 0 / HIGH 0 / MEDIUM 0 / LOW 0。React reviewerの初回callは503で結果未生成だったが、成功した汎用reviewerが同じReact/a11y確認項目をfresh passで完遂した。
+- **Coverage / full gates / generated artifact**: 新規分岐なし。unit固有promptに従いcoverage閾値は主張せず、full lint / test / build / type-check / installは未実行。生成物なし、indexに触れずcommit予定もないためtracked-or-not-ignored / staged-path probeは非該当。
+- **Final allowlist attribution**:
+  ```text
+  FINAL_SCOPED_STATUS
+   M FE-refactor.md
+   M frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx
+   M frontend/src/features/examinations/components/ExamPivotTable.tsx
+  COMM_ADDED
+   M FE-refactor.md
+   M frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx
+   M frontend/src/features/examinations/components/ExamPivotTable.tsx
+  CACHED_PATHS
+  DIFF_CHECK_EXIT=0
+  ```
+  書き込み対象の自己申告3 pathと一致し、allowlist内。test 2本とaudit scriptは変更0、cached pathは0。
