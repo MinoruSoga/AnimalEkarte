@@ -31,11 +31,11 @@ import { ResourceEstimates } from "@/types/generated/models";
 import {
   CREATE_STATUS_OPTIONS,
   EDIT_STATUS_OPTIONS,
-} from "../utils/estimate-status-options";
+} from "../constants/estimate-status-options";
 import {
   ESTIMATE_LOCKED_EDIT_MESSAGE,
   isEstimateLockedStatus,
-} from "../utils/is-estimate-locked-status";
+} from "../lib/is-estimate-locked-status";
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (

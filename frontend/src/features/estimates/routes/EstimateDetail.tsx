@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from 'react-router';
@@ -13,8 +14,7 @@ import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceEstimates } from "@/types/generated/models";
-import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
-import { isEstimateExpired } from "../utils/is-estimate-expired";
+import { isEstimateLockedStatus } from "../lib/is-estimate-locked-status";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +43,7 @@ export function EstimateDetail() {
   }
 
   const isLocked = isEstimateLockedStatus(estimate.status);
-  const isExpired = isEstimateExpired(estimate.validUntil);
+  const isExpired = estimate.validUntil ? estimate.validUntil.slice(0, 10) < todayJSTISO() : false;
   const showEdit = canEdit && !isLocked;
   const showDelete = canDelete && !isLocked;
 

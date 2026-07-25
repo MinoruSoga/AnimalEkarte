@@ -23,7 +23,7 @@ import { paths } from "@/config/paths";
 import { useGetEstimates } from "../api/get-estimates";
 import { useDeleteEstimate } from "../api/delete-estimate";
 import type { Estimate } from "../types";
-import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
+import { isEstimateLockedStatus } from "../lib/is-estimate-locked-status";
 import type {
   FilterProperty,
   ActiveFilter,
