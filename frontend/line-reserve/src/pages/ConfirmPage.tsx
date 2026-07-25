@@ -8,7 +8,7 @@ import { LIFF_MOCK } from '../lib/liff-config';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
-import { formatJapaneseDate } from '@/shared-liff/jst-date';
+import { formatJapaneseDate, formatTimeHHMM } from '@/shared-liff/jst-date';
 import { getStepProgress } from '../lib/step-progress';
 
 const slotTakenResponseSchema = z.object({
@@ -33,26 +33,13 @@ interface ConfirmFormState {
   error: string | null;
 }
 
-function formatTime(hhmm: string): string {
-  if (!hhmm || hhmm.length < 4) return hhmm;
-  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
-}
-
-function formatDate(dateStr: string): string {
-  return formatJapaneseDate(dateStr);
-}
-
-function formatDatePadded(dateStr: string): string {
-  return formatJapaneseDate(dateStr, true);
-}
-
 /** 予約完了後に LINE トーク画面へメッセージを送信する */
 async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<void> {
   if (LIFF_MOCK) return; // ローカル開発時はスキップ
   if (!liff.isInClient()) return; // LINE アプリ外では送信不可
 
   const confirmNum = notes.match(/R-\d{8}-\d{4}/)?.[0] ?? '';
-  const time = `${formatTime(flow.startTime)}〜${formatTime(flow.endTime)}`;
+  const time = `${formatTimeHHMM(flow.startTime)}〜${formatTimeHHMM(flow.endTime)}`;
 
   const petList = flow.customerInfo.pets
     .map(p => p.type ? `${p.name}(${p.type})` : p.name)
@@ -62,7 +49,7 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
     'ご予約を承りました。',
     '',
     `■ 予約番号: ${confirmNum}`,
-    `■ 日時: ${formatDatePadded(flow.date)} ${time}`,
+    `■ 日時: ${formatJapaneseDate(flow.date, true)} ${time}`,
     `■ コース: ${flow.courseName}`,
     flow.staffId > 0 ? `■ 担当: ${flow.staffName}` : '',
     petList ? `■ ペット: ${petList}` : '',
@@ -153,10 +140,10 @@ export function ConfirmPage({
     { label: 'ペット', value: petDisplay },
     { label: 'コース', value: flow.courseName },
     { label: 'スタッフ', value: flow.staffName || '指名なし' },
-    { label: '日付', value: formatDate(flow.date) },
+    { label: '日付', value: formatJapaneseDate(flow.date) },
     {
       label: '時間',
-      value: `${formatTime(flow.startTime)} 〜 ${formatTime(flow.endTime)}`,
+      value: `${formatTimeHHMM(flow.startTime)} 〜 ${formatTimeHHMM(flow.endTime)}`,
     },
     { label: 'ご要望', value: flow.requestText || '—' },
   ];
