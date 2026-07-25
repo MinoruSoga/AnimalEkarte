@@ -19,7 +19,7 @@ import (
 type BillingItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
-	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) error
+	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) (model.ItemCategory, error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -90,6 +90,11 @@ type billingItemAppointmentReference struct {
 	PetID   *uint64
 }
 
+type billingItemMerchandiseReference struct {
+	ID       uint64
+	Category model.ItemCategory
+}
+
 func sameOptionalBillingReference(left, right *uint64) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil
@@ -110,10 +115,10 @@ func (r *billingItemRepository) ValidateCreateReferences(
 	ctx context.Context,
 	clinicID, billingID uint64,
 	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
-) error {
+) (model.ItemCategory, error) {
 	tx := persistence.TxFromContext(ctx)
 	if tx == nil {
-		return apperrors.WrapInternalServerError("billing item reference validation requires an active transaction")
+		return "", apperrors.WrapInternalServerError("billing item reference validation requires an active transaction")
 	}
 	tx = tx.WithContext(ctx)
 
@@ -124,18 +129,18 @@ func (r *billingItemRepository) ValidateCreateReferences(
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Take(&billingRef).Error; err != nil {
-		return apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+		return "", apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 
+	var merchandiseRef billingItemMerchandiseReference
 	if merchandiseItemID != nil {
-		var id uint64
 		if err := tx.
 			Table("merchandise_items").
-			Select("id").
+			Select("id", "category").
 			Where("id = ? AND clinic_id = ? AND is_active = TRUE AND deleted_at IS NULL", *merchandiseItemID, clinicID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
-			Take(&id).Error; err != nil {
-			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", *merchandiseItemID))
+			Take(&merchandiseRef).Error; err != nil {
+			return "", apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", *merchandiseItemID))
 		}
 	}
 
@@ -148,11 +153,11 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.MedicalRecordID, clinicID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&ref).Error; err != nil {
-			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *billingRef.MedicalRecordID))
+			return "", apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *billingRef.MedicalRecordID))
 		}
 		if !sameOptionalBillingReference(billingRef.OwnerID, ref.OwnerID) ||
 			!sameOptionalBillingReference(billingRef.PetID, ref.PetID) {
-			return invalidBillingItemReferenceCombination()
+			return "", invalidBillingItemReferenceCombination()
 		}
 		medicalRecordRef = &ref
 	}
@@ -168,11 +173,11 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Where("treatments.id = ? AND treatments.deleted_at IS NULL", *treatmentID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&treatmentRef).Error; err != nil {
-			return apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *treatmentID))
+			return "", apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *treatmentID))
 		}
 		if billingRef.MedicalRecordID == nil ||
 			treatmentRef.MedicalRecordID != *billingRef.MedicalRecordID {
-			return invalidBillingItemReferenceCombination()
+			return "", invalidBillingItemReferenceCombination()
 		}
 	}
 
@@ -184,20 +189,20 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *appointmentID, clinicID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&appointmentRef).Error; err != nil {
-			return apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *appointmentID))
+			return "", apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *appointmentID))
 		}
 		if !sameOptionalBillingReference(billingRef.OwnerID, appointmentRef.OwnerID) ||
 			!sameOptionalBillingReference(billingRef.PetID, appointmentRef.PetID) {
-			return invalidBillingItemReferenceCombination()
+			return "", invalidBillingItemReferenceCombination()
 		}
 		if medicalRecordRef != nil &&
 			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *appointmentID) {
-			return invalidBillingItemReferenceCombination()
+			return "", invalidBillingItemReferenceCombination()
 		}
 	}
 
 	if (trimmingCourseID != nil || trimmingOptionID != nil) && appointmentID == nil {
-		return invalidBillingItemReferenceCombination()
+		return "", invalidBillingItemReferenceCombination()
 	}
 	if trimmingCourseID != nil {
 		var id uint64
@@ -208,7 +213,7 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Where("atd.appointment_id = ? AND atd.clinic_id = ? AND atd.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&id).Error; err != nil {
-			return apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
+			return "", apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
 		}
 	}
 	if trimmingOptionID != nil {
@@ -221,11 +226,11 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Where("ato.appointment_id = ? AND ato.option_id = ?", *appointmentID, *trimmingOptionID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&id).Error; err != nil {
-			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", *trimmingOptionID))
+			return "", apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", *trimmingOptionID))
 		}
 	}
 
-	return nil
+	return merchandiseRef.Category, nil
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {

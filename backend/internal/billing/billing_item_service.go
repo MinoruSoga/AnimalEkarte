@@ -221,7 +221,7 @@ func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clini
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
 // campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
 // 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
-func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput) int64 {
+func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput, category model.ItemCategory) int64 {
 	if s.campaignRepo == nil {
 		return 0
 	}
@@ -230,7 +230,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 		return 0
 	}
 	ownerRate := s.resolveOwnerDiscountRate(ctx, input.ClinicID, billing.OwnerID)
-	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), input.MerchandiseItemID)
+	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, category, input.MerchandiseItemID)
 	if cerr != nil {
 		// A-4: best-effort 継続自体は妥当（自動割引はあくまで補助機能）だが、クエリ障害で
 		// 自動割引が静かに止まると運用から不可視になるため Warn ログを追加する。
@@ -274,7 +274,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.ValidateCreateReferences(
+		category, err := s.repo.ValidateCreateReferences(
 			txCtx,
 			input.ClinicID,
 			input.BillingID,
@@ -283,15 +283,19 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 			input.AppointmentID,
 			input.TrimmingCourseID,
 			input.TrimmingOptionID,
-		); err != nil {
+		)
+		if err != nil {
 			slog.WarnContext(txCtx, "billing item references rejected", "error", err)
 			return apperrors.Wrap(err, "failed to validate billing item references")
+		}
+		if input.MerchandiseItemID != nil {
+			item.Category = category
 		}
 
 		// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
 		// request-derived merchandise_item_id is validated before it participates in discount lookup.
 		if item.DiscountAmount == 0 {
-			item.DiscountAmount = s.resolveAutoDiscount(txCtx, input)
+			item.DiscountAmount = s.resolveAutoDiscount(txCtx, input, item.Category)
 		}
 
 		if err := s.repo.Create(txCtx, item); err != nil {

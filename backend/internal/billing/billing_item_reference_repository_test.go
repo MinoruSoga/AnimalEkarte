@@ -41,6 +41,11 @@ type concurrentBillingItemRepository struct {
 	secondValidated chan struct{}
 }
 
+type validationStartBillingItemRepository struct {
+	BillingItemRepository
+	started chan struct{}
+}
+
 func (r *createTrackingBillingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
 	r.createCalls++
 	return r.BillingItemRepository.Create(ctx, item)
@@ -50,8 +55,8 @@ func (r *concurrentBillingItemRepository) ValidateCreateReferences(
 	ctx context.Context,
 	clinicID, billingID uint64,
 	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
-) error {
-	if err := r.BillingItemRepository.ValidateCreateReferences(
+) (model.ItemCategory, error) {
+	category, err := r.BillingItemRepository.ValidateCreateReferences(
 		ctx,
 		clinicID,
 		billingID,
@@ -60,8 +65,9 @@ func (r *concurrentBillingItemRepository) ValidateCreateReferences(
 		appointmentID,
 		trimmingCourseID,
 		trimmingOptionID,
-	); err != nil {
-		return err
+	)
+	if err != nil {
+		return "", err
 	}
 
 	switch r.validated.Add(1) {
@@ -77,7 +83,25 @@ func (r *concurrentBillingItemRepository) ValidateCreateReferences(
 	case 2:
 		close(r.secondValidated)
 	}
-	return nil
+	return category, nil
+}
+
+func (r *validationStartBillingItemRepository) ValidateCreateReferences(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
+) (model.ItemCategory, error) {
+	close(r.started)
+	return r.BillingItemRepository.ValidateCreateReferences(
+		ctx,
+		clinicID,
+		billingID,
+		merchandiseItemID,
+		treatmentID,
+		appointmentID,
+		trimmingCourseID,
+		trimmingOptionID,
+	)
 }
 
 func setupBillingItemReferenceFixture(t *testing.T) billingItemReferenceFixture {
@@ -156,10 +180,12 @@ func setupBillingItemReferenceFixture(t *testing.T) billingItemReferenceFixture 
 func (f billingItemReferenceFixture) validate(
 	t *testing.T,
 	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
-) error {
+) (model.ItemCategory, error) {
 	t.Helper()
-	return testNewTransactor(f.db).WithTx(context.Background(), func(txCtx context.Context) error {
-		return f.repo.ValidateCreateReferences(
+	var category model.ItemCategory
+	err := testNewTransactor(f.db).WithTx(context.Background(), func(txCtx context.Context) error {
+		var err error
+		category, err = f.repo.ValidateCreateReferences(
 			txCtx,
 			f.clinicID,
 			f.billing.ID,
@@ -169,14 +195,16 @@ func (f billingItemReferenceFixture) validate(
 			trimmingCourseID,
 			trimmingOptionID,
 		)
+		return err
 	})
+	return category, err
 }
 
 func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 	t.Run("valid same-clinic active and related graph is retained", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 
-		err := f.validate(
+		_, err := f.validate(
 			t,
 			&f.merchandiseItem.ID,
 			&f.treatment.ID,
@@ -186,6 +214,15 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		)
 
 		require.NoError(t, err)
+	})
+
+	t.Run("returns category from locked active merchandise reference", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+
+		category, err := f.validate(t, &f.merchandiseItem.ID, nil, nil, nil, nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, model.ItemCategoryGoods, category)
 	})
 
 	t.Run("cross-clinic treatment and merchandise references fail closed", func(t *testing.T) {
@@ -215,7 +252,7 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		}
 		require.NoError(t, f.db.Create(otherMerchandise).Error)
 
-		err := f.validate(t, &otherMerchandise.ID, &otherTreatment.ID, nil, nil, nil)
+		_, err := f.validate(t, &otherMerchandise.ID, &otherTreatment.ID, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "cross-clinic IDs must be indistinguishable from absent IDs: %v", err)
@@ -228,11 +265,11 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 			Where("id = ?", f.merchandiseItem.ID).
 			Update("is_active", false).Error)
 
-		err := f.validate(t, nil, &f.treatment.ID, nil, nil, nil)
+		_, err := f.validate(t, nil, &f.treatment.ID, nil, nil, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
-		err = f.validate(t, &f.merchandiseItem.ID, nil, nil, nil, nil)
+		_, err = f.validate(t, &f.merchandiseItem.ID, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -246,7 +283,7 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 			Where("id = ?", f.option.ID).
 			Update("is_active", false).Error)
 
-		err := f.validate(
+		_, err := f.validate(
 			t,
 			nil,
 			nil,
@@ -275,7 +312,7 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		}
 		require.NoError(t, f.db.Create(otherTreatment).Error)
 
-		err := f.validate(t, nil, &otherTreatment.ID, nil, nil, nil)
+		_, err := f.validate(t, nil, &otherTreatment.ID, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err), "same-tenant relation mismatch must be rejected: %v", err)
@@ -294,16 +331,16 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		attachTrimmingCourse(t, f.db, f.clinicID, otherAppointment.ID, wrongCourse.ID)
 		attachTrimmingOption(t, f.db, otherAppointment.ID, wrongOption.ID, 0)
 
-		err := f.validate(t, nil, nil, &otherAppointment.ID, &wrongCourse.ID, &wrongOption.ID)
+		_, err := f.validate(t, nil, nil, &otherAppointment.ID, &wrongCourse.ID, &wrongOption.ID)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err), "same-clinic IDs from an unrelated pet/appointment must be rejected: %v", err)
 
-		err = f.validate(t, nil, nil, &f.appointment.ID, &wrongCourse.ID, nil)
+		_, err = f.validate(t, nil, nil, &f.appointment.ID, &wrongCourse.ID, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "course must be attached to the referenced appointment: %v", err)
 
-		err = f.validate(t, nil, nil, &f.appointment.ID, nil, &wrongOption.ID)
+		_, err = f.validate(t, nil, nil, &f.appointment.ID, nil, &wrongOption.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "option must be attached to the referenced appointment: %v", err)
 	})
@@ -311,7 +348,7 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 	t.Run("trimming master without appointment is rejected", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 
-		err := f.validate(t, nil, nil, nil, &f.course.ID, nil)
+		_, err := f.validate(t, nil, nil, nil, &f.course.ID, nil)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -378,6 +415,11 @@ func TestBillingItemService_CreateItem_RuntimeReferenceIsolation(t *testing.T) {
 		require.NotNil(t, item)
 		assert.Equal(t, 1, trackedRepo.createCalls)
 		assert.Equal(t, before+1, countBillingItems(t, f.db))
+		assert.Equal(t, model.ItemCategoryGoods, item.Category)
+
+		var stored model.BillingItem
+		require.NoError(t, f.db.First(&stored, item.ID).Error)
+		assert.Equal(t, model.ItemCategoryGoods, stored.Category)
 	})
 
 	t.Run("already-attached inactive trimming references remain billable", func(t *testing.T) {
@@ -534,6 +576,96 @@ func TestBillingItemService_CreateItem_RuntimeReferenceIsolation(t *testing.T) {
 			assert.Equal(t, before, countBillingItems(t, f.db), "invalid request-derived FK must not persist a billing item")
 		})
 	}
+}
+
+func TestBillingItemService_CreateItem_UsesCategoryCommittedBeforeShareLock(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	updateTx := f.db.Begin()
+	require.NoError(t, updateTx.Error)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = updateTx.Rollback().Error
+		}
+	}()
+	require.NoError(t, updateTx.Model(&model.MerchandiseItem{}).
+		Where("id = ?", f.merchandiseItem.ID).
+		Update("category", model.ItemCategoryFood).Error)
+
+	repo := &validationStartBillingItemRepository{
+		BillingItemRepository: f.repo,
+		started:               make(chan struct{}),
+	}
+	billingRepo := defaultMockBillingRepo()
+	billingRepo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+		return f.billing, nil
+	}
+	campaignCategory := make(chan model.ItemCategory, 1)
+	campaignRepo := &mockCampaignRepository{
+		findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, category model.ItemCategory, _ *uint64) (*model.Campaign, error) {
+			campaignCategory <- category
+			return nil, nil
+		},
+	}
+	svc := NewBillingItemServiceWithCampaign(
+		repo,
+		billingRepo,
+		defaultMockTreatmentRepo(),
+		testNewTransactor(f.db),
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		campaignRepo,
+		nil,
+	)
+	input := billingItemReferenceCreateInput(f)
+	input.Category = string(model.ItemCategoryMedicine)
+	input.MerchandiseItemID = &f.merchandiseItem.ID
+
+	type createResult struct {
+		item *model.BillingItem
+		err  error
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result := make(chan createResult, 1)
+	go func() {
+		item, err := svc.CreateItem(ctx, input)
+		result <- createResult{item: item, err: err}
+	}()
+
+	select {
+	case <-repo.started:
+	case <-ctx.Done():
+		t.Fatal("CreateItem did not reach transactional reference validation")
+	}
+	select {
+	case got := <-result:
+		t.Fatalf("CreateItem completed before the pending merchandise category update committed: %v", got.err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	require.NoError(t, updateTx.Commit().Error)
+	committed = true
+
+	var got createResult
+	select {
+	case got = <-result:
+	case <-ctx.Done():
+		t.Fatal("CreateItem did not resume after the merchandise category update committed")
+	}
+	require.NoError(t, got.err)
+	require.NotNil(t, got.item)
+	assert.Equal(t, model.ItemCategoryFood, got.item.Category)
+	select {
+	case category := <-campaignCategory:
+		assert.Equal(t, model.ItemCategoryFood, category)
+	case <-ctx.Done():
+		t.Fatal("campaign lookup did not receive the resolved merchandise category")
+	}
+
+	var stored model.BillingItem
+	require.NoError(t, f.db.First(&stored, got.item.ID).Error)
+	assert.Equal(t, model.ItemCategoryFood, stored.Category)
 }
 
 func TestBillingItemService_CreateItem_SerializesConcurrentSameBillingWrites(
