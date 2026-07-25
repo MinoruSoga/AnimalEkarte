@@ -1,4 +1,4 @@
-package repository
+package audit
 
 // audit_real_ddl_test.go — X-3 (audit-ip-inet-model-drift): audit_logs を AutoMigrate ではなく
 // 001_init.sql の実 DDL から再作成し、model.AuditLog と実スキーマの drift を検出する。
@@ -6,9 +6,9 @@ package repository
 // 背景: audit_logs.ip_address は実DDLで `inet NULL` だが、AutoMigrate ベースの
 // setupAuditTestDB（audit_repository_test.go、修正前）は model.AuditLog.IPAddress の Go 型
 // （旧: string）から `text` カラムを生成するため、本番で発生する `''::inet` の 22P02 エラーを
-// テストが検出できなかった（schema_drift_test.go の knownSchemaDriftAllowlist["AuditLog.ip_address"]
+// テストが検出できなかった（internal/model/schema_drift_test.go の knownSchemaDriftAllowlist["AuditLog.ip_address"]
 // 参照）。修正として IPAddress を *string 化し、空文字列は nil に正規化した
-// （internal/service/audit_service.go の normalizeIPAddress）。この結果、Go の型システムが
+// （同 package の service.go にある normalizeIPAddress）。この結果、Go の型システムが
 // 「INSERT に空文字列を渡す」という不正状態自体を構築不能にしたため、下記
 // TestAuditLogRealDDL_EmptyStringIPAddressRejectedByDB は生SQLで DB 制約そのものを検証する
 // 恒久ガードに置き換えている（修正前は model.AuditLog{IPAddress: ""} 経由で 22P02 を実証していた
@@ -22,9 +22,8 @@ package repository
 // repo.Create(ClinicID: nil) は今なお Go レベルで構築可能 — TestAuditLogRealDDL_NilClinicIDFails
 // が実DDLレベルでの拒否を検証する。
 //
-// setupIsolatedTestDB を使う理由: repository/CLAUDE.md「テストヘルパー: DROP+CREATE 系は
-// setupIsolatedTestDB を使う」— 共有プール上で DROP+CREATE すると他テストの prepared statement
-// キャッシュを破壊する。
+// 共有プール上で DROP+CREATE すると他テストの prepared statement キャッシュを破壊するため、
+// isolated test DB を使う。
 
 import (
 	"context"
@@ -35,6 +34,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // auditLogsFKPattern は clinics/staffs への FK 句を除去する（テスト DB に clinics テーブルは
@@ -46,10 +46,10 @@ var auditLogsFKPattern = regexp.MustCompile(`REFERENCES (clinics|staffs)\(id\)\s
 // 再作成する（AutoMigrate 由来の drift を排除する）。
 func setupAuditRealDDLTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupIsolatedTestDB(t)
+	db := testdb.SetupIsolatedTestDB(t)
 	require.NoError(t, db.Exec("DROP TABLE IF EXISTS audit_logs CASCADE").Error)
 
-	sql := readCheckupMigration010(t)
+	sql := readInitMigrationSQL(t)
 	ddl := extractCreateTableDDL(t, sql, "audit_logs")
 	ddl = auditLogsFKPattern.ReplaceAllString(ddl, "")
 
@@ -85,7 +85,7 @@ func TestAuditLogRealDDL_EmptyStringIPAddressRejectedByDB(t *testing.T) {
 // 多くの監査書込パスが IPAddress を一度もセットしない（ゼロ値 = nil）ことに対応する正常系。
 func TestAuditLogRealDDL_NilIPAddressSucceeds(t *testing.T) {
 	db := setupAuditRealDDLTestDB(t)
-	repo := NewAuditRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -113,7 +113,7 @@ func TestAuditLogRealDDL_NilIPAddressSucceeds(t *testing.T) {
 // 本テストは DB 制約そのものを実DDLで検証し、その前提の誤りを是正する。
 func TestAuditLogRealDDL_NilClinicIDFails(t *testing.T) {
 	db := setupAuditRealDDLTestDB(t)
-	repo := NewAuditRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	ip := "127.0.0.1"

@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B5b 完了**（B6〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B6 完了**（B7〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=（履歴取り込み識別子は調整セッションが記録） |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -273,12 +273,12 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 ### BE10-2 — legacy test-only packageの削除phase未記録
 
 - 規約根拠: `backend/CODING_RULES.md:114`は、残すlegacy facade/adapterにconsumerと削除phaseを要求する。
-- 現状（2026-07-25・B5完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **45**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した。
+- 現状（2026-07-25・B6完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **42**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した。
 - 修正内容: 下記Phase 0で64 test fileの移設先、helper gap、移設batch、2 packageの削除条件・担当・期限を確定した。移設先が確定するまで実働gateを削除しない。
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B5b完了。B6〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B6完了。B7〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -515,7 +515,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B4 ✅完了 `c430072d8` | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 ✅完了 `b28c4a105` | repository lint **4 file**→`lintscan`、reconciliation gateのpath修復（B4回帰の是正） | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels`, `clinicScopedMasterAssoc`, `siblingPackageDir` + `I(files) local-only` | `∅`（4 consumer gateを同時移設。`migration_cascade`をB5bへ分離した結果として成立） | `∅` |
 | B5b ✅完了 `59b9d1873` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
-| B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
+| B6 ✅完了 （識別子は調整セッションが記録） | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設。本unitで再検算して`C = ∅`を確認。Phase 0未記載の`target_repository_test_facades_test.go` audit bridgeもconsumer 0となり同時撤去） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
 | B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
 | B9 | cross-clinic file分割 + insurance + owner/pet 3 file + pet/medimage分割 | B0,B8 | `makeInsuranceMaster`, `makePetWithInsurance`, `setupOwnerPetIsolationTestDB` + `I(files) local-only` | `∅`（全consumer同時移設またはB0 export化） | `∅` |
@@ -692,7 +692,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 ## Acceptance Checklist
 
 - [x] **AC-BE10-1 clinic境界**: 「①parent統合」で確定し実装完了（`0301ae0e2`）。route/RBAC/OpenAPIは非変更、test名と`clinic_id`述語は逐語一致、build/vet/test/gofmtはgreen、独立レビュー2本severity 0。
-- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B6〜B14を完了させ、legacy production/test/importが0になること。B0〜B5bは完了。
+- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B6〜B14を完了させ、legacy production/test/importが0になること。B0〜B6は完了。
 - [ ] **AC-BE10-3 空directory**: 他session所有権確認後に15 directoryを削除し、同じ`find`が0件となる。
 - [ ] **AC-BE10-4 ignore/削除**: `.ruff_cache`、`.wrangler`、空`.git`についてignoreまたは削除方針を確定し、選択した検証がPASSする。tool再生成の判断待ちは再開条件付きで記録する。
 - [ ] **AC-BE10-5 docs drift**: `q&a.html`の5行を現行pathへ更新し、旧layer path grepが0件となる。
@@ -754,3 +754,6 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
 
 8. **gate test を移設したら、package を明示列挙している実行配線も同じ unit で追随させる。**（B4 / B5 で実害）
    `scripts/run-local-ci.sh` の inventory gates step は `./internal/repository/` と `./internal/service/` を明示列挙しており、B4 / B5 の移設に追随しなかったため、3 gate が `-run` 不一致で空振りし、`./internal/service/` 側は Go file 0 で build error になっていた。**`-run` の不一致は「テスト0件で成功」として通る**ため、compile / vet / package 単位の test では検出できない。B6〜B14 も同 step と `Makefile` の明示列挙を毎回確認する。
+
+9. **最後の consumer が去る test-only bridge は、その unit の中で撤去する。**（B1〜B3のservice bridge撤去と同型・B6で再現）
+   `unused` linterが有効なため、bridgeを残すと移設unitが新規lint指摘を持ち込む。移設対象fileがbridge symbolの最後のconsumerかどうかは、移設前に`grep -rl`で同package内のconsumer集合を実測して判定する。

@@ -1,4 +1,4 @@
-package repository
+package audit
 
 // audit_repository_test.go — AuditRepository の統合テスト（内部カバレッジ向上）。
 //
@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // setupAuditTestDB は audit_logs テーブルを整備する（依存する他テーブルなし）。
@@ -37,7 +38,7 @@ func uint64Ptr(v uint64) *uint64 { return &v }
 // TestAuditRepository_Create は監査ログの正常系永続化を検証する。
 func TestAuditRepository_Create(t *testing.T) {
 	db := setupAuditTestDB(t)
-	repo := NewAuditRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	t.Run("clinic_id / actor_id ありで作成できる", func(t *testing.T) {
@@ -77,8 +78,8 @@ func TestAuditRepository_Create(t *testing.T) {
 // 同一トランザクションに参加し、正常終了（コミット）で永続化されることを検証する（#211）。
 func TestAuditRepository_CreateTx_AmbientTxCommit(t *testing.T) {
 	db := setupAuditTestDB(t)
-	repo := NewAuditRepository(db)
-	transactor := NewTransactor(db)
+	repo := NewRepository(db)
+	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 
 	var createdID uint64
@@ -108,8 +109,8 @@ func TestAuditRepository_CreateTx_AmbientTxCommit(t *testing.T) {
 // CreateTx で書き込んだ監査ログも tx のロールバックに巻き込まれて消えることを検証する（#211 の核心）。
 func TestAuditRepository_CreateTx_AmbientTxRollback(t *testing.T) {
 	db := setupAuditTestDB(t)
-	repo := NewAuditRepository(db)
-	transactor := NewTransactor(db)
+	repo := NewRepository(db)
+	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 
 	var createdID uint64

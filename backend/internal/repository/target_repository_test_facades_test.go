@@ -10,7 +10,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/clinic"
@@ -51,12 +50,6 @@ type ReservationAdminRepository = reservation.ReservationAdminRepository
 
 func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {
 	return reservation.NewReservationAdminRepository(db)
-}
-
-type AuditRepository = audit.Repository
-
-func NewAuditRepository(db *gorm.DB) AuditRepository {
-	return audit.NewRepository(db)
 }
 
 func NewCarePlanItemRepository(db *gorm.DB) medicalrecord.CarePlanItemRepository {
