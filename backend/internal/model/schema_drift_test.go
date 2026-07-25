@@ -62,6 +62,7 @@ func allModels() []any {
 		&model.CheckupType{},
 		&model.ExaminationType{},
 		&model.ExamTypeField{},
+		&model.ExamReferenceRange{},
 		&model.DiagnosisType{},
 		&model.DiagnosisName{},
 		&model.MedicalRecord{},

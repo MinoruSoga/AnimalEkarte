@@ -182,3 +182,9 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 - `backend/internal/service/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`）
 - `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
 - [ADR-002: マルチテナント設計](002-multitenancy-clinic-id-isolation.md)
+
+## 実装メモ（2026-07-25・TASK-ADR003）
+
+Decision Point 1 のうち、`payment_splits.payment_method_id` の clinic 一致は、ADR 作成後に導入された既存の複合 FK パターンを使って宣言的に実装した。`backend/migrations/006_payment_splits_payment_method_clinic_fk.sql` は `payment_methods` に述語なしの `UNIQUE (id, clinic_id)` を追加し、`payment_splits (payment_method_id, clinic_id)` から `payment_methods (id, clinic_id)` への複合 FK を追加する。既定の `MATCH SIMPLE` により legacy の `payment_method_id IS NULL` 行は許容し、削除動作は `ON DELETE RESTRICT` とした。soft-delete 済み master への既存参照を許す挙動は変えない。
+
+これは PO-006 の案1B全体を実装するものではない。`method` ⇔ `system_key` の値一致は未実施であり、`clinic_id` を持たない `payments` の参照も DB レベルでは未防御のまま残る。通常の会計作成・更新経路は `backend/internal/billing/accounting_service_builders.go` の `resolvePaymentMethodMasterID` が不一致を拒否する。確定後訂正経路は `method` / `payment_method_id` 自体を変更しないが、保存済みの組合せは再検証しない。migration は既存行を検証するため、他院 master を指す行があれば適用時に fail-closed で失敗する。適用前の診断 SQL は migration 内のコメントに残し、DB 適用自体は本 unit では実行していない。
