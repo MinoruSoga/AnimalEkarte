@@ -1,4 +1,4 @@
-package repository
+package lintscan
 
 // dbortx_inventory_lint_test.go — BE-refactor follow-up (ambient-transaction harness): dbOrTx 参加メソッドの inventory ゲート
 //

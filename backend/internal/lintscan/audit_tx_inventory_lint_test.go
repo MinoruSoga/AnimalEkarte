@@ -1,4 +1,4 @@
-package repository
+package lintscan
 
 // audit_tx_inventory_lint_test.go — Clinical-result hard-delete audit-tx inventory gate
 //

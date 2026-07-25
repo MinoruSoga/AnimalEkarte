@@ -1,4 +1,4 @@
-package repository
+package lintscan
 
 // preload_master_model_reconciliation_test.go — BE-refactor.md R3-2 (D9・cross-check follow-up): automated
 // cross-check between the manually curated clinicScopedMasterAssoc (read side, this
@@ -7,7 +7,7 @@ package repository
 //  1. internal/model: every struct that actually declares a ClinicID field is the only
 //     reliable ground truth for "does this Go type have a clinic_id column" — a hand-written
 //     comment can drift out of sync with the struct definition, but the AST cannot.
-//  2. internal/service's clinicScopedMasterFKField (master_fk_write_inventory_lint_test.go,
+//  2. internal/lintscan's clinicScopedMasterFKField (master_fk_write_inventory_lint_test.go,
 //     the write-side clinic-scope registry): an INDEPENDENTLY curated list of clinic-scoped master
 //     model names. Before this gate, a model newly registered on the write side had no
 //     automated check forcing its read-side registration — repository/CLAUDE.md's "新マスタ
@@ -31,8 +31,8 @@ package repository
 // path elements. Go's test runner guarantees the working directory is the tested package's
 // own source directory (a long-standing, widely relied-upon "go test" behavior — every
 // package's test binary is invoked with cwd = that package's directory), so os.Getwd() plus
-// a relative ".." join reliably locates internal/model and internal/service from within
-// internal/repository under `go test ./...` — the exact invocation this project's CI uses.
+// a relative ".." join reliably locates internal/model and internal/lintscan from within
+// internal/lintscan under `go test ./...` — the exact invocation this project's CI uses.
 // This has no dependency on -trimpath (which affects embedded/debug build paths, not the OS
 // working directory queried by os.Getwd()).
 
@@ -48,7 +48,7 @@ import (
 )
 
 // masterModelReadWriteExemptions: model names present in the write-side
-// clinicScopedMasterFKField (internal/service) but NOT YET in the read-side
+// clinicScopedMasterFKField (internal/lintscan) but NOT YET in the read-side
 // clinicScopedMasterAssoc, because internal/model has no gorm:"foreignKey:...ID" association
 // field for them yet (a Preload of the association is syntactically impossible) — mirrors
 // the trailing comment already on clinicScopedMasterAssoc. When an association field is
@@ -131,7 +131,7 @@ func isUint64OrPtrUint64(expr ast.Expr) bool {
 // extractStringMapValues is a pure function that parses one Go source file and returns the
 // VALUE strings of every entry in the map[string]string composite literal assigned to the
 // package-level var named varName (e.g. clinicScopedMasterFKField). Used to read the
-// write-side registry out of internal/service without importing its unexported identifier
+// write-side registry out of internal/lintscan without importing its unexported identifier
 // across packages.
 func extractStringMapValues(filename string, src []byte, varName string) ([]string, error) {
 	fset := token.NewFileSet()
@@ -245,9 +245,9 @@ func reconcileMasterModelCoverage(modelClinicScoped map[string]struct{}, writeMo
 		}
 		if _, onReadSide := readSet[name]; !onReadSide {
 			violations = append(violations,
-				"model \""+name+"\" is registered in service.clinicScopedMasterFKField (write-side "+
+				"model \""+name+"\" is registered in lintscan.clinicScopedMasterFKField (write-side "+
 					"clinic-scope registry) and has a ClinicID column, but is missing from "+
-					"repository.clinicScopedMasterAssoc (read-side registry). If a Preload of this "+
+					"lintscan.clinicScopedMasterAssoc (read-side registry). If a Preload of this "+
 					"master already exists, register the association name in clinicScopedMasterAssoc. "+
 					"If no association field exists in internal/model yet, add an entry to "+
 					"masterModelReadWriteExemptions with the reason.")
@@ -290,7 +290,7 @@ func siblingPackageDir(t *testing.T, name string) string {
 	return dir
 }
 
-// loadModelClinicScopedStructs walks internal/model (sibling of internal/repository) and
+// loadModelClinicScopedStructs walks internal/model (sibling of internal/lintscan) and
 // returns the ClinicID-bearing struct set from the REAL source tree.
 func loadModelClinicScopedStructs(t *testing.T) map[string]struct{} {
 	t.Helper()
@@ -317,11 +317,11 @@ func loadModelClinicScopedStructs(t *testing.T) map[string]struct{} {
 	return result
 }
 
-// loadWriteSideMasterModelNames reads internal/service/master_fk_write_inventory_lint_test.go
+// loadWriteSideMasterModelNames reads internal/lintscan/master_fk_write_inventory_lint_test.go
 // (sibling package) and returns clinicScopedMasterFKField's values from the REAL source.
 func loadWriteSideMasterModelNames(t *testing.T) []string {
 	t.Helper()
-	dir := siblingPackageDir(t, "service")
+	dir := siblingPackageDir(t, "lintscan")
 	path := filepath.Join(dir, "master_fk_write_inventory_lint_test.go")
 	src, err := os.ReadFile(path) //nolint:gosec // path is derived from os.Getwd(), not untrusted input
 	if err != nil {
@@ -347,7 +347,7 @@ func TestMasterModelReconciliation_RealSourceIsConsistent(t *testing.T) {
 
 	writeNames := loadWriteSideMasterModelNames(t)
 	if len(writeNames) < 15 {
-		t.Fatalf("only %d clinicScopedMasterFKField values found; internal/service AST "+
+		t.Fatalf("only %d clinicScopedMasterFKField values found; internal/lintscan AST "+
 			"matching likely broken", len(writeNames))
 	}
 

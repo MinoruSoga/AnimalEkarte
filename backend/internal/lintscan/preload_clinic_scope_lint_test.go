@@ -1,4 +1,4 @@
-package repository
+package lintscan
 
 // Clinic-scope Preload rule (mechanical enforcement) — clinic-scoped master Preloads must
 // carry a clinic_id predicate.
@@ -64,8 +64,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/animal-ekarte/backend/internal/lintscan"
 )
 
 // clinicScopedMasterAssoc maps a GORM association name (the LAST dotted segment of a
@@ -445,7 +443,7 @@ func isInSet(set map[string]struct{}, key string) bool {
 // planted anywhere under internal/ — not only internal/repository — is caught by all three gates.
 func moduleInternalSource(t *testing.T) map[string][]byte {
 	t.Helper()
-	return lintscan.WalkInternalTreeT(t)
+	return WalkInternalTreeT(t)
 }
 
 // legacyLintKey converts a lintscan raw key (relative to internal/) into the key shape the
@@ -503,7 +501,7 @@ func assertLintscanReachesTwoOrMoreNestingLevels(t *testing.T) {
 		t.Fatalf("write %s: %v", deep, err)
 	}
 
-	tree, err := lintscan.WalkInternalTree(internalDir)
+	tree, err := WalkInternalTree(internalDir)
 	if err != nil {
 		t.Fatalf("lintscan.WalkInternalTree(%s): %v", internalDir, err)
 	}
@@ -817,7 +815,7 @@ func TestPreloadClinicScope_EndToEndDiscoveryIsLocationAgnostic(t *testing.T) {
 		}
 	}
 
-	tree, err := lintscan.WalkInternalTree(internalDir)
+	tree, err := WalkInternalTree(internalDir)
 	if err != nil {
 		t.Fatalf("lintscan.WalkInternalTree(%s): %v", internalDir, err)
 	}
