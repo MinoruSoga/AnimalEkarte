@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // reservation_staff_capability_preload_clinic_isolation_test.go
 // P0 lint follow-up（read 監査と同じ bar）: reservation_staff の StaffReservationCapability.ReservationType
@@ -21,16 +21,18 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupReservationStaffCapabilityPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	// setupTestDB は staff_type / reservation_type_category ENUM を DROP CASCADE するため
 	// staffs.staff_type・reservation_types.category 列が消える。AutoMigrate で再整備する。
 	// companies・clinics（seedClinicsForFK の FK 親）と staff_clinic_assignments（下の TRUNCATE 対象）も
 	// 明示作成する。fresh DB（CI）ではこれらを AutoMigrate しないと存在せず TRUNCATE / seed が失敗する。
-	require.NoError(t, ensureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.ReservationType{},
 		&model.StaffReservationCapability{}, &model.StaffClinicAssignment{},
 	))
@@ -58,7 +60,7 @@ func makeStaffReservationCapability(t *testing.T, db *gorm.DB, clinicID, staffID
 // 述語が「効いている」かつ「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestReservationStaffRepository_Capabilities_CrossClinicReservationTypePreloadIsolation(t *testing.T) {
 	db := setupReservationStaffCapabilityPreloadTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 

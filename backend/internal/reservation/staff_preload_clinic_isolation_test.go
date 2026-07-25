@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // staff_preload_clinic_isolation_test.go
 // クロステナント READ IDOR remediation follow-up — (d) Staff(Doctor)preload の多医院所属対応。
@@ -25,6 +25,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // seedClinicsForFK は staff_clinic_assignments → clinics FK を満たすため clinics を seed する。
@@ -64,11 +65,11 @@ func makeReservationWithDoctor(t *testing.T, db *gorm.DB, clinicID, reservationT
 }
 
 func TestReservationRepository_DoctorPreload_MultiClinicStaffIsolation(t *testing.T) {
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	db.Exec("TRUNCATE TABLE appointments CASCADE")
 	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.ReservationType{}, &model.Reservation{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.ReservationType{}, &model.Reservation{}))
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

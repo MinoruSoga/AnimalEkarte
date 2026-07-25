@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // appointment_admin_repository_test.go — ReservationAdminRepository (管理者向け予約管理) の統合テスト。
 //
@@ -19,6 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationAdminTestDB は ReservationAdminRepository 用に
@@ -26,8 +27,8 @@ import (
 // テーブルも整備する。
 func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.LineCustomer{},
 	))
@@ -37,18 +38,6 @@ func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec("TRUNCATE TABLE line_customers CASCADE")
 	return db
-}
-
-// makeLineCustomerForAdmin はテスト用 LineCustomer を作成して返す。
-func makeLineCustomerForAdmin(t *testing.T, db *gorm.DB, clinicID uint64, lineUserID string) *model.LineCustomer {
-	t.Helper()
-	lc := &model.LineCustomer{
-		ClinicID:         clinicID,
-		LineUserID:       lineUserID,
-		AdditionalFields: []byte(`{}`),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(lc).Error)
-	return lc
 }
 
 // makeAdminReservationAt は指定日時に紐づく予約を1件作成する。Owner/Pet/Doctor/LineCustomer は任意。
@@ -105,8 +94,8 @@ func TestReservationAdminRepository_FindAllByDay(t *testing.T) {
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "飼主・管理者予約")
-	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "予約犬")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主・管理者予約")
+	pet := testdb.MakeSpeciesAndPet(t, db, clinicA, owner.ID, "予約犬")
 	doctor := makeDoctor(t, db, clinicA, "予約医師")
 
 	targetDay := time.Date(2026, 6, 15, 3, 0, 0, 0, time.UTC) // JST 12:00 相当
@@ -143,8 +132,8 @@ func TestReservationAdminRepository_FindTimeRangesByDateRange(t *testing.T) {
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "飼主・範囲予約")
-	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "範囲予約犬")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主・範囲予約")
+	pet := testdb.MakeSpeciesAndPet(t, db, clinicA, owner.ID, "範囲予約犬")
 	doctor := makeDoctor(t, db, clinicA, "範囲予約医師")
 
 	rangeStart := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
@@ -208,7 +197,7 @@ func TestReservationAdminRepository_Create(t *testing.T) {
 func TestReservationAdminRepository_Create_ParticipatesInTransaction(t *testing.T) {
 	db := setupReservationAdminTestDB(t)
 	repo := NewReservationAdminRepository(db)
-	transactor := NewTransactor(db)
+	transactor := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -358,8 +347,8 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "飼主・通知")
-	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "通知犬")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主・通知")
+	pet := testdb.MakeSpeciesAndPet(t, db, clinicA, owner.ID, "通知犬")
 	doctor := makeDoctor(t, db, clinicA, "通知医師")
 	res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), &owner.ID, &pet.ID, &doctor.ID, nil)
 

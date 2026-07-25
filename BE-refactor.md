@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B7 完了**（B8〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=`b76150f44`／B7=`66d73755f` |
+| BE10-2 B1〜B14 Go移設 | **B1〜B8 完了**（B8bを新設。B9〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=`b76150f44`／B7=`66d73755f`／B8=（履歴取り込み識別子は調整セッションが記録） |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -273,12 +273,12 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 ### BE10-2 — legacy test-only packageの削除phase未記録
 
 - 規約根拠: `backend/CODING_RULES.md:114`は、残すlegacy facade/adapterにconsumerと削除phaseを要求する。
-- 現状（2026-07-26・B7完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **38**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した（別セッションが`296ea7bb7`で解決済み）。
+- 現状（2026-07-26・B8完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **26**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した（別セッションが`296ea7bb7`で解決済み）。
 - 修正内容: 下記Phase 0で64 test fileの移設先、helper gap、移設batch、2 packageの削除条件・担当・期限を確定した。移設先が確定するまで実働gateを削除しない。
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B7完了。B8〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B8完了。B8bを新設。B9〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -517,7 +517,8 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B5b ✅完了 `59b9d1873` | `repository/migration_cascade_lint_test.go`→`lintscan` + `migrationsDir` を消費する残留2 fileの解決 | B0 | `migrationsDir`, `migrationCascadeAllowlist`, `countCascadeOccurrences`, `reconcileMigrationCascade`, `walkMigrationsForCascade` | `migrationsDir`（consumer=`billings_hospitalization_unique_migration_test.go:19` / `test_schema_enum_parity_test.go:125`。同batchで解決する） | `migrationsDir`（同batch解決で消滅） |
 | B6 ✅完了 `b76150f44` | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設。本unitで再検算して`C = ∅`を確認。Phase 0未記載の`target_repository_test_facades_test.go` audit bridgeもconsumer 0となり同時撤去） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
-| B8 | reservation 13 file（appointment、schedule、staff、owner/pet preload、staff preload）→`reservation` | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `∅`（全実consumer同時移設、`isolation_test_helpers_test.go`の`seedClinicsForFK` callもB0 exportへ直接化） | `∅` |
+| B8 ✅完了 （識別子は調整セッションが記録） | reservation **12 file**（appointment、schedule、staff、staff preload）→`reservation`。`reservation_owner_pet_preload_clinic_isolation_test.go`はB8bへ分離 | B0 | `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`, `makeShiftEntry`, `setupCapabilityIsolationTestDB`, `makeDoctorAssignedToClinic`, `setupExclusionIsolationTestDB`, `setupReservationStaffTxAtomicityTestDB`, `seedClinicsForFK`, `makeStaffClinicAssignment` + `I(files) local-only` | `{seedClinicsForFK}`（`isolation_test_helpers_test.go:74`。`testdb.SeedClinicsForFK`へ直接化して解消）＋B8b分離により`setupReservationAdminTestDB`/`makeLineCustomerForAdmin`/`makeAdminReservationAt`が残留fileのlocal copyとして必要になった | 同batch解決で消滅 |
+| B8b | `repository/reservation_owner_pet_preload_clinic_isolation_test.go`（6 test）→`internal/trimming`。B8で移設不能と判明したため分離 | B8 | `setupReservationOwnerPetPreloadDB`, `setupReservationAdminTestDB`, `makeLineCustomerForAdmin`, `makeAdminReservationAt`（B8で作ったlocal copy） | `∅`（本fileが最後のconsumer） | `∅` |
 | B9 | cross-clinic file分割 + insurance + owner/pet 3 file + pet/medimage分割 | B0,B8 | `makeInsuranceMaster`, `makePetWithInsurance`, `setupOwnerPetIsolationTestDB` + `I(files) local-only` | `∅`（全consumer同時移設またはB0 export化） | `∅` |
 | B10 | count/master-preload/preload-followupをtest単位分割 + diagnosis→各domain | B0,B8,B9 | `makeDiagnosisTypeMaster`, `makeDiagnosisNameRec` + `I(files) local-only` | `∅`（diagnosis consumer同時移設） | `∅` |
 | B11 | billing unique migration/runtime + payment-method 3 file→`billing` | B0,B10 | `I(files) local-only` | `∅` | `∅` |
@@ -692,7 +693,7 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 ## Acceptance Checklist
 
 - [x] **AC-BE10-1 clinic境界**: 「①parent統合」で確定し実装完了（`0301ae0e2`）。route/RBAC/OpenAPIは非変更、test名と`clinic_id`述語は逐語一致、build/vet/test/gofmtはgreen、独立レビュー2本severity 0。
-- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B6〜B14を完了させ、legacy production/test/importが0になること。B0〜B6は完了。
+- [ ] **AC-BE10-2 legacy退役**: 削除条件・担当・期限・lint gate 6件の移設先はPhase 0で確定済み（`bcbdb5101`）。残条件＝B8b・B9〜B14を完了させ、legacy production/test/importが0になること。B0〜B8は完了。
 - [ ] **AC-BE10-3 空directory**: 他session所有権確認後に15 directoryを削除し、同じ`find`が0件となる。
 - [ ] **AC-BE10-4 ignore/削除**: `.ruff_cache`、`.wrangler`、空`.git`についてignoreまたは削除方針を確定し、選択した検証がPASSする。tool再生成の判断待ちは再開条件付きで記録する。
 - [ ] **AC-BE10-5 docs drift**: `q&a.html`の5行を現行pathへ更新し、旧layer path grepが0件となる。
@@ -754,3 +755,15 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
 
 9. **最後の consumer が去る test-only bridge は、その unit の中で撤去する。**（B1〜B3のservice bridge撤去と同型・B6で再現）
    `unused` linterが有効なため、bridgeを残すと移設unitが新規lint指摘を持ち込む。移設対象fileがbridge symbolの最後のconsumerかどうかは、移設前に`grep -rl`で同package内のconsumer集合を実測して判定する。
+
+10. **移設先 package に同名 helper が既に存在しうる。移設前に移設 file が定義する全 helper 名を移設先 package 全体へ `grep` し、衝突を実測する。**（B7で実害寸前・B8で2件再現）
+    Phase 0 の `D` 欄は移設元が定義する helper しか列挙しておらず、移設先の既存定義との衝突は記録されていない。逐語同一なら移設側を削除して既存を共用し、実装が異なるなら移設側を改名する。判断根拠（両定義の逐語比較）を unit の報告に残す。
+
+11. **移設先 package が既存の test-local convention を持つ場合、汎用 pattern より既存 convention を優先する。**（B8で発見）
+    `internal/reservation` は `internal/persistence` を production から既に import しているにもかかわらず、8 file が package-local な `testNewTransactor` を使っている。これは旧 facade package の import を避けるためであり、`persistence` 直接 import を避ける理由ではない。**新しい convention を持ち込む前に、移設先 package の既存 test helper の意図を読むこと。**
+
+12. **移設 file が third-party domain を import している場合、その domain が移設先を import していないかを移設前に確認する。**（B8で実害・1 file が移設不能と判明）
+    `reservation_owner_pet_preload_clinic_isolation_test.go` は `internal/trimming` を import するが、`internal/trimming/trimming_service.go` が `internal/reservation` を import するため、`package reservation` の in-package test にすると import cycle になる。**移設元 package（`internal/repository`）は誰からも import されないため、この制約は移設して初めて顕在化する。** 移設対象 file の import 全件について、対象 package が移設先を import していないかを `grep -rln` で事前確認する。cycle になる file は別 unit へ分離し、その domain 側（cycle の上流）へ移す。
+
+13. **移設で package import を新規に足すと、既存のローカル変数名と衝突して `gocritic importShadow` が大量発生しうる。**（B8で18件）
+    `staff` のような一般的な名前の package を import すると、test 本体の `staff := ...` が軒並み shadow 判定になる。**test 本体の変数名を書き換えず、import alias（例: `staffpkg`）で解決する。** 変数名の一括改名は移設 unit の差分限定契約を壊す。

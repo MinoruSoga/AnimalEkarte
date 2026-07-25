@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 import (
 	"context"
@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 var errReservationStaffReadback = errors.New("forced reservation staff readback failure")
 
 type failingReservationStaffReadbackRepository struct {
-	reservation.ReservationStaffRepository
+	ReservationStaffRepository
 	failFindCall int
 	findCalls    int
 	lockCalls    int
@@ -53,17 +53,17 @@ func (r *failingReservationStaffReadbackRepository) FindAllExcludedReservationTy
 
 func TestReservationStaffService_Create_ReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	base := NewReservationStaffRepository(db)
+	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	repo := &failingReservationStaffReadbackRepository{
 		ReservationStaffRepository: base,
 		failExcluded:               true,
 	}
-	service := reservation.NewReservationStaffService(repo, NewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
 
 	staff, exclusions, err := service.Create(
 		context.Background(),
 		1,
-		&reservation.CreateReservationStaffInput{Name: "readback rollback create"},
+		&CreateReservationStaffInput{Name: "readback rollback create"},
 	)
 
 	require.ErrorIs(t, err, errReservationStaffReadback)
@@ -82,20 +82,20 @@ func TestReservationStaffService_Create_ReadbackFailureRollsBack(t *testing.T) {
 func TestReservationStaffService_Update_StaffReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
 	const clinicID = uint64(1)
-	staff := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback update before")
-	base := NewReservationStaffRepository(db)
+	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	target := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback update before")
 	repo := &failingReservationStaffReadbackRepository{
 		ReservationStaffRepository: base,
 		failFindCall:               1,
 	}
-	service := reservation.NewReservationStaffService(repo, NewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
 	updatedName := "readback rollback update after"
 
 	updated, exclusions, err := service.Update(
 		context.Background(),
 		clinicID,
-		staff.ID,
-		&reservation.UpdateReservationStaffInput{Name: &updatedName},
+		target.ID,
+		&UpdateReservationStaffInput{Name: &updatedName},
 	)
 
 	require.ErrorIs(t, err, errReservationStaffReadback)
@@ -104,28 +104,28 @@ func TestReservationStaffService_Update_StaffReadbackFailureRollsBack(t *testing
 	assert.Equal(t, 1, repo.lockCalls, "ownership lock must succeed before readback failure")
 	assert.Equal(t, 1, repo.findCalls, "failure must be injected into the only post-update readback")
 	var reloaded model.Staff
-	require.NoError(t, db.First(&reloaded, staff.ID).Error)
+	require.NoError(t, db.First(&reloaded, target.ID).Error)
 	assert.Equal(t, "readback rollback update before", reloaded.Name)
 }
 
 func TestReservationStaffService_PatchStatus_ExclusionReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
 	const clinicID = uint64(1)
-	staff := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback patch")
+	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	target := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback patch")
 	require.NoError(t, db.Model(&model.Staff{}).
-		Where("id = ?", staff.ID).
+		Where("id = ?", target.ID).
 		Update("is_active", true).Error)
-	base := NewReservationStaffRepository(db)
 	repo := &failingReservationStaffReadbackRepository{
 		ReservationStaffRepository: base,
 		failExcluded:               true,
 	}
-	service := reservation.NewReservationStaffService(repo, NewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
 
 	updated, exclusions, err := service.PatchStatus(
 		context.Background(),
 		clinicID,
-		staff.ID,
+		target.ID,
 		false,
 	)
 
@@ -133,6 +133,6 @@ func TestReservationStaffService_PatchStatus_ExclusionReadbackFailureRollsBack(t
 	assert.Nil(t, updated)
 	assert.Nil(t, exclusions)
 	var reloaded model.Staff
-	require.NoError(t, db.First(&reloaded, staff.ID).Error)
+	require.NoError(t, db.First(&reloaded, target.ID).Error)
 	assert.True(t, reloaded.IsActive)
 }

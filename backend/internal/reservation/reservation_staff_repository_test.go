@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // BE9-2C R②: 実装は internal/reservation へ移動済み。本テストは意図的に repository 残置 —
 // production ctor（facade）が staff domain の staffs write 書き込み者を注入する配線そのものを
@@ -22,6 +22,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationStaffRepoTestDB は本ファイル専用の DB セットアップ。
@@ -31,8 +33,8 @@ import (
 // と同一対象テーブル構成 + Reservation を追加）。
 func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{},
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.Reservation{},
@@ -49,7 +51,7 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 
 func TestReservationStaffRepository_FindAll(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -119,7 +121,7 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 
 func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -188,7 +190,7 @@ func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -244,7 +246,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypes_DoesNotLeakSharedStaffData(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -274,7 +276,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes_DoesNotLeakS
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

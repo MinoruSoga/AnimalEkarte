@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // reservation_staff_repository_tx_atomicity_test.go — BE-refactor.md X-8 の DB-backed 原子性証明
 //
@@ -30,6 +30,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationStaffTxAtomicityTestDB は reservation_staff 系 tx 原子性テスト用の DB を整備する。
@@ -38,8 +40,8 @@ import (
 // に加え、UpdateReservationCapabilities 用の staff_reservation_capabilities も整備する。
 func setupReservationStaffTxAtomicityTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.StaffReservationExclusion{},
 		&model.StaffReservationCapability{},
@@ -61,8 +63,8 @@ var errSentinelReservationStaffTx = errors.New("simulated post-write failure in 
 // 即コミットされるため、外側 WithTx の rollback を素通りして staff/assignment 行が残り FAIL する。
 func TestReservationStaffRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -95,8 +97,8 @@ func TestReservationStaffRepository_Create_RollsBackWhenAmbientTxFails(t *testin
 
 func TestReservationStaffRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -127,8 +129,8 @@ func TestReservationStaffRepository_Create_CommitsWithinAmbientTx(t *testing.T) 
 
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhenAmbientTxFails(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -153,8 +155,8 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhen
 
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_CommitsWithinAmbientTx(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -179,8 +181,8 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_CommitsWithin
 
 func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_RollsBackWhenAmbientTxFails(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -204,8 +206,8 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Rol
 
 func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_CommitsWithinAmbientTx(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	repo := NewReservationStaffRepository(db)
-	tx := NewTransactor(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	tx := testNewTransactor(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

@@ -35,6 +35,60 @@ func setupReservationOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// setupReservationAdminTestDB — BE10-2 B8 で appointment_admin_repository_test.go が
+// internal/reservation へ移設された際に残った、本 file 専用の local copy。
+// 本 file 自体は internal/trimming を import しており（trimming の production が
+// internal/reservation を import するため test import cycle になる）B8 では移設できず、
+// B8b で trimming 側へ切り出すまで internal/repository に残る。B8b 完了時に本 helper も消える。
+func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupTestDB(t)
+	require.NoError(t, ensureAutoMigrated(db,
+		&model.ReservationType{}, &model.Reservation{},
+		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.LineCustomer{},
+	))
+	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
+	db.Exec("TRUNCATE TABLE pets CASCADE")
+	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	db.Exec("TRUNCATE TABLE staffs CASCADE")
+	db.Exec("TRUNCATE TABLE line_customers CASCADE")
+	return db
+}
+
+// makeLineCustomerForAdmin / makeAdminReservationAt — 上と同じ B8 由来の local copy。
+// B8b 完了時に本 file ごと internal/trimming へ移り、ここから消える。
+func makeLineCustomerForAdmin(t *testing.T, db *gorm.DB, clinicID uint64, lineUserID string) *model.LineCustomer {
+	t.Helper()
+	lc := &model.LineCustomer{
+		ClinicID:         clinicID,
+		LineUserID:       lineUserID,
+		AdditionalFields: []byte(`{}`),
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(lc).Error)
+	return lc
+}
+
+func makeAdminReservationAt(t *testing.T, db *gorm.DB, clinicID uint64, start time.Time, ownerID, petID, doctorID, lineCustomerID *uint64) *model.Reservation {
+	t.Helper()
+	rt := makeReservationType(t, db, clinicID)
+	res := &model.Reservation{
+		ClinicID:          clinicID,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		OwnerID:           ownerID,
+		PetID:             petID,
+		DoctorID:          doctorID,
+		LineCustomerID:    lineCustomerID,
+		ReservationTypeID: rt.ID,
+		VisitType:         model.VisitTypeRevisit,
+		Status:            model.ReservationStatusPending,
+		Source:            model.ReservationSourceManual,
+		CustomerFields:    []byte(`{}`),
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(res).Error)
+	return res
+}
+
 func TestReservationRepository_FindAll_FindByID_FailClosedForForeignOwnerPet(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
 	repo := NewReservationRepository(db)

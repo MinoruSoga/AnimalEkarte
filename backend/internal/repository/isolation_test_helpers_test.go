@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeMedicineMaster / makeDoctor は clinic 隔離テスト群で共有するマスタ生成ヘルパー。
@@ -71,7 +72,7 @@ func makeClinicScopedClinicalReadParents(
 ) (*model.Pet, *model.MedicalRecord, *model.Staff) {
 	t.Helper()
 
-	seedClinicsForFK(t, db, clinicID)
+	testdb.SeedClinicsForFK(t, db, clinicID)
 	owner := makeTestOwner(t, db, clinicID, label+"飼主")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, label+"ペット")
 	record := makeHistoryMedicalRecord(t, db, clinicID, pet.ID, label+"-MR", time.Now())

@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // reservation_staff_capability_write_clinic_isolation_test.go — G11-4 テスト負債解消
 //
@@ -22,13 +22,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCapabilityIsolationTestDB は対応可能予約区分 clinic_id 隔離テスト用の DB を整備する。
 func setupCapabilityIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.StaffReservationCapability{},
 	))
@@ -58,7 +60,7 @@ func makeDoctorAssignedToClinic(t *testing.T, db *gorm.DB, clinicID uint64, name
 // 型IDの clinic_id 検証を削除すると「別クリニックの区分IDは拒否される」が失敗する。
 func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolation(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -102,7 +104,7 @@ func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolatio
 // 対応可能判定の正/負ケースを固定する。
 func TestReservationStaffRepository_SupportsReservationType(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

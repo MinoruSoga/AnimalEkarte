@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 type reservationJunctionKind string
@@ -84,7 +85,7 @@ func TestReservationStaffRepository_JunctionReplacement_RevocationWins(t *testin
 	} {
 		t.Run(string(kind), func(t *testing.T) {
 			db := setupReservationStaffTxAtomicityTestDB(t)
-			repo := NewReservationStaffRepository(db)
+			repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 			const clinicID = uint64(1)
 			staff := makeDoctorAssignedToClinic(t, db, clinicID, "revocation wins "+string(kind))
 			reservationType := makeReservationType(t, db, clinicID)
@@ -133,7 +134,7 @@ func TestReservationStaffRepository_JunctionReplacement_WriteWins(t *testing.T) 
 	} {
 		t.Run(string(kind), func(t *testing.T) {
 			db := setupReservationStaffTxAtomicityTestDB(t)
-			repo := NewReservationStaffRepository(db)
+			repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 			const clinicID = uint64(1)
 			staff := makeDoctorAssignedToClinic(t, db, clinicID, "write wins "+string(kind))
 			reservationType := makeReservationType(t, db, clinicID)
@@ -142,7 +143,7 @@ func TestReservationStaffRepository_JunctionReplacement_WriteWins(t *testing.T) 
 			writerResult := make(chan error, 1)
 
 			go func() {
-				writerResult <- NewTransactor(db).WithTx(
+				writerResult <- testNewTransactor(db).WithTx(
 					context.Background(),
 					func(txCtx context.Context) error {
 						if err := replaceReservationJunction(

@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // reservation_staff_exclusion_clinic_isolation_test.go — クロステナント write 横断監査 回帰テスト
 //
@@ -19,13 +19,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupExclusionIsolationTestDB は除外コース clinic_id 隔離テスト用の DB を整備する。
 func setupExclusionIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.StaffReservationExclusion{},
 	))
@@ -39,7 +41,7 @@ func setupExclusionIsolationTestDB(t *testing.T) *gorm.DB {
 // 型IDの clinic_id 検証を削除すると「別クリニックの区分IDは拒否される」が失敗する。
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation(t *testing.T) {
 	db := setupExclusionIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -91,7 +93,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 // このテストは PASS する。
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_DeleteScopedToClinic(t *testing.T) {
 	db := setupExclusionIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
 	ctx := context.Background()
 
 	const (

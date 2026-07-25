@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // BE9-2C R②: 実装は internal/reservation へ移動済み。本テストは意図的に repository 残置 —
 // production ctor（facade）が staff domain の shift_entries write 書き込み者を注入する配線そのものを
@@ -20,13 +20,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupReservationScheduleCRUDTestDB は ReservationScheduleRepository の CRUD テスト用に DB を整備する。
 func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{},
 		&model.StaffClinicAssignment{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{},
 	))
@@ -45,7 +47,7 @@ func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 
 func TestReservationScheduleRepository_FindAllByMonth_InvalidFormat(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 
 	got, err := repo.FindAllByMonth(ctx, 1, 1, "2026/06")
@@ -56,7 +58,7 @@ func TestReservationScheduleRepository_FindAllByMonth_InvalidFormat(t *testing.T
 
 func TestReservationScheduleRepository_FindAllByDate_NotFound(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -69,7 +71,7 @@ func TestReservationScheduleRepository_FindAllByDate_NotFound(t *testing.T) {
 
 func TestReservationScheduleRepository_FindAllBreaksByEntryID(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -98,7 +100,7 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryID(t *testing.T) {
 
 func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -134,7 +136,7 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 // プリフェッチ用バッチメソッドを検証する。
 func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 	const clinicB = uint64(2)
@@ -184,7 +186,7 @@ func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.
 
 func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -223,7 +225,7 @@ func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 
 func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -284,7 +286,7 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 
 func TestReservationScheduleRepository_Delete_NotFound(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

@@ -1,4 +1,4 @@
-package repository
+package reservation
 
 // reservation_schedule_clinic_isolation_test.go — #196 clinic_id テナント隔離回帰テスト
 //
@@ -19,6 +19,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupScheduleIsolationTestDB はシフト clinic_id 隔離テスト用の DB を整備する。
@@ -26,8 +28,8 @@ import (
 // 共有 DB に残った shift_entries を AutoMigrate 前にクリアして fixture を独立させる。
 func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{},
 		&model.StaffClinicAssignment{}, &model.ShiftEntry{},
 	))
@@ -38,24 +40,12 @@ func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeShiftEntry はテスト用シフトエントリを1件作成する。
-func makeShiftEntry(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date time.Time) {
-	t.Helper()
-	entry := &model.ShiftEntry{
-		ClinicID:  clinicID,
-		StaffID:   staffID,
-		Date:      date,
-		ShiftType: model.ShiftTypeFull,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(entry).Error)
-}
-
 // TestReservationScheduleRepository_FindAllByDate_ClinicIsolation は
 // clinic A のシフトを clinic B の clinicID で取得できないことを検証する。
 // clinicScope を削除すると「別クリニックIDでは取得できない」が失敗する。
 func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -88,7 +78,7 @@ func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.
 // clinicScope を削除すると「別クリニックIDでは0件」が失敗する。
 func TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -119,7 +109,7 @@ func TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation(t *testing
 // clinicScope を削除すると「シフトはまだ存在する」が失敗する。
 func TestReservationScheduleRepository_Delete_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
-	repo := NewReservationScheduleRepository(db)
+	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
 	ctx := context.Background()
 
 	const (

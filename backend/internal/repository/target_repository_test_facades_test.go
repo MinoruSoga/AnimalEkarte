@@ -140,18 +140,6 @@ func NewReservationRepository(db *gorm.DB) reservation.ReservationStore {
 	return reservation.NewReservationRepository(db)
 }
 
-type ReservationScheduleRepository = reservation.ReservationScheduleRepository
-
-func NewReservationScheduleRepository(db *gorm.DB) ReservationScheduleRepository {
-	return reservation.NewReservationScheduleRepository(db, staff.NewShiftEntryRepository(db))
-}
-
-type ReservationStaffRepository = reservation.ReservationStaffRepository
-
-func NewReservationStaffRepository(db *gorm.DB) ReservationStaffRepository {
-	return reservation.NewReservationStaffRepository(db, staff.NewStaffRepository(db))
-}
-
 type ShiftEntryRepository = staff.ShiftEntryRepository
 
 func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
