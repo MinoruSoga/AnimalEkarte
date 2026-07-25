@@ -239,8 +239,8 @@ export const PaymentCard = memo(function PaymentCard({
             {remaining !== 0 ? (
               <p className={`text-xs text-right ${remaining < 0 ? C.danger : C.text50}`}>
                 {remaining > 0
-                  ? `残り ¥${remaining.toLocaleString()} 未入力`
-                  : `¥${Math.abs(remaining).toLocaleString()} 超過`}
+                  ? `残り ${formatCurrency(remaining)} 未入力`
+                  : `${formatCurrency(Math.abs(remaining))} 超過`}
               </p>
             ) : null}
 

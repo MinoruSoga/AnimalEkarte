@@ -59,7 +59,7 @@ export const RefundSection = memo(function RefundSection({
     const amount = parseInt(refundAmount, 10);
     if (!amount || amount <= 0) return;
     if (amount > refundableAmount) {
-      toast.error(`返金額は残額 ¥${refundableAmount.toLocaleString()} 以下で入力してください`);
+      toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
       return;
     }
     const paymentMethod =
@@ -79,11 +79,11 @@ export const RefundSection = memo(function RefundSection({
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
             <span className={`text-xs font-normal ${C.text50}`}>
-              残額 ¥{refundableAmount.toLocaleString()}
+              残額 {formatCurrency(refundableAmount)}
             </span>
             {totalRefunded > 0 ? (
               <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
-                合計 ¥{totalRefunded.toLocaleString()} 返金済
+                合計 {formatCurrency(totalRefunded)} 返金済
               </span>
             ) : null}
           </CardTitle>

@@ -308,10 +308,10 @@ export const ItemListCard = memo(function ItemListCard({
         </Table>
       </CardContent>
       <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
-        <span>税抜小計: ¥{subtotal.toLocaleString()}</span>
-        <span>消費税: ¥{taxTotal.toLocaleString()}</span>
+        <span>税抜小計: {formatCurrency(subtotal)}</span>
+        <span>消費税: {formatCurrency(taxTotal)}</span>
         <span className="font-bold text-xl">
-          合計: ¥{totalAmount.toLocaleString()}
+          合計: {formatCurrency(totalAmount)}
         </span>
       </div>
     </Card>

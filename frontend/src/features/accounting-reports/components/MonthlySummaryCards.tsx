@@ -26,7 +26,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
     {
       label: "売上合計",
       value: formatCurrency(summary.totalAmount),
-      sub: `返金: -¥${summary.totalRefund.toLocaleString()}`,
+      sub: `返金: -${formatCurrency(summary.totalRefund)}`,
     },
     {
       label: "純売上",

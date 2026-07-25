@@ -195,7 +195,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>
-        {isCompleted ? `¥${totalAmount.toLocaleString()}` : "-"}
+        {isCompleted ? formatCurrency(totalAmount) : "-"}
       </TableCell>
                     <TableCell>
         <div className="flex items-center justify-end gap-3">

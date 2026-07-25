@@ -3,6 +3,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 
 import {
   TARGET_SIZE_LABELS,
@@ -105,7 +106,7 @@ export function CombinablePill({ combinable }: { combinable: boolean }) {
 function TrimmingPriceCell({ price }: { price: number | null }) {
   return (
     <TableCell className={`text-right font-mono ${C.text}`}>
-      {price != null ? `¥${price.toLocaleString()}` : "-"}
+      {formatCurrency(price)}
     </TableCell>
   );
 }

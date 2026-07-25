@@ -57,7 +57,7 @@ export const BillingDetailTable = memo(function BillingDetailTable({
                 {formatCurrency(detail.billingAmount)}
               </TableCell>
               <TableCell className={`text-right ${detail.refundAmount > 0 ? C.danger : C.text50}`}>
-                {detail.refundAmount > 0 ? `-¥${detail.refundAmount.toLocaleString()}` : "—"}
+                {detail.refundAmount > 0 ? `-${formatCurrency(detail.refundAmount)}` : "—"}
               </TableCell>
               <TableCell className={`text-right font-medium ${C.text}`}>
                 {formatCurrency(detail.netAmount)}

@@ -86,7 +86,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
                         : formatCurrency(s.discount_value)}
                     </span>
                     <span className={`float-right font-mono ${C.textRedIcon}`}>
-                      -¥{s.amount.toLocaleString()}
+                      -{formatCurrency(s.amount)}
                     </span>
                   </button>
                 </li>

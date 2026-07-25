@@ -205,7 +205,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                           </div>
                           {item.category && showItemCategory ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
                           {item.discountAmount > 0 ? (
-                            <span className={`block text-xs ${C.text50}`}>割引 −¥{item.discountAmount.toLocaleString()}</span>
+                            <span className={`block text-xs ${C.text50}`}>割引 −{formatCurrency(item.discountAmount)}</span>
                           ) : null}
                         </td>
                         <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
@@ -234,12 +234,12 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                 <div className={`text-xs ${C.text60} space-y-1 pt-2`}>
                   <div className="flex justify-between">
                     <span>{taxBreakdown.standardRatePercent}%対象</span>
-                    <span>¥{taxBreakdown.standardBase.toLocaleString()}（内 消費税 ¥{taxBreakdown.standardAmount.toLocaleString()}）</span>
+                    <span>{formatCurrency(taxBreakdown.standardBase)}（内 消費税 {formatCurrency(taxBreakdown.standardAmount)}）</span>
                   </div>
                   {taxBreakdown.reducedBase > 0 ? (
                     <div className="flex justify-between">
                       <span>{taxBreakdown.reducedRatePercent}%対象 ※軽減税率</span>
-                      <span>¥{taxBreakdown.reducedBase.toLocaleString()}（内 消費税 ¥{taxBreakdown.reducedAmount.toLocaleString()}）</span>
+                      <span>{formatCurrency(taxBreakdown.reducedBase)}（内 消費税 {formatCurrency(taxBreakdown.reducedAmount)}）</span>
                     </div>
                   ) : null}
                 </div>

@@ -56,7 +56,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
               {paymentMethods.map((pm) => (
                 <TableCell key={pm.id} className={`text-right ${C.text}`}>
                   {row.byMethod[pm.name] != null
-                    ? `¥${row.byMethod[pm.name].toLocaleString()}`
+                    ? formatCurrency(row.byMethod[pm.name])
                     : "—"}
                 </TableCell>
               ))}
@@ -73,7 +73,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
             {paymentMethods.map((pm) => (
               <TableCell key={pm.id} className={`text-right font-semibold ${C.text}`}>
                 {totals.byMethod[pm.name] != null
-                  ? `¥${totals.byMethod[pm.name].toLocaleString()}`
+                  ? formatCurrency(totals.byMethod[pm.name])
                   : "—"}
               </TableCell>
             ))}

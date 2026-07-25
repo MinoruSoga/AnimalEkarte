@@ -83,7 +83,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 <TableCell
                   className={`text-right ${detail.refund > 0 ? C.danger : C.text50}`}
                 >
-                  {detail.refund > 0 ? `-¥${detail.refund.toLocaleString()}` : "—"}
+                  {detail.refund > 0 ? `-${formatCurrency(detail.refund)}` : "—"}
                 </TableCell>
                 <TableCell className="text-center">
                   <span

@@ -398,7 +398,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             title={!canEditDiscount ? "値引の変更には権限が必要です" : undefined}
           >
             {treatment.discount_amount > 0
-              ? `-¥${treatment.discount_amount.toLocaleString()}`
+              ? `-${formatCurrency(treatment.discount_amount)}`
               : "—"}
           </button>
         )}
