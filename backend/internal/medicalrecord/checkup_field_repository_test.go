@@ -158,6 +158,31 @@ func TestCheckupFieldResultRepository_FindByPetID_FieldPreloadClinicIsolation(t 
 	assert.Equal(t, "医院Aの項目", byFieldID[fieldA.ID].CheckupTypeField.Name)
 }
 
+func TestCheckupFieldResultRepository_FindByPetID_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	resultRepo := NewCheckupFieldResultRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "健診結果取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-CHECKUP", time.Now())
+	checkupType := makeCheckupTypeMaster(t, db, clinicA, "医院Aの健診")
+	checkupID := makeCheckupRec(t, db, clinicA, mr.ID, crossClinicPet.ID, checkupType.ID)
+	require.NoError(t, db.WithContext(ctx).Create(&model.CheckupFieldResult{
+		ClinicID:  clinicA,
+		CheckupID: checkupID,
+		FieldName: "別医院ペット由来結果",
+		FieldType: model.CheckupFieldTypeBoolean,
+		SortOrder: 1,
+	}).Error)
+
+	got, err := resultRepo.FindByPetID(ctx, clinicA, crossClinicPet.ID)
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 // SC3 正本ランタイム保証（security review M2）: FindByCheckupTypeID は clinic スコープで、
 // 別 clinic の field 定義（同一 checkup_type_id を指すクロステナント汚染行）を返さない。
 // service の #124 同型ガード（fieldByID メンバシップ検証）はこの clinic スコープに依拠するため、

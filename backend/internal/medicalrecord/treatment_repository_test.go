@@ -152,6 +152,31 @@ func TestTreatmentRepository_FindHistoryByPetID(t *testing.T) {
 	})
 }
 
+func TestTreatmentRepository_FindHistoryByPetID_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupTreatmentHistoryTestDB(t)
+	repo := NewTreatmentRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "治療履歴取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-HISTORY", time.Now())
+	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "別医院ペット由来治療", 0)
+
+	got, total, err := repo.FindHistoryByPetID(
+		ctx,
+		clinicA,
+		crossClinicPet.ID,
+		model.PetTreatmentHistoryFilter{},
+		1,
+		100,
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.Zero(t, total)
+}
+
 func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 	db := setupTreatmentHistoryTestDB(t)
 	repo := NewTreatmentRepository(db)
@@ -593,6 +618,27 @@ func TestTreatmentRepository_FindUnbilledByPetID(t *testing.T) {
 	})
 }
 
+func TestTreatmentRepository_FindUnbilledByPetID_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupTreatmentBillingTestDB(t)
+	repo := NewTreatmentRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "未会計取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-UNBILLED", time.Now())
+	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "別医院ペット由来治療", 0)
+	require.NoError(t, db.Create(&model.BillingConfirmation{
+		MedicalRecordID: mr.ID,
+		Status:          model.ConfirmationStatusConfirmed,
+	}).Error)
+
+	got, err := repo.FindUnbilledByPetID(ctx, clinicA, crossClinicPet.ID)
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 func treatmentContentExists(treatments []model.Treatment, content string) bool {
 	for _, treatment := range treatments {
 		if treatment.Content == content {
@@ -716,4 +762,21 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
+}
+
+func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupTreatmentBillingTestDB(t)
+	repo := NewTreatmentRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "取り残し取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	date := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
+	makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-COUNT", date)
+
+	count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, crossClinicPet.ID, date)
+
+	require.NoError(t, err)
+	assert.Zero(t, count)
 }

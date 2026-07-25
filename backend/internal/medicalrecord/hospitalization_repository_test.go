@@ -231,6 +231,23 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	})
 }
 
+func TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	repo := NewHospitalizationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "入院取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	makeHospitalizationFixture(t, db, clinicA, ownerA.ID, crossClinicPet.ID, nil)
+
+	got, total, err := repo.FindAll(ctx, clinicA, &crossClinicPet.ID, nil, nil, nil, nil, 1, 100)
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.Zero(t, total)
+}
+
 func TestHospitalizationRepository_FindByID_NotFoundAndIsolation(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)

@@ -85,6 +85,7 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 		Joins("JOIN medical_records mr ON mr.id = treatments.medical_record_id AND mr.deleted_at IS NULL").
 		Joins("JOIN billing_confirmations bc ON bc.medical_record_id = mr.id").
 		Where("mr.pet_id = ? AND mr.clinic_id = ? AND bc.status = 'confirmed' AND treatments.deleted_at IS NULL", petID, clinicID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = mr.pet_id AND p.clinic_id = mr.clinic_id)").
 		Where("NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = mr.clinic_id AND b.deleted_at IS NULL WHERE bi.treatment_id = treatments.id AND bi.deleted_at IS NULL AND b.status != 'cancelled')").
 		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = mr.id AND b.clinic_id = mr.clinic_id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
 		Scopes(treatmentReadPreloads(clinicID)).
@@ -103,6 +104,7 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 			Model(&model.Treatment{}).
 			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 			Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND treatments.deleted_at IS NULL", clinicID, petID)
+		q = q.Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = medical_records.pet_id AND p.clinic_id = medical_records.clinic_id)")
 		if filter.ItemType != nil {
 			q = q.Where("treatments.item_type = ?", *filter.ItemType)
 		}
@@ -197,6 +199,7 @@ func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.
 		Model(&model.MedicalRecord{}).
 		Joins("LEFT JOIN billing_confirmations bc ON bc.medical_record_id = medical_records.id").
 		Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND medical_records.deleted_at IS NULL", clinicID, petID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = medical_records.pet_id AND p.clinic_id = medical_records.clinic_id)").
 		Where("medical_records.status = ?", model.MedicalRecordStatusFinalized).
 		Where("DATE(medical_records.date) = DATE(?)", date).
 		Where("(bc.id IS NULL OR bc.status != 'confirmed')").

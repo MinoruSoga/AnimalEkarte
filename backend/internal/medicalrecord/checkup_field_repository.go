@@ -94,6 +94,7 @@ func (r *checkupFieldResultRepository) FindByPetID(ctx context.Context, clinicID
 			" AND checkups.clinic_id = ?"+
 			" AND checkups.deleted_at IS NULL", clinicID).
 		Where("checkup_field_results.clinic_id = ? AND checkups.pet_id = ?", clinicID, petID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = checkups.pet_id AND p.clinic_id = checkups.clinic_id)").
 		// P3.1: clinic-scoped マスタ Preload は clinic_id 述語必須。
 		Preload("CheckupTypeField", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		// 親 checkup と種別（飼い主レポートの日付・パッケージ名表示用）。

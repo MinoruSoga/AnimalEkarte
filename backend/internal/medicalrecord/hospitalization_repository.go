@@ -44,7 +44,10 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Scopes(persistence.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).
+		Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = hospitalizations.pet_id AND p.clinic_id = hospitalizations.clinic_id)")
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
