@@ -1102,7 +1102,7 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
 |---|---|---|---|
 | R-1 | `backend/internal/clinic/closing_settings_request.go:11`, `:46` | 既存`staticcheck S1016` 2件。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput`、`UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput`をstruct literalではなく型変換で書くべきという指摘。宣言元は`closing_settings_request.go:3`/`:37`と`closing_settings_service.go:63`/`:80` | BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、本unitが持ち込んだものではない |
 | R-2 | `backend/internal/testdb/testdb.go:100` | 既存`wrapcheck` 1件。`gorm.DB.AutoMigrate`のerrorを未wrapで返している | BE10-2 B0のlint baseline。B0の変更前後で同一 |
-| R-3 | `backend/internal/service/staff_shift_security_integration_test.go:147` の setup | 既存の**test schema gap**。`TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase` と `TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase` が `relation "medical_record_addenda" does not exist` / `relation "hospitalizations" does not exist` で失敗する。setup が、`backend/internal/staff/staff_repository.go:329` と `backend/internal/clinic/clinic_repository.go:166` の dependency-count query が触る表を migrate していない | BE10-2 B1 の E12。**B1 起因ではないことを確定済み**（下記 E12 補正根拠） |
+| R-3 | `backend/internal/service/staff_shift_security_integration_test.go:147` の setup | **完了（2026-07-25）**。2 dependency-count 関数が参照する全17表を列挙し、shared test schema / 現setupで未整備だった12表をsetup内で整備した。対象2 testと`go test ./internal/service/... -count=1 -p 1 -v`はPASS、baseline PASS→FAILは0、production code無変更 | BE10-2 B1 の E12。**B1 起因ではないことを確定済み**（下記 E12 補正根拠、R-3実行ledger） |
 
 ### BE10-2 B1 の E12 補正根拠（2026-07-25・生成側 reconciliation）
 
@@ -1116,3 +1116,184 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
 生成側 prompt の欠陥: E12 の判定基準を「test PASS」という**絶対条件**にしたため、既存 defect で完了判定が止まった。lint gate は baseline 相対へ是正済みだったが test gate は絶対のままだった（同型欠陥の3回目）。以後の test gate も「pre-change baseline 比で新規失敗0件」とする。
 
 いずれもproduction runtimeに影響しない（`internal/testdb`はproduction importer 0件のtest専用package、`closing_settings_request.go`はDTO変換）。修正は独立unitで行い、scoped lintで0件化を確認する。
+
+### R-3 実行ledger（2026-07-25）
+
+- 実行状態: `完了`。変更は`backend/internal/service/staff_shift_security_integration_test.go`と本ledgerの2 pathだけ。production Go file、`internal/testdb`、migrationは無変更。
+- Saved Prompt Validation Gate:
+
+  ```text
+  $ node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-r3-service-test-schema-gap.md
+  Prompt Craft Harness Validation: PASS
+  validator_exit_status=0
+  ```
+
+- F1 baseline:
+
+  ```text
+  temporary_evidence_dir=/tmp/animalekarte-be10-r3.EPpD5t
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte rev-parse --short HEAD
+  718f6c9b3
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte status --porcelain -- backend BE-refactor.md
+   M backend/docs/api.yaml
+   M backend/internal/reservation/nested_summary_response.go
+   M backend/internal/reservation/reservation_response_test.go
+  $ docker compose exec backend go test ./internal/service/... -count=1 -p 1 -v
+  --- FAIL: TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase (5.05s)
+  --- FAIL: TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase (5.06s)
+  baseline_top_level_pass_count=56
+  test_exit=1
+  $ docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM --entrypoint golangci-lint backend run ./internal/service/... --max-same-issues 0 --max-issues-per-linter 0
+  0 issues.
+  lint_exit=0
+  ```
+
+- F2/F3: `CountBlockingReferencesByStaffID`全文（`staff_repository.go:329-383`）の`checks`は`medical_records`（2列）、`medical_record_addenda`、`hospitalizations`、`exams`、`shift_entries`、`billing_refunds`、`cash_register_closes`、`vital_records`。slice外は`payments`とJOIN先`billings`。`CountBlockingReferencesByClinicID`全文（`clinic_repository.go:166-204`）の`checks`は`appointments`、`medical_records`、`hospitalizations`、`exams`、`vaccinations`、`checkups`、`billings`、`clinic_settings`、`clinic_integrations`、`lstep_settings`、`permission_groups`で、slice外参照はない。全17 unique tableに対応modelがあり、modelなしは0件。
+- 表/model対応: `appointments`=`model.Reservation`、`medical_records`=`model.MedicalRecord`、`medical_record_addenda`=`model.MedicalRecordAddendum`、`hospitalizations`=`model.Hospitalization`、`exams`=`model.Examination`、`shift_entries`=`model.ShiftEntry`、`billing_refunds`=`model.BillingRefund`、`cash_register_closes`=`model.CashRegisterClose`、`vital_records`=`model.VitalRecord`、`payments`=`model.Payment`、`billings`=`model.Billing`、`vaccinations`=`model.Vaccination`、`checkups`=`model.Checkup`、`clinic_settings`=`model.ClinicSettings`、`clinic_integrations`=`model.ClinicIntegration`、`lstep_settings`=`model.LstepSettings`、`permission_groups`=`model.PermissionGroup`。
+- F4/F5: 現setupの明示modelは`Company`、`Clinic`、`Staff`、`StaffClinicAssignment`、`ShiftEntry`、`ShiftEntryBreak`。`SetupTestDB`のshared coreが`MedicalRecord`、`Billing`、`Payment`、`BillingRefund`を既に保証するため、実差集合は`medical_record_addenda`、`hospitalizations`、`exams`、`cash_register_closes`、`vital_records`、`appointments`、`vaccinations`、`checkups`、`clinic_settings`、`clinic_integrations`、`lstep_settings`、`permission_groups`の12表。既存`setupClinicTestDB` patternに合わせ、対応modelと`ExaminationType` / `ExamTypeField` / `CheckupType`を`EnsureAutoMigrated`へ追加し、`clinic_settings`だけは既知のGORM `time`型問題を避ける`testdb.EnsureClinicSettingsTable`で整備した。
+
+  ```text
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte diff --name-only -- backend/internal/staff backend/internal/clinic backend/internal/model
+  (empty)
+  production_diff_exit=0
+  ```
+
+- F6 target tests（F2→F6補完loop 1周、retry 0）:
+
+  ```text
+  $ docker compose exec backend go test ./internal/service/... -count=1 -p 1 -run 'TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase|TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase' -v
+  === RUN   TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase
+  --- PASS: TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase (0.44s)
+  === RUN   TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase
+  --- PASS: TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase (0.16s)
+  PASS
+  ok  	github.com/animal-ekarte/backend/internal/service	0.608s
+  test_target_exit=0
+  ```
+
+- F7 regression:
+
+  ```text
+  $ docker compose exec backend go test ./internal/service/... -count=1 -p 1 -v
+  PASS
+  ok  	github.com/animal-ekarte/backend/internal/service	2.523s
+  test_after_exit=0
+  after_top_level_pass_count=58
+  after_top_level_fail_count=0
+  PASS_to_FAIL=0
+  FAIL_to_PASS=2
+  TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase
+  TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchangedDatabase
+  ```
+
+  `diff test.base.status test.after.status`は上記2件のFAIL削除・PASS追加と実行時間差だけ。baselineでPASSだったtest名の差集合は空。
+
+- `TRUNCATE`判断: 拡張しなかった。追加表へfixtureをinsertせず、F6/F7が1周目でPASSし、baseline PASS→FAILも0件だったため。先に`CASCADE`範囲を広げる方が同packageの他fixtureを消すリスクを増やす。
+- F8/F9:
+
+  ```text
+  $ docker compose exec backend go vet ./internal/service/... ./internal/staff/... ./internal/clinic/...
+  (Composeの未設定DB変数warning 3行のみ)
+  vet_exit=0
+  $ docker compose exec backend gofmt -l internal/service/
+  (Composeの未設定DB変数warning 3行のみ)
+  gofmt_exit=0
+  $ docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM --entrypoint golangci-lint backend run ./internal/service/... --max-same-issues 0 --max-issues-per-linter 0
+  0 issues.
+  lint_after_exit=0
+  lint_diagnostic_diff=(empty)
+  new_lint_diagnostic_count=0
+  ```
+
+- Database review / clinic isolation review: `Approve`。CRITICAL 0 / HIGH 0 / MEDIUM 0 / LOW 0。全count queryの`clinic_id` scope、paymentsのclinic-scoped billings JOIN、shared core + 追加schemaの全数性、`clinic_settings`の既存raw-DDL helper、TRUNCATE非拡張を確認。
+- De-Sloppify: 新規test、assertion、fixture値、debug出力、死んだmodel追加は0。既存repository setupを踏襲するsupport model 3件を保持し、追加表のTRUNCATEは行わなかった。
+- F11 tracking safety:
+
+  ```text
+  $ git reset
+  Unstaged changes after reset:
+  M	BE-refactor.md
+  M	Makefile
+  M	backend/internal/service/staff_shift_security_integration_test.go
+  M	docs/ops/deploy/README.md
+  M	scripts/run-local-ci.sh
+  reset_exit=0
+  $ git check-ignore -v backend/internal/service/staff_shift_security_integration_test.go BE-refactor.md
+  (empty)
+  check_ignore_exit=1
+  $ git add backend/internal/service/staff_shift_security_integration_test.go BE-refactor.md
+  add_exit=0
+  $ git diff --cached --name-only
+  BE-refactor.md
+  backend/internal/service/staff_shift_security_integration_test.go
+  cached_names_exit=0
+  $ git restore --staged backend/internal/service/staff_shift_security_integration_test.go BE-refactor.md
+  restore_staged_exit=0
+  $ git diff --cached --name-only
+  (empty)
+  final_cached_names_exit=0
+  ```
+
+- F12 Independent Review Gate: reviewer roleによるfresh passは`APPROVE`。CRITICAL 0 / HIGH 0 / MEDIUM 0、LOW 1（F11/F13/F14のledger未記載）。必須5観点は (a) F2全数性、(b) production無変更、(c) TRUNCATE非拡張のfixture安全性、(d) setup外のtest変更なし、(e) allowlist外のsession-owned変更なし、すべてPASS。本追記でLOWを解消した。
+- F13 allowlist:
+
+  ```text
+  F1 scoped status:
+   M backend/docs/api.yaml
+   M backend/internal/reservation/nested_summary_response.go
+   M backend/internal/reservation/reservation_response_test.go
+  $ git status --porcelain -- backend BE-refactor.md
+   M BE-refactor.md
+   M backend/internal/service/staff_shift_security_integration_test.go
+  current_scoped_status_exit=0
+  F1になく今回現れた行:
+   M BE-refactor.md
+   M backend/internal/service/staff_shift_security_integration_test.go
+  allowlist_match=2/2
+  session_owned_allowlist_outside_count=0
+  ```
+
+  F1の3 pathは並行writerの増分commit `463e07424af94eafdd0a1bf5a575134fb9f60b3c`へ取り込まれたためcurrent statusから消えた。本unitは当該pathを変更していない。repo全体にはA4 rehearsal系の並行writer差分があるが、F13の対象集合外かつ本unit由来ではない。
+- F14 worktree / concurrent HEAD:
+
+  ```text
+  F1_HEAD=718f6c9b3
+  CURRENT_HEAD=2946339243830bfe5c2b21740e3dd7c15911893a
+  current allowlist worktree rows:
+   M BE-refactor.md
+   M backend/internal/service/staff_shift_security_integration_test.go
+  $ git log --oneline -3
+  294633924 docs: BUG-431クローズ（463e07424で修正完了）
+  bf2c05b89 docs: S2実装プランのコード規約照合 — DEC-17へ実装前提3件を補強
+  463e07424 fix(backend): BUG-431 — 受付の危険度バッジが実APIで点灯しない契約不整合を修正
+  increment_count=5
+  bc4fe88cb3009ad93b27a6d899c78b8e274e5cb7:
+    frontend/src/features/examinations/api/get-examination-items.ts
+    frontend/src/features/examinations/components/ExamPivotTable.test.tsx
+    frontend/src/features/examinations/components/ExamPivotTable.tsx
+    frontend/src/features/examinations/components/ExaminationHistoryPanel.test.tsx
+    frontend/src/features/examinations/components/ExaminationHistoryPanel.tsx
+    frontend/src/features/examinations/constants.ts
+    frontend/src/features/examinations/routes/ExaminationForm.permissions.test.tsx
+    frontend/src/features/examinations/routes/ExaminationForm.tsx
+    frontend/src/features/medical-records/components/ExaminationGroup.test.tsx
+    frontend/src/features/medical-records/components/ExaminationGroup.tsx
+    frontend/src/features/medical-records/components/MedicalRecordExamination.test.tsx
+    frontend/src/features/medical-records/components/MedicalRecordExamination.tsx
+  3321c801fce919316b5b436bd4f75eabff0c4ca4:
+    todo.md
+  463e07424af94eafdd0a1bf5a575134fb9f60b3c:
+    backend/docs/api.yaml
+    backend/internal/reservation/nested_summary_response.go
+    backend/internal/reservation/reservation_response_test.go
+  bf2c05b8989bafe5ed7da6b45af2f67e56ede960:
+    q&a.html
+  2946339243830bfe5c2b21740e3dd7c15911893a:
+    todo.md
+  increment_allowlist_hits=(empty)
+  ```
+
+- Failure Signature log:
+  - F7 command wrapper attempt 1: exact Docker commandの実行前にwrapper JavaScriptが`Unexpected identifier 'pipefail'`で失敗。shellを正しく渡して同じ検証commandを再実行し、attempt 2でPASS。test自体のretryは0。
+  - F10 patch attempts 1–2: contextの引用符を誤ってescapeしたため`Invalid Context`、file変更なし。2-strikeで対象行のexact bytesを再読し、literal引用符の最小patchでattempt 3 PASS。同一failureを3回は繰り返していない。
+- Assumption deviations: none。

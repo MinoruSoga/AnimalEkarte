@@ -157,7 +157,22 @@ func setupStaffShiftSecurityIntegrationTest(
 		&model.StaffClinicAssignment{},
 		&model.ShiftEntry{},
 		&model.ShiftEntryBreak{},
+		&model.PermissionGroup{},
+		&model.Reservation{},
+		&model.ExaminationType{},
+		&model.ExamTypeField{},
+		&model.Examination{},
+		&model.Hospitalization{},
+		&model.Vaccination{},
+		&model.CheckupType{},
+		&model.Checkup{},
+		&model.ClinicIntegration{},
+		&model.LstepSettings{},
+		&model.MedicalRecordAddendum{},
+		&model.CashRegisterClose{},
+		&model.VitalRecord{},
 	))
+	testdb.EnsureClinicSettingsTable(t, db)
 	require.NoError(t, db.Exec(
 		"TRUNCATE TABLE shift_entry_breaks, shift_entries, staff_clinic_assignments, staffs, clinics, companies CASCADE",
 	).Error)
