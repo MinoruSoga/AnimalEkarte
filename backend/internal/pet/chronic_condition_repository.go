@@ -34,6 +34,7 @@ func (r *chronicConditionRepository) FindByPetID(ctx context.Context, clinicID, 
 	var records []model.PetChronicCondition
 	if err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND pet_id = ? AND deleted_at IS NULL", clinicID, petID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = pet_chronic_conditions.pet_id AND p.clinic_id = pet_chronic_conditions.clinic_id)").
 		Order("diagnosed_at DESC").
 		Find(&records).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet_chronic_condition", "")
@@ -48,6 +49,7 @@ func (r *chronicConditionRepository) FindByID(
 	var record model.PetChronicCondition
 	if err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND pet_id = ? AND id = ?", clinicID, petID, id).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = pet_chronic_conditions.pet_id AND p.clinic_id = pet_chronic_conditions.clinic_id)").
 		First(&record).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet_chronic_condition", fmt.Sprintf("%d", id))
 	}

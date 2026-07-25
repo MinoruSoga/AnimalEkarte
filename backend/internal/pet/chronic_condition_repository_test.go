@@ -70,6 +70,31 @@ func TestPetChronicConditionRepository_FindByPetID(t *testing.T) {
 	assert.Equal(t, old.ID, got[1].ID)
 }
 
+func TestPetChronicConditionRepository_FindByPetID_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupPetChronicConditionTestDB(t)
+	repo := NewChronicConditionRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "慢性疾患取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	makeChronicCondition(
+		t,
+		db,
+		clinicA,
+		crossClinicPet.ID,
+		"LEAK",
+		"別医院ペット由来疾患",
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		true,
+	)
+
+	got, err := repo.FindByPetID(ctx, clinicA, crossClinicPet.ID)
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 func TestPetChronicConditionRepository_FindByID(t *testing.T) {
 	db := setupPetChronicConditionTestDB(t)
 	repo := NewChronicConditionRepository(db)
@@ -117,6 +142,32 @@ func TestPetChronicConditionRepository_FindByID(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestPetChronicConditionRepository_FindByID_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
+	db := setupPetChronicConditionTestDB(t)
+	repo := NewChronicConditionRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "慢性疾患単件取得対象飼主")
+	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
+	cond := makeChronicCondition(
+		t,
+		db,
+		clinicA,
+		crossClinicPet.ID,
+		"LEAK",
+		"別医院ペット由来疾患",
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		true,
+	)
+
+	got, err := repo.FindByID(ctx, clinicA, crossClinicPet.ID, cond.ID)
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
 }
 
 func TestPetChronicConditionRepository_Create(t *testing.T) {
