@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2`・下記BE10-1実行ledger |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・下記B0実行ledger・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B3 完了**（commit済み。B4〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`・下記batch表・下記B1/B2/B3実行ledger・下記E12補正根拠 |
+| BE10-2 B1〜B14 Go移設 | **B1〜B4 完了**（B1〜B3 commit済み、B4 hash追記待ち。B5〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=下記実行ledger・下記batch表・下記E12補正根拠 |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -383,7 +383,7 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B3完了・commit済み。B4〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B4完了。B1〜B3はcommit済み、B4はhash追記待ち。B5〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 
@@ -615,7 +615,7 @@ B0からB14を順に適用する。`I(files)`を上の64 file別inventoryに記�
 | B1 ✅完了 `718f6c9b3` | service audit test + audit側double分割、service bridgeのaudit symbol除去 | B0 | `mockAuditRepository.recordLog`, `mockAuditRepository.Create`, `mockAuditRepository.CreateTx`, `NewAuditService`, `validateAuditLog` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B2 ✅完了 `134e7953b` | service clinic holiday/clinic/closing/company + clinic側double、bridgeのclinic symbol除去 | B1 | `mockPermissionGroupRepository.Create`, `mockPermissionGroupRepository.UpdateRules`, `NewClinicHolidayService`, `NewClinicService`, `buildClinicUpdate`, `NewClosingSettingsService`, `NewCompanyService`, `buildCompanyUpdate` + `I(files) local-only` | `NewClinicService`（B3対象のstaff integration testが消費するためbridgeをB3まで保持） | `NewClinicService`（撤去をB3へ延期して解消） |
 | B3 ✅完了 `36f283f37` | service staff 3 file + staff transactor、service bridge/残infra削除 | B2 | `mockTransactor.WithTx`, `NewStaffService`, `NewShiftEntryService`, `strPtr`, `ptrFloat64` + `I(files) local-only` | `∅` | `∅` |
-| B4 | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
+| B4 ✅完了（hash追記待ち） | service master-FK/N+1 lint→`lintscan`、update-fields→`sharedkernel` | B3 | `I(files) local-only` | `∅` | `∅` |
 | B5 | repository lint 5 file→`lintscan`、migration/reconciliation path gap修正 | B0 | `moduleInternalSource`, `legacyLintKey`, `baseFileName`, `receiverMethodKey`, `assertDiscoversFileFromDifferentTopLevelPackage`, `assertLintscanReachesTwoOrMoreNestingLevels` + `I(files) local-only` | `∅`（3 consumer gateを同時移設） | `∅` |
 | B6 | repository audit 2 file + DDL helper→`audit` | B0 | `setupAuditRealDDLTestDB`, `readCheckupMigration010`, `extractCreateTableDDL` + `I(files) local-only` | `∅`（audit consumerを同時移設） | `∅` |
 | B7 | repository clinic/permission-group/closing-special 3 file→`clinic` | B0 | `setupClinicTestDB` | `∅`（2 consumerを同時移設） | `∅` |
@@ -1253,6 +1253,87 @@ batchごとの含有fileは次のとおり。分割fileは同じ原本の対象�
 - H20 Independent Review Gate: explorer由来のfresh independent reviewで(a)移設testの意味変化なし、(b)12 test名/assertion欠落なし、(c)bridge全consumer調査妥当、(d)文字列literalは3件更新・取りこぼしなし、(e)allowlist外/production変更なしを確認。CRITICAL/HIGH/MEDIUM/LOWはいずれも0。DB-backed suiteはreview pass内で並列実行していない。
 - H21/H22: baseline scoped porcelainは空、afterの11 physical pathは全件allowlist内。baseline HEAD=`0736cd6f9`、current HEAD=`070043aed`。増分commitは`10abd8258`（`todo.md`）、`0804c400e`（frontend 3 file）、`070043aed`（`FE-refactor.md`）だけで、いずれもB3 allowlistを含まない。本unit変更はindexを空に戻したworktreeに残しており、commit/push/PRは実施していない。
 
+#### BE10-2 B4 実行ledger（2026-07-25）
+
+- 実行状態: `完了（hash追記待ち）`。serviceに残っていたmaster-FK/N+1 lint test 2 fileを`internal/lintscan`へ、update-fields testを`internal/sharedkernel`へ移設した。`internal/service`のGo fileは0件になったが、directory自体と`CLAUDE.md` / `.DS_Store`の後始末は本unitの対象外であり、削除していない。
+- 変更file:
+  - `backend/internal/lintscan/master_fk_write_inventory_lint_test.go`（移設）
+  - `backend/internal/lintscan/n1_lint_test.go`（移設）
+  - `backend/internal/sharedkernel/update_fields_test.go`（移設）
+  - `backend/internal/service/master_fk_write_inventory_lint_test.go`（消滅）
+  - `backend/internal/service/n1_lint_test.go`（消滅）
+  - `backend/internal/service/update_fields_test.go`（消滅）
+  - `BE-refactor.md`
+- scope: B4のみ。B5〜B14、BE10-3〜BE10-6、R-1/R-2、production code、model、migration、既存`lintscan_test.go` / `sharedkernel_test.go`は変更していない。
+- Saved Prompt Validation Gate:
+
+  ```text
+  $ node /Users/minoru/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-be10-2-b4-lint-and-sharedkernel-migration.md
+  Prompt Craft Harness Validation: PASS
+  validator_exit=0
+  ```
+
+- I1/I2 baseline:
+
+  ```text
+  temporary_evidence_dir=/tmp/animalekarte-be10-b4.WKdgVJ
+  $ git -C /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte rev-parse --short HEAD
+  39aa88738
+  source_lines=1306/484/47 source_test_names=18
+  test_exit=1 pass_lines=30 fail_lines=1
+  --- FAIL: TestWalkInternalTreeT_RealRepo (0.03s)
+  lint_exit=1 diagnostics=1
+  internal/lintscan/lintscan.go:147:15: error returned from external package is unwrapped: sig: func path/filepath.WalkDir(root string, fn io/fs.WalkDirFunc) error (wrapcheck)
+  ```
+
+  baselineのtest失敗は、既存`lintscan_test.go`がBE10-1で消滅済みの`clinic/company/repository.go`を期待するR-4であり、本unit外。baseline時点の本unit外WIPは`BE-refactor.md`のR-4追記、`internal/billing` 3 file、`internal/medicalrecord` 2 file、`internal/sharedkernel/item_category_resolver*` 2 fileであり、保持して変更していない。
+- I3 path分類: exact `internal/service`はmaster-FK 22件、N+1 5件、update-fields 0件。①説明/診断11件、②機能的scan値0件、③human review evidence 16件。実際の機能値はlintscan-relativeな`"service/"`等のprefixであり、`WalkInternalTreeT`はcaller cwdからmodule rootを探索して常に`backend/internal/**`を歩くため、移設後も走査対象は不変。移設で偽になるN+1 file placement commentだけを`package lintscan`に合わせて2行更新し、既存のstale comment/error文言は本unit外として変更していない。
+- I4 collision: test名を除外せず照合し、lint moving 52 × dest 14、sharedkernel moving 1 × dest 37、`comm -12`はいずれも無出力。衝突0。
+- I5〜I7: 3 fileを`git mv`し、package行、self-import除去、`WalkInternalTreeT`コード呼び出し2件と`SetNullableUint64Field`コード呼び出し5件のqualifier除去、gofmt import整列、上記placement comment 2行だけを変更した。allowlist entry、status、field、test名、assertion、fixture、error文言、呼出順序の変更は0。
+- I10 vet:
+
+  ```text
+  $ docker compose exec backend go vet ./internal/lintscan/... ./internal/sharedkernel/... ./internal/service/...
+  go: warning: "./internal/service/..." matched no packages
+  vet_exit=0
+  ```
+
+  I10→I5/I6補完ループは0周。
+- I11 test:
+
+  ```text
+  $ docker compose exec backend go test ./internal/lintscan/... ./internal/sharedkernel/... ./internal/service/... -count=1 -p 1 -v
+  test_exit=1
+  pass_before=30 pass_after=30 fail_before=1 fail_after=1
+  $ diff /tmp/animalekarte-be10-b4.WKdgVJ/test.base.names /tmp/animalekarte-be10-b4.WKdgVJ/test.after.names
+  (empty)
+  pass_to_fail=0
+  ```
+
+  baselineのR-4だけが同名でFAILし続け、移設18 testは全件PASS。I11→I3補完ループは0周。
+- I12/I13:
+
+  ```text
+  $ docker compose exec backend gofmt -l internal/lintscan/ internal/sharedkernel/
+  (empty)
+  gofmt_exit=0
+  $ docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-b4-after-<pid> --entrypoint golangci-lint backend run --max-same-issues 0 --max-issues-per-linter 0 ./internal/lintscan/... ./internal/sharedkernel/...
+  internal/lintscan/lintscan.go:147:15: error returned from external package is unwrapped: sig: func path/filepath.WalkDir(root string, fn io/fs.WalkDirFunc) error (wrapcheck)
+  1 issues:
+  * wrapcheck: 1
+  lint_exit=1 diagnostic_diff_exit=0 base_diagnostics=1 after_diagnostics=1 new_diagnostics=0
+  ```
+
+  `internal/service`はGo package 0件のためafter lint対象から外した。移設testは`lintscan`/`sharedkernel`側で検査されており、baseline比の検証面は維持している。
+- I8/I14/De-Sloppify: 移設元3 pathの`ls`はexit=1、`find backend/internal/service -name '*.go'`は無出力。`git diff --name-only -- backend/internal/model backend/migrations`は無出力。self-import、qualified code call、未使用importは0。既存test、allowlist、helperは削除・統合していない。
+- I16 tracking safety / Failure Signature log:
+  - attempt 1: bare `git reset`はexit=0。その後、zsh予約変数`path`をloop変数に使って`PATH`を上書きし、後続`git`がexit=127。indexは空のまま、repository content変更なし。
+  - attempt 2: loop変数を`probe_file`へ変更。新規3 fileの`git check-ignore -v`は各exit=1。allowlist 7 physical pathを明示的な`git add` / `git add -u`でstageし、cached一覧はrename集約後の`BE-refactor.md` + 移設先3 fileだけ、allowlist外0。明示`git restore --staged`はexit=0、cached pathは0件。
+- I17 Independent Review Gate: reviewer roleのread-only fresh passで(a)差分5分類、(b)I3全27件と走査対象不変、(c)18 test名・assertion・fixture・allowlist/status/field/error文言/呼出順序の保存、(d)update-fields同package化と5 call、(e)allowlist外/production変更なしを再検証した。CRITICAL/HIGH/MEDIUM/LOWはいずれも0、総合PASS。DB-backed suiteはreview pass内で並列実行していない。
+- I18/I19: baselineから新規のporcelain 6行は移設元3 fileの`D`と移設先3 fileの`??`だけで、全件allowlist内。`BE-refactor.md`はbaselineから既に`M`でstatus行自体は不変だが、本ledger差分を追加した。baseline HEAD=`39aa88738`、最終確認時HEAD=`57927fac3`。増分commit `3f9ba6853`はmedicalrecord test 1 file、`2154dc9de`はbaseline時点から存在したbilling/medicalrecord/sharedkernel WIP 7 file、`57927fac3`は`todo.md`だけで、いずれもB4 allowlistを含まない。indexは空、本unit差分はworktreeに残り、commit/push/PRは実施していない。
+- Assumption deviations: I6指定の`grep -c 'SetNullableUint64Field('`は5 callに加えて`TestSetNullableUint64Field(`宣言もsubstring matchするため実測6。test名を変更せず、line-anchored call-site grepで5件を確認した。Context生成時HEAD=`78914f80f`に対し実行時HEAD=`39aa88738`。source行数18 test名、`internal/service`文字列27件はContextどおり。collision件数はtest名を含む指定抽出で52/14・1/37となり、test名を除外したContext事前値35/6・0/25とは抽出面が異なる。
+- De-Sloppify: 移設で不要になったself-importだけを除去。移設test、allowlist entry、既存helperは削除・統合していない。
+
 ### BE10-3 — 空の`internal/repository/*` 15 directory
 
 - 規約根拠: `backend/CODING_RULES.md:17`の機械的複製を避ける方針。git管理下のpackage違反ではなくworking-tree残骸である。
@@ -1345,6 +1426,7 @@ BE10の逸脱項目ではないが、BE10の実行中に実測で見つかった
 |---|---|---|---|
 | R-1 | `backend/internal/clinic/closing_settings_request.go:11`, `:46` | 既存`staticcheck S1016` 2件。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput`、`UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput`をstruct literalではなく型変換で書くべきという指摘。宣言元は`closing_settings_request.go:3`/`:37`と`closing_settings_service.go:63`/`:80` | BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、本unitが持ち込んだものではない |
 | R-2 | `backend/internal/testdb/testdb.go:100` | 既存`wrapcheck` 1件。`gorm.DB.AutoMigrate`のerrorを未wrapで返している | BE10-2 B0のlint baseline。B0の変更前後で同一 |
+| R-4 | `backend/internal/lintscan/lintscan_test.go:230-231` | `TestWalkInternalTreeT_RealRepo` が `clinic/company/repository.go` の存在を assert しているが、**BE10-1 の clinic subpackage 統合（`0301ae0e2`）で同 file は削除済み**のため失敗し続けている。`./internal/lintscan/...` を誰も実行していなかったため露出が遅れた。修正はこの assert を現存する nested production file へ差し替える（walk の網羅性を確認する意図は維持する） | BE10-2 B4 の baseline。**BE10-1 が持ち込んだ回帰**であり B4 起因ではない |
 | R-3 | `backend/internal/service/staff_shift_security_integration_test.go:147` の setup | **完了（2026-07-25）**。2 dependency-count 関数が参照する全17表を列挙し、shared test schema / 現setupで未整備だった12表をsetup内で整備した。対象2 testと`go test ./internal/service/... -count=1 -p 1 -v`はPASS、baseline PASS→FAILは0、production code無変更 | BE10-2 B1 の E12。**B1 起因ではないことを確定済み**（下記 E12 補正根拠、R-3実行ledger） |
 
 ### BE10-2 B1 の E12 補正根拠（2026-07-25・生成側 reconciliation）

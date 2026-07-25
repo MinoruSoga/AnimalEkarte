@@ -1,9 +1,9 @@
-package service
+package lintscan
 
 // n1_lint_test.go — PERF-FOLLOWUP-07: N+1 クエリ静的検出 lint。
 //
-// Placement (BE9-1 update, 2026-07): this file still lives in package service — that is now an
-// organizational choice, not a technical necessity. Historically (pre-BE9-1, deviating from the
+// Placement (BE10-2 B4 update, 2026-07): this file now lives in package lintscan — an
+// organizational choice enabled by BE9-1. Historically (pre-BE9-1, deviating from the
 // spec doc's literal path of PERF-FOLLOWUP-07 (task ledger: root todo.md), which suggested
 // internal/repository/n1_lint_test.go scanning the service/ directory) it was forced here
 // because go:embed can only embed files inside its OWN package's directory subtree: a
@@ -84,8 +84,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/animal-ekarte/backend/internal/lintscan"
 )
 
 // n1Finding is one loop-body Find/Get call site flagged as an N+1 candidate.
@@ -240,7 +238,7 @@ func baseNameN1(p string) string {
 func walkServiceN1(t *testing.T) (findings []n1Finding, allowHits map[string]int, totalRangeLoops int) {
 	t.Helper()
 
-	files := lintscan.WalkInternalTreeT(t)
+	files := WalkInternalTreeT(t)
 
 	// Deterministic file order for stable diagnostics.
 	names := make([]string, 0, len(files))

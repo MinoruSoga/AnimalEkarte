@@ -1,4 +1,4 @@
-package service
+package lintscan
 
 // Write-side clinic-scope review-coverage gate — every service method that receives a
 // REQUEST-DERIVED clinic-scoped master foreign key (FK) through one of its input
@@ -103,8 +103,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/animal-ekarte/backend/internal/lintscan"
 )
 
 // clinicScopedMasterFKField maps a Go struct field name to the clinic-scoped master model
@@ -702,7 +700,7 @@ func matchesRolePackagePrefixes(key string, prefixes []string) bool {
 // no additional filtering for those is needed here.
 func analyzeRealServiceSource(t *testing.T) ([]mfkWriteFinding, mfkStats) {
 	t.Helper()
-	byteFiles := lintscan.WalkInternalTreeT(t)
+	byteFiles := WalkInternalTreeT(t)
 	wholeTreeFiles := len(byteFiles)
 	files := make(map[string]string, len(byteFiles))
 	for name, src := range byteFiles {
