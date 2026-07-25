@@ -1,4 +1,4 @@
-package repository
+package clinic
 
 // clinic_permission_group_tx_atomicity_test.go — BE-refactor.md X-7 (tx-clinic-create-nonparticipation)
 //
@@ -23,7 +23,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func TestPermissionGroupRepository_ClinicCreateTxRollback_OnSecondGroupCreateFailure(t *testing.T) {
@@ -34,8 +36,8 @@ func TestPermissionGroupRepository_ClinicCreateTxRollback_OnSecondGroupCreateFai
 	require.NoError(t, db.WithContext(ctx).Create(company).Error)
 
 	clinicRepo := NewClinicRepository(db)
-	pgRepo := NewPermissionGroupRepository(db)
-	transactor := NewTransactor(db)
+	pgRepo := auth.NewPermissionGroupRepository(db)
+	transactor := persistence.NewTransactor(db)
 
 	clinic := &model.Clinic{CompanyID: company.ID, Name: "X-7ロールバック検証院"}
 

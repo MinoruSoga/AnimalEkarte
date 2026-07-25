@@ -1,4 +1,4 @@
-package repository
+package clinic
 
 // closing_special_period_repository_test.go — ClosingSpecialPeriodRepository の統合テスト
 // （実 Postgres テスト DB）。happy path・not-found・clinic_id 隔離・FindByDate（該当なしは
@@ -18,6 +18,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupClosingSpecialPeriodRepositoryTestDB は closing_special_periods テーブルを用意する。
@@ -31,8 +32,8 @@ import (
 // AutoMigrate 後に明示的に ALTER COLUMN で本番と同じ time 型へ矯正する。
 func setupClosingSpecialPeriodRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ClosingSpecialPeriod{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ClosingSpecialPeriod{}))
 	require.NoError(t, db.Exec(`ALTER TABLE closing_special_periods ALTER COLUMN am_pm_boundary TYPE time USING am_pm_boundary::time`).Error)
 	require.NoError(t, db.Exec(`ALTER TABLE closing_special_periods ALTER COLUMN pm_end TYPE time USING pm_end::time`).Error)
 	db.Exec("TRUNCATE TABLE closing_special_periods CASCADE")

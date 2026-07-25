@@ -15,7 +15,7 @@
 | BE10-1 clinic subpackage統合 | **完了**（commit済み） | `0301ae0e2` |
 | BE10-2 Phase 0 計画確定 | **完了**（commit済み） | `bcbdb5101`・下記Phase 0 ledger |
 | BE10-2 B0 `testdb` fixture export | **完了**（commit済み） | `27d95aacd`・`backend/internal/testdb/fixtures.go` |
-| BE10-2 B1〜B14 Go移設 | **B1〜B6 完了**（B7〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=`b76150f44` |
+| BE10-2 B1〜B14 Go移設 | **B1〜B7 完了**（B8〜B14未着手） | B1=`718f6c9b3`／B2=`134e7953b`／B3=`36f283f37`／B4=`c430072d8`／B5=`b28c4a105`／B5b=`59b9d1873`・下記batch表／B6=`b76150f44`／B7=（履歴取り込み識別子は調整セッションが記録） |
 | BE10-3 空directory削除 | 未着手 | — |
 | BE10-4 ignore未登録 | 判断待ち | — |
 | BE10-5 `q&a.html` path drift | 未着手 | — |
@@ -273,12 +273,12 @@ rg -n 'ADR-006|package boundar|internal/(handler|service|repository)' /Users/min
 ### BE10-2 — legacy test-only packageの削除phase未記録
 
 - 規約根拠: `backend/CODING_RULES.md:114`は、残すlegacy facade/adapterにconsumerと削除phaseを要求する。
-- 現状（2026-07-25・B6完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **42**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した。
+- 現状（2026-07-26・B7完了時点の実測）: `internal/service`はGo file 0（`CLAUDE.md`と`.DS_Store`のみ残存）、`internal/repository`はproduction 0/test **38**。現行`todo.md`/`q&a.html`にBE9-3/BE9-4相当の退役task・担当・期限はない。legacy配下に残るlint gateは**0件**である（6件すべて`internal/lintscan`へ移設済み）。B5b の baseline で gate が実比較の違反を1件出したため、`todo.md` の BUG-438 へ routing した（別セッションが`296ea7bb7`で解決済み）。
 - 修正内容: 下記Phase 0で64 test fileの移設先、helper gap、移設batch、2 packageの削除条件・担当・期限を確定した。移設先が確定するまで実働gateを削除しない。
 - 検証方法: A4/A6を再実行し、各batchで移設先packageのscoped testをgreenに保つ。最終batch後はlegacy production/test file 0、旧path import 0、`internal/service` directory不存在、`internal/repository` root Go package不存在を確認する。repository配下の空directoryはBE10-3に残す。
 - severity: MEDIUM
 - 前提・依存: BE9-1でsource discoveryがpackage非依存化済みであることを再確認する。test所在packageの変更で検出scopeが狭まらないことを移設先の自己テストで証明する。
-- 状態: 対応中（Phase 0計画確定、B0〜B6完了。B7〜B14は未着手）
+- 状態: 対応中（Phase 0計画確定、B0〜B7完了。B8〜B14は未着手）
 
 #### BE10-2 Phase 0 計画確定ledger（2026-07-25）
 

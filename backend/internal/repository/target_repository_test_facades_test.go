@@ -12,7 +12,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/billing"
-	"github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -60,20 +59,8 @@ func NewCheckupRepository(db *gorm.DB) medicalrecord.CheckupRepository {
 	return medicalrecord.NewCheckupRepository(db)
 }
 
-type ClinicRepository = clinic.ClinicRepository
-
-func NewClinicRepository(db *gorm.DB) ClinicRepository {
-	return clinic.NewClinicRepository(db)
-}
-
 func NewClinicalPlanRepository(db *gorm.DB) medicalrecord.ClinicalPlanRepository {
 	return medicalrecord.NewClinicalPlanRepository(db)
-}
-
-type ClosingSpecialPeriodRepository = clinic.ClosingSpecialPeriodRepository
-
-func NewClosingSpecialPeriodRepository(db *gorm.DB) ClosingSpecialPeriodRepository {
-	return clinic.NewClosingSpecialPeriodRepository(db)
 }
 
 type (
@@ -137,10 +124,6 @@ func NewOwnerRepositoryWithPetWriter(
 
 func NewPaymentMethodMasterRepository(db *gorm.DB) billing.PaymentMethodMasterRepository {
 	return billing.NewPaymentMethodMasterRepository(db)
-}
-
-func NewPermissionGroupRepository(db *gorm.DB) auth.PermissionGroupRepository {
-	return auth.NewPermissionGroupRepository(db)
 }
 
 type PetRepository = pet.Repository

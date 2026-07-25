@@ -1,4 +1,4 @@
-package repository
+package clinic
 
 // clinic_repository_test.go — ClinicRepository の統合テスト。
 //
@@ -20,8 +20,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupClinicTestDB は clinic_repository のテスト用に DB を整備する。
@@ -38,8 +40,8 @@ import (
 // 実行順序に依存しないよう、参照される全テーブルをここで明示的に整備する。
 func setupClinicTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{},
 		&model.Reservation{},
 		&model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{},
@@ -49,21 +51,20 @@ func setupClinicTestDB(t *testing.T) *gorm.DB {
 		&model.ClinicIntegration{},
 		&model.LstepSettings{},
 	))
-	ensureClinicSettingsTable(t, db)
+	testdb.EnsureClinicSettingsTable(t, db)
 	return db
 }
 
-// makeClinicFixture は新規 company + clinic を作成して返す。
-// clinics/companies は他テストから TRUNCATE されないため、既存シードデータを汚さず・
-// 汚されないよう常に新規行を作る（自動採番の ID は過去に一度も参照されていないことが保証される）。
-func makeClinicFixture(t *testing.T, db *gorm.DB, name string) *model.Clinic {
+func makeClinicBillingFixture(t *testing.T, db *gorm.DB, clinicID uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	company := &model.Company{Name: "テスト法人_" + name}
-	require.NoError(t, db.WithContext(ctx).Create(company).Error)
-	clinic := &model.Clinic{CompanyID: company.ID, Name: name}
-	require.NoError(t, db.WithContext(ctx).Create(clinic).Error)
-	return clinic
+	billing := &model.Billing{
+		ClinicID:      clinicID,
+		TotalAmount:   amount,
+		Status:        status,
+		ScheduledDate: scheduledDate,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 }
 
 func TestClinicRepository_FindAll(t *testing.T) {
@@ -180,7 +181,7 @@ func TestClinicRepository_LockActiveByID_RequiresAmbientTransaction(t *testing.T
 func TestClinicRepository_LockActiveByID_ActiveAndNotFound(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
-	transactor := NewTransactor(db)
+	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 
 	activeClinic := makeClinicFixture(t, db, "active clinic lock target")
@@ -238,7 +239,7 @@ func TestClinicRepository_LockActiveByID_HoldsShareLockUntilTransactionEnds(t *t
 		t.Run(tt.name, func(t *testing.T) {
 			db := setupClinicTestDB(t)
 			repo := NewClinicRepository(db)
-			transactor := NewTransactor(db)
+			transactor := persistence.NewTransactor(db)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			clinic := makeClinicFixture(t, db, "share lock target "+tt.name)
@@ -335,7 +336,7 @@ func TestClinicRepository_LockByIDForUpdate_RequiresAmbientTransaction(t *testin
 func TestClinicRepository_LockByIDForUpdate_IncludesInactiveAndReturnsNotFound(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
-	transactor := NewTransactor(db)
+	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 
 	activeClinic := makeClinicFixture(t, db, "active clinic update lock target")
@@ -387,7 +388,7 @@ func TestClinicRepository_LockByIDForUpdate_IncludesInactiveAndReturnsNotFound(t
 func TestClinicRepository_LockByIDForUpdate_HoldsExclusiveLockUntilTransactionEnds(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
-	transactor := NewTransactor(db)
+	transactor := persistence.NewTransactor(db)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	clinic := makeClinicFixture(t, db, "update lock target")
@@ -525,7 +526,7 @@ func TestClinicRepository_Delete(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Delete(pg).Error) // ソフト削除
 
 		rollbackErr := errors.New("rollback direct repository delete")
-		err := NewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+		err := persistence.NewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			require.NoError(t, repo.Delete(txCtx, clinic.ID))
 
 			var count int64
@@ -549,8 +550,8 @@ func TestClinicRepository_Delete(t *testing.T) {
 func TestClinicPermissionGroupCleanupDelete_RollsBackTogether(t *testing.T) {
 	db := setupClinicTestDB(t)
 	clinicRepo := NewClinicRepository(db)
-	permissionGroupRepo := NewPermissionGroupRepository(db)
-	transactor := NewTransactor(db)
+	permissionGroupRepo := auth.NewPermissionGroupRepository(db)
+	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 
 	clinic := makeClinicFixture(t, db, "PG cleanup/delete rollback clinic")
@@ -588,11 +589,11 @@ func TestClinicRepository_CountOwnersByClinicID(t *testing.T) {
 	clinicA := makeClinicFixture(t, db, "飼主数A")
 	clinicB := makeClinicFixture(t, db, "飼主数B")
 
-	makeTestOwner(t, db, clinicA.ID, "飼主1")
-	makeTestOwner(t, db, clinicA.ID, "飼主2")
-	deletedOwner := makeTestOwner(t, db, clinicA.ID, "削除済み飼主")
+	testdb.MakeTestOwner(t, db, clinicA.ID, "飼主1")
+	testdb.MakeTestOwner(t, db, clinicA.ID, "飼主2")
+	deletedOwner := testdb.MakeTestOwner(t, db, clinicA.ID, "削除済み飼主")
 	require.NoError(t, db.WithContext(ctx).Delete(deletedOwner).Error)
-	makeTestOwner(t, db, clinicB.ID, "別クリニック飼主")
+	testdb.MakeTestOwner(t, db, clinicB.ID, "別クリニック飼主")
 
 	got, err := repo.CountOwnersByClinicID(ctx, clinicA.ID)
 	require.NoError(t, err)
@@ -650,8 +651,8 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 
 	t.Run("会計データがあれば件数付きでラベルが返る", func(t *testing.T) {
 		clinic := makeClinicFixture(t, db, "会計依存クリニック")
-		makeBilling(t, db, clinic.ID, nil, nil, 1000, model.BillingStatusWaiting, time.Now())
-		makeBilling(t, db, clinic.ID, nil, nil, 2000, model.BillingStatusWaiting, time.Now())
+		makeClinicBillingFixture(t, db, clinic.ID, 1000, model.BillingStatusWaiting, time.Now())
+		makeClinicBillingFixture(t, db, clinic.ID, 2000, model.BillingStatusWaiting, time.Now())
 
 		got, err := repo.CountBlockingReferencesByClinicID(ctx, clinic.ID)
 		require.NoError(t, err)
@@ -662,7 +663,7 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 
 	t.Run("ソフト削除された会計は除外される(P2)", func(t *testing.T) {
 		clinic := makeClinicFixture(t, db, "会計ソフト削除クリニック")
-		makeBilling(t, db, clinic.ID, nil, nil, 1000, model.BillingStatusWaiting, time.Now())
+		makeClinicBillingFixture(t, db, clinic.ID, 1000, model.BillingStatusWaiting, time.Now())
 
 		var b model.Billing
 		require.NoError(t, db.WithContext(ctx).Where("clinic_id = ?", clinic.ID).First(&b).Error)

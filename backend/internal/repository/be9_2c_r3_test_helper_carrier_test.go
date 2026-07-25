@@ -74,17 +74,3 @@ func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petN
 	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
 	return pet
 }
-
-// makeBilling — B④移動test由来のcarrier複製（clinic_repository_test用）。
-// makeBilling はテスト用の Billing を作成する。makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
-func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) {
-	t.Helper()
-	makeBillingWith(t, db, billingFixtureOpts{
-		ClinicID:      clinicID,
-		OwnerID:       ownerID,
-		PetID:         petID,
-		TotalAmount:   amount,
-		Status:        status,
-		ScheduledDate: scheduledDate,
-	})
-}

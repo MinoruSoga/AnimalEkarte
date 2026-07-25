@@ -33,11 +33,6 @@ func setupIsolatedTestDB(t *testing.T) *gorm.DB {
 	return testdb.SetupIsolatedTestDB(t)
 }
 
-func ensureClinicSettingsTable(t *testing.T, db *gorm.DB) {
-	t.Helper()
-	testdb.EnsureClinicSettingsTable(t, db)
-}
-
 func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()
 	return testdb.MakeTestOwner(t, db, clinicID, name)
