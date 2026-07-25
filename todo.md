@@ -46,11 +46,13 @@
 - Issue #251 本文への決裁転記（タイトル12分類修正含む）＝外部書込・USER 承認後にエージェント実施。転記後は本エントリを Issue 追跡へ移し二重掲出しない。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。
 
-### BUG-429: 慢性疾患Listの親Pet相関漏れ（cross-tenant read防御ギャップ）
+### SEC-SWEEP-01: 単一pet_id FKを持つread経路の親pets clinic相関 全数掃引
 
-- CRITICAL(security)。`backend/internal/pet/chronic_condition_repository.go:33` の `FindByPetID` が子テーブル述語 `clinic_id = ? AND pet_id = ?` のみで、親petsへのclinic相関JOIN/EXISTSが無い。`pet_chronic_conditions.pet_id` は単一FK（clinic複合FKでない）ため、破損FK行（child.clinic_id=A × 他院pet_id）が存在すると他院の疾患名・診断日・notesを読める。過去のクロステナントread IDOR監査（13 repo修正）と同型で、現行app roleではRLSも遮断しない。
-- 対応: 親pets相関（JOIN/EXISTS）追加＋破損FK fixtureによるDB-backed isolation test追加。#239実装前のsecurity blocker。
-- 出典: #239調査 Completion Report（2026-07-25）。ソース実測で確認済み。
+- read-only調査。BUG-429（`acb3e4929`で修正済）と同型の防御ギャップが他packageに残っていないかを確定する。過去のクロステナントread IDOR監査（13 repo修正）はBE-012（慢性疾患）より前に実施されており、BUG-429はその監査漏れだった。以後に追加された子テーブルreadに同じ漏れがある可能性は実在する。
+- 検出対象: 子テーブルが `pet_id` 単一FK（clinic複合FKでない）を持ち、read述語が `clinic_id = ? AND pet_id = ?` 相当のみで親petsへの相関JOIN/EXISTSを欠くもの。修正済みの参照実装は `backend/internal/pet/chronic_condition_repository.go:37,52`。
+- 成果物: 該当package/メソッドの file:line 一覧と、各々の実害経路判定（service層で親所有検証が先行するか＝防御されているか、BUG-429の`List`のように素通しか）。修正は本タスクに含めず、件数確定後に別途起票する。
+- 相関にpets側の `deleted_at` / `deceased_at` を含めないこと（含めるとsoft-delete済・死亡ペットの履歴が黙って消える挙動回帰になる）。これは掃引結果を修正へ展開する際の必須制約。
+- 出典: BUG-429対応時に判明したNew Work（2026-07-25）。
 
 ### BUG-430: stage-importの医院非限定DELETE
 
