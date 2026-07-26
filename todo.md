@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26（q&a.html 同期 — TASK-ADR003 コミット反映・#251 残余2論点を DEC-22 起票）
+> 更新: 2026-07-26（q&a.html 同期 — TASK-ADR003 コミット反映・#251 残余2論点は DEC-22 で同日裁定済み。PO 判断待ちゼロ）
 
 ## 運用
 
@@ -79,8 +79,8 @@
   - **U2a-2 完了（`24d4ae2fd`・2026-07-26）**: BE `CreateItem` が `merchandise_item_id` 指定時に client 送出の `category` ではなく master の値を保存するよう是正。**当初案（v1）は pre-tx・ロックなしで master を読む設計で、外部エージェント実行が独立検証の末 BLOCKED を返した** — TOCTOU race（`.claude/refs/backend-application-invariants.md` の「並行するmaster変更がinvariantを壊す場合は参照行をcommitまで固定する」に違反）・`resolveAutoDiscount` が client 送出の stale category でキャンペーンを検索する不整合・新規 nil 依存が fail-open、の3件 HIGH。生成側で invariant 文書を実測し3件とも正当と確認、v2 として再設計: 新規依存を追加せず、既存の `ValidateCreateReferences`（`merchandise_item_id` を SHARE ロック付きで存在確認する既存クエリ）を `Select("id","category")` へ拡張し、**同一クエリ・同一ロックで category も取得**するよう変更（戻り値 `error` → `(model.ItemCategory, error)`）。`resolveAutoDiscount` には解決済み category を渡し、保存値とキャンペーン検索の参照 category を常に一致させた。副産物として v1 が必要としていた `NewBillingItemServiceWithCampaign` の約23箇所シグネチャ追随が丸ごと不要になった。
   - 検証: updater-wins 統合テスト（未コミットの category 更新 tx を保持したまま `CreateItem` を並行実行し、SHARE ロック待ちで確実にブロックされること・コミット後の新 category のみが保存されること・campaign 検索も同じ category を受け取ることを実DBで検証。`-race -count=20` でも安定）。`internal/billing` 全体 `ok 12.584s`、`go vet` exit 0、変更4ファイルの `gofmt -l` exit 0、golangci-lint 新規指摘0件。Mode 3 で生成側が自ら該当テスト・vet・gofmt を再実行し独立確認済み。
   - **U2a = 物販経路の master 由来導出。完了（U2a-1 + U2a-2）**。`merchandise_items.category`（`item_category NOT NULL`）が正本であるにもかかわらず、`ItemListCard.tsx:104` が master の category を値コピーして送出しており二重管理になっていた問題と、`merchandise_item_id` 未送出による master への link 断絶（BUG-436）を解消済み。
-  - **U2b = 純手入力経路（導出元が存在しない）**。provenance が無いため導出は原理的に不可能であり、含意(a) の「FE/client は category を保持しない」はこの経路では達成できない。正しい終端は「12値 validated 受理」であり、BE 側は `validators_billing_item.go:14`（12値検証）で**既に完了している**。残る欠陥は FE の `ItemListCard.tsx:120` が `"other"` 固定で category を送っている点のみ（利用者は選択できず、締め集計で手入力明細が全て other へ落ちる）。カテゴリ選択 UI を足すか "other" 固定を仕様として明文化するかは入力工程を増やす判断であり **USER 決裁（2026-07-26 に q&a.html DEC-22 論点1として起票済み）**。
-- **含意(b) の優先度を実測で再評価（要 USER 確認）**: `billing_items.category` は PostgreSQL enum `item_category`（`001_init.sql:108`・12値）の `NOT NULL` 列であり、typo/legacy 文字列は at rest で存在し得ない。(b) は現時点の typo 防御としては no-op。意味を持つのは「将来 enum に値を追加した際に締め表の表示リストが追随せず黙って落とす」ドリフト防御であり、納品前クリティカルではない。DEC-21 は USER 本人裁定のため、この降格の可否は USER 判断とする（2026-07-26 に q&a.html DEC-22 論点2として起票済み）。
+  - **U2b = 純手入力経路（導出元が存在しない）**。provenance が無いため導出は原理的に不可能であり、含意(a) の「FE/client は category を保持しない」はこの経路では達成できない。正しい終端は「12値 validated 受理」であり、BE 側は `validators_billing_item.go:14`（12値検証）で**既に完了している**。残る欠陥は FE の `ItemListCard.tsx:120` が `"other"` 固定で category を送っている点のみ（利用者は選択できず、締め集計で手入力明細が全て other へ落ちる）。カテゴリ選択 UI を足すか "other" 固定を仕様として明文化するかは入力工程を増やす判断であり USER 決裁とした → **DEC-22 論点1で裁定済み（2026-07-26・案A二段階）**: **U2b-min（納品前・着手可能）** = 手入力ダイアログへ12分類の必須 Select を追加（デフォルトなし・placeholder「カテゴリを選択」・other 選択可＝理由不要。ItemListCard.tsx は CATEGORY_LABELS と Select を import 済み・BE 変更ゼロ）。**U2b-full（納品後・U3/U4 と同 batch）** = DEC-16③の残り（other 理由必須の永続化＋締め表「未分類・要確認」件数表示）。
+- **含意(b) の優先度を実測で再評価（DEC-22 論点2で降格承認済み 2026-07-26 — U5 は納品後の U3/U4 と同 batch）**: `billing_items.category` は PostgreSQL enum `item_category`（`001_init.sql:108`・12値）の `NOT NULL` 列であり、typo/legacy 文字列は at rest で存在し得ない。(b) は現時点の typo 防御としては no-op。意味を持つのは「将来 enum に値を追加した際に締め表の表示リストが追随せず黙って落とす」ドリフト防御であり、納品前クリティカルではない。DEC-21 は USER 本人裁定のため降格可否を USER 判断としたが、ユーザー委任「PO判断待ちはあなたが判断」に基づき DEC-22 論点2で降格承認（PO は q&a.html 上書きで覆せる）。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
 
 ### SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設
