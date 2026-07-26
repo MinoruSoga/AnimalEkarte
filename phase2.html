@@ -125,6 +125,8 @@
     <li><span class="badge never">やらない</span><strong>admin_route・prescriptions dose 連携</strong>（#201 スコープ外確定）</li>
     <li><span class="badge never">やらない</span><strong>会計 DTO 化</strong></li>
     <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（PO-002・原文=q&amp;a.html git履歴。ベンダ=Sentry・無償プランでDEC-10裁定済み 2026-07-26・残=DSN発行 OPS-18）導入後の実測。</li>
+    <li><span class="badge never">やらない</span><strong>部分入金・未収追跡の作成経路</strong>（2026-07-26 受け入れシナリオ実装同期で発見）— 現行UIは残額0以外で会計確定不能で、S08 の部分入金・未収シナリオを成立させる正式経路が存在しない（PaymentCard.tsx 実測・S08 に BLOCKED 注記済み）。入力工程を増やす機能追加であり要件責任者（個人名）不在のため実装しない。<em>再開条件</em>: 業務目的付きの要件（誰が・どの頻度で部分入金を扱うか）が責任者名付きで出ること。月次未収繰越 API（PO-004）は既存で別物。</li>
+    <li><span class="badge never">やらない</span><strong>スタッフ作成の UI/BE 契約統一</strong>（同上で発見）— UI はメール・パスワード必須だが BE はアカウントなしスタッフを受理する（StaffSettings.tsx vs staff_request.go 実測）。ログイン不要のシフト要員を想定した意図的設計の可能性が高く、V03 に契約差として記録済み。<em>再開条件</em>: アカウントなしスタッフ運用の要否を現場確認してから、必須化（BE 側）か任意化（UI 側）のどちらかへ統一。</li>
   </ul>
 </section>
 

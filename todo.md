@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26（q&a.html 同期 — TASK-ADR003 コミット反映・#251 残余2論点は DEC-22 で同日裁定済み。PO 判断待ちゼロ）
+> 更新: 2026-07-26(2)（受け入れシナリオ実装同期＝`7d5be9028`・New Work batch 完了＝A/D `1464cee0d`・B `cb01009bd`・H 同梱。派生の BUG-439 を起票。次の納品前 dev unit = TASK-251 U2b-min）
 
 ## 運用
 
@@ -126,6 +126,12 @@
 - 独立 clinic-isolation / code review で HIGH 1件が残った。read lint は Preload path の末尾 association 名だけで registry を引き、未登録名を無視する（`backend/internal/lintscan/preload_clinic_scope_lint_test.go:245-256`）。live read は `Items` なので、この2件から `clinic_id` を削除しても lint は検出しない。`Items` の一律登録は上記の同名別モデルを誤検出するため不可。解消には親 model / site を識別する context-aware rule または association 構造変更が必要で、いずれも本 unit の registry 登録予算を超える。したがって照合ゲートは green だが、機械的な再発防止が未完成のため BUG-437 は未解消。
 - `internal/lintscan` package は 2026-07-25 時点で **green**（R-4 = `9ca93f249` の stale sentinel 是正、BUG-438 = `296ea7bb7` の CASCADE allowlist 登録で残 FAIL 2件が解消済み）。したがって本件は「ゲートが赤い」問題ではなく、**live read 経路 `Preload("Items")` を機械的に守る手段が無い**という再発防止の穴として残っている。
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
+
+### BUG-439: legacy constructor `NewMedicalRecordService` 経由では finalize 不能（コンストラクタ二重化の解消）
+
+- MEDIUM。`cb01009bd`（カルテ finalize・訂正追記の監査 same-tx fail-closed 化）の残余。source 互換の legacy constructor `NewMedicalRecordService` は transactional audit logger を注入しないため、この経路で組んだ service は finalize できない。production composition は `NewMedicalRecordServiceWithTxAudit` 配線済みで**実害なし**（Go reviewer が MEDIUM 判定・8ファイル契約のためコンストラクタ統合は見送り）。
+- 対応: 呼び出し元を全数実測し、legacy constructor をテスト専用へ降格するか `WithTxAudit` へ一本化する。着手 = 納品後。
+- 出典: Item B 実行 Completion Report（2026-07-26・Mode 3 照合済み）。
 
 ### R-1: clinic request/input間の型変換に対するstaticcheck S1016是正
 
