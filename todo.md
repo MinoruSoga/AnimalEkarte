@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26(4)（#238 dev 完了 `711bcf561`〔inactive 種別の公開一覧・型スコープ read 閉鎖・AC5件 test 固定。残=Issue コメント/クローズ=USER〕・派生の R-5 起票。USER 方針「納品日関係なくすべて早急に対応」。次 dev = #234〔DEC-14 裁定済み・着手可〕）
+> 更新: 2026-07-26(5)（#234 は4分割で進行中: U-A 完了 `a0a3d17f8`〔Owner Report の pet 取得を専用 curated 表現へ分離 — staff DTO 追加が owner-facing へ漏れない土台〕。残 = U-B〔migration+validation+staff DTO 露出・owner 応答 nested pets と LIFF への非露出 test 込み〕→ U-C〔FE フォーム〕→ U-D〔バッジ Popover+doc〕。#238 dev 完了 `711bcf561`・R-5 起票済み。USER 方針「納品日関係なくすべて早急に対応」）
 
 ## 運用
 
