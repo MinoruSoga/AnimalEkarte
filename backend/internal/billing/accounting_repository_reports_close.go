@@ -2,11 +2,41 @@ package billing
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type closeCategoryRow struct {
+	Category string
+	Amount   int64
+}
+
+func validateCloseAggregateCategory(category string) error {
+	for _, allowed := range model.AllItemCategories() {
+		if category == string(allowed) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unknown item category in close aggregate: %q", category)
+}
+
+func toCategoryAggregateRows(rows []closeCategoryRow) ([]CategoryAggregateRow, error) {
+	for _, row := range rows {
+		if err := validateCloseAggregateCategory(row.Category); err != nil {
+			return nil, err
+		}
+	}
+
+	result := make([]CategoryAggregateRow, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, CategoryAggregateRow(row))
+	}
+	return result, nil
+}
 
 // GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
 // payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
@@ -42,11 +72,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	}
 
 	// Query 2: カテゴリ別合計 (billing_items のみ)
-	type catRow struct {
-		Category string
-		Amount   int64
-	}
-	var catRows []catRow
+	var catRows []closeCategoryRow
 	if err := r.db.WithContext(ctx).Raw(
 		completedCTE+`
 		SELECT bi.category::text AS category,
@@ -57,9 +83,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		`, cArgs...).Scan(&catRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate categories for close")
 	}
-	categoryRows := make([]CategoryAggregateRow, 0, len(catRows))
-	for _, r := range catRows {
-		categoryRows = append(categoryRows, CategoryAggregateRow(r))
+	categoryRows, err := toCategoryAggregateRows(catRows)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate category aggregate for close")
 	}
 
 	// Query 3: 返金合計

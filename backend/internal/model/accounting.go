@@ -50,6 +50,24 @@ const (
 	ItemCategoryTraining    ItemCategory = "training"
 )
 
+// AllItemCategories returns every supported billing item category in declaration order.
+func AllItemCategories() []ItemCategory {
+	return []ItemCategory{
+		ItemCategoryExamination,
+		ItemCategoryTest,
+		ItemCategoryProcedure,
+		ItemCategorySurgery,
+		ItemCategoryMedicine,
+		ItemCategoryFood,
+		ItemCategoryGoods,
+		ItemCategoryOther,
+		ItemCategoryVaccine,
+		ItemCategoryTrimming,
+		ItemCategoryHotel,
+		ItemCategoryTraining,
+	}
+}
+
 type ItemSource string
 
 const (

@@ -67,7 +67,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 						{Date: "2026-04-01", PaymentMethodID: nil, Amount: 10000},
 					},
 					CategoryRows: []MonthlyCategoryRow{
-						{Date: "2026-04-01", Category: "診察", Amount: 10000},
+						{Date: "2026-04-01", Category: string(model.ItemCategoryExamination), Amount: 10000},
 					},
 					DailyBillingCount: map[string]int64{"2026-04-01": 2},
 					ClosedAM:          map[string]bool{"2026-04-01": true},

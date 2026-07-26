@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- mock AccountingReportService ----
@@ -285,7 +287,7 @@ func TestToMonthlyReportResponse(t *testing.T) {
 				TotalRefund:     1000,
 				NetAmount:       499000,
 				ByPaymentMethod: map[string]int64{"現金": 100000},
-				ByCategory:      map[string]int64{"診療": 200000},
+				ByCategory:      map[string]int64{string(model.ItemCategoryExamination): 200000},
 				TaxBreakdown: TaxBreakdownSummary{
 					Standard: TaxBreakdownEntry{TaxableAmount: 400000, TaxAmount: 40000},
 					Reduced:  TaxBreakdownEntry{TaxableAmount: 100000, TaxAmount: 8000},
@@ -318,7 +320,7 @@ func TestToMonthlyReportResponse(t *testing.T) {
 		assert.Equal(t, int64(1000), resp.Summary.TotalRefund)
 		assert.Equal(t, int64(499000), resp.Summary.NetAmount)
 		assert.Equal(t, int64(100000), resp.Summary.ByPaymentMethod["現金"])
-		assert.Equal(t, int64(200000), resp.Summary.ByCategory["診療"])
+		assert.Equal(t, int64(200000), resp.Summary.ByCategory[string(model.ItemCategoryExamination)])
 		assert.Equal(t, int64(400000), resp.Summary.TaxBreakdown.Standard.TaxableAmount)
 		assert.Equal(t, int64(40000), resp.Summary.TaxBreakdown.Standard.TaxAmount)
 		assert.Equal(t, int64(100000), resp.Summary.TaxBreakdown.Reduced.TaxableAmount)

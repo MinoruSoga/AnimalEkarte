@@ -20,7 +20,7 @@ func TestToCashRegisterCloseResponse(t *testing.T) {
 		TheoreticalCash:   10000,
 		ActualCash:        9900,
 		CashDifference:    -100,
-		CategoryBreakdown: json.RawMessage(`{"exam":{"cash":1000}}`),
+		CategoryBreakdown: json.RawMessage(`{"examination":{"cash":1000}}`),
 		Memo:              "memo",
 		ClosedBy:          &closedBy,
 		ClosedAt:          closedAt,
@@ -91,7 +91,7 @@ func TestToCashRegisterPreviewResponse(t *testing.T) {
 		IsHoliday:       false,
 		Aggregate: CloseAggregateSummary{
 			Categories: map[string]map[string]int64{
-				"exam": {"cash": 1000},
+				string(model.ItemCategoryExamination): {"cash": 1000},
 			},
 			PaymentMethods: []model.PaymentMethodMaster{
 				{ID: 1, ClinicID: 2, Name: "現金", DisplayOrder: 1, IsActive: true},
@@ -109,7 +109,7 @@ func TestToCashRegisterPreviewResponse(t *testing.T) {
 				OwnerName:         "田中太郎",
 				PetName:           "ポチ",
 				IsHospitalization: false,
-				Category:          "exam",
+				Category:          string(model.ItemCategoryExamination),
 				PaymentMethodID:   &paymentMethodID,
 				PaymentMethodName: "現金",
 				BillingAmount:     1000,
