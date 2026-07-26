@@ -174,6 +174,21 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(onMovePet).toHaveBeenCalledWith(occupied.id, "cage-a-2");
   });
 
+  it("死亡ペットのoccupied cardは色に依存しない死亡文言を表示する", () => {
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[{ ...occupied, petIsDeceased: true }]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    expect(screen.getByText("死亡", { exact: true })).toBeVisible();
+  });
+
   it("canCreate=falseでは空カード全体から新規導線へ遷移しない", async () => {
     const user = userEvent.setup();
     const onNavigateToForm = vi.fn();

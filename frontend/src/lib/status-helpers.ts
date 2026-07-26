@@ -174,7 +174,9 @@ export const getTrimmingStatusColor = (status: string) => {
 };
 
 export const getPetStatusColor = (status: string) => {
-  return status === "生存" ? BADGE.greenHover : BADGE.grayHover;
+  if (status === "生存") return BADGE.greenHover;
+  if (status === "死亡") return BADGE.grayHover;
+  return BADGE.grayHover;
 };
 
 

@@ -13,12 +13,16 @@ import { queryKeys } from "@/lib/query-keys";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { transformCreatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
-import type { CreateOwnerRequest, UpdateOwnerRequest, Owner } from "@/types/owner";
+import type {
+  CreateOwnerPetRequest,
+  CreateOwnerRequest,
+  UpdateOwnerRequest,
+  Owner,
+} from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, PetFormData, MembershipTypeLabel } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
-import { runOwnerCreateFollowups } from "./owner-form-followups";
 import { usePetFormListState } from "./use-pet-form-list-state";
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
@@ -111,6 +115,53 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     insuranceDetails: backendPet.insuranceDetails,
     deceasedAt: backendPet.deceasedAt,
   }));
+}
+
+function mapPendingPetToCreateRequest(
+  pet: PetFormData & { animalSpeciesId: string },
+): CreateOwnerPetRequest {
+  const request = transformCreatePetRequest({
+    ownerId: "0",
+    name: pet.petName || "",
+    animalSpeciesId: pet.animalSpeciesId,
+    petNameKana: pet.petNameKana,
+    breed: pet.breed,
+    color: pet.color,
+    bloodType: pet.bloodType,
+    microchipNumber: pet.microchipNumber,
+    gender: pet.gender,
+    birthDate: pet.birthDate,
+    weight: pet.weight,
+    food: pet.food,
+    environment: pet.environment,
+    neuteredDate: pet.neuteredDate,
+    acquisitionType: pet.acquisitionType,
+    dangerLevel: pet.dangerLevel,
+    status: PET_STATUS_REVERSE_MAP[pet.status],
+    insuranceId: pet.insuranceId,
+    remarks: pet.remarks,
+  });
+
+  return {
+    name: request.name,
+    animal_species_id: request.animal_species_id,
+    name_kana: request.name_kana,
+    breed: request.breed,
+    color: request.color,
+    blood_type: request.blood_type,
+    microchip_number: request.microchip_number,
+    gender: request.gender,
+    status: request.status,
+    birth_date: request.birth_date,
+    weight: request.weight,
+    neutered_date: request.neutered_date,
+    acquisition_type: request.acquisition_type,
+    danger_level: request.danger_level,
+    food: request.food,
+    environment: request.environment,
+    insurance_id: request.insurance_id,
+    remarks: request.remarks,
+  };
 }
 
 export function useOwnerForm(
@@ -225,54 +276,22 @@ export function useOwnerForm(
           toast.success("飼主情報を更新しました");
           return { success: true, timestamp: Date.now() };
         } else {
+          const pendingPets = pets.filter(
+            (pet): pet is PetFormData & { animalSpeciesId: string } =>
+              pet.isPending === true && Boolean(pet.animalSpeciesId),
+          );
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
             birth_date: ownerData.birthDate || undefined,
             // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
+            pets: pendingPets.map(mapPendingPetToCreateRequest),
           };
           if (!isMutationAllowed("canCreate")) {
             return { success: false, timestamp: Date.now() };
           }
           const newOwner = await createOwner(createData);
-          const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
-          const createPets = petMutations
-            ? pendingPets.map((pet) => async () => {
-                if (!isMutationAllowed("canCreate")) return;
-                await petMutations.createPetFn(
-                  transformCreatePetRequest({
-                    ownerId: newOwner.id,
-                    name: pet.petName || "",
-                    animalSpeciesId: pet.animalSpeciesId!,
-                    petNumber: pet.petNumber,
-                    petNameKana: pet.petNameKana,
-                    breed: pet.breed,
-                    color: pet.color,
-                    bloodType: pet.bloodType,
-                    microchipNumber: pet.microchipNumber,
-                    gender: pet.gender,
-                    birthDate: pet.birthDate,
-                    weight: pet.weight,
-                    food: pet.food,
-                    environment: pet.environment,
-                    neuteredDate: pet.neuteredDate,
-                    acquisitionType: pet.acquisitionType,
-                    dangerLevel: pet.dangerLevel,
-                    status: PET_STATUS_REVERSE_MAP[pet.status],
-                    insuranceId: pet.insuranceId,
-                    remarks: pet.remarks,
-                  })
-                );
-              })
-            : [];
-          const results = await runOwnerCreateFollowups(
-            () => queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() }),
-            createPets,
-          );
-          const failedCount = results.filter(r => r.status === "rejected").length;
-          if (failedCount > 0) {
-            toast.warning(`${failedCount}件のペット追加に失敗しました`);
-          }
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
 
           toast.success("飼主情報を登録しました");
           return { success: true, data: newOwner.id, timestamp: Date.now() };

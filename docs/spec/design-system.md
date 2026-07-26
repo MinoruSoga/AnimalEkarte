@@ -82,6 +82,7 @@
 DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ramp を持たない」という観察であり、削除の指令ではない。臨床安全（SPECIFICATION 2.1 — 全原則に優先）により、本システムは意味的カラーを **FE10 字義リブランド後も維持する**。`design-tokens.ts` で一元管理し、構造色用途（CTA・リンク・active/focus）には使わない。
 
 - **危険 / 死亡 / 異常高**: `C.danger`（`#C0392B`、WCAG AA 7.1:1 準拠）
+- **死亡の文脈修飾**: 一覧 surface ではグレーアウトし、単一患者画面では `C.danger` を使用する。
 - **注意 / 期限間近**: `C.textWarning` / `C.bgWarning50`
 - **正常 / 完了 / 生存**: `C.textStatusGreen` / `C.bgStatusGreen`
 - **異常低 / 寒冷**: `C.textStatusBlue` 系

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestWrapper } from "@/testing/utils";
 import type { Owner } from "@/types/owner";
+import type { PetMutations } from "@/types/pet";
 import { useOwnerForm } from "./use-owner-form";
 
 const CREATE_PERMISSIONS = {
@@ -155,6 +156,104 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
         expect.objectContaining({ birth_date: null }),
       );
     });
+  });
+});
+
+describe("useOwnerForm atomic owner and pets creation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner" }));
+  });
+
+  it("pending petをnested petsとして1回のowner作成で送信し個別pet作成は呼ばない", async () => {
+    const createPetFn = vi.fn();
+    const petMutations: PetMutations = {
+      createPetFn,
+      createPetMutate: vi.fn(),
+      updatePetMutate: vi.fn(),
+      deletePetMutate: vi.fn(),
+      revokePetDeathMutate: vi.fn(),
+    };
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, petMutations, CREATE_PERMISSIONS),
+      {
+        wrapper: createTestWrapper(),
+      },
+    );
+
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+      }));
+      result.current.handleSavePet({
+        id: "pet-fixture",
+        petNumber: "P001",
+        petName: "ポチ",
+        petNameKana: "ポチ",
+        status: "生存",
+        species: "犬",
+        animalSpeciesId: "10",
+        gender: "雄",
+        birthDate: "2020-01-02",
+        breed: "柴犬",
+        color: "茶",
+        bloodType: "DEA 1.1+",
+        microchipNumber: "392123456789012",
+        weight: "12.5",
+        neuteredDate: "2021-03-04",
+        acquisitionType: "購入",
+        dangerLevel: "低",
+        food: "ドライ",
+        environment: "室内",
+        insuranceId: "20",
+        remarks: "nested fixture",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.pets).toHaveLength(1);
+      expect(result.current.pets[0]).toEqual(
+        expect.objectContaining({ isPending: true }),
+      );
+    });
+    await submitForm(result.current.formAction);
+
+    await waitFor(() => {
+      expect(mockCreateOwner).toHaveBeenCalledTimes(1);
+    });
+    expect(mockCreateOwner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pets: [
+          {
+            name: "ポチ",
+            animal_species_id: 10,
+            name_kana: "ポチ",
+            breed: "柴犬",
+            color: "茶",
+            blood_type: "DEA 1.1+",
+            microchip_number: "392123456789012",
+            gender: "male",
+            status: "alive",
+            birth_date: "2020-01-02T00:00:00+09:00",
+            weight: 12.5,
+            neutered_date: "2021-03-04T00:00:00+09:00",
+            acquisition_type: "purchased",
+            danger_level: "low",
+            food: "ドライ",
+            environment: "室内",
+            insurance_id: 20,
+            remarks: "nested fixture",
+          },
+        ],
+      }),
+    );
+    const nestedPet = mockCreateOwner.mock.calls[0]?.[0]?.pets?.[0];
+    expect(nestedPet).not.toHaveProperty("owner_id");
+    expect(nestedPet).not.toHaveProperty("pet_number");
+    expect(createPetFn).not.toHaveBeenCalled();
   });
 });
 

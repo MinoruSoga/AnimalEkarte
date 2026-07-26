@@ -4,6 +4,12 @@
  * See backend/internal/owner/http_request.go for the authoritative field names.
  */
 import type { Pet } from "./index";
+import type {
+  AcquisitionType,
+  DangerLevel,
+  PetGender,
+  PetStatus,
+} from "./generated/models";
 
 /** UI-facing Owner type (camelCase, string IDs — post-transform) */
 export interface Owner {
@@ -43,6 +49,28 @@ export interface Owner {
   pets?: Pet[];
 }
 
+/** 飼主と同一トランザクションで作成するペット */
+export interface CreateOwnerPetRequest {
+  name: string;
+  animal_species_id: number;
+  name_kana?: string;
+  breed?: string;
+  color?: string;
+  blood_type?: string;
+  microchip_number?: string;
+  gender?: PetGender;
+  status?: PetStatus;
+  birth_date?: string;
+  weight?: number;
+  neutered_date?: string;
+  acquisition_type?: AcquisitionType;
+  danger_level?: DangerLevel;
+  food?: string;
+  environment?: string;
+  insurance_id?: number;
+  remarks?: string;
+}
+
 /**
  * 飼主作成リクエスト — createOwnerRequest Go struct に準拠（json:"owner_name"）
  * NOTE: BackendOwner.name (json:"name") とは異なる。API DTO は owner_name を使用する。
@@ -69,6 +97,7 @@ export interface CreateOwnerRequest {
   discount_rate?: number;
   membership_type?: string;
   dm_preference?: boolean | null;
+  pets?: CreateOwnerPetRequest[];
 }
 
 /**
@@ -77,6 +106,6 @@ export interface CreateOwnerRequest {
  * @see backend/internal/owner/http_request.go updateOwnerRequest
  */
 export type UpdateOwnerRequest =
-  Partial<Omit<CreateOwnerRequest, "clinic_id" | "birth_date">> & {
+  Partial<Omit<CreateOwnerRequest, "clinic_id" | "birth_date" | "pets">> & {
     birth_date?: string | null;
   };

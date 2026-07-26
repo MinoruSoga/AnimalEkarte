@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type React from 'react';
+import { BADGE } from './design-tokens';
 import {
   getMedicalRecordStatusColor,
   getHospitalizationStatusColor,
@@ -235,12 +236,17 @@ describe('getTrimmingStatusColor', () => {
 });
 
 describe('getPetStatusColor', () => {
-  it('returns green for 生存', () => {
-    expect(getPetStatusColor('生存')).toContain(HEX.green);
+  it('structural contract: matches 死亡 explicitly instead of treating it as unknown', () => {
+    const source = Function.prototype.toString.call(getPetStatusColor);
+    expect(source).toMatch(/\bstatus\s*===\s*["']死亡["']/);
   });
 
-  it('returns gray for other status', () => {
-    expect(getPetStatusColor('死亡')).toContain(HEX.gray);
+  it.each([
+    ['生存', BADGE.greenHover],
+    ['死亡', BADGE.grayHover],
+    ['unknown', BADGE.grayHover],
+  ])('returns the expected badge token for %s', (status, expected) => {
+    expect(getPetStatusColor(status)).toBe(expected);
   });
 });
 
