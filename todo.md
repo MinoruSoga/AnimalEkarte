@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(2)（**#234 dev 全完了** = U-A `a0a3d17f8`・U-B `49029973b`・U-C `9b9f57f9f`・U-D `ac7f35b1c`〔バッジ3サイト Popover＋doc⑤〕。残 = USER のみ（`make migrate` → `make codegen` → 動作確認 → Issue クローズ）。次 dev = **#262 サイグラム**（DEC-17 裁定済み・S・DB 保存なし・`lib/saigram.ts`）。TASK-251 U5 は並行 `581d6b87c` で完了。⚠commit は必ず `git commit -- <paths>` で path 制限）
+> 更新: 2026-07-27(3)（**#262 サイグラム dev 完了 `e146b212e`**〔81test・DOB横表示・保存なし〕— S2 着手可能キュー全消化。#234 は dev 全完了・残=USER（migrate→codegen→クローズ）。次 dev = **TASK-251 U2b-full 第1段**〔other 理由必須の永続化 = DEC-16③/DEC-22 裁定済み・Codex 向け発行〕。第2段=締め表「未分類・要確認」表示は別ユニット。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
