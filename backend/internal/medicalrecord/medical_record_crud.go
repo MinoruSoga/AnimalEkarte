@@ -372,12 +372,29 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 				return apperrors.Wrap(err, "failed to lock and validate appointment for medical record update")
 			}
 		}
+		if isBecomingFinalized && s.auditTx == nil {
+			return apperrors.WrapInternalServerError("medical record finalize audit dependency is required")
+		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, fields, input.Version)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to update medical record", "error", err)
 			return apperrors.Wrap(err, "failed to update medical record")
 		}
 		record = updated
+		if isBecomingFinalized {
+			resourceID := id
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+				ClinicID:   &clinicID,
+				ActorID:    input.ActorID,
+				ActorType:  sharedkernel.AuditActorTypeFor(input.ActorID),
+				Action:     "finalize",
+				Resource:   "medical_record",
+				ResourceID: &resourceID,
+				NewValue:   extractMedicalRecordImportantFields(record),
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to audit medical record finalize")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -386,18 +403,12 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	// 監査ログ: update / finalize（best-effort）
+	// 監査ログ: update（best-effort）。finalize は上の transaction 内で fail-closed に記録する。
 	if s.auditService != nil {
 		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
 		if oldDiff != nil {
 			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
 				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
-			}
-		}
-		if isBecomingFinalized {
-			newValue := extractMedicalRecordImportantFields(record)
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "finalize", id, nil, newValue); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for medical record finalize", "error", err, "record_id", id)
 			}
 		}
 	}

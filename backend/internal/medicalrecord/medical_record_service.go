@@ -100,6 +100,7 @@ type medicalRecordService struct {
 	reservationRepo        mrReservationRepo
 	lstepDeliveryTrigger   mrDeliveryTrigger
 	auditService           mrAuditLogger
+	auditTx                AuditTxLogger
 	tx                     Transactor
 	tagSyncSvc             mrTagSyncer
 }
@@ -120,6 +121,40 @@ func NewMedicalRecordService(
 	tx Transactor,
 	tagSyncSvc ...mrTagSyncer,
 ) MedicalRecordService {
+	return NewMedicalRecordServiceWithTxAudit(
+		repo,
+		inquiryRepo,
+		clinicalPlanRepo,
+		chiefComplaintTypeRepo,
+		diagTypeRepo,
+		diagNameRepo,
+		lineCustomerRepo,
+		reservationRepo,
+		lstepDeliveryTrigger,
+		auditService,
+		nil,
+		tx,
+		tagSyncSvc...,
+	)
+}
+
+// NewMedicalRecordServiceWithTxAudit は確定監査を本体更新と同じトランザクションへ参加させる。
+// create と通常 update の監査は auditService 経由の best-effort のまま維持する。
+func NewMedicalRecordServiceWithTxAudit(
+	repo MedicalRecordRepository,
+	inquiryRepo InquiryRepository,
+	clinicalPlanRepo ClinicalPlanRepository,
+	chiefComplaintTypeRepo ChiefComplaintTypeRepository,
+	diagTypeRepo DiagnosisTypeRepository,
+	diagNameRepo DiagnosisNameRepository,
+	lineCustomerRepo mrLineCustomerRepo,
+	reservationRepo mrReservationRepo,
+	lstepDeliveryTrigger mrDeliveryTrigger,
+	auditService mrAuditLogger,
+	auditTx AuditTxLogger,
+	tx Transactor,
+	tagSyncSvc ...mrTagSyncer,
+) MedicalRecordService {
 	var syncSvc mrTagSyncer
 	if len(tagSyncSvc) > 0 {
 		syncSvc = tagSyncSvc[0]
@@ -135,6 +170,7 @@ func NewMedicalRecordService(
 		reservationRepo:        reservationRepo,
 		lstepDeliveryTrigger:   lstepDeliveryTrigger,
 		auditService:           auditService,
+		auditTx:                auditTx,
 		tx:                     tx,
 		tagSyncSvc:             syncSvc,
 	}

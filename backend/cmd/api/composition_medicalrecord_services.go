@@ -267,7 +267,7 @@ func newMedicalRecordCoreServices(
 	d medicalRecordCompositionDependencies,
 	auditTx medicalrecord.AuditTxLogger,
 ) medicalRecordCoreServices {
-	medicalRecords := medicalrecord.NewMedicalRecordService(
+	medicalRecords := medicalrecord.NewMedicalRecordServiceWithTxAudit(
 		r.medicalRecords,
 		r.inquiries,
 		r.clinicalPlans,
@@ -278,6 +278,7 @@ func newMedicalRecordCoreServices(
 		d.Reservations,
 		d.DeliveryTrigger,
 		d.Audit,
+		auditTx,
 		d.Transactor,
 		d.TagSync,
 	)
@@ -286,7 +287,8 @@ func newMedicalRecordCoreServices(
 		addenda: medicalrecord.NewMedicalRecordAddendumService(
 			r.medicalRecordAddenda,
 			r.medicalRecords,
-			d.Audit,
+			auditTx,
+			d.Transactor,
 		),
 		examinations: medicalrecord.NewExaminationService(
 			r.examinations,

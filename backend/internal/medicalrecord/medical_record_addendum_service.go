@@ -23,21 +23,29 @@ type MedicalRecordAddendumService interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error)
 }
 
+type medicalRecordAddendumParent interface {
+	medicalRecordFinder
+	medicalRecordLocker
+}
+
 type medicalRecordAddendumService struct {
 	repo          MedicalRecordAddendumRepository
-	medicalRecord medicalRecordFinder // FindByID のみ使用（⑦で narrow 化）
-	auditService  mrAuditLogger
+	medicalRecord medicalRecordAddendumParent
+	auditTx       AuditTxLogger
+	tx            Transactor
 }
 
 func NewMedicalRecordAddendumService(
 	repo MedicalRecordAddendumRepository,
-	medicalRecord medicalRecordFinder, // FindByID のみ使用（⑦で narrow 化）
-	auditService mrAuditLogger,
+	medicalRecord medicalRecordAddendumParent,
+	auditTx AuditTxLogger,
+	tx Transactor,
 ) MedicalRecordAddendumService {
 	return &medicalRecordAddendumService{
 		repo:          repo,
 		medicalRecord: medicalRecord,
-		auditService:  auditService,
+		auditTx:       auditTx,
+		tx:            tx,
 	}
 }
 
@@ -57,15 +65,11 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("reason must be %d characters or fewer", maxReasonLength))
 	}
 
-	// カルテ存在確認 + clinic_id 所属確認
-	record, err := s.medicalRecord.FindByID(ctx, clinicID, input.MedicalRecordID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find medical record")
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("medical record addendum write requires a transaction dependency")
 	}
-
-	// 確定済みカルテにのみ追記可能
-	if record.Status != model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapInvalidInput("addendum can only be added to finalized medical records")
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("medical record addendum audit dependency is required")
 	}
 
 	addendum := &model.MedicalRecordAddendum{
@@ -77,17 +81,41 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 		Reason:          input.Reason,
 	}
 
-	if err := s.repo.Create(ctx, addendum); err != nil {
-		slog.ErrorContext(ctx, "failed to create medical record addendum", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create medical record addendum")
-	}
-
-	// 監査ログ: create（best-effort）
-	if s.auditService != nil {
-		authorID := input.AuthorUserID
-		if err := s.auditService.LogAddendumCreate(ctx, clinicID, &authorID, addendum.ID, input.MedicalRecordID, addendum); err != nil {
-			slog.ErrorContext(ctx, "audit log failed for addendum create", "error", err, "addendum_id", addendum.ID)
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		// clinic-scoped FOR UPDATE lock serializes parent validation with the addendum insert.
+		record, err := s.medicalRecord.LockByIDForUpdate(txCtx, clinicID, input.MedicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock medical record for addendum")
 		}
+		if record.Status != model.MedicalRecordStatusFinalized {
+			return apperrors.WrapInvalidInput("addendum can only be added to finalized medical records")
+		}
+		if err := s.repo.Create(txCtx, addendum); err != nil {
+			return apperrors.Wrap(err, "failed to create medical record addendum")
+		}
+		authorID := input.AuthorUserID
+		resourceID := addendum.ID
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorID:    &authorID,
+			ActorType:  model.AuditActorTypeStaff,
+			Action:     "create",
+			Resource:   "medical_record_addendum",
+			ResourceID: &resourceID,
+			NewValue: map[string]any{
+				"before_text":    addendum.BeforeText,
+				"after_text":     addendum.AfterText,
+				"reason":         addendum.Reason,
+				"author_user_id": addendum.AuthorUserID,
+			},
+			Metadata: map[string]any{"medical_record_id": input.MedicalRecordID},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to audit medical record addendum create")
+		}
+		return nil
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create medical record addendum", "error", err)
+		return nil, err
 	}
 
 	return addendum, nil
