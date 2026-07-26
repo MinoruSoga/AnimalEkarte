@@ -246,7 +246,7 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <article class="task" data-task="OPS-4">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-4 (U-5)</span></label><h3 class="task-title">SD-14 STG 実機検証: LINE 紐付け E2E</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで。完了条件: 紐付け成功が確認できる。失敗時: 症状を聞いてエージェントが <code>line_link_service.go</code>（現 <code>internal/service/</code>・BE9 target=lstep）／<code>frontend/liff</code> の LiffLinkPage を調査・修正（2e4808b5 が直近の修正）。</p>
+  <p class="task-desc">飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで。完了条件: 紐付け成功が確認できる。失敗時: 症状を聞いてエージェントが <code>backend/internal/lstep/line_link_service.go</code>／<code>frontend/liff</code> の LiffLinkPage を調査・修正（2e4808b5 が直近の修正）。</p>
 </article>
 
 <article class="task" data-task="OPS-5">
@@ -544,7 +544,7 @@ terraform apply tfplan
 
 <details class="fold" open>
   <summary>7-1 既存集計3項目の仕様</summary>
-  <p>対象は顧客集計 API（<code>GET /api/v1/clinics/:clinic_id/owners/aggregations</code>、<code>backend/internal/handler/aggregation_handler.go:106-123</code>, <code>128</code>）が返す集計値。集計元 SQL は <code>backend/internal/repository/ltv_repository.go</code> の <code>FindOwnerLTV</code>。</p>
+  <p>対象は顧客集計 API（<code>GET /api/v1/clinics/:clinic_id/owners/aggregations</code>、<code>backend/internal/lstep/aggregation_handler.go</code>）が返す集計値。集計元 SQL は <code>backend/internal/owner/ltv_repository.go</code> の <code>FindOwnerLTV</code>。</p>
   <h3>(a) 年間定義・合算・CSV</h3>
   <p><strong>年間定義は指標ごとに異なり、統一されていない。</strong></p>
   <ul>
@@ -574,13 +574,13 @@ terraform apply tfplan
   ELSE 'over_1y'
 END AS last_visit_bucket</pre>
   <p>実装根拠: <code>ltv_repository.go:164-170</code>（バケット名定数 <code>:18-24</code>）</p>
-  <p>これとは別に、Lステップ配信（dormant/VISIT 系タグ付与）で使う休眠判定閾値は<b>クリニックごとに設定可能な4段階</b>（<code>DormantThresholds{Stage180, Stage210, Stage240, Stage365}</code>）で、DB 未設定時は既定値 <b>180日/210日/240日/365日</b>（q&amp;a 回答文の「C-1確定値」に一致）。実装根拠: 既定値 = <code>backend/internal/model/dormant_thresholds.go:21-34</code>、クリニック設定からの取得 = <code>backend/internal/service/lstep_settings_thresholds.go:27-41</code>、タグ判定（240日以上で <code>cpm_dormant</code> も付与）= <code>lstep_tag_sync_visit_dormant.go:31-45</code>、別系統の <code>VISIT_*</code> タグ閾値（120/180/220/240日、重複付与可）= 同 <code>:94-112</code>。</p>
+  <p>これとは別に、Lステップ配信（dormant/VISIT 系タグ付与）で使う休眠判定閾値は<b>クリニックごとに設定可能な4段階</b>（<code>DormantThresholds{Stage180, Stage210, Stage240, Stage365}</code>）で、DB 未設定時は既定値 <b>180日/210日/240日/365日</b>（q&amp;a 回答文の「C-1確定値」に一致）。実装根拠: 既定値 = <code>backend/internal/model/dormant_thresholds.go:21-34</code>、クリニック設定からの取得 = <code>backend/internal/lstep/lstep_settings_thresholds.go</code> の <code>GetDormantThresholds</code>、タグ判定（240日以上で <code>cpm_dormant</code> も付与）= <code>lstep_tag_sync_visit_dormant.go:31-45</code>、別系統の <code>VISIT_*</code> タグ閾値（120/180/220/240日、重複付与可）= 同 <code>:94-112</code>。</p>
   <div class="need">→ 集計 API 側の <code>last_visit_bucket</code>（90/180/365日、3分類+未来院）と、Lステップ配信側の dormant 閾値（180/210/240/365日、4段階）は<strong>別ロジック・別目的</strong>であり、日数の境界値も一致しない。クライアントには両者が別物である旨の確認が必要。</div>
 </details>
 
 <details class="fold">
   <summary>7-3 Lステップ API 仕様3項目</summary>
-  <p>対象実装: <code>backend/internal/infra/lstep/tag.go</code>, <code>user.go</code>（Lステップ HTTP クライアント）、<code>backend/internal/service/lstep_tag_sync_api.go</code>, <code>lstep_tag_service.go</code>, <code>lstep_lifecycle_service.go</code>, <code>checkup_sync_service_create.go</code>（呼び出し側サービス）。</p>
+  <p>対象実装: <code>backend/internal/infra/lstep/tag.go</code>, <code>user.go</code>（Lステップ HTTP クライアント）、<code>backend/internal/lstep/lstep_tag_sync_api.go</code>, <code>lstep_tag_service.go</code>, <code>lstep_lifecycle_service.go</code>, <code>checkup_sync_service_create.go</code>（呼び出し側・いずれも <code>backend/internal/lstep/</code>）。</p>
   <h3>(a) タグ付与解除</h3>
   <p><strong>重要な前提: Lステップ Write 系 API は 2026-05-15 頃から一時停止（no-op 化）されており、ファクトシート作成時点（2026-07-16）でも停止継続中。</strong></p>
   <ul>
@@ -598,7 +598,7 @@ END AS last_visit_bucket</pre>
   </ol>
   <div class="need">→ 「add=fatal」は主経路（1系統）でおおむね成立するが、「remove=non-fatal」は<strong>クリーンアップ系（2系統）とエラーカウンター補助（3系統）に限られ</strong>、通常の同期パスでは remove も fatal。q&amp;a 回答文の一様な一般化は不正確。なお (a) の通り Write API 自体が現在 no-op のため、上記の fatal/non-fatal 分岐は<strong>現状すべて到達不能</strong>（Write API 再有効化後にのみ意味を持つ）。</div>
   <h3>(c) LINE ID 紐付け</h3>
-  <p><code>LinkLineUserID</code>（<code>PATCH /owners/:id/line-user-id</code>, <code>backend/internal/handler/owner_handler.go:133-153</code>）の実装:</p>
+  <p><code>LinkLineUserID</code>（<code>PATCH /owners/:id/line-user-id</code>, <code>backend/internal/owner/http_owner.go</code>）の実装:</p>
   <ul>
     <li><b>重複判定</b>: 同一クリニック内で同じ <code>line_user_id</code> が既に別オーナーに紐付いている場合、<code>FindByLineUserID</code> で検出し <code>apperrors.WrapConflict</code> を返す（<code>owner_service_line.go:17-23</code>）。</li>
     <li><b>ステータスコード</b>: <code>WrapConflict</code> は <code>resolveErrorResponse</code> で <code>http.StatusConflict</code>（409）にマッピング（<code>response.go:52-54</code>、<code>owner_handler.go:148-151</code>）。</li>
