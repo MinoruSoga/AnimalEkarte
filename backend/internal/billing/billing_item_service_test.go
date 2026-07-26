@@ -62,6 +62,9 @@ func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Cont
 func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 	return nil, nil
 }
+func (m *mockBillingItemRepository) FindUnbilledVaccinationItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
+	return nil, nil
+}
 func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
 	return 0, nil
 }
@@ -70,6 +73,12 @@ func (m *mockBillingItemRepository) ValidateCreateReferences(ctx context.Context
 		return "", nil
 	}
 	return m.validateCreateReferencesFn(ctx, clinicID, billingID, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID)
+}
+func (m *mockBillingItemRepository) ValidateVaccinationCreateReference(
+	_ context.Context,
+	_, _, _ uint64,
+) (*vaccinationBillingValues, error) {
+	return nil, apperrors.WrapInternalServerError("unexpected vaccination validation in mock")
 }
 
 func defaultMockBillingItemRepo() *mockBillingItemRepository {
@@ -809,7 +818,13 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &billingItemService{campaignRepo: tt.campaignRepo, billingRepo: tt.billingRepo, ownerRepo: tt.ownerRepo}
-			got := svc.resolveAutoDiscount(context.Background(), tt.input, model.ItemCategory(tt.input.Category))
+			got := svc.resolveAutoDiscount(
+				context.Background(),
+				tt.input,
+				model.ItemCategory(tt.input.Category),
+				tt.input.UnitPrice,
+				tt.input.Quantity,
+			)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -133,8 +133,16 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
-		return nil, err
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Vaccination{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

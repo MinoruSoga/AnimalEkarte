@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(4)（**U2b-full 第1段 dev 完了 `7a64d9e63`**〔other 理由必須＋actor clinic 相関ロック・migration 009。⚠同 commit の model/billing 3ファイルに並行 U3〔vaccination provenance・migration 008 未コミット〕の断片が同居 — U3 完了 commit で完結〕。次 = **第2段〔締め表「未分類・要確認」表示・Codex 発行〕**。`make migrate` は U3 完了後に 008+009 まとめて。⚠commit は必ず `git commit -- <paths>` で path 制限）
+> 更新: 2026-07-27(4)（**U2b-full 第1段 dev 完了 `7a64d9e63`**〔other 理由必須＋actor clinic 相関ロック・migration 009。⚠同 commit の model/billing 3ファイルに並行 U3〔vaccination provenance・migration 008 未コミット〕の断片が同居 — U3後続commitで完結〕。次 = **第2段〔締め表「未分類・要確認」表示・Codex 発行〕**。`make migrate` は U3後続処理で 008+009 まとめて。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
@@ -88,7 +88,9 @@
   - lint/format: fresh cache の scoped golangci-lint は repair 前に新testの `goimports` 1件を検出して修正し、再実行後は baseline と同じ既存gofmt 2件だけ（新規finding 0件）。変更した全9 Go fileの `docker compose exec backend gofmt -l ...` は stdout 0行。
 - **U3 完了（2026-07-27・第3走 worktree）**: coordinator裁定により第2走のtrigger escalationを棄却し、migration 008を列・paired `clinic_id`・Billing/Vaccination両親の複合clinic FK・`ON DELETE RESTRICT`・unique partial indexだけの宣言的構成へ簡素化した。app層の同一transaction検証・SHARE/UPDATE lock・並行claimは維持し、明細soft-delete時は`vaccination_id`/内部`clinic_id`を原子的に解放して未会計候補への復帰と再取込を可能にした。全親mutationのdurable graph enforcementは本unitのFAILにせず、裁定どおり `SEC-DUR-01` へroutingした。
   - U3変更file（他unitの同時hunkは除外）: `backend/migrations/008_add_billing_item_vaccination_provenance.sql`、`backend/internal/model/accounting.go`（現行schemaに`billing_items.clinic_id`が無かったためpromptの必要時最小逸脱を適用）、`backend/internal/billing/{accounting_repository.go,billing_item_repository.go,billing_item_service.go,billing_item_vaccination_test.go}`、`backend/internal/medicalrecord/vaccination_repository.go`。第2走の既存U3差分と別owner WIPは保持し、`frontend/**`・`billing_item_request.go`・`billing_item_service_test.go`・migration 009・migration適用・codegen・git履歴書込みには本走で接触していない。
-  - 第3走TDD: `TestBillingItemVaccinationProvenance_DeleteReleasesClaim` / `MigrationContract` は旧実装でRED（`clinic_id`列なし・trigger残存）→宣言的migrationと削除解放実装後GREEN。最終gate結果とbaseline差分は本entryへ第3走完了時に追記する。
+  - 第3走TDD: `TestBillingItemVaccinationProvenance_DeleteReleasesClaim` / `MigrationContract` は旧実装でRED（`clinic_id`列なし・trigger残存）→宣言的migrationと削除解放実装後GREEN。独立reviewのHIGH 2件はrepair round 1で、claim/candidate queryのclinic相関と、親会計をtransaction内でlockしてcompleted/cancelledの削除をConflictにする最小修正をRED→GREENで追加した。repair round 2では「既存flowが確定済み会計への追加を防ぐ」というprompt assumptionを実測で反証し、既存の同一tx billing UPDATE lock後にstatusを再読してvaccination createだけをcompleted/cancelledでConflictにする最小修正をRED→GREENで追加した。waiting/pendingの作成・削除→再候補化は維持する。
+  - 第3走最終gate: named 5 testは `PASS` / `ok ... 1.798s`、billing package=`ok ... 21.499s`、medicalrecord package=`ok ... 46.070s`、frontend accounting=`27 passed` / `215 passed` / `3 skipped`。fresh scoped golangci-lintは編集前後とも既存36件（gocritic 1 / gofmt 3 / goimports 19 / prealloc 3 / staticcheck 5 / unparam 3 / unused 2）で新規finding 0。変更Go fileの`gofmt -l` stdout 0行、対象packageのbuild / vetともexit 0、`git diff --check` stdout 0行。008はFUNCTION/TRIGGER=0・CASCADE=0、`backend/internal`のlowercase `u3_`=0。protected `billing_item_request.go` / `billing_item_service_test.go` hashは編集前後同一。fresh final DB / clinic-isolation / Go / security reviewは全てAPPROVE、U3スコープ内CRITICAL/HIGH/MEDIUM 0。
+  - 第3走provenance: 本走はgit add/commit/branch/pushを実行していない。一方、共有worktreeの別ownerが実行中に`7a64d9e63`（U2b名義でU3 model/repository/service hunkを同居）と`b2897a409`（本entryを含むtodo更新）をcommitし、HEADが着手時`02f80d934`から`b2897a409`へ進んだ。このため「U3全差分がworktree-only」は現時点のgit履歴については成立しないが、本走による履歴操作ではない。別ownerのfrontend/other_reason差分は保持し、本走のwriterは編集していない。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
 
 ### SEC-DUR-01: provenance FK graphのdurable enforcement方針（全FK共通・横断）
@@ -96,6 +98,12 @@
 - 第2走reviewer所見: provenance link後に`pets.owner_id`/`pets.clinic_id`、`owners.clinic_id`、`medical_records.owner_id`/`medical_records.pet_id`/`medical_records.clinic_id`、各source master（`vaccines.clinic_id`等）が変更されると、Vaccination/Treatment/Merchandise等の既存provenance graphが後から不整合になり得る。
 - 個別sourceだけへtriggerを追加するのではなく、全provenance FKに共通するarchitecture/PO論点として、service依存チェック・宣言的FK・許可された親mutationの再相関/移送をどの層で保証するかを決める。飼主変更（`pets.owner_id`）等の実機能を恒久ブロックしないことを必須条件とする。
 - **着手 = 納品後・architecture/PO裁定待ち**。U3はlink時のapp検証・transaction lock・宣言的clinic FKをdelivery boundaryとして完了し、本entryの実装は開始しない。
+
+### BUG-440: vaccination claim解放のimmutable actor監査
+
+- HIGH（独立security review）。U3の要求どおり明細soft-delete時に`vaccination_id`/内部`clinic_id`をNULL化して再候補化するため、削除済み`billing_items`行だけでは「どの接種claimを誰が解放したか」を復元できない。通常ログはdurable actor auditの代替にならない。
+- 対応はclaim作成・解放を同一transaction内のimmutable audit/historyへactor・対象vaccination・理由付きで保存し、audit失敗時に本体writeもrollbackする設計とする。completed/cancelled会計の削除防御はU3 repair round 1で実装済み。
+- **着手 = 納品後・audit schema/actor contractのarchitecture裁定後**。U3のexact delete→再候補化contractを維持し、本unitでは監査schema/APIをdrive-by追加しない。
 
 ### SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設
 

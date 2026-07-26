@@ -461,6 +461,18 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	billingID := item.BillingID
 
 	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		billing, err := s.billingRepo.LockAndFindByID(txCtx, clinicID, billingID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock billing before deleting item")
+		}
+		if billing == nil {
+			return apperrors.WrapInternalServerError("locked billing is nil")
+		}
+		if billing.Status == model.BillingStatusCompleted ||
+			billing.Status == model.BillingStatusCancelled {
+			return apperrors.WrapConflict("確定済みまたは取消済みの会計明細は削除できません")
+		}
+
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete billing item", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete billing item")

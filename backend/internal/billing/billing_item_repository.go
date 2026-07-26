@@ -268,13 +268,18 @@ func (r *billingItemRepository) ValidateVaccinationCreateReference(
 		MedicalRecordID *uint64
 		OwnerID         *uint64
 		PetID           *uint64
+		Status          model.BillingStatus
 	}
 	if err := tx.
 		Table("billings").
-		Select("medical_record_id", "owner_id", "pet_id").
+		Select("medical_record_id", "owner_id", "pet_id", "status").
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
 		Take(&billingRef).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+	}
+	if billingRef.Status == model.BillingStatusCompleted ||
+		billingRef.Status == model.BillingStatusCancelled {
+		return nil, apperrors.WrapConflict("確定済みまたは取消済みの会計には予防接種を追加できません")
 	}
 
 	var vaccinationRef struct {
@@ -408,7 +413,11 @@ func (r *billingItemRepository) ValidateVaccinationCreateReference(
 	var existingCount int64
 	if err := tx.
 		Table("billing_items AS bi").
-		Where("bi.vaccination_id = ? AND bi.deleted_at IS NULL", vaccinationID).
+		Where(
+			"bi.vaccination_id = ? AND bi.clinic_id = ? AND bi.deleted_at IS NULL",
+			vaccinationID,
+			clinicID,
+		).
 		Count(&existingCount).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("vaccination:%d", vaccinationID))
 	}
@@ -471,6 +480,7 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 		      SELECT 1
 		      FROM billing_items AS billing_item
 		      WHERE billing_item.vaccination_id = vaccination.id
+		        AND billing_item.clinic_id = vaccination.clinic_id
 		        AND billing_item.deleted_at IS NULL
 		  )
 		ORDER BY vaccination.date ASC, vaccination.id ASC
