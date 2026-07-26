@@ -355,7 +355,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	examinations := rg.Group("/examinations")
 	examinations.GET("", perm(model.ResourceExaminations, "view"), h.examination.ListExaminations)
 	examinations.GET("/:id", perm(model.ResourceExaminations, "view"), h.examination.GetExamination)
-	examinations.POST("", perm(model.ResourceExaminations, "create"), h.examination.CreateExamination)
+	examinations.POST("",
+		perm(model.ResourceExaminations, "create"),
+		perm(model.ResourceExaminations, "edit"),
+		h.examination.CreateExamination,
+	)
 	examinations.PATCH("/:id", perm(model.ResourceExaminations, "edit"), h.examination.UpdateExamination)
 	examinations.DELETE("/:id", perm(model.ResourceExaminations, "delete"), h.examination.DeleteExamination)
 	examinations.GET("/:id/items", perm(model.ResourceExaminations, "view"), h.examination.ListExaminationItems)

@@ -20,11 +20,9 @@ import { useCreateExamination } from "../api/create-examination";
 import { useUpdateExamination } from "../api/update-examination";
 import { useDeleteExamination } from "../api/delete-examination";
 import { useGetExaminationItems } from "../api/get-examination-items";
-import { useUpdateExaminationItems } from "../api/update-examination-items";
 import { useGetExamTypeFields, type ExamTypeFieldRow } from "../api/get-exam-type-fields";
 import type {
   CreateExaminationRequest,
-  ReplaceExamItemsRequest,
   UpdateExaminationRequest,
   UpsertExamItemRequest,
 } from "../api/types";
@@ -109,7 +107,6 @@ export function useExaminationForm(
   const updateMutation = useUpdateExamination();
   const deleteMutation = useDeleteExamination();
   const { data: existingItems } = useGetExaminationItems(id ?? "");
-  const updateItemsMutation = useUpdateExaminationItems();
   const { canCreate, canEdit, canDelete } = permissions;
   const permissionsRef = useRef(permissions);
   useLayoutEffect(() => {
@@ -269,9 +266,9 @@ export function useExaminationForm(
       }
 
       try {
-        // 親 exam (PATCH/POST) と検査項目 (PUT items) を順次保存する。
-        // 確定済みの場合は items の更新も backend で 400 になるため、ここでは送らない。
-        const itemsReq: ReplaceExamItemsRequest = { items: rowsToRequest(formItemsRef.current) };
+        // 確定済みの場合は items の更新が backend で 400 になるため、従来どおり省略する。
+        // それ以外は空配列も含めて parent と同じ operation に載せ、全体を原子的に保存する。
+        const items = rowsToRequest(formItemsRef.current);
         const isConfirmed = current.status === "確定";
 
         if (isPetExplicitlyDeceased()) {
@@ -288,20 +285,12 @@ export function useExaminationForm(
                 ? current.date
                 : jstDateStartISOString(current.date)
               : undefined,
+            ...(!isConfirmed ? { items } : {}),
           };
           if (!isMutationAllowed("canEdit")) {
             return { success: false, timestamp: Date.now() };
           }
           await updateMutation.mutateAsync({ id, req });
-          if (!isConfirmed) {
-            if (
-              !isMutationAllowed("canEdit") ||
-              isPetExplicitlyDeceased()
-            ) {
-              return { success: false, timestamp: Date.now() };
-            }
-            await updateItemsMutation.mutateAsync({ id, req: itemsReq });
-          }
         } else {
           const pet = selectedPets[0];
           if (!pet) return { success: false, timestamp: Date.now() };
@@ -313,21 +302,15 @@ export function useExaminationForm(
             date: current.date ?? jstDateStartISOString(todayJSTISO()),
             result_summary: current.resultSummary,
             machine: current.machine,
+            ...(!isConfirmed ? { items } : {}),
           };
-          if (!isMutationAllowed("canCreate")) {
+          if (
+            !isMutationAllowed("canCreate") ||
+            !isMutationAllowed("canEdit")
+          ) {
             return { success: false, timestamp: Date.now() };
           }
-          const created = await createMutation.mutateAsync(req);
-          // 新規作成後に items を保存。items が空なら呼ばない（不要な PUT を回避）。
-          if (!isConfirmed && itemsReq.items.length > 0 && created?.id) {
-            if (
-              !isMutationAllowed("canCreate") ||
-              isPetExplicitlyDeceased()
-            ) {
-              return { success: false, timestamp: Date.now() };
-            }
-            await updateItemsMutation.mutateAsync({ id: String(created.id), req: itemsReq });
-          }
+          await createMutation.mutateAsync(req);
         }
         return { success: true, timestamp: Date.now() };
       } catch (error) {
@@ -372,7 +355,7 @@ export function useExaminationForm(
     startDeleteTransition,
   ]);
 
-  const isSaving = isPending || updateItemsMutation.isPending;
+  const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
 
   return {

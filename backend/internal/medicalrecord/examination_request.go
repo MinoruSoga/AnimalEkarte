@@ -61,14 +61,15 @@ func (q *listExaminationQuery) toServiceFilters() (listExaminationFilters, error
 
 // createExaminationRequest は検査作成のバインド struct
 type createExaminationRequest struct {
-	MedicalRecordID *uint64   `json:"medical_record_id"  binding:"omitempty"`
-	PetID           *uint64   `json:"pet_id"`
-	ExamTypeID      uint64    `json:"exam_type_id"       binding:"required"`
-	DoctorID        *uint64   `json:"doctor_id"`
-	Date            time.Time `json:"date"              binding:"required"`
-	ResultSummary   string    `json:"result_summary"`
-	Machine         string    `json:"machine"`
-	Status          string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
+	MedicalRecordID *uint64                  `json:"medical_record_id"  binding:"omitempty"`
+	PetID           *uint64                  `json:"pet_id"`
+	ExamTypeID      uint64                   `json:"exam_type_id"       binding:"required"`
+	DoctorID        *uint64                  `json:"doctor_id"`
+	Date            time.Time                `json:"date"              binding:"required"`
+	ResultSummary   string                   `json:"result_summary"`
+	Machine         string                   `json:"machine"`
+	Status          string                   `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
+	Items           *[]upsertExamItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
 func (r *createExaminationRequest) toServiceInput() *CreateExaminationInput {
@@ -81,19 +82,21 @@ func (r *createExaminationRequest) toServiceInput() *CreateExaminationInput {
 		ResultSummary:   r.ResultSummary,
 		Machine:         r.Machine,
 		Status:          model.ExaminationStatus(r.Status),
+		Items:           optionalExamItemsToServiceInput(r.Items),
 	}
 }
 
 // updateExaminationRequest は検査更新のバインド struct
 type updateExaminationRequest struct {
-	MedicalRecordID *uint64    `json:"medical_record_id"`
-	PetID           *uint64    `json:"pet_id"`
-	ExamTypeID      uint64     `json:"exam_type_id"`
-	DoctorID        *uint64    `json:"doctor_id"`
-	Date            *time.Time `json:"date"`
-	ResultSummary   *string    `json:"result_summary"`
-	Machine         *string    `json:"machine"`
-	Status          *string    `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
+	MedicalRecordID *uint64                  `json:"medical_record_id"`
+	PetID           *uint64                  `json:"pet_id"`
+	ExamTypeID      uint64                   `json:"exam_type_id"`
+	DoctorID        *uint64                  `json:"doctor_id"`
+	Date            *time.Time               `json:"date"`
+	ResultSummary   *string                  `json:"result_summary"`
+	Machine         *string                  `json:"machine"`
+	Status          *string                  `json:"status"             binding:"omitempty,oneof=pending in_progress result_entered completed confirmed"`
+	Items           *[]upsertExamItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
 func (r updateExaminationRequest) toServiceInput() UpdateExaminationInput {
@@ -118,6 +121,7 @@ func (r updateExaminationRequest) toServiceInput() UpdateExaminationInput {
 		ResultSummary:   r.ResultSummary,
 		Machine:         r.Machine,
 		Status:          status,
+		Items:           optionalExamItemsToServiceInput(r.Items),
 	}
 }
 
@@ -157,4 +161,12 @@ func (r replaceExamItemsRequest) toServiceInput() []UpsertExamItemInput {
 		})
 	}
 	return inputs
+}
+
+func optionalExamItemsToServiceInput(items *[]upsertExamItemRequest) *[]UpsertExamItemInput {
+	if items == nil {
+		return nil
+	}
+	inputs := (replaceExamItemsRequest{Items: *items}).toServiceInput()
+	return &inputs
 }

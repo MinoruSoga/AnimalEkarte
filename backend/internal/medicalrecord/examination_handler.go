@@ -90,7 +90,9 @@ func (h *ExaminationHandler) CreateExamination(c *gin.Context) {
 		return
 	}
 
-	exam, err := h.service.Create(c.Request.Context(), clinicID, input.toServiceInput())
+	serviceInput := input.toServiceInput()
+	serviceInput.ActorID = httpapi.OptionalStaffID(c)
+	exam, err := h.service.Create(c.Request.Context(), clinicID, serviceInput)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -115,7 +117,9 @@ func (h *ExaminationHandler) UpdateExamination(c *gin.Context) {
 		return
 	}
 
-	exam, err := h.service.Update(c.Request.Context(), clinicID, id, input.toServiceInput())
+	serviceInput := input.toServiceInput()
+	serviceInput.ActorID = httpapi.OptionalStaffID(c)
+	exam, err := h.service.Update(c.Request.Context(), clinicID, id, serviceInput)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

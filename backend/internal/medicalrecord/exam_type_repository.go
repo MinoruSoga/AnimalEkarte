@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -43,7 +44,18 @@ func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 
 func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
-	err := r.db.WithContext(ctx).Preload("Items", "clinic_id = ?", clinicID).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
+	db := persistence.DBOrTx(ctx, r.db)
+	lockForValidation := persistence.TxFromContext(ctx) != nil
+	if lockForValidation {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.Preload("Items", func(itemsDB *gorm.DB) *gorm.DB {
+		itemsDB = itemsDB.Where("clinic_id = ?", clinicID)
+		if lockForValidation {
+			itemsDB = itemsDB.Clauses(clause.Locking{Strength: "SHARE"})
+		}
+		return itemsDB
+	}).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", id))
 	}

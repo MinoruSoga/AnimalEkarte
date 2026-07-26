@@ -21,6 +21,8 @@ type CreateExaminationInput struct {
 	ResultSummary   string
 	Machine         string
 	Status          model.ExaminationStatus
+	Items           *[]UpsertExamItemInput
+	ActorID         *uint64
 }
 
 // UpdateExaminationInput は検査更新のサービス入力 DTO
@@ -33,6 +35,8 @@ type UpdateExaminationInput struct {
 	ResultSummary   *string
 	Machine         *string
 	Status          *model.ExaminationStatus
+	Items           *[]UpsertExamItemInput
+	ActorID         *uint64
 }
 
 // UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
@@ -233,6 +237,11 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 			slog.ErrorContext(txCtx, "failed to create examination", "error", err)
 			return apperrors.Wrap(err, "failed to create examination")
 		}
+		if input.Items != nil {
+			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *input.Items); err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -247,7 +256,7 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
 	fields := buildExaminationUpdate(input)
-	if len(fields) == 0 {
+	if len(fields) == 0 && input.Items == nil {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
@@ -285,12 +294,20 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return err
 		}
 
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
-			return apperrors.Wrap(err, "failed to update examination")
+		exam = locked
+		if len(fields) > 0 {
+			updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to update examination", "error", err)
+				return apperrors.Wrap(err, "failed to update examination")
+			}
+			exam = updated
 		}
-		exam = updated
+		if input.Items != nil {
+			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *input.Items); err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -360,33 +377,6 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
 
-	hasFieldRef := false
-	for _, in := range inputs {
-		if in.ExamTypeFieldID != nil {
-			hasFieldRef = true
-			break
-		}
-	}
-
-	items := make([]model.ExamResult, 0, len(inputs))
-	for _, in := range inputs {
-		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
-		items = append(items, model.ExamResult{
-			ExamID:          examID,
-			ExamTypeItemID:  in.ExamTypeFieldID,
-			Name:            in.Name,
-			InspectionValue: in.InspectionValue,
-			NormalValue:     in.NormalValue,
-			Unit:            in.Unit,
-			ReferenceValue:  in.ReferenceValue,
-			RefMin:          in.RefMin,
-			RefMax:          in.RefMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
-			SortOrder:       in.SortOrder,
-		})
-	}
-
 	// #211/R1-2 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
 	// 実行する。監査書込が失敗したら tx 全体を rollback し、削除・挿入も巻き戻す（監査なしの検査結果削除を
 	// 許さない＝fail-closed）。exam_results は hard-delete のため old_value が唯一の耐久記録であり、
@@ -414,52 +404,12 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 			}
 		}
 
-		// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
-		// 検査種別フィールドであることを同じ transaction 内で検証する。
-		if hasFieldRef {
-			examType, err := s.examTypeRepo.FindByID(txCtx, clinicID, locked.ExamTypeID)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to verify exam type ownership")
-			}
-			validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
-			for i := range examType.Items {
-				validFieldIDs[examType.Items[i].ID] = struct{}{}
-			}
-			for _, in := range inputs {
-				if in.ExamTypeFieldID != nil {
-					if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
-						return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
-					}
-				}
-			}
-		}
-
-		before, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, examID)
+		replaced, err := s.replaceItemsTx(txCtx, clinicID, locked, actorID, inputs)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", examID, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to load existing examination items")
-		}
-
-		replaced, deletedCount, err := s.repo.ReplaceItemsByExamID(txCtx, clinicID, examID, items)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to replace examination items")
+			return err
 		}
 		saved = replaced
-
-		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
-		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
-		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
-		return logReplaceDeletionTx(txCtx, s.auditTx, clinicID, actorID, deletedCount,
-			model.AuditActionExamResultReplace, model.AuditResourceExamResult, examID,
-			extractExamResultsAudit(before), extractExamResultsAudit(saved),
-			map[string]any{
-				"exam_id":       examID,
-				"deleted_count": deletedCount,
-				"new_count":     len(saved),
-			},
-			"audit log failed for examination items replace; rolling back deletion",
-			"failed to write examination items deletion audit", "exam_id")
+		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}
@@ -469,6 +419,89 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		slog.Uint64("examination_id", examID),
 		slog.Int("item_count", len(saved)),
 	)
+	return saved, nil
+}
+
+// replaceItemsTx validates and replaces examination results inside the caller-owned transaction.
+// Create, Update, and the split PUT endpoint all share this tail so result persistence and
+// deletion audit use the same transaction as the parent mutation.
+func (s *examinationService) replaceItemsTx(
+	ctx context.Context,
+	clinicID uint64,
+	exam *model.Examination,
+	actorID *uint64,
+	inputs []UpsertExamItemInput,
+) ([]model.ExamResult, error) {
+	hasFieldRef := false
+	items := make([]model.ExamResult, 0, len(inputs))
+	for _, in := range inputs {
+		if in.ExamTypeFieldID != nil {
+			hasFieldRef = true
+		}
+		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
+		items = append(items, model.ExamResult{
+			ExamID:          exam.ID,
+			ExamTypeItemID:  in.ExamTypeFieldID,
+			Name:            in.Name,
+			InspectionValue: in.InspectionValue,
+			NormalValue:     in.NormalValue,
+			Unit:            in.Unit,
+			ReferenceValue:  in.ReferenceValue,
+			RefMin:          in.RefMin,
+			RefMax:          in.RefMax,
+			IsAbnormal:      isAbnormal,
+			Status:          status,
+			SortOrder:       in.SortOrder,
+		})
+	}
+
+	// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
+	// 検査種別フィールドであることを同じ transaction 内で検証する。
+	if hasFieldRef {
+		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, exam.ExamTypeID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
+		}
+		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
+		for i := range examType.Items {
+			validFieldIDs[examType.Items[i].ID] = struct{}{}
+		}
+		for _, in := range inputs {
+			if in.ExamTypeFieldID != nil {
+				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+				}
+			}
+		}
+	}
+
+	before, err := s.repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to load existing examination items")
+	}
+
+	saved, deletedCount, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, exam.ID, items)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to replace examination items")
+	}
+
+	// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
+	// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
+	// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
+	if err := logReplaceDeletionTx(ctx, s.auditTx, clinicID, actorID, deletedCount,
+		model.AuditActionExamResultReplace, model.AuditResourceExamResult, exam.ID,
+		extractExamResultsAudit(before), extractExamResultsAudit(saved),
+		map[string]any{
+			"exam_id":       exam.ID,
+			"deleted_count": deletedCount,
+			"new_count":     len(saved),
+		},
+		"audit log failed for examination items replace; rolling back deletion",
+		"failed to write examination items deletion audit", "exam_id"); err != nil {
+		return nil, err
+	}
 	return saved, nil
 }
 

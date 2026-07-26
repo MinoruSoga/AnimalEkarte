@@ -36,7 +36,7 @@ export function ExaminationForm() {
   const historyView =
     searchParams.get("historyView") === "pivot" ? "pivot" : "cards";
   const { canEdit, canCreate, canDelete } = usePermission("examinations");
-  const canSubmit = id ? canEdit : canCreate;
+  const canSubmit = id ? canEdit : canCreate && canEdit;
 
   const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
   const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
