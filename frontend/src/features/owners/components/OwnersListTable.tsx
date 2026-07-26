@@ -125,6 +125,7 @@ export function OwnersListTable({
               <OwnersListRow
                 key={pet.id}
                 pet={pet}
+                canViewDetail={!isOtherClinic}
                 canEdit={!!canEdit && !isOtherClinic}
                 canDelete={!!canDelete && !isOtherClinic}
                 canReport={!!canReport && !isOtherClinic}
@@ -157,6 +158,7 @@ export function OwnersListTable({
 
 interface OwnersListRowProps {
   pet: Pet;
+  canViewDetail: boolean;
   canEdit: boolean;
   canDelete: boolean;
   canReport: boolean;
@@ -169,6 +171,7 @@ interface OwnersListRowProps {
 
 function OwnersListRow({
   pet,
+  canViewDetail,
   canEdit,
   canDelete,
   canReport,
@@ -185,7 +188,7 @@ function OwnersListRow({
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         <span className="flex items-center gap-1.5">
-          {canEdit ? (
+          {canViewDetail ? (
             <DataTableRowLink
               to={paths.owners.detail.getHref(pet.ownerId)}
               aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
@@ -44,6 +44,17 @@ const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
 
 export function PermissionGroupSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterPermission);
+  const permissionsRef = useRef({
+    canCreate: canCreate === true,
+    canEdit: canEdit === true,
+  });
+  useLayoutEffect(() => {
+    permissionsRef.current = {
+      canCreate: canCreate === true,
+      canEdit: canEdit === true,
+    };
+  }, [canCreate, canEdit]);
+
   const { data } = useGetPermissionGroups();
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
@@ -77,10 +88,15 @@ export function PermissionGroupSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
-      if (!canEdit) return;
+      if (permissionsRef.current.canEdit !== true) return;
       reorderMutation.mutate(newIds);
     },
   });
+  const saveAction = crud.editTarget === "new"
+    ? "create"
+    : crud.editTarget !== null
+      ? "edit"
+      : null;
 
   const { handleSave } = useMasterSave<
     PermissionGroup,
@@ -101,6 +117,14 @@ export function PermissionGroupSettings() {
     toUpdateRequest: buildPermissionGroupUpdateRequest,
     onSuccess: async (saved, formData) => {
       if (formData.rules.length > 0) {
+        const permissions = permissionsRef.current;
+        const canUpdateRules = saveAction === "create"
+          ? permissions.canCreate === true
+          : saveAction === "edit"
+            ? permissions.canEdit === true
+            : false;
+        if (!canUpdateRules) return;
+
         await updateRulesMutation.mutateAsync({
           id: saved.id,
           req: buildPermissionGroupRulesRequest(formData),

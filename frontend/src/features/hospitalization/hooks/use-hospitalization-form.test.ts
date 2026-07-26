@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { startTransition } from "react";
+import { startTransition, useLayoutEffect, useRef } from "react";
 import { calculateBillingTotals } from "@/lib/calculations";
 import { useHospitalizationForm } from "./use-hospitalization-form";
 
@@ -23,21 +23,27 @@ const {
   mockNavigate,
   mockToast,
   mockSelectedPets,
+  mockSelectedPetsSnapshot,
   mockSetSelectedPets,
+  mockSearchParams,
+  mockPetFromQuery,
   mockCreateHospitalization,
   mockUpdateHospitalization,
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockToast: { error: vi.fn(), success: vi.fn() },
   mockSelectedPets: [] as unknown[],
+  mockSelectedPetsSnapshot: { current: undefined as unknown[] | undefined },
   mockSetSelectedPets: vi.fn(),
+  mockSearchParams: new URLSearchParams(),
+  mockPetFromQuery: { current: undefined as unknown },
   mockCreateHospitalization: vi.fn().mockResolvedValue({}),
   mockUpdateHospitalization: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [mockSearchParams, vi.fn()],
 }));
 
 vi.mock("sonner", () => ({ toast: mockToast }));
@@ -46,7 +52,7 @@ vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
 
 vi.mock("@/hooks/use-pet-selection", () => ({
   usePetSelection: vi.fn(() => ({
-    selectedPets: mockSelectedPets,
+    selectedPets: mockSelectedPetsSnapshot.current ?? mockSelectedPets,
     setSelectedPets: mockSetSelectedPets,
     togglePetSelection: vi.fn(),
     isPetSelected: vi.fn(() => false),
@@ -54,7 +60,7 @@ vi.mock("@/hooks/use-pet-selection", () => ({
 }));
 
 vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: vi.fn(() => ({ data: undefined, isLoading: false })),
+  useGetPet: vi.fn(() => ({ data: mockPetFromQuery.current, isLoading: false })),
 }));
 
 vi.mock("../api/create-hospitalization", () => ({
@@ -102,6 +108,12 @@ describe("useHospitalizationForm", () => {
     vi.clearAllMocks();
     // デフォルト: ペット未選択
     mockSelectedPets.length = 0;
+    mockSelectedPetsSnapshot.current = undefined;
+    mockSetSelectedPets.mockImplementation((pets: unknown[]) => {
+      mockSelectedPets.splice(0, mockSelectedPets.length, ...pets);
+    });
+    mockSearchParams.delete("petId");
+    mockPetFromQuery.current = undefined;
     mockCreateHospitalization.mockResolvedValue({});
     mockUpdateHospitalization.mockResolvedValue({});
   });
@@ -232,6 +244,59 @@ describe("useHospitalizationForm", () => {
 
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
     });
+
+    it("死亡petは作成mutation境界で拒否する", async () => {
+      mockSelectedPets[0] = {
+        ...mockSelectedPets[0],
+        status: "死亡",
+      };
+      const { result } = renderHospitalizationForm();
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.fieldErrors?.pet).toBe(
+        "死亡したペットは入院登録できません",
+      );
+    });
+
+    it("選択petが死亡へ変わったcommit直後のlayout phaseでも取得済みformActionはcreate mutationを発行しない", async () => {
+      mockSelectedPets.length = 0;
+      const livingPet = {
+        id: "1",
+        ownerId: "2",
+        ownerName: "田中太郎",
+        name: "ポチ",
+        species: "犬",
+        status: "生存",
+      };
+      const deceasedPet = { ...livingPet, status: "死亡" };
+      const { result, rerender } = renderHook(
+        ({ pet }: { pet: typeof livingPet }) => {
+          mockSelectedPetsSnapshot.current = [pet];
+          const form = useHospitalizationForm(undefined, true);
+          const capturedActionRef = useRef(form.formAction);
+          useLayoutEffect(() => {
+            if (pet.status === "死亡") {
+              startTransition(() => capturedActionRef.current(new FormData()));
+            }
+          }, [pet.status]);
+          return form;
+        },
+        { initialProps: { pet: livingPet } },
+      );
+
+      const initialTimestamp = result.current.formState.timestamp;
+      await act(async () => {
+        rerender({ pet: deceasedPet });
+      });
+
+      expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      expect(mockCreateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.fieldErrors?.pet).toBe(
+        "死亡したペットは入院登録できません",
+      );
+    });
   });
 
   // ──────────────────────────
@@ -306,6 +371,51 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+    });
+
+    it("死亡petは更新mutation境界で拒否する", async () => {
+      mockSelectedPets[0] = {
+        ...mockSelectedPets[0],
+        status: "死亡",
+      };
+      const { result } = renderHospitalizationForm("42");
+
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.fieldErrors?.pet).toBe(
+        "死亡したペットは入院情報を更新できません",
+      );
+    });
+  });
+
+  describe("pet status hydration", () => {
+    it("petIdの直接指定で取得した死亡statusを保持し作成mutationを拒否する", async () => {
+      mockSearchParams.set("petId", "pet-deceased");
+      mockPetFromQuery.current = {
+        id: "pet-deceased",
+        ownerId: "owner-1",
+        ownerName: "田中太郎",
+        name: "ポチ",
+        species: "犬",
+        status: "死亡",
+      };
+
+      const { result } = renderHospitalizationForm();
+
+      expect(mockSetSelectedPets).toHaveBeenCalledWith([
+        expect.objectContaining({
+          id: "pet-deceased",
+          status: "死亡",
+        }),
+      ]);
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.fieldErrors?.pet).toBe(
+        "死亡したペットは入院登録できません",
+      );
     });
   });
 

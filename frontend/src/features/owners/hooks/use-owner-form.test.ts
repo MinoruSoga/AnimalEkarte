@@ -1,10 +1,22 @@
-import { startTransition } from "react";
+import { startTransition, useLayoutEffect, useRef } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestWrapper } from "@/testing/utils";
 import type { Owner } from "@/types/owner";
 import { useOwnerForm } from "./use-owner-form";
+
+const CREATE_PERMISSIONS = {
+  canCreate: true,
+  canEdit: false,
+  canDelete: false,
+} as const;
+
+const EDIT_PERMISSIONS = {
+  canCreate: false,
+  canEdit: true,
+  canDelete: false,
+} as const;
 
 const { mockCreateOwner, mockUpdateOwner } = vi.hoisted(() => ({
   mockCreateOwner: vi.fn(),
@@ -72,9 +84,12 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
   });
 
   it("新規登録時に入力した birth_date を create payload へ送る", async () => {
-    const { result } = renderHook(() => useOwnerForm(), {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      {
       wrapper: createTestWrapper(),
-    });
+      },
+    );
     act(() => {
       result.current.setOwnerData((previous) => ({
         ...previous,
@@ -95,9 +110,12 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
   });
 
   it("編集時に変更した birth_date を update payload へ送る", async () => {
-    const { result } = renderHook(() => useOwnerForm("123", makeOwner()), {
-      wrapper: createTestWrapper(),
-    });
+    const { result } = renderHook(
+      () => useOwnerForm("123", makeOwner(), undefined, EDIT_PERMISSIONS),
+      {
+        wrapper: createTestWrapper(),
+      },
+    );
     act(() => {
       result.current.setOwnerData((previous) => ({
         ...previous,
@@ -116,9 +134,12 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
   });
 
   it("編集時に空へ戻した birth_date は null として送る", async () => {
-    const { result } = renderHook(() => useOwnerForm("123", makeOwner()), {
-      wrapper: createTestWrapper(),
-    });
+    const { result } = renderHook(
+      () => useOwnerForm("123", makeOwner(), undefined, EDIT_PERMISSIONS),
+      {
+        wrapper: createTestWrapper(),
+      },
+    );
     act(() => {
       result.current.setOwnerData((previous) => ({
         ...previous,
@@ -134,5 +155,87 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
         expect.objectContaining({ birth_date: null }),
       );
     });
+  });
+});
+
+describe("useOwnerForm mutation permission boundary (FE12-02 C6a)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner" }));
+    mockUpdateOwner.mockResolvedValue(makeOwner());
+  });
+
+  it("作成権限剥奪をcommitしたlayout phaseで取得済みformActionが発火してもcreateOwnerを呼ばない", async () => {
+    const { result, rerender } = renderHook(
+      ({ canCreate }: { canCreate: boolean }) => {
+        const form = useOwnerForm(undefined, undefined, undefined, {
+          canCreate,
+          canEdit: false,
+          canDelete: false,
+        });
+        const capturedActionRef = useRef(form.formAction);
+        useLayoutEffect(() => {
+          if (!canCreate) {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [canCreate]);
+        return form;
+      },
+      {
+        initialProps: { canCreate: true },
+        wrapper: createTestWrapper(),
+      },
+    );
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+      }));
+    });
+    const initialTimestamp = result.current.formState.timestamp;
+
+    await act(async () => {
+      rerender({ canCreate: false });
+    });
+
+    await waitFor(() => {
+      expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+    });
+    expect(mockCreateOwner).not.toHaveBeenCalled();
+  });
+
+  it("更新権限剥奪をcommitしたlayout phaseで取得済みformActionが発火してもupdateOwnerを呼ばない", async () => {
+    const { result, rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) => {
+        const form = useOwnerForm("123", makeOwner(), undefined, {
+          canCreate: false,
+          canEdit,
+          canDelete: false,
+        });
+        const capturedActionRef = useRef(form.formAction);
+        useLayoutEffect(() => {
+          if (!canEdit) {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [canEdit]);
+        return form;
+      },
+      {
+        initialProps: { canEdit: true },
+        wrapper: createTestWrapper(),
+      },
+    );
+    const initialTimestamp = result.current.formState.timestamp;
+
+    await act(async () => {
+      rerender({ canEdit: false });
+    });
+
+    await waitFor(() => {
+      expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+    });
+    expect(mockUpdateOwner).not.toHaveBeenCalled();
   });
 });

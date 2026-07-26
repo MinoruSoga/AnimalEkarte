@@ -51,7 +51,10 @@ export function Reception() {
         cancelAppointment,
         updateAppointment,
         filters
-    } = useReceptionKanban();
+    } = useReceptionKanban({
+        canEditReservation,
+        canDeleteReservation,
+    });
 
     // スタッフAPIから医師フィルター選択肢を動的生成
     const doctors = useMemo(() => [
@@ -80,6 +83,8 @@ export function Reception() {
         advanceStatus,
         cancelAppointment,
         updateAppointment,
+        canEditReservation,
+        canDeleteReservation,
     });
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -97,7 +102,7 @@ export function Reception() {
     const todayLabel = format(toJSTWallDate(new Date()), "yyyy年M月d日 (E)", { locale: ja });
 
     const handleRecordOpen = useCallback((appointment: ReceptionAppointment, columnTitle: string) => {
-        if (columnTitle === "受付済" && canEditReservation) {
+        if (columnTitle === "受付済" && canEditReservation === true) {
             advanceStatus(appointment);
         }
     }, [advanceStatus, canEditReservation]);
@@ -116,7 +121,7 @@ export function Reception() {
     const addClickHandlers = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
         // BUG-132: create 権限がない場合は「新規追加」ボタンを非表示
-        if (!canCreateReservation) return handlers;
+        if (canCreateReservation !== true) return handlers;
         for (const column of filteredColumns) {
             handlers.set(
                 column.title,
@@ -174,7 +179,7 @@ export function Reception() {
                             <Filter className="size-[17.5px]" />
                             フィルター
                         </Button>
-                        {canCreateReservation ? (
+                        {canCreateReservation === true ? (
                             <Button
                                 className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full px-4 shadow-none border-transparent h-11 text-base`}
                                 onClick={() => goToNewReservation("reception=1")}
@@ -219,9 +224,9 @@ export function Reception() {
                 <ReceptionDetailModal
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    onConfirm={canEditReservation ? handleAdvanceStatus : undefined}
-                    onEdit={canEditReservation ? handleEditAppointment : undefined}
-                    onCancel={canDeleteReservation ? handleCancelAppointment : undefined}
+                    onConfirm={canEditReservation === true ? handleAdvanceStatus : undefined}
+                    onEdit={canEditReservation === true ? handleEditAppointment : undefined}
+                    onCancel={canDeleteReservation === true ? handleCancelAppointment : undefined}
                     appointment={selectedAppointment}
                     currentStatus={selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined}
                     canCreateMedicalRecord={canCreateMedicalRecord}

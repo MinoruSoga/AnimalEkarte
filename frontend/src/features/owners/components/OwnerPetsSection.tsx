@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Bed, Calendar, CreditCard, Edit, FileText, MoreHorizontal, PawPrint, Plus, Scissors, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,20 @@ const PetTableRow = memo(function PetTableRow({
   onDeleteRequest,
 }: PetTableRowProps) {
   const navigate = useNavigate();
+  const actionBoundaryRef = useRef({
+    status: pet.status,
+    canEdit,
+    canCreate,
+    canDelete,
+  });
+  useLayoutEffect(() => {
+    actionBoundaryRef.current = {
+      status: pet.status,
+      canEdit,
+      canCreate,
+      canDelete,
+    };
+  }, [canCreate, canDelete, canEdit, pet.status]);
   const backFrom = ownerId
     ? paths.owners.detail.getHref(ownerId)
     : paths.owners.getHref();
@@ -40,7 +54,10 @@ const PetTableRow = memo(function PetTableRow({
         {canEdit ? (
           <DataTableRowButton
             aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
-            onClick={() => onEdit(pet)}
+            onClick={() => {
+              if (actionBoundaryRef.current.canEdit !== true) return;
+              onEdit(pet);
+            }}
           >
             {pet.petName}
           </DataTableRowButton>
@@ -72,48 +89,79 @@ const PetTableRow = memo(function PetTableRow({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
               {canEdit ? (
-                <DropdownMenuItem onClick={() => onEdit(pet)}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (actionBoundaryRef.current.canEdit !== true) return;
+                    onEdit(pet);
+                  }}
+                >
                   <Edit className={`mr-2 ${ICON.action}`} />
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              {canCreate ? (
+              {pet.status === "死亡" ? null : canCreate ? (
                 <>
-                  <DropdownMenuItem onClick={() => navigate(`${paths.reservations.getHref()}?petId=${pet.id}`)}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.reservations.getHref()}?petId=${pet.id}`);
+                    }}
+                  >
                     <Calendar className={`mr-2 ${ICON.action}`} />
                     予約作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <FileText className={`mr-2 ${ICON.action}`} />
                     カルテ作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <Scissors className={`mr-2 ${ICON.action}`} />
                     トリミング
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <Bed className={`mr-2 ${ICON.action}`} />
                     入院登録
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <CreditCard className={`mr-2 ${ICON.action}`} />
                     会計登録
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {canDelete ? (
+              {pet.status === "死亡" ? null : canDelete ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onDeleteRequest(pet.id, pet.petName)}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canDelete !== true) return;
+                      onDeleteRequest(pet.id, pet.petName);
+                    }}
                     className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
                   >
                     <Trash2 className={`mr-2 ${ICON.action}`} />
@@ -179,7 +227,7 @@ export function OwnerPetsSection({
           <PawPrint className={`${ICON.action} ${C.text60}`} />
           ペット情報
         </h2>
-        {canEdit ? (
+        {canCreate ? (
           <Button
             type="button"
             size="sm"

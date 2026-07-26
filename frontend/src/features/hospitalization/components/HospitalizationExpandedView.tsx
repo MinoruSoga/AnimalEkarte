@@ -47,6 +47,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                     <Separator className="mb-1.5 opacity-50" />
                     <CarePlanTab
                         hospitalizationId={String(hospitalization.id)}
+                        petIsDeceased={hospitalization.petIsDeceased}
                     />
                 </div>
 
@@ -63,6 +64,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                             hospitalizationId={String(hospitalization.id)}
                             admissionDate={hospitalization.startDate}
                             dischargeDate={dischargeDate}
+                            petIsDeceased={hospitalization.petIsDeceased}
                         />
                     </div>
                 </div>

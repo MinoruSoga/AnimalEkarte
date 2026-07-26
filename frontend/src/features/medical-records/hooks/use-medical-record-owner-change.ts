@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { TransitionStartFunction } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +34,7 @@ interface UseMedicalRecordOwnerChangeArgs {
   };
   startSaveTransition: TransitionStartFunction;
   canEdit?: boolean;
+  isSelectedPetDeceased: boolean;
 }
 
 export function useMedicalRecordOwnerChange({
@@ -43,10 +44,22 @@ export function useMedicalRecordOwnerChange({
   updateMutation,
   startSaveTransition,
   canEdit: canEditOverride,
+  isSelectedPetDeceased,
 }: UseMedicalRecordOwnerChangeArgs) {
   const { canEdit: permissionCanEdit } = usePermission("medical-records");
   const canEdit = canEditOverride ?? permissionCanEdit;
-  const isMutationAllowed = useCallback(() => canEdit === true, [canEdit]);
+  const canEditRef = useRef(canEdit);
+  const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  useLayoutEffect(() => {
+    isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
+  }, [isSelectedPetDeceased]);
+  const isMutationAllowed = useCallback(
+    () => canEditRef.current === true && !isSelectedPetDeceasedRef.current,
+    [],
+  );
   const [pendingOwnerChange, setPendingOwnerChange] = useState<PendingOwnerChange | null>(null);
   const recordVersion = existingRecord?.version;
 
@@ -54,6 +67,7 @@ export function useMedicalRecordOwnerChange({
     (newOwner: PendingOwnerChange) => {
       if (!recordId || !isMutationAllowed()) return;
       startSaveTransition(async () => {
+        if (!isMutationAllowed()) return;
         try {
           await updateMutation.mutateAsync({
             id: recordId,

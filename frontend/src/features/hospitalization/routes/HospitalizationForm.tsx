@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback, useRef, useTransition } from "react";
+import { useEffect, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -45,9 +45,6 @@ export function HospitalizationForm() {
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
   const canDeleteRef = useRef(canDelete);
-  useEffect(() => {
-    canDeleteRef.current = canDelete;
-  }, [canDelete]);
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
@@ -101,6 +98,12 @@ export function HospitalizationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
+  const petIsDeceased = selectedPet?.status === "死亡";
+  const petIsDeceasedRef = useRef(petIsDeceased);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+    petIsDeceasedRef.current = petIsDeceased;
+  }, [canDelete, petIsDeceased]);
   const totals = calculateTotals();
 
   const handleBack = useCallback(() => {
@@ -112,7 +115,11 @@ export function HospitalizationForm() {
   }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
-    if (!hospitalizationId || canDeleteRef.current !== true) return;
+    if (
+      !hospitalizationId ||
+      canDeleteRef.current !== true ||
+      petIsDeceasedRef.current === true
+    ) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(hospitalizationId, {
         onSuccess: () => {

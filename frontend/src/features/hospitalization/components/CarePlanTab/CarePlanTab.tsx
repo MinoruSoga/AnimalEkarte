@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useCallback, useEffect, useMemo, useRef, memo } from "react";
+import { useState, useCallback, useLayoutEffect, useMemo, useRef, memo } from "react";
 
 // External
 import { Loader2 } from "lucide-react";
@@ -17,6 +17,7 @@ import type { CreateCarePlanItemInput, UpdateCarePlanItemInput } from "../../api
 
 interface CarePlanTabProps {
     hospitalizationId: string;
+    petIsDeceased: boolean;
 }
 
 type CarePlanMutation = "create" | "edit" | "delete";
@@ -27,14 +28,18 @@ const PERMISSION_BY_MUTATION = {
     delete: "canDelete",
 } as const;
 
-export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
+export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId, petIsDeceased }: CarePlanTabProps) {
     const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
     const permissionsRef = useRef({ canCreate, canEdit, canDelete });
-    useEffect(() => {
+    const petIsDeceasedRef = useRef(petIsDeceased);
+    useLayoutEffect(() => {
         permissionsRef.current = { canCreate, canEdit, canDelete };
-    }, [canCreate, canDelete, canEdit]);
+        petIsDeceasedRef.current = petIsDeceased;
+    }, [canCreate, canDelete, canEdit, petIsDeceased]);
     const isMutationAllowed = useCallback(
-        (action: CarePlanMutation) => permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true,
+        (action: CarePlanMutation) =>
+            permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true &&
+            petIsDeceasedRef.current !== true,
         []
     );
     const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);

@@ -1,4 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
+import { startTransition, useLayoutEffect, useRef } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExaminationForm } from './use-examination-form';
 import { useSearchParams } from 'react-router';
@@ -66,6 +67,34 @@ const ALLOWED_MUTATION_PERMISSIONS = {
   canEdit: true,
   canDelete: true,
 } as const;
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function selectedPet(status: '生存' | '死亡') {
+  return {
+    id: '42',
+    name: 'ポチ',
+    ownerName: '田中',
+    ownerId: '5',
+    species: '犬',
+    breed: '',
+    birthday: '',
+    gender: '男',
+    weight: null,
+    imageUrl: null,
+    status,
+    microchipNumber: null,
+    insuranceNumber: null,
+    insuranceExpiry: null,
+    memo: null,
+  };
+}
 
 function renderExaminationForm(id?: string) {
   return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
@@ -839,6 +868,593 @@ describe('useExaminationForm — mutation permission boundary (FE12-02 U8)', () 
     });
 
     expect(updateMutate).not.toHaveBeenCalled();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('編集権限剥奪をcommitした直後のlayout phaseで取得済みformActionが発火してもmutationを発行しない', async () => {
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+
+    const { result, rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) => {
+        const form = useExaminationForm('exam-001', undefined, {
+          canCreate: true,
+          canEdit,
+          canDelete: true,
+        });
+        const capturedActionRef = useRef(form.formAction);
+        useLayoutEffect(() => {
+          if (!canEdit) {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [canEdit]);
+        return form;
+      },
+      { initialProps: { canEdit: true } },
+    );
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+
+    await act(async () => {
+      rerender({ canEdit: false });
+    });
+
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('direct petIdのペットが死亡なら作成権限があってもcreate mutationを発行しない', async () => {
+    const { useCreateExamination } = await import('../api/create-examination');
+    const createMutate = vi.fn().mockResolvedValue({ id: 'new-99' });
+    vi.mocked(useCreateExamination).mockReturnValue({
+      mutateAsync: createMutate,
+    } as ReturnType<typeof useCreateExamination>);
+    vi.mocked(useSearchParams).mockReturnValue([
+      new URLSearchParams('petId=42'),
+      vi.fn(),
+    ]);
+    vi.mocked(useGetPet).mockReturnValue({
+      data: {
+        id: '42',
+        name: 'ポチ',
+        ownerName: '田中',
+        ownerId: '5',
+        species: '犬',
+        breed: '',
+        gender: '雄',
+        status: '死亡',
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetPet>);
+
+    const { result } = renderExaminationForm();
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it('direct petIdのペットが死亡なら編集権限があってもparent/items mutationを発行しない', async () => {
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+    vi.mocked(useSearchParams).mockReturnValue([
+      new URLSearchParams('petId=42'),
+      vi.fn(),
+    ]);
+    vi.mocked(useGetPet).mockReturnValue({
+      data: {
+        id: '42',
+        name: 'ポチ',
+        ownerName: '田中',
+        ownerId: '5',
+        species: '犬',
+        breed: '',
+        gender: '雄',
+        status: '死亡',
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetPet>);
+
+    const { result } = renderExaminationForm('exam-001');
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('direct petIdのペットが死亡なら削除権限があってもdelete mutationを発行しない', async () => {
+    const mockMutate = vi.fn();
+    vi.mocked(useDeleteExamination).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    } as ReturnType<typeof useDeleteExamination>);
+    vi.mocked(useSearchParams).mockReturnValue([
+      new URLSearchParams('petId=42'),
+      vi.fn(),
+    ]);
+    vi.mocked(useGetPet).mockReturnValue({
+      data: {
+        id: '42',
+        name: 'ポチ',
+        ownerName: '田中',
+        ownerId: '5',
+        species: '犬',
+        breed: '',
+        gender: '雄',
+        status: '死亡',
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetPet>);
+
+    const { result } = renderExaminationForm('exam-001');
+
+    await act(async () => {
+      result.current.handleDelete();
+      await Promise.resolve();
+    });
+
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('petIdなしの編集URLでもexistingExam.petIdの死亡ペットならupdate/delete/items mutationを発行しない', async () => {
+    const { useGetExamination } = await import('../api/get-examination');
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    const deleteMutate = vi.fn();
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: 'exam-001',
+        petId: '42',
+        testTypeId: '5',
+        doctorId: '3',
+        status: '検査中' as const,
+        ownerName: '',
+        petName: 'ポチ',
+        date: '',
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetPet).mockImplementation((requestedPetId) =>
+      ({
+        data: requestedPetId === '42' ? selectedPet('死亡') : null,
+        isLoading: false,
+        isError: false,
+      }) as ReturnType<typeof useGetPet>
+    );
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+    vi.mocked(useDeleteExamination).mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as ReturnType<typeof useDeleteExamination>);
+
+    const { result } = renderExaminationForm('exam-001');
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+      result.current.handleDelete();
+      await Promise.resolve();
+    });
+
+    expect(useGetPet).toHaveBeenCalledWith('42');
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+    expect(deleteMutate).not.toHaveBeenCalled();
+  });
+
+  it('petIdなしの編集URLでparent update待機中にexistingExam.petIdのペットが死亡へ変わったらitems mutationを発行しない', async () => {
+    const { useGetExamination } = await import('../api/get-examination');
+    const { useGetExaminationItems } = await import('../api/get-examination-items');
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const parentStarted = createDeferred<void>();
+    const parentResult = createDeferred<Record<string, never>>();
+    const updateMutate = vi.fn(async () => {
+      parentStarted.resolve();
+      return parentResult.promise;
+    });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: 'exam-001',
+        petId: '42',
+        testTypeId: '5',
+        doctorId: '3',
+        status: '検査中' as const,
+        ownerName: '',
+        petName: 'ポチ',
+        date: '',
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101',
+          examTypeFieldId: 1,
+          name: 'WBC',
+          result: '',
+          inspectionValue: '5.0',
+          normalValue: '',
+          unit: '',
+          referenceValue: '',
+          refMin: undefined,
+          refMax: undefined,
+          isAbnormal: false,
+          status: 'normal' as const,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+
+    const { result, rerender } = renderHook(
+      ({ petStatus }: { petStatus: '生存' | '死亡' }) => {
+        vi.mocked(useGetPet).mockImplementation((requestedPetId) =>
+          ({
+            data: requestedPetId === '42' ? selectedPet(petStatus) : null,
+            isLoading: false,
+            isError: false,
+          }) as ReturnType<typeof useGetPet>
+        );
+        return useExaminationForm('exam-001', undefined, ALLOWED_MUTATION_PERMISSIONS);
+      },
+      { initialProps: { petStatus: '生存' as const } },
+    );
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+      await parentStarted.promise;
+    });
+    await act(async () => {
+      rerender({ petStatus: '死亡' });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      parentResult.resolve({});
+      await Promise.resolve();
+    });
+
+    expect(useGetPet).toHaveBeenLastCalledWith('42');
+    expect(updateMutate).toHaveBeenCalledOnce();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('parent create待機中に作成権限が剥奪されたらitems mutationを発行しない', async () => {
+    const { useCreateExamination } = await import('../api/create-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const { useGetExamTypeFields } = await import('../api/get-exam-type-fields');
+    const parentStarted = createDeferred<void>();
+    const parentResult = createDeferred<{ id: string }>();
+    const createMutate = vi.fn(async () => {
+      parentStarted.resolve();
+      return parentResult.promise;
+    });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useCreateExamination).mockReturnValue({
+      mutateAsync: createMutate,
+    } as ReturnType<typeof useCreateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+    vi.mocked(useGetExamTypeFields).mockReturnValue({
+      data: [
+        {
+          id: 1,
+          name: 'WBC',
+          unit: 'x10^3/μL',
+          normalValue: '4.0-12.0',
+          refMin: 4,
+          refMax: 12,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExamTypeFields>);
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [selectedPet('生存')],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+
+    const { result, rerender } = renderHook(
+      ({ canCreate }: { canCreate: boolean }) =>
+        useExaminationForm(undefined, undefined, {
+          canCreate,
+          canEdit: true,
+          canDelete: true,
+        }),
+      { initialProps: { canCreate: true } },
+    );
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+      await parentStarted.promise;
+    });
+    await act(async () => {
+      rerender({ canCreate: false });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      parentResult.resolve({ id: 'new-99' });
+      await Promise.resolve();
+    });
+
+    expect(createMutate).toHaveBeenCalledOnce();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('parent create待機中にペットが死亡へ変わったらitems mutationを発行しない', async () => {
+    const { useCreateExamination } = await import('../api/create-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const { useGetExamTypeFields } = await import('../api/get-exam-type-fields');
+    const parentStarted = createDeferred<void>();
+    const parentResult = createDeferred<{ id: string }>();
+    const createMutate = vi.fn(async () => {
+      parentStarted.resolve();
+      return parentResult.promise;
+    });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useCreateExamination).mockReturnValue({
+      mutateAsync: createMutate,
+    } as ReturnType<typeof useCreateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+    vi.mocked(useGetExamTypeFields).mockReturnValue({
+      data: [
+        {
+          id: 1,
+          name: 'WBC',
+          unit: 'x10^3/μL',
+          normalValue: '4.0-12.0',
+          refMin: 4,
+          refMax: 12,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExamTypeFields>);
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [selectedPet('生存')],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+
+    const { result, rerender } = renderHook(
+      ({ petStatus }: { petStatus: '生存' | '死亡' }) => {
+        vi.mocked(usePetSelection).mockReturnValue({
+          selectedPets: [selectedPet(petStatus)],
+          setSelectedPets: vi.fn(),
+        } as ReturnType<typeof usePetSelection>);
+        return useExaminationForm(undefined, undefined, ALLOWED_MUTATION_PERMISSIONS);
+      },
+      { initialProps: { petStatus: '生存' as const } },
+    );
+    act(() => {
+      result.current.setFormData({ testTypeId: '5', doctorId: '3' });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+      await parentStarted.promise;
+    });
+    await act(async () => {
+      rerender({ petStatus: '死亡' });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      parentResult.resolve({ id: 'new-99' });
+      await Promise.resolve();
+    });
+
+    expect(createMutate).toHaveBeenCalledOnce();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('parent update待機中に編集権限が剥奪されたらitems mutationを発行しない', async () => {
+    const { useGetExamination } = await import('../api/get-examination');
+    const { useGetExaminationItems } = await import('../api/get-examination-items');
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const parentStarted = createDeferred<void>();
+    const parentResult = createDeferred<Record<string, never>>();
+    const updateMutate = vi.fn(async () => {
+      parentStarted.resolve();
+      return parentResult.promise;
+    });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: 'exam-001',
+        testTypeId: '5',
+        doctorId: '3',
+        status: '検査中' as const,
+        ownerName: '',
+        petName: '',
+        date: '',
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101',
+          examTypeFieldId: 1,
+          name: 'WBC',
+          result: '',
+          inspectionValue: '5.0',
+          normalValue: '',
+          unit: '',
+          referenceValue: '',
+          refMin: undefined,
+          refMax: undefined,
+          isAbnormal: false,
+          status: 'normal' as const,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+
+    const { result, rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) =>
+        useExaminationForm('exam-001', undefined, {
+          canCreate: true,
+          canEdit,
+          canDelete: true,
+        }),
+      { initialProps: { canEdit: true } },
+    );
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+      await parentStarted.promise;
+    });
+    await act(async () => {
+      rerender({ canEdit: false });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      parentResult.resolve({});
+      await Promise.resolve();
+    });
+
+    expect(updateMutate).toHaveBeenCalledOnce();
+    expect(updateItemsMutate).not.toHaveBeenCalled();
+  });
+
+  it('parent update待機中にペットが死亡へ変わったらitems mutationを発行しない', async () => {
+    const { useGetExamination } = await import('../api/get-examination');
+    const { useGetExaminationItems } = await import('../api/get-examination-items');
+    const { useUpdateExamination } = await import('../api/update-examination');
+    const { useUpdateExaminationItems } = await import('../api/update-examination-items');
+    const parentStarted = createDeferred<void>();
+    const parentResult = createDeferred<Record<string, never>>();
+    const updateMutate = vi.fn(async () => {
+      parentStarted.resolve();
+      return parentResult.promise;
+    });
+    const updateItemsMutate = vi.fn().mockResolvedValue([]);
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: 'exam-001',
+        testTypeId: '5',
+        doctorId: '3',
+        status: '検査中' as const,
+        ownerName: '',
+        petName: '',
+        date: '',
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101',
+          examTypeFieldId: 1,
+          name: 'WBC',
+          result: '',
+          inspectionValue: '5.0',
+          normalValue: '',
+          unit: '',
+          referenceValue: '',
+          refMin: undefined,
+          refMax: undefined,
+          isAbnormal: false,
+          status: 'normal' as const,
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useUpdateExaminationItems).mockReturnValue({
+      mutateAsync: updateItemsMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateExaminationItems>);
+
+    const { result, rerender } = renderHook(
+      ({ petStatus }: { petStatus: '生存' | '死亡' }) => {
+        vi.mocked(usePetSelection).mockReturnValue({
+          selectedPets: [selectedPet(petStatus)],
+          setSelectedPets: vi.fn(),
+        } as ReturnType<typeof usePetSelection>);
+        return useExaminationForm('exam-001', undefined, ALLOWED_MUTATION_PERMISSIONS);
+      },
+      { initialProps: { petStatus: '生存' as const } },
+    );
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+      await parentStarted.promise;
+    });
+    await act(async () => {
+      rerender({ petStatus: '死亡' });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      parentResult.resolve({});
+      await Promise.resolve();
+    });
+
+    expect(updateMutate).toHaveBeenCalledOnce();
     expect(updateItemsMutate).not.toHaveBeenCalled();
   });
 });

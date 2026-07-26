@@ -1,4 +1,11 @@
-import { useState, useCallback, useActionState, useEffect } from "react";
+import {
+  useState,
+  useCallback,
+  useActionState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -38,6 +45,18 @@ const DEFAULT_OWNER_DATA: OwnerData = {
   phone: "",
   companyPhone: "",
   remarks: "",
+};
+
+export interface OwnerMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<OwnerMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
 };
 
 function mapOwnerToFormData(owner: Owner): OwnerData {
@@ -97,10 +116,21 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
 export function useOwnerForm(
   id?: string,
   initialOwner?: Owner,
-  petMutations?: PetMutations
+  petMutations?: PetMutations,
+  permissions: Readonly<OwnerMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
 ) {
   const isEdit = !!id;
   const queryClient = useQueryClient();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof OwnerMutationPermissions) =>
+      permissionsRef.current[action] === true,
+    [],
+  );
 
   const [ownerData, setOwnerData] = useState<OwnerData>(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
@@ -120,6 +150,7 @@ export function useOwnerForm(
     id,
     initialPets: initialOwner ? mapOwnerPetsToFormData(initialOwner) : [],
     petMutations,
+    permissions,
   });
 
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
@@ -186,6 +217,9 @@ export function useOwnerForm(
             ...ownerRequestPayload,
             birth_date: ownerData.birthDate || null,
           };
+          if (!isMutationAllowed("canEdit")) {
+            return { success: false, timestamp: Date.now() };
+          }
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
           toast.success("飼主情報を更新しました");
@@ -197,11 +231,15 @@ export function useOwnerForm(
             // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
+          if (!isMutationAllowed("canCreate")) {
+            return { success: false, timestamp: Date.now() };
+          }
           const newOwner = await createOwner(createData);
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
           const createPets = petMutations
-            ? pendingPets.map((pet) => () =>
-                petMutations.createPetFn(
+            ? pendingPets.map((pet) => async () => {
+                if (!isMutationAllowed("canCreate")) return;
+                await petMutations.createPetFn(
                   transformCreatePetRequest({
                     ownerId: newOwner.id,
                     name: pet.petName || "",
@@ -224,8 +262,8 @@ export function useOwnerForm(
                     insuranceId: pet.insuranceId,
                     remarks: pet.remarks,
                   })
-                )
-              )
+                );
+              })
             : [];
           const results = await runOwnerCreateFollowups(
             () => queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() }),

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { C, STYLE } from "@/lib/design-tokens";
 import { ResourceAccounting, type Resource } from "@/types/generated/models";
@@ -15,13 +16,14 @@ const mockUseGetMedicalRecords = vi.hoisted(() => vi.fn());
 const mockIsValidStaff = vi.hoisted(() => vi.fn(() => true));
 const mockUseClinicScope = vi.hoisted(() => vi.fn());
 const mockUsePermission = vi.hoisted(() => vi.fn());
+const mockDeleteRecord = vi.hoisted(() => vi.fn());
 
 vi.mock("../api/get-medical-records", () => ({
   useGetMedicalRecords: mockUseGetMedicalRecords,
 }));
 
 vi.mock("../api/delete-medical-record", () => ({
-  useDeleteMedicalRecord: vi.fn(() => ({ mutate: vi.fn() })),
+  useDeleteMedicalRecord: vi.fn(() => ({ mutate: mockDeleteRecord })),
 }));
 
 vi.mock("@/hooks/use-staffs", () => ({
@@ -57,6 +59,7 @@ function defaultClinicScope() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  document.body.style.pointerEvents = "";
   mockUseGetMedicalRecords.mockReturnValue({
     data: { data: [], total: 0, page: 1, limit: 20 },
     isLoading: false,
@@ -106,6 +109,7 @@ function makeMedicalRecord(overrides: Partial<MedicalRecord> = {}): MedicalRecor
     recommendationReason: null,
     clinicId: "clinic-1",
     status: "作成中",
+    petIsDeceased: false,
     ...overrides,
   };
 }
@@ -277,5 +281,74 @@ describe("MedicalRecords contextual actions", () => {
 
     expect(mockUsePermission).toHaveBeenCalledWith(ResourceAccounting);
     expect(screen.queryByRole("button", { name: /会計/ })).not.toBeInTheDocument();
+  });
+
+  it("削除確認中にdelete権限を失った場合は削除せず、カルテの閲覧導線は維持する", async () => {
+    const user = userEvent.setup();
+    mockMedicalRecords([makeMedicalRecord()]);
+    const view = renderPage();
+
+    await user.click(screen.getByRole("button", { name: /カルテ操作:.*mr-1/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "削除" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    mockUsePermission.mockImplementation((resource: Resource) =>
+      resource === ResourceAccounting
+        ? {
+            canView: true,
+            canCreate: true,
+            canEdit: true,
+            canDelete: true,
+          }
+        : {
+            canView: true,
+            canCreate: true,
+            canEdit: true,
+            canDelete: false,
+          },
+    );
+    view.rerender(
+      <MemoryRouter initialEntries={["/medical-records"]}>
+        <MedicalRecords />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "削除" }));
+
+    expect(mockDeleteRecord).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: /カルテ詳細:.*mr-1/ })).toBeInTheDocument();
+  });
+
+  it("死亡ペットのカルテは編集・削除actionを表示せず、閲覧導線は維持する", () => {
+    mockMedicalRecords([makeMedicalRecord({ petIsDeceased: true })]);
+
+    renderPage();
+
+    expect(screen.queryByRole("button", { name: /カルテ操作:.*mr-1/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /カルテ詳細:.*mr-1/ })).toBeInTheDocument();
+  });
+
+  it("削除確認中に対象ペットが死亡へ変わった場合は最新状態でdelete mutationを拒否する", async () => {
+    const user = userEvent.setup();
+    mockMedicalRecords([makeMedicalRecord()]);
+    const view = renderPage();
+
+    await user.click(screen.getByRole("button", { name: /カルテ操作:.*mr-1/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "削除" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    mockMedicalRecords([makeMedicalRecord({ petIsDeceased: true })]);
+    view.rerender(
+      <MemoryRouter initialEntries={["/medical-records"]}>
+        <MedicalRecords />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "削除" }));
+
+    expect(mockDeleteRecord).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: /カルテ詳細:.*mr-1/ })).toBeInTheDocument();
   });
 });

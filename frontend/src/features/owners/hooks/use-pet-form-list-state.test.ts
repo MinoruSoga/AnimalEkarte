@@ -57,6 +57,12 @@ function makePetMutations() {
   return { mutations, updatePetMutate, revokePetDeathMutate };
 }
 
+const ALL_PERMISSIONS = {
+  canCreate: true,
+  canEdit: true,
+  canDelete: true,
+} as const;
+
 describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステータスに関与しない（BUG-415）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,7 +73,12 @@ describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステー�
     const { mutations, updatePetMutate, revokePetDeathMutate } = makePetMutations();
 
     const { result } = renderHook(() =>
-      usePetFormListState({ id: "owner-1", initialPets: [deceasedPet], petMutations: mutations }),
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [deceasedPet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
     );
 
     // 編集開始（editingPet に初期 status=死亡 がロードされる）
@@ -75,7 +86,26 @@ describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステー�
     // 生存で保存（旧実装ではここで revokePetDeathMutate が補完発火していた）
     act(() => result.current.handleSavePet(makePet({ status: "生存" })));
 
-    expect(updatePetMutate).toHaveBeenCalledTimes(1);
+    expect(updatePetMutate).not.toHaveBeenCalled();
+    expect(revokePetDeathMutate).not.toHaveBeenCalled();
+  });
+
+  it("明示的な死亡ペットの通常編集はupdate mutationを発行しない", () => {
+    const deceasedPet = makePet({ status: "死亡" });
+    const { mutations, updatePetMutate, revokePetDeathMutate } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [deceasedPet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(deceasedPet));
+    act(() => result.current.handleSavePet(makePet({ status: "死亡", remarks: "通常編集" })));
+
+    expect(updatePetMutate).not.toHaveBeenCalled();
     expect(revokePetDeathMutate).not.toHaveBeenCalled();
   });
 
@@ -84,7 +114,12 @@ describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステー�
     const { mutations, updatePetMutate, revokePetDeathMutate } = makePetMutations();
 
     const { result } = renderHook(() =>
-      usePetFormListState({ id: "owner-1", initialPets: [livingPet], petMutations: mutations }),
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [livingPet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
     );
 
     act(() => result.current.handleEditPet(livingPet));
@@ -96,17 +131,112 @@ describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステー�
   });
 
   it("更新リクエストのペイロードに status キーを含めない（transformUpdatePetRequest の BUG-415 修正と整合）", () => {
-    const deceasedPet = makePet({ status: "死亡" });
+    const livingPet = makePet({ status: "生存" });
     const { mutations, updatePetMutate } = makePetMutations();
 
     const { result } = renderHook(() =>
-      usePetFormListState({ id: "owner-1", initialPets: [deceasedPet], petMutations: mutations }),
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [livingPet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
     );
 
-    act(() => result.current.handleEditPet(deceasedPet));
+    act(() => result.current.handleEditPet(livingPet));
     act(() => result.current.handleSavePet(makePet({ status: "生存" })));
 
     const [{ req }] = updatePetMutate.mock.calls[0] as [{ req: Record<string, unknown> }];
     expect(req).not.toHaveProperty("status");
+  });
+});
+
+describe("usePetFormListState mutation permission boundary (FE12-02 C6a)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("取得済みcreate callbackは最新の作成権限がfalseならcreate mutationを発行しない", () => {
+    const { mutations } = makePetMutations();
+    const { result, rerender } = renderHook(
+      ({ canCreate }: { canCreate: boolean }) =>
+        usePetFormListState({
+          id: "owner-1",
+          initialPets: [],
+          petMutations: mutations,
+          permissions: { canCreate, canEdit: true, canDelete: true },
+        }),
+      { initialProps: { canCreate: true } },
+    );
+    const capturedSave = result.current.handleSavePet;
+
+    rerender({ canCreate: false });
+    act(() => capturedSave(makePet()));
+
+    expect(mutations.createPetMutate).not.toHaveBeenCalled();
+  });
+
+  it("取得済みupdate callbackは最新の編集権限がfalseならupdate mutationを発行しない", () => {
+    const pet = makePet();
+    const { mutations, updatePetMutate } = makePetMutations();
+    const { result, rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) =>
+        usePetFormListState({
+          id: "owner-1",
+          initialPets: [pet],
+          petMutations: mutations,
+          permissions: { canCreate: true, canEdit, canDelete: true },
+        }),
+      { initialProps: { canEdit: true } },
+    );
+    act(() => result.current.handleEditPet(pet));
+    const capturedSave = result.current.handleSavePet;
+
+    rerender({ canEdit: false });
+    act(() => capturedSave(makePet({ remarks: "更新" })));
+
+    expect(updatePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("取得済みdelete callbackは最新の削除権限がfalseならdelete mutationを発行しない", () => {
+    const pet = makePet();
+    const { mutations } = makePetMutations();
+    const { result, rerender } = renderHook(
+      ({ canDelete }: { canDelete: boolean }) =>
+        usePetFormListState({
+          id: "owner-1",
+          initialPets: [pet],
+          petMutations: mutations,
+          permissions: { canCreate: true, canEdit: true, canDelete },
+        }),
+      { initialProps: { canDelete: true } },
+    );
+    const capturedDelete = result.current.handleDeletePet;
+
+    rerender({ canDelete: false });
+    act(() => capturedDelete(pet.id));
+
+    expect(mutations.deletePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("取得済みdelete callbackは対象が明示的な死亡へ変わったらdelete mutationを発行しない", () => {
+    const pet = makePet();
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [pet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+    const capturedDelete = result.current.handleDeletePet;
+
+    act(() => {
+      result.current.setPets([{ ...pet, status: "死亡" }]);
+    });
+    act(() => capturedDelete(pet.id));
+
+    expect(mutations.deletePetMutate).not.toHaveBeenCalled();
   });
 });

@@ -65,6 +65,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   isDragOverlay = false,
 }: AppointmentCardProps) {
   const navigate = useNavigate();
+  const isDeceased = appointment.petStatus === PetStatusDeceased;
 
   const {
     attributes,
@@ -76,7 +77,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   } = useSortable({
     id: appointment.id,
     data: { columnTitle, appointment },
-    disabled: isDragOverlay,
+    disabled: isDragOverlay || isDeceased,
   });
 
   const style = {
@@ -88,7 +89,6 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
-  const isDeceased = appointment.petStatus === PetStatusDeceased;
   const isHighDanger = appointment.petDangerLevel === DangerLevelHigh;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
@@ -143,11 +143,14 @@ export const AppointmentCard = memo(function AppointmentCard({
       style={style}
       {...attributes}
       {...listeners}
+      aria-disabled={isDeceased}
       className="cursor-grab active:cursor-grabbing group touch-none"
-      onClick={() => onCardClick(appointment)}
+      onClick={() => {
+        if (!isDeceased) onCardClick(appointment);
+      }}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
+        if (!isDeceased && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           onCardClick(appointment);
         }

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useLayoutEffect, useState, useRef } from "react";
 import { C } from "@/lib/design-tokens";
 import { calcAgeAt } from "@/lib/calc-age";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -35,11 +35,16 @@ export function PetDeceasedBanner({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const revokeButtonRef = useRef<HTMLButtonElement>(null);
   const mutation = useRevokePetDeath();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const age = birthDate ? calcAgeAt(deceasedAt, birthDate) : null;
   const formattedDate = formatDeceasedDate(deceasedAt);
 
   const handleRevokeConfirm = () => {
+    if (canEditRef.current !== true) return;
     mutation.mutate(petId, {
       onSuccess: () => onRevoked?.(),
       onSettled: () => setConfirmOpen(false),

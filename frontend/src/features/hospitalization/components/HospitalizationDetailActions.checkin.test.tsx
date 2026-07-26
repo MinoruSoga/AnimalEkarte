@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLayoutEffect, useRef, useState } from "react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HospitalizationDetailActions } from "./HospitalizationDetailActions";
@@ -8,26 +9,51 @@ import { HOSPITALIZATION_STATUS } from "../constants";
 import { HospitalizationStatusAdmitted } from "@/types/generated/models";
 import type { Hospitalization } from "../api/transforms";
 
-const mutateAsync = vi.fn();
+const mocks = vi.hoisted(() => ({
+  canEdit: true,
+  canDelete: true,
+  checkInCallback: undefined as (() => void | Promise<void>) | undefined,
+  mutateAsync: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({
     canView: true,
     canCreate: true,
-    canEdit: true,
-    canDelete: true,
+    canEdit: mocks.canEdit,
+    canDelete: mocks.canDelete,
   }),
 }));
 
 vi.mock("../api/update-hospitalization", () => ({
   useUpdateHospitalization: () => ({
-    mutateAsync,
+    mutateAsync: mocks.mutateAsync,
     isPending: false,
   }),
 }));
 
+vi.mock("@/components/shared/Form/PrimaryButton", () => ({
+  PrimaryButton: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void | Promise<void>;
+    disabled?: boolean;
+  }) => {
+    mocks.checkInCallback = onClick;
+    return (
+      <button type="button" onClick={onClick} disabled={disabled}>
+        {children}
+      </button>
+    );
+  },
+}));
+
 function makeHospitalization(
-  status: Hospitalization["status"]
+  status: Hospitalization["status"],
+  petIsDeceased = false,
 ): Hospitalization {
   return {
     id: "42",
@@ -39,6 +65,7 @@ function makeHospitalization(
     startDate: "2026-07-20",
     endDate: "2026-07-25",
     status,
+    petIsDeceased,
   };
 }
 
@@ -62,8 +89,11 @@ function renderActions(status: Hospitalization["status"]) {
 
 describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DEC-2)", () => {
   beforeEach(() => {
-    mutateAsync.mockReset();
-    mutateAsync.mockResolvedValue(undefined);
+    mocks.canEdit = true;
+    mocks.canDelete = true;
+    mocks.checkInCallback = undefined;
+    mocks.mutateAsync.mockReset();
+    mocks.mutateAsync.mockResolvedValue(undefined);
   });
 
   it("status=予約 のときチェックインボタンを表示し、click で status=admitted を送信する", async () => {
@@ -75,10 +105,34 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
 
     await user.click(checkIn);
 
-    expect(mutateAsync).toHaveBeenCalledWith({
+    expect(mocks.mutateAsync).toHaveBeenCalledWith({
       id: "42",
       req: { status: HospitalizationStatusAdmitted },
     });
+  });
+
+  it("status=予約でもpetが死亡している場合はチェックインmutationを拒否する", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <HospitalizationDetailActions
+            hospitalization={makeHospitalization(
+              HOSPITALIZATION_STATUS.RESERVED,
+              true,
+            )}
+            onDischargeClick={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "チェックイン" }));
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
   it("status=入院中・退院済 ではチェックインボタンを表示しない", () => {
@@ -127,5 +181,64 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
 
     renderActions(HOSPITALIZATION_STATUS.ACTIVE);
     expect(screen.getByRole("button", { name: "退院処理" })).toBeInTheDocument();
+  });
+
+  it("同一commitで編集権限が失効した場合、captured check-in callbackはmutationを拒否する", async () => {
+    function SameCommitRevocationHarness() {
+      const [revoked, setRevoked] = useState(false);
+      const capturedCheckInRef = useRef<(() => void | Promise<void>) | undefined>(
+        undefined,
+      );
+
+      useLayoutEffect(() => {
+        if (revoked) {
+          void capturedCheckInRef.current?.();
+          return;
+        }
+        capturedCheckInRef.current = mocks.checkInCallback;
+      }, [revoked]);
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              mocks.canEdit = false;
+              setRevoked(true);
+            }}
+          >
+            編集権限を失効
+          </button>
+          <HospitalizationDetailActions
+            hospitalization={makeHospitalization(HOSPITALIZATION_STATUS.RESERVED)}
+            onDischargeClick={vi.fn()}
+          />
+        </>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { retry: false },
+              mutations: { retry: false },
+            },
+          })
+        }
+      >
+        <MemoryRouter>
+          <SameCommitRevocationHarness />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "編集権限を失効" }),
+    );
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 });

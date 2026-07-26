@@ -1,4 +1,4 @@
-import { useCallback, useTransition } from "react";
+import { useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -19,6 +19,7 @@ interface UseMedicalRecordQuickPatchActionsArgs {
     mutateAsync: (variables: { id: string; req: UpdateMedicalRecordRequest }) => Promise<unknown>;
   };
   canEdit?: boolean;
+  isSelectedPetDeceased: boolean;
 }
 
 export function useMedicalRecordQuickPatchActions({
@@ -31,10 +32,22 @@ export function useMedicalRecordQuickPatchActions({
   queryClient,
   updateMutation,
   canEdit: canEditOverride,
+  isSelectedPetDeceased,
 }: UseMedicalRecordQuickPatchActionsArgs) {
   const { canEdit: permissionCanEdit } = usePermission("medical-records");
   const canEdit = canEditOverride ?? permissionCanEdit;
-  const isMutationAllowed = useCallback(() => canEdit === true, [canEdit]);
+  const canEditRef = useRef(canEdit);
+  const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  useLayoutEffect(() => {
+    isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
+  }, [isSelectedPetDeceased]);
+  const isMutationAllowed = useCallback(
+    () => canEditRef.current === true && !isSelectedPetDeceasedRef.current,
+    [],
+  );
 
   // useTransition: 即時PATCH系ハンドラの pending 管理 (rerender-transitions)
   const [isSavingTransition, startSaveTransition] = useTransition();
@@ -43,6 +56,7 @@ export function useMedicalRecordQuickPatchActions({
   const handleChangeDoctor = (newDoctorId: string, newDoctorName: string) => {
     if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -66,6 +80,7 @@ export function useMedicalRecordQuickPatchActions({
     setVisitType(newVisitType);
     if (!recordId) return; // 新規作成時はローカルstateのみ
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -90,6 +105,7 @@ export function useMedicalRecordQuickPatchActions({
     setNextVisitDate(newDate);
     if (!recordId) return; // 新規作成時はローカルstateのみ
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -112,6 +128,7 @@ export function useMedicalRecordQuickPatchActions({
   const handleChangeDate = useCallback((newDate: string) => {
     if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -135,6 +152,7 @@ export function useMedicalRecordQuickPatchActions({
   const handleFinalize = useCallback(() => {
     if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,

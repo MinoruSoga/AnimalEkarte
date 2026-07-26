@@ -118,21 +118,23 @@ describe("OwnersListTable row navigation accessibility", () => {
     expect(detailLink).toHaveClass("min-h-11", "min-w-11");
   });
 
-  it.each([
-    {
-      label: "編集権限なし",
-      overrides: { canEdit: false, currentClinicId: "clinic-1" },
-    },
-    {
-      label: "別医院行",
-      overrides: {
-        canEdit: true,
-        currentClinicId: "clinic-1",
-        pets: [{ ...pet, clinicId: "clinic-2" }],
-      },
-    },
-  ])("$label は飼主名をdetail linkにしない", ({ overrides }) => {
-    renderTable(overrides);
+  it("同一医院のview-onlyユーザーにも飼主detailへのnative read linkを維持する", () => {
+    renderTable({
+      canEdit: false,
+      canDelete: false,
+      canReport: false,
+      currentClinicId: "clinic-1",
+    });
+
+    expect(screen.getByRole("link", { name: /山田太郎/ })).toHaveAttribute("href", "/owners/42");
+  });
+
+  it("別医院行は編集権限があっても飼主名をdetail linkにしない", () => {
+    renderTable({
+      canEdit: true,
+      currentClinicId: "clinic-1",
+      pets: [{ ...pet, clinicId: "clinic-2" }],
+    });
 
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /山田太郎/ })).not.toBeInTheDocument();

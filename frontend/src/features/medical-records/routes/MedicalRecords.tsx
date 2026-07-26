@@ -1,5 +1,13 @@
 // React/Framework
-import { useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
+import {
+  useState,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Auth
@@ -151,9 +159,26 @@ export function MedicalRecords() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPages, total]);
 
-  const deleteModal = useModalState<{ id: string; label: string }>();
+  const deleteModal = useModalState<{
+    id: string;
+    label: string;
+    petIsDeceased: boolean;
+  }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
+  const canDeleteRef = useRef(canDelete);
+  const recordsByIdRef = useRef(
+    new Map(records.map((record) => [record.id, record])),
+  );
+
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
+  useLayoutEffect(() => {
+    recordsByIdRef.current = new Map(
+      records.map((record) => [record.id, record]),
+    );
+  }, [records]);
 
   const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, total);
@@ -288,14 +313,17 @@ export function MedicalRecords() {
                   </TableCell>
                 ) : null}
                 <TableCell className="text-right">
-                  {(canEdit || canDelete) && !isOtherClinic ? (
+                  {(canEdit || canDelete) && !isOtherClinic && !r.petIsDeceased ? (
                     <RowActionDropdown
                       ariaLabel={`カルテ操作: ${r.petName} ${r.date} ID ${r.id}`}
                       actions={[
                         ...(canEdit ? [{
                           label: "編集",
                           icon: Edit,
-                          onClick: () => handleNavigateToForm(r.id),
+                          onClick: () => {
+                            if (r.petIsDeceased) return;
+                            handleNavigateToForm(r.id);
+                          },
                         }] : []),
                         ...(canDelete ? [{
                           label: "削除",
@@ -304,6 +332,7 @@ export function MedicalRecords() {
                             deleteModal.open({
                               id: r.id,
                               label: `${r.recordNo} ${r.petName}`,
+                              petIsDeceased: r.petIsDeceased,
                             }),
                           variant: "destructive" as const,
                         }] : []),
@@ -335,8 +364,16 @@ export function MedicalRecords() {
         open={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={() => {
-          if (deleteModal.item) {
-            deleteRecord(deleteModal.item.id);
+          const item = deleteModal.item;
+          const currentRecord = item
+            ? recordsByIdRef.current.get(item.id)
+            : undefined;
+          if (
+            canDeleteRef.current === true
+            && item?.petIsDeceased === false
+            && currentRecord?.petIsDeceased === false
+          ) {
+            deleteRecord(item.id);
           }
           deleteModal.close();
         }}

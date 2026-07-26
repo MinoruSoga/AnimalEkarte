@@ -1,5 +1,15 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, lazy, Suspense, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useTransition,
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate, useLoaderData, useRevalidator, useSearchParams, useNavigation } from "react-router";
 
 // Hooks
@@ -85,6 +95,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("owners");
+  const canEditRef = useRef(canEdit);
+  const canDeleteRef = useRef(canDelete);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+    canDeleteRef.current = canDelete;
+  }, [canDelete, canEdit]);
   // #158: レポート導線は medical-records:view でゲートする（カルテ内容を横断表示するため）
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
@@ -221,6 +237,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,
         });
+        if (canEditRef.current !== true) return;
         await onUpdatePet(petModalItem.id, req);
         toast.success("ペット情報を更新しました");
         closePetModal();
@@ -241,7 +258,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const closeDeleteModal = deleteModal.close;
 
   const handleConfirmDelete = useCallback(() => {
-    if (!pendingDeleteOwnerId) return;
+    if (canDeleteRef.current !== true || !pendingDeleteOwnerId) return;
 
     startDeleteTransition(async () => {
       try {

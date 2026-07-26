@@ -1,4 +1,12 @@
-import { useState, useEffect, useTransition, useCallback, useActionState, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useTransition,
+  useCallback,
+  useActionState,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
@@ -95,7 +103,8 @@ export function useExaminationForm(
 
   // API hooks
   const { data: existingExam } = useGetExamination(id ?? "");
-  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const mutationPetId = isEdit ? existingExam?.petId ?? "" : petId ?? "";
+  const { data: mutationPet, isLoading: isPetLoading } = useGetPet(mutationPetId);
   const createMutation = useCreateExamination();
   const updateMutation = useUpdateExamination();
   const deleteMutation = useDeleteExamination();
@@ -103,11 +112,21 @@ export function useExaminationForm(
   const updateItemsMutation = useUpdateExaminationItems();
   const { canCreate, canEdit, canDelete } = permissions;
   const permissionsRef = useRef(permissions);
-  useEffect(() => {
+  useLayoutEffect(() => {
     permissionsRef.current = { canCreate, canEdit, canDelete };
   }, [canCreate, canDelete, canEdit]);
+  const hasExplicitlyDeceasedPet =
+    mutationPet?.status === "死亡" || selectedPets[0]?.status === "死亡";
+  const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
+  useLayoutEffect(() => {
+    hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
+  }, [hasExplicitlyDeceasedPet]);
   const isMutationAllowed = useCallback(
     (action: keyof ExaminationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+  const isPetExplicitlyDeceased = useCallback(
+    () => hasExplicitlyDeceasedPetRef.current === true,
     [],
   );
 
@@ -255,6 +274,10 @@ export function useExaminationForm(
         const itemsReq: ReplaceExamItemsRequest = { items: rowsToRequest(formItemsRef.current) };
         const isConfirmed = current.status === "確定";
 
+        if (isPetExplicitlyDeceased()) {
+          return { success: false, timestamp: Date.now() };
+        }
+
         if (isEdit && id) {
           const req: UpdateExaminationRequest = {
             status: current.status ? EXAM_STATUS_JA_TO_EN[current.status] : undefined,
@@ -271,6 +294,12 @@ export function useExaminationForm(
           }
           await updateMutation.mutateAsync({ id, req });
           if (!isConfirmed) {
+            if (
+              !isMutationAllowed("canEdit") ||
+              isPetExplicitlyDeceased()
+            ) {
+              return { success: false, timestamp: Date.now() };
+            }
             await updateItemsMutation.mutateAsync({ id, req: itemsReq });
           }
         } else {
@@ -291,6 +320,12 @@ export function useExaminationForm(
           const created = await createMutation.mutateAsync(req);
           // 新規作成後に items を保存。items が空なら呼ばない（不要な PUT を回避）。
           if (!isConfirmed && itemsReq.items.length > 0 && created?.id) {
+            if (
+              !isMutationAllowed("canCreate") ||
+              isPetExplicitlyDeceased()
+            ) {
+              return { success: false, timestamp: Date.now() };
+            }
             await updateItemsMutation.mutateAsync({ id: String(created.id), req: itemsReq });
           }
         }
@@ -306,19 +341,20 @@ export function useExaminationForm(
   // New mode: populate pet selection from petId query param
   useEffect(() => {
     if (!isEdit) {
-      if (petFromQuery) {
-        setSelectedPets([petFromQuery]);
+      if (mutationPet) {
+        setSelectedPets([mutationPet]);
       } else if (!petId && !isPetLoading) {
         // No petId provided and not loading — redirect to pet selection
         navigate(paths.examinations.selectPet.getHref());
       }
-      // If petId is provided but petFromQuery is not yet resolved, wait
+      // If petId is provided but mutationPet is not yet resolved, wait
     }
-  }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
+  }, [isEdit, petId, mutationPet, isPetLoading, setSelectedPets, navigate]);
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
     if (!isMutationAllowed("canDelete")) return;
+    if (isPetExplicitlyDeceased()) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(id, {
         onSuccess: () => {
@@ -327,7 +363,14 @@ export function useExaminationForm(
         },
       });
     });
-  }, [isEdit, id, isMutationAllowed, deleteMutation, startDeleteTransition]);
+  }, [
+    isEdit,
+    id,
+    isMutationAllowed,
+    isPetExplicitlyDeceased,
+    deleteMutation,
+    startDeleteTransition,
+  ]);
 
   const isSaving = isPending || updateItemsMutation.isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;

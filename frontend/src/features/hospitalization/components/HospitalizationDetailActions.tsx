@@ -1,4 +1,5 @@
 // React/Framework
+import { useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -28,6 +29,12 @@ interface HospitalizationDetailActionsProps {
 export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
     const { canEdit, canDelete } = usePermission("hospitalization");
+    const canEditRef = useRef(canEdit);
+    const petIsDeceasedRef = useRef(hospitalization.petIsDeceased);
+    useLayoutEffect(() => {
+        canEditRef.current = canEdit;
+        petIsDeceasedRef.current = hospitalization.petIsDeceased;
+    }, [canEdit, hospitalization.petIsDeceased]);
     const { mutateAsync: updateHospitalization, isPending: isCheckingIn } = useUpdateHospitalization();
 
     const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
@@ -36,6 +43,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
     const showDischarge = canDelete && isAdmitted;
 
     const handleCheckIn = async () => {
+        if (canEditRef.current !== true || petIsDeceasedRef.current === true) return;
         try {
             await updateHospitalization({
                 id: hospitalization.id,

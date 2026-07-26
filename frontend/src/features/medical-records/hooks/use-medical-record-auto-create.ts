@@ -1,4 +1,10 @@
-import { useEffect, type MutableRefObject, type TransitionStartFunction } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type MutableRefObject,
+  type TransitionStartFunction,
+} from "react";
 import type { NavigateFunction } from "react-router";
 
 import { paths } from "@/config/paths";
@@ -43,6 +49,7 @@ interface MedicalRecordAppointmentCreateRequest {
 
 interface UseMedicalRecordAutoCreateParams {
   isNewRecord: boolean;
+  canCreate: boolean;
   selectedPet: Pet | undefined;
   hasAutoCreatedRef: MutableRefObject<boolean>;
   appointmentIdFromState: string | undefined;
@@ -60,6 +67,7 @@ interface UseMedicalRecordAutoCreateParams {
 
 export function useMedicalRecordAutoCreate({
   isNewRecord,
+  canCreate,
   selectedPet,
   hasAutoCreatedRef,
   appointmentIdFromState,
@@ -74,8 +82,19 @@ export function useMedicalRecordAutoCreate({
   createRecommendationReason,
   navigate,
 }: UseMedicalRecordAutoCreateParams) {
+  const canCreateRef = useRef(canCreate);
+  const selectedPetStatusRef = useRef(selectedPet?.status);
+
+  useLayoutEffect(() => {
+    canCreateRef.current = canCreate;
+  }, [canCreate]);
+  useLayoutEffect(() => {
+    selectedPetStatusRef.current = selectedPet?.status;
+  }, [selectedPet?.status]);
+
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
+    if (selectedPet.status === "死亡" || canCreate !== true) return;
     if (!appointmentIdFromState && !generalReservationType) return;
     if (!appointmentIdFromState && isReusableAppointmentLoading) return;
     hasAutoCreatedRef.current = true;
@@ -87,6 +106,11 @@ export function useMedicalRecordAutoCreate({
           appointmentId = reusableAppointment.id;
         }
         if (!appointmentId) {
+          if (
+            canCreateRef.current !== true
+            || selectedPetStatusRef.current === "死亡"
+          ) return;
+
           const duration = generalReservationType?.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
           const { startTime, endTime } = createReceptionAppointmentTimeRange(duration, visitDateFromState);
           const appointment = await createReservationMutation.mutateAsync({
@@ -102,6 +126,11 @@ export function useMedicalRecordAutoCreate({
           });
           appointmentId = appointment.id;
         }
+
+        if (
+          canCreateRef.current !== true
+          || selectedPetStatusRef.current === "死亡"
+        ) return;
 
         const today = visitDateFromState ?? formatJSTDate(new Date());
         const record = await createMutation.mutateAsync({
@@ -119,6 +148,6 @@ export function useMedicalRecordAutoCreate({
         hasAutoCreatedRef.current = false;
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
-  }, [isNewRecord, selectedPet?.id, appointmentIdFromState, reusableAppointment?.id, isReusableAppointmentLoading, visitDateFromState, generalReservationType?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: rerun only when auto-create eligibility/selection/reservation inputs change; mutation and navigation references are stable
+  }, [isNewRecord, canCreate, selectedPet?.id, selectedPet?.status, appointmentIdFromState, reusableAppointment?.id, isReusableAppointmentLoading, visitDateFromState, generalReservationType?.id]);
 }

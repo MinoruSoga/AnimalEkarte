@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { startTransition } from "react";
+import { startTransition, useLayoutEffect, useRef } from "react";
 import { calculateNextDate, useVaccinationForm } from "./use-vaccination-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
@@ -65,6 +65,13 @@ const ALLOWED_MUTATION_PERMISSIONS = {
   canEdit: true,
   canDelete: true,
 } as const;
+
+const DECEASED_PET = {
+  id: "5",
+  ownerId: "1",
+  name: "ポチ",
+  status: "死亡",
+} as NonNullable<ReturnType<typeof useGetPet>["data"]>;
 
 function renderVaccinationForm(id?: string) {
   return renderHook(() => useVaccinationForm(id, ALLOWED_MUTATION_PERMISSIONS));
@@ -703,6 +710,240 @@ describe("useVaccinationForm", () => {
       await waitFor(() => {
         expect(result.current.formState.success).toBe(false);
       });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("作成権限剥奪をcommitした直後のlayout phaseで取得済みformActionが発火してもmutationを発行しない", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+      const { result, rerender } = renderHook(
+        ({ canCreate }: { canCreate: boolean }) => {
+          const form = useVaccinationForm(undefined, {
+            canCreate,
+            canEdit: true,
+            canDelete: true,
+          });
+          const capturedActionRef = useRef(form.formAction);
+          useLayoutEffect(() => {
+            if (!canCreate) {
+              startTransition(() => capturedActionRef.current(new FormData()));
+            }
+          }, [canCreate]);
+          return form;
+        },
+        { initialProps: { canCreate: true } },
+      );
+      act(() => {
+        result.current.petSelection.setSelectedPets([
+          { id: "5", ownerId: "1", name: "ポチ" } as Parameters<
+            typeof result.current.petSelection.setSelectedPets
+          >[0][number],
+        ]);
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+      const initialTimestamp = result.current.formState.timestamp;
+
+      await act(async () => {
+        rerender({ canCreate: false });
+      });
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deceased pet mutation boundary (FE12-02 C6a)", () => {
+    it("direct petIdのpetが死亡へ変わったcommit直後のlayout phaseでも取得済みformActionはcreate mutationを発行しない", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      const livingPet = { ...DECEASED_PET, status: "生存" as const };
+      const petSnapshot = { current: livingPet };
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? petSnapshot.current : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+      const { result, rerender } = renderHook(
+        ({ status }: { status: "生存" | "死亡" }) => {
+          petSnapshot.current = status === "死亡" ? DECEASED_PET : livingPet;
+          const form = useVaccinationForm(undefined, ALLOWED_MUTATION_PERMISSIONS);
+          const capturedActionRef = useRef(form.formAction);
+          useLayoutEffect(() => {
+            if (status === "死亡") {
+              startTransition(() => capturedActionRef.current(new FormData()));
+            }
+          }, [status]);
+          return form;
+        },
+        { initialProps: { status: "生存" as const } },
+      );
+      act(() => {
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+      const initialTimestamp = result.current.formState.timestamp;
+
+      await act(async () => {
+        rerender({ status: "死亡" });
+      });
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("編集petが死亡へ変わったcommit直後のlayout phaseでも取得済みformActionはupdate mutationを発行しない", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      const livingPet = { ...DECEASED_PET, status: "生存" as const };
+      const petSnapshot = { current: livingPet };
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? petSnapshot.current : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+      const { result, rerender } = renderHook(
+        ({ status }: { status: "生存" | "死亡" }) => {
+          petSnapshot.current = status === "死亡" ? DECEASED_PET : livingPet;
+          const form = useVaccinationForm("10", ALLOWED_MUTATION_PERMISSIONS);
+          const capturedActionRef = useRef(form.formAction);
+          useLayoutEffect(() => {
+            if (status === "死亡") {
+              startTransition(() => capturedActionRef.current(new FormData()));
+            }
+          }, [status]);
+          return form;
+        },
+        { initialProps: { status: "生存" as const } },
+      );
+      const initialTimestamp = result.current.formState.timestamp;
+
+      await act(async () => {
+        rerender({ status: "死亡" });
+      });
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("編集対象が明示的な死亡ペットならdelete mutationを発行しない", () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? DECEASED_PET : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
+      const mockMutate = vi.fn();
+      vi.mocked(useDeleteVaccination).mockReturnValue({
+        mutate: mockMutate,
+        isPending: false,
+      } as ReturnType<typeof useDeleteVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+
+      act(() => {
+        result.current.handleDelete();
+      });
+
+      expect(mockMutate).not.toHaveBeenCalled();
+    });
+
+    it("direct petIdから明示的な死亡ペットをhydrateしてもcreate mutationを発行しない", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? DECEASED_PET : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+
+      const { result } = renderVaccinationForm();
+      await waitFor(() => {
+        expect(result.current.petSelection.selectedPets[0]?.status).toBe("死亡");
+      });
+      act(() => {
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+      const initialTimestamp = result.current.formState.timestamp;
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(result.current.formState.success).toBe(false);
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("編集対象から明示的な死亡ペットをhydrateしてもupdate mutationを発行しない", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? DECEASED_PET : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+      await waitFor(() => {
+        expect(result.current.petSelection.selectedPets[0]?.status).toBe("死亡");
+      });
+      const initialTimestamp = result.current.formState.timestamp;
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(result.current.formState.success).toBe(false);
       expect(mockMutateAsync).not.toHaveBeenCalled();
     });
   });

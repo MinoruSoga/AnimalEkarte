@@ -206,7 +206,7 @@ describe("AppointmentCard", () => {
     expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toBeInTheDocument();
   });
 
-  it("死亡した一般診療の badge を表示してカルテ・会計を抑止し、card click は維持する", () => {
+  it("死亡した一般診療の badge を表示し、card click・drag・カルテ・会計を抑止する", () => {
     const onCardClick = vi.fn();
     const deceasedAppointment = {
       ...baseAppointment,
@@ -218,10 +218,10 @@ describe("AppointmentCard", () => {
     expect(screen.getByText("【死亡】")).toHaveClass(C.bgDanger, C.textWhite);
     expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ポチの会計/ })).not.toBeInTheDocument();
+    expect(screen.getByText("山田").closest("[aria-disabled='true']")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("山田"));
-    expect(onCardClick).toHaveBeenCalledTimes(1);
-    expect(onCardClick).toHaveBeenCalledWith(deceasedAppointment);
+    expect(onCardClick).not.toHaveBeenCalled();
   });
 
   it("死亡したトリミング予約の施術・会計を抑止する", () => {

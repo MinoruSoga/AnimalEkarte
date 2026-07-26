@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { addHours } from "date-fns";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import {
   jstWallDateToISOString,
 } from "@/lib/jst-date";
 import type { Pet, Reservation } from "@/types";
+import { PetStatusDeceased } from "@/types/generated/models";
 
 import type { ReceptionAppointment } from "../api/types";
 
@@ -18,6 +19,8 @@ interface UseReceptionModalHandlersParams {
   advanceStatus: (appointment: ReceptionAppointment) => unknown;
   cancelAppointment: (appointmentId: string) => unknown;
   updateAppointment: (appointment: ReceptionAppointment) => unknown;
+  canEditReservation?: boolean;
+  canDeleteReservation?: boolean;
 }
 
 function optionalNumericID(value: string | undefined): number | undefined {
@@ -34,6 +37,8 @@ export function useReceptionModalHandlers({
   advanceStatus,
   cancelAppointment,
   updateAppointment,
+  canEditReservation,
+  canDeleteReservation,
 }: UseReceptionModalHandlersParams) {
   const updateReservationMutation = useUpdateReservation();
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,20 +54,30 @@ export function useReceptionModalHandlers({
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const selectedAppointmentRef = useRef(selectedAppointment);
-  useEffect(() => {
+  const cancelTargetRef = useRef(cancelTarget);
+  const permissionsRef = useRef({ canEditReservation, canDeleteReservation });
+  useLayoutEffect(() => {
     selectedAppointmentRef.current = selectedAppointment;
   }, [selectedAppointment]);
+  useLayoutEffect(() => {
+    cancelTargetRef.current = cancelTarget;
+  }, [cancelTarget]);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canEditReservation, canDeleteReservation };
+  }, [canEditReservation, canDeleteReservation]);
 
   const handleCardClick = useCallback((appointment: ReceptionAppointment) => {
+    if (appointment.petStatus === PetStatusDeceased) return;
     setSelectedAppointment(appointment);
     setSelectedAppointmentId(appointment.id);
     setModalOpen(true);
   }, []);
 
   const handleAdvanceStatus = useCallback(() => {
+    if (permissionsRef.current.canEditReservation !== true) return;
     if (!selectedAppointmentId) return;
     const appointment = selectedAppointmentRef.current;
-    if (!appointment) return;
+    if (!appointment || appointment.petStatus === PetStatusDeceased) return;
     advanceStatus(appointment);
     setModalOpen(false);
     setSelectedAppointment(null);
@@ -70,6 +85,8 @@ export function useReceptionModalHandlers({
   }, [selectedAppointmentId, advanceStatus]);
 
   const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
+    if (permissionsRef.current.canEditReservation !== true) return;
+    if (appointment.petStatus === PetStatusDeceased) return;
     selectedAppointmentRef.current = appointment;
     const start = buildJSTWallDateTime(appointment.visitDate, appointment.time);
 
@@ -95,7 +112,10 @@ export function useReceptionModalHandlers({
 
   const handleEditSave = useCallback(
     (data: Partial<Reservation>, selectedPets: Pet[]) => {
+      if (permissionsRef.current.canEditReservation !== true) return;
       if (!editingAppointmentId || !data.start) return;
+      if (selectedAppointmentRef.current?.petStatus === PetStatusDeceased) return;
+      if (selectedPets[0]?.status === "死亡") return;
       const resolvedPetId = selectedPets[0]?.id || data.petId || selectedAppointmentRef.current?.petId;
       const resolvedOwnerId = selectedPets[0]?.ownerId || data.ownerId || selectedAppointmentRef.current?.ownerId;
 
@@ -152,13 +172,18 @@ export function useReceptionModalHandlers({
   );
 
   const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {
+    if (permissionsRef.current.canDeleteReservation !== true) return;
+    if (appointment.petStatus === PetStatusDeceased) return;
+    cancelTargetRef.current = appointment;
     setCancelTarget(appointment);
     setCancelTargetId(appointment.id);
     setCancelConfirmOpen(true);
   }, []);
 
   const executeCancel = useCallback(() => {
+    if (permissionsRef.current.canDeleteReservation !== true) return;
     if (!cancelTargetId) return;
+    if (cancelTargetRef.current?.petStatus === PetStatusDeceased) return;
     cancelAppointment(cancelTargetId);
     toast.success("予約を取り消しました");
     setModalOpen(false);

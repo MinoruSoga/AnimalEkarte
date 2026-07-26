@@ -6,6 +6,7 @@ import { HospitalizationForm } from "./HospitalizationForm";
 
 const mocks = vi.hoisted(() => ({
   canDelete: true,
+  petIsDeceased: false,
   deleteHospitalization: vi.fn(),
   useHospitalizationForm: vi.fn(),
   navigate: vi.fn(),
@@ -81,9 +82,10 @@ function renderForm() {
 
 beforeEach(() => {
   mocks.canDelete = true;
+  mocks.petIsDeceased = false;
   mocks.deleteHospitalization.mockReset();
   mocks.useHospitalizationForm.mockReset();
-  mocks.useHospitalizationForm.mockReturnValue({
+  mocks.useHospitalizationForm.mockImplementation(() => ({
     isEdit: true,
     formData: {
       hospitalizationType: "入院",
@@ -107,11 +109,17 @@ beforeEach(() => {
       total: 0,
     }),
     petSelection: {
-      selectedPets: [{ id: "pet-1", name: "ポチ", ownerName: "飼主", species: "犬" }],
+      selectedPets: [{
+        id: "pet-1",
+        name: "ポチ",
+        ownerName: "飼主",
+        species: "犬",
+        status: mocks.petIsDeceased ? "死亡" : "生存",
+      }],
     },
     formAction: vi.fn(),
     formState: { success: false },
-  });
+  }));
 });
 
 describe("HospitalizationForm — mutation permission boundary", () => {
@@ -127,6 +135,16 @@ describe("HospitalizationForm — mutation permission boundary", () => {
     fireEvent.click(screen.getByRole("button", { name: "削除" }));
     mocks.canDelete = false;
     view.rerender(<HospitalizationForm />);
+    fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
+
+    expect(mocks.deleteHospitalization).not.toHaveBeenCalled();
+  });
+
+  it("petが死亡している場合は確認後もdelete mutationを拒否する", () => {
+    mocks.petIsDeceased = true;
+    renderForm();
+
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
     fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
 
     expect(mocks.deleteHospitalization).not.toHaveBeenCalled();
