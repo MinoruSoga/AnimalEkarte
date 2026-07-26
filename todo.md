@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(3)（**#262 サイグラム dev 完了 `e146b212e`**〔81test・DOB横表示・保存なし〕— S2 着手可能キュー全消化。#234 は dev 全完了・残=USER（migrate→codegen→クローズ）。次 dev = **TASK-251 U2b-full 第1段**〔other 理由必須の永続化 = DEC-16③/DEC-22 裁定済み・Codex 向け発行〕。第2段=締め表「未分類・要確認」表示は別ユニット。⚠commit は必ず `git commit -- <paths>` で path 制限）
+> 更新: 2026-07-27(4)（**U2b-full 第1段 dev 完了 `7a64d9e63`**〔other 理由必須＋actor clinic 相関ロック・migration 009。⚠同 commit の model/billing 3ファイルに並行 U3〔vaccination provenance・migration 008 未コミット〕の断片が同居 — U3 完了 commit で完結〕。次 = **第2段〔締め表「未分類・要確認」表示・Codex 発行〕**。`make migrate` は U3 完了後に 008+009 まとめて。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
@@ -86,8 +86,16 @@
   - regression: `docker compose exec backend go test ./internal/billing/ -count=1 -p 1 -timeout 900s` → 最終 `ok ... 17.322s`。編集前の同commandに無関係な `TestRefundRepository_FindByBillingID/複数返金は作成日時降順で返る` 1件の一過性FAILがあったが、編集後は全体green。
   - model baseline: `docker compose exec backend go test ./internal/model/ -count=1` → 編集前後とも既知の `TestSchemaDrift` 3差分（`Pet.danger_reason`、`ExamTypeField.clinic_id`、`ExamReferenceRange`）のみ、増加0件。
   - lint/format: fresh cache の scoped golangci-lint は repair 前に新testの `goimports` 1件を検出して修正し、再実行後は baseline と同じ既存gofmt 2件だけ（新規finding 0件）。変更した全9 Go fileの `docker compose exec backend gofmt -l ...` は stdout 0行。
-- **U3 BLOCKED（2026-07-27・Phase 0 design freeze）**: pull型の未会計候補は `GET /v1/billing-items/unbilled` から FE の手書き `transformAccountingItem` → `AccountingItem` → `createAccountingItemsSequentially` を経て `POST /v1/billing-items` へ戻るが、現行 FE は `merchandise_item_id`・`treatment_id`・`appointment_id`・trimming 2 ID だけを明示的に写像し、新しい event provenance `vaccination_id` を保持・送信できない。`make codegen` は生成型だけを更新し、この手書き往復経路を修正しない。したがって BE/OpenAPI だけを追加しても `vaccination_id` は GET 後に破棄され、同一接種記録の構造的idempotency・取り込み前の編集/除外・同一会計フローを同時に満たせない。`treatment_id` 等へのID流用、名称/価格からの推測、billing作成時の全件自動追加はいずれも型/clinic invariantまたは停止手段を破るため不採用。saved prompt は `frontend/**` を明示的にscope外とし矛盾時の即興設計を禁止しているため、migration/model/BE実装には着手しなかった。再開条件 = `frontend/src/features/accounting/{api/transforms.ts,api/create-billing-item.ts,types/index.ts,hooks/create-accounting-items.ts}` と対応testをallowlistへ追加した改訂prompt、または候補選択を明示的に受け取る別の原子的BE API contractのUSER裁定。
+- **U3 完了（2026-07-27・第3走 worktree）**: coordinator裁定により第2走のtrigger escalationを棄却し、migration 008を列・paired `clinic_id`・Billing/Vaccination両親の複合clinic FK・`ON DELETE RESTRICT`・unique partial indexだけの宣言的構成へ簡素化した。app層の同一transaction検証・SHARE/UPDATE lock・並行claimは維持し、明細soft-delete時は`vaccination_id`/内部`clinic_id`を原子的に解放して未会計候補への復帰と再取込を可能にした。全親mutationのdurable graph enforcementは本unitのFAILにせず、裁定どおり `SEC-DUR-01` へroutingした。
+  - U3変更file（他unitの同時hunkは除外）: `backend/migrations/008_add_billing_item_vaccination_provenance.sql`、`backend/internal/model/accounting.go`（現行schemaに`billing_items.clinic_id`が無かったためpromptの必要時最小逸脱を適用）、`backend/internal/billing/{accounting_repository.go,billing_item_repository.go,billing_item_service.go,billing_item_vaccination_test.go}`、`backend/internal/medicalrecord/vaccination_repository.go`。第2走の既存U3差分と別owner WIPは保持し、`frontend/**`・`billing_item_request.go`・`billing_item_service_test.go`・migration 009・migration適用・codegen・git履歴書込みには本走で接触していない。
+  - 第3走TDD: `TestBillingItemVaccinationProvenance_DeleteReleasesClaim` / `MigrationContract` は旧実装でRED（`clinic_id`列なし・trigger残存）→宣言的migrationと削除解放実装後GREEN。最終gate結果とbaseline差分は本entryへ第3走完了時に追記する。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
+
+### SEC-DUR-01: provenance FK graphのdurable enforcement方針（全FK共通・横断）
+
+- 第2走reviewer所見: provenance link後に`pets.owner_id`/`pets.clinic_id`、`owners.clinic_id`、`medical_records.owner_id`/`medical_records.pet_id`/`medical_records.clinic_id`、各source master（`vaccines.clinic_id`等）が変更されると、Vaccination/Treatment/Merchandise等の既存provenance graphが後から不整合になり得る。
+- 個別sourceだけへtriggerを追加するのではなく、全provenance FKに共通するarchitecture/PO論点として、service依存チェック・宣言的FK・許可された親mutationの再相関/移送をどの層で保証するかを決める。飼主変更（`pets.owner_id`）等の実機能を恒久ブロックしないことを必須条件とする。
+- **着手 = 納品後・architecture/PO裁定待ち**。U3はlink時のapp検証・transaction lock・宣言的clinic FKをdelivery boundaryとして完了し、本entryの実装は開始しない。
 
 ### SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設
 
