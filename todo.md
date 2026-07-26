@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(1)（#234: U-A `a0a3d17f8`・U-B `49029973b`・**U-C 完了 `9b9f57f9f`**〔PetPhysicalSection へ理由欄・high 必須・tri-state 整合・a11y。owner 編集再読込の per-pet 並列取得 = perf watch〕。**残 = U-D〔バッジ3サイト Popover＋doc ⑤〕のみ**。TASK-251 U5 は並行セッション `581d6b87c` で完了〔締め12値 allowlist 化〕。**USER 前提コマンド: `make migrate` → `make codegen`**。⚠運用是正: 並行セッションと index 共有のため commit は必ず `git commit -- <paths>` で path 制限〔8d5f1c4b4 巻き込み→ 9b9f57f9f へ分割修復済み〕）
+> 更新: 2026-07-27(2)（**#234 dev 全完了** = U-A `a0a3d17f8`・U-B `49029973b`・U-C `9b9f57f9f`・U-D `ac7f35b1c`〔バッジ3サイト Popover＋doc⑤〕。残 = USER のみ（`make migrate` → `make codegen` → 動作確認 → Issue クローズ）。次 dev = **#262 サイグラム**（DEC-17 裁定済み・S・DB 保存なし・`lib/saigram.ts`）。TASK-251 U5 は並行 `581d6b87c` で完了。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
@@ -86,6 +86,7 @@
   - regression: `docker compose exec backend go test ./internal/billing/ -count=1 -p 1 -timeout 900s` → 最終 `ok ... 17.322s`。編集前の同commandに無関係な `TestRefundRepository_FindByBillingID/複数返金は作成日時降順で返る` 1件の一過性FAILがあったが、編集後は全体green。
   - model baseline: `docker compose exec backend go test ./internal/model/ -count=1` → 編集前後とも既知の `TestSchemaDrift` 3差分（`Pet.danger_reason`、`ExamTypeField.clinic_id`、`ExamReferenceRange`）のみ、増加0件。
   - lint/format: fresh cache の scoped golangci-lint は repair 前に新testの `goimports` 1件を検出して修正し、再実行後は baseline と同じ既存gofmt 2件だけ（新規finding 0件）。変更した全9 Go fileの `docker compose exec backend gofmt -l ...` は stdout 0行。
+- **U3 BLOCKED（2026-07-27・Phase 0 design freeze）**: pull型の未会計候補は `GET /v1/billing-items/unbilled` から FE の手書き `transformAccountingItem` → `AccountingItem` → `createAccountingItemsSequentially` を経て `POST /v1/billing-items` へ戻るが、現行 FE は `merchandise_item_id`・`treatment_id`・`appointment_id`・trimming 2 ID だけを明示的に写像し、新しい event provenance `vaccination_id` を保持・送信できない。`make codegen` は生成型だけを更新し、この手書き往復経路を修正しない。したがって BE/OpenAPI だけを追加しても `vaccination_id` は GET 後に破棄され、同一接種記録の構造的idempotency・取り込み前の編集/除外・同一会計フローを同時に満たせない。`treatment_id` 等へのID流用、名称/価格からの推測、billing作成時の全件自動追加はいずれも型/clinic invariantまたは停止手段を破るため不採用。saved prompt は `frontend/**` を明示的にscope外とし矛盾時の即興設計を禁止しているため、migration/model/BE実装には着手しなかった。再開条件 = `frontend/src/features/accounting/{api/transforms.ts,api/create-billing-item.ts,types/index.ts,hooks/create-accounting-items.ts}` と対応testをallowlistへ追加した改訂prompt、または候補選択を明示的に受け取る別の原子的BE API contractのUSER裁定。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
 
 ### SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設
