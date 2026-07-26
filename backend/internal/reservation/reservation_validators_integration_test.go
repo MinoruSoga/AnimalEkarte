@@ -11,8 +11,10 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 type failingLiffTrimmingDetailRepository struct {
@@ -154,4 +156,114 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 			Count(&count).Error)
 		assert.Zero(t, count)
 	})
+}
+
+func TestReservationValidators_RealDBRejectsInactiveReservationTypeWithoutPartialWrites(t *testing.T) {
+	db := setupReservationRepoTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(23801)
+	testdb.SeedClinicsForFK(t, db, clinicID)
+
+	customer := makeLineCustomerForAdmin(t, db, clinicID, "issue-238-inactive-type-customer")
+	reservationType := &model.ReservationType{
+		ClinicID:           clinicID,
+		Name:               "無効な公開予約区分",
+		IsActive:           true,
+		ReservationVisible: true,
+		IsInternal:         false,
+		Category:           model.ReservationTypeCategoryGeneral,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(reservationType).Error)
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Where("clinic_id = ? AND id = ?", clinicID, reservationType.ID).
+		Update("is_active", false).Error)
+
+	var auditCountBefore int64
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.AuditLog{}).
+		Where("clinic_id = ? AND resource = ?", clinicID, model.AuditResourceReservation).
+		Count(&auditCountBefore).Error)
+
+	validators := NewReservationValidators(
+		testNewTransactor(db),
+		NewReservationRepository(db),
+		NewReservationTypeRepository(db),
+		NewReservationStaffRepository(db, nil),
+		nil,
+		nil,
+		nil,
+	)
+	out, err := validators.ValidateAndCreate(ctx, &CreateReservationInput{
+		ClinicID:          clinicID,
+		CustomerID:        customer.ID,
+		ReservationTypeID: reservationType.ID,
+		Date:              dateInDays(3),
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, out)
+
+	var appointmentCount, auditCountAfter int64
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Where(
+			"clinic_id = ? AND line_customer_id = ? AND reservation_type_id = ?",
+			clinicID,
+			customer.ID,
+			reservationType.ID,
+		).
+		Count(&appointmentCount).Error)
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.AuditLog{}).
+		Where("clinic_id = ? AND resource = ?", clinicID, model.AuditResourceReservation).
+		Count(&auditCountAfter).Error)
+	assert.Zero(t, appointmentCount)
+	assert.Equal(t, auditCountBefore, auditCountAfter)
+}
+
+func TestReservationAdminRepository_FindAllByCustomerID_KeepsInactiveReservationTypeHistory(t *testing.T) {
+	db := setupReservationRepoTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(23802)
+	testdb.SeedClinicsForFK(t, db, clinicID)
+
+	customer := makeLineCustomerForAdmin(t, db, clinicID, "issue-238-historical-customer")
+	reservationType := &model.ReservationType{
+		ClinicID:           clinicID,
+		Name:               "履歴に残す予約区分",
+		IsActive:           true,
+		ReservationVisible: true,
+		Category:           model.ReservationTypeCategoryGeneral,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(reservationType).Error)
+	appointment := makeReservationForReservationRepoTest(
+		t,
+		db,
+		clinicID,
+		reservationType.ID,
+		time.Now().UTC().Truncate(time.Minute),
+		model.ReservationStatusConfirmed,
+		model.ReservationSourceLine,
+		&customer.ID,
+		nil,
+	)
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Where("clinic_id = ? AND id = ?", clinicID, reservationType.ID).
+		Update("is_active", false).Error)
+
+	items, err := NewReservationAdminRepository(db).FindAllByCustomerID(ctx, clinicID, customer.ID)
+
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, appointment.ID, items[0].ID)
+	require.NotNil(t, items[0].ReservationType)
+	assert.Equal(t, reservationType.ID, items[0].ReservationType.ID)
+	assert.Equal(t, reservationType.Name, items[0].ReservationType.Name)
+	assert.False(t, items[0].ReservationType.IsActive)
 }
