@@ -113,6 +113,7 @@ export interface BillingItem {
   source: ItemSource;
   merchandise_item_id?: number /* uint64 */;
   treatment_id?: number /* uint64 */;
+  vaccination_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
   trimming_option_id?: number /* uint64 */;
@@ -1096,6 +1097,24 @@ export interface EstimateItem {
   consultation?: Consultation;
   procedure?: Procedure;
   medicine?: Medicine;
+}
+
+//////////
+// source: exam_reference_range.go
+
+/**
+ * ExamReferenceRange is a clinic-owned reference range for an examination field and species.
+ */
+export interface ExamReferenceRange {
+  id: number /* uint64 */;
+  exam_type_field_id: number /* uint64 */;
+  animal_species_id: number /* uint64 */;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -2456,6 +2475,7 @@ export interface Pet {
   neutered_date?: string;
   acquisition_type?: AcquisitionType;
   danger_level: DangerLevel;
+  danger_reason?: string;
   food: string;
   environment: string;
   phone: string;
