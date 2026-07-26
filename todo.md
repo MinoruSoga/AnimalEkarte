@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26(3)（U2b-min 完了 `b8a29d3e7` — #251 納品前スコープ〔U1・U2a・U2b-min〕全完了・締め12分類が全書込経路で機能。納品前 dev 作業ゼロ。次 dev = #238〔残ギャップ=GetCourses の IsActive 未検査のみ・POST拒否は実装済みを実測確認〕）
+> 更新: 2026-07-26(4)（#238 dev 完了 `711bcf561`〔inactive 種別の公開一覧・型スコープ read 閉鎖・AC5件 test 固定。残=Issue コメント/クローズ=USER〕・派生の R-5 起票。USER 方針「納品日関係なくすべて早急に対応」。次 dev = #234〔DEC-14 裁定済み・着手可〕）
 
 ## 運用
 
@@ -138,6 +138,12 @@
 - 対象: `backend/internal/clinic/closing_settings_request.go:11`, `:46`。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput` と `UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput` をstruct literalではなく型変換で書くべきという既存`staticcheck S1016` 2件。宣言元は同fileの`:3`/`:37`と`backend/internal/clinic/closing_settings_service.go:63`/`:80`。
 - 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/clinic/... ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0`
 - 発見元: BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、当該unitが持ち込んだ問題ではない。BE10ではdrive-by修正を禁止しているため修正せず、本タスクへ移管した。
+
+### R-5: reservation並行性テストのgocritic hugeParam是正
+
+- 対象: `backend/internal/reservation/reservation_staff_write_guard_concurrency_test.go:156`, `:225`。fixture（136 bytes）の値渡しに対する既存 `gocritic hugeParam` 2件（pointer 渡し推奨）。
+- 発見元: #238（`711bcf561`）実行時の scoped golangci-lint baseline。当該ファイルは #238 の変更外であり drive-by 修正禁止のため移管した。
+- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/reservation/... --max-same-issues 0 --max-issues-per-linter 0`
 
 ### R-2: testdb AutoMigrate errorのwrapcheck是正
 
