@@ -152,6 +152,7 @@ describe("useMedicalRecordForm", () => {
 
   afterEach(() => {
     vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   // ──────────────────────────
@@ -220,6 +221,70 @@ describe("useMedicalRecordForm", () => {
         );
       });
     });
+
+    it.each([
+      {
+        currentTime: "2026-06-01T14:59:00Z",
+        jstDate: "2026-06-01",
+        jstTime: "23:59",
+        appointmentStartTime: "2026-06-01T23:59:00+09:00",
+        appointmentEndTime: "2026-06-02T00:14:00+09:00",
+      },
+      {
+        currentTime: "2026-06-01T15:01:00Z",
+        jstDate: "2026-06-02",
+        jstTime: "00:01",
+        appointmentStartTime: "2026-06-02T00:01:00+09:00",
+        appointmentEndTime: "2026-06-02T00:16:00+09:00",
+      },
+    ])(
+      "visitDate 未指定: $currentTime (JST $jstDate $jstTime) を appointment 検索・予約作成・カルテ作成で共有する",
+      async ({ currentTime, jstDate, appointmentStartTime, appointmentEndTime }) => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date(currentTime));
+        mockSearchParams = new URLSearchParams({ petId: "5" });
+        vi.mocked(useGetPet).mockReturnValue({
+          data: mockPet,
+          isLoading: false,
+          isError: false,
+        });
+
+        const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+        vi.mocked(useCreateMedicalRecord).mockReturnValue({
+          mutateAsync: mockCreateRecord,
+          isPending: false,
+        } as ReturnType<typeof useCreateMedicalRecord>);
+        const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+        vi.mocked(useCreateReservation).mockReturnValue({
+          mutateAsync: mockCreateReservation,
+          isPending: false,
+        } as ReturnType<typeof useCreateReservation>);
+
+        await act(async () => {
+          renderHook(() => useMedicalRecordForm());
+        });
+
+        await waitFor(() => {
+          expect(useGetReservations).toHaveBeenCalledWith({
+            date: jstDate,
+            petId: mockPet.id,
+            enabled: true,
+          });
+          expect(mockCreateReservation).toHaveBeenCalledWith(
+            expect.objectContaining({
+              start_time: appointmentStartTime,
+              end_time: appointmentEndTime,
+            }),
+          );
+          expect(mockCreateRecord).toHaveBeenCalledWith(
+            expect.objectContaining({
+              appointment_id: "appointment-1",
+              visit_date: jstDate,
+            }),
+          );
+        });
+      },
+    );
 
     it("受付から遷移した新規作成では既存 appointment_id をカルテに紐付ける", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
