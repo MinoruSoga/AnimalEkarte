@@ -124,7 +124,7 @@
     <li><span class="badge never">やらない</span><strong>#211 ライブ E2E</strong>（今はやらない）</li>
     <li><span class="badge never">やらない</span><strong>admin_route・prescriptions dose 連携</strong>（#201 スコープ外確定）</li>
     <li><span class="badge never">やらない</span><strong>会計 DTO 化</strong></li>
-    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（q&amp;a.html PO-002。ベンダ・課金はDEC-10待ち）導入後の実測。</li>
+    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（PO-002・原文=q&amp;a.html git履歴。ベンダ=Sentry・無償プランでDEC-10裁定済み 2026-07-26・残=DSN発行 OPS-18）導入後の実測。</li>
   </ul>
 </section>
 
@@ -169,7 +169,7 @@
 
   <h3><span class="badge hold">依存待ち</span>FEAT-VACCINE-SPECIES: AnimalSpecies分類と2フォームのワクチン候補filter（DEC-3）</h3>
   <ul>
-    <li><strong>目的・指標</strong>: 診療時に無関係なワクチン候補を走査する工程と異種選択リスクを減らす。通常表示の対象外候補0件、例外候補の全件表示は追加1操作以内、接種登録自体の必須入力は増やさない。要件責任者の個人名は未記録のため、q&amp;a.html DEC-3または正本GitHub Issueへの記録が再開ゲート。</li>
+    <li><strong>目的・指標</strong>: 診療時に無関係なワクチン候補を走査する工程と異種選択リスクを減らす。通常表示の対象外候補0件、例外候補の全件表示は追加1操作以内、接種登録自体の必須入力は増やさない。要件責任者の個人名は未記録のため、DEC-3（原文=q&amp;a.html git履歴）または正本GitHub Issueへの記録が再開ゲート。</li>
     <li><strong>DEC-3で確定済み</strong>: <code>AnimalSpecies.species_category</code>=<code>dog|cat|other</code>を追加し、選択中ペットとの一致候補＋<code>both</code>を既定表示する。「全て表示」で例外使用を可能にし、保存時のhard blockはしない。既存値はname patternでbackfillし、判定不能は<code>other</code>。</li>
     <li><strong>提案デフォルト（未決定）</strong>: dog pet=dog+both、cat pet=cat+both、other pet=both、pet未選択/category取得失敗=全active、<code>Vaccine.species=null</code>と不一致候補は「全て表示」のみ、既選択値は不一致・inactiveでも編集時に保持、pet変更時はtoggle OFF。backfill aliasはtrim後の完全一致で犬/イヌ/いぬ/dog→dog、猫/ネコ/ねこ/cat→cat、その他→other。新規・編集UIではcategoryを明示選択し、name変更で暗黙再分類しない。これらは要件責任者が正本で承認するまで実装contractとして扱わない。</li>
     <li><strong>DB/API contract</strong>: 着手時の最大番号+1（現状なら<code>002_add_animal_species_category.sql</code>）を新規作成し、適用済み<code>001_init.sql</code>は編集しない。NOT NULL・default <code>other</code>・enum外拒否をDB/APIで保証する。model、request/response、repository/service、OpenAPI、generated TypeScriptを同期する。</li>

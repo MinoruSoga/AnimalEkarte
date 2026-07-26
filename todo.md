@@ -29,7 +29,7 @@
 ### TASK-ADR003: 予約⇔会計の支払方法二重保持解消（ADR-003 案1B TRIGGER）
 
 - PO-006 裁定済み。DEC-9（2026-07-25 q&a.html）で GitHub Issue 起票を待たず本書追跡へ変更。**着手時期 = 納品前（2026-07-26〜27）** — 2026-07-25 の納品日 7/27 延期（理由=残作業の全対応）に伴い「納品後」から前倒し。
-- 内容の正本 = q&a.html PO-006／DEC-9。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。
+- 内容の正本 = ADR-003 と q&a.html git 履歴（PO-006／DEC-9 カード・全量版 `ab68c61f5`。回答済みカードは 2026-07-26 に q&a.html から削除済み）。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。
 - **実装完了（`c434c4e66` でコミット済み）・検証 BLOCKED（DB 適用は未実施 = q&a.html OPS-2）**: `backend/migrations/006_payment_splits_payment_method_clinic_fk.sql` で `payment_methods` に述語なしの `UNIQUE (id, clinic_id)` を追加し、`payment_splits (payment_method_id, clinic_id)` から `payment_methods (id, clinic_id)` への複合 FK を追加した。これにより `payment_splits` の他院支払方法 id 混入は DB 制約で拒否される。既存の単一列 FK は実 DB の制約名を確認できず、推測名での DROP による適用失敗を避けるため維持した。適用前の抵触行確認 SQL は migration コメントに記載した。
 - **PO-006 案1Bとの差分**: 本 unit はトリガーを作らず、複合 FK で宣言的に表現できる clinic 一致だけを実装した。`method` ⇔ `payment_methods.system_key` の値一致は FK では表現できず、トリガーが必要なため未実施。通常の会計作成・更新経路では現行の `backend/internal/billing/accounting_service_builders.go:29-44` の `resolvePaymentMethodMasterID` が、当該 clinic の `system_key` から解決した id と request 由来 id の不一致を拒否している。一方、確定後訂正経路（`backend/internal/billing/accounting_service_correction.go:92-126`）は `method` / `payment_method_id` 自体を変更しないが、保存済みの組合せを再検証せずに split を保存するため、既存の値不一致を検出する防御にはならない。
 - **未防御の `payments` と follow-up**: `payments` は `clinic_id` 列を持たず、tenant は `billing_id` 経由で辿るため、この unit の複合 FK を張れない。DB レベルでは未防御のまま残る。follow-up は (1) `billings` を join して clinic を照合するトリガー、または (2) `payments.clinic_id` を追加・backfill し同期責務を定めたうえで複合 FK を追加する、の 2 案。本 unit ではいずれも実施しない。
@@ -59,7 +59,7 @@
 
 ### TASK-251: 締め集計 category contract 確定実装（#251・8→12分類）
 
-- 業務決裁確定（q&a.html DEC-21・**USER 本人裁定** 2026-07-25）。**着手時期 = 納品前（2026-07-26〜27）** — 2026-07-25 の納品日 7/27 延期（理由=残作業の全対応）に伴い S3 送りから前倒し。contract 正本 = DEC-21・#251 本文（本エントリは実装スコープと着手時期の入口であり決裁の「なぜ」は複製しない）。
+- 業務決裁確定（DEC-21・**USER 本人裁定** 2026-07-25 — #251 本文へ転記済み・原文 = q&a.html git 履歴）。**着手時期 = 納品前（2026-07-26〜27）** — 2026-07-25 の納品日 7/27 延期（理由=残作業の全対応）に伴い S3 送りから前倒し。contract 正本 = #251 本文（DEC-21 転記済み）（本エントリは実装スコープと着手時期の入口であり決裁の「なぜ」は複製しない）。
 - Phase 0 棚卸し（外部エージェント調査・Fable spot-verify）で確定した実装スコープ:
   - ① 正式カテゴリ = 12分類（enum 現状追認）。#251 タイトル「8分類」→「12分類」修正は Issue 本文転記（USER 承認後）に含める。
   - ② hospitalization 退院会計の other 固定を撤廃し CarePlanItem.Type／Procedure.IsSurgery→category resolver（`backend/internal/medicalrecord/hospitalization_service.go:431`）。treatment 経路（`backend/internal/billing/billing_item_service.go:405,462`）と共通化＝category contract 単一ソース化。
@@ -69,7 +69,7 @@
   - 含意(b) 締め集計の未知値 fail-closed = 生カラム無制限 GROUP BY（`backend/internal/billing/accounting_repository_reports_close.go:44`・`cash_register_service.go:265`）を12値 allowlist 経由にし typo/legacy を締め表へ黙って通さない（受け入れ条件「unknown/legacy を黙って変換しない」）。
   - 含意(d) 全書込経路（treatment/hospitalization/vaccination/trimming/merchandise/manual）を同一 typed category source に集約。
 - #247（月次統合表）は本 TASK の contract 完了後に着手。
-- Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）と着手時期の前倒し反映は、いずれも 2026-07-25 に USER 承認のうえ完了済み（live read-back で実測確認）。todo.md / q&a.html DEC-21 / #251 本文の3者は同期済み。以後 contract の参照先は #251 本文と DEC-21 とし、本エントリは着手時期と実装スコープのみを持つ。
+- Issue #251 本文への決裁転記（タイトル「8分類」→「12分類」修正含む）と着手時期の前倒し反映は、いずれも 2026-07-25 に USER 承認のうえ完了済み（live read-back で実測確認）。todo.md / DEC-21 / #251 本文の3者は同期済み。以後 contract の参照先は #251 本文（DEC-21 原文 = q&a.html git 履歴）とし、本エントリは着手時期と実装スコープのみを持つ。
 - **U1 完了（`2154dc9de`・2026-07-25）**: category resolver を `backend/internal/sharedkernel/item_category_resolver.go` へ新設し、BE 導出の3経路（入院退院会計・外来診療明細・トリミング明細）を集約。②の other 固定撤廃と surgery 導出、④の hotel 到達経路を実装済み。`model.ItemCategory` 具体定数を参照する production ファイルは 4 → 3 に減少。resolver は error を返さない全域関数（退院処理の tx 閉包内にあるため、マスタ不整合で臨床業務を止めない）。
 - **U1 で判明した scope の限界**: カテゴリ決定点は4つあり、うち `billing_item_service.go:258`（手入力・物販）は client 送出値をそのまま永続化する。含意(a)「category authority を BE resolver に一本化し FE/client は保持しない」の達成には API 契約変更が要るため U2 送り。
 - **残ユニット**: U2 = 手入力・物販経路（下記のとおり U2a/U2b に再分解）。U3 = ③ ワクチン接種記録からの明細自動生成＋`billing_items` への VaccineID provenance 列 migration（停止手段・失敗通知・監査・idempotency 必須）。U4 = ④ training の新規 source 設計。U5 = 含意(b) 締め集計の allowlist 化。
