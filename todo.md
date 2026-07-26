@@ -60,7 +60,7 @@
 - **① grandchild相関の掃引（read-only調査）**: `daily_records` / `care_logs` / `exam_results` / `billing_items` / `medical_record_images` / `medical_record_addenda` 等、petの孫にあたる表のreadが中間表を経由した親clinic相関を持つかをschema-firstで全数確認する。SEC-SWEEP-01と同じ手順（schema universe → model mapping → consumer discovery → state分類）を適用する。
 - **② static lintの新設**: 同型欠陥（`pet_id`等の単一FKに対し親clinic相関を欠くread）をraw SQLとGORMの双方で検出するlintを既存6 lintの隣へ追加する。BUG-429の1件もSEC-SWEEP-01の9件も人手監査でしか見つかっていない。機械で止めない限り同じクラスが再発する。
 - 修正の参照実装 = `backend/internal/pet/chronic_condition_repository.go:37,52`。相関にpets側の `deleted_at` / `deceased_at` を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。
-- **着手 = 納品後**。SEC-SWEEP-01の9件と異なり現時点でlive exposureは未確認であり、納品前クリティカルではない。
+- ~~着手 = 納品後~~ → USER 指示（7/26「納品日関係なくすべて早急に対応」）で前倒し。①掃引+②lint 新設+上限12ファイルの修復を Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。SEC-SWEEP-01の9件と異なり現時点でlive exposureは未確認。
 - 出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。
 
 ### BUG-430: stage-importの医院非限定DELETE
@@ -83,6 +83,7 @@
 - `Makefile:349` に `codegen-check: codegen` + `git diff --exit-code frontend/src/types/generated/` が存在し、本来これがCIで検出する。検出されなかった理由（CIに未配線／配線済みだが未実行／実行され無視された）は未確認。
 - 実害: FEが存在しない定数を参照しても型検査が通らないだけで安全側だが、逆に**BEが追加した定数をFEが使えない**状態が黙って続く。BUG-433（生成型がドメインモデル由来で応答DTOと不一致）とは別問題であり、そちらは構造の誤り、本件は同期の欠落。
 - 対応: `make codegen-check` のCI配線状況を実測し、未配線なら追加する。配線済みなら失敗が無視された経路を塞ぐ。
+- 7/27 実測: 配線自体は存在する — `ci.yml:348` に `codegen-check` job があるが、`if: needs.changes.outputs.codegen == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')` が **main 向け PR で job をスキップ**し、さらに paths-filter (`ci.yml:42,58`) 依存。素通り経路の断定と封鎖を Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。
 - 出典: FE12-07 実行時に判明したNew Work（2026-07-25・`git diff frontend/src/types/generated/models.ts` 実測）。FE-refactor.md 範囲外のためこちらへ記載。
 
 ### BUG-437: `ExamTypeField` に `ClinicID` を追加したが read 側 clinic-scope registry へ未登録（cross-tenant read IDOR の再発リスク）
@@ -101,7 +102,7 @@
 ### BUG-439: legacy constructor `NewMedicalRecordService` 経由では finalize 不能（コンストラクタ二重化の解消）
 
 - MEDIUM。`cb01009bd`（カルテ finalize・訂正追記の監査 same-tx fail-closed 化）の残余。source 互換の legacy constructor `NewMedicalRecordService` は transactional audit logger を注入しないため、この経路で組んだ service は finalize できない。production composition は `NewMedicalRecordServiceWithTxAudit` 配線済みで**実害なし**（Go reviewer が MEDIUM 判定・8ファイル契約のためコンストラクタ統合は見送り）。
-- 対応: 呼び出し元を全数実測し、legacy constructor をテスト専用へ降格するか `WithTxAudit` へ一本化する。着手 = 納品後。
+- 対応: 呼び出し元を全数実測し、legacy constructor をテスト専用へ降格するか `WithTxAudit` へ一本化する。~~着手 = 納品後~~ → 前倒し。7/27 実測: production 呼び出し元 0 件・テスト 8 ファイルのみ → テスト専用降格を既定として Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。
 - 出典: Item B 実行 Completion Report（2026-07-26・Mode 3 照合済み）。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
