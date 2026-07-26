@@ -194,6 +194,28 @@ func TestPatchPetDeath(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:    "returns 409 on conflict error",
+			paramID: "10",
+			body:    map[string]any{"deceased_at": "2026-04-01"},
+			svc: &mockLstepLifecycleService{
+				handlePetDeathFn: func(_ context.Context, _, _ uint64, _ time.Time, _ string, _ *uint64) error {
+					return apperrors.WrapConflict("死亡記録は既に登録されています")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:    "returns 404 on not-found error",
+			paramID: "99",
+			body:    map[string]any{"deceased_at": "2026-04-01"},
+			svc: &mockLstepLifecycleService{
+				handlePetDeathFn: func(_ context.Context, _, _ uint64, _ time.Time, _ string, _ *uint64) error {
+					return apperrors.WrapNotFound("pet", "99")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
 	}
 
 	for _, tt := range tests {
@@ -256,6 +278,16 @@ func TestDeletePetDeath(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 on conflict error",
+			paramID: "5",
+			svc: &mockLstepLifecycleService{
+				handlePetRevivalFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
 		},
 	}
 

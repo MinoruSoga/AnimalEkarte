@@ -275,6 +275,92 @@ func TestLstepLifecycleService_HandlePetDeath_SetsStatusDeceased(t *testing.T) {
 	assert.Equal(t, model.PetStatusDeceased, capturedFields["status"])
 }
 
+func TestLstepLifecycleService_HandlePetDeath_AlreadyDeceasedConflictNoSideEffects(t *testing.T) {
+	var updateCalls int
+	var animalClassificationSyncCalls int
+	var petBasicInfoSyncCalls int
+	var cpmStageSyncCalls int
+	var secondaryAuditCalls int
+
+	originalDeceasedAt := time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
+	originalDeceasedReason := "自然死"
+	pet := &model.Pet{
+		ID:             1,
+		OwnerID:        10,
+		Status:         model.PetStatusDeceased,
+		DeceasedAt:     &originalDeceasedAt,
+		DeceasedReason: &originalDeceasedReason,
+	}
+
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, clinicID, petID uint64) (*model.Pet, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), petID)
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalls++
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10, Status: model.PetStatusAlive}}, nil
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, _, _ uint64) error {
+			animalClassificationSyncCalls++
+			return nil
+		},
+		syncPetBasicInfoTagsFn: func(_ context.Context, _, _ uint64) error {
+			petBasicInfoSyncCalls++
+			return nil
+		},
+		syncCPMStageTagFn: func(_ context.Context, _, _ uint64) error {
+			cpmStageSyncCalls++
+			return nil
+		},
+	}
+	audit := &mockAuditService{
+		logLstepOperationFn: func(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+			secondaryAuditCalls++
+			return nil
+		},
+	}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+		audit,
+		nil,
+		&mockTransactor{},
+		audit,
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
+
+	assert.ErrorIs(t, err, apperrors.ErrConflict)
+	assert.Equal(t, model.PetStatusDeceased, pet.Status)
+	assert.Equal(t, &originalDeceasedAt, pet.DeceasedAt)
+	assert.Equal(t, &originalDeceasedReason, pet.DeceasedReason)
+	assert.Equal(t, 0, updateCalls)
+	assert.Equal(t, 0, animalClassificationSyncCalls)
+	assert.Equal(t, 0, petBasicInfoSyncCalls)
+	assert.Equal(t, 0, cpmStageSyncCalls)
+	assert.Empty(t, audit.entries)
+	assert.Equal(t, 0, secondaryAuditCalls)
+	t.Logf(
+		"update_calls=%d animal_classification_sync_calls=%d pet_basic_info_sync_calls=%d cpm_stage_sync_calls=%d primary_audit_entries=%d secondary_audit_calls=%d",
+		updateCalls,
+		animalClassificationSyncCalls,
+		petBasicInfoSyncCalls,
+		cpmStageSyncCalls,
+		len(audit.entries),
+		secondaryAuditCalls,
+	)
+}
+
 // ---- テスト: HandlePetRevival ----
 
 func TestLstepLifecycleService_HandlePetRevival(t *testing.T) {
@@ -288,7 +374,7 @@ func TestLstepLifecycleService_HandlePetRevival(t *testing.T) {
 		{
 			name: "正常: 死亡取り消し",
 			petFindFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-				return &model.Pet{ID: 1, OwnerID: 10}, nil
+				return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
 			},
 			petUpdateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
 				assert.Nil(t, fields["deceased_at"])
@@ -334,6 +420,87 @@ func TestLstepLifecycleService_HandlePetRevival(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestLstepLifecycleService_HandlePetRevival_LivingPetConflictNoSideEffects(t *testing.T) {
+	var updateCalls int
+	var animalClassificationSyncCalls int
+	var petBasicInfoSyncCalls int
+	var cpmStageSyncCalls int
+	var secondaryAuditCalls int
+
+	pet := &model.Pet{
+		ID:             1,
+		OwnerID:        10,
+		Status:         model.PetStatusAlive,
+		DeceasedAt:     nil,
+		DeceasedReason: nil,
+	}
+
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, clinicID, petID uint64) (*model.Pet, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), petID)
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalls++
+			return nil
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, _, _ uint64) error {
+			animalClassificationSyncCalls++
+			return nil
+		},
+		syncPetBasicInfoTagsFn: func(_ context.Context, _, _ uint64) error {
+			petBasicInfoSyncCalls++
+			return nil
+		},
+		syncCPMStageTagFn: func(_ context.Context, _, _ uint64) error {
+			cpmStageSyncCalls++
+			return nil
+		},
+	}
+	audit := &mockAuditService{
+		logLstepOperationFn: func(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+			secondaryAuditCalls++
+			return nil
+		},
+	}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+		audit,
+		nil,
+		&mockTransactor{},
+		audit,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+
+	assert.ErrorIs(t, err, apperrors.ErrConflict)
+	assert.Equal(t, model.PetStatusAlive, pet.Status)
+	assert.Nil(t, pet.DeceasedAt)
+	assert.Nil(t, pet.DeceasedReason)
+	assert.Equal(t, 0, updateCalls)
+	assert.Equal(t, 0, animalClassificationSyncCalls)
+	assert.Equal(t, 0, petBasicInfoSyncCalls)
+	assert.Equal(t, 0, cpmStageSyncCalls)
+	assert.Empty(t, audit.entries)
+	assert.Equal(t, 0, secondaryAuditCalls)
+	t.Logf(
+		"update_calls=%d animal_classification_sync_calls=%d pet_basic_info_sync_calls=%d cpm_stage_sync_calls=%d primary_audit_entries=%d secondary_audit_calls=%d",
+		updateCalls,
+		animalClassificationSyncCalls,
+		petBasicInfoSyncCalls,
+		cpmStageSyncCalls,
+		len(audit.entries),
+		secondaryAuditCalls,
+	)
 }
 
 // ---- テスト: HandleOwnerOptOut ----
@@ -852,7 +1019,7 @@ func TestLstepLifecycleService_RemovePetDerivedTagsFromLstep(t *testing.T) {
 func TestLstepLifecycleService_HandlePetDeath_FindLivingByOwnerError(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusAlive}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
@@ -869,7 +1036,7 @@ func TestLstepLifecycleService_HandlePetDeath_FindLivingByOwnerError(t *testing.
 func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_OwnerFindError(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusAlive}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
@@ -895,7 +1062,7 @@ func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_LineLinkedRemovesTags(
 	deleteAllCalled := false
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusAlive}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
@@ -928,7 +1095,7 @@ func TestLstepLifecycleService_HandlePetDeath_SurvivingPets_PetDerivedCleanupBes
 	lineUserID := "Uabc123"
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusAlive}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
@@ -1084,7 +1251,7 @@ func TestLstepLifecycleService_HandlePetDeath_LogsUserActionAudit(t *testing.T) 
 func TestLstepLifecycleService_HandlePetRevival_UpdateError(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 			return errors.New("db error")
@@ -1100,7 +1267,7 @@ func TestLstepLifecycleService_HandlePetRevival_UpdateError(t *testing.T) {
 func TestLstepLifecycleService_HandlePetRevival_SyncErrorsAreBestEffort(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 	}
@@ -1144,7 +1311,7 @@ func TestLstepLifecycleService_HandlePetRevival_SyncErrorsAreBestEffort(t *testi
 func TestLstepLifecycleService_HandlePetRevival_AuditLogFailureRollsBackRevivalRecord(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 	}
@@ -1174,7 +1341,7 @@ func TestLstepLifecycleService_HandlePetRevival_LogsUserActionAudit(t *testing.T
 
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 1, OwnerID: 10}, nil
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 	}
