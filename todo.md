@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26(6)（#234: U-A `a0a3d17f8`・**U-B 完了 `49029973b`**〔danger_reason 列＋high 必須 invariant・原子化 PATCH・staff 露出・owner/LIFF 非露出 test〕。残 = U-C〔FE フォーム〕→ U-D〔バッジ Popover+doc〕。**USER 前提コマンド: `make migrate`（または OPS-2 同乗）→ `make codegen`（U-C の生成型前提）**。R-1/R-2/R-5 は並行セッション `ee8f85bdf` で是正済み。#238 dev 完了 `711bcf561`。USER 方針「納品日関係なくすべて早急に対応」）
+> 更新: 2026-07-27(1)（#234: U-A `a0a3d17f8`・U-B `49029973b`・**U-C 完了 `9b9f57f9f`**〔PetPhysicalSection へ理由欄・high 必須・tri-state 整合・a11y。owner 編集再読込の per-pet 並列取得 = perf watch〕。**残 = U-D〔バッジ3サイト Popover＋doc ⑤〕のみ**。TASK-251 U5 は並行セッション `581d6b87c` で完了〔締め12値 allowlist 化〕。**USER 前提コマンド: `make migrate` → `make codegen`**。⚠運用是正: 並行セッションと index 共有のため commit は必ず `git commit -- <paths>` で path 制限〔8d5f1c4b4 巻き込み→ 9b9f57f9f へ分割修復済み〕）
 
 ## 運用
 
