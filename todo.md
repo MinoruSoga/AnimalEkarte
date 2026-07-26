@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-26(5)（#234 は4分割で進行中: U-A 完了 `a0a3d17f8`〔Owner Report の pet 取得を専用 curated 表現へ分離 — staff DTO 追加が owner-facing へ漏れない土台〕。残 = U-B〔migration+validation+staff DTO 露出・owner 応答 nested pets と LIFF への非露出 test 込み〕→ U-C〔FE フォーム〕→ U-D〔バッジ Popover+doc〕。#238 dev 完了 `711bcf561`・R-5 起票済み。USER 方針「納品日関係なくすべて早急に対応」）
+> 更新: 2026-07-26(6)（#234: U-A `a0a3d17f8`・**U-B 完了 `49029973b`**〔danger_reason 列＋high 必須 invariant・原子化 PATCH・staff 露出・owner/LIFF 非露出 test〕。残 = U-C〔FE フォーム〕→ U-D〔バッジ Popover+doc〕。**USER 前提コマンド: `make migrate`（または OPS-2 同乗）→ `make codegen`（U-C の生成型前提）**。R-1/R-2/R-5 は並行セッション `ee8f85bdf` で是正済み。#238 dev 完了 `711bcf561`。USER 方針「納品日関係なくすべて早急に対応」）
 
 ## 運用
 
@@ -80,6 +80,7 @@
   - **U2a = 物販経路の master 由来導出。完了（U2a-1 + U2a-2）**。`merchandise_items.category`（`item_category NOT NULL`）が正本であるにもかかわらず、`ItemListCard.tsx:104` が master の category を値コピーして送出しており二重管理になっていた問題と、`merchandise_item_id` 未送出による master への link 断絶（BUG-436）を解消済み。
   - **U2b = 純手入力経路（導出元が存在しない）**。provenance が無いため導出は原理的に不可能であり、含意(a) の「FE/client は category を保持しない」はこの経路では達成できない。正しい終端は「12値 validated 受理」であり、BE 側は `validators_billing_item.go:14`（12値検証）で**既に完了している**。残る欠陥は FE の `ItemListCard.tsx:120` が `"other"` 固定で category を送っている点のみ（利用者は選択できず、締め集計で手入力明細が全て other へ落ちる）。カテゴリ選択 UI を足すか "other" 固定を仕様として明文化するかは入力工程を増やす判断であり USER 決裁とした → **DEC-22 論点1で裁定済み（2026-07-26・案A二段階）**: **U2b-min 完了（`b8a29d3e7`・2026-07-26）** = 手入力ダイアログへ12分類の必須 Select（デフォルトなし・other 選択可＝理由不要）。CATEGORY_LABELS の欠落3キーを既存業務用語（RV/ホテル/トレセン）で補完し FE4-1 由来の部分集合設計を解消。**U2b-full（納品後・U3/U4 と同 batch）** = DEC-16③の残り（other 理由必須の永続化＋締め表「未分類・要確認」件数表示）。
 - **含意(b) の優先度を実測で再評価（DEC-22 論点2で降格承認済み 2026-07-26 — U5 は納品後の U3/U4 と同 batch）**: `billing_items.category` は PostgreSQL enum `item_category`（`001_init.sql:108`・12値）の `NOT NULL` 列であり、typo/legacy 文字列は at rest で存在し得ない。(b) は現時点の typo 防御としては no-op。意味を持つのは「将来 enum に値を追加した際に締め表の表示リストが追随せず黙って落とす」ドリフト防御であり、納品前クリティカルではない。DEC-21 は USER 本人裁定のため降格可否を USER 判断としたが、ユーザー委任「PO判断待ちはあなたが判断」に基づき DEC-22 論点2で降格承認（PO は q&a.html 上書きで覆せる）。
+- **U5 BLOCKED（2026-07-26）**: fail-closed を必須経路 `cash_register_service.go:GetPreview` へ配線すると、既存 green test `cash_register_service_test.go` が category に enum 外の表示名 `"診察"` / `"検査"` を注入しているため新規 FAIL になる。一方、本 unit の書込み allowlist は既存 billing test の編集を禁止し、新規 `*_test.go` だけを許可している。12値外を例外受理するのは U5 contract 違反のため採らない。再開には allowlist へ `backend/internal/billing/cash_register_service_test.go` を追加し、fixture を `model.ItemCategory` の正式値へ直す必要がある。
 - 出典: #251 Phase 0 棚卸し Completion Report（2026-07-25・DEC-21）。U1 実行結果 Completion Report（2026-07-25・Mode 3 独立検証済み）。
 
 ### SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設
@@ -131,23 +132,5 @@
 - MEDIUM。`cb01009bd`（カルテ finalize・訂正追記の監査 same-tx fail-closed 化）の残余。source 互換の legacy constructor `NewMedicalRecordService` は transactional audit logger を注入しないため、この経路で組んだ service は finalize できない。production composition は `NewMedicalRecordServiceWithTxAudit` 配線済みで**実害なし**（Go reviewer が MEDIUM 判定・8ファイル契約のためコンストラクタ統合は見送り）。
 - 対応: 呼び出し元を全数実測し、legacy constructor をテスト専用へ降格するか `WithTxAudit` へ一本化する。着手 = 納品後。
 - 出典: Item B 実行 Completion Report（2026-07-26・Mode 3 照合済み）。
-
-### R-1: clinic request/input間の型変換に対するstaticcheck S1016是正
-
-- 対象: `backend/internal/clinic/closing_settings_request.go:11`, `:46`。`UpdateClinicSettingsRequest`→`UpdateClinicSettingsInput` と `UpdateSpecialPeriodRequest`→`UpdateSpecialPeriodInput` をstruct literalではなく型変換で書くべきという既存`staticcheck S1016` 2件。宣言元は同fileの`:3`/`:37`と`backend/internal/clinic/closing_settings_service.go:63`/`:80`。
-- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/clinic/... ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0`
-- 発見元: BE10-1のscoped lint。同fileはBE10-1の変更8 pathに含まれず、当該unitが持ち込んだ問題ではない。BE10ではdrive-by修正を禁止しているため修正せず、本タスクへ移管した。
-
-### R-5: reservation並行性テストのgocritic hugeParam是正
-
-- 対象: `backend/internal/reservation/reservation_staff_write_guard_concurrency_test.go:156`, `:225`。fixture（136 bytes）の値渡しに対する既存 `gocritic hugeParam` 2件（pointer 渡し推奨）。
-- 発見元: #238（`711bcf561`）実行時の scoped golangci-lint baseline。当該ファイルは #238 の変更外であり drive-by 修正禁止のため移管した。
-- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/reservation/... --max-same-issues 0 --max-issues-per-linter 0`
-
-### R-2: testdb AutoMigrate errorのwrapcheck是正
-
-- 対象: `backend/internal/testdb/testdb.go:100`。`gorm.DB.AutoMigrate`のerrorを未wrapで返している既存`wrapcheck` 1件。
-- 再現: `docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-be10-residual --entrypoint golangci-lint backend run ./internal/clinic/... ./internal/testdb/... --max-same-issues 0 --max-issues-per-linter 0`
-- 発見元: BE10-2 B0のlint baseline。B0の変更前後で同一であり、BE10ではdrive-by修正を禁止しているため修正せず、本タスクへ移管した。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
