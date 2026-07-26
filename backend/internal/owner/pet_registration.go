@@ -25,6 +25,7 @@ type PetRegistrationDraft struct {
 	NeuteredDate    *time.Time
 	AcquisitionType *model.AcquisitionType
 	DangerLevel     model.DangerLevel
+	DangerReason    *string
 	Food            string
 	Environment     string
 	Phone           string

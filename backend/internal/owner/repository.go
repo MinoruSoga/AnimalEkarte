@@ -267,6 +267,7 @@ func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
 			NeuteredDate:    pet.NeuteredDate,
 			AcquisitionType: pet.AcquisitionType,
 			DangerLevel:     pet.DangerLevel,
+			DangerReason:    pet.DangerReason,
 			Food:            pet.Food,
 			Environment:     pet.Environment,
 			Phone:           pet.Phone,

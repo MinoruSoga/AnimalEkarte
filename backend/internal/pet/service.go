@@ -47,6 +47,7 @@ type CreatePetInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType string
 	DangerLevel     string
+	DangerReason    *string
 	Food            string
 	Environment     string
 	Phone           string
@@ -76,12 +77,22 @@ type UpdatePetInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType *string
 	DangerLevel     *string
-	Food            *string
-	Environment     *string
-	Phone           *string
-	LastVisit       *time.Time
-	InsuranceID     **uint64
-	Remarks         *string
+	// DangerReason は nil=未指定 / &nil=NULLクリア / &&value=更新対象。
+	DangerReason **string
+	Food         *string
+	Environment  *string
+	Phone        *string
+	LastVisit    *time.Time
+	InsuranceID  **uint64
+	Remarks      *string
+}
+
+// PetUpdate is the typed atomic update command owned by the pet package.
+// The repository merges its danger fields over the locked row before writing.
+type PetUpdate struct {
+	fields       map[string]any
+	dangerLevel  *model.DangerLevel
+	dangerReason **string
 }
 
 // buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
@@ -131,6 +142,9 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	}
 	if input.DangerLevel != nil {
 		fields["danger_level"] = *input.DangerLevel
+	}
+	if input.DangerReason != nil {
+		fields["danger_reason"] = *input.DangerReason
 	}
 	if input.Food != nil {
 		fields["food"] = *input.Food
@@ -253,6 +267,14 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	if err := validateCreatePetInput(input); err != nil {
 		return nil, err
 	}
+	normalizedReason, err := normalizeDangerReason(
+		model.DangerLevel(input.DangerLevel),
+		input.DangerReason,
+	)
+	if err != nil {
+		return nil, err
+	}
+	input.DangerReason = normalizedReason
 
 	// owner_id の clinic 所属確認
 	if _, err := s.ownerRepo.FindByID(ctx, clinicID, input.OwnerID); err != nil {
@@ -313,7 +335,17 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	var dangerLevel *model.DangerLevel
+	if input.DangerLevel != nil {
+		level := model.DangerLevel(*input.DangerLevel)
+		dangerLevel = &level
+	}
+	pet, err := s.repo.UpdateAndFind(ctx, clinicID, id, PetUpdate{
+		fields:       fields,
+		dangerLevel:  dangerLevel,
+		dangerReason: input.DangerReason,
+	})
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to update pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
@@ -322,11 +354,6 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	pet, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated pet")
-	}
 	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
 	return pet, nil
 }

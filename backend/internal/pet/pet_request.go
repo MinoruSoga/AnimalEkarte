@@ -1,11 +1,38 @@
 package pet
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
+
+type nullableStringRequestField struct {
+	set   bool
+	value *string
+}
+
+func (f *nullableStringRequestField) UnmarshalJSON(data []byte) error {
+	f.set = true
+	if string(data) == "null" {
+		f.value = nil
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return apperrors.WrapInvalidInput("文字列の形式が正しくありません")
+	}
+	f.value = &value
+	return nil
+}
+
+func (f nullableStringRequestField) toServiceInput() **string {
+	if !f.set {
+		return nil
+	}
+	return &f.value
+}
 
 type listPetFilters = PetListFilters
 
@@ -88,6 +115,7 @@ type createPetRequest struct {
 	NeuteredDate    *jsonDate `json:"neutered_date"`
 	AcquisitionType string    `json:"acquisition_type"`
 	DangerLevel     string    `json:"danger_level"`
+	DangerReason    *string   `json:"danger_reason"`
 	Food            string    `json:"food"`
 	Environment     string    `json:"environment"`
 	Phone           string    `json:"phone"`
@@ -112,6 +140,7 @@ func (r *createPetRequest) toServiceInput() *CreatePetInput {
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
 		AcquisitionType: r.AcquisitionType,
 		DangerLevel:     r.DangerLevel,
+		DangerReason:    r.DangerReason,
 		Food:            r.Food,
 		Environment:     r.Environment,
 		Phone:           r.Phone,
@@ -132,21 +161,22 @@ type updatePetRequest struct {
 	// Status は意図的に持たない(BUG-415)。status の書込は Create と /:id/death
 	// (HandlePetDeath/HandlePetRevival、監査ログ+deceased_at 同一tx・fail-closed) に
 	// 一本化済み。ここに "status" を JSON で送っても未知フィールドとして無視される。
-	BirthDate       *jsonDate `json:"birth_date"`
-	Breed           *string   `json:"breed"`
-	Color           *string   `json:"color"`
-	BloodType       *string   `json:"blood_type"       binding:"omitempty,max=32"`
-	MicrochipNumber *string   `json:"microchip_number" binding:"omitempty,max=64"`
-	Weight          *float64  `json:"weight"`
-	NeuteredDate    *jsonDate `json:"neutered_date"`
-	AcquisitionType *string   `json:"acquisition_type"`
-	DangerLevel     *string   `json:"danger_level"`
-	Food            *string   `json:"food"`
-	Environment     *string   `json:"environment"`
-	Phone           *string   `json:"phone"`
-	LastVisit       *jsonDate `json:"last_visit"`
-	InsuranceID     **uint64  `json:"insurance_id"`
-	Remarks         *string   `json:"remarks"`
+	BirthDate       *jsonDate                  `json:"birth_date"`
+	Breed           *string                    `json:"breed"`
+	Color           *string                    `json:"color"`
+	BloodType       *string                    `json:"blood_type"       binding:"omitempty,max=32"`
+	MicrochipNumber *string                    `json:"microchip_number" binding:"omitempty,max=64"`
+	Weight          *float64                   `json:"weight"`
+	NeuteredDate    *jsonDate                  `json:"neutered_date"`
+	AcquisitionType *string                    `json:"acquisition_type"`
+	DangerLevel     *string                    `json:"danger_level"`
+	DangerReason    nullableStringRequestField `json:"danger_reason"`
+	Food            *string                    `json:"food"`
+	Environment     *string                    `json:"environment"`
+	Phone           *string                    `json:"phone"`
+	LastVisit       *jsonDate                  `json:"last_visit"`
+	InsuranceID     **uint64                   `json:"insurance_id"`
+	Remarks         *string                    `json:"remarks"`
 }
 
 func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
@@ -166,6 +196,7 @@ func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
 		AcquisitionType: r.AcquisitionType,
 		DangerLevel:     r.DangerLevel,
+		DangerReason:    r.DangerReason.toServiceInput(),
 		Food:            r.Food,
 		Environment:     r.Environment,
 		Phone:           r.Phone,

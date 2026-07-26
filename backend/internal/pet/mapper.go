@@ -15,6 +15,7 @@ func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *mo
 		Color:           input.Color,
 		Weight:          input.Weight,
 		NeuteredDate:    input.NeuteredDate,
+		DangerReason:    input.DangerReason,
 		Food:            input.Food,
 		Environment:     input.Environment,
 		Phone:           input.Phone,

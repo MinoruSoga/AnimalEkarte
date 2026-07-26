@@ -126,6 +126,12 @@ components:
               enum: [low, medium, high]
               readOnly: true
               description: 受付での臨床安全表示に使用する危険度
+            danger_reason:
+              type: string
+              maxLength: 500
+              nullable: true
+              readOnly: true
+              description: 院内スタッフ向け危険理由。danger_level が high の場合は必須。
     StaffSummary:
       type: object
       description: スタッフサマリー（Preload時のみ含まれる）
@@ -370,6 +376,123 @@ components:
         limit:
           type: integer
           example: 20
+    CreateOwnerPetRequest:
+      type: object
+      required: [name, animal_species_id]
+      properties:
+        name:
+          type: string
+        animal_species_id:
+          type: integer
+          format: int64
+        name_kana:
+          type: string
+        breed:
+          type: string
+        color:
+          type: string
+        blood_type:
+          type: string
+          maxLength: 32
+          nullable: true
+        microchip_number:
+          type: string
+          maxLength: 64
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: danger_level が high の場合は trim 後1文字以上必須
+        food:
+          type: string
+        environment:
+          type: string
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
+    CreateOwnerRequest:
+      type: object
+      required: [owner_name]
+      properties:
+        clinic_id:
+          type: integer
+          format: int64
+          nullable: true
+        owner_name:
+          type: string
+        owner_name_kana:
+          type: string
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        company:
+          type: string
+        postal_code:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        home_postal_code:
+          type: string
+        home_address1:
+          type: string
+        home_address2:
+          type: string
+        phone:
+          type: string
+        company_phone:
+          type: string
+        email:
+          type: string
+          format: email
+        remarks:
+          type: string
+        is_dangerous:
+          type: boolean
+        discount_rate:
+          type: number
+          format: double
+        membership_type:
+          type: string
+          enum: [non_member, member, deceased, transferred]
+        dm_preference:
+          type: boolean
+          nullable: true
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateOwnerPetRequest'
     Owner:
       type: object
       required: [owner_name]
@@ -841,6 +964,12 @@ components:
             - low
             - medium
             - high
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 院内スタッフ向け危険理由
         food:
           type: string
         environment:
@@ -967,6 +1096,12 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 院内スタッフ向け危険理由
         food:
           type: string
         environment:
@@ -1172,6 +1307,11 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: danger_level が high の場合は trim 後1文字以上必須
         food:
           type: string
         environment:
@@ -1230,6 +1370,11 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 更新後の danger_level が high の場合は trim 後1文字以上必須
         food:
           type: string
         environment:
@@ -9027,7 +9172,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Owner'
+              $ref: '#/components/schemas/CreateOwnerRequest'
       responses:
         '201':
           description: 登録成功

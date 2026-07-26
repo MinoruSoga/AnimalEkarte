@@ -61,6 +61,7 @@ type CreatePetForOwnerInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType string
 	DangerLevel     string
+	DangerReason    *string
 	Food            string
 	Environment     string
 	InsuranceID     *uint64

@@ -67,6 +67,7 @@ type petResponse struct {
 	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
 	AcquisitionType *string    `json:"acquisition_type,omitempty"`
 	DangerLevel     string     `json:"danger_level"`
+	DangerReason    *string    `json:"danger_reason,omitempty"`
 	Food            string     `json:"food"`
 	Environment     string     `json:"environment"`
 	Phone           string     `json:"phone"`
@@ -120,6 +121,7 @@ type petListResponse struct {
 	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
 	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
 	DangerLevel     string                  `json:"danger_level"`
+	DangerReason    *string                 `json:"danger_reason,omitempty"`
 	Food            string                  `json:"food"`
 	Environment     string                  `json:"environment"`
 	LastVisit       *time.Time              `json:"last_visit,omitempty"`
@@ -158,6 +160,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
+		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
 		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
@@ -232,6 +235,7 @@ func toPetResponse(p *model.Pet) petResponse {
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
+		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
 		Phone:           p.Phone,

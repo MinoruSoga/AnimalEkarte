@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -41,6 +42,7 @@ type Repository interface {
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateAndFind(ctx context.Context, clinicID, id uint64, update PetUpdate) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
@@ -305,7 +307,34 @@ func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
 // status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
 // ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	for key := range fields {
+		if isDangerFieldKey(key) || isStructuralPetFieldKey(key) {
+			return apperrors.WrapInvalidInput("protected pet fields require the typed pet update capability")
+		}
+	}
 	db := persistence.DBOrTx(ctx, r.db)
+	return updatePetFieldsWithDB(db, clinicID, id, fields)
+}
+
+func isDangerFieldKey(key string) bool {
+	switch key {
+	case "danger_level", "DangerLevel", "danger_reason", "DangerReason":
+		return true
+	default:
+		return false
+	}
+}
+
+func isStructuralPetFieldKey(key string) bool {
+	switch key {
+	case "clinic_id", "ClinicID", "owner_id", "OwnerID", "insurance_id", "InsuranceID":
+		return true
+	default:
+		return false
+	}
+}
+
+func updatePetFieldsWithDB(db *gorm.DB, clinicID, id uint64, fields map[string]any) error {
 	result := db.
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
@@ -327,6 +356,76 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 		// レコードは存在するが値が変わらなかった → success
 	}
 	return nil
+}
+
+func (r *repository) UpdateAndFind(
+	ctx context.Context,
+	clinicID, id uint64,
+	update PetUpdate,
+) (*model.Pet, error) {
+	var loaded *model.Pet
+	err := withPetUpdateTransaction(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		var locked model.Pet
+		if err := tx.WithContext(txCtx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+			First(&locked).Error; err != nil {
+			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+		}
+
+		effectiveLevel := locked.DangerLevel
+		if update.dangerLevel != nil {
+			effectiveLevel = *update.dangerLevel
+		}
+		effectiveReason := locked.DangerReason
+		if update.dangerReason != nil {
+			effectiveReason = *update.dangerReason
+		}
+		normalizedReason, err := normalizeDangerReason(effectiveLevel, effectiveReason)
+		if err != nil {
+			return err
+		}
+
+		fields := make(map[string]any, len(update.fields))
+		for key, value := range update.fields {
+			if isDangerFieldKey(key) {
+				continue
+			}
+			fields[key] = value
+		}
+		if update.dangerLevel != nil {
+			fields["danger_level"] = effectiveLevel
+		}
+		if update.dangerReason != nil {
+			fields["danger_reason"] = normalizedReason
+		}
+
+		if err := updatePetFieldsWithDB(tx.WithContext(txCtx), clinicID, id, fields); err != nil {
+			return err
+		}
+		loaded, err = loadPetGraph(txCtx, tx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload pet after update")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(
+			apperrors.Wrap(err, "transaction failed"),
+			"failed to update and reload pet",
+		)
+	}
+	return loaded, nil
+}
+
+func withPetUpdateTransaction(
+	ctx context.Context,
+	db *gorm.DB,
+	fn func(context.Context, *gorm.DB) error,
+) error {
+	return persistence.DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
+		return fn(persistence.WithTxValue(ctx, tx), tx)
+	})
 }
 
 func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
