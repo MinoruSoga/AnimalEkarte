@@ -18,7 +18,6 @@
 | GitHub Issueのstate・一覧 | GitHub Issues |
 | BE9構造移行・進捗・release gate | BE9は2026-07-24にcode complete（release pending）。境界は[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md) / [boundary map](docs/architecture/be9-2a-boundary-map.md)、release gateは[`q&a.html` OPS-13〜17](q&a.html#ops) |
 | FEデザイン準拠・リファクタリング計画 | [`FE-refactor.md`](FE-refactor.md) |
-| BE10 backend規約適合（フォルダ構成）リファクタ計画 | [`BE-refactor.md`](BE-refactor.md) |
 | 今フェーズで着手しない事項 | [`phase2.html`](phase2.html) |
 | 着手保留・任意検証のBE技術債 | [`BE-pending.md`](BE-pending.md) |
 | PO判断・USER実操作・P0ブロッカー | [`q&a.html`](q&a.html) |
