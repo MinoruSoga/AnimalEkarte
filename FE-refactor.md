@@ -118,6 +118,7 @@ backend/internal/model/checkup_record.go
 
 - Full-read field evidence: model=`backend/internal/model/checkup_record.go:9-28`（`Result`は自由記述）、`backend/internal/model/checkup_field.go:11-21,36-51,58-84`（`ValueText`/`ValueList`/`IsAbnormal`/`Status`のみ）。request/response DTO=`backend/internal/medicalrecord/checkup_request.go:10-17,45-53,85-91`、`backend/internal/medicalrecord/checkup_response.go:11-26,59-75`、`backend/internal/medicalrecord/checkup_field_request.go:5-19`、`backend/internal/medicalrecord/checkup_field_response.go:11-22,44-58,83-88`、`backend/internal/medicalrecord/checkup_type_response.go:10-23`。service/repository carrier=`backend/internal/medicalrecord/checkup_service.go:16-46`、`backend/internal/medicalrecord/checkup_repository.go:20-43`、`backend/internal/medicalrecord/checkup_field_result_service.go:16-22,39-50,270-272`、`backend/internal/medicalrecord/checkup_field_repository.go:25-39`。frontend DTO=`frontend/src/features/checkups/api/types.ts:1-25`。
 - Full-read conclusion: dedicatedな「要フォロー」field、boolean、enum、または同義のDTO contractは存在しない。自由記述`result`と動的fieldの`is_abnormal`/`status`は存在するが、どれを「要フォロー」へ写すかという契約はないため代用しない。
+- 隣接する既存概念（F9結論は変えないが裁定に影響する）: `backend/internal/lstep/lstep_delivery_trigger_methods.go:168-179` の `TriggerCheckupFollowUp` が `model.TriggerTypeCheckupFollowUp` で飼主へLステップ配信を発火し、`backend/internal/medicalrecord/checkup_service.go:240-254` により健診作成時に**無条件で**（臨床判断によらず）呼ばれる。これは配信triggerであってrecord fieldでも臨床statusでもないため、上記のfield不在結論は変わらない。ただし裁定には次の2点が効く。(1)「follow-up」語はこの配信概念に既に占有されており、sentinelを追加するなら命名衝突を避ける必要がある。(2) 再来促進という業務目的の一部は既にこの無条件配信で満たされている可能性がある。`docs/product-philosophy.md` の①要件を疑う・②削除に従い、sentinel追加の可否より先に「この配信では満たせない業務は具体的に何か」を確定する。
 - Decision request: 要件責任者=曽我が要フォローsentinelの要否と意味を裁定する。必要と裁定された場合だけ、別unitでbackend field/API/type/UIを設計する。本unitはfieldを追加しない。
 
 ### 要実測項目
@@ -164,7 +165,7 @@ backend/internal/model/checkup_record.go
 
 #### M-05 Clinical sentinel responsive
 
-- Route: 本表25 routeのうちclinical sentinelを表示する`/medical-records`系、`/hospitalization`系、`/examinations`系、`/vaccinations`系、`/checkups`系、`/`、`/owners`。
+- Route: Commit `657c1a49cd2c37dc63f5af8e530258a36a12d81e` に記録した25 routeのうち、clinical sentinelを表示する`/medical-records`系、`/hospitalization`系、`/examinations`系、`/vaccinations`系、`/checkups`系、`/`、`/owners`。
 - Fixture seed source: `003_demo`の`pets.csv`、`medical_records.csv`、`hospitalizations.csv`、`exams.csv`/`exam_results.csv`、`vaccinations.csv`、`checkups.csv`を基に、S01/S02/S03/S05のfixtureを合成してdeath、danger=`高`、HIGH、LOW、past、today、future、emptyを各1件以上用意する。
 - Persona: 対象resourceの`view=true`を持つ通常担当者。mutation確認が必要なrowだけ該当action権限ありpersonaを併用する。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
