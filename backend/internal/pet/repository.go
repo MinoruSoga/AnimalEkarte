@@ -46,6 +46,20 @@ type Repository interface {
 	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
 }
 
+// OwnerReportPetRepository is the narrow persistence capability used by the Owner Report route.
+type OwnerReportPetRepository interface {
+	// FindOwnerReportPets は認可済み医院内の対象飼主について、Owner Report 用のペット一覧を返す。
+	// 飼主とペットの clinic_id を相関させ、破損した cross-clinic owner FK を除外する。
+	FindOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error)
+}
+
+// ServiceRepository is the complete persistence capability required when
+// constructing the pet application service.
+type ServiceRepository interface {
+	Repository
+	OwnerReportPetRepository
+}
+
 // LifecycleWriter is the typed pet lifecycle capability consumed by LSTEP.
 // It deliberately exposes only the two permitted status transitions.
 type LifecycleWriter interface {
@@ -57,7 +71,7 @@ type LifecycleWriter interface {
 // The legacy repository facade intentionally narrows this to Repository until central
 // composition cuts over to the typed lifecycle capability.
 type CompleteRepository interface {
-	Repository
+	ServiceRepository
 	LifecycleWriter
 }
 
@@ -139,6 +153,33 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil
+}
+
+func (r *repository) FindOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", ownerID))
+	}
+
+	var owner model.Owner
+	if err := r.db.WithContext(ctx).
+		Select("id", "clinic_id").
+		Where("id = ? AND clinic_id IN ? AND deleted_at IS NULL", ownerID, clinicIDs).
+		First(&owner).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
+	}
+
+	pets := make([]model.Pet, 0)
+	if err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Joins("INNER JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.deleted_at IS NULL").
+		Where("pets.owner_id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", ownerID, owner.ClinicID).
+		Preload("AnimalSpecies").
+		Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", owner.ClinicID).
+		Order("pets.created_at ASC, pets.id ASC").
+		Find(&pets).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	return pets, nil
 }
 
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {

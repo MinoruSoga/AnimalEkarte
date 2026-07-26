@@ -13,6 +13,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) registerPetRoutes(rg *gin.RouterGroup) {
+	rg.GET("/owners/:id/report/pets", h.requirePermission(string(model.ResourceOwners), "view"), h.ListOwnerReportPets)
+
 	pets := rg.Group("/pets")
 	pets.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListPets)
 	pets.GET("/:id", h.requirePermission(string(model.ResourceOwners), "view"), h.GetPet)

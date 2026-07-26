@@ -40,6 +40,7 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		http.MethodDelete + " /api/v1/pets/:id/chronic-conditions/:cc_id",
 		http.MethodGet + " /api/v1/masters/animal-species",
 		http.MethodGet + " /api/v1/masters/animal-species/:id",
+		http.MethodGet + " /api/v1/owners/:id/report/pets",
 		http.MethodGet + " /api/v1/pets",
 		http.MethodGet + " /api/v1/pets/:id",
 		http.MethodGet + " /api/v1/pets/:id/chronic-conditions",
@@ -58,6 +59,7 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 	assert.Equal(t, []permissionCall{
 		{resource: "owners", action: "view"},
 		{resource: "owners", action: "view"},
+		{resource: "owners", action: "view"},
 		{resource: "owners", action: "create"},
 		{resource: "owners", action: "edit"},
 		{resource: "owners", action: "delete"},
@@ -74,5 +76,5 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		{resource: "master-animal-species", action: "delete"},
 	}, permissions)
 
-	require.Len(t, gotRoutes, 16)
+	require.Len(t, gotRoutes, 17)
 }

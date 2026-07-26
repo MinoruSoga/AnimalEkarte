@@ -3,12 +3,87 @@ package pet
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type ownerReportAnimalSpeciesResponse struct {
+	Name string `json:"name"`
+}
+
+type ownerReportInsuranceResponse struct {
+	Name         string `json:"name"`
+	CoverageRate int    `json:"coverage_rate"`
+}
+
+type ownerReportPetResponse struct {
+	ID              uint64                            `json:"id"`
+	Name            string                            `json:"name"`
+	PetNameKana     string                            `json:"pet_name_kana"`
+	Gender          string                            `json:"gender"`
+	Status          string                            `json:"status"`
+	BirthDate       *time.Time                        `json:"birth_date"`
+	Breed           string                            `json:"breed"`
+	Color           string                            `json:"color"`
+	BloodType       *string                           `json:"blood_type"`
+	MicrochipNumber *string                           `json:"microchip_number"`
+	Weight          *float64                          `json:"weight"`
+	NeuteredDate    *time.Time                        `json:"neutered_date"`
+	AcquisitionType *string                           `json:"acquisition_type"`
+	Food            string                            `json:"food"`
+	Environment     string                            `json:"environment"`
+	LastVisit       *time.Time                        `json:"last_visit"`
+	Remarks         string                            `json:"remarks"`
+	AnimalSpecies   *ownerReportAnimalSpeciesResponse `json:"animal_species"`
+	Insurance       *ownerReportInsuranceResponse     `json:"insurance"`
+}
+
+type ownerReportPetsResponse struct {
+	Data []ownerReportPetResponse `json:"data"`
+}
+
+func toOwnerReportPetResponse(p *model.Pet) ownerReportPetResponse {
+	var acquisitionType *string
+	if p.AcquisitionType != nil {
+		value := string(*p.AcquisitionType)
+		acquisitionType = &value
+	}
+
+	response := ownerReportPetResponse{
+		ID:              p.ID,
+		Name:            p.Name,
+		PetNameKana:     p.NameKana,
+		Gender:          string(p.Gender),
+		Status:          string(p.Status),
+		BirthDate:       httpapi.LocalTimePtr(p.BirthDate),
+		Breed:           p.Breed,
+		Color:           p.Color,
+		BloodType:       p.BloodType,
+		MicrochipNumber: p.MicrochipNumber,
+		Weight:          p.Weight,
+		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
+		AcquisitionType: acquisitionType,
+		Food:            p.Food,
+		Environment:     p.Environment,
+		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
+		Remarks:         p.Remarks,
+	}
+	if p.AnimalSpecies != nil {
+		response.AnimalSpecies = &ownerReportAnimalSpeciesResponse{Name: p.AnimalSpecies.Name}
+	}
+	if p.Insurance != nil {
+		response.Insurance = &ownerReportInsuranceResponse{
+			Name:         p.Insurance.Name,
+			CoverageRate: p.Insurance.CoverageRate,
+		}
+	}
+	return response
+}
 
 // ListPets godoc
 // #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
@@ -36,6 +111,26 @@ func (h *Handler) ListPets(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(pets, toPetListResponse), total, page, limit))
+}
+
+// ListOwnerReportPets godoc
+func (h *Handler) ListOwnerReportPets(c *gin.Context) {
+	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	if !ok {
+		return
+	}
+	ownerID, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	pets, err := h.pets.ListOwnerReportPets(c.Request.Context(), clinicIDs, ownerID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, ownerReportPetsResponse{
+		Data: httpapi.MapSlice(pets, toOwnerReportPetResponse),
+	})
 }
 
 // GetPet godoc

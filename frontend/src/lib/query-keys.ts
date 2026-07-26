@@ -282,6 +282,8 @@ export const queryKeys = {
   },
 
   // ── owner-report ──────────────────────────────────────────────────
+  ownerReportPets: (ownerId: string) =>
+    ["owner-report-pets", ownerId] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,

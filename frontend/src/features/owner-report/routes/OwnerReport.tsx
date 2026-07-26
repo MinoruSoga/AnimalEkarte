@@ -5,7 +5,6 @@ import { RequirePermission } from "@/components/shared/RequirePermission";
 import { paths } from "@/config/paths";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetOwner } from "@/hooks/use-owner";
-import { useGetPets } from "@/hooks/use-pet";
 import { useTitle } from "@/hooks/use-title";
 import { C } from "@/lib/design-tokens";
 import type { Owner, Pet } from "@/types";
@@ -14,6 +13,10 @@ import {
   ResourceOwners,
 } from "@/types/generated/models";
 
+import {
+  useGetOwnerReportPets,
+  type OwnerReportPet,
+} from "../api/get-owner-report-pets";
 import { useGetPetFirstVisit } from "../api/get-pet-first-visit";
 import { OwnerClinicalBriefing } from "../components/OwnerClinicalBriefing";
 import { OwnerReportPanel } from "../components/OwnerReportPanel";
@@ -153,11 +156,48 @@ function ReportBody(props: ReportBodyProps) {
   );
 }
 
+function toPet(pet: OwnerReportPet, ownerId: string): Pet {
+  return {
+    id: pet.id,
+    clinicId: undefined,
+    ownerId,
+    ownerNumber: undefined,
+    ownerName: "",
+    ownerNameKana: undefined,
+    address: undefined,
+    phone: "",
+    petNumber: "",
+    name: pet.name,
+    petNameKana: pet.petNameKana,
+    species: pet.species,
+    animalSpeciesId: undefined,
+    breed: pet.breed,
+    color: pet.color,
+    bloodType: pet.bloodType,
+    microchipNumber: pet.microchipNumber,
+    gender: pet.gender,
+    status: pet.status === "生存" || pet.status === "死亡" ? pet.status : undefined,
+    birthDate: pet.birthDate,
+    neuteredDate: pet.neuteredDate,
+    weight: pet.weight,
+    food: pet.food,
+    environment: pet.environment,
+    acquisitionType: pet.acquisitionType,
+    dangerLevel: undefined,
+    lastVisit: pet.lastVisit,
+    insuranceId: undefined,
+    insuranceName: pet.insuranceName,
+    insuranceDetails: pet.insuranceDetails,
+    remarks: pet.remarks,
+    deceasedAt: undefined,
+  };
+}
+
 function OwnerReportContent() {
   const { id: ownerId = "" } = useParams();
   const ownerQuery = useGetOwner(ownerId);
-  const petsQuery = useGetPets(ownerId, { includeDeceased: true });
-  const pets = petsQuery.data ?? [];
+  const petsQuery = useGetOwnerReportPets(ownerId);
+  const pets = (petsQuery.data ?? []).map((pet) => toPet(pet, ownerId));
   const selection = useOwnerPetSelection(pets);
   const firstVisitQuery = useGetPetFirstVisit(selection.selectedPetId);
 

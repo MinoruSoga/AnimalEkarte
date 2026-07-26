@@ -159,6 +159,8 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 type Service interface {
 	// List は指定した複数医院 (#86 拠点横断) のペット一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
 	List(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error)
+	// ListOwnerReportPets は認可済み医院内の対象飼主について、Owner Report 用のペット一覧を返す。
+	ListOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	// GetByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
@@ -173,7 +175,7 @@ type Service interface {
 // --- Implementation ---
 
 type petService struct {
-	repo              Repository
+	repo              ServiceRepository
 	ownerRepo         OwnerFinder
 	insuranceRepo     InsuranceFinder
 	medicalRecordRepo MedicalRecordReader
@@ -182,7 +184,7 @@ type petService struct {
 
 // NewService constructs the pet use-case service.
 func NewService(
-	repo Repository,
+	repo ServiceRepository,
 	ownerRepo OwnerFinder,
 	insuranceRepo InsuranceFinder,
 	medicalRecordRepo MedicalRecordReader,
@@ -204,6 +206,15 @@ func (s *petService) List(ctx context.Context, clinicIDs []uint64, filters PetLi
 		return nil, 0, apperrors.Wrap(err, "failed to list pets")
 	}
 	return pets, total, nil
+}
+
+func (s *petService) ListOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {
+	pets, err := s.repo.FindOwnerReportPets(ctx, clinicIDs, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list owner report pets", "error", err)
+		return nil, apperrors.Wrap(err, "failed to list owner report pets")
+	}
+	return pets, nil
 }
 
 func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
