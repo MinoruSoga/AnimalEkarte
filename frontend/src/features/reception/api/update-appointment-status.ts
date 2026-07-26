@@ -24,10 +24,10 @@ export function useUpdateAppointmentStatus() {
   return useMutation({
     mutationFn: ({ id, status }: UpdateStatusPayload) =>
       updateAppointmentStatus(id, status),
-    onSuccess: () => {
-      // reception クエリキーを持つ全クエリを無効化して再取得
-      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
-    },
     onError: (error) => handleApiError(error, "受付ステータスの更新"),
+    // 成否を問わず reception の server state へ exactly once 再同期する。
+    // Promise を返し、再同期完了まで mutation の settled 処理を維持する。
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() }),
   });
 }

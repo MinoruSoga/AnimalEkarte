@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { startTransition } from "react";
+import { renderHook, act, waitFor, render, screen } from "@testing-library/react";
+import { createElement, startTransition } from "react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
@@ -8,6 +8,7 @@ import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
+import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -570,7 +571,7 @@ describe("useMedicalRecordForm", () => {
       expect(mockCreateRecord).not.toHaveBeenCalled();
     });
 
-    it("auto-create が失敗した場合、hasAutoCreatedRef をリセットして再試行可能にする（lines 292-293）", async () => {
+    it("appointment 作成失敗後は自動再試行せず、明示的な再試行で appointment phase から再開する", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
       vi.mocked(useGetPet).mockReturnValue({
         data: mockPet,
@@ -578,19 +579,120 @@ describe("useMedicalRecordForm", () => {
         isError: false,
       });
 
-      const mockMutateAsync = vi.fn().mockRejectedValue(new Error("Create failed"));
+      const mockCreateAppointment = vi.fn()
+        .mockRejectedValueOnce(new Error("Appointment create failed"))
+        .mockResolvedValueOnce({ id: "appointment-2" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateAppointment,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
       vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockMutateAsync,
+        mutateAsync: mockCreateRecord,
         isPending: false,
       } as ReturnType<typeof useCreateMedicalRecord>);
 
+      const { result, rerender } = renderHook(() => useMedicalRecordForm());
+
+      await waitFor(() => {
+        expect(result.current.autoCreateFailurePhase).toBe("appointment");
+      });
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).not.toHaveBeenCalled();
+
+      mockLocationState = { visitDate: "2026-06-02" };
+      rerender();
       await act(async () => {
-        renderHook(() => useMedicalRecordForm());
+        await Promise.resolve();
+      });
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).not.toHaveBeenCalled();
+
+      render(createElement(MedicalRecordAutoCreateFailure, {
+        failurePhase: "appointment",
+        isRetrying: false,
+        onRetry: () => result.current.retryAutoCreate(),
+      }));
+      const retryButton = screen.getByRole("button", {
+        name: "カルテ作成を再試行する",
+      });
+      expect(retryButton).toBeEnabled();
+
+      act(() => {
+        retryButton.click();
+        result.current.retryAutoCreate();
+      });
+      await waitFor(() => {
+        expect(mockCreateAppointment).toHaveBeenCalledTimes(2);
+        expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+        expect(mockCreateRecord).toHaveBeenLastCalledWith(
+          expect.objectContaining({ appointment_id: "appointment-2" }),
+        );
+        expect(result.current.autoCreateFailurePhase).toBeNull();
+      });
+    });
+
+    it("カルテ作成失敗後の明示的な再試行は作成済み appointment_id を再利用する", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
       });
 
-      // createMutation.mutateAsync が呼ばれ、エラー後も hook がクラッシュしない
+      const mockCreateAppointment = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateAppointment,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+      const mockCreateRecord = vi.fn()
+        .mockRejectedValueOnce(new Error("Medical record create failed"))
+        .mockResolvedValueOnce({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+
+      const { result, rerender } = renderHook(() => useMedicalRecordForm());
+
       await waitFor(() => {
-        expect(mockMutateAsync).toHaveBeenCalled();
+        expect(result.current.autoCreateFailurePhase).toBe("medical-record");
+      });
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({ appointment_id: "appointment-1" }),
+      );
+
+      mockLocationState = { visitDate: "2026-06-02" };
+      rerender();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+
+      render(createElement(MedicalRecordAutoCreateFailure, {
+        failurePhase: "medical-record",
+        isRetrying: false,
+        onRetry: () => result.current.retryAutoCreate(),
+      }));
+      const retryButton = screen.getByRole("button", {
+        name: "カルテ作成を再試行する",
+      });
+      expect(retryButton).toBeEnabled();
+
+      act(() => {
+        retryButton.click();
+        result.current.retryAutoCreate();
+      });
+      await waitFor(() => {
+        expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+        expect(mockCreateRecord).toHaveBeenCalledTimes(2);
+        expect(mockCreateRecord).toHaveBeenLastCalledWith(
+          expect.objectContaining({ appointment_id: "appointment-1" }),
+        );
+        expect(result.current.autoCreateFailurePhase).toBeNull();
       });
     });
   });

@@ -1,7 +1,9 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type MutableRefObject,
   type TransitionStartFunction,
 } from "react";
@@ -65,6 +67,12 @@ interface UseMedicalRecordAutoCreateParams {
   navigate: NavigateFunction;
 }
 
+export type MedicalRecordAutoCreateFailurePhase = "appointment" | "medical-record";
+
+type MedicalRecordAutoCreateFailure =
+  | { phase: "appointment"; appointmentId: null }
+  | { phase: "medical-record"; appointmentId: string };
+
 export function useMedicalRecordAutoCreate({
   isNewRecord,
   canCreate,
@@ -84,6 +92,8 @@ export function useMedicalRecordAutoCreate({
 }: UseMedicalRecordAutoCreateParams) {
   const canCreateRef = useRef(canCreate);
   const selectedPetStatusRef = useRef(selectedPet?.status);
+  const isCreateInFlightRef = useRef(false);
+  const [failure, setFailure] = useState<MedicalRecordAutoCreateFailure | null>(null);
 
   useLayoutEffect(() => {
     canCreateRef.current = canCreate;
@@ -92,19 +102,25 @@ export function useMedicalRecordAutoCreate({
     selectedPetStatusRef.current = selectedPet?.status;
   }, [selectedPet?.status]);
 
-  useEffect(() => {
-    if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
-    if (selectedPet.status === "死亡" || canCreate !== true) return;
-    if (!appointmentIdFromState && !generalReservationType) return;
-    if (!appointmentIdFromState && isReusableAppointmentLoading) return;
-    hasAutoCreatedRef.current = true;
+  const createAppointmentAndRecord = useCallback((retainedAppointmentId?: string) => {
+    if (
+      isCreateInFlightRef.current
+      || !isNewRecord
+      || !selectedPet
+      || canCreateRef.current !== true
+      || selectedPetStatusRef.current === "死亡"
+    ) return;
 
+    const availableAppointmentId = retainedAppointmentId
+      ?? appointmentIdFromState
+      ?? reusableAppointment?.id;
+    if (!availableAppointmentId && !generalReservationType) return;
+    if (!availableAppointmentId && isReusableAppointmentLoading) return;
+
+    isCreateInFlightRef.current = true;
     startCreateTransition(async () => {
+      let appointmentId = availableAppointmentId;
       try {
-        let appointmentId = appointmentIdFromState;
-        if (!appointmentId && reusableAppointment) {
-          appointmentId = reusableAppointment.id;
-        }
         if (!appointmentId) {
           if (
             canCreateRef.current !== true
@@ -142,12 +158,61 @@ export function useMedicalRecordAutoCreate({
           status: "draft",
           recommendation_reason: createRecommendationReason ?? "",
         });
+        setFailure(null);
         navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
       } catch (error) {
+        setFailure(
+          appointmentId
+            ? { phase: "medical-record", appointmentId }
+            : { phase: "appointment", appointmentId: null },
+        );
         handleApiError(error, "カルテ作成");
-        hasAutoCreatedRef.current = false;
+      } finally {
+        isCreateInFlightRef.current = false;
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: rerun only when auto-create eligibility/selection/reservation inputs change; mutation and navigation references are stable
-  }, [isNewRecord, canCreate, selectedPet?.id, selectedPet?.status, appointmentIdFromState, reusableAppointment?.id, isReusableAppointmentLoading, visitDateFromState, generalReservationType?.id]);
+  }, [
+    appointmentIdFromState,
+    createMutation,
+    createRecommendationReason,
+    createReservationMutation,
+    generalReservationType,
+    isNewRecord,
+    isReusableAppointmentLoading,
+    navigate,
+    reusableAppointment?.id,
+    selectedPet,
+    startCreateTransition,
+    visitDateFromState,
+    visitType,
+  ]);
+
+  useEffect(() => {
+    if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
+    if (selectedPet.status === "死亡" || canCreate !== true) return;
+    if (!appointmentIdFromState && !generalReservationType) return;
+    if (!appointmentIdFromState && isReusableAppointmentLoading) return;
+
+    hasAutoCreatedRef.current = true;
+    createAppointmentAndRecord();
+  }, [
+    appointmentIdFromState,
+    canCreate,
+    createAppointmentAndRecord,
+    generalReservationType,
+    hasAutoCreatedRef,
+    isNewRecord,
+    isReusableAppointmentLoading,
+    selectedPet,
+  ]);
+
+  const retry = useCallback(() => {
+    if (failure === null) return;
+    createAppointmentAndRecord(failure.appointmentId ?? undefined);
+  }, [createAppointmentAndRecord, failure]);
+
+  return {
+    failurePhase: failure?.phase ?? null,
+    retry,
+  };
 }

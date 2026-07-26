@@ -109,6 +109,16 @@ function setApiColumns(appointments: ReceptionAppointment[]) {
   apiColumnsHolder = Object.values(byColumn);
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 interface PermissionProps {
   canEditReservation?: boolean;
   canDeleteReservation?: boolean;
@@ -215,19 +225,34 @@ describe("useReceptionKanban", () => {
       expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "a1", status: "checked_in" });
     });
 
-    it("API 失敗時は columns を API 値へ rollback し handleApiError を呼ぶ", async () => {
-      mutateAsyncMock.mockRejectedValueOnce(new Error("boom"));
-      setApiColumns([makeAppointment({ id: "a1", status: "pending" })]);
+    it("drag 失敗時は対象カードだけを操作前へ戻し、別カードの成功した移動を維持する", async () => {
+      const failedMutation = createDeferred<void>();
+      mutateAsyncMock
+        .mockImplementationOnce(() => failedMutation.promise)
+        .mockResolvedValueOnce(undefined);
+      setApiColumns([
+        makeAppointment({ id: "a1", status: "pending" }),
+        makeAppointment({ id: "b1", status: "pending" }),
+      ]);
       const { result } = await renderKanban();
 
       await act(async () => {
         result.current.moveCard(0, "受付予約", "受付済", "a1");
+        result.current.moveCard(0, "受付予約", "受付済", "b1");
       });
 
-      // 楽観移動 → API 失敗 → apiColumnData（a1 は受付予約）へ巻き戻る
+      expect(columnOf(result.current.columns, "a1")).toBe("受付済");
+      expect(columnOf(result.current.columns, "b1")).toBe("受付済");
+
+      await act(async () => {
+        failedMutation.reject(new Error("boom"));
+        await failedMutation.promise.catch(() => undefined);
+      });
+
       await waitFor(() => {
         expect(columnOf(result.current.columns, "a1")).toBe("受付予約");
       });
+      expect(columnOf(result.current.columns, "b1")).toBe("受付済");
       expect(handleApiErrorMock).toHaveBeenCalled();
     });
 
@@ -319,6 +344,86 @@ describe("useReceptionKanban", () => {
       expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "a3", status: "completed" });
     });
 
+    it("advance 失敗時は対象カードだけを操作前へ戻し、別カードの成功した遷移を維持する", async () => {
+      const failedMutation = createDeferred<void>();
+      mutateAsyncMock
+        .mockImplementationOnce(() => failedMutation.promise)
+        .mockResolvedValueOnce(undefined);
+      const first = makeAppointment({ id: "a1", status: "checked_in" });
+      const second = makeAppointment({ id: "b1", status: "checked_in" });
+      setApiColumns([first, second]);
+      const { result } = await renderKanban();
+
+      await act(async () => {
+        result.current.advanceStatus(first);
+        result.current.advanceStatus(second);
+      });
+
+      expect(columnOf(result.current.columns, "a1")).toBe("診療中");
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
+
+      await act(async () => {
+        failedMutation.reject(new Error("boom"));
+        await failedMutation.promise.catch(() => undefined);
+      });
+
+      await waitFor(() => {
+        expect(columnOf(result.current.columns, "a1")).toBe("受付済");
+      });
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
+    });
+
+    it("advance の成功 toast は API 成功後にだけ表示する", async () => {
+      const pendingMutation = createDeferred<void>();
+      mutateAsyncMock.mockImplementationOnce(() => pendingMutation.promise);
+      const appointment = makeAppointment({ id: "a2", status: "checked_in" });
+      setApiColumns([appointment]);
+      const { result } = await renderKanban();
+
+      act(() => {
+        result.current.advanceStatus(appointment);
+      });
+
+      expect(columnOf(result.current.columns, "a2")).toBe("診療中");
+      expect(toastSuccessMock).not.toHaveBeenCalled();
+
+      await act(async () => {
+        pendingMutation.resolve(undefined);
+        await pendingMutation.promise;
+      });
+
+      await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledTimes(1));
+    });
+
+    it("terminal 除外失敗時は対象カードだけを復元し、別カードの成功した遷移を維持する", async () => {
+      const failedMutation = createDeferred<void>();
+      mutateAsyncMock
+        .mockImplementationOnce(() => failedMutation.promise)
+        .mockResolvedValueOnce(undefined);
+      const terminal = makeAppointment({ id: "a3", status: "completed" });
+      const other = makeAppointment({ id: "b1", status: "checked_in" });
+      setApiColumns([terminal, other]);
+      const { result } = await renderKanban();
+
+      await act(async () => {
+        result.current.advanceStatus(terminal);
+        result.current.advanceStatus(other);
+      });
+
+      expect(columnOf(result.current.columns, "a3")).toBeUndefined();
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
+
+      await act(async () => {
+        failedMutation.reject(new Error("boom"));
+        await failedMutation.promise.catch(() => undefined);
+      });
+
+      await waitFor(() => {
+        expect(columnOf(result.current.columns, "a3")).toBe("会計済");
+      });
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
+    });
+
     it("死亡 appointment の status 変更は拒否する", async () => {
       const deceasedAppointment = makeAppointment({
         id: "deceased",
@@ -363,6 +468,35 @@ describe("useReceptionKanban", () => {
 
       expect(columnOf(result.current.columns, "a2")).toBeUndefined();
       expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "a2", status: "cancelled" });
+    });
+
+    it("cancel 失敗時は対象カードだけを復元し、別カードの成功した遷移を維持する", async () => {
+      const failedMutation = createDeferred<void>();
+      mutateAsyncMock
+        .mockImplementationOnce(() => failedMutation.promise)
+        .mockResolvedValueOnce(undefined);
+      const cancelled = makeAppointment({ id: "a1", status: "checked_in" });
+      const other = makeAppointment({ id: "b1", status: "checked_in" });
+      setApiColumns([cancelled, other]);
+      const { result } = await renderKanban();
+
+      await act(async () => {
+        void result.current.cancelAppointment(cancelled.id);
+        result.current.advanceStatus(other);
+      });
+
+      expect(columnOf(result.current.columns, "a1")).toBeUndefined();
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
+
+      await act(async () => {
+        failedMutation.reject(new Error("boom"));
+        await failedMutation.promise.catch(() => undefined);
+      });
+
+      await waitFor(() => {
+        expect(columnOf(result.current.columns, "a1")).toBe("受付済");
+      });
+      expect(columnOf(result.current.columns, "b1")).toBe("診療中");
     });
 
     it("死亡 appointment の cancel は拒否する", async () => {

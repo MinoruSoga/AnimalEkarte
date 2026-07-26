@@ -7,12 +7,13 @@ import { PetStatusDeceased } from "@/types/generated/models";
 import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
 
-const { updateReservationMock } = vi.hoisted(() => ({
+const { toastSuccessMock, updateReservationMock } = vi.hoisted(() => ({
+  toastSuccessMock: vi.fn(),
   updateReservationMock: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn() },
+  toast: { success: toastSuccessMock },
 }));
 
 vi.mock("@/hooks/use-update-reservation", () => ({
@@ -68,8 +69,17 @@ function renderHandlers(
   return { ...view, advanceStatus, cancelAppointment };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("useReceptionModalHandlers", () => {
   beforeEach(() => {
+    toastSuccessMock.mockReset();
     updateReservationMock.mockReset();
     updateReservationMock.mockImplementation((_payload, options?: { onSuccess?: () => void }) => {
       options?.onSuccess?.();
@@ -303,5 +313,56 @@ describe("useReceptionModalHandlers", () => {
     });
 
     expect(cancelAppointment).not.toHaveBeenCalled();
+  });
+
+  it("cancel API pending 中は成功 toast を表示しない", async () => {
+    const pendingCancel = createDeferred<boolean>();
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockReturnValueOnce(pendingCancel.promise);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    act(() => {
+      void result.current.executeCancel();
+    });
+
+    expect(cancelAppointment).toHaveBeenCalledWith(baseAppointment.id);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pendingCancel.resolve(true);
+      await pendingCancel.promise;
+    });
+  });
+
+  it("cancel API 失敗時は成功 toast を表示せず確認画面を維持する", async () => {
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockResolvedValueOnce(false);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    await act(async () => {
+      await result.current.executeCancel();
+    });
+
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(result.current.cancelConfirmOpen).toBe(true);
+  });
+
+  it("cancel API 成功後にだけ成功 toast を表示して確認画面を閉じる", async () => {
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockResolvedValueOnce(true);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    await act(async () => {
+      await result.current.executeCancel();
+    });
+
+    expect(toastSuccessMock).toHaveBeenCalledWith("予約を取り消しました");
+    expect(result.current.cancelConfirmOpen).toBe(false);
   });
 });

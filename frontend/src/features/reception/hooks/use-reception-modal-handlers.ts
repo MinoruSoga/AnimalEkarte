@@ -17,7 +17,7 @@ import type { ReceptionAppointment } from "../api/types";
 
 interface UseReceptionModalHandlersParams {
   advanceStatus: (appointment: ReceptionAppointment) => unknown;
-  cancelAppointment: (appointmentId: string) => unknown;
+  cancelAppointment: (appointmentId: string) => Promise<boolean>;
   updateAppointment: (appointment: ReceptionAppointment) => unknown;
   canEditReservation?: boolean;
   canDeleteReservation?: boolean;
@@ -180,11 +180,12 @@ export function useReceptionModalHandlers({
     setCancelConfirmOpen(true);
   }, []);
 
-  const executeCancel = useCallback(() => {
+  const executeCancel = useCallback(async (): Promise<void> => {
     if (permissionsRef.current.canDeleteReservation !== true) return;
     if (!cancelTargetId) return;
     if (cancelTargetRef.current?.petStatus === PetStatusDeceased) return;
-    cancelAppointment(cancelTargetId);
+    const succeeded = await cancelAppointment(cancelTargetId);
+    if (!succeeded) return;
     toast.success("予約を取り消しました");
     setModalOpen(false);
     setCancelConfirmOpen(false);

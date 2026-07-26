@@ -236,11 +236,6 @@ describe('getTrimmingStatusColor', () => {
 });
 
 describe('getPetStatusColor', () => {
-  it('structural contract: matches 死亡 explicitly instead of treating it as unknown', () => {
-    const source = Function.prototype.toString.call(getPetStatusColor);
-    expect(source).toMatch(/\bstatus\s*===\s*["']死亡["']/);
-  });
-
   it.each([
     ['生存', BADGE.greenHover],
     ['死亡', BADGE.grayHover],

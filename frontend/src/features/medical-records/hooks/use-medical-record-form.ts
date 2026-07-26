@@ -235,7 +235,10 @@ export function useMedicalRecordForm(recordId?: string) {
   });
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
-  useMedicalRecordAutoCreate({
+  const {
+    failurePhase: autoCreateFailurePhase,
+    retry: retryAutoCreate,
+  } = useMedicalRecordAutoCreate({
     isNewRecord,
     canCreate,
     selectedPet,
@@ -273,6 +276,8 @@ export function useMedicalRecordForm(recordId?: string) {
     isSaving: isSaving || isSavingTransition,
     isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
