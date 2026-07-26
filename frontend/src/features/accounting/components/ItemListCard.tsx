@@ -88,6 +88,7 @@ export const ItemListCard = memo(function ItemListCard({
   const [manualName, setManualName] = useState("");
   const [manualPrice, setManualPrice] = useState("");
   const [manualCategory, setManualCategory] = useState("");
+  const [manualOtherReason, setManualOtherReason] = useState("");
   const [manualPriceError, setManualPriceError] = useState("");
 
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
@@ -117,9 +118,19 @@ export const ItemListCard = memo(function ItemListCard({
     [onAddItem],
   );
 
+  const handleManualCategoryChange = useCallback((value: string) => {
+    setManualCategory(value);
+    if (value !== "other") {
+      setManualOtherReason("");
+    }
+  }, []);
+
   const handleAddManualItem = useCallback(() => {
     const name = manualName.trim();
-    if (!name || !manualPrice || !manualCategory) return;
+    const otherReason = manualOtherReason.trim();
+    if (!name || !manualPrice || !manualCategory || (manualCategory === "other" && !otherReason)) {
+      return;
+    }
 
     const priceError = getManualPriceError(manualPrice);
     if (priceError !== null) {
@@ -128,12 +139,18 @@ export const ItemListCard = memo(function ItemListCard({
     }
 
     setManualPriceError("");
-    onAddItem({ name, price: manualPrice, category: manualCategory });
+    onAddItem({
+      name,
+      price: manualPrice,
+      category: manualCategory,
+      ...(manualCategory === "other" ? { otherReason } : {}),
+    });
     setManualName("");
     setManualPrice("");
     setManualCategory("");
+    setManualOtherReason("");
     onNewItemOpenChange(false);
-  }, [manualName, manualPrice, manualCategory, onAddItem, onNewItemOpenChange]);
+  }, [manualName, manualPrice, manualCategory, manualOtherReason, onAddItem, onNewItemOpenChange]);
 
   const itemRows = useMemo(
     () =>
@@ -273,7 +290,7 @@ export const ItemListCard = memo(function ItemListCard({
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="manual-category" className="text-sm">カテゴリ <span className={C.textRequired}>*</span></Label>
-                    <Select value={manualCategory} onValueChange={setManualCategory}>
+                    <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
                       <SelectTrigger id="manual-category" aria-label="カテゴリ">
                         <SelectValue placeholder="カテゴリを選択" />
                       </SelectTrigger>
@@ -282,6 +299,19 @@ export const ItemListCard = memo(function ItemListCard({
                       </SelectContent>
                     </Select>
                   </div>
+                  {manualCategory === "other" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="manual-other-reason" className="text-sm">その他理由 <span className={C.textRequired}>*</span></Label>
+                      <Input
+                        id="manual-other-reason"
+                        value={manualOtherReason}
+                        onChange={(e) => setManualOtherReason(e.target.value)}
+                        maxLength={500}
+                        placeholder="例: 締め時に分類を確認"
+                        className="h-9"
+                      />
+                    </div>
+                  ) : null}
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="manual-price" className="text-sm">単価（円）<span className={C.textRequired}>*</span></Label>
                     <Input
@@ -299,7 +329,12 @@ export const ItemListCard = memo(function ItemListCard({
                   <Button
                     type="button"
                     className="w-full"
-                    disabled={!manualName.trim() || !manualPrice || !manualCategory}
+                    disabled={
+                      !manualName.trim() ||
+                      !manualPrice ||
+                      !manualCategory ||
+                      (manualCategory === "other" && !manualOtherReason.trim())
+                    }
                     onClick={handleAddManualItem}
                   >
                     追加する

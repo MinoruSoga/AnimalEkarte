@@ -225,10 +225,20 @@ components:
         source:
           type: string
           enum: [medical_record, hospitalization, manual, trimming]
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: manual かつ category=other の明細理由。新規作成時はtrim後1〜500文字が必須。
         treatment_id:
           type: integer
           format: int64
           nullable: true
+        vaccination_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 予防接種イベント由来の明細に紐づく接種記録ID
         appointment_id:
           type: integer
           format: int64
@@ -12136,7 +12146,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [billing_id, name]
+              required: [billing_id, category, name]
               properties:
                 billing_id:
                   type: integer
@@ -12169,7 +12179,18 @@ paths:
                 source:
                   type: string
                   enum: [medical_record, manual, hospitalization, trimming]
+                  default: manual
+                other_reason:
+                  type: string
+                  nullable: true
+                  minLength: 1
+                  maxLength: 500
+                  description: manual かつ category=other の場合のみ必須。other以外・非manual・物販マスタ由来では保存しない。
                 treatment_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                vaccination_id:
                   type: integer
                   format: int64
                   nullable: true

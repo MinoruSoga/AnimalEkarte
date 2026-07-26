@@ -36,7 +36,9 @@ func (h *BillingItemHandler) CreateBillingItem(c *gin.Context) {
 		return
 	}
 
-	item, err := h.svc.CreateItem(c.Request.Context(), req.toServiceInput(clinicID))
+	input := req.toServiceInput(clinicID)
+	input.CreatedBy = httpapi.OptionalStaffID(c)
+	item, err := h.svc.CreateItem(c.Request.Context(), input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

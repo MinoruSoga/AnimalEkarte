@@ -4,7 +4,9 @@ package billing
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -21,6 +23,7 @@ const (
 	colBillingItemTaxType               = "tax_type"
 	colBillingItemTaxRate               = "tax_rate"
 	colBillingItemIsInsuranceApplicable = "is_insurance_applicable"
+	otherReasonMaxRunes                 = 500
 )
 
 // --- Input DTOs ---
@@ -39,7 +42,10 @@ type CreateBillingItemInput struct {
 	TaxRate               float64
 	IsInsuranceApplicable bool
 	Source                string // "" = デフォルト "manual"
+	OtherReason           *string
+	CreatedBy             *uint64
 	TreatmentID           *uint64
+	VaccinationID         *uint64
 	AppointmentID         *uint64
 	TrimmingCourseID      *uint64
 	TrimmingOptionID      *uint64
@@ -136,6 +142,32 @@ func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, f
 	return taxType, taxRate, source, nil
 }
 
+func applyBillingItemOtherMetadata(input *CreateBillingItemInput, item *model.BillingItem) error {
+	item.OtherReason = nil
+	item.CreatedBy = nil
+	if item.Source != model.ItemSourceManual ||
+		item.Category != model.ItemCategoryOther ||
+		input.MerchandiseItemID != nil {
+		return nil
+	}
+	if input.OtherReason == nil {
+		return apperrors.WrapInvalidInput("その他カテゴリの手入力明細は理由を入力してください")
+	}
+	trimmed := strings.TrimSpace(*input.OtherReason)
+	if trimmed == "" {
+		return apperrors.WrapInvalidInput("その他カテゴリの手入力明細は理由を入力してください")
+	}
+	if utf8.RuneCountInString(trimmed) > otherReasonMaxRunes {
+		return apperrors.WrapInvalidInput("その他理由は500文字以内で入力してください")
+	}
+	if input.CreatedBy == nil || *input.CreatedBy == 0 {
+		return apperrors.WrapInvalidInput("その他カテゴリの手入力明細は操作者が必要です")
+	}
+	item.OtherReason = &trimmed
+	item.CreatedBy = input.CreatedBy
+	return nil
+}
+
 // ---- BillingItemService ----
 
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
@@ -221,7 +253,13 @@ func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clini
 // resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
 // campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
 // 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
-func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *CreateBillingItemInput, category model.ItemCategory) int64 {
+func (s *billingItemService) resolveAutoDiscount(
+	ctx context.Context,
+	input *CreateBillingItemInput,
+	category model.ItemCategory,
+	unitPrice int64,
+	quantity float64,
+) int64 {
 	if s.campaignRepo == nil {
 		return 0
 	}
@@ -237,7 +275,7 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 		slog.WarnContext(ctx, "campaign lookup failed; skipping auto discount", "error", cerr, "clinic_id", input.ClinicID, "billing_id", input.BillingID)
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}
-	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
+	itemSubtotal := int64(float64(unitPrice) * quantity)
 	return CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
 }
 
@@ -267,6 +305,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		Source:                source,
 		MerchandiseItemID:     input.MerchandiseItemID,
 		TreatmentID:           input.TreatmentID,
+		VaccinationID:         input.VaccinationID,
 		AppointmentID:         input.AppointmentID,
 		TrimmingCourseID:      input.TrimmingCourseID,
 		TrimmingOptionID:      input.TrimmingOptionID,
@@ -291,11 +330,49 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		if input.MerchandiseItemID != nil {
 			item.Category = category
 		}
+		if input.VaccinationID != nil {
+			if input.MerchandiseItemID != nil ||
+				input.TreatmentID != nil ||
+				input.AppointmentID != nil ||
+				input.TrimmingCourseID != nil ||
+				input.TrimmingOptionID != nil {
+				return invalidBillingItemReferenceCombination()
+			}
+			_, err := s.repo.ValidateVaccinationCreateReference(
+				txCtx,
+				input.ClinicID,
+				input.BillingID,
+				*input.VaccinationID,
+			)
+			if err != nil {
+				return err
+			}
+			item.Category = model.ItemCategoryVaccine
+			item.Source = model.ItemSourceMedicalRecord
+			item.VaccinationID = input.VaccinationID
+			clinicID := input.ClinicID
+			item.ClinicID = &clinicID
+		}
+
+		if err := applyBillingItemOtherMetadata(input, item); err != nil {
+			return err
+		}
+		if item.CreatedBy != nil {
+			if err := s.repo.LockActiveStaffAssignment(txCtx, input.ClinicID, *item.CreatedBy); err != nil {
+				return err
+			}
+		}
 
 		// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
 		// request-derived merchandise_item_id is validated before it participates in discount lookup.
-		if item.DiscountAmount == 0 {
-			item.DiscountAmount = s.resolveAutoDiscount(txCtx, input, item.Category)
+		if item.DiscountAmount == 0 && input.VaccinationID == nil {
+			item.DiscountAmount = s.resolveAutoDiscount(
+				txCtx,
+				input,
+				item.Category,
+				item.UnitPrice,
+				item.Quantity,
+			)
 		}
 
 		if err := s.repo.Create(txCtx, item); err != nil {
@@ -425,6 +502,12 @@ func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, pet
 		}
 		items = append(items, trimmingItems...)
 	}
+	vaccinationItems, err := s.repo.FindUnbilledVaccinationItemsByPetID(ctx, clinicID, petID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find unbilled vaccination items", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find unbilled vaccination items")
+	}
+	items = append(items, vaccinationItems...)
 	return items, nil
 }
 
