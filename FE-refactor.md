@@ -33,7 +33,7 @@
 ## Authority drift
 
 - `q&a.html` はPO判断待ち0件と記載する一方、F16/F9の明示裁定を含まない。件数要約から完了を推測せず、F16・F9・U10を保持する。
-- `docs/spec/ui-design-compliance.md` にはC18件数ratchetの旧記述が残るが、現行auditはratchetを持たない。本runでは正本側を編集せず、別scopeの文書driftとして扱う。
+- `docs/spec/ui-design-compliance.md` にはC18件数ratchetの旧記述が残るが、現行auditはratchetを持たない。本ledgerは正本側を編集せず、別scopeの文書driftとして扱う。是正は`docs/spec/ui-design-compliance.md`を所有する別unitが行う。
 
 ## C6a 臨床安全レビュー
 
@@ -192,7 +192,7 @@ backend/internal/model/checkup_record.go
 
 ### 未裁定の残余risk
 
-下記はcurrent sourceで未解消を確認したfollow-up候補であり、本整理unitは着手・起票・優先度裁定をしない。
+下記は2026-07-26時点のcurrent sourceで未解消を確認したfollow-up候補である。本ledgerは着手・起票・優先度裁定をしない。
 
 - alive petへ予約編集した直後、Receptionのdanger sentinelがquery invalidation/refetchまで一時的に旧値を保つ可能性がある。
 - backend死亡登録APIは既死亡recordの再登録をConflict拒否しない。
@@ -202,5 +202,5 @@ backend/internal/model/checkup_record.go
 - tygoに出力へ効かない既存pointer mapping 15行が残る。
 - line-reserve `CompletePage`は4文字超のmalformed時刻で旧表示との差があり、専用regression testがない。
 - `ConfirmPage`の既存testはpending中の二重送信、LIFF送信順、409時のalert非表示を直接assertしない。
-- `manual` chunkの500 kB警告該当は現run未再計測。`manual-index`のMarkdown eager raw bundle構造は継続しているため、次回許可buildで再計測する。
+- `manual` chunkの500 kB警告該当は2026-07-26時点で未再計測。`manual-index`のMarkdown eager raw bundle構造は継続しているため、次回許可buildで再計測する。
 - `AuthProvider`のfeature barrel経由eager importによりauth routeのlazy splitは実効化されていない。feature deep importで迂回せず、公開境界のarchitecture decisionを先に行う。
