@@ -70,7 +70,7 @@
 | 2 | (C1-3) 単価に -1 → 追加、0 → 追加。数量に 0 → 追加 | 単価 -1 は拒否・0 は受理（単価 0 以上）。数量 0 は拒否（正の値のみ） |
 | 3 | (C3-1) 設定の物販・フードマスタ（`/settings/merchandise-items`）に「V02物販」を有効状態で追加 → マスタ選択タブを開き直す | 「V02物販」が選択肢に現れる（merchandise_items 実データ由来・有効のみ表示） |
 | 4 | (C2) 既存会計（id あり）で明細を追加 → 再読込 | 即時 API で永続化されており、再読込後も明細が残る。新規会計（`/accounting/new`）ではローカル保持され、確定時に一括作成される |
-| 5 | カテゴリ・税率の全選択肢でそれぞれ 1 件追加 | すべて保存できる（FE 定数選択肢と BE validateTaxType/validateItemCategory の突合 — 保存できない選択肢があれば BUG 起票） |
+| 5 | マスタ選択タブで food/goods/other の各カテゴリに属する有効マスタを 1 件ずつ追加し、手動入力も 1 件追加 | マスタ品は `merchandise_item_id` が保存され、表示カテゴリはマスタ由来になる。手動入力は `category="other"` 固定で保存される。各明細の税率も保存できる |
 
 ## 3. クレジット訂正ダイアログ (credit-correction-dialog)
 
@@ -191,6 +191,6 @@
 ## 確認観点
 
 - 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
-- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal`・`ItemListCard` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §2・§5・§10・§11 は本シナリオが唯一の保存実行検証。
+- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
 - クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は todo.md「バグ台帳」節へ BUG-XXX として起票する（[README.md](README.md) のルールに従う）。
