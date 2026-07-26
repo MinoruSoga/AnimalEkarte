@@ -312,9 +312,6 @@ test:
 test-cover:
 	$(DC) exec backend go test -race -cover -p 1 ./...
 
-# repository パッケージのみ（共有 DB・必ず serial）
-test-repository:
-	$(DC) exec backend go test ./internal/repository/ -count=1 -p 1 -timeout 900s
 
 # フロント静的チェック一式（ローカル必須・CI ゲート外）
 # ESLint + TypeScript type-check + knip（旧 CI Frontend の静的ステップ相当）

@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // billings_hospitalization_unique_migration_test.go — partial UNIQUE の静的ゲート。
 //

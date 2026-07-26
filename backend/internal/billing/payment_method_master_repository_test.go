@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // payment_method_master_repository_test.go
 // payment_method_master_repository.go の実 DB 結合テスト。
@@ -15,14 +15,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupPaymentMethodMasterRepoTestDB は payment_method_master_repository のテストに必要なテーブルを整備する。
 // CountUsageByPaymentMethodID は payments を billings 経由でJOINするため両方 migrate する。
 func setupPaymentMethodMasterRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.PaymentMethodMaster{}, &model.Billing{}, &model.Payment{},
 	))
 	db.Exec("TRUNCATE TABLE payments CASCADE")
@@ -53,7 +55,7 @@ func makePaymentForBilling(t *testing.T, db *gorm.DB, billingID, paymentMethodID
 	return p
 }
 
-func TestPaymentMethodMasterRepository_Create_FindByID(t *testing.T) {
+func TestPaymentMethodMasterRepository_Create_FindByID_LegacyCoverage(t *testing.T) {
 	db := setupPaymentMethodMasterRepoTestDB(t)
 	repo := NewPaymentMethodMasterRepository(db)
 	ctx := context.Background()
@@ -278,7 +280,7 @@ func TestPaymentMethodMasterRepository_Reorder(t *testing.T) {
 			}
 		}
 
-		tx := NewTransactor(db)
+		tx := persistence.NewTransactor(db)
 		err = tx.WithTx(ctx, func(txCtx context.Context) error {
 			if err := repo.Reorder(txCtx, clinicA, []uint64{m2.ID, m1.ID}); err != nil {
 				return err

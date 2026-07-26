@@ -1,4 +1,4 @@
-package repository
+package staff
 
 import (
 	"context"
@@ -12,14 +12,16 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/model"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupStaffUpdateSecurityDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.Company{},
 		&model.Clinic{},
@@ -32,6 +34,13 @@ func setupStaffUpdateSecurityDB(t *testing.T) *gorm.DB {
 		"TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, clinics, companies CASCADE",
 	).Error)
 	return db
+}
+
+func newStaffUpdateAccountStore(db *gorm.DB) StaffAccountStore {
+	return staffResetInvalidationAccountStore{
+		AccountRepository: auth.NewAccountRepository(db),
+		resetTokens:       auth.NewPasswordResetTokenRepository(db),
+	}
 }
 
 func makeStaffUpdateClinic(t *testing.T, db *gorm.DB, companyID uint64, name string) *model.Clinic {
@@ -69,9 +78,9 @@ func makeAccountStaffForUpdate(
 
 func newStaffUpdateServiceForDB(
 	db *gorm.DB,
-	accounts staffdomain.StaffAccountStore,
-) staffdomain.StaffService {
-	return staffdomain.NewStaffServiceWithCredentialAudit(
+	accounts StaffAccountStore,
+) StaffService {
+	return NewStaffServiceWithCredentialAudit(
 		NewStaffRepository(db),
 		accounts,
 		NewStaffClinicAssignmentRepository(db),
@@ -81,7 +90,7 @@ func newStaffUpdateServiceForDB(
 		nil,
 		NewOccupationRepository(db),
 		nil,
-		NewTransactor(db),
+		persistence.NewTransactor(db),
 		noopStaffUpdateCredentialAuditTxLogger{},
 	)
 }
@@ -90,15 +99,15 @@ type noopStaffUpdateCredentialAuditTxLogger struct{}
 
 func (noopStaffUpdateCredentialAuditTxLogger) LogEntryTx(
 	context.Context,
-	staffdomain.CredentialAuditEntry,
+	CredentialAuditEntry,
 ) error {
 	return nil
 }
 
 func staffUpdateCredentialAudit(
 	clinicID, targetStaffID uint64,
-) *staffdomain.CredentialMutationAudit {
-	return &staffdomain.CredentialMutationAudit{
+) *CredentialMutationAudit {
+	return &CredentialMutationAudit{
 		ClinicID:      clinicID,
 		ActorStaffID:  999,
 		TargetStaffID: targetStaffID,
@@ -106,7 +115,7 @@ func staffUpdateCredentialAudit(
 }
 
 type failAfterStaffAccountUpdate struct {
-	staffdomain.StaffAccountStore
+	StaffAccountStore
 	err error
 }
 
@@ -140,14 +149,14 @@ func TestStaffServiceUpdatePasswordOnlyRejectsCrossClinicTargetDatabase(t *testi
 		"staff-cross-clinic@example.com",
 		"unchanged-hash",
 	)
-	service := newStaffUpdateServiceForDB(db, NewAccountRepository(db))
+	service := newStaffUpdateServiceForDB(db, newStaffUpdateAccountStore(db))
 	password := "newpassword1"
 
 	updated, err := service.Update(
 		context.Background(),
 		clinicA.ID,
 		staff.ID,
-		&staffdomain.UpdateStaffInput{
+		&UpdateStaffInput{
 			Password:            &password,
 			AuthorizedClinicIDs: []uint64{clinicA.ID},
 			CredentialAudit:     staffUpdateCredentialAudit(clinicA.ID, staff.ID),
@@ -176,7 +185,7 @@ func TestStaffServiceUpdateRollsBackProfileAndPasswordTogetherDatabase(t *testin
 	)
 	sentinel := errors.New("fail after account update")
 	accountStore := failAfterStaffAccountUpdate{
-		StaffAccountStore: NewAccountRepository(db),
+		StaffAccountStore: newStaffUpdateAccountStore(db),
 		err:               sentinel,
 	}
 	service := newStaffUpdateServiceForDB(db, accountStore)
@@ -187,7 +196,7 @@ func TestStaffServiceUpdateRollsBackProfileAndPasswordTogetherDatabase(t *testin
 		context.Background(),
 		clinic.ID,
 		staff.ID,
-		&staffdomain.UpdateStaffInput{
+		&UpdateStaffInput{
 			Name:                &name,
 			Password:            &password,
 			AuthorizedClinicIDs: []uint64{clinic.ID},
@@ -218,7 +227,7 @@ func TestStaffServiceUpdateCommitsProfileAndPasswordTogetherDatabase(t *testing.
 		"staff-commit@example.com",
 		"old-hash",
 	)
-	service := newStaffUpdateServiceForDB(db, NewAccountRepository(db))
+	service := newStaffUpdateServiceForDB(db, newStaffUpdateAccountStore(db))
 	name := "更新後スタッフ"
 	password := "newpassword1"
 
@@ -226,7 +235,7 @@ func TestStaffServiceUpdateCommitsProfileAndPasswordTogetherDatabase(t *testing.
 		context.Background(),
 		clinic.ID,
 		staff.ID,
-		&staffdomain.UpdateStaffInput{
+		&UpdateStaffInput{
 			Name:                &name,
 			Password:            &password,
 			AuthorizedClinicIDs: []uint64{clinic.ID},

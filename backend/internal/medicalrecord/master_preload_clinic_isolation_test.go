@@ -1,4 +1,4 @@
-package repository
+package medicalrecord
 
 // master_preload_clinic_isolation_test.go
 // クロステナント READ IDOR remediation follow-up — (b) single-clinic master Preload 隔離回帰テスト。
@@ -19,52 +19,36 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // --- inline master/parent creators (既存 helper に無いもののみ) ---
 
-func makeCageMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Cage {
+// makeClinicScopedClinicalReadParents builds a fully consistent owner → pet →
+// medical-record graph plus an active doctor assignment.
+func makeClinicScopedClinicalReadParents(
+	t *testing.T,
+	db *gorm.DB,
+	clinicID uint64,
+	label string,
+) (*model.Pet, *model.MedicalRecord, *model.Staff) {
 	t.Helper()
-	c := &model.Cage{ClinicID: clinicID, Name: name, CageType: model.CageTypeGeneral, CageSize: model.CageSizeMedium}
-	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)
-	return c
-}
 
-func makeCheckupTypeMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.CheckupType {
-	t.Helper()
-	ct := &model.CheckupType{ClinicID: clinicID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(ct).Error)
-	return ct
-}
+	testdb.SeedClinicsForFK(t, db, clinicID)
+	owner := makeTestOwner(t, db, clinicID, label+"飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, label+"ペット")
+	record := makeHistoryMedicalRecord(t, db, clinicID, pet.ID, label+"-MR", time.Now())
+	require.NoError(t, db.WithContext(context.Background()).Model(record).Update("owner_id", owner.ID).Error)
+	record.OwnerID = &owner.ID
 
-func makeDiagnosisTypeMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.DiagnosisType {
-	t.Helper()
-	dt := &model.DiagnosisType{ClinicID: clinicID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(dt).Error)
-	return dt
-}
+	doctor := makeDoctor(t, db, clinicID, label+"医師")
+	require.NoError(t, db.WithContext(context.Background()).Create(&model.StaffClinicAssignment{
+		StaffID:  doctor.ID,
+		ClinicID: clinicID,
+		IsMain:   true,
+	}).Error)
 
-func makeDiagnosisNameRec(t *testing.T, db *gorm.DB, clinicID, typeID uint64, name string) *model.DiagnosisName {
-	t.Helper()
-	dn := &model.DiagnosisName{ClinicID: clinicID, DiagnosisTypeID: typeID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(dn).Error)
-	return dn
-}
-
-func makeHospitalizationRec(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, cageID *uint64) *model.Hospitalization {
-	t.Helper()
-	now := time.Now()
-	h := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             ownerID,
-		PetID:               petID,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now,
-		CageID:              cageID,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(h).Error)
-	return h
+	return pet, record, doctor
 }
 
 // --- (b1) hospitalization: Cage ---
@@ -72,13 +56,13 @@ func makeHospitalizationRec(t *testing.T, db *gorm.DB, clinicID, ownerID, petID 
 // FindAll を使う（Cage を Preload するが CarePlanItems/DailyRecords/TreatmentPlans は Preload しないため
 // テスト DB の migrate 範囲が最小で済む。検証対象は L56 の Cage Preload clinic スコープ）。
 func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	// TRUNCATE first: 既存の null 制約違反行を除去してから AutoMigrate（cages は既存スキーマに存在しうる）。
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
 	db.Exec("TRUNCATE TABLE cages CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{}))
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -108,8 +92,8 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 // --- (b2) checkup: CheckupType ---
 
 func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.Company{},
 		&model.Clinic{},
@@ -137,8 +121,8 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 	typeB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの健診種別")
 	typeA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの健診種別")
 
-	crossID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeB.ID)
-	legitID := makeCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeA.ID)
+	crossID := makePreloadCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeB.ID)
+	legitID := makePreloadCheckupRec(t, db, clinicA, mrA.ID, petA.ID, doctorA.ID, typeA.ID)
 
 	tests := []struct {
 		name         string
@@ -180,7 +164,7 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 	}
 }
 
-func makeCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, doctorID, checkupTypeID uint64) uint64 {
+func makePreloadCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, doctorID, checkupTypeID uint64) uint64 {
 	t.Helper()
 	pid := petID
 	did := doctorID
@@ -199,7 +183,7 @@ func makeCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, doctorID, 
 // --- (b3) care_plan_item: Medicine / Procedure ---
 
 func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	// TRUNCATE first: 既存の null 制約違反行を除去してから AutoMigrate（cages は既存スキーマに存在しうる）。
 	db.Exec("TRUNCATE TABLE care_plan_items CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
@@ -208,7 +192,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, ensureAutoMigrated(db,
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{},
 		&model.Medicine{}, &model.Procedure{}, &model.CarePlanItem{},
 	))
@@ -240,8 +224,8 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 // --- (b4) clinical_plan: DiagnosisType / DiagnosisName ---
 
 func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
 	))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
@@ -274,42 +258,11 @@ func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsol
 	assert.Nil(t, got.DiagnosisName, "別クリニックの診断名マスタが Preload で混入してはならない")
 }
 
-// --- (b5) appointment_admin: ReservationType ---
-
-func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}))
-	require.NoError(t, db.Exec("TRUNCATE TABLE appointments CASCADE").Error)
-	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	repo := NewReservationAdminRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	rtB := makeReservationType(t, db, clinicB)
-	now := time.Now().UTC().Truncate(time.Minute)
-	res := &model.Reservation{
-		ClinicID:          clinicA,
-		StartTime:         now,
-		EndTime:           now.Add(15 * time.Minute),
-		ReservationTypeID: rtB.ID,
-		VisitType:         model.VisitTypeRevisit,
-		Status:            model.ReservationStatusPending,
-		Source:            model.ReservationSourceManual,
-		CustomerFields:    []byte(`{}`),
-	}
-	require.NoError(t, db.WithContext(ctx).Create(res).Error)
-
-	got, err := repo.FindByIDForNotify(ctx, clinicA, res.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Nil(t, got.ReservationType, "別クリニックの診療区分マスタが Preload で混入してはならない")
-}
-
 // --- (b6) diagnosis: Names (子マスタ) ---
 
 func TestDiagnosisTypeRepository_FindAll_NamesPreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
 	repo := NewDiagnosisTypeRepository(db)

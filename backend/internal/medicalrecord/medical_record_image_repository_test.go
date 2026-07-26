@@ -3,14 +3,9 @@ package medicalrecord
 // medical_record_image_repository_test.go — MedicalRecordImageRepository の統合テスト。
 // 移動元 internal/repository（BE9-2D sub-batch④a）。
 //
-// pet_write_medimage_clinic_isolation_test.go（internal/repository に残留）が FindByID / Delete の
-// clinic_id 隔離（親 medical_records への JOIN スコープ）を既にカバーしているため、本ファイルはそこで
-// 未カバーだった Create / FindByMedicalRecordID（並び順・Staff preload・clinic_id 隔離）と、
-// 存在しないID系の NotFound ケースを補う。
-//
-// setupMedImageIsolationTestDB / makeMedRecordImage は残留側 pet_write_medimage_clinic_isolation_test.go
-// で定義されており package をまたいで import できないため、medicalrecord 側でローカルに再構築する
-// （挙動同一。setupTestDB/ensureAutoMigrated → testdb.SetupTestDB/EnsureAutoMigrated 直呼びのみ差分）。
+// internal/repository から移動した FindByID / Delete の clinic_id 隔離に加え、
+// Create / FindByMedicalRecordID（並び順・Staff preload・clinic_id 隔離）と、
+// 存在しないID系の NotFound ケースを同じ target package でカバーする。
 // makeTestOwner / makeSpeciesAndPet / makeDoctor / makeHistoryMedicalRecord は既存の medicalrecord
 // 共有ヘルパーを再利用する（重複定義しない）。
 
@@ -309,4 +304,67 @@ func TestMedicalRecordImageRepository_Delete_NotFound(t *testing.T) {
 	err := repo.Delete(ctx, clinicA, uint64(9999999))
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestMedicalRecordImageRepository_FindByID_ClinicIsolation(t *testing.T) {
+	db := setupMedImageIsolationTestDB(t)
+	repo := NewMedicalRecordImageRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+	ownerA := makeTestOwner(t, db, clinicA, "画像飼主A")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "画像ポチA")
+	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-A", time.Now())
+	imgA := makeMedRecordImage(t, db, mrA.ID, "a.jpg")
+
+	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, imgA.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, imgA.ID, got.ID)
+	})
+
+	t.Run("別クリニックIDでは取得できない（親カルテ JOIN スコープ）", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicB, imgA.ID)
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err), "別クリニックからは NotFound: %v", err)
+	})
+}
+
+func TestMedicalRecordImageRepository_Delete_ClinicIsolation(t *testing.T) {
+	db := setupMedImageIsolationTestDB(t)
+	repo := NewMedicalRecordImageRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+	ownerA := makeTestOwner(t, db, clinicA, "画像飼主A")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "画像ポチA")
+	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-DEL", time.Now())
+	imgA := makeMedRecordImage(t, db, mrA.ID, "del.jpg")
+
+	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicB, imgA.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "別クリニックの Delete は NotFound: %v", err)
+	})
+
+	t.Run("画像はまだ存在する（不正削除防止）", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, imgA.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+	})
+
+	t.Run("同一クリニックIDからの Delete は成功する", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicA, imgA.ID)
+		require.NoError(t, err)
+		_, err = repo.FindByID(ctx, clinicA, imgA.ID)
+		assert.True(t, apperrors.IsNotFound(err), "削除後は取得できない")
+	})
 }

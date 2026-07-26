@@ -1,12 +1,4 @@
-package repository
-
-// insurance_repository_test.go — InsuranceRepository の統合テスト（実 Postgres テスト DB）。
-// happy path・not-found・clinic_id 隔離・ソフトデリート除外・Update/Delete/Reorder・
-// CountUsageByInsuranceID（pets 経由・P2 deleted_at 除外）を対象とする。
-//
-// makeInsuranceMaster / makePetWithInsurance は cross_clinic_preload_isolation_test.go に
-// 定義済みのものを再利用する（同一パッケージ内での重複宣言を避けるため）。
-// makeTestOwner は db_setup_test.go に定義済みのものを再利用する。
+package billing
 
 import (
 	"context"
@@ -18,14 +10,13 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-// setupInsuranceRepositoryTestDB は insurances テーブルと、CountUsageByInsuranceID が参照する
-// pets / owners / animal_species を用意する。
 func setupInsuranceRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Insurance{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Insurance{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}))
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE owners CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
@@ -57,7 +48,7 @@ func TestInsuranceRepository_Create_And_FindByID(t *testing.T) {
 	})
 
 	t.Run("別クリニックからは FindByID できない（clinic_id 隔離）", func(t *testing.T) {
-		ins := makeInsuranceMaster(t, db, clinicID, "医院1限定保険")
+		ins := testdb.MakeInsurance(t, db, clinicID, "医院1限定保険")
 		_, err := repo.FindByID(ctx, uint64(999), ins.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "別クリニックからは NotFound であるべき: %v", err)
@@ -70,9 +61,9 @@ func TestInsuranceRepository_FindAll_ClinicIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	makeInsuranceMaster(t, db, clinicA, "保険A-1")
-	makeInsuranceMaster(t, db, clinicA, "保険A-2")
-	makeInsuranceMaster(t, db, clinicB, "保険B-1")
+	testdb.MakeInsurance(t, db, clinicA, "保険A-1")
+	testdb.MakeInsurance(t, db, clinicA, "保険A-2")
+	testdb.MakeInsurance(t, db, clinicB, "保険B-1")
 
 	t.Run("clinicA は自院の2件のみ", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
@@ -94,8 +85,8 @@ func TestInsuranceRepository_FindAll_ExcludesSoftDeleted(t *testing.T) {
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	active := makeInsuranceMaster(t, db, clinicID, "現役保険")
-	deleted := makeInsuranceMaster(t, db, clinicID, "削除済み保険")
+	active := testdb.MakeInsurance(t, db, clinicID, "現役保険")
+	deleted := testdb.MakeInsurance(t, db, clinicID, "削除済み保険")
 	require.NoError(t, repo.Delete(ctx, clinicID, deleted.ID))
 
 	got, err := repo.FindAll(ctx, clinicID)
@@ -114,7 +105,7 @@ func TestInsuranceRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ins := makeInsuranceMaster(t, db, clinicA, "更新前保険")
+	ins := testdb.MakeInsurance(t, db, clinicA, "更新前保険")
 
 	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
 		got, err := repo.Update(ctx, clinicA, ins.ID, map[string]any{"name": "更新後保険", "coverage_rate": 50})
@@ -146,7 +137,7 @@ func TestInsuranceRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ins := makeInsuranceMaster(t, db, clinicA, "削除対象保険")
+	ins := testdb.MakeInsurance(t, db, clinicA, "削除対象保険")
 
 	t.Run("別クリニックからの Delete は NotFound で行が残る", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, ins.ID)
@@ -177,9 +168,9 @@ func TestInsuranceRepository_Reorder(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	i1 := makeInsuranceMaster(t, db, clinicA, "保険X")
-	i2 := makeInsuranceMaster(t, db, clinicA, "保険Y")
-	i3 := makeInsuranceMaster(t, db, clinicA, "保険Z")
+	i1 := testdb.MakeInsurance(t, db, clinicA, "保険X")
+	i2 := testdb.MakeInsurance(t, db, clinicA, "保険Y")
+	i3 := testdb.MakeInsurance(t, db, clinicA, "保険Z")
 
 	t.Run("並び順が指定順に更新される", func(t *testing.T) {
 		require.NoError(t, repo.Reorder(ctx, clinicA, []uint64{i3.ID, i1.ID, i2.ID}))
@@ -193,7 +184,7 @@ func TestInsuranceRepository_Reorder(t *testing.T) {
 	})
 
 	t.Run("別クリニックの ID を含む Reorder はエラーで中断する", func(t *testing.T) {
-		other := makeInsuranceMaster(t, db, clinicB, "他院保険")
+		other := testdb.MakeInsurance(t, db, clinicB, "他院保険")
 		err := repo.Reorder(ctx, clinicA, []uint64{i1.ID, other.ID})
 		require.Error(t, err, "clinicA スコープに存在しない ID を含む Reorder は失敗すべき")
 	})
@@ -205,10 +196,10 @@ func TestInsuranceRepository_CountUsageByInsuranceID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ins := makeInsuranceMaster(t, db, clinicA, "使用中保険")
-	owner := makeTestOwner(t, db, clinicA, "飼主A")
-	makePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "ポチ")
-	makePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "タマ")
+	ins := testdb.MakeInsurance(t, db, clinicA, "使用中保険")
+	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
+	testdb.MakePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "ポチ")
+	testdb.MakePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "タマ")
 
 	t.Run("同一クリニックでは2件カウントされる", func(t *testing.T) {
 		count, err := repo.CountUsageByInsuranceID(ctx, clinicA, ins.ID)
@@ -223,14 +214,14 @@ func TestInsuranceRepository_CountUsageByInsuranceID(t *testing.T) {
 	})
 
 	t.Run("未使用保険は0件", func(t *testing.T) {
-		unused := makeInsuranceMaster(t, db, clinicA, "未使用保険")
+		unused := testdb.MakeInsurance(t, db, clinicA, "未使用保険")
 		count, err := repo.CountUsageByInsuranceID(ctx, clinicA, unused.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
 
 	t.Run("ソフトデリート済みペットは数えない（P2）", func(t *testing.T) {
-		pet := makePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "削除対象ペット")
+		pet := testdb.MakePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "削除対象ペット")
 		require.NoError(t, db.WithContext(ctx).Delete(pet).Error)
 
 		count, err := repo.CountUsageByInsuranceID(ctx, clinicA, ins.ID)

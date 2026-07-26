@@ -1,4 +1,4 @@
-package repository
+package billing
 
 // billings_hospitalization_unique_test.go — active hospitalization_id の二重 billing 永続化拒否。
 //
@@ -17,6 +17,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupBillingsHospitalizationUniqueTestDB(t *testing.T) *gorm.DB {
@@ -24,7 +25,7 @@ func setupBillingsHospitalizationUniqueTestDB(t *testing.T) *gorm.DB {
 	// setupTestDB already AutoMigrates Billing and TRUNCATEs billings.
 	// AutoMigrate does not emit the production FK to hospitalizations(id), so synthetic
 	// hospitalization_id values are sufficient to exercise the partial UNIQUE only.
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	require.NoError(t, db.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_billings_hospitalization_id_unique
 		  ON billings(hospitalization_id)

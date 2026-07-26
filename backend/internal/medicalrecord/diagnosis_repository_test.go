@@ -1,4 +1,4 @@
-package repository
+package medicalrecord
 
 // diagnosis_repository_test.go — DiagnosisTypeRepository/DiagnosisNameRepository の facade 経由テスト。
 //
@@ -23,23 +23,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// setupDiagnosisRepoTestDB は diagnosis_types / diagnosis_names 用に DB を整備する。
-func setupDiagnosisRepoTestDB(t *testing.T) *gorm.DB {
-	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
-	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
-	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
-	return db
-}
-
 func TestDiagnosisTypeRepository_CountChildrenByParentID(t *testing.T) {
-	db := setupDiagnosisRepoTestDB(t)
+	db := setupDiagnosisTypeTestDB(t)
 	repo := NewDiagnosisTypeRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

@@ -1,4 +1,4 @@
-package repository
+package persistence
 
 // rls_role_privilege_test.go — BE-refactor Phase A (#219): ローカルDB接続ロールの
 // rolsuper / rolbypassrls 実測プリフライト。
@@ -26,6 +26,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // dbRolePrivilegeRow は pg_roles から取得する接続ロールの権限属性。
@@ -36,7 +38,7 @@ type dbRolePrivilegeRow struct {
 }
 
 func TestDBConnectionRolePrivileges_LocalMeasurement(t *testing.T) {
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 
 	var row dbRolePrivilegeRow
 	require.NoError(t, db.Raw(

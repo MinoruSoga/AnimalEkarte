@@ -1,4 +1,4 @@
-package repository
+package staff
 
 import (
 	"context"
@@ -13,13 +13,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupStaffShiftGraphAtomicityDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.Company{},
 		&model.Clinic{},
@@ -101,7 +102,7 @@ func makeShiftGraphEntry(
 }
 
 type failingShiftEntryBreakRepository struct {
-	staffdomain.ShiftEntryRepository
+	ShiftEntryRepository
 	err error
 }
 
@@ -125,11 +126,11 @@ func TestShiftEntryServiceUpdate_RollsBackParentAndBreaksDatabase(t *testing.T) 
 		ShiftEntryRepository: NewShiftEntryRepository(db),
 		err:                  sentinel,
 	}
-	service := staffdomain.NewShiftEntryService(repo, nil, nil, NewTransactor(db))
+	service := NewShiftEntryService(repo, nil, nil, persistence.NewTransactor(db))
 	notes := "更新後"
-	breaks := []staffdomain.ShiftBreakInput{{BreakStart: "14:00", BreakEnd: "14:30"}}
+	breaks := []ShiftBreakInput{{BreakStart: "14:00", BreakEnd: "14:30"}}
 
-	updated, err := service.Update(context.Background(), clinic.ID, entry.ID, &staffdomain.UpdateShiftEntryInput{
+	updated, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
 		Notes: &notes, Breaks: &breaks,
 	})
 
@@ -146,7 +147,7 @@ func TestShiftEntryServiceUpdate_RollsBackParentAndBreaksDatabase(t *testing.T) 
 }
 
 type pausingShiftEntryLockRepository struct {
-	staffdomain.ShiftEntryRepository
+	ShiftEntryRepository
 	locked  chan struct{}
 	release chan struct{}
 	once    sync.Once
@@ -196,21 +197,21 @@ func TestShiftEntryServiceUpdate_SerializesEffectiveTimeValidationDatabase(t *te
 		locked:               make(chan struct{}),
 		release:              make(chan struct{}),
 	}
-	service := staffdomain.NewShiftEntryService(repo, nil, nil, NewTransactor(db))
+	service := NewShiftEntryService(repo, nil, nil, persistence.NewTransactor(db))
 	firstResult := make(chan error, 1)
 	secondResult := make(chan error, 1)
 	endTime := "19:00"
 	startTime := "20:00"
 
 	go func() {
-		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &staffdomain.UpdateShiftEntryInput{
+		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
 			EndTime: &endTime,
 		})
 		firstResult <- err
 	}()
 	awaitStaffTestSignal(t, repo.locked, "first shift-entry row lock")
 	go func() {
-		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &staffdomain.UpdateShiftEntryInput{
+		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
 			StartTime: &startTime,
 		})
 		secondResult <- err
@@ -230,7 +231,7 @@ func TestShiftEntryServiceUpdate_SerializesEffectiveTimeValidationDatabase(t *te
 }
 
 type failingShiftTemplateBreakRepository struct {
-	staffdomain.ShiftTemplateRepository
+	ShiftTemplateRepository
 	err error
 }
 
@@ -267,12 +268,12 @@ func TestShiftTemplateServiceCreate_RollsBackParentWhenBreaksFailDatabase(t *tes
 		ShiftTemplateRepository: NewShiftTemplateRepository(db),
 		err:                     sentinel,
 	}
-	service := staffdomain.NewShiftTemplateService(repo)
+	service := NewShiftTemplateService(repo)
 
-	created, err := service.Create(context.Background(), clinic.ID, &staffdomain.CreateShiftTemplateInput{
+	created, err := service.Create(context.Background(), clinic.ID, &CreateShiftTemplateInput{
 		Name: "ロールバック対象テンプレート", ShiftType: string(model.ShiftTypeFull),
 		StartTime: "09:00", EndTime: "17:00",
-		Breaks: []staffdomain.ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+		Breaks: []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
 	})
 
 	require.ErrorIs(t, err, sentinel)
@@ -292,11 +293,11 @@ func TestShiftTemplateServiceUpdate_RollsBackParentAndBreaksDatabase(t *testing.
 		ShiftTemplateRepository: NewShiftTemplateRepository(db),
 		err:                     sentinel,
 	}
-	service := staffdomain.NewShiftTemplateService(repo)
+	service := NewShiftTemplateService(repo)
 	name := "更新後テンプレート"
-	breaks := []staffdomain.ShiftBreakTemplateInput{{BreakStart: "15:00", BreakEnd: "15:30"}}
+	breaks := []ShiftBreakTemplateInput{{BreakStart: "15:00", BreakEnd: "15:30"}}
 
-	updated, err := service.Update(context.Background(), clinic.ID, template.ID, &staffdomain.UpdateShiftTemplateInput{
+	updated, err := service.Update(context.Background(), clinic.ID, template.ID, &UpdateShiftTemplateInput{
 		Name: &name, Breaks: &breaks,
 	})
 
@@ -316,7 +317,7 @@ func TestShiftTemplateServiceDelete_AllowsOwnedBreakChildrenDatabase(t *testing.
 	db := setupStaffShiftGraphAtomicityDB(t)
 	clinic, _ := makeShiftGraphStaff(t, db)
 	template := makeShiftGraphTemplate(t, db, clinic.ID)
-	service := staffdomain.NewShiftTemplateService(NewShiftTemplateRepository(db))
+	service := NewShiftTemplateService(NewShiftTemplateRepository(db))
 
 	require.NoError(t, service.Delete(context.Background(), clinic.ID, template.ID))
 

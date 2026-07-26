@@ -1,7 +1,7 @@
-package repository
+package trimming
 
-// BE9-2C R③: 本テストは ReservationAdminRepository（appointment_admin=R④未移行）も検証対象に
-// 含むため repository 残置。R④（appointment）移動時に internal/reservation へ移す。
+// BE10-2 B8b: reservation と trimming にまたがる clinic-isolation/transaction 回帰を、
+// production の依存方向に合わせて trimming package で検証する。
 
 // reservation_owner_pet_preload_clinic_isolation_test.go — AUD-001
 // ReservationRepository は汚染された Owner/Pet FK を持つ予約を親行ごと fail-closed にし、
@@ -20,26 +20,25 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/trimming"
+	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupReservationOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupReservationIsolationTestDB(t)
+	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db,
+		&model.ReservationType{}, &model.Reservation{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.LineCustomer{},
 	))
+	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	db.Exec("TRUNCATE TABLE line_customers CASCADE")
 	return db
 }
 
-// setupReservationAdminTestDB — BE10-2 B8 で appointment_admin_repository_test.go が
-// internal/reservation へ移設された際に残った、本 file 専用の local copy。
-// 本 file 自体は internal/trimming を import しており（trimming の production が
-// internal/reservation を import するため test import cycle になる）B8 では移設できず、
-// B8b で trimming 側へ切り出すまで internal/repository に残る。B8b 完了時に本 helper も消える。
+// setupReservationAdminTestDB is the file-local admin fixture setup moved with this B8b test.
 func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
@@ -55,8 +54,7 @@ func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeLineCustomerForAdmin / makeAdminReservationAt — 上と同じ B8 由来の local copy。
-// B8b 完了時に本 file ごと internal/trimming へ移り、ここから消える。
+// makeLineCustomerForAdmin / makeAdminReservationAt are file-local fixtures moved with this B8b test.
 func makeLineCustomerForAdmin(t *testing.T, db *gorm.DB, clinicID uint64, lineUserID string) *model.LineCustomer {
 	t.Helper()
 	lc := &model.LineCustomer{
@@ -91,13 +89,13 @@ func makeAdminReservationAt(t *testing.T, db *gorm.DB, clinicID uint64, start ti
 
 func TestReservationRepository_FindAll_FindByID_FailClosedForForeignOwnerPet(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
-	repo := NewReservationRepository(db)
+	repo := reservation.NewReservationRepository(db)
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeTestOwner(t, db, clinicB, "医院Bの飼主")
-	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bのペット")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院Bの飼主")
+	petB := testdb.MakeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bのペット")
 	rtA := makeReservationType(t, db, clinicA)
 
 	now := time.Now().UTC().Truncate(time.Minute)
@@ -136,13 +134,13 @@ func TestReservationRepository_FindAll_FindByID_FailClosedForForeignOwnerPet(t *
 
 func TestReservationAdminRepository_DoesNotPreloadForeignOwnerPetLineCustomer(t *testing.T) {
 	db := setupReservationAdminTestDB(t)
-	repo := NewReservationAdminRepository(db)
+	repo := reservation.NewReservationAdminRepository(db)
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
-	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	petB := testdb.MakeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	lcB := makeLineCustomerForAdmin(t, db, clinicB, "line-user-b")
 
 	day := time.Date(2026, 7, 14, 10, 0, 0, 0, time.Local)
@@ -189,15 +187,15 @@ func TestReservationAdminRepository_DoesNotPreloadForeignOwnerPetLineCustomer(t 
 
 func TestReservationRepository_AssertOwnerPetLineCustomer_ClinicIsolation(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
-	repo := NewReservationRepository(db)
+	repo := reservation.NewReservationRepository(db)
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
-	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aペット")
-	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	petA := testdb.MakeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aペット")
+	petB := testdb.MakeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	lcA := &model.LineCustomer{ClinicID: clinicA, LineUserID: "line-a", AdditionalFields: []byte(`{}`)}
 	lcB := &model.LineCustomer{ClinicID: clinicB, LineUserID: "line-b", AdditionalFields: []byte(`{}`)}
 	require.NoError(t, db.Create(lcA).Error)
@@ -222,7 +220,7 @@ func TestReservationRepository_AssertOwnerPetLineCustomer_ClinicIsolation(t *tes
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 	t.Run("FindPetOwnerInClinic rejects same-clinic pet linked to foreign owner", func(t *testing.T) {
-		pollutedPet := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "汚染ペット")
+		pollutedPet := testdb.MakeSpeciesAndPet(t, db, clinicA, ownerA.ID, "汚染ペット")
 		require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pollutedPet.ID).Update("owner_id", ownerB.ID).Error)
 		_, err := repo.FindPetOwnerInClinic(ctx, clinicA, pollutedPet.ID)
 		require.Error(t, err)
@@ -240,12 +238,12 @@ func TestReservationRepository_AssertOwnerPetLineCustomer_ClinicIsolation(t *tes
 
 func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignPet(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
-	repo := NewReservationRepository(db)
+	repo := reservation.NewReservationRepository(db)
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
-	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
-	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "医院B飼主")
+	petB := testdb.MakeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	rtA := &model.ReservationType{
 		ClinicID: clinicA,
 		Name:     "トリミング",
@@ -284,7 +282,7 @@ func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignPet(t *tes
 func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignTrimmingDetail(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
 	require.NoError(t, ensureAutoMigrated(db, &model.AppointmentTrimmingDetail{}))
-	repo := NewReservationRepository(db)
+	repo := reservation.NewReservationRepository(db)
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -320,14 +318,14 @@ func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignTrimmingDe
 
 func TestTrimmingPetValidationAndWrites_RollBackTogether(t *testing.T) {
 	db := setupReservationOwnerPetPreloadDB(t)
-	reservationRepo := NewReservationRepository(db)
-	detailRepo := trimming.NewAppointmentTrimmingDetailRepository(db)
-	transactor := NewTransactor(db)
+	reservationRepo := reservation.NewReservationRepository(db)
+	detailRepo := NewAppointmentTrimmingDetailRepository(db)
+	transactor := newTestTransactor(db)
 	ctx := context.Background()
 
 	const clinicID = uint64(1)
-	owner := makeTestOwner(t, db, clinicID, "医院A飼主")
-	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "医院Aペット")
+	owner := testdb.MakeTestOwner(t, db, clinicID, "医院A飼主")
+	pet := testdb.MakeSpeciesAndPet(t, db, clinicID, owner.ID, "医院Aペット")
 	appointment := makeReservation(t, db, clinicID)
 	sentinel := errors.New("force rollback after trimming writes")
 

@@ -1,4 +1,4 @@
-package repository
+package testdb
 
 // test_schema_enum_parity_test.go — BE-refactor.md G12-2
 //
@@ -39,8 +39,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // createTypeRe extracts "CREATE TYPE <name> AS ENUM (...)" statements from 001_init.sql,
@@ -61,7 +59,7 @@ func extractSQLEnumTypes(sql string) map[string]string {
 	found := make(map[string]string)
 	for _, m := range createTypeRe.FindAllStringSubmatch(sql, -1) {
 		name, rawValues := m[1], m[2]
-		values := testdb.EnumValueRe.FindAllString(rawValues, -1)
+		values := EnumValueRe.FindAllString(rawValues, -1)
 		found[name] = "CREATE TYPE " + name + " AS ENUM (" + strings.Join(values, ", ") + ")"
 	}
 	return found
@@ -69,8 +67,8 @@ func extractSQLEnumTypes(sql string) map[string]string {
 
 // goEnumTypes returns testdb.SharedTestSchemaEnumTypes as a name -> definition map.
 func goEnumTypes() map[string]string {
-	out := make(map[string]string, len(testdb.SharedTestSchemaEnumTypes))
-	for _, et := range testdb.SharedTestSchemaEnumTypes {
+	out := make(map[string]string, len(SharedTestSchemaEnumTypes))
+	for _, et := range SharedTestSchemaEnumTypes {
 		out[et.Name] = et.Create
 	}
 	return out

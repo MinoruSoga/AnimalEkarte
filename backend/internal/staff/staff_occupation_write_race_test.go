@@ -1,4 +1,4 @@
-package repository
+package staff
 
 import (
 	"context"
@@ -12,14 +12,16 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/model"
-	staffdomain "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupStaffOccupationWriteRaceDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(
 		db,
 		&model.Company{},
 		&model.Clinic{},
@@ -32,6 +34,13 @@ func setupStaffOccupationWriteRaceDB(t *testing.T) *gorm.DB {
 		"TRUNCATE TABLE staff_clinic_assignments, staffs, accounts, occupations CASCADE",
 	).Error)
 	return db
+}
+
+func newStaffOccupationRaceAccountStore(db *gorm.DB) StaffAccountStore {
+	return staffResetInvalidationAccountStore{
+		AccountRepository: auth.NewAccountRepository(db),
+		resetTokens:       auth.NewPasswordResetTokenRepository(db),
+	}
 }
 
 func makeStaffOccupationRaceClinic(
@@ -52,7 +61,7 @@ func makeStaffOccupationRaceClinic(
 }
 
 type coordinatedOccupationRepository struct {
-	staffdomain.OccupationRepository
+	OccupationRepository
 	shareLocked     chan struct{}
 	releaseShare    chan struct{}
 	updateAttempted chan struct{}
@@ -138,16 +147,16 @@ func TestStaffOccupationWrites_SerializeAgainstOccupationDeleteDatabase(t *testi
 				releaseShare:         make(chan struct{}),
 				updateAttempted:      make(chan struct{}),
 			}
-			staffService := staffdomain.NewStaffService(
+			staffService := NewStaffService(
 				NewStaffRepository(db),
-				NewAccountRepository(db),
+				newStaffOccupationRaceAccountStore(db),
 				NewStaffClinicAssignmentRepository(db),
 				nil, nil, nil, nil,
 				repo,
 				nil,
-				NewTransactor(db),
+				persistence.NewTransactor(db),
 			)
-			occupationService := staffdomain.NewOccupationService(repo)
+			occupationService := NewOccupationService(repo)
 			var existing *model.Staff
 			if tt.operation == "update" {
 				existing = makeUnassignedOccupationRaceStaff(t, db, clinic.ID)
@@ -159,13 +168,13 @@ func TestStaffOccupationWrites_SerializeAgainstOccupationDeleteDatabase(t *testi
 				var err error
 				switch tt.operation {
 				case "create":
-					result, err = staffService.Create(context.Background(), &staffdomain.CreateStaffInput{
+					result, err = staffService.Create(context.Background(), &CreateStaffInput{
 						ClinicID: clinic.ID, Name: "新規スタッフ", OccupationID: &occupation.ID,
 					})
 				case "create_with_account":
 					result, err = staffService.CreateWithAccount(
 						context.Background(),
-						&staffdomain.CreateStaffWithAccountInput{
+						&CreateStaffWithAccountInput{
 							ClinicID:     clinic.ID,
 							Name:         "アカウント付きスタッフ",
 							Email:        fmt.Sprintf("occupation-race-%d@example.com", occupation.ID),
@@ -178,7 +187,7 @@ func TestStaffOccupationWrites_SerializeAgainstOccupationDeleteDatabase(t *testi
 						context.Background(),
 						clinic.ID,
 						existing.ID,
-						&staffdomain.UpdateStaffInput{
+						&UpdateStaffInput{
 							OccupationID:        &occupation.ID,
 							AuthorizedClinicIDs: []uint64{clinic.ID},
 						},

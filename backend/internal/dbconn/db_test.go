@@ -1,4 +1,4 @@
-package repository
+package dbconn
 
 // db_test.go — dbconn.OpenGORM の runtime integration test。
 //
@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/dbconn"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // testDBConfig は getTestDatabaseConnection (ltv_repository_test.go) と同じ既定値で
@@ -60,9 +60,9 @@ func testDBConfig(t *testing.T) *config.Config {
 func TestOpenGORMRuntime(t *testing.T) {
 	t.Run("有効なDSNでプール設定込みの接続を返す", func(t *testing.T) {
 		// setupTestDB を経由してテストDBの存在を保証する（CREATE DATABASE の副作用を再利用）。
-		_ = setupTestDB(t)
+		_ = testdb.SetupTestDB(t)
 
-		db, err := dbconn.OpenGORM(testDBConfig(t))
+		db, err := OpenGORM(testDBConfig(t))
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
@@ -79,7 +79,7 @@ func TestOpenGORMRuntime(t *testing.T) {
 		cfg := testDBConfig(t)
 		cfg.DBSSLMode = "not-a-real-sslmode"
 
-		db, err := dbconn.OpenGORM(cfg)
+		db, err := OpenGORM(cfg)
 		require.Error(t, err)
 		assert.Nil(t, db)
 		assert.Contains(t, err.Error(), "failed to open database connection")

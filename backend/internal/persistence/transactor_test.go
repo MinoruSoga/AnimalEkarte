@@ -1,4 +1,4 @@
-package repository
+package persistence
 
 // transactor_test.go — Transactor (gormTransactor.WithTx / txFromContext) の単体テスト。
 //
@@ -18,19 +18,20 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTransactorTestDB は WithTx 検証用に clinic_integrations テーブルを用意する。
 func setupTransactorTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ClinicIntegration{}))
-	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ClinicIntegration{}))
+	require.NoError(t, db.Exec("TRUNCATE TABLE clinic_integrations CASCADE").Error)
 	return db
 }
 
 func TestTxFromContext_NoAmbientTx_ReturnsNil(t *testing.T) {
-	assert.Nil(t, txFromContext(context.Background()))
+	assert.Nil(t, TxFromContext(context.Background()))
 }
 
 func TestGormTransactor_WithTx_ExposesTxViaContext(t *testing.T) {
@@ -39,7 +40,7 @@ func TestGormTransactor_WithTx_ExposesTxViaContext(t *testing.T) {
 
 	var sawTx *gorm.DB
 	err := tx.WithTx(context.Background(), func(txCtx context.Context) error {
-		sawTx = txFromContext(txCtx)
+		sawTx = TxFromContext(txCtx)
 		return nil
 	})
 	require.NoError(t, err)
@@ -52,7 +53,7 @@ func TestGormTransactor_WithTx_CommitsOnSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	err := tx.WithTx(ctx, func(txCtx context.Context) error {
-		return txFromContext(txCtx).Create(&model.ClinicIntegration{
+		return TxFromContext(txCtx).Create(&model.ClinicIntegration{
 			ClinicID: 601, Service: "lstep", KeyName: "k", KeyValue: "committed",
 		}).Error
 	})
@@ -70,7 +71,7 @@ func TestGormTransactor_WithTx_RollsBackAndWrapsErrorOnFailure(t *testing.T) {
 
 	sentinel := errors.New("boom")
 	err := tx.WithTx(ctx, func(txCtx context.Context) error {
-		require.NoError(t, txFromContext(txCtx).Create(&model.ClinicIntegration{
+		require.NoError(t, TxFromContext(txCtx).Create(&model.ClinicIntegration{
 			ClinicID: 602, Service: "lstep", KeyName: "k", KeyValue: "should-not-persist",
 		}).Error)
 		return sentinel

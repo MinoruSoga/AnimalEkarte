@@ -1,4 +1,4 @@
-package repository
+package persistence
 
 // rls_effectiveness_test.go — BE-refactor follow-up (RLS実効化のローカル実効性確認)
 //
@@ -37,6 +37,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupAppPrivateRLSFunctions は 001_init.sql:2907-2939 の app_private スキーマ + RLS 関数を
@@ -87,7 +89,7 @@ func setupAppPrivateRLSFunctions(t *testing.T, db *gorm.DB) {
 // 「片方の tx が SET LOCAL ROLE 中に、もう片方が DROP ROLE/再作成」の衝突が起きうる。既存の
 // lstep_csv_import_service_integration_test.go（DB 名を nanotime で unique 化）と同じ回避策。
 func TestRLSPolicyEffectiveness_ForcedRLSIsolatesByClinicGUC(t *testing.T) {
-	db := setupTestDB(t)
+	db := testdb.SetupTestDB(t)
 	ctx := context.Background()
 
 	// テスト DB は setupTestDB が AutoMigrate で作るため 001_init.sql の RLS ブロック（app_private
