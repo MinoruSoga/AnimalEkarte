@@ -21,7 +21,6 @@ import {
   useCreatePermissionGroup,
   useUpdatePermissionGroup,
   useDeletePermissionGroup,
-  useUpdatePermissionGroupRules,
   useReorderPermissionGroups,
   type PermissionGroup,
   type CreatePermissionGroupRequest,
@@ -29,7 +28,6 @@ import {
 } from "../api/permission-groups";
 import {
   buildPermissionGroupCreateRequest,
-  buildPermissionGroupRulesRequest,
   buildPermissionGroupUpdateRequest,
 } from "./permission-group-settings-model";
 import { ResourceMasterPermission } from "@/types/generated/models";
@@ -59,7 +57,6 @@ export function PermissionGroupSettings() {
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
   const deleteMutation = useDeletePermissionGroup();
-  const updateRulesMutation = useUpdatePermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
   const dirty = useSidePeekDirty();
@@ -92,12 +89,6 @@ export function PermissionGroupSettings() {
       reorderMutation.mutate(newIds);
     },
   });
-  const saveAction = crud.editTarget === "new"
-    ? "create"
-    : crud.editTarget !== null
-      ? "edit"
-      : null;
-
   const { handleSave } = useMasterSave<
     PermissionGroup,
     PermissionGroupFormData,
@@ -115,22 +106,7 @@ export function PermissionGroupSettings() {
     },
     toCreateRequest: buildPermissionGroupCreateRequest,
     toUpdateRequest: buildPermissionGroupUpdateRequest,
-    onSuccess: async (saved, formData) => {
-      if (formData.rules.length > 0) {
-        const permissions = permissionsRef.current;
-        const canUpdateRules = saveAction === "create"
-          ? permissions.canCreate === true
-          : saveAction === "edit"
-            ? permissions.canEdit === true
-            : false;
-        if (!canUpdateRules) return;
-
-        await updateRulesMutation.mutateAsync({
-          id: saved.id,
-          req: buildPermissionGroupRulesRequest(formData),
-        });
-      }
-    },
+    closeOnSuccess: false,
   });
 
   return (
@@ -146,12 +122,13 @@ export function PermissionGroupSettings() {
       columns={PERMISSION_GROUP_COLUMNS}
       filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
       renderRow={() => null}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
+      renderSidePanel={({ item, onClose, onDeleteRequest, readOnly }) => (
         <PermissionGroupSidePanel
           key={item?.id ?? "new"}
           item={item}
           onClose={onClose}
-          onSave={onSave}
+          onSave={handleSave}
+          onSaveSuccess={() => crud.setEditTarget(null)}
           onDeleteRequest={onDeleteRequest}
           readOnly={readOnly}
           onDirtyChange={handleDirtyChange}

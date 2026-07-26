@@ -243,9 +243,15 @@ func TestPermissionGroupHTTP_RequestAndResponseMapping(t *testing.T) {
 		Color:       "#123456",
 		IsActive:    true,
 		SortOrder:   3,
+		Rules: []PermissionGroupRuleInput{{
+			Resource: "owners",
+			CanView:  true,
+		}},
 	}.ToInput()
 	assert.Equal(t, "created", create.Name)
 	assert.Equal(t, "#123456", create.Color)
+	require.Len(t, create.Rules, 1)
+	assert.Equal(t, "owners", create.Rules[0].Resource)
 
 	update := UpdatePermissionGroupRequest{
 		Name:        &name,
@@ -253,10 +259,21 @@ func TestPermissionGroupHTTP_RequestAndResponseMapping(t *testing.T) {
 		Color:       &color,
 		IsActive:    &active,
 		SortOrder:   &order,
+		Rules: []PermissionGroupRuleInput{{
+			Resource: "owners",
+			CanEdit:  true,
+		}},
 	}.ToInput()
 	assert.Equal(t, &name, update.Name)
 	assert.Equal(t, &description, update.Description)
 	assert.Equal(t, &color, update.Color)
+	require.Len(t, update.Rules, 1)
+	assert.True(t, update.Rules[0].CanEdit)
+	assert.Nil(
+		t,
+		(UpdatePermissionGroupRequest{Name: &name}).ToInput().Rules,
+		"omitted rules must preserve the legacy parent-only path",
+	)
 
 	rules := SetPermissionGroupRulesRequest{Rules: []PermissionGroupRuleInput{{
 		Resource:  "owners",
@@ -539,6 +556,8 @@ func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {
 		) (*model.PermissionGroup, error) {
 			assert.Equal(t, uint64(23), clinicID)
 			assert.Equal(t, "created", input.Name)
+			require.Len(t, input.Rules, 1)
+			assert.Equal(t, "owners", input.Rules[0].Resource)
 			return &model.PermissionGroup{
 				ID:       7,
 				ClinicID: clinicID,
@@ -558,6 +577,8 @@ func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {
 			input *UpdatePermissionGroupInput,
 		) (*model.PermissionGroup, error) {
 			require.NotNil(t, input.Name)
+			require.Len(t, input.Rules, 1)
+			assert.Equal(t, "owners", input.Rules[0].Resource)
 			return &model.PermissionGroup{
 				ID:       id,
 				ClinicID: clinicID,
@@ -566,13 +587,29 @@ func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {
 			}, nil
 		},
 	}
-	handler := permissionHTTPHandler(service, nil, audit)
+	handler := permissionHTTPHandler(
+		service,
+		permissionHTTPEffectiveService{
+			rules: []model.PermissionGroupRule{{
+				Resource: string(model.ResourceMasterPermission),
+				CanEdit:  true,
+			}},
+		},
+		audit,
+	)
 
 	createContext, createResponse := permissionHTTPContext(
 		t,
 		http.MethodPost,
 		"/permission-groups",
-		CreatePermissionGroupRequest{Name: "created", Color: "#123456"},
+		CreatePermissionGroupRequest{
+			Name:  "created",
+			Color: "#123456",
+			Rules: []PermissionGroupRuleInput{{
+				Resource: "owners",
+				CanView:  true,
+			}},
+		},
 		setPermissionHTTPIdentity,
 	)
 	handler.CreatePermissionGroup(createContext)
@@ -589,7 +626,13 @@ func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {
 		t,
 		http.MethodPatch,
 		"/permission-groups/7",
-		map[string]any{"name": "updated"},
+		map[string]any{
+			"name": "updated",
+			"rules": []map[string]any{{
+				"resource": "owners",
+				"can_edit": true,
+			}},
+		},
 		func(c *gin.Context) { setPermissionHTTPID(c, "7") },
 	)
 	handler.UpdatePermissionGroup(updateContext)
@@ -641,6 +684,51 @@ func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {
 	)
 	updateErrorHandler.UpdatePermissionGroup(updateError)
 	assert.Equal(t, http.StatusInternalServerError, updateErrorResponse.Code)
+}
+
+func TestHTTPHandler_CreatePermissionGroupWithRulesRequiresEditPermission(
+	t *testing.T,
+) {
+	gin.SetMode(gin.TestMode)
+	called := false
+	handler := permissionHTTPHandler(
+		&permissionHTTPService{
+			createFn: func(
+				context.Context,
+				uint64,
+				*CreatePermissionGroupInput,
+			) (*model.PermissionGroup, error) {
+				called = true
+				return &model.PermissionGroup{}, nil
+			},
+		},
+		permissionHTTPEffectiveService{
+			rules: []model.PermissionGroupRule{{
+				Resource:  string(model.ResourceMasterPermission),
+				CanCreate: true,
+			}},
+		},
+		nil,
+	)
+	c, response := permissionHTTPContext(
+		t,
+		http.MethodPost,
+		"/permission-groups",
+		CreatePermissionGroupRequest{
+			Name:  "create-only denied",
+			Color: "#123456",
+			Rules: []PermissionGroupRuleInput{{
+				Resource: "owners",
+				CanView:  true,
+			}},
+		},
+		setPermissionHTTPIdentity,
+	)
+
+	handler.CreatePermissionGroup(c)
+
+	assert.Equal(t, http.StatusForbidden, response.Code)
+	assert.False(t, called)
 }
 
 func TestHTTPHandler_DeletePermissionGroup(t *testing.T) {

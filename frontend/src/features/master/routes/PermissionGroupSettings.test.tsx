@@ -3,17 +3,9 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  CreatePermissionGroupRequest,
-  PermissionGroup,
-  UpdatePermissionGroupRequest,
-} from "../api/permission-groups";
+import type { PermissionGroup } from "../api/permission-groups";
 import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
 import { PermissionGroupSettings } from "./PermissionGroupSettings";
-
-interface MutationCallbacks {
-  onSuccess?: (saved: PermissionGroup) => Promise<void> | void;
-}
 
 const mocks = vi.hoisted(() => ({
   permissions: {
@@ -26,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   createMutate: vi.fn(),
   updateMutate: vi.fn(),
   deleteMutate: vi.fn(),
-  updateRulesMutateAsync: vi.fn(),
   reorderMutate: vi.fn(),
   setEditTarget: vi.fn(),
 }));
@@ -103,7 +94,7 @@ vi.mock("../components/PermissionGroupSortableTable", () => ({
 }));
 
 function mutationStub(mutate: ReturnType<typeof vi.fn>) {
-  return { mutate, mutateAsync: vi.fn() };
+  return { mutate, mutateAsync: mutate };
 }
 
 vi.mock("../api/permission-groups", () => ({
@@ -111,10 +102,6 @@ vi.mock("../api/permission-groups", () => ({
   useCreatePermissionGroup: () => mutationStub(mocks.createMutate),
   useUpdatePermissionGroup: () => mutationStub(mocks.updateMutate),
   useDeletePermissionGroup: () => mutationStub(mocks.deleteMutate),
-  useUpdatePermissionGroupRules: () => ({
-    mutate: vi.fn(),
-    mutateAsync: mocks.updateRulesMutateAsync,
-  }),
   useReorderPermissionGroups: () => mutationStub(mocks.reorderMutate),
 }));
 
@@ -134,30 +121,6 @@ function buildFormData(): PermissionGroupFormData {
       },
     ],
   };
-}
-
-function buildSavedGroup(): PermissionGroup {
-  return {
-    id: "1",
-    clinicId: "1",
-    name: "受付",
-    description: "受付担当",
-    color: "#000000",
-    isActive: true,
-    sortOrder: 1,
-    rules: [],
-    createdAt: "2026-07-26T00:00:00Z",
-    updatedAt: "2026-07-26T00:00:00Z",
-  };
-}
-
-function latestMutationSuccess<TRequest>(
-  mutate: ReturnType<typeof vi.fn>,
-): MutationCallbacks["onSuccess"] {
-  const calls = mutate.mock.calls as unknown as Array<
-    [TRequest, MutationCallbacks]
-  >;
-  return calls.at(-1)?.[1].onSuccess;
 }
 
 describe("PermissionGroupSettings permission mutation boundaries", () => {
@@ -182,60 +145,62 @@ describe("PermissionGroupSettings permission mutation boundaries", () => {
     expect(mocks.reorderMutate).not.toHaveBeenCalled();
   });
 
-  it("create-only persona may update rules after create while edit permission is absent", async () => {
-    mocks.permissions.canEdit = false;
+  it("create payloadにrulesを含め、権限グループAPI mutationを1回だけ発行する", async () => {
     const user = userEvent.setup();
     render(<PermissionGroupSettings />);
 
     await user.click(screen.getByRole("button", { name: "保存" }));
-    const onSuccess =
-      latestMutationSuccess<CreatePermissionGroupRequest>(mocks.createMutate);
-    expect(onSuccess).toBeDefined();
 
-    await act(async () => {
-      await onSuccess?.(buildSavedGroup());
-    });
+    expect(mocks.createMutate).toHaveBeenCalledTimes(1);
+    expect(mocks.createMutate).toHaveBeenCalledWith(
+      {
+        name: "受付",
+        description: "受付担当",
+        color: "#000000",
+        is_active: true,
+        rules: [
+          {
+            resource: "owner",
+            can_view: true,
+            can_create: true,
+            can_edit: false,
+            can_delete: false,
+          },
+        ],
+      },
+    );
 
-    expect(mocks.updateRulesMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mocks.updateMutate).not.toHaveBeenCalled();
   });
 
-  it("create後のrules mutationは最新create permissionが剥奪済みなら発行しない", async () => {
-    const user = userEvent.setup();
-    const { rerender } = render(<PermissionGroupSettings />);
-
-    await user.click(screen.getByRole("button", { name: "保存" }));
-    const onSuccess =
-      latestMutationSuccess<CreatePermissionGroupRequest>(mocks.createMutate);
-    expect(onSuccess).toBeDefined();
-
-    mocks.permissions.canCreate = false;
-    rerender(<PermissionGroupSettings />);
-    await act(async () => {
-      await onSuccess?.(buildSavedGroup());
-    });
-
-    expect(mocks.updateRulesMutateAsync).not.toHaveBeenCalled();
-  });
-
-  it("update後のrules mutationは最新edit permissionが剥奪済みなら発行しない", async () => {
+  it("update payloadにrulesを含め、権限グループAPI mutationを1回だけ発行する", async () => {
     mocks.editTarget = { id: "1" };
     const user = userEvent.setup();
-    const { rerender } = render(<PermissionGroupSettings />);
+    render(<PermissionGroupSettings />);
 
     await user.click(screen.getByRole("button", { name: "保存" }));
-    const onSuccess =
-      latestMutationSuccess<{
-        id: string;
-        req: UpdatePermissionGroupRequest;
-      }>(mocks.updateMutate);
-    expect(onSuccess).toBeDefined();
+    expect(mocks.updateMutate).toHaveBeenCalledTimes(1);
+    expect(mocks.updateMutate).toHaveBeenCalledWith(
+      {
+        id: "1",
+        req: {
+          name: "受付",
+          description: "受付担当",
+          color: "#000000",
+          is_active: true,
+          rules: [
+            {
+              resource: "owner",
+              can_view: true,
+              can_create: true,
+              can_edit: false,
+              can_delete: false,
+            },
+          ],
+        },
+      },
+    );
 
-    mocks.permissions.canEdit = false;
-    rerender(<PermissionGroupSettings />);
-    await act(async () => {
-      await onSuccess?.(buildSavedGroup());
-    });
-
-    expect(mocks.updateRulesMutateAsync).not.toHaveBeenCalled();
+    expect(mocks.createMutate).not.toHaveBeenCalled();
   });
 });

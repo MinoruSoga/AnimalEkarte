@@ -14,19 +14,21 @@ type PermissionGroupRequestBase = Omit<
   "id" | "clinic_id" | "created_at" | "updated_at" | "rules" | "staffs"
 >;
 
+type PermissionGroupRuleRequest = {
+  resource: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+};
+
 export type CreatePermissionGroupRequest = Pick<PermissionGroupRequestBase, "name" | "color"> &
-  Partial<Omit<PermissionGroupRequestBase, "name" | "color">>;
+  Partial<Omit<PermissionGroupRequestBase, "name" | "color">> & {
+    rules?: PermissionGroupRuleRequest[];
+  };
 
-export type UpdatePermissionGroupRequest = Partial<PermissionGroupRequestBase>;
-
-export type UpdatePermissionGroupRulesRequest = {
-  rules: {
-    resource: string;
-    can_view: boolean;
-    can_create: boolean;
-    can_edit: boolean;
-    can_delete: boolean;
-  }[];
+export type UpdatePermissionGroupRequest = Partial<PermissionGroupRequestBase> & {
+  rules?: PermissionGroupRuleRequest[];
 };
 
 // ─────────────────────────────────────────────────
@@ -93,17 +95,6 @@ async function deletePermissionGroup(id: string): Promise<void> {
   await axios.delete(`/v1/masters/permission-groups/${id}`);
 }
 
-async function updatePermissionGroupRules(
-  id: string,
-  req: UpdatePermissionGroupRulesRequest,
-): Promise<PermissionGroup> {
-  const { data } = await axios.put<ModelPermissionGroup>(
-    `/v1/masters/permission-groups/${id}/rules`,
-    req,
-  );
-  return transformPermissionGroup(data);
-}
-
 async function reorderPermissionGroups(ids: string[]): Promise<void> {
   await axios.patch("/v1/masters/permission-groups/reorder", {
     ids: ids.map((id) => parseInt(id, 10)),
@@ -129,6 +120,7 @@ export function useCreatePermissionGroup() {
     mutationFn: createPermissionGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
+      queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -141,6 +133,7 @@ export function useUpdatePermissionGroup() {
       updatePermissionGroup(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
+      queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -154,20 +147,6 @@ export function useDeletePermissionGroup() {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
     },
     onError: (error) => handleApiError(error, "削除"),
-  });
-}
-
-export function useUpdatePermissionGroupRules() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdatePermissionGroupRulesRequest }) =>
-      updatePermissionGroupRules(id, req),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
-      // P7: 権限変更後は /me キャッシュも無効化し、権限を即座に反映
-      queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "設定"),
   });
 }
 

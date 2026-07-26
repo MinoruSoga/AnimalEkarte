@@ -32,6 +32,22 @@ type PermissionGroupRepository interface {
 	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 }
 
+// PermissionGroupRulesAtomicWriter persists a permission-group parent and its
+// complete rule set as one atomic aggregate write.
+type PermissionGroupRulesAtomicWriter interface {
+	CreateWithRules(
+		ctx context.Context,
+		group *model.PermissionGroup,
+		rules []model.PermissionGroupRule,
+	) (*model.PermissionGroup, error)
+	UpdateWithRules(
+		ctx context.Context,
+		clinicID, id uint64,
+		fields map[string]any,
+		rules []model.PermissionGroupRule,
+	) (*model.PermissionGroup, error)
+}
+
 type permissionGroupRepository struct{ db *gorm.DB }
 
 // NewPermissionGroupRepository constructs clinic-scoped permission-group persistence.
@@ -105,6 +121,32 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 	return nil
 }
 
+func (r *permissionGroupRepository) CreateWithRules(
+	ctx context.Context,
+	group *model.PermissionGroup,
+	rules []model.PermissionGroupRule,
+) (*model.PermissionGroup, error) {
+	var result *model.PermissionGroup
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := r.Create(txCtx, group); err != nil {
+			return err
+		}
+		if err := r.replaceRules(txCtx, group.ID, rules); err != nil {
+			return err
+		}
+		var readErr error
+		result, readErr = r.FindByID(txCtx, group.ClinicID, group.ID)
+		return readErr
+	}); err != nil {
+		return nil, apperrors.Wrap(
+			err,
+			"failed to create permission group with rules",
+		)
+	}
+	return result, nil
+}
+
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
 	if err := persistence.UpdateScopedByID(
 		ctx,
@@ -118,6 +160,85 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *permissionGroupRepository) UpdateWithRules(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+	rules []model.PermissionGroupRule,
+) (*model.PermissionGroup, error) {
+	var result *model.PermissionGroup
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		var group model.PermissionGroup
+		if err := persistence.DBOrTx(txCtx, r.db).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where(
+				"id = ? AND clinic_id = ? AND deleted_at IS NULL",
+				id,
+				clinicID,
+			).
+			First(&group).
+			Error; err != nil {
+			return apperrors.FromGORM(
+				err,
+				"permission_group",
+				fmt.Sprintf("%d", id),
+			)
+		}
+		if len(fields) > 0 {
+			if err := persistence.UpdateScopedByID(
+				txCtx,
+				persistence.DBOrTx(txCtx, r.db),
+				&model.PermissionGroup{},
+				"permission_group",
+				clinicID,
+				id,
+				fields,
+			); err != nil {
+				return err
+			}
+		}
+		if err := r.replaceRules(txCtx, id, rules); err != nil {
+			return err
+		}
+		var readErr error
+		result, readErr = r.FindByID(txCtx, clinicID, id)
+		return readErr
+	}); err != nil {
+		return nil, apperrors.Wrap(
+			err,
+			"failed to update permission group with rules",
+		)
+	}
+	return result, nil
+}
+
+func (r *permissionGroupRepository) replaceRules(
+	ctx context.Context,
+	groupID uint64,
+	rules []model.PermissionGroupRule,
+) error {
+	db := persistence.DBOrTx(ctx, r.db)
+	if err := db.Unscoped().
+		Where("group_id = ?", groupID).
+		Delete(&model.PermissionGroupRule{}).
+		Error; err != nil {
+		return apperrors.FromGORM(err, "permission_group_rule", "")
+	}
+	if len(rules) == 0 {
+		return nil
+	}
+	persistedRules := make([]model.PermissionGroupRule, len(rules))
+	copy(persistedRules, rules)
+	for i := range persistedRules {
+		persistedRules[i].GroupID = groupID
+	}
+	if err := db.CreateInBatches(persistedRules, 100).Error; err != nil {
+		return apperrors.FromGORM(err, "permission_group_rule", "")
+	}
+	return nil
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {

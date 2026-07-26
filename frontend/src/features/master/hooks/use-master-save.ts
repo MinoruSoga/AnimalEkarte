@@ -34,6 +34,8 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
   toUpdateRequest: (data: TForm) => TUpdate;
   /** Optional: post-save hook for additional operations (e.g., setting related data) */
   onSuccess?: (saved: T, formData: TForm) => Promise<void> | void;
+  /** Set false when the caller must clear local dirty state before closing. */
+  closeOnSuccess?: boolean;
   /** When provided, engage action-specific permission guards at the mutation boundary. */
   permissions?: MasterSavePermissions;
 }
@@ -50,6 +52,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   toCreateRequest,
   toUpdateRequest,
   onSuccess,
+  closeOnSuccess = true,
   permissions,
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
@@ -72,12 +75,12 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSave = useCallback(
-    (data: TForm) => {
+    async (data: TForm): Promise<boolean> => {
       const error = validate(data);
       if (error) {
         setValidationError(error);
         toast.error(error);
-        return;
+        return false;
       }
       setValidationError(null);
 
@@ -86,47 +89,54 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         const isAllowed = editTargetId !== null
           ? currentPermissions.canEdit === true
           : currentPermissions.canCreate === true;
-        if (!isAllowed) return;
+        if (!isAllowed) return false;
       }
 
-      crudStartSave(() => {
-        if (editTargetId !== null) {
-          updateMutation.mutate(
-            { id: editTargetId, req: toUpdateRequest(data) },
-            {
-              onSuccess: async (saved) => {
-                try {
-                  if (onSuccess) {
-                    await onSuccess(saved, data);
-                  }
-                  toast.success("更新しました");
-                  crudSetEditTarget(null);
-                } catch (error) {
-                  handleApiError(error, "保存");
-                }
-              },
-              onError: (error) => handleApiError(error, "更新"),
-            },
-          );
-        } else {
-          createMutation.mutate(toCreateRequest(data), {
-            onSuccess: async (saved) => {
-              try {
-                if (onSuccess) {
-                  await onSuccess(saved, data);
-                }
-                toast.success("登録しました");
-                crudSetEditTarget(null);
-              } catch (error) {
-                handleApiError(error, "保存");
-              }
-            },
-            onError: (error) => handleApiError(error, "登録"),
+      return new Promise<boolean>((resolve) => {
+        const isUpdate = editTargetId !== null;
+        const actionLabel = isUpdate ? "更新" : "登録";
+
+        const save = async () => {
+          let saved: T;
+          try {
+            saved = isUpdate
+              ? await updateMutation.mutateAsync({
+                  id: editTargetId,
+                  req: toUpdateRequest(data),
+                })
+              : await createMutation.mutateAsync(toCreateRequest(data));
+          } catch (error) {
+            handleApiError(error, actionLabel);
+            resolve(false);
+            return;
+          }
+
+          try {
+            await onSuccess?.(saved, data);
+          } catch (error) {
+            handleApiError(error, "保存");
+            resolve(false);
+            return;
+          }
+
+          toast.success(isUpdate ? "更新しました" : "登録しました");
+          if (closeOnSuccess) {
+            crudSetEditTarget(null);
+          }
+          resolve(true);
+        };
+
+        try {
+          crudStartSave(() => {
+            void save();
           });
+        } catch (error) {
+          handleApiError(error, actionLabel);
+          resolve(false);
         }
       });
     },
-    [editTargetId, crudSetEditTarget, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess],
+    [editTargetId, crudSetEditTarget, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess, closeOnSuccess],
   );
 
   return { handleSave, validationError };

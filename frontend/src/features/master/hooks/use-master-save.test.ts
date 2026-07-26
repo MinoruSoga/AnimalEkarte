@@ -36,7 +36,19 @@ function buildMutation<TVars>(
   impl?: (vars: TVars, opts?: MutationOpts<TestEntity>) => void,
 ): { mutation: UseMutationResult<TestEntity, Error, TVars>; mutate: ReturnType<typeof vi.fn> } {
   const mutate = vi.fn(impl);
-  return { mutation: { mutate } as unknown as UseMutationResult<TestEntity, Error, TVars>, mutate };
+  const mutateAsync = vi.fn(
+    (vars: TVars) =>
+      new Promise<TestEntity>((resolve, reject) => {
+        mutate(vars, {
+          onSuccess: (saved) => resolve(saved),
+          onError: (error) => reject(error),
+        });
+      }),
+  );
+  return {
+    mutation: { mutate, mutateAsync } as unknown as UseMutationResult<TestEntity, Error, TVars>,
+    mutate,
+  };
 }
 
 const savedEntity: TestEntity = { id: "1", name: "保存済み" };
@@ -46,7 +58,7 @@ describe("useMasterSave", () => {
     vi.clearAllMocks();
   });
 
-  it("(a) validate失敗時はmutateを呼ばずvalidationErrorを設定する", () => {
+  it("(a) validate失敗時はmutateを呼ばずfalseを返してvalidationErrorを設定する", async () => {
     const { crud } = buildCrud(null);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -62,8 +74,12 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "" });
+    });
 
+    expect(saveResult).toBe(false);
     expect(result.current.validationError).toBe("名称は必須です");
     expect(createMutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("名称は必須です");
@@ -86,17 +102,21 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "" }));
+    act(() => {
+      void result.current.handleSave({ name: "" });
+    });
     expect(result.current.validationError).toBe("名称は必須です");
     expect(toast.error).toHaveBeenCalledTimes(1);
 
-    act(() => result.current.handleSave({ name: "有効な名称" }));
+    act(() => {
+      void result.current.handleSave({ name: "有効な名称" });
+    });
     expect(result.current.validationError).toBeNull();
     // validate成功時は追加のtoast.errorは呼ばれない(失敗時の1回のみ)
     expect(toast.error).toHaveBeenCalledTimes(1);
   });
 
-  it("permissions absent: editTargetId===nullの場合は従来どおりcreateMutation経路を通る", () => {
+  it("permissions absent: create成功後にtrueを返す", async () => {
     const { crud, setEditTarget } = buildCrud(null);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>(
       (_vars, opts) => opts?.onSuccess?.(savedEntity),
@@ -114,15 +134,19 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "新規ケージ" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "新規ケージ" });
+    });
 
+    expect(saveResult).toBe(true);
     expect(createMutate).toHaveBeenCalledWith({ name: "新規ケージ" }, expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }));
     expect(updateMutate).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith("登録しました");
     expect(setEditTarget).toHaveBeenCalledWith(null);
   });
 
-  it("permissions absent: editTargetIdが存在する場合は従来どおりupdateMutation経路を通り、idとリクエストを渡す", () => {
+  it("permissions absent: update成功後にtrueを返し、idとリクエストを渡す", async () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -141,8 +165,12 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "更新後の名称" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "更新後の名称" });
+    });
 
+    expect(saveResult).toBe(true);
     expect(updateMutate).toHaveBeenCalledWith(
       { id: "42", req: { name: "更新後の名称" } },
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
@@ -152,7 +180,7 @@ describe("useMasterSave", () => {
     expect(setEditTarget).toHaveBeenCalledWith(null);
   });
 
-  it("permissions engaged: canCreateがtrueでない場合はcreate mutationとpost-save処理を発行しない", () => {
+  it("permissions engaged: canCreateがtrueでない場合はfalseを返してmutationを発行しない", async () => {
     const { crud, startSaveTransition } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -171,15 +199,19 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "拒否対象" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "拒否対象" });
+    });
 
+    expect(saveResult).toBe(false);
     expect(startSaveTransition).not.toHaveBeenCalled();
     expect(createMutate).not.toHaveBeenCalled();
     expect(updateMutate).not.toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("permissions engaged: canEditがtrueでない場合はupdate mutationとpost-save処理を発行しない", () => {
+  it("permissions engaged: canEditがtrueでない場合はfalseを返してmutationを発行しない", async () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, startSaveTransition } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -199,8 +231,12 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "拒否対象" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "拒否対象" });
+    });
 
+    expect(saveResult).toBe(false);
     expect(startSaveTransition).not.toHaveBeenCalled();
     expect(createMutate).not.toHaveBeenCalled();
     expect(updateMutate).not.toHaveBeenCalled();
@@ -224,7 +260,9 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "新規グループ" }));
+    act(() => {
+      void result.current.handleSave({ name: "新規グループ" });
+    });
 
     expect(createMutate).toHaveBeenCalledWith(
       { name: "新規グループ" },
@@ -251,7 +289,9 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "更新後のグループ" }));
+    act(() => {
+      void result.current.handleSave({ name: "更新後のグループ" });
+    });
 
     expect(updateMutate).toHaveBeenCalledWith(
       { id: "42", req: { name: "更新後のグループ" } },
@@ -284,7 +324,9 @@ describe("useMasterSave", () => {
     const capturedHandleSave = result.current.handleSave;
 
     rerender({ canCreate: false });
-    act(() => capturedHandleSave({ name: "拒否対象" }));
+    act(() => {
+      void capturedHandleSave({ name: "拒否対象" });
+    });
 
     expect(createMutate).not.toHaveBeenCalled();
   });
@@ -310,7 +352,9 @@ describe("useMasterSave", () => {
     const capturedHandleSave = result.current.handleSave;
 
     rerender({ engage: true });
-    act(() => capturedHandleSave({ name: "拒否対象" }));
+    act(() => {
+      void capturedHandleSave({ name: "拒否対象" });
+    });
 
     expect(createMutate).not.toHaveBeenCalled();
   });
@@ -333,7 +377,9 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "" }));
+    act(() => {
+      void result.current.handleSave({ name: "" });
+    });
 
     expect(validate).toHaveBeenCalledWith({ name: "" });
     expect(result.current.validationError).toBe("名称は必須です");
@@ -360,13 +406,15 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "新規" }));
+    act(() => {
+      void result.current.handleSave({ name: "新規" });
+    });
 
     expect(createMutate).toHaveBeenCalled();
     expect(updateMutate).not.toHaveBeenCalled();
   });
 
-  it("(d) onSuccessコールバックがrejectした場合はhandleApiErrorが呼ばれcrudSetEditTarget(null)されない", async () => {
+  it("(d) onSuccessコールバックがrejectした場合はfalseを返してpanelを閉じない", async () => {
     const { handleApiError } = await import("@/lib/handle-api-error");
     const { crud, setEditTarget } = buildCrud(null);
     const { mutation: createMutation } = buildMutation<TestCreateReq>((_vars, opts) => {
@@ -388,20 +436,19 @@ describe("useMasterSave", () => {
       }),
     );
 
+    let saveResult: boolean | undefined;
     await act(async () => {
-      result.current.handleSave({ name: "新規" });
-      // onSuccess は async 関数内の await を挟むため、マイクロタスクをフラッシュする
-      await Promise.resolve();
-      await Promise.resolve();
+      saveResult = await result.current.handleSave({ name: "新規" });
     });
 
+    expect(saveResult).toBe(false);
     expect(onSuccess).toHaveBeenCalledWith(savedEntity, { name: "新規" });
     expect(handleApiError).toHaveBeenCalledWith(expect.any(Error), "保存");
     expect(setEditTarget).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("mutate自体がonErrorを呼んだ場合はhandleApiErrorが'更新'/'登録'ラベルで呼ばれる", async () => {
+  it("mutate自体がonErrorを呼んだ場合はfalseを返し、handleApiErrorを呼ぶ", async () => {
     const { handleApiError } = await import("@/lib/handle-api-error");
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
@@ -421,8 +468,12 @@ describe("useMasterSave", () => {
       }),
     );
 
-    act(() => result.current.handleSave({ name: "更新" }));
+    let saveResult: boolean | undefined;
+    await act(async () => {
+      saveResult = await result.current.handleSave({ name: "更新" });
+    });
 
+    expect(saveResult).toBe(false);
     expect(handleApiError).toHaveBeenCalledWith(expect.any(Error), "更新");
     expect(setEditTarget).not.toHaveBeenCalled();
   });

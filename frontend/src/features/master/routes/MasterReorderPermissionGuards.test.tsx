@@ -116,7 +116,6 @@ vi.mock("../api/permission-groups", () => ({
   useCreatePermissionGroup: () => mutationStub(vi.fn()),
   useUpdatePermissionGroup: () => mutationStub(vi.fn()),
   useDeletePermissionGroup: () => mutationStub(vi.fn()),
-  useUpdatePermissionGroupRules: () => mutationStub(vi.fn()),
   useReorderPermissionGroups: () => mutationStub(mocks.permissionGroupReorder),
 }));
 
