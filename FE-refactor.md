@@ -144,7 +144,6 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 下記は2026-07-27時点のcurrent sourceで未解消を確認したfollow-up候補である。本ledgerは着手・起票・優先度裁定をしない。
 
-- **frontend型検査の未清算** — `a500d424c`以降の全frontend変更unit（`3b7524748`、`e7c978ec9`、`99bac632e`、`24929e83d`、`3c993420a`）で`pnpm type-check`が未実行。禁止コマンドのためUSERが実行する。手順: `docker compose exec -T frontend pnpm type-check`を実行し、診断が出た場合のみ修正unitを切る。判断者: USER。
 - **alive petへ予約編集した直後のReception danger一時旧値** — 最初に開く: `frontend/src/features/reception/hooks/use-reception-modal-handlers.ts:135-168`、`use-reception-kanban.ts:362-369`、`frontend/src/hooks/use-update-reservation.ts:43-58`。確認: 成功時local mergeの`updatedAppointment`が新petのdanger/statusを持つか、API responseとrefetchのどれを正本にするか、失敗時rollback範囲。判断者: frontend reception contract owner。手順: stale値を再現するhook testを作り、API response採用／payload補完のcontract確定後にlocal mergeとquery同期を変更する。
 - **pet死亡登録の完全同時二重request** — `45b681866`で逐次requestの再登録/取消は409化済み。残るのは完全同時の二重requestが双方ともtransaction前のstatus readを通過し得る狭い窓である。最初に開く: `backend/internal/lstep/lstep_lifecycle_service.go:95,185`と`backend/internal/pet/`の死亡field更新経路。判断者: clinical API owner。手順: pet repository側の条件付きUPDATE（CAS）または行lockで封鎖し、DB並行testで実証する。
 - **backend当日予約lookupのclock seam** — frontend側auto-create testは`3c993420a`でfake timers決定化済み。backendの当日予約lookupと同testのclock注入は未導入。最初に開く: backendのmedical-record auto-create lookup実装と同test。判断者: medical-record contract owner。手順: clock seamを定義し、JST日付境界caseをbackend testへ追加する。
