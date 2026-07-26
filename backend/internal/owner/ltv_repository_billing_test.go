@@ -211,6 +211,137 @@ func TestFindOwnerLTV_MaxSingleVisitAmountWithoutMedicalRecord(t *testing.T) {
 		"medical_record_id NULL の請求も MaxSingleVisitAmount に含めるべき（タグ同期側との集計範囲一致）")
 }
 
+func TestFindOwnerLTV_IncludesCompletedBillingWithoutMedicalRecordInRevenueButNotVisitCount(t *testing.T) {
+	db := setupLTVTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+	now := time.Now()
+
+	ownerA := &model.Owner{ClinicID: clinicA, Name: "Item D Revenue Owner"}
+	otherOwnerA := &model.Owner{ClinicID: clinicA, Name: "Item D Other Owner"}
+	ownerB := &model.Owner{ClinicID: clinicB, Name: "Item D Clinic B Owner"}
+	require.NoError(t, db.WithContext(ctx).Create(ownerA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(otherOwnerA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(ownerB).Error)
+
+	recordA := &model.MedicalRecord{ClinicID: clinicA, OwnerID: &ownerA.ID, Date: now}
+	secondRecordA := &model.MedicalRecord{ClinicID: clinicA, OwnerID: &ownerA.ID, Date: now.AddDate(0, 0, -1)}
+	historicalRecordA := &model.MedicalRecord{ClinicID: clinicA, OwnerID: &ownerA.ID, Date: now.AddDate(0, 0, -2)}
+	otherRecordA := &model.MedicalRecord{ClinicID: clinicA, OwnerID: &otherOwnerA.ID, Date: now}
+	recordB := &model.MedicalRecord{ClinicID: clinicB, OwnerID: &ownerB.ID, Date: now}
+	require.NoError(t, db.WithContext(ctx).Create(recordA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(secondRecordA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(historicalRecordA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(otherRecordA).Error)
+	require.NoError(t, db.WithContext(ctx).Create(recordB).Error)
+
+	linkedCompleted := &model.Billing{
+		ClinicID: clinicA, MedicalRecordID: &recordA.ID,
+		TotalAmount: 1_000, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: &now,
+	}
+	manualCompleted := &model.Billing{
+		ClinicID: clinicA, OwnerID: &ownerA.ID,
+		TotalAmount: 4_000, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: &now,
+	}
+	historicalCompleted := &model.Billing{
+		ClinicID: clinicA, OwnerID: &ownerA.ID, MedicalRecordID: &historicalRecordA.ID,
+		TotalAmount: 2_000, Status: model.BillingStatusCompleted,
+		ScheduledDate: historicalRecordA.Date, CompletedAt: &now,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(linkedCompleted).Error)
+	require.NoError(t, db.WithContext(ctx).Create(manualCompleted).Error)
+	require.NoError(t, db.WithContext(ctx).Create(historicalCompleted).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Payment{
+		BillingID: linkedCompleted.ID, BillingAmount: 800,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Payment{
+		BillingID: manualCompleted.ID, BillingAmount: 3_000,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Payment{
+		BillingID: historicalCompleted.ID, BillingAmount: 1_000,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingRefund{
+		ClinicID: clinicA, BillingID: linkedCompleted.ID, Amount: 100,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingRefund{
+		ClinicID: clinicA, BillingID: manualCompleted.ID, Amount: 500,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingRefund{
+		ClinicID: clinicA, BillingID: historicalCompleted.ID, Amount: 200,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Delete(historicalRecordA).Error)
+
+	excludedBillings := []model.Billing{
+		{
+			ClinicID: clinicA, OwnerID: &ownerA.ID,
+			TotalAmount: 50_000, Status: model.BillingStatusPending, ScheduledDate: now,
+		},
+		{
+			ClinicID: clinicA, OwnerID: &ownerA.ID,
+			TotalAmount: 60_000, Status: model.BillingStatusCancelled, ScheduledDate: now,
+		},
+		{
+			ClinicID: clinicB, OwnerID: &ownerA.ID,
+			TotalAmount: 70_000, Status: model.BillingStatusCompleted,
+			ScheduledDate: now, CompletedAt: &now,
+		},
+		{
+			ClinicID: clinicA, OwnerID: &ownerA.ID, MedicalRecordID: &recordB.ID,
+			TotalAmount: 80_000, Status: model.BillingStatusCompleted,
+			ScheduledDate: now, CompletedAt: &now,
+		},
+		{
+			ClinicID: clinicA, OwnerID: &ownerA.ID, MedicalRecordID: &otherRecordA.ID,
+			TotalAmount: 90_000, Status: model.BillingStatusCompleted,
+			ScheduledDate: now, CompletedAt: &now,
+		},
+	}
+	for i := range excludedBillings {
+		require.NoError(t, db.WithContext(ctx).Create(&excludedBillings[i]).Error)
+	}
+
+	from := now.AddDate(0, 0, -7).Format(time.DateOnly)
+	to := now.AddDate(0, 0, 1).Format(time.DateOnly)
+	tests := []struct {
+		name        string
+		amountBasis string
+		expected    int64
+	}{
+		{name: "gross total", amountBasis: "gross_total_amount", expected: 7_000},
+		{name: "paid amount", amountBasis: "paid_amount", expected: 4_800},
+		{name: "net paid amount", amountBasis: "net_paid_amount", expected: 4_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+				ClinicID:       clinicA,
+				Search:         "Revenue Owner",
+				From:           &from,
+				To:             &to,
+				AmountBasis:    tt.amountBasis,
+				IncludeZero:    true,
+				IncludeNoVisit: true,
+			})
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			require.NotNil(t, rows[0].AnnualAmount)
+			require.NotNil(t, rows[0].BillingCount)
+			require.NotNil(t, rows[0].PeriodVisitCount)
+			assert.Equal(t, int64(7_000), rows[0].TotalAmount)
+			assert.Equal(t, tt.expected, *rows[0].AnnualAmount)
+			assert.Equal(t, int64(3), *rows[0].BillingCount)
+			assert.Equal(t, int64(2), rows[0].TotalVisitCount)
+			assert.Equal(t, int64(2), *rows[0].PeriodVisitCount)
+		})
+	}
+}
+
 // TestFindOwnerLTV_ClinicIDIsolation
 // clinic_id による分離を検証
 func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {

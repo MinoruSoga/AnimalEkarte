@@ -122,7 +122,7 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	amountExpr, amountExprArgs := buildLTVAmountExpr(amountBasis, fromDate, toDate)
 
 	// HAVING句構築
-	having, havingArgs := buildLTVHaving(params, amountExpr, amountExprArgs, fromDate, toDate)
+	having, havingArgs := buildLTVHaving(params, "COALESCE(MAX(ba.annual_amount), 0)", nil, fromDate, toDate)
 
 	havingClause := ""
 	if len(having) > 0 {
@@ -133,38 +133,33 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	orderBy := r.buildOrderBy(params.Sort, params.Order)
 
 	// 期間フィルタをCASE式で適用（total_visit_countは全期間、period_visit_countのみ期間制限）
-	periodFilter := ""
-	var periodFilterArgs []any
-	if fromDate != nil && toDate != nil {
-		periodFilter = "(mr.date >= ? AND mr.date <= ?)"
-		// amountExpr用: net_paid_amount の場合は4個、その他は2個のargs
-		periodFilterArgs = append(periodFilterArgs, amountExprArgs...)
-	}
-
-	// period_visit_count用フィルタ条件（CASE WHEN の条件部分）
-	// 注意: periodVisitCountCondition は query内で2回使われるため、fromDate/toDate を2回分必要
 	periodVisitCountCondition := ""
-	if periodFilter != "" {
-		periodVisitCountCondition = "AND " + periodFilter
-		// periodVisitCountCondition が query内で2回使われるため、args を2回分追加
-		periodFilterArgs = append(periodFilterArgs, fromDate, toDate, fromDate, toDate)
+	var periodVisitCountArgs []any
+	billingCountExpr := "COUNT(DISTINCT b.id)"
+	var billingCountArgs []any
+	if fromDate != nil && toDate != nil {
+		periodVisitCountCondition = "AND mr.date >= ? AND mr.date <= ?"
+		periodVisitCountArgs = append(periodVisitCountArgs, fromDate, toDate)
+		billingCountExpr = "COUNT(DISTINCT CASE WHEN COALESCE(bmr.date, b.scheduled_date) >= ? AND COALESCE(bmr.date, b.scheduled_date) <= ? THEN b.id END)"
+		billingCountArgs = append(billingCountArgs, fromDate, toDate)
 	}
 
 	// last_visit_bucket CASE 式のリテラル ('no_visit'/'within_3m'/'over_3m'/'over_6m'/'over_1y')
 	// は Go 定数 ltvBucket* と一致必須（C-10）。
+	// 会計集計は医院単位で一度だけ飼主別に行い、来院行との直積による金額重複を防ぐ。
 	query := fmt.Sprintf(`
 SELECT
   o.id               AS owner_id,
   o.name             AS owner_name,
   o.line_user_id,
   o.lstep_opt_out,
-  COALESCE(SUM(b.total_amount), 0)                                                  AS total_amount,
+  COALESCE(MAX(ba.total_amount), 0)                                                 AS total_amount,
   COUNT(DISTINCT mr.date)                                                            AS total_visit_count,
   COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) AS annual_visit_count,
   MAX(mr.date)                                                                        AS last_visit_date,
   MIN(mr.date)                                                                        AS first_visit_date,
-  %s                                                                                   AS annual_amount,
-  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id %s THEN b.id END)              AS billing_count,
+  COALESCE(MAX(ba.annual_amount), 0)                                                 AS annual_amount,
+  COALESCE(MAX(ba.billing_count), 0)                                                 AS billing_count,
   COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id %s THEN mr.date END)           AS period_visit_count,
   EXTRACT(DAY FROM NOW() - MAX(mr.date))::int                                        AS days_since_last_visit,
   CASE
@@ -195,33 +190,55 @@ SELECT
   ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
-LEFT JOIN billings b ON b.medical_record_id = mr.id
-  AND b.clinic_id = o.clinic_id
-  AND (b.owner_id IS NULL OR b.owner_id = o.id)
-  AND b.deleted_at IS NULL
-  AND b.status = ?
 LEFT JOIN (
-  SELECT billing_id, SUM(billing_amount) AS billing_amount
-  FROM payments
-  WHERE deleted_at IS NULL
-  GROUP BY billing_id
-) p ON p.billing_id = b.id
-LEFT JOIN (
-  SELECT billing_id, clinic_id, SUM(amount) AS amount
-  FROM billing_refunds
-  GROUP BY billing_id, clinic_id
-) br ON br.billing_id = b.id AND br.clinic_id = b.clinic_id
+  SELECT
+    b.clinic_id,
+    COALESCE(b.owner_id, bmr.owner_id) AS owner_id,
+    COALESCE(SUM(b.total_amount), 0) AS total_amount,
+    %s AS annual_amount,
+    %s AS billing_count
+  FROM billings b
+  LEFT JOIN medical_records bmr
+    ON bmr.id = b.medical_record_id
+    AND bmr.clinic_id = b.clinic_id
+  LEFT JOIN (
+    SELECT billing_id, SUM(billing_amount) AS billing_amount
+    FROM payments
+    WHERE deleted_at IS NULL
+    GROUP BY billing_id
+  ) p ON p.billing_id = b.id
+  LEFT JOIN (
+    SELECT billing_id, clinic_id, SUM(amount) AS amount
+    FROM billing_refunds
+    GROUP BY billing_id, clinic_id
+  ) br ON br.billing_id = b.id AND br.clinic_id = b.clinic_id
+  WHERE b.clinic_id = ?
+    AND b.deleted_at IS NULL
+    AND b.status = ?
+    AND (
+      (b.medical_record_id IS NULL AND b.owner_id IS NOT NULL)
+      OR (
+        bmr.id IS NOT NULL
+        AND bmr.owner_id IS NOT NULL
+        AND (b.owner_id IS NULL OR b.owner_id = bmr.owner_id)
+      )
+    )
+  GROUP BY b.clinic_id, COALESCE(b.owner_id, bmr.owner_id)
+) ba ON ba.clinic_id = o.clinic_id AND ba.owner_id = o.id
 WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
 ORDER BY %s
-`, amountExpr, periodVisitCountCondition, periodVisitCountCondition, where, havingClause, orderBy)
+`, periodVisitCountCondition, amountExpr, billingCountExpr, where, havingClause, orderBy)
 
-	// Assemble args in the correct order: periodFilter args, then the 2 max_single_visit_amount
-	// subquery / billings JOIN status placeholders (C-1), then where args, then having args
-	args := make([]any, 0, len(periodFilterArgs)+2+len(whereArgs)+len(havingArgs))
-	args = append(args, periodFilterArgs...)
-	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
+	// Assemble args in SQL placeholder order: visit count, max amount status, annual amount,
+	// billing count, billing aggregate clinic/status, owner scope, then HAVING.
+	args := make([]any, 0, len(periodVisitCountArgs)+len(amountExprArgs)+len(billingCountArgs)+3+len(whereArgs)+len(havingArgs))
+	args = append(args, periodVisitCountArgs...)
+	args = append(args, model.BillingStatusCompleted)
+	args = append(args, amountExprArgs...)
+	args = append(args, billingCountArgs...)
+	args = append(args, params.ClinicID, model.BillingStatusCompleted)
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 
@@ -241,19 +258,19 @@ func buildLTVAmountExpr(basis string, from, to *time.Time) (amountExpr string, a
 	switch basis {
 	case "paid_amount":
 		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
+			amountExpr = "COALESCE(SUM(CASE WHEN COALESCE(bmr.date, b.scheduled_date) >= ? AND COALESCE(bmr.date, b.scheduled_date) <= ? THEN p.billing_amount ELSE 0 END), 0)"
 		} else {
 			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
 		}
 	case "net_paid_amount":
 		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
+			amountExpr = "COALESCE(SUM(CASE WHEN COALESCE(bmr.date, b.scheduled_date) >= ? AND COALESCE(bmr.date, b.scheduled_date) <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN COALESCE(bmr.date, b.scheduled_date) >= ? AND COALESCE(bmr.date, b.scheduled_date) <= ? THEN br.amount ELSE 0 END), 0), 0)"
 		} else {
 			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
 		}
 	default: // gross_total_amount
 		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
+			amountExpr = "COALESCE(SUM(CASE WHEN COALESCE(bmr.date, b.scheduled_date) >= ? AND COALESCE(bmr.date, b.scheduled_date) <= ? THEN b.total_amount ELSE 0 END), 0)"
 		} else {
 			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
 		}
