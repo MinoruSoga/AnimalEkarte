@@ -75,6 +75,7 @@ function petToFormData(pet: Pet): PetFormData {
     neuteredDate: pet.neuteredDate || "",
     acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
     dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
+    dangerReason: pet.dangerReason || "",
     remarks: pet.remarks || "",
     breed: pet.breed,
     insuranceId: pet.insuranceId,
@@ -233,6 +234,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           neuteredDate: formData.neuteredDate,
           acquisitionType: formData.acquisitionType,
           dangerLevel: formData.dangerLevel,
+          dangerReason: formData.dangerReason,
+          originalDangerReason: petModalItem.dangerReason,
           // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,

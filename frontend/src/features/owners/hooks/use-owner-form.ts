@@ -25,6 +25,10 @@ import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 import { usePetFormListState } from "./use-pet-form-list-state";
 
+type CreateOwnerPetRequestWithDangerReason = CreateOwnerPetRequest & {
+  danger_reason?: string;
+};
+
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
   "会員": "member",
@@ -108,6 +112,7 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     neuteredDate: backendPet.neuteredDate || "",
     acquisitionType: (backendPet.acquisitionType as PetFormData["acquisitionType"]) || "購入",
     dangerLevel: (backendPet.dangerLevel as PetFormData["dangerLevel"]) || "低",
+    dangerReason: backendPet.dangerReason || "",
     remarks: backendPet.remarks || "",
     breed: backendPet.breed,
     insuranceId: backendPet.insuranceId,
@@ -119,7 +124,7 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
 
 function mapPendingPetToCreateRequest(
   pet: PetFormData & { animalSpeciesId: string },
-): CreateOwnerPetRequest {
+): CreateOwnerPetRequestWithDangerReason {
   const request = transformCreatePetRequest({
     ownerId: "0",
     name: pet.petName || "",
@@ -137,6 +142,7 @@ function mapPendingPetToCreateRequest(
     neuteredDate: pet.neuteredDate,
     acquisitionType: pet.acquisitionType,
     dangerLevel: pet.dangerLevel,
+    dangerReason: pet.dangerReason,
     status: PET_STATUS_REVERSE_MAP[pet.status],
     insuranceId: pet.insuranceId,
     remarks: pet.remarks,
@@ -157,6 +163,7 @@ function mapPendingPetToCreateRequest(
     neutered_date: request.neutered_date,
     acquisition_type: request.acquisition_type,
     danger_level: request.danger_level,
+    danger_reason: request.danger_reason,
     food: request.food,
     environment: request.environment,
     insurance_id: request.insurance_id,

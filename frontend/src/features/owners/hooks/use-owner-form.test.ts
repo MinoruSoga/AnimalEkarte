@@ -2,9 +2,12 @@ import { startTransition, useLayoutEffect, useRef } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import { createTestWrapper } from "@/testing/utils";
+import type { Pet as BackendPet } from "@/types/generated/models";
 import type { Owner } from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
+import { ownerLoader } from "../loaders";
 import { useOwnerForm } from "./use-owner-form";
 
 const CREATE_PERMISSIONS = {
@@ -19,13 +22,25 @@ const EDIT_PERMISSIONS = {
   canDelete: false,
 } as const;
 
-const { mockCreateOwner, mockUpdateOwner } = vi.hoisted(() => ({
+const { mockAxiosGet, mockCreateOwner, mockGetOwner, mockUpdateOwner } = vi.hoisted(() => ({
+  mockAxiosGet: vi.fn(),
   mockCreateOwner: vi.fn(),
+  mockGetOwner: vi.fn(),
   mockUpdateOwner: vi.fn(),
+}));
+
+vi.mock("@/lib/axios", () => ({
+  axios: {
+    get: mockAxiosGet,
+  },
 }));
 
 vi.mock("../api/create-owner", () => ({
   createOwner: mockCreateOwner,
+}));
+
+vi.mock("../api/get-owner", () => ({
+  getOwner: mockGetOwner,
 }));
 
 vi.mock("../api/update-owner", () => ({
@@ -159,6 +174,52 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
   });
 });
 
+describe("useOwnerForm dangerReason readback", () => {
+  it("owner detail の再読込で staff pet detail の保存済み理由を pet form 初期値へ保持する", async () => {
+    const backendPet: BackendPet & { danger_reason?: string } = {
+      id: 7,
+      clinic_id: 1,
+      owner_id: 123,
+      animal_species_id: 1,
+      pet_number: "123-1",
+      name: "ポチ",
+      name_kana: "ぽち",
+      gender: "male",
+      status: "alive",
+      breed: "",
+      color: "",
+      danger_level: "high",
+      danger_reason: "保定時に噛む",
+      food: "",
+      environment: "",
+      phone: "",
+      remarks: "",
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    };
+    const ownerWithoutDangerReason = makeOwner({
+      pets: [
+        transformBackendPetToFrontend({
+          ...backendPet,
+          danger_reason: undefined,
+        }),
+      ],
+    });
+    mockGetOwner.mockResolvedValue(ownerWithoutDangerReason);
+    mockAxiosGet.mockResolvedValue({ data: backendPet });
+
+    const { owner } = await ownerLoader({ params: { id: "123" } });
+
+    const { result } = renderHook(
+      () => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
+    expect(result.current.pets[0].dangerReason).toBe("保定時に噛む");
+  });
+});
+
 describe("useOwnerForm atomic owner and pets creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -205,7 +266,8 @@ describe("useOwnerForm atomic owner and pets creation", () => {
         weight: "12.5",
         neuteredDate: "2021-03-04",
         acquisitionType: "購入",
-        dangerLevel: "低",
+        dangerLevel: "高",
+        dangerReason: "  診察台で噛む  ",
         food: "ドライ",
         environment: "室内",
         insuranceId: "20",
@@ -241,7 +303,8 @@ describe("useOwnerForm atomic owner and pets creation", () => {
             weight: 12.5,
             neutered_date: "2021-03-04T00:00:00+09:00",
             acquisition_type: "purchased",
-            danger_level: "low",
+            danger_level: "high",
+            danger_reason: "診察台で噛む",
             food: "ドライ",
             environment: "室内",
             insurance_id: 20,

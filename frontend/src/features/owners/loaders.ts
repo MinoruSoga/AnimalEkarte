@@ -5,8 +5,10 @@ import {
   PET_STATUS_MAP,
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
+  transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
+import type { Pet as BackendPet } from "@/types/generated/models";
 import type { Owner } from "@/types/owner";
 
 // #266: GET /v1/pets 専用の petListResponse（pet_response.go 参照）は petResponse（詳細）より
@@ -54,6 +56,7 @@ interface PetListApiItem {
   neutered_date?: string;
   acquisition_type?: string;
   danger_level: string;
+  danger_reason?: string;
   food: string;
   environment: string;
   last_visit?: string;
@@ -113,6 +116,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     environment: p.environment,
     acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
     dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+    dangerReason: p.danger_reason,
     lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
     insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
     insuranceName: p.insurance?.name,
@@ -172,5 +176,11 @@ export const ownerLoader = async ({ params }: { params: Record<string, string | 
     throw new Response("Owner ID is required", { status: 400 });
   }
   const owner = await getOwner(id);
-  return { owner };
+  const pets = await Promise.all(
+    (owner.pets ?? []).map(async (pet) => {
+      const { data } = await axios.get<BackendPet>(`/v1/pets/${pet.id}`);
+      return transformBackendPetToFrontend(data);
+    }),
+  );
+  return { owner: { ...owner, pets } };
 };

@@ -95,6 +95,7 @@ export function usePetFormListState({
         return;
       }
 
+      const currentPet = petsRef.current.find((pet) => pet.id === editingPet.id) ?? editingPet;
       const updateRequest = transformUpdatePetRequest({
         petNumber: petData.petNumber,
         name: petData.petName,
@@ -112,12 +113,13 @@ export function usePetFormListState({
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
+        dangerReason: petData.dangerReason,
+        originalDangerReason: currentPet.dangerReason,
         // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
-      const currentPet = petsRef.current.find((pet) => pet.id === editingPet.id) ?? editingPet;
       if (
         permissionsRef.current.canEdit !== true ||
         currentPet.status === "死亡"
@@ -175,6 +177,7 @@ export function usePetFormListState({
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
+        dangerReason: petData.dangerReason,
         status: PET_STATUS_REVERSE_MAP[petData.status],
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
@@ -202,6 +205,7 @@ export function usePetFormListState({
             neuteredDate: newPetData.neuteredDate || "",
             acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
             dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
+            dangerReason: newPetData.dangerReason || "",
             remarks: newPetData.remarks || "",
             breed: newPetData.breed,
             insuranceId: newPetData.insuranceId,

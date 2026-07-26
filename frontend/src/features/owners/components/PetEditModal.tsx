@@ -65,6 +65,12 @@ export const PetEditModal = memo(function PetEditModal({
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
     if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
+    const trimmedDangerReason = formData.dangerReason?.trim() ?? "";
+    if (formData.dangerLevel === "高" && !trimmedDangerReason) {
+      errors.dangerReason = "危険度が高の場合は理由を入力してください";
+    } else if (trimmedDangerReason && Array.from(trimmedDangerReason).length > 500) {
+      errors.dangerReason = "危険理由は500文字以内で入力してください";
+    }
     if (formData.weight !== "" && formData.weight !== undefined) {
       const weightNum = parseFloat(formData.weight);
       if (!isNaN(weightNum) && weightNum < 0) {
