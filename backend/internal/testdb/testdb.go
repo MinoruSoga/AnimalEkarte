@@ -97,7 +97,7 @@ func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
 		return nil
 	}
 	if err := db.AutoMigrate(still...); err != nil {
-		return err
+		return fmt.Errorf("auto-migrate test database models: %w", err)
 	}
 	for _, t := range types {
 		autoMigratedTypes.Store(t, struct{}{})

@@ -8,12 +8,7 @@ type UpdateClinicSettingsRequest struct {
 }
 
 func (r UpdateClinicSettingsRequest) ToServiceInput() UpdateClinicSettingsInput {
-	return UpdateClinicSettingsInput{
-		ClosingAmPmBoundary: r.ClosingAmPmBoundary,
-		ClosingWeekdayEnd:   r.ClosingWeekdayEnd,
-		ClosingSundayEnd:    r.ClosingSundayEnd,
-		ClosedWeekdays:      r.ClosedWeekdays,
-	}
+	return UpdateClinicSettingsInput(r)
 }
 
 type CreateSpecialPeriodRequest struct {
@@ -43,11 +38,5 @@ type UpdateSpecialPeriodRequest struct {
 }
 
 func (r UpdateSpecialPeriodRequest) ToServiceInput() UpdateSpecialPeriodInput {
-	return UpdateSpecialPeriodInput{
-		StartDate:    r.StartDate,
-		EndDate:      r.EndDate,
-		AmPmBoundary: r.AmPmBoundary,
-		PmEnd:        r.PmEnd,
-		Note:         r.Note,
-	}
+	return UpdateSpecialPeriodInput(r)
 }
