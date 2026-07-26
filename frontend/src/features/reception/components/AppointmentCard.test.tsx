@@ -1,5 +1,6 @@
 import { DndContext } from "@dnd-kit/core";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -247,6 +248,90 @@ describe("AppointmentCard", () => {
     expect(screen.getByText("【死亡】")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ポチの会計/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ポチの入院登録/ })).not.toBeInTheDocument();
+  });
+
+  it("保存済みの危険理由を click で開示し、再 click で閉じても card click を発火しない", async () => {
+    const user = userEvent.setup();
+    const onCardClick = vi.fn();
+    renderCard(
+      {
+        ...baseAppointment,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      },
+      "受付済",
+      vi.fn(),
+      onCardClick,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: "ポチの危険理由を表示",
+    });
+
+    await user.click(trigger);
+
+    expect(await screen.findByText("保定時に噛む")).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(onCardClick).not.toHaveBeenCalled();
+
+    await user.click(trigger);
+
+    await waitFor(() => {
+      expect(screen.queryByText("保定時に噛む")).not.toBeInTheDocument();
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["空文字", ""],
+    ["空白のみ", " \n\t "],
+  ])("危険理由が%sの場合は理由未登録を表示する", async (_caseName, petDangerReason) => {
+    const user = userEvent.setup();
+    renderCard({
+      ...baseAppointment,
+      petDangerLevel: DangerLevelHigh,
+      petDangerReason,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "ポチの危険理由を表示",
+      }),
+    );
+
+    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Enter", "{Enter}"],
+    ["Space", " "],
+  ])("危険 badge は%sで同じ trigger から開閉できる", async (_keyName, key) => {
+    const user = userEvent.setup();
+    renderCard({
+      ...baseAppointment,
+      petDangerLevel: DangerLevelHigh,
+      petDangerReason: "診察台で噛む",
+    });
+
+    const trigger = screen.getByRole("button", {
+      name: "ポチの危険理由を表示",
+    });
+    trigger.focus();
+
+    await user.keyboard(key);
+
+    expect(await screen.findByText("診察台で噛む")).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    trigger.focus();
+    await user.keyboard(key);
+
+    await waitFor(() => {
+      expect(screen.queryByText("診察台で噛む")).not.toBeInTheDocument();
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("危険度 high の警告 badge を表示し、既存のカルテ・会計 action は維持する", () => {

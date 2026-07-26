@@ -33,6 +33,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
             breed: "柴犬",
             color: "茶",
             danger_level: "low",
+            danger_reason: "保定時に噛む",
             food: "ドライ",
             environment: "室内",
             remarks: "",
@@ -70,6 +71,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     expect(pet.species).toBe("犬");
     expect(pet.animalSpeciesId).toBe("2");
     expect(pet.status).toBe("生存");
+    expect(pet.dangerReason).toBe("保定時に噛む");
     expect(pet.deceasedAt).toBeUndefined();
   });
 

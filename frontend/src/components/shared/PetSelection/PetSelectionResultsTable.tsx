@@ -3,6 +3,7 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
 import type { Pet } from "@/types";
@@ -58,9 +59,28 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                     <span className="flex items-center gap-1.5">
                       <span>{pet.name}</span>
                       {pet.dangerLevel === "高" ? (
-                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
-                          ⚠ 危険
-                        </span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={`${pet.name}の危険理由を表示`}
+                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+                            >
+                              ⚠ 危険
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            aria-label={`${pet.name}の危険理由`}
+                            onOpenAutoFocus={(event) => event.preventDefault()}
+                            className="w-64"
+                          >
+                            <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
+                            <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
+                              {pet.dangerReason?.trim() || "理由未登録"}
+                            </p>
+                          </PopoverContent>
+                        </Popover>
                       ) : null}
                     </span>
                   </TableCell>

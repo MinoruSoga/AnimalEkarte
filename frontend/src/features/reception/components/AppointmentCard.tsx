@@ -21,6 +21,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 // Internal
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
 import {
@@ -176,9 +177,32 @@ export const AppointmentCard = memo(function AppointmentCard({
                 </span>
               ) : null}
               {isHighDanger ? (
-                <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
-                  ⚠ 危険
-                </span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`${appointment.petName}の危険理由を表示`}
+                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      ⚠ 危険
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    aria-label={`${appointment.petName}の危険理由`}
+                    onOpenAutoFocus={(event) => event.preventDefault()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                    className="w-64"
+                  >
+                    <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
+                    <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
+                      {appointment.petDangerReason?.trim() || "理由未登録"}
+                    </p>
+                  </PopoverContent>
+                </Popover>
               ) : null}
             </div>
           </div>
