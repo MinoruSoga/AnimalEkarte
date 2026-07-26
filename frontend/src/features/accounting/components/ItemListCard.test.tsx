@@ -54,9 +54,7 @@ describe("ItemListCard merchandise selection", () => {
     });
   });
 
-  it("手動入力では商品マスタ ID を渡さない", async () => {
-    const user = userEvent.setup();
-    const onAddItem = vi.fn();
+  function renderEditableItemListCard(onAddItem = vi.fn()) {
     render(
       <ItemListCard
         items={[]}
@@ -71,14 +69,56 @@ describe("ItemListCard merchandise selection", () => {
         canDelete={false}
       />,
     );
+  }
+
+  it("手動入力では選択したカテゴリを渡し、商品マスタ ID を渡さない", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
 
     await user.click(screen.getByRole("button", { name: "手動入力" }));
     await user.type(screen.getByLabelText(/品目名/), "手入力商品");
     await user.type(screen.getByLabelText(/単価/), "500");
+    await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+    expect(screen.getAllByRole("option")).toHaveLength(12);
+    await user.click(screen.getByRole("option", { name: "検査" }));
     await user.click(screen.getByRole("button", { name: "追加する" }));
 
     expect(onAddItem).toHaveBeenCalledWith({
       name: "手入力商品",
+      price: "500",
+      category: "test",
+    });
+  });
+
+  it("手動入力ではカテゴリ未選択のまま追加できない", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.type(screen.getByLabelText(/品目名/), "カテゴリ未選択商品");
+    await user.type(screen.getByLabelText(/単価/), "500");
+
+    expect(screen.getByRole("button", { name: "追加する" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+    expect(onAddItem).not.toHaveBeenCalled();
+  });
+
+  it("手動入力ではotherを明示選択できる", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.type(screen.getByLabelText(/品目名/), "その他手入力商品");
+    await user.type(screen.getByLabelText(/単価/), "500");
+    await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+    await user.click(screen.getByRole("option", { name: "その他" }));
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+
+    expect(onAddItem).toHaveBeenCalledWith({
+      name: "その他手入力商品",
       price: "500",
       category: "other",
     });

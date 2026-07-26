@@ -35,6 +35,10 @@ const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) =
   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
 ));
 
+const MANUAL_CATEGORY_SELECT_ITEMS = Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+  <SelectItem key={value} value={value}>{label}</SelectItem>
+));
+
 function getManualPriceError(value: string): string | null {
   const priceNum = parseInt(value, 10);
   if (isNaN(priceNum) || priceNum < 0) {
@@ -83,6 +87,7 @@ export const ItemListCard = memo(function ItemListCard({
   const [addMode, setAddMode] = useState<"master" | "manual">("master");
   const [manualName, setManualName] = useState("");
   const [manualPrice, setManualPrice] = useState("");
+  const [manualCategory, setManualCategory] = useState("");
   const [manualPriceError, setManualPriceError] = useState("");
 
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
@@ -114,7 +119,7 @@ export const ItemListCard = memo(function ItemListCard({
 
   const handleAddManualItem = useCallback(() => {
     const name = manualName.trim();
-    if (!name || !manualPrice) return;
+    if (!name || !manualPrice || !manualCategory) return;
 
     const priceError = getManualPriceError(manualPrice);
     if (priceError !== null) {
@@ -123,11 +128,12 @@ export const ItemListCard = memo(function ItemListCard({
     }
 
     setManualPriceError("");
-    onAddItem({ name, price: manualPrice, category: "other" });
+    onAddItem({ name, price: manualPrice, category: manualCategory });
     setManualName("");
     setManualPrice("");
+    setManualCategory("");
     onNewItemOpenChange(false);
-  }, [manualName, manualPrice, onAddItem, onNewItemOpenChange]);
+  }, [manualName, manualPrice, manualCategory, onAddItem, onNewItemOpenChange]);
 
   const itemRows = useMemo(
     () =>
@@ -266,6 +272,17 @@ export const ItemListCard = memo(function ItemListCard({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="manual-category" className="text-sm">カテゴリ <span className={C.textRequired}>*</span></Label>
+                    <Select value={manualCategory} onValueChange={setManualCategory}>
+                      <SelectTrigger id="manual-category" aria-label="カテゴリ">
+                        <SelectValue placeholder="カテゴリを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MANUAL_CATEGORY_SELECT_ITEMS}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="manual-price" className="text-sm">単価（円）<span className={C.textRequired}>*</span></Label>
                     <Input
                       id="manual-price"
@@ -282,7 +299,7 @@ export const ItemListCard = memo(function ItemListCard({
                   <Button
                     type="button"
                     className="w-full"
-                    disabled={!manualName.trim() || !manualPrice}
+                    disabled={!manualName.trim() || !manualPrice || !manualCategory}
                     onClick={handleAddManualItem}
                   >
                     追加する
