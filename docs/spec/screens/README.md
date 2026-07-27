@@ -86,4 +86,4 @@
 
 ---
 
-**最新更新**: 2026-07-27 | **ステータス**: Static/Code Sync (109 Tables / 34 Resources; Fresh DB Apply Pending — `q&a.html` OPS-13)
+**最新更新**: 2026-07-27 | **ステータス**: Static/Code Sync (110 Tables / 34 Resources; Fresh DB Apply Pending — `q&a.html` OPS-13)
