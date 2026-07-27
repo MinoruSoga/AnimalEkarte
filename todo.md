@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(6)（TASK-251 = U3 完了 `65a0dd08d`・U2b-full 第1段完了 `7a64d9e63` まで履歴反映済み。残 = U2b-full 第2段〔進行中・別 session〕と U4。統合済み001を `DB_RESET=true` で再構築適用 → `make codegen` → full type-check → runtime確認が USER/CI 手順〔TASK-251 / TASK-ADR003 entry 参照〕。⚠commit は必ず `git commit -- <paths>` で path 制限）
+> 更新: 2026-07-27(7)（handover batch 第1走清算済み: BUG-435 条件修正 `213e210b4`／BUG-439 完了 `d9a22f599`〔entry 削除〕／SEC-SWEEP-02 第1走 `864a886b7`+並行走分 `5c81ac8af`。TASK-251 残 = U2b-full 第2段〔進行中・別 session〕と U4。統合済み001を `DB_RESET=true` で再構築適用 → `make codegen` → full type-check → runtime確認が USER/CI 手順〔TASK-251 / TASK-ADR003 entry 参照〕。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
@@ -60,7 +60,7 @@
 - **① grandchild相関の掃引（read-only調査）**: `daily_records` / `care_logs` / `exam_results` / `billing_items` / `medical_record_images` / `medical_record_addenda` 等、petの孫にあたる表のreadが中間表を経由した親clinic相関を持つかをschema-firstで全数確認する。SEC-SWEEP-01と同じ手順（schema universe → model mapping → consumer discovery → state分類）を適用する。
 - **② static lintの新設**: 同型欠陥（`pet_id`等の単一FKに対し親clinic相関を欠くread）をraw SQLとGORMの双方で検出するlintを既存6 lintの隣へ追加する。BUG-429の1件もSEC-SWEEP-01の9件も人手監査でしか見つかっていない。機械で止めない限り同じクラスが再発する。
 - 修正の参照実装 = `backend/internal/pet/chronic_condition_repository.go:37,52`。相関にpets側の `deleted_at` / `deceased_at` を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。
-- **第1走完了（7/27・`864a886b7`・Mode 3 照合済み）**: ①census 28表を独立reconcile付きで全数分類 ②lint `grandchild_parent_clinic_correlation_lint_test.go` をRED→GREENで新設（9対象+raw SQL） ③修復 = checkup_field_results / prescriptions / treatment_plans（直読+hospitalization側count・ambiguous column修正込み）。並行sessionが daily_records / medical_record_addenda 修復+別lint `pet_grandchild_...` を同時作成（当該session側で清算・**lint 2本の統合が必要**）。
+- **第1走完了（7/27・`864a886b7`・Mode 3 照合済み）**: ①census 28表を独立reconcile付きで全数分類 ②lint `grandchild_parent_clinic_correlation_lint_test.go` をRED→GREENで新設（9対象+raw SQL） ③修復 = checkup_field_results / prescriptions / treatment_plans（直読+hospitalization側count・ambiguous column修正込み）。並行走の daily_records / medical_record_addenda 修復+副lint `pet_grandchild_...` は検証のうえ `5c81ac8af` で清算済み（**同目的 lint 2本の統合が残**）。
 - **残（CRITICAL・修復予算超過/legacy契約裁定要で第1走が正しくBLOCKED返し）**: `appointment_trimming_details`（trimming_repository.go:30）／`billings`（accounting_repository.go:192,280）／`estimates`（estimate_repository.go:43）／`medical_records` appointment edge（medical_record_repository.go:375）／`vital_records`（vital_repository.go:40）。HIGH: staff_repository.go:329 の addenda/vitals 依存count。vital→accounting→estimate は既存legacy testが「親をsanitizeしつつ壊れた子は可視のまま」を要求し3-strikeでBLOCKED — 修復には既存契約の裁定が先。lintのraw SQL検出は `*`/`id`/`alias.id` 形のみで一般化も残。
 - 出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。
 
