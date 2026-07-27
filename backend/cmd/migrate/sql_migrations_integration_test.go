@@ -11,14 +11,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
-var disposableCSVImportDatabasePattern = regexp.MustCompile(`^csvimport21_[a-z0-9_]+$`)
+var disposableCSVImportDatabasePattern = regexp.MustCompile(
+	`^(?:csvimport21|animalekarte_f8_g4)_[a-z0-9_]+$`,
+)
 
 // This opt-in test applies only the append-only DDL phase to a caller-provided
 // disposable database. Seed bundles are deliberately excluded so migration
 // compatibility can be verified without loading the large demo dataset.
 func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 	if os.Getenv("MIGRATE_SQL_INTEGRATION") != "1" {
-		t.Skip("set MIGRATE_SQL_INTEGRATION=1 for a disposable local/container database")
+		t.Skip("set MIGRATE_SQL_INTEGRATION=1 for a disposable csvimport/F8 G4 database")
 	}
 
 	conn, err := dbconn.FromEnv()
@@ -27,7 +29,7 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 	}
 	database := os.Getenv("DB_NAME")
 	if !disposableCSVImportDatabasePattern.MatchString(database) {
-		t.Fatalf("DB_NAME %q is not a disposable csvimport21_* database", database)
+		t.Fatalf("DB_NAME %q is not a disposable csvimport21_* or animalekarte_f8_g4_* database", database)
 	}
 	if confirmation := os.Getenv("MIGRATE_SQL_INTEGRATION_DB_NAME"); confirmation != database {
 		t.Fatalf("MIGRATE_SQL_INTEGRATION_DB_NAME must exactly match DB_NAME")
@@ -72,7 +74,7 @@ WHERE filename IN (
 // this mutating helper confined to the one-shot rehearsal database.
 func TestSeedCutoverRehearsalAgainstDisposablePostgres(t *testing.T) {
 	if os.Getenv("CSVIMPORT_REHEARSAL_SEEDS") != "1" {
-		t.Skip("set CSVIMPORT_REHEARSAL_SEEDS=1 for a disposable csvimport21_* database")
+		t.Skip("set CSVIMPORT_REHEARSAL_SEEDS=1 for a disposable csvimport/F8 G4 database")
 	}
 
 	conn, err := dbconn.FromEnv()
@@ -81,7 +83,7 @@ func TestSeedCutoverRehearsalAgainstDisposablePostgres(t *testing.T) {
 	}
 	database := os.Getenv("DB_NAME")
 	if !disposableCSVImportDatabasePattern.MatchString(database) {
-		t.Fatalf("DB_NAME %q is not a disposable csvimport21_* database", database)
+		t.Fatalf("DB_NAME %q is not a disposable csvimport21_* or animalekarte_f8_g4_* database", database)
 	}
 	if confirmation := os.Getenv("CSVIMPORT_REHEARSAL_DB_NAME"); confirmation != database {
 		t.Fatalf("CSVIMPORT_REHEARSAL_DB_NAME must exactly match DB_NAME")
@@ -148,5 +150,25 @@ WHERE id BETWEEN 1 AND 6 AND is_active = true
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDisposableCSVImportDatabasePattern(t *testing.T) {
+	for _, database := range []string{
+		"csvimport21_rehearsal",
+		"animalekarte_f8_g4_rehearsal",
+	} {
+		if !disposableCSVImportDatabasePattern.MatchString(database) {
+			t.Fatalf("disposable database %q was rejected", database)
+		}
+	}
+	for _, database := range []string{
+		"animalekarte",
+		"animalekarte_f8_g4_",
+		"animalekarte_f8_g4_escape-name",
+	} {
+		if disposableCSVImportDatabasePattern.MatchString(database) {
+			t.Fatalf("unsafe database %q was accepted", database)
+		}
 	}
 }

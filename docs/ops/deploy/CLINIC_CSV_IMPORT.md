@@ -105,3 +105,6 @@ docker compose exec backend go test ./cmd/migrate -count=1
 実PostgreSQL上のcatalog/payment SQL構文と実行計画は、共有DBの排他leaseを取得した独立セッションで `CSVIMPORT_DB_INTEGRATION=1` を付け、`go test ./internal/csvimport -run TestCutoverPaymentTargetSQLAgainstPostgres -count=1 -p 1` を実行します。このテストはtransaction-localな一時テーブルに正常/敵対fixtureを作成し、必ずrollbackします。
 
 実 DB apply、DB reset、STG/PROD 操作はこのテスト手順に含みません。
+
+F8 の失敗側リハーサルは、通常 importer に fault injection を追加せず、専用の
+[F8 G4 synthetic failure rehearsal](F8_G4_FAILURE_REHEARSAL.md) を使用します。
