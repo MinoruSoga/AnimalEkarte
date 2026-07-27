@@ -14,6 +14,9 @@ import (
 // 内部エラー(5xx)は details を露出しない。
 func RespondError(c *gin.Context, err error) {
 	status, message, _ := ResolveErrorResponse(err)
+	if err != nil && status >= http.StatusInternalServerError {
+		_ = c.Error(err)
+	}
 	c.JSON(status, gin.H{"error": message})
 }
 
@@ -22,6 +25,9 @@ func RespondError(c *gin.Context, err error) {
 // ステータスコードはエラー種別から自動判定される。
 func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 	status, message, code := ResolveErrorResponse(err)
+	if err != nil && status >= http.StatusInternalServerError {
+		_ = c.Error(err)
+	}
 
 	response := gin.H{
 		"error": message,
@@ -37,13 +43,10 @@ func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 // ResolveErrorResponse はエラーから HTTP ステータスコード・メッセージ・エラーコードを決定する。
 // RespondError / RespondErrorWithExtras 共通の唯一の分類ロジック。
 //
-// BE9-2B note: this is the generic, domain-independent classification (apperrors sentinels +
-// pg errors + a safe 500 fallback). internal/handler's RespondError/RespondErrorWithExtras
-// facade wraps this with one additional domain-specific fallback
-// (*reservation.ReservationLimitError（internal/reservation/response_error.go）, liff/reservation-only) BEFORE delegating here, so that
-// httpapi itself never imports internal/service (httpapi must stay dependency-free per
-// ADR-006's topological order) while today's 269 internal/handler call sites keep their exact
-// existing behavior. See internal/handler/response.go for that residual branch.
+// この関数は分類だけを行う。domain 固有の ReservationLimitError は
+// internal/reservation/response_error.go で先に処理される。
+// RespondError / RespondErrorWithExtras は、分類結果が 5xx の場合に Gin error を登録し、
+// RequestLoggingMiddleware が request 境界で記録できるようにする。
 func ResolveErrorResponse(err error) (status int, message, code string) {
 	// AppError からの抽出（Code / Message）
 	var appErr *apperrors.AppError
@@ -94,20 +97,18 @@ func ResolveErrorResponse(err error) (status int, message, code string) {
 			// 400「入力値が正しくありません」で返すとサーバ欠陥が利用者のせいに見え、
 			// ペット一覧全滅の原因特定が遅れた。
 			//
-			// ここではログを出さない。SQLSTATE を含む記録は、request context を持つ
-			// domain service 側で既に1回行われている（例: internal/pet/service.go の
-			// "failed to list pets" は error 文字列に "(SQLSTATE 42703)" を含む）。
-			// 本関数は79箇所から呼ばれる汎用マッピングであり、ここで再度記録すると
-			// 未知 pg エラー全般が系統的に二重ログになる
-			// （.claude/rules/go-gin-backend-guidelines.md §8「同じ error を
-			// 複数レイヤーで重複ログしない」）。応答本文にも pg 詳細を出さない。
+			// ResolveErrorResponse 自体はログを出さない。RespondError /
+			// RespondErrorWithExtras が 5xx を Gin error として登録し、
+			// RequestLoggingMiddleware が request 境界で SQLSTATE を記録する。
+			// domain service に同じ error のログが残る重複は、サーバー側欠陥の診断に
+			// SQLSTATE が不可欠なため §8 の例外として許容する。応答本文には pg 詳細を出さない。
 			status = http.StatusInternalServerError
 			message = "internal server error"
 		}
 	default:
 		// 未分類エラー（既知センチネルに属さない AppError・素の error・domain-specific custom
-		// error 型）は詳細を露出しない 500 に落とす。domain-specific な特別扱い（例:
-		// service.ReservationLimitError）は internal/handler の facade 側で処理する。
+		// error 型）は詳細を露出しない 500 に落とす。reservation.ReservationLimitError は
+		// internal/reservation/response_error.go で先に処理する。
 		status = http.StatusInternalServerError
 		message = "internal server error"
 	}

@@ -162,6 +162,7 @@ func RegisterUserRoutes(group *gin.RouterGroup, h *UserHandler) {
 - error は、それを処理できる境界まで返す。無視しない。
 - `%w` と `errors.Is` / `errors.As` で error chain を保持する。
 - 同じ error を複数レイヤーで重複ログしない。request 境界など、十分な文脈を持つ場所で1回記録する。
+- 例外として、未知 pg コードはサーバー側欠陥の診断に SQLSTATE が不可欠なため、`c.Error(err)` による request 境界での記録を必須とし、domain service 側に同じ error のログが残る重複を許容する。
 - Gin では `c.Error(err)` と error-handling middleware による集中 mapping を利用できる。
 - 既知の application error を安定した HTTP status/code に変換し、未知の error は汎用的な 500 response にする。
 - DB error、stack trace、SQL、file path、secret、個人情報を response に含めない。
