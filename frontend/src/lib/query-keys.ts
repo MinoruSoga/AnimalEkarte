@@ -264,6 +264,9 @@ export const queryKeys = {
     subOwnerOptions: (search: string) =>
       ["owners", { scope: "sub-owner-options", search }] as const,
   },
+  ownerSharedPets: {
+    detail: (ownerId: string) => ["owner-shared-pets", ownerId] as const,
+  },
   ownerLineTags: (ownerId: string) => ["owner-line-tags", ownerId] as const,
   lineSendHistory: (ownerId: string) => ["line-send-history", ownerId] as const,
 

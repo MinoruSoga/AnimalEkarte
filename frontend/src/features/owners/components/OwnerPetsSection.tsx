@@ -2,11 +2,17 @@ import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Bed, Calendar, CreditCard, Edit, FileText, MoreHorizontal, PawPrint, Plus, Scissors, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { PET_GENDER_MAP, PET_STATUS_MAP } from "@/lib/transforms/pet";
+import {
+  useGetOwnerSharedPets,
+  type OwnerSharedPetApiResponse,
+} from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 
 interface PetTableRowProps {
@@ -177,6 +183,44 @@ const PetTableRow = memo(function PetTableRow({
   );
 });
 
+const SharedPetTableRow = memo(function SharedPetTableRow({
+  pet,
+}: {
+  pet: OwnerSharedPetApiResponse;
+}) {
+  return (
+    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+      <TableCell className={STYLE.tableCell}>{pet.pet_number}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        <div className="flex items-center gap-2">
+          <span>{pet.name}</span>
+          <Badge variant="outline">副飼主</Badge>
+          {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
+        </div>
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {PET_STATUS_MAP[pet.status] ?? pet.status}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.animal_species.name}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {PET_GENDER_MAP[pet.gender] ?? pet.gender}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.birth_date ? pet.birth_date.slice(0, 10) : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.weight !== null ? `${pet.weight} kg` : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
+      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
+        {pet.remarks}
+      </TableCell>
+      <TableCell />
+    </TableRow>
+  );
+});
+
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景（既存の C.bgPage）+ eyebrow 相当タイポグラフィ。
 // STYLE.tableCellMuted（body 用）ではなく既存の STYLE.sectionLabel（eyebrow role）を再利用する。
 const PET_TABLE_HEADER_CELL = `${STYLE.sectionLabel} whitespace-nowrap`;
@@ -220,6 +264,18 @@ export function OwnerPetsSection({
   onEditPet,
   onDeleteRequest,
 }: OwnerPetsSectionProps) {
+  const {
+    data: sharedPetsResponse,
+    isError: isSharedPetsError,
+    isLoading: isSharedPetsLoading,
+  } = useGetOwnerSharedPets(ownerId);
+  const sharedPets = sharedPetsResponse?.shared_pets ?? [];
+  const showEmptyState =
+    pets.length === 0 &&
+    sharedPets.length === 0 &&
+    !isSharedPetsLoading &&
+    !isSharedPetsError;
+
   return (
     <div className="mb-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -241,11 +297,17 @@ export function OwnerPetsSection({
         ) : null}
       </div>
 
+      {isSharedPetsError ? (
+        <p role="alert" className={`text-sm ${C.danger}`}>
+          共有ペット情報の取得に失敗しました。
+        </p>
+      ) : null}
+
       <div className={`rounded-lg ${C.bgWhite} overflow-hidden border ${C.borderMedium}`}>
         <Table>
           {PET_TABLE_HEADER}
           <TableBody>
-            {pets.length === 0 ? (
+            {showEmptyState ? (
               <TableRow>
                 <TableCell
                   data-empty-state
@@ -256,18 +318,23 @@ export function OwnerPetsSection({
                 </TableCell>
               </TableRow>
             ) : (
-              pets.map((pet) => (
-                <PetTableRow
-                  key={pet.id}
-                  pet={pet}
-                  ownerId={ownerId}
-                  canEdit={canEdit}
-                  canCreate={canCreate}
-                  canDelete={canDelete}
-                  onEdit={onEditPet}
-                  onDeleteRequest={onDeleteRequest}
-                />
-              ))
+              <>
+                {pets.map((pet) => (
+                  <PetTableRow
+                    key={pet.id}
+                    pet={pet}
+                    ownerId={ownerId}
+                    canEdit={canEdit}
+                    canCreate={canCreate}
+                    canDelete={canDelete}
+                    onEdit={onEditPet}
+                    onDeleteRequest={onDeleteRequest}
+                  />
+                ))}
+                {sharedPets.map((pet) => (
+                  <SharedPetTableRow key={`shared-${pet.id}`} pet={pet} />
+                ))}
+              </>
             )}
           </TableBody>
         </Table>
