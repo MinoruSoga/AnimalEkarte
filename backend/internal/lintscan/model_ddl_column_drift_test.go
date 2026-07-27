@@ -115,6 +115,115 @@ func TestModelDDLColumnDrift_EveryModelColumnExistsInMigrations(t *testing.T) {
 	}
 }
 
+// TestModelDDLColumnDrift_EveryGormStructIsCovered は、上のゲートの適用対象から
+// 静かに漏れる model が無いことを保証する。
+//
+// 上のゲートは TableName() を宣言する構造体だけを検査する。GORM は TableName() が
+// 無い場合、構造体名の複数形 snake_case を既定のテーブル名にするため、TableName() を
+// 書かない model も動作してしまう。その model は上のゲートに現れず、
+// 「ドリフトがあるのにゲートが緑」という偽陰性になる。
+//
+// そこで「gorm タグを1つでも持つ = GORM 永続化を意図した構造体」でありながら
+// TableName() を持たないものを違反とする。2026-07-27 時点で内部 DTO
+// （*Response / *Thresholds / *Breakdown / Lab* 等）は gorm タグを持たないため緑。
+func TestModelDDLColumnDrift_EveryGormStructIsCovered(t *testing.T) {
+	sources := mustReadGoSources(t, modelDir)
+	uncovered, err := findGormStructsWithoutTableName(sources)
+	if err != nil {
+		t.Fatalf("scan model sources: %v", err)
+	}
+	if len(uncovered) > 0 {
+		t.Fatalf("%d struct(s) in internal/model carry gorm tags but declare no TableName(): %v\n"+
+			"TestModelDDLColumnDrift_EveryModelColumnExistsInMigrations silently skips these, "+
+			"so column drift in them would go undetected. "+
+			"Add a TableName() method, or remove the gorm tags if the struct is not persisted.",
+			len(uncovered), uncovered)
+	}
+}
+
+func TestFindGormStructsWithoutTableName_DetectsUncovered(t *testing.T) {
+	src := []byte(`package model
+
+type Covered struct {
+	ID uint64 ` + "`gorm:\"primaryKey\"`" + `
+}
+
+func (Covered) TableName() string { return "covered" }
+
+// gorm タグを持つのに TableName() が無い = 上位ゲートから漏れる
+type Uncovered struct {
+	ID uint64 ` + "`gorm:\"primaryKey\"`" + `
+}
+
+// gorm タグを持たない純粋な DTO は対象外
+type PlainDTO struct {
+	Total int ` + "`json:\"total\"`" + `
+}
+`)
+
+	got, err := findGormStructsWithoutTableName(map[string][]byte{"m.go": src})
+	if err != nil {
+		t.Fatalf("findGormStructsWithoutTableName: %v", err)
+	}
+	if !reflect.DeepEqual(got, []string{"Uncovered"}) {
+		t.Errorf("got %v, want [Uncovered]", got)
+	}
+}
+
+// findGormStructsWithoutTableName は gorm タグを持つが TableName() を宣言しない構造体名を返す。
+func findGormStructsWithoutTableName(sources map[string][]byte) ([]string, error) {
+	fset := token.NewFileSet()
+	gormTagged := map[string]struct{}{}
+	hasTableName := map[string]struct{}{}
+
+	names := make([]string, 0, len(sources))
+	for name := range sources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		file, err := parser.ParseFile(fset, name, sources[name], 0)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", name, err)
+		}
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					st, ok := ts.Type.(*ast.StructType)
+					if !ok {
+						continue
+					}
+					for _, field := range st.Fields.List {
+						if gormTag(field) != "" {
+							gormTagged[ts.Name.Name] = struct{}{}
+							break
+						}
+					}
+				}
+			case *ast.FuncDecl:
+				if recv, _, ok := parseTableNameMethod(d); ok {
+					hasTableName[recv] = struct{}{}
+				}
+			}
+		}
+	}
+
+	var uncovered []string
+	for name := range gormTagged {
+		if _, ok := hasTableName[name]; !ok {
+			uncovered = append(uncovered, name)
+		}
+	}
+	sort.Strings(uncovered)
+	return uncovered, nil
+}
+
 // TestReconcileModelDDLColumns_GateDetectsDrift は「意図的にドリフトさせたら FAIL する」ことを
 // 合成入力で恒久的に固定する。実 model ファイルを一時編集して確認する運用は、
 // 並行セッションで作業ツリーが汚れている状況では revert 漏れリスクがあるため採らない
