@@ -74,12 +74,25 @@ type ExaminationTypeService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CreateField(ctx context.Context, clinicID uint64, command *CreateExamTypeFieldCommand) (*model.ExamTypeField, error)
+	UpdateField(ctx context.Context, clinicID, examTypeID, fieldID uint64, input *UpdateExamTypeFieldInput) (*ExamTypeFieldResult, error)
+	DeleteField(ctx context.Context, clinicID, examTypeID, fieldID uint64) error
+	ReorderFields(ctx context.Context, clinicID, examTypeID uint64, ids []uint64) error
+	ReplaceReferenceRanges(ctx context.Context, clinicID, examTypeID uint64, command *ReplaceReferenceRangesCommand) (*ExamTypeFieldResult, error)
+	ListReferenceRanges(ctx context.Context, clinicID uint64, fieldIDs []uint64) (map[uint64][]model.ExamReferenceRange, error)
 }
 
-type examTypeService struct{ repo ExamTypeRepository }
+type examTypeService struct {
+	repo       ExamTypeRepository
+	transactor Transactor
+}
 
-func NewExamTypeService(repo ExamTypeRepository) ExaminationTypeService {
-	return &examTypeService{repo: repo}
+func NewExamTypeService(repo ExamTypeRepository, transactors ...Transactor) ExaminationTypeService {
+	var transactor Transactor
+	if len(transactors) > 0 {
+		transactor = transactors[0]
+	}
+	return &examTypeService{repo: repo, transactor: transactor}
 }
 
 func (s *examTypeService) List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {

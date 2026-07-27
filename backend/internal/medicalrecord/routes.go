@@ -150,6 +150,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/examination-types/:id", perm(model.ResourceMasterMedical, "view"), h.examType.GetExaminationType)
 	masters.PATCH("/examination-types/:id", perm(model.ResourceMasterMedical, "edit"), h.examType.UpdateExaminationType)
 	masters.DELETE("/examination-types/:id", perm(model.ResourceMasterMedical, "delete"), h.examType.DeleteExaminationType)
+	masters.POST("/examination-types/:id/fields", perm(model.ResourceMasterMedical, "create"), h.examType.CreateExaminationTypeField)
+	masters.PATCH("/examination-types/:id/fields/reorder", perm(model.ResourceMasterMedical, "edit"), h.examType.ReorderExaminationTypeFields)
+	masters.PATCH("/examination-types/:id/fields/:fieldId", perm(model.ResourceMasterMedical, "edit"), h.examType.UpdateExaminationTypeField)
+	masters.DELETE("/examination-types/:id/fields/:fieldId", perm(model.ResourceMasterMedical, "delete"), h.examType.DeleteExaminationTypeField)
+	masters.PUT("/examination-types/:id/fields/:fieldId/reference-ranges", perm(model.ResourceMasterMedical, "edit"), h.examType.ReplaceExaminationTypeFieldReferenceRanges)
 
 	// Diagnosis Categories
 	masters.GET("/diagnosis-types", perm(model.ResourceMasterMedical, "view"), h.diagnosis.ListDiagnosisTypes)

@@ -2913,6 +2913,11 @@ components:
           type: string
         sort_order:
           type: integer
+        items:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/ExaminationTypeField'
         created_at:
           type: string
           format: date-time
@@ -2921,6 +2926,128 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ExaminationTypeField:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+        reference_ranges:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/ExamReferenceRange'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateExamTypeFieldRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+    UpdateExamTypeFieldRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+    ExamReferenceRange:
+      type: object
+      required: [animal_species_id]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_field_id:
+          type: integer
+          format: int64
+          readOnly: true
+        animal_species_id:
+          type: integer
+          format: int64
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+    ExamReferenceRangeInput:
+      type: object
+      required: [animal_species_id]
+      properties:
+        animal_species_id:
+          type: integer
+          format: int64
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+    ReplaceExamReferenceRangesRequest:
+      type: object
+      required: [ranges]
+      properties:
+        ranges:
+          type: array
+          nullable: false
+          items:
+            $ref: '#/components/schemas/ExamReferenceRangeInput'
     DiagnosisCategory:
       type: object
       required: [name]
@@ -16477,6 +16604,172 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields:
+    post:
+      operationId: createExaminationTypeField
+      summary: 検査項目登録
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExamTypeFieldRequest'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/reorder:
+    patch:
+      operationId: reorderExaminationTypeFields
+      summary: 検査項目一括並び替え
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/{fieldId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    patch:
+      operationId: updateExaminationTypeField
+      summary: 検査項目更新
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExamTypeFieldRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteExaminationTypeField
+      summary: 検査項目削除
+      tags: [Masters]
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/{fieldId}/reference-ranges:
+    put:
+      operationId: replaceExaminationTypeFieldReferenceRanges
+      summary: 検査項目の動物種別基準値を全置換
+      description: ranges は必須の非 null 配列。空配列は既存基準値を全削除する。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceExamReferenceRangesRequest'
+      responses:
+        '200':
+          description: 全置換成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

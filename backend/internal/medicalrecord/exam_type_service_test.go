@@ -68,6 +68,35 @@ func (m *mockExamTypeRepository) CountChildrenByParentID(ctx context.Context, cl
 	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
+func (m *mockExamTypeRepository) CreateField(context.Context, *model.ExamTypeField) error { return nil }
+func (m *mockExamTypeRepository) LockFieldByID(context.Context, uint64, uint64, uint64) (*model.ExamTypeField, error) {
+	return &model.ExamTypeField{}, nil
+}
+func (m *mockExamTypeRepository) UpdateField(context.Context, uint64, uint64, uint64, map[string]any) (*model.ExamTypeField, error) {
+	return &model.ExamTypeField{}, nil
+}
+func (m *mockExamTypeRepository) DeleteField(context.Context, uint64, uint64, uint64) error {
+	return nil
+}
+func (m *mockExamTypeRepository) ReorderFields(context.Context, uint64, uint64, []uint64) error {
+	return nil
+}
+func (m *mockExamTypeRepository) CountExamResultsByFieldID(context.Context, uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockExamTypeRepository) CountReferenceRangesByFieldID(context.Context, uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockExamTypeRepository) AnimalSpeciesExists(context.Context, uint64) (bool, error) {
+	return true, nil
+}
+func (m *mockExamTypeRepository) ReplaceReferenceRanges(context.Context, uint64, uint64, []model.ExamReferenceRange) error {
+	return nil
+}
+func (m *mockExamTypeRepository) FindReferenceRangesByFieldIDs(context.Context, uint64, []uint64) (map[uint64][]model.ExamReferenceRange, error) {
+	return map[uint64][]model.ExamReferenceRange{}, nil
+}
+
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

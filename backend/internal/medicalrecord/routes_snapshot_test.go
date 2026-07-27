@@ -87,6 +87,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/diagnosis-names/:id DeleteDiagnosisName\n" +
 		"DELETE /api/v1/masters/diagnosis-types/:id DeleteDiagnosisType\n" +
 		"DELETE /api/v1/masters/examination-types/:id DeleteExaminationType\n" +
+		"DELETE /api/v1/masters/examination-types/:id/fields/:fieldId DeleteExaminationTypeField\n" +
 		"DELETE /api/v1/masters/hospitalization-plans/:id DeleteHospitalizationPlan\n" +
 		"DELETE /api/v1/masters/inquiry-templates/:id DeleteInquiryTemplate\n" +
 		"DELETE /api/v1/masters/medicines/:id DeleteMedicine\n" +
@@ -175,6 +176,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/diagnosis-types/:id UpdateDiagnosisType\n" +
 		"PATCH /api/v1/masters/diagnosis-types/reorder ReorderDiagnosisTypes\n" +
 		"PATCH /api/v1/masters/examination-types/:id UpdateExaminationType\n" +
+		"PATCH /api/v1/masters/examination-types/:id/fields/:fieldId UpdateExaminationTypeField\n" +
+		"PATCH /api/v1/masters/examination-types/:id/fields/reorder ReorderExaminationTypeFields\n" +
 		"PATCH /api/v1/masters/examination-types/reorder ReorderExaminationTypes\n" +
 		"PATCH /api/v1/masters/hospitalization-plans/:id UpdateHospitalizationPlan\n" +
 		"PATCH /api/v1/masters/hospitalization-plans/reorder ReorderHospitalizationPlans\n" +
@@ -214,6 +217,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/diagnosis-names CreateDiagnosisName\n" +
 		"POST /api/v1/masters/diagnosis-types CreateDiagnosisType\n" +
 		"POST /api/v1/masters/examination-types CreateExaminationType\n" +
+		"POST /api/v1/masters/examination-types/:id/fields CreateExaminationTypeField\n" +
 		"POST /api/v1/masters/hospitalization-plans CreateHospitalizationPlan\n" +
 		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
 		"POST /api/v1/masters/medicines CreateMedicine\n" +
@@ -230,6 +234,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
+		"PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges ReplaceExaminationTypeFieldReferenceRanges\n" +
 		"PUT /api/v1/masters/medicines/:id/dose-params/:species UpsertMedicineDoseParam\n" +
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n" +
 		"PUT /api/v1/medical-records/:id/treatments BulkUpdateTreatments\n"
