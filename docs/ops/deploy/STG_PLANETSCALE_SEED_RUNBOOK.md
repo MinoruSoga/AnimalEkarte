@@ -88,8 +88,8 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 ### 2.4 凍結履歴: 廃止した STG seed 投入経路
 
 AWS ECS/RDS の `db_reset` workflow は基盤廃止時に削除済みで、復元・実行しない。
-現行 `backend-deploy.yml` に `db_reset` 入力はない。`make stage-import` は old_db（旧カルテ）由来データを
-**ローカル開発DB**へ投入する経路であり、PlanetScale STG への投入手段ではない。
+現行 `backend-deploy.yml` に `db_reset` 入力はない。`make csv-import` は old_db（旧カルテ）由来データを
+**正式な CSV cutover 経路**として投入するためのコマンドであり、PlanetScale STG への手動 direct-import 代替ではない。
 当時の AWS 手順を調査する場合だけ [`../infra/_archive/aws-legacy/`](../infra/_archive/aws-legacy/) の凍結記録を参照する。
 
 ### 2.5 PlanetScale への直接投入経路: `pscale role` + psql

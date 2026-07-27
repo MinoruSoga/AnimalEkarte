@@ -164,7 +164,7 @@ jobs:
         # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
         # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
-        # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
+        # lstep-migrate/, seed-old-db/(archived), migrations/ 等のエントリポイント・
         # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
         # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
         # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
