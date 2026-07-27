@@ -3664,10 +3664,10 @@ ALTER TABLE clinic_settings
 -- 臨床結果テーブルの DB レベル複合 FK（clinic_id 込み）で越境 INSERT/UPDATE を物理拒否する
 -- （BE-refactor.md R3-7 / D13・defense-in-depth）。
 --
--- 対象は checkup_field_results のみ。exam_results は clinic_id 列を持たず、参照先の exam_type_fields も
--- clinic_id 列を持たない（clinic は exam_type_fields→exam_types→clinics と2段先）ため、(id, clinic_id) の
--- 複合 FK が構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という
--- 非 additive なスキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
+-- 対象は checkup_field_results のみ。exam_type_fields は旧005で clinic_id 列と複合FKを獲得済みだが、
+-- exam_results 自身は clinic_id 列を持たないため、(exam_type_field_id, clinic_id) の複合 FK は
+-- 構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という非 additive な
+-- スキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
 --
 -- 挙動保存: migration 010 の患者結果値保護（フィールド定義削除時に結果値を残す ON DELETE SET NULL）を
 -- 列指定 SET NULL（PostgreSQL 15+ 機能・本番は PG18）で維持する。親 checkup_type_fields を削除すると

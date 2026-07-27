@@ -39,7 +39,6 @@ func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 	sql := readMigrationFile(t, "../../migrations/001_init.sql")
 
 	childTables := []string{
-		"exam_type_fields",
 		"permission_group_rules",
 		"staff_permission_groups",
 		"appointment_trimming_options",
@@ -69,8 +68,9 @@ func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 
 // TestExamResultsTenantBoundaryScopedViaParentExam — BE-refactor.md R3-7 (D13) exam_results 部分。
 //
-// exam_results / exam_type_fields は clinic_id カラムを持たないため、checkup_field_results 同型の
-// (id, clinic_id) 複合 FK は構造的に張れない（migration 012 は checkup 側のみ）。
+// exam_results は clinic_id カラムを持たないため、checkup_field_results 同型の
+// (exam_type_field_id, clinic_id) 複合 FK は構造的に張れない（migration 012 は checkup 側のみ）。
+// exam_type_fields は旧 migration 005 で clinic_id と複合 FK を獲得済み。
 //
 // exam_results の**実効的な**テナント境界はアプリ層が担う:
 //   - examination_repository の全クエリが親 exams への JOIN + WHERE clinic_id 述語で scope する。
@@ -87,7 +87,7 @@ func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 // 本テストが固定するのは runtime の遮断ではなく migration の**構造前提**:
 //  1. exam_results の RLS ポリシー定義が親 exams.clinic_id 経由で正しく書かれていること
 //     （RLS を将来 FORCE 化した際の defense-in-depth の正しさ + ポリシー誤削除の検出）。
-//  2. exam_results / exam_type_fields に clinic_id カラムが無いこと（あれば複合 FK が可能になり
+//  2. exam_results に clinic_id カラムが無いこと（追加された場合は複合 FK が可能になり
 //     R3-7 の「app 層が実効境界」という設計前提が変わる → 見直しの合図）。
 func TestExamResultsTenantBoundaryScopedViaParentExam(t *testing.T) {
 	t.Parallel()
@@ -104,17 +104,87 @@ func TestExamResultsTenantBoundaryScopedViaParentExam(t *testing.T) {
 		t.Fatal("exam_results RLS policy name 'tenant_exam_results_isolation' missing")
 	}
 
-	// (2) 構造前提の固定: exam_results / exam_type_fields の CREATE TABLE に clinic_id カラムが無いこと
+	// (2) 構造前提の固定: exam_results の CREATE TABLE に clinic_id カラムが無いこと
 	// （あれば checkup 同型の複合 FK が可能になり、本テストの設計前提が変わる → 見直しの合図）。
-	for _, table := range []string{"exam_results", "exam_type_fields"} {
-		ddl := extractCreateTable(t, sql, table)
-		for line := range strings.SplitSeq(ddl, "\n") {
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "clinic_id ") {
-				t.Fatalf("%s に clinic_id カラムが追加されている。複合 FK が可能になったので R3-7 の設計を見直すこと: %s", table, trimmed)
+	ddl := extractCreateTable(t, sql, "exam_results")
+	for line := range strings.SplitSeq(ddl, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "clinic_id ") {
+			t.Fatalf("exam_results に clinic_id カラムが追加されている。複合 FK が可能になったので R3-7 の設計を見直すこと: %s", trimmed)
+		}
+	}
+}
+
+func TestRLSMigrationExamTypeFieldsUsesFinalDirectClinicBoundary(t *testing.T) {
+	t.Parallel()
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+
+	finalSchemaMutations := []struct {
+		required  string
+		forbidden []string
+	}{
+		{
+			required: "ALTER TABLE exam_type_fields\n    ADD COLUMN clinic_id bigint;",
+			forbidden: []string{
+				"ALTER TABLE exam_type_fields\n    DROP COLUMN clinic_id",
+				"ALTER TABLE exam_type_fields\n    DROP COLUMN IF EXISTS clinic_id",
+			},
+		},
+		{
+			required: "ALTER TABLE exam_type_fields\n    ALTER COLUMN clinic_id SET NOT NULL,",
+			forbidden: []string{
+				"ALTER TABLE exam_type_fields\n    ALTER COLUMN clinic_id DROP NOT NULL",
+			},
+		},
+		{
+			required: "ADD CONSTRAINT uq_exam_type_fields_id_clinic UNIQUE (id, clinic_id);",
+			forbidden: []string{
+				"ALTER TABLE exam_type_fields\n    DROP CONSTRAINT uq_exam_type_fields_id_clinic",
+				"ALTER TABLE exam_type_fields\n    DROP CONSTRAINT IF EXISTS uq_exam_type_fields_id_clinic",
+			},
+		},
+		{
+			required: "ADD CONSTRAINT fk_exam_type_fields_type_clinic\n    FOREIGN KEY (exam_type_id, clinic_id)\n    REFERENCES exam_types (id, clinic_id)",
+			forbidden: []string{
+				"ALTER TABLE exam_type_fields\n    DROP CONSTRAINT fk_exam_type_fields_type_clinic",
+				"ALTER TABLE exam_type_fields\n    DROP CONSTRAINT IF EXISTS fk_exam_type_fields_type_clinic",
+			},
+		},
+	}
+	for _, mutation := range finalSchemaMutations {
+		requiredAt := strings.LastIndex(sql, mutation.required)
+		if requiredAt < 0 {
+			t.Fatalf("exam_type_fields final schema missing required clinic boundary:\n%s", mutation.required)
+		}
+		for _, forbidden := range mutation.forbidden {
+			if forbiddenAt := strings.LastIndex(sql, forbidden); forbiddenAt > requiredAt {
+				t.Fatalf("exam_type_fields final schema removes a required clinic boundary after it is established:\n%s", forbidden)
 			}
 		}
 	}
+
+	policy := extractFinalRLSPolicyApplication(t, sql, "exam_type_fields")
+	const directClinicScope = "'app_private.has_clinic_access(clinic_id)'"
+	if strings.Count(policy, directClinicScope) != 2 {
+		t.Fatalf("final exam_type_fields RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+	if strings.Contains(policy, "EXISTS (") {
+		t.Fatalf("final exam_type_fields RLS policy must not retain the historical parent-scoped expression:\n%s", policy)
+	}
+}
+
+func extractFinalRLSPolicyApplication(t *testing.T, sql, table string) string {
+	t.Helper()
+	marker := "SELECT app_private.apply_rls_policy(\n    '" + table + "',"
+	start := strings.LastIndex(sql, marker)
+	if start < 0 {
+		t.Fatalf("RLS policy application for %s not found", table)
+	}
+	policy, _, found := strings.Cut(sql[start:], "\n);")
+	if !found {
+		t.Fatalf("RLS policy application for %s has no terminator", table)
+	}
+	return policy
 }
 
 // extractCreateTable は 001_init.sql から `CREATE TABLE <table> ( ... );` ブロックを取り出す。

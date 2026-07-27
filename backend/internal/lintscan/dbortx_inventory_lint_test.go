@@ -99,6 +99,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHashForUpdate":       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.CountUsageByGroupID":                   {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Create":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.CreateWithRules":                       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Delete":                                {},
 	"auth/permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID":           {},
 	"auth/permission_group_repository.go|permissionGroupRepository.FindAll":                               {},
@@ -108,8 +109,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"auth/permission_group_repository.go|permissionGroupRepository.LockByIDForUpdate":                     {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                               {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Update":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateWithRules":                       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                           {},
 	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                     {},
+	"auth/permission_group_repository.go|permissionGroupRepository.replaceRules":                          {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                  {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                           {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                             {},
@@ -146,7 +149,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
-	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -213,6 +217,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":    {},
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
 	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                  {},
 	// medical_record_addendum
 	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
 	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
@@ -547,6 +552,9 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {
 		shape: ambientTxRequired,
 	},
 	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {
