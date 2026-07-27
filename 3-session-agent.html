@@ -434,6 +434,60 @@ commit bodyに <code>Co-Authored-By</code> なし。</li>
 </ul>
 </section>
 
+<section class="task" id="TASK-SPECIES-01">
+<h3>TASK-SPECIES-01: 動物種取得失敗の可視化・横断</h3>
+<ul>
+  <li><b>結果</b>: 5面すべてで <code>error → loading → successかつ0件 → options</code> を区別し、共通文言を <code>動物種の取得に失敗しました。</code> / <code>動物種を読み込み中です。</code> / <code>動物種マスタが登録されていません。</code> に固定した。errorは <code>role="alert" aria-atomic="true"</code>、loading/emptyは <code>role="status" aria-live="polite" aria-atomic="true"</code>。raw errorは描画しない。</li>
+  <li><b>変更面</b>: <code>NewOwnerInlineForm</code>、<code>PetEditModal</code>（<code>PetEditModalFields</code>→<code>PetIdentitySection</code>へplaceholderを透過）、<code>AnimalSpeciesSettings</code>、<code>OwnersList</code>、<code>MedicalRecords</code>。各面に隣接回帰testを追加した。error/loading時はstaleな動物種候補・master CRUD edit/delete/reorderをfail-closeし、飼主/ペットの他入力、一覧の検索/他filter、新規登録、masterの新規追加は維持した。</li>
+  <li><b>commit</b>: Stage 1 <code>6a74d7dcc</code>（4 paths）、Stage 2＋独立review修復 <code>a804ac09c</code>（12 paths）。共有worktreeで両commit間に他sessionの <code>0ff9175ae</code> / <code>71500a218</code> / <code>cbed6f1d1</code> が入ったため、他owner履歴をrewriteせず、reviewで必要になったStage 1 repairを第2commitへ含めた。<code>git commit -- &lt;paths&gt;</code> がlisted fileのworktree全体を採用する挙動で一度 <code>PetSubOwnersSection</code> hunksを取り込んだため、HEADの第2commitだけをindex限定amendし、<code>PetEditModalFields.tsx</code> はspecies placeholderの3 hunksだけに是正した。他ownerのimport/renderはunstagedのまま保持。両commitに <code>Co-Authored-By</code> なし。</li>
+  <li><b>prompt gate</b>:
+<pre>$ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-species-silent-failure-sweep.md
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Execution contract: dynamic-workflow/v1
+$ shasum -a 256 /Users/minoru/.claude/prompt-craft-runs/agent-fast-species-silent-failure-sweep.md
+c1d46bf99822957555aaa0a385d5e93deee1b5bd904a713638c27eae73fef0df  /Users/minoru/.claude/prompt-craft-runs/agent-fast-species-silent-failure-sweep.md</pre></li>
+  <li><b>最終Vitest</b>:
+<pre>$ docker compose exec -T frontend npx vitest run src/components/shared/ReservationFormModal/NewOwnerInlineForm.test.tsx src/components/shared/ReservationFormModal/ReservationFormModal.test.tsx src/features/owners/components/PetEditModal.species-status.test.tsx src/features/owners/components/PetEditModalFields.test.tsx src/features/master/routes/AnimalSpeciesSettings.test.tsx src/features/master/routes/MasterReorderPermissionGuards.test.tsx src/features/owners/routes/OwnersList.species-status.test.tsx src/features/owners/routes/OwnersList.test.tsx src/features/owners/routes/OwnersList.filter-wiring.test.tsx src/features/owners/routes/OwnersList.permissions.test.tsx src/features/medical-records/routes/MedicalRecords.species-status.test.tsx src/features/medical-records/routes/MedicalRecords.test.tsx
+Test Files  12 passed (12)
+Tests       69 passed (69)
+Duration    9.99s
+exit 0</pre>
+既存のDialog description / HydrateFallback / act warningは出たが、対象12 filesは全件PASS。</li>
+  <li><b>lint</b>:
+<pre>$ docker compose exec -T frontend npx eslint src/components/shared/ReservationFormModal/NewOwnerInlineForm.tsx src/components/shared/ReservationFormModal/NewOwnerInlineForm.test.tsx src/features/owners/components/PetEditModal.tsx src/features/owners/components/PetEditModal.species-status.test.tsx src/features/owners/components/PetEditModalFields.tsx src/features/owners/components/PetIdentitySection.tsx src/features/master/routes/AnimalSpeciesSettings.tsx src/features/master/routes/AnimalSpeciesSettings.test.tsx src/features/owners/routes/OwnersList.tsx src/features/owners/routes/OwnersList.species-status.test.tsx src/features/medical-records/routes/MedicalRecords.tsx src/features/medical-records/routes/MedicalRecords.species-status.test.tsx
+[no ESLint output]
+exit 0</pre></li>
+  <li><b>不変・backend gate</b>:
+<pre>$ git diff --name-only -- frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx frontend/src/features/master/components/ExamTypeFieldsEditor.tsx frontend/src/hooks/use-animal-species.ts frontend/src/features/master/api/animal-species.ts
+[0 lines]
+$ git status --porcelain -- backend/
+ M backend/docs/api.yaml
+ M backend/internal/medicalrecord/examination_handler.go
+ M backend/internal/medicalrecord/examination_request.go
+ M backend/internal/medicalrecord/examination_request_test.go
+ M backend/internal/medicalrecord/examination_response.go
+ M backend/internal/medicalrecord/examination_response_test.go
+?? backend/internal/lintscan/erd_table_count_drift_test.go
+?? backend/internal/lintscan/seed_csv_schema_drift_test.go</pre>
+backend出力は開始前から存在した他session所有差分で、本unitの所有pathはfrontend 12 pathsのみ。</li>
+  <li><b>commit scope gate</b>:
+<pre>$ git diff --cached --name-only -- 3-session-agent.html
+[0 lines]
+$ git show --stat --oneline 6a74d7dcc
+6a74d7dcc fix: surface species failures in pet forms
+4 files changed, 423 insertions(+), 7 deletions(-)
+$ git show --stat --oneline a804ac09c
+a804ac09c fix: distinguish animal species query states
+12 files changed, 788 insertions(+), 29 deletions(-)</pre>
+台帳はstage/commitせずworktreeにのみ追記。</li>
+  <li><b>TDD / failure signatures</b>: 全5面で先にREDを取得後GREEN化。独立reviewのHIGH 4件（inline form label未接続、Owners stale filter候補、PetEdit error/empty時placeholder矛盾、master cached CRUD継続）をrepair round 1で修復。repair中のexact label query不一致はaccessible-name role queryへ修正。再reviewはTypeScript / React-a11y / silent-failure consistencyともCRITICAL/HIGH/MEDIUMなしでApprove。</li>
+  <li><b>orchestration</b>: native Workflow toolは未提供のためmulti-agent fan-outを使用。read-only調査4 lanes＋planner、Stage 1 writer 2 lanes、Stage 2 writer 3 lanes、独立review 3 lanes（medical writer子review 1 lane）を実行。planner 2 lanesはstallで明示interruptしquick plannerへ切替、他は全件joined。writer pathは非重複で割当し、共有fileの他owner hunkは部分stageで分離した。</li>
+  <li><b>安全境界</b>: Local write。push、GitHub書込、STG/PROD、codegen、DB reset、backend/db restartは実行していない。frontendのscoped Vitest/ESLintのみ実行。</li>
+  <li><b>New Work</b>: 同一masterを別queryKeyで取得する <code>useGetAnimalSpecies</code> / <code>useAnimalSpecies</code> 2系統の統合は別task。動物種以外masterの同種silent-failure横断掃引も別task。</li>
+</ul>
+</section>
+
 <!-- LEDGER:APPEND -->
 
 <h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
