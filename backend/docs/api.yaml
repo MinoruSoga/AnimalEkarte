@@ -1048,6 +1048,51 @@ components:
               type: string
         name_kana:
           type: string
+        version:
+          type: integer
+          readOnly: true
+          description: 楽観的ロック用バージョン
+    PetSubOwner:
+      type: object
+      required: [owner_id, name, name_kana, relationship]
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        name_kana:
+          type: string
+        relationship:
+          type: string
+    PetSubOwnersResponse:
+      type: object
+      required: [sub_owners]
+      properties:
+        sub_owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/PetSubOwner'
+    ReplacePetSubOwnerRequest:
+      type: object
+      required: [owner_id, relationship]
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        relationship:
+          type: string
+          description: 前後空白除去後1〜50文字の続柄
+    ReplacePetSubOwnersRequest:
+      type: object
+      required: [version, sub_owners]
+      properties:
+        version:
+          type: integer
+        sub_owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplacePetSubOwnerRequest'
     PetListItem:
       type: object
       description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド。#266 でペット行粒度の一覧基盤として拡張）
@@ -10204,6 +10249,72 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /pets/{id}/sub-owners:
+    get:
+      operationId: listPetSubOwners
+      summary: ペット副飼主一覧
+      description: owners:view 権限が必要。
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ペットID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ペット副飼主一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetSubOwnersResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: replacePetSubOwners
+      summary: ペット副飼主置換
+      description: owners:edit 権限が必要。
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ペットID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplacePetSubOwnersRequest'
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
