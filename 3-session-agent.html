@@ -453,18 +453,6 @@ commit bodyに <code>Co-Authored-By</code> なし。</li>
 </ul>
 </section>
 
-<section class="task" id="BUG-452">
-<h3>BUG-452: 予約フォームの患者選択モーダルが全ペットの先頭20件しか検索対象にしない（BUG-451 の8つ目のサーフェス）</h3>
-<ul>
-  <li><b>HIGH</b>（2026-07-28・<a href="#BUG-451">BUG-451</a> の是正作業中に発見）。BUG-451 は影響範囲を「<code>usePetSelectionPage</code> を共有する7画面」と記録していたが、実際は<b>8面</b>だった。8面目は共有フックを使っていないため BUG-451 の修正では直っていない。</li>
-  <li><b>機序</b>: <code>frontend/src/components/shared/ReservationFormModal/PatientSelectionTable.tsx:52</code> が <code>useSearchPets()</code> を owner フィルタなしで呼ぶ。<code>useSearchPets</code>（<code>frontend/src/hooks/use-pet.ts</code>）は <code>useGetPets(ownerId)</code> を <code>page</code>/<code>limit</code> 未指定で呼ぶため、backend の <code>ParsePaginationWithMax</code> が既定値 20 を適用する。その20件に対して同ファイル 64-70 行が <code>normalizedIncludes</code> でクライアント側フィルタを行う（<code>ownerId</code> / <code>ownerName</code> / <code>ownerNameKana</code> / <code>phone</code> / <code>petName</code> / <code>petNameKana</code> / <code>species</code> の7条件）。<b>BUG-451 と同一の機序である。</b></li>
-  <li><b>臨床上の危険</b>: 予約登録時に実在する患者を検索して見つからず「未登録」と誤認し、重複した飼主・ペットを新規作成しうる。<a href="#BUG-449">BUG-449</a> と同じ「システムが黙って不完全な結果を正常な結果として提示する」クラスの欠陥。</li>
-  <li><b>是正方針</b>: BUG-451 の修正（<code>0ff9175ae</code>）と同じ形にする。すなわち backend の <code>search</code> / <code>species</code> / <code>owner_id</code> 述語とページネーションへ委譲し、クライアント側フィルタを削除する。<b>参照実装は本リポジトリ内に2つある</b>: <code>frontend/src/hooks/use-pet-selection-page.ts</code>（BUG-451 で修正済み。デバウンス配線と総件数・ページャの扱いを含む）と <code>frontend/src/features/owners/loaders.ts</code> の <code>ownersLoader</code>。<code>frontend/src/hooks/use-debounced-value.ts</code> も再利用できる。</li>
-  <li><b>注意</b>: <code>useSearchPets</code> は owner スコープでの利用（<code>useGetPets(ownerId)</code>）も想定した共有フックである。ページネーション対応を既存シグネチャの破壊で行わないこと。<code>useGetPets</code> は既にオプショナル引数で <code>page</code>/<code>limit</code>/<code>search</code>/<code>species</code> と <code>preservePreviousData</code> を受け付けるため、呼び出し側の変更だけで足りる可能性が高い。</li>
-  <li><b>住所検索について</b>: BUG-451 では住所欄を機能ごと廃止した。backend の <code>search</code> 述語（<code>backend/internal/pet/repository.go:123-139</code>）は <code>pets.name</code> / <code>pets.name_kana</code> / <code>owners.name</code> / <code>owners.name_kana</code> / <code>owners.phone</code> のみを対象とし、<code>owners.address1</code> / <code>address2</code> に対する述語が存在しないためである。本サーフェスでも同じ判断を適用する（押せない欄を残すと「その条件で検索した」という誤解が残るため <code>disabled</code> 化ではなく削除する）。</li>
-</ul>
-</section>
-
 <section class="task" id="TASK-SPECIES-01">
 <h3>TASK-SPECIES-01: 動物種取得失敗の可視化・横断</h3>
 <ul>
