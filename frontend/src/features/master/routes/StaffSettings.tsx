@@ -1,5 +1,6 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef, useLayoutEffect } from "react";
 import { UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -41,7 +42,7 @@ import {
   filterStaffByMasterFilters,
   searchStaff,
 } from "./staff-settings-model";
-import { ResourceMasterStaff } from "@/types/generated/models";
+import { ResourceMasterStaff, ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -61,6 +62,9 @@ const COLUMNS = [
 
 export function StaffSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
+  // 権限グループ割当は backend が master-staff:edit と master-permission:edit の両方を要求する
+  // （`backend/internal/staff/handler.go` の PUT /staffs/:id/permission-groups）。
+  const { canEdit: canEditPermission } = usePermission(ResourceMasterPermission);
 
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
@@ -137,8 +141,22 @@ export function StaffSettings() {
     permissions: { canCreate, canEdit },
   });
 
+  // R-1⑤: 基本staff保存は useMasterSave が権限を再検査するが、関連付けmutationは素通しだった。
+  // read-only画面でEnterによりform actionが発火した場合、基本保存が拒否されても関連付けだけが
+  // 独立して発行され得る。backend は両経路とも fail-closed（403）だが、UI が実行できない操作を
+  // 試みる状態は残る。mutation直前に最新権限を再検査する（Active execution rules 2）。
+  const associationPermissionsRef = useRef({ canEdit, canEditPermission });
+  useLayoutEffect(() => {
+    associationPermissionsRef.current = { canEdit, canEditPermission };
+  }, [canEdit, canEditPermission]);
+
   const handleSaveGroups = useCallback(
     (staffId: string, groupIds: string[]) => {
+      const current = associationPermissionsRef.current;
+      if (!current.canEdit || !current.canEditPermission) {
+        toast.error("権限グループを変更する権限がありません");
+        return;
+      }
       setGroupsFn({ staffId, groupIds });
     },
     [setGroupsFn],
@@ -146,6 +164,10 @@ export function StaffSettings() {
 
   const handleSaveClinics = useCallback(
     (staffId: string, clinicIds: string[]) => {
+      if (!associationPermissionsRef.current.canEdit) {
+        toast.error("所属医院を変更する権限がありません");
+        return;
+      }
       setClinicsFn({ staffId, clinicIds });
     },
     [setClinicsFn],

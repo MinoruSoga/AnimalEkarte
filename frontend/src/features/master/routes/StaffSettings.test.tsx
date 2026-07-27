@@ -8,21 +8,29 @@ import type { StaffFormData } from "../components/staff-side-panel-model";
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 // ──────────────────────────────────────────────────────────
-// R-F18: StaffSettings の validate() は「新規=email/password 必須」
-// 「編集=email/password 任意」を editTarget（"new" か既存レコードか）で判定する。
-// この判定が反転・欠落すると、新規登録がノーガードで通ってしまう、または
-// 編集のたびにパスワード再入力を強制してしまう。
+// StaffSettings の validate() は email/password を「入力された場合のみ検証」する
+// （R-1③ の裁定: backend は account を持たない staff を許容するため必須化しない）。
+// あわせて関連付けmutation（権限グループ・所属医院）は mutation 直前に最新権限を
+// 再検査する（R-1⑤）。この再検査が外れると、read-only 画面から発火した form action で
+// 権限の無い変更が試行される。
 // useMasterSave.handleSave は validate 失敗時に createMutation/updateMutation を
 // 呼ばずに toast.error(error) でユーザーに通知して return する。
 // ──────────────────────────────────────────────────────────
 
-const { mockCreateMutate, mockUpdateMutate } = vi.hoisted(() => ({
-  mockCreateMutate: vi.fn(),
-  mockUpdateMutate: vi.fn(),
-}));
+const { mockCreateMutate, mockUpdateMutate, mockSetGroups, mockSetClinics } = vi.hoisted(
+  () => ({
+    mockCreateMutate: vi.fn(),
+    mockUpdateMutate: vi.fn(),
+    mockSetGroups: vi.fn(),
+    mockSetClinics: vi.fn(),
+  }),
+);
 
+const ALL_ALLOWED = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+// resource 別に差し替えられるようにする（権限グループ割当は master-permission:edit も要る）。
+let permissionByResource: Record<string, typeof ALL_ALLOWED> = {};
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
+  usePermission: (resource: string) => permissionByResource[resource] ?? ALL_ALLOWED,
 }));
 
 vi.mock("../api/occupations", () => ({
@@ -64,11 +72,11 @@ vi.mock("../api/staffs", () => ({
   useCreateStaff: () => ({ mutateAsync: mockCreateMutate }),
   useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
   useDeleteStaff: () => ({ mutate: vi.fn() }),
-  useUpdateStaffClinics: () => ({ mutate: vi.fn() }),
+  useUpdateStaffClinics: () => ({ mutate: mockSetClinics }),
   useGetClinicsList: () => ({ data: [] }),
   useGetAllStaffPermissionGroupMap: () => ({ data: new Map() }),
   useUpdateStaffCapableReservationTypes: () => ({ mutate: vi.fn() }),
-  useUpdateStaffPermissionGroups: () => ({ mutate: vi.fn() }),
+  useUpdateStaffPermissionGroups: () => ({ mutate: mockSetGroups }),
 }));
 
 // MasterCRUDPage は PageLayout/DataTable/PropertyFilter 等の重い依存を持つため、
@@ -77,6 +85,13 @@ vi.mock("../api/staffs", () => ({
 let latestProps: {
   crud: { setEditTarget: (t: Staff | "new" | null) => void };
   handleSave: (data: StaffFormData) => Promise<boolean>;
+  renderSidePanel: (args: {
+    item: Staff | null;
+    onClose: () => void;
+    onSave: () => void;
+    onDeleteRequest: () => void;
+    readOnly: boolean;
+  }) => { props: Record<string, unknown> };
 } | null = null;
 
 vi.mock("../components/MasterCRUDPage", () => ({
@@ -108,7 +123,65 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     mockCreateMutate.mockReset().mockResolvedValue(makeStaff({ id: "2" }));
     mockUpdateMutate.mockReset().mockResolvedValue(makeStaff());
     vi.mocked(toast.error).mockClear();
+    mockSetGroups.mockReset();
+    mockSetClinics.mockReset();
+    permissionByResource = {};
     latestProps = null;
+  });
+
+  // R-1⑤: 基本staff保存は useMasterSave が権限を再検査するが、関連付けmutationは素通しだった。
+  // backend は PUT /staffs/:id/permission-groups に master-staff:edit と master-permission:edit の
+  // 両方を、PUT /staffs/:id/clinics に master-staff:edit を要求する（fail-closed）。
+  function sidePanelProps() {
+    return latestProps!.renderSidePanel({
+      item: makeStaff(),
+      onClose: () => {},
+      onSave: () => {},
+      onDeleteRequest: () => {},
+      readOnly: false,
+    }).props;
+  }
+
+  it("権限グループ割当: master-permission:edit が無ければ mutation を発行しない", () => {
+    permissionByResource = {
+      "master-permission": { ...ALL_ALLOWED, canEdit: false },
+    };
+    render(<StaffSettings />);
+    const onSaveGroups = sidePanelProps().onSaveGroups as (
+      staffId: string,
+      groupIds: string[],
+    ) => void;
+
+    act(() => onSaveGroups("1", ["10"]));
+
+    expect(mockSetGroups).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("権限グループを変更する権限がありません");
+  });
+
+  it("権限グループ割当: 両権限が揃えば mutation を発行する", () => {
+    render(<StaffSettings />);
+    const onSaveGroups = sidePanelProps().onSaveGroups as (
+      staffId: string,
+      groupIds: string[],
+    ) => void;
+
+    act(() => onSaveGroups("1", ["10"]));
+
+    expect(mockSetGroups).toHaveBeenCalledTimes(1);
+  });
+
+  it("所属医院割当: master-staff:edit が無ければ mutation を発行しない", () => {
+    permissionByResource = { "master-staff": { ...ALL_ALLOWED, canEdit: false } };
+    render(<StaffSettings />);
+    const onSaveClinics = sidePanelProps().onSaveClinics as (
+      staffId: string,
+      clinicIds: string[],
+    ) => void;
+
+    act(() => onSaveClinics("1", ["1"]));
+
+    expect(mockSetClinics).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("所属医院を変更する権限がありません");
   });
 
   // R-1③ の裁定: backend は account を持たない staff を許容する（`resource` 種別は
