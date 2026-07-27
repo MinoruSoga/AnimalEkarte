@@ -31,14 +31,14 @@ STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.
 
 `backend/cmd/migrate/main.go` の `run()`:
 
-- `DB_RESET` は `resetSchema`（`DROP SCHEMA public CASCADE` → `CREATE SCHEMA public`）の実行有無だけを制御する（main.go:88-94, 590-617）。
-- seed バンドルのロード（`runSeedBundles`, main.go:539-588）は `DB_RESET` の値と**無関係**に、`runSQLMigrations`（DDL 適用, main.go:441-526）の直後に必ず呼ばれる（main.go:117-127）。
-- `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:551-559）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
-- 既存 DB（テーブルが実在する）への誤投入を防ぐガードは `baselineIfNeeded`（main.go:293-394）。`clinics` テーブルが存在しなければ「新規 DB」と判定し baseline せず（main.go:324-327）、そのまま `runSeedBundles` が CSV を実投入する。
+- `DB_RESET` は `resetSchema`（`DROP SCHEMA public CASCADE` → `CREATE SCHEMA public`）の実行有無だけを制御する（main.go:87-94, 525-552）。
+- seed バンドルのロード（`runSeedBundles`, main.go:463-523）は `DB_RESET` の値と**無関係**に、`runSQLMigrations`（DDL 適用, main.go:372-461）の直後に必ず呼ばれる（main.go:115-125）。
+- `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:486-494）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
+- 空のmigration履歴に既存アプリケーションschemaがある場合のガードは `guardEmptyMigrationHistory`（main.go:295-328）。`clinics` テーブルが存在すればschema完全性を検証できないためfail-closedで停止し、現行DDL/seedのchecksumは記録しない。`clinics` が存在しないfresh DBだけが、そのまま通常のDDL・seed適用へ進む。
 
 CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`../infra/_archive/migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
 
-**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql → 002_lstep_snapshot_import_clinic_fk.sql → 003_medical_records_appointment_id_index.sql → 004_payment_splits_billing_id_index.sql のDDL適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md` の「fresh DB 適用後は `schema_migrations` 7行（DDL 4 + seed 3）」と整合する。
+**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、旧増分002〜009を末尾へ統合済みの `001_init.sql` 1本を適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go`）。fresh DB の終了状態は `schema_migrations` 4行（DDL 1 + seed 3）である。一方、統合前001が記録済みの現行STGへ通常の `POST /_internal/migrate` を実行するとchecksum mismatchでfailする。現行Cloudflare経路は `DB_RESET` を注入できないため、明示承認した再構築を先に完了させる必要がある。
 
 ### 2.2 ただし前提条件が一つだけある: `public` スキーマの実在
 
@@ -193,13 +193,11 @@ export PGPASSWORD="<password>"; export PGDATABASE="<database>"
 ### Step D. 検証クエリ（テーブル別件数 + 主要マスタの存在確認）
 
 ```sql
--- 1. schema_migrations が7行そろっているか（fresh apply の正しい終了状態）
+-- 1. schema_migrations が4行そろっているか（fresh apply の正しい終了状態）
 --    SEED_MIGRATION_OPERATIONS.md:18 の期待値
 SELECT filename, checksum, executed_at FROM schema_migrations ORDER BY filename;
--- 期待: 001_init.sql / 002_lstep_snapshot_import_clinic_fk.sql /
---       003_medical_records_appointment_id_index.sql /
---       004_payment_splits_billing_id_index.sql /
---       seeds/002_master / seeds/003_demo / seeds/004_staging の7行
+-- 期待: 001_init.sql /
+--       seeds/002_master / seeds/003_demo / seeds/004_staging の4行
 -- checksum の期待値（2026-07-16 時点、git HEAD の committed 内容から算出。
 --   seeds/*.csv や manifest.json を編集した場合は再計算が必要。算出方法は §5 Step E-a 参照）:
 --   seeds/002_master = 5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945
@@ -319,7 +317,7 @@ ON CONFLICT (filename) DO NOTHING;
 EOSQL
 ```
 
-これは `baselineIfNeeded`／`translateLegacySeedKeys`（main.go:293-394, 218-271）が使っているのと同じ「投入せず適用済みとしてだけ記録する」パターンの逆（実際に投入した上でその記録を後追いする）であり、cmd/migrate の設計と整合する。
+これは通常の `runSeedBundles` がCSV投入成功後に `recordMigration` する順序（main.go:496-510）と同じく、実データ投入の完了後に対応する履歴を記録する手動復旧である。`guardEmptyMigrationHistory`（main.go:295-328）は読取り専用で、空履歴の既存schemaへ現行checksumを書き込まない。`translateLegacySeedKeys`（main.go:220-272）はmigration履歴に旧stubキーが存在する場合だけ、CSVを再投入せず現行seedキーへ翻訳する別の互換処理である。
 
 #### E-b. フルデモ投入（ローカルのみ・本書のスコープ外 — 着手前に別途判断すること）
 

@@ -58,15 +58,12 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 SELECT count(*)
 FROM schema_migrations
 WHERE filename IN (
-  '001_init.sql',
-  '002_lstep_snapshot_import_clinic_fk.sql',
-  '003_medical_records_appointment_id_index.sql',
-  '004_payment_splits_billing_id_index.sql'
+  '001_init.sql'
 )`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 4 {
-		t.Fatalf("applied DDL migrations = %d, want 4", applied)
+	if applied != 1 {
+		t.Fatalf("applied DDL migrations = %d, want 1", applied)
 	}
 }
 

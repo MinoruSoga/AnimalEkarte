@@ -2,6 +2,8 @@ package billing
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -15,6 +17,45 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
+
+const billingItemVaccinationProvenanceMigrationSQL = `ALTER TABLE billing_items
+    ADD COLUMN vaccination_id bigint,
+    ADD COLUMN clinic_id bigint,
+    ADD CONSTRAINT chk_billing_items_vaccination_clinic_pair
+        CHECK (
+            (vaccination_id IS NULL AND clinic_id IS NULL)
+            OR (vaccination_id IS NOT NULL AND clinic_id IS NOT NULL)
+        );
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT uq_vaccinations_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billings
+    ADD CONSTRAINT uq_billings_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT fk_billing_items_billing_clinic
+        FOREIGN KEY (billing_id, clinic_id)
+        REFERENCES billings (id, clinic_id),
+    ADD CONSTRAINT fk_billing_items_vaccination_clinic
+        FOREIGN KEY (vaccination_id, clinic_id)
+        REFERENCES vaccinations (id, clinic_id)
+        ON DELETE RESTRICT;
+
+CREATE INDEX idx_vaccinations_clinic_pet_date_active
+    ON vaccinations(clinic_id, pet_id, date, id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_billing_items_vaccination_lifetime
+    ON billing_items(vaccination_id)
+    WHERE vaccination_id IS NOT NULL;
+
+COMMENT ON COLUMN billing_items.vaccination_id IS
+    '予防接種イベント由来の会計明細を識別するprovenance';
+
+COMMENT ON COLUMN billing_items.clinic_id IS
+    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+`
 
 type unbilledVaccinationFinder interface {
 	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
@@ -762,9 +803,7 @@ func TestBillingItemVaccinationProvenance_DeleteStatusGuard(t *testing.T) {
 }
 
 func TestBillingItemVaccinationProvenance_MigrationContract(t *testing.T) {
-	body, err := os.ReadFile("../../migrations/008_add_billing_item_vaccination_provenance.sql")
-	require.NoError(t, err)
-	sql := strings.Join(strings.Fields(strings.ToUpper(string(body))), " ")
+	sql := strings.Join(strings.Fields(strings.ToUpper(billingItemVaccinationProvenanceMigrationSQL)), " ")
 
 	assert.Contains(t, sql, "ADD COLUMN VACCINATION_ID BIGINT")
 	assert.Contains(t, sql, "ADD COLUMN CLINIC_ID BIGINT")
@@ -780,4 +819,30 @@ func TestBillingItemVaccinationProvenance_MigrationContract(t *testing.T) {
 	assert.NotContains(t, sql, "FUNCTION")
 	assert.NotContains(t, sql, "TRIGGER")
 	assert.NotContains(t, sql, "CASCADE")
+}
+
+func TestBillingItemVaccinationProvenance_MatchesArchivedInitialMigration(t *testing.T) {
+	raw, err := os.ReadFile("../../migrations/001_init.sql")
+	require.NoError(t, err)
+	initial := string(raw)
+
+	const sourceMarker = "-- Source file: 008_add_billing_item_vaccination_provenance.sql"
+	const nextSourceMarker = "-- Source file: 009_add_billing_items_other_reason.sql"
+	start := strings.Index(initial, sourceMarker)
+	require.GreaterOrEqual(t, start, 0, "001_init.sql must contain the archived billing vaccination migration")
+
+	endOffset := strings.Index(initial[start:], "\n"+nextSourceMarker)
+	require.Greater(t, endOffset, 0, "archived billing vaccination migration must end at the 009 source marker")
+	block := initial[start : start+endOffset]
+
+	const sourceSHA = "daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79"
+	const shaHeader = "-- Source SHA-256: " + sourceSHA + "\n"
+	shaOffset := strings.Index(block, shaHeader)
+	require.GreaterOrEqual(t, shaOffset, 0, "archived billing vaccination migration must contain its exact SHA-256 header")
+
+	body := block[shaOffset+len(shaHeader):]
+	require.Equal(t, billingItemVaccinationProvenanceMigrationSQL, body)
+
+	checksum := sha256.Sum256([]byte(body))
+	require.Equal(t, sourceSHA, fmt.Sprintf("%x", checksum))
 }

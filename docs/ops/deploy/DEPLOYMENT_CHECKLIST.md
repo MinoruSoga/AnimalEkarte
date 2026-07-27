@@ -36,7 +36,7 @@ DB は PlanetScale Postgres を使用します。AWS ECS/RDS は廃止済みで�
   - [ ] `INTEGRATION_ENCRYPTION_KEY`: 病院別 API キー保護用の AES-256 キー。
   - [ ] `S3_SHARED_BUCKET`: 共有ファイル（LINE連携用、実体は Cloudflare R2）のバケット準備。
 - [ ] **DB マイグレーションの整合性**
-  - [ ] 全 108 テーブルのスキーマが、ローカルのマイグレーション（`001_init.sql`。旧増分`005`〜`012`は統合済み、詳細は`docs/architecture/erd.md` §4.3）と完全一致しているか。
+  - [ ] 全 109 テーブルのスキーマが、ローカルのマイグレーション（`001_init.sql`。旧増分`002`〜`009`の原文・元コミット・SHA-256は末尾のアーカイブ節へ統合済み、詳細は`docs/architecture/erd.md` §4.3）と完全一致しているか。
   - [ ] 初期マスタデータ（`backend/migrations/seeds/002_master/`）の投入準備完了。
 
 ---

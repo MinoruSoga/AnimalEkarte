@@ -4,28 +4,28 @@
 > **読者**: 開発者。
 > **タイミング**: seed/migration変更時。
 
-更新日: 2026-07-24
+更新日: 2026-07-27
 
 ## 前提
 
-- `backend/migrations/` 直下の `.sql` はDDL専用で、`001_init.sql`（統合初期スキーマ、変更しない）と追記専用incremental `002_lstep_snapshot_import_clinic_fk.sql` / `003_medical_records_appointment_id_index.sql` / `004_payment_splits_billing_id_index.sql` が存在する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
+- `backend/migrations/` 直下の `.sql` はDDL専用で、現行は旧増分002〜009を末尾へ統合した `001_init.sql` 1本だけが存在する。統合した旧ファイルの原文・元コミット・SHA-256は001末尾のアーカイブ節に保持する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
   1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrder` の固定順（`002_master → 003_demo → 004_staging`）で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
-- fresh DB 適用後の正しい終了状態は `schema_migrations` に **7行**（DDL 4 + seed 3）: `001_init.sql` + `002_lstep_snapshot_import_clinic_fk.sql` + `003_medical_records_appointment_id_index.sql` + `004_payment_splits_billing_id_index.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
-- `schema_migrations`が空で既存テーブルを検出するlegacy baselineでは、`001_init.sql`とseed 3バンドルを適用済み記録する。`002`以降のappend-only DDLはbaseline対象外で、直後のmigration phaseで実行する。
-- 既に適用済みの `001_init.sql` / seed バンドル（CSV・manifest.json）を編集すると、既存 DB の `schema_migrations` に記録された checksum と不一致になる。
-- **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し、旧 stub に対応する `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを「適用済み」として baseline する（見つかった旧キーに対応するものだけでなく、旧形式相当3件を常に全件）。旧キー移行だけを理由とする DB 再作成は不要。
+- fresh DB 適用後の正しい終了状態は `schema_migrations` に **4行**（DDL 1 + seed 3）: `001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
+- `schema_migrations`が空で既存の`clinics`テーブルを検出した場合、`guardEmptyMigrationHistory`はschema完全性を検証できないためfail-closedで停止する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築後、通常のDDL・seed適用経路を完走させる。
+- 2026-07-27統合前の `001_init.sql` が適用済みのDBでは、統合後001とのchecksum mismatchが必ず発生する。ローカルは`DB_RESET=true`相当の手動再構築が必要で、現行Cloudflare workflowにはSTGを自動resetする経路がない。共有STGは破壊的操作の明示承認後に再構築する。
+- **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し、旧 stub に対応する `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを現行キーへ翻訳して「適用済み」として記録する（見つかった旧キーに対応するものだけでなく、旧形式相当3件を常に全件）。これは履歴が存在するDBだけの互換処理で、CSVは再ロードせず、DDL checksum検証も迂回しない。旧キー移行だけを理由とする DB 再作成は不要。
 
 ## 今回の事故で確認したこと
 
 - seed master 差し替えは静的 grep だけでは不十分で、**fresh DB apply** まで通して初めて `(clinic_id, name)` の実衝突を検知できた。この教訓が CSV 移行時の「正データ=DBダンプ・静的パース禁止」の根拠になっている。
 - 今回の demo/master 差し替えは **DB reset 前提** で判断した。既存 DB にそのまま上書き適用する前提ではない。
 - ローカル復旧で必要だったのは `make reset` 相当の DB 再構築であり、`make db` は `psql` 接続用コマンドであって reset ではない。
-- STG で適用済み migration/seed を編集して反映する場合、DB 再作成が必要になる可能性が高い。stub SQL 削除自体は 002〜004 の記録キーを変える変更だが、**旧キーが残った既存環境（STG 等）は `detectLegacySeedKeys` が旧形式相当3件を自動 baseline するため、旧キー移行だけを理由とする DB 再作成は不要**（上記「旧形式互換」参照）。現行 Cloudflare の `backend-deploy.yml` に `db_reset` 入力はなく、AWS ECS/RDS 経路も廃止済み。共有 STG の再作成が必要な場合は、明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) の破壊的操作境界に従う。
+- STG で適用済み migration/seed を編集して反映する場合、DB 再作成が必要になる可能性が高い。stub SQL 削除自体は 002〜004 の記録キーを変える変更だが、**旧キーが残った既存環境（STG 等）は `detectLegacySeedKeys` が旧形式相当3件を現行キーへ自動翻訳するため、旧キー移行だけを理由とする DB 再作成は不要**（上記「旧形式互換」参照）。空履歴＋既存schemaはこの互換処理の対象外でfail-closedする。現行 Cloudflare の `backend-deploy.yml` に `db_reset` 入力はなく、AWS ECS/RDS 経路も廃止済み。共有 STG の再作成が必要な場合は、明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) の破壊的操作境界に従う。
 
 ## CSV シードバンドルの再生成（seed データ内容を変更する場合）
 

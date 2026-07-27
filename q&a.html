@@ -224,7 +224,7 @@
 <article class="task" data-task="OPS-2">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title"><code>DB_RESET=true</code> 再適用（ローカル→STG）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-26 追記: 追記専用 migration 005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と 006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）も本適用に含める — 005/006 未適用の間はローカル <code>internal/model</code> の TestSchemaDrift が FAIL し続ける（既知・コード側は green）。OPS-13（002 fresh 適用）と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は修正済みだが「次回シナリオ再実行で最終確認」待ちのため todo.md バグ台帳の直近クローズ節に残置中。</p>
+  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、現行DDLは001単一file。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は修正済みだが「次回シナリオ再実行で最終確認」待ちのため todo.md バグ台帳の直近クローズ節に残置中。</p>
 </article>
 
 <article class="task" data-task="OPS-3">
@@ -302,9 +302,9 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 </article>
 
 <article class="task" data-task="OPS-13">
-  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-13 (BE9 L⑤)</span></label><h3 class="task-title"><code>002_lstep_snapshot_import_clinic_fk.sql</code> の fresh DB 実適用（release gate）</h3></div>
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-13 (BE9 L⑤)</span></label><h3 class="task-title">統合済み <code>001_init.sql</code> の fresh DB 実適用（旧002節 release gate）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">BE9 L⑤ の追記専用 migration を fresh DB へ実適用し、runner 記録・checksum・rollback 方針を確認する（DB reset・migration 適用はエージェント実行禁止のため USER 実行）。OPS-2（<code>DB_RESET=true</code> 再適用）と同一実行で兼ねてよい。完了条件: fresh 適用 green + schema_migrations の runner 記録・checksum・rollback 方針確認。完了までは BE9 L⑤ は release pending（BE9 の経緯は git 履歴、境界の正本は ADR-006）。完了後のエージェント作業: 本カードをチェック済みへ更新し、release evidence を記録する。</p>
+  <p class="task-desc">BE9 L⑤ のDDLは、統合済み <code>001_init.sql</code> 末尾の旧002アーカイブブロック（原文・元commit・SHA-256付き）に現存する。統合001を fresh DB へ実適用し、runner記録・checksum・rollback方針を確認する（統合前001が適用済みのDBはchecksum mismatchになるため、<code>DB_RESET=true</code> 相当のUSER手動再構築が必須。現行STG workflowに自動reset経路なし）。OPS-2と同一実行で兼ねてよい。完了条件: fresh適用green + <code>schema_migrations</code> 4行（DDL1+seed3）+ rollback方針確認。完了まではBE9 L⑤はrelease pending（経緯はgit履歴、境界の正本はADR-006）。完了後のエージェント作業: 本カードをチェック済みへ更新し、release evidenceを記録する。</p>
 </article>
 
 <article class="task" data-task="OPS-14">

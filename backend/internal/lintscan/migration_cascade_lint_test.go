@@ -5,7 +5,7 @@ package lintscan
 // ─── Purpose ────────────────────────────────────────────────────────────────────────
 //
 // migrations/CLAUDE.md は「CASCADE DELETE 禁止」を原則とするが、001_init.sql（初期スキーマ。
-// 2026-07-04 に旧 005〜012 の増分マイグレーションを統合済み）には既に 50+ 件の
+// 2026-07-04 と 2026-07-27 に旧増分マイグレーションを統合済み）には既に 50+ 件の
 // "ON DELETE CASCADE" が存在する — 大半は junction テーブルや line item 等「純粋従属の
 // 子テーブル」の正当な用法で、#211 の CASCADE 安全監査（checkup_field_cascade_test.go）でも
 // 個別に安全性が確認されている（旧 010 由来の 2 件を含む）。
@@ -50,15 +50,12 @@ const migrationsDir = "../../migrations"
 //	  + 旧 002_checkup_field_clinic_composite_fk.sql（#211 A6・2026-07-17 に 001 末尾へ統合）由来の1件
 //	  （checkup_type_fields.checkup_type_id → checkup_types の単一列 CASCADE FK を複合FK
 //	  （clinic_id 込み）へ置換するもの。挙動は既存 CASCADE から変更しない behavior-preserving）。
-//	  合計 53（docs/architecture/erd.md §4.3 参照）。
-//
-//	005_exam_reference_ranges_and_clinic_fk.sql: exam_type_fields の単一列 CASCADE FK を
-//	（exam_type_id, clinic_id）の複合FKへ置換するもの。削除伝播の意味は変わらずテナント整合性を強化する。
-//	001 に記録済みの checkup_type_fields 複合FK置換と同型で、新設 exam_reference_ranges は
-//	RESTRICT のみで新規 CASCADE を持ち込まない。合計1件。
+//	  + 2026-07-27 に統合した exam_type_fields の clinic 複合FK置換由来の1件
+//	  （削除伝播の意味は変えず、テナント整合性を強化。新設 exam_reference_ranges は
+//	  RESTRICT のみ）。
+//	  合計 54（docs/architecture/erd.md §4.3 参照）。
 var migrationCascadeAllowlist = map[string]int{
-	"001_init.sql": 53,
-	"005_exam_reference_ranges_and_clinic_fk.sql": 1,
+	"001_init.sql": 54,
 }
 
 // countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
@@ -129,15 +126,14 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
 //
-// Floor rationale (2026-07-24): DDL は統合スキーマ 001_init.sql と、その後に追加した
-// append-only incremental 002〜004 の4ファイル。
+// Floor rationale (2026-07-27): DDL は統合スキーマ 001_init.sql の単一ファイル。
 // The floor tracks the current known minimum .sql file count, not an arbitrary buffer;
 // it must be revisited whenever migrations are consolidated/split or the directory's .sql
 // file count otherwise legitimately changes.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	const minDDLFiles = 4
+	const minDDLFiles = 1
 	if len(found) < minDDLFiles {
 		t.Fatalf("expected at least %d migration .sql file(s) under %s, found %d "+
 			"(directory read broken or files missing).", minDDLFiles, migrationsDir, len(found))

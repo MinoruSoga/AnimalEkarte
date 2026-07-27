@@ -1,6 +1,6 @@
 # AnimalEkarte — TODO
 
-> 更新: 2026-07-27(5)（TASK-251 = U3 完了 `65a0dd08d`・U2b-full 第1段完了 `7a64d9e63` まで履歴反映済み。残 = U2b-full 第2段〔進行中・別 session〕と U4。migration 008→009 適用・`make codegen`・full type-check は USER 手順〔TASK-251 entry 参照〕。⚠commit は必ず `git commit -- <paths>` で path 制限）
+> 更新: 2026-07-27(6)（TASK-251 = U3 完了 `65a0dd08d`・U2b-full 第1段完了 `7a64d9e63` まで履歴反映済み。残 = U2b-full 第2段〔進行中・別 session〕と U4。統合済み001を `DB_RESET=true` で再構築適用 → `make codegen` → full type-check → runtime確認が USER/CI 手順〔TASK-251 / TASK-ADR003 entry 参照〕。⚠commit は必ず `git commit -- <paths>` で path 制限）
 
 ## 運用
 
@@ -27,19 +27,19 @@
 
 ### TASK-ADR003: 予約⇔会計の支払方法二重保持解消（ADR-003 案1B）
 
-- PO-006／DEC-9 裁定済み。**実装は完了**（migration 006 複合 FK と model inventory 登録 = `c434c4e66`）。完了証跡・詳細な検証記録の正本 = git 履歴（本 entry の旧全文は `b2897a409` 以前）。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。
+- PO-006／DEC-9 裁定済み。**実装は完了**（旧migration 006の複合FK〔現行所在は統合済み001末尾の旧006アーカイブブロック〕とmodel inventory登録 = `c434c4e66`）。完了証跡・詳細な検証記録の正本 = git 履歴（本 entry の旧全文は `b2897a409` 以前）。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。
 - 残作業:
-  - DB 適用・既存データの事前照合・適用後の制約確認 = USER/CI 所掌（[q&a.html OPS-2](q&a.html) で追跡。実装 task ではない）。
+  - **USER/CI 手順（未実施）**: 既存データを事前照合 → 統合済み `001_init.sql` を `DB_RESET=true` 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ `make codegen` → full type-check → payment splitのclinic複合FKをruntime確認（[q&a.html OPS-2](q&a.html) で追跡。DB操作は実装taskではない）。
   - **未防御の `payments`**: `clinic_id` 列が無く複合 FK を張れない。follow-up 2案（billings join 照合 / `payments.clinic_id` 追加+backfill）は未裁定・未実施。裁定は SEC-DUR-01（tenant/provenance graph の横断方針）と併せて行う。
 
 ### TASK-251: 締め集計 category contract 確定実装（#251・12分類）
 
 - contract 正本 = #251 本文（DEC-21・**USER 本人裁定** 2026-07-25・原文 = q&a.html git 履歴）。完了 unit の証跡正本 = git 履歴と各実装 test（本 entry には残作業のみを置く。旧全文 = `b2897a409` 以前の本 entry 履歴）。
-- **完了済み unit（hash のみ）**: U1 category resolver 単一ソース化 `2154dc9de` ／ U2a 物販 master 由来導出 `33690944e`+`24d4ae2fd`（BUG-436 解消） ／ U2b-min 手入力12分類必須 Select `b8a29d3e7` ／ U2b-full 第1段 other 理由必須化+migration 009 `7a64d9e63` ／ U5 締め集計12値 fail-closed+`AllItemCategories` `581d6b87c` ／ U3 ワクチン接種 pull 型導出+migration 008 `65a0dd08d`（第2走の trigger 案は coordinator 裁定で宣言的構成へ簡素化。派生 = SEC-DUR-01・BUG-440）。
+- **完了済み unit（hash のみ）**: U1 category resolver 単一ソース化 `2154dc9de` ／ U2a 物販 master 由来導出 `33690944e`+`24d4ae2fd`（BUG-436 解消） ／ U2b-min 手入力12分類必須 Select `b8a29d3e7` ／ U2b-full 第1段 other 理由必須化+旧migration 009（現行001内）`7a64d9e63` ／ U5 締め集計12値 fail-closed+`AllItemCategories` `581d6b87c` ／ U3 ワクチン接種 pull 型導出+旧migration 008（現行001内）`65a0dd08d`（第2走の trigger 案は coordinator 裁定で宣言的構成へ簡素化。派生 = SEC-DUR-01・BUG-440）。
 - **残 unit**:
   - **U2b-full 第2段** = 締め表「未分類・要確認」件数表示（DEC-16③残・別 session が Codex 発行済み・進行中）。
   - **U4** = ④ training の新規 source 設計（DEC-21・現状 source 不在のため設計から。hotel 側は U1 の `HospitalizationTypeHotel` 経路で到達済み）。
-- **USER/CI 手順（未実施）**: migration **008→009 の順で適用** → `make codegen` → full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。
+- **USER/CI 手順（未実施）**: 旧008/009を末尾へ統合済みの `001_init.sql` を `DB_RESET=true` 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ `make codegen` → full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。
 - #247（月次統合表）は本 TASK の contract 完了後に着手。
 
 ### SEC-DUR-01: provenance FK graphのdurable enforcement方針（全FK共通・横断）
@@ -62,6 +62,13 @@
 - 修正の参照実装 = `backend/internal/pet/chronic_condition_repository.go:37,52`。相関にpets側の `deleted_at` / `deceased_at` を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。
 - ~~着手 = 納品後~~ → USER 指示（7/26「納品日関係なくすべて早急に対応」）で前倒し。①掃引+②lint 新設+上限12ファイルの修復を Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。SEC-SWEEP-01の9件と異なり現時点でlive exposureは未確認。
 - 出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。
+
+### BUG-441: lintscan inventory gate 2本がmainで赤（未登録8件・3 unit由来）
+
+- HIGH（gate red）。`docker compose exec backend go test ./internal/lintscan/ -count=1` が `TestDBOrTxInventory_MatchesAllowlist`（6件）と `TestMasterFKWriteInventory_AllowlistMatchesRealSource`（2件）でFAILする（2026-07-27実測・migration統合とは無関係のbaseline-red）。
+- 内訳と由来: ① `auth/permission_group_repository.go` の `CreateWithRules`/`UpdateWithRules`/`replaceRules`（FE12-02 P-A `99bac632e`） ② `billing/billing_item_repository.go` の `ValidateVaccinationCreateReference`（U3 `65a0dd08d` — ambientTxParticipationExpectations未登録も併発） ③ `medicalrecord/exam_type_repository.go` の `FindByID` と `examinationService.Create/Update` の `ExamTypeFieldID` DTO追加（#249系）。
+- 対応: **ゲートを黙らせるだけのallowlist追記は禁止**。各methodのambient-tx参加をtx atomicity/isolation testで実証した上で登録する（gateのerror文言が要求する手順どおり）。②はU3由来なので優先。①③は各変更ownerのreview必須。
+- 出典: migration統合unitのMode 3照合（2026-07-27・coordinator実測）。統合executorはbaseline-redとして正しく切り分け済み。
 
 ### BUG-430: stage-importの医院非限定DELETE
 

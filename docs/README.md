@@ -37,4 +37,4 @@ docs/
 
 ---
 
-**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
+**最新更新**: 2026-07-27 | **ステータス**: Static/Code Sync (109 Tables / 34 Resources; Fresh DB Apply Pending — `q&a.html` OPS-13)

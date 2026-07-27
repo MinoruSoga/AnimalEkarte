@@ -22,7 +22,7 @@
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. `003_medical_records_appointment_id_index.sql` と `004_payment_splits_billing_id_index.sql` を通常の migration 経路で先に適用する。通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window 内で適用する。手書き SQL は使わない。
+2. 旧増分002〜009を統合した現行 `001_init.sql` で target DB を再構築済みであることを確認する。統合前001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
