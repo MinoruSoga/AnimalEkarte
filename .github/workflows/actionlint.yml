@@ -13,7 +13,7 @@ jobs:
     name: Validate workflow YAML
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
       - name: Run actionlint
         shell: bash
         # バージョン固定: main からの未ピン取得はサプライチェーン・再現性リスク（bug.md M-9）。
