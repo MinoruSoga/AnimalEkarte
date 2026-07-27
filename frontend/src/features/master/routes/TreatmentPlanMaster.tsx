@@ -69,6 +69,7 @@ export function TreatmentPlanMaster() {
   const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
   const activeResource = activeTab === "checkup" ? ResourceCheckups : ResourceMasterMedical;
   const activeCanEdit = activeTab === "checkup" ? canEditCheckup : canEdit;
+  const activeCanCreate = activeTab === "checkup" ? canCreateCheckup : canCreate;
   const activeCanDelete = activeTab === "checkup" ? canDeleteCheckup : canDelete;
   const permissionsRef = useRef({ canDelete: activeCanDelete === true });
   useLayoutEffect(() => {
@@ -166,6 +167,9 @@ export function TreatmentPlanMaster() {
   ]);
 
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const selectedExamination = activeTab === "examination" && selectedItem !== null
+    ? examinationData?.find((item) => item.id === selectedItem.id)
+    : undefined;
 
   // 現在タブの data (stable reference - undefined を [] に正規化)
   const activeTabData = useMemo(
@@ -321,7 +325,9 @@ export function TreatmentPlanMaster() {
           parentCandidates={parentCandidates}
           hasChildren={hasChildren}
           canDelete={activeCanDelete}
+          canCreate={activeCanCreate}
           canEdit={activeCanEdit}
+          examinationType={selectedExamination}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={handleDeleteRequest}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +9,12 @@ import { TreatmentPlanMaster } from "./TreatmentPlanMaster";
 
 const mocks = vi.hoisted(() => ({
   masterTabPageProps: [] as Array<{ resource?: string }>,
-  sidePanelProps: [] as Array<{ canEdit: boolean; canDelete: boolean }>,
+  sidePanelProps: [] as Array<{
+    canEdit: boolean;
+    canDelete: boolean;
+    canCreate: boolean;
+    examinationTypeId?: string;
+  }>,
   tabContentProps: [] as Array<{
     entityLabel: string;
     canEdit: boolean;
@@ -70,11 +76,20 @@ vi.mock("../components/TreatmentPlanSidePanelHost", () => ({
   TreatmentPlanSidePanelHost: ({
     canEdit,
     canDelete,
+    canCreate,
+    examinationType,
   }: {
     canEdit: boolean;
     canDelete: boolean;
+    canCreate: boolean;
+    examinationType?: { id: string };
   }) => {
-    mocks.sidePanelProps.push({ canEdit, canDelete });
+    mocks.sidePanelProps.push({
+      canEdit,
+      canDelete,
+      canCreate,
+      examinationTypeId: examinationType?.id,
+    });
     return null;
   },
 }));
@@ -84,13 +99,21 @@ vi.mock("../components/TreatmentPlanTabContent", () => ({
     entityLabel,
     canEdit,
     onReorder,
+    data,
+    onEditTargetChange,
   }: {
     entityLabel: string;
     canEdit: boolean;
     onReorder: (ids: number[]) => void;
+    data: Array<{ id: string; name: string }>;
+    onEditTargetChange: (item: { id: string; name: string }) => void;
   }) => {
     mocks.tabContentProps.push({ entityLabel, canEdit, onReorder });
-    return null;
+    return entityLabel === "検査" && data[0] ? (
+      <button type="button" onClick={() => onEditTargetChange(data[0])}>
+        検査を選択
+      </button>
+    ) : null;
   },
 }));
 
@@ -119,7 +142,18 @@ vi.mock("../api/consultations", () => ({
 }));
 
 vi.mock("../api/exam-types-master", () => ({
-  useGetAllExaminationTypes: () => ({ data: [] }),
+  useGetAllExaminationTypes: () => ({ data: [{
+    id: "3",
+    name: "血液検査",
+    price: 1000,
+    isActive: true,
+    description: "",
+    sortOrder: 1,
+    isNonInsurance: false,
+    createdAt: "",
+    updatedAt: "",
+    items: [],
+  }] }),
   useCreateExaminationType: mutationStub,
   useUpdateExaminationType: mutationStub,
   useDeleteExaminationType: mutationStub,
@@ -177,6 +211,8 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
     expect(mocks.sidePanelProps.at(-1)).toEqual({
       canEdit: mocks.checkupPermissions.canEdit,
       canDelete: mocks.checkupPermissions.canDelete,
+      canCreate: mocks.checkupPermissions.canCreate,
+      examinationTypeId: undefined,
     });
     expect(latestTabContent("定期健診")?.canEdit).toBe(
       mocks.checkupPermissions.canEdit,
@@ -195,12 +231,26 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
     expect(mocks.sidePanelProps.at(-1)).toEqual({
       canEdit: mocks.medicalPermissions.canEdit,
       canDelete: mocks.medicalPermissions.canDelete,
+      canCreate: mocks.medicalPermissions.canCreate,
+      examinationTypeId: undefined,
     });
     expect(latestTabContent("診察")?.canEdit).toBe(
       mocks.medicalPermissions.canEdit,
     );
     expect(latestTabContent("定期健診")?.canEdit).toBe(
       mocks.checkupPermissions.canEdit,
+    );
+  });
+
+  it("mounts the field editor data only for the active examination tab", async () => {
+    const user = userEvent.setup();
+    renderRoute("/settings/treatment-items?tab=examination");
+
+    await user.click(screen.getByRole("button", { name: "検査を選択" }));
+
+    expect(mocks.sidePanelProps.at(-1)?.examinationTypeId).toBe("3");
+    expect(mocks.sidePanelProps.at(-1)?.canCreate).toBe(
+      mocks.medicalPermissions.canCreate,
     );
   });
 });
