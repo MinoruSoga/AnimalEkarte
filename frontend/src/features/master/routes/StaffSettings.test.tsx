@@ -61,8 +61,8 @@ function makeStaff(overrides: Partial<Staff> = {}): Staff {
 
 vi.mock("../api/staffs", () => ({
   useGetStaffs: () => ({ data: [makeStaff()] }),
-  useCreateStaff: () => ({ mutate: mockCreateMutate }),
-  useUpdateStaff: () => ({ mutate: mockUpdateMutate }),
+  useCreateStaff: () => ({ mutateAsync: mockCreateMutate }),
+  useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
   useDeleteStaff: () => ({ mutate: vi.fn() }),
   useUpdateStaffClinics: () => ({ mutate: vi.fn() }),
   useGetClinicsList: () => ({ data: [] }),
@@ -76,7 +76,7 @@ vi.mock("../api/staffs", () => ({
 // renderRow / renderSidePanel は本テストでは呼ばれない（描画しない）。
 let latestProps: {
   crud: { setEditTarget: (t: Staff | "new" | null) => void };
-  handleSave: (data: StaffFormData) => void;
+  handleSave: (data: StaffFormData) => Promise<boolean>;
 } | null = null;
 
 vi.mock("../components/MasterCRUDPage", () => ({
@@ -105,54 +105,64 @@ function baseFormData(overrides: Partial<StaffFormData> = {}): StaffFormData {
 
 describe("StaffSettings validate() — 新規/編集判定", () => {
   beforeEach(() => {
-    mockCreateMutate.mockClear();
-    mockUpdateMutate.mockClear();
+    mockCreateMutate.mockReset().mockResolvedValue(makeStaff({ id: "2" }));
+    mockUpdateMutate.mockReset().mockResolvedValue(makeStaff());
     vi.mocked(toast.error).mockClear();
     latestProps = null;
   });
 
-  it("新規登録: email が空の場合 createMutation を呼ばずtoast.errorで通知する", () => {
+  it("新規登録: email が空の場合 createMutation を呼ばずtoast.errorで通知する", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
-    act(() => latestProps!.handleSave(baseFormData({ email: "", password: `password123` })));
+    await act(async () => {
+      await latestProps!.handleSave(baseFormData({ email: "", password: `password123` }));
+    });
 
     expect(mockCreateMutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("メールアドレスは必須です");
   });
 
-  it("新規登録: password が8文字未満の場合 createMutation を呼ばずtoast.errorで通知する", () => {
+  it("新規登録: password が8文字未満の場合 createMutation を呼ばずtoast.errorで通知する", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
-    act(() => latestProps!.handleSave(baseFormData({ email: "new@example.com", password: "short1" })));
+    await act(async () => {
+      await latestProps!.handleSave(baseFormData({ email: "new@example.com", password: "short1" }));
+    });
 
     expect(mockCreateMutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("パスワードは8文字以上で入力してください");
   });
 
-  it("新規登録: email + 8文字以上の password が揃えば createMutation を呼ぶ", () => {
+  it("新規登録: email + 8文字以上の password が揃えば createMutation を呼ぶ", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
-    act(() =>
-      latestProps!.handleSave(baseFormData({ email: "new@example.com", password: `password123` })),
-    );
+    await act(async () => {
+      await latestProps!.handleSave(
+        baseFormData({ email: "new@example.com", password: `password123` }),
+      );
+    });
 
     expect(mockCreateMutate).toHaveBeenCalledTimes(1);
     expect(mockUpdateMutate).not.toHaveBeenCalled();
   });
 
-  it("編集: 既存スタッフを編集する場合 email/password が空でも updateMutation を呼ぶ（新規判定に誤って倒れない）", () => {
+  it("編集: 既存スタッフを編集する場合 email/password が空でも updateMutation を呼ぶ（新規判定に誤って倒れない）", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget(makeStaff()));
-    act(() => latestProps!.handleSave(baseFormData({ email: "", password: "" })));
+    await act(async () => {
+      await latestProps!.handleSave(baseFormData({ email: "", password: "" }));
+    });
 
     expect(mockUpdateMutate).toHaveBeenCalledTimes(1);
     expect(mockCreateMutate).not.toHaveBeenCalled();
   });
 
-  it("編集: name が空の場合は新規/編集を問わず updateMutation を呼ばずtoast.errorで通知する", () => {
+  it("編集: name が空の場合は新規/編集を問わず updateMutation を呼ばずtoast.errorで通知する", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget(makeStaff()));
-    act(() => latestProps!.handleSave(baseFormData({ name: "   ", email: "", password: "" })));
+    await act(async () => {
+      await latestProps!.handleSave(baseFormData({ name: "   ", email: "", password: "" }));
+    });
 
     expect(mockUpdateMutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("氏名は必須です");
