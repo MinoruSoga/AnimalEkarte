@@ -60,10 +60,10 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 - Route: `/owners?include_deceased=true`。
 - Fixture seed source: disposable local `003_demo`へ`backend/migrations/seeds/003_demo/owners.csv`と`pets.csv`を適用し、`docs/ops/testing/scenarios/S01-deceased-pet-guard.md`/`V03-owner-pet-staff-forms.md`の手順で同一ownerにalive、danger=`高`、deceasedの3頭を準備する。実測後はS01どおり生存へ戻す。
-- Fixture実査: D=`2026-07-27`。API read-backで`1001002={status:alive,danger_level:low,deceased_at:null}`を対照確認し、`1001005={status:deceased,danger_level:low,deceased_at:2026-07-27T00:00:00+09:00}`への死亡登録はHTTP 204で準備済み。R6では`1001004`へ逐語body `{"danger_level":"high"}`を送ってHTTP 400 `{"error":"危険度がhighの場合は危険理由を入力してください"}`、1 fieldだけ足した`{"danger_level":"high","danger_reason":"FE12-M01 fixture"}`もHTTP 400 `{"error":"入力値が正しくありません"}`となった。後者はruntime DBの`pets.danger_reason`列欠落（SQLSTATE 42703）でrollbackされ、read-backは`status=alive,danger_level=low,danger_reason:null`のまま。
-- 追加すべき具体値: disposable local上の目標値は引き続き`1001002={status:alive,danger_level:low,death fields:null}`、`1001004={status:alive,danger_level:high,death fields:null}`、`1001005={status:deceased,danger_level:low,deceased_at:2026-07-27T00:00:00+09:00}`。`1001002`と`1001005`は準備済みで、`1001004`だけ未達。schema整合後に再実行する契約上の最小payloadは`{"danger_level":"high","danger_reason":"FE12-M01 fixture"}`である。
-- 着手ブロッカー: runtime DBに現行sourceが更新する`pets.danger_reason`列が無く、契約上正しいhigh+非空reason PATCHもSQLSTATE 42703でrollbackされる。pet public responseが`deceased_reason`を公開しないことは現行契約どおりであり、残ブロッカーには数えない。
-- 次の一手: 別の認可工程でdisposable local DB schemaを現行migration契約へ合わせた後、fixture担当が最小high+reason payloadを再実行して`1001004={status:alive,danger_level:high,death fields:null}`をread-backする。その後に実測担当と曽我または同席する仕様責任者がrunbookを実行し、完了後fixture担当が`1001005`をalive、`1001004`をlowへ復旧する。
+- Fixture実査: D=`2026-07-27`。schema canaryを兼ねた`PATCH /api/v1/pets/1001004`の逐語body `{"danger_level":"high","danger_reason":"FE12-M01 fixture"}`はHTTP 200。`PATCH /api/v1/pets/1001005/death`はAPI field `reason`へ`"M01/M05 fixture"`を渡してHTTP 204。3頭の最終`GET /api/v1/pets/:id`をHTTP 200でread-back済み。
+- 追加すべき具体値: disposable local上で`1001002={status:alive,danger_level:low,deceased_at:null}`、`1001004={status:alive,danger_level:high,danger_reason:"FE12-M01 fixture",deceased_at:null}`、`1001005={status:deceased,danger_level:low,deceased_at:2026-07-27T00:00:00+09:00}`を確認済み。pet public responseが`deceased_reason`を公開しないことは現行契約どおり。
+- 着手ブロッカー: runtime schemaとM-01 fixtureのブロッカーは解消済み。canaryはSQLSTATE 42703を返さず、目標3状態のread-backまで完了した。
+- 次の一手: 実測担当と曽我または同席する仕様責任者が上記固定IDでrunbookを実行する。完了後の別cleanup工程で`1001005`をalive、`1001004`をlowへ復旧する。
 - Persona: owners `view=true, edit=true, delete=true`の通常担当者。曽我または同席する仕様責任者が許可操作を記録する。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
 - Interaction steps: include-deceasedを有効にし、3 rowそれぞれでowner名link、report、編集、削除、pet死亡登録/解除をpointer、Tab/Enter/Space、直接URLで試す。各操作前後のrequestをnetworkで記録する。
@@ -74,10 +74,10 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 - Route: `/examinations`と対象petの`/medical-records/:id`検査履歴。
 - Fixture seed source: `backend/migrations/seeds/003_demo/exams.csv`、`exam_results.csv`、`exam_types.csv`、`exam_type_fields.csv`を基に、`docs/ops/testing/scenarios/S02-exam-abnormal-highlight-lock.md`のhigh/low/normal同居fixtureを作る。
-- Fixture実査: D=`2026-07-27`。pet `1000018`のdraft medical record M=`1425546`（record_no=`FE12-M02-M-20260727`、owner=`300003`、doctor=`1`）をread-backした。R6指定の`date="2026-07-27T09:00:00+09:00"`を含む逐語bodyでE作成を実行したがHTTP 400 `{"error":"入力値が正しくありません"}`となり、runtime DBの`exam_type_fields.clinic_id`列欠落（SQLSTATE 42703）によりexam type ownership確認で停止した。作成前後ともEは0件で、items PUTは未実行。
-- 追加すべき具体値: M=`1425546`へ`exam_type_id=3,doctor_id=1,date="2026-07-27T09:00:00+09:00",status=result_entered,result_summary="FE12-M02 HIGH/LOW/normal"`のexam Eを作り、EへWBC=`10.0`、RBC=`9.0`、HCT=`30.0`を登録する。`status/is_abnormal`はitem requestへ書かず、backendがspecies別`exam_reference_ranges`から導出したWBC=normal・RBC=high・HCT=lowをread-backする。
-- 着手ブロッカー: runtime DBに現行sourceがclinic scopeへ使う`exam_type_fields.clinic_id`列が無く、E作成がSQLSTATE 42703で停止する。導出機構は`exam_reference_ranges`を参照して実装済みだがdirect read APIは無く、live rangeの存在は未確認でBLOCKED。demo seedにrange recordが無いことはsource上確認済みであり、range不在なら3値は未評価normalとなる。
-- 次の一手: 別の認可工程でdisposable local DB schemaを現行migration契約へ合わせ、clinic/pet species/type `3`用のWBC/RBC/HCT reference rangeを正規のmaster-data工程で用意する。その後fixture担当がM=`1425546`へE→3 itemsを作成し、`/examinations/:id/items`でbackend導出値をread-backしてから実測担当が一覧とカルテ履歴を比較する。
+- Fixture実査: D=`2026-07-27`。pet `1000018`へdraft medical record M=`1425546`（record_no=`MR-20260727-1-eS5A7a`）とexam E=`1014562`をAPIで作成し、items PUTでWBC item=`2325052`、RBC item=`2325053`、HCT item=`2325054`を登録した。M/E作成はHTTP 201、items置換と`GET /api/v1/examinations/1014562/items`はHTTP 200。
+- 追加すべき具体値: Eは`exam_type_id=3,doctor_id=1,date="2026-07-27T09:00:00+09:00",status=result_entered,result_summary="FE12-M02 HIGH/LOW/normal"`。itemsはWBC=`10.0`、RBC=`9.0`、HCT=`30.0`で、requestに`status/is_assessed/is_abnormal/ref_min/ref_max`を書いていない。read-backは3件とも`status=normal,is_assessed=false,is_abnormal=false`であり、これは基準値不在時の未評価fallbackで、RBC/HCTが臨床的に正常という証跡ではない。
+- 着手ブロッカー: schema blockerとM/E/items未作成は解消済み。残るブロッカーは`exam_reference_ranges`の対象clinic/species/field基準値不在だけである。現行seedにrange recordは無く、rangeのread/write APIも存在せず、`exam_type_fields.normal_value`表示文字列は導出に使われない。基準値投入・導出値偽装は実施していない。
+- 次の一手: master-data責任者が正規の別工程でWBC/RBC/HCT reference rangeを用意するか、基準値不在のまま実測するかを裁定する。rangeを用意した場合は同じE/itemsを正規APIで再評価し、WBC=normal・RBC=high・HCT=lowのread-back後に実測担当が一覧とカルテ履歴を比較する。
 - Persona: examinations `view=true, create=false, edit=false, delete=false`のview-only担当者。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
 - Interaction steps: 同一fixtureを一覧とカルテ履歴で開き、値・summary・statusを比較する。zoom 100%、pointer hover、keyboard focus、横スクロール有無を確認し、一覧でHIGH/LOW非色cueが必要か曽我へ提示する。
@@ -88,10 +88,10 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 - Route: `/settings/permission-groups`、`/medical-records/:id`、`/hospitalization/:id/edit`、`/vaccinations/:id`、`/examinations/:id`。
 - Fixture seed source: `backend/migrations/seeds/003_demo/permission_groups.csv`、`permission_group_rules.csv`、`staffs.csv`、`staff_permission_groups.csv`と各featureの既存record CSV。`docs/ops/testing/scenarios/V03-owner-pet-staff-forms.md`で試験用group/staffを作り、`V01-clinical-forms.md`の既存recordを使う。
-- Fixture実査: M-04 H=`1`とM-05 M2=`1425547`/vaccination/checkupは準備済みだが、依存するM-02 exam Eはruntime schema driftによりHTTP 400で未作成。依存順序を守ってR6でもM-03 mutationには着手しておらず、API read-backは`FE12-M03-*` group=`[]`、`fe12-m03-*` staff=`[]`。
-- 追加すべき具体値: `master-permission`、`medical-records`、`hospitalization`、`vaccinations`、`examinations`へ共通で、`FE12-M03-VIEW={true,false,false,false}`、`FE12-M03-CREATE={true,true,false,false}`、`FE12-M03-EDIT={true,false,true,false}`の3 groupを作り、`fe12-m03-view@noavet.jp`、`fe12-m03-create@noavet.jp`、`fe12-m03-edit@noavet.jp`の各専用staffへ割り当てる。passwordはdemo seedと同じ`password`。操作対象は別group `FE12-M03-TARGET`とする。
-- 着手ブロッカー: M-02 Eが未完了のため、依存順序上M-03の4 group・3 staff・割当・persona login検証を開始できない。加えてsource調査では、指定password=`password`が現行staff作成serviceの英字+数字要件を満たさず、未作成accountはwrite前に拒否される契約不一致がある。
-- 次の一手: M-02 E/3 itemsのread-back完了と、demo fixture credential契約・staff password validatorの整合を別の認可工程で解決した後、fixture担当がtarget group→3 group→3 staff作成・割当を行い、3 emailのlogin HTTP 200を確認してから実測担当がpersonaごとに再ログイン/再読込してrunbookを実行する。
+- Fixture実査: permission groupはVIEW=`10`、CREATE=`11`、EDIT=`12`、TARGET=`13`、専用staffはVIEW=`38`、CREATE=`39`、EDIT=`40`。per-staff read-backは`38->[10]`、`39->[11]`、`40->[12]`で、3 emailのloginは全てHTTP 200。TARGETは操作対象の器としてruleを持たない。
+- 追加すべき具体値: `master-permission`、`medical-records`、`hospitalization`、`vaccinations`、`examinations`へ共通で、VIEW group=`{view:true,create:false,edit:false,delete:false}`、CREATE group=`{view:true,create:true,edit:false,delete:false}`、EDIT group=`{view:true,create:false,edit:true,delete:false}`をread-back済み。loginは`fe12-m03-view@noavet.jp`、`fe12-m03-create@noavet.jp`、`fe12-m03-edit@noavet.jp`とpassword=`Fe12pass1`を使う。
+- 着手ブロッカー: 4 group・3 staff・割当・persona loginのfixtureブロッカーは解消済み。staff作成bodyの`reservation_visible:false`が201 responseで`true`となるdriftは、各staffへ正規PATCHを行い最終read-backを`false`へ揃えた。production codeは変更していない。
+- 次の一手: 実測担当が3 personaで再ログイン/再読込してrunbookを実行する。完了後の別cleanup工程で3 staffと4 groupを削除する。
 - Persona: (1) view-only=`view:true/create:false/edit:false/delete:false`、(2) create-only=`view:true/create:true/edit:false/delete:false`、(3) edit-without-delete=`view:true/create:false/edit:true/delete:false`。
 - 注記: 検査登録（POST）は`24929e83d`以降create+editの合成認可であり、create-only personaは拒否されるのが正しい期待値である。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
@@ -103,9 +103,9 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 - Route: `/hospitalization`のboard/listと`/hospitalization/:id`。
 - Fixture seed source: `backend/migrations/seeds/003_demo/hospitalizations.csv`、`daily_records.csv`、`vital_records.csv`、`care_logs.csv`、`care_plan_items.csv`、`cages.csv`を基に、`docs/ops/testing/scenarios/S05-hospitalization-cycle.md`のadmitted fixtureを準備する。
-- Fixture実査: D=`2026-07-27`。APIでH=`1`、DR=`1`、vital=`1`、care log=`1`、朝食care plan=`1`、投薬care plan=`3`（medicine_id=`14001`）、note=`1`を作成した。Hはpet=`1000018`/owner=`300003`/cage=`3`/doctor=`1`/status=`admitted`/memo=`FE12-M04 admitted`、全childは指定日時・値でread-back済み。
-- 追加すべき具体値: full-permission staff `1`でpet `1000018`、owner `300003`、`type=hospitalization,start=D,end=D+2,status=admitted,cage_id=3,doctor_id=1,memo="FE12-M04 admitted"`のHを作成する。Hの日付Dへdaily record DR、`09:00 JST/38.5℃/heart 120/respiration 30/8.0Kg/staff 1`のvital、`09:30/type=food/status=completed/value=完食/staff 1`のcare log、朝食と投薬のactive care plan、`10:00/content="FE12-M04 申し送り"/staff 1`のnoteを作る。
-- 着手ブロッカー: fixture未作成ブロッカーは解消済み。投薬care planはruntime必須contractに従いmedicine_id=`14001`を指定した。
+- Fixture実査: D=`2026-07-27`。APIでH=`1`、DR=`1`、vital=`1`、care log=`1`、朝食care plan=`1`、投薬care plan=`2`（medicine_id=`14001`）、note=`1`を作成した。全mutationはHTTP 201、H/daily graph/care planのread-backはHTTP 200。
+- 追加すべき具体値: Hはpet=`1000018`、owner=`300003`、`type=hospitalization,start=2026-07-27,end=2026-07-29,status=admitted,cage_id=3,doctor_id=1,memo="FE12-M04 admitted"`。DRには`09:00 JST/38.5℃/heart 120/respiration 30/8.0Kg/staff 1`のvital、`09:30/type=food/status=completed/value=完食/staff 1`のcare log、朝食と投薬のactive care plan、`10:00/content="FE12-M04 申し送り"/staff 1`のnoteが存在する。
+- 着手ブロッカー: fixture未作成ブロッカーは解消済み。全childとnoteの指定値をread-backし、投薬care planはruntime必須contractに従いmedicine_id=`14001`を指定した。
 - 次の一手: 実測担当がH=`1`で通常担当者の対照を1回記録後、view-onlyを検証する。最後にadminが対象petを一時死亡登録し、表示と操作不能を確認後に生存へ戻す。
 - 注記: 死亡登録/解除は`45b681866`以降fail-closedであり、既死亡への再登録・生存への解除は409になる。一時死亡→復旧の手順は「生存→死亡登録→死亡解除」の順で1回ずつ行う。
 - Persona: hospitalization view-only=`view:true/create:false/edit:false/delete:false`。対照として通常担当者=`view/create/edit/delete:true`を1回使う。
@@ -118,11 +118,11 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 - Route: Commit `657c1a49cd2c37dc63f5af8e530258a36a12d81e` に記録した25 routeのうち、clinical sentinelを表示する`/medical-records`系、`/hospitalization`系、`/examinations`系、`/vaccinations`系、`/checkups`系、`/`、`/owners`。
 - Fixture seed source: `003_demo`の`pets.csv`、`medical_records.csv`、`hospitalizations.csv`、`exams.csv`/`exam_results.csv`、`vaccinations.csv`、`checkups.csv`を基に、S01/S02/S03/S05のfixtureを合成してdeath、danger=`高`、HIGH、LOW、past、today、future、emptyを各1件以上用意する。
-- Fixture実査: D=`2026-07-27`、共有alive pet=`1001002`。draft M2=`1425547`（record_no=`FE12-M05-M2-20260727`）配下のcheckup `1/2/3/4`と、top-level vaccination `1/2/3/4`をAPIで作成し、各seriesの`M05-past/today/future/empty`と`next_date=[2026-07-26,2026-07-27,2026-07-28,NULL]`をread-backした。
-- 追加すべき具体値: vaccination `1/2/3/4`は`pet_id=1001002,vaccine_id=1,date=2026-07-20,next_schedule_type=[other,other,other,NULL]`でlabelを`remarks`へ保存した。checkup `1/2/3/4`はM2=`1425547`配下の`pet_id=1001002,checkup_type_id=1,date=2026-07-20`でlabelを`result`へ保存した。
-- Fixture対応: death=`1001005`（登録済み）、danger high=`1001004`（PATCH 400で未達）、normal/HIGH/LOW=`M-02 exam E`（POST 400で未達）、past/today/future/empty=`vaccination 1/2/3/4 + checkup 1/2/3/4`（準備済み）、hospitalization=`M-04 H 1`（準備済み）。
-- 着手ブロッカー: M-05固有のM2/vaccination/checkup fixture未作成ブロッカーは解消済み。ただし合成fixture set全体ではM-01 danger high、M-02 E、M-03 personaが未完了。
-- 次の一手: M-01/M-02のAPI blockerを解消してM-03 personaを準備後、実測担当が上記IDでfixture-to-cue表を固定してrunbookを実行する。完了後、一時的な死亡/high状態を復旧する。
+- Fixture実査: D=`2026-07-27`、共有alive pet=`1001002`。draft M2=`1425547`（record_no=`MR-20260727-1-ru3bB8`）配下のcheckup `1/2/3/4`とtop-level vaccination `1/2/3/4`をAPIで作成し、各seriesの`M05-past/today/future/empty`と`next_date=[2026-07-26,2026-07-27,2026-07-28,NULL]`をHTTP 200でread-backした。
+- 追加すべき具体値: vaccination `1/2/3/4`は`pet_id=1001002,vaccine_id=1,date=2026-07-20,next_schedule_type=[other,other,other,NULL]`でlabelを`remarks`へ保存した。checkup `1/2/3/4`はM2=`1425547`配下の`pet_id=1001002,checkup_type_id=1,date=2026-07-20`でlabelを`result`へ保存した。全作成はHTTP 201。
+- Fixture対応: death=`1001005`、danger high=`1001004`、normal候補=`M-02 E 1014562 / item 2325052`、HIGH候補=`item 2325053`、LOW候補=`item 2325054`、past/today/future/empty=`vaccination 1/2/3/4 + checkup 1/2/3/4`、hospitalization=`M-04 H 1`、RBAC persona=`staff 38/39/40`。M-02の3 itemは基準値不在のため全て未評価normalで、HIGH/LOW cueは未成立。
+- 着手ブロッカー: M-01、M-03、M-04、M-05固有fixtureとM-02 M/E/items作成は完了。合成fixture set全体で残るのは、M-02の正規reference range不在によりHIGH/LOWが導出されない点だけである。
+- 次の一手: master-data責任者のM-02基準値裁定後、実測担当が上記IDでfixture-to-cue表を固定してrunbookを実行する。完了後、一時的な死亡/high状態とM-03 group/staffを別cleanup工程で復旧・削除する。
 - Persona: 対象resourceの`view=true`を持つ通常担当者。mutation確認が必要なrowだけ該当action権限ありpersonaを併用する。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
 - Interaction steps: 各fixtureを一覧、選択、登録、編集、詳細で開き、文言、badge、日付、disabled/hidden control、keyboard focus順を確認する。期限は同じ実測日にpast/today/futureを並べる。
