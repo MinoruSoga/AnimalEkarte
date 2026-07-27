@@ -34,12 +34,39 @@ func NewPrescriptionRepository(db *gorm.DB) PrescriptionRepository {
 	return &prescriptionRepository{db: db}
 }
 
+func prescriptionParentClinicScope(db *gorm.DB) *gorm.DB {
+	return db.Where(`
+		EXISTS (
+			SELECT 1
+			FROM owners
+			WHERE owners.id = prescriptions.owner_id
+			  AND owners.clinic_id = prescriptions.clinic_id
+		)
+		AND
+		(prescriptions.pet_id IS NULL OR EXISTS (
+			SELECT 1
+			FROM pets
+			WHERE pets.id = prescriptions.pet_id
+			  AND pets.clinic_id = prescriptions.clinic_id
+			  AND pets.owner_id = prescriptions.owner_id
+		))
+		AND
+		(prescriptions.medical_record_id IS NULL OR EXISTS (
+			SELECT 1
+			FROM medical_records
+			WHERE medical_records.id = prescriptions.medical_record_id
+			  AND medical_records.clinic_id = prescriptions.clinic_id
+		))
+	`)
+}
+
 func (r *prescriptionRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
 	prescriptions := make([]model.Prescription, 0)
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("medical_record_id = ?", medicalRecordID).
-		Order("prescribed_at DESC").
+		Scopes(prescriptionParentClinicScope).
+		Where("prescriptions.medical_record_id = ?", medicalRecordID).
+		Order("prescriptions.prescribed_at DESC").
 		Find(&prescriptions).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "prescription", "")
@@ -51,7 +78,8 @@ func (r *prescriptionRepository) FindByID(ctx context.Context, clinicID, id uint
 	var prescription model.Prescription
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", id).
+		Scopes(prescriptionParentClinicScope).
+		Where("prescriptions.id = ?", id).
 		First(&prescription).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "prescription", fmt.Sprintf("%d", id))
@@ -63,7 +91,8 @@ func (r *prescriptionRepository) FindByID(ctx context.Context, clinicID, id uint
 func (r *prescriptionRepository) FindActiveByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error) {
 	prescriptions := make([]model.Prescription, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND owner_id = ? AND deleted_at IS NULL", clinicID, ownerID).
+		Scopes(prescriptionParentClinicScope).
+		Where("prescriptions.clinic_id = ? AND prescriptions.owner_id = ? AND prescriptions.deleted_at IS NULL", clinicID, ownerID).
 		Find(&prescriptions).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "prescription", "")

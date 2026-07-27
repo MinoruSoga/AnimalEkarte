@@ -192,8 +192,8 @@ func (r *hospitalizationRepository) CountTreatmentPlansByHospitalizationID(ctx c
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.TreatmentPlan{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("treatment_plans.hospitalization_id = ? AND treatment_plans.deleted_at IS NULL", hospitalizationID).
+		Joins("JOIN hospitalizations ON hospitalizations.id = treatment_plans.hospitalization_id AND hospitalizations.clinic_id = treatment_plans.clinic_id").
+		Where("treatment_plans.clinic_id = ? AND treatment_plans.hospitalization_id = ? AND treatment_plans.deleted_at IS NULL", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "treatment_plan", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
