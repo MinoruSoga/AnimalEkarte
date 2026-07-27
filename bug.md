@@ -78,13 +78,30 @@ GORM v2 は生 `Joins()` を含むクエリでは `SELECT *` ではなく model 
 
 ### USER 手動実行が必要（安全境界）
 
-稼働 DB へ未適用の migration（`002_add_pets_version.sql`, `003_add_exam_results_exam_type_field_id_index.sql`）を適用しないと 200 は返らない。`001_init.sql` は最終更新 18:35:08 で 18:35:59 の適用時点から変更されていないため checksum mismatch は起きず、差分適用のみで復旧する。
+**状況が 2026-07-27 23:03 時点で変化したため、以下を最新として扱うこと。**
+
+migration 自体は既に適用済みになった（別セッションの操作と思われる）。backend コンテナ起動ログ:
 
 ```
-make migrate
+⏭ Skipping (already applied) file=001_init.sql
+⏭ Skipping (already applied) file=002_add_pets_version.sql
+⏭ Skipping (already applied) file=003_add_exam_results_exam_type_field_id_index.sql
+Migration summary applied=0 skipped=3 total=3
 ```
 
-（= `docker compose run --rm --entrypoint go backend run ./cmd/migrate`。DB を落とさない差分適用。backend コンテナの再起動でも entrypoint が同じ migration を実行する。）
+したがって `pets.version` は稼働 DB に存在するようになり、**本バグの 42703 は DB 側では解消しているはずである**（ただし後述の理由で実 HTTP 確認は未実施）。
+
+**新たなブロッカー（本バグとは別件・本対処とは無関係）**: backend コンテナが 23:03:50 に再作成された際、seed バンドルの checksum mismatch で **exit 1 して起動しなくなった**。
+
+```
+level=ERROR msg="seed bundle load failed: checksum mismatch for seeds/003_demo:
+ applied=96f597d5..., current=9d601cf7... — migration file was modified after execution"
+exit status 1
+```
+
+`backend/migrations/seeds/003_demo/*.csv` が適用後に変更されたため（`pets.csv` の `version` 列追加等）。entrypoint は `set -e` のため migration/seed が失敗すると air が起動せず、backend が healthy にならない。再作成の引き金は `docker-compose.yml` の変更（別セッションが `./docs:/docs:ro` マウントを追加）と思われる。
+
+**この復旧は DB 状態の変更であり安全境界のため、AI 側では実行していない。** 復旧手段の選択（適用済み checksum の更新か、seed 再適用か、DB リセットか）は影響範囲が異なるため、実行者が判断すること。関連手順は `migration-seed-safety` / `stg-release-readiness` スキルにある。
 
 ### 残存リスク
 
