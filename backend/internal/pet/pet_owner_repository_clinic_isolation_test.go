@@ -10,11 +10,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupPetOwnerRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupPetRepositoryTestDB(t)
+	// テストDBのスキーマは SQL migration ではなくモデル単位の AutoMigrate で構築される。
+	// PetOwner を登録しないと pet_owners が存在せず、以降の TRUNCATE で 42P01 になる。
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.PetOwner{}))
 	require.NoError(t, db.Exec("TRUNCATE TABLE pet_owners RESTART IDENTITY CASCADE").Error)
 	return db
 }
