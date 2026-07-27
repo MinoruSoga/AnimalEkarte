@@ -54,7 +54,6 @@ function createResults(
     totalPages: number;
     startIndex: number;
     endIndex: number;
-    isPageLocalFiltered: boolean;
     onPageChange: (page: number) => void;
   }> = {},
 ) {
@@ -65,7 +64,6 @@ function createResults(
     totalPages: 1,
     startIndex: items.length === 0 ? 0 : 1,
     endIndex: items.length,
-    isPageLocalFiltered: false,
     onPageChange: vi.fn(),
     ...overrides,
   };
@@ -254,27 +252,41 @@ describe("PetSelectionResultsTable server pagination", () => {
     expect(screen.getByRole("status")).toHaveTextContent("100件中 21-40件");
   });
 
-  it("ページ内条件がある場合は全体検索ではないことを明示する", () => {
+  // BUG-451 回帰防止: 総件数を根拠に「N件中 X-Y件」と提示する以上、
+  // 描画行はその範囲の中身そのものでなければならない。
+  // ページ内クライアント側フィルタが復活すると件数と行数が食い違い、
+  // 利用者は「全件を検索した」と誤解する。
+  it("総件数の提示と描画行が食い違わない（ページ内絞り込みの注記を持たない）", () => {
+    const pageItems = [
+      PET,
+      { ...PET, id: "pet-2", name: "タマ" },
+      { ...PET, id: "pet-3", name: "ハチ" },
+    ];
     render(
       <PetSelectionResultsTable
-        pets={createResults([PET], {
-          totalCount: 100,
+        pets={createResults(pageItems, {
+          totalCount: 15_654,
           currentPage: 2,
-          totalPages: 5,
+          totalPages: 783,
           startIndex: 21,
           endIndex: 40,
-          isPageLocalFiltered: true,
         })}
         onSelect={vi.fn()}
       />,
     );
 
+    expect(screen.getByRole("status")).toHaveTextContent("15,654件中 21-40件");
+    // backend が返した行は1件も間引かれない。
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
+    expect(screen.getByText("タマ")).toBeInTheDocument();
+    expect(screen.getByText("ハチ")).toBeInTheDocument();
     expect(
-      screen.getByText("追加条件は現在のページ内だけを絞り込んでいます"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("100件中 21-40件")).toBeInTheDocument();
+      screen.queryByText("追加条件は現在のページ内だけを絞り込んでいます"),
+    ).not.toBeInTheDocument();
   });
 });
+
+const EMPTY_SEARCH_PARAMS = { search: "", ownerId: "", species: "" };
 
 describe("PetSelectionSearchForm backend filters", () => {
   it("全体検索欄を表示し、動物種は数値IDで更新する", async () => {
@@ -282,26 +294,15 @@ describe("PetSelectionSearchForm backend filters", () => {
     const setSearchParams = vi.fn();
     render(
       <PetSelectionSearchForm
-        searchParams={{
-          search: "",
-          ownerId: "",
-          ownerName: "",
-          ownerNameKana: "",
-          phone: "",
-          petName: "",
-          petNameKana: "",
-          species: "",
-          address: "",
-        }}
+        searchParams={EMPTY_SEARCH_PARAMS}
         setSearchParams={setSearchParams}
-        onSearch={vi.fn()}
         onClear={vi.fn()}
       />,
     );
 
     expect(
       screen.getByRole("textbox", {
-        name: "全体検索（ペット名・飼主名・よみ・電話）",
+        name: "検索（ペット名・飼主名・よみ・電話）",
       }),
     ).toBeInTheDocument();
 
@@ -312,30 +313,53 @@ describe("PetSelectionSearchForm backend filters", () => {
     );
   });
 
-  it("一覧APIに無い住所条件は利用不可を明示して誤った0件検索を防ぐ", () => {
+  // BUG-451: backend が述語を持たない条件を欄として出すと、利用者は
+  // 「その条件で全件を検索した」と誤解する。backend の述語と1対1の
+  // 3コントロールだけを出す（住所は述語が無いため機能ごと廃止）。
+  it("backendの述語に対応する3コントロールだけを表示する", () => {
     render(
       <PetSelectionSearchForm
-        searchParams={{
-          search: "",
-          ownerId: "",
-          ownerName: "",
-          ownerNameKana: "",
-          phone: "",
-          petName: "",
-          petNameKana: "",
-          species: "",
-          address: "",
-        }}
+        searchParams={EMPTY_SEARCH_PARAMS}
         setSearchParams={vi.fn()}
-        onSearch={vi.fn()}
         onClear={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "住所" })).toBeDisabled();
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
     expect(
-      screen.getByText("住所検索は現在利用できません"),
+      screen.getByRole("textbox", { name: "飼主No" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "種別" })).toBeInTheDocument();
+
+    for (const removed of [
+      "飼主名",
+      "飼主名よみ",
+      "電話番号",
+      "ペット名",
+      "ペット名よみ",
+      "住所",
+    ]) {
+      expect(
+        screen.queryByRole("textbox", { name: removed }),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  // 決定③: デバウンス付き自動検索。押しても何も起きない「検索」ボタンを残さない。
+  it("no-opな検索ボタンを持たず、自動検索であることを伝える", () => {
+    render(
+      <PetSelectionSearchForm
+        searchParams={EMPTY_SEARCH_PARAMS}
+        setSearchParams={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "検索" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("入力すると自動で検索します")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クリア" })).toBeInTheDocument();
   });
 });
 

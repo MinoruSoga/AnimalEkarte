@@ -1,9 +1,12 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
 
-import { usePetSelectionPage } from "./use-pet-selection-page";
+import {
+  SEARCH_DEBOUNCE_MS,
+  usePetSelectionPage,
+} from "./use-pet-selection-page";
 
 const navigate = vi.fn();
 const locationState = {
@@ -88,43 +91,64 @@ const hiraganaOwnerPet = {
   species: "猫",
 } as unknown as Pet;
 
+const CONFIG = { selectPath: "/trimming/new", backPath: "/trimming" };
+
+/** 検索条件を変更し、デバウンスを満了させて backend への反映まで進める。 */
+function applySearch(
+  result: { current: ReturnType<typeof usePetSelectionPage> },
+  partial: Partial<ReturnType<typeof usePetSelectionPage>["searchParams"]>,
+) {
+  act(() => {
+    result.current.setSearchParams({
+      ...result.current.searchParams,
+      ...partial,
+    });
+  });
+  act(() => {
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+  });
+}
+
 describe("usePetSelectionPage", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     navigate.mockClear();
     mockUseGetPets.mockClear();
     receivedQueryOptions = undefined;
     mockUseGetPets.mockReturnValue({ data: [], total: 0, page: 1, limit: 20 });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // 回帰防止: 旧実装は `const { data: pets = [] } = useGetPets(...)` で error/isLoading を
   // 破棄していたため、GET /v1/pets が 400 を返しても呼び出し側は「0件」としか判別できなかった。
   it("取得失敗を握り潰さず error として返す（0件と区別できる）", () => {
     const apiError = new Error("Request failed with status code 400");
-    mockUseGetPets.mockReturnValue({ data: undefined, error: apiError, isLoading: false });
+    mockUseGetPets.mockReturnValue({
+      data: undefined,
+      error: apiError,
+      isLoading: false,
+    });
 
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     expect(result.current.error).toBe(apiError);
-    expect(result.current.filteredPets.items).toEqual([]);
+    expect(result.current.petPage.items).toEqual([]);
   });
 
   it("読み込み中を握り潰さず isLoading として返す", () => {
-    mockUseGetPets.mockReturnValue({ data: undefined, error: undefined, isLoading: true });
+    mockUseGetPets.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: true,
+    });
 
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.filteredPets.items).toEqual([]);
+    expect(result.current.petPage.items).toEqual([]);
   });
 
   it("ページ切替中の前回データも読み込み中として選択側へ伝える", () => {
@@ -137,15 +161,10 @@ describe("usePetSelectionPage", () => {
       isPlaceholderData: true,
     });
 
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
+    expect(result.current.petPage.items).toEqual([katakanaOwnerPet]);
   });
 
   it("取得成功時は error が無く isLoading も false になる", () => {
@@ -158,28 +177,18 @@ describe("usePetSelectionPage", () => {
       isLoading: false,
     });
 
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     expect(result.current.error).toBeUndefined();
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
-    expect(result.current.filteredPets.totalCount).toBe(15_654);
-    expect(result.current.filteredPets.startIndex).toBe(1);
-    expect(result.current.filteredPets.endIndex).toBe(20);
+    expect(result.current.petPage.items).toEqual([katakanaOwnerPet]);
+    expect(result.current.petPage.totalCount).toBe(15_654);
+    expect(result.current.petPage.startIndex).toBe(1);
+    expect(result.current.petPage.endIndex).toBe(20);
   });
 
   it("死亡個体・先頭ページ・20件を指定して共有一覧を取得する", () => {
-    renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    renderHook(() => usePetSelectionPage(CONFIG));
 
     expect(mockUseGetPets).toHaveBeenCalledWith(undefined, {
       includeDeceased: true,
@@ -190,21 +199,11 @@ describe("usePetSelectionPage", () => {
   });
 
   it("ページ移動でbackendへページ番号を渡す", () => {
-    mockUseGetPets.mockReturnValue({
-      data: [],
-      total: 100,
-      page: 1,
-      limit: 20,
-    });
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    mockUseGetPets.mockReturnValue({ data: [], total: 100, page: 1, limit: 20 });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     act(() => {
-      result.current.filteredPets.onPageChange(2);
+      result.current.petPage.onPageChange(2);
     });
 
     expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
@@ -215,22 +214,13 @@ describe("usePetSelectionPage", () => {
   });
 
   it("検索語をbackendへ渡し、検索条件の変更時に先頭ページへ戻す", () => {
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    mockUseGetPets.mockReturnValue({ data: [], total: 100, page: 1, limit: 20 });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     act(() => {
-      result.current.filteredPets.onPageChange(3);
+      result.current.petPage.onPageChange(3);
     });
-    act(() => {
-      result.current.setSearchParams({
-        ...result.current.searchParams,
-        search: "もも",
-      });
-    });
+    applySearch(result, { search: "もも" });
 
     expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
       includeDeceased: true,
@@ -241,20 +231,9 @@ describe("usePetSelectionPage", () => {
   });
 
   it("動物種IDと飼主IDをbackendへ渡す", () => {
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
-    act(() => {
-      result.current.setSearchParams({
-        ...result.current.searchParams,
-        ownerId: "30042",
-        species: "3",
-      });
-    });
+    applySearch(result, { ownerId: "30042", species: "3" });
 
     expect(mockUseGetPets).toHaveBeenLastCalledWith("30042", {
       includeDeceased: true,
@@ -264,15 +243,117 @@ describe("usePetSelectionPage", () => {
     });
   });
 
+  // BUG-451 の核心。backend が返した1ページ分を FE で再度絞り込むと、
+  // 画面は総件数(例 15,654)を根拠に「N件中 1-20件」と表示しながら、
+  // その20件から黙って行を消す。利用者は「全件を検索した」と誤解し、
+  // 実在患者を未登録と誤認して重複カルテを作りうる。
+  // 実装がページ内クライアント側フィルタへ退行したらこのテストは必ず落ちる。
+  it("backendが返した行を検索語でクライアント側再絞り込みしない", () => {
+    const pets = [katakanaOwnerPet, hiraganaOwnerPet];
+    mockUseGetPets.mockReturnValue({
+      data: pets,
+      total: 15_654,
+      page: 1,
+      limit: 20,
+    });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    // どの行のどのフィールドにも一致しない語。旧実装なら 0 件へ潰れていた。
+    applySearch(result, { search: "該当しない検索語" });
+
+    expect(result.current.petPage.items).toEqual(pets);
+    expect(result.current.petPage.totalCount).toBe(15_654);
+  });
+
+  it("21件目以降にしか存在しない患者も、backendが返せばそのまま提示する", () => {
+    const pageTwoOnlyPet = {
+      ...katakanaOwnerPet,
+      id: "9999",
+      name: "ページ2にしか居ないペット",
+    } as Pet;
+    mockUseGetPets.mockReturnValue({
+      data: [pageTwoOnlyPet],
+      total: 15_654,
+      page: 2,
+      limit: 20,
+    });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    applySearch(result, { search: "ページ2" });
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(
+      undefined,
+      expect.objectContaining({ search: "ページ2" }),
+    );
+    expect(result.current.petPage.items).toEqual([pageTwoOnlyPet]);
+    expect(result.current.petPage.startIndex).toBe(21);
+    expect(result.current.petPage.endIndex).toBe(40);
+  });
+
+  describe("デバウンス配線", () => {
+    it("入力直後はbackendへ問い合わせず、停止後に1回だけ反映する", () => {
+      const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+      mockUseGetPets.mockClear();
+
+      act(() => {
+        result.current.setSearchParams({
+          ...result.current.searchParams,
+          search: "も",
+        });
+      });
+
+      // 入力直後: 検索語はまだ backend へ届いていない。
+      expect(mockUseGetPets).not.toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ search: "も" }),
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      });
+
+      expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+        includeDeceased: true,
+        page: 1,
+        limit: 20,
+        search: "も",
+      });
+    });
+
+    it("連続入力では中間の検索語をbackendへ送らない", () => {
+      const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+      act(() => {
+        result.current.setSearchParams({
+          ...result.current.searchParams,
+          search: "も",
+        });
+      });
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 100);
+      });
+      act(() => {
+        result.current.setSearchParams({
+          ...result.current.searchParams,
+          search: "もも",
+        });
+      });
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      });
+
+      const sentSearches = mockUseGetPets.mock.calls
+        .map(([, options]) => options?.search)
+        .filter((search): search is string => Boolean(search));
+      expect(sentSearches).not.toContain("も");
+      expect(sentSearches).toContain("もも");
+    });
+  });
+
   it("死亡個体は callback 境界で選択を拒否する", () => {
     const deceasedPet = { ...katakanaOwnerPet, status: "死亡" } as Pet;
     mockUseGetPets.mockReturnValue({ data: [deceasedPet] });
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     act(() => {
       result.current.handleSelect(deceasedPet);
@@ -283,12 +364,7 @@ describe("usePetSelectionPage", () => {
 
   it("ペット選択後も既存クエリと state を作成画面へ引き継ぐ", () => {
     mockUseGetPets.mockReturnValue({ data: [katakanaOwnerPet] });
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     act(() => {
       result.current.handleSelect(katakanaOwnerPet);
@@ -301,17 +377,9 @@ describe("usePetSelectionPage", () => {
   });
 
   it("生死不明の個体はfail-closedで選択を拒否する", () => {
-    const unknownStatusPet = {
-      ...katakanaOwnerPet,
-      status: undefined,
-    } as Pet;
+    const unknownStatusPet = { ...katakanaOwnerPet, status: undefined } as Pet;
     mockUseGetPets.mockReturnValue({ data: [unknownStatusPet] });
-    const { result } = renderHook(() =>
-      usePetSelectionPage({
-        selectPath: "/trimming/new",
-        backPath: "/trimming",
-      }),
-    );
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
     act(() => {
       result.current.handleSelect(unknownStatusPet);
@@ -320,57 +388,30 @@ describe("usePetSelectionPage", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  describe("かな正規化フィルタ", () => {
-    const config = { selectPath: "/trimming/new", backPath: "/trimming" };
-    const pets = [katakanaOwnerPet, hiraganaOwnerPet];
+  it("クリアで検索条件と現在ページを初期化する", () => {
+    mockUseGetPets.mockReturnValue({ data: [], total: 100, page: 1, limit: 20 });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
 
-    function setup() {
-      mockUseGetPets.mockReturnValue({
-        data: pets,
-        total: pets.length,
-        page: 1,
-        limit: 20,
-      });
-      return renderHook(() => usePetSelectionPage(config));
-    }
-
-    it("ひらがな入力でカタカナ ownerName がヒットする", () => {
-      const { result } = setup();
-      act(() => {
-        result.current.setSearchParams({ ...result.current.searchParams, ownerName: "やまだ" });
-      });
-      expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
+    applySearch(result, { search: "もも", species: "3" });
+    act(() => {
+      result.current.petPage.onPageChange(2);
+    });
+    act(() => {
+      result.current.handleClear();
+    });
+    act(() => {
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
     });
 
-    it("カタカナ入力でひらがな ownerName がヒットする", () => {
-      const { result } = setup();
-      act(() => {
-        result.current.setSearchParams({ ...result.current.searchParams, ownerName: "サトウ" });
-      });
-      expect(result.current.filteredPets.items).toEqual([hiraganaOwnerPet]);
+    expect(result.current.searchParams).toEqual({
+      search: "",
+      ownerId: "",
+      species: "",
     });
-
-    it("ひらがな入力でカタカナ petName がヒットする", () => {
-      const { result } = setup();
-      act(() => {
-        result.current.setSearchParams({
-          ...result.current.searchParams,
-          petName: "ぽち",
-        });
-      });
-      expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
-      expect(result.current.filteredPets.isPageLocalFiltered).toBe(true);
-    });
-
-    it("カタカナ入力でひらがな petName がヒットする", () => {
-      const { result } = setup();
-      act(() => {
-        result.current.setSearchParams({
-          ...result.current.searchParams,
-          petName: "タロウ",
-        });
-      });
-      expect(result.current.filteredPets.items).toEqual([hiraganaOwnerPet]);
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+      includeDeceased: true,
+      page: 1,
+      limit: 20,
     });
   });
 });

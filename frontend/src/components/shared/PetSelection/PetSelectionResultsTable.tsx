@@ -30,7 +30,6 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
     totalPages,
     startIndex,
     endIndex,
-    isPageLocalFiltered,
     onPageChange,
   } = pets;
   // 取得失敗・取得中に現在行数を全体件数として提示しない。
@@ -59,13 +58,6 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
         <p role="alert" className={`text-sm ${C.danger}`}>
           ペット一覧の取得に失敗しました。前回取得した患者は選択できません
         </p>
-      ) : null}
-
-      {isPageLocalFiltered ? (
-        <div className={`text-sm ${C.text60}`} role="note">
-          <p>追加条件は現在のページ内だけを絞り込んでいます</p>
-          <p>このページの該当: {items.length.toLocaleString()}件</p>
-        </div>
       ) : null}
 
       <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
