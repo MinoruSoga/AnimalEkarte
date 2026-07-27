@@ -6,10 +6,12 @@
 > 解消済みの証跡: F16/U10/O-A実装=`3b7524748`、R-A/M-A=`e7c978ec9`、P-A=`99bac632e`、exam parent+items原子化=`24929e83d`、死亡API 409 fail-closed=`45b681866`、test-hardening 3件=`3c993420a`。代理決裁6件の記録と調査パックは`a500d424c`および本更新直前までの履歴に保存する。
 > S1/S2並行レーン（2026-07-27完走・全項目解消）の証跡: pet死亡CAS封鎖=`18d307076`、カルテlookup JST正規化=`305b50c7f`、ワクチン期限JST契約=`56d18eb18`、auto-create原子化=`5e5868549`、DBOrTx inventory債務=`0eecddb11`、reception danger sentinel=`082be9961`、master permission 45/45配線+fail-closed化=`da550a84d`、auth独立chunk化+checkup resource整合=`8a00a4794`、StaffSettings test追随=`e8a4db982`。各項目の分析・裁定・証跡の全文は本節削除直前の版（commit `0fd1f7d18`）に保存する。裁定の要点2件は後段「維持する裁定」に残す。
 > 削除した `## FE12-02 unit execution record` と過去のFE/R-F履歴はCommit `657c1a49cd2c37dc63f5af8e530258a36a12d81e` に保存する。
+> **DB reset経路の復旧（2026-07-27・fixture作成の前提工程）**: M-01〜M-05のfixture作成は5走連続でBLOCKEDし、真因は「7/17のmigration統合以降ずっとDB resetが完遂できない状態だった」ことだった。seed CSVがテーブル定義に追随しておらず`COPY`が22P04で落ちていた（`COPY`は列リストを渡さずテーブル定義順に依存する）。証跡: pets/billing_items CSV是正=`0b51c891c`、clinical_plans/exam_results CSV是正=`a4946053b`、migration統合第3回（002-004→001）+clinical_plans列順是正=`edbb162f7`、ERD v31.30（pet_owners/複合FK/テーブル数110）+波及4文書=`2c13b563c`、fixture完成の台帳反映=`976d717c7`。**この破壊はDB resetを実行した瞬間にしか顕在化しないため、7/17から誰も気づいていなかった。** 再発防止のgate（seed CSVヘッダ⇔テーブル列順の照合、`CREATE TABLE`実数⇔ERD宣言値の照合）は未実装であり、`3-session-agent.html#ledger`へ起票が必要。
 
 ## Active scope and authority
 
-- 追跡対象は `M-01`〜`M-05`、line-reserve font実機確認、裁定待ちの残余2件とする。F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は代理決裁・実装済みで追跡を終了した。
+- 追跡対象は `M-01`〜`M-05` の実測、line-reserve font実機確認、裁定待ちの残余3件（R-1/R-2/R-3）、実測後のfixture復旧（R-4）とする。F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は代理決裁・実装済みで追跡を終了した。
+- **2026-07-27 時点の到達点**: M-01〜M-05 の fixture は全て作成済みで、残るエージェント工程は無い。以降の工程は実測担当と曽我の同席、および master-data／contract 責任者の裁定であり、いずれも agent へ委譲できない。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
 - authorityから項目が消えたことや判断待ち件数が0であることだけでは完了とみなさない。明示的な決裁または実測証跡が無い項目は保持する。
 - 本ledgerの更新は実装・runtime検証・製品決裁を代替しない。
@@ -30,7 +32,9 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 <!-- FE12-TASK-TABLE-START -->
 | ID | Priority | Active frontier | Dependency | Completion evidence |
 |---|---|---|---|---|
-| FE12-02 | P0 | M-01〜M-05、line-reserve font実機確認 | 各runbookの着手ブロッカー（fixture準備）が先行 | 対象実測の証跡が揃うこと |
+| FE12-02 | P0 | M-01〜M-05の実測（**fixtureは2026-07-27に全作成完了**）、line-reserve font実機確認 | 実測担当と曽我の同席（agent委譲不可）。M-02のみR-3の裁定が先行 | 対象実測の証跡が揃うこと |
+| R-3 | P0 | M-02の`exam_reference_ranges`基準値をどうするか | master-data責任者の裁定 | 「正規基準値を投入して再評価」または「基準値不在のまま実測する」のいずれかが明示決定されること |
+| R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、M-03のstaff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行 | 復旧後のread-back証跡 |
 | R-1 | P2 | staff入力検証の契約drift 5件 | 仕様裁定（frontend RBAC owner + staff API contract owner） | 各driftの是正または「意図された挙動」の明文化 |
 | R-2 | P2 | tygo pointer mapping 15行の寄与測定 | `make codegen`がUSER専権 | 寄与0の行の特定と設定整理 |
 <!-- FE12-TASK-TABLE-END -->
@@ -145,9 +149,13 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 ### 残余risk — 裁定待ち
 
-2026-07-27にS1（backend）/S2（frontend）の2レーン並行で全9項目を解消・清算した。実装・裁定が完了した項目は本節から削除し、証跡commitはファイル冒頭に一覧する。以下は実装ではなく**裁定**を待っている2件である。
+2026-07-27にS1（backend）/S2（frontend）の2レーン並行で全9項目を解消・清算した。実装・裁定が完了した項目は本節から削除し、証跡commitはファイル冒頭に一覧する。以下は実装ではなく**裁定**を待っている3件である。
+
+- **【裁定待ち・P0・R-3】M-02の`exam_reference_ranges`基準値が存在しない** — 2026-07-27 のfixture作成で判明。異常判定は`examination_service.go`が`referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)`で引いた基準値から導出する（`exam_reference_range_repository.go`の述語は`clinic_id + animal_species_id + exam_type_field_id`）。**現行seedにrange recordが無く、rangeのread/write APIも存在しない。** `exam_type_fields.normal_value`（`6.0-17.0 x10^3/uL`等）は表示用文字列であって導出には使われない。結果としてRBC=`9.0`（基準5.5-8.5超過）・HCT=`30.0`（基準37-55未満）が`is_assessed=false, is_abnormal=false, status=normal`のまま返る。**この`normal`は「正常」ではなく「未評価fallback」であり**（`exam_result_assessment.go`の`unassessedExamResult()`）、臨床的な正常判定と読み違えてはならない。判断者: master-data責任者。選択肢: (A) 正規の基準値を投入して同じE/itemsを再評価しHIGH/LOW cueを成立させる（rangeのAPIが無いためseed追加かmaster画面の実装が要る）、(B) 基準値不在のままM-02を実測しcue無しの状態で裁定する（M-02の裁定内容が「cueの要否」から「導線の妥当性」へ変質する）。**Aを選ぶ場合、投入は正規の別工程で行う。fixture作成unitでの値の偽装は禁止であり、実際に行っていない。**
 
 - **【裁定待ち】staff入力検証の契約drift 5件** — S2第4走が隣接riskとして列挙（実装未着手）。①新規emailがtruthy判定のみで空白・形式不正をfrontendで阻止しない ②既存staffの非空・短いpasswordをfrontendで阻止しない ③frontend/OpenAPIの「新規email/password必須」とbackendのアカウントなしstaff作成許容が不一致 ④空氏名test名は新規/編集双方を示すが実caseは編集経路のみ ⑤read-only画面でEnterによるform actionが残り、基本staff保存が拒否されても関連付けmutationが独立発行され得る（backend側拒否は未評価）。判断者: frontend RBAC owner ＋ staff API contract owner。次の一手: 各driftについて「是正する」か「意図された挙動として明文化する」かを決める。③は正本がfrontend/OpenAPI側かbackend側かの決定が先行する。
+
+- **【要起票・本ledgerの所掌外】fixture作成中に実測した実装drift 2件** — いずれも production code を変更せず報告に留めた。正式な起票先は`3-session-agent.html#ledger`であり、本節は取りこぼし防止の控えである。①**staff作成POSTが`reservation_visible:false`を無視する** — M-03のpersona staff作成で送った`false`が201 responseで`true`になった。各staffへ正規PATCHを打ち最終read-backは`false`へ揃えたが、作成時に指定が落ちる挙動自体は未修正。②**DBOrTx inventory gateが赤** — `exam_reference_range_repository.go`の`ResolveByFieldIDs`/`FindAnimalSpeciesID`が`persistence.DBOrTx`参加者として未登録（`docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`で再現）。pet側2件は`0eecddb11`で清算済みだが、この2件は#249 U3を実装したセッションの所掌。ゲートの要求どおりambient-tx参加を実証するtestを添えて登録する必要がある。
 
 - **【レーン外・USER専権】tygo pointer mapping 15行** — 最初に開く: `backend/tygo.yaml:17-35,46-64,75-93`と3 generated output。確認: `*uint64`、`*string`、`*bool`、`*time.Time`、`*float64`の5 mapping×3 packageが生成物diffへ寄与するか。判断者: backend/frontend type contract owner。手順: 許可された`make codegen`で各mappingの出力寄与を個別記録し、寄与0の行だけを設定整理unitへ渡す。`make codegen`がUSER専権のためエージェントレーンへ割り当てない。
 
