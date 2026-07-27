@@ -33,9 +33,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	for _, route := range router.Routes() {
 		routes[route.Method+" "+route.Path] = struct{}{}
 	}
-	// The contract scanner resolves 485 explicit target routes. Gin's StaticFS
-	// adds GET and HEAD for /uploads/*filepath, yielding 487 runtime routes.
-	require.Len(t, routes, 487)
+	// The contract scanner resolves 486 explicit target routes. Gin's StaticFS
+	// adds GET and HEAD for /uploads/*filepath, yielding 488 runtime routes.
+	require.Len(t, routes, 488)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",

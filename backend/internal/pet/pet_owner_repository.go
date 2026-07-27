@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -16,8 +17,25 @@ import (
 // PetOwnerRepository はペットと副飼主の追加紐付けを永続化する。
 type PetOwnerRepository interface {
 	FindByPetID(ctx context.Context, clinicID, petID uint64) ([]model.PetOwner, error)
+	FindSharedPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]SharedPet, error)
 	ReplaceForPet(ctx context.Context, clinicID, petID uint64, links []model.PetOwner, expectedVersion *int) error
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+}
+
+// SharedPet is the display projection for a pet linked through pet_owners.
+type SharedPet struct {
+	ID                uint64
+	PetNumber         string
+	Name              string
+	Status            model.PetStatus
+	AnimalSpeciesName string
+	Gender            model.PetGender
+	BirthDate         *time.Time
+	Color             string
+	Weight            *float64
+	Environment       string
+	Remarks           string
+	Relationship      string
 }
 
 type petOwnerRepository struct {
@@ -44,6 +62,33 @@ func (r *petOwnerRepository) FindByPetID(
 		return nil, apperrors.FromGORM(err, "pet_owner", "")
 	}
 	return links, nil
+}
+
+func (r *petOwnerRepository) FindSharedPetsByOwnerID(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+) ([]SharedPet, error) {
+	sharedPets := make([]SharedPet, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Pet{}).
+		Select(
+			"pets.id, pets.pet_number, pets.name, pets.status, "+
+				"animal_species.name AS animal_species_name, pets.gender, "+
+				"pets.birth_date, pets.color, pets.weight, pets.environment, "+
+				"pets.remarks, pet_owners.relationship",
+		).
+		Joins("JOIN pet_owners ON pet_owners.pet_id = pets.id AND pet_owners.clinic_id = pets.clinic_id").
+		Joins("JOIN animal_species ON animal_species.id = pets.animal_species_id").
+		Where("pet_owners.clinic_id = ? AND pet_owners.owner_id = ?", clinicID, ownerID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = pet_owners.pet_id AND p.clinic_id = pet_owners.clinic_id)").
+		Where("EXISTS (SELECT 1 FROM owners o WHERE o.id = pet_owners.owner_id AND o.clinic_id = pet_owners.clinic_id)").
+		Where("pets.owner_id <> pet_owners.owner_id").
+		Order("pet_owners.id ASC").
+		Find(&sharedPets).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet_owner", "")
+	}
+	return sharedPets, nil
 }
 
 func (r *petOwnerRepository) ReplaceForPet(

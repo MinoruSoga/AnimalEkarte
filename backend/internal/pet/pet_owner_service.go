@@ -33,6 +33,7 @@ type ReplacePetOwnersInput struct {
 // PetOwnerService owns clinic-scoped secondary-owner reads and replacements.
 type PetOwnerService interface {
 	GetByPetID(ctx context.Context, clinicID, petID uint64) ([]model.PetOwner, error)
+	GetSharedPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]SharedPet, error)
 	ReplaceForPet(ctx context.Context, clinicID, petID uint64, input *ReplacePetOwnersInput) error
 }
 
@@ -84,6 +85,26 @@ func (s *petOwnerService) GetByPetID(
 		return []model.PetOwner{}, nil
 	}
 	return links, nil
+}
+
+func (s *petOwnerService) GetSharedPetsByOwnerID(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+) ([]SharedPet, error) {
+	if s.owners == nil || s.repository == nil {
+		return nil, apperrors.WrapInternalServerError("pet owner service dependencies are unavailable")
+	}
+	if _, err := s.owners.FindByID(ctx, clinicID, ownerID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
+	sharedPets, err := s.repository.FindSharedPetsByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find shared pets")
+	}
+	if sharedPets == nil {
+		return []SharedPet{}, nil
+	}
+	return sharedPets, nil
 }
 
 func (s *petOwnerService) ReplaceForPet(

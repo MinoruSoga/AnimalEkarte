@@ -3,6 +3,7 @@ package pet
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -172,6 +173,100 @@ func TestPetOwnerRepository_CountByOwnerID_ClinicIsolation(t *testing.T) {
 	crossClinicCount, err := repo.CountByOwnerID(ctx, clinicA, ownerB.ID)
 	require.NoError(t, err)
 	assert.Zero(t, crossClinicCount)
+}
+
+func TestPetOwnerRepository_FindSharedPetsByOwnerID(t *testing.T) {
+	db := setupPetOwnerRepositoryTestDB(t)
+	repo := NewPetOwnerRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	sharedOwnerA := makeTestOwner(t, db, clinicA, "共同飼育ペット取得A")
+	primaryOwnerA := makeTestOwner(t, db, clinicA, "共同飼育ペット主飼主A")
+	ownerB := makeTestOwner(t, db, clinicB, "共同飼育ペット取得B")
+
+	primaryPet := makeSpeciesAndPet(t, db, clinicA, sharedOwnerA.ID, "主飼主ペット")
+	sharedPet := makeSpeciesAndPet(t, db, clinicA, primaryOwnerA.ID, "共同飼育ペット")
+	deceasedPet := makeSpeciesAndPet(t, db, clinicA, primaryOwnerA.ID, "死亡共同飼育ペット")
+	deletedPet := makeSpeciesAndPet(t, db, clinicA, primaryOwnerA.ID, "削除済み共同飼育ペット")
+	foreignPet := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "他院共同飼育ペット")
+
+	birthDate := time.Date(2020, time.January, 2, 0, 0, 0, 0, time.Local)
+	weight := 4.2
+	require.NoError(t, db.Model(&model.Pet{}).
+		Where("clinic_id = ? AND id = ?", clinicA, sharedPet.ID).
+		Updates(map[string]any{
+			"pet_number":  "P-0001",
+			"gender":      model.PetGenderFemale,
+			"birth_date":  birthDate,
+			"color":       "茶",
+			"weight":      weight,
+			"environment": "室内",
+			"remarks":     "共同飼育",
+		}).Error)
+	deceasedAt := time.Now()
+	require.NoError(t, db.Model(&model.Pet{}).
+		Where("clinic_id = ? AND id = ?", clinicA, deceasedPet.ID).
+		Updates(map[string]any{
+			"status":      model.PetStatusDeceased,
+			"deceased_at": deceasedAt,
+		}).Error)
+	require.NoError(t, db.Delete(&deletedPet).Error)
+
+	makePetOwnerLink(t, db, clinicA, primaryPet.ID, sharedOwnerA.ID, "主飼主混入")
+	makePetOwnerLink(t, db, clinicA, sharedPet.ID, sharedOwnerA.ID, "家族")
+	makePetOwnerLink(t, db, clinicA, deceasedPet.ID, sharedOwnerA.ID, "親族")
+	makePetOwnerLink(t, db, clinicA, deletedPet.ID, sharedOwnerA.ID, "削除済み")
+	makePetOwnerLink(t, db, clinicB, foreignPet.ID, ownerB.ID, "他院")
+
+	got, err := repo.FindSharedPetsByOwnerID(ctx, clinicA, sharedOwnerA.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, sharedPet.ID, got[0].ID)
+	assert.Equal(t, "P-0001", got[0].PetNumber)
+	assert.Equal(t, "共同飼育ペット", got[0].Name)
+	assert.Equal(t, "家族", got[0].Relationship)
+	assert.Equal(t, model.PetStatusAlive, got[0].Status)
+	assert.NotEmpty(t, got[0].AnimalSpeciesName)
+	assert.Equal(t, model.PetGenderFemale, got[0].Gender)
+	require.NotNil(t, got[0].BirthDate)
+	assert.Equal(t, "2020-01-02", got[0].BirthDate.Format(time.DateOnly))
+	assert.Equal(t, "茶", got[0].Color)
+	require.NotNil(t, got[0].Weight)
+	assert.InDelta(t, 4.2, *got[0].Weight, 0.001)
+	assert.Equal(t, "室内", got[0].Environment)
+	assert.Equal(t, "共同飼育", got[0].Remarks)
+	assert.Equal(t, deceasedPet.ID, got[1].ID)
+	assert.Equal(t, "親族", got[1].Relationship)
+	assert.Equal(t, model.PetStatusDeceased, got[1].Status)
+	assert.Nil(t, got[1].BirthDate)
+	assert.Nil(t, got[1].Weight)
+	crossClinic, err := repo.FindSharedPetsByOwnerID(ctx, clinicA, ownerB.ID)
+	require.NoError(t, err)
+	assert.Empty(t, crossClinic)
+}
+
+func TestPetOwnerRepository_FindSharedPetsByOwnerID_AmbientTransaction(t *testing.T) {
+	db := setupPetOwnerRepositoryTestDB(t)
+	repo := NewPetOwnerRepository(db)
+	const clinicID = uint64(1)
+
+	sharedOwner := makeTestOwner(t, db, clinicID, "ambient共同飼育飼主")
+	primaryOwner := makeTestOwner(t, db, clinicID, "ambient共同飼育主飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, primaryOwner.ID, "ambient共同飼育ペット")
+	tx, txCtx := beginAmbientPetOwnerTransaction(t, db)
+	link := makePetOwnerLink(t, tx, clinicID, pet.ID, sharedOwner.ID, "未commit共同飼育")
+
+	got, err := repo.FindSharedPetsByOwnerID(txCtx, clinicID, sharedOwner.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, pet.ID, got[0].ID)
+	assert.Equal(t, "未commit共同飼育", got[0].Relationship)
+	require.NoError(t, tx.Rollback().Error)
+
+	var count int64
+	require.NoError(t, db.Model(&model.PetOwner{}).Where("id = ?", link.ID).Count(&count).Error)
+	assert.Zero(t, count)
 }
 
 func TestPetOwnerRepository_ReplaceForPet(t *testing.T) {

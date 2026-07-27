@@ -17,8 +17,13 @@ import (
 )
 
 type petOwnerServiceRepositoryDouble struct {
-	links        []model.PetOwner
-	replaceCalls int
+	links              []model.PetOwner
+	sharedPets         []SharedPet
+	sharedPetsErr      error
+	sharedPetsCalls    int
+	sharedPetsClinicID uint64
+	sharedPetsOwnerID  uint64
+	replaceCalls       int
 }
 
 func (r *petOwnerServiceRepositoryDouble) FindByPetID(
@@ -27,6 +32,16 @@ func (r *petOwnerServiceRepositoryDouble) FindByPetID(
 	uint64,
 ) ([]model.PetOwner, error) {
 	return append([]model.PetOwner(nil), r.links...), nil
+}
+
+func (r *petOwnerServiceRepositoryDouble) FindSharedPetsByOwnerID(
+	_ context.Context,
+	clinicID, ownerID uint64,
+) ([]SharedPet, error) {
+	r.sharedPetsCalls++
+	r.sharedPetsClinicID = clinicID
+	r.sharedPetsOwnerID = ownerID
+	return append([]SharedPet(nil), r.sharedPets...), r.sharedPetsErr
 }
 
 func (r *petOwnerServiceRepositoryDouble) ReplaceForPet(
@@ -125,6 +140,68 @@ func (f petOwnerServiceDBOwnerFinder) FindByID(
 }
 
 func TestPetOwnerService(t *testing.T) {
+	t.Run("get shared pets validates owner clinic and returns repository projection", func(t *testing.T) {
+		repo := &petOwnerServiceRepositoryDouble{
+			sharedPets: []SharedPet{{
+				ID:           10,
+				Name:         "共同飼育ペット",
+				Relationship: "家族",
+			}},
+		}
+		svc := NewPetOwnerService(
+			&petOwnerServicePetFinderDouble{},
+			&petOwnerServiceOwnerFinderDouble{},
+			repo,
+			petOwnerServiceTransactorDouble{},
+			&petOwnerServiceAuditDouble{},
+		)
+
+		got, err := svc.GetSharedPetsByOwnerID(context.Background(), 1, 20)
+
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "共同飼育ペット", got[0].Name)
+		assert.Equal(t, "家族", got[0].Relationship)
+		assert.Equal(t, 1, repo.sharedPetsCalls)
+		assert.Equal(t, uint64(1), repo.sharedPetsClinicID)
+		assert.Equal(t, uint64(20), repo.sharedPetsOwnerID)
+	})
+
+	t.Run("get shared pets returns a non-nil empty collection", func(t *testing.T) {
+		repo := &petOwnerServiceRepositoryDouble{}
+		svc := NewPetOwnerService(
+			&petOwnerServicePetFinderDouble{},
+			&petOwnerServiceOwnerFinderDouble{},
+			repo,
+			petOwnerServiceTransactorDouble{},
+			&petOwnerServiceAuditDouble{},
+		)
+
+		got, err := svc.GetSharedPetsByOwnerID(context.Background(), 1, 20)
+
+		require.NoError(t, err)
+		assert.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+
+	t.Run("get shared pets rejects an owner outside the clinic before repository access", func(t *testing.T) {
+		repo := &petOwnerServiceRepositoryDouble{}
+		svc := NewPetOwnerService(
+			&petOwnerServicePetFinderDouble{},
+			&petOwnerServiceOwnerFinderDouble{err: apperrors.WrapNotFound("owner", "20")},
+			repo,
+			petOwnerServiceTransactorDouble{},
+			&petOwnerServiceAuditDouble{},
+		)
+
+		got, err := svc.GetSharedPetsByOwnerID(context.Background(), 1, 20)
+
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Zero(t, repo.sharedPetsCalls)
+	})
+
 	t.Run("missing audit dependency fails closed before replacement", func(t *testing.T) {
 		repo := &petOwnerServiceRepositoryDouble{}
 		svc := NewPetOwnerService(

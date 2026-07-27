@@ -299,10 +299,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TestPetOwnerRepository_FindByPetID_AmbientTransaction /
 	// TestPetOwnerRepository_ReplaceForPet_AmbientTransaction /
 	// TestPetOwnerRepository_CountByOwnerID_AmbientTransaction
-	// (internal/pet/pet_owner_repository_tx_atomicity_test.go)
-	"pet/pet_owner_repository.go|petOwnerRepository.FindByPetID":    {},
-	"pet/pet_owner_repository.go|petOwnerRepository.ReplaceForPet":  {},
-	"pet/pet_owner_repository.go|petOwnerRepository.CountByOwnerID": {},
+	// (internal/pet/pet_owner_repository_tx_atomicity_test.go) /
+	// TestPetOwnerRepository_FindSharedPetsByOwnerID_AmbientTransaction
+	// (internal/pet/pet_owner_repository_clinic_isolation_test.go)
+	"pet/pet_owner_repository.go|petOwnerRepository.FindByPetID":             {},
+	"pet/pet_owner_repository.go|petOwnerRepository.FindSharedPetsByOwnerID": {},
+	"pet/pet_owner_repository.go|petOwnerRepository.ReplaceForPet":           {},
+	"pet/pet_owner_repository.go|petOwnerRepository.CountByOwnerID":          {},
 	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
 	// remain in the caller's ambient transaction. Runtime:
 	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:

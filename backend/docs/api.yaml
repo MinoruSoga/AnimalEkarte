@@ -1093,6 +1093,70 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReplacePetSubOwnerRequest'
+    OwnerSharedPet:
+      type: object
+      additionalProperties: false
+      description: 対象飼主が副飼主として紐付いているペットの表示用サマリ
+      required:
+        - id
+        - pet_number
+        - name
+        - status
+        - animal_species
+        - gender
+        - birth_date
+        - color
+        - weight
+        - environment
+        - remarks
+        - relationship
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        pet_number:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [alive, deceased]
+        animal_species:
+          type: object
+          additionalProperties: false
+          required: [name]
+          properties:
+            name:
+              type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        color:
+          type: string
+        weight:
+          type: number
+          format: double
+          nullable: true
+        environment:
+          type: string
+        remarks:
+          type: string
+        relationship:
+          type: string
+    OwnerSharedPetsResponse:
+      type: object
+      additionalProperties: false
+      required: [shared_pets]
+      properties:
+        shared_pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerSharedPet'
     PetListItem:
       type: object
       description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド。#266 でペット行粒度の一覧基盤として拡張）
@@ -9454,6 +9518,40 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/shared-pets:
+    get:
+      operationId: listOwnerSharedPets
+      summary: 副飼主として紐付いているペット一覧
+      description: |
+        owners:view 権限が必要。対象飼主が pet_owners 経由で副飼主として
+        紐付いている現在のペットを返す。死亡ペットは含み、削除済みペットは含まない。
+      tags: [Owners, Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 飼主ID
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: 副飼主として紐付いているペット一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerSharedPetsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

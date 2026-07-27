@@ -41,6 +41,7 @@ func TestRegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t *testin
 		http.MethodGet + " /api/v1/masters/animal-species",
 		http.MethodGet + " /api/v1/masters/animal-species/:id",
 		http.MethodGet + " /api/v1/owners/:id/report/pets",
+		http.MethodGet + " /api/v1/owners/:id/shared-pets",
 		http.MethodGet + " /api/v1/pets",
 		http.MethodGet + " /api/v1/pets/:id",
 		http.MethodGet + " /api/v1/pets/:id/chronic-conditions",
@@ -62,6 +63,7 @@ func TestRegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t *testin
 		{resource: "owners", action: "view"},
 		{resource: "owners", action: "view"},
 		{resource: "owners", action: "view"},
+		{resource: "owners", action: "view"},
 		{resource: "owners", action: "create"},
 		{resource: "owners", action: "edit"},
 		{resource: "owners", action: "delete"},
@@ -80,7 +82,32 @@ func TestRegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t *testin
 		{resource: "master-animal-species", action: "delete"},
 	}, permissions)
 
-	require.Len(t, gotRoutes, 19)
+	require.Len(t, gotRoutes, 20)
+}
+
+func TestRegisterRoutes_OwnerSharedPetsRouteUsesOwnerViewPermission(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var permissions []permissionCall
+	requirePermission := func(resource, action string) gin.HandlerFunc {
+		permissions = append(permissions, permissionCall{resource: resource, action: action})
+		return func(c *gin.Context) { c.Next() }
+	}
+
+	router := gin.New()
+	handler := NewHandler(nil, nil, nil, requirePermission)
+	handler.registerOwnerSharedPetRoutes(router.Group("/api/v1"))
+
+	gotRoutes := make([]string, 0, len(router.Routes()))
+	for _, route := range router.Routes() {
+		gotRoutes = append(gotRoutes, route.Method+" "+route.Path)
+	}
+	assert.Equal(t, []string{
+		http.MethodGet + " /api/v1/owners/:id/shared-pets",
+	}, gotRoutes)
+	assert.Equal(t, []permissionCall{
+		{resource: "owners", action: "view"},
+	}, permissions)
 }
 
 func TestRegisterRoutes_PetOwnerRoutesUseOwnerPermissions(t *testing.T) {

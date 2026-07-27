@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -17,8 +18,9 @@ import (
 )
 
 type petOwnerHandlerServiceDouble struct {
-	getByPetIDFn    func(context.Context, uint64, uint64) ([]model.PetOwner, error)
-	replaceForPetFn func(context.Context, uint64, uint64, *ReplacePetOwnersInput) error
+	getByPetIDFn             func(context.Context, uint64, uint64) ([]model.PetOwner, error)
+	getSharedPetsByOwnerIDFn func(context.Context, uint64, uint64) ([]SharedPet, error)
+	replaceForPetFn          func(context.Context, uint64, uint64, *ReplacePetOwnersInput) error
 }
 
 func (d *petOwnerHandlerServiceDouble) GetByPetID(
@@ -40,6 +42,16 @@ func (d *petOwnerHandlerServiceDouble) ReplaceForPet(
 		return nil
 	}
 	return d.replaceForPetFn(ctx, clinicID, petID, input)
+}
+
+func (d *petOwnerHandlerServiceDouble) GetSharedPetsByOwnerID(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+) ([]SharedPet, error) {
+	if d.getSharedPetsByOwnerIDFn == nil {
+		return nil, nil
+	}
+	return d.getSharedPetsByOwnerIDFn(ctx, clinicID, ownerID)
 }
 
 type petOwnerDetailsFinderDouble struct {
@@ -120,6 +132,184 @@ func TestPetOwnerHandler_ListReturnsExplicitResponseAndScopesOwnerLookup(t *test
 	assert.Equal(t, "山田 花子", item["name"])
 	assert.Equal(t, "ヤマダ ハナコ", item["name_kana"])
 	assert.Equal(t, "妻", item["relationship"])
+}
+
+func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	birthDate := time.Date(2020, time.January, 2, 0, 0, 0, 0, time.Local)
+	weight := 4.2
+	service := &petOwnerHandlerServiceDouble{
+		getSharedPetsByOwnerIDFn: func(
+			_ context.Context,
+			clinicID, ownerID uint64,
+		) ([]SharedPet, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(12), ownerID)
+			return []SharedPet{{
+				ID:                7,
+				PetNumber:         "P-0007",
+				Name:              "ポチ",
+				Status:            model.PetStatusDeceased,
+				AnimalSpeciesName: "犬",
+				Gender:            model.PetGenderMale,
+				BirthDate:         &birthDate,
+				Color:             "茶",
+				Weight:            &weight,
+				Environment:       "室内",
+				Remarks:           "共同飼育",
+				Relationship:      "妻",
+			}}, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: "12"}}
+	setClinicID(c)
+
+	newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.ElementsMatch(t, []string{"shared_pets"}, objectKeys(body))
+	items, ok := body["shared_pets"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	item, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	assert.ElementsMatch(t, []string{
+		"id",
+		"pet_number",
+		"name",
+		"status",
+		"animal_species",
+		"gender",
+		"birth_date",
+		"color",
+		"weight",
+		"environment",
+		"remarks",
+		"relationship",
+	}, objectKeys(item))
+	assert.Equal(t, float64(7), item["id"])
+	assert.Equal(t, "deceased", item["status"])
+	assert.Equal(t, "2020-01-02", item["birth_date"])
+	assert.Equal(t, "妻", item["relationship"])
+	species, ok := item["animal_species"].(map[string]any)
+	require.True(t, ok)
+	assert.ElementsMatch(t, []string{"name"}, objectKeys(species))
+	assert.Equal(t, "犬", species["name"])
+}
+
+func TestPetOwnerHandler_ListSharedPetsReturnsEmptyArray(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	service := &petOwnerHandlerServiceDouble{
+		getSharedPetsByOwnerIDFn: func(
+			context.Context,
+			uint64,
+			uint64,
+		) ([]SharedPet, error) {
+			return []SharedPet{}, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: "12"}}
+	setClinicID(c)
+
+	newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, `{"shared_pets":[]}`, w.Body.String())
+}
+
+func TestPetOwnerHandler_ListSharedPetsRejectsInvalidOwnerIDBeforeService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	serviceCalled := false
+	service := &petOwnerHandlerServiceDouble{
+		getSharedPetsByOwnerIDFn: func(context.Context, uint64, uint64) ([]SharedPet, error) {
+			serviceCalled = true
+			return nil, nil
+		},
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: "invalid"}}
+	setClinicID(c)
+
+	newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.False(t, serviceCalled)
+}
+
+func TestPetOwnerHandler_ListSharedPetsRequiresClinicContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	serviceCalled := false
+	service := &petOwnerHandlerServiceDouble{
+		getSharedPetsByOwnerIDFn: func(context.Context, uint64, uint64) ([]SharedPet, error) {
+			serviceCalled = true
+			return nil, nil
+		},
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: "12"}}
+
+	newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.False(t, serviceCalled)
+}
+
+func TestPetOwnerHandler_ListSharedPetsMapsServiceErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		serviceErr error
+		wantStatus int
+	}{
+		{
+			name:       "owner not found",
+			serviceErr: apperrors.WrapNotFound("owner", "12"),
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "repository failure",
+			serviceErr: apperrors.WrapInternalServerError("database detail must not leak"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &petOwnerHandlerServiceDouble{
+				getSharedPetsByOwnerIDFn: func(context.Context, uint64, uint64) ([]SharedPet, error) {
+					return nil, tt.serviceErr
+				},
+			}
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+			c.Params = gin.Params{{Key: "id", Value: "12"}}
+			setClinicID(c)
+
+			newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.NotContains(t, w.Body.String(), "database detail must not leak")
+		})
+	}
 }
 
 func TestPetOwnerHandler_ListMapsCrossClinicPetToNotFound(t *testing.T) {

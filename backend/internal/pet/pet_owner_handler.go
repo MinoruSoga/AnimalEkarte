@@ -11,6 +11,33 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
+// ListOwnerSharedPets returns pets for which the owner is a secondary owner.
+func (h *Handler) ListOwnerSharedPets(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	ownerID, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if h.petOwners == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("pet owner handler dependencies are unavailable"))
+		return
+	}
+
+	sharedPets, err := h.petOwners.GetSharedPetsByOwnerID(
+		c.Request.Context(),
+		clinicID,
+		ownerID,
+	)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newOwnerSharedPetsResponse(sharedPets))
+}
+
 // ListPetOwners returns the clinic-scoped secondary owners for a pet.
 func (h *Handler) ListPetOwners(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
