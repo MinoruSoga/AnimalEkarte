@@ -252,7 +252,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         maxWidth={LAYOUT.pageContentMaxWidth.full}
         headerAction={
           canSubmit ? (
-            <SubmitButton size="sm" colorVariant="brand">
+            <SubmitButton size="sm" colorVariant="primary">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
           ) : null

@@ -113,8 +113,8 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                           ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
                           : `選択: ${pet.name} (ID ${pet.id})`
                       }
-                      // docs/spec/design-system.md button-primary: brand blue #0075DE + pill（FE10 字義リブランド）
-                      className={`h-11 min-w-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full`} text-sm px-4`}
+                      // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
+                      className={`h-11 min-w-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-full`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isDeceased ? (

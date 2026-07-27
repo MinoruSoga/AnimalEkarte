@@ -125,7 +125,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
           <Button
             size="sm"
             onClick={handleSearch}
-            className={`h-9 text-sm ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand}`}
+            className={`h-9 text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`}
           >
             <Search className={`mr-1.5 ${ICON.xs}`} />
             検索
@@ -211,7 +211,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                             isDeceased
                               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
-                              ? `${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand}`
+                              ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
                               : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
                           }`}
                           onClick={() => {

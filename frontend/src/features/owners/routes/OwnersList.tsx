@@ -281,7 +281,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       resource={ResourceOwners}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+          <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>

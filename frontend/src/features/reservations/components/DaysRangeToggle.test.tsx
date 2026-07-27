@@ -30,10 +30,10 @@ describe("DaysRangeToggle", () => {
     expect(screen.getByTestId("days-toggle-5")).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("active ボタンは DESIGN.md 構造色（brand blue）を使い accent は使わない", () => {
+  it("active ボタンは brand と同じ primary teal を使う", () => {
     render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
     const active = screen.getByTestId("days-toggle-5");
-    expect(active.className).toContain(C.bgBrand);
+    expect(active.className).toContain(C.bgActionPrimary);
   });
 
   it("7日ボタンをクリックすると onChange(7) が呼ばれる", async () => {

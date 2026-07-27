@@ -241,7 +241,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors`}
           >
             {isSaving ? "登録中..." : "接種記録を追加"}
           </Button>

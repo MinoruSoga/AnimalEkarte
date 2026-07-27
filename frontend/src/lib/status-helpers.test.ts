@@ -80,9 +80,10 @@ describe('getReceptionColumnColor', () => {
 
   it('returns blue dot for 受付済', () => {
     const result = getReceptionColumnColor('受付済');
-    // FE10: 構造色(brand #0075DE)の装飾使用を避け、既存の受付済(checked_in)指定トークンへ移行
+    // primary/brand teal の装飾使用を避け、受付済（checked_in）専用トークンを使う
     expect(result.dot).toContain('blue-500'); // C.bgStatusBlueDot
-    expect(result.dot).not.toContain('0075DE'); // 構造色の装飾使用を恒久ガード
+    expect(result.dot).not.toContain('0075DE'); // primary の装飾使用を恒久ガード
+    expect(result.dot).not.toContain('038B94');
   });
 
   it('returns purple dot for 診療中', () => {

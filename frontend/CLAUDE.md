@@ -138,6 +138,6 @@ docker compose exec frontend pnpm install
 
 ## DESIGN.md / 製品デザイン適用範囲（MANDATORY・FE11 2026-07-21）
 
-- **色の正本**は `docs/spec/design-system.md`。brand **`#0075DE`**、臨床 semantic 色、業務 status 色、nav canvas-soft は製品判断として維持する。旧 teal `#038B94` は legacy（audit C1 で再導入禁止）。
+- **色の正本**は `docs/spec/design-system.md`。brand と semantic primary はともに **`#038B94`** / active **`#027078`** を使う。認証・製品識別と汎用 CTA・選択・focus の意味役割はトークン名で分ける。臨床 semantic 色、業務 status 色、nav canvas-soft は製品判断として維持する。
 - **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法の正本**は `DESIGN.md`。hairline `#E6E6E6`、caption 14px / eyebrow 12px、radius 最小 4px、`button-primary` = pill、テーブルヘッダ = `ex-data-table-cell` 様式（`STYLE.tableHeader*`）へ字義で従う。
-- brand は CTA・リンク・active/focus に限定し、装飾へ流用しない。semantic 色を構造用途へ流用しない。
+- brand と primary は同じ色値だが、認証・ロゴ・明示的 brand CTA は brand トークン、汎用 CTA・リンク・active/focus は primary トークンを使う。臨床・業務 semantic 色を構造用途へ流用しない。

@@ -197,7 +197,7 @@ describe("LstepAnalyticsPage — A: セクション描画", () => {
     expect(input.closest("label")).toHaveClass(
       "min-h-11",
       "min-w-11",
-      "focus-within:ring-ring/50",
+      "focus-within:ring-ring",
     );
   });
 });

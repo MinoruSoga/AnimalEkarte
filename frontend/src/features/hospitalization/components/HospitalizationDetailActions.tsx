@@ -58,7 +58,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
         <div className={`flex ${H_STYLES.gap.default}`}>
             {showCheckIn ? (
                 <PrimaryButton
-                    colorVariant="brand"
+                    colorVariant="primary"
                     className={`gap-2 ${H_STYLES.button.action}`}
                     onClick={handleCheckIn}
                     disabled={isCheckingIn}

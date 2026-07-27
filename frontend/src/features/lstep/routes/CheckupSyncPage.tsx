@@ -134,7 +134,7 @@ export function CheckupSyncPage() {
                   selectedOwnerIds.size === 0 ||
                   selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
                 }
-                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
+                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
               >
                 <Send className={ICON.sm} />
                 タグを一括付与する

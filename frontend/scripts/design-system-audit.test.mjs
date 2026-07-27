@@ -7,7 +7,14 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -33,6 +40,31 @@ import {
   collectViolations,
 } from "./design-system-audit.mjs";
 
+test("production source は brand focus ring を再び半透明化しない", () => {
+  const pendingDirectories = [path.join(process.cwd(), "src")];
+
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop();
+    assert.ok(directory);
+
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        pendingDirectories.push(entryPath);
+      } else if (
+        /\.(?:css|ts|tsx)$/.test(entry.name) &&
+        !/\.test\.(?:ts|tsx)$/.test(entry.name)
+      ) {
+        assert.doesNotMatch(
+          readFileSync(entryPath, "utf-8"),
+          /\b(?:outline|ring)-ring\/50\b/,
+          entryPath,
+        );
+      }
+    }
+  }
+});
+
 test("isTestFile: *.test.tsx を検出する", () => {
   assert.equal(isTestFile("Foo.test.tsx"), true);
   assert.equal(isTestFile("Foo.test.ts"), true);
@@ -45,24 +77,37 @@ test("isLeafRouteFile: routes/ または pages/ 配下を検出する", () => {
   assert.equal(isLeafRouteFile(path.join("accounting", "components", "Foo.tsx")), false);
 });
 
-test("checkC1: C.accent / 旧 teal #038B94・#027078 / #2383E2 を検出する（brand #0075DE は FE10 で解禁）", () => {
-  const text = [
-    'const x = <div className={C.accent} />;',
-    'const y = "#038B94";',
-    'const z = "#2383E2";',
-    'const w = "#027078";',
-    'const ok = <div className={C.text} />;',
-  ].join("\n");
-  const violations = checkC1(text);
-  assert.equal(violations.length, 4);
-  assert.equal(violations[0].lineNumber, 1);
-  assert.equal(violations[1].lineNumber, 2);
-  assert.equal(violations[2].lineNumber, 3);
-  assert.equal(violations[3].lineNumber, 4);
+test("globals.css は brand と semantic primary を同じ teal 値で保持する", () => {
+  const source = readFileSync(path.join(process.cwd(), "src", "styles", "globals.css"), "utf-8");
+
+  assert.match(source, /--brand:\s*#038b94;/i);
+  assert.match(source, /--brand-active:\s*#027078;/i);
+  assert.match(source, /--primary:\s*#038b94;/i);
+  assert.match(source, /--primary-active:\s*#027078;/i);
+  assert.match(source, /--primary-foreground:\s*#ffffff;/i);
+  assert.match(source, /--ring:\s*#038b94;/i);
+  assert.match(source, /--sidebar-primary:\s*#038b94;/i);
+  assert.match(source, /--sidebar-primary-foreground:\s*#ffffff;/i);
+  assert.match(source, /--sidebar-ring:\s*#038b94;/i);
+  assert.match(source, /--shadow-focus-primary:\s*0 0 0 2px #038b94;/i);
 });
 
-test("checkC1: legacy accent が無ければ 0 件", () => {
-  const text = 'const ok = <div className={C.brand} />;';
+test("checkC1: C.accent / 旧 accent #2383E2 を検出し、brand/primary teal と臨床 blue を許可する", () => {
+  const text = [
+    'const x = <div className={C.accent} />;',
+    'const y = "#0075DE";',
+    'const z = "#2383E2";',
+    'const w = "#005BAB";',
+    'const ok = "bg-[#038B94] hover:bg-[#027078]";',
+  ].join("\n");
+  const violations = checkC1(text);
+  assert.equal(violations.length, 2);
+  assert.equal(violations[0].lineNumber, 1);
+  assert.equal(violations[1].lineNumber, 3);
+});
+
+test("checkC1: brand/primary teal と臨床 blue は legacy accent として扱わない", () => {
+  const text = 'const ok = "bg-[#038B94] hover:bg-[#027078] bg-[#0075DE] hover:bg-[#005BAB]";';
   assert.equal(checkC1(text).length, 0);
 });
 
@@ -102,19 +147,25 @@ test("checkC3: 引用符無しの issue 番号コメント（#158 等）は誤�
   assert.equal(checkC3(text).length, 0);
 });
 
-test("checkC5: colorVariant=\"brand\" 以外を検出する", () => {
+test("checkC5: 未定義の colorVariant を検出する", () => {
   const text = [
     '<PrimaryButton colorVariant="brand">保存</PrimaryButton>',
+    '<PrimaryButton colorVariant="primary">保存</PrimaryButton>',
     '<PrimaryButton colorVariant="default">保存</PrimaryButton>',
+    '<PrimaryButton colorVariant="accent">保存</PrimaryButton>',
   ].join("\n");
   const violations = checkC5(text);
   assert.equal(violations.length, 1);
-  assert.equal(violations[0].value, "default");
-  assert.equal(violations[0].lineNumber, 2);
+  assert.equal(violations[0].value, "accent");
+  assert.equal(violations[0].lineNumber, 4);
 });
 
-test("checkC5: 全て brand なら 0 件", () => {
-  const text = '<SubmitButton colorVariant="brand">締める</SubmitButton>';
+test("checkC5: primary・brand・default は 0 件", () => {
+  const text = [
+    '<SubmitButton colorVariant="primary">保存</SubmitButton>',
+    '<SubmitButton colorVariant="brand">ログイン</SubmitButton>',
+    '<SubmitButton colorVariant="default">互換</SubmitButton>',
+  ].join("\n");
   assert.equal(checkC5(text).length, 0);
 });
 
@@ -191,7 +242,7 @@ test("collectViolations: 意図的違反 fixture は各カテゴリで検出さ�
         'const hex = "#FF0000";',
         'const raw = "rgba(0,0,0,0.5)";',
         'export function BrokenPage() {',
-        '  return <PrimaryButton colorVariant="default" className="rounded-[4px]" maxWidth="max-w-full">NG</PrimaryButton>;',
+        '  return <PrimaryButton colorVariant="accent" className="rounded-[4px]" maxWidth="max-w-full">NG</PrimaryButton>;',
         "}",
       ].join("\n"),
     );
@@ -235,7 +286,7 @@ test("collectViolations: 本体 route の named color と非仕様 spacing を C
   }
 });
 
-test("collectViolations: src/**/*.css の直接 shadow を C17 に集計し globals の token 定義は許可する", async () => {
+test("collectViolations: CSS の legacy accent は C1、直接 shadow は C17 に集計する", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
   try {
     const featureStylesDir = path.join(root, "src", "features", "widget", "styles");
@@ -253,6 +304,7 @@ test("collectViolations: src/**/*.css の直接 shadow を C17 に集計し glob
       path.join(globalStylesDir, "globals.css"),
       [
         ":root {",
+        "  --legacy-accent: #2383E2;",
         "  --shadow-level1: 0 1px 2px currentColor;",
         "  --shadow-level2: 0 4px 18px currentColor;",
         "}",
@@ -260,6 +312,11 @@ test("collectViolations: src/**/*.css の直接 shadow を C17 に集計し glob
     );
 
     const result = await collectViolations(root);
+    assert.equal(result.c1.length, 1);
+    assert.deepEqual(
+      result.c1.map(({ file, lineNumber }) => ({ file, lineNumber })),
+      [{ file: path.join("src", "styles", "globals.css"), lineNumber: 2 }],
+    );
     assert.ok(Array.isArray(result.c17), "C17 CSS shadow の集計結果が必要");
     assert.equal(result.c17.length, 2);
     assert.deepEqual(
@@ -323,17 +380,17 @@ test("collectViolations（FE3-2）: liff/src・line-reserve/src も走査対象�
   }
 });
 
-test("collectViolations（FE3-2）: design-tokens.ts は C1/C3/C6 の allowlist（legacy トークン定義元は自己検出しない）", async () => {
+test("collectViolations: design-tokens.ts も C1 の legacy accent 禁止対象にする", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
   try {
     const libDir = path.join(root, "src", "lib");
     mkdirSync(libDir, { recursive: true });
     writeFileSync(
       path.join(libDir, "design-tokens.ts"),
-      'export const C = { text: "#000000", accent: "#0075DE" }; export const P = { h: "rgba(0,0,0,0.5)" };',
+      'export const C = { legacyAccent: "#2383E2" }; export const P = { h: "rgba(0,0,0,0.5)" };',
     );
     const result = await collectViolations(root);
-    assert.equal(result.c1.length, 0);
+    assert.equal(result.c1.length, 1);
     assert.equal(result.c3.length, 0);
     assert.equal(result.c6.length, 0);
   } finally {

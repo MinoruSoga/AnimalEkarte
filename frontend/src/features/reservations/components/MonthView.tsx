@@ -77,7 +77,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);

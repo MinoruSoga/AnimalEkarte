@@ -232,8 +232,8 @@ export function OwnerPetsSection({
             type="button"
             size="sm"
             onClick={onAddPet}
-            // docs/spec/design-system.md button-primary: brand blue #0075DE + pill（FE10 字義リブランド）
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
+            // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
+            className={`${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
           >
             <Plus className={ICON.action} />
             ペット追加

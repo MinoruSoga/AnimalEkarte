@@ -184,7 +184,7 @@ export function UnlinkedLineIdForm({
         />
         <Button
           type="button"
-          className={`${C.bgBrand} ${C.hoverBgBrand} text-white h-11 rounded-full px-4`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 rounded-full px-4`}
           onClick={handleSubmit}
         >
           {isPending ? "設定中..." : "設定"}

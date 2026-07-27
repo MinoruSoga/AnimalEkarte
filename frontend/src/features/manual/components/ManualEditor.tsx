@@ -159,7 +159,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${
             !isDirty || upsertMutation.isPending
               ? `opacity-50 cursor-not-allowed ${C.text}`
-              : `${C.bgBrand} text-white hover:opacity-90`
+              : `${C.bgBrand} ${C.textOnBrand} hover:opacity-90`
           }`}
           title="DB に保存（管理者権限が必要）"
         >

@@ -175,11 +175,11 @@ describe("MedicalRecords 一覧テーブル (DESIGN.md ex-data-table-cell)", () 
     }
   });
 
-  it("『新規カルテ登録』が DESIGN.md button-primary（brand blue + pill）を使う", () => {
+  it("『新規カルテ登録』が brand と同じ primary teal + pill を使う", () => {
     renderPage();
     const button = screen.getByRole("button", { name: /新規カルテ登録/ });
     expect(button.className).toContain("rounded-full");
-    expect(button.className).toContain(C.bgBrand);
+    expect(button.className).toContain(C.bgActionPrimary);
   });
 });
 

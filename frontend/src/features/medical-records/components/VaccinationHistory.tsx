@@ -152,7 +152,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 {canCreate ? (
                   <Button
                     size="sm"
-                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full border-transparent px-0`}
+                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full border-transparent px-0`}
                     onClick={() => onDuplicate?.(item)}
                   >
                     複製

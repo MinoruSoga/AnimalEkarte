@@ -317,7 +317,7 @@ export function VaccinationList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+            <PrimaryButton colorVariant="primary" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>

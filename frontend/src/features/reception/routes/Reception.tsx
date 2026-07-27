@@ -181,7 +181,7 @@ export function Reception() {
                         </Button>
                         {canCreateReservation === true ? (
                             <Button
-                                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full px-4 shadow-none border-transparent h-11 text-base`}
+                                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full px-4 shadow-none border-transparent h-11 text-base`}
                                 onClick={() => goToNewReservation("reception=1")}
                             >
                                 新規予約登録
