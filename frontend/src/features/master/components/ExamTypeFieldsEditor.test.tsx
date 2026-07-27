@@ -3,8 +3,17 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type {
+  AnimalSpecies,
+  useGetAnimalSpecies,
+} from "../api/animal-species";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 import { ExamTypeFieldsEditor } from "./ExamTypeFieldsEditor";
+
+type AnimalSpeciesQueryState = Pick<
+  ReturnType<typeof useGetAnimalSpecies>,
+  "data" | "error" | "isError" | "isPending"
+>;
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -13,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   reorder: vi.fn(),
   replace: vi.fn(),
   resetOrder: vi.fn(),
+  getAnimalSpecies: vi.fn<() => AnimalSpeciesQueryState>(),
   reorderCallbacks: [] as Array<(ids: string[]) => void>,
 }));
 
@@ -58,12 +68,7 @@ vi.mock("@/hooks/use-sortable-list", () => ({
 }));
 
 vi.mock("../api/animal-species", () => ({
-  useGetAnimalSpecies: () => ({
-    data: [
-      { id: "2", name: "犬", isActive: true },
-      { id: "3", name: "猫", isActive: true },
-    ],
-  }),
+  useGetAnimalSpecies: mocks.getAnimalSpecies,
 }));
 
 vi.mock("../api/exam-types-master", async (importOriginal) => {
@@ -108,6 +113,25 @@ const examType: ExaminationTypeMaster = {
   }],
 };
 
+const animalSpecies: AnimalSpecies[] = [
+  {
+    id: "2",
+    name: "犬",
+    isActive: true,
+    sortOrder: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "3",
+    name: "猫",
+    isActive: true,
+    sortOrder: 2,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  },
+];
+
 describe("ExamTypeFieldsEditor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,6 +139,12 @@ describe("ExamTypeFieldsEditor", () => {
     mocks.create.mockResolvedValue(undefined);
     mocks.update.mockResolvedValue(undefined);
     mocks.replace.mockResolvedValue(undefined);
+    mocks.getAnimalSpecies.mockReturnValue({
+      data: animalSpecies,
+      error: null,
+      isError: false,
+      isPending: false,
+    });
   });
 
   it("exposes accessible field create/edit/delete and reorder controls", async () => {
@@ -213,6 +243,149 @@ describe("ExamTypeFieldsEditor", () => {
       examTypeId: "3",
       fieldId: "31",
       ranges: [],
+    });
+  });
+
+  it("shows an accessible loading status without empty, error, or range controls", async () => {
+    mocks.getAnimalSpecies.mockReturnValue({
+      data: undefined,
+      error: null,
+      isError: false,
+      isPending: true,
+    });
+    const user = userEvent.setup();
+    render(
+      <ExamTypeFieldsEditor
+        examType={examType}
+        canCreate
+        canEdit
+        canDelete
+      />,
+    );
+
+    await user.click(screen.getByRole("button", {
+      name: "編集: 検査項目 白血球 (ID 31)",
+    }));
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(
+      "動物種を読み込み中です。基準範囲はまだ設定できません。",
+    );
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveAttribute("aria-atomic", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種マスタが登録されていない/))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows an accessible generic fetch error without raw details or range controls", async () => {
+    const rawError = "GET /v1/masters/animal-species: database timeout";
+    mocks.getAnimalSpecies.mockReturnValue({
+      data: undefined,
+      error: new Error(rawError),
+      isError: true,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    render(
+      <ExamTypeFieldsEditor
+        examType={examType}
+        canCreate
+        canEdit
+        canDelete
+      />,
+    );
+
+    await user.click(screen.getByRole("button", {
+      name: "編集: 検査項目 白血球 (ID 31)",
+    }));
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "動物種の取得に失敗したため、基準範囲を設定できません。",
+    );
+    expect(alert).toHaveAttribute("aria-atomic", "true");
+    expect(screen.queryByText(rawError)).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種を読み込み中/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種マスタが登録されていない/))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows a distinct accessible status when the species master is empty", async () => {
+    mocks.getAnimalSpecies.mockReturnValue({
+      data: [],
+      error: null,
+      isError: false,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    render(
+      <ExamTypeFieldsEditor
+        examType={examType}
+        canCreate
+        canEdit
+        canDelete
+      />,
+    );
+
+    await user.click(screen.getByRole("button", {
+      name: "編集: 検査項目 白血球 (ID 31)",
+    }));
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(
+      "動物種マスタが登録されていないため、基準範囲を設定できません。",
+    );
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveAttribute("aria-atomic", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種を読み込み中/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("still saves edited field metadata with the exact payload after a species fetch error", async () => {
+    mocks.getAnimalSpecies.mockReturnValue({
+      data: undefined,
+      error: new Error("network failure"),
+      isError: true,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    render(
+      <ExamTypeFieldsEditor
+        examType={examType}
+        canCreate
+        canEdit
+        canDelete
+      />,
+    );
+
+    await user.click(screen.getByRole("button", {
+      name: "編集: 検査項目 白血球 (ID 31)",
+    }));
+    const name = screen.getByRole("textbox", { name: "検査項目名" });
+    await user.clear(name);
+    await user.type(name, "赤血球");
+    await user.click(screen.getByRole("button", { name: "検査項目情報を保存" }));
+
+    expect(mocks.update).toHaveBeenCalledWith({
+      examTypeId: "3",
+      fieldId: "31",
+      req: {
+        name: "赤血球",
+        inspection_value: "",
+        normal_value: "",
+        unit: "/μL",
+      },
     });
   });
 

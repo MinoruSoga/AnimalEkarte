@@ -94,7 +94,11 @@ function ExamTypeFieldsEditorState({
   const deleteField = useDeleteExaminationTypeField();
   const reorderFields = useReorderExaminationTypeFields();
   const replaceRanges = useReplaceExamTypeFieldReferenceRanges();
-  const { data: animalSpecies = [] } = useGetAnimalSpecies();
+  const {
+    data: animalSpecies = [],
+    isPending,
+    isError,
+  } = useGetAnimalSpecies();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [fieldDraft, setFieldDraft] = useState<FieldDraft>(emptyFieldDraft);
   const [rangeDrafts, setRangeDrafts] = useState<ReferenceRangeDraft[]>([]);
@@ -407,42 +411,72 @@ function ExamTypeFieldsEditorState({
           {editingField !== null ? (
             <div className={`space-y-3 border-t pt-4 ${C.borderLight}`}>
               <h4 className={`text-sm font-medium ${C.text}`}>動物種別の基準範囲</h4>
-              {animalSpecies.map((species) => {
-                const draft = rangeDrafts.find(
-                  (item) => item.animalSpeciesId === species.id,
-                );
-                return (
-                  <div key={species.id} className={`rounded-xs border p-2 ${C.borderLight} ${C.bgWhite}`}>
-                    <label className={`flex min-h-11 items-center gap-2 text-sm ${C.text}`}>
-                      <input
-                        type="checkbox"
-                        checked={draft !== undefined}
-                        onChange={() => toggleSpecies(species.id)}
-                      />
-                      {species.name}の基準範囲を使用
-                    </label>
-                    {draft !== undefined ? (
-                      <ReferenceRangeInputs
-                        speciesName={species.name}
-                        draft={draft}
-                        onChange={(update) => updateRange(species.id, update)}
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
-              <datalist id="exam-qualitative-values">
-                {QUALITATIVE_VALUES.map((item) => <option key={item} value={item} />)}
-              </datalist>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={saveRanges}
-                  className={`min-h-11 rounded-full px-4 text-sm ${C.bgBrand} ${C.textOnBrand}`}
+              {isError ? (
+                <p
+                  role="alert"
+                  aria-atomic="true"
+                  className={`text-sm ${C.danger}`}
                 >
-                  基準範囲を保存
-                </button>
-              </div>
+                  動物種の取得に失敗したため、基準範囲を設定できません。
+                </p>
+              ) : isPending ? (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className={`text-sm ${C.text50}`}
+                >
+                  動物種を読み込み中です。基準範囲はまだ設定できません。
+                </p>
+              ) : animalSpecies.length === 0 ? (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className={`text-sm ${C.text50}`}
+                >
+                  動物種マスタが登録されていないため、基準範囲を設定できません。
+                </p>
+              ) : (
+                <>
+                  {animalSpecies.map((species) => {
+                    const draft = rangeDrafts.find(
+                      (item) => item.animalSpeciesId === species.id,
+                    );
+                    return (
+                      <div key={species.id} className={`rounded-xs border p-2 ${C.borderLight} ${C.bgWhite}`}>
+                        <label className={`flex min-h-11 items-center gap-2 text-sm ${C.text}`}>
+                          <input
+                            type="checkbox"
+                            checked={draft !== undefined}
+                            onChange={() => toggleSpecies(species.id)}
+                          />
+                          {species.name}の基準範囲を使用
+                        </label>
+                        {draft !== undefined ? (
+                          <ReferenceRangeInputs
+                            speciesName={species.name}
+                            draft={draft}
+                            onChange={(update) => updateRange(species.id, update)}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  <datalist id="exam-qualitative-values">
+                    {QUALITATIVE_VALUES.map((item) => <option key={item} value={item} />)}
+                  </datalist>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={saveRanges}
+                      className={`min-h-11 rounded-full px-4 text-sm ${C.bgBrand} ${C.textOnBrand}`}
+                    >
+                      基準範囲を保存
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
         </div>
