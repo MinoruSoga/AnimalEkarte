@@ -89,31 +89,24 @@ migration 自体は既に適用済みになった（別セッションの操作�
 Migration summary applied=0 skipped=3 total=3
 ```
 
-したがって `pets.version` は稼働 DB に存在するようになり、**本バグの 42703 は DB 側では解消しているはずである**（ただし後述の理由で実 HTTP 確認は未実施）。
+したがって `pets.version` は稼働 DB に存在するようになった。
 
-**新たなブロッカー（本バグとは別件・本対処とは無関係）**: backend コンテナが 23:03:50 に再作成された際、seed バンドルの checksum mismatch で **exit 1 して起動しなくなった**。
-
-```
-level=ERROR msg="seed bundle load failed: checksum mismatch for seeds/003_demo:
- applied=96f597d5..., current=9d601cf7... — migration file was modified after execution"
-exit status 1
-```
-
-`backend/migrations/seeds/003_demo/*.csv` が適用後に変更されたため（`pets.csv` の `version` 列追加等）。entrypoint は `set -e` のため migration/seed が失敗すると air が起動せず、backend が healthy にならない。再作成の引き金は `docker-compose.yml` の変更（別セッションが `./docs:/docs:ro` マウントを追加）と思われる。
-
-**この復旧は DB 状態の変更であり安全境界のため、AI 側では実行していない。** 復旧手段の選択（適用済み checksum の更新か、seed 再適用か、DB リセットか）は影響範囲が異なるため、実行者が判断すること。関連手順は `migration-seed-safety` / `stg-release-readiness` スキルにある。
+> **注（履歴・現況ではない）**: 23:03:50〜23:13 の間、backend コンテナは `seeds/003_demo` の checksum mismatch により exit 1 で停止していた（本バグとは別件）。23:13:48 に復旧済み。以下の実測はすべて復旧後に採取したものである。
 
 ### 残存リスク
 
-- **BUG-451（別途起票）**: 400 が解消した後、ペット選択画面は「0件」ではなく「20件・検索は先頭20件のみ」を表示する。`useGetPets` が `page`/`limit` を送らず backend 既定 `limit=20` で打ち切られるため。**素朴な受け入れ確認では「直った」ように見えるため、必ず「画面描画件数」と API レスポンスの `total` を両方採取すること。**
+- **[BUG-451](3-session-agent.html#BUG-451)（台帳へ起票済み）**: 400 の解消後、ペット選択画面は「0件」ではなく **「検索結果 20件」と件数を断定表示**する。実測では **描画 20 件に対し API `total` は 15,654 件**（`useGetPets` が `page`/`limit` を送らず backend 既定 `limit=20` で打ち切られるため）。ページネーション UI が無く残り 15,634 件へ到達できない。**素朴な受け入れ確認では「直った」ように見えるため、必ず「画面描画件数」と API `total` を両方採取すること。**
 - 開発環境で「コードは新しいが DB は古い」状態は今後も起こり得る。migration を追加した commit を pull した後は `make migrate` を回す運用が必要。
 - 上記1の通り、repo error をログせずに返す service の経路では未知 pg エラーの SQLSTATE がサーバ側に残らない。
 
-### 状態（2026-07-27 23:05 時点）
+### 状態（2026-07-27 23:2x 時点）— 解決済み
 
-- **コード側の対処: 完了**（4コミット。ユニット/回帰テストと scoped lint は green）
+- **コード側の対処: 完了**（6 コミット。ユニット/回帰テストと scoped lint は green）
 - **稼働 DB への migration 適用: 完了**（002/003 とも適用済み。`pets.version` は存在する）
-- **実 HTTP による 200 確認: 未実施** — backend コンテナが `seeds/003_demo` の checksum mismatch で起動しないため
-- **唯一の残ブロッカー: seed バンドル checksum mismatch**（本バグとは別件）。記録済み checksum と現在の CSV が一致しないため、**この状態は一時的ではなく、解消するまで新しいコンテナ起動は毎回失敗する**。復旧は DB 状態の変更＝安全境界のため実行者判断に委ねる。
+- **旧障害モードの消失を実 HTTP で確認済み**: 認証済みセッションで `GET /api/v1/pets?page=1&limit=20` が **HTTP 200**、`"total": 13984`、`data` 20 件を返す（旧: HTTP 400 `{"error":"入力値が正しくありません"}`）。
+- **`/owners` 画面: 一覧を描画**（旧: 「エラー500」画面）。「13,984件中 1-20件」とページ 1〜700 を表示。
+- **`/medical-records/select-pet`: 20 行を描画**。エラーでも「該当するペットが見つかりません」でもない。ただし同画面が使う API の `total` は 15,654 であり、この乖離が BUG-451 として残る（本バグとは別欠陥・起票済み）。
+
+**状態: 解決済み。** 残るのは別欠陥 BUG-451（台帳で追跡）。
 
 ---
