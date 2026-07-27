@@ -30,7 +30,7 @@ export type UpdateExaminationRequest = SharedUpdateExaminationRequest & {
 
 /**
  * 検査項目 1 行分の入力（POST/PATCH の nested items と PUT items で共通）。
- * status / is_abnormal はサーバ側で ref_min/ref_max から導出するため送信しない。
+ * status / is_abnormal と判定基準値はサーバ側でマスタから導出するため送信しない。
  */
 export interface UpsertExamItemRequest {
   exam_type_field_id?: number | null;
@@ -39,8 +39,6 @@ export interface UpsertExamItemRequest {
   normal_value?: string;
   unit?: string;
   reference_value?: string;
-  ref_min?: number | null;
-  ref_max?: number | null;
   sort_order?: number;
 }
 

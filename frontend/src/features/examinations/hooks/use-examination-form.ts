@@ -59,8 +59,6 @@ function buildRowsFromTemplate(fields: ExamTypeFieldRow[]): ExamItemRow[] {
     unit: f.unit,
     normalValue: f.normalValue,
     referenceValue: f.normalValue,
-    refMin: f.refMin,
-    refMax: f.refMax,
     sortOrder: f.sortOrder !== 0 ? f.sortOrder : idx,
   }));
 }
@@ -76,8 +74,6 @@ function rowsToRequest(items: ExamItemRow[]): UpsertExamItemRequest[] {
       normal_value: it.normalValue,
       unit: it.unit,
       reference_value: it.referenceValue,
-      ref_min: it.refMin ?? null,
-      ref_max: it.refMax ?? null,
       sort_order: it.sortOrder !== 0 ? it.sortOrder : idx,
     }));
 }

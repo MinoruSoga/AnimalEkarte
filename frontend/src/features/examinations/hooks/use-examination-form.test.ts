@@ -553,7 +553,7 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
     expect(result.current.formItems[0].inspectionValue).toBe('7.5');
   });
 
-  it('編集モード保存時に items を含む PATCH だけを1回発行する', async () => {
+  it('編集モード保存時に表示値を保持し判定境界を含まない items を PATCH する', async () => {
     const { useGetExamination } = await import('../api/get-examination');
     const { useGetExaminationItems } = await import('../api/get-examination-items');
     const { useUpdateExamination } = await import('../api/update-examination');
@@ -593,14 +593,15 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
       expect.objectContaining({
         id: 'exam-001',
         req: expect.objectContaining({
-          items: [
-            expect.objectContaining({
-              name: 'WBC',
-              inspection_value: '5.0',
-              ref_min: 4,
-              ref_max: 12,
-            }),
-          ],
+          items: [{
+            exam_type_field_id: 1,
+            name: 'WBC',
+            inspection_value: '5.0',
+            normal_value: '4.0-12.0',
+            unit: 'x10^3/μL',
+            reference_value: '4.0-12.0',
+            sort_order: 1,
+          }],
         }),
       }),
     );
@@ -673,7 +674,7 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
     );
   });
 
-  it('新規保存時に items を含む POST だけを1回発行する', async () => {
+  it('新規保存時に表示値を保持し判定境界を含まない items を POST する', async () => {
     const { useCreateExamination } = await import('../api/create-examination');
     const { useUpdateExaminationItems } = await import('../api/update-examination-items');
     const { useGetExamTypeFields } = await import('../api/get-exam-type-fields');
@@ -681,7 +682,7 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
     // テンプレ展開で formItems が初期化される
     vi.mocked(useGetExamTypeFields).mockReturnValue({
       data: [
-        { id: 1, name: 'WBC', unit: 'x10^3/μL', normalValue: '4.0-12.0', refMin: 4, refMax: 12, sortOrder: 1 },
+        { id: 1, name: 'WBC', unit: 'x10^3/μL', normalValue: '4.0-12.0', sortOrder: 1 },
       ],
     } as ReturnType<typeof useGetExamTypeFields>);
 
@@ -729,8 +730,6 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
         normal_value: '4.0-12.0',
         unit: 'x10^3/μL',
         reference_value: '4.0-12.0',
-        ref_min: 4,
-        ref_max: 12,
         sort_order: 1,
       }],
     });
