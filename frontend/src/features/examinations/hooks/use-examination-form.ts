@@ -200,6 +200,7 @@ export function useExaminationForm(
         referenceValue: it.referenceValue,
         refMin: it.refMin,
         refMax: it.refMax,
+        isAssessed: it.isAssessed,
         sortOrder: it.sortOrder,
         status: it.status,
         isAbnormal: it.isAbnormal,

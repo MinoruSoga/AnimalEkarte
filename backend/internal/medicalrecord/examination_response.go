@@ -72,6 +72,7 @@ type examResultResponse struct {
 	ReferenceValue  string    `json:"reference_value"`
 	RefMin          *float64  `json:"ref_min,omitempty"`
 	RefMax          *float64  `json:"ref_max,omitempty"`
+	IsAssessed      bool      `json:"is_assessed"`
 	IsAbnormal      bool      `json:"is_abnormal"`
 	Status          string    `json:"status"`
 	SortOrder       int       `json:"sort_order"`
@@ -92,12 +93,17 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 		ReferenceValue:  item.ReferenceValue,
 		RefMin:          item.RefMin,
 		RefMax:          item.RefMax,
+		IsAssessed:      isExamResultAssessed(item.RefMin, item.RefMax),
 		IsAbnormal:      item.IsAbnormal,
 		Status:          string(item.Status),
 		SortOrder:       item.SortOrder,
 		CreatedAt:       httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(item.UpdatedAt),
 	}
+}
+
+func isExamResultAssessed(refMin, refMax *float64) bool {
+	return refMin != nil || refMax != nil
 }
 
 // examItemsResponse は items 一括 GET / PUT のレスポンスエンベロープ。

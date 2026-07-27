@@ -7,7 +7,9 @@ import type {
   UpdateExaminationRequest as SharedUpdateExaminationRequest,
 } from "@/hooks/use-update-examination";
 
-type BackendExamResult = ExamResult;
+export type BackendExamResult = ExamResult & {
+  is_assessed: boolean;
+};
 export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {

@@ -113,3 +113,39 @@ func TestToExaminationResponse(t *testing.T) {
 		})
 	}
 }
+
+func TestExamResultResponsesComputeIsAssessedFromReferenceBounds(t *testing.T) {
+	minimum := 1.0
+	maximum := 10.0
+	tests := []struct {
+		name         string
+		refMin       *float64
+		refMax       *float64
+		wantAssessed bool
+	}{
+		{name: "both bounds absent", wantAssessed: false},
+		{name: "minimum only", refMin: &minimum, wantAssessed: true},
+		{name: "maximum only", refMax: &maximum, wantAssessed: true},
+		{name: "both bounds present", refMin: &minimum, refMax: &maximum, wantAssessed: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			examResponse := toExamResultResponse(&model.ExamResult{
+				RefMin: tt.refMin,
+				RefMax: tt.refMax,
+			})
+			if examResponse.IsAssessed != tt.wantAssessed {
+				t.Errorf("exam response IsAssessed = %t, want %t", examResponse.IsAssessed, tt.wantAssessed)
+			}
+
+			labResponse := toLabExamResultItemResponse(&model.LabExamResultItem{
+				RefMin: tt.refMin,
+				RefMax: tt.refMax,
+			})
+			if labResponse.IsAssessed != tt.wantAssessed {
+				t.Errorf("lab response IsAssessed = %t, want %t", labResponse.IsAssessed, tt.wantAssessed)
+			}
+		})
+	}
+}

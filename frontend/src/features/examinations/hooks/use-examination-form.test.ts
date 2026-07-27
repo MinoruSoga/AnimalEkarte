@@ -515,6 +515,7 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
           referenceValue: '4.0-12.0',
           refMin: 4,
           refMax: 12,
+          isAssessed: true,
           isAbnormal: false,
           status: 'normal' as const,
           sortOrder: 1,
@@ -527,6 +528,7 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
     expect(result.current.formItems[0].name).toBe('WBC');
     expect(result.current.formItems[0].inspectionValue).toBe('5.0');
     expect(result.current.formItems[0].status).toBe('normal');
+    expect(result.current.formItems[0].isAssessed).toBe(true);
   });
 
   it('setInspectionValue で指定 row の inspectionValue を更新できる', async () => {

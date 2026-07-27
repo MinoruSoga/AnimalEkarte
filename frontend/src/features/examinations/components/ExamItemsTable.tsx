@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { C, ICON } from "@/lib/design-tokens";
 
 // 検査項目テーブルの 1 行。
-// status / isAbnormal は backend が ref_min/ref_max から導出した値を表示するだけ（FE で再計算しない）。
+// status / isAssessed / isAbnormal は backend が導出した値を表示するだけ（FE で再計算しない）。
 export interface ExamItemRow {
   /** クライアント側の React key 用ローカル ID（不変） */
   key: string;
@@ -26,6 +26,8 @@ export interface ExamItemRow {
   sortOrder: number;
   /** backend が導出した判定。新規行・未保存値では undefined */
   status?: "normal" | "high" | "low";
+  /** backend が基準値の有無から導出した評価状態。新規行・未保存値では undefined */
+  isAssessed?: boolean;
   isAbnormal?: boolean;
 }
 
@@ -35,7 +37,13 @@ interface ExamItemsTableProps {
   disabled?: boolean;
 }
 
-function StatusBadge({ status }: { status?: "normal" | "high" | "low" }) {
+function StatusBadge({
+  status,
+  isAssessed,
+}: {
+  status?: "normal" | "high" | "low";
+  isAssessed?: boolean;
+}) {
   if (status === "high") {
     return (
       <Badge
@@ -56,8 +64,25 @@ function StatusBadge({ status }: { status?: "normal" | "high" | "low" }) {
       </Badge>
     );
   }
+  if (isAssessed === false) {
+    return (
+      <Badge
+        variant="outline"
+        className={`h-8 px-3 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
+      >
+        未判定
+        <span className="sr-only">（基準値未設定のため判定していない）</span>
+      </Badge>
+    );
+  }
   if (status === "normal") {
-    return <CheckCircle className={`${ICON.action} ${C.textStatusGreen} opacity-50`} />;
+    return (
+      <CheckCircle
+        role="img"
+        aria-label="基準値内"
+        className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
+      />
+    );
   }
   // 未判定（保存前）
   return <span className={`text-xs ${C.text45}`}>-</span>;
@@ -145,7 +170,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
             {item.referenceValue || item.normalValue || "-"}
           </div>
           <div className="p-2 flex justify-center items-center">
-            <StatusBadge status={item.status} />
+            <StatusBadge status={item.status} isAssessed={item.isAssessed} />
           </div>
         </div>
       ))}
