@@ -96,8 +96,8 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 **本節の初出時に深刻度を過小評価していた。訂正する。** 追加調査で、基準値不在はM-02のfixture固有の事情ではなく、**システム全体で検査異常値の自動ハイライトが機能していない**状態であることが判明した。`docs/spec/specification.md:21` が標準装備と謳う機能が動いていない。
 
 - `examination_service.go:472-490` の `ReplaceItems` は item ごとの `refMin`/`refMax` を **`resolvedRanges`（`exam_reference_ranges` の解決結果）からしか設定しない**。request が運ぶ `in.RefMin`/`in.RefMax` は一度も読まれない。
-- 一方 request DTO は今も `ref_min`/`ref_max` を受け取り（`examination_request.go:137-138`）、frontendは `get-exam-type-fields.ts` の `parseNormalRange` で `normal_value` を6表記からパースして送り続けている。**APIは受理して黙って破棄する**（silent contract break）。
-- 新経路のデータは0行で投入手段も無いため、`unassessedExamResult()` が全件へ適用される。
+- ~~一方 request DTO は今も `ref_min`/`ref_max` を受け取り、frontendは `parseNormalRange` で送り続けている。APIは受理して黙って破棄する（silent contract break）。~~ **2026-07-28 に解消済み**: 死んだ旧経路は撤去された（`546e26f80` / `e7721b6bd`、台帳 `65ca66bd2` で反映）。request DTO の `ref_min`/`ref_max` も frontend の `parseNormalRange` も現存しない（実測確認済み）。二重管理は解消し、基準値の正本は `exam_reference_ranges` の一本になった。
+- 新経路の**投入手段は #249 U4（`afd8404a4` API＋`1adf55b6e` UI）で開通した**が、`exam_reference_ranges` は依然0行であり、獣医師が動物種ごとの臨床値を投入するまで `unassessedExamResult()` が全件へ適用される状態は変わらない。
 
 **`3-session-agent.html#BUG-449` としてCRITICAL起票済み。** FE12-02の枠を超えるため、以降の追跡は同台帳を正本とする。本ledgerのR-3は「M-02をどう実測するか」に限定する。
 
