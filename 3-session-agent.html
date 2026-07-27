@@ -366,6 +366,49 @@ PASS
 ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.004s
 exit 0</pre></li>
   <li><b>workflow orchestration</b>: native Workflow tool は未提供のため parallel subagent fan-out を使用。<code>phase_a_u4_route_ui</code>（U4/API/UI）、<code>phase_a_ref_range_sweep</code>（全送受信経路）、<code>phase_a_normal_value</code>（用途分類）、<code>phase_a_assessment_tests</code>（判定/test棚卸し）、<code>bug449_planner</code>（13 checklist/ownership計画）は read-only 完了・findings を採用。<code>clinical_blocker_review</code> は独立臨床安全 review の最終証跡提出後に明示 interrupt（追加探索不要）し、CRITICAL blocker を採用した。全 lane は joined または明示 cancel 済み。writer は Phase A stop rule により起動していない。Failure Signature = <code>Phase-A-unique-SOT-01</code>（expected: request bounds は全て死んでいる、actual: lab import が request bounds で判定・保存、verification: source trace + focused test、attempt 1、fix: なし—scope/design authority 不足、result: BLOCKED）。別の ownership blocker として <code>examination_request.go</code>/<code>examination_request_test.go</code>/<code>backend/docs/api.yaml</code> に他 session の未commit差分があり、これも保持した。</li>
+  <li><b>死んだ基準値経路の撤去 unit（2026-07-28・通常検査限定の再実行）— COMPLETE</b>: 通常検査 frontend の <code>parseNormalRange</code>、template由来 <code>refMin</code>/<code>refMax</code>、POST/PATCH/PUT の <code>ref_min</code>/<code>ref_max</code> senderを撤去し、backendの通常検査 request DTO・service input・OpenAPI request schemaからも同fieldを撤去した。<code>normal_value</code> の表示と保存済みresponse snapshotは維持。Stage 1 commit = <code>546e26f808adbe18222140a9a3027abfd7c0fdac</code>、Stage 2 commit = <code>e7721b6bd5fb820fa0b16031306ce8298c2a8769</code>。Stage 2直前のownership gateは0行となり、他sessionのBUG-450 WIPがcommit済みであることを確認してから着手した。
+<pre>$ git status --porcelain -- backend/internal/medicalrecord/examination_request.go backend/internal/medicalrecord/examination_request_test.go backend/docs/api.yaml
+[0 lines]
+exit 0
+
+$ docker compose exec -T frontend sh -lc "grep -rn parseNormalRange src/ || echo NO_MATCH"
+NO_MATCH
+exit 0</pre></li>
+  <li><b>臨床安全contract</b>: 通常検査は引き続き認証clinic・pet species・field IDで <code>exam_reference_ranges</code> を解決し、その値だけでHIGH/LOW判定とsnapshot保存を行う。追加characterization <code>TestExaminationService_ReplaceItemsUsesSingleMasterRangeForHighLowAndLeavesMissingUnassessed</code> は同一master rangeからHIGH/LOWを作り、range不在fieldを <code>status=normal</code> でも <code>is_assessed=false</code>・snapshot nilとして固定した。<b>lab importは生きた例外</b>であり、安定した <code>exam_type_field_id</code> を持たないため request由来 <code>ref_min</code>/<code>ref_max</code> で判定・保存する現行contractを変更していない。protected 2 filesのdiffは0行、<code>TestLabImport</code>はPASS。通常検査の単一正本という主張をsystem全体へ拡張しない。</li>
+  <li><b>再実行の決定的gate</b>: prompt SHA-256 = <code>f2f1cd4b336fef09864a00c8e708955effad9d7cc2f79042b97c41a874f3960a</code>。
+<pre>$ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-bug449-frontend-refrange-path-removal.md
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Target: agent (source-path)
+Quality mode: standard
+Execution contract: dynamic-workflow/v1
+exit 0
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestExamination|TestExamResultAssessment|TestExamReferenceRange|TestLabImport' -count=1 -p 1
+# baseline
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	3.037s
+# after（共有DB競合を避けて単独再実行）
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	3.032s
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestLabImport' -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	2.771s
+
+$ docker compose exec -T backend go test ./internal/lintscan/ -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/lintscan	2.922s
+
+$ docker compose exec -T backend go test ./internal/apicontract/ -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/apicontract	0.523s
+
+$ docker compose exec -T frontend npx vitest run src/features/examinations/hooks/use-examination-form.test.ts src/features/examinations/components/ExamItemsTable.test.tsx
+Test Files  2 passed (2)
+Tests       74 passed (74)
+exit 0
+
+$ git diff --name-only -- backend/internal/medicalrecord/lab_import_request.go backend/internal/medicalrecord/lab_import_examination_service.go
+[0 lines]
+exit 0</pre>
+変更file限定ESLint、<code>go vet ./internal/medicalrecord/</code>、明示file <code>gofmt -l</code>、<code>git diff --check</code> は全てexit 0（gofmt/diff stdout 0行）。full type-check / full lint / full build / runtime確認はproject ruleどおりUSER手動でありPASS扱いしていない。</li>
+  <li><b>再実行 orchestration / failure log</b>: native Workflow tool未提供のためsubagent multi-agent fan-outを使用。read-onlyは <code>fe_flow_probe</code>（frontend分類）、<code>clinical_path_probe</code>（通常検査/lab差分）、<code>characterization_probe</code>（test設計）、<code>stage2_gate_probe</code>（WIP gate）を並列join。writerは <code>characterization_writer</code>（range test 1 path）、<code>stage1_frontend_writer</code>（frontend 6 paths）、<code>stage2_backend_writer</code>（backend/OpenAPI 7 paths）を順序付きでjoin。独立reviewは <code>clinical_safety_review</code>、<code>typescript_review</code>、<code>go_review</code> を並列joinし、CRITICAL/HIGH/MEDIUM blockerなし。Failure Signature <code>After-suite-shared-DB-01</code>: after suiteをfocused lab/characterization processと並列実行したattempt 1でPostgreSQL deadlock（SQLSTATE 40P01）が発生。仮説を共有DB process競合へ更新し、同じafter commandを単独再実行してPASS（code修復なし）。臨床値そのものの登録は獣医師/master-data責任者のUSER所管で、現在のruntime行数はdirect SQL禁止のため再認定していない。</li>
   <li>判断者: PO / master-data 責任者（投入する基準値そのものは臨床値のため代理決裁の委任外）。関連: BUG-447（#249 U3 <code>cb3b1c448</code> で解消・closed）、<a href="#BUG-448">BUG-448</a>、FE-refactor.md の R-3。</li>
 </ul>
 </section>
