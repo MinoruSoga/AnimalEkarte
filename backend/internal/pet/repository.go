@@ -313,7 +313,57 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 		}
 	}
 	db := persistence.DBOrTx(ctx, r.db)
+	if expectedStatus, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
+		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, expectedStatus, fields, conflictMessage)
+	}
 	return updatePetFieldsWithDB(db, clinicID, id, fields)
+}
+
+func legacyLifecycleTransition(fields map[string]any) (model.PetStatus, string, bool) {
+	if len(fields) != 3 {
+		return "", "", false
+	}
+	if _, ok := fields["deceased_at"]; !ok {
+		return "", "", false
+	}
+	if _, ok := fields["deceased_reason"]; !ok {
+		return "", "", false
+	}
+	status, ok := fields["status"]
+	if !ok {
+		return "", "", false
+	}
+
+	switch status {
+	case model.PetStatusDeceased:
+		return model.PetStatusAlive, "死亡記録は既に登録されています", true
+	case model.PetStatusAlive:
+		return model.PetStatusDeceased, "死亡記録が登録されていないため解除できません", true
+	default:
+		return "", "", false
+	}
+}
+
+func updateLegacyLifecycleFieldsWithDB(
+	db *gorm.DB,
+	clinicID, petID uint64,
+	expectedStatus model.PetStatus,
+	fields map[string]any,
+	conflictMessage string,
+) error {
+	result := db.
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, expectedStatus).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict(conflictMessage)
+	}
+	return nil
 }
 
 func isDangerFieldKey(key string) bool {
@@ -429,19 +479,39 @@ func withPetUpdateTransaction(
 }
 
 func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
-	return r.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at":     deceasedAt,
-		"deceased_reason": reason,
-		"status":          model.PetStatusDeceased,
-	})
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, model.PetStatusAlive).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(&model.Pet{
+			DeceasedAt:     &deceasedAt,
+			DeceasedReason: &reason,
+			Status:         model.PetStatusDeceased,
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict("死亡記録は既に登録されています")
+	}
+	return nil
 }
 
 func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) error {
-	return r.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at":     nil,
-		"deceased_reason": nil,
-		"status":          model.PetStatusAlive,
-	})
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, model.PetStatusDeceased).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(&model.Pet{Status: model.PetStatusAlive})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
+	}
+	return nil
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
