@@ -156,7 +156,10 @@ function ReportBody(props: ReportBodyProps) {
   );
 }
 
-function toPet(pet: OwnerReportPet, ownerId: string): Pet {
+function toPet(
+  pet: OwnerReportPet,
+  ownerId: string,
+): Omit<Pet, "dangerReason"> {
   return {
     id: pet.id,
     clinicId: undefined,

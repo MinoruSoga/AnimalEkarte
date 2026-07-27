@@ -15,7 +15,10 @@ type CreatePetRequestWithDangerReason = CreatePetRequest & {
   danger_reason?: string;
 };
 
-type UpdatePetRequestWithDangerReason = UpdatePetRequest & {
+// UpdatePetRequest(生成基底)は danger_reason?: string を持つため、単純な交差では
+// (string|undefined) & (string|null|undefined) = string|undefined に狭まり null クリアが型落ちする。
+// Omit してから合成し、tri-state(絶対不在=変更なし / null=クリア / 値=更新)を型で保つ。
+type UpdatePetRequestWithDangerReason = Omit<UpdatePetRequest, "danger_reason"> & {
   danger_reason?: string | null;
 };
 
