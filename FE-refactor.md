@@ -30,7 +30,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 | ID | Priority | Active frontier | Dependency | Completion evidence |
 |---|---|---|---|---|
 | FE12-02 | P0 | M-01〜M-05、line-reserve font実機確認 | 各runbookの着手ブロッカー（fixture準備）が先行 | 対象実測の証跡が揃うこと |
-| S1 | P1 | backend残余risk 2件（pet死亡同時二重request封鎖・当日予約lookupのclock seam） | なし（FE12-02と独立・所有path非重複） | 各項目の修正と並行/境界test証跡 |
+| S1 | P1 | 第1走完了（2026-07-27）。死亡/復活TOCTOUはCASで封鎖済み（未清算）、clock seam項目は前提誤りと判明し裁定で不採用・JST正規化非対称の是正が残 | なし（FE12-02と独立・所有path非重複） | 各項目の修正と並行/境界test証跡 |
 | S2 | P1 | 第1走完了（2026-07-27）。reception danger sentinelは修正済み（未清算）、master permission未配線43件・manual chunk・auth barrelは調査完了で実装/計測が残 | なし（FE12-02と独立・所有path非重複） | 各項目の契約確定または修正と証跡 |
 <!-- FE12-TASK-TABLE-END -->
 
@@ -148,8 +148,8 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 #### S1（backendレーン） — 所有path: `backend/internal/pet/`・`backend/internal/lstep/`・medical-record auto-create lookup周辺
 
-- **pet死亡登録の完全同時二重request** — `45b681866`で逐次requestの再登録/取消は409化済み。残るのは完全同時の二重requestが双方ともtransaction前のstatus readを通過し得る狭い窓である。最初に開く: `backend/internal/lstep/lstep_lifecycle_service.go:95,185`と`backend/internal/pet/`の死亡field更新経路。判断者: clinical API owner。手順: pet repository側の条件付きUPDATE（CAS）または行lockで封鎖し、DB並行testで実証する。
-- **backend当日予約lookupのclock seam** — frontend側auto-create testは`3c993420a`でfake timers決定化済み。backendの当日予約lookupと同testのclock注入は未導入。最初に開く: backendのmedical-record auto-create lookup実装と同test。判断者: medical-record contract owner。手順: clock seamを定義し、JST日付境界caseをbackend testへ追加する。
+- **【実装済・未清算】pet死亡登録の完全同時二重request** — 2026-07-27 S1第1走で封鎖（作業ツリー残置・未清算）。`backend/internal/pet/repository.go`の死亡/復活経路を条件付きUPDATE（CAS）へ変更し、`Scopes(persistence.ClinicScope(clinicID))` + `Where("id = ? AND status = ?", petID, expectedStatus)`で期待statusを述語に含め、`RowsAffected == 0`を既存の409 conflictへ写像する。復活時は死亡日時・理由を明示NULL更新する。typed API経路（:482 死亡・:504 復活）と旧adapter経路（:347 `updateLegacyLifecycleFieldsWithDB`）の3箇所すべてを同一形にした。証跡: TDD REDで死亡・復活とも同時request 2件成功を再現→GREEN後は成功1件・競合1件、敗者が勝者の死亡日時・理由を上書きしないことをDB並行testで確認、越境testも成功。独立review 3種（clinic isolation / clinical safety / Go）でHIGH 1件（明示的PetLifecycle DIを無視する構成変更）を検出し撤回・修復済み。残: 手元清算。
+- **【前提誤り訂正】backend当日予約lookupのclock seam — 該当欠陥は存在しない** — 2026-07-27 S1第1走が実測で反証。`backend/internal/medicalrecord/medical_record_auto_create.go:65`の重複チェック日は`reservation.StartTime.Format(time.DateOnly)`であり、**現在時刻を一切参照していない**（git履歴上も初期実装から現在時刻参照なし）。したがって「clock注入が未導入」という本項目の旧記述は誤りで、clock seamを入れると過去/未来予約の検索日が実行日へ変わり挙動を壊す。executorは仕様誤りとして正しくBLOCKEDを返した。**裁定（2026-07-27）: 予約日基準の現行contractを正とし、clock seamは導入しない。** ただし残る実務課題として、同じ予約日時を`auto_create.go:65`はlocation正規化なしで`Format`し、保存側`medical_record_crud.go:194`は`appt.StartTime.In(config.JST)`で明示JST正規化しており、正規化が非対称である。backendコンテナは`TZ/PGTZ=Asia/Tokyo`かつ`config.ConfigureTimeZone()`が`time.Local`をJSTにするため現時点では同値になるが、ambient TZ依存であり脆い。判断者: medical-record contract owner。次の一手: lookup側を`reservation.StartTime.In(config.JST).Format(time.DateOnly)`へ揃え、JST 00:00-09:00帯（UTC日付が前日になる窓）の予約でlookup日と保存日が一致することをbackend testで固定する。
 
 #### S2（frontendレーン） — 所有path: `frontend/src/features/reception/`・`frontend/src/features/master/`・`frontend/src/app/`（router系）・`frontend/src/features/manual/`・`frontend/src/hooks/`
 
