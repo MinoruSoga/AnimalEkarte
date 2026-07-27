@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -63,7 +64,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 
 	// 同日同ペットのカルテ存在チェック（重複防止）
-	dateStr := reservation.StartTime.Format(time.DateOnly)
+	dateStr := reservation.StartTime.In(config.JST).Format(time.DateOnly)
 	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{
 		PetID:     reservation.PetID,
 		StartDate: &dateStr,

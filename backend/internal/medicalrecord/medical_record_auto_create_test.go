@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -527,4 +528,132 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 			svc.AutoCreateFromReservation(context.Background(), 1, appt)
 		})
 	})
+}
+
+func TestAutoCreateFromReservation_JSTDateBoundaryPreventsDuplicate(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	const clinicID = uint64(1)
+	owner := makeTestOwner(t, db, clinicID, "JST境界テスト飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "JST境界テストペット")
+	reservationStart := time.Date(2026, time.July, 27, 23, 0, 0, 0, time.UTC)
+	existingRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: "JST-BOUNDARY-EXISTING",
+		Date:     time.Date(2026, time.July, 28, 0, 0, 0, 0, config.JST),
+		OwnerID:  &owner.ID,
+		PetID:    &pet.ID,
+		Status:   model.MedicalRecordStatusDraft,
+	})
+
+	realRepo := NewMedicalRecordRepository(db)
+	createAttempted := false
+	repo := &mockMedicalRecordRepository{
+		findAllFn: func(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
+			assert.Equal(t, []uint64{clinicID}, clinicIDs)
+			require.NotNil(t, filters.PetID)
+			assert.Equal(t, pet.ID, *filters.PetID)
+			require.NotNil(t, filters.StartDate)
+			require.NotNil(t, filters.EndDate)
+			assert.Equal(t, "2026-07-28", *filters.StartDate)
+			assert.Equal(t, "2026-07-28", *filters.EndDate)
+			records, total, err := realRepo.FindAll(ctx, clinicIDs, filters, page, limit)
+			require.NoError(t, err)
+			require.Equal(t, int64(1), total)
+			require.Len(t, records, 1)
+			assert.Equal(t, existingRecord.ID, records[0].ID)
+			return records, total, nil
+		},
+		createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+			createAttempted = true
+			return errors.New("unexpected duplicate create attempt")
+		},
+	}
+	reservation := &model.Reservation{
+		ID:        7001,
+		ClinicID:  clinicID,
+		StartTime: reservationStart,
+		OwnerID:   &owner.ID,
+		PetID:     &pet.ID,
+	}
+	reservationRepo := &mockReservationRepoForMedicalRecord{
+		findByIDFn: func(_ context.Context, gotClinicID, gotReservationID uint64) (*model.Reservation, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, reservation.ID, gotReservationID)
+			return reservation, nil
+		},
+		assertOwnerFn: func(_ context.Context, gotClinicID, gotOwnerID uint64) error {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, owner.ID, gotOwnerID)
+			return nil
+		},
+		findPetOwnerFn: func(_ context.Context, gotClinicID, gotPetID uint64) (uint64, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, pet.ID, gotPetID)
+			return owner.ID, nil
+		},
+	}
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
+
+	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
+
+	assert.False(t, createAttempted, "JST同日の既存カルテがある場合は重複作成を試みない")
+}
+
+func TestAutoCreateFromReservation_UsesReservationDateInJST(t *testing.T) {
+	const (
+		clinicID = uint64(7)
+		ownerID  = uint64(70)
+		petID    = uint64(700)
+	)
+	tests := []struct {
+		name             string
+		reservationStart time.Time
+		wantDate         string
+	}{
+		{
+			name:             "過去日の予約は予約日時のJST日付で検索する",
+			reservationStart: time.Date(2020, time.January, 1, 23, 0, 0, 0, time.UTC),
+			wantDate:         "2020-01-02",
+		},
+		{
+			name:             "未来日の予約は予約日時のJST日付で検索する",
+			reservationStart: time.Date(2099, time.December, 31, 23, 0, 0, 0, time.UTC),
+			wantDate:         "2100-01-01",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findAllCalled := false
+			reservationOwnerID := ownerID
+			reservationPetID := petID
+			repo := &mockMedicalRecordRepository{
+				findAllFn: func(_ context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
+					findAllCalled = true
+					assert.Equal(t, []uint64{clinicID}, clinicIDs)
+					assert.Equal(t, 1, page)
+					assert.Equal(t, 1, limit)
+					require.NotNil(t, filters.PetID)
+					assert.Equal(t, petID, *filters.PetID)
+					require.NotNil(t, filters.StartDate)
+					require.NotNil(t, filters.EndDate)
+					assert.Equal(t, tt.wantDate, *filters.StartDate)
+					assert.Equal(t, tt.wantDate, *filters.EndDate)
+					return []model.MedicalRecord{{ID: 1}}, 1, nil
+				},
+			}
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			reservation := &model.Reservation{
+				ID:        7100,
+				ClinicID:  clinicID,
+				StartTime: tt.reservationStart,
+				OwnerID:   &reservationOwnerID,
+				PetID:     &reservationPetID,
+			}
+
+			svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
+
+			assert.True(t, findAllCalled)
+		})
+	}
 }
