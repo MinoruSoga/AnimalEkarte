@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -862,7 +863,7 @@ func TestExaminationService_ListItems(t *testing.T) {
 }
 
 func TestExaminationService_ReplaceItems(t *testing.T) {
-	t.Run("computes status from ref_min/ref_max and overrides FE-supplied values", func(t *testing.T) {
+	t.Run("ignores request ranges for unmapped legacy items", func(t *testing.T) {
 		var capturedItems []model.ExamResult
 		repo := &mockExaminationRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
@@ -878,10 +879,10 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		min1 := 1.0
 		max10 := 10.0
 		inputs := []UpsertExamItemInput{
-			{Name: "WBC", InspectionValue: "5.0", RefMin: &min1, RefMax: &max10}, // normal
-			{Name: "RBC", InspectionValue: "0.5", RefMin: &min1, RefMax: &max10}, // low
-			{Name: "PLT", InspectionValue: "11", RefMin: &min1, RefMax: &max10},  // high
-			{Name: "Note", InspectionValue: "陰性"},                                // non-numeric → normal
+			{Name: "WBC", InspectionValue: "5.0", RefMin: &min1, RefMax: &max10},
+			{Name: "RBC", InspectionValue: "0.5", RefMin: &min1, RefMax: &max10},
+			{Name: "PLT", InspectionValue: "11", RefMin: &min1, RefMax: &max10},
+			{Name: "Note", InspectionValue: "陰性"},
 		}
 
 		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, inputs)
@@ -891,11 +892,11 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[0].Status)
 		assert.False(t, capturedItems[0].IsAbnormal)
 
-		assert.Equal(t, model.ExaminationResultStatusLow, capturedItems[1].Status)
-		assert.True(t, capturedItems[1].IsAbnormal)
+		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[1].Status)
+		assert.False(t, capturedItems[1].IsAbnormal)
 
-		assert.Equal(t, model.ExaminationResultStatusHigh, capturedItems[2].Status)
-		assert.True(t, capturedItems[2].IsAbnormal)
+		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[2].Status)
+		assert.False(t, capturedItems[2].IsAbnormal)
 
 		assert.Equal(t, model.ExaminationResultStatusNormal, capturedItems[3].Status)
 		assert.False(t, capturedItems[3].IsAbnormal)
@@ -903,6 +904,8 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		// ExamID は service が強制設定する
 		for _, it := range capturedItems {
 			assert.Equal(t, uint64(10), it.ExamID)
+			assert.Nil(t, it.RefMin, "untrusted request range must not be persisted")
+			assert.Nil(t, it.RefMax, "untrusted request range must not be persisted")
 		}
 	})
 
@@ -1056,14 +1059,22 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 
 	t.Run("accepts exam_type_field that belongs to the exam's own type", func(t *testing.T) {
 		var captured []model.ExamResult
-		repo := &mockExaminationRepository{
+		petID := uint64(70)
+		baseRepo := &mockExaminationRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
-				return &model.Examination{ID: 10, ExamTypeID: 50, Status: model.ExaminationStatusInProgress}, nil
+				return &model.Examination{
+					ID: 10, PetID: &petID, ExamTypeID: 50, Status: model.ExaminationStatusInProgress,
+				}, nil
 			},
 			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 				captured = items
 				return items, 0, nil
 			},
+		}
+		repo := &referenceRangeResolverExaminationRepository{
+			mockExaminationRepository: baseRepo,
+			speciesID:                 7,
+			rangesBySpecies:           map[uint64]map[uint64]model.ExamReferenceRange{7: {}},
 		}
 		examTypeRepo := &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
 			return &model.ExaminationType{ID: id, Items: []model.ExamTypeField{{ID: 100}, {ID: 101}}}, nil
@@ -1074,8 +1085,9 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0", ExamTypeFieldID: &ownField},
 		})
-		assert.NoError(t, err)
-		assert.Len(t, saved, 1)
+		require.NoError(t, err)
+		require.Len(t, saved, 1)
+		require.Len(t, captured, 1)
 		if assert.NotNil(t, captured[0].ExamTypeItemID) {
 			assert.Equal(t, uint64(100), *captured[0].ExamTypeItemID)
 		}

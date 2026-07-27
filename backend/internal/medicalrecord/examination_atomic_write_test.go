@@ -122,8 +122,8 @@ func TestCreateExamination_WithItemsRollsBackParentWhenItemPersistenceFails(t *t
 		"date":         time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
 		"machine":      "combined-create-overflow",
 		"items": []map[string]any{{
-			"name":    "WBC",
-			"ref_min": 1_000_000.0, // decimal(10,4) の上限を超える決定的な DB エラー
+			"name":       "WBC",
+			"sort_order": int64(1 << 40), // integer の上限を超える決定的な DB エラー
 		}},
 	}
 	payload, err := json.Marshal(body)
@@ -176,8 +176,8 @@ func TestUpdateExamination_WithItemsRollsBackParentAndItemsWhenItemPersistenceFa
 	body := map[string]any{
 		"machine": "after-update",
 		"items": []map[string]any{{
-			"name":    "Glucose",
-			"ref_max": 1_000_000.0, // decimal(10,4) の上限を超える決定的な DB エラー
+			"name":       "Glucose",
+			"sort_order": int64(1 << 40), // integer の上限を超える決定的な DB エラー
 		}},
 	}
 	payload, err := json.Marshal(body)

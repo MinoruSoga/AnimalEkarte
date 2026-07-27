@@ -41,6 +41,7 @@ type UpdateExaminationInput struct {
 
 // UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
 // status / is_abnormal はサーバ側で計算するため受け付けない（信頼境界はサーバ）。
+// RefMin / RefMax は互換性のため受け付けるが、保存・判定には使わずマスタ解決値を使う。
 type UpsertExamItemInput struct {
 	ExamTypeFieldID *uint64
 	Name            string
@@ -138,12 +139,13 @@ type ExaminationService interface {
 }
 
 type examinationService struct {
-	repo         ExaminationRepository
-	medRec       medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
-	examTypeRepo ExamTypeRepository
-	auditTx      AuditTxLogger
-	transactor   Transactor
-	relations    ClinicalRelationVerifier
+	repo            ExaminationRepository
+	medRec          medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
+	examTypeRepo    ExamTypeRepository
+	referenceRanges ExamReferenceRangeResolver
+	auditTx         AuditTxLogger
+	transactor      Transactor
+	relations       ClinicalRelationVerifier
 }
 
 func NewExaminationService(
@@ -165,8 +167,9 @@ func NewExaminationService(
 	if transactor == nil {
 		transactor, _ = medRec.(Transactor)
 	}
+	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
 	return &examinationService{
-		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo,
+		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
 		auditTx: auditTx, transactor: transactor, relations: relations,
 	}
 }
@@ -368,7 +371,7 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 // 仕様:
 //  1. 親 exam の存在を FindByID で確認（P1）
 //  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
-//  3. 各 input の inspection_value と ref_min / ref_max から status / is_abnormal を導出（FE 送信値は無視）
+//  3. 各 input の inspection_value とサーバで解決した基準値から status / is_abnormal を導出
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
 //  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
 //     tx を rollback する（best-effort ではなく fail-closed。BE-refactor.md R1-2・#211 と同方針）。
@@ -432,32 +435,20 @@ func (s *examinationService) replaceItemsTx(
 	actorID *uint64,
 	inputs []UpsertExamItemInput,
 ) ([]model.ExamResult, error) {
-	hasFieldRef := false
-	items := make([]model.ExamResult, 0, len(inputs))
+	fieldIDs := make([]uint64, 0, len(inputs))
+	fieldIDSet := make(map[uint64]struct{}, len(inputs))
 	for _, in := range inputs {
 		if in.ExamTypeFieldID != nil {
-			hasFieldRef = true
+			if _, exists := fieldIDSet[*in.ExamTypeFieldID]; !exists {
+				fieldIDSet[*in.ExamTypeFieldID] = struct{}{}
+				fieldIDs = append(fieldIDs, *in.ExamTypeFieldID)
+			}
 		}
-		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
-		items = append(items, model.ExamResult{
-			ExamID:          exam.ID,
-			ExamTypeItemID:  in.ExamTypeFieldID,
-			Name:            in.Name,
-			InspectionValue: in.InspectionValue,
-			NormalValue:     in.NormalValue,
-			Unit:            in.Unit,
-			ReferenceValue:  in.ReferenceValue,
-			RefMin:          in.RefMin,
-			RefMax:          in.RefMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
-			SortOrder:       in.SortOrder,
-		})
 	}
 
 	// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
 	// 検査種別フィールドであることを同じ transaction 内で検証する。
-	if hasFieldRef {
+	if len(fieldIDs) > 0 {
 		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, exam.ExamTypeID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
@@ -473,6 +464,50 @@ func (s *examinationService) replaceItemsTx(
 				}
 			}
 		}
+	}
+
+	resolvedRanges := make(map[uint64]model.ExamReferenceRange, len(fieldIDs))
+	if len(fieldIDs) > 0 {
+		if exam.PetID == nil {
+			return nil, apperrors.WrapInvalidInput("基準値を解決するには検査対象のペットが必要です")
+		}
+		if s.referenceRanges == nil {
+			return nil, apperrors.WrapInternalServerError("examination reference range resolver is required")
+		}
+		animalSpeciesID, err := s.referenceRanges.FindAnimalSpeciesID(ctx, clinicID, exam.ID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve examination animal species")
+		}
+		resolvedRanges, err = s.referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve examination reference ranges")
+		}
+	}
+
+	items := make([]model.ExamResult, 0, len(inputs))
+	for _, in := range inputs {
+		var refMin, refMax *float64
+		if in.ExamTypeFieldID != nil {
+			if referenceRange, ok := resolvedRanges[*in.ExamTypeFieldID]; ok {
+				refMin = cloneOptionalFloat64(referenceRange.RefMin)
+				refMax = cloneOptionalFloat64(referenceRange.RefMax)
+			}
+		}
+		status, isAbnormal := computeExamResultStatus(in.InspectionValue, refMin, refMax)
+		items = append(items, model.ExamResult{
+			ExamID:          exam.ID,
+			ExamTypeItemID:  in.ExamTypeFieldID,
+			Name:            in.Name,
+			InspectionValue: in.InspectionValue,
+			NormalValue:     in.NormalValue,
+			Unit:            in.Unit,
+			ReferenceValue:  in.ReferenceValue,
+			RefMin:          refMin,
+			RefMax:          refMax,
+			IsAbnormal:      isAbnormal,
+			Status:          status,
+			SortOrder:       in.SortOrder,
+		})
 	}
 
 	before, err := s.repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
@@ -503,6 +538,14 @@ func (s *examinationService) replaceItemsTx(
 		return nil, err
 	}
 	return saved, nil
+}
+
+func cloneOptionalFloat64(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }
 
 // extractExamResultsAudit は監査ログの old_value/new_value に格納する検査結果値のスナップショットを構築する。
