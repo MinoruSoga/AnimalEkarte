@@ -23,7 +23,7 @@ export interface PetExaminationHistoryResult {
 
 const getPetExaminations = async (petId: string): Promise<PetExaminationHistoryResult> => {
   const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
-    params: { pet_id: petId, limit: HISTORY_FETCH_LIMIT },
+    params: { pet_id: petId, limit: HISTORY_FETCH_LIMIT, include_items: true },
   });
   const rawRows = data.data ?? [];
   const items = rawRows.flatMap((row) => {

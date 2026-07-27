@@ -27,10 +27,10 @@ type examinationResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/検査種別/担当医を表示するため。Preload 時のみ埋まる。
-	// items は検査項目明細用の別 API (GET /examinations/:id/items) で取得するため、ここには含めない。
 	Pet      *petSummaryResponse      `json:"pet,omitempty"`
 	Doctor   *staffSummaryResponse    `json:"doctor,omitempty"`
 	ExamType *examTypeSummaryResponse `json:"exam_type,omitempty"`
+	Items    *[]examResultResponse    `json:"items,omitempty"`
 }
 
 func toExaminationResponse(exam *model.Examination) examinationResponse {
@@ -56,6 +56,13 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 			Name: exam.ExaminationType.Name,
 		}
 	}
+	return resp
+}
+
+func toExaminationResponseWithItems(exam *model.Examination) examinationResponse {
+	resp := toExaminationResponse(exam)
+	items := httpapi.MapSlice(exam.Items, toExamResultResponse)
+	resp.Items = &items
 	return resp
 }
 

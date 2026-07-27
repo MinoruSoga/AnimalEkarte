@@ -3440,6 +3440,10 @@ components:
           type: boolean
           default: false
           description: 異常値フラグ
+        is_assessed:
+          type: boolean
+          default: false
+          description: 基準値比較が実施されたかどうか
         status:
           type: string
           enum: [normal, high, low]
@@ -12959,6 +12963,12 @@ paths:
           schema:
             type: string
             enum: [pending, in_progress, completed]
+        - name: include_items
+          in: query
+          description: true のとき検査項目明細を含めて返す
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: 検査記録一覧

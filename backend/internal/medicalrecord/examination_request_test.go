@@ -239,3 +239,29 @@ func TestReplaceExamItemsRequest_ToServiceInput_NilItems(t *testing.T) {
 		t.Error("input = nil, want empty slice")
 	}
 }
+
+// BUG-450: include_items は明細同梱の opt-in である。既定（未指定）で明細を返さない
+// 後方互換が、この2 case で固定される。
+func TestListExaminationQuery_ToServiceFilters_IncludeItems(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "true opts into item delivery", value: "true", want: true},
+		{name: "unset keeps the default lean response", value: "", want: false},
+		{name: "false keeps the default lean response", value: "false", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filters, err := (&listExaminationQuery{IncludeItems: tt.value}).toServiceFilters()
+			if err != nil {
+				t.Fatalf("toServiceFilters returned error: %v", err)
+			}
+			if filters.IncludeItems != tt.want {
+				t.Errorf("IncludeItems = %t, want %t", filters.IncludeItems, tt.want)
+			}
+		})
+	}
+}

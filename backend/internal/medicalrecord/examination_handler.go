@@ -2,8 +2,9 @@ package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/gin-gonic/gin"
 
@@ -56,7 +57,11 @@ func (h *ExaminationHandler) ListExaminations(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(exams, toExaminationResponse), total, page, limit))
+	responseMapper := toExaminationResponse
+	if filters.IncludeItems {
+		responseMapper = toExaminationResponseWithItems
+	}
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(exams, responseMapper), total, page, limit))
 }
 
 // GetExamination godoc

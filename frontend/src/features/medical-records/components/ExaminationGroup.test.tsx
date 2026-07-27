@@ -98,6 +98,45 @@ describe("ExaminationGroup", () => {
     expect(screen.queryByText("LOW")).not.toBeInTheDocument();
   });
 
+  // BUG-450: 基準値マスタが空の間、未評価の項目が「基準値内」と同じ緑チェックで
+  // 描画されると、獣医師が未評価を正常と読む。この3 case がその誤読を塞ぐ。
+  it("isAssessed=false のとき未判定バッジを表示し基準値内アイコンを出さない", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "normal", isAssessed: false })],
+      }),
+    );
+    expect(screen.getByText("未判定")).toHaveClass(
+      C.textWarning,
+      C.borderWarning20,
+      C.bgWarning50,
+    );
+    expect(
+      screen.getByText("（基準値未設定のため判定していない）"),
+    ).toHaveClass("sr-only");
+    expect(screen.queryByLabelText("基準値内")).not.toBeInTheDocument();
+  });
+
+  it("isAssessed=true かつ status=normal のとき基準値内の accessible name を持つ", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "normal", isAssessed: true })],
+      }),
+    );
+    expect(screen.getByLabelText("基準値内")).toBeInTheDocument();
+    expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+  });
+
+  it("isAssessed=false でも status=high なら異常警告を優先する", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "high", isAssessed: false, isAbnormal: true })],
+      }),
+    );
+    expect(screen.getByText("HIGH")).toBeInTheDocument();
+    expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+  });
+
   it("status=low のとき LOW バッジを表示する", () => {
     renderGroup(
       makeGroup({
