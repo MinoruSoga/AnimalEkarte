@@ -12,7 +12,21 @@ interface PetSelectionPageConfig {
   backPath: string;
 }
 
+export interface PetSelectionResultPage {
+  items: Pet[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  startIndex: number;
+  endIndex: number;
+  isPageLocalFiltered: boolean;
+  onPageChange: (page: number) => void;
+}
+
+const PAGE_SIZE = 20;
+
 const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
+  search: "",
   ownerId: "",
   ownerName: "",
   ownerNameKana: "",
@@ -26,6 +40,7 @@ const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
 export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [page, setPage] = useState(1);
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
@@ -33,39 +48,118 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   // 「該当0件」と区別できなくなり、利用者に嘘の検索結果を見せる。
   const {
     data: pets = [],
+    total = 0,
+    page: responsePage = page,
+    limit: responseLimit = PAGE_SIZE,
     error,
     isLoading,
-  } = useGetPets(undefined, {
+  } = useGetPets(searchParams.ownerId || undefined, {
     includeDeceased: true,
+    page,
+    limit: PAGE_SIZE,
+    ...(searchParams.search ? { search: searchParams.search } : {}),
+    ...(searchParams.species ? { species: searchParams.species } : {}),
   });
 
-  const filteredPets = useMemo(() => {
-    return pets.filter((pet) => {
-      if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId))
+  const totalPages = Math.max(1, Math.ceil(total / responseLimit));
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      setPage(Math.min(Math.max(1, nextPage), totalPages));
+    },
+    [totalPages],
+  );
+
+  const updateSearchParams = useCallback(
+    (params: PetSelectionSearchParams) => {
+      setSearchParams(params);
+      setPage(1);
+    },
+    [],
+  );
+
+  const filteredPets = useMemo<PetSelectionResultPage>(() => {
+    const items = pets.filter((pet) => {
+      if (
+        searchParams.ownerName &&
+        !normalizedIncludes(pet.ownerName, searchParams.ownerName)
+      )
         return false;
-      if (searchParams.ownerName && !normalizedIncludes(pet.ownerName, searchParams.ownerName))
+      if (
+        searchParams.ownerNameKana &&
+        (!pet.ownerNameKana ||
+          !normalizedIncludes(pet.ownerNameKana, searchParams.ownerNameKana))
+      )
         return false;
-      if (searchParams.ownerNameKana && (!pet.ownerNameKana || !normalizedIncludes(pet.ownerNameKana, searchParams.ownerNameKana)))
+      if (
+        searchParams.phone &&
+        (!pet.phone || !pet.phone.includes(searchParams.phone))
+      )
         return false;
-      if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone)))
+      if (
+        searchParams.address &&
+        (!pet.address || !pet.address.includes(searchParams.address))
+      )
         return false;
-      if (searchParams.address && (!pet.address || !pet.address.includes(searchParams.address)))
+      if (
+        searchParams.petName &&
+        !normalizedIncludes(pet.name, searchParams.petName)
+      )
         return false;
-      if (searchParams.petName && !normalizedIncludes(pet.name, searchParams.petName))
-        return false;
-      if (searchParams.petNameKana && (!pet.petNameKana || !normalizedIncludes(pet.petNameKana, searchParams.petNameKana)))
-        return false;
-      if (searchParams.species && !pet.species.includes(searchParams.species))
+      if (
+        searchParams.petNameKana &&
+        (!pet.petNameKana ||
+          !normalizedIncludes(pet.petNameKana, searchParams.petNameKana))
+      )
         return false;
       return true;
     });
-  }, [pets, searchParams]);
+
+    const isPageLocalFiltered = Boolean(
+      searchParams.ownerName ||
+        searchParams.ownerNameKana ||
+        searchParams.phone ||
+        searchParams.address ||
+        searchParams.petName ||
+        searchParams.petNameKana,
+    );
+    const startIndex =
+      total === 0 ? 0 : (responsePage - 1) * responseLimit + 1;
+    const endIndex =
+      total === 0 ? 0 : Math.min(responsePage * responseLimit, total);
+
+    return {
+      items,
+      totalCount: total,
+      currentPage: responsePage,
+      totalPages,
+      startIndex,
+      endIndex,
+      isPageLocalFiltered,
+      onPageChange: handlePageChange,
+    };
+  }, [
+    handlePageChange,
+    pets,
+    responseLimit,
+    responsePage,
+    searchParams,
+    total,
+    totalPages,
+  ]);
+
+  // owner_id / search / species は backend の全件集合へ適用する。
+  // 個別欄は backend の単一 OR search と同じ意味を表せないため、
+  // 現在ページ内フィルタとして維持する。
 
   // フィルタはリアクティブ（useMemo）のため、ボタン押下時の追加処理は不要
-  const handleSearch = useCallback(() => {}, []);
+  const handleSearch = useCallback(() => {
+    setPage(1);
+  }, []);
 
   const handleClear = useCallback(() => {
     setSearchParams(INITIAL_SEARCH_PARAMS);
+    setPage(1);
   }, []);
 
   const handleSelect = useCallback((pet: Pet) => {
@@ -82,7 +176,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
 
   return {
     searchParams,
-    setSearchParams,
+    setSearchParams: updateSearchParams,
     filteredPets,
     error,
     isLoading,

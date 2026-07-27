@@ -9,6 +9,74 @@ import { createTestWrapper } from "@/testing/utils";
 import { useGetPets } from "./use-pet";
 
 describe("useGetPets", () => {
+  it("ページ番号・件数・検索語・動物種をAPIへ転送し、先頭20件外の患者とページ情報を返す", async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json({
+          data: [
+            {
+              id: 21,
+              clinic_id: 1,
+              owner_id: 42,
+              name: "もも",
+              status: "alive",
+            },
+          ],
+          total: 21,
+          page: 2,
+          limit: 20,
+        });
+      }),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useGetPets(undefined, {
+          page: 2,
+          limit: 20,
+          search: "もも",
+          species: "2",
+          includeDeceased: true,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.searchParams.get("page")).toBe("2");
+    expect(capturedUrl?.searchParams.get("limit")).toBe("20");
+    expect(capturedUrl?.searchParams.get("search")).toBe("もも");
+    expect(capturedUrl?.searchParams.get("species")).toBe("2");
+    expect(capturedUrl?.searchParams.get("include_deceased")).toBe("true");
+    expect(result.current.data?.[0]).toEqual(
+      expect.objectContaining({ id: "21", name: "もも" }),
+    );
+    expect(result.current.total).toBe(21);
+    expect(result.current.page).toBe(2);
+    expect(result.current.limit).toBe(20);
+  });
+
+  it("引数なしの既存呼び出しは従来どおり一覧条件を送信しない", async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPets(), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.search).toBe("");
+    expect(result.current.data).toEqual([]);
+  });
+
   it("死亡ペットを含める場合はAPIへinclude_deceased=trueを明示してstatusを変換する", async () => {
     let capturedUrl: URL | undefined;
     server.use(

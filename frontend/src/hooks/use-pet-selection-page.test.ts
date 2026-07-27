@@ -22,23 +22,37 @@ vi.mock("react-router", () => ({
 
 interface MockPetsQueryResult {
   data?: Pet[];
+  total?: number;
+  page?: number;
+  limit?: number;
   error?: unknown;
   isLoading?: boolean;
+}
+
+interface MockGetPetsOptions {
+  includeDeceased?: boolean;
+  page?: number;
+  limit?: number;
+  search?: string;
+  species?: string;
 }
 
 const mockUseGetPets = vi.fn(
   (
     _ownerId?: string,
-    _options?: { includeDeceased?: boolean },
+    _options?: MockGetPetsOptions,
   ): MockPetsQueryResult => ({
     data: [] as Pet[],
+    total: 0,
+    page: 1,
+    limit: 20,
   }),
 );
 
 vi.mock("@/hooks/use-pet", () => ({
   useGetPets: (
     ownerId?: string,
-    options?: { includeDeceased?: boolean },
+    options?: MockGetPetsOptions,
   ) => mockUseGetPets(ownerId, options),
 }));
 
@@ -67,7 +81,7 @@ describe("usePetSelectionPage", () => {
   beforeEach(() => {
     navigate.mockClear();
     mockUseGetPets.mockClear();
-    mockUseGetPets.mockReturnValue({ data: [] });
+    mockUseGetPets.mockReturnValue({ data: [], total: 0, page: 1, limit: 20 });
   });
 
   // 回帰防止: 旧実装は `const { data: pets = [] } = useGetPets(...)` で error/isLoading を
@@ -84,7 +98,7 @@ describe("usePetSelectionPage", () => {
     );
 
     expect(result.current.error).toBe(apiError);
-    expect(result.current.filteredPets).toEqual([]);
+    expect(result.current.filteredPets.items).toEqual([]);
   });
 
   it("読み込み中を握り潰さず isLoading として返す", () => {
@@ -98,12 +112,15 @@ describe("usePetSelectionPage", () => {
     );
 
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.filteredPets).toEqual([]);
+    expect(result.current.filteredPets.items).toEqual([]);
   });
 
   it("取得成功時は error が無く isLoading も false になる", () => {
     mockUseGetPets.mockReturnValue({
       data: [katakanaOwnerPet],
+      total: 15_654,
+      page: 1,
+      limit: 20,
       error: undefined,
       isLoading: false,
     });
@@ -117,10 +134,13 @@ describe("usePetSelectionPage", () => {
 
     expect(result.current.error).toBeUndefined();
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.filteredPets).toEqual([katakanaOwnerPet]);
+    expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
+    expect(result.current.filteredPets.totalCount).toBe(15_654);
+    expect(result.current.filteredPets.startIndex).toBe(1);
+    expect(result.current.filteredPets.endIndex).toBe(20);
   });
 
-  it("死亡個体を含める option で共有一覧を取得する", () => {
+  it("死亡個体・先頭ページ・20件を指定して共有一覧を取得する", () => {
     renderHook(() =>
       usePetSelectionPage({
         selectPath: "/trimming/new",
@@ -130,6 +150,83 @@ describe("usePetSelectionPage", () => {
 
     expect(mockUseGetPets).toHaveBeenCalledWith(undefined, {
       includeDeceased: true,
+      page: 1,
+      limit: 20,
+    });
+  });
+
+  it("ページ移動でbackendへページ番号を渡す", () => {
+    mockUseGetPets.mockReturnValue({
+      data: [],
+      total: 100,
+      page: 1,
+      limit: 20,
+    });
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    act(() => {
+      result.current.filteredPets.onPageChange(2);
+    });
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+      includeDeceased: true,
+      page: 2,
+      limit: 20,
+    });
+  });
+
+  it("検索語をbackendへ渡し、検索条件の変更時に先頭ページへ戻す", () => {
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    act(() => {
+      result.current.filteredPets.onPageChange(3);
+    });
+    act(() => {
+      result.current.setSearchParams({
+        ...result.current.searchParams,
+        search: "もも",
+      });
+    });
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+      includeDeceased: true,
+      page: 1,
+      limit: 20,
+      search: "もも",
+    });
+  });
+
+  it("動物種IDと飼主IDをbackendへ渡す", () => {
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    act(() => {
+      result.current.setSearchParams({
+        ...result.current.searchParams,
+        ownerId: "30042",
+        species: "3",
+      });
+    });
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith("30042", {
+      includeDeceased: true,
+      page: 1,
+      limit: 20,
+      species: "3",
     });
   });
 
@@ -194,7 +291,12 @@ describe("usePetSelectionPage", () => {
     const pets = [katakanaOwnerPet, hiraganaOwnerPet];
 
     function setup() {
-      mockUseGetPets.mockReturnValue({ data: pets });
+      mockUseGetPets.mockReturnValue({
+        data: pets,
+        total: pets.length,
+        page: 1,
+        limit: 20,
+      });
       return renderHook(() => usePetSelectionPage(config));
     }
 
@@ -203,7 +305,7 @@ describe("usePetSelectionPage", () => {
       act(() => {
         result.current.setSearchParams({ ...result.current.searchParams, ownerName: "やまだ" });
       });
-      expect(result.current.filteredPets).toEqual([katakanaOwnerPet]);
+      expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
     });
 
     it("カタカナ入力でひらがな ownerName がヒットする", () => {
@@ -211,23 +313,30 @@ describe("usePetSelectionPage", () => {
       act(() => {
         result.current.setSearchParams({ ...result.current.searchParams, ownerName: "サトウ" });
       });
-      expect(result.current.filteredPets).toEqual([hiraganaOwnerPet]);
+      expect(result.current.filteredPets.items).toEqual([hiraganaOwnerPet]);
     });
 
     it("ひらがな入力でカタカナ petName がヒットする", () => {
       const { result } = setup();
       act(() => {
-        result.current.setSearchParams({ ...result.current.searchParams, petName: "ぽち" });
+        result.current.setSearchParams({
+          ...result.current.searchParams,
+          petName: "ぽち",
+        });
       });
-      expect(result.current.filteredPets).toEqual([katakanaOwnerPet]);
+      expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
+      expect(result.current.filteredPets.isPageLocalFiltered).toBe(true);
     });
 
     it("カタカナ入力でひらがな petName がヒットする", () => {
       const { result } = setup();
       act(() => {
-        result.current.setSearchParams({ ...result.current.searchParams, petName: "タロウ" });
+        result.current.setSearchParams({
+          ...result.current.searchParams,
+          petName: "タロウ",
+        });
       });
-      expect(result.current.filteredPets).toEqual([hiraganaOwnerPet]);
+      expect(result.current.filteredPets.items).toEqual([hiraganaOwnerPet]);
     });
   });
 });

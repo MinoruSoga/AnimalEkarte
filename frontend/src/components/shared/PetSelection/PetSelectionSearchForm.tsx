@@ -4,9 +4,18 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/components/ui/utils";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 export interface PetSelectionSearchParams {
+  search: string;
   ownerId: string;
   ownerName: string;
   ownerNameKana: string;
@@ -25,15 +34,79 @@ interface PetSelectionSearchFormProps {
 }
 
 const FIELD_DEFS = [
+  {
+    id: "search",
+    label: "全体検索（ペット名・飼主名・よみ・電話）",
+    placeholder: "例: もも、山田、090",
+  },
   { id: "ownerId", label: "飼主No", placeholder: "例: 30042" },
   { id: "ownerName", label: "飼主名", placeholder: "例: 林 文明" },
   { id: "ownerNameKana", label: "飼主名よみ", placeholder: "例: はやし ふみあき" },
   { id: "phone", label: "電話番号", placeholder: "例: 090-1234-5678" },
   { id: "petName", label: "ペット名", placeholder: "例: Iris" },
   { id: "petNameKana", label: "ペット名よみ", placeholder: "例: いりす" },
-  { id: "species", label: "種別", placeholder: "例: 犬" },
   { id: "address", label: "住所", placeholder: "例: 東京都" },
 ] as const;
+
+const ALL_SPECIES_VALUE = "__all__";
+
+function SpeciesSelectField({
+  searchParams,
+  setSearchParams,
+}: Pick<
+  PetSelectionSearchFormProps,
+  "searchParams" | "setSearchParams"
+>) {
+  const { activeSpecies, isLoading, isError } = useAnimalSpecies();
+  const statusMessage = isError
+    ? "種別を取得できません"
+    : isLoading
+      ? "種別を読み込み中です"
+      : undefined;
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="species" className={cn("text-sm", C.text60)}>
+        種別
+      </Label>
+      <Select
+        value={searchParams.species || ALL_SPECIES_VALUE}
+        onValueChange={(value) =>
+          setSearchParams({
+            ...searchParams,
+            species: value === ALL_SPECIES_VALUE ? "" : value,
+          })
+        }
+        disabled={isLoading || isError}
+      >
+        <SelectTrigger
+          id="species"
+          aria-describedby={statusMessage ? "species-status" : undefined}
+          className={cn("h-11 bg-white text-sm", C.text, C.borderMedium)}
+        >
+          <SelectValue placeholder="すべて" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_SPECIES_VALUE}>すべて</SelectItem>
+          {activeSpecies.map((species) => (
+            <SelectItem key={species.id} value={String(species.id)}>
+              {species.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {statusMessage ? (
+        <p
+          id="species-status"
+          role={isError ? "alert" : "status"}
+          className={cn("text-xs", isError ? C.danger : C.text60)}
+        >
+          {statusMessage}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
   return (
@@ -56,6 +129,10 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
             />
           </div>
         ))}
+        <SpeciesSelectField
+          searchParams={searchParams}
+          setSearchParams={setSearchParams}
+        />
       </div>
       <div className="flex justify-end gap-2">
         <Button

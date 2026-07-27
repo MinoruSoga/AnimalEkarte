@@ -4,12 +4,14 @@ import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Pagination } from "@/components/shared/Pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
+import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
 
 interface PetSelectionResultsTableProps {
-  pets: Pet[];
+  pets: PetSelectionResultPage;
   onSelect: (pet: Pet) => void;
   /**
    * ペット一覧の取得に失敗した状態。既定 false（従来どおり「該当0件」表示）。
@@ -21,21 +23,45 @@ interface PetSelectionResultsTableProps {
 }
 
 export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({ pets, onSelect, isError = false, isLoading = false }: PetSelectionResultsTableProps) {
-  // 取得失敗・取得中に pets.length（=0）を件数として提示すると
+  const {
+    items,
+    totalCount,
+    currentPage,
+    totalPages,
+    startIndex,
+    endIndex,
+    isPageLocalFiltered,
+    onPageChange,
+  } = pets;
+  // 取得失敗・取得中に items.length（=0）を件数として提示すると
   // 「該当0件」という誤った事実を利用者に伝えることになるため、件数自体を出さない。
   // ただし前回取得分がキャッシュに残ったまま再取得が失敗した場合（行は表示されている）は、
   // 画面上の行数を隠す方が不親切なので件数を出す。
-  const showCount = pets.length > 0 || (!isError && !isLoading);
+  const showCachedCount = items.length > 0 && (isError || isLoading);
+  const showSinglePageCount = !isError && !isLoading && totalPages <= 1;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className={`text-sm font-medium ${C.text}`}>検索結果</h2>
-        {showCount ? (
+        {showCachedCount ? (
           <span className={`text-sm ${C.text60}`}>
-            {pets.length}件
+            {items.length}件
+          </span>
+        ) : showSinglePageCount ? (
+          <span className={`text-sm ${C.text60}`}>
+            {totalCount === 0
+              ? "0件"
+              : `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`}
           </span>
         ) : null}
       </div>
+
+      {isPageLocalFiltered ? (
+        <div className={`text-sm ${C.text60}`} role="note">
+          <p>追加条件は現在のページ内だけを絞り込んでいます</p>
+          <p>このページの該当: {items.length.toLocaleString()}件</p>
+        </div>
+      ) : null}
 
       <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
         <Table>
@@ -57,13 +83,13 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pets.map((pet, index) => {
+            {items.map((pet, index) => {
               const isDeceased = pet.status === "死亡";
               return (
                 <TableRow
                   key={pet.id}
                   className={`transition-colors ${C.hoverBgMedium} h-12 ${
-                    index < pets.length - 1 ? `border-b ${C.borderLight}` : "border-none"
+                    index < items.length - 1 ? `border-b ${C.borderLight}` : "border-none"
                   } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
                 >
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerId}</TableCell>
@@ -147,7 +173,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                 </TableRow>
               );
             })}
-            {pets.length === 0 ? (
+            {items.length === 0 ? (
               <TableRow>
                 {/* 取得失敗 > 取得中 > 該当0件 の優先順。色に依存せず文言で状態を区別する。 */}
                 <TableCell colSpan={11} className={STYLE.tableEmpty}>
@@ -166,6 +192,18 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           </TableBody>
         </Table>
       </div>
+      {!isError && !isLoading && totalPages > 1 ? (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={onPageChange}
+          onPrev={() => onPageChange(currentPage - 1)}
+          onNext={() => onPageChange(currentPage + 1)}
+        />
+      ) : null}
     </div>
   );
 });

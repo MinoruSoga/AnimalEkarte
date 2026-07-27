@@ -8,10 +8,18 @@ import type { Pet as BackendPet } from "@/types/generated/models";
 
 interface PetListResponse {
   data: BackendPet[];
+  total?: number;
+  page?: number;
+  limit?: number;
 }
 
 interface GetPetsOptions {
   includeDeceased?: boolean;
+  page?: number;
+  limit?: number;
+  search?: string;
+  /** animal_species_id の10進文字列。 */
+  species?: string;
 }
 
 interface GetPetsQueryOptions {
@@ -44,20 +52,49 @@ export function useGetPets(
   options: GetPetsOptions = {},
   queryOptions: GetPetsQueryOptions = {},
 ) {
-  return useQuery({
-    queryKey: queryKeys.pets.list(ownerId, options),
-    queryFn: async (): Promise<Pet[]> => {
+  const serverListKey = {
+    page: options.page,
+    limit: options.limit,
+    search: options.search,
+    species: options.species,
+  };
+  const hasServerListKey = Object.values(serverListKey).some(
+    (value) => value !== undefined && value !== "",
+  );
+  const baseQueryKey = queryKeys.pets.list(ownerId, options);
+  const query = useQuery({
+    queryKey: hasServerListKey
+      ? [...baseQueryKey, serverListKey]
+      : baseQueryKey,
+    queryFn: async () => {
       const params = {
         ...(ownerId ? { owner_id: ownerId } : {}),
         ...(options.includeDeceased ? { include_deceased: "true" } : {}),
+        ...(options.page !== undefined ? { page: options.page } : {}),
+        ...(options.limit !== undefined ? { limit: options.limit } : {}),
+        ...(options.search ? { search: options.search } : {}),
+        ...(options.species ? { species: options.species } : {}),
       };
       const { data } = await axios.get<PetListResponse>("/v1/pets", { params });
-      return data.data.map(transformBackendPetToFrontend);
+      return {
+        pets: data.data.map(transformBackendPetToFrontend),
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+      };
     },
     enabled: queryOptions.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
+
+  return {
+    ...query,
+    data: query.data?.pets,
+    total: query.data?.total,
+    page: query.data?.page,
+    limit: query.data?.limit,
+  };
 }
 
 /**
