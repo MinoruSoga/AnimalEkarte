@@ -67,6 +67,8 @@ export function TreatmentPlanMaster() {
   } = usePermission(ResourceCheckups);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
+  const activeResource = activeTab === "checkup" ? ResourceCheckups : ResourceMasterMedical;
+  const activeCanEdit = activeTab === "checkup" ? canEditCheckup : canEdit;
   const activeCanDelete = activeTab === "checkup" ? canDeleteCheckup : canDelete;
   const permissionsRef = useRef({ canDelete: activeCanDelete === true });
   useLayoutEffect(() => {
@@ -151,11 +153,11 @@ export function TreatmentPlanMaster() {
       reorderVaccines.mutate({ ids });
     },
     onReorderCheckups: (ids) => {
-      if (!canEdit) return;
+      if (!canEditCheckup) return;
       reorderCheckups.mutate({ ids });
     },
   }), [
-    canEdit,
+    canEdit, canEditCheckup,
     consultationData, reorderConsultations,
     examinationData, reorderExaminations,
     procedureData, reorderProcedures,
@@ -310,7 +312,7 @@ export function TreatmentPlanMaster() {
     <MasterTabPage
       title="治療プランマスタ"
       icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterMedical}
+      resource={activeResource}
       onNew={handleNew}
       sidePanel={
         <TreatmentPlanSidePanelHost
@@ -318,8 +320,8 @@ export function TreatmentPlanMaster() {
           selectedItem={selectedItem}
           parentCandidates={parentCandidates}
           hasChildren={hasChildren}
-          canDelete={canDelete}
-          canEdit={canEdit}
+          canDelete={activeCanDelete}
+          canEdit={activeCanEdit}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={handleDeleteRequest}
@@ -348,7 +350,7 @@ export function TreatmentPlanMaster() {
               <TreatmentPlanTabContent
                 {...config}
                 onEditTargetChange={setEditTargetGuarded}
-                canEdit={canEdit}
+                canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
               />
             </UnifiedTabsContent>
           );
