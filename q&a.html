@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-27 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜19・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-27 時点: PO 判断待ち 0 件 — DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳とOPS-19へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>）。残 = OPS-1〜19（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-27 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-27 時点: PO 判断待ち 0 件 — DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>。<b>DEC-25 のみ同日 USER 再裁定で「通知実装なし・運用カバー」へ変更</b> — OPS-19/TASK-443 は撤回・BUG-435 はクローズ）。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
   </header>
 
   <p class="summary">PO 判断待ちカード: 現在 0 件 — 回答済みカード 51 件（PO-001〜008・SD-1〜19・GAP-1/2・DEC-1〜28）は削除済み（DEC-23〜28 は 2026-07-27 に全て A で裁定・同日削除、カード原文 = <code>4189eda9b</code>）。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
@@ -212,7 +212,7 @@
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
 </table>
 
-<h2 id="ops">USER 操作（承認・実行待ち・19 件）</h2>
+<h2 id="ops">USER 操作（承認・実行待ち・18 件）</h2>
 <p class="section-intro">上から順に消化を推奨（旧 todo.md U-系を継承・OPS-系へ改番、旧番号は括弧内）。「完了後のエージェント作業」は、完了の合図をもらったエージェントが次に何をすべきかの指示。</p>
 
 <article class="task" data-task="OPS-1">
@@ -335,11 +335,6 @@ ORDER BY pg.clinic_id, pg.id;</pre>
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-18 (DEC-10)</span></label><h3 class="task-title">Sentry アカウント作成と FE project DSN 発行（無償プラン・課金契約なし）</h3></div>
   <p class="dep-badge" hidden></p>
   <p class="task-desc">DEC-10 裁定（2026-07-26）に基づく。sentry.io で組織アカウントを作成し（<b>無償プランのまま — 課金契約はしない</b>・プラン内容と無償枠は作成時に確認）、FE 用 project の DSN を発行して <code>.secret</code> へメモする（値はチャットに貼らない運用）。完了後のエージェント作業: PO-002 Phase 1 実装 — @sentry/react で FE 未捕捉例外＋既存 ErrorBoundary（main.tsx / router.tsx / shared-liff）通知のみ・sendDefaultPii=false・beforeSend で request body / ユーザー情報を drop・security-review 通過を merge 条件。無償枠で収まらないと判明した場合は実装を止め DEC-10 を再オープンして USER へ課金判断を戻す。</p>
-</article>
-
-<article class="task" data-task="OPS-19">
-  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-19 (DEC-25)</span></label><h3 class="task-title">GitHub 通知設定で main CI 失敗を必達化（即日・実装ゼロ）</h3></div>
-  <p class="task-desc">DEC-25 裁定（2026-07-27・A=2段構え）の即日分。GitHub で AnimalEkarte リポジトリを Watch → Custom → 「Actions」（workflow 失敗通知）を有効化し、通知先メールが日常的に見る受信箱であることを確認する。これで main 直 push の CI 失敗が人間へ届く（7/25 の生成型ドリフトは CI run 30087212418 が検出済みなのに誰にも届かなかった — BUG-435）。納品後分 = webhook 通知 job は台帳 <a href="3-session-agent.html#TASK-443">TASK-443</a>（通知チャネル名は実装時に指定）。完了後のエージェント作業: なし（チェックのみ）。</p>
 </article>
 
 <h2 id="cf">Cloudflare 移行 — 完了・旧チェックリスト退役</h2>
