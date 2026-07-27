@@ -2,7 +2,11 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
-import { PetStatusDeceased } from "@/types/generated/models";
+import {
+  DangerLevelHigh,
+  PetStatusAlive,
+  PetStatusDeceased,
+} from "@/types/generated/models";
 
 import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
@@ -42,6 +46,42 @@ const baseAppointment: ReceptionAppointment = {
   notes: undefined,
   source: "manual",
 };
+
+const baseSelectedPet = {
+  id: "11",
+  clinicId: "1",
+  ownerId: "21",
+  ownerNumber: 21,
+  ownerName: "佐藤",
+  ownerNameKana: undefined,
+  address: undefined,
+  phone: "",
+  petNumber: "P-11",
+  name: "ミケ",
+  petNameKana: undefined,
+  species: "猫",
+  animalSpeciesId: "2",
+  breed: "",
+  color: "",
+  bloodType: undefined,
+  microchipNumber: undefined,
+  gender: "雌",
+  status: "生存",
+  birthDate: undefined,
+  neuteredDate: undefined,
+  weight: undefined,
+  food: "",
+  environment: "",
+  acquisitionType: undefined,
+  dangerLevel: "低",
+  dangerReason: undefined,
+  lastVisit: undefined,
+  insuranceId: undefined,
+  insuranceName: undefined,
+  insuranceDetails: undefined,
+  remarks: "",
+  deceasedAt: undefined,
+} satisfies Pet;
 
 interface HandlerProps {
   canEditReservation?: boolean;
@@ -150,6 +190,105 @@ describe("useReceptionModalHandlers", () => {
     );
   });
 
+  it("新しく選択した生存・高危険ペットの sentinel を楽観更新へ渡す", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petDangerLevel: "low",
+        petDangerReason: "旧ペットの理由",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [
+          {
+            ...baseSelectedPet,
+            dangerLevel: "高",
+            dangerReason: "保定時に噛む",
+          },
+        ],
+      );
+    });
+
+    expect(updateAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        petId: "11",
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      }),
+    );
+  });
+
+  it("新しく選択したペットの危険度が不明なら API 成功後も server refetch を待つ", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "旧ペットの理由",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [{ ...baseSelectedPet, dangerLevel: undefined }],
+      );
+    });
+
+    expect(updateReservationMock).toHaveBeenCalledOnce();
+    expect(updateAppointment).not.toHaveBeenCalled();
+  });
+
+  it("ペット選択を変更しない編集では既存 sentinel を楽観更新で保持する", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [],
+      );
+    });
+
+    expect(updateAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      }),
+    );
+  });
+
   it("編集保存では予約区分IDと担当者IDが不正値なら undefined にする", () => {
     const { result } = renderHandlers();
 
@@ -196,10 +335,9 @@ describe("useReceptionModalHandlers", () => {
         },
         [
           {
-            id: "11",
-            ownerId: "21",
+            ...baseSelectedPet,
             status: "死亡",
-          } as Pet,
+          },
         ],
       );
     });
