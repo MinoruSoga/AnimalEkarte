@@ -81,6 +81,9 @@ function SpeciesSelectField({
   // 取得できていない状態を「該当なし」と同じ見た目にすると、利用者は種別を
   // 絞り込めていないことに気づけない。
   const isUnavailable = isLoading || isError;
+  // 状態文言をトリガーへ結び付ける。結ばないと、無効化されたセレクトへ到達した
+  // 利用者に「なぜ選べないのか」が届かない（PetSelectionSearchForm と同じ扱い）。
+  const hasStatusMessage = isError || isLoading || activeSpecies.length === 0;
 
   return (
     <div className="space-y-0.5">
@@ -94,6 +97,7 @@ function SpeciesSelectField({
       >
         <SelectTrigger
           id="species"
+          aria-describedby={hasStatusMessage ? "species-status" : undefined}
           className={`text-xs h-9 bg-white ${C.borderMediumLight} ${C.text}`}
         >
           <SelectValue placeholder="すべて" />
@@ -108,15 +112,15 @@ function SpeciesSelectField({
         </SelectContent>
       </Select>
       {isError ? (
-        <p role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
+        <p id="species-status" role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
           動物種の取得に失敗しました。
         </p>
       ) : isLoading ? (
-        <p role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
+        <p id="species-status" role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
           動物種を読み込み中です。
         </p>
       ) : activeSpecies.length === 0 ? (
-        <p role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
+        <p id="species-status" role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
           動物種マスタが登録されていません。
         </p>
       ) : null}

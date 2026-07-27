@@ -397,8 +397,11 @@ describe("PatientSelectionTable — 動物種の取得状態", () => {
 
     renderTable();
 
-    expect(await screen.findByText("動物種の取得に失敗しました。")).toBeInTheDocument();
-    expect(screen.getByLabelText("種別")).toBeDisabled();
+    const message = await screen.findByText("動物種の取得に失敗しました。");
+    const trigger = screen.getByLabelText("種別");
+    expect(trigger).toBeDisabled();
+    // なぜ選べないのかがトリガーから辿れること
+    expect(trigger).toHaveAttribute("aria-describedby", message.id);
   });
 
   it("動物種マスタが0件ならその旨を提示する", async () => {
