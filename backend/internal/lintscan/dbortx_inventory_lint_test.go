@@ -284,6 +284,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// (internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.RecordDeath": {},
 	"pet/repository.go|repository.ClearDeath":  {},
+	// pet_owners の clinic 相関 read/count と全置換は、後続 service の置換 + audit と同じ
+	// ambient transaction に参加する。Runtime:
+	// TestPetOwnerRepository_FindByPetID_AmbientTransaction /
+	// TestPetOwnerRepository_ReplaceForPet_AmbientTransaction /
+	// TestPetOwnerRepository_CountByOwnerID_AmbientTransaction
+	// (internal/pet/pet_owner_repository_tx_atomicity_test.go)
+	"pet/pet_owner_repository.go|petOwnerRepository.FindByPetID":    {},
+	"pet/pet_owner_repository.go|petOwnerRepository.ReplaceForPet":  {},
+	"pet/pet_owner_repository.go|petOwnerRepository.CountByOwnerID": {},
 	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
 	// remain in the caller's ambient transaction. Runtime:
 	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:
