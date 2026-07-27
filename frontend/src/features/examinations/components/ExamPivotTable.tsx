@@ -122,7 +122,13 @@ function buildPivotRows(
   );
 }
 
-function StatusBadge({ status }: { status: ExamResult["status"] }) {
+function StatusBadge({
+  status,
+  isAssessed,
+}: {
+  status: ExamResult["status"];
+  isAssessed: ExamResult["isAssessed"];
+}) {
   if (status === "high") {
     return (
       <Badge
@@ -143,6 +149,22 @@ function StatusBadge({ status }: { status: ExamResult["status"] }) {
         LOW
       </Badge>
     );
+  }
+
+  if (isAssessed === false) {
+    return (
+      <Badge
+        variant="outline"
+        className={`h-8 px-2 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
+      >
+        未判定
+        <span className="sr-only">（基準値未設定のため判定していない）</span>
+      </Badge>
+    );
+  }
+
+  if (status === "normal") {
+    return null;
   }
 
   return null;
@@ -171,7 +193,7 @@ function PivotValueCell({ item }: { item: ExamResult | undefined }) {
     >
       <div className="flex min-h-8 items-center justify-center gap-2">
         <span className="font-mono">{item.inspectionValue}</span>
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} isAssessed={item.isAssessed} />
       </div>
     </TableCell>
   );
