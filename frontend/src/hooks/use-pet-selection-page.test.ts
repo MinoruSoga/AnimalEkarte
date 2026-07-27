@@ -27,6 +27,7 @@ interface MockPetsQueryResult {
   limit?: number;
   error?: unknown;
   isLoading?: boolean;
+  isPlaceholderData?: boolean;
 }
 
 interface MockGetPetsOptions {
@@ -36,6 +37,12 @@ interface MockGetPetsOptions {
   search?: string;
   species?: string;
 }
+
+interface MockGetPetsQueryOptions {
+  preservePreviousData?: boolean;
+}
+
+let receivedQueryOptions: MockGetPetsQueryOptions | undefined;
 
 const mockUseGetPets = vi.fn(
   (
@@ -53,7 +60,11 @@ vi.mock("@/hooks/use-pet", () => ({
   useGetPets: (
     ownerId?: string,
     options?: MockGetPetsOptions,
-  ) => mockUseGetPets(ownerId, options),
+    queryOptions?: MockGetPetsQueryOptions,
+  ) => {
+    receivedQueryOptions = queryOptions;
+    return mockUseGetPets(ownerId, options);
+  },
 }));
 
 const katakanaOwnerPet = {
@@ -81,6 +92,7 @@ describe("usePetSelectionPage", () => {
   beforeEach(() => {
     navigate.mockClear();
     mockUseGetPets.mockClear();
+    receivedQueryOptions = undefined;
     mockUseGetPets.mockReturnValue({ data: [], total: 0, page: 1, limit: 20 });
   });
 
@@ -113,6 +125,27 @@ describe("usePetSelectionPage", () => {
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.filteredPets.items).toEqual([]);
+  });
+
+  it("ページ切替中の前回データも読み込み中として選択側へ伝える", () => {
+    mockUseGetPets.mockReturnValue({
+      data: [katakanaOwnerPet],
+      total: 100,
+      page: 1,
+      limit: 20,
+      isLoading: false,
+      isPlaceholderData: true,
+    });
+
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.filteredPets.items).toEqual([katakanaOwnerPet]);
   });
 
   it("取得成功時は error が無く isLoading も false になる", () => {
@@ -153,6 +186,7 @@ describe("usePetSelectionPage", () => {
       page: 1,
       limit: 20,
     });
+    expect(receivedQueryOptions).toEqual({ preservePreviousData: true });
   });
 
   it("ページ移動でbackendへページ番号を渡す", () => {
@@ -266,7 +300,7 @@ describe("usePetSelectionPage", () => {
     );
   });
 
-  it("生死不明の個体は従来どおり選択できる", () => {
+  it("生死不明の個体はfail-closedで選択を拒否する", () => {
     const unknownStatusPet = {
       ...katakanaOwnerPet,
       status: undefined,
@@ -283,7 +317,7 @@ describe("usePetSelectionPage", () => {
       result.current.handleSelect(unknownStatusPet);
     });
 
-    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   describe("かな正規化フィルタ", () => {

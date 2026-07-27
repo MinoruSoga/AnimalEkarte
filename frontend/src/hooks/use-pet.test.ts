@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -21,6 +21,7 @@ describe("useGetPets", () => {
               clinic_id: 1,
               owner_id: 42,
               name: "もも",
+              pet_name_kana: "モモ",
               status: "alive",
             },
           ],
@@ -51,7 +52,11 @@ describe("useGetPets", () => {
     expect(capturedUrl?.searchParams.get("species")).toBe("2");
     expect(capturedUrl?.searchParams.get("include_deceased")).toBe("true");
     expect(result.current.data?.[0]).toEqual(
-      expect.objectContaining({ id: "21", name: "もも" }),
+      expect.objectContaining({
+        id: "21",
+        name: "もも",
+        petNameKana: "モモ",
+      }),
     );
     expect(result.current.total).toBe(21);
     expect(result.current.page).toBe(2);
@@ -75,6 +80,49 @@ describe("useGetPets", () => {
 
     expect(capturedUrl?.search).toBe("");
     expect(result.current.data).toEqual([]);
+  });
+
+  it("飼主変更中は前の飼主のペットをplaceholderとして返さない", async () => {
+    let releaseSecondOwner: (() => void) | undefined;
+    const secondOwnerPending = new Promise<void>((resolve) => {
+      releaseSecondOwner = resolve;
+    });
+    server.use(
+      http.get("/api/v1/pets", async ({ request }) => {
+        const ownerId = new URL(request.url).searchParams.get("owner_id");
+        if (ownerId === "99") await secondOwnerPending;
+        return HttpResponse.json({
+          data: [
+            {
+              id: ownerId === "99" ? 99 : 42,
+              clinic_id: 1,
+              owner_id: Number(ownerId),
+              name: ownerId === "99" ? "次の飼主のペット" : "前の飼主のペット",
+              pet_name_kana: "",
+              status: "alive",
+            },
+          ],
+        });
+      }),
+    );
+    let ownerId = "42";
+    const { result, rerender } = renderHook(() => useGetPets(ownerId), {
+      wrapper: createTestWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.data?.[0]?.ownerId).toBe("42"),
+    );
+
+    ownerId = "99";
+    rerender();
+
+    expect(result.current.data).toBeUndefined();
+    await act(async () => {
+      releaseSecondOwner?.();
+    });
+    await waitFor(() =>
+      expect(result.current.data?.[0]?.ownerId).toBe("99"),
+    );
   });
 
   it("死亡ペットを含める場合はAPIへinclude_deceased=trueを明示してstatusを変換する", async () => {

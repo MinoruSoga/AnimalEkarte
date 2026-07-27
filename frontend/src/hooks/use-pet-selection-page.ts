@@ -53,13 +53,18 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     limit: responseLimit = PAGE_SIZE,
     error,
     isLoading,
-  } = useGetPets(searchParams.ownerId || undefined, {
-    includeDeceased: true,
-    page,
-    limit: PAGE_SIZE,
-    ...(searchParams.search ? { search: searchParams.search } : {}),
-    ...(searchParams.species ? { species: searchParams.species } : {}),
-  });
+    isPlaceholderData,
+  } = useGetPets(
+    searchParams.ownerId || undefined,
+    {
+      includeDeceased: true,
+      page,
+      limit: PAGE_SIZE,
+      ...(searchParams.search ? { search: searchParams.search } : {}),
+      ...(searchParams.species ? { species: searchParams.species } : {}),
+    },
+    { preservePreviousData: true },
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / responseLimit));
 
@@ -97,11 +102,6 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       )
         return false;
       if (
-        searchParams.address &&
-        (!pet.address || !pet.address.includes(searchParams.address))
-      )
-        return false;
-      if (
         searchParams.petName &&
         !normalizedIncludes(pet.name, searchParams.petName)
       )
@@ -119,7 +119,6 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       searchParams.ownerName ||
         searchParams.ownerNameKana ||
         searchParams.phone ||
-        searchParams.address ||
         searchParams.petName ||
         searchParams.petNameKana,
     );
@@ -150,7 +149,8 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
 
   // owner_id / search / species は backend の全件集合へ適用する。
   // 個別欄は backend の単一 OR search と同じ意味を表せないため、
-  // 現在ページ内フィルタとして維持する。
+  // 現在ページ内フィルタとして維持する。住所は list DTO に存在しないため
+  // SearchForm 側で利用不可を明示し、ここで実在患者を誤って除外しない。
 
   // フィルタはリアクティブ（useMemo）のため、ボタン押下時の追加処理は不要
   const handleSearch = useCallback(() => {
@@ -163,7 +163,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   }, []);
 
   const handleSelect = useCallback((pet: Pet) => {
-    if (pet.status === "死亡") return;
+    if (pet.status !== "生存") return;
 
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("petId", pet.id);
@@ -179,7 +179,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     setSearchParams: updateSearchParams,
     filteredPets,
     error,
-    isLoading,
+    isLoading: Boolean(isLoading || isPlaceholderData),
     handleSearch,
     handleClear,
     handleSelect,

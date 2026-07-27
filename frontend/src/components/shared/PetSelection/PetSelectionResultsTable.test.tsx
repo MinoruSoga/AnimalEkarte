@@ -24,6 +24,7 @@ const PET = {
   name: "ポチ",
   species: "犬",
   gender: "雄",
+  status: "生存",
 } satisfies Pet;
 
 const DANGER_REASON = "診察時に咬傷歴あり";
@@ -126,20 +127,32 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
     expect(screen.queryByText(ERROR_MESSAGE)).not.toBeInTheDocument();
   });
 
-  // 共有キャッシュ（staleTime: STATIC）により、前回取得分の行が残ったまま
-  // 再取得だけが失敗する状態が起こりうる。行が出ているのに件数を隠すのは不親切。
-  it("キャッシュ済みの行が残ったまま再取得が失敗した場合は件数を表示する", () => {
+  it("キャッシュ済み行が残る再取得失敗はエラーと前回範囲を示し、選択を拒否する", () => {
+    const onSelect = vi.fn();
     render(
       <PetSelectionResultsTable
-        pets={createResults([PET])}
-        onSelect={vi.fn()}
+        pets={createResults([PET], {
+          totalCount: 15_654,
+          totalPages: 783,
+          startIndex: 1,
+          endIndex: 20,
+        })}
+        onSelect={onSelect}
         isError
       />,
     );
 
-    expect(screen.getByText("1件")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(ERROR_MESSAGE);
+    expect(screen.getByText("前回取得: 15,654件中 1-20件")).toBeInTheDocument();
+    expect(screen.queryByText("1件")).not.toBeInTheDocument();
     expect(screen.getByText("ポチ")).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "取得失敗・選択不可: ポチ (ID pet-1)",
+      }),
+    ).toBeDisabled();
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("取得成功時は件数と行を表示しエラー文言を出さない", () => {
@@ -154,6 +167,29 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
     expect(screen.getByText("ポチ")).toBeInTheDocument();
     expect(screen.queryByText(ERROR_MESSAGE)).not.toBeInTheDocument();
     expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("ページ切替中の前回行は範囲を明示して選択を拒否し、paginationを保つ", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([PET], {
+          totalCount: 100,
+          totalPages: 5,
+          startIndex: 1,
+          endIndex: 20,
+        })}
+        onSelect={vi.fn()}
+        isLoading
+      />,
+    );
+
+    expect(screen.getByText("前回取得: 100件中 1-20件")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "読み込み中・選択不可: ポチ (ID pet-1)",
+      }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
   });
 });
 
@@ -177,6 +213,45 @@ describe("PetSelectionResultsTable server pagination", () => {
     expect(screen.getByText("15,654件中 1-20件")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "次のページ" }));
     expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  it("キーボードで次ページへ移動してもfocusを維持し、更新範囲を通知する", async () => {
+    const user = userEvent.setup();
+    const onPageChange = vi.fn();
+    const { rerender } = render(
+      <PetSelectionResultsTable
+        pets={createResults([PET], {
+          totalCount: 100,
+          totalPages: 5,
+          startIndex: 1,
+          endIndex: 20,
+          onPageChange,
+        })}
+        onSelect={vi.fn()}
+      />,
+    );
+    const nextButton = screen.getByRole("button", { name: "次のページ" });
+    nextButton.focus();
+
+    await user.keyboard("{Enter}");
+    expect(onPageChange).toHaveBeenCalledWith(2);
+
+    rerender(
+      <PetSelectionResultsTable
+        pets={createResults([PET], {
+          totalCount: 100,
+          currentPage: 2,
+          totalPages: 5,
+          startIndex: 21,
+          endIndex: 40,
+          onPageChange,
+        })}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(document.activeElement).toBe(nextButton);
+    expect(screen.getByRole("status")).toHaveTextContent("100件中 21-40件");
   });
 
   it("ページ内条件がある場合は全体検索ではないことを明示する", () => {
@@ -235,6 +310,32 @@ describe("PetSelectionSearchForm backend filters", () => {
     expect(setSearchParams).toHaveBeenCalledWith(
       expect.objectContaining({ species: "3" }),
     );
+  });
+
+  it("一覧APIに無い住所条件は利用不可を明示して誤った0件検索を防ぐ", () => {
+    render(
+      <PetSelectionSearchForm
+        searchParams={{
+          search: "",
+          ownerId: "",
+          ownerName: "",
+          ownerNameKana: "",
+          phone: "",
+          petName: "",
+          petNameKana: "",
+          species: "",
+          address: "",
+        }}
+        setSearchParams={vi.fn()}
+        onSearch={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "住所" })).toBeDisabled();
+    expect(
+      screen.getByText("住所検索は現在利用できません"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -365,5 +466,20 @@ describe("PetSelectionResultsTable row actions", () => {
     );
     await user.click(selectButton);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("生死不明の個体もfail-closedで選択不可になる", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, status: undefined }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "状態不明・選択不可: ポチ (ID pet-1)",
+      }),
+    ).toBeDisabled();
   });
 });

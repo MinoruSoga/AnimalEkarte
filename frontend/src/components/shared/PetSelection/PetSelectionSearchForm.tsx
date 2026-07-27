@@ -33,7 +33,17 @@ interface PetSelectionSearchFormProps {
   onClear: () => void;
 }
 
-const FIELD_DEFS = [
+type TextSearchField = Exclude<keyof PetSelectionSearchParams, "species">;
+
+interface SearchFieldDefinition {
+  id: TextSearchField;
+  label: string;
+  placeholder: string;
+  disabled?: boolean;
+  description?: string;
+}
+
+const FIELD_DEFS: readonly SearchFieldDefinition[] = [
   {
     id: "search",
     label: "全体検索（ペット名・飼主名・よみ・電話）",
@@ -45,7 +55,13 @@ const FIELD_DEFS = [
   { id: "phone", label: "電話番号", placeholder: "例: 090-1234-5678" },
   { id: "petName", label: "ペット名", placeholder: "例: Iris" },
   { id: "petNameKana", label: "ペット名よみ", placeholder: "例: いりす" },
-  { id: "address", label: "住所", placeholder: "例: 東京都" },
+  {
+    id: "address",
+    label: "住所",
+    placeholder: "例: 東京都",
+    disabled: true,
+    description: "住所検索は現在利用できません",
+  },
 ] as const;
 
 const ALL_SPECIES_VALUE = "__all__";
@@ -113,7 +129,7 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
     <div className={cn("mb-4 rounded-lg bg-white p-4 border", C.borderMedium)}>
       <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
-        {FIELD_DEFS.map(({ id, label, placeholder }) => (
+        {FIELD_DEFS.map(({ id, label, placeholder, disabled, description }) => (
           <div key={id} className="space-y-1.5">
             <Label htmlFor={id} className={cn("text-sm", C.text60)}>
               {label}
@@ -121,12 +137,19 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
             <Input
               id={id}
               placeholder={placeholder}
-              value={searchParams[id as keyof PetSelectionSearchParams]}
+              value={searchParams[id]}
+              disabled={disabled}
+              aria-describedby={description ? `${id}-description` : undefined}
               onChange={(e) =>
                 setSearchParams({ ...searchParams, [id]: e.target.value })
               }
               className={cn("text-sm h-11 bg-white focus-visible:ring-1", C.text, C.borderMedium)}
             />
+            {description ? (
+              <p id={`${id}-description`} className={cn("text-xs", C.text60)}>
+                {description}
+              </p>
+            ) : null}
           </div>
         ))}
         <SpeciesSelectField

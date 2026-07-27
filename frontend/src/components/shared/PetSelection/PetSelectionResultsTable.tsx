@@ -33,19 +33,18 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
     isPageLocalFiltered,
     onPageChange,
   } = pets;
-  // 取得失敗・取得中に items.length（=0）を件数として提示すると
-  // 「該当0件」という誤った事実を利用者に伝えることになるため、件数自体を出さない。
-  // ただし前回取得分がキャッシュに残ったまま再取得が失敗した場合（行は表示されている）は、
-  // 画面上の行数を隠す方が不親切なので件数を出す。
-  const showCachedCount = items.length > 0 && (isError || isLoading);
+  // 取得失敗・取得中に現在行数を全体件数として提示しない。
+  // キャッシュ行が残る場合は、backend 由来の前回総数・範囲だと明示する。
+  const showCachedRange = items.length > 0 && (isError || isLoading);
   const showSinglePageCount = !isError && !isLoading && totalPages <= 1;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className={`text-sm font-medium ${C.text}`}>検索結果</h2>
-        {showCachedCount ? (
+        {showCachedRange ? (
           <span className={`text-sm ${C.text60}`}>
-            {items.length}件
+            前回取得: {totalCount.toLocaleString()}件中{" "}
+            {startIndex.toLocaleString()}-{endIndex.toLocaleString()}件
           </span>
         ) : showSinglePageCount ? (
           <span className={`text-sm ${C.text60}`}>
@@ -55,6 +54,12 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           </span>
         ) : null}
       </div>
+
+      {isError && items.length > 0 ? (
+        <p role="alert" className={`text-sm ${C.danger}`}>
+          ペット一覧の取得に失敗しました。前回取得した患者は選択できません
+        </p>
+      ) : null}
 
       {isPageLocalFiltered ? (
         <div className={`text-sm ${C.text60}`} role="note">
@@ -85,6 +90,8 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           <TableBody>
             {items.map((pet, index) => {
               const isDeceased = pet.status === "死亡";
+              const isSelectable =
+                pet.status === "生存" && !isError && !isLoading;
               return (
                 <TableRow
                   key={pet.id}
@@ -146,26 +153,32 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className="whitespace-nowrap">
                     <Button
                       size="sm"
-                      variant={isDeceased ? "ghost" : "outline"}
-                      disabled={isDeceased}
+                      variant={isSelectable ? "outline" : "ghost"}
+                      disabled={!isSelectable}
                       aria-label={
-                        isDeceased
+                        isError
+                          ? `取得失敗・選択不可: ${pet.name} (ID ${pet.id})`
+                          : isLoading
+                            ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
+                          : isDeceased
                           ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
-                          : `選択: ${pet.name} (ID ${pet.id})`
+                          : pet.status === "生存"
+                            ? `選択: ${pet.name} (ID ${pet.id})`
+                            : `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
                       }
                       // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
-                      className={`h-11 min-w-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-full`} text-sm px-4`}
+                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
-                      {isDeceased ? (
-                        <>
-                          <Octagon className={ICON.action} />
-                          選択不可
-                        </>
-                      ) : (
+                      {isSelectable ? (
                         <>
                           <Check className={ICON.action} />
                           選択
+                        </>
+                      ) : (
+                        <>
+                          <Octagon className={ICON.action} />
+                          選択不可
                         </>
                       )}
                     </Button>
@@ -192,17 +205,21 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           </TableBody>
         </Table>
       </div>
-      {!isError && !isLoading && totalPages > 1 ? (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          startIndex={startIndex}
-          endIndex={endIndex}
-          onPageChange={onPageChange}
-          onPrev={() => onPageChange(currentPage - 1)}
-          onNext={() => onPageChange(currentPage + 1)}
-        />
+      {!isError && totalPages > 1 ? (
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <fieldset disabled={isLoading} aria-busy={isLoading}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              onPageChange={onPageChange}
+              onPrev={() => onPageChange(currentPage - 1)}
+              onNext={() => onPageChange(currentPage + 1)}
+            />
+          </fieldset>
+        </div>
       ) : null}
     </div>
   );
