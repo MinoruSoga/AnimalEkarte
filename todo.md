@@ -60,7 +60,8 @@
 - **① grandchild相関の掃引（read-only調査）**: `daily_records` / `care_logs` / `exam_results` / `billing_items` / `medical_record_images` / `medical_record_addenda` 等、petの孫にあたる表のreadが中間表を経由した親clinic相関を持つかをschema-firstで全数確認する。SEC-SWEEP-01と同じ手順（schema universe → model mapping → consumer discovery → state分類）を適用する。
 - **② static lintの新設**: 同型欠陥（`pet_id`等の単一FKに対し親clinic相関を欠くread）をraw SQLとGORMの双方で検出するlintを既存6 lintの隣へ追加する。BUG-429の1件もSEC-SWEEP-01の9件も人手監査でしか見つかっていない。機械で止めない限り同じクラスが再発する。
 - 修正の参照実装 = `backend/internal/pet/chronic_condition_repository.go:37,52`。相関にpets側の `deleted_at` / `deceased_at` を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。
-- ~~着手 = 納品後~~ → USER 指示（7/26「納品日関係なくすべて早急に対応」）で前倒し。①掃引+②lint 新設+上限12ファイルの修復を Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。SEC-SWEEP-01の9件と異なり現時点でlive exposureは未確認。
+- **第1走完了（7/27・`864a886b7`・Mode 3 照合済み）**: ①census 28表を独立reconcile付きで全数分類 ②lint `grandchild_parent_clinic_correlation_lint_test.go` をRED→GREENで新設（9対象+raw SQL） ③修復 = checkup_field_results / prescriptions / treatment_plans（直読+hospitalization側count・ambiguous column修正込み）。並行sessionが daily_records / medical_record_addenda 修復+別lint `pet_grandchild_...` を同時作成（当該session側で清算・**lint 2本の統合が必要**）。
+- **残（CRITICAL・修復予算超過/legacy契約裁定要で第1走が正しくBLOCKED返し）**: `appointment_trimming_details`（trimming_repository.go:30）／`billings`（accounting_repository.go:192,280）／`estimates`（estimate_repository.go:43）／`medical_records` appointment edge（medical_record_repository.go:375）／`vital_records`（vital_repository.go:40）。HIGH: staff_repository.go:329 の addenda/vitals 依存count。vital→accounting→estimate は既存legacy testが「親をsanitizeしつつ壊れた子は可視のまま」を要求し3-strikeでBLOCKED — 修復には既存契約の裁定が先。lintのraw SQL検出は `*`/`id`/`alias.id` 形のみで一般化も残。
 - 出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。
 
 ### BUG-441: lintscan inventory gate 2本がmainで赤（未登録8件・3 unit由来）
@@ -89,8 +90,8 @@
 - MEDIUM。FE12-07 で `make codegen` を回したところ、意図した型mapping修正（`any` 17→0）とは無関係な追随差分が同時に出た: audit定数7件（`AuditActionAuthPasswordChange` / `Reset` / `AdminReplace`、`AuditActionTrimmingCreate` / `Update` / `Delete`、`AuditResourceAccount` / `AuditResourceTrimming`）と `TokenBlacklist` のdoc comment。つまり **Go model を変更した際に `make codegen` が回されず、`frontend/src/types/generated/models.ts` が陳腐化した状態でmainに乗っていた**。
 - `Makefile:349` に `codegen-check: codegen` + `git diff --exit-code frontend/src/types/generated/` が存在し、本来これがCIで検出する。検出されなかった理由（CIに未配線／配線済みだが未実行／実行され無視された）は未確認。
 - 実害: FEが存在しない定数を参照しても型検査が通らないだけで安全側だが、逆に**BEが追加した定数をFEが使えない**状態が黙って続く。BUG-433（生成型がドメインモデル由来で応答DTOと不一致）とは別問題であり、そちらは構造の誤り、本件は同期の欠落。
-- 対応: `make codegen-check` のCI配線状況を実測し、未配線なら追加する。配線済みなら失敗が無視された経路を塞ぐ。
-- 7/27 実測: 配線自体は存在する — `ci.yml:348` に `codegen-check` job があるが、`if: needs.changes.outputs.codegen == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')` が **main 向け PR で job をスキップ**し、さらに paths-filter (`ci.yml:42,58`) 依存。素通り経路の断定と封鎖を Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。
+- **条件修正完了（7/27・`213e210b4`・Mode 3 照合済み）**: 旧 `if:` が main 向け PR で job をスキップしていたのを paths-filter 単独条件へ簡素化。main 直接更新・main 向け PR の双方で fail するようになった。
+- **残余（運用論点・実装taskではない）**: 歴史的経緯の実測で前提が反転 — 7/25 のドリフト（`dad69bc6a`）は**直接更新の CI run 30087212418 が検出し fail していた**。真の欠陥は「失敗した main CI が到達を防げず、誰にも届かなかった」こと（main 直 push 運用では CI は事後検知であり、branch protection は PR にのみ効く）。main CI 失敗の人間向け通知経路（サイレント障害の封鎖）を OPS として裁定要。
 - 出典: FE12-07 実行時に判明したNew Work（2026-07-25・`git diff frontend/src/types/generated/models.ts` 実測）。FE-refactor.md 範囲外のためこちらへ記載。
 
 ### BUG-437: `ExamTypeField` に `ClinicID` を追加したが read 側 clinic-scope registry へ未登録（cross-tenant read IDOR の再発リスク）
@@ -105,11 +106,5 @@
 - 独立 clinic-isolation / code review で HIGH 1件が残った。read lint は Preload path の末尾 association 名だけで registry を引き、未登録名を無視する（`backend/internal/lintscan/preload_clinic_scope_lint_test.go:245-256`）。live read は `Items` なので、この2件から `clinic_id` を削除しても lint は検出しない。`Items` の一律登録は上記の同名別モデルを誤検出するため不可。解消には親 model / site を識別する context-aware rule または association 構造変更が必要で、いずれも本 unit の registry 登録予算を超える。したがって照合ゲートは green だが、機械的な再発防止が未完成のため BUG-437 は未解消。
 - `internal/lintscan` package は 2026-07-25 時点で **green**（R-4 = `9ca93f249` の stale sentinel 是正、BUG-438 = `296ea7bb7` の CASCADE allowlist 登録で残 FAIL 2件が解消済み）。したがって本件は「ゲートが赤い」問題ではなく、**live read 経路 `Preload("Items")` を機械的に守る手段が無い**という再発防止の穴として残っている。
 - 出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。
-
-### BUG-439: legacy constructor `NewMedicalRecordService` 経由では finalize 不能（コンストラクタ二重化の解消）
-
-- MEDIUM。`cb01009bd`（カルテ finalize・訂正追記の監査 same-tx fail-closed 化）の残余。source 互換の legacy constructor `NewMedicalRecordService` は transactional audit logger を注入しないため、この経路で組んだ service は finalize できない。production composition は `NewMedicalRecordServiceWithTxAudit` 配線済みで**実害なし**（Go reviewer が MEDIUM 判定・8ファイル契約のためコンストラクタ統合は見送り）。
-- 対応: 呼び出し元を全数実測し、legacy constructor をテスト専用へ降格するか `WithTxAudit` へ一本化する。~~着手 = 納品後~~ → 前倒し。7/27 実測: production 呼び出し元 0 件・テスト 8 ファイルのみ → テスト専用降格を既定として Codex へ発行済み（7/27・`agent-fast-handover-bug435-bug439-secsweep02.md`・進行中）。
-- 出典: Item B 実行 Completion Report（2026-07-26・Mode 3 照合済み）。
 
 2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本書へ再掲しない。
