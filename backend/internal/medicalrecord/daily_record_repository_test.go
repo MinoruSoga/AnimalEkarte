@@ -107,6 +107,7 @@ func TestDailyRecordRepository_FindByHospitalizationID(t *testing.T) {
 	recordLater := makeDailyRecord(t, db, clinicA, hospA.ID, time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC))
 	makeDailyRecord(t, db, clinicA, hospOther.ID, time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC))
 	makeDailyRecord(t, db, clinicB, hospB.ID, time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC))
+	makeDailyRecord(t, db, clinicA, hospB.ID, time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC))
 
 	weight := 4.2
 	vr := &model.VitalRecord{ClinicID: clinicA, PetID: petA.ID, DailyRecordID: &recordLater.ID, Weight: &weight}
@@ -138,6 +139,12 @@ func TestDailyRecordRepository_FindByHospitalizationID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+
+	t.Run("clinic isolation: polluted hospitalization_id parent is rejected", func(t *testing.T) {
+		got, err := repo.FindByHospitalizationID(ctx, clinicA, hospB.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
 }
 
 func TestDailyRecordRepository_FindByHospitalizationIDAndDate(t *testing.T) {
@@ -153,8 +160,12 @@ func TestDailyRecordRepository_FindByHospitalizationIDAndDate(t *testing.T) {
 	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "飼主B")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "ポチB")
+	hospB := makeHospitalizationRec(t, db, clinicB, ownerB.ID, petB.ID, nil)
 	date := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, date)
+	makeDailyRecord(t, db, clinicA, hospB.ID, date)
 
 	t.Run("found", func(t *testing.T) {
 		got, err := repo.FindByHospitalizationIDAndDate(ctx, clinicA, hospA.ID, date)
@@ -171,6 +182,13 @@ func TestDailyRecordRepository_FindByHospitalizationIDAndDate(t *testing.T) {
 
 	t.Run("clinic isolation", func(t *testing.T) {
 		got, err := repo.FindByHospitalizationIDAndDate(ctx, clinicB, hospA.ID, date)
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("clinic isolation: polluted hospitalization_id parent is rejected", func(t *testing.T) {
+		got, err := repo.FindByHospitalizationIDAndDate(ctx, clinicA, hospB.ID, date)
 		assert.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
