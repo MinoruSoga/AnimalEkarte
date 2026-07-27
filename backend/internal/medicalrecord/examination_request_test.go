@@ -190,8 +190,6 @@ func TestUpdateExaminationRequest_ToServiceInput_EmptyExamTypeID(t *testing.T) {
 
 func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 	fieldID := uint64(7)
-	refMin := 1.2
-	refMax := 3.4
 	req := replaceExamItemsRequest{
 		Items: []upsertExamItemRequest{
 			{
@@ -201,8 +199,6 @@ func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 				NormalValue:     "1.2-3.4",
 				Unit:            "K/uL",
 				ReferenceValue:  "ref",
-				RefMin:          &refMin,
-				RefMax:          &refMax,
 				SortOrder:       2,
 			},
 		},
@@ -218,9 +214,6 @@ func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 	}
 	if input[0].Name != "WBC" {
 		t.Errorf("Name = %q, want WBC", input[0].Name)
-	}
-	if input[0].RefMin == nil || *input[0].RefMin != refMin {
-		t.Errorf("RefMin = %v, want %v", input[0].RefMin, refMin)
 	}
 	if input[0].SortOrder != 2 {
 		t.Errorf("SortOrder = %d, want 2", input[0].SortOrder)

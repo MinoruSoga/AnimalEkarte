@@ -863,7 +863,7 @@ func TestExaminationService_ListItems(t *testing.T) {
 }
 
 func TestExaminationService_ReplaceItems(t *testing.T) {
-	t.Run("ignores request ranges for unmapped legacy items", func(t *testing.T) {
+	t.Run("leaves unmapped legacy items unassessed without master ranges", func(t *testing.T) {
 		var capturedItems []model.ExamResult
 		repo := &mockExaminationRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
@@ -876,12 +876,10 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		}
 		svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
-		min1 := 1.0
-		max10 := 10.0
 		inputs := []UpsertExamItemInput{
-			{Name: "WBC", InspectionValue: "5.0", RefMin: &min1, RefMax: &max10},
-			{Name: "RBC", InspectionValue: "0.5", RefMin: &min1, RefMax: &max10},
-			{Name: "PLT", InspectionValue: "11", RefMin: &min1, RefMax: &max10},
+			{Name: "WBC", InspectionValue: "5.0"},
+			{Name: "RBC", InspectionValue: "0.5"},
+			{Name: "PLT", InspectionValue: "11"},
 			{Name: "Note", InspectionValue: "陰性"},
 		}
 
@@ -904,8 +902,8 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		// ExamID は service が強制設定する
 		for _, it := range capturedItems {
 			assert.Equal(t, uint64(10), it.ExamID)
-			assert.Nil(t, it.RefMin, "untrusted request range must not be persisted")
-			assert.Nil(t, it.RefMax, "untrusted request range must not be persisted")
+			assert.Nil(t, it.RefMin, "an item without a master range must remain unassessed")
+			assert.Nil(t, it.RefMax, "an item without a master range must remain unassessed")
 		}
 	})
 

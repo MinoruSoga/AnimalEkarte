@@ -147,17 +147,15 @@ func (r updateExaminationRequest) toServiceInput() UpdateExaminationInput {
 }
 
 // upsertExamItemRequest は検査項目 1 行分のバインド struct。
-// status / is_abnormal は受け付けない（サーバ側で ref_min/ref_max から計算する）。
+// status / is_abnormal は受け付けない（サーバ側でマスタ基準値から計算する）。
 type upsertExamItemRequest struct {
-	ExamTypeFieldID *uint64  `json:"exam_type_field_id"`
-	Name            string   `json:"name"             binding:"required"`
-	InspectionValue string   `json:"inspection_value"`
-	NormalValue     string   `json:"normal_value"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min"`
-	RefMax          *float64 `json:"ref_max"`
-	SortOrder       int      `json:"sort_order"`
+	ExamTypeFieldID *uint64 `json:"exam_type_field_id"`
+	Name            string  `json:"name"             binding:"required"`
+	InspectionValue string  `json:"inspection_value"`
+	NormalValue     string  `json:"normal_value"`
+	Unit            string  `json:"unit"`
+	ReferenceValue  string  `json:"reference_value"`
+	SortOrder       int     `json:"sort_order"`
 }
 
 // replaceExamItemsRequest は検査項目の一括置換 PUT リクエスト。
@@ -176,8 +174,6 @@ func (r replaceExamItemsRequest) toServiceInput() []UpsertExamItemInput {
 			NormalValue:     item.NormalValue,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			RefMin:          item.RefMin,
-			RefMax:          item.RefMax,
 			SortOrder:       item.SortOrder,
 		})
 	}

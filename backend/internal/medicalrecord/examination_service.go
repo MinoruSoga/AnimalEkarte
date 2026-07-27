@@ -39,7 +39,6 @@ type UpdateExaminationInput struct {
 
 // UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
 // status / is_abnormal はサーバ側で計算するため受け付けない（信頼境界はサーバ）。
-// RefMin / RefMax は互換性のため受け付けるが、保存・判定には使わずマスタ解決値を使う。
 type UpsertExamItemInput struct {
 	ExamTypeFieldID *uint64
 	Name            string
@@ -47,8 +46,6 @@ type UpsertExamItemInput struct {
 	NormalValue     string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
 	SortOrder       int
 }
 

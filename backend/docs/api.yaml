@@ -5972,7 +5972,7 @@ components:
     UpsertExamItemRequest:
       type: object
       description: >-
-        検査項目 1 行分。status / is_abnormal はサーバ側で ref_min/ref_max から導出するため
+        検査項目 1 行分。status / is_abnormal はサーバ側でマスタ基準値から導出するため
         受け付けない。
       required: [name]
       properties:
@@ -5990,14 +5990,6 @@ components:
           type: string
         reference_value:
           type: string
-        ref_min:
-          type: number
-          format: double
-          nullable: true
-        ref_max:
-          type: number
-          format: double
-          nullable: true
         sort_order:
           type: integer
           format: int32

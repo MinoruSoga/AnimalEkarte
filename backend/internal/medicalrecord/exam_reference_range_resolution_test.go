@@ -83,7 +83,7 @@ func newReferenceRangeResolverService(
 	)
 }
 
-func TestExaminationService_ReplaceItemsUsesMasterRangesAndIgnoresRequestRanges(t *testing.T) {
+func TestExaminationService_ReplaceItemsUsesMasterRanges(t *testing.T) {
 	const (
 		petID     = uint64(70)
 		speciesID = uint64(7)
@@ -92,7 +92,6 @@ func TestExaminationService_ReplaceItemsUsesMasterRangesAndIgnoresRequestRanges(
 	)
 	masterMinA, masterMaxA := 1.0, 10.0
 	masterMinB, masterMaxB := 20.0, 30.0
-	requestMin, requestMax := 100.0, 200.0
 	repo := &referenceRangeResolverExaminationRepository{
 		speciesID: speciesID,
 		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
@@ -108,20 +107,14 @@ func TestExaminationService_ReplaceItemsUsesMasterRangesAndIgnoresRequestRanges(
 		{
 			ExamTypeFieldID: &[]uint64{fieldA}[0],
 			InspectionValue: "5",
-			RefMin:          &requestMin,
-			RefMax:          &requestMax,
 		},
 		{
 			ExamTypeFieldID: &[]uint64{fieldB}[0],
 			InspectionValue: "35",
-			RefMin:          &requestMin,
-			RefMax:          &requestMax,
 		},
 		{
 			ExamTypeFieldID: &[]uint64{fieldA}[0],
 			InspectionValue: "0",
-			RefMin:          &requestMin,
-			RefMax:          &requestMax,
 		},
 	})
 
@@ -134,8 +127,6 @@ func TestExaminationService_ReplaceItemsUsesMasterRangesAndIgnoresRequestRanges(
 	require.NotNil(t, got[0].RefMax)
 	assert.Equal(t, masterMinA, *got[0].RefMin)
 	assert.Equal(t, masterMaxA, *got[0].RefMax)
-	assert.NotEqual(t, requestMin, *got[0].RefMin, "request ref_min must be ignored")
-	assert.NotEqual(t, requestMax, *got[0].RefMax, "request ref_max must be ignored")
 	assert.Equal(t, model.ExaminationResultStatusNormal, got[0].Status)
 	assert.False(t, got[0].IsAbnormal)
 	assert.Equal(t, model.ExaminationResultStatusHigh, got[1].Status)
@@ -255,7 +246,6 @@ func TestExaminationService_ReplaceItemsMissingRangeLeavesUnassessedSnapshot(t *
 		missing   = uint64(12)
 	)
 	masterMin, masterMax := 1.0, 10.0
-	requestMin, requestMax := 4.0, 6.0
 	repo := &referenceRangeResolverExaminationRepository{
 		speciesID: speciesID,
 		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
@@ -268,12 +258,7 @@ func TestExaminationService_ReplaceItemsMissingRangeLeavesUnassessedSnapshot(t *
 
 	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
 		{ExamTypeFieldID: &[]uint64{bounded}[0], InspectionValue: "5"},
-		{
-			ExamTypeFieldID: &[]uint64{missing}[0],
-			InspectionValue: "5",
-			RefMin:          &requestMin,
-			RefMax:          &requestMax,
-		},
+		{ExamTypeFieldID: &[]uint64{missing}[0], InspectionValue: "5"},
 	})
 
 	require.NoError(t, err)
@@ -283,8 +268,93 @@ func TestExaminationService_ReplaceItemsMissingRangeLeavesUnassessedSnapshot(t *
 	require.NotNil(t, got[0].RefMax, "bounded normal result must carry its assessed range")
 	assert.Equal(t, model.ExaminationResultStatusNormal, got[1].Status)
 	assert.Nil(t, got[1].RefMin, "missing master range must remain distinguishable from assessed normal")
-	assert.Nil(t, got[1].RefMax, "request values must not disguise a missing master range")
+	assert.Nil(t, got[1].RefMax, "missing master range must remain distinguishable from assessed normal")
 	assert.False(t, got[1].IsAbnormal)
+}
+
+func TestExaminationService_ReplaceItemsUsesSingleMasterRangeForHighLowAndLeavesMissingUnassessed(t *testing.T) {
+	const (
+		petID        = uint64(70)
+		speciesID    = uint64(7)
+		boundedField = uint64(11)
+		missingField = uint64(12)
+	)
+	masterMin, masterMax := 1.0, 10.0
+	repo := &referenceRangeResolverExaminationRepository{
+		speciesID: speciesID,
+		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
+			speciesID: {
+				boundedField: {
+					ExamTypeFieldID: boundedField,
+					RefMin:          &masterMin,
+					RefMax:          &masterMax,
+				},
+			},
+		},
+	}
+	svc := newReferenceRangeResolverService(petID, []uint64{boundedField, missingField}, repo)
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
+		{ExamTypeFieldID: &[]uint64{boundedField}[0], InspectionValue: "11"},
+		{ExamTypeFieldID: &[]uint64{boundedField}[0], InspectionValue: "0"},
+		{ExamTypeFieldID: &[]uint64{missingField}[0], InspectionValue: "5"},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	assert.Equal(t, 1, repo.resolveCalls, "reference ranges must be resolved once outside the item loop")
+	assert.ElementsMatch(t, []uint64{boundedField, missingField}, repo.resolvedFields)
+
+	tests := []struct {
+		name          string
+		index         int
+		wantStatus    model.ExaminationResultStatus
+		wantAbnormal  bool
+		wantAssessed  bool
+		wantSnapshots bool
+	}{
+		{
+			name:          "value above master maximum is high and assessed",
+			index:         0,
+			wantStatus:    model.ExaminationResultStatusHigh,
+			wantAbnormal:  true,
+			wantAssessed:  true,
+			wantSnapshots: true,
+		},
+		{
+			name:          "value below master minimum is low and assessed",
+			index:         1,
+			wantStatus:    model.ExaminationResultStatusLow,
+			wantAbnormal:  true,
+			wantAssessed:  true,
+			wantSnapshots: true,
+		},
+		{
+			name:         "field without master range is normal but unassessed",
+			index:        2,
+			wantStatus:   model.ExaminationResultStatusNormal,
+			wantAssessed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := got[tt.index]
+			response := toExamResultResponse(&item)
+			assert.Equal(t, tt.wantStatus, item.Status)
+			assert.Equal(t, tt.wantAbnormal, item.IsAbnormal)
+			assert.Equal(t, tt.wantAssessed, response.IsAssessed)
+			if tt.wantSnapshots {
+				require.NotNil(t, item.RefMin)
+				require.NotNil(t, item.RefMax)
+				assert.Equal(t, masterMin, *item.RefMin)
+				assert.Equal(t, masterMax, *item.RefMax)
+				return
+			}
+			assert.Nil(t, item.RefMin)
+			assert.Nil(t, item.RefMax)
+		})
+	}
 }
 
 func TestExaminationService_ReplaceItemsRequiresPetForMappedFields(t *testing.T) {
@@ -496,7 +566,7 @@ func TestExamReferenceRangeRepository_FindAnimalSpeciesIDPreservesHistoricalPets
 	require.Error(t, err, "cross-clinic pet correlation must fail closed")
 }
 
-func TestExaminationService_CreateUsesMasterRangesAndIgnoresRequestRanges(t *testing.T) {
+func TestExaminationService_CreateUsesMasterRanges(t *testing.T) {
 	db := setupExamReferenceRangeResolutionDB(t)
 	ctx := context.Background()
 	const clinicID = uint64(1)
@@ -518,12 +588,9 @@ func TestExaminationService_CreateUsesMasterRangesAndIgnoresRequestRanges(t *tes
 		nil,
 		testTransactor{db: db},
 	)
-	requestMin, requestMax := 100.0, 200.0
 	items := []UpsertExamItemInput{{
 		ExamTypeFieldID: &field.ID,
 		InspectionValue: "5",
-		RefMin:          &requestMin,
-		RefMax:          &requestMax,
 	}}
 
 	exam, err := svc.Create(ctx, clinicID, &CreateExaminationInput{
@@ -541,8 +608,6 @@ func TestExaminationService_CreateUsesMasterRangesAndIgnoresRequestRanges(t *tes
 	require.NotNil(t, saved[0].RefMax)
 	assert.Equal(t, masterMin, *saved[0].RefMin)
 	assert.Equal(t, masterMax, *saved[0].RefMax)
-	assert.NotEqual(t, requestMin, *saved[0].RefMin, "request ref_min must be ignored")
-	assert.NotEqual(t, requestMax, *saved[0].RefMax, "request ref_max must be ignored")
 	assert.Equal(t, model.ExaminationResultStatusNormal, saved[0].Status)
 	assert.False(t, saved[0].IsAbnormal)
 }
@@ -578,13 +643,9 @@ func TestExaminationService_ReferenceRangeSnapshotDoesNotChangeWhenMasterChanges
 		nil,
 		testTransactor{db: db},
 	)
-	requestMin, requestMax := 100.0, 200.0
-
 	_, err := svc.ReplaceItems(ctx, clinicID, exam.ID, nil, []UpsertExamItemInput{{
 		ExamTypeFieldID: &field.ID,
 		InspectionValue: "5",
-		RefMin:          &requestMin,
-		RefMax:          &requestMax,
 	}})
 	require.NoError(t, err)
 
