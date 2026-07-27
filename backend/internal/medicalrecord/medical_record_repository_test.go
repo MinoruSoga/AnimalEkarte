@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -815,4 +816,65 @@ func TestMedicalRecordRepository_CountByPetID_CountByOwnerID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
+}
+
+func TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	date := time.Date(2026, time.August, 1, 0, 0, 0, 0, config.JST)
+
+	ownerA := makeTestOwner(t, db, clinicA, "日付集計A飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日付集計Aペット")
+	otherPetA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日付集計A別ペット")
+	ownerB := makeTestOwner(t, db, clinicB, "日付集計B飼主")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "日付集計Bペット")
+
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-MATCH", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-OTHER-PET", Date: date,
+		OwnerID: &ownerA.ID, PetID: &otherPetA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-OTHER-DAY", Date: date.AddDate(0, 0, 1),
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicB, RecordNo: "DATE-B-MATCH", Date: date,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
+	})
+	deleted := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-DELETED", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	require.NoError(t, db.Delete(deleted).Error)
+
+	count, err := repo.CountByPetAndDate(ctx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	foreignCount, err := repo.CountByPetAndDate(ctx, clinicB, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), foreignCount)
+
+	tx := db.Begin()
+	require.NoError(t, tx.Error)
+	defer tx.Rollback()
+	txCtx := persistence.WithTxValue(ctx, tx)
+	require.NoError(t, repo.Create(txCtx, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-UNCOMMITTED", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+	}))
+	inTxCount, err := repo.CountByPetAndDate(txCtx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), inTxCount)
+	require.NoError(t, tx.Rollback().Error)
+
+	afterRollback, err := repo.CountByPetAndDate(ctx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), afterRollback)
 }

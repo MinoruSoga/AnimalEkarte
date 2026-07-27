@@ -230,7 +230,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
 
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
+	// Auto-create holds one ambient transaction from the non-blocking advisory lock through the
+	// clinic/pet/JST-day duplicate count and INSERT. Runtime proofs:
+	// TestMedicalRecordRepository_AcquireAutoCreateLock_IsNonBlockingWhenContended and
+	// TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction.
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock":           {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions

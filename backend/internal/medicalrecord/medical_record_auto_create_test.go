@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +16,117 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	reservationdomain "github.com/animal-ekarte/backend/internal/reservation"
 )
+
+type autoCreateRaceRepository struct {
+	MedicalRecordRepository
+	acquireLockCalls atomic.Int32
+	acquireLockReady chan struct{}
+}
+
+func (r *autoCreateRaceRepository) AcquireAutoCreateLock(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (bool, error) {
+	// 両 caller が同じ logical key の lock 取得点へ到達した後で DB lock を競わせる。
+	// sleep を使わず、実際の PostgreSQL advisory lock が直列化することを検証する。
+	if r.acquireLockCalls.Add(1) == 2 {
+		close(r.acquireLockReady)
+	}
+	if err := waitForAutoCreateBarrier(ctx, r.acquireLockReady); err != nil {
+		return false, err
+	}
+	return r.MedicalRecordRepository.AcquireAutoCreateLock(ctx, clinicID, petID, date)
+}
+
+func (m *mockMedicalRecordRepository) AcquireAutoCreateLock(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+) (bool, error) {
+	return true, nil
+}
+
+func (m *mockMedicalRecordRepository) CountByPetAndDate(
+	_ context.Context,
+	_, _ uint64,
+	_ string,
+) (int64, error) {
+	return 0, nil
+}
+
+type autoCreateCountCaptureRepository struct {
+	*mockMedicalRecordRepository
+	countFn func(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
+}
+
+func (r *autoCreateCountCaptureRepository) CountByPetAndDate(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (int64, error) {
+	return r.countFn(ctx, clinicID, petID, date)
+}
+
+type autoCreateLockCaptureRepository struct {
+	*mockMedicalRecordRepository
+	acquireFn func(ctx context.Context, clinicID, petID uint64, date string) (bool, error)
+	countFn   func(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
+}
+
+func (r *autoCreateLockCaptureRepository) AcquireAutoCreateLock(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (bool, error) {
+	return r.acquireFn(ctx, clinicID, petID, date)
+}
+
+func (r *autoCreateLockCaptureRepository) CountByPetAndDate(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (int64, error) {
+	if r.countFn != nil {
+		return r.countFn(ctx, clinicID, petID, date)
+	}
+	return r.mockMedicalRecordRepository.CountByPetAndDate(ctx, clinicID, petID, date)
+}
+
+func waitForAutoCreateBarrier(ctx context.Context, ready <-chan struct{}) error {
+	select {
+	case <-ready:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(5 * time.Second):
+		return errors.New("timed out waiting for auto-create barrier")
+	}
+}
+
+type forceOuterRollbackTransactor struct {
+	db       *gorm.DB
+	sentinel error
+}
+
+func (t forceOuterRollbackTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	forceRollback := persistence.TxFromContext(ctx) == nil
+	err := t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := fn(persistence.WithTxValue(ctx, tx)); err != nil {
+			return err
+		}
+		if forceRollback {
+			return t.sentinel
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 type reservationCancelCleanupAuditCapture struct {
 	*mockAuditService
@@ -424,13 +535,15 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 
 	t.Run("同日同ペットの既存カルテがある場合はスキップする", func(t *testing.T) {
 		created := false
-		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-				return []model.MedicalRecord{{ID: 1}}, 1, nil
+		repo := &autoCreateCountCaptureRepository{
+			mockMedicalRecordRepository: &mockMedicalRecordRepository{
+				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+					created = true
+					return nil
+				},
 			},
-			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
-				created = true
-				return nil
+			countFn: func(_ context.Context, _ uint64, _ uint64, _ string) (int64, error) {
+				return 1, nil
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
@@ -442,13 +555,15 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 
 	t.Run("重複チェックでリポジトリエラーが発生した場合はスキップする", func(t *testing.T) {
 		created := false
-		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-				return nil, 0, errors.New("db error")
+		repo := &autoCreateCountCaptureRepository{
+			mockMedicalRecordRepository: &mockMedicalRecordRepository{
+				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+					created = true
+					return nil
+				},
 			},
-			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
-				created = true
-				return nil
+			countFn: func(_ context.Context, _ uint64, _ uint64, _ string) (int64, error) {
+				return 0, errors.New("db error")
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
@@ -461,9 +576,6 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	t.Run("owner_id/pet_idが既に設定済みならLINE補完なしで作成される", func(t *testing.T) {
 		var createdRecord *model.MedicalRecord
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-				return nil, 0, nil
-			},
 			createFn: func(_ context.Context, record *model.MedicalRecord) error {
 				createdRecord = record
 				return nil
@@ -506,9 +618,6 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 
 	t.Run("Createが失敗した場合はサブレコード作成を試みずパニックしない", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-				return nil, 0, nil
-			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
 				return errors.New("db error")
 			},
@@ -530,6 +639,237 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	})
 }
 
+func TestAutoCreateFromReservation_AuditLogBeforeCreateCoreExtraction(t *testing.T) {
+	const clinicID = uint64(1)
+	ownerID := uint64(10)
+	petID := uint64(20)
+	reservationID := uint64(30)
+	start := time.Date(2026, time.July, 31, 15, 30, 0, 0, time.UTC)
+	auditSvc := &mockAuditService{}
+	repo := &mockMedicalRecordRepository{
+		createFn: func(_ context.Context, record *model.MedicalRecord) error {
+			record.ID = 990
+			return nil
+		},
+	}
+	reservation := &model.Reservation{
+		ID:        reservationID,
+		ClinicID:  clinicID,
+		StartTime: start,
+		OwnerID:   &ownerID,
+		PetID:     &petID,
+		VisitType: model.VisitTypeRevisit,
+	}
+	reservationRepo := &mockReservationRepoForMedicalRecord{
+		findByIDFn: func(_ context.Context, gotClinicID, gotReservationID uint64) (*model.Reservation, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, reservationID, gotReservationID)
+			return reservation, nil
+		},
+		assertOwnerFn: func(_ context.Context, gotClinicID, gotOwnerID uint64) error {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, ownerID, gotOwnerID)
+			return nil
+		},
+		findPetOwnerFn: func(_ context.Context, gotClinicID, gotPetID uint64) (uint64, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, petID, gotPetID)
+			return ownerID, nil
+		},
+	}
+	clinicalPlanRepo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1}, nil
+		},
+	}
+	svc := NewMedicalRecordService(
+		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, &mockTransactor{},
+	)
+
+	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
+
+	assert.Contains(t, auditSvc.calls, "create")
+}
+
+func TestAutoCreateFromReservation_ExistingAppointmentRepairsSubrecordsWithoutCreateSideEffects(t *testing.T) {
+	const clinicID = uint64(1)
+	ownerID := uint64(10)
+	petID := uint64(20)
+	reservationID := uint64(30)
+	visitType := model.VisitTypeRevisit
+	existing := &model.MedicalRecord{
+		ID:        990,
+		ClinicID:  clinicID,
+		OwnerID:   &ownerID,
+		PetID:     &petID,
+		RecordNo:  "EXISTING-AUTO",
+		Date:      time.Date(2026, time.August, 1, 0, 0, 0, 0, config.JST),
+		Status:    model.MedicalRecordStatusDraft,
+		VisitType: &visitType,
+	}
+	repo := &mockMedicalRecordRepository{
+		findByAppointmentIDFn: func(_ context.Context, gotClinicID, gotReservationID uint64) (*model.MedicalRecord, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, reservationID, gotReservationID)
+			return existing, nil
+		},
+		createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+			return errors.New("existing appointment must not insert another record")
+		},
+	}
+	reservation := &model.Reservation{
+		ID:        reservationID,
+		ClinicID:  clinicID,
+		StartTime: existing.Date,
+		OwnerID:   &ownerID,
+		PetID:     &petID,
+		VisitType: model.VisitTypeRevisit,
+	}
+	reservationRepo := &mockReservationRepoForMedicalRecord{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			return reservation, nil
+		},
+		assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+			return nil
+		},
+		findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			return ownerID, nil
+		},
+	}
+	subrecordLookups := 0
+	clinicalPlanRepo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.ClinicalPlan, error) {
+			subrecordLookups++
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, existing.ID, gotRecordID)
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: existing.ID}, nil
+		},
+	}
+	auditSvc := &mockAuditService{}
+	nextVisitSyncs := 0
+	tagSyncSvc := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			nextVisitSyncs++
+			return nil
+		},
+	}
+	svc := NewMedicalRecordService(
+		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, &mockTransactor{}, tagSyncSvc,
+	)
+
+	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
+
+	assert.Equal(t, 1, subrecordLookups, "existing appointment record must still receive best-effort subrecord repair")
+	assert.Empty(t, auditSvc.calls, "existing appointment record must not emit another create audit")
+	assert.Equal(t, 0, nextVisitSyncs, "existing appointment record must not repeat create tag side effects")
+}
+
+func TestAutoCreateFromReservation_RollsBackCreateWhenOuterTransactionFails(t *testing.T) {
+	db := setupMedicalRecordOwnerPetPreloadDB(t)
+	require.NoError(t, db.Exec("TRUNCATE TABLE medical_records, appointments, reservation_types CASCADE").Error)
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "自動生成外側rollback飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "自動生成外側rollbackペット")
+	reservationType := &model.ReservationType{
+		ClinicID: clinicID,
+		Name:     "自動生成外側rollback",
+		Category: model.ReservationTypeCategoryGeneral,
+		IsActive: true,
+	}
+	require.NoError(t, db.Create(reservationType).Error)
+	start := time.Date(2026, time.July, 31, 15, 30, 0, 0, time.UTC)
+	reservation := &model.Reservation{
+		ClinicID: clinicID, StartTime: start, EndTime: start.Add(30 * time.Minute),
+		OwnerID: &owner.ID, PetID: &pet.ID, VisitType: model.VisitTypeRevisit,
+		ReservationTypeID: reservationType.ID, Status: model.ReservationStatusCheckedIn,
+		Source: model.ReservationSourceManual, CustomerFields: []byte(`{}`),
+	}
+	require.NoError(t, db.Create(reservation).Error)
+	clinicalPlanRepo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1}, nil
+		},
+	}
+	sentinel := errors.New("force outer auto-create rollback")
+	svc := NewMedicalRecordService(
+		NewMedicalRecordRepository(db),
+		nil,
+		clinicalPlanRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		reservationdomain.NewReservationRepository(db),
+		nil,
+		nil,
+		forceOuterRollbackTransactor{db: db, sentinel: sentinel},
+	)
+
+	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
+
+	var count int64
+	require.NoError(t, db.Model(&model.MedicalRecord{}).
+		Where("clinic_id = ? AND pet_id = ? AND date = ? AND deleted_at IS NULL", clinicID, pet.ID, "2026-08-01").
+		Count(&count).Error)
+	assert.Equal(t, int64(0), count, "outer auto-create rollback must roll back the medical_record insert")
+}
+
+func TestAutoCreateFromReservation_RollsBackWhenLockedAppointmentDateDriftsFromLockKey(t *testing.T) {
+	db := setupMedicalRecordOwnerPetPreloadDB(t)
+	require.NoError(t, db.Exec("TRUNCATE TABLE medical_records, appointments, reservation_types CASCADE").Error)
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "自動生成日付drift飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "自動生成日付driftペット")
+	reservationType := &model.ReservationType{
+		ClinicID: clinicID,
+		Name:     "自動生成日付drift",
+		Category: model.ReservationTypeCategoryGeneral,
+		IsActive: true,
+	}
+	require.NoError(t, db.Create(reservationType).Error)
+
+	authoritativeStart := time.Date(2026, time.August, 1, 15, 30, 0, 0, time.UTC)
+	stored := &model.Reservation{
+		ClinicID: clinicID, StartTime: authoritativeStart, EndTime: authoritativeStart.Add(30 * time.Minute),
+		OwnerID: &owner.ID, PetID: &pet.ID, VisitType: model.VisitTypeRevisit,
+		ReservationTypeID: reservationType.ID, Status: model.ReservationStatusCheckedIn,
+		Source: model.ReservationSourceManual, CustomerFields: []byte(`{}`),
+	}
+	require.NoError(t, db.Create(stored).Error)
+
+	staleSnapshot := *stored
+	staleSnapshot.StartTime = authoritativeStart.AddDate(0, 0, -1)
+	staleSnapshot.EndTime = staleSnapshot.StartTime.Add(30 * time.Minute)
+	clinicalPlanRepo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1}, nil
+		},
+	}
+	svc := NewMedicalRecordService(
+		NewMedicalRecordRepository(db),
+		nil,
+		clinicalPlanRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		reservationdomain.NewReservationRepository(db),
+		nil,
+		nil,
+		testTransactor{db: db},
+	)
+
+	svc.AutoCreateFromReservation(context.Background(), clinicID, &staleSnapshot)
+
+	var count int64
+	require.NoError(t, db.Model(&model.MedicalRecord{}).
+		Where("clinic_id = ? AND pet_id = ? AND date = ? AND deleted_at IS NULL", clinicID, pet.ID, "2026-08-02").
+		Count(&count).Error)
+	assert.Equal(t, int64(0), count, "date drift after appointment row lock must roll back the insert made under the stale-day advisory key")
+}
+
 func TestAutoCreateFromReservation_JSTDateBoundaryPreventsDuplicate(t *testing.T) {
 	db := setupMedicalRecordListTestDB(t)
 	const clinicID = uint64(1)
@@ -547,25 +887,22 @@ func TestAutoCreateFromReservation_JSTDateBoundaryPreventsDuplicate(t *testing.T
 
 	realRepo := NewMedicalRecordRepository(db)
 	createAttempted := false
-	repo := &mockMedicalRecordRepository{
-		findAllFn: func(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
-			assert.Equal(t, []uint64{clinicID}, clinicIDs)
-			require.NotNil(t, filters.PetID)
-			assert.Equal(t, pet.ID, *filters.PetID)
-			require.NotNil(t, filters.StartDate)
-			require.NotNil(t, filters.EndDate)
-			assert.Equal(t, "2026-07-28", *filters.StartDate)
-			assert.Equal(t, "2026-07-28", *filters.EndDate)
-			records, total, err := realRepo.FindAll(ctx, clinicIDs, filters, page, limit)
+	repo := &autoCreateCountCaptureRepository{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createAttempted = true
+				return errors.New("unexpected duplicate create attempt")
+			},
+		},
+		countFn: func(ctx context.Context, gotClinicID, gotPetID uint64, date string) (int64, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, pet.ID, gotPetID)
+			assert.Equal(t, "2026-07-28", date)
+			total, err := realRepo.CountByPetAndDate(ctx, gotClinicID, gotPetID, date)
 			require.NoError(t, err)
 			require.Equal(t, int64(1), total)
-			require.Len(t, records, 1)
-			assert.Equal(t, existingRecord.ID, records[0].ID)
-			return records, total, nil
-		},
-		createFn: func(_ context.Context, _ *model.MedicalRecord) error {
-			createAttempted = true
-			return errors.New("unexpected duplicate create attempt")
+			assert.Equal(t, existingRecord.ID, existingRecord.ID)
+			return total, nil
 		},
 	}
 	reservation := &model.Reservation{
@@ -624,22 +961,17 @@ func TestAutoCreateFromReservation_UsesReservationDateInJST(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			findAllCalled := false
+			countCalled := false
 			reservationOwnerID := ownerID
 			reservationPetID := petID
-			repo := &mockMedicalRecordRepository{
-				findAllFn: func(_ context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
-					findAllCalled = true
-					assert.Equal(t, []uint64{clinicID}, clinicIDs)
-					assert.Equal(t, 1, page)
-					assert.Equal(t, 1, limit)
-					require.NotNil(t, filters.PetID)
-					assert.Equal(t, petID, *filters.PetID)
-					require.NotNil(t, filters.StartDate)
-					require.NotNil(t, filters.EndDate)
-					assert.Equal(t, tt.wantDate, *filters.StartDate)
-					assert.Equal(t, tt.wantDate, *filters.EndDate)
-					return []model.MedicalRecord{{ID: 1}}, 1, nil
+			repo := &autoCreateCountCaptureRepository{
+				mockMedicalRecordRepository: &mockMedicalRecordRepository{},
+				countFn: func(_ context.Context, gotClinicID, gotPetID uint64, date string) (int64, error) {
+					countCalled = true
+					assert.Equal(t, clinicID, gotClinicID)
+					assert.Equal(t, petID, gotPetID)
+					assert.Equal(t, tt.wantDate, date)
+					return 1, nil
 				},
 			}
 			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
@@ -653,7 +985,265 @@ func TestAutoCreateFromReservation_UsesReservationDateInJST(t *testing.T) {
 
 			svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
 
-			assert.True(t, findAllCalled)
+			assert.True(t, countCalled)
 		})
 	}
+}
+
+func TestAutoCreateFromReservation_ConcurrentSameClinicPetJSTDayCreatesOneRecord(t *testing.T) {
+	db := setupMedicalRecordOwnerPetPreloadDB(t)
+	require.NoError(t, db.Exec("TRUNCATE TABLE medical_records, appointments, reservation_types CASCADE").Error)
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "自動生成競合テスト飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "自動生成競合テストペット")
+	reservationType := &model.ReservationType{
+		ClinicID: clinicID,
+		Name:     "自動生成競合テスト",
+		Category: model.ReservationTypeCategoryGeneral,
+		IsActive: true,
+	}
+	require.NoError(t, db.Create(reservationType).Error)
+
+	start := time.Date(2026, time.July, 31, 15, 30, 0, 0, time.UTC)
+	reservations := []*model.Reservation{
+		{
+			ClinicID: clinicID, StartTime: start, EndTime: start.Add(30 * time.Minute),
+			OwnerID: &owner.ID, PetID: &pet.ID, VisitType: model.VisitTypeRevisit,
+			ReservationTypeID: reservationType.ID, Status: model.ReservationStatusCheckedIn,
+			Source: model.ReservationSourceManual, CustomerFields: []byte(`{}`),
+		},
+		{
+			ClinicID: clinicID, StartTime: start, EndTime: start.Add(60 * time.Minute),
+			OwnerID: &owner.ID, PetID: &pet.ID, VisitType: model.VisitTypeRevisit,
+			ReservationTypeID: reservationType.ID, Status: model.ReservationStatusCheckedIn,
+			Source: model.ReservationSourceManual, CustomerFields: []byte(`{}`),
+		},
+	}
+	require.NoError(t, db.Create(&reservations[0]).Error)
+	require.NoError(t, db.Create(&reservations[1]).Error)
+	require.NotEqual(t, reservations[0].ID, reservations[1].ID)
+
+	realRepo := NewMedicalRecordRepository(db)
+	raceRepo := &autoCreateRaceRepository{
+		MedicalRecordRepository: realRepo,
+		acquireLockReady:        make(chan struct{}),
+	}
+	clinicalPlanRepo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1}, nil
+		},
+	}
+	svc := NewMedicalRecordService(
+		raceRepo,
+		nil,
+		clinicalPlanRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		reservationdomain.NewReservationRepository(db),
+		nil,
+		nil,
+		testTransactor{db: db},
+	)
+
+	ready := make(chan struct{})
+	done := make(chan struct{}, len(reservations))
+	runCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, reservation := range reservations {
+		go func(candidate *model.Reservation) {
+			<-ready
+			svc.AutoCreateFromReservation(runCtx, clinicID, candidate)
+			done <- struct{}{}
+		}(reservation)
+	}
+	close(ready)
+	for range reservations {
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("timed out waiting for concurrent auto-create worker")
+		}
+	}
+
+	var count int64
+	require.NoError(t, db.Model(&model.MedicalRecord{}).
+		Where("clinic_id = ? AND pet_id = ? AND date = ? AND deleted_at IS NULL", clinicID, pet.ID, "2026-08-01").
+		Count(&count).Error)
+	assert.Equal(t, int64(1), count, "same clinic/pet/JST day must have one auto-created record; actual=%d", count)
+}
+
+func TestAutoCreateFromReservation_LockScopeAndFailure(t *testing.T) {
+	const petID = uint64(700)
+	start := time.Date(2026, time.July, 31, 15, 30, 0, 0, time.UTC)
+
+	t.Run("clinicとpetとJST日付をlock keyへ渡しclinic間で分離する", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			clinicID uint64
+		}{
+			{name: "clinic A", clinicID: 7},
+			{name: "clinic B", clinicID: 8},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var gotClinicID, gotPetID uint64
+				var gotDate string
+				baseRepo := &mockMedicalRecordRepository{
+					findAllFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+						return []model.MedicalRecord{{ID: 1}}, 1, nil
+					},
+				}
+				repo := &autoCreateLockCaptureRepository{
+					mockMedicalRecordRepository: baseRepo,
+					acquireFn: func(_ context.Context, clinicID, petID uint64, date string) (bool, error) {
+						gotClinicID, gotPetID, gotDate = clinicID, petID, date
+						return true, nil
+					},
+					countFn: func(_ context.Context, _, _ uint64, _ string) (int64, error) {
+						return 1, nil
+					},
+				}
+				ownerID := uint64(70)
+				reservationPetID := petID
+				reservation := &model.Reservation{
+					ID:        7100,
+					ClinicID:  tt.clinicID,
+					StartTime: start,
+					OwnerID:   &ownerID,
+					PetID:     &reservationPetID,
+				}
+				svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+				svc.AutoCreateFromReservation(context.Background(), tt.clinicID, reservation)
+
+				assert.Equal(t, tt.clinicID, gotClinicID)
+				assert.Equal(t, petID, gotPetID)
+				assert.Equal(t, "2026-08-01", gotDate)
+			})
+		}
+	})
+
+	t.Run("lock取得エラー時はlookupとcreateを行わずbest-effortでreturnする", func(t *testing.T) {
+		logs := captureMedicalRecordCleanupLogs(t)
+		countCalled := false
+		createCalled := false
+		baseRepo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		repo := &autoCreateLockCaptureRepository{
+			mockMedicalRecordRepository: baseRepo,
+			acquireFn: func(_ context.Context, _, _ uint64, _ string) (bool, error) {
+				return false, errors.New("lock unavailable")
+			},
+			countFn: func(_ context.Context, _, _ uint64, _ string) (int64, error) {
+				countCalled = true
+				return 0, nil
+			},
+		}
+		ownerID := uint64(70)
+		reservationPetID := petID
+		reservation := &model.Reservation{
+			ID:        7101,
+			ClinicID:  7,
+			StartTime: start,
+			OwnerID:   &ownerID,
+			PetID:     &reservationPetID,
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+		assert.NotPanics(t, func() {
+			svc.AutoCreateFromReservation(context.Background(), 7, reservation)
+		})
+
+		assert.False(t, countCalled)
+		assert.False(t, createCalled)
+		assert.Contains(t, logs.String(), "failed to acquire auto-create lock")
+		assert.Contains(t, logs.String(), "auto-create transaction failed")
+	})
+
+	t.Run("lock未取得時はlookupとcreateを行わずbest-effortでreturnする", func(t *testing.T) {
+		logs := captureMedicalRecordCleanupLogs(t)
+		countCalled := false
+		createCalled := false
+		baseRepo := &mockMedicalRecordRepository{
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				createCalled = true
+				return nil
+			},
+		}
+		repo := &autoCreateLockCaptureRepository{
+			mockMedicalRecordRepository: baseRepo,
+			acquireFn: func(_ context.Context, _, _ uint64, _ string) (bool, error) {
+				return false, nil
+			},
+			countFn: func(_ context.Context, _, _ uint64, _ string) (int64, error) {
+				countCalled = true
+				return 0, nil
+			},
+		}
+		ownerID := uint64(70)
+		reservationPetID := petID
+		reservation := &model.Reservation{
+			ID:        7102,
+			ClinicID:  7,
+			StartTime: start,
+			OwnerID:   &ownerID,
+			PetID:     &reservationPetID,
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+		assert.NotPanics(t, func() {
+			svc.AutoCreateFromReservation(context.Background(), 7, reservation)
+		})
+
+		assert.False(t, countCalled)
+		assert.False(t, createCalled)
+		assert.Contains(t, logs.String(), "auto-create lock is busy")
+	})
+}
+
+func TestMedicalRecordRepository_AcquireAutoCreateLock_RequiresAmbientTransaction(t *testing.T) {
+	repo := NewMedicalRecordRepository(&gorm.DB{})
+
+	acquired, err := repo.AcquireAutoCreateLock(context.Background(), 7, 700, "2026-08-01")
+
+	assert.False(t, acquired)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires an ambient transaction")
+}
+
+func TestMedicalRecordRepository_AcquireAutoCreateLock_IsNonBlockingWhenContended(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+
+	holder := db.Begin()
+	require.NoError(t, holder.Error)
+	defer holder.Rollback()
+	holderCtx := persistence.WithTxValue(ctx, holder)
+	acquired, err := repo.AcquireAutoCreateLock(holderCtx, 7, 700, "2026-08-01")
+	require.NoError(t, err)
+	require.True(t, acquired)
+
+	competitor := db.Begin()
+	require.NoError(t, competitor.Error)
+	defer competitor.Rollback()
+	competitorCtx, cancel := context.WithTimeout(
+		persistence.WithTxValue(ctx, competitor),
+		2*time.Second,
+	)
+	defer cancel()
+
+	started := time.Now()
+	acquired, err = repo.AcquireAutoCreateLock(competitorCtx, 7, 700, "2026-08-01")
+	require.NoError(t, err)
+	assert.False(t, acquired)
+	assert.Less(t, time.Since(started), time.Second, "try-lock must not wait for the holder transaction")
 }

@@ -48,6 +48,9 @@ var medicalRecordSortColumns = map[string]string{
 type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
+	// AcquireAutoCreateLock は予約由来の同日同ペット自動生成を clinic/pet/JST日単位で直列化する。
+	// 呼び出し元の ambient transaction が終了するまで PostgreSQL advisory lock を保持する。
+	AcquireAutoCreateLock(ctx context.Context, clinicID, petID uint64, date string) (bool, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	// FindByAppointmentID returns the one active medical record linked to an appointment.
 	// Not found is represented as (nil, nil); other read errors fail closed.
@@ -62,6 +65,7 @@ type MedicalRecordRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
+	CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
 	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
@@ -116,6 +120,25 @@ type medicalRecordRepository struct {
 
 func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
+}
+
+func (r *medicalRecordRepository) AcquireAutoCreateLock(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (bool, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return false, apperrors.WrapInternalServerError("medical record auto-create lock requires an ambient transaction")
+	}
+	lockKey := fmt.Sprintf("medical-record-auto-create:%d:%d:%s", clinicID, petID, date)
+	var acquired bool
+	if err := persistence.DBOrTx(ctx, r.db).
+		Raw("SELECT pg_try_advisory_xact_lock(hashtextextended(?, 0))", lockKey).
+		Scan(&acquired).
+		Error; err != nil {
+		return false, apperrors.Wrap(err, "failed to acquire medical record auto-create lock")
+	}
+	return acquired, nil
 }
 
 func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -500,6 +523,19 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("pet_id = ? AND deleted_at IS NULL", petID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	return count, nil
+}
+
+func (r *medicalRecordRepository) CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.MedicalRecord{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("pet_id = ? AND date = ? AND deleted_at IS NULL", petID, date).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")
