@@ -125,10 +125,12 @@ func (c ownerPetComposition) newHandlers(
 			requirePermission,
 			hasPermission,
 		),
-		Pet: pet.NewHandler(
+		Pet: pet.NewHandlerWithPetOwners(
 			c.PetService,
 			c.animalSpecies,
 			c.chronicConditions,
+			c.PetOwnerService,
+			c.OwnerRepository,
 			pet.PermissionMiddleware(requirePermission),
 		),
 	}

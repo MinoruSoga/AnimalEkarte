@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -9,6 +10,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func TestPetResponseIncludesVersion(t *testing.T) {
+	body, err := json.Marshal(toPetResponse(&model.Pet{Version: 7}))
+	require.NoError(t, err)
+
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(body, &response))
+	require.Contains(t, response, "version")
+	assert.Equal(t, float64(7), response["version"])
+}
 
 func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	birthDate := time.Date(2015, 4, 14, 0, 0, 0, 0, time.UTC)

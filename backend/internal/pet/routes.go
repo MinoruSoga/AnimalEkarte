@@ -6,7 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// RegisterRoutes registers the 16 pet-owned authenticated routes.
+// RegisterRoutes registers the 19 pet-owned authenticated routes.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	h.registerPetRoutes(rg)
 	h.registerAnimalSpeciesRoutes(rg)
@@ -23,7 +23,14 @@ func (h *Handler) registerPetRoutes(rg *gin.RouterGroup) {
 	pets.DELETE("/:id", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
 	pets.GET("/:id/first-visit", h.requirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
 
+	h.registerPetOwnerRoutes(pets)
 	h.registerChronicConditionRoutes(pets)
+}
+
+func (h *Handler) registerPetOwnerRoutes(pets *gin.RouterGroup) {
+	petOwners := pets.Group("/:id/sub-owners")
+	petOwners.GET("", h.requirePermission(string(model.ResourceOwners), "view"), h.ListPetOwners)
+	petOwners.PUT("", h.requirePermission(string(model.ResourceOwners), "edit"), h.ReplacePetOwners)
 }
 
 func (h *Handler) registerChronicConditionRoutes(pets *gin.RouterGroup) {

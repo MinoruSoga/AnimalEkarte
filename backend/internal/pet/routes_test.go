@@ -15,7 +15,7 @@ type permissionCall struct {
 	action   string
 }
 
-func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t *testing.T) {
+func TestRegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	var permissions []permissionCall
@@ -45,6 +45,7 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		http.MethodGet + " /api/v1/pets/:id",
 		http.MethodGet + " /api/v1/pets/:id/chronic-conditions",
 		http.MethodGet + " /api/v1/pets/:id/first-visit",
+		http.MethodGet + " /api/v1/pets/:id/sub-owners",
 		http.MethodPatch + " /api/v1/masters/animal-species/:id",
 		http.MethodPatch + " /api/v1/masters/animal-species/reorder",
 		http.MethodPatch + " /api/v1/pets/:id",
@@ -52,6 +53,7 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		http.MethodPost + " /api/v1/masters/animal-species",
 		http.MethodPost + " /api/v1/pets",
 		http.MethodPost + " /api/v1/pets/:id/chronic-conditions",
+		http.MethodPut + " /api/v1/pets/:id/sub-owners",
 	}
 	slices.Sort(wantRoutes)
 	assert.Equal(t, wantRoutes, gotRoutes)
@@ -65,6 +67,8 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		{resource: "owners", action: "delete"},
 		{resource: "medical-records", action: "view"},
 		{resource: "owners", action: "view"},
+		{resource: "owners", action: "edit"},
+		{resource: "owners", action: "view"},
 		{resource: "owners", action: "create"},
 		{resource: "owners", action: "edit"},
 		{resource: "owners", action: "delete"},
@@ -76,5 +80,32 @@ func TestHandler_RegisterRoutes_PreservesPetSpeciesAndChronicConditionContract(t
 		{resource: "master-animal-species", action: "delete"},
 	}, permissions)
 
-	require.Len(t, gotRoutes, 17)
+	require.Len(t, gotRoutes, 19)
+}
+
+func TestRegisterRoutes_PetOwnerRoutesUseOwnerPermissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var permissions []permissionCall
+	requirePermission := func(resource, action string) gin.HandlerFunc {
+		permissions = append(permissions, permissionCall{resource: resource, action: action})
+		return func(c *gin.Context) { c.Next() }
+	}
+
+	router := gin.New()
+	handler := NewHandler(nil, nil, nil, requirePermission)
+	handler.registerPetOwnerRoutes(router.Group("/api/v1/pets"))
+
+	gotRoutes := make([]string, 0, len(router.Routes()))
+	for _, route := range router.Routes() {
+		gotRoutes = append(gotRoutes, route.Method+" "+route.Path)
+	}
+	assert.ElementsMatch(t, []string{
+		http.MethodGet + " /api/v1/pets/:id/sub-owners",
+		http.MethodPut + " /api/v1/pets/:id/sub-owners",
+	}, gotRoutes)
+	assert.Equal(t, []permissionCall{
+		{resource: "owners", action: "view"},
+		{resource: "owners", action: "edit"},
+	}, permissions)
 }

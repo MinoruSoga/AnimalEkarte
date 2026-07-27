@@ -50,6 +50,7 @@ func toPetOwnerNested(o *model.Owner) *petOwnerNested {
 
 type petResponse struct {
 	ID              uint64     `json:"id"`
+	Version         int        `json:"version"`
 	ClinicID        uint64     `json:"clinic_id"`
 	OwnerID         uint64     `json:"owner_id"`
 	AnimalSpeciesID uint64     `json:"animal_species_id"`
@@ -216,6 +217,7 @@ func toPetResponse(p *model.Pet) petResponse {
 	}
 	resp := petResponse{
 		ID:              p.ID,
+		Version:         p.Version,
 		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
 		AnimalSpeciesID: p.AnimalSpeciesID,
