@@ -23,7 +23,7 @@ import {
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 export function AnimalSpeciesSettings() {
-  const { canEdit } = usePermission(ResourceMasterAnimalSpecies);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterAnimalSpecies);
   const { data } = useGetAnimalSpecies();
   const createMutation = useCreateAnimalSpecies();
   const updateMutation = useUpdateAnimalSpecies();
@@ -33,7 +33,13 @@ export function AnimalSpeciesSettings() {
   // BUG-380: 未保存変更の破棄確認 + beforeunload ガード
   const dirty = useSidePeekDirty();
 
-  const crud = useMasterCRUD<AnimalSpecies>({ data, deleteMutation, entityLabel: "動物種類", dirtyGuard: dirty });
+  const crud = useMasterCRUD<AnimalSpecies>({
+    data,
+    deleteMutation,
+    entityLabel: "動物種類",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
 
   const handleDirtyChange = useCallback(
     (d: boolean) => {
@@ -56,6 +62,7 @@ export function AnimalSpeciesSettings() {
     validate: (d) => (!d.name.trim() ? "動物種類名は必須です" : null),
     toCreateRequest: buildAnimalSpeciesCreateRequest,
     toUpdateRequest: buildAnimalSpeciesUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

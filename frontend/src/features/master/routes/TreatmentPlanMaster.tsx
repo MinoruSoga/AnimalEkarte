@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
@@ -52,16 +52,26 @@ import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
-import { ResourceMasterMedical } from "@/types/generated/models";
+import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // TreatmentPlanMaster (main page)
 // ─────────────────────────────────────────────────
 
 export function TreatmentPlanMaster() {
-  const { canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const {
+    canCreate: canCreateCheckup,
+    canEdit: canEditCheckup,
+    canDelete: canDeleteCheckup,
+  } = usePermission(ResourceCheckups);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
+  const activeCanDelete = activeTab === "checkup" ? canDeleteCheckup : canDelete;
+  const permissionsRef = useRef({ canDelete: activeCanDelete === true });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canDelete: activeCanDelete === true };
+  }, [activeCanDelete]);
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
@@ -207,6 +217,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createConsultation,
     updateMutation: updateConsultation,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildConsultationCreateRequest,
     toUpdateRequest: buildConsultationUpdateRequest,
@@ -216,6 +227,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createExamination,
     updateMutation: updateExamination,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildExaminationCreateRequest,
     toUpdateRequest: buildExaminationUpdateRequest,
@@ -225,6 +237,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createProcedure,
     updateMutation: updateProcedure,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildProcedureCreateRequest,
     toUpdateRequest: buildProcedureUpdateRequest,
@@ -234,6 +247,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createVaccine,
     updateMutation: updateVaccine,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildVaccineCreateRequest,
     toUpdateRequest: buildVaccineUpdateRequest,
@@ -243,6 +257,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createCheckup,
     updateMutation: updateCheckup,
+    permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildCheckupCreateRequest,
     toUpdateRequest: buildCheckupUpdateRequest,
@@ -280,6 +295,7 @@ export function TreatmentPlanMaster() {
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     const config = tabConfigs[activeTab];
+    if (permissionsRef.current.canDelete !== true) return;
     deleteMutationByTab[activeTab].mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);

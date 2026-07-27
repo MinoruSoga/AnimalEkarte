@@ -35,14 +35,20 @@ const COLUMNS = [
 
 // ─── Page ───
 export function CampaignSettings() {
-  usePermission(ResourceAccounting);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceAccounting);
   const { data } = useGetCampaigns();
   const createMutation = useCreateCampaign();
   const updateMutation = useUpdateCampaign();
   const deleteMutation = useDeleteCampaign();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Campaign>({ data, deleteMutation, entityLabel: "キャンペーン", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Campaign>({
+    data,
+    deleteMutation,
+    entityLabel: "キャンペーン",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback(
     (isDirty: boolean) => (isDirty ? dirty.markDirty() : dirty.markClean()),
     [dirty],
@@ -60,6 +66,7 @@ export function CampaignSettings() {
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildCampaignCreateRequest,
     toUpdateRequest: buildCampaignUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

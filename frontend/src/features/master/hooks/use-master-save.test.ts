@@ -52,6 +52,7 @@ function buildMutation<TVars>(
 }
 
 const savedEntity: TestEntity = { id: "1", name: "保存済み" };
+const allowSavePermissions = { canCreate: true, canEdit: true };
 
 describe("useMasterSave", () => {
   beforeEach(() => {
@@ -68,6 +69,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -96,6 +98,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -116,7 +119,7 @@ describe("useMasterSave", () => {
     expect(toast.error).toHaveBeenCalledTimes(1);
   });
 
-  it("permissions absent: create成功後にtrueを返す", async () => {
+  it("create許可時は成功後にtrueを返す", async () => {
     const { crud, setEditTarget } = buildCrud(null);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>(
       (_vars, opts) => opts?.onSuccess?.(savedEntity),
@@ -128,6 +131,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: () => null,
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -146,7 +150,7 @@ describe("useMasterSave", () => {
     expect(setEditTarget).toHaveBeenCalledWith(null);
   });
 
-  it("permissions absent: update成功後にtrueを返し、idとリクエストを渡す", async () => {
+  it("update許可時は成功後にtrueを返し、idとリクエストを渡す", async () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -159,6 +163,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: () => null,
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -180,7 +185,7 @@ describe("useMasterSave", () => {
     expect(setEditTarget).toHaveBeenCalledWith(null);
   });
 
-  it("permissions engaged: canCreateがtrueでない場合はfalseを返してmutationを発行しない", async () => {
+  it("canCreateがtrueでない場合はfalseを返してmutationを発行しない", async () => {
     const { crud, startSaveTransition } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -211,7 +216,7 @@ describe("useMasterSave", () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("permissions engaged: canEditがtrueでない場合はfalseを返してmutationを発行しない", async () => {
+  it("canEditがtrueでない場合はfalseを返してmutationを発行しない", async () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, startSaveTransition } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -243,7 +248,7 @@ describe("useMasterSave", () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("permissions engaged: canCreateがtrueなら従来のcreate payloadを維持する", () => {
+  it("canCreateがtrueならcreate payloadを維持する", () => {
     const { crud } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -271,7 +276,7 @@ describe("useMasterSave", () => {
     expect(updateMutate).not.toHaveBeenCalled();
   });
 
-  it("permissions engaged: canEditがtrueなら従来のupdate payloadを維持する", () => {
+  it("canEditがtrueならupdate payloadを維持する", () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
@@ -300,7 +305,7 @@ describe("useMasterSave", () => {
     expect(createMutate).not.toHaveBeenCalled();
   });
 
-  it("permissions engaged: 権限剥奪後はcaptured済みhandleSaveでも最新のdenyを使う", () => {
+  it("権限剥奪後はcaptured済みhandleSaveでも最新のdenyを使う", () => {
     const { crud } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -331,35 +336,7 @@ describe("useMasterSave", () => {
     expect(createMutate).not.toHaveBeenCalled();
   });
 
-  it("permissions absentからengaged denyへ変わった後はcaptured済みhandleSaveも拒否する", () => {
-    const { crud } = buildCrud("new");
-    const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
-
-    const { result, rerender } = renderHook(
-      ({ engage }: { engage: boolean }) =>
-        useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
-          crud,
-          createMutation,
-          updateMutation,
-          permissions: engage ? { canCreate: false, canEdit: false } : undefined,
-          validate: () => null,
-          toCreateRequest: (d) => ({ name: d.name }),
-          toUpdateRequest: (d) => ({ name: d.name }),
-        }),
-      { initialProps: { engage: false } },
-    );
-    const capturedHandleSave = result.current.handleSave;
-
-    rerender({ engage: true });
-    act(() => {
-      void capturedHandleSave({ name: "拒否対象" });
-    });
-
-    expect(createMutate).not.toHaveBeenCalled();
-  });
-
-  it("permissions engaged: deny時も既存validationを先に実行する", () => {
+  it("deny時も既存validationを先に実行する", () => {
     const { crud, startSaveTransition } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
     const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
@@ -400,6 +377,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: () => null,
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -429,6 +407,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: () => null,
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),
@@ -462,6 +441,7 @@ describe("useMasterSave", () => {
         crud,
         createMutation,
         updateMutation,
+        permissions: allowSavePermissions,
         validate: () => null,
         toCreateRequest: (d) => ({ name: d.name }),
         toUpdateRequest: (d) => ({ name: d.name }),

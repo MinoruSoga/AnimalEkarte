@@ -36,8 +36,8 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
   onSuccess?: (saved: T, formData: TForm) => Promise<void> | void;
   /** Set false when the caller must clear local dirty state before closing. */
   closeOnSuccess?: boolean;
-  /** When provided, engage action-specific permission guards at the mutation boundary. */
-  permissions?: MasterSavePermissions;
+  /** Action-specific permissions enforced at the mutation boundary. */
+  permissions: MasterSavePermissions;
 }
 
 // ─────────────────────────────────────────────────
@@ -62,15 +62,18 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   // crudHandleClose calls confirmDiscard() which shows window.confirm when isDirtyRef is still stale
   const crudSetEditTarget = crud.setEditTarget;
   const crudStartSave = crud.startSaveTransition;
-  const permissionsEngaged = permissions !== undefined;
-  const canCreate = permissions?.canCreate;
-  const canEdit = permissions?.canEdit;
-  const permissionsRef = useRef<MasterSavePermissions | undefined>(permissions);
+  const canCreate = permissions.canCreate;
+  const canEdit = permissions.canEdit;
+  const permissionsRef = useRef<MasterSavePermissions>({
+    canCreate: canCreate === true,
+    canEdit: canEdit === true,
+  });
   useLayoutEffect(() => {
-    permissionsRef.current = permissionsEngaged
-      ? { canCreate: canCreate === true, canEdit: canEdit === true }
-      : undefined;
-  }, [permissionsEngaged, canCreate, canEdit]);
+    permissionsRef.current = {
+      canCreate: canCreate === true,
+      canEdit: canEdit === true,
+    };
+  }, [canCreate, canEdit]);
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -85,12 +88,10 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
       setValidationError(null);
 
       const currentPermissions = permissionsRef.current;
-      if (currentPermissions !== undefined) {
-        const isAllowed = editTargetId !== null
-          ? currentPermissions.canEdit === true
-          : currentPermissions.canCreate === true;
-        if (!isAllowed) return false;
-      }
+      const isAllowed = editTargetId !== null
+        ? currentPermissions.canEdit === true
+        : currentPermissions.canCreate === true;
+      if (!isAllowed) return false;
 
       return new Promise<boolean>((resolve) => {
         const isUpdate = editTargetId !== null;

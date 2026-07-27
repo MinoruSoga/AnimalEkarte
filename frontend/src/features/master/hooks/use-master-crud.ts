@@ -53,8 +53,8 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
    */
   dirtyGuard?: { confirmDiscard: () => boolean };
 
-  /** When provided, engage the delete permission guard at the mutation boundary. */
-  permissions?: MasterCRUDPermissions;
+  /** Delete permission enforced at the mutation boundary. */
+  permissions: MasterCRUDPermissions;
 }
 
 export interface UseMasterCRUDReturn<T extends MasterEntity> {
@@ -175,14 +175,13 @@ export function useMasterCRUD<T extends MasterEntity>({
   // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
   const pendingDeleteRef = useRef<T | null>(null);
   useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
-  const permissionsEngaged = permissions !== undefined;
-  const canDelete = permissions?.canDelete;
-  const permissionsRef = useRef<MasterCRUDPermissions | undefined>(permissions);
+  const canDelete = permissions.canDelete;
+  const permissionsRef = useRef<MasterCRUDPermissions>({
+    canDelete: canDelete === true,
+  });
   useLayoutEffect(() => {
-    permissionsRef.current = permissionsEngaged
-      ? { canDelete: canDelete === true }
-      : undefined;
-  }, [permissionsEngaged, canDelete]);
+    permissionsRef.current = { canDelete: canDelete === true };
+  }, [canDelete]);
   const [isSavePending, startSaveTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
@@ -247,10 +246,7 @@ export function useMasterCRUD<T extends MasterEntity>({
     const target = pendingDeleteRef.current;
     if (!target) return;
     const currentPermissions = permissionsRef.current;
-    if (currentPermissions !== undefined) {
-      const isAllowed = currentPermissions.canDelete === true;
-      if (!isAllowed) return;
-    }
+    if (currentPermissions.canDelete !== true) return;
     deleteMutation.mutate(target.id, {
       onSuccess: () => {
         setPendingDelete(null);

@@ -75,6 +75,7 @@ export function ReservationTypeSettings() {
     deleteMutation: deleteGroupMutation,
     entityLabel: "予約区分グループ",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
 
   const categoryCrud = useMasterCRUD<ReservationType>({
@@ -82,6 +83,7 @@ export function ReservationTypeSettings() {
     deleteMutation: deleteCategoryMutation,
     entityLabel: "予約区分",
     dirtyGuard: dirty,
+    permissions: { canDelete },
     searchFilter: matchesReservationTypeSearch,
     activeFilterApply: (item, filters) => {
       for (const f of filters) {
@@ -105,6 +107,7 @@ export function ReservationTypeSettings() {
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildReservationTypeGroupCreateRequest,
     toUpdateRequest: buildReservationTypeGroupUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   const categorySave = useMasterSave<ReservationType, CategoryFormData, CreateReservationTypeRequest, UpdateReservationTypeRequest>({
@@ -114,6 +117,7 @@ export function ReservationTypeSettings() {
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildReservationTypeCreateRequest,
     toUpdateRequest: buildReservationTypeUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   // ── Handler wrappers ───────────────────────────────────────────

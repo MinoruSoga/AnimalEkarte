@@ -31,20 +31,27 @@ const COLUMNS = [
 
 // ─── Page ───
 export function OccupationSettings() {
-  usePermission(ResourceMasterStaff);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
   const { data } = useGetAllOccupations();
   const createMutation = useCreateOccupation();
   const updateMutation = useUpdateOccupation();
   const deleteMutation = useDeleteOccupation();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Occupation>({ data, deleteMutation, entityLabel: "職種", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Occupation>({
+    data,
+    deleteMutation,
+    entityLabel: "職種",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { handleSave } = useMasterSave<Occupation, OccupationFormData, CreateOccupationRequest, UpdateOccupationRequest>({
     crud,
     createMutation,
     updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildOccupationCreateRequest,
     toUpdateRequest: buildOccupationUpdateRequest,

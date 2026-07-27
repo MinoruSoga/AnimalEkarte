@@ -56,7 +56,7 @@ const COLUMNS = [
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
-  usePermission(ResourceMasterStaff);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
 
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
@@ -111,6 +111,7 @@ export function StaffSettings() {
     searchFilter: searchStaff,
     activeFilterApply: filterStaffByMasterFilters,
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
@@ -128,6 +129,7 @@ export function StaffSettings() {
     },
     toCreateRequest: buildStaffCreateRequest,
     toUpdateRequest: buildStaffUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   const handleSaveGroups = useCallback(

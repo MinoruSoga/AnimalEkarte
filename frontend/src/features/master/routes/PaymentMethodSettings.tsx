@@ -39,14 +39,20 @@ const COLUMNS = [
 
 // ─── Page ───
 export function PaymentMethodSettings() {
-  usePermission(ResourcePaymentMethod);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourcePaymentMethod);
   const { data } = useGetPaymentMethods();
   const createMutation = useCreatePaymentMethod();
   const updateMutation = useUpdatePaymentMethod();
   const deleteMutation = useDeletePaymentMethod();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<PaymentMethod>({ data, deleteMutation, entityLabel: "支払方法", dirtyGuard: dirty });
+  const crud = useMasterCRUD<PaymentMethod>({
+    data,
+    deleteMutation,
+    entityLabel: "支払方法",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { handleSave } = useMasterSave<
@@ -58,6 +64,7 @@ export function PaymentMethodSettings() {
     crud,
     createMutation,
     updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildPaymentMethodCreateRequest,
     toUpdateRequest: buildPaymentMethodUpdateRequest,
