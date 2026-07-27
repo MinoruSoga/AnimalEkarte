@@ -3970,3 +3970,50 @@ ALTER TABLE billing_items
 CREATE INDEX idx_billing_items_created_by
     ON billing_items (created_by)
     WHERE created_by IS NOT NULL;
+
+-- Source file: 002_pets_owners_clinic_composite_unique.sql
+-- Purpose: pets / owners へ (clinic_id, id) の複合 UNIQUE を追加し、clinic 相関の複合 FK 参照先を用意する。
+-- Source commit: a0165b1c5
+-- Source SHA-256: 374f105139de1aea24253bc7adb24430245922230d5d1077f65c81c320f2cbbd
+ALTER TABLE pets
+    ADD CONSTRAINT uq_pets_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+ALTER TABLE owners
+    ADD CONSTRAINT uq_owners_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+-- Source file: 003_add_pet_owners.sql
+-- Purpose: ペットと飼い主の多対多を pet_owners で表現し、clinic 相関の複合 FK と RLS を適用する。
+-- Source commit: b4933b50b
+-- Source SHA-256: ca059c6bcc625e9e7b0f9001292653774e5c265eec4b528a0fcf57ce91a9357a
+CREATE TABLE pet_owners (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id),
+    pet_id       BIGINT NOT NULL,
+    owner_id     BIGINT NOT NULL,
+    relationship TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (pet_id, owner_id),
+    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),
+    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)
+);
+
+CREATE INDEX idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id);
+CREATE INDEX idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id);
+
+SELECT app_private.apply_rls_policy(
+    'pet_owners',
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 004_add_exam_result_qualitative_bounds.sql
+-- Purpose: 定性判定の境界値スナップショットを exam_results へ保持する（#249 U3）。
+-- Source commit: cb3b1c448
+-- Source SHA-256: 6ce59f1051132353a377bed341a6d78f6b0562fcb705ad8949cc99b4a2066997
+ALTER TABLE exam_results
+    ADD COLUMN qualitative_min text,
+    ADD COLUMN qualitative_max text;

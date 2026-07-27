@@ -1,1 +1,1 @@
-id,medical_record_id,physical_exam,diagnosis_type_id,diagnosis_name_id,diagnosis_2_type_id,diagnosis_2_name_id,diagnosis_details,treatment_policy,created_at,updated_at,deleted_at,version
+id,medical_record_id,physical_exam,diagnosis_type_id,diagnosis_name_id,diagnosis_2_type_id,diagnosis_2_name_id,diagnosis_details,treatment_policy,version,created_at,updated_at,deleted_at
