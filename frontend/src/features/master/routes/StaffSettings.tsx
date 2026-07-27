@@ -10,6 +10,10 @@ import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
+import {
+  validateOptionalEmail,
+  validateOptionalPassword,
+} from "@/lib/validate-credentials";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { StaffSidePanel } from "../components/StaffSidePanel";
 import type { StaffFormData } from "../components/staff-side-panel-model";
@@ -119,13 +123,14 @@ export function StaffSettings() {
     crud,
     createMutation,
     updateMutation,
+    // R-1③ の裁定: backend は account を持たない staff を許容する（`staffs.account_id` は
+    // nullable、`resource` 種別は部屋・機材等の非人物リソースで原理的にログインを持ち得ない）。
+    // email/password を新規作成の必須項目にすると正当な業務データを作成できなくなるため、
+    // 必須化はせず「入力された場合のみ形式・強度を検証する」に揃える。password の要件は
+    // backend の auth.ValidatePassword と同契約（新規・編集の双方へ適用する）。
     validate: (d) => {
       if (!d.name.trim()) return "氏名は必須です";
-      if (crud.editTarget === null || crud.editTarget === "new") {
-        if (!d.email) return "メールアドレスは必須です";
-        if (!d.password || d.password.length < 8) return "パスワードは8文字以上で入力してください";
-      }
-      return null;
+      return validateOptionalEmail(d.email) ?? validateOptionalPassword(d.password);
     },
     toCreateRequest: buildStaffCreateRequest,
     toUpdateRequest: buildStaffUpdateRequest,

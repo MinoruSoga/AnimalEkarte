@@ -111,15 +111,29 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     latestProps = null;
   });
 
-  it("新規登録: email が空の場合 createMutation を呼ばずtoast.errorで通知する", async () => {
+  // R-1③ の裁定: backend は account を持たない staff を許容する（`resource` 種別は
+  // 部屋・機材等の非人物リソースで原理的にログインを持ち得ない）。email/password の
+  // 必須化は frontend 側の defect であり、必須化を固定していた旧caseを置き換える。
+  it("新規登録: email と password が空でも createMutation を呼ぶ（アカウント無しstaff）", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
     await act(async () => {
-      await latestProps!.handleSave(baseFormData({ email: "", password: `password123` }));
+      await latestProps!.handleSave(baseFormData({ email: "", password: "" }));
+    });
+
+    expect(mockCreateMutate).toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("新規登録: email の形式が不正な場合は createMutation を呼ばず通知する", async () => {
+    render(<StaffSettings />);
+    act(() => latestProps!.crud.setEditTarget("new"));
+    await act(async () => {
+      await latestProps!.handleSave(baseFormData({ email: "not-an-email", password: "" }));
     });
 
     expect(mockCreateMutate).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("メールアドレスは必須です");
+    expect(toast.error).toHaveBeenCalledWith("メールアドレスの形式が正しくありません");
   });
 
   it("新規登録: password が8文字未満の場合 createMutation を呼ばずtoast.errorで通知する", async () => {
