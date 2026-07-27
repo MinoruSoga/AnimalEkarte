@@ -261,6 +261,8 @@ export const queryKeys = {
   owners: {
     all: () => ["owners"] as const,
     detail: (id: string) => ["owners", id] as const,
+    subOwnerOptions: (search: string) =>
+      ["owners", { scope: "sub-owner-options", search }] as const,
   },
   ownerLineTags: (ownerId: string) => ["owner-line-tags", ownerId] as const,
   lineSendHistory: (ownerId: string) => ["line-send-history", ownerId] as const,
@@ -279,6 +281,11 @@ export const queryKeys = {
       return ownerId ? (["pets", { ownerId }] as const) : (["pets"] as const);
     },
     detail: (id: string) => ["pet", id] as const,
+  },
+  petSubOwners: {
+    detail: (petId: string) => ["pet-sub-owners", petId] as const,
+    metadata: (petId: string) =>
+      ["pet", petId, "sub-owner-metadata"] as const,
   },
 
   // ── owner-report ──────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
 import { PetPhysicalSection } from "./PetPhysicalSection";
 import { PetCareSection, type InsuranceOption } from "./PetCareSection";
+import { PetSubOwnersSection } from "./PetSubOwnersSection";
 import type { PetFormData } from "../types";
 
 interface PetEditModalFieldsProps {
@@ -110,6 +111,9 @@ export function PetEditModalFields({
         canEdit={canEdit}
         onInsuranceChange={handleInsuranceChange}
       />
+      {isEdit && formData.id ? (
+        <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />
+      ) : null}
     </div>
   );
 }

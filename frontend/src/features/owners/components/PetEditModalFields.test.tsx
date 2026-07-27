@@ -24,6 +24,12 @@ vi.mock("../api/get-insurances", () => ({
   useGetInsurances: () => ({ data: [], isLoading: false }),
 }));
 
+vi.mock("./PetSubOwnersSection", () => ({
+  PetSubOwnersSection: ({ petId }: { petId: string }) => (
+    <div data-testid="pet-sub-owners-section">{petId}</div>
+  ),
+}));
+
 const basePet: PetFormData = {
   id: "7",
   petNumber: "42-1",
@@ -94,6 +100,12 @@ describe("PetEditModalFields", () => {
 
     expect(screen.getByLabelText("血液型")).toHaveValue("B");
     expect(screen.getByLabelText("マイクロチップ番号")).toHaveValue("900000000000001");
+  });
+
+  it("編集時は PetEditModalFields から副飼主セクションを差し込む", () => {
+    render(<PetFieldsHarness />);
+
+    expect(screen.getByTestId("pet-sub-owners-section")).toHaveTextContent("7");
   });
 });
 
