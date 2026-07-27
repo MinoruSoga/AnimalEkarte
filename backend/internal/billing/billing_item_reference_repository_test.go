@@ -19,6 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -367,6 +368,58 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
+}
+
+func TestBillingItemRepository_ValidateCreateReferences_HoldsBillingLockUntilAmbientTransactionCommits(
+	t *testing.T,
+) {
+	f := setupBillingItemReferenceFixture(t)
+	tx := f.db.Begin()
+	require.NoError(t, tx.Error)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback().Error
+		}
+	}()
+
+	txCtx := persistence.WithTxValue(context.Background(), tx)
+	_, err := f.repo.ValidateCreateReferences(
+		txCtx,
+		f.clinicID,
+		f.billing.ID,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	require.NoError(t, err)
+
+	competingTx := f.db.Begin()
+	require.NoError(t, competingTx.Error)
+	require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+	err = competingTx.
+		Model(&model.Billing{}).
+		Where("id = ?", f.billing.ID).
+		Update("status", model.BillingStatusCompleted).Error
+	require.ErrorContains(
+		t,
+		err,
+		"lock timeout",
+		"competing billing update must time out while the ambient transaction holds its lock",
+	)
+	require.NoError(t, competingTx.Rollback().Error)
+
+	require.NoError(t, tx.Commit().Error)
+	committed = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, f.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Where("id = ?", f.billing.ID).
+		Update("status", model.BillingStatusCompleted).Error)
 }
 
 func newBillingItemReferenceService(
