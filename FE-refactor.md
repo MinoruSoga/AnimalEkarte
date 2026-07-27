@@ -11,7 +11,7 @@
 ## Active scope and authority
 
 - 追跡対象は `M-01`〜`M-05` の実測、line-reserve font実機確認、裁定待ちの残余3件（R-1/R-2/R-3）、実測後のfixture復旧（R-4）とする。F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は代理決裁・実装済みで追跡を終了した。
-- **2026-07-27 時点の到達点**: M-01〜M-05 の fixture は全て作成済みで、残るエージェント工程は無い。以降の工程は実測担当と曽我の同席、および master-data／contract 責任者の裁定であり、いずれも agent へ委譲できない。
+- **2026-07-27 時点の到達点**: M-01〜M-05 の fixture は全て作成済み。**PO裁定を待って着手できないのは M-02（R-3経由）・M-01-D・R-1③ の3件のみ**で、M-03・M-04・M-01-E は曽我の判断を要さず着手できる（判定基準が客観的に確定しているため）。実行順と干渉回避は「実測レーン分割」節を正本とする。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
 - authorityから項目が消えたことや判断待ち件数が0であることだけでは完了とみなさない。明示的な決裁または実測証跡が無い項目は保持する。
 - 本ledgerの更新は実装・runtime検証・製品決裁を代替しない。
@@ -32,11 +32,17 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 <!-- FE12-TASK-TABLE-START -->
 | ID | Priority | Active frontier | Dependency | Completion evidence |
 |---|---|---|---|---|
-| FE12-02 | P0 | M-01〜M-05の実測（**fixtureは2026-07-27に全作成完了**）、line-reserve font実機確認 | 実測担当と曽我の同席（agent委譲不可）。M-02のみR-3の裁定が先行 | 対象実測の証跡が揃うこと |
-| R-3 | P0 | M-02の`exam_reference_ranges`基準値をどうするか | master-data責任者の裁定 | 「正規基準値を投入して再評価」または「基準値不在のまま実測する」のいずれかが明示決定されること |
-| R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、M-03のstaff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行 | 復旧後のread-back証跡 |
-| R-1 | P2 | staff入力検証の契約drift 5件 | 仕様裁定（frontend RBAC owner + staff API contract owner） | 各driftの是正または「意図された挙動」の明文化 |
-| R-2 | P2 | tygo pointer mapping 15行の寄与測定 | `make codegen`がUSER専権 | 寄与0の行の特定と設定整理 |
+| M-03 | P0 | RBAC非活性の理由/name — **着手可（S2レーン）** | なし。fixture・persona完成済、判定基準は客観（禁止personaのmutation 0件）で曽我不要 | persona×routeのa11y tree・4 viewport・HAR・0 mutation集計 |
+| M-04 | P0 | Hospitalization child control実効性 — **着手可（S1レーン）** | なし。fixture完成済、判定基準は客観（view-onlyでmutation 0件）で曽我不要 | 操作別HARと0件集計・a11y tree・4 viewport |
+| M-01-E | P0 | OwnersList操作範囲の**証跡収集** — **着手可（S1レーン）** | なし。fixture完成済 | 4 viewport screenshot・a11y tree・accessible name・GET以外のHAR |
+| M-01-D | P0 | 同・**操作可否の裁定** | **曽我**。M-01-Eの証跡が先行すると判断が速い | 死亡ペットに対する許可/禁止を操作単位で明示した裁定メモ |
+| M-05 | P0 | Clinical sentinel responsive — 着手可だが**直列尾部** | S1/S2の完了。横断snapshot観測のため、他レーンが状態を動かしている間は証跡が無効になる | route×4 viewport・a11y dump・fixture-to-cue対応表 |
+| M-02 | P0 | Examinations一覧意味とlayout | **R-3の裁定が先行**（基準値不在ではHIGH/LOW cueが出ず実測が成立しない） | 両surface×4 viewport・曽我の一覧cue要否裁定 |
+| R-3 | P0 | M-02の`exam_reference_ranges`基準値をどうするか | **PO/master-data責任者の裁定**。基準値は臨床マスタでありエンジニア判断で入れられない | 「正規基準値を投入して再評価」または「基準値不在のまま実測」の明示決定 |
+| line-reserve | P1 | font実機確認 | QA環境管理者と端末管理者の受け渡し（実機3台・remote inspection）。**曽我の判断は不要** | 3実機のscreenshot・HAR・computed font-family |
+| R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、staff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行。判断は不要 | 復旧後のread-back証跡 |
+| R-1 | P2 | staff入力検証の契約drift 5件 | **③のみPO判断**（アカウント無しstaffを登録する業務運用があるか）。①②④⑤は③が決まれば連動 | 各driftの是正または「意図された挙動」の明文化 |
+| R-2 | P2 | tygo pointer mapping 15行の寄与測定 | `make codegen`がUSER専権。**曽我の判断は不要** | 寄与0の行の特定と設定整理 |
 <!-- FE12-TASK-TABLE-END -->
 
 ## Authority drift
@@ -57,6 +63,45 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 1. **臨床sentinelは生成型から表示・操作境界まで欠落させない。** 死亡は明示的なpositive matchで遷移・mutation callbackを拒否し、危険「高」は非色cueを伴う警告として扱う。死亡statusと死亡日時が不整合なら再登録導線を出さない。
 2. **権限はaction別の最新値をmutation直前に再検査する。** UIの非表示・disabled・route guardだけを最終防壁にしない。view/edit共用の唯一のdetail routeはread accessを維持し、mutation境界をfail-closedにする。commit直後にも発火し得るcallbackのpermission refは`useLayoutEffect`で同期する。
 3. **臨床date-onlyはJSTの厳密過去で判定する。** `YYYY-MM-DD`契約をguardし、`todayJSTISO()`との文字列比較`<`を使う。現在時刻との`Date`比較で当日を期限超過にしない。
+
+## 実測レーン分割（2026-07-27・fixture完成後）
+
+fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）・M-01-D・R-1③ の3件だけ**である。残りは曽我の判断を要さず、実行する人手さえあれば着手できる。ただし全レーンが同一のdisposable localを共有するため、素直な2レーン並行は組めない。所有resourceの重なりを実査した結果を下に示す。
+
+**干渉の実査**
+
+| 組 | 重なるresource | 判定 |
+|---|---|---|
+| M-01 × M-05 | pet `1001002`/`1001004`/`1001005` | M-01が死亡登録/解除を試行し状態を動かす。M-05はその状態のsnapshotを観測する → **並行不可** |
+| M-04 × M-05 | H=`1`、pet `1000018` | M-04が一時死亡登録→復旧を行う → **並行不可** |
+| M-03 × M-04 | `/hospitalization` 系route | reset後のhospitalizationはH=`1`の1件のみで、M-03のroute巡回と対象が重なる → **条件付き**（下記制約で回避） |
+| M-01 × M-04 | pet `1001005` vs `1000018` | 対象petが異なり、routeも `/owners` と `/hospitalization` で分かれる → **並行可** |
+
+**S1 — 臨床lifecycleレーン**（所有: `/owners`・`/hospitalization`、pet `1001002`/`1001004`/`1001005`/`1000018`、H=`1`）
+
+- M-01-E（証跡収集）と M-04 を担当する。両者は対象petもrouteも重ならないためレーン内で並行してよい。
+- 死亡登録/解除を実際に行うため、**このレーンだけが臨床状態を動かす**。各操作の前後でread-backを取り、レーン終了時点の状態をM-05へ引き渡す。
+- M-01の「どの操作を許可するか」の裁定（M-01-D）は曽我の担当でありレーン外。証跡だけ揃えて渡す。
+
+**S2 — RBACレーン**（所有: `/settings/permission-groups`、staff `38`/`39`/`40`、group `10`-`13`）
+
+- M-03 を担当する。判定基準は「禁止personaからのPOST/PATCH/PUT/DELETEが0件」であり、大半は**拒否されることの観測**であって成功するmutationではない。
+- **制約**: 成功するmutationは自分が所有するTARGET group（`13`）に対してのみ行う。臨床record（medical-records/hospitalization/vaccinations/examinations）へのmutation試行は「拒否される」ことの確認に留め、create-only personaで臨床recordを実際に作らない。これによりS1との干渉を回避する。
+- 注記: 検査登録POSTは`24929e83d`以降create+editの合成認可であり、create-only personaが拒否されるのは正しい期待値である（fixtureの欠陥ではない）。
+
+**直列尾部（S1/S2の両完了後・単独実行）**
+
+- M-05 — 横断snapshot観測。death・danger高・期限4区分・入院を同時に固定した状態で証跡を取るため、他レーンが動いている間は結果が無効になる。
+- R-4 — fixture復旧。M-05完了後に実行する。
+
+**着手できないもの（レーン外）**
+
+- M-02 — R-3のPO裁定待ち。基準値が無いとHIGH/LOW cueが出ず、「一覧にcueが要るか」という問い自体が成立しない。
+- M-01-D — 曽我の裁定。S1がM-01-Eを終えていれば、成果物を見て答えるだけで済む。
+- R-1③ — 業務運用の確認。
+- line-reserve — 実機3台とQA環境の受け渡し。PO待ちではない。
+
+**証跡収集の自動化余地（未検証・要設計）**: M-01-E/M-03/M-04/M-05が要求する成果物（4 viewport screenshot・accessibility tree・accessible name・network HAR・computed token・overflow計測）は判断を含まない機械的な収集である。`.codex/config.toml`にChrome DevTools MCPが定義済みで、`resize_page`/`take_screenshot`/`take_snapshot`/`list_network_requests`が対応する。1ルート（M-01-E）で試行し、成果物が曽我の判断材料として成立するかを確かめてから横展開するのが安い。ただし禁止操作のmutation 0件検証は実際に操作を試みる必要があり、disposable local限定・復旧手順込みで設計すること。**未検証の提案であり、現時点の計画は人手前提とする。**
 
 ## 要実測項目
 
