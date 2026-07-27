@@ -46,6 +46,8 @@
 
 - **Docker Required**: npm/go commands prohibited locally. Use `docker compose exec frontend/backend` only
 - **Branches**: Daily work on `main`. `main` → `staging` via PR. No direct `production` push
+- **Post-Pull Migrations**: After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
+- **Agent Migration Authority**: Agents must not auto-apply migrations. Surface `make migrate` for the user to run manually when the post-pull rule applies.
 
 ## 🚫 Auto-Execution Prohibited Commands
 

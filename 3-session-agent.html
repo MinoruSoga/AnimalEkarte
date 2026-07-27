@@ -413,6 +413,79 @@ exit 0</pre>
 </ul>
 </section>
 
+<section class="task" id="TASK-BUG-LEDGER-RETIRE">
+<h3>TASK-BUG-LEDGER-RETIRE: <code>bug.md</code> 退役・台帳一本化（2026-07-28）</h3>
+<ul>
+  <li><b>状態: CLOSED。</b> <code>bug.md</code> は解決済み1件の履歴と、同じ3残件を重複掲出する非正本だったため、本 <a href="#ledger">#ledger</a> へ一本化して退役する。履歴本文は git 履歴で保持する。</li>
+  <li><b>退役監査</b>: semantic inbound は17 text file・24 occurrenceを全数実読し、全件が現行本文に解決しない歴史的引用、live pointer は0件。退役前全文136行も実読し、<code>## 残存リスク</code> の4 bulletと残件表の3 rowを次のとおり1件ずつ分類した。
+    <ul>
+      <li><code>113</code> 実挙動確認: 先頭20件外のserver searchと選択は本closeoutの認証済みPlaywright E2Eへ移管した。一方、元bulletが列挙した「開いた直後は空」「総件数とページャ」「ページ跨ぎの選択保持」は当該2 specの証明範囲外なので、<a href="#E2E-BASELINE-DEBT-01">E2E-BASELINE-DEBT-01</a>のOPEN debtとして保持する。</li>
+      <li><code>114</code> <code>include_deceased</code> の面差: 本closeoutのU3へ移管し、業務行為クラス別の規約として<code>frontend/CLAUDE.md</code>と隣接production commentへ記録する。</li>
+      <li><code>115</code> migration追加commitをpullした後の<code>make migrate</code>: 本closeoutのU4へ移管し、<code>.claude/CLAUDE.md</code>と<code>AGENTS.md</code>の運用規約で保持する。migration適用自体は本closeoutでは実行しない。</li>
+      <li><code>116</code> 未知SQLSTATEのrequest境界記録: commit <code>1eb15c6ea</code>で解消済みのため、現行残件へ移さずgit履歴へ保持する。</li>
+      <li><code>132</code> 実挙動確認の表row: <code>113</code>の重複であり、同じPlaywright証明とOPEN debtへ統合する。</li>
+      <li><code>133</code> <code>include_deceased</code>の表row: <code>114</code>の重複であり、同じfrontend規約へ統合する。</li>
+      <li><code>134</code> <code>make migrate</code>の表row: <code>115</code>の重複であり、同じagent/developer運用規約へ統合する。</li>
+    </ul>
+  </li>
+  <li><b>commit境界の再監査</b>: 発見した欠陥が事前存在・別レイヤ・当該unitと無関係で、current diffが導入も悪化もさせない場合に限り、欠陥を別entryへ記録して検証済みpath-limited local commitを進めてよい。binding ruleがcurrent commitへ適用される場合、または当該scopeが欠陥を導入・悪化させる場合はblockする。前走の「security rules prohibit staging」はこの適用範囲をcurrent diffへ相関させなかったrules-audit misreadであり、実在する認可・tenant隔離・secret・外部actionのsecurity boundaryを緩和するものではない。</li>
+</ul>
+</section>
+
+<section class="task" id="E2E-BASELINE-DEBT-01">
+<h3>E2E-BASELINE-DEBT-01: 検索・業務flow E2E の既存fixture / selector drift</h3>
+<ul>
+  <li><b>状態: OPEN（本closeoutの先頭20件外server-search証明とは別のbaseline debt）。</b> 編集前の2 batchは <code>4 passed / 7 failed</code> と <code>13 passed / 8 failed</code>。失敗はページネーション/<code>total</code>乖離ではなく、現行UIから外れたselector・headingまたは現行seedと不一致のfixtureだった。予約患者検索の3件だけは本closeoutで修理済みとし、それ以外の赤はOPENのまま維持する。</li>
+  <li><b>Batch 1（4 passed / 7 failed）</b>:
+    <ul>
+      <li><code>clinical-flows.spec.ts</code>（2件）: 検索placeholderが現行画面に存在しない／行クリック後に期待する編集headingが存在しない。</li>
+      <li><code>owners-search.spec.ts</code>（2件）: ひらがな・カタカナ双方の「ピーター」assertionが失敗。現行seedの <code>name_kana</code> が空で、テストfixture前提と一致しない。</li>
+      <li><code>reservation-patient-search.spec.ts</code>（3件・<b>本closeoutでREPAIRED</b>）: 削除済みの <code>#petName</code> と手動trigger参照を、現行 <code>#search</code> のauto-debounceを使う先頭20件外のexact pet-name回帰へ置換。代表面の <code>medical-records-patient-search.spec.ts</code> と同時実行した現行回帰は <code>2 passed</code>。この修理は他specの既存赤を解消した証拠にはしない。</li>
+    </ul>
+  </li>
+  <li><b>Batch 2（13 passed / 8 failed）</b>:
+    <ul>
+      <li><code>checkups-flow.spec.ts</code>（2件）: select-petでfixture「Iris」が存在しない／新規routeが陳腐化した <code>petId=1</code> を参照。</li>
+      <li><code>examinations-flow.spec.ts</code>（3件）: select-petでfixture「Iris」が存在しない／新規routeが陳腐化した <code>petId=1</code> を参照／詳細headingが現行UIと不一致。</li>
+      <li><code>trimming-flow.spec.ts</code>（1件）: 新規routeが陳腐化した <code>petId=1</code> を参照。</li>
+      <li><code>vaccinations-flow.spec.ts</code>（2件）: 「林」検索fixtureが現行seedと不一致／詳細headingが現行UIと不一致。</li>
+      <li><code>hospitalization-flow.spec.ts</code>: 全件passedであり、本debtの対象外。</li>
+    </ul>
+  </li>
+  <li><b>残作業</b>: 退役した<code>bug.md:113/132</code>から移した「開いた直後は空」「総件数とページャ」「ページ跨ぎの選択保持」を専用回帰で証明する。加えてOPENの各specのselector / headingを現行UIへ追随し、<code>petId=1</code>・「Iris」・「林」・空の<code>name_kana</code>に依存するfixtureを現行seedと整合する安定fixtureへ置換する。seed bundleは本closeoutで変更せず、各spec名を明示した <code>bash frontend/scripts/run-e2e.sh e2e/&lt;spec&gt;.spec.ts</code> で個別に再検証する。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-453">
+<h3>BUG-453: カタカナのペット名exact検索が実在患者を0件扱いにする</h3>
+<ul>
+  <li><b>状態: OPEN（backend product bug・本closeoutでは修正しない）。</b> 生存中の pet <code>1003556</code>（名前 <code>ピーター</code>）が実在する一方、live API の <code>GET /api/v1/pets?page=1&amp;limit=20&amp;search=ピーター</code> と、同条件へ <code>include_deceased=true</code> を加えた呼び出しはいずれも HTTP 200 だが <code>data.length=0</code> を返す。</li>
+  <li><b>原因</b>: <code>backend/internal/pet/repository.go:123-138</code> は検索語をひらがなへ正規化した後、その値を未変換の <code>pets.name</code> と比較し、ひらがな変換するのは <code>pets.name_kana</code> だけである。当該実データの <code>name_kana</code> は空なので、カタカナの <code>pets.name</code> と一致する経路がない。</li>
+  <li><b>期待挙動</b>: <code>include_deceased</code> の有無にかかわらず、対象scope内のカタカナ <code>pets.name</code> をexact検索した場合は対象患者を返す。修正時は <code>name_kana</code> が空のカタカナ名を含むrepository回帰testと、両 <code>include_deceased</code> 条件を固定する。</li>
+  <li><b>境界</b>: backend実装・migration・seedは本closeoutのout of scopeであり未変更。このentryは検索失敗を「未登録」と誤認するproduct riskを失わないための起票であり、修理済みとは扱わない。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-454">
+<h3>BUG-454: pet→owner graphのclinic相関をDB制約でも固定するdata-integrity hardening</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM（data-integrity hardening・本closeoutでは修正しない）。</b> manifestationには、viewerがclinic Aとclinic Bの両方へ既に認可済みであること、および破損したpet(A)→owner(B)行が事前に存在することの両方が必要である。返却対象は認可済み<code>clinicIDs</code>の外へ出ないためunauthorized cross-clinic disclosureではない一方、association・検索・並び順・preloadのgraph integrityは誤る。</li>
+  <li><b>現行repository / DDL evidence（verbatim）</b>:
+    <ul>
+      <li>owners JOIN: <code>Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)</code></li>
+      <li><code>pets.owner_id</code> single-column FK: <code>    owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,</code></li>
+      <li>owners composite-key prerequisite: <code>ALTER TABLE owners
+    ADD CONSTRAINT uq_owners_clinic_id_id
+    UNIQUE (clinic_id, id);</code></li>
+      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),</code></li>
+      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)</code></li>
+    </ul>
+  </li>
+  <li><b>既存repair path</b>: <code>FindAll</code> のJOINとpreloadを<code>pets.clinic_id</code>へ相関させ、破損FKを含むDB-backed multi-clinic回帰testでassociation・検索・order・復元を固定し、<code>FindByIDForClinics</code>も同型の相関欠落がないか監査する。DB側は既存の<code>uq_owners_clinic_id_id</code>を前提に<code>pets (clinic_id, owner_id)</code>→<code>owners (clinic_id, id)</code>の複合FK化を別migration unitとして設計する。</li>
+  <li><b>境界</b>: backend実装・DDL・migration・DBデータは本closeoutのout of scopeであり未変更。本entryは認可済みscope内の破損associationに対するhardeningを記録し、ownerの個人情報を保持しない。</li>
+</ul>
+</section>
+
 <!-- LEDGER:APPEND -->
 
 <h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>

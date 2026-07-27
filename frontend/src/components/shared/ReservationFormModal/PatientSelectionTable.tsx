@@ -175,6 +175,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   } = useGetPets(
     debouncedSearchParams.ownerId || undefined,
     {
+      // 将来予約の候補に死亡個体は含めないため、includeDeceased は意図的に指定しない。
       page,
       limit: PAGE_SIZE,
       ...(debouncedSearchParams.search ? { search: debouncedSearchParams.search } : {}),

@@ -99,6 +99,11 @@ import { RECEPTION_STATUS_COLORS } from '@/constants/status-colors';
 
 共有定数の置き場所は `src/constants/` の1箇所のみ（FE7-2 で `utils/constants/` を統合済み・2026-07-18）。
 
+## Pet selector の表示範囲と選択可否 (MANDATORY)
+
+- Accounting / Checkup / Examination / Hospitalization / Medical Record / Trimming / Vaccination の7つの直接記録入力 selector は、本人同定と死亡 sentinel の表示のため、共有 `usePetSelectionPage` から `includeDeceased: true` を要求する。行が見えることは操作可能を意味せず、選択には `pet.status === "生存"` を必須とする。
+- `ReservationFormModal` の将来予約 selector は、死亡個体が将来受診候補にならないため、`includeDeceased` を意図的に指定しない。
+
 ## shared-liff 配置 (Decision Record)
 
 `liff` / `line-reserve` は frontend の `src/` ツリーを `@/shared-liff/...` alias で参照する現行構造を維持する（FE7-3 Option B 採用・見落としではなく意図的判断・2026-07-18）。

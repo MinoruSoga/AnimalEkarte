@@ -80,6 +80,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   } = useGetPets(
     debouncedSearchParams.ownerId || undefined,
     {
+      // 直接記録入力の7 selectorでは、本人同定と死亡 sentinel の表示に死亡個体も必要。
       includeDeceased: true,
       page,
       limit: PAGE_SIZE,
