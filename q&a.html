@@ -196,64 +196,12 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-27 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-27 時点: PO 判断待ち 6 件（DEC-23〜28・下記 <a href="#dec">#dec</a> 節。DEC-27/28 は SEC-DUR-01＋BUG-440＋payments の architect 調査パックから起票・主要主張はソース抜き取り検証済み）。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-27 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜19・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-27 時点: PO 判断待ち 0 件 — DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳とOPS-19へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>）。残 = OPS-1〜19（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
   </header>
 
-  <p class="summary">PO 判断待ちカード: <b>現在 6 件（DEC-23〜28・<a href="#dec">#dec</a> 節・2026-07-27 起票）</b> — 回答済みカード 45 件（PO-001〜008・SD-1〜19・GAP-1/2・DEC-1〜22）は 2026-07-26 に削除済み。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
+  <p class="summary">PO 判断待ちカード: 現在 0 件 — 回答済みカード 51 件（PO-001〜008・SD-1〜19・GAP-1/2・DEC-1〜28）は削除済み（DEC-23〜28 は 2026-07-27 に全て A で裁定・同日削除、カード原文 = <code>4189eda9b</code>）。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
 
 <div class="po-ops">
-<h2 id="dec">PO 判断待ち（DEC-23〜28・2026-07-27 起票）</h2>
-<p class="section-intro">レーンA/B稼働中の隙間で裁定可能な6件。回答はチャットで「DEC-23=A」形式で足りる（カードへの直接追記でも可）。回答後はエージェントが実装/起票へ反映し、本カードを削除して git 履歴を正本とする。DEC-27/28 は architect 調査パック（SEC-DUR-01＋BUG-440＋TASK-ADR003 payments・ソース静的読解）から起票し、主要主張は coordinator がソース抜き取り検証済み。裁定に必要な根拠（file:line）は各カード本文へ転記済みで、カードが決裁記録の正本になる。</p>
-
-<article class="task" data-task="DEC-23">
-  <div class="task-head"><span class="task-id">DEC-23</span><h3 class="task-title">SEC-SWEEP-02 残5面: legacy read 契約の変更承認</h3><span class="pill bad">CRITICAL</span></div>
-  <p class="task-desc">SEC-SWEEP-02 第1走（<code>864a886b7</code>）が 3-strike BLOCKED で返した残5面＋HIGH 1件は、既存 legacy テストが「親（pet/owner）は sanitize するが、親相関の壊れた子行は可視のまま」という挙動を要求しているため修復できない。対象 = <code>appointment_trimming_details</code>（trimming_repository.go:30）／<code>billings</code>（accounting_repository.go:192,280）／<code>estimates</code>（estimate_repository.go:43）／<code>medical_records</code> appointment edge（medical_record_repository.go:375）／<code>vital_records</code>（vital_repository.go:40）／HIGH: staff_repository.go:329 の依存 count。台帳 = <a href="3-session-agent.html#SEC-SWEEP-02">#SEC-SWEEP-02</a>。</p>
-  <div class="need"><strong>A:</strong> 契約変更を承認 — 孫テーブル read にも親 clinic 相関を必須化し、該当 legacy テストを書き換える（壊れた子行は不可視になる）。pets 側 <code>deleted_at</code>/<code>deceased_at</code> を相関に含めない規約は維持するため、soft-delete 済み・死亡ペットの正当な履歴は消えない。</div>
-  <div class="need"><strong>B:</strong> 現契約維持 — 5面を面ごとに個別裁定へ分解する（CRITICAL 残置が続く）。</div>
-  <div class="rec"><strong>推奨 = A。</strong>現契約は「他院相関が壊れた行を見せ続ける」ことをテストが保護している状態であり、cross-tenant 漏洩の固定化である。回答後: 修復＋テスト書換えの 1 走を発行（レーンA #249 が medicalrecord 面を触るため、所有 path を突合してから発行・必要なら該当面のみ直列化）。</div>
-</article>
-
-<article class="task" data-task="DEC-24">
-  <div class="task-head"><span class="task-id">DEC-24</span><h3 class="task-title">BUG-430: stage-import 退役の実装承認</h3><span class="pill bad">CRITICAL 解消</span></div>
-  <p class="task-desc">方針は DEC-20 で退役確定済み（cutover は 21 表 csv-import 正式経路・本ツールは本番使用禁止）。残るのは実装の承認のみ。対象 = <code>backend/cmd/stage-import/</code>（clinic 非限定 DELETE を固定化した main_test.go 含む）。#250 本文の再基準化転記が伴う（外部書込みのためエージェントは下書きまで・投稿は USER）。台帳 = <a href="3-session-agent.html#BUG-430">#BUG-430</a>。</p>
-  <div class="need"><strong>A:</strong> ディレクトリ削除で退役 — 単純で、他院データを消し得るコードを残さない。必要になれば git 履歴から復元可能。</div>
-  <div class="need"><strong>B:</strong> ビルド除外で温存 — 復活余地を残すが、危険コードがリポジトリに生き続ける。</div>
-  <div class="rec"><strong>推奨 = A。</strong>回答後: 削除＋参照掃引を実施し、#250 転記文を下書きして USER へ渡す。</div>
-</article>
-
-<article class="task" data-task="DEC-25">
-  <div class="task-head"><span class="task-id">DEC-25</span><h3 class="task-title">BUG-435 残余: main CI 失敗の人間向け通知経路</h3><span class="pill warn">OPS</span></div>
-  <p class="task-desc">7/25 の生成型ドリフトは CI run 30087212418 が検出し fail していたが、誰にも届かなかった。main 直 push 運用では CI は事後検知で、branch protection は PR にのみ効く — サイレント障害の封鎖には通知経路の裁定が要る。関係 = <code>.github/workflows/ci.yml</code>。台帳 = <a href="3-session-agent.html#BUG-435">#BUG-435</a>。注: LINE Notify は 2025 年 3 月にサービス終了済みのため通知先候補にならない。</p>
-  <div class="need"><strong>A:</strong> 2 段構え — 即日: USER の GitHub 通知設定（Watch → Custom → Actions failures）で main CI 失敗の通知を必達化（実装ゼロ）。納品後: workflow へ <code>if: failure()</code> の webhook 通知 job（Slack/Discord 等・secret 1 本追加。チャネルは USER 指定）を実装。</div>
-  <div class="need"><strong>B:</strong> GitHub 通知設定のみで恒久運用 — 実装ゼロだが個人のメール確認に依存し続ける。</div>
-  <div class="rec"><strong>推奨 = A。</strong>回答後: A なら webhook 実装タスクを台帳へ起票（納品後バッチ・チャネル名を回答に添えること）。</div>
-</article>
-
-<article class="task" data-task="DEC-26">
-  <div class="task-head"><span class="task-id">DEC-26</span><h3 class="task-title">BUG-433: FE 生成型の恒久方針（ドメインモデル由来 → 応答 DTO 不一致）</h3><span class="pill warn">HIGH</span></div>
-  <p class="task-desc"><code>frontend/src/types/generated/models.ts</code> は tygo が Go ドメインモデルから生成しており、HTTP が実際に返す応答 DTO と一致しない。DTO に無いフィールドが型上は存在扱いになり、実行時 <code>undefined</code> でも型検査が通る（実害 = BUG-431 危険度バッジが実 API で一度も点灯しなかった）。台帳 = <a href="3-session-agent.html#BUG-433">#BUG-433</a>（残 22 フィールドの実測列挙あり）。</p>
-  <div class="need"><strong>A:</strong> 2 段構え — 短期: 生成型を「ドメインモデル型」として隔離リネームし、画面が使う型は応答 DTO 由来へ分離（誤用を型レベルで止める）。恒久: 応答 DTO から FE 型を生成する経路へ切替（生成基盤工事・納品後）。</div>
-  <div class="need"><strong>B:</strong> 応答 DTO 生成へ一気に切替 — 恒久形へ直行するが工事が大きく、中間の混在期間が長い。</div>
-  <div class="need"><strong>C:</strong> 現状維持＋個別対症 — BUG-431 方式の「フィールドの DTO 実在を都度確認」運用を継続（再発は時間の問題）。</div>
-  <div class="rec"><strong>推奨 = A。</strong>回答後: 短期段のタスクを台帳へ起票（レーン外・納品後バッチ）。</div>
-</article>
-
-<article class="task" data-task="DEC-27">
-  <div class="task-head"><span class="task-id">DEC-27</span><h3 class="task-title">SEC-DUR-01: カルテ・会計の <code>owner_id</code> は「診療時点の飼主」か「現在の飼主」か</h3><span class="pill bad">実害あり</span></div>
-  <p class="task-desc"><b>これは将来リスクではなく既存欠陥である</b>（コード読解による帰結・runtime実測は未実施）。現行実装は <code>medical_records.owner_id</code> と現在の <code>pets.owner_id</code> の等値を要求するため（<code>clinical_relation_validation.go:67-69</code>・検証済み）、<b>飼主変更を行うと、変更前カルテへの健診・検査・バイタル登録が「カルテが見つかりません」で失敗する</b>（呼び出し元 = checkup/examination/vital の3ドメイン6箇所）。さらに未請求ワクチン候補クエリは <code>medical_record.owner_id = pet.owner_id</code> を EXISTS 条件に持ち（<code>billing_item_repository.go:452-476</code>・検証済み）、<b>飼主変更後は候補から無言で消える = 請求漏れ</b>。会計書き込み側は Conflict で明示拒否（気づける）が読み取りは静かに落ちる。飼主変更UI の警告モーダル（BUG-373）は整合性を担保しない。本番/STG で飼主変更が既に使われていれば顕在化している可能性がある（運用データ照合 = USER 操作）。台帳 = <a href="3-session-agent.html#SEC-DUR-01">#SEC-DUR-01</a>。</p>
-  <div class="need"><strong>A:</strong> <code>owner_id</code> を「診療時点のスナップショット」と定義 — 等値検証を削除し、整合性検証は pet 軸＋clinic 軸（複合FK）に限定。「飼主でカルテを絞る」読み取りは現在の飼主基準（pets 経由）へ統一（現状でも <code>examination_repository.go:56</code>=pets基準 と <code>checkup_repository.go:101</code>=record基準 で既に不整合）。backend 5〜10 file・owner 軸の DDL 不要。<b>飼主変更は完全に解放される</b>。前提 = 読み取り経路の全数掃引（実装前の必須調査）。</div>
-  <div class="need"><strong>B:</strong> 移管操作化 — 飼主変更時に pet 相関5表（appointments/hospitalizations/medical_records/prescriptions/billings）の <code>owner_id</code> を同一 tx で一括書換え＋actor audit＋完了後に複合FK。backend 10〜15 file＋migration 1本。<b>受領済みの確定会計の請求先が後から別人に変わる = 会計監査上許容し難い</b>。確定分を凍結すれば結局 A の定義に部分的に帰着し、機械だけが余分に残る。</div>
-  <div class="rec"><strong>推奨 = A。</strong>「owner_id はアプリが意味を定義する業務データ（スナップショット）、clinic_id は DB が強制するセキュリティ境界（複合FK）」の二層構造が本論点の答えである。列を持ちながら等値を強制する現行設計は、二重管理を作った上で同期をアプリ検証で守る形であり philosophy 違反の典型。回答後: 読み取り経路全数掃引の調査 unit → 等値検証削除＋フィルタ統一の実装（納品後バッチ）。</div>
-</article>
-
-<article class="task" data-task="DEC-28">
-  <div class="task-head"><span class="task-id">DEC-28</span><h3 class="task-title">無対立束の実施承認: clinic_id 複合FK掃引（payments 含む）＋ BUG-440 audit 配線</h3><span class="pill warn">承認のみ</span></div>
-  <p class="task-desc">architect 調査で「裁定上の対立点が無い」と確定した2点の実施承認。<b>①clinic_id 軸の宣言的複合FK掃引</b>: アプリは <code>clinic_id</code> を一切書き換えない（全 backend 走査・書換えヒット0）ため機能影響ゼロの純粋な defense-in-depth。<b>payments もここに含める</b> — <code>payment_splits</code> は DEC-9 で複合FK済みなのに <code>payments.payment_method_id</code> は素FK（<code>001_init.sql:1960</code>・検証済み）。必要な親側 UNIQUE 2本は既存（<code>:3885</code>/<code>:3935</code>・検証済み）のため、TASK-ADR003 follow-up は「clinic_id 列追加＋backfill＋複合FK2本」の案bで掃引に同梱する。migration = 新規 incremental 1本（001 不変・追加の DB_RESET 不要）・適用前に既存データ照合クエリ必須。<b>②BUG-440</b>: claim 作成/解放を既存 <code>audit_logs</code> へ同一 tx・fail-closed で記録（<code>audit.LogEntryTx</code> の確立済みパターン — 権限変更・カルテ追記等5領域で稼働中。DDL 不要・<code>DeleteItem</code> への actor 配線のみ・backend 4〜6 file）。専用履歴表の新設は二重管理のため不採用。<b>③分離事項</b>: <code>audit_logs</code> の DB レベル改竄防止は現状 COMMENT 文字列のみ（検証済み）だが全監査横断の課題のため本束から分離し、DB ロール権限の確認後に別カードで諮る。台帳 = <a href="3-session-agent.html#BUG-440">#BUG-440</a>／<a href="3-session-agent.html#TASK-ADR003">#TASK-ADR003</a>。</p>
-  <div class="need"><strong>A:</strong> ①②を承認し着手キューへ（発行時にレーンA/B所有 path と突合 — billing 面は進行中 unit と近接のため要調整）。DEC-27 の裁定を待たずに独立実施可能。</div>
-  <div class="need"><strong>B:</strong> 個別に分解して再提示。</div>
-  <div class="rec"><strong>推奨 = A。</strong>回答後: 実装 unit を台帳へ起票し順次発行（BUG-440 audit 配線 → 複合FK掃引 migration の順・照合クエリ同梱）。</div>
-</article>
-
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
 <h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
@@ -264,7 +212,7 @@
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
 </table>
 
-<h2 id="ops">USER 操作（承認・実行待ち・18 件）</h2>
+<h2 id="ops">USER 操作（承認・実行待ち・19 件）</h2>
 <p class="section-intro">上から順に消化を推奨（旧 todo.md U-系を継承・OPS-系へ改番、旧番号は括弧内）。「完了後のエージェント作業」は、完了の合図をもらったエージェントが次に何をすべきかの指示。</p>
 
 <article class="task" data-task="OPS-1">
@@ -387,6 +335,11 @@ ORDER BY pg.clinic_id, pg.id;</pre>
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-18 (DEC-10)</span></label><h3 class="task-title">Sentry アカウント作成と FE project DSN 発行（無償プラン・課金契約なし）</h3></div>
   <p class="dep-badge" hidden></p>
   <p class="task-desc">DEC-10 裁定（2026-07-26）に基づく。sentry.io で組織アカウントを作成し（<b>無償プランのまま — 課金契約はしない</b>・プラン内容と無償枠は作成時に確認）、FE 用 project の DSN を発行して <code>.secret</code> へメモする（値はチャットに貼らない運用）。完了後のエージェント作業: PO-002 Phase 1 実装 — @sentry/react で FE 未捕捉例外＋既存 ErrorBoundary（main.tsx / router.tsx / shared-liff）通知のみ・sendDefaultPii=false・beforeSend で request body / ユーザー情報を drop・security-review 通過を merge 条件。無償枠で収まらないと判明した場合は実装を止め DEC-10 を再オープンして USER へ課金判断を戻す。</p>
+</article>
+
+<article class="task" data-task="OPS-19">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-19 (DEC-25)</span></label><h3 class="task-title">GitHub 通知設定で main CI 失敗を必達化（即日・実装ゼロ）</h3></div>
+  <p class="task-desc">DEC-25 裁定（2026-07-27・A=2段構え）の即日分。GitHub で AnimalEkarte リポジトリを Watch → Custom → 「Actions」（workflow 失敗通知）を有効化し、通知先メールが日常的に見る受信箱であることを確認する。これで main 直 push の CI 失敗が人間へ届く（7/25 の生成型ドリフトは CI run 30087212418 が検出済みなのに誰にも届かなかった — BUG-435）。納品後分 = webhook 通知 job は台帳 <a href="3-session-agent.html#TASK-443">TASK-443</a>（通知チャネル名は実装時に指定）。完了後のエージェント作業: なし（チェックのみ）。</p>
 </article>
 
 <h2 id="cf">Cloudflare 移行 — 完了・旧チェックリスト退役</h2>
