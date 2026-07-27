@@ -15,7 +15,13 @@ interface NewOwnerInlineFormProps {
 }
 
 export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFormProps) {
-  const { activeSpecies, isLoading: isLoadingSpecies } = useAnimalSpecies();
+  const {
+    activeSpecies,
+    isLoading: isLoadingSpecies,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
+  const isSpeciesUnavailable =
+    isSpeciesError || isLoadingSpecies || activeSpecies.length === 0;
 
   return (
     <div className="flex flex-col gap-4 overflow-y-auto flex-1 min-h-0 pb-2">
@@ -68,18 +74,46 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className={`text-xs ${C.text60}`}>
+        <Label htmlFor="new-owner-species" className={`text-xs ${C.text60}`}>
           動物種 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <SearchableSelect
+          id="new-owner-species"
           value={value.animalSpeciesId ? String(value.animalSpeciesId) : ""}
           onValueChange={(v) => onChange({ ...value, animalSpeciesId: Number(v) })}
           options={activeSpecies.map((s) => ({ value: String(s.id), label: s.name }))}
-          disabled={isLoadingSpecies}
+          disabled={isSpeciesUnavailable}
           placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"}
           searchPlaceholder="動物種を検索..."
           triggerTestId="new-owner-species"
         />
+        {isSpeciesError ? (
+          <p
+            role="alert"
+            aria-atomic="true"
+            className={`text-xs ${C.danger}`}
+          >
+            動物種の取得に失敗しました。
+          </p>
+        ) : isLoadingSpecies ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-xs ${C.text50}`}
+          >
+            動物種を読み込み中です。
+          </p>
+        ) : activeSpecies.length === 0 ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-xs ${C.text50}`}
+          >
+            動物種マスタが登録されていません。
+          </p>
+        ) : null}
         <FormFieldError message={errors.animalSpeciesId} />
       </div>
 

@@ -34,9 +34,12 @@ export const PetEditModal = memo(function PetEditModal({
   onChangeOwner,
 }: PetEditModalProps) {
   const { canEdit } = usePermission("owners");
-  const { allSpecies, activeSpecies, isLoading: isLoadingSpecies } = useAnimalSpecies({
-    includeInactive: !!petData?.id,
-  });
+  const {
+    allSpecies,
+    activeSpecies,
+    isLoading: isLoadingSpecies,
+    isError: isErrorSpecies,
+  } = useAnimalSpecies({ includeInactive: !!petData?.id });
   const animalSpeciesList = petData?.id ? allSpecies : activeSpecies;
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
@@ -136,13 +139,39 @@ export const PetEditModal = memo(function PetEditModal({
         </DialogHeader>
 
         <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
+          {isErrorSpecies ? (
+            <p role="alert" aria-atomic="true" className={`mb-3 text-sm ${C.danger}`}>
+              動物種の取得に失敗しました。
+            </p>
+          ) : isLoadingSpecies ? (
+            <p
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className={`mb-3 text-sm ${C.text50}`}
+            >
+              動物種を読み込み中です。
+            </p>
+          ) : animalSpeciesList.length === 0 ? (
+            <p
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className={`mb-3 text-sm ${C.text50}`}
+            >
+              動物種マスタが登録されていません。
+            </p>
+          ) : null}
+
           <PetEditModalFields
             formData={formData}
             setFormData={setFormData}
             fieldErrors={fieldErrors}
             clearFieldError={clearFieldError}
             animalSpeciesList={animalSpeciesList}
-            isLoadingSpecies={isLoadingSpecies}
+            isLoadingSpecies={
+              isLoadingSpecies || isErrorSpecies || animalSpeciesList.length === 0
+            }
             insuranceList={insuranceList}
             isLoadingInsurances={isLoadingInsurances}
             canEdit={canEdit}
