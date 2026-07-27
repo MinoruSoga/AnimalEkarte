@@ -113,14 +113,20 @@ func (a staffPermissionAssignmentAuditAdapter) LogEntryTx(
 
 func (c staffComposition) newHandler(
 	requirePermission staff.PermissionMiddleware,
+	permissionCheckers ...staff.PermissionChecker,
 ) *staff.Handler {
-	return staff.NewHandler(
+	var hasPermission staff.PermissionChecker
+	if len(permissionCheckers) > 0 {
+		hasPermission = permissionCheckers[0]
+	}
+	return staff.NewHandlerWithPermissionChecker(
 		c.Staff,
 		c.Assignments,
 		c.Occupations,
 		c.ShiftEntries,
 		c.ShiftTemplates,
 		requirePermission,
+		hasPermission,
 	)
 }
 

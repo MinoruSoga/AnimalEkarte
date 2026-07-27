@@ -14,6 +14,9 @@ import (
 // PermissionMiddleware is staff's consumer-side view of RBAC middleware.
 type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
+// PermissionChecker is staff's consumer-side view of an RBAC permission check.
+type PermissionChecker func(c *gin.Context, resource, action string) bool
+
 type handlerServices struct {
 	Staff                 StaffService
 	StaffClinicAssignment StaffClinicAssignmentService
@@ -26,6 +29,7 @@ type handlerServices struct {
 type Handler struct {
 	svc               *handlerServices
 	requirePermission PermissionMiddleware
+	hasPermission     PermissionChecker
 }
 
 // NewHandler constructs the staff HTTP boundary.
@@ -37,6 +41,28 @@ func NewHandler(
 	shiftTemplateService ShiftTemplateService,
 	requirePermission PermissionMiddleware,
 ) *Handler {
+	return NewHandlerWithPermissionChecker(
+		staffService,
+		assignmentService,
+		occupationService,
+		shiftEntryService,
+		shiftTemplateService,
+		requirePermission,
+		nil,
+	)
+}
+
+// NewHandlerWithPermissionChecker constructs the staff HTTP boundary with
+// conditional permission checks.
+func NewHandlerWithPermissionChecker(
+	staffService StaffService,
+	assignmentService StaffClinicAssignmentService,
+	occupationService OccupationService,
+	shiftEntryService ShiftEntryService,
+	shiftTemplateService ShiftTemplateService,
+	requirePermission PermissionMiddleware,
+	hasPermission PermissionChecker,
+) *Handler {
 	return &Handler{
 		svc: &handlerServices{
 			Staff:                 staffService,
@@ -46,6 +72,7 @@ func NewHandler(
 			ShiftTemplate:         shiftTemplateService,
 		},
 		requirePermission: requirePermission,
+		hasPermission:     hasPermission,
 	}
 }
 

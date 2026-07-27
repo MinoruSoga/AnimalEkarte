@@ -1,11 +1,15 @@
 package staff
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -252,4 +256,104 @@ func TestStaffServiceUpdateCommitsProfileAndPasswordTogetherDatabase(t *testing.
 		[]byte(reloadedAccount.PasswordHash),
 		[]byte(password),
 	))
+}
+
+func TestHandlerUpdateStaffPasswordReplacementPermission(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name              string
+		body              string
+		checkerAllows     bool
+		useLegacyHandler  bool
+		wantStatus        int
+		wantUpdateCalls   int
+		wantCheckerCalls  int
+		wantPasswordInput bool
+	}{
+		{
+			name:             "denies password and profile update without permission",
+			body:             `{"name":"更新後スタッフ","password":"newPassw0rd"}`,
+			wantStatus:       http.StatusForbidden,
+			wantCheckerCalls: 1,
+		},
+		{
+			name:              "allows password update with permission",
+			body:              `{"password":"newPassw0rd"}`,
+			checkerAllows:     true,
+			wantStatus:        http.StatusOK,
+			wantUpdateCalls:   1,
+			wantCheckerCalls:  1,
+			wantPasswordInput: true,
+		},
+		{
+			name:             "allows profile update without password and checker",
+			body:             `{"name":"更新後スタッフ"}`,
+			useLegacyHandler: true,
+			wantStatus:       http.StatusOK,
+			wantUpdateCalls:  1,
+		},
+		{
+			name:             "rejects password update when checker is nil",
+			body:             `{"password":"newPassw0rd"}`,
+			useLegacyHandler: true,
+			wantStatus:       http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updateCalls := 0
+			checkerCalls := 0
+			service := &credentialAuditStaffService{
+				result: &model.Staff{ID: 29, ClinicID: 23, Name: "Updated Staff"},
+				calls:  &updateCalls,
+			}
+			checker := func(_ *gin.Context, resource, action string) bool {
+				checkerCalls++
+				assert.Equal(t, string(model.ResourceMasterPermission), resource)
+				assert.Equal(t, "edit", action)
+				return tt.checkerAllows
+			}
+
+			var handler *Handler
+			if tt.useLegacyHandler {
+				handler = NewHandler(service, nil, nil, nil, nil, nil)
+			} else {
+				handler = NewHandlerWithPermissionChecker(
+					service,
+					nil,
+					nil,
+					nil,
+					nil,
+					nil,
+					checker,
+				)
+			}
+
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Request = httptest.NewRequest(
+				http.MethodPatch,
+				"/api/v1/masters/staffs/29",
+				bytes.NewBufferString(tt.body),
+			)
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "29"}}
+			c.Set("clinic_id", "23")
+			c.Set("clinic_ids", []uint64{23})
+			c.Set("is_system_admin", false)
+			c.Set("user_id", "17")
+			handler.UpdateStaff(c)
+
+			assert.Equal(t, tt.wantStatus, response.Code, response.Body.String())
+			assert.Equal(t, tt.wantUpdateCalls, updateCalls)
+			assert.Equal(t, tt.wantCheckerCalls, checkerCalls)
+			if tt.wantPasswordInput {
+				require.NotNil(t, service.lastInput)
+				require.NotNil(t, service.lastInput.Password)
+				assert.Equal(t, "newPassw0rd", *service.lastInput.Password)
+			}
+		})
+	}
 }

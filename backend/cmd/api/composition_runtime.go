@@ -502,6 +502,7 @@ func (c runtimeComposition) registerDomainRoutes(
 	ownerPetHandlers.Pet.RegisterRoutes(protected)
 	c.staff.newHandler(
 		c.auth.Handler.RequirePermission,
+		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
 	c.registerClinicRoutes(protected)
 	c.registerExistingDomainRoutes(protected, uploader)
