@@ -64,6 +64,62 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 2. **権限はaction別の最新値をmutation直前に再検査する。** UIの非表示・disabled・route guardだけを最終防壁にしない。view/edit共用の唯一のdetail routeはread accessを維持し、mutation境界をfail-closedにする。commit直後にも発火し得るcallbackのpermission refは`useLayoutEffect`で同期する。
 3. **臨床date-onlyはJSTの厳密過去で判定する。** `YYYY-MM-DD`契約をguardし、`todayJSTISO()`との文字列比較`<`を使う。現在時刻との`Date`比較で当日を期限超過にしない。
 
+## PO判断待ち3件の代理検討（2026-07-27）
+
+コードと仕様書の実読で判断可能なところまで詰めた。**裁定**＝証拠が答えを一意に決めるもの、**提案**＝判断が要るが材料を揃えたもの（曽我承認待ち）、**委任外**＝7/20に定めた委任境界（臨床値・外部書き込み・課金/物理操作）に触れるもの、の3ラベルで区別する。
+
+### 【裁定】R-1③ — backend が正本。frontend/OpenAPI の「新規staffにemail/password必須」が defect である
+
+証拠が一意に決めるため裁定とする。
+
+- `001_init.sql:271` — `account_id bigint REFERENCES accounts(id) ON DELETE SET NULL`。**nullable であり、account削除時もstaff行は残る設計**。アカウント無しstaffはschemaの想定内。
+- seed `003_demo/staffs.csv` — 全37件中 **20件が `account_id` 空**。内訳は `resource` 9 / `nurse` 9 / `doctor` 2。
+- `models.ts:2836` — `StaffTypeResource = "resource"` がenum値として存在。
+- `StaffLineReservationSection.tsx:56-57` — staff formは `staffType` をStaffType全値域のSelectで公開している。**UIから `resource` staffを作成できる。**
+- `resource` は予約枠として選択される非人物リソース（部屋・機材等）であり、**原理的にログインを持ち得ない**。ここにemail/passwordを必須化すると、正当な業務データを作成不能にする。
+
+→ **backendの「アカウント無しstaff作成許容」が正しい。** 連動する①②④⑤の是正方針: ①emailは「入力された場合のみ形式検証」（必須化しない）、②既存staffのpasswordは「非空なら8文字以上かつ英数字混在」をfrontendでも検証（`ValidatePassword`と同契約）、③OpenAPIのrequiredからemail/passwordを外す、④空氏名testの名称を編集経路と明記、⑤read-only画面のEnter form actionは別途塞ぐ。判断者への確認事項は**残っていない**。
+
+### 【裁定】R-3の実現可能性 — 既存データからの基準値自動生成は採れない
+
+- `exam_reference_ranges` のキーは `(clinic_id, exam_type_field_id, animal_species_id)`（`001_init.sql` の該当CREATE TABLE、UNIQUE制約 `uq_exam_reference_ranges_clinic_field_species`）。**species次元を持つ。**
+- 一方 `exam_type_fields.normal_value` は `6.0-17.0 x10^3/uL`・`37-55%`・`10-125 U/L` のような**単位混在の自由文字列**で、**species次元を持たない**（seed実査）。
+- 犬と猫で基準値は異なる。normal_valueから機械変換すると「全speciesで同一の基準値」を暗黙に主張することになり、**臨床的に誤った判定を生む**。
+
+→ **normal_valueからのマイグレーションは禁止。** 基準値を入れるなら獣医師が種別ごとに与える必要がある。
+
+### 【提案・曽我承認待ち】R-3のA/B — Bを推す（基準値不在のままM-02を実測する）
+
+上記の裁定によりAは「獣医師が犬猫別の基準値を新規に作成する」工程になり、read/write APIも無いためseed追加かmaster画面の実装が要る。納品日当日に着手できる規模ではない。一方でBを採ってもM-02の主要な問いは失われない（下記）。
+
+### 【提案・曽我承認待ち】M-02の一覧cue要否 — 一覧にcueを追加しない
+
+基準値が無くても、この問いは既存実装から答えられる。
+
+- **詳細面には非色cueが既にある**: `ExamItemsTable.tsx:82` の `aria-label="基準値内"`、`:138` の `data-abnormal={String(!!item.isAbnormal)}`、`:163` の項目別 `aria-label`。色に依存しない識別手段は実装済み。
+- **一覧はexam単位であり、異常はitem単位である**: `/examinations` が表示するのは `resultSummary` と `status` バッジ（`ExaminationsList.tsx:225,229-230`）。`exam_results.is_abnormal` はitem単位の値で、一覧のデータモデルに存在しない。
+- 一覧へ集約フラグを出すにはbackendのexamレベルrollupが要る＝**新規実装**。「あれば便利」で追加すると製品哲学①②に反する。
+
+→ 提案は「一覧にcueを追加せず、行→詳細のaccessible導線で担保する」。runbookが想定する「不要と裁定する場合は詳細へのaccessible導線があること」の分岐に該当する。**ただし4 viewportのlayout実測（wrap/clip/overlap）は別途必要であり、これは基準値と無関係に実施できる。**
+
+### 【提案・曽我承認待ち】M-01-D — 死亡ペットに対する操作別の可否
+
+適用原則は2つ。`docs/spec/specification.md:21`「**死亡ペットに対する誤操作の物理的ブロック**」と、製品哲学「確認ダイアログによる安全対策は禁止。ロック・Undo・物理ブロックで解決する」。したがって「ダイアログで確認して続行可」という選択肢は最初から採らない。
+
+| 操作 | 提案 | 根拠 | 現状 |
+|---|---|---|---|
+| owner名link | **許可** | 飼主情報の閲覧は個体の生死と無関係。遮断する業務理由がない | 未確認 |
+| report（飼主レポート） | **許可** | 過去の診療記録の閲覧であり、死亡後にこそ必要になり得る | 未確認 |
+| pet編集 | **物理ブロック** | 死亡個体の属性変更は誤操作の典型。ただし**誤記訂正の正規経路を別に用意する必要がある**（ブロックのみだと訂正手段が消える） | 未確認 |
+| 削除 | **物理ブロック** | 臨床記録の保全。削除は記録の消失であり、死亡個体でこそ不可逆 | 未確認 |
+| 死亡登録/解除 | **確定済み** | `45b681866` 以降fail-closedで、既死亡への再登録・生存への解除は409 | 実装済み |
+
+**「未確認」は現状のUI挙動を実測していないという意味であり、提案の根拠が弱いという意味ではない。** M-01-Eの証跡収集で現状が判明すれば、曽我は上表の提案列と実測列を突き合わせて承認/修正するだけで済む。**pet編集をブロックする場合の誤記訂正経路**だけは、曽我の判断が実装方針を分ける（追記のみ許す／管理者権限でのみ許す／死亡解除→訂正→再登録の順を強制する）。
+
+### 【委任外】臨床値そのもの
+
+WBC・RBC・HCTの**犬別/猫別の具体的な基準値**は、7/20に定めた委任境界（臨床値はユーザーに残す）に該当する。獣医師の確認を経ない値をマスタへ入れることは、判定結果が診療判断に直結する以上、行わない。Aを採る場合はこの工程が先行する。
+
 ## 実測レーン分割（2026-07-27・fixture完成後）
 
 fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）・M-01-D・R-1③ の3件だけ**である。残りは曽我の判断を要さず、実行する人手さえあれば着手できる。ただし全レーンが同一のdisposable localを共有するため、素直な2レーン並行は組めない。所有resourceの重なりを実査した結果を下に示す。
