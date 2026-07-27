@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-26 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は todo.md。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-26 時点: PO 判断待ち 0 件・dev 着手不能な決裁待ちなし。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-26 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-26 時点: PO 判断待ち 0 件・dev 着手不能な決裁待ちなし。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
   </header>
 
   <p class="summary">PO 判断待ちカード: 現在 0 件 — 回答済みカード 45 件（PO-001〜008・SD-1〜19・GAP-1/2・DEC-1〜22）は 2026-07-26 に削除済み。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
@@ -224,7 +224,7 @@
 <article class="task" data-task="OPS-2">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title"><code>DB_RESET=true</code> 再適用（ローカル→STG）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、現行DDLは001単一file。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は修正済みだが「次回シナリオ再実行で最終確認」待ちのため todo.md バグ台帳の直近クローズ節に残置中。</p>
+  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、現行DDLは001単一file。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は <code>58c653df5</code> で修正、<code>39e7b5f7b</code> で旧台帳から削除済み。次回シナリオ再実行は OPS-5 の S05 で追跡する。</p>
 </article>
 
 <article class="task" data-task="OPS-3">

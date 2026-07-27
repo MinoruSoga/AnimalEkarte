@@ -144,7 +144,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 ### 残余risk — S1/S2並行実行レーン
 
-下記は2026-07-27時点のcurrent sourceで未解消を確認した項目である。2026-07-27の曽我裁定により、2セッション並行の実行レーンS1（backend）/S2（frontend）へ分割して着手可能とした（優先度は既定P1・M-01〜M-05のP0実測より劣後）。運用規則: 本台帳のwriterは生成側セッション単独とし、S1/S2の実行セッションは台帳を読むのみで書かない。両レーンの所有pathは相互に非重複とし、FE12-02のfixture/実測（human工程）とも独立に進行できる。tygo項目は`make codegen`がUSER専権のためレーンへ割り当てない。staffs権限割当の認可欠陥はtodo.mdバグ台帳のBUG-442で扱い、本節には持たない。
+下記は2026-07-27時点のcurrent sourceで未解消を確認した項目である。2026-07-27の曽我裁定により、2セッション並行の実行レーンS1（backend）/S2（frontend）へ分割して着手可能とした（優先度は既定P1・M-01〜M-05のP0実測より劣後）。運用規則: 本台帳のwriterは生成側セッション単独とし、S1/S2の実行セッションは台帳を読むのみで書かない。両レーンの所有pathは相互に非重複とし、FE12-02のfixture/実測（human工程）とも独立に進行できる。tygo項目は`make codegen`がUSER専権のためレーンへ割り当てない。staffs権限割当の認可欠陥は[`3-session-agent.html#ledger`](3-session-agent.html#BUG-442)のBUG-442で扱い、本節には持たない。
 
 #### S1（backendレーン） — 所有path: `backend/internal/pet/`・`backend/internal/lstep/`・medical-record auto-create lookup周辺
 

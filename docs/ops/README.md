@@ -21,5 +21,5 @@
 
 ## AI エージェント向け注記
 
-- タスク台帳はリポジトリ直下 [`todo.md`](../../todo.md) に一元化されている。運用作業で発見した課題はそこへ起票する。
+- タスク台帳はリポジトリ直下 [`3-session-agent.html` の実装タスク台帳（正本）](../../3-session-agent.html#ledger) に一元化されている。運用作業で発見した課題は `<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="<タスクID>">` 形式で起票する。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。
