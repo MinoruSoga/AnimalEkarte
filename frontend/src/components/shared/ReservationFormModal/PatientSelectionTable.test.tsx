@@ -188,6 +188,25 @@ describe("PatientSelectionTable — 総件数とページャ", () => {
     );
   });
 
+  it("デバウンス待ちの間は行を残しつつ、古い条件の結果から選択させない", async () => {
+    mockPetList(() => ({ data: [backendPet(1)], total: 40, page: 1, limit: 20 }));
+
+    const user = userEvent.setup();
+    renderTable();
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
+    expect(await screen.findByRole("button", { name: "選択: ミケ1 (ID 1)" })).toBeEnabled();
+
+    // 追加入力でデバウンス待ちに入る。行は消さない（消すと preservePreviousData が
+    // 無意味になり「前回取得: N件中 …」が空の表の横に出る）が、選択は塞ぐ。
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "まだ");
+
+    const staleButton = await screen.findByRole("button", {
+      name: "読み込み中・選択不可: ミケ1 (ID 1)",
+    });
+    expect(staleButton).toBeDisabled();
+    expect(screen.getByText("ミケ1")).toBeInTheDocument();
+  });
+
   it("応答の page / limit が不正でも破綻した範囲を表示しない", async () => {
     // 外部境界の値をそのまま使うと「1,204件中 -19-0件」や totalPages=Infinity になる。
     mockPetList(() => ({ data: [backendPet(1)], total: 1204, page: 0, limit: 0 }));

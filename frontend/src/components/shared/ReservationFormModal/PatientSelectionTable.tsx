@@ -344,7 +344,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
             <div className="flex-1 flex items-center justify-center">
               <ErrorFallback message="患者一覧の取得に失敗しました" />
             </div>
-          ) : isBusy ? (
+          ) : isBusy && pets.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
               <div className="animate-spin">
                 <Search className={`${ICON.xl} ${C.text20}`} />
@@ -372,6 +372,10 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
               <TableBody>
                 {pets.map((pet) => {
                   const isDeceased = pet.status === "死亡";
+                  // ページ送り・デバウンス待ちの間も行は消さない（消すと preservePreviousData が
+                  // 無意味になり「前回取得: N件中 1-20件」が空の表の横に出る自己矛盾になる）。
+                  // ただし表示中の行は「まだ古い条件の結果」なので選択はさせない。
+                  const isSelectable = !isDeceased && !isBusy;
                   return (
                     <TableRow
                       key={pet.id}
@@ -391,23 +395,25 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                       <TableCell>
                         <Button
                           size="sm"
-                          disabled={isDeceased}
+                          disabled={!isSelectable}
                           aria-label={
                             isDeceased
                               ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
-                              : isSelected(pet)
-                                ? `選択中: ${pet.name} (ID ${pet.id})`
-                                : `選択: ${pet.name} (ID ${pet.id})`
+                              : isBusy
+                                ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
+                                : isSelected(pet)
+                                  ? `選択中: ${pet.name} (ID ${pet.id})`
+                                  : `選択: ${pet.name} (ID ${pet.id})`
                           }
                           className={`h-11 min-w-11 gap-1 text-sm px-2 transition-colors ${
-                            isDeceased
+                            !isSelectable
                               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
                               ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
                               : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
                           }`}
                           onClick={() => {
-                            if (!isDeceased) onSelect(pet);
+                            if (isSelectable) onSelect(pet);
                           }}
                         >
                           <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
