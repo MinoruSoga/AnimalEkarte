@@ -511,6 +511,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                   {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
 	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
+
+	// Runtime: TestExamReferenceRangeRepository_FindAnimalSpeciesID_HoldsExamShareLockUntilAmbientTransactionCommits.
+	"medicalrecord/exam_reference_range_repository.go|examinationRepository.FindAnimalSpeciesID": {},
+
+	// Runtime: TestExamReferenceRangeRepository_ResolveByFieldIDs_HoldsReferenceRangeShareLockUntilAmbientTransactionCommits.
+	"medicalrecord/exam_reference_range_repository.go|examinationRepository.ResolveByFieldIDs": {},
 }
 
 type ambientTxParticipationShape uint8
