@@ -1173,6 +1173,8 @@ export interface ExamResult {
   reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
   is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
@@ -2520,6 +2522,26 @@ export interface PetChronicCondition {
    * Relations
    */
   pet?: Pet;
+}
+
+//////////
+// source: pet_owner.go
+
+/**
+ * PetOwner はペットと副飼主の追加紐付けを表す。
+ */
+export interface PetOwner {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  /**
+   * PetID / OwnerID: DDL の UNIQUE (pet_id, owner_id) を宣言する。
+   * index 名は PostgreSQL が UNIQUE 制約へ自動採番する名前に合わせる。
+   */
+  pet_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  relationship: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
