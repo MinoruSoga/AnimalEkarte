@@ -38,7 +38,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 | M-01-D | P0 | 同・**操作可否の裁定** | **曽我**。M-01-Eの証跡が先行すると判断が速い | 死亡ペットに対する許可/禁止を操作単位で明示した裁定メモ |
 | M-05 | P0 | Clinical sentinel responsive — 着手可だが**直列尾部** | S1/S2の完了。横断snapshot観測のため、他レーンが状態を動かしている間は証跡が無効になる | route×4 viewport・a11y dump・fixture-to-cue対応表 |
 | M-02 | P0 | Examinations一覧意味とlayout | **R-3の裁定が先行**（基準値不在ではHIGH/LOW cueが出ず実測が成立しない） | 両surface×4 viewport・曽我の一覧cue要否裁定 |
-| R-3 | P0 | M-02の`exam_reference_ranges`基準値をどうするか | **PO/master-data責任者の裁定**。基準値は臨床マスタでありエンジニア判断で入れられない | 「正規基準値を投入して再評価」または「基準値不在のまま実測」の明示決定 |
+| R-3 | P0 | **M-02をどう実測するか**（基準値の恒久是正は`3-session-agent.html#BUG-449`へ移管） | **曽我の裁定**。「基準値不在のまま実測」を推奨（提案節参照） | 実測方針の明示決定と、裁定メモへの「判定機能停止下での観測」注記 |
 | line-reserve | P1 | font実機確認 | QA環境管理者と端末管理者の受け渡し（実機3台・remote inspection）。**曽我の判断は不要** | 3実機のscreenshot・HAR・computed font-family |
 | R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、staff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行。判断は不要 | 復旧後のread-back証跡 |
 | R-1 | P2 | staff入力検証の契約drift 5件 | **③のみPO判断**（アカウント無しstaffを登録する業務運用があるか）。①②④⑤は③が決まれば連動 | 各driftの是正または「意図された挙動」の明文化 |
@@ -88,9 +88,19 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 
 → **normal_valueからのマイグレーションは禁止。** 基準値を入れるなら獣医師が種別ごとに与える必要がある。
 
-### 【提案・曽我承認待ち】R-3のA/B — Bを推す（基準値不在のままM-02を実測する）
+### 【深刻度の訂正】R-3は「M-02が実測できない」問題ではない — 臨床機能が全体で停止している
 
-上記の裁定によりAは「獣医師が犬猫別の基準値を新規に作成する」工程になり、read/write APIも無いためseed追加かmaster画面の実装が要る。納品日当日に着手できる規模ではない。一方でBを採ってもM-02の主要な問いは失われない（下記）。
+**本節の初出時に深刻度を過小評価していた。訂正する。** 追加調査で、基準値不在はM-02のfixture固有の事情ではなく、**システム全体で検査異常値の自動ハイライトが機能していない**状態であることが判明した。`docs/spec/specification.md:21` が標準装備と謳う機能が動いていない。
+
+- `examination_service.go:472-490` の `ReplaceItems` は item ごとの `refMin`/`refMax` を **`resolvedRanges`（`exam_reference_ranges` の解決結果）からしか設定しない**。request が運ぶ `in.RefMin`/`in.RefMax` は一度も読まれない。
+- 一方 request DTO は今も `ref_min`/`ref_max` を受け取り（`examination_request.go:137-138`）、frontendは `get-exam-type-fields.ts` の `parseNormalRange` で `normal_value` を6表記からパースして送り続けている。**APIは受理して黙って破棄する**（silent contract break）。
+- 新経路のデータは0行で投入手段も無いため、`unassessedExamResult()` が全件へ適用される。
+
+**`3-session-agent.html#BUG-449` としてCRITICAL起票済み。** FE12-02の枠を超えるため、以降の追跡は同台帳を正本とする。本ledgerのR-3は「M-02をどう実測するか」に限定する。
+
+### 【提案・曽我承認待ち】R-3のA/B — M-02の実測についてはBを推す（基準値不在のまま進める）
+
+BUG-449の恒久是正（基準値マスタの投入経路を作る）とM-02の実測は分けられる。Aを待つとM-02が無期限に止まるが、M-02の主要な問い（一覧cueの要否）は基準値なしで答えられる（下記）。layout実測も基準値と無関係に実施できる。したがって**M-02はBで進め、BUG-449は別途恒久対応する**のが速い。ただしM-02の裁定メモには「判定機能が停止した状態で観測した」旨を必ず残し、BUG-449解消後にcue要否を再確認するかを曽我が決める。
 
 ### 【提案・曽我承認待ち】M-02の一覧cue要否 — 一覧にcueを追加しない
 

@@ -323,6 +323,22 @@
 </section>
 
 
+<section class="task" id="BUG-449">
+<h3>BUG-449: 検査異常値の自動ハイライトが全件無効化されている（基準値マスタの投入経路が存在しない）</h3>
+<ul>
+  <li><b>CRITICAL</b>（2026-07-27・FE12-02 M-02 fixture作成中に実測）。<code>docs/spec/specification.md:21</code> が「検査異常値の自動ハイライト」を標準装備と謳うが、<b>現在システム全体で 1 件も異常判定されない</b>。M-02 の fixture だけの問題ではない。</li>
+  <li><b>機序</b>: 判定基準値の供給経路が #249 U3 で切り替わり、旧経路が死んだまま新経路のデータが存在しない。<code>backend/internal/medicalrecord/examination_service.go:472-490</code> の <code>ReplaceItems</code> は item ごとの <code>refMin</code>/<code>refMax</code> を <b><code>resolvedRanges</code>（= <code>exam_reference_ranges</code> の解決結果）からしか設定しない</b>。request が運ぶ <code>in.RefMin</code>/<code>in.RefMax</code> は一度も読まれない。</li>
+  <li><b>旧経路が生きたまま無視されている</b>: request DTO は今も <code>ref_min</code>/<code>ref_max</code> を受け取り（<code>examination_request.go:137-138</code>、<code>UpsertExamItemInput</code> は <code>examination_service.go:50-51</code>）、frontend は <code>frontend/src/features/examinations/api/get-exam-type-fields.ts</code> の <code>parseNormalRange</code> で <code>exam_type_fields.normal_value</code> を 6 表記（<code>3.5-7.0</code> / <code>3.5〜7.0</code> / <code>3.5以上7.0以下</code> / <code>3.5以上</code> / <code>&lt;7.0</code> / <code>&gt;3.5</code>）からパースして送り続けている。<b>API は受理して黙って破棄する。</b>silent contract break。</li>
+  <li><b>新経路にデータが無く、入れる手段も無い</b>: <code>exam_reference_ranges</code> は seed に 0 行で、read/write API も master 画面も存在しない。結果として <code>exam_result_assessment.go</code> の <code>unassessedExamResult()</code> が全件に適用され、<code>is_assessed=false, is_abnormal=false, status=normal</code> が返る。<b>この <code>normal</code> は「正常」ではなく「未評価」であり、臨床的な正常判定と読み違える危険がある。</b></li>
+  <li><b>実測証跡</b>（2026-07-27・disposable local・exam <code>1014562</code>）: RBC <code>9.0</code>（<code>normal_value</code> 表記 5.5-8.5 の上限超過）と HCT <code>30.0</code>（同 37-55 の下限未満）が、いずれも <code>is_assessed=false, is_abnormal=false, status=normal</code> で read-back された。</li>
+  <li><b>是正方針（未裁定）</b>: 基準値を「動物種ごとに動的設定できるマスタ」として投入経路（API + 画面）を作る。<code>exam_reference_ranges</code> は既に <code>(clinic_id, exam_type_field_id, animal_species_id)</code> キーで species 次元を持つため <b>schema 変更は不要</b>で、欠けているのは入力面だけである。<b>既存 <code>normal_value</code> からの機械移行は禁止</b> — <code>normal_value</code> は単位混在の自由文字列で species 次元を持たず、変換すると「全 species で同一基準値」を暗黙に主張して臨床的に誤る（犬猫で基準値は異なる）。値は獣医師が種別ごとに与える。</li>
+  <li><b>同時に削除できるもの（哲学②）</b>: ranges が単一の正本になれば、判定入力としての <code>normal_value</code>、FE の <code>parseNormalRange</code>、request の <code>ref_min</code>/<code>ref_max</code> は不要になる。現在は同じ事実が 3 箇所にあり、うち 2 箇所は既に機能していない。</li>
+  <li><b>スコープ外</b>: 個体別（pet 単位）の基準値。現 schema は <code>uq_exam_reference_ranges_clinic_field_species</code> で個体を持てず、要求も出ていない。実在する要求が出るまで作らない。</li>
+  <li>判断者: PO / master-data 責任者（投入する基準値そのものは臨床値のため代理決裁の委任外）。関連: <a href="#BUG-447">BUG-447</a>、<a href="#BUG-448">BUG-448</a>、FE-refactor.md の R-3。</li>
+</ul>
+</section>
+
+
 <!-- LEDGER:APPEND -->
 
 <h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
