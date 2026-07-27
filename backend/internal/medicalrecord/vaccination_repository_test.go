@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -376,5 +377,20 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicA, target)
 		require.NoError(t, err)
 		assert.NotContains(t, ids, ownerB.ID)
+	})
+
+	t.Run("UTC入力はJST暦日に正規化して期限を検索する", func(t *testing.T) {
+		const boundaryClinicID = uint64(31)
+		owner := makeTestOwner(t, db, boundaryClinicID, "JST境界期限飼主")
+		pet := makeVaccinationRepoTestPet(t, db, boundaryClinicID, owner.ID, "JST境界期限ペット")
+		vaccine := makeVaccineMaster(t, db, boundaryClinicID, "JST境界期限ワクチン")
+		jstDeadline := time.Date(2026, time.August, 1, 0, 0, 0, 0, config.JST)
+		makeVaccinationWithNextDate(boundaryClinicID, pet.ID, vaccine.ID, jstDeadline)
+		utcInputOnPreviousCalendarDay := time.Date(2026, time.July, 31, 15, 30, 0, 0, time.UTC)
+
+		ids, err := repo.FindOwnersByVaccineDeadline(ctx, boundaryClinicID, utcInputOnPreviousCalendarDay)
+
+		require.NoError(t, err)
+		assert.Equal(t, []uint64{owner.ID}, ids)
 	})
 }

@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -222,7 +223,7 @@ func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 // pets/owners を clinic_id 一致で JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format(time.DateOnly)
+	target := targetDate.In(config.JST).Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := persistence.DBOrTx(ctx, r.db).
