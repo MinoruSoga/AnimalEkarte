@@ -57,7 +57,7 @@ func TestPetOwnerRepository_ReplaceForPet_AmbientTransaction(t *testing.T) {
 	require.NoError(t, repo.ReplaceForPet(txCtx, clinicID, pet.ID, []model.PetOwner{{
 		OwnerID:      newOwner.ID,
 		Relationship: "新",
-	}}))
+	}}, nil))
 	require.NoError(t, tx.Rollback().Error)
 
 	var links []model.PetOwner

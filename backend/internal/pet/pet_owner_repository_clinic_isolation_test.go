@@ -77,7 +77,7 @@ func TestPetOwnerRepository_ReplaceForPet_ClinicIsolation(t *testing.T) {
 	originalA := makePetOwnerLink(t, db, clinicA, petA.ID, ownerA.ID, "元リンクA")
 	originalB := makePetOwnerLink(t, db, clinicB, petB.ID, ownerB.ID, "元リンクB")
 
-	err := repo.ReplaceForPet(ctx, clinicA, petB.ID, nil)
+	err := repo.ReplaceForPet(ctx, clinicA, petB.ID, nil, nil)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 
@@ -89,7 +89,7 @@ func TestPetOwnerRepository_ReplaceForPet_ClinicIsolation(t *testing.T) {
 	err = repo.ReplaceForPet(ctx, clinicA, petA.ID, []model.PetOwner{{
 		OwnerID:      ownerB.ID,
 		Relationship: "越境副飼主",
-	}})
+	}}, nil)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 
@@ -104,13 +104,52 @@ func TestPetOwnerRepository_ReplaceForPet_ClinicIsolation(t *testing.T) {
 		PetID:        petB.ID,
 		OwnerID:      ownerA2.ID,
 		Relationship: "正規化対象",
-	}}))
+	}}, nil))
 	ownLinks = nil
 	require.NoError(t, db.Where("clinic_id = ? AND pet_id = ?", clinicA, petA.ID).Find(&ownLinks).Error)
 	require.Len(t, ownLinks, 1)
 	assert.Equal(t, clinicA, ownLinks[0].ClinicID)
 	assert.Equal(t, petA.ID, ownLinks[0].PetID)
 	assert.Equal(t, ownerA2.ID, ownLinks[0].OwnerID)
+}
+
+func TestPetOwnerRepository_ReplaceForPet_RejectsSoftDeletedOwner(t *testing.T) {
+	db := setupPetOwnerRepositoryTestDB(t)
+	repo := NewPetOwnerRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	primaryOwner := makeTestOwner(t, db, clinicID, "削除済み副飼主拒否・主飼主")
+	currentSecondaryOwner := makeTestOwner(t, db, clinicID, "削除済み副飼主拒否・現副飼主")
+	deletedSecondaryOwner := makeTestOwner(t, db, clinicID, "削除済み副飼主拒否・削除済み")
+	pet := makeSpeciesAndPet(t, db, clinicID, primaryOwner.ID, "削除済み副飼主拒否ペット")
+	original := makePetOwnerLink(t, db, clinicID, pet.ID, currentSecondaryOwner.ID, "現副飼主")
+	originalVersion := pet.Version
+
+	require.NoError(t, db.Delete(deletedSecondaryOwner).Error)
+
+	err := repo.ReplaceForPet(ctx, clinicID, pet.ID, []model.PetOwner{{
+		OwnerID:      deletedSecondaryOwner.ID,
+		Relationship: "削除済み副飼主",
+	}}, nil)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "expected NotFound, got %v", err)
+
+	var links []model.PetOwner
+	require.NoError(t, db.Where("clinic_id = ? AND pet_id = ?", clinicID, pet.ID).Find(&links).Error)
+	require.Len(t, links, 1)
+	assert.Equal(t, original.ID, links[0].ID)
+	assert.Equal(t, currentSecondaryOwner.ID, links[0].OwnerID)
+
+	var rejectedLinkCount int64
+	require.NoError(t, db.Model(&model.PetOwner{}).
+		Where("clinic_id = ? AND pet_id = ? AND owner_id = ?", clinicID, pet.ID, deletedSecondaryOwner.ID).
+		Count(&rejectedLinkCount).Error)
+	assert.Zero(t, rejectedLinkCount)
+
+	var reloadedPet model.Pet
+	require.NoError(t, db.Unscoped().First(&reloadedPet, pet.ID).Error)
+	assert.Equal(t, originalVersion, reloadedPet.Version)
 }
 
 func TestPetOwnerRepository_CountByOwnerID_ClinicIsolation(t *testing.T) {
@@ -152,7 +191,7 @@ func TestPetOwnerRepository_ReplaceForPet(t *testing.T) {
 		require.NoError(t, repo.ReplaceForPet(ctx, clinicID, pet.ID, []model.PetOwner{{
 			OwnerID:      newOwner.ID,
 			Relationship: "新",
-		}}))
+		}}, nil))
 
 		var links []model.PetOwner
 		require.NoError(t, db.Where("clinic_id = ? AND pet_id = ?", clinicID, pet.ID).Find(&links).Error)
@@ -171,7 +210,7 @@ func TestPetOwnerRepository_ReplaceForPet(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "全解除ペット")
 		makePetOwnerLink(t, db, clinicID, pet.ID, owner.ID, "解除対象")
 
-		require.NoError(t, repo.ReplaceForPet(ctx, clinicID, pet.ID, []model.PetOwner{}))
+		require.NoError(t, repo.ReplaceForPet(ctx, clinicID, pet.ID, []model.PetOwner{}, nil))
 
 		var count int64
 		require.NoError(t, db.Model(&model.PetOwner{}).
@@ -193,7 +232,7 @@ func TestPetOwnerRepository_ReplaceForPet(t *testing.T) {
 		err := repo.ReplaceForPet(ctx, clinicID, pet.ID, []model.PetOwner{
 			{OwnerID: owner.ID, Relationship: "重複1"},
 			{OwnerID: owner.ID, Relationship: "重複2"},
-		})
+		}, nil)
 		require.Error(t, err)
 
 		var links []model.PetOwner

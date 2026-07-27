@@ -16,7 +16,7 @@ import (
 // PetOwnerRepository はペットと副飼主の追加紐付けを永続化する。
 type PetOwnerRepository interface {
 	FindByPetID(ctx context.Context, clinicID, petID uint64) ([]model.PetOwner, error)
-	ReplaceForPet(ctx context.Context, clinicID, petID uint64, links []model.PetOwner) error
+	ReplaceForPet(ctx context.Context, clinicID, petID uint64, links []model.PetOwner, expectedVersion *int) error
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
@@ -50,22 +50,26 @@ func (r *petOwnerRepository) ReplaceForPet(
 	ctx context.Context,
 	clinicID, petID uint64,
 	links []model.PetOwner,
+	expectedVersion *int,
 ) error {
 	db := persistence.DBOrTx(ctx, r.db)
 	return db.Transaction(func(tx *gorm.DB) error {
 		var pet model.Pet
 		if err := tx.Unscoped().
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id").
+			Select("id", "version").
 			Where("clinic_id = ? AND id = ?", clinicID, petID).
 			First(&pet).Error; err != nil {
 			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
+		}
+		if expectedVersion != nil && pet.Version != *expectedVersion {
+			return apperrors.WrapConflict("他のユーザーがこのペットの副飼主を変更しました。再読み込みしてください")
 		}
 
 		ownerIDs := uniqueSortedPetOwnerIDs(links)
 		if len(ownerIDs) > 0 {
 			var owners []model.Owner
-			if err := tx.Unscoped().
+			if err := tx.
 				Clauses(clause.Locking{Strength: "SHARE"}).
 				Select("id").
 				Where("clinic_id = ? AND id IN ?", clinicID, ownerIDs).
@@ -85,21 +89,31 @@ func (r *petOwnerRepository) ReplaceForPet(
 		if result.Error != nil {
 			return apperrors.FromGORM(result.Error, "pet_owner", "")
 		}
-		if len(links) == 0 {
-			return nil
-		}
 
-		replacements := make([]model.PetOwner, len(links))
-		for i, link := range links {
-			replacements[i] = model.PetOwner{
-				ClinicID:     clinicID,
-				PetID:        petID,
-				OwnerID:      link.OwnerID,
-				Relationship: link.Relationship,
+		if len(links) > 0 {
+			replacements := make([]model.PetOwner, len(links))
+			for i, link := range links {
+				replacements[i] = model.PetOwner{
+					ClinicID:     clinicID,
+					PetID:        petID,
+					OwnerID:      link.OwnerID,
+					Relationship: link.Relationship,
+				}
+			}
+			if err := tx.Create(&replacements).Error; err != nil {
+				return apperrors.FromGORM(err, "pet_owner", "")
 			}
 		}
-		if err := tx.Create(&replacements).Error; err != nil {
-			return apperrors.FromGORM(err, "pet_owner", "")
+
+		versionResult := tx.Unscoped().
+			Model(&model.Pet{}).
+			Where("clinic_id = ? AND id = ? AND version = ?", clinicID, petID, pet.Version).
+			UpdateColumn("version", pet.Version+1)
+		if versionResult.Error != nil {
+			return apperrors.FromGORM(versionResult.Error, "pet", fmt.Sprintf("%d", petID))
+		}
+		if versionResult.RowsAffected != 1 {
+			return apperrors.WrapConflict("他のユーザーがこのペットの副飼主を変更しました。再読み込みしてください")
 		}
 		return nil
 	})

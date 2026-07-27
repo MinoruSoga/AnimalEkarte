@@ -93,6 +93,7 @@ const (
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
 	AuditActionExamResultReplace                   = "exam_result.replace"
+	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 )
 

@@ -306,6 +306,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// roll back with the caller's transaction. Runtime:
 	// TestOwnerRepository_LineWebhookCASUpdates_RollBackWithAmbientTransaction.
 	"owner/repository.go|ownerRepository.findOwnerByID":        {},
+	"owner/repository.go|ownerRepository.CountPetsByOwnerID":   {},
+	"owner/repository.go|ownerRepository.Delete":               {},
+	"owner/repository.go|ownerRepository.LockForDelete":        {},
 	"owner/repository.go|ownerRepository.LockLineLinkOwner":    {},
 	"owner/repository.go|ownerRepository.UpdateLineBlockedAt":  {},
 	"owner/repository.go|ownerRepository.UpdateLineFollowedAt": {},

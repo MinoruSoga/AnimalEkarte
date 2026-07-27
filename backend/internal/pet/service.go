@@ -194,6 +194,8 @@ type petService struct {
 	insuranceRepo     InsuranceFinder
 	medicalRecordRepo MedicalRecordReader
 	tagSyncSvc        PetTagSynchronizer
+	petOwnerRepo      PetOwnerReader
+	petOwnerTx        PetOwnerTransactor
 }
 
 // NewService constructs the pet use-case service.
@@ -204,12 +206,40 @@ func NewService(
 	medicalRecordRepo MedicalRecordReader,
 	tagSyncSvc PetTagSynchronizer,
 ) Service {
+	return newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, nil, nil)
+}
+
+// NewServiceWithPetOwnerReader constructs the pet service with the secondary-owner
+// guard required by production owner changes.
+func NewServiceWithPetOwnerReader(
+	repo ServiceRepository,
+	ownerRepo OwnerFinder,
+	insuranceRepo InsuranceFinder,
+	medicalRecordRepo MedicalRecordReader,
+	tagSyncSvc PetTagSynchronizer,
+	petOwnerRepo PetOwnerReader,
+	petOwnerTx PetOwnerTransactor,
+) Service {
+	return newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, petOwnerRepo, petOwnerTx)
+}
+
+func newService(
+	repo ServiceRepository,
+	ownerRepo OwnerFinder,
+	insuranceRepo InsuranceFinder,
+	medicalRecordRepo MedicalRecordReader,
+	tagSyncSvc PetTagSynchronizer,
+	petOwnerRepo PetOwnerReader,
+	petOwnerTx PetOwnerTransactor,
+) Service {
 	return &petService{
 		repo:              repo,
 		ownerRepo:         ownerRepo,
 		insuranceRepo:     insuranceRepo,
 		medicalRecordRepo: medicalRecordRepo,
 		tagSyncSvc:        tagSyncSvc,
+		petOwnerRepo:      petOwnerRepo,
+		petOwnerTx:        petOwnerTx,
 	}
 }
 
@@ -307,7 +337,8 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	currentPet, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find pet")
 	}
@@ -317,9 +348,24 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 
 	// owner_id 変更時の clinic 所属確認
+	ownerUpdateRequested := false
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
 			return nil, apperrors.WrapInvalidInput("owner not found in this clinic")
+		}
+		if currentPet == nil {
+			return nil, apperrors.WrapInternalServerError("pet lookup returned no result")
+		}
+		if s.petOwnerRepo == nil || s.petOwnerTx == nil {
+			return nil, apperrors.WrapInternalServerError("pet owner transaction dependencies are unavailable")
+		}
+		ownerUpdateRequested = true
+		links, err := s.petOwnerRepo.FindByPetID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to find pet owners")
+		}
+		if containsPetOwner(links, *input.OwnerID) {
+			return nil, apperrors.WrapConflict("副飼主を主飼主へ変更する前に副飼主の紐付けを解除してください")
 		}
 	}
 
@@ -340,11 +386,35 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		level := model.DangerLevel(*input.DangerLevel)
 		dangerLevel = &level
 	}
-	pet, err := s.repo.UpdateAndFind(ctx, clinicID, id, PetUpdate{
+	update := PetUpdate{
 		fields:       fields,
 		dangerLevel:  dangerLevel,
 		dangerReason: input.DangerReason,
-	})
+	}
+	var pet *model.Pet
+	updateAndVerify := func(updateCtx context.Context) error {
+		var updateErr error
+		pet, updateErr = s.repo.UpdateAndFind(updateCtx, clinicID, id, update)
+		if updateErr != nil {
+			return updateErr
+		}
+		if !ownerUpdateRequested {
+			return nil
+		}
+		links, readErr := s.petOwnerRepo.FindByPetID(updateCtx, clinicID, id)
+		if readErr != nil {
+			return apperrors.Wrap(readErr, "failed to verify pet owners")
+		}
+		if containsPetOwner(links, *input.OwnerID) {
+			return apperrors.WrapConflict("副飼主を主飼主へ変更する前に副飼主の紐付けを解除してください")
+		}
+		return nil
+	}
+	if ownerUpdateRequested {
+		err = s.petOwnerTx.WithTx(ctx, updateAndVerify)
+	} else {
+		err = updateAndVerify(ctx)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update pet")
