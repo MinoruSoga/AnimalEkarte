@@ -10,8 +10,8 @@
 
 ## Active scope and authority
 
-- 追跡対象は `M-01`〜`M-05` の実測、line-reserve font実機確認、裁定待ちの残余3件（R-1/R-2/R-3）、実測後のfixture復旧（R-4）とする。F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は代理決裁・実装済みで追跡を終了した。
-- **2026-07-27 時点の到達点**: M-01〜M-05 の fixture は全て作成済み。**PO裁定を待って着手できないのは M-02（R-3経由）・M-01-D・R-1③ の3件のみ**で、M-03・M-04・M-01-E は曽我の判断を要さず着手できる（判定基準が客観的に確定しているため）。実行順と干渉回避は「実測レーン分割」節を正本とする。
+- 追跡対象は `M-01`〜`M-05` の実測、line-reserve font実機確認、残余2件（R-2/R-3）、実測後のfixture復旧（R-4）とする。R-1・F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は裁定・実装済みで追跡を終了した。
+- **2026-07-28 時点の到達点**: M-01〜M-05 の fixture は全て作成済み。**PO裁定を待って着手できないのは M-02（R-3経由）・M-01-D の2件のみ**で、R-1は全5件完了、M-03・M-04・M-01-E は曽我の判断を要さず着手できる（判定基準が客観的に確定しているため）。実行順と干渉回避は「実測レーン分割」節を正本とする。
 - **2026-07-28 更新 — R-3 の前提が変わった**: #249 U4（`afd8404a4` API＋`1adf55b6e` UI）で `exam_reference_ranges` への投入経路が開通し、R-3 の選択肢 (A) は「rangeのAPIが無いため実装が要る」という制約から解放された。**ただし `exam_reference_ranges` は依然0行**であり、獣医師が動物種ごとの臨床値を投入するまで HIGH/LOW cue は導出されない。したがって **M-02 を「基準値不在のまま実測する」(B) の妥当性は変わらない**。判断が要るのは「臨床値の投入を待つか、待たずに実測するか」だけになった（機構の有無は論点から消えた）。
 - **2026-07-28 更新 — 未評価/正常の誤読対策は3 surface全てで完了**: `ExamItemsTable`（`19bbdbae2`）・`ExamPivotTable`・`ExaminationGroup` の全てで `isAssessed === false` を「未判定」として区別表示する。あわせて `BUG-450`（`GET /v1/examinations` のDTOに明細が無く、カルテ検査結果一覧が常に0件・飼主レポートの異常件数が常に0だった silent contract break）を `include_items` の opt-in 追加で解消した。**M-02 の実測時、カルテ側の検査結果一覧は初めて実データを描画する**（従来は空だったため、過去の実測結果があれば無効）。
 - **2026-07-28 更新 — S1レーン（M-01-E + M-04）を試行し BLOCKED。「着手可」は環境前提が揃っている場合の話だった**: 実行記録は M-04 節末尾の「2026-07-28 S1レーン実測結果」を正本とする。臨床状態は一切動いておらず、fixture の生存も未確認のままである。**この試行で判明した4件のうち3件は runbook 側ではなく着手プロンプト側の欠陥**であり、次に同じ轍を踏まないよう下記「S1レーン試行の結果」へ分離して記録する。M-03（S2レーン）は未試行だが、ブラウザ経路の前提は共有するため同じ理由で止まる可能性が高い。
@@ -44,7 +44,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 | R-3 | P0 | **M-02をどう実測するか**（基準値の恒久是正は`3-session-agent.html#BUG-449`へ移管） | **曽我の裁定**。「基準値不在のまま実測」を推奨（提案節参照） | 実測方針の明示決定と、裁定メモへの「判定機能停止下での観測」注記 |
 | line-reserve | P1 | font実機確認 | QA環境管理者と端末管理者の受け渡し（実機3台・remote inspection）。**曽我の判断は不要** | 3実機のscreenshot・HAR・computed font-family |
 | R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、staff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行。判断は不要 | 復旧後のread-back証跡 |
-| R-1 | P2 | staff入力検証の契約drift 5件 | **③のみPO判断**（アカウント無しstaffを登録する業務運用があるか）。①②④⑤は③が決まれば連動 | 各driftの是正または「意図された挙動」の明文化 |
+| R-1 | P2 | staff入力検証の契約drift 5件 — **2026-07-28 完了** | ①②と③frontend側は`166e4acd7`、③OpenAPI側と④は本ユニット、⑤は`a44fa0ebe`で完了。判断ブロッカー・残件なし | backend binding・OpenAPI required/description・frontend validation/test名・mutation直前の権限再検査が一致 |
 | R-2 | P2 | tygo pointer mapping 15行の寄与測定 | `make codegen`がUSER専権。**曽我の判断は不要** | 寄与0の行の特定と設定整理 |
 <!-- FE12-TASK-TABLE-END -->
 
@@ -67,7 +67,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 2. **権限はaction別の最新値をmutation直前に再検査する。** UIの非表示・disabled・route guardだけを最終防壁にしない。view/edit共用の唯一のdetail routeはread accessを維持し、mutation境界をfail-closedにする。commit直後にも発火し得るcallbackのpermission refは`useLayoutEffect`で同期する。
 3. **臨床date-onlyはJSTの厳密過去で判定する。** `YYYY-MM-DD`契約をguardし、`todayJSTISO()`との文字列比較`<`を使う。現在時刻との`Date`比較で当日を期限超過にしない。
 
-## PO判断待ち3件の代理検討（2026-07-27）
+## PO判断待ち2件の代理検討とR-1完了記録（2026-07-28）
 
 コードと仕様書の実読で判断可能なところまで詰めた。**裁定**＝証拠が答えを一意に決めるもの、**提案**＝判断が要るが材料を揃えたもの（曽我承認待ち）、**委任外**＝7/20に定めた委任境界（臨床値・外部書き込み・課金/物理操作）に触れるもの、の3ラベルで区別する。
 
@@ -81,7 +81,7 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 - `StaffLineReservationSection.tsx:56-57` — staff formは `staffType` をStaffType全値域のSelectで公開している。**UIから `resource` staffを作成できる。**
 - `resource` は予約枠として選択される非人物リソース（部屋・機材等）であり、**原理的にログインを持ち得ない**。ここにemail/passwordを必須化すると、正当な業務データを作成不能にする。
 
-→ **backendの「アカウント無しstaff作成許容」が正しい。** 連動する①②④⑤の是正方針: ①emailは「入力された場合のみ形式検証」（必須化しない）、②既存staffのpasswordは「非空なら8文字以上かつ英数字混在」をfrontendでも検証（`ValidatePassword`と同契約）、③OpenAPIのrequiredからemail/passwordを外す、④空氏名testの名称を編集経路と明記、⑤read-only画面のEnter form actionは別途塞ぐ。判断者への確認事項は**残っていない**。
+→ **backendの「アカウント無しstaff作成許容」が正しい。** 連動する①②④⑤の是正方針: ①emailは「入力された場合のみ形式検証」（必須化しない）、②既存staffのpasswordは「非空なら8文字以上かつ英数字混在」をfrontendでも検証（`ValidatePassword`と同契約）、③OpenAPIのrequiredからemail/passwordを外す、④空氏名testの名称を編集経路と明記、⑤関連付けmutationの直前に権限グループ・所属医院の権限を再検査し、権限喪失時は発行しない。判断者への確認事項は**残っていない**。
 
 ### 【裁定】R-3の実現可能性 — 既存データからの基準値自動生成は採れない
 
@@ -135,7 +135,7 @@ WBC・RBC・HCTの**犬別/猫別の具体的な基準値**は、7/20に定め�
 
 ## 実測レーン分割（2026-07-27・fixture完成後）
 
-fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）・M-01-D・R-1③ の3件だけ**である。残りは曽我の判断を要さず、実行する人手さえあれば着手できる。ただし全レーンが同一のlocal環境を共有するため、素直な2レーン並行は組めない。所有resourceの重なりを実査した結果を下に示す。
+fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）・M-01-D の2件だけ**である。R-1は完了済みで、残りは曽我の判断を要さず、実行する人手さえあれば着手できる。ただし全レーンが同一のlocal環境を共有するため、素直な2レーン並行は組めない。所有resourceの重なりを実査した結果を下に示す。
 
 > **2026-07-28 訂正**: 本節は当初「全レーンが同一の**disposable local**を共有する」と書いていたが、**disposable な stack は存在しない**。稼働しているのは名前付き永続ボリュームを持つ通常の Compose stack（`backend`/`db`/`frontend`）であり、config だけでは破棄可能性を証明できない。M-04 は pet `1000018` を実際に死亡させて戻すため、**この環境で実施してよいかは曽我の判断が要る**（下記「S1レーン試行の結果」の決定事項①）。
 
@@ -169,7 +169,6 @@ fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）�
 
 - M-02 — R-3のPO裁定待ち。基準値が無いとHIGH/LOW cueが出ず、「一覧にcueが要るか」という問い自体が成立しない。
 - M-01-D — 曽我の裁定。S1がM-01-Eを終えていれば、成果物を見て答えるだけで済む。
-- R-1③ — 業務運用の確認。
 - line-reserve — 実機3台とQA環境の受け渡し。PO待ちではない。
 
 **証跡収集の自動化余地（未検証・要設計）**: M-01-E/M-03/M-04/M-05が要求する成果物（4 viewport screenshot・accessibility tree・accessible name・network HAR・computed token・overflow計測）は判断を含まない機械的な収集である。`.codex/config.toml`にChrome DevTools MCPが定義済みで、`resize_page`/`take_screenshot`/`take_snapshot`/`list_network_requests`が対応する。1ルート（M-01-E）で試行し、成果物が曽我の判断材料として成立するかを確かめてから横展開するのが安い。ただし禁止操作のmutation 0件検証は実際に操作を試みる必要があり、復旧手順込みで設計すること。
@@ -321,13 +320,13 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 
 ### 残余risk — 裁定待ち
 
-2026-07-27にS1（backend）/S2（frontend）の2レーン並行で全9項目を解消・清算した。実装・裁定が完了した項目は本節から削除し、証跡commitはファイル冒頭に一覧する。以下は実装ではなく**裁定**を待っている項目である（2026-07-28 に F16 の解釈を追加）。
+2026-07-27にS1（backend）/S2（frontend）の2レーン並行で全9項目を解消・清算した。実装・裁定が完了した項目は原則として本節から削除し、証跡commitはファイル冒頭に一覧する。以下は実装ではなく**裁定**を待っている項目である（2026-07-28 に F16 の解釈を追加）。R-1のみ、本ユニットの完了記録として残す。
 
 - **【裁定待ち・P0・2026-07-28追加】F16 の「グレーアウト」は badge のみか、行全体か** — M-01-E の合否基準が確定しない。実装は死亡ステータス**バッジ**だけをグレーにする（`OwnersListTable.tsx:236-241` → `getPetStatusColor` → `status-helpers.ts:176-180` が死亡へ `BADGE.grayHover`）。本ledgerの M-01「Expected result」は「一覧はグレーアウト維持・`3b7524748`」としか書いておらず、行全体を意図したのか badge を指したのかが読み取れない。**現状の実装を是とするなら M-01-E は「badge がグレー」を合格とし、行全体を意図していたなら実装が未達である。** 判断者: 曽我。この裁定が無いと M-01-E の証跡を集めても合否を付けられない。
 
 - **【裁定待ち・P0・R-3】M-02の`exam_reference_ranges`基準値が存在しない** — 2026-07-27 のfixture作成で判明。異常判定は`examination_service.go`が`referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)`で引いた基準値から導出する（`exam_reference_range_repository.go`の述語は`clinic_id + animal_species_id + exam_type_field_id`）。**現行seedにrange recordが無く、rangeのread/write APIも存在しない。** `exam_type_fields.normal_value`（`6.0-17.0 x10^3/uL`等）は表示用文字列であって導出には使われない。結果としてRBC=`9.0`（基準5.5-8.5超過）・HCT=`30.0`（基準37-55未満）が`is_assessed=false, is_abnormal=false, status=normal`のまま返る。**この`normal`は「正常」ではなく「未評価fallback」であり**（`exam_result_assessment.go`の`unassessedExamResult()`）、臨床的な正常判定と読み違えてはならない。判断者: master-data責任者。選択肢: (A) 正規の基準値を投入して同じE/itemsを再評価しHIGH/LOW cueを成立させる（**2026-07-28 更新: #249 U4 で投入APIとmaster画面が実装されたため、実装待ちではなくなった。残るのは獣医師による動物種別の臨床値の投入だけである**）、(B) 基準値不在のままM-02を実測しcue無しの状態で裁定する（M-02の裁定内容が「cueの要否」から「導線の妥当性」へ変質する）。**Aを選ぶ場合、投入は正規の別工程で行う。fixture作成unitでの値の偽装は禁止であり、実際に行っていない。**
 
-- **【裁定待ち】staff入力検証の契約drift 5件** — S2第4走が隣接riskとして列挙（実装未着手）。①新規emailがtruthy判定のみで空白・形式不正をfrontendで阻止しない ②既存staffの非空・短いpasswordをfrontendで阻止しない ③frontend/OpenAPIの「新規email/password必須」とbackendのアカウントなしstaff作成許容が不一致 ④空氏名test名は新規/編集双方を示すが実caseは編集経路のみ ⑤read-only画面でEnterによるform actionが残り、基本staff保存が拒否されても関連付けmutationが独立発行され得る（backend側拒否は未評価）。判断者: frontend RBAC owner ＋ staff API contract owner。次の一手: 各driftについて「是正する」か「意図された挙動として明文化する」かを決める。③は正本がfrontend/OpenAPI側かbackend側かの決定が先行する。
+- **【完了・P2・R-1】staff入力検証の契約drift 5件** — ①emailは入力時のみ形式検証、②既存staffの非空passwordはbackend同等契約で検証、③backendのアカウントなしstaff許容へfrontendとOpenAPIを統一、④空氏名test名を実際の編集経路へ限定、⑤関連付けmutation直前の権限再検査を実装した。①②と③frontend側=`166e4acd7`、③OpenAPI側と④=本ユニット、⑤=`a44fa0ebe`。**残余risk・判断待ち・未完了項目なし。**
 
 - **【要起票・本ledgerの所掌外】fixture作成中に実測した実装drift 2件** — いずれも production code を変更せず報告に留めた。正式な起票先は`3-session-agent.html#ledger`であり、本節は取りこぼし防止の控えである。①**staff作成POSTが`reservation_visible:false`を無視する** — M-03のpersona staff作成で送った`false`が201 responseで`true`になった。各staffへ正規PATCHを打ち最終read-backは`false`へ揃えたが、作成時に指定が落ちる挙動自体は未修正。②**DBOrTx inventory gateが赤** — `exam_reference_range_repository.go`の`ResolveByFieldIDs`/`FindAnimalSpeciesID`が`persistence.DBOrTx`参加者として未登録（`docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`で再現）。pet側2件は`0eecddb11`で清算済みだが、この2件は#249 U3を実装したセッションの所掌。ゲートの要求どおりambient-tx参加を実証するtestを添えて登録する必要がある。
 

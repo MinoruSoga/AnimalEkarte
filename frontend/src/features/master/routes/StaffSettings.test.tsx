@@ -244,7 +244,7 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     expect(mockCreateMutate).not.toHaveBeenCalled();
   });
 
-  it("編集: name が空の場合は新規/編集を問わず updateMutation を呼ばずtoast.errorで通知する", async () => {
+  it("編集: name が空の場合は updateMutation を呼ばずtoast.errorで通知する", async () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget(makeStaff()));
     await act(async () => {
