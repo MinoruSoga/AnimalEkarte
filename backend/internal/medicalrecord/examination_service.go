@@ -3,8 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -64,21 +62,8 @@ type UpsertExamItemInput struct {
 //   - 範囲内 → (normal, false)
 //   - ref_min == ref_max == nil → (normal, false)（比較できない）
 func computeExamResultStatus(inspectionValue string, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
-	trimmed := strings.TrimSpace(inspectionValue)
-	if trimmed == "" {
-		return model.ExaminationResultStatusNormal, false
-	}
-	v, err := strconv.ParseFloat(trimmed, 64)
-	if err != nil {
-		return model.ExaminationResultStatusNormal, false
-	}
-	if refMin != nil && v < *refMin {
-		return model.ExaminationResultStatusLow, true
-	}
-	if refMax != nil && v > *refMax {
-		return model.ExaminationResultStatusHigh, true
-	}
-	return model.ExaminationResultStatusNormal, false
+	assessment := assessExamResult(inspectionValue, refMin, refMax, nil, nil)
+	return assessment.status, assessment.isAbnormal
 }
 
 func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
@@ -487,13 +472,22 @@ func (s *examinationService) replaceItemsTx(
 	items := make([]model.ExamResult, 0, len(inputs))
 	for _, in := range inputs {
 		var refMin, refMax *float64
+		var qualitativeMin, qualitativeMax *string
 		if in.ExamTypeFieldID != nil {
 			if referenceRange, ok := resolvedRanges[*in.ExamTypeFieldID]; ok {
 				refMin = cloneOptionalFloat64(referenceRange.RefMin)
 				refMax = cloneOptionalFloat64(referenceRange.RefMax)
+				qualitativeMin = cloneOptionalString(referenceRange.QualitativeMin)
+				qualitativeMax = cloneOptionalString(referenceRange.QualitativeMax)
 			}
 		}
-		status, isAbnormal := computeExamResultStatus(in.InspectionValue, refMin, refMax)
+		assessment := assessExamResult(
+			in.InspectionValue,
+			refMin,
+			refMax,
+			qualitativeMin,
+			qualitativeMax,
+		)
 		items = append(items, model.ExamResult{
 			ExamID:          exam.ID,
 			ExamTypeItemID:  in.ExamTypeFieldID,
@@ -504,8 +498,10 @@ func (s *examinationService) replaceItemsTx(
 			ReferenceValue:  in.ReferenceValue,
 			RefMin:          refMin,
 			RefMax:          refMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
+			QualitativeMin:  qualitativeMin,
+			QualitativeMax:  qualitativeMax,
+			IsAbnormal:      assessment.isAbnormal,
+			Status:          assessment.status,
 			SortOrder:       in.SortOrder,
 		})
 	}
@@ -541,6 +537,14 @@ func (s *examinationService) replaceItemsTx(
 }
 
 func cloneOptionalFloat64(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func cloneOptionalString(value *string) *string {
 	if value == nil {
 		return nil
 	}

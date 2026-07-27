@@ -47,8 +47,7 @@ func (r *examinationRepository) FindAnimalSpeciesID(
 	return row.AnimalSpeciesID, nil
 }
 
-// ResolveByFieldIDs loads all numeric ranges for one clinic and species in one
-// query. Text bounds belong to U3 and are deliberately not selected.
+// ResolveByFieldIDs loads all ranges for one clinic and species in one query.
 func (r *examinationRepository) ResolveByFieldIDs(
 	ctx context.Context,
 	clinicID, animalSpeciesID uint64,
@@ -62,7 +61,7 @@ func (r *examinationRepository) ResolveByFieldIDs(
 	rows := make([]model.ExamReferenceRange, 0, len(fieldIDs))
 	db := persistence.DBOrTx(ctx, r.db).
 		Table("exam_reference_ranges").
-		Select("id, clinic_id, exam_type_field_id, animal_species_id, ref_min, ref_max").
+		Select("id, clinic_id, exam_type_field_id, animal_species_id, ref_min, ref_max, qualitative_min, qualitative_max").
 		Where(
 			"clinic_id = ? AND animal_species_id = ? AND exam_type_field_id IN ?",
 			clinicID,

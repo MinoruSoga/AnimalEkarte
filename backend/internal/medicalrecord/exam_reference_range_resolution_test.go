@@ -144,6 +144,109 @@ func TestExaminationService_ReplaceItemsUsesMasterRangesAndIgnoresRequestRanges(
 	assert.True(t, got[2].IsAbnormal)
 }
 
+func TestExaminationService_ReplaceItemsUsesQualitativeMasterRangesOnce(t *testing.T) {
+	const (
+		petID     = uint64(70)
+		speciesID = uint64(7)
+		fieldID   = uint64(11)
+	)
+	qualitativeMin := "(-)"
+	qualitativeMax := "(+)"
+	repo := &referenceRangeResolverExaminationRepository{
+		speciesID: speciesID,
+		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
+			speciesID: {
+				fieldID: {
+					ExamTypeFieldID: fieldID,
+					QualitativeMin:  &qualitativeMin,
+					QualitativeMax:  &qualitativeMax,
+				},
+			},
+		},
+	}
+	svc := newReferenceRangeResolverService(petID, []uint64{fieldID}, repo)
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
+		{ExamTypeFieldID: &[]uint64{fieldID}[0], InspectionValue: "(++)"},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, 1, repo.speciesCalls)
+	assert.Equal(t, 1, repo.resolveCalls, "reference ranges must be resolved once outside the item loop")
+	require.NotNil(t, got[0].QualitativeMin)
+	require.NotNil(t, got[0].QualitativeMax)
+	assert.Equal(t, qualitativeMin, *got[0].QualitativeMin)
+	assert.Equal(t, qualitativeMax, *got[0].QualitativeMax)
+	assert.Equal(t, model.ExaminationResultStatusHigh, got[0].Status)
+	assert.True(t, got[0].IsAbnormal)
+}
+
+func TestExaminationService_NonnumericInputWithNumericRangeRemainsUnassessed(t *testing.T) {
+	const (
+		petID     = uint64(70)
+		speciesID = uint64(7)
+		fieldID   = uint64(11)
+	)
+	masterMin, masterMax := 1.0, 10.0
+	repo := &referenceRangeResolverExaminationRepository{
+		speciesID: speciesID,
+		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
+			speciesID: {
+				fieldID: {ExamTypeFieldID: fieldID, RefMin: &masterMin, RefMax: &masterMax},
+			},
+		},
+	}
+	svc := newReferenceRangeResolverService(petID, []uint64{fieldID}, repo)
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
+		{ExamTypeFieldID: &[]uint64{fieldID}[0], InspectionValue: "陰性"},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, model.ExaminationResultStatusNormal, got[0].Status)
+	assert.False(t, got[0].IsAbnormal)
+	assert.False(t, toExamResultResponse(&got[0]).IsAssessed)
+}
+
+func TestExaminationService_CoexistingRangeFamiliesFailClosed(t *testing.T) {
+	const (
+		petID     = uint64(70)
+		speciesID = uint64(7)
+		fieldID   = uint64(11)
+	)
+	masterMin, masterMax := 1.0, 10.0
+	qualitativeMin, qualitativeMax := "(-)", "(+)"
+	repo := &referenceRangeResolverExaminationRepository{
+		speciesID: speciesID,
+		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{
+			speciesID: {
+				fieldID: {
+					ExamTypeFieldID: fieldID,
+					RefMin:          &masterMin,
+					RefMax:          &masterMax,
+					QualitativeMin:  &qualitativeMin,
+					QualitativeMax:  &qualitativeMax,
+				},
+			},
+		},
+	}
+	svc := newReferenceRangeResolverService(petID, []uint64{fieldID}, repo)
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
+		{ExamTypeFieldID: &[]uint64{fieldID}[0], InspectionValue: "5"},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.NotNil(t, got[0].RefMin)
+	require.NotNil(t, got[0].QualitativeMin)
+	assert.Equal(t, model.ExaminationResultStatusNormal, got[0].Status)
+	assert.False(t, got[0].IsAbnormal)
+	assert.False(t, toExamResultResponse(&got[0]).IsAssessed)
+}
+
 func TestExaminationService_ReplaceItemsMissingRangeLeavesUnassessedSnapshot(t *testing.T) {
 	const (
 		petID     = uint64(70)
@@ -311,18 +414,21 @@ func TestExamReferenceRangeRepository_ResolveByFieldIDs_ClinicAndSpeciesIsolatio
 	aDogMin, aDogMax := 1.0, 10.0
 	aCatMin, aCatMax := 20.0, 30.0
 	bDogMin, bDogMax := 100.0, 200.0
+	aDogQualMin, aDogQualMax := "(-)", "(+)"
+	aCatQualMin, aCatQualMax := "(±)", "(++)"
+	bDogQualMin, bDogQualMax := "(++)", "(+++)"
 	require.NoError(t, db.Create(&[]model.ExamReferenceRange{
 		{
 			ClinicID: clinicA, ExamTypeFieldID: fieldA.ID, AnimalSpeciesID: dog.ID,
-			RefMin: &aDogMin, RefMax: &aDogMax,
+			RefMin: &aDogMin, RefMax: &aDogMax, QualitativeMin: &aDogQualMin, QualitativeMax: &aDogQualMax,
 		},
 		{
 			ClinicID: clinicA, ExamTypeFieldID: fieldA.ID, AnimalSpeciesID: cat.ID,
-			RefMin: &aCatMin, RefMax: &aCatMax,
+			RefMin: &aCatMin, RefMax: &aCatMax, QualitativeMin: &aCatQualMin, QualitativeMax: &aCatQualMax,
 		},
 		{
 			ClinicID: clinicB, ExamTypeFieldID: fieldB.ID, AnimalSpeciesID: dog.ID,
-			RefMin: &bDogMin, RefMax: &bDogMax,
+			RefMin: &bDogMin, RefMax: &bDogMax, QualitativeMin: &bDogQualMin, QualitativeMax: &bDogQualMax,
 		},
 	}).Error)
 	resolver, ok := NewExaminationRepository(db).(ExamReferenceRangeResolver)
@@ -340,12 +446,18 @@ func TestExamReferenceRangeRepository_ResolveByFieldIDs_ClinicAndSpeciesIsolatio
 	assert.NotContains(t, dogRanges, fieldB.ID, "clinic B range must not cross into clinic A resolution")
 	require.NotNil(t, dogRanges[fieldA.ID].RefMin)
 	assert.Equal(t, aDogMin, *dogRanges[fieldA.ID].RefMin)
+	require.NotNil(t, dogRanges[fieldA.ID].QualitativeMin)
+	require.NotNil(t, dogRanges[fieldA.ID].QualitativeMax)
+	assert.Equal(t, aDogQualMin, *dogRanges[fieldA.ID].QualitativeMin)
+	assert.Equal(t, aDogQualMax, *dogRanges[fieldA.ID].QualitativeMax)
 
 	catRanges, err := resolver.ResolveByFieldIDs(ctx, clinicA, cat.ID, []uint64{fieldA.ID})
 	require.NoError(t, err)
 	require.Len(t, catRanges, 1)
 	require.NotNil(t, catRanges[fieldA.ID].RefMin)
 	assert.Equal(t, aCatMin, *catRanges[fieldA.ID].RefMin)
+	require.NotNil(t, catRanges[fieldA.ID].QualitativeMin)
+	assert.Equal(t, aCatQualMin, *catRanges[fieldA.ID].QualitativeMin)
 }
 
 func TestExamReferenceRangeRepository_FindAnimalSpeciesIDPreservesHistoricalPetsAndClinicCorrelation(t *testing.T) {
@@ -489,4 +601,58 @@ func TestExaminationService_ReferenceRangeSnapshotDoesNotChangeWhenMasterChanges
 	assert.Equal(t, wantSnapshotMin, *saved[0].RefMin)
 	assert.Equal(t, wantSnapshotMax, *saved[0].RefMax)
 	assert.Equal(t, model.ExaminationResultStatusNormal, saved[0].Status)
+}
+
+func TestExaminationService_QualitativeReferenceRangeSnapshotDoesNotChangeWhenMasterChanges(t *testing.T) {
+	db := setupExamReferenceRangeResolutionDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	examType := makeExamTypeMaster(t, db, clinicID, "qualitative snapshot type")
+	field := &model.ExamTypeField{ExamTypeID: examType.ID, ClinicID: clinicID, Name: "qualitative snapshot field"}
+	require.NoError(t, db.Create(field).Error)
+	owner := makeTestOwner(t, db, clinicID, "qualitative snapshot owner")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "qualitative snapshot pet")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID:   clinicID,
+		ExamTypeID: examType.ID,
+		PetID:      &pet.ID,
+		Date:       time.Date(2026, time.July, 27, 0, 0, 0, 0, time.UTC),
+		Status:     model.ExaminationStatusCompleted,
+	})
+	originalMin, originalMax := "(-)", "(+)"
+	const wantSnapshotMin, wantSnapshotMax = "(-)", "(+)"
+	referenceRange := &model.ExamReferenceRange{
+		ClinicID: clinicID, ExamTypeFieldID: field.ID, AnimalSpeciesID: pet.AnimalSpeciesID,
+		QualitativeMin: &originalMin, QualitativeMax: &originalMax,
+	}
+	require.NoError(t, db.Create(referenceRange).Error)
+	repo := NewExaminationRepository(db)
+	svc := NewExaminationService(
+		repo,
+		&mockMedicalRecordRepository{},
+		NewExamTypeRepository(db),
+		nil,
+		testTransactor{db: db},
+	)
+
+	_, err := svc.ReplaceItems(ctx, clinicID, exam.ID, nil, []UpsertExamItemInput{{
+		ExamTypeFieldID: &field.ID,
+		InspectionValue: "(++)",
+	}})
+	require.NoError(t, err)
+
+	updatedMin, updatedMax := "(++)", "(+++)"
+	require.NoError(t, db.Model(referenceRange).Updates(map[string]any{
+		"qualitative_min": updatedMin,
+		"qualitative_max": updatedMax,
+	}).Error)
+	saved, err := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
+	require.NoError(t, err)
+	require.Len(t, saved, 1)
+	require.NotNil(t, saved[0].QualitativeMin)
+	require.NotNil(t, saved[0].QualitativeMax)
+	assert.Equal(t, wantSnapshotMin, *saved[0].QualitativeMin)
+	assert.Equal(t, wantSnapshotMax, *saved[0].QualitativeMax)
+	assert.Equal(t, model.ExaminationResultStatusHigh, saved[0].Status)
+	assert.True(t, saved[0].IsAbnormal)
 }

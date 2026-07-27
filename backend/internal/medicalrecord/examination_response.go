@@ -72,6 +72,8 @@ type examResultResponse struct {
 	ReferenceValue  string    `json:"reference_value"`
 	RefMin          *float64  `json:"ref_min,omitempty"`
 	RefMax          *float64  `json:"ref_max,omitempty"`
+	QualitativeMin  *string   `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string   `json:"qualitative_max,omitempty"`
 	IsAssessed      bool      `json:"is_assessed"`
 	IsAbnormal      bool      `json:"is_abnormal"`
 	Status          string    `json:"status"`
@@ -93,17 +95,35 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 		ReferenceValue:  item.ReferenceValue,
 		RefMin:          item.RefMin,
 		RefMax:          item.RefMax,
-		IsAssessed:      isExamResultAssessed(item.RefMin, item.RefMax),
-		IsAbnormal:      item.IsAbnormal,
-		Status:          string(item.Status),
-		SortOrder:       item.SortOrder,
-		CreatedAt:       httpapi.LocalTime(item.CreatedAt),
-		UpdatedAt:       httpapi.LocalTime(item.UpdatedAt),
+		QualitativeMin:  item.QualitativeMin,
+		QualitativeMax:  item.QualitativeMax,
+		IsAssessed: isExamResultAssessed(
+			item.InspectionValue,
+			item.RefMin,
+			item.RefMax,
+			item.QualitativeMin,
+			item.QualitativeMax,
+		),
+		IsAbnormal: item.IsAbnormal,
+		Status:     string(item.Status),
+		SortOrder:  item.SortOrder,
+		CreatedAt:  httpapi.LocalTime(item.CreatedAt),
+		UpdatedAt:  httpapi.LocalTime(item.UpdatedAt),
 	}
 }
 
-func isExamResultAssessed(refMin, refMax *float64) bool {
-	return refMin != nil || refMax != nil
+func isExamResultAssessed(
+	inspectionValue string,
+	refMin, refMax *float64,
+	qualitativeMin, qualitativeMax *string,
+) bool {
+	return assessExamResult(
+		inspectionValue,
+		refMin,
+		refMax,
+		qualitativeMin,
+		qualitativeMax,
+	).isAssessed
 }
 
 // examItemsResponse は items 一括 GET / PUT のレスポンスエンベロープ。

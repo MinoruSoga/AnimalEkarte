@@ -50,6 +50,8 @@ type labExamResultItemResponse struct {
 	ReferenceValue  string   `json:"reference_value"`
 	RefMin          *float64 `json:"ref_min,omitempty"`
 	RefMax          *float64 `json:"ref_max,omitempty"`
+	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
 	IsAssessed      bool     `json:"is_assessed"`
 	IsAbnormal      bool     `json:"is_abnormal"`
 	Status          string   `json:"status"`
@@ -101,9 +103,17 @@ func toLabExamResultItemResponse(i *model.LabExamResultItem) labExamResultItemRe
 		ReferenceValue:  i.ReferenceValue,
 		RefMin:          i.RefMin,
 		RefMax:          i.RefMax,
-		IsAssessed:      isExamResultAssessed(i.RefMin, i.RefMax),
-		IsAbnormal:      i.IsAbnormal,
-		Status:          i.Status,
-		SortOrder:       i.SortOrder,
+		QualitativeMin:  i.QualitativeMin,
+		QualitativeMax:  i.QualitativeMax,
+		IsAssessed: isExamResultAssessed(
+			i.InspectionValue,
+			i.RefMin,
+			i.RefMax,
+			i.QualitativeMin,
+			i.QualitativeMax,
+		),
+		IsAbnormal: i.IsAbnormal,
+		Status:     i.Status,
+		SortOrder:  i.SortOrder,
 	}
 }

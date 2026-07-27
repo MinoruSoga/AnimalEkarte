@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -114,38 +115,84 @@ func TestToExaminationResponse(t *testing.T) {
 	}
 }
 
-func TestExamResultResponsesComputeIsAssessedFromReferenceBounds(t *testing.T) {
+func TestExamResultResponsesComputeIsAssessedFromComparableInput(t *testing.T) {
 	minimum := 1.0
 	maximum := 10.0
+	qualitativeMinimum := "(-)"
+	qualitativeMaximum := "(+)"
+	numericNaN := math.NaN()
+	invertedMinimum, invertedMaximum := 10.0, 1.0
 	tests := []struct {
-		name         string
-		refMin       *float64
-		refMax       *float64
-		wantAssessed bool
+		name               string
+		inspectionValue    string
+		refMin             *float64
+		refMax             *float64
+		qualitativeMinimum *string
+		qualitativeMaximum *string
+		wantAssessed       bool
 	}{
-		{name: "both bounds absent", wantAssessed: false},
-		{name: "minimum only", refMin: &minimum, wantAssessed: true},
-		{name: "maximum only", refMax: &maximum, wantAssessed: true},
-		{name: "both bounds present", refMin: &minimum, refMax: &maximum, wantAssessed: true},
+		{name: "numeric input compared with numeric bounds", inspectionValue: "5", refMin: &minimum, refMax: &maximum, wantAssessed: true},
+		{name: "BUG-447 nonnumeric input cannot be compared with numeric bounds", inspectionValue: "陰性", refMin: &minimum, refMax: &maximum},
+		{name: "qualitative input compared with qualitative bounds", inspectionValue: "(++)", qualitativeMinimum: &qualitativeMinimum, qualitativeMaximum: &qualitativeMaximum, wantAssessed: true},
+		{name: "unknown input cannot be compared with qualitative bounds", inspectionValue: "陰性", qualitativeMinimum: &qualitativeMinimum, qualitativeMaximum: &qualitativeMaximum},
+		{name: "empty input is not assessed", inspectionValue: "", refMin: &minimum, refMax: &maximum},
+		{name: "input without bounds is not assessed", inspectionValue: "5"},
+		{name: "NaN numeric boundary is not assessed", inspectionValue: "5", refMin: &numericNaN, refMax: &maximum},
+		{name: "inverted numeric boundaries are not assessed", inspectionValue: "5", refMin: &invertedMinimum, refMax: &invertedMaximum},
+		{
+			name:               "coexisting numeric and qualitative bounds fail closed",
+			inspectionValue:    "5",
+			refMin:             &minimum,
+			refMax:             &maximum,
+			qualitativeMinimum: &qualitativeMinimum,
+			qualitativeMaximum: &qualitativeMaximum,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			examResponse := toExamResultResponse(&model.ExamResult{
-				RefMin: tt.refMin,
-				RefMax: tt.refMax,
+				InspectionValue: tt.inspectionValue,
+				RefMin:          tt.refMin,
+				RefMax:          tt.refMax,
+				QualitativeMin:  tt.qualitativeMinimum,
+				QualitativeMax:  tt.qualitativeMaximum,
 			})
 			if examResponse.IsAssessed != tt.wantAssessed {
 				t.Errorf("exam response IsAssessed = %t, want %t", examResponse.IsAssessed, tt.wantAssessed)
 			}
+			assertOptionalString(t, "exam response QualitativeMin", examResponse.QualitativeMin, tt.qualitativeMinimum)
+			assertOptionalString(t, "exam response QualitativeMax", examResponse.QualitativeMax, tt.qualitativeMaximum)
 
 			labResponse := toLabExamResultItemResponse(&model.LabExamResultItem{
-				RefMin: tt.refMin,
-				RefMax: tt.refMax,
+				InspectionValue: tt.inspectionValue,
+				RefMin:          tt.refMin,
+				RefMax:          tt.refMax,
+				QualitativeMin:  tt.qualitativeMinimum,
+				QualitativeMax:  tt.qualitativeMaximum,
 			})
 			if labResponse.IsAssessed != tt.wantAssessed {
 				t.Errorf("lab response IsAssessed = %t, want %t", labResponse.IsAssessed, tt.wantAssessed)
 			}
+			assertOptionalString(t, "lab response QualitativeMin", labResponse.QualitativeMin, tt.qualitativeMinimum)
+			assertOptionalString(t, "lab response QualitativeMax", labResponse.QualitativeMax, tt.qualitativeMaximum)
 		})
+	}
+}
+
+func assertOptionalString(t *testing.T, label string, got, want *string) {
+	t.Helper()
+	if want == nil {
+		if got != nil {
+			t.Errorf("%s = %q, want nil", label, *got)
+		}
+		return
+	}
+	if got == nil {
+		t.Errorf("%s = nil, want %q", label, *want)
+		return
+	}
+	if *got != *want {
+		t.Errorf("%s = %q, want %q", label, *got, *want)
 	}
 }
