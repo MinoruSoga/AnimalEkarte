@@ -1,4 +1,7 @@
+import { isAxiosError } from "axios";
 import { getOwner } from "./api/get-owner";
+// `axios` は Axios.create() 由来の instance で isAxiosError static を持たないため、
+// 型ガードは axios package の named export を使う（features/auth 等と同じ流儀）。
 import { axios } from "@/lib/axios";
 import {
   PET_GENDER_MAP,
@@ -161,8 +164,12 @@ export const ownersLoader = async ({ request }: { request: Request }): Promise<O
       limit: result.limit,
       total: result.total,
     };
-  } catch {
-    throw new Response("飼主一覧の取得に失敗しました", { status: 500 });
+  } catch (err) {
+    // 上流のHTTPステータスを保全する。500 へ潰すと 400（リクエスト不正・スキーマ不整合）や
+    // 403（権限不足）がすべて「サーバ内部エラー」に見え、原因の切り分けが不可能になる。
+    // status を持たない通信エラー（ネットワーク断）と非 axios 例外のみ 500 とする。
+    const status = isAxiosError(err) ? (err.response?.status ?? 500) : 500;
+    throw new Response("飼主一覧の取得に失敗しました", { status });
   }
 };
 

@@ -11,16 +11,30 @@ import type { Pet } from "@/types";
 interface PetSelectionResultsTableProps {
   pets: Pet[];
   onSelect: (pet: Pet) => void;
+  /**
+   * ペット一覧の取得に失敗した状態。既定 false（従来どおり「該当0件」表示）。
+   * true の場合は「0件」を主張せず、取得失敗であることを明示する。
+   */
+  isError?: boolean;
+  /** ペット一覧の取得中。既定 false。true の場合も「0件」を主張しない。 */
+  isLoading?: boolean;
 }
 
-export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResultsTableProps) {
+export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({ pets, onSelect, isError = false, isLoading = false }: PetSelectionResultsTableProps) {
+  // 取得失敗・取得中に pets.length（=0）を件数として提示すると
+  // 「該当0件」という誤った事実を利用者に伝えることになるため、件数自体を出さない。
+  // ただし前回取得分がキャッシュに残ったまま再取得が失敗した場合（行は表示されている）は、
+  // 画面上の行数を隠す方が不親切なので件数を出す。
+  const showCount = pets.length > 0 || (!isError && !isLoading);
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className={`text-sm font-medium ${C.text}`}>検索結果</h2>
-        <span className={`text-sm ${C.text60}`}>
-          {pets.length}件
-        </span>
+        {showCount ? (
+          <span className={`text-sm ${C.text60}`}>
+            {pets.length}件
+          </span>
+        ) : null}
       </div>
 
       <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
@@ -135,8 +149,17 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             })}
             {pets.length === 0 ? (
               <TableRow>
+                {/* 取得失敗 > 取得中 > 該当0件 の優先順。色に依存せず文言で状態を区別する。 */}
                 <TableCell colSpan={11} className={STYLE.tableEmpty}>
-                  該当するペットが見つかりません
+                  {isError ? (
+                    <span role="alert" className={C.danger}>
+                      ペット一覧の取得に失敗しました
+                    </span>
+                  ) : isLoading ? (
+                    "ペット一覧を読み込み中です"
+                  ) : (
+                    "該当するペットが見つかりません"
+                  )}
                 </TableCell>
               </TableRow>
             ) : null}

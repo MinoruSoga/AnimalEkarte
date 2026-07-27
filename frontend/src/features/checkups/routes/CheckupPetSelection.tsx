@@ -7,13 +7,13 @@ import { paths } from "@/config/paths";
 import { LAYOUT } from "@/lib/design-tokens";
 
 export function CheckupPetSelection() {
-  const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
+  const { searchParams, setSearchParams, filteredPets, error, isLoading, handleSearch, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: paths.checkups.new.getHref(), backPath: paths.checkups.getHref() });
 
   return (
     <PageLayout title="定期健診登録 - ペット選択" onBack={handleBack} resource={ResourceCheckups} maxWidth={LAYOUT.pageContentMaxWidth.full}>
       <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
-      <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
+      <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
     </PageLayout>
   );
 }

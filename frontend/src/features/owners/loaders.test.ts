@@ -179,3 +179,64 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
     expect(result.total).toBe(42);
   });
 });
+
+// 回帰防止: 旧実装は `} catch { throw new Response(..., { status: 500 }) }` で
+// 上流のHTTPステータスを握り潰していたため、GET /v1/pets の 400（DB スキーマ不整合等）が
+// errorElement 側では 500 として見え、原因の切り分けを不可能にしていた。
+describe("ownersLoader — 上流ステータスの保全", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it.each([
+    [400, "リクエスト不正"],
+    [403, "権限不足"],
+    [404, "未検出"],
+  ])("上流の%dを500へ潰さずそのまま伝播する", async (status, _label) => {
+    mockedGet.mockRejectedValue({
+      isAxiosError: true,
+      response: { status },
+    });
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(status);
+    expect((thrown as Response).status).not.toBe(500);
+    await expect((thrown as Response).text()).resolves.toBe(
+      "飼主一覧の取得に失敗しました",
+    );
+  });
+
+  it("response を持たない通信エラー（ネットワーク断）は500になる", async () => {
+    mockedGet.mockRejectedValue({ isAxiosError: true, response: undefined });
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect((thrown as Response).status).toBe(500);
+  });
+
+  it("axios 由来でない例外は500になる", async () => {
+    mockedGet.mockRejectedValue(new Error("boom"));
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(500);
+  });
+});

@@ -29,7 +29,13 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
-  const { data: pets = [] } = useGetPets(undefined, {
+  // error / isLoading を破棄してはならない。破棄すると API 失敗が
+  // 「該当0件」と区別できなくなり、利用者に嘘の検索結果を見せる。
+  const {
+    data: pets = [],
+    error,
+    isLoading,
+  } = useGetPets(undefined, {
     includeDeceased: true,
   });
 
@@ -78,6 +84,8 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     searchParams,
     setSearchParams,
     filteredPets,
+    error,
+    isLoading,
     handleSearch,
     handleClear,
     handleSelect,

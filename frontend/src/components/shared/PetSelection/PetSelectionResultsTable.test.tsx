@@ -32,6 +32,67 @@ function renderHighDangerPet(dangerReason: string | undefined) {
   });
 }
 
+const EMPTY_MESSAGE = "該当するペットが見つかりません";
+const ERROR_MESSAGE = "ペット一覧の取得に失敗しました";
+const LOADING_MESSAGE = "ペット一覧を読み込み中です";
+
+// 回帰防止: 7画面が共有する本コンポーネントは pets.length === 0 なら常に
+// 「該当するペットが見つかりません」+「0件」を描画していたため、
+// GET /v1/pets の失敗（400 等）が「該当0件」として利用者に嘘をついていた。
+describe("PetSelectionResultsTable empty/error/loading states", () => {
+  it("取得失敗時はエラー文言を出し、0件表示を一切しない", () => {
+    render(<PetSelectionResultsTable pets={[]} onSelect={vi.fn()} isError />);
+
+    expect(screen.getByText(ERROR_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByText("0件")).not.toBeInTheDocument();
+  });
+
+  it("読み込み中は0件でも空表示・件数を出さない", () => {
+    render(<PetSelectionResultsTable pets={[]} onSelect={vi.fn()} isLoading />);
+
+    expect(screen.getByText(LOADING_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByText("0件")).not.toBeInTheDocument();
+  });
+
+  it("エラーは読み込み中より優先して表示する", () => {
+    render(
+      <PetSelectionResultsTable pets={[]} onSelect={vi.fn()} isError isLoading />,
+    );
+
+    expect(screen.getByText(ERROR_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText(LOADING_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("prop 未指定なら従来どおり0件の空表示を維持する（既定の後方互換）", () => {
+    render(<PetSelectionResultsTable pets={[]} onSelect={vi.fn()} />);
+
+    expect(screen.getByText(EMPTY_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByText("0件")).toBeInTheDocument();
+    expect(screen.queryByText(ERROR_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  // 共有キャッシュ（staleTime: STATIC）により、前回取得分の行が残ったまま
+  // 再取得だけが失敗する状態が起こりうる。行が出ているのに件数を隠すのは不親切。
+  it("キャッシュ済みの行が残ったまま再取得が失敗した場合は件数を表示する", () => {
+    render(<PetSelectionResultsTable pets={[PET]} onSelect={vi.fn()} isError />);
+
+    expect(screen.getByText("1件")).toBeInTheDocument();
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("取得成功時は件数と行を表示しエラー文言を出さない", () => {
+    render(<PetSelectionResultsTable pets={[PET]} onSelect={vi.fn()} />);
+
+    expect(screen.getByText("1件")).toBeInTheDocument();
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
+    expect(screen.queryByText(ERROR_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+  });
+});
+
 describe("PetSelectionResultsTable row actions", () => {
   it("危険度が高の個体だけ非色警告を表示する", () => {
     render(

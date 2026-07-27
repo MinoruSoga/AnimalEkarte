@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EmptyState } from "@/components/shared/DataStates";
+import { EmptyState, ErrorFallback } from "@/components/shared/DataStates";
 import { useSearchPets } from "@/hooks/use-pet";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 
@@ -46,7 +46,10 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   });
   const [hasSearched, setHasSearched] = useState(false);
 
-  const { pets: allPets, isLoading } = useSearchPets();
+  // error を破棄してはならない。破棄すると API 失敗が「該当0件」と区別できず、
+  // 利用者に嘘の検索結果を見せる（BUG-2026-07-27-01 で pets 一覧全滅が
+  // 「0件」として現れ、原因特定が遅れた）。
+  const { pets: allPets, isLoading, error } = useSearchPets();
 
   const hasSearchConditions = useMemo(
     () => Object.values(searchParams).some((value) => value.trim() !== ""),
@@ -158,6 +161,12 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                 <Search className={`${ICON.xl} ${C.text20}`} />
               </div>
               <div className={`text-sm ${C.text40}`}>検索中...</div>
+            </div>
+          ) : error ? (
+            // 取得失敗は「0件」より優先する。0件と誤表示すると
+            // 存在する患者が存在しないことになり、臨床上危険な誤認を生む。
+            <div className="flex-1 flex items-center justify-center">
+              <ErrorFallback message="患者一覧の取得に失敗しました" />
             </div>
           ) : filteredPets.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">

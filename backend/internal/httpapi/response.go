@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"log/slog"
 	"maps"
 	"net/http"
 
@@ -85,8 +86,21 @@ func ResolveErrorResponse(err error) (status int, message, code string) {
 		status = http.StatusBadGateway
 		message, code = appMessageAndCode(hasApp, appErr, "bad gateway")
 	case isPgError(err):
-		status = http.StatusBadRequest
-		message = classifyPgError(err)
+		if msg, known := classifyPgError(err); known {
+			status = http.StatusBadRequest
+			message = msg
+		} else {
+			// BUG-2026-07-27-01: 未知コードはクライアント入力起因と断定できない
+			// （42703 undefined_column = model と稼働 DB スキーマの乖離＝サーバ側欠陥）。
+			// 400「入力値が正しくありません」で返すとサーバ欠陥が利用者のせいに見え、
+			// ペット一覧全滅の原因特定が遅れた。応答本文には pg 詳細を一切出さず、
+			// SQLSTATE コードのみサーバ側ログへ残して診断可能性を確保する。
+			if code, ok := pgErrorCode(err); ok {
+				slog.Error("unclassified database error mapped to 500", "pg_code", code)
+			}
+			status = http.StatusInternalServerError
+			message = "internal server error"
+		}
 	default:
 		// 未分類エラー（既知センチネルに属さない AppError・素の error・domain-specific custom
 		// error 型）は詳細を露出しない 500 に落とす。domain-specific な特別扱い（例:

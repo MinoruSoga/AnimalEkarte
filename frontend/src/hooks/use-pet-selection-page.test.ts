@@ -20,8 +20,17 @@ vi.mock("react-router", () => ({
   }),
 }));
 
+interface MockPetsQueryResult {
+  data?: Pet[];
+  error?: unknown;
+  isLoading?: boolean;
+}
+
 const mockUseGetPets = vi.fn(
-  (_ownerId?: string, _options?: { includeDeceased?: boolean }) => ({
+  (
+    _ownerId?: string,
+    _options?: { includeDeceased?: boolean },
+  ): MockPetsQueryResult => ({
     data: [] as Pet[],
   }),
 );
@@ -59,6 +68,56 @@ describe("usePetSelectionPage", () => {
     navigate.mockClear();
     mockUseGetPets.mockClear();
     mockUseGetPets.mockReturnValue({ data: [] });
+  });
+
+  // 回帰防止: 旧実装は `const { data: pets = [] } = useGetPets(...)` で error/isLoading を
+  // 破棄していたため、GET /v1/pets が 400 を返しても呼び出し側は「0件」としか判別できなかった。
+  it("取得失敗を握り潰さず error として返す（0件と区別できる）", () => {
+    const apiError = new Error("Request failed with status code 400");
+    mockUseGetPets.mockReturnValue({ data: undefined, error: apiError, isLoading: false });
+
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    expect(result.current.error).toBe(apiError);
+    expect(result.current.filteredPets).toEqual([]);
+  });
+
+  it("読み込み中を握り潰さず isLoading として返す", () => {
+    mockUseGetPets.mockReturnValue({ data: undefined, error: undefined, isLoading: true });
+
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.filteredPets).toEqual([]);
+  });
+
+  it("取得成功時は error が無く isLoading も false になる", () => {
+    mockUseGetPets.mockReturnValue({
+      data: [katakanaOwnerPet],
+      error: undefined,
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() =>
+      usePetSelectionPage({
+        selectPath: "/trimming/new",
+        backPath: "/trimming",
+      }),
+    );
+
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.filteredPets).toEqual([katakanaOwnerPet]);
   });
 
   it("死亡個体を含める option で共有一覧を取得する", () => {

@@ -61,6 +61,41 @@ async function searchByField(placeholder: string, value: string) {
   await user.click(screen.getByRole("button", { name: /検索/ }));
 }
 
+// BUG-2026-07-27-01 回帰: pets 一覧 API が失敗したとき、error を握り潰して
+// 「該当する患者が見つかりませんでした」と表示してはならない。
+// 旧実装は useSearchPets の error を破棄していたため、API 全滅時も 0 件に見えた。
+describe("PatientSelectionTable — 取得失敗をゼロ件と誤表示しない", () => {
+  it("取得失敗時はエラー文言を出し「見つかりませんでした」を表示しない", async () => {
+    vi.mocked(useSearchPets).mockReturnValue({
+      pets: [],
+      isLoading: false,
+      error: new Error("Request failed with status code 500"),
+    } as unknown as ReturnType<typeof useSearchPets>);
+
+    const user = userEvent.setup();
+    render(<PatientSelectionTable onSelect={vi.fn()} selectedPets={[]} />);
+    await user.click(screen.getByRole("button", { name: /検索/ }));
+
+    expect(screen.getByText("患者一覧の取得に失敗しました")).toBeInTheDocument();
+    expect(screen.queryByText("該当する患者が見つかりませんでした")).not.toBeInTheDocument();
+  });
+
+  it("取得成功かつ本当に0件なら従来どおり空状態を表示する", async () => {
+    vi.mocked(useSearchPets).mockReturnValue({
+      pets: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useSearchPets>);
+
+    const user = userEvent.setup();
+    render(<PatientSelectionTable onSelect={vi.fn()} selectedPets={[]} />);
+    await user.click(screen.getByRole("button", { name: /検索/ }));
+
+    expect(screen.getByText("該当する患者が見つかりませんでした")).toBeInTheDocument();
+    expect(screen.queryByText("患者一覧の取得に失敗しました")).not.toBeInTheDocument();
+  });
+});
+
 describe("PatientSelectionTable — カナ混同検索", () => {
   it("検索前は結果を表示しない", () => {
     render(<PatientSelectionTable onSelect={vi.fn()} selectedPets={[]} />);
