@@ -159,10 +159,11 @@ function ReportBody(props: ReportBodyProps) {
 function toPet(
   pet: OwnerReportPet,
   ownerId: string,
-): Omit<Pet, "dangerReason"> {
+): Pet {
   return {
     id: pet.id,
     clinicId: undefined,
+    dangerReason: undefined,
     ownerId,
     ownerNumber: undefined,
     ownerName: "",
