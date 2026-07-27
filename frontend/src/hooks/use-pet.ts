@@ -113,16 +113,3 @@ export function useGetPets(
     limit: query.data?.limit,
   };
 }
-
-/**
- * Shared hook for searching/listing pets, optionally filtered by ownerId.
- */
-export function useSearchPets(ownerId?: string) {
-  const { data: pets, isLoading, error, isPending } = useGetPets(ownerId);
-  return {
-    pets: pets ?? [],
-    isLoading,
-    error,
-    isPending,
-  };
-}
