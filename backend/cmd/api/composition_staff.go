@@ -52,7 +52,7 @@ func newStaffComposition(
 	repositories staffRepositories,
 	dependencies staffCompositionDependencies,
 ) staffComposition {
-	staffService := staff.NewStaffServiceWithCredentialAudit(
+	staffService := staff.NewStaffServiceWithAudits(
 		repositories.Staff,
 		dependencies.Accounts,
 		repositories.Assignments,
@@ -64,6 +64,7 @@ func newStaffComposition(
 		dependencies.Clinics,
 		dependencies.Transactor,
 		staffCredentialAuditAdapter{logger: dependencies.Audit},
+		staffPermissionAssignmentAuditAdapter{logger: dependencies.Audit},
 	)
 	return staffComposition{
 		Staff: staffService,
@@ -83,6 +84,31 @@ func newStaffComposition(
 			repositories.ShiftTemplates,
 		),
 	}
+}
+
+type staffPermissionAssignmentAuditAdapter struct {
+	logger audit.TxLogger
+}
+
+func (a staffPermissionAssignmentAuditAdapter) LogEntryTx(
+	ctx context.Context,
+	entry *staff.PermissionAssignmentAuditEntry,
+) error {
+	if a.logger == nil {
+		return fmt.Errorf("staff permission assignment audit logger is required")
+	}
+	return a.logger.LogEntryTx(ctx, &audit.Entry{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		IPAddress:  entry.IPAddress,
+		UserAgent:  entry.UserAgent,
+	})
 }
 
 func (c staffComposition) newHandler(
