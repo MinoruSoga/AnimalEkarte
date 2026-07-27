@@ -26,7 +26,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -125,8 +125,15 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   // #266: species フィルタは pets.animal_species_id（数値ID）契約のためマスタ取得が必要。
-  const { activeSpecies } = useAnimalSpecies();
-  const speciesFilterOptions = useMemo(() => buildSpeciesFilterOptions(activeSpecies), [activeSpecies]);
+  const {
+    activeSpecies,
+    isLoading: isSpeciesLoading,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
+  const speciesFilterOptions = useMemo(
+    () => isSpeciesError || isSpeciesLoading ? [] : buildSpeciesFilterOptions(activeSpecies),
+    [activeSpecies, isSpeciesError, isSpeciesLoading],
+  );
   const filterProperties = useMemo(() => buildOwnerFilterProperties(speciesFilterOptions), [speciesFilterOptions]);
 
   // rerender-derived-state-no-effect: activeFilters は URL(searchParams) からの純粋な派生値のため
@@ -298,6 +305,29 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
             onToggle={handleToggleClinic}
           />
         </div>
+      ) : null}
+      {isSpeciesError ? (
+        <p role="alert" aria-atomic="true" className={`mb-3 text-sm ${C.danger}`}>
+          動物種の取得に失敗しました。
+        </p>
+      ) : isSpeciesLoading ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text50}`}
+        >
+          動物種を読み込み中です。
+        </p>
+      ) : activeSpecies.length === 0 ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text50}`}
+        >
+          動物種マスタが登録されていません。
+        </p>
       ) : null}
       <OwnersListTable
         pets={pets}

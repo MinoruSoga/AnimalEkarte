@@ -165,7 +165,7 @@ describe("NewOwnerInlineForm animal species states", () => {
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
   });
 
-  it("動物種の取得失敗中も飼主名を入力できる", async () => {
+  it("動物種の取得失敗中も動物種以外の入力を利用できる", async () => {
     const user = userEvent.setup();
     mockAnimalSpecies({ isError: true, error: new Error("internal detail") });
 
@@ -182,8 +182,11 @@ describe("NewOwnerInlineForm animal species states", () => {
 
     render(<FormHarness />);
 
-    const ownerNameInput = screen.getByTestId("new-owner-name");
+    const ownerNameInput = screen.getByRole("textbox", { name: "飼主名" });
     expect(ownerNameInput).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "電話番号" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "ペット名" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "主訴" })).toBeEnabled();
 
     await user.type(ownerNameInput, "山田太郎");
 

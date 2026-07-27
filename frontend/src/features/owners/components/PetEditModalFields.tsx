@@ -16,6 +16,7 @@ interface PetEditModalFieldsProps {
   clearFieldError: (field: string) => void;
   animalSpeciesList: AnimalSpeciesOption[];
   isLoadingSpecies: boolean;
+  speciesPlaceholder?: string;
   insuranceList: InsuranceOption[];
   isLoadingInsurances: boolean;
   canEdit: boolean;
@@ -29,6 +30,7 @@ export function PetEditModalFields({
   clearFieldError,
   animalSpeciesList,
   isLoadingSpecies,
+  speciesPlaceholder = "選択してください",
   insuranceList,
   isLoadingInsurances,
   canEdit,
@@ -90,6 +92,7 @@ export function PetEditModalFields({
         clearFieldError={clearFieldError}
         animalSpeciesOptions={animalSpeciesOptions}
         isLoadingSpecies={isLoadingSpecies}
+        speciesPlaceholder={speciesPlaceholder}
         isEdit={isEdit}
         onAnimalSpeciesChange={handleAnimalSpeciesChange}
       />

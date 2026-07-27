@@ -24,7 +24,12 @@ import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 export function AnimalSpeciesSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterAnimalSpecies);
-  const { data } = useGetAnimalSpecies();
+  const {
+    data: animalSpecies = [],
+    isPending,
+    isError,
+  } = useGetAnimalSpecies();
+  const isSpeciesUnavailable = isError || isPending;
   const createMutation = useCreateAnimalSpecies();
   const updateMutation = useUpdateAnimalSpecies();
   const deleteMutation = useDeleteAnimalSpecies();
@@ -34,11 +39,11 @@ export function AnimalSpeciesSettings() {
   const dirty = useSidePeekDirty();
 
   const crud = useMasterCRUD<AnimalSpecies>({
-    data,
+    data: isSpeciesUnavailable ? [] : animalSpecies,
     deleteMutation,
     entityLabel: "動物種類",
     dirtyGuard: dirty,
-    permissions: { canDelete },
+    permissions: { canDelete: canDelete && !isSpeciesUnavailable },
   });
 
   const handleDirtyChange = useCallback(
@@ -52,7 +57,7 @@ export function AnimalSpeciesSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
-      if (!canEdit) return;
+      if (!canEdit || isSpeciesUnavailable) return;
       reorderMutation.mutate({ ids: newIds.map(Number) });
     },
   });
@@ -62,7 +67,10 @@ export function AnimalSpeciesSettings() {
     validate: (d) => (!d.name.trim() ? "動物種類名は必須です" : null),
     toCreateRequest: buildAnimalSpeciesCreateRequest,
     toUpdateRequest: buildAnimalSpeciesUpdateRequest,
-    permissions: { canCreate, canEdit },
+    permissions: {
+      canCreate,
+      canEdit: canEdit && !isSpeciesUnavailable,
+    },
   });
 
   return (
@@ -72,15 +80,39 @@ export function AnimalSpeciesSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
       renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => <AnimalSpeciesSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />}
+      renderSidePanel={({ readOnly, ...props }) => <AnimalSpeciesSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly || (isSpeciesUnavailable && props.item !== null)} onDirtyChange={handleDirtyChange} />}
     >
-      <AnimalSpeciesSortableTable
-        items={orderedItems}
-        sensors={sensors}
-        onDragEnd={handleDragEnd}
-        canEdit={canEdit}
-        onEdit={crud.handleEdit}
-      />
+      {isError ? (
+        <p role="alert" aria-atomic="true" className={`text-sm ${C.danger}`}>
+          動物種の取得に失敗しました。
+        </p>
+      ) : isPending ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`text-sm ${C.text50}`}
+        >
+          動物種を読み込み中です。
+        </p>
+      ) : animalSpecies.length === 0 ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`text-sm ${C.text50}`}
+        >
+          動物種マスタが登録されていません。
+        </p>
+      ) : (
+        <AnimalSpeciesSortableTable
+          items={orderedItems}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+          canEdit={canEdit}
+          onEdit={crud.handleEdit}
+        />
+      )}
     </MasterCRUDPage>
   );
 }

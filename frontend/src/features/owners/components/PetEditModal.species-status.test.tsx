@@ -97,7 +97,9 @@ describe("PetEditModal species status", () => {
     expect(alert).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /動物種/ })).toBeDisabled();
+    const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
+    expect(speciesSelect).toBeDisabled();
+    expect(speciesSelect).toHaveTextContent(/^取得に失敗しました$/);
 
     const petNameInput = screen.getByRole("textbox", { name: /^ペット名 \*$/ });
     await user.type(petNameInput, "ポチ");
@@ -122,7 +124,9 @@ describe("PetEditModal species status", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("動物種マスタが登録されていません。"))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /動物種/ })).toBeDisabled();
+    const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
+    expect(speciesSelect).toBeDisabled();
+    expect(speciesSelect).toHaveTextContent(/^読み込み中\.\.\.$/);
   });
 
   it("取得成功かつ0件を distinct accessible status で示す", () => {
@@ -140,7 +144,9 @@ describe("PetEditModal species status", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("動物種を読み込み中です。"))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /動物種/ })).toBeDisabled();
+    const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
+    expect(speciesSelect).toBeDisabled();
+    expect(speciesSelect).toHaveTextContent(/^登録されていません$/);
   });
 
   it("取得成功かつ候補ありでは状態表示を消して動物種を選べる", async () => {

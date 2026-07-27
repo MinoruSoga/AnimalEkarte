@@ -31,10 +31,11 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className={`text-xs ${C.text60}`}>
+        <Label htmlFor="new-owner-name" className={`text-xs ${C.text60}`}>
           飼主名 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
+          id="new-owner-name"
           data-testid="new-owner-name"
           value={value.ownerName}
           onChange={(e) => onChange({ ...value, ownerName: e.target.value })}
@@ -45,10 +46,11 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className={`text-xs ${C.text60}`}>
+        <Label htmlFor="new-owner-phone" className={`text-xs ${C.text60}`}>
           電話番号 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
+          id="new-owner-phone"
           data-testid="new-owner-phone"
           value={value.phone}
           onChange={(e) => onChange({ ...value, phone: e.target.value })}
@@ -60,10 +62,11 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className={`text-xs ${C.text60}`}>
+        <Label htmlFor="new-owner-pet-name" className={`text-xs ${C.text60}`}>
           ペット名 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Input
+          id="new-owner-pet-name"
           data-testid="new-owner-pet-name"
           value={value.petName}
           onChange={(e) => onChange({ ...value, petName: e.target.value })}
@@ -118,10 +121,11 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label className={`text-xs ${C.text60}`}>
+        <Label htmlFor="new-owner-chief-complaint" className={`text-xs ${C.text60}`}>
           主訴 <span aria-hidden="true" className={C.textRequired}>*</span>
         </Label>
         <Textarea
+          id="new-owner-chief-complaint"
           data-testid="new-owner-chief-complaint"
           value={value.chiefComplaint}
           onChange={(e) => onChange({ ...value, chiefComplaint: e.target.value })}

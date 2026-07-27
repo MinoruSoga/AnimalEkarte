@@ -41,6 +41,13 @@ export const PetEditModal = memo(function PetEditModal({
     isError: isErrorSpecies,
   } = useAnimalSpecies({ includeInactive: !!petData?.id });
   const animalSpeciesList = petData?.id ? allSpecies : activeSpecies;
+  const speciesPlaceholder = isErrorSpecies
+    ? "取得に失敗しました"
+    : isLoadingSpecies
+      ? "読み込み中..."
+      : animalSpeciesList.length === 0
+        ? "登録されていません"
+        : "選択してください";
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
   const [formData, setFormData] = useState<PetFormData>(() => createPetFormData(petData));
@@ -172,6 +179,7 @@ export const PetEditModal = memo(function PetEditModal({
             isLoadingSpecies={
               isLoadingSpecies || isErrorSpecies || animalSpeciesList.length === 0
             }
+            speciesPlaceholder={speciesPlaceholder}
             insuranceList={insuranceList}
             isLoadingInsurances={isLoadingInsurances}
             canEdit={canEdit}

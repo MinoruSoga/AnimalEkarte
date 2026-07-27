@@ -111,20 +111,27 @@ export function MedicalRecords() {
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { data: staffs } = useGetStaffs();
-  const { activeSpecies } = useAnimalSpecies();
+  const {
+    activeSpecies,
+    isLoading: isSpeciesLoading,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
 
   // js-cache-function-results: staff/species master から担当医・種の選択肢を動的生成（allRecords 非依存）
   const filterProperties = useMemo<FilterProperty[]>(() => {
     const doctorOptions = (staffs ?? [])
       .filter((s) => s.isActive)
       .map((s) => ({ value: s.id, label: s.name }));
-    const speciesOptions = activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
+    const speciesOptions =
+      isSpeciesError || isSpeciesLoading
+        ? []
+        : activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
     return [
       ...STATIC_FILTER_PROPERTIES,
       { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: SERVER_EQUALITY_ONLY, options: doctorOptions },
       { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: SERVER_EQUALITY_ONLY, options: speciesOptions },
     ];
-  }, [staffs, activeSpecies]);
+  }, [staffs, activeSpecies, isSpeciesError, isSpeciesLoading]);
 
   // rerender-derived-state-no-effect: 検索/フィルタが変わったら1ページ目へリセット（useEffect不使用）
   const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
@@ -225,6 +232,34 @@ export function MedicalRecords() {
           selectedIds={selectedClinicIds}
           onToggle={handleToggleClinic}
         />
+
+        {isSpeciesError ? (
+          <p
+            role="alert"
+            aria-atomic="true"
+            className={`text-sm ${C.danger}`}
+          >
+            動物種の取得に失敗しました。
+          </p>
+        ) : isSpeciesLoading ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-sm ${C.text50}`}
+          >
+            動物種を読み込み中です。
+          </p>
+        ) : activeSpecies.length === 0 ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-sm ${C.text50}`}
+          >
+            動物種マスタが登録されていません。
+          </p>
+        ) : null}
 
         {/* Search */}
         <PropertyFilter
