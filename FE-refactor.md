@@ -8,7 +8,7 @@
 
 ## Active scope and authority
 
-- 追跡対象は `M-01`〜`M-05`、line-reserve font実機確認、未裁定riskだけとする。F16・F9・U10・MEDIUM 4件は代理決裁・実装済みで追跡を終了した。
+- 追跡対象は `M-01`〜`M-05`、line-reserve font実機確認、S1/S2並行レーンの残余riskとする。F16・F9・U10・MEDIUM 4件は代理決裁・実装済みで追跡を終了した。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
 - authorityから項目が消えたことや判断待ち件数が0であることだけでは完了とみなさない。明示的な決裁または実測証跡が無い項目は保持する。
 - 本ledgerの更新は実装・runtime検証・製品決裁を代替しない。
@@ -30,6 +30,8 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 | ID | Priority | Active frontier | Dependency | Completion evidence |
 |---|---|---|---|---|
 | FE12-02 | P0 | M-01〜M-05、line-reserve font実機確認 | 各runbookの着手ブロッカー（fixture準備）が先行 | 対象実測の証跡が揃うこと |
+| S1 | P1 | backend残余risk 2件（pet死亡同時二重request封鎖・当日予約lookupのclock seam） | なし（FE12-02と独立・所有path非重複） | 各項目の修正と並行/境界test証跡 |
+| S2 | P1 | frontend残余risk 4件（reception danger stale・master permission未配線表・manual chunk計測・auth barrel契約） | なし（FE12-02と独立・所有path非重複） | 各項目の契約確定または修正と証跡 |
 <!-- FE12-TASK-TABLE-END -->
 
 ## Authority drift
@@ -140,14 +142,22 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 - Expected result: `frontend/line-reserve/index.html:7-12`からNoto Sans JPがloadされ、`frontend/line-reserve/src/index.css:17-23`の先頭fontとして全画面へ適用される。clip/FOITによる操作不能がなく、font失敗時もfallbackで操作可能。
 - Required evidence artifacts: 3実機の画面別screenshot、remote Network HAR、computed font-familyとRendered Fonts capture、端末/OS/browser/version、cold/warm/offline各結果。
 
-### 未裁定の残余risk
+### 残余risk — S1/S2並行実行レーン
 
-下記は2026-07-27時点のcurrent sourceで未解消を確認したfollow-up候補である。本ledgerは着手・起票・優先度裁定をしない。
+下記は2026-07-27時点のcurrent sourceで未解消を確認した項目である。2026-07-27の曽我裁定により、2セッション並行の実行レーンS1（backend）/S2（frontend）へ分割して着手可能とした（優先度は既定P1・M-01〜M-05のP0実測より劣後）。運用規則: 本台帳のwriterは生成側セッション単独とし、S1/S2の実行セッションは台帳を読むのみで書かない。両レーンの所有pathは相互に非重複とし、FE12-02のfixture/実測（human工程）とも独立に進行できる。tygo項目は`make codegen`がUSER専権のためレーンへ割り当てない。staffs権限割当の認可欠陥はtodo.mdバグ台帳のBUG-442で扱い、本節には持たない。
 
-- **alive petへ予約編集した直後のReception danger一時旧値** — 最初に開く: `frontend/src/features/reception/hooks/use-reception-modal-handlers.ts:135-168`、`use-reception-kanban.ts:362-369`、`frontend/src/hooks/use-update-reservation.ts:43-58`。確認: 成功時local mergeの`updatedAppointment`が新petのdanger/statusを持つか、API responseとrefetchのどれを正本にするか、失敗時rollback範囲。判断者: frontend reception contract owner。手順: stale値を再現するhook testを作り、API response採用／payload補完のcontract確定後にlocal mergeとquery同期を変更する。
+#### S1（backendレーン） — 所有path: `backend/internal/pet/`・`backend/internal/lstep/`・medical-record auto-create lookup周辺
+
 - **pet死亡登録の完全同時二重request** — `45b681866`で逐次requestの再登録/取消は409化済み。残るのは完全同時の二重requestが双方ともtransaction前のstatus readを通過し得る狭い窓である。最初に開く: `backend/internal/lstep/lstep_lifecycle_service.go:95,185`と`backend/internal/pet/`の死亡field更新経路。判断者: clinical API owner。手順: pet repository側の条件付きUPDATE（CAS）または行lockで封鎖し、DB並行testで実証する。
 - **backend当日予約lookupのclock seam** — frontend側auto-create testは`3c993420a`でfake timers決定化済み。backendの当日予約lookupと同testのclock注入は未導入。最初に開く: backendのmedical-record auto-create lookup実装と同test。判断者: medical-record contract owner。手順: clock seamを定義し、JST日付境界caseをbackend testへ追加する。
+
+#### S2（frontendレーン） — 所有path: `frontend/src/features/reception/`・`frontend/src/features/master/`・`frontend/src/app/`（router系）・`frontend/src/features/manual/`・`frontend/src/hooks/`
+
+- **alive petへ予約編集した直後のReception danger一時旧値** — 最初に開く: `frontend/src/features/reception/hooks/use-reception-modal-handlers.ts:135-168`、`use-reception-kanban.ts:362-369`、`frontend/src/hooks/use-update-reservation.ts:43-58`。確認: 成功時local mergeの`updatedAppointment`が新petのdanger/statusを持つか、API responseとrefetchのどれを正本にするか、失敗時rollback範囲。判断者: frontend reception contract owner。手順: stale値を再現するhook testを作り、API response採用／payload補完のcontract確定後にlocal mergeとquery同期を変更する。
 - **PermissionGroup以外のmaster permission未配線call site** — 最初に開く: `frontend/src/features/master/hooks/use-master-crud.ts:162`、`use-master-save.ts`と全caller。確認: 現状列挙したCRUD 19、save 24 call siteごとにroute resource、create/edit/delete action、mutation直前のpositive permission checkが対応するか。判断者: frontend RBAC owner。手順: `rg`で両hookのproduction callerを再列挙し、call site×resource×action表を作り、未配線だけを別実装unitへ渡す。
-- **tygo pointer mapping 15行** — 最初に開く: `backend/tygo.yaml:17-35,46-64,75-93`と3 generated output。確認: `*uint64`、`*string`、`*bool`、`*time.Time`、`*float64`の5 mapping×3 packageが生成物diffへ寄与するか。判断者: backend/frontend type contract owner。手順: 許可された`make codegen`で各mappingの出力寄与を個別記録し、寄与0の行だけを設定整理unitへ渡す。
 - **manual chunkの未再計測** — 最初に開く: `frontend/src/features/manual/lib/manual-index.ts:50-61,86-87`と`frontend/src/app/routes/operations-routes.tsx:132-150`。確認: 2つのMarkdown globが`eager:true/?raw`でmanual chunkへ入る現在byte、500 kB警告、route lazy境界。判断者: frontend verification gate owner（実行許可）→frontend performance owner（計測）。手順: gate ownerが他sessionのfrontend WIP静止とfull build許可をtask logへ明記し、performance ownerへ引き渡す。引渡し後だけperformance ownerが`docker compose exec frontend pnpm build`を実行し、command/exit、`dist/assets`のmanual chunk名/byte、500 kB警告、build前後statusをartifact化する。警告該当時は比較案を作り、build未実行のまま解消扱いにしない。
 - **AuthProviderのfeature barrel経由eager import** — 最初に開く: `frontend/src/app/router.tsx:1-23`、`frontend/src/features/auth/index.ts:1-10`、`hooks/use-auth.tsx:1-19`。確認: routerの同期`@/features/auth` importがLogin/Forgot/Reset等のbarrel exportを同じgraphへ含めるか、public boundaryを維持するentry設計、auth route chunk。判断者: frontend architecture owner。手順: current import graphとchunkを記録し、barrel分割／provider専用public entry／現状維持の各contractを比較してから変更surfaceを確定する。
+
+#### レーン外（非割当）
+
+- **tygo pointer mapping 15行** — 最初に開く: `backend/tygo.yaml:17-35,46-64,75-93`と3 generated output。確認: `*uint64`、`*string`、`*bool`、`*time.Time`、`*float64`の5 mapping×3 packageが生成物diffへ寄与するか。判断者: backend/frontend type contract owner。手順: 許可された`make codegen`で各mappingの出力寄与を個別記録し、寄与0の行だけを設定整理unitへ渡す。`make codegen`がUSER専権のためS1/S2へ割り当てない。

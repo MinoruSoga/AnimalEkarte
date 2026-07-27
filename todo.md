@@ -71,6 +71,13 @@
 - 対応: **ゲートを黙らせるだけのallowlist追記は禁止**。各methodのambient-tx参加をtx atomicity/isolation testで実証した上で登録する（gateのerror文言が要求する手順どおり）。②はU3由来なので優先。①③は各変更ownerのreview必須。
 - 出典: migration統合unitのMode 3照合（2026-07-27・coordinator実測）。統合executorはbaseline-redとして正しく切り分け済み。
 
+### BUG-442: staff権限グループ割当APIがmaster-staff:editのみでguardされ権限昇格を許す
+
+- HIGH（RBAC・FE12-02 fixture run 1の独立security review検出 2026-07-27）。`PUT /api/v1/masters/staffs/:id/permission-groups` の guard が `perm(master-staff, "edit")` のみで、`master-permission` 側の権限を要求しない（`backend/internal/staff/handler.go:141`）。service 層 `SetPermissionGroupIDs`（`backend/internal/staff/staff_service_permissions.go:20-27`）は `UpdateStaffGroups` を直接呼ぶだけで追加検査・監査記録が無い。
+- 実害: `master-staff:edit` しか持たない staff が、任意の権限グループ（全権グループ含む）を任意 staff（自分自身含む）へ割当てられる = privilege escalation。P-A（`99bac632e`）で塞いだ「新経路が既存経路より弱い権限で同じ効果を出す」構造と同型。割当変更の transactional actor audit も無い（BUG-440 と同クラスの監査欠落）。
+- 対応方針: 割当 PUT へ `master-permission:edit` の合成認可を追加（検査登録 POST の create+edit 合成 `24929e83d` と同 idiom）し、割当変更を同一 tx の audit へ actor・対象 staff・group 差分付きで記録する。「既存経路より弱い権限で同効果を出せない」ことを handler test で固定する。
+- 出典: FE12-02 fixture unblock run 1 の Completion Report（2026-07-27）。生成側が `handler.go:140-141` / `staff_service_permissions.go:20` を独立実測で確認済み。
+
 ### BUG-430: stage-importの医院非限定DELETE
 
 - CRITICAL。`backend/cmd/stage-import` のdeleteScopeが `owner_id >= 300000`（pets経由の継承含む）でclinic_id非限定。実行すると他院の高番ownerデータを削除し得る。`backend/cmd/stage-import/main_test.go:217-246` がこの挙動をテストで固定化している（cross-clinic保護テストは無い）。
