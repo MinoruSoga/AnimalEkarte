@@ -277,6 +277,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.Update": {},
+	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
+	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
+	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
+	// TestPetRepository_ClearDeath_ConcurrentRevivalRequests
+	// (internal/pet/repository_tx_atomicity_test.go)
+	"pet/repository.go|repository.RecordDeath": {},
+	"pet/repository.go|repository.ClearDeath":  {},
 	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
 	// remain in the caller's ambient transaction. Runtime:
 	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:
