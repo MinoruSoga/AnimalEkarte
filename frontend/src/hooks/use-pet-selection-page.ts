@@ -40,7 +40,6 @@ const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
 export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [page, setPage] = useState(1);
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
@@ -49,6 +48,20 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     searchParams,
     SEARCH_DEBOUNCE_MS,
   );
+
+  // 入力からデバウンス確定までの間、表示中の一覧は「まだ古い検索条件の結果」である。
+  const isSearchPending = searchParams !== debouncedSearchParams;
+
+  // ページ番号は「それを選んだ時点で確定していた検索条件」と対で保持する。
+  // デバウンス待ちの間にページ送りされても、新しい条件が確定した時点で先頭へ戻る。
+  // 対にしないと、古い totalPages を根拠に選んだ page が新条件のクエリへ持ち越され、
+  // 「5件中 21-5件」のような反転した範囲や、総件数はあるのに一覧が空という
+  // 自己矛盾した表示になる（BUG-451 と同じ「嘘の件数」クラス）。
+  const [pageBinding, setPageBinding] = useState<{
+    page: number;
+    params: PetSelectionSearchParams;
+  }>({ page: 1, params: INITIAL_SEARCH_PARAMS });
+  const page = pageBinding.params === debouncedSearchParams ? pageBinding.page : 1;
 
   // 検索条件は全て backend の述語へ委譲する。ここで絞り込みを足すと、
   // 総件数(total)を根拠に「N件中 1-20件」と表示しながらその20件から
@@ -84,14 +97,17 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
 
   const handlePageChange = useCallback(
     (nextPage: number) => {
-      setPage(Math.min(Math.max(1, nextPage), totalPages));
+      setPageBinding({
+        page: Math.min(Math.max(1, nextPage), totalPages),
+        params: debouncedSearchParams,
+      });
     },
-    [totalPages],
+    [debouncedSearchParams, totalPages],
   );
 
+  // ページは debouncedSearchParams との対応で導出するため、ここでの reset は不要。
   const updateSearchParams = useCallback((params: PetSelectionSearchParams) => {
     setSearchParams(params);
-    setPage(1);
   }, []);
 
   const petPage = useMemo<PetSelectionResultPage>(() => {
@@ -118,7 +134,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
 
   const handleClear = useCallback(() => {
     setSearchParams(INITIAL_SEARCH_PARAMS);
-    setPage(1);
+    setPageBinding({ page: 1, params: INITIAL_SEARCH_PARAMS });
   }, []);
 
   const handleSelect = useCallback((pet: Pet) => {
@@ -138,7 +154,9 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     setSearchParams: updateSearchParams,
     petPage,
     error,
-    isLoading: Boolean(isLoading || isPlaceholderData),
+    // デバウンス待ちの間は「入力済みの条件と表示中の一覧が一致していない」。
+    // 確定済みとして扱うと、古い結果から患者を選ばせてしまう。
+    isLoading: Boolean(isLoading || isPlaceholderData || isSearchPending),
     handleClear,
     handleSelect,
     handleBack,

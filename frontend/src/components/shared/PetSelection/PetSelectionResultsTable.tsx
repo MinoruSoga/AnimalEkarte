@@ -32,26 +32,41 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
     endIndex,
     onPageChange,
   } = pets;
+  const rangeText = `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`;
+  // total と描画行が食い違う状態（応答に total が含まれない、範囲が総数を超える等）では
+  // 件数を主張しない。「0件」と言いながら行を出すのは BUG-451 と同じ「嘘の件数」である。
+  const isCountTrustworthy =
+    totalCount > 0 ? startIndex <= totalCount : items.length === 0;
   // 取得失敗・取得中に現在行数を全体件数として提示しない。
   // キャッシュ行が残る場合は、backend 由来の前回総数・範囲だと明示する。
   const showCachedRange = items.length > 0 && (isError || isLoading);
-  const showSinglePageCount = !isError && !isLoading && totalPages <= 1;
+  const statusText = showCachedRange
+    ? `前回取得: ${rangeText}`
+    : isError || isLoading || !isCountTrustworthy
+      ? ""
+      : totalCount === 0
+        ? "0件"
+        : rangeText;
+  // 多ページ時は Pagination が同じ範囲を可視表示するため、こちらは読み上げ専用にする。
+  // 領域自体を出し入れすると AT が更新として扱わず、単一ページへ絞り込まれた検索が
+  // 無通知になるため、領域は常設しテキストだけを差し替える。
+  const isRangeShownByPagination = !isError && totalPages > 1;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className={`text-sm font-medium ${C.text}`}>検索結果</h2>
-        {showCachedRange ? (
-          <span className={`text-sm ${C.text60}`}>
-            前回取得: {totalCount.toLocaleString()}件中{" "}
-            {startIndex.toLocaleString()}-{endIndex.toLocaleString()}件
-          </span>
-        ) : showSinglePageCount ? (
-          <span className={`text-sm ${C.text60}`}>
-            {totalCount === 0
-              ? "0件"
-              : `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`}
-          </span>
-        ) : null}
+        <span
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={
+            isRangeShownByPagination
+              ? "sr-only"
+              : `text-sm ${C.text60}`
+          }
+        >
+          {statusText}
+        </span>
       </div>
 
       {isError && items.length > 0 ? (
@@ -197,21 +212,22 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           </TableBody>
         </Table>
       </div>
+      {/* 操作可能なコントロールを live region へ入れない（全ボタンが読み上げられる）。
+          読み込み中も disabled にしない — フォーカス中のボタンが無効化されると
+          ブラウザが強制 blur し、ページ送りのたびにキーボード焦点が失われる。 */}
       {!isError && totalPages > 1 ? (
-        <div role="status" aria-live="polite" aria-atomic="true">
-          <fieldset disabled={isLoading} aria-busy={isLoading}>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalCount={totalCount}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              onPageChange={onPageChange}
-              onPrev={() => onPageChange(currentPage - 1)}
-              onNext={() => onPageChange(currentPage + 1)}
-            />
-          </fieldset>
-        </div>
+        <fieldset aria-busy={isLoading} className="border-0 p-0 m-0">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={onPageChange}
+            onPrev={() => onPageChange(currentPage - 1)}
+            onNext={() => onPageChange(currentPage + 1)}
+          />
+        </fieldset>
       ) : null}
     </div>
   );

@@ -290,6 +290,73 @@ describe("usePetSelectionPage", () => {
     expect(result.current.petPage.endIndex).toBe(40);
   });
 
+  // デバウンス待ちの間に選ばれたページ番号を新しい検索条件へ持ち越すと、
+  // 「5件中 21-5件」のような反転した範囲や、総件数はあるのに一覧が空という
+  // 自己矛盾した表示になる（BUG-451 と同じ「嘘の件数」クラス）。
+  it("デバウンス待ち中のページ送りを新しい検索条件へ持ち越さない", () => {
+    mockUseGetPets.mockReturnValue({ data: [], total: 100, page: 1, limit: 20 });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    // 旧条件で3ページ目へ移動して確定させる。
+    act(() => {
+      result.current.petPage.onPageChange(3);
+    });
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(
+      undefined,
+      expect.objectContaining({ page: 3 }),
+    );
+
+    // 入力直後（デバウンス未確定）に、まだ旧条件由来の totalPages でページ送り。
+    act(() => {
+      result.current.setSearchParams({
+        ...result.current.searchParams,
+        search: "もも",
+      });
+    });
+    act(() => {
+      result.current.petPage.onPageChange(4);
+    });
+
+    // 新条件が確定した時点で先頭ページへ戻る（page:4 を持ち越さない）。
+    act(() => {
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    });
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+      includeDeceased: true,
+      page: 1,
+      limit: 20,
+      search: "もも",
+    });
+  });
+
+  it("デバウンス待ち中は確定済みでないことをisLoadingで伝える", () => {
+    mockUseGetPets.mockReturnValue({
+      data: [katakanaOwnerPet],
+      total: 100,
+      page: 1,
+      limit: 20,
+      isLoading: false,
+    });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+    expect(result.current.isLoading).toBe(false);
+
+    act(() => {
+      result.current.setSearchParams({
+        ...result.current.searchParams,
+        search: "もも",
+      });
+    });
+
+    // 入力済みの条件と表示中の一覧が一致していない間は選択させない。
+    expect(result.current.isLoading).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    });
+    expect(result.current.isLoading).toBe(false);
+  });
+
   describe("デバウンス配線", () => {
     it("入力直後はbackendへ問い合わせず、停止後に1回だけ反映する", () => {
       const { result } = renderHook(() => usePetSelectionPage(CONFIG));

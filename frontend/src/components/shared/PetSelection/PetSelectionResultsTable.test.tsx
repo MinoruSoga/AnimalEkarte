@@ -187,7 +187,12 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
         name: "読み込み中・選択不可: ポチ (ID pet-1)",
       }),
     ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
+    // ページ送りは読み込み中も操作可能なまま保つ。フォーカス中のボタンを
+    // disabled にするとブラウザが強制 blur し、ページ送りのたびに
+    // キーボード/スクリーンリーダの焦点が失われるため（aria-busy で伝える）。
+    const nextButton = screen.getByRole("button", { name: "次のページ" });
+    expect(nextButton).toBeEnabled();
+    expect(nextButton.closest("fieldset")).toHaveAttribute("aria-busy", "true");
   });
 });
 
@@ -208,9 +213,59 @@ describe("PetSelectionResultsTable server pagination", () => {
       />,
     );
 
-    expect(screen.getByText("15,654件中 1-20件")).toBeInTheDocument();
+    // 多ページ時は Pagination が可視表示し、常設の status 領域が読み上げを担う。
+    expect(screen.getAllByText("15,654件中 1-20件")).toHaveLength(2);
+    expect(screen.getByRole("status")).toHaveTextContent("15,654件中 1-20件");
     await user.click(screen.getByRole("button", { name: "次のページ" }));
     expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  // 単一ページへ絞り込まれた検索（患者を狙って探す最も普通のケース）でも
+  // 件数変化が読み上げられること。live region を出し入れすると無通知になる。
+  it("単一ページの結果でも常設のstatus領域が件数を告知する", () => {
+    const { rerender } = render(
+      <PetSelectionResultsTable
+        pets={createResults([PET], {
+          totalCount: 15_654,
+          totalPages: 783,
+          startIndex: 1,
+          endIndex: 20,
+        })}
+        onSelect={vi.fn()}
+      />,
+    );
+    const liveRegion = screen.getByRole("status");
+
+    rerender(
+      <PetSelectionResultsTable
+        pets={createResults([PET], { totalCount: 1, totalPages: 1 })}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    // 同一ノードが残り、テキストだけが差し替わる（remount していない）。
+    expect(screen.getByRole("status")).toBe(liveRegion);
+    expect(liveRegion).toHaveTextContent("1件中 1-1件");
+  });
+
+  // 応答に total が無い等で総件数が不明なまま行がある場合、
+  // 「0件」と言いながら行を描くのは BUG-451 と同じ「嘘の件数」である。
+  it("総件数が不明なまま行があるときは件数を主張しない", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([PET], {
+          totalCount: 0,
+          totalPages: 1,
+          startIndex: 0,
+          endIndex: 0,
+        })}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("0件")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("");
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
   });
 
   it("キーボードで次ページへ移動してもfocusを維持し、更新範囲を通知する", async () => {
