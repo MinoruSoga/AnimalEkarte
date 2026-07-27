@@ -53,14 +53,3 @@ func classifyPgError(err error) (message string, known bool) {
 	}
 	return "", false
 }
-
-// pgErrorCode はエラーチェーンから PostgreSQL の SQLSTATE コードだけを取り出す。
-// サーバ側ログ用であり、メッセージ・制約名・テーブル名・SQL は意図的に返さない
-// （応答本文にもログにも内部詳細・患者/飼主情報を出さないため）。
-func pgErrorCode(err error) (string, bool) {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code, true
-	}
-	return "", false
-}

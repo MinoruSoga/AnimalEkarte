@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"errors"
-	"log/slog"
 	"maps"
 	"net/http"
 
@@ -93,11 +92,15 @@ func ResolveErrorResponse(err error) (status int, message, code string) {
 			// BUG-2026-07-27-01: 未知コードはクライアント入力起因と断定できない
 			// （42703 undefined_column = model と稼働 DB スキーマの乖離＝サーバ側欠陥）。
 			// 400「入力値が正しくありません」で返すとサーバ欠陥が利用者のせいに見え、
-			// ペット一覧全滅の原因特定が遅れた。応答本文には pg 詳細を一切出さず、
-			// SQLSTATE コードのみサーバ側ログへ残して診断可能性を確保する。
-			if code, ok := pgErrorCode(err); ok {
-				slog.Error("unclassified database error mapped to 500", "pg_code", code)
-			}
+			// ペット一覧全滅の原因特定が遅れた。
+			//
+			// ここではログを出さない。SQLSTATE を含む記録は、request context を持つ
+			// domain service 側で既に1回行われている（例: internal/pet/service.go の
+			// "failed to list pets" は error 文字列に "(SQLSTATE 42703)" を含む）。
+			// 本関数は79箇所から呼ばれる汎用マッピングであり、ここで再度記録すると
+			// 未知 pg エラー全般が系統的に二重ログになる
+			// （.claude/rules/go-gin-backend-guidelines.md §8「同じ error を
+			// 複数レイヤーで重複ログしない」）。応答本文にも pg 詳細を出さない。
 			status = http.StatusInternalServerError
 			message = "internal server error"
 		}

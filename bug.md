@@ -63,7 +63,10 @@ GORM v2 は生 `Joins()` を含むクエリでは `SELECT *` ではなく model 
 ### 対処
 
 1. **エラー分類の是正（本質的な再発防止）** — `backend/internal/httpapi/response_pg.go` / `response.go`
-   `classifyPgError` を `(message string, known bool)` に変更。既知5コードのみ 400 を維持し、**未知コードは 500 + SQLSTATE をサーバ側ログへ**（`slog.Error("unclassified database error mapped to 500", "pg_code", code)`）。応答本文には pg メッセージ・制約名・テーブル名・SQL を一切出さない（非漏洩テストで固定）。
+   `classifyPgError` を `(message string, known bool)` に変更。既知5コードのみ 400 を維持し、**未知コードは 500** にする。応答本文には pg メッセージ・制約名・テーブル名・SQL を一切出さない（非漏洩テストで固定）。
+
+   SQLSTATE のサーバ側記録は、request context を持つ domain service 側の既存ログが担う（本障害でも `internal/pet/service.go` の `"failed to list pets"` が `(SQLSTATE 42703)` を含む形で実際に出力されていた。上記ログ引用参照）。`ResolveErrorResponse` は 79 箇所から呼ばれる汎用マッピングであり、ここで再度記録すると未知 pg エラー全般が系統的に二重ログになるため、意図的にログを置いていない（`.claude/rules/go-gin-backend-guidelines.md` §8）。
+   **残存リスク**: repo error をログせずに返す service があれば、その経路の未知 pg エラーは 500 のみでコードが残らない。ログ責務を境界1箇所へ統一する設計転換は 79 呼び出し元の監査が必要で本対処のスコープ外。
 2. **frontend のエラー握り潰し是正** — API 失敗が「0件」と表示されないよう、`usePetSelectionPage` が `error` を返し、共有コンポーネント `PetSelectionResultsTable` がエラー状態を描画するよう変更。`ownersLoader` は上流の HTTP ステータスを保持する（400 を無条件に 500 へ潰さない）。
 3. **model↔DDL ドリフト検知ゲート新設** — `backend/internal/lintscan/model_ddl_column_drift_test.go`。
 

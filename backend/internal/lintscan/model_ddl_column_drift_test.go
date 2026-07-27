@@ -155,7 +155,20 @@ type Uncovered struct {
 	ID uint64 ` + "`gorm:\"primaryKey\"`" + `
 }
 
-// gorm タグを持たない純粋な DTO は対象外
+// タグは一切無いが ID を持つ。GORM は無タグでも ID を主キーとみなし
+// テーブル名も自動導出するため、これも永続化モデルであり得る。
+type UntaggedWithID struct {
+	ID   uint64
+	Name string
+}
+
+// gorm.Model の匿名 embed。embed 行自体に gorm タグは付かない。
+type EmbedsGormModel struct {
+	gorm.Model
+	Name string
+}
+
+// gorm タグも ID も embed も無い純粋な DTO は対象外
 type PlainDTO struct {
 	Total int ` + "`json:\"total\"`" + `
 }
@@ -165,12 +178,41 @@ type PlainDTO struct {
 	if err != nil {
 		t.Fatalf("findGormStructsWithoutTableName: %v", err)
 	}
-	if !reflect.DeepEqual(got, []string{"Uncovered"}) {
-		t.Errorf("got %v, want [Uncovered]", got)
+	want := []string{"EmbedsGormModel", "Uncovered", "UntaggedWithID"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
-// findGormStructsWithoutTableName は gorm タグを持つが TableName() を宣言しない構造体名を返す。
+// isGormModelSignal は「この field の存在をもって、その構造体が GORM 永続化モデルを
+// 意図していると判断してよいか」を返す。
+//
+// gorm タグの有無だけでは不十分である。GORM は無タグでも `ID` field を主キーとみなし、
+// テーブル名も構造体名の複数形 snake_case へ自動フォールバックするため、
+//
+//	type Foo struct { ID uint64; Name string }
+//
+// はタグゼロでも有効な永続化モデルになる。gorm.Model の匿名 embed も同様に無タグ。
+// これらを候補から外すと、TableName() を書かない新規 model が
+// 上位ゲートにも本カバレッジゲートにも現れない二重の偽陰性になる。
+func isGormModelSignal(field *ast.Field) bool {
+	if gormTag(field) != "" {
+		return true
+	}
+	// 匿名 embed（gorm.Model 等）
+	if len(field.Names) == 0 {
+		return true
+	}
+	for _, name := range field.Names {
+		if name.Name == "ID" {
+			return true
+		}
+	}
+	return false
+}
+
+// findGormStructsWithoutTableName は GORM 永続化モデルと判断できるが
+// TableName() を宣言しない構造体名を返す。
 func findGormStructsWithoutTableName(sources map[string][]byte) ([]string, error) {
 	fset := token.NewFileSet()
 	gormTagged := map[string]struct{}{}
@@ -200,7 +242,7 @@ func findGormStructsWithoutTableName(sources map[string][]byte) ([]string, error
 						continue
 					}
 					for _, field := range st.Fields.List {
-						if gormTag(field) != "" {
+						if isGormModelSignal(field) {
 							gormTagged[ts.Name.Name] = struct{}{}
 							break
 						}
@@ -584,6 +626,19 @@ func modelStructColumns(
 		tag := gormTag(field)
 		if tag == "-" || hasGormTagKey(tag, "-") {
 			continue
+		}
+		// gorm:"embedded" 付きの named field は、その構造体のフィールドが
+		// フラット化されて実列になる（embeddedPrefix 併用で prefix_xxx 列）。
+		// 下の isRelationType は「同一 package の構造体型 = 関連（列なし）」と
+		// 判定するため、embedded タグ付き field を素通りさせるとその列が
+		// 突合対象から永久に消える＝本ゲートが検出すべき障害クラスそのものが
+		// ゲートの死角になる。匿名 embedding と同様に失敗させる。
+		if hasGormTagKey(tag, "embedded") {
+			return nil, fmt.Errorf(
+				"model %s has a gorm:\"embedded\" field; modelStructColumns cannot derive its "+
+					"flattened columns. Extend the extractor to expand embedded structs "+
+					"(honouring embeddedPrefix) before relying on this gate",
+				structName)
 		}
 		// 関連（foreignKey/many2many）は列を持たない
 		if hasGormTagKey(tag, "foreignkey") || hasGormTagKey(tag, "many2many") {
