@@ -119,6 +119,7 @@
   - 規約: `.claude/refs/backend-application-invariants.md:37`（fail-closed 監査の tx 参加）
   - 実測: `billing/routes.go:111,112` は `accounting:edit` / `accounting:create` のみを要求し、billing の status もレジ締め状態も検査しない。`billing_item_service.go:404-454`（UpdateItem）には status 検査が一切なく、`:282-402`（CreateItem）の完了/取消拒否は `input.VaccinationID != nil` の枝でしか到達しない（`billing_item_repository.go:280-281`）。**非ワクチン経路は確定済み会計の明細を書き換えられ、監査も残らない**（`DeleteItem` は防御済みで非対称）。
   - 対応: `CreateItem` / `UpdateItem` を `DeleteItem` と同型にし、tx 内で `LockAndFindByID` により completed/cancelled を 409 拒否。締め済み期間の変更は accounting PATCH と同じ post-close 権限・理由・fail-closed 監査を要求する。
+  - **coordinator 独立実測済み（2026-07-27）**: `UpdateItem`（`:404-425`）は `FindByID` → 単価/数量検証 → `WithTx` → `repo.Update` で `LockAndFindByID` も status 検査も持たない。`DeleteItem`（`:456-475`）は `LockAndFindByID` で行を固定し completed/cancelled を `WrapConflict` で拒否する。`routes.go:112` の PATCH は `accounting:edit` のみ。**本項はエージェント報告ではなく直接確認に基づく**（他 104 件は未検証 — 下記「監査の限界」5 を参照）。
 - **[BIL-02] fail-closed 宣言と実装の乖離 — MEDIUM / 着手: 即時**
   - `accounting_service.go:146-149` の doc コメントは「3 経路とも fail-closed 化済み」と宣言するが、`accounting_service_correction.go:178-180` は `if s.auditTx == nil { return nil }` で**監査ゼロのまま確定済み会計のカード金額訂正を commit する**。`Cancel` も同型。宣言と実装のどちらが正かを確定し、片方を直す。
 
@@ -247,3 +248,6 @@
 2. **性能系（N+1・unbounded query）を実質的に監査できていない**。read-only 制約下ではクエリプランが取れないため、規約 `go-gin-backend-review.md` の該当条項は実質未検査のまま残っている。
 3. **並行性シナリオは全て机上導出**。X-05 / RSV-02 の TOCTOU は実 DB での再現を伴っていない。
 4. **テストコードを監査対象から除外した**（各 unit は非テスト `.go` のみ）。AUS-04 の恒真テストは production 側の調査中に偶然発見されたものであり、**テスト品質の系統的監査は未実施**である。
+5. **coordinator による独立実測は 105 件中 1 件（X-A）のみ**。残り 104 件は監査エージェントの報告を検証エージェントが敵対的に検査した結果であり、coordinator は原本コードを読んでいない。エージェント報告を鵜呑みにしない原則（BUG-415 の教訓）に照らすと、**着手前に各項目の evidence を実装者自身が再実測すること**を前提とする。特に HIGH 以上へ着手する際は必須。
+6. **統合フェーズのエージェントが API stall で失敗し、集約は coordinator が journal から手作業で行った**。その際の所見テキストは 330 文字へ切り詰めた要約であり、横断パターンへの畳み込みは coordinator の判断であって敵対的検証を受けていない。**畳み込みの粒度が不適切な項目がある可能性**がある。
+7. **監査パイプライン自体の欠陥**: 単位 `AU`（auth+staff）が誤って `MR-A-*` の ID 接頭辞を発行し、他単位と衝突した。coordinator が集合一致で再ペアリングして是正したが、**気づかなければ検証判定が別の所見へ取り違えられていた**。次回は ID の一意性を schema で強制する。
