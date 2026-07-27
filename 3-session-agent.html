@@ -338,6 +338,18 @@
 </ul>
 </section>
 
+<section class="task" id="BUG-451">
+<h3>BUG-451: ペット選択系7画面が全ペットの先頭20件しか検索対象にしない（useGetPets がページネーションを送らない）</h3>
+<ul>
+  <li><b>HIGH</b>（2026-07-27・BUG-2026-07-27-01（<code>GET /api/v1/pets</code> が 42703 で常時 400）の是正作業中に発見）。400 が「0件」と誤表示されていたため、この打ち切りは今まで観測不能だった。<b>400 の解消により表示が「0件」から「20件」に変わるため、素朴な受け入れ確認では「直った」ように見える。</b></li>
+  <li><b>実測証跡</b>（2026-07-27 23:2x・稼働中 local・demo admin セッション）: <code>/medical-records/select-pet</code> を検索条件なしで開くと、画面は「検索結果 <b>20件</b>」と表示し 20 行のみ描画する。<b>ページネーション UI は存在しない。</b>一方、同画面が発行する API リクエスト（<code>useGetPets</code> 相当の <code>GET /api/v1/pets?include_deceased=true</code>）の応答は <code>"total": <b>15654</b></code> で <code>data</code> は 20 件。<b>描画 20 件 / API total 15,654 件</b>。残り 15,634 件へ到達する手段が画面上に無い。</li>
+  <li><b>機序</b>: <code>frontend/src/hooks/use-pet.ts</code> の <code>useGetPets</code> は <code>owner_id</code> と <code>include_deceased</code> しか送らず <code>page</code>/<code>limit</code> を送らない。backend の <code>ParsePaginationWithMax</code>（<code>backend/internal/httpapi/query_helpers.go:28</code>）は <code>limit</code> 未指定時に既定値 <b>20</b> を用いる。<code>frontend/src/hooks/use-pet-selection-page.ts</code> はその 20 件に対してのみ <code>useMemo</code> でクライアント側フィルタを行うため、<b>検索対象が常に先頭20件に固定される</b>。</li>
+  <li><b>臨床上の危険</b>: 画面は「検索結果 20件」と<b>件数を断定して表示する</b>。実際には 15,654 件中の先頭 20 件でしかないため、実在する患者を検索して見つからず「未登録」と誤認し、重複カルテを作成し得る。0件表示ではなく「20件ある」という誤った事実を提示する点でより危険である。</li>
+  <li><b>影響範囲</b>: <code>usePetSelectionPage</code> を共有する7画面すべて — accounting / trimming / checkups / medical-records / examinations / hospitalization / vaccinations の各 <code>*PetSelection.tsx</code>。カルテ作成・会計・トリミング等の患者選択が事実上機能しない。</li>
+  <li><b>是正方針（哲学②③）</b>: 単に <code>limit</code> を大きくするのは①要件を疑う に反する（全件をクライアントへ運ぶ設計の固定化）。<b>backend が既に持つ <code>search</code>/<code>species</code> 述語とページネーションへ委譲し、クライアント側フィルタ（<code>normalizedIncludes</code> による二重の絞り込み実装）を削除する</b>のが本筋。同じ絞り込みが backend と frontend の 2 箇所にある現状は二重管理である。<b>参照実装が同一リポジトリ内にある</b>: <code>frontend/src/features/owners/loaders.ts</code> の <code>ownersLoader</code> は <code>page</code>/<code>limit</code>/<code>search</code>/<code>species</code> を backend へ転送するサーバサイドページネーションで実装済みであり、実測でも <code>/owners</code> は「13,984件中 1-20件」とページ 1..700 を正しく描画している。</li>
+  <li><b>関連</b>: BUG-2026-07-27-01（本件の発見元。<code>bug.md</code> に記録・解決済み）。<a href="#BUG-449">BUG-449</a> と同様、「システムが黙って不完全な結果を正常な結果として提示する」クラスの欠陥である。</li>
+</ul>
+</section>
 
 <!-- LEDGER:APPEND -->
 
