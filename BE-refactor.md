@@ -3394,7 +3394,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "MedicalRecordImage"`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: bb3d34582bf5e4b6b15ae4628c522d4a9b91c39a
 
 ##### SOLO-30
 
