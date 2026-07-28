@@ -2592,7 +2592,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/inventory/... -run 'Update|Decrease|Quantity' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: G2P-02=BUG-465; G2P-03=BUG-466
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 対象消失（ALREADY-FIXED: G2P-02/G2P-03 は BUG-465/BUG-466 として HEAD で Update 同一tx再取得・binding min=0・DecreaseStock quantity>=? 済み） ｜ 担当レーン: LANE-3 ｜ 完了 commit: —
 
 ##### U-X01X03-MANUALARTICLE
 
