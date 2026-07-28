@@ -196,13 +196,17 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
 		}
 		if filters.Search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化し、DB 列の translate() 正規化値と統一比較する（owner_repository.go と同型）。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			// raw name の同一表記一致は既存の trgm index を利用できる形で残し、
+			// translate() 枝では検索語と name/name_kana をひらがなに揃えて表記差も吸収する。
+			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\'`+
 					` OR EXISTS (`+
@@ -236,18 +240,20 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 					` AND searched_inventory.clinic_id = medical_records.clinic_id`+
 					` AND searched_inventory.deleted_at IS NULL`+
 					` AND translate(searched_inventory.name, ?, ?) ILIKE ? ESCAPE '\'))))`,
-				pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
+				normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 			)
 		}
 		return q

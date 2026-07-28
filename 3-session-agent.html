@@ -459,10 +459,11 @@ exit 0</pre>
 <section class="task" id="BUG-453">
 <h3>BUG-453: カタカナのペット名exact検索が実在患者を0件扱いにする</h3>
 <ul>
-  <li><b>状態: OPEN（backend product bug・本closeoutでは修正しない）。</b> 生存中の pet <code>1003556</code>（名前 <code>ピーター</code>）が実在する一方、live API の <code>GET /api/v1/pets?page=1&amp;limit=20&amp;search=ピーター</code> と、同条件へ <code>include_deceased=true</code> を加えた呼び出しはいずれも HTTP 200 だが <code>data.length=0</code> を返す。</li>
-  <li><b>原因</b>: <code>backend/internal/pet/repository.go:123-138</code> は検索語をひらがなへ正規化した後、その値を未変換の <code>pets.name</code> と比較し、ひらがな変換するのは <code>pets.name_kana</code> だけである。当該実データの <code>name_kana</code> は空なので、カタカナの <code>pets.name</code> と一致する経路がない。</li>
-  <li><b>期待挙動</b>: <code>include_deceased</code> の有無にかかわらず、対象scope内のカタカナ <code>pets.name</code> をexact検索した場合は対象患者を返す。修正時は <code>name_kana</code> が空のカタカナ名を含むrepository回帰testと、両 <code>include_deceased</code> 条件を固定する。</li>
-  <li><b>境界</b>: backend実装・migration・seedは本closeoutのout of scopeであり未変更。このentryは検索失敗を「未登録」と誤認するproduct riskを失わないための起票であり、修理済みとは扱わない。</li>
+  <li><b>状態: CLOSED（2026-07-28・Option B・backend 3 surface修正済み）。</b> 原因は、ひらがなへ正規化した検索語を未変換のraw <code>name</code>へ渡す非対称な述語だった。<code>pet</code> / <code>owner</code> / <code>medicalrecord</code> の全該当箇所を、未正規化検索語によるraw一致と、<code>translate(name, ...)</code>による正規化一致の二枝へ統一した。<code>name_kana</code>・phone・email・record_no・主訴・治療内容等の既存検索対象は維持し、事実と異なっていた「DB列は正規化済み」コメントも是正した。</li>
+  <li><b>PO判断</b>: Option Bを採用。raw <code>name ILIKE</code>を既存<code>idx_pets_name_trgm</code> / <code>idx_owners_name_trgm</code>と式互換な形で残し、cross-script一致だけを<code>translate()</code>枝で補う。Option Aはraw GIN式を失いfunctional indexとGo定数の二重管理を要するため却下、Option Cはgenerated列・backfill・migration適用を要し本欠陥には過大なため却下。migration / seed変更は無い。</li>
+  <li><b>回帰証明</b>: <code>name_kana</code>を空のまま、5つのraw列出現箇所×4通り（カタカナ登録×カタカナ/ひらがな検索、ひらがな登録×カタカナ/ひらがな検索）=<b>20 subcase</b>を実PostgreSQLで固定。実装前はカタカナ登録の10 caseが<code>expected total 1 / actual 0</code>でRED、実装後は20 caseすべてPASS。広域gateも <code>go test ./internal/{pet,owner,medicalrecord}/... -run 'Search|Kana' -count=1</code> をpackage単位で直列実行し全てPASS、<code>go vet</code>も3 packageでPASS。</li>
+  <li><b>live API</b>: Air hot reload後、認証済みの<code>GET /api/v1/pets?page=1&amp;limit=20&amp;search=ピーター</code>は HTTP 200、<code>total=10</code>、<code>data.length=10</code>。旧障害モードの0件正常応答は解消した。</li>
+  <li><b>性能証跡の境界</b>: Option Bはraw nameのindex-compatibleな枝を維持するが、完全なORには未indexの<code>translate(name)</code> / <code>name_kana</code> / email / record_no / inquiry / 相関<code>EXISTS</code>がある。直接<code>psql</code>は禁止のため<code>EXPLAIN</code>は<b>BLOCKED</b>で、両name GINの実利用および<code>Bitmap Index Scan</code>は未確認。index利用を実測済みとは扱わない。</li>
 </ul>
 </section>
 

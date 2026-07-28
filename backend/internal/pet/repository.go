@@ -121,20 +121,25 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 			q = q.Where("pets.deceased_at IS NULL")
 		}
 		if filters.Search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化。
-			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
+			// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
+			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.phone ILIKE ? ESCAPE '\')`,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
 			)
 		}
 		return q

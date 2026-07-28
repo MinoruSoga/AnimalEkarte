@@ -93,18 +93,22 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
 		if search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化。
-			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+			// raw name の一致は既存の trgm index を利用可能な形で残し、
+			// name と name_kana の正規化枝でカナ表記を対称に検索する。
+			// phone と email は従来どおり正規化済み pattern で比較する。
+			rawPattern := "%" + textsearch.EscapeLike(search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
 			q = q.Where(
 				`(name ILIKE ? ESCAPE '\'`+
+					` OR translate(name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
 					` OR email ILIKE ? ESCAPE '\')`,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				pattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
+				normalizedPattern,
 			)
 		}
 		return q
