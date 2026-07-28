@@ -3344,7 +3344,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/apperrors/ -run "FromGORM"`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: 09bf7e5dfc4d1431b5cc9c1458c31a7666790156
 
 ##### SOLO-23
 
