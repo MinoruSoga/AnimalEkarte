@@ -417,25 +417,6 @@ exit 0</pre>
 </ul>
 </section>
 
-<section class="task" id="TASK-BUG-LEDGER-RETIRE">
-<h3>TASK-BUG-LEDGER-RETIRE: <code>bug.md</code> 退役・台帳一本化（2026-07-28）</h3>
-<ul>
-  <li><b>状態: CLOSED。</b> <code>bug.md</code> は解決済み1件の履歴と、同じ3残件を重複掲出する非正本だったため、本 <a href="#ledger">#ledger</a> へ一本化して退役する。履歴本文は git 履歴で保持する。</li>
-  <li><b>退役監査</b>: semantic inbound は17 text file・24 occurrenceを全数実読し、全件が現行本文に解決しない歴史的引用、live pointer は0件。退役前全文136行も実読し、<code>## 残存リスク</code> の4 bulletと残件表の3 rowを次のとおり1件ずつ分類した。
-    <ul>
-      <li><code>113</code> 実挙動確認: 先頭20件外のserver searchと選択は本closeoutの認証済みPlaywright E2Eへ移管した。一方、元bulletが列挙した「開いた直後は空」「総件数とページャ」「ページ跨ぎの選択保持」は当該2 specの証明範囲外なので、<a href="#E2E-BASELINE-DEBT-01">E2E-BASELINE-DEBT-01</a>のOPEN debtとして保持する。</li>
-      <li><code>114</code> <code>include_deceased</code> の面差: 本closeoutのU3へ移管し、業務行為クラス別の規約として<code>frontend/CLAUDE.md</code>と隣接production commentへ記録する。</li>
-      <li><code>115</code> migration追加commitをpullした後の<code>make migrate</code>: 本closeoutのU4へ移管し、<code>.claude/CLAUDE.md</code>と<code>AGENTS.md</code>の運用規約で保持する。migration適用自体は本closeoutでは実行しない。</li>
-      <li><code>116</code> 未知SQLSTATEのrequest境界記録: commit <code>1eb15c6ea</code>で解消済みのため、現行残件へ移さずgit履歴へ保持する。</li>
-      <li><code>132</code> 実挙動確認の表row: <code>113</code>の重複であり、同じPlaywright証明とOPEN debtへ統合する。</li>
-      <li><code>133</code> <code>include_deceased</code>の表row: <code>114</code>の重複であり、同じfrontend規約へ統合する。</li>
-      <li><code>134</code> <code>make migrate</code>の表row: <code>115</code>の重複であり、同じagent/developer運用規約へ統合する。</li>
-    </ul>
-  </li>
-  <li><b>commit境界の再監査</b>: 発見した欠陥が事前存在・別レイヤ・当該unitと無関係で、current diffが導入も悪化もさせない場合に限り、欠陥を別entryへ記録して検証済みpath-limited local commitを進めてよい。binding ruleがcurrent commitへ適用される場合、または当該scopeが欠陥を導入・悪化させる場合はblockする。前走の「security rules prohibit staging」はこの適用範囲をcurrent diffへ相関させなかったrules-audit misreadであり、実在する認可・tenant隔離・secret・外部actionのsecurity boundaryを緩和するものではない。</li>
-</ul>
-</section>
-
 <section class="task" id="E2E-BASELINE-DEBT-01">
 <h3>E2E-BASELINE-DEBT-01: 検索・業務flow E2E の既存fixture / selector drift</h3>
 <ul>
@@ -499,6 +480,327 @@ exit 0</pre>
   <li><b>機構・影響範囲</b>: GORM は <code>default</code> tag の zero value をINSERTから除外し、boolのzero value <code>false</code> にDB default <code>true</code> を適用する。<code>bool</code> + <code>gorm:"default:true"</code> は <b>39箇所・26ファイル</b>、<code>*bool</code> 回避は0件。代表例は <code>backend/internal/model/staff.go:35</code> と <code>backend/internal/model/permission_group.go:16</code>。create DTO到達経路は <code>backend/internal/auth/http_permission.go:132</code>、<code>backend/internal/trimming/trimming_option_request.go:6</code>、<code>backend/internal/trimming/trimming_course_request.go:6</code>、<code>backend/internal/reservation/reservation_type_group_request.go:7</code>。</li>
   <li><b>修正方針</b>: 作成時に無効を保持できるよう該当fieldを <code>*bool</code> へ変える案Aを推奨する。作成時 <code>Select</code> で列を明示する案Bは新規経路で再発し得るため、全39箇所をcreate経路の有無でトリアージする。</li>
   <li><b>境界</b>: 39箇所すべてが現に壊れているとは限らず、実害は作成APIが <code>false</code> を受け取る経路に依存する。無効作成の権限グループやLINE予約非表示staffが有効化される業務影響を含め、全数トリアージと回帰証明を着手ユニットで行う。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>全数調査</b>: <code>grep -rnE '^\s+[A-Z][A-Za-z0-9]*\s+bool\s+\`gorm:"[^"]*default:true' backend/internal/model/*.go</code> は <b>39件・26ファイル</b>。request DTO と create/upsert handler を実読した分類は <b>実害あり28 / 実害なし11 / 未分類0</b>。<code>ShowNoStaffOption</code> は PUT upsert が201 createになり得るため実害ありへ含める。
+        <div class="table-wrap"><table>
+          <tr><th>model field</th><th>分類</th><th>create到達根拠</th></tr>
+          <tr><td><code>backend/internal/model/account.go:13 Account.IsActive</code></td><td>実害なし</td><td><code>backend/internal/staff/staff_request.go:8-22</code> は受けず、<code>backend/internal/staff/staff_service_account.go:73-77</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/animal_species.go:11 AnimalSpecies.IsActive</code></td><td>実害あり</td><td><code>backend/internal/pet/animal_species_request.go:3-5</code> / <code>backend/internal/pet/animal_species_handler.go:40</code></td></tr>
+          <tr><td><code>backend/internal/model/cage.go:31 Cage.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/cage_request.go:20-25</code> / <code>backend/internal/medicalrecord/cage_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/campaign.go:28 Campaign.IsActive</code></td><td>実害あり</td><td><code>backend/internal/billing/campaign_request.go:11-17</code> / <code>backend/internal/billing/campaign_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/checkup_type.go:14 CheckupType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/checkup_type_request.go:3-6</code> / <code>backend/internal/medicalrecord/checkup_type_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/chief_complaint_type.go:15 ChiefComplaintType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/chief_complaint_request.go:3-6</code> / <code>backend/internal/medicalrecord/chief_complaint_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:22 Clinic.IsActive</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けず、<code>backend/internal/clinic/clinic_service.go:310-327</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:26 AccountingDocumentShowRegistrationWarning</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:27 AccountingDocumentShowItemCategory</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:30 AccountingDocumentShowClinicHeader</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:31 AccountingDocumentShowOwnerPetInfo</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:32 AccountingDocumentShowItemsTable</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:33 AccountingDocumentShowPaymentSummary</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/consultation.go:14 Consultation.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/consultation_request.go:3-6</code> / <code>backend/internal/medicalrecord/consultation_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/diagnosis.go:13 DiagnosisType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/diagnosis_request.go:3-5</code> / <code>backend/internal/medicalrecord/diagnosis_handler.go:75</code></td></tr>
+          <tr><td><code>backend/internal/model/diagnosis.go:30 DiagnosisName.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/diagnosis_request.go:35-38</code> / <code>backend/internal/medicalrecord/diagnosis_handler.go:225</code></td></tr>
+          <tr><td><code>backend/internal/model/examination_type.go:14 ExaminationType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/exam_type_request.go:3-6</code> / <code>backend/internal/medicalrecord/exam_type_handler.go:203</code></td></tr>
+          <tr><td><code>backend/internal/model/hospitalization_plan.go:29 HospitalizationPlan.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/hospitalization_plan_request.go:4-7</code> / <code>backend/internal/medicalrecord/hospitalization_plan_handler.go:66</code></td></tr>
+          <tr><td><code>backend/internal/model/inquiry_template.go:16 InquiryTemplate.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/inquiry_template_request.go:3-7</code> / <code>backend/internal/medicalrecord/inquiry_template_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/insurance.go:13 Insurance.IsActive</code></td><td>実害あり</td><td><code>backend/internal/billing/insurance_request.go:3-5</code> / <code>backend/internal/billing/insurance_handler.go:66</code></td></tr>
+          <tr><td><code>backend/internal/model/line_reservation_setting.go:30 ShowNoStaffOption</code></td><td>実害あり</td><td><code>backend/internal/reservation/line_reservation_setting_request.go:30</code> / <code>backend/internal/reservation/line_reservation_setting_handler.go:48-60</code> / <code>backend/internal/reservation/line_reservation_setting_service.go:167-198</code></td></tr>
+          <tr><td><code>backend/internal/model/medicine.go:34 Medicine.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/medicine_request.go:4-8</code> / <code>backend/internal/medicalrecord/medicine_handler.go:69</code></td></tr>
+          <tr><td><code>backend/internal/model/merchandise_item.go:18 MerchandiseItem.IsActive</code></td><td>実害あり</td><td><code>backend/internal/inventory/merchandise_item_request.go:14-20</code> / <code>backend/internal/inventory/merchandise_item_handler.go:57</code></td></tr>
+          <tr><td><code>backend/internal/model/occupation.go:16 Occupation.IsActive</code></td><td>実害あり</td><td><code>backend/internal/staff/occupation_request.go:3-6</code> / <code>backend/internal/staff/occupation_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/payment_method_master.go:16 PaymentMethodMaster.IsActive</code></td><td>実害なし</td><td><code>backend/internal/billing/payment_method_master_request.go:3-6</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/permission_group.go:16 PermissionGroup.IsActive</code></td><td>実害あり</td><td><code>backend/internal/auth/http_permission.go:128-145,351-389</code></td></tr>
+          <tr><td><code>backend/internal/model/procedure.go:23 Procedure.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/procedure_request.go:3-6</code> / <code>backend/internal/medicalrecord/procedure_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:48 ReservationType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:7-10</code> / <code>backend/internal/reservation/reservation_type_handler.go:68</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:62 ReservationType.ReservationVisible</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:7-23</code> / <code>backend/internal/reservation/reservation_type_service.go:51-74</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:114 ReservationTypeAvailableSlot.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:132-145</code> / <code>backend/internal/reservation/reservation_type_service_available_slot.go:46-59</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type_group.go:16 ReservationTypeGroup.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_group_request.go:3-7</code> / <code>backend/internal/reservation/reservation_type_group_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/staff.go:24 Staff.IsActive</code></td><td>実害なし</td><td><code>backend/internal/staff/staff_request.go:8-22</code> は受けず、<code>backend/internal/staff/staff_service_account.go</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/staff.go:35 Staff.ReservationVisible</code></td><td>実害あり</td><td><code>backend/internal/staff/staff_request.go:8-20</code> / <code>backend/internal/reservation/reservation_staff_request.go:3-6</code></td></tr>
+          <tr><td><code>backend/internal/model/staff.go:87 ShiftTemplate.IsActive</code></td><td>実害あり</td><td><code>backend/internal/staff/shift_template_request.go:25-44</code> / <code>backend/internal/staff/shift_template_service.go:118-146</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_course_type.go:16 TrimmingCourseType.IsActive</code></td><td>実害なし</td><td><code>backend/internal/trimming/trimming_course_type_request.go:3-6</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:23 TrimmingCourse.IsActive</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_course_request.go:3-6</code> / <code>backend/internal/trimming/trimming_course_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:41 TrimmingOption.IsActive</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_option_request.go:3-6</code> / <code>backend/internal/trimming/trimming_option_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:44 TrimmingOption.IsCombinable</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_option_request.go:3-9</code> / <code>backend/internal/trimming/trimming_option_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/vaccine.go:22 Vaccine.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/vaccine_request.go:19-22</code> / <code>backend/internal/medicalrecord/vaccine_handler.go:63</code></td></tr>
+        </table></div>
+      </li>
+      <li><b>ファイル allowlist（28 fieldを8 sliceへ固定）</b>: 一括変更は禁止。各sliceは次のrepo-relative pathだけを変更可とし、<code>frontend/src/types/generated/models.ts</code> はUSER codegen後のread-only diff controlであってGrokの変更対象ではない。新規helper fileは作らず、各既存serviceでnil defaultを正規化する。実害なし11件は変更しない。
+        <details><summary>8 sliceのexact allowlist</summary><pre><code>S1 PermissionGroup (1):
+backend/internal/model/permission_group.go
+backend/internal/auth/http_permission.go
+backend/internal/auth/permission_group_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/auth/http_permission_handlers_test.go
+backend/internal/auth/permission_group_service_mock_test.go
+backend/internal/auth/permission_group_service_test.go
+backend/internal/auth/permission_group_audit_db_test.go
+backend/internal/auth/permission_group_effective_permissions_test.go
+backend/internal/clinic/clinic_permission_group_tx_atomicity_test.go
+
+S2 AnimalSpecies (1):
+backend/internal/model/animal_species.go
+backend/internal/pet/animal_species_request.go
+backend/internal/pet/animal_species_response.go
+backend/internal/pet/animal_species_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/pet/animal_species_handler_test.go
+backend/internal/pet/animal_species_request_test.go
+backend/internal/pet/animal_species_repository_test.go
+backend/internal/pet/animal_species_service_test.go
+backend/internal/clinic/clinic_service_test.go
+
+S3 Campaign + Insurance (2):
+backend/internal/model/campaign.go
+backend/internal/model/insurance.go
+backend/internal/billing/campaign_request.go
+backend/internal/billing/campaign_response.go
+backend/internal/billing/campaign_service.go
+backend/internal/billing/campaign_discount.go
+backend/internal/billing/insurance_request.go
+backend/internal/billing/insurance_response.go
+backend/internal/billing/insurance_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/billing/campaign_handler_test.go
+backend/internal/billing/campaign_request_test.go
+backend/internal/billing/campaign_response_test.go
+backend/internal/billing/campaign_service_test.go
+backend/internal/billing/campaign_discount_test.go
+backend/internal/billing/insurance_handler_test.go
+backend/internal/billing/insurance_request_test.go
+backend/internal/billing/insurance_repository_test.go
+backend/internal/billing/insurance_service_test.go
+backend/internal/clinic/clinic_service_test.go
+
+S4 MerchandiseItem (1):
+backend/internal/model/merchandise_item.go
+backend/internal/inventory/merchandise_item_request.go
+backend/internal/inventory/merchandise_item_response.go
+backend/internal/inventory/merchandise_item_service.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/inventory/merchandise_item_handler_test.go
+backend/internal/inventory/merchandise_item_request_test.go
+backend/internal/inventory/merchandise_item_service_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+
+S5 Medical masters (12):
+backend/internal/model/cage.go
+backend/internal/model/checkup_type.go
+backend/internal/model/chief_complaint_type.go
+backend/internal/model/consultation.go
+backend/internal/model/diagnosis.go
+backend/internal/model/examination_type.go
+backend/internal/model/hospitalization_plan.go
+backend/internal/model/inquiry_template.go
+backend/internal/model/medicine.go
+backend/internal/model/procedure.go
+backend/internal/model/vaccine.go
+backend/internal/medicalrecord/cage_request.go
+backend/internal/medicalrecord/cage_response.go
+backend/internal/medicalrecord/cage_service.go
+backend/internal/medicalrecord/checkup_type_request.go
+backend/internal/medicalrecord/checkup_type_response.go
+backend/internal/medicalrecord/checkup_type_service.go
+backend/internal/medicalrecord/chief_complaint_request.go
+backend/internal/medicalrecord/chief_complaint_response.go
+backend/internal/medicalrecord/chief_complaint_service.go
+backend/internal/medicalrecord/consultation_request.go
+backend/internal/medicalrecord/consultation_response.go
+backend/internal/medicalrecord/consultation_service.go
+backend/internal/medicalrecord/diagnosis_request.go
+backend/internal/medicalrecord/diagnosis_response.go
+backend/internal/medicalrecord/diagnosis_service.go
+backend/internal/medicalrecord/exam_type_request.go
+backend/internal/medicalrecord/exam_type_response.go
+backend/internal/medicalrecord/exam_type_service.go
+backend/internal/medicalrecord/hospitalization_plan_request.go
+backend/internal/medicalrecord/hospitalization_plan_response.go
+backend/internal/medicalrecord/hospitalization_plan_service.go
+backend/internal/medicalrecord/inquiry_template_request.go
+backend/internal/medicalrecord/inquiry_template_response.go
+backend/internal/medicalrecord/inquiry_template_service.go
+backend/internal/medicalrecord/medicine_request.go
+backend/internal/medicalrecord/medicine_response.go
+backend/internal/medicalrecord/medicine_service.go
+backend/internal/medicalrecord/procedure_request.go
+backend/internal/medicalrecord/procedure_response.go
+backend/internal/medicalrecord/procedure_service.go
+backend/internal/medicalrecord/vaccine_request.go
+backend/internal/medicalrecord/vaccine_response.go
+backend/internal/medicalrecord/vaccine_service.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/medicalrecord/cage_handler_test.go
+backend/internal/medicalrecord/cage_service_test.go
+backend/internal/medicalrecord/checkup_type_handler_test.go
+backend/internal/medicalrecord/checkup_type_service_test.go
+backend/internal/medicalrecord/chief_complaint_handler_test.go
+backend/internal/medicalrecord/chief_complaint_service_test.go
+backend/internal/medicalrecord/consultation_handler_test.go
+backend/internal/medicalrecord/consultation_service_test.go
+backend/internal/medicalrecord/diagnosis_handler_test.go
+backend/internal/medicalrecord/diagnosis_service_test.go
+backend/internal/medicalrecord/exam_type_handler_test.go
+backend/internal/medicalrecord/exam_type_response_test.go
+backend/internal/medicalrecord/exam_type_service_test.go
+backend/internal/medicalrecord/hospitalization_plan_handler_test.go
+backend/internal/medicalrecord/hospitalization_plan_service_test.go
+backend/internal/medicalrecord/inquiry_template_handler_test.go
+backend/internal/medicalrecord/inquiry_template_service_test.go
+backend/internal/medicalrecord/medicine_handler_test.go
+backend/internal/medicalrecord/medicine_service_test.go
+backend/internal/medicalrecord/procedure_handler_test.go
+backend/internal/medicalrecord/procedure_service_test.go
+backend/internal/medicalrecord/vaccine_handler_test.go
+backend/internal/medicalrecord/vaccine_service_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+backend/internal/billing/billing_item_vaccination_test.go
+
+S6 Reservation models/settings (5):
+backend/internal/model/line_reservation_setting.go
+backend/internal/model/reservation_type.go
+backend/internal/model/reservation_type_group.go
+backend/internal/reservation/line_reservation_setting_request.go
+backend/internal/reservation/line_reservation_setting_response.go
+backend/internal/reservation/line_reservation_setting_service.go
+backend/internal/reservation/reservation_type_request.go
+backend/internal/reservation/reservation_type_response.go
+backend/internal/reservation/reservation_type_service.go
+backend/internal/reservation/reservation_type_service_core.go
+backend/internal/reservation/reservation_type_service_available_slot.go
+backend/internal/reservation/reservation_type_service_builders.go
+backend/internal/reservation/reservation_type_liff_request.go
+backend/internal/reservation/reservation_type_liff_response.go
+backend/internal/reservation/reservation_type_liff_service.go
+backend/internal/reservation/reservation_type_group_request.go
+backend/internal/reservation/reservation_type_group_response.go
+backend/internal/reservation/reservation_type_group_service.go
+backend/internal/reservation/liff_response.go
+backend/internal/reservation/liff_service_catalog.go
+backend/internal/reservation/line_reservation_setting_handler_test.go
+backend/internal/reservation/line_reservation_setting_request_test.go
+backend/internal/reservation/line_reservation_setting_service_test.go
+backend/internal/reservation/reservation_type_handler_test.go
+backend/internal/reservation/reservation_type_request_test.go
+backend/internal/reservation/reservation_type_service_core_test.go
+backend/internal/reservation/reservation_type_service_available_slot_test.go
+backend/internal/reservation/reservation_type_liff_handler_test.go
+backend/internal/reservation/reservation_type_liff_request_test.go
+backend/internal/reservation/reservation_type_liff_service_test.go
+backend/internal/reservation/reservation_type_group_handler_test.go
+backend/internal/reservation/reservation_type_group_request_test.go
+backend/internal/reservation/reservation_type_group_service_test.go
+backend/internal/reservation/liff_service_test.go
+
+S7 Staff visibility/occupation/shift (3):
+backend/internal/model/occupation.go
+backend/internal/model/staff.go
+backend/internal/staff/occupation_request.go
+backend/internal/staff/occupation_response.go
+backend/internal/staff/occupation_service.go
+backend/internal/staff/shift_template_request.go
+backend/internal/staff/shift_template_response.go
+backend/internal/staff/shift_template_service.go
+backend/internal/staff/staff_request.go
+backend/internal/staff/staff_response.go
+backend/internal/staff/staff_service.go
+backend/internal/staff/staff_service_account.go
+backend/internal/staff/staff_service_builders.go
+backend/internal/staff/staff_service_core.go
+backend/internal/reservation/reservation_staff_request.go
+backend/internal/reservation/reservation_staff_response.go
+backend/internal/reservation/reservation_staff_service.go
+backend/internal/reservation/reservation_staff_capability_validator.go
+backend/internal/reservation/liff_service_availability_staff.go
+backend/internal/staff/occupation_handler_http_test.go
+backend/internal/staff/occupation_request_test.go
+backend/internal/staff/occupation_service_test.go
+backend/internal/staff/shift_template_handler_http_test.go
+backend/internal/staff/shift_template_request_test.go
+backend/internal/staff/shift_template_service_test.go
+backend/internal/staff/shift_template_service_update_test.go
+backend/internal/staff/staff_request_test.go
+backend/internal/staff/staff_service_account_test.go
+backend/internal/staff/staff_service_builders_test.go
+backend/internal/staff/staff_service_core_test.go
+backend/internal/reservation/reservation_staff_request_test.go
+backend/internal/reservation/reservation_staff_service_test.go
+backend/internal/reservation/reservation_staff_capability_validator_test.go
+backend/internal/reservation/reservation_cross_tenant_master_fk_write_test.go
+backend/internal/reservation/reservation_validators_test.go
+
+S8 Trimming course/option (3):
+backend/internal/model/trimming_master.go
+backend/internal/trimming/trimming_course_request.go
+backend/internal/trimming/trimming_course_response.go
+backend/internal/trimming/trimming_course_service.go
+backend/internal/trimming/trimming_option_request.go
+backend/internal/trimming/trimming_option_response.go
+backend/internal/trimming/trimming_option_service.go
+backend/internal/trimming/trimming_repository.go
+backend/internal/trimming/trimming_service.go
+backend/internal/reservation/reservation_validators.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/trimming/trimming_course_handler_test.go
+backend/internal/trimming/trimming_course_request_test.go
+backend/internal/trimming/trimming_course_repository_test.go
+backend/internal/trimming/trimming_course_service_test.go
+backend/internal/trimming/trimming_option_handler_test.go
+backend/internal/trimming/trimming_option_request_test.go
+backend/internal/trimming/trimming_option_repository_test.go
+backend/internal/trimming/trimming_option_service_test.go
+backend/internal/trimming/trimming_repository_test.go
+backend/internal/trimming/trimming_service_test.go
+backend/internal/trimming/trimming_cross_tenant_master_fk_write_test.go
+backend/internal/trimming/trimming_inactive_master_fk_test.go
+backend/internal/trimming/trimming_master_delete_toctou_test.go
+backend/internal/reservation/reservation_cross_tenant_master_fk_write_test.go
+backend/internal/reservation/reservation_validators_test.go
+backend/internal/reservation/service_mocks_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+backend/internal/billing/billing_item_trimming_test.go</code></pre></details>
+      </li>
+      <li><b>順序付き手順</b>: (1) allowlistがcleanか確認。(2) DB-backed create/read-backで明示falseがtrueになるREDを追加。(3) create requestを<code>*bool</code>にしnilとfalseを分離。(4) modelを<code>*bool</code>化し、serviceでnilはtrue、非nilは値を保持。(5) public responseは必須boolへ正規化。(6) literal/比較/testを同sliceで更新。(7) scoped gate後に停止して次sliceのallowlistを作る。<code>reservation_type_available_slot_test.go:30-33</code>、<code>shift_template_handler_http_test.go:99,174,292</code>、<code>trimming_cross_tenant_master_fk_write_test.go:19,28</code>、<code>trimming_repository_test.go:406</code> はpointer化で壊れる既存例であり、modelだけを先行変更しない。</li>
+      <li><b>逐語検証コマンド</b>: 各sliceの3コマンドをそのまま実行する（gofmt/diffはallowlistを包含する既知directoryへ広げたread-only gateで、出力0を要求）。
+        <details><summary>S1〜S8 exact commands</summary><pre><code># S1
+docker compose exec -T backend go test ./internal/auth/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/auth backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/auth backend/internal/clinic backend/internal/model
+# S2
+docker compose exec -T backend go test ./internal/pet/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/pet backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/pet backend/internal/clinic backend/internal/model
+# S3
+docker compose exec -T backend go test ./internal/billing/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/billing backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/billing backend/internal/clinic backend/internal/model
+# S4
+docker compose exec -T backend go test ./internal/inventory/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/inventory backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/inventory backend/internal/billing backend/internal/model
+# S5
+docker compose exec -T backend go test ./internal/medicalrecord/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/medicalrecord backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/medicalrecord backend/internal/billing backend/internal/model
+# S6
+docker compose exec -T backend go test ./internal/reservation/... ./internal/model/...
+git diff --name-only -- backend/internal/reservation backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/reservation backend/internal/model
+# S7
+docker compose exec -T backend go test ./internal/staff/... ./internal/reservation/... ./internal/model/...
+git diff --name-only -- backend/internal/staff backend/internal/reservation backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/staff backend/internal/reservation backend/internal/model
+# S8
+docker compose exec -T backend go test ./internal/trimming/... ./internal/reservation/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/trimming backend/internal/reservation backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/trimming backend/internal/reservation backend/internal/billing backend/internal/model</code></pre></details>
+        USER handoffは <code>make codegen</code> と <code>git diff --exit-code -- frontend/src/types/generated/models.ts</code>（差分0）。Grokはcodegen/generated file編集をしない。<code>tstype:"boolean,required"</code> でpublic必須boolを維持できなければ停止。
+      </li>
+      <li><b>ロールバック</b>: clean baselineを確認したsliceだけ、Grok自身のexact path差分を逆patchする。共有worktreeで広いrestoreを使わず、事前差分があれば着手しない。</li>
+      <li><b>停止条件</b>: allowlistに既存差分、public bool contractを維持不能、allowlist外reader変更が必要、同一failure signatureが3回、またはcodegenが必要になった時点で停止して人へ報告する。</li>
+      <li><b>完了判定</b>: 実害あり28件の各create/upsertに「明示false→DB read-back false」「未指定→true」のDB-backed回帰があり、実害なし11件は無変更、各slice gateとUSER codegenがgreen、意図しないfrontend optional contractが無く、allowlist外変更0。</li>
+    </ul>
+  </li>
 </ul>
 </section>
 
@@ -510,6 +812,18 @@ exit 0</pre>
   <li><b>根本原因（verbatim）</b>: <code>frontend/src/features/medical-records/components/ExaminationGroup.tsx</code> は結果値に <code>{item.result}</code>（<code>:102</code>）、基準値に <code>{item.referenceValue}</code>（<code>:108</code>）を描画する。mapper <code>frontend/src/lib/transforms/examination.ts:15-33</code> は <code>inspection_value → inspectionValue</code>（<code>:21</code>）と <code>normal_value → normalValue</code>（<code>:22</code>）も写すが描画していない。通常登録の <code>upsertExamItemRequest</code>（<code>backend/internal/medicalrecord/examination_request.go:151-159</code>）には <code>Result</code> がなく、通常APIでは永続化できない。</li>
   <li><b>修正方針</b>: <code>ExaminationGroup.tsx</code> の描画を <code>item.inspectionValue</code> / <code>item.normalValue</code> へ向ける。着手時に <code>result</code> / <code>reference_value</code> を使うlab_import等のwrite経路を全数調査し、正本またはfallback（<code>result || inspectionValue</code>）を決める。</li>
   <li><b>境界</b>: 一覧 <code>/examinations</code> はitem値を表示しない設計のため対象外。detail側の <code>ExamItemsTable</code> に同欠陥があるかは未確認。型検査・lintでは捕捉できず、実画面での回帰確認が必要である。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>write経路調査</b>: 通常APIは <code>backend/internal/medicalrecord/examination_request.go:151-158</code> と <code>backend/internal/medicalrecord/examination_service.go:481-503</code>、lab importは <code>backend/internal/medicalrecord/lab_import_examination_service.go:33-40,76-93</code>、active CSV importは <code>backend/internal/csvimport/import.go:169-170</code> で、いずれも <code>inspection_value</code> を書き、<code>result</code> は書かない。demo seedの非空件数は <code>inspection_value=220716 / normal_value=1307970 / result=0 / reference_value=0</code>。ただしarchive importer <code>backend/cmd/_archive/seed-old-db/transform.go:856-859</code> と <code>backend/cmd/_archive/seed-old-db/main.go:613-619,692</code> は <code>result/reference_value</code> を書けるため、製品判断停止条件が成立する。</li>
+      <li><b>detail確認</b>: <code>frontend/src/features/examinations/components/ExamItemsTable.tsx:153-171</code> は既に <code>inspectionValue</code> と <code>referenceValue || normalValue || "-"</code> を描画し、<code>frontend/src/features/examinations/components/ExamItemsTable.test.tsx:70-79,113-147</code> が固定するため同欠陥なし。<code>frontend/src/features/medical-records/components/ExaminationGroup.test.tsx:13-27,71-88</code> は <code>result</code> と <code>inspectionValue</code> を同じ値にして欠陥を隠している。</li>
+      <li><b>ファイル allowlist</b>: <code>frontend/src/features/medical-records/components/ExaminationGroup.tsx</code>、<code>frontend/src/features/medical-records/components/ExaminationGroup.test.tsx</code>、<code>frontend/src/lib/transforms/examination.test.ts</code> の3本のみ。外を触ったらFAIL。</li>
+      <li><b>順序付き手順</b>: (1) 3本のclean baseline確認。(2) <b>ここで人へ上げ</b>、archive importerを互換対象にするか決める。(3) REDで <code>result="legacy"</code> / <code>inspectionValue="95"</code> の不一致fixture、referenceのfallback、両方空の<code>"-"</code>を追加。(4) mapperの4 field分離を回帰。(5) 決定が互換維持なら <code>inspectionValue || result || "-"</code>、archive廃止・backfill済みなら <code>inspectionValue || "-"</code>。基準値は <code>referenceValue || normalValue || "-"</code>。(6) scoped gate。</li>
+      <li><b>逐語検証コマンド</b>: <code>docker compose exec -T frontend npx vitest run src/features/medical-records/components/ExaminationGroup.test.tsx src/lib/transforms/examination.test.ts</code>、<code>docker compose exec -T frontend npx eslint src/features/medical-records/components/ExaminationGroup.tsx src/features/medical-records/components/ExaminationGroup.test.tsx src/lib/transforms/examination.test.ts</code>、<code>git diff --check -- frontend/src/features/medical-records/components/ExaminationGroup.tsx frontend/src/features/medical-records/components/ExaminationGroup.test.tsx frontend/src/lib/transforms/examination.test.ts</code>。期待はtest PASS、lint/diff出力なし。</li>
+      <li><b>ロールバック</b>: clean baselineから作った3本限定のbinary diffを <code>/tmp/BUG-456.patch</code> へ保存し、<code>git apply --reverse --check</code> 後に逆適用する。共有差分を広いrestoreで消さない。</li>
+      <li><b>停止条件</b>: 人のcanonical/fallback判断がない、allowlistがdirty、別のactive <code>result</code> writerを発見、またはallowlist外変更が必要なら停止。<code>result || inspectionValue</code> はserver assessmentと不一致値を優先し得るため採用しない。</li>
+      <li><b>完了判定</b>: 承認されたprecedenceで入力値が表示され、基準値fallbackと両方空が回帰され、指定test/lint/diffがgreen、変更3本のみ。</li>
+    </ul>
+  </li>
 </ul>
 </section>
 
@@ -520,6 +834,18 @@ exit 0</pre>
   <li><b>実測根拠（2026-07-28・verbatim）</b>: FE12 M-04のindependent healthcare reviewerがpre-existing HIGHとして指摘し、production code変更禁止のため報告に留めた。証跡は <code>tmp/fe12-m04-evidence/2026-07-28/completion-report.md</code>。<code>delete</code>あり/<code>edit</code>なしではボタンが見えるがbackendが拒否し、<code>edit</code>あり/<code>delete</code>なしでは実行できるのにボタンが出ない。</li>
   <li><b>修正方針</b>: 製品判断で退院actionの正を <code>delete</code> または <code>edit</code> に決め、決定側へFE/BEの表示制御・callback・route認可を揃える。</li>
   <li><b>境界</b>: 具体的なFE参照箇所とBE route定義行は未確認。起票後の着手ユニットで両側の該当箇所を特定し、会計を伴う不可逆操作の権限組合せを回帰証明する。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>現行箇所</b>: FE表示は <code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx:31-43,70-77</code> の <code>canDelete &amp;&amp; isAdmitted</code>。callback guardは <code>frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts:17-30</code> のlatest <code>canDelete</code>。会計ありは同ファイル <code>:33-40</code> でPOST、なしは <code>:41-47</code> でgeneric PATCH。BEは <code>backend/internal/medicalrecord/routes.go:323,325</code> で両方 <code>edit</code>。専用serviceは <code>backend/internal/medicalrecord/hospitalization_request.go:64-74</code> / <code>backend/internal/medicalrecord/hospitalization_service.go:462-490</code> で会計なしも扱える。generic Updateもrequest <code>:136-143,179-188</code> / service <code>:332-383</code> でdischargedを書けるため、delete案はこのbypassも閉じる。</li>
+      <li><b>製品判断停止</b>: named authorityが「状態遷移=<code>edit</code>」または「不可逆操作=<code>delete</code>」を選ぶまでGrokは1行も変更しない。会計ありにaccounting権限も要求するなら別のdual-resource判断として再停止する。</li>
+      <li><b>edit案 allowlist</b>: <code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx</code>、<code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx</code>、<code>frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts</code>、<code>frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx</code>、<code>backend/internal/medicalrecord/routes_snapshot_test.go</code> の5本のみ。順序は権限matrixとcallback revocationをRED→表示/guardを<code>canEdit</code>へ→route permission test→gate。両dispatchは維持。</li>
+      <li><b>delete案 allowlist</b>: <code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx</code>、<code>frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts</code>、<code>frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx</code>、<code>backend/internal/medicalrecord/routes.go</code>、<code>backend/internal/medicalrecord/routes_snapshot_test.go</code>、<code>backend/internal/medicalrecord/hospitalization_service.go</code>、<code>backend/internal/medicalrecord/hospitalization_service_test.go</code> の7本のみ。順序は両branchのdelete guardをRED→会計なしも専用POSTへ→POSTをdelete認可へ→generic Updateのdischargedを拒否→route/service gate。FE action本体は既にdeleteなので変更しない。</li>
+      <li><b>逐語検証コマンド</b>: 共通FEは <code>docker compose exec frontend npx vitest run src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx</code>。edit案は <code>docker compose exec frontend npx eslint src/features/hospitalization/components/HospitalizationDetailActions.tsx src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx src/features/hospitalization/hooks/use-hospitalization-detail.ts src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx --max-warnings 0</code>、<code>docker compose exec backend go test ./internal/medicalrecord -run '^TestRegisterRoutes_HospitalizationDischargePermissions$' -count=1 -v</code>、<code>docker compose exec backend go vet ./internal/medicalrecord/...</code>、<code>docker compose exec backend gofmt -l internal/medicalrecord/routes_snapshot_test.go</code>、<code>git diff --check -- frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx backend/internal/medicalrecord/routes_snapshot_test.go</code>。delete案は <code>docker compose exec frontend npx eslint src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx src/features/hospitalization/hooks/use-hospitalization-detail.ts src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx --max-warnings 0</code>、<code>docker compose exec backend go test ./internal/medicalrecord -run '^(TestRegisterRoutes_HospitalizationDischargePermissions|TestHospitalizationService_UpdateRejectsDischargedStatus|TestHospitalizationService_DischargeWithBilling_WithoutAccounting)$' -count=1 -v</code>、<code>docker compose exec backend go vet ./internal/medicalrecord/...</code>、<code>docker compose exec backend gofmt -l internal/medicalrecord/routes.go internal/medicalrecord/routes_snapshot_test.go internal/medicalrecord/hospitalization_service.go internal/medicalrecord/hospitalization_service_test.go</code>、<code>git diff --check -- frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx backend/internal/medicalrecord/routes.go backend/internal/medicalrecord/routes_snapshot_test.go backend/internal/medicalrecord/hospitalization_service.go backend/internal/medicalrecord/hospitalization_service_test.go</code>。期待は全green/出力なし。</li>
+      <li><b>ロールバック</b>: clean baselineで選択案のexact allowlist差分だけをbinary patchへ保存し、reverse check後に逆適用する。concurrent drift時は上書きせず停止。</li>
+      <li><b>停止条件</b>: named判断なし、allowlist dirty、route testが決定actionを観測しない、delete案でgeneric PATCHがまだdischarge可能、またはaccounting権限追加要求が出たら停止。</li>
+      <li><b>完了判定</b>: 表示とlatest callbackが同じ決定actionをstrictに要求し、両会計branchのBE認可も一致。delete案ではgeneric PATCH bypass 0。反対権限組合せを回帰し、全scoped gate green、allowlist外変更0。</li>
+    </ul>
+  </li>
 </ul>
 </section>
 
@@ -530,6 +856,307 @@ exit 0</pre>
   <li><b>実測根拠（verbatim）</b>: 入院詳細の証跡は <code>tmp/fe12-m04-evidence/2026-07-28/shot-detail-800x1024.png</code> と <code>tmp/fe12-m04-evidence/2026-07-28/shot-detail-500x900.png</code>。M-05先行走ではresponsive wrap/clipを <b>8件</b>観測したが、個別route×viewportの内訳は未確認。証跡は <code>tmp/fe12-m05-evidence/2026-07-28/completion-report.md</code>。</li>
   <li><b>修正方針</b>: 臨床sentinelと操作要素が狭幅で切れないようlayoutを是正する。M-05を再実測しroute×viewportの全数内訳を確定してから着手し、横断的な共通原因の有無を確認する。</li>
   <li><b>境界</b>: 具体的なCSS・componentの該当箇所は未特定。入院詳細2件とsentinel系8件の重複関係、各route×viewportの対応は未確認であり、推測で修正範囲を広げない。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>全件表</b>: completion reportと <code>layout-review.md</code> から route×viewport は10件、複数要素を分けると13 findings。未特定0。
+        <div class="table-wrap"><table>
+          <tr><th>route</th><th>viewport</th><th>要素</th><th>該当ファイル</th></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>800×1024</td><td>退院予定日card</td><td><code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx:139-171</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>title</td><td><code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>patient metadata</td><td><code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx:95-139</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>プラン管理・詳細tab</td><td><code>frontend/src/features/hospitalization/components/HospitalizationTabbedView.tsx:35-54</code> → <code>frontend/src/components/shared/UnifiedTabs.tsx:36-60</code></td></tr>
+          <tr><td><code>/</code></td><td>800×1024</td><td>見出し/説明wrap</td><td><code>frontend/src/features/reception/routes/Reception.tsx:166-192</code> → <code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/</code></td><td>500×900</td><td>見出しwrap</td><td><code>frontend/src/features/reception/routes/Reception.tsx:168-190</code> → <code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/</code></td><td>500×900</td><td>新規予約登録CTA</td><td><code>frontend/src/features/reception/routes/Reception.tsx:172-190</code></td></tr>
+          <tr><td><code>/medical-records</code></td><td>800×1024</td><td>右端列</td><td><code>frontend/src/features/medical-records/routes/MedicalRecords.tsx:275-381</code> / <code>frontend/src/features/medical-records/routes/medical-records-columns.tsx:47-56</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/medical-records</code></td><td>500×900</td><td>右側列</td><td><code>frontend/src/features/medical-records/routes/MedicalRecords.tsx:275-381</code> / <code>frontend/src/features/medical-records/routes/medical-records-columns.tsx:47-56</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/hospitalization</code></td><td>800×1024</td><td>board右側</td><td><code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx:176-201</code></td></tr>
+          <tr><td><code>/examinations</code></td><td>800×1024</td><td>操作列</td><td><code>frontend/src/features/examinations/routes/ExaminationsList.tsx:211-304,350-358</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/examinations</code></td><td>500×900</td><td>表右側列</td><td><code>frontend/src/features/examinations/routes/ExaminationsList.tsx:211-304,350-358</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/checkups</code></td><td>500×900</td><td>pet名列右端</td><td><code>frontend/src/features/checkups/routes/CheckupsList.tsx:177-231,273-317</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+        </table></div>
+      </li>
+      <li><b>共通原因</b>: header群は <code>frontend/src/components/shared/Form/FormHeader.tsx</code> のnowrap、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx</code> の固定min-width、<code>frontend/src/components/shared/UnifiedTabs.tsx</code> のflex-none。3一覧は共通 <code>frontend/src/components/shared/DataTable/DataTable.tsx</code> の <code>min-w-[640px]</code> と列優先度。boardは <code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx</code> の独立した <code>min-w-[800px]</code>。<code>frontend/src/components/shared/Layout/Sidebar.tsx:71-80</code> は既に1280未満でcollapseするため直接原因とは断定しない。</li>
+      <li><b>ファイル allowlist</b>: productionは <code>frontend/src/components/shared/Form/FormHeader.tsx</code>、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx</code>、<code>frontend/src/components/shared/UnifiedTabs.tsx</code>、<code>frontend/src/components/shared/DataTable/DataTable.tsx</code>、<code>frontend/src/features/reception/routes/Reception.tsx</code>、<code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx</code>、<code>frontend/src/features/medical-records/routes/MedicalRecords.tsx</code>、<code>frontend/src/features/medical-records/routes/medical-records-columns.tsx</code>、<code>frontend/src/features/examinations/routes/ExaminationsList.tsx</code>、<code>frontend/src/features/checkups/routes/CheckupsList.tsx</code>。testは <code>frontend/src/components/shared/Form/FormHeader.test.tsx</code>、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx</code>、<code>frontend/src/components/shared/UnifiedTabs.test.tsx</code>、<code>frontend/src/components/shared/DataTable/DataTable.test.tsx</code>、<code>frontend/src/features/reception/routes/Reception.telemetry.test.tsx</code>、<code>frontend/src/features/hospitalization/components/HospitalizationBoard.test.tsx</code>、<code>frontend/src/features/medical-records/routes/MedicalRecords.test.tsx</code>、<code>frontend/src/features/examinations/routes/ExaminationsList.test.tsx</code>、<code>frontend/src/features/checkups/routes/CheckupsList.test.tsx</code>。全19本は現行treeで実在確認済み。allowlist外はFAIL。</li>
+      <li><b>順序付き手順</b>: (1) clean baseline。(2) shared testへnarrow contractをRED。(3) header stack/wrap。(4) patient metadata/card reflow、臨床cueは隠さない。(5) tabは44px targetを保ち全項目到達可能にする。(6) table共通min-widthとroute列優先度を修正しstatus/sentinel/actionは隠さない。(7) boardをcontainer幅で1/2/3列化。(8) gate。(9) 10 route×viewport・13要素をbrowser再実測。</li>
+      <li><b>逐語検証コマンド</b>: <code>docker compose exec frontend npx vitest run src/components/shared/Form/FormHeader.test.tsx src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx src/components/shared/UnifiedTabs.test.tsx src/components/shared/DataTable/DataTable.test.tsx src/features/reception/routes/Reception.telemetry.test.tsx src/features/hospitalization/components/HospitalizationBoard.test.tsx src/features/medical-records/routes/MedicalRecords.test.tsx src/features/examinations/routes/ExaminationsList.test.tsx src/features/checkups/routes/CheckupsList.test.tsx</code>、<code>docker compose exec frontend pnpm design-audit</code>（期待末尾 <code>design-system-audit: PASS — 違反 0 件</code>）、<code>git diff --check -- frontend/src/components/shared/Form/FormHeader.tsx frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx frontend/src/components/shared/UnifiedTabs.tsx frontend/src/components/shared/DataTable/DataTable.tsx frontend/src/features/reception/routes/Reception.tsx frontend/src/features/hospitalization/components/HospitalizationBoard.tsx frontend/src/features/medical-records/routes/MedicalRecords.tsx frontend/src/features/medical-records/routes/medical-records-columns.tsx frontend/src/features/examinations/routes/ExaminationsList.tsx frontend/src/features/checkups/routes/CheckupsList.tsx frontend/src/components/shared/Form/FormHeader.test.tsx frontend/src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx frontend/src/components/shared/UnifiedTabs.test.tsx frontend/src/components/shared/DataTable/DataTable.test.tsx frontend/src/features/reception/routes/Reception.telemetry.test.tsx frontend/src/features/hospitalization/components/HospitalizationBoard.test.tsx frontend/src/features/medical-records/routes/MedicalRecords.test.tsx frontend/src/features/examinations/routes/ExaminationsList.test.tsx frontend/src/features/checkups/routes/CheckupsList.test.tsx</code>。</li>
+      <li><b>ロールバック</b>: BUG-458のexact hunkだけを逆patchする。cleanな専用worktree以外では一括restore禁止。</li>
+      <li><b>停止条件</b>: allowlist dirty、status/death/danger/deadline/actionを隠す必要、44px targetを縮小、raw hex/new token/allowlist外が必要、shared primitiveで無関係routeが壊れる、design audit違反、または10件のclip/overlapが1件でも残る。</li>
+      <li><b>完了判定</b>: 9 scoped testsとdesign auditがgreen、10 route×viewport・13要素のunexpected wrap/clip/overlap 0、臨床cueと操作が可視/到達可能、44px維持、allowlist外変更0。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="BUG-459">
+<h3>BUG-459: ケアプランFK型不一致修正の実行時未検証（旧 BUG-403 / bug.md BUG-2026-07-28-01 の残余）</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（コードは完了。残るのは稼働環境での実証のみ）。</b> S01〜S06 再実行（2026-07-28）で、ケアプラン項目の <code>type=medicine/treatment/item</code> 登録が <code>400 {"error":"medicine_id: 正しい形式で入力してください"}</code> で失敗した。原因は FE が <code>medicine_id</code> 等を文字列で送る一方、BE <code>createCarePlanItemRequest</code> / <code>updateCarePlanItemRequest</code> が <code>*uint64</code> でバインドしていた型不一致。</li>
+  <li><b>修正済みの内容</b>: <code>frontend/src/features/hospitalization/api/care-plan-items.ts</code> の fetcher 境界に <code>toRequestReferenceId</code> / <code>toCarePlanItemRequestInput</code> を追加し、作成（POST）・更新（PATCH）の両方で <code>medicine_id</code> / <code>procedure_id</code> / <code>hospitalization_plan_id</code> を正の safe integer へ変換する。<code>null</code> は保持し、<code>undefined</code>・空文字はキー自体を省略して <code>0</code> を送らない。BE は規約どおり数値バインドのまま変更しない（request body の FK は数値・response の ID は文字列がリポジトリ全体の規約。<code>treatment_request.go</code> 等が同型）。前例は同 feature の <code>create-hospitalization.ts</code> の fetcher 境界変換。</li>
+  <li><b>証跡（スコープ限定）</b>: <code>care-plan-items.test.ts</code> が <code>Test Files 1 passed (1) / Tests 17 passed (17)</code>、スコープ限定 ESLint が exit 0、<code>git diff --quiet HEAD -- backend/internal/medicalrecord/care_plan_item_request.go</code> が exit 0。</li>
+  <li><b>残作業</b>: 稼働中のローカル API に対する実証が未了。<code>POST /v1/hospitalizations/{id}/care-plan-items</code> に修正後 payload（当該種別の FK は数値・他2つは明示 <code>null</code>）を <code>medicine</code>/<code>treatment</code>/<code>item</code> の3種別で送って成功を確認し、対比として文字列 FK が <code>400</code> になることを取得する。<code>PATCH</code> も同様。<b>検証で作成したレコードは API の <code>DELETE</code> で全件消すこと</b>（<code>docker compose exec db psql</code> による直接 SQL は禁止コマンド）。生成済みプロンプト <code>~/.claude/prompt-craft-runs/agent-fast-bugmd-runtime-verification-closeout.md</code> が本残作業の実行契約。</li>
+  <li><b>境界</b>: <code>PATCH</code> の <code>null</code> が「FK をクリアする」意図と「未指定」を区別できない件は BE DTO <code>*uint64</code> 由来の既存制約であり、本entryの範囲外（新規要件）。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-460">
+<h3>BUG-460: 当日開始入院の「入院中」タブ非表示は仕様どおり（旧 BUG-405 / bug.md BUG-2026-07-28-02 の記録訂正）</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（コード欠陥ではない。残るのはブラウザでの目視確認のみ）。</b> S05 再実行で「開始日を本日にした新規入院が <code>status: "reserved"</code> で作成され『入院中』タブに出ない」と観察し、当初これをコード不具合と解釈した。<b>この解釈は現行ツリーと不整合であり、記録訂正済み。</b></li>
+  <li><b>訂正の根拠</b>: DEC-2 は日付による自動遷移ではなく明示的な手動チェックインを要求しており、<code>2f255fe39</code>（FEAT-CHECKIN）で実装済み。<code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx</code> は <code>showCheckIn = canEdit &amp;&amp; isReserved</code> / <code>showDischarge = canDelete &amp;&amp; isAdmitted</code> であり、<code>reserved</code> ではチェックインのみが描画され退院処理は描画されない。<code>api/transforms.ts</code> の <code>statusMap</code> も <code>reserved → 「予約」</code> で正しい。<b>予約は「本日来院予定」であって「来院した」ではないため、自動遷移は臨床事実に反する記録を生む。実装してはならない。</b></li>
+  <li><b>証跡</b>: <code>HospitalizationDetailActions.checkin.test.tsx</code> が <code>Test Files 1 passed (1) / Tests 5 passed (5)</code>。</li>
+  <li><b>残作業</b>: ブラウザでの目視確認のみ未了（<code>reserved</code> の入院詳細でチェックインが表示され退院処理が表示されないこと）。<b>ブラウザ操作手段が無い場合は BLOCKED が正しい結論であり、上記コンポーネントテストの再掲を目視確認の代替として PASS にしてはならない。</b></li>
+  <li><b>範囲外</b>: 入院一覧に「開始日が本日なのに未チェックイン」を例外として浮かび上がらせる機能（product-philosophy ③）は PO 裁定を要する新規要件。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-461">
+<h3>TASK-461: M-05残2件を最小3routeで実測する</h3>
+<ul>
+  <li><b>状態: OPEN / HIGH（runtime clinical evidence）。</b> danger高の非色cueと、past/today/future/emptyの期限表示を、R-4後にfixtureを再作成して証明する。7 route×4 viewportの全再走はしない。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>ファイル allowlist</b>: writeは <code>tmp/fe12-m05-evidence/&lt;RUN_DATE&gt;/**</code> のみ。<code>backend/**</code>、<code>frontend/**</code>、seed、migration、ledgerはread-only。captureは実在確認済み <code>tmp/fe12-m05-evidence/2026-07-28/capture.mjs</code> を使う。promptが指した <code>tmp/fe12-m03-evidence/2026-07-28/capture.mjs</code> は存在しない。</li>
+      <li><b>順序付き手順</b>: (1) disposable local・clinic 1・認証を確認し、secretはenv placeholderだけで渡す。(2) JSTの実行日D、past=D-1、future=D+1、base=D-8を算出。(3) pet <code>1001004</code> がalive/low/null、MR <code>1425547</code> とvaccination/checkup <code>1-4</code> が不存在、M05 label衝突なしをGETで確認。(4) petを <code>{"danger_level":"high","danger_reason":"FE12-M01 fixture"}</code> へPATCHしread-back。(5) <code>POST /api/v1/medical-records</code> へ <code>{"visit_date":"D","owner_id":"300588","pet_id":"1001002","status":"draft"}</code> を送り201かつ返却ID <code>1425547</code> を要求。(6) <code>POST /api/v1/vaccinations</code> へ共通 <code>medical_record_id=1425547,pet_id=1001002,vaccine_id=1,date=base</code> と、<code>next_date/next_schedule_type/remarks</code> を順に <code>past/other/M05-past</code>、<code>D/other/M05-today</code>、<code>future/other/M05-future</code>、emptyはnext両key省略＋<code>M05-empty</code> で4件作成。(7) <code>POST /api/v1/medical-records/1425547/checkups</code> へ共通 <code>checkup_type_id=1,pet_id=1001002,date=base</code> と <code>next_date/result</code> をpast/today/future/emptyで4件作成。(8) 即時read-backし、日跨ぎ禁止。(9) dedicated Chrome 9222・1440×900で <code>/owners</code> をpet名検索、<code>/vaccinations</code> をpet filter、<code>/checkups</code> を <code>M05-</code> 検索して3routeだけ観測。(10) identity確認後、checkup→vaccination→MRをAPI DELETEし、petをlow/nullへ戻して全read-back。</li>
+      <li><b>逐語API手順（bash・同一shellでpreflight→create→read-back→観測→cleanup）</b>: secretを表示せず、各HTTP status不一致で即停止する。create後に失敗した場合も、下記cleanupをidentity確認付きで実行してから終了する。
+        <details><summary>copy-executable fixture/preflight/read-back</summary><pre><code>set -euo pipefail
+: "${FE12_ADMIN_EMAIL:?set FE12_ADMIN_EMAIL}"
+: "${FE12_ADMIN_PASSWORD:?set FE12_ADMIN_PASSWORD}"
+FE12_API_BASE='http://127.0.0.1:8080/api/v1'
+FE12_COOKIE_JAR="$(mktemp -t fe12-m05-cookie.XXXXXX)"
+FE12_RUN_DATE="$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')"
+FE12_PAST="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()-1);console.log(d.toISOString().slice(0,10))')"
+FE12_FUTURE="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()+1);console.log(d.toISOString().slice(0,10))')"
+FE12_BASE_DATE="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()-8);console.log(d.toISOString().slice(0,10))')"
+EVIDENCE="tmp/fe12-m05-evidence/$FE12_RUN_DATE"
+mkdir -p "$EVIDENCE"
+req() {
+  local method="$1" path="$2" expected="$3" output="$4" body="${5-}" actual
+  local args=(-sS -b "$FE12_COOKIE_JAR" -c "$FE12_COOKIE_JAR"
+    -H 'Content-Type: application/json'
+    -H 'X-Requested-With: XMLHttpRequest'
+    -H 'X-Clinic-ID: 1')
+  if [[ -n "$body" ]]; then args+=(--data "$body"); fi
+  actual="$(curl "${args[@]}" -o "$output" -w '%{http_code}' -X "$method" "$FE12_API_BASE$path")"
+  [[ "$actual" == "$expected" ]] || {
+    echo "FAIL $method $path expected=$expected actual=$actual" &gt;&amp;2
+    return 1
+  }
+}
+CREATED_MR=''
+PET_CHANGED=0
+VACC_IDS=()
+CHECKUP_IDS=()
+cleanup_chrome() {
+  if [[ -n "${CHROME_PID-}" ]]; then
+    kill "$CHROME_PID" 2&gt;/dev/null || true
+    wait "$CHROME_PID" 2&gt;/dev/null || true
+    unset CHROME_PID
+  fi
+  if [[ -n "${CHROME_PROFILE-}" &amp;&amp; -d "$CHROME_PROFILE" &amp;&amp;
+        "$CHROME_PROFILE" == "$PWD/$EVIDENCE"/chrome-profile.* ]]; then
+    rm -rf -- "$CHROME_PROFILE"
+    unset CHROME_PROFILE
+  fi
+}
+emergency_cleanup() {
+  local id output
+  set +e
+  for ((i=${#CHECKUP_IDS[@]}-1; i&gt;=0; i--)); do
+    id=&quot;${CHECKUP_IDS[$i]}&quot;; output="$EVIDENCE/checkup-$id-create.json"
+    jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.result // .data.result)|startswith("M05-"))' "$output" &gt;/dev/null &amp;&amp;
+      req DELETE "/medical-records/$CREATED_MR/checkups/$id" 204 "$EVIDENCE/checkup-$id-emergency-delete.json"
+  done
+  for ((i=${#VACC_IDS[@]}-1; i&gt;=0; i--)); do
+    id=&quot;${VACC_IDS[$i]}&quot;; output="$EVIDENCE/vaccination-$id-create.json"
+    jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$output" &gt;/dev/null &amp;&amp;
+      req DELETE "/vaccinations/$id" 204 "$EVIDENCE/vaccination-$id-emergency-delete.json"
+  done
+  if [[ -n "$CREATED_MR" ]] &amp;&amp; jq -e --arg id "$CREATED_MR" '((.id // .data.id)|tostring)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-create.json" &gt;/dev/null; then
+    req DELETE "/medical-records/$CREATED_MR" 204 "$EVIDENCE/mr-emergency-delete.json"
+  fi
+  if [[ "$PET_CHANGED" == 1 ]]; then
+    req PATCH /pets/1001004 200 "$EVIDENCE/pet-emergency-restore.json" '{"danger_level":"low","danger_reason":null}'
+  fi
+  cleanup_chrome
+}
+on_error() {
+  local status=$?
+  trap - ERR
+  emergency_cleanup
+  rm -f -- "$FE12_COOKIE_JAR"
+  exit "$status"
+}
+trap on_error ERR
+LOGIN_BODY="$(jq -nc --arg email "$FE12_ADMIN_EMAIL" --arg password "$FE12_ADMIN_PASSWORD" '{email:$email,password:$password}')"
+req POST /login 200 "$EVIDENCE/login.json" "$LOGIN_BODY"
+req GET /me 200 "$EVIDENCE/me.json"
+jq -e '.id=="42" and .main_clinic_id=="1" and .is_system_admin==false and .clinic.id=="1" and (.permissions|type)=="object"' "$EVIDENCE/me.json"
+req GET /masters/staffs/42/permission-groups 200 "$EVIDENCE/permission-groups.json"
+jq -e '.group_ids==[9]' "$EVIDENCE/permission-groups.json"
+req GET /pets/1001004 200 "$EVIDENCE/pet-before.json"
+jq -e '((.id // .data.id)|tostring)=="1001004" and ((.clinic_id // .data.clinic_id)|tonumber)==1 and (.status // .data.status)=="alive" and (.danger_level // .data.danger_level)=="low" and ((.danger_reason // .data.danger_reason // null)==null)' "$EVIDENCE/pet-before.json"
+PET_NAME="$(jq -er '(.name // .data.name)' "$EVIDENCE/pet-before.json")"
+req GET /medical-records/1425547 404 "$EVIDENCE/mr-before.json"
+for id in 1 2 3 4; do req GET "/vaccinations/$id" 404 "$EVIDENCE/vaccination-$id-before.json"; done
+# checkup detail GETは存在しないため、clinic全pageを走査してID 1-4とM05 labelの不存在を証明する。
+: &gt; "$EVIDENCE/checkups-preflight.ndjson"
+page=1
+total=1
+while (( (page - 1) * 100 &lt; total )); do
+  req GET "/checkups?page=$page&amp;limit=100" 200 "$EVIDENCE/checkups-page-$page-before.json"
+  total="$(jq -er '.total' "$EVIDENCE/checkups-page-$page-before.json")"
+  jq -c '.data[]' "$EVIDENCE/checkups-page-$page-before.json" &gt;&gt; "$EVIDENCE/checkups-preflight.ndjson"
+  page=$((page + 1))
+done
+jq -se '[.[] | select(((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4) or ((.result // "")|startswith("M05-")))] | length==0' "$EVIDENCE/checkups-preflight.ndjson"
+req PATCH /pets/1001004 200 "$EVIDENCE/pet-high.json" '{"danger_level":"high","danger_reason":"FE12-M01 fixture"}'
+PET_CHANGED=1
+req GET /pets/1001004 200 "$EVIDENCE/pet-high-readback.json"
+jq -e '(.danger_level // .data.danger_level)=="high" and (.danger_reason // .data.danger_reason)=="FE12-M01 fixture"' "$EVIDENCE/pet-high-readback.json"
+MR_BODY="$(jq -nc --arg d "$FE12_RUN_DATE" '{visit_date:$d,owner_id:"300588",pet_id:"1001002",status:"draft"}')"
+req POST /medical-records 201 "$EVIDENCE/mr-create.json" "$MR_BODY"
+MR_ID="$(jq -er '(.id // .data.id)|tostring' "$EVIDENCE/mr-create.json")"
+CREATED_MR="$MR_ID"
+[[ "$MR_ID" == 1425547 ]] || { echo "STOP: medical-record ID=$MR_ID (expected 1425547)" &gt;&amp;2; false; }
+for spec in "M05-past|$FE12_PAST" "M05-today|$FE12_RUN_DATE" "M05-future|$FE12_FUTURE" 'M05-empty|'; do
+  label="${spec%%|*}"; next="${spec#*|}"
+  if [[ -n "$next" ]]; then
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg n "$next" --arg r "$label" '{medical_record_id:1425547,pet_id:1001002,vaccine_id:1,date:$d,next_date:$n,next_schedule_type:"other",remarks:$r}')"
+  else
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg r "$label" '{medical_record_id:1425547,pet_id:1001002,vaccine_id:1,date:$d,remarks:$r}')"
+  fi
+  index="$(case "$label" in M05-past) echo 1;; M05-today) echo 2;; M05-future) echo 3;; M05-empty) echo 4;; esac)"
+  req POST /vaccinations 201 "$EVIDENCE/vaccination-$index-create.json" "$body"
+  actual_id=&quot;$(jq -er '(.id // .data.id)|tonumber' "$EVIDENCE/vaccination-$index-create.json")&quot;
+  VACC_IDS+=("$actual_id")
+  [[ "$actual_id" == "$index" ]] || { echo "STOP: vaccination ID mismatch at $label" &gt;&amp;2; false; }
+done
+for spec in "M05-past|$FE12_PAST" "M05-today|$FE12_RUN_DATE" "M05-future|$FE12_FUTURE" 'M05-empty|'; do
+  label="${spec%%|*}"; next="${spec#*|}"
+  if [[ -n "$next" ]]; then
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg n "$next" --arg r "$label" '{checkup_type_id:1,pet_id:1001002,date:$d,next_date:$n,result:$r}')"
+  else
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg r "$label" '{checkup_type_id:1,pet_id:1001002,date:$d,result:$r}')"
+  fi
+  index="$(case "$label" in M05-past) echo 1;; M05-today) echo 2;; M05-future) echo 3;; M05-empty) echo 4;; esac)"
+  req POST /medical-records/1425547/checkups 201 "$EVIDENCE/checkup-$index-create.json" "$body"
+  actual_id=&quot;$(jq -er '(.id // .data.id)|tonumber' "$EVIDENCE/checkup-$index-create.json")&quot;
+  CHECKUP_IDS+=("$actual_id")
+  [[ "$actual_id" == "$index" ]] || { echo "STOP: checkup ID mismatch at $label" &gt;&amp;2; false; }
+done
+[[ "$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')" == "$FE12_RUN_DATE" ]]
+req GET /medical-records/1425547 200 "$EVIDENCE/mr-readback.json"
+jq -e '((.id // .data.id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-readback.json"
+for id in 1 2 3 4; do
+  req GET "/vaccinations/$id" 200 "$EVIDENCE/vaccination-$id-readback.json"
+  jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.medical_record_id // .data.medical_record_id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$EVIDENCE/vaccination-$id-readback.json"
+done
+req GET /medical-records/1425547/checkups 200 "$EVIDENCE/checkups-readback.json"
+jq -e '(.data // .) as $rows | ($rows|length)==4 and ([ $rows[] | select((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4 and (.pet_id|tonumber)==1001002 and (.result|startswith("M05-"))) ]|length)==4' "$EVIDENCE/checkups-readback.json"</code></pre></details>
+        <details><summary>browser evidence and identity-safe cleanup</summary><pre><code># 専用Chromeを起動し、CDPがHTTP 200になるまでfail-fast gateする。
+CHROME_PROFILE="$(mktemp -d "$PWD/$EVIDENCE/chrome-profile.XXXXXX")"
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$CHROME_PROFILE" \
+  --no-first-run \
+  http://127.0.0.1:3003/login &gt;"$EVIDENCE/chrome.stdout.log" 2&gt;&amp;1 &amp;
+CHROME_PID=$!
+cdp_status=000
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  cdp_status="$(curl -sS -o "$EVIDENCE/cdp-version.json" -w '%{http_code}' http://127.0.0.1:9222/json/version || true)"
+  [[ "$cdp_status" == 200 ]] &amp;&amp; break
+  sleep 1
+done
+[[ "$cdp_status" == 200 ]]
+jq -e '.webSocketDebuggerUrl|startswith("ws://127.0.0.1:9222/")' "$EVIDENCE/cdp-version.json"
+
+# Chrome controllerで次を逐語実行する。UI loginにはenvの値を入力し、値をartifactへ出力しない。
+# 1. /login: Email/PasswordへFE12_ADMIN_EMAIL/FE12_ADMIN_PASSWORDを入力し「ログイン」。
+#    /api/v1/me応答のstaff=42, clinic=1, non-adminを再確認。不一致は停止。
+# 2. Network記録を開始し /owners へ移動。「飼主名、ペット名、飼主No、種別...」textboxへ
+#    PET_NAMEを入力し「検索」。対象pet 1001004の1行だけを要求し、
+#    「${PET_NAME}の危険理由を表示」を押して「${PET_NAME}の危険理由」と
+#    「FE12-M01 fixture」を確認。full accessibility treeをa11y-owners.txt、
+#    request method + URLをnet-owners.txtへ保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/owners.png" 1440 900 /owners
+# 3. Networkをclear/restartし /vaccinations へ移動。「飼主名、ペット名、予防接種名...」
+#    textboxへfixture pet名を入力。ID 1-4を確認し、pastだけ「期限超過」、
+#    today/future/emptyはdanger/overdue cueなし。a11y-vaccinations.txtと
+#    net-vaccinations.txtへ同形式で保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/vaccinations.png" 1440 900 /vaccinations
+# 4. Networkをclear/restartし /checkups へ移動。「ペット名・飼主名・種別で検索...」
+#    textboxへM05-を入力。ID 1-4を確認し、pastだけ「期限切れ」、
+#    today/futureは「期限間近」可だが期限切れ/dangerなし、emptyは日付/badgeなし。
+#    a11y-checkups.txtとnet-checkups.txtへ同形式で保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/checkups.png" 1440 900 /checkups
+for artifact in \
+  "$EVIDENCE/a11y-owners.txt" "$EVIDENCE/a11y-vaccinations.txt" "$EVIDENCE/a11y-checkups.txt" \
+  "$EVIDENCE/net-owners.txt" "$EVIDENCE/net-vaccinations.txt" "$EVIDENCE/net-checkups.txt" \
+  "$EVIDENCE/owners.png" "$EVIDENCE/vaccinations.png" "$EVIDENCE/checkups.png"; do
+  test -s "$artifact"
+done
+rg -F "${PET_NAME}の危険理由を表示" "$EVIDENCE/a11y-owners.txt"
+rg -F "${PET_NAME}の危険理由" "$EVIDENCE/a11y-owners.txt"
+rg -F 'FE12-M01 fixture' "$EVIDENCE/a11y-owners.txt"
+test "$(rg -c '期限超過' "$EVIDENCE/a11y-vaccinations.txt")" -eq 1
+test "$(rg -c '期限切れ' "$EVIDENCE/a11y-checkups.txt")" -eq 1
+if rg -n '(^|[[:space:]])(POST|PATCH|PUT|DELETE)([[:space:]]|$)' \
+  "$EVIDENCE/net-owners.txt" "$EVIDENCE/net-vaccinations.txt" "$EVIDENCE/net-checkups.txt"; then
+  echo 'STOP: unexpected browser mutation' &gt;&amp;2
+  false
+fi
+[[ "$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')" == "$FE12_RUN_DATE" ]]
+# delete前identity再確認
+req GET /medical-records/1425547 200 "$EVIDENCE/mr-predelete.json"
+jq -e '((.id // .data.id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-predelete.json"
+for id in 1 2 3 4; do
+  req GET "/vaccinations/$id" 200 "$EVIDENCE/vaccination-$id-predelete.json"
+  jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.medical_record_id // .data.medical_record_id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$EVIDENCE/vaccination-$id-predelete.json"
+done
+req GET /medical-records/1425547/checkups 200 "$EVIDENCE/checkups-predelete.json"
+jq -e '(.data // .) as $rows | ($rows|length)==4 and ([ $rows[] | select((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4 and (.pet_id|tonumber)==1001002 and (.result|startswith("M05-"))) ]|length)==4' "$EVIDENCE/checkups-predelete.json"
+for id in 1 2 3 4; do req DELETE "/medical-records/1425547/checkups/$id" 204 "$EVIDENCE/checkup-$id-delete.json"; done
+for id in 1 2 3 4; do req DELETE "/vaccinations/$id" 204 "$EVIDENCE/vaccination-$id-delete.json"; done
+req DELETE /medical-records/1425547 204 "$EVIDENCE/mr-delete.json"
+CREATED_MR=''
+req PATCH /pets/1001004 200 "$EVIDENCE/pet-restore.json" '{"danger_level":"low","danger_reason":null}'
+PET_CHANGED=0
+req GET /medical-records/1425547 404 "$EVIDENCE/mr-after.json"
+for id in 1 2 3 4; do req GET "/vaccinations/$id" 404 "$EVIDENCE/vaccination-$id-after.json"; done
+req GET /medical-records/1425547/checkups 404 "$EVIDENCE/checkups-after.json"
+req GET /pets/1001004 200 "$EVIDENCE/pet-after.json"
+jq -e '((.id // .data.id)|tostring)=="1001004" and (.status // .data.status)=="alive" and (.danger_level // .data.danger_level)=="low" and ((.danger_reason // .data.danger_reason // null)==null)' "$EVIDENCE/pet-after.json"
+trap - ERR
+cleanup_chrome
+rm -f -- "$FE12_COOKIE_JAR"</code></pre></details>
+      </li>
+      <li><b>期待するruntime</b>: ownersはpet <code>1001004</code> の名前で1行へ絞り、accessible name <code>&lt;PET_NAME&gt;の危険理由を表示</code> とpop-over label/reasonを取得。vaccinationはpastだけ <code>期限超過</code>、today/future/emptyにdanger/overdue cueなし。checkupはpastだけ <code>期限切れ</code>、today/futureは <code>期限間近</code> 可だが期限切れ/danger扱いなし、emptyは日付/badgeなし。</li>
+      <li><b>ロールバック</b>: numeric IDだけで消さず全recordのM05 identityを確認し、<code>DELETE /medical-records/1425547/checkups/:id</code> → <code>DELETE /vaccinations/:id</code> → <code>DELETE /medical-records/1425547</code>、最後にpet low/nullへPATCH。MR/vaccination 404、checkup listのM05 0件、pet alive/low/nullを確認する。</li>
+      <li><b>停止条件</b>: non-local、clinic/authority/login不一致、既存IDが別identity、createが201でない、sequence生成IDが <code>1425547</code> / <code>1-4</code> と異なる、JST日跨ぎ、owner検索で対象1行に絞れない、unexpected mutation、cleanup identity不一致。IDはAPIから指定不能なので、差異をDB reset/direct SQL/sequence操作で補正してはならない。</li>
+      <li><b>完了判定</b>: exact-ID read-back、3routeのa11y/network/PNG、danger高cue、期限4区分が期待どおり、cleanupでpreflight状態へ完全復旧。未確認のlive sequence、fixture absence、credential、Chrome、runtime a11yは実行時に確認し、代替証跡でPASSにしない。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="TASK-462">
+<h3>TASK-462: tygo pointer mapping 15行を削除してUSER codegenへ引き渡す</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（設定整理）。</b> 3 package×5 mappingは生成物への寄与0が実測済み。Grokは設定削除まで、<code>make codegen</code> はUSER専権。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>ファイル allowlist</b>: <code>backend/tygo.yaml</code> 1本だけ。他のpath、特にgenerated TypeScriptを触ったらFAIL。</li>
+      <li><b>削除対象（現行行番号）</b>: model block <code>31-35</code>、auth block <code>60-64</code>、trimming block <code>89-93</code> の各 <code>"*uint64"</code>、<code>"*string"</code>、<code>"*bool"</code>、<code>"*time.Time"</code>、<code>"*float64"</code>。<code>grep -n '"\*' backend/tygo.yaml</code> の逐語出力は <code>31,32,33,34,35,60,61,62,63,64,89,90,91,92,93</code> の15行。</li>
+      <li><b>順序付き手順</b>: (1) yamlとoutputのclean baseline、3 package/output path、全ファイル実在を確認。(2) 行番号維持のため89-93→60-64→31-35の順で削除。(3) base mapping、comment、package/output pathは変えない。(4) post-edit gate。(5) <code>make codegen</code> を実行せずUSERへ引き渡す。</li>
+      <li><b>生成面</b>: tygo outputは <code>frontend/src/types/generated/models.ts</code>、<code>auth-responses.ts</code>、<code>trimming-responses.ts</code> の3本。<code>frontend/line-reserve/src/types/models.ts</code> は実在するが <code>tygo.yaml</code>、compose、Make、CIにmappingされずheaderも <code>LIFF App 型定義</code> であり、生成物ではない。変更禁止の非生成controlとしてdiff 0を確認する。</li>
+      <li><b>逐語検証コマンド</b>: preflightは <code>git diff --quiet -- backend/tygo.yaml</code>、<code>grep -n '"\*' backend/tygo.yaml</code>、<code>grep -nE '^[[:space:]]+- path:|^[[:space:]]+output_path:' backend/tygo.yaml</code>。postは <code>if grep -n '"\*' backend/tygo.yaml; then exit 1; else echo 'PASS: 0 pointer mappings'; fi</code>、<code>test "$(grep -c '^[[:space:]]*- path:' backend/tygo.yaml)" -eq 3</code>、<code>git diff --check -- backend/tygo.yaml</code>、<code>git diff --numstat -- backend/tygo.yaml</code>。期待は <code>PASS: 0 pointer mappings</code> と <code>0 15 backend/tygo.yaml</code>。</li>
+      <li><b>USER専権gate</b>: USERが <code>make codegen</code>、<code>git diff --exit-code -- frontend/src/types/generated/</code>、<code>git diff --exit-code -- frontend/line-reserve/src/types/models.ts</code> を実行し、exit 0・diff出力なしを確認する。Grokはgenerated fileを手修正して差分0を作ってはならない。</li>
+      <li><b>ロールバック</b>: 広いrestoreを使わず、各blockの <code>"uint": "number"</code> 直後へ同じ5行を同じ順・indentで再挿入しpreflightを再実行。</li>
+      <li><b>停止条件</b>: baseline dirty、15行/3 blockでない、expected file欠落、base mapping/comment/pathが変化、numstatが0/15でない、yaml以外が変化、またはUSER codegenが失敗/差分を生む。</li>
+      <li><b>完了判定</b>: Grok phaseはyamlだけ15削除・read-only gate green・USER handoff記録。R-2全体はUSER codegen exit 0かつgenerated 3本とline-reserve controlのdiff 0で完了。</li>
+    </ul>
+  </li>
 </ul>
 </section>
 

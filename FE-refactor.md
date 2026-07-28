@@ -8,13 +8,61 @@
 > 削除した `## FE12-02 unit execution record` と過去のFE/R-F履歴はCommit `657c1a49cd2c37dc63f5af8e530258a36a12d81e` に保存する。
 > **DB reset経路の復旧（2026-07-27・fixture作成の前提工程）**: M-01〜M-05のfixture作成は5走連続でBLOCKEDし、真因は「7/17のmigration統合以降ずっとDB resetが完遂できない状態だった」ことだった。seed CSVがテーブル定義に追随しておらず`COPY`が22P04で落ちていた（`COPY`は列リストを渡さずテーブル定義順に依存する）。証跡: pets/billing_items CSV是正=`0b51c891c`、clinical_plans/exam_results CSV是正=`a4946053b`、migration統合第3回（002-004→001）+clinical_plans列順是正=`edbb162f7`、ERD v31.30（pet_owners/複合FK/テーブル数110）+波及4文書=`2c13b563c`、fixture完成の台帳反映=`976d717c7`。**この破壊はDB resetを実行した瞬間にしか顕在化しないため、7/17から誰も気づいていなかった。** 再発防止のgate2本は **2026-07-28 に実装完了**（`TASK-446`/`TASK-447` として起票 → `backend/internal/lintscan/seed_csv_schema_drift_test.go` と `erd_table_count_drift_test.go` を新設 → 台帳から両sectionを削除済み）。Gate Aはseed CSVヘッダを「`001_init.sql` + 番号順の後続migration」から導いた最終列順と照合し、扱えない列順変更DDLに遭遇したら黙殺せず失敗する。Gate Bは`CREATE TABLE`の実テーブル数（重複定義とコメントを除いた110）とERD宣言値を照合する。両gateとも壊れた入力で確実に失敗することを実証するテストを同梱し、`go test ./...`経由でCIに載る。**コミット済み=`43419cc12`**（`docker-compose.yml`のdocs read-only mount追加を含む）。
 
+## 現在地（2026-07-28 終業時点・ここだけ読めば残件が分かる）
+
+**FE12 実測レーンは実質終結した。** M-03 / M-01-E / M-04 / M-02 / R-4 が COMPLETE、R-1 / R-3 / R-2測定 も完了。**fixture は R-4 で全て撤去済み**（例外: hospitalization `1` が日次記録制約で残存）。臨床状態は実測前の値へ復旧済み（pet `1001005`=alive、`1001004`=low、`1001002`/`1000018`=無傷）。
+
+**残件は5つだけである。**
+
+| # | 残件 | 誰が | 着手前提 |
+|---|---|---|---|
+| 1 | **M-01-D 裁定** — 死亡ペットの編集/削除をブロックするか | **曽我** | 材料完備。下記「M-01-D 裁定材料」を読めば答えられる |
+| 2 | **M-05 残2件** — danger高cueのruntime証明、期限4区分のdanger誤検出有無 | エージェント | **fixture再作成が前提**（R-4で撤去済み）。手順は M-05 節。着手プラン: `3-session-agent.html#TASK-461` |
+| 3 | **R-2 実行** — `backend/tygo.yaml` の15行削除＋`make codegen`差分0確認 | **USER専権**（`make codegen`） | 測定完了。削除対象は確定済み。着手プラン: `3-session-agent.html#TASK-462` |
+| 4 | **line-reserve** — font実機確認 | QA/端末管理者 | 実機3台とQA環境の受け渡し |
+| 5 | **BUG-455〜458 の修正実装** | エージェント | 起票済み。`3-session-agent.html#ledger` が正本。本ledgerの所掌外 |
+
+**この実測が生んだ実装findings 4件は全て起票済みである**（`BUG-455` CRITICAL / `BUG-456` HIGH / `BUG-457` HIGH / `BUG-458` MEDIUM）。以降それらの追跡は `3-session-agent.html#ledger` を正本とする。
+
+### M-01-D 裁定材料（M-01-E の実測結果・これで答えられる）
+
+`/owners?include_deceased=true` の行アクションメニューを全権限 persona で観測した結果、**死亡行と生存行で提示される操作に差分が無い**。
+
+| 操作 | 死亡行（pet `1001005`） | 生存行（pet `1001002`） | disabled |
+|---|---|---|---|
+| 編集 | 提示あり | 提示あり | **なし** |
+| レポート | 提示あり | 提示あり | **なし** |
+| 削除 | 提示あり | 提示あり | **なし** |
+
+`docs/spec/specification.md:21` は「死亡ペットに対する誤操作の物理的ブロック」を規定するが、**一覧の行アクションはこれを満たしていない。** 製品哲学により確認ダイアログは選択肢に入らない（ロック・Undo・物理ブロックのいずれか）。
+
+**曽我が決めるのは2点だけ**: (a) 死亡ペットの**編集**をブロックするか。するなら誤記訂正の正規経路をどうするか（追記のみ許す／管理者権限でのみ許す／死亡解除→訂正→再登録を強制する）。(b) 死亡ペットの**削除**をブロックするか。
+
+なお F16（死亡バッジのグレー）は裁定済みで、実装（badge のみ）が合格である。死亡登録/解除は `45b681866` 以降 fail-closed で確定済み。**一覧に死亡登録/解除の導線は存在しない**（`PetCareSection.tsx` = 飼主詳細にある）。
+
 ## Active scope and authority
 
 - 追跡対象は `M-01`〜`M-05` の実測、line-reserve font実機確認、残余2件（R-2/R-3）、実測後のfixture復旧（R-4）とする。R-1・F16・F9・U10・MEDIUM 4件およびS1/S2並行レーン全9項目は裁定・実装済みで追跡を終了した。
-- **2026-07-28 時点の到達点**: M-01〜M-05 の fixture は全て作成済み。**PO裁定を待って着手できないのは M-02（R-3経由）・M-01-D の2件のみ**で、R-1は全5件完了、M-03・M-04・M-01-E は曽我の判断を要さず着手できる（判定基準が客観的に確定しているため）。実行順と干渉回避は「実測レーン分割」節を正本とする。
+- **2026-07-28 時点の到達点**: R-1は全5件完了。**PO裁定を待って着手できないのは M-02（R-3経由）・M-01-D の2件**。実行順と干渉回避は「実測レーン分割」節を正本とする。
+- **2026-07-28 訂正 — 「fixture は全て作成済み」は誤り。API作成物の過半が消滅している**（下記「fixture生存実測」節が正本）。7/27に作成した fixture のうち生存するのは S1 の pets 4頭と H=`1` だけで、これも 7/28 01:45 に再作成されたものである。M-02・M-05・M-03 の fixture は**再作成が着手前提**として復活した。したがって「M-03・M-04・M-01-E は曽我の判断を要さず着手できる」は現時点で成立しない。
 - **2026-07-28 更新 — R-3 の前提が変わった**: #249 U4（`afd8404a4` API＋`1adf55b6e` UI）で `exam_reference_ranges` への投入経路が開通し、R-3 の選択肢 (A) は「rangeのAPIが無いため実装が要る」という制約から解放された。**ただし `exam_reference_ranges` は依然0行**であり、獣医師が動物種ごとの臨床値を投入するまで HIGH/LOW cue は導出されない。したがって **M-02 を「基準値不在のまま実測する」(B) の妥当性は変わらない**。判断が要るのは「臨床値の投入を待つか、待たずに実測するか」だけになった（機構の有無は論点から消えた）。
 - **2026-07-28 更新 — 未評価/正常の誤読対策は3 surface全てで完了**: `ExamItemsTable`（`19bbdbae2`）・`ExamPivotTable`・`ExaminationGroup` の全てで `isAssessed === false` を「未判定」として区別表示する。あわせて `BUG-450`（`GET /v1/examinations` のDTOに明細が無く、カルテ検査結果一覧が常に0件・飼主レポートの異常件数が常に0だった silent contract break）を `include_items` の opt-in 追加で解消した。**M-02 の実測時、カルテ側の検査結果一覧は初めて実データを描画する**（従来は空だったため、過去の実測結果があれば無効）。
 - **2026-07-28 更新 — S1レーン（M-01-E + M-04）を試行し BLOCKED。「着手可」は環境前提が揃っている場合の話だった**: 実行記録は M-04 節末尾の「2026-07-28 S1レーン実測結果」を正本とする。臨床状態は一切動いておらず、fixture の生存も未確認のままである。**この試行で判明した4件のうち3件は runbook 側ではなく着手プロンプト側の欠陥**であり、次に同じ轍を踏まないよう下記「S1レーン試行の結果」へ分離して記録する。M-03（S2レーン）は未試行だが、ブラウザ経路の前提は共有するため同じ理由で止まる可能性が高い。
+- **2026-07-28 レーン分割の訂正 — 並行化の軸は「データ干渉」ではなく「ブラウザ」である**: 後段の「実測レーン分割」節は pet ID / route の重なりで並行可否を判定しているが、実際のボトルネックは **CDP endpoint が `127.0.0.1:9222` の1つしかないこと**である（`.codex/config.toml` の `mcp_servers.chrome-devtools` も 9222 決め打ち）。1プロファイル＝1ログインセッションのため、persona 切替のたびに直列化する。**「データ的に並行可」でも実際には順番待ちになる。** 効果があるのは browser lane から非ブラウザ作業を剥がすことであり、ブラウザ同士を並べても効かない。実際のレーン構成は次のとおり。
+  - **レーン1（ブラウザ・直列）**: M-03 closeout → M-01-E → M-04 → M-02 → M-05 → R-4
+  - **レーン2（API のみ・ブラウザ不要）**: fixture 再作成。**2026-07-28 完了**（上記「レーン2」節）
+  - **レーン3（環境不要）**: R-2 測定・GORM欠陥トリアージ。**2026-07-28 完了**（下記「残余risk」節）
+  - **レーン4（人手）**: line-reserve 実機3台。エージェントレーン外
+- **2026-07-28 確定実行順（曽我裁定4件を反映）**: 判断待ちは M-01-D のみになった。レーン1は**直列**とし、次の順で進める。
+  1. **Chrome 3点gate** — `9222` 起動 → `list_pages` 成功 → **アプリ画面のスクショを1枚実取得**。3点目まで green にならない限り以降へ進まない。
+  2. **M-03（S2）** — **2026-07-28 に実質完遂**。証跡パイプライン（a11y 15 / screenshot 60 / network 15 / matrix 未解決0）が全て揃い、9 gate 中 8 が PASS。残るのは「view access 維持」の観測対象を `/hospitalization/:id/edit`（edit gate 付き）から `/hospitalization/:id`（action guard 無し）へ差し替える closeout のみ。**edit route で VIEW/CREATE が拒否されたのは正しい RBAC 挙動であり defect ではない**（`frontend/src/app/routes/clinical-care-routes.tsx:117-141`）。
+  3. **S1（M-01-E → M-04）** — M-01-E の合否基準は「死亡行のバッジがグレー」に確定済み。M-04 の権限剥奪caseは M-03 で使った group を借用する。
+  4. **M-02** — 基準値不在のまま実測（R-3=B確定）。fixture 再作成済み。
+  5. **M-05** — 直列尾部。fixture 再作成済み。**期限4区分は実測日 7/28 基準で作ってある。7/29 以降へずれる場合は `next_date` を切り直すこと。**
+  6. **R-4** — fixture復旧。
+  - **fixtureは消滅の前科があるため、実測着手前に必ず read-back で生存を確認する。日をまたぐ設計は採らない。**
+  - **プロンプト側の欠陥が3連続で実測を止めた**（①証跡保存先が MCP の workspace roots 外 ②許可action と禁止action を区別せず矛盾指示 ③view 維持の観測対象に edit-gated route を指定）。**route を実測対象に指定するときは、その route の guard の `action` と persona の権限を突き合わせてから書くこと。** M-01-E 以降でも同じ構造で再発する。
+  - **証跡が1枚も取れていない段階で prompt-craft / 外部agent へ委譲しない。** 3走・証跡0の原因はプロンプト精度ではなく、環境未検証のまま委譲した構造にある。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
 - authorityから項目が消えたことや判断待ち件数が0であることだけでは完了とみなさない。明示的な決裁または実測証跡が無い項目は保持する。
 - 本ledgerの更新は実装・runtime検証・製品決裁を代替しない。
@@ -35,18 +83,26 @@ M-03〜M-05はroute横断の実測であり、対象routeは各runbookに列挙�
 <!-- FE12-TASK-TABLE-START -->
 | ID | Priority | Active frontier | Dependency | Completion evidence |
 |---|---|---|---|---|
-| M-03 | P0 | RBAC非活性の理由/name（S2レーン） | **未試行だがS1と同じ環境前提を共有する**（Chrome 9222・browser executor）。fixture・persona完成済、判定基準は客観（禁止personaのmutation 0件）で曽我不要 | persona×routeのa11y tree・4 viewport・HAR・0 mutation集計 |
-| M-04 | P0 | Hospitalization child control実効性（S1レーン）— **2026-07-28 BLOCKED** | **環境4件**（下記「S1レーン試行の結果」）。fixture完成済だが生存未確認。判定基準は客観だが、**権限剥奪caseは剥奪可能なpersonaが未定義**で成立しない | 操作別HARと0件集計・a11y tree・4 viewport |
-| M-01-E | P0 | OwnersList操作範囲の**証跡収集**（S1レーン）— **2026-07-28 BLOCKED** | **環境4件**（同上）。加えて**F16の合否基準が未確定**（badge のみか行全体か・下記「裁定待ち」） | 4 viewport screenshot・a11y tree・accessible name・GET以外のHAR |
-| M-01-D | P0 | 同・**操作可否の裁定** | **曽我**。M-01-Eの証跡が先行すると判断が速い | 死亡ペットに対する許可/禁止を操作単位で明示した裁定メモ |
-| M-05 | P0 | Clinical sentinel responsive — 着手可だが**直列尾部** | S1/S2の完了。横断snapshot観測のため、他レーンが状態を動かしている間は証跡が無効になる | route×4 viewport・a11y dump・fixture-to-cue対応表 |
-| M-02 | P0 | Examinations一覧意味とlayout | **R-3の裁定が先行**（基準値不在ではHIGH/LOW cueが出ず実測が成立しない） | 両surface×4 viewport・曽我の一覧cue要否裁定 |
-| R-3 | P0 | **M-02をどう実測するか**（基準値の恒久是正は`3-session-agent.html#BUG-449`へ移管） | **曽我の裁定**。「基準値不在のまま実測」を推奨（提案節参照） | 実測方針の明示決定と、裁定メモへの「判定機能停止下での観測」注記 |
+| M-03 | — | RBAC非活性の理由/name — **2026-07-28 COMPLETE**（4走） | 完了。fixtureはR-4で撤去済み | a11y 18・screenshot 76・network 15・matrix未解決0。`tmp/fe12-m03-evidence/2026-07-28/` |
+| M-01-E | — | OwnersList操作範囲の証跡収集 — **2026-07-28 COMPLETE** | 完了。**死亡行に物理ブロックが無いことを確定** | a11y 4・screenshot 4・network 1。`tmp/fe12-m01e-evidence/2026-07-28/` |
+| M-04 | — | Hospitalization child control実効性 — **2026-07-28 COMPLETE** | 完了。死亡遷移1回・確実に復帰。H=`1`は日次記録制約でR-4撤去不可（残存） | a11y 6・screenshot 5・network 5・control matrix 33行。`tmp/fe12-m04-evidence/2026-07-28/` |
+| M-02 | — | Examinations一覧意味とlayout — **2026-07-28 COMPLETE** | 完了。**実欠陥1件を検出→`BUG-456`起票** | screenshot 8・a11y 2・network。`tmp/fe12-m02-evidence/2026-07-28/` |
+| M-05 | P0 | Clinical sentinel responsive — **2026-07-28 部分完了 / 未確定2件** | **残るのは (a) danger高cueのruntime未証明（絞り込み無しでpet `1001004`が可視ページに載らなかった疑い）、(b) 期限4区分（past/today/future/empty）のdanger誤検出有無。** fixtureはR-4で撤去済みのため**再作成が着手前提** | 28 PNG・a11y 7・network 7は取得済み。残2件の逐語証跡が要る |
+| M-01-D | P0 | 死亡ペットに対する操作可否の**裁定** | **曽我**。M-01-Eで材料は完備した（下記「M-01-D 裁定材料」） | 死亡ペットに対する許可/禁止を操作単位で明示した裁定メモ |
+| R-3 | — | M-02の実測方針 — **2026-07-28 裁定済み=(B) 基準値不在のまま実測** | 完了。恒久是正は`3-session-agent.html#BUG-449` | M-02がこの方針で完走した |
 | line-reserve | P1 | font実機確認 | QA環境管理者と端末管理者の受け渡し（実機3台・remote inspection）。**曽我の判断は不要** | 3実機のscreenshot・HAR・computed font-family |
-| R-4 | P1 | 実測後のfixture復旧（`1001005`をalive、`1001004`をlowへ、staff 38-40とgroup 10-13を削除） | M-01〜M-05の実測完了が先行。判断は不要 | 復旧後のread-back証跡 |
+| R-4 | P1 | 実測後のfixture復旧 — **2026-07-28 完了**（`1001005` alive、`1001004` low、staff `38-42` / group `10-13`撤去） | M-01〜M-05のcleanup対象read-back完了（M-05自体の判定はBLOCKED）。P1はroute不在・日次記録制約のため一部撤去不可 | `tmp/fe12-r4-evidence/2026-07-28/{before,after,cleanup-report,completion-report}.md` |
 | R-1 | P2 | staff入力検証の契約drift 5件 — **2026-07-28 完了** | ①②と③frontend側は`166e4acd7`、③OpenAPI側と④は本ユニット、⑤は`a44fa0ebe`で完了。判断ブロッカー・残件なし | backend binding・OpenAPI required/description・frontend validation/test名・mutation直前の権限再検査が一致 |
-| R-2 | P2 | tygo pointer mapping 15行の寄与測定 | `make codegen`がUSER専権。**曽我の判断は不要** | 寄与0の行の特定と設定整理 |
+| R-2 | P2 | tygo pointer mapping 15行の寄与測定 — **2026-07-28 測定完了。結論=15行すべて寄与0** | 測定は生成物の実読で完了（`make codegen` 不要だった）。**残るのは15行削除の実行のみで、その検証に `make codegen` が要る＝USER専権** | 下記「R-2 測定結果」節。削除後に `make codegen` 差分0であることの確認が残件 |
 <!-- FE12-TASK-TABLE-END -->
+
+#### 2026-07-28 R-4 実施結果
+
+- status: **COMPLETE**。P0-aを最優先で実施し、pet `1001005` は `deceased` → `alive` / `deceased_at=null`、pet `1001004` は `danger_level=high` → `low` / `danger_reason`空へ復旧した。解除APIの初回・再試行はHTTP 409（初回後のread-backで既に復旧済み）だったが、最終状態は受入条件を満たす。
+- P0-b: staff `38`-`42` はFE12識別子をGETで確認後、全件 `DELETE 204` → `GET 404`。permission group `10`-`13`も名前を確認後、全件 `DELETE 204` → `GET 404`。seed group `1`=`執行`、`2`=`一般`、`9`=`閲覧専用`は前後ともHTTP 200で無傷。
+- P1: exam `1014562` は親MR削除後に撤去済み（初回DELETEはitemsのため409、再確認GETは404）。MR `1425546`、checkup `1`-`4`、vaccination `1`-`4`、MR `1425547`、care plan `1`-`2`は撤去済み。exam item `2325052`-`2325054`、hospitalization配下の日次記録・vital・care log・staff noteはDELETE route不在のため未撤去。hospitalization `1`は日次記録制約（HTTP 409）のため撤去不可。未撤去理由は `tmp/fe12-r4-evidence/2026-07-28/cleanup-report.md` にID単位で記録した。
+- 巻き込み確認: pet `1001002` / `1000018` は前後とも `alive`・`danger_level=low`・`deceased_at=null`。DBへ直接SQLは実行していない。production code、migration、seedは未変更。
+- evidence: `tmp/fe12-r4-evidence/2026-07-28/before.txt`、`after.txt`、`cleanup-report.md`、`completion-report.md`。R-4前のfixture生存実測は履歴であり、staff/group・MR/exam/checkup/vaccinationは本結果で撤去済み、hospitalizationは日次記録制約で残存する。
 
 ## Authority drift
 
@@ -135,7 +191,7 @@ WBC・RBC・HCTの**犬別/猫別の具体的な基準値**は、7/20に定め�
 
 ## 実測レーン分割（2026-07-27・fixture完成後）
 
-fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）・M-01-D の2件だけ**である。R-1は完了済みで、残りは曽我の判断を要さず、実行する人手さえあれば着手できる。ただし全レーンが同一のlocal環境を共有するため、素直な2レーン並行は組めない。所有resourceの重なりを実査した結果を下に示す。
+**2026-07-28 訂正**: 本節冒頭は「fixtureは全て揃っている」と書いていたが、実測の結果 S1 以外の fixture は消滅していた（「fixture生存実測」節）。**S2・M-02・M-05 は fixture 再作成が着手工程に加わる。** PO裁定を待つのが **M-02（R-3経由）・M-01-D の2件**である点は変わらない。以下の干渉分析は resource の重なりの分析としては引き続き有効である。全レーンが同一のlocal環境を共有するため、素直な2レーン並行は組めない。
 
 > **2026-07-28 訂正**: 本節は当初「全レーンが同一の**disposable local**を共有する」と書いていたが、**disposable な stack は存在しない**。稼働しているのは名前付き永続ボリュームを持つ通常の Compose stack（`backend`/`db`/`frontend`）であり、config だけでは破棄可能性を証明できない。M-04 は pet `1000018` を実際に死亡させて戻すため、**この環境で実施してよいかは曽我の判断が要る**（下記「S1レーン試行の結果」の決定事項①）。
 
@@ -175,19 +231,101 @@ fixtureは全て揃っており、PO裁定を待つのは **M-02（R-3経由）�
 
 **2026-07-28 試行結果 — M-01-E で試し、着手前提の段階で BLOCKED した。**収集の質は評価に至っていない（1枚も取得できていない）。判明したのは「経路が使えるか」以前の前提4件であり、うち3件は着手プロンプト側の欠陥である。**横展開（M-03/M-05）は前提が揃うまで行わない。**
 
+## ブラウザ経路の確立（2026-07-28・3点gate 全green）
+
+過去3走を止めていた `9222` 不通は解消した。**再現手順は下記1コマンドである。**
+
+```
+nohup "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --remote-debugging-port=9222 \
+  --user-data-dir=<専用プロファイルパス> \
+  --no-first-run --no-default-browser-check \
+  http://127.0.0.1:3003 >/dev/null 2>&1 &
+```
+
+- **gate 1** `curl http://127.0.0.1:9222/json/version` → 200、`Chrome/150.0.7871.182` / `Protocol-Version 1.3`。
+- **gate 2** chrome-devtools MCP `list_pages` → `1: Animal Ekarte - 電子カルテ (http://127.0.0.1:3003/login?from=%2F) [selected]`。
+- **gate 3** `resize_page 1440×900` → `take_screenshot` でログイン画面のスクリーンショットを実取得。**証跡が実際に1枚取れることまで確認済み。**
+
+**日常使いのChromeは `--remote-debugging-port` 無しで起動しているため 9222 は開かない。** 専用 `--user-data-dir` の別インスタンスを立てるのが正解で、既存プロファイルと競合しない。M-03 の3 persona login がセッション混線しない副次利点もある。ログイン画面が `password` とデモアカウントを自ら表示するため、credential の外部受け渡しも不要である。
+
+## fixture生存実測（2026-07-28 02:5x・admin API・read-onlyのGETのみ）
+
+台帳が「fixture完成済」と書く一方で、7/28 の2回目S1実行記録は「staff `38` は login `401` / read `404`」「Phase 0 の S1 fixture を**APIで復元した**」と書いており自己矛盾していた。admin（`admin@noavet.jp`）でloginし全fixtureをGETで実査した。**mutationは一切行っていない。**
+
+経路の妥当性は同一routeの既存IDを対照に取って確認した（`/masters/staffs/1`=200、`/masters/permission-groups`=200、`/medical-records/1080036`=200）。したがって下記の404は経路誤りではなく**レコード不在**である。
+
+| fixture | 実測 | 判定 |
+|---|---|---|
+| pet `1001002` | 200 `alive/low` | **生存** |
+| pet `1001004` | 200 `alive/high`・`danger_reason=FE12-M01 fixture` | **生存** |
+| pet `1001005` | 200 `deceased/low`・`deceased_at=2026-07-27T00:00:00+09:00` | **生存** |
+| pet `1000018` | 200 `alive/low` | **生存** |
+| hospitalization `1` | 200 `pet_id=1000018,status=admitted,cage_id=3,doctor_id=1,memo=FE12-M04 admitted`。ただし `created_at=2026-07-28T01:45:22+09:00` | **生存（7/28 01:45に再作成されたもの）** |
+| medical record `1425546` / `1425547` | 404 / 404 | **消滅** |
+| examination `1014562` と items `2325052`-`2325054` | 親MR不在 | **消滅** |
+| staff `38` / `39` / `40` | 404 / 404 / 404 | **消滅** |
+| permission group `10`-`13` | 全て404 | **消滅** |
+| checkup `1`-`4`・vaccination `1`-`4` | M2=`1425547`配下のため | **消滅** |
+
+### 2026-07-28 レーン2 — 消滅fixtureを全て再作成した（ブラウザ不要のAPI作業として並行実施）
+
+M-02・M-05 の fixture を admin API で再作成し、read-back まで完了した。**IDは台帳の指定値と全て一致した**（連番の払い出しが同じ位置に戻ったため）。
+
+| fixture | 実測 |
+|---|---|
+| M-02 medical record | `1425546`（`MR-20260728-1-ayMjhV`・draft・pet `1000018`/owner `300003`） |
+| M-02 examination | `1014562`（`exam_type_id=3`・`doctor_id=1`・`date=2026-07-28T09:00:00+09:00`・`status=result_entered`） |
+| M-02 items | WBC=`2325052`(10.0) / RBC=`2325053`(9.0) / HCT=`2325054`(30.0)。**3件とも `status=normal, is_assessed=false, is_abnormal=false`** |
+| M-05 medical record | `1425547`（`MR-20260728-1-kg78h7`・draft・pet `1001002`/owner `300588`） |
+| M-05 checkup | `1`-`4`（`checkup_type_id=1`・`date=2026-07-20`・`result`にラベル） |
+| M-05 vaccination | `1`-`4`（`vaccine_id=1`・`date=2026-07-20`・`remarks`にラベル・`next_schedule_type=[other,other,other,NULL]`） |
+
+- **期限日を実測日基準へ切り直した**: 旧fixtureは 7/27 基準で past/today/future を並べていたが、実測は 7/28 以降になるため **past=`2026-07-27` / today=`2026-07-28` / future=`2026-07-29` / empty=`NULL`** で作成した。7/27 基準のまま作ると「today」が翌日には past になり、M-05 の4区分が崩れる。**実測日が 7/29 以降へずれる場合は再度切り直しが必要である。**
+- **M-02 の `is_assessed=false` は R-3 の再確認である。** `exam_reference_ranges` が0行のままなので RBC=9.0（基準5.5-8.5超過）も HCT=30.0（基準37-55未満）も未評価fallbackの `normal` を返す。**この `normal` を臨床的な正常と読み違えてはならない。** 曽我裁定 R-3=(B) のとおり、この状態のまま M-02 を実測する。
+- exam field ID の正本は `backend/migrations/seeds/003_demo/exam_type_fields.csv`（`exam_type_id=3` の WBC=`1` / RBC=`2` / HCT=`3`）。**`exam-types` の read API はbackendに存在しない**（route literal は `/:id/checkups`・`/checkups`・`/vaccinations` のみ）ため、seed CSV が唯一の参照元である。
+- **checkup には detail route が無い。** `GET /api/v1/checkups/:id` は404を返すが、これはレコード不在ではなく**routeが存在しない**ためである（`/checkups` は list のみ）。生存確認は `GET /api/v1/medical-records/1425547/checkups` で行うこと。次に fixture 生存を疑う人が誤診しないよう明記する。
+- S1（pets 4頭・H=`1`）と S2（staff `38`-`40`・group `10`-`13`）の fixture も同時に read-back し、全て HTTP 200 で健在を確認した。**これはR-4前の履歴であり、staff/groupはR-4（2026-07-28）で撤去済み。**
+
+**帰結（着手計画への影響）**
+
+- **2026-07-28 R-4前、全レーンの fixture は再作成済みで揃っていた**（M-03=S2 fixture 再作成節、M-02/M-05=レーン2節、S1=pets 4頭とH=`1`）。**これは実測前の履歴であり、R-4後はstaff/group・MR/exam/checkup/vaccinationが撤去済み、hospitalization `1`は日次記録制約で残存している。**
+- **R-4（復旧工程）の対象**: `1001005`→alive、`1001004`→low、M-04で一時死亡させた場合の `1000018` の復帰、staff `38`-`40` と group `10`-`13` の削除、M-02/M-05 の MR `1425546`/`1425547` 配下（exam・items・checkup・vaccination）の削除。
+- API作成物が消えた原因は特定していない（DB resetの実行が最有力だが証跡なし）。**同じ消滅が再発する前提で計画すべきであり、実測に着手する前に必ず read-back で生存を確認する。** 作成から実測までの間に日をまたぐ設計は採らない。
+
+## S2 fixture 再作成（2026-07-28・完了）
+
+消滅していた M-03 の fixture を admin API で再作成し、read-back まで完了した。**IDは台帳の指定値と完全に一致した**（連番の払い出しが同じ位置に戻ったため）。
+
+- permission group: VIEW=`10`、CREATE=`11`、EDIT=`12`、TARGET=`13`。VIEW/CREATE/EDIT は `master-permission`・`medical-records`・`hospitalization`・`vaccinations`・`examinations` の5 resourceへ rule 5件ずつ。TARGET は rule 0件の器。resource名は `backend/internal/model/permission.go:7-58` の定数を全数読んで確定した。
+- staff: VIEW=`38`（`fe12-m03-view@noavet.jp`）、CREATE=`39`（`fe12-m03-create@noavet.jp`）、EDIT=`40`（`fe12-m03-edit@noavet.jp`）、password=`Fe12pass1`。
+- 割当 read-back: `38->[10]`、`39->[11]`、`40->[12]`。3 personaのloginは全て HTTP `200`。`GET /me` で staff `38` = clinic `1` / `is_system_admin=false` を確認。
+- **落とし穴**: 割当APIのbody keyは `permission_group_ids` ではなく **`group_ids`**（`staff_request.go:95`）。誤ったkey名で送ると `binding:"max=50,dive"` に `required` が無いため空sliceとして通り、**HTTP 200 で「全グループ解除」が実行される**。permission を変更するendpointで「未送信」と「空配列」が区別できない契約であり、再作成時はread-back必須。
+
+### 実装drift ①の根本原因を特定 — 台帳の記述より深刻で、systemicである
+
+台帳は「staff作成POSTが `reservation_visible:false` を無視する」と記録していた。**再現し、原因を特定した。staff固有の問題ではない。**
+
+- HTTP DTO（`staff_request.go:19` `ReservationVisible *bool`）も service（`staff_service_account.go:63-66,92` / `staff_service_core.go:92-95,112`）も **`false` を正しく伝搬している**。両方とも nil判定付きで正しい。
+- 真因は `backend/internal/model/staff.go:35` の `ReservationVisible bool \`gorm:"not null;default:true"\`` である。**GORM は `default` tag を持つfieldの zero value を INSERT 文から除外し、DB default を適用させる。** `bool` の zero value は `false` なので、`false` を明示指定しても INSERT に載らず DB default の `true` が入る。
+- **`.Create()` 経路では `false` を新規作成できない。** PATCH（`Updates` map 経由）は正しく `false` を書けるため、「作成時だけ落ちる」挙動になる。
+- **同じ形のfieldは `backend/internal/model/*.go` に 39箇所・26ファイル存在し、`*bool` で回避しているものは 0件である。** 全てが構造的に同じ欠陥を持つ。ただし実害は「作成時に `false` を受け付けるAPIがあるか」に依存するため、39件全部が現に壊れているという意味ではない。
+- **`reservation_visible` は実害が確認できる。** LINE予約に出さない意図で作成したstaffが黙って予約可能側に入る。業務上の誤りが表示面に出ないまま顧客導線へ露出する。
+- 修正方針は2択。(A) 該当fieldを `*bool` へ変える（GORMは非nilなら zero value も書く）。(B) 作成時に `Select` で当該列を明示する。**(A)を推す。** (B)は新しい作成経路を書くたびに再発する。**起票先は `3-session-agent.html#ledger`。本ledgerの所掌外。**
+
 ## S1レーン試行の結果（2026-07-28）— 再開前に潰す4件
 
 M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は M-04 節末尾を正本とする。ここには**再開に必要な決定と、繰り返してはならない設計上の誤り**だけを残す。
 
-**環境側（曽我さんの操作・判断が要る）**
+**環境側（2026-07-28 に全て決着）**
 
-- **① 実測環境をどう扱うか（未決定）**: disposable stack は存在しない。M-04 は pet `1000018` を実際に死亡させて戻す。選択肢は (A) この dev stack で実施してよい（死亡登録→解除を1回ずつ、確実に復帰させる）／(B) 別の使い捨て DB を用意する／(C) 死亡遷移を外し view-only の mutation 0件検証だけに絞る。
-- **② ブラウザ経路（未起動）**: Chrome DevTools MCP は `http://127.0.0.1:9222` を見るが、7/28 時点で応答しない。リモートデバッグを有効にした Chrome の起動が要る。`curl http://127.0.0.1:9222/json/version` が 200 を返すことが着手条件。
+- **① 実測環境 — 決定: (A) この dev stack で実施する（曽我裁定・2026-07-28）**。disposable stack は存在しないが、M-04 の死亡遷移はこの環境で行う。手順は「生存→死亡登録→死亡解除」を1回ずつ、各段でread-backを取る。**死亡登録/解除は `45b681866` 以降 fail-closed であり、順序を誤ると409で戻せなくなる**点だけが実務上の注意である。
+- **② ブラウザ経路 — 決定: Chrome DevTools MCP（`127.0.0.1:9222`）を正とする**。専用プロファイルでリモートデバッグ付きChromeを起動する。既存の日常ブラウザと混ぜないため `--user-data-dir` を分ける（M-03の3 persona loginがセッション混線しない利点もある）。**着手条件は3点すべてgreen**: (1) `curl 127.0.0.1:9222/json/version` が200、(2) chrome-devtools MCP の `list_pages` 成功、(3) **アプリ画面のスクリーンショットが実際に1枚取れる**。過去3走は(1)だけを見て委譲したため死んだ。`claude-in-chrome` extension も接続可能だが、`resize_window` はウィンドウサイズであってviewportではなく、500×900のoverflow実測が chrome UI 分ずれて無意味になるため**採らない**（どうしても9222が立たない場合のスクショ専用fallbackに留める）。
 
 **着手プロンプト側の欠陥（次に書く人が繰り返さないための記録）**
 
-- **③ `browser-test` skill を Codex 向けプロンプトの backing に指名してはならない**: `.agents/skills/browser-test/SKILL.md` は冒頭で「**必須: Haiku Agent で実行せよ**」と規定する。Codex セッションに Haiku 経路は無い。**スキル名だけで指名せず SKILL.md の中身を読むこと。** 収集経路は Chrome DevTools MCP を直接使う形で書き、browser-test skill は参照に留める。
-- **④ 権限剥奪caseに剥奪可能な persona を残していなかった**: M-04 の「dialog を開いた後に権限を剥奪」は権限グループの mutation を要するのに、S2 の所有物（staff `38`-`40` / group `10`-`13`）を login 以外禁止としたため、剥奪対象が1つも無くなった。選択肢は (A) S1 専用の persona と group を1組増やす／(B) M-03 非稼働を確認して group `10`-`13` の1つを借りる／(C) この case を別ユニットへ送る。**checklist と constraint の突合を保存前に1回行うこと。**
+- **③ `browser-test` skill を Codex 向けプロンプトの backing に指名してはならない**: `.agents/skills/browser-test/SKILL.md` は冒頭で「**必須: Haiku Agent で実行せよ**」と規定する。Codex セッションに Haiku 経路は無い。**スキル名だけで指名せず SKILL.md の中身を読むこと。** 収集経路は Chrome DevTools MCP を直接使う形で書き、browser-test skill は参照に留める。**なお実行セッション自身が Chrome DevTools MCP を直接叩く場合、この制約そのものが消滅する。幻のブロッカーとして再輸入しないこと。**
+- **④ 権限剥奪caseの persona — 決定: S2→S1 を直列化し、group `10`-`13` の1つを借りる（実行計画上の決定・曽我判断不要）**。台帳の「2レーン並行」は実行者が2人いる前提で書かれていたが、その前提は成立していない。直列化すれば M-03 完了時点で S2 の group は空くため、M-04 の剥奪対象として借用できる。**これは妥協ではなく前提の訂正である。** 借用したgroupはR-4で削除する。
 
 **あわせて判明した仕様の曖昧点（M-01-E の合否に直結）**
 
@@ -211,6 +349,17 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 - Expected result: aliveは通常操作可、danger=`高`は「⚠ 危険」等の非色cueとaccessible nameを失わない。deceasedはF16裁定（一覧はグレーアウト維持・`3b7524748`）どおりの表示を記録し、曽我が許可/禁止する操作を操作単位で明示する。禁止とされた操作はmutation 0件。
 - Required evidence artifacts: 4 viewport screenshot、accessibility tree、各操作のaccessible name、GET以外のnetwork HAR、操作可否の曽我裁定メモ。
 
+#### 2026-07-28 M-01-E 実測結果
+
+- status: **COMPLETE**。`/owners?include_deceased=true` を開いたままでは対象 fixture が初期表示に出ず、`search=原田` を併用して live runtime 上の `1001002` / `1001004` / `1001005` を確認した。prompt の fixture 名は現行 seed とずれていたが、ID と状態は一致したため、そのまま実測を完了した。
+- live read-back: `1001002={status:alive,danger_level:low,deceased_at:null}`、`1001004={status:alive,danger_level:high,danger_reason:"FE12-M01 fixture",deceased_at:null}`、`1001005={status:deceased,danger_level:low,deceased_at:2026-07-27T00:00:00+09:00}`。`GET /api/v1/me` は `id=41, display_name="FE12-M01 通常担当", is_system_admin=false, main_clinic_id="1"`、`/api/v1/masters/staffs/41/permission-groups` は `group_ids=[1]` だった。
+- row action matrix: `1001002` / `1001004` / `1001005` の各行で操作メニューを開き、`編集`、`レポート`、`削除` がすべて表示された。`ariaDisabled` と `disabled` はいずれも false で、操作単位の非活性は未実装だった。
+- danger cue: `1001004` の高危険行は `⚠ 危険` を表示し、`role=button name="クロの危険理由を表示"` から popover を開くと `role=dialog name="クロの危険理由"` と `危険理由` が accessible tree に出た。色だけに依存しない cue は維持されていた。
+- deceased badge: `1001005` は一覧上で死亡状態を灰色 badge として表示し、行全体のグレーアウトではなかった。これは既存裁定どおりで、badge のみの gray 表示を合格基準として満たした。
+- network: interaction window の `GET` 以外は `# non-get count: 0`。login 時の `POST /api/v1/login` は baseline auth であり、menu 操作区間の mutation は 0 件だった。
+- before/after: `pets-before-after.txt` の read-back 差分はなし。`1001002` / `1001004` / `1001005` は操作前後で不変だった。
+- evidence paths: `tmp/fe12-m01e-evidence/2026-07-28/shot-owners-1440x900.png`、`tmp/fe12-m01e-evidence/2026-07-28/shot-owners-1200x800.png`、`tmp/fe12-m01e-evidence/2026-07-28/shot-owners-800x1024.png`、`tmp/fe12-m01e-evidence/2026-07-28/shot-owners-500x900.png`、`tmp/fe12-m01e-evidence/2026-07-28/a11y-owners-list.txt`、`tmp/fe12-m01e-evidence/2026-07-28/a11y-owners-menu-1001002.txt`、`tmp/fe12-m01e-evidence/2026-07-28/a11y-owners-menu-1001004.txt`、`tmp/fe12-m01e-evidence/2026-07-28/a11y-owners-menu-1001005.txt`、`tmp/fe12-m01e-evidence/2026-07-28/net-owners.txt`、`tmp/fe12-m01e-evidence/2026-07-28/pets-before-after.txt`、`tmp/fe12-m01e-evidence/2026-07-28/completion-report.md`。
+
 ### M-02 Examinations一覧意味とlayout
 
 - Route: `/examinations`と対象petの`/medical-records/:id`検査履歴。
@@ -225,6 +374,18 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 - Expected result: normalを異常表示しない。曽我が一覧cueを必要と裁定する場合はHIGH/LOWが色なしでも識別できること、不要と裁定する場合は詳細へのaccessible導線があること。全viewportでwrap/clip/overlapなし。
 - Required evidence artifacts: 両surface×4 viewport screenshot、accessible text dump、computed color/token、overflow計測、曽我の一覧cue要否裁定。
 
+#### 2026-07-28 M-02 実測結果
+
+- status: INCOMPLETE（観測完了、表示突き合わせ不一致と responsive clip を記録）。view-only staff 42（group 9, is_system_admin=false）で両 route を開いた。access denied は両 surface 0 件。
+- fixture/read-back: medical record 1425546、examination 1014562、items は HTTP 200。E、WBC=10.0、RBC=9.0、HCT=30.0、3 items の status=normal,is_assessed=false,is_abnormal=false を確認。normal は未評価 fallback であり臨床的正常ではない。
+- surface comparison: /examinations は E の summary FE12-M02 HIGH/LOW/normal と exam status 結果入力済みを表示するが item values/status は表示しない。カルテ検査履歴は item names と 未判定（基準値未設定のため判定していない）を表示するが item values と summary は表示しない。詳細は tmp/fe12-m02-evidence/2026-07-28/surface-comparison.md。
+- 未判定 safety: 3項目とも逐語表示に 未判定 と 基準値未設定の説明があり、正常/基準値内とは表示されなかった。
+- 一覧 cue: HIGH/LOW の非色 item cue は観測されなかった。accessible detail link は 検査詳細: チビチビ 2026-07-28 ID 1014562。cue 要否の裁定はしていない。
+- layout: 1440×900 と 1200×800 は主要要素の崩れなし。800×1024 と 500×900 では一覧の右側列およびカルテの右側情報/列に viewport 外表示または横方向 clip を観測し、500×900 では HCT 名も wrap した。
+- network: 各 surface の hover/Tab/横スクロール試行区間で method 位置一致の POST/PATCH/PUT/DELETE は 0 件（login POST は区間外）。
+- evidence: tmp/fe12-m02-evidence/2026-07-28/ に a11y 2件、PNG 8件、network raw/normalized、comparison、CDP probe を保存。全ファイル mode 0600、directory 0700。
+- changed files: FE-refactor.md と tmp/fe12-m02-evidence/** のみ。backend/frontend production code は変更していない。
+
 ### M-03 RBAC非活性の理由/name
 
 - Route: `/settings/permission-groups`、`/medical-records/:id`、`/hospitalization/:id/edit`、`/vaccinations/:id`、`/examinations/:id`。
@@ -232,13 +393,24 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 - Fixture実査: permission groupはVIEW=`10`、CREATE=`11`、EDIT=`12`、TARGET=`13`、専用staffはVIEW=`38`、CREATE=`39`、EDIT=`40`。per-staff read-backは`38->[10]`、`39->[11]`、`40->[12]`で、3 emailのloginは全てHTTP 200。TARGETは操作対象の器としてruleを持たない。
 - 追加すべき具体値: `master-permission`、`medical-records`、`hospitalization`、`vaccinations`、`examinations`へ共通で、VIEW group=`{view:true,create:false,edit:false,delete:false}`、CREATE group=`{view:true,create:true,edit:false,delete:false}`、EDIT group=`{view:true,create:false,edit:true,delete:false}`をread-back済み。loginは`fe12-m03-view@noavet.jp`、`fe12-m03-create@noavet.jp`、`fe12-m03-edit@noavet.jp`とpassword=`Fe12pass1`を使う。
 - 着手ブロッカー: 4 group・3 staff・割当・persona loginのfixtureブロッカーは解消済み。staff作成bodyの`reservation_visible:false`が201 responseで`true`となるdriftは、各staffへ正規PATCHを行い最終read-backを`false`へ揃えた。production codeは変更していない。
-- 次の一手: 実測担当が3 personaで再ログイン/再読込してrunbookを実行する。完了後の別cleanup工程で3 staffと4 groupを削除する。
+- 次の一手: 実測担当が3 personaで再ログイン/再読込してrunbookを実行する。**実測後のR-4（2026-07-28）でstaff `38`-`42`とgroup `10`-`13`は撤去済み。**
 - Persona: (1) view-only=`view:true/create:false/edit:false/delete:false`、(2) create-only=`view:true/create:true/edit:false/delete:false`、(3) edit-without-delete=`view:true/create:false/edit:true/delete:false`。
 - 注記: 検査登録（POST）は`24929e83d`以降create+editの合成認可であり、create-only personaは拒否されるのが正しい期待値である。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
 - Interaction steps: 各personaでrouteを再ログイン/再読込して開き、pointer、Tab/Enter/Space、formのprogrammatic submit、保存中の権限剥奪後callbackを試す。permission-groupは新規panel、既存panel、reorder、保存後rulesも個別確認する。
 - Expected result: view accessは維持する。許可されたactionだけ実行でき、禁止controlはaccessible nameと理由を保持する。禁止personaからのPOST/PATCH/PUT/DELETEは0件で、same-commit剥奪後もmutationしない。
 - Required evidence artifacts: persona×routeのaccessibility tree、4 viewport screenshot、network HAR、console log、action別permission matrixと0 mutation集計。
+
+#### 2026-07-28 M-03 実測結果
+
+- status: **COMPLETE**。v3で収集した15件の資産を再利用し、v4で `/hospitalization/1` の 3 persona 追加収集を完了。判定は「`/hospitalization/1` は3 personaで閲覧可能、`/hospitalization/1/edit` は VIEW/CREATE で拒否が期待値どおり」と更新。
+- 実装確認: `frontend/src/app/routes/clinical-care-routes.tsx` の hospitalization ブロックでは、`path: ":id"`（`118-123`）に `RequirePermission` がなく、`path: ":id/edit"`（`125-130`）で `action="edit"` を強制。したがって、v3で `/hospitalization/1/edit` におけるVIEW/CREATE拒否は実装不備ではない。
+- fixture/read-back: groups `10`/`11`/`12`は各5 rules、`13`はrule 0件。staff `38`/`39`/`40`の割当は`38->[10]`・`39->[11]`・`40->[12]`。3 persona login は全て HTTP 200。
+- v4 追加収集: `/hospitalization/1` の a11y が3件 (`a11y-view-hospitalization-1-detail.txt` / `a11y-create-hospitalization-1-detail.txt` / `a11y-edit-hospitalization-1-detail.txt`)、screenshotが12件、network record が3件。3つの a11y すべてで `grep -c 'アクセス権限がありません' = 0`。3つのネットワーク差分で `NON_GET_IN_INTERVAL` は全て `0 件`。
+- matrix/qualification: `permission-matrix.md` に `/hospitalization/1` の行を追加し、`/hospitalization/1/edit` の VIEW/CREATE 列を「拒否が期待値 → 一致」に再分類。`UNREPORTED=0` を維持。
+- hospitalization contrast: `/hospitalization/1` の9業務フィールドはbefore/after同一（`hospitalization-before-after.txt`）。`updated_at` は同一。
+- workflow orchestration: 本closeoutは `multi_agent_v1.spawn_agent` による multi-agent fan-out を使用し、read-only probes を 3 本に分割したうえで main thread が join/reconcile した。実行した subagent/role は Volta (`019fa50d-30f6-7822-a4d2-6dc2d4046bb8`, explorer), Tesla (`019fa50d-4906-7492-a054-4b879f5a064e`, explorer), Banach (`019fa50d-66a9-7a21-9588-b471fc5af979`, reviewer) の 3 件で、いずれも completed、write-owned paths なし、結果は route truth / artifact inventory / independent review の証拠として採用した。native Workflow tool はこの session では使っていない。
+- changed files: `FE-refactor.md` と `tmp/fe12-m03-evidence/**` のみ。`backend/**`/`frontend/**` へ edit command は 0。
 
 ### M-04 Hospitalization child control実効性
 
@@ -289,6 +461,22 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 - independent healthcare review: S1-owned最終状態、S2境界、Phase 1–3のBLOCKED、患者状態保全、観測/判断分離はPASS。clinic/audit provenanceと製品コード非改変はBLOCKED。臨床証跡の初期permissionがdirectory `0755` / file `0644`だったHIGH指摘はdirectory `0700` / file `0600`へ修正した。CRITICALな患者状態破壊・clinic跨ぎaccessは観測されていない。
 - changed files: repo内writer変更は本`FE-refactor.md`追記のみ。commit、push、migration、reset、codegen、direct DB writeは未実施。
 
+#### 2026-07-28 M-04 実測結果
+
+- status: **COMPLETE**。証跡は`tmp/fe12-m04-evidence/2026-07-28/`（a11y `6`件、screenshot `5`件、network `5`件、全file `0600` / directory `0700`）。saved prompt validatorはexit `0`、`Prompt Craft Harness Validation: PASS`、`Execution contract: dynamic-workflow/v1`。
+- persona/fixture: staff `38->[10]`（hospitalization view-only）・staff `41->[1]`（CRUD全許可）、両者`is_system_admin=false`。H=`1`は`pet_id=1000018,status=admitted,cage_id=3,doctor_id=1`、daily/vital/care log/staff note=`1`、care plan=`1/2`をread-backした。
+- view-only: `/hospitalization`のList Viewと`/hospitalization/1`は閲覧可能で、pet・care plan・vital・care log・staff noteを逐語取得。mutation controlはdisabled表示ではなく大半がDOMから非表示で、ページlevel cueは`閲覧のみ`。31行のcontrol matrixは空欄`0`、view-only試行区間のmethod位置一致による非GET requestは`0`件。
+- Board View補足: staff `38->[10]`だけでは`GET /api/v1/masters/cages`がHTTP `403`となったため、独立review後に既存group `9`の実rule（hospitalization=view-only、master-hospitalization=view-only）をlive read-backし、staff `38->[10,9]`へ一時変更して再実測した。cage card描画後もH=`1`はrole/draggable/tabindex/click handlerなしの`cursor-default`で、click・cage `3→4` pointer drag・Enter・Spaceの前後network差分は非GET `0`件。終了時はstaff `38->[10]`へ復帰した。
+- 全権限対照: staff `41`でalive boardのoccupied cardがaccessible draggable buttonとして提示され、detailでは`退院処理`、`入院情報の編集`、care-plan追加/編集/削除、vital/care log/staff note追加が提示された。保存・削除・退院確定・board drag/openは押していない。
+- 権限剥奪case: staff `39`のvital dialogを開いてからgroup `11`を`[]`へ剥奪し、`保存` callbackを1回試行。`POST /hospitalizations/1/daily-records/2026-07-27/vitals`はHTTP `403`で拒否された。終了時はstaff `39->[11]`へ復帰し、`38->[10]`・`40->[12]`・`41->[1]`もread-backした。
+- 死亡遷移: pet `1000018`は`alive → PATCH /death 204 → deceased(deceased_at=2026-07-28T00:00:00+09:00) → boardで「死亡」表示・click/drag不可・非GET 0件 → DELETE /death 204 → alive`。最終read-backは`status=alive,deceased_at=null`。
+- H=`1`前後突合: `pet_id` `owner_id` `hospitalization_type` `start_date` `end_date` `status` `cage_id` `doctor_id` `memo`の9業務fieldは全て一致し、`updated_at`も不変。
+- viewport: 1440×900は異常なし、1200×800はsidebarのicon collapseのみで異常なし。800×1024はheaderの退院予定cardがclip、500×900はtitle・patient metadata・`プラン管理・詳細` tabがclip。死亡board 1440×900は死亡文言・cage gridとも可読。
+- 意図的非実行: 退院（会計あり/なし）はM-05 fixtureを不可逆に壊すため提示観測のみ。成功するchild mutation、care-plan削除、入院編集保存も実行していない。
+- static security finding: FEの退院control/callbackはhospitalization `delete`を要求する一方、backendの退院routeは`edit`を要求する。仕様裁定と整合は別unitの対象とし、本実測では修正していない。
+- orchestration: native Workflow toolは未提供のためmulti-agent fan-outを使用。`/root/m04_planner`、`/root/m04_controls`、`/root/m04_permission`、`/root/m04_death_contract`、`/root/m04_ledger_harness`をread-onlyでjoinし、mainだけがwriterを担当。死亡遷移中は全agentをquiescentにした。収集後はfreshな`/root/m04_healthcare_review`と`/root/m04_evidence_review`が不足していたBoard runtime試行とraw network証跡をHIGH/MEDIUMとして検出し、修復後に再reviewした。
+- changed files: `FE-refactor.md`と`tmp/fe12-m04-evidence/**`のみ。本executorが`backend/**`/`frontend/**`へ発行したedit commandは`0`。commit、push、migration、reset、codegen、seed差し替え、direct DB writeは未実施。
+
 ### M-05 Clinical sentinel responsive
 
 - Route: Commit `657c1a49cd2c37dc63f5af8e530258a36a12d81e` に記録した25 routeのうち、clinical sentinelを表示する`/medical-records`系、`/hospitalization`系、`/examinations`系、`/vaccinations`系、`/checkups`系、`/`、`/owners`。
@@ -297,12 +485,31 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 - 追加すべき具体値: vaccination `1/2/3/4`は`pet_id=1001002,vaccine_id=1,date=2026-07-20,next_schedule_type=[other,other,other,NULL]`でlabelを`remarks`へ保存した。checkup `1/2/3/4`はM2=`1425547`配下の`pet_id=1001002,checkup_type_id=1,date=2026-07-20`でlabelを`result`へ保存した。全作成はHTTP 201。
 - Fixture対応: death=`1001005`、danger high=`1001004`、normal候補=`M-02 E 1014562 / item 2325052`、HIGH候補=`item 2325053`、LOW候補=`item 2325054`、past/today/future/empty=`vaccination 1/2/3/4 + checkup 1/2/3/4`、hospitalization=`M-04 H 1`、RBAC persona=`staff 38/39/40`。M-02の3 itemは基準値不在のため全て未評価normalで、HIGH/LOW cueは未成立。
 - 着手ブロッカー: M-01、M-03、M-04、M-05固有fixtureとM-02 M/E/items作成は完了。合成fixture set全体で残るのは、M-02の正規reference range不在によりHIGH/LOWが導出されない点だけである。
-- 次の一手: master-data責任者のM-02基準値裁定後、実測担当が上記IDでfixture-to-cue表を固定してrunbookを実行する。完了後、一時的な死亡/high状態とM-03 group/staffを別cleanup工程で復旧・削除する。
+- 次の一手: master-data責任者のM-02基準値裁定後、実測担当が上記IDでfixture-to-cue表を固定してrunbookを実行する。**一時的な死亡/high状態とM-03 group/staffはR-4（2026-07-28）で復旧・撤去済み。**
 - Persona: 対象resourceの`view=true`を持つ通常担当者。mutation確認が必要なrowだけ該当action権限ありpersonaを併用する。
 - Viewports: 1440×900、1200×800、800×1024、500×900。
 - Interaction steps: 各fixtureを一覧、選択、登録、編集、詳細で開き、文言、badge、日付、disabled/hidden control、keyboard focus順を確認する。期限は同じ実測日にpast/today/futureを並べる。
 - Expected result: death/danger/HIGH/LOW/期限超過が非色cueを持ち、normalとtoday/futureを誤ってdangerにしない。死亡操作はpositive matchで拒否され、全viewportでcue/controlのwrap、clip、overlapなし。Hospitalization Boardの死亡は`3b7524748`以降「死亡」テキストを持つ。
 - Required evidence artifacts: route×4 viewport screenshot、accessible name/text dump、computed token、console/network HAR、fixture-to-cue対応表。
+
+#### 2026-07-28 M-05 実測結果
+
+- status: **BLOCKED（観測完了・臨床cue証拠とresponsive未達のため）**。本unitはsnapshot観測のみで、production codeを修正できない。全28 PNGは取得済みだが、`/` 500×900、`/hospitalization` 800×1024・500×900、`/examinations` 500×900でclip/overflowを確認した。高危険 `pet 1001004` の非色cueは対象detailを含めてruntime証拠を取得できず、患者安全上PASSにしない。検査未評価3項目は許可されたdetail route `/examinations/1014562` で各 `未判定` を確認した（`tmp/fe12-m05-evidence/2026-07-28/detail-examination-1014562.txt:75-93`）。
+- 実行日: `Tue Jul 28 11:57:55 JST 2026`。fixture基準日 `2026-07-28` とのずれはない。CDP gate: `curl .../json/version` HTTP `200`、MCP `list_pages`成功、CDP probe `gate-cdp-probe.png` は `PNG image data, 1440 x 900`。
+- persona gate: `GET /api/v1/me` は staff `42`、`is_system_admin=false`、`main_clinic_id=1`、`permissions` は対象view true/create-edit-delete false。`GET /api/v1/masters/staffs/42/permission-groups` は `{"group_ids":[9]}`。
+- fixture before/after: pets `1001002=alive/low`、`1001004=alive/high/danger_reason=FE12-M01 fixture`、`1001005=deceased/deceased_at=2026-07-27T00:00:00+09:00`、`1000018=alive`、H=`1` admitted/cage `3`、exam `1014562` items `2325052/3/4` は `is_assessed=false,is_abnormal=false,status=normal`、vaccination/checkup `1/2/3/4` は past/today/future/empty。`cmp fixtures-before.txt fixtures-after.txt` は exit `0`。
+- evidence: `tmp/fe12-m05-evidence/2026-07-28/` に a11y `7`件、route screenshot `28`件、network `7`件、fixture before/after、detail a11y、`fixture-to-cue.md`、`layout-review.md`、`computed-tokens.txt`、`completion-report.md`（後述）を保存する。directory `0700`、files `0600`へ整える。件数実測は a11y `7`、PNG `28`、PNG判定 `28`、network `7`、fixture-to-cue `UNREPORTED=0`。
+- fixture-to-cue: `fixture-to-cue.md` に5 fixture行×7 routeの全35セルを記録し、空欄および`UNREPORTED`は0件。death `1001005` は owner detailで `チロ`・`死亡`（`detail-owner-300588.txt:157-163`）を確認したが、7一覧routeでは表示されない。hospitalizationは `入院`・`チビチビ`・`犬用ケージ（小）`、aliveであり死亡個体なし。
+- deadline判定: vaccinationは `2026-07-27` のみ `（期限超過）`（`a11y-vaccinations.txt:61-86`）。`2026-07-28` todayと`2026-07-29` futureは日付のみ。checkupは `M05-past` のみ `期限切れ`、today/futureは `期限間近`、emptyは表示なし（`a11y-checkups.txt:65-97`）。today/futureを期限超過/danger扱いする誤検出は0件。
+- view access: 7 routeのa11y treeで `アクセス権限がありません` の件数は全て0。`閲覧のみ`は各routeで確認でき、static guard根拠は `frontend/src/app/routes/clinical-general-routes.tsx:14-42`、`frontend/src/app/routes/clinical-care-routes.tsx:17-21,72-78,203-207,259-263,315-319`。medical-records/examinationsは一覧mainが空の初回取得をwait-repairし、route screenshotは正しいrouteをCDP target pathで再取得した。
+- network/mutation: routeごとの観測区間で method位置一致 `POST|PATCH|PUT|DELETE` は全7ファイル `0 件`。fixture作成は本unitの観測区間外であり、M-05中に成功するwrite・死亡登録/解除・保存・削除を発行していない。
+- layout 28件: 詳細は `layout-review.md`。PASS 20件、BLOCKED 8件。BLOCKED全件は `/` 800×1024（見出しwrap）、`/` 500×900（見出し・新規予約登録ボタン）、`/medical-records` 800×1024・500×900（右端列）、`/hospitalization` 800×1024（board右側3列目）、`/examinations` 800×1024・500×900（右側列）、`/checkups` 500×900（ペット名列右端）。
+- clinical review: deathの文字cueはPASS。unassessedはdetailで`未判定`を確認し、HIGH/LOWは基準値0行のため成立しない。高危険 `1001004` はAPI状態のみで、非色の`危険理由を表示` accessible nameを対応付けられずBLOCKED。これは患者安全上、normal扱いのPASSへ置き換えない。
+- failure signatures: (1) 初回 snapshotがlazy content前で4 routeのmain空 → route heading wait後に7 route再取得。 (2) CDP helperが`/json`の先頭pageを選びPNG route誤対応 → target pathname選択へ修正し28枚再取得。各修復後に件数・画像形式を再確認した。3回目の同一失敗はない。
+- orchestration: native Workflow toolはsessionに無かったため、multi-agent fan-outを使用。preflight `preflight-routes`（019fa6a2-f89d-7693-a7a5-d2d89e904600）、`preflight-fixtures`（019fa6a2-f8f0-7be3-b36d-7ab629961cdc）、`preflight-harness`（019fa6a2-f94c-7621-991b-5c18cb6293eb）、`preflight-review-plan`（019fa6a2-f9ad-72c3-911b-aebf18dcd64c）はread-only join済み。post `post-healthcare-review`（019fa6a8-1223-7b71-acb3-6779f6d74957）、`post-evidence-reconcile`（019fa6a8-127b-7ba2-8a29-c5f846bf15be）、`post-layout-review`（019fa6a8-12d6-7720-94b4-02d5d6bfc90f）はread-only join済み。mainのみが`FE-refactor.md`と`tmp/fe12-m05-evidence/**`を書いた。全agentは完了後close済み。レビューの採用判断は、高危険cue未証明・未評価detail確認・layout clipを本記録へ反映、UNREPORTEDのPASS化は不採用。
+- harness: Chosen `eval`、backing `~/.agents/skills/verification-loop/SKILL.md`、補助 `~/.agents/skills/e2e-testing/SKILL.md` と `.agents/skills/scoped-verification-gates/SKILL.md` を実読。browser-test skillはHaiku必須のため実行経路には使わず、CDP/MCP手順で代替した。saved prompt validatorは exit `0`、`Prompt Craft Harness: PASS`、`Execution contract: dynamic-workflow/v1`。
+- write scope: 本executorのrepo内write対象は `FE-refactor.md` と `tmp/fe12-m05-evidence/**` のみ。`backend/**` / `frontend/**`へのedit commandは0回。commit、push、PR、migration、DB reset、seed差替、codegenは未実施。
+- remaining risk: 高危険 `1001004` の非色cueがruntimeで対応付けられていないこと、4 viewportのclipが未修正であること。次工程は `frontend/**`の変更承認後に別unitで行う。M-05完了はR-4/M-01-D/R-2/line-reserve着手をauthorizeしない。
 
 ### line-reserve font実機確認
 
@@ -322,15 +529,76 @@ M-01-E + M-04 の試行は preflight で停止した。実行記録の全文は 
 
 2026-07-27にS1（backend）/S2（frontend）の2レーン並行で全9項目を解消・清算した。実装・裁定が完了した項目は原則として本節から削除し、証跡commitはファイル冒頭に一覧する。以下は実装ではなく**裁定**を待っている項目である（2026-07-28 に F16 の解釈を追加）。R-1のみ、本ユニットの完了記録として残す。
 
-- **【裁定待ち・P0・2026-07-28追加】F16 の「グレーアウト」は badge のみか、行全体か** — M-01-E の合否基準が確定しない。実装は死亡ステータス**バッジ**だけをグレーにする（`OwnersListTable.tsx:236-241` → `getPetStatusColor` → `status-helpers.ts:176-180` が死亡へ `BADGE.grayHover`）。本ledgerの M-01「Expected result」は「一覧はグレーアウト維持・`3b7524748`」としか書いておらず、行全体を意図したのか badge を指したのかが読み取れない。**現状の実装を是とするなら M-01-E は「badge がグレー」を合格とし、行全体を意図していたなら実装が未達である。** 判断者: 曽我。この裁定が無いと M-01-E の証跡を集めても合否を付けられない。
+- **【裁定済・2026-07-28・曽我】F16 の「グレーアウト」は badge のみで合格** — 現行実装（`OwnersListTable.tsx:236-241` → `getPetStatusColor` → `status-helpers.ts:176-180` が死亡へ `BADGE.grayHover`）を是とする。行全体のグレーアウトは求めない。根拠は「死亡ペットの情報自体は正常に読めるべきであり、行全体を落とすと可読性を下げる」。**M-01-E の合否基準は「死亡行のステータスバッジがグレーであること」に確定した。** 行全体のグレーアウト不在は実装未達ではない。
 
-- **【裁定待ち・P0・R-3】M-02の`exam_reference_ranges`基準値が存在しない** — 2026-07-27 のfixture作成で判明。異常判定は`examination_service.go`が`referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)`で引いた基準値から導出する（`exam_reference_range_repository.go`の述語は`clinic_id + animal_species_id + exam_type_field_id`）。**現行seedにrange recordが無く、rangeのread/write APIも存在しない。** `exam_type_fields.normal_value`（`6.0-17.0 x10^3/uL`等）は表示用文字列であって導出には使われない。結果としてRBC=`9.0`（基準5.5-8.5超過）・HCT=`30.0`（基準37-55未満）が`is_assessed=false, is_abnormal=false, status=normal`のまま返る。**この`normal`は「正常」ではなく「未評価fallback」であり**（`exam_result_assessment.go`の`unassessedExamResult()`）、臨床的な正常判定と読み違えてはならない。判断者: master-data責任者。選択肢: (A) 正規の基準値を投入して同じE/itemsを再評価しHIGH/LOW cueを成立させる（**2026-07-28 更新: #249 U4 で投入APIとmaster画面が実装されたため、実装待ちではなくなった。残るのは獣医師による動物種別の臨床値の投入だけである**）、(B) 基準値不在のままM-02を実測しcue無しの状態で裁定する（M-02の裁定内容が「cueの要否」から「導線の妥当性」へ変質する）。**Aを選ぶ場合、投入は正規の別工程で行う。fixture作成unitでの値の偽装は禁止であり、実際に行っていない。**
+- **【裁定済・2026-07-28・曽我】R-3 は選択肢 (B) — 基準値不在のまま M-02 を実測する** — `exam_reference_ranges` の0行は解消を待たない。M-02 の主要な問い（一覧HIGH/LOW cueの要否）と 4 viewport layout は基準値と独立に答えられるため。**M-02 の裁定メモには「異常判定機能が停止した状態で観測した」旨を必ず記載する。** 基準値マスタの恒久是正は `3-session-agent.html#BUG-449` を正本として別途進める。以下は判断の材料として保持する。
+
+- **【背景・R-3】M-02の`exam_reference_ranges`基準値が存在しない** — 2026-07-27 のfixture作成で判明。異常判定は`examination_service.go`が`referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)`で引いた基準値から導出する（`exam_reference_range_repository.go`の述語は`clinic_id + animal_species_id + exam_type_field_id`）。**現行seedにrange recordが無く、rangeのread/write APIも存在しない。** `exam_type_fields.normal_value`（`6.0-17.0 x10^3/uL`等）は表示用文字列であって導出には使われない。結果としてRBC=`9.0`（基準5.5-8.5超過）・HCT=`30.0`（基準37-55未満）が`is_assessed=false, is_abnormal=false, status=normal`のまま返る。**この`normal`は「正常」ではなく「未評価fallback」であり**（`exam_result_assessment.go`の`unassessedExamResult()`）、臨床的な正常判定と読み違えてはならない。判断者: master-data責任者。選択肢: (A) 正規の基準値を投入して同じE/itemsを再評価しHIGH/LOW cueを成立させる（**2026-07-28 更新: #249 U4 で投入APIとmaster画面が実装されたため、実装待ちではなくなった。残るのは獣医師による動物種別の臨床値の投入だけである**）、(B) 基準値不在のままM-02を実測しcue無しの状態で裁定する（M-02の裁定内容が「cueの要否」から「導線の妥当性」へ変質する）。**Aを選ぶ場合、投入は正規の別工程で行う。fixture作成unitでの値の偽装は禁止であり、実際に行っていない。**
 
 - **【完了・P2・R-1】staff入力検証の契約drift 5件** — ①emailは入力時のみ形式検証、②既存staffの非空passwordはbackend同等契約で検証、③backendのアカウントなしstaff許容へfrontendとOpenAPIを統一、④空氏名test名を実際の編集経路へ限定、⑤関連付けmutation直前の権限再検査を実装した。①②と③frontend側=`166e4acd7`、③OpenAPI側と④=本ユニット、⑤=`a44fa0ebe`。**残余risk・判断待ち・未完了項目なし。**
 
-- **【要起票・本ledgerの所掌外】fixture作成中に実測した実装drift 2件** — いずれも production code を変更せず報告に留めた。正式な起票先は`3-session-agent.html#ledger`であり、本節は取りこぼし防止の控えである。①**staff作成POSTが`reservation_visible:false`を無視する** — M-03のpersona staff作成で送った`false`が201 responseで`true`になった。各staffへ正規PATCHを打ち最終read-backは`false`へ揃えたが、作成時に指定が落ちる挙動自体は未修正。②**DBOrTx inventory gateが赤** — `exam_reference_range_repository.go`の`ResolveByFieldIDs`/`FindAnimalSpeciesID`が`persistence.DBOrTx`参加者として未登録（`docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`で再現）。pet側2件は`0eecddb11`で清算済みだが、この2件は#249 U3を実装したセッションの所掌。ゲートの要求どおりambient-tx参加を実証するtestを添えて登録する必要がある。
+- **【要起票・本ledgerの所掌外】fixture作成中に実測した実装drift** — production code を変更せず報告に留めた。正式な起票先は`3-session-agent.html#ledger`。①**staff作成POSTが`reservation_visible:false`を無視する** — **真因を特定済み。上記「GORM `default:true`」項へ統合した**（staff固有ではなくmodel全体で39箇所の機構欠陥）。本項では重複記載しない。②**DBOrTx inventory gateが赤** — `exam_reference_range_repository.go`の`ResolveByFieldIDs`/`FindAnimalSpeciesID`が`persistence.DBOrTx`参加者として未登録（`docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`で再現）。pet側2件は`0eecddb11`で清算済みだが、この2件は#249 U3を実装したセッションの所掌。ゲートの要求どおりambient-tx参加を実証するtestを添えて登録する必要がある。
 
-- **【レーン外・USER専権】tygo pointer mapping 15行** — 最初に開く: `backend/tygo.yaml:17-35,46-64,75-93`と3 generated output。確認: `*uint64`、`*string`、`*bool`、`*time.Time`、`*float64`の5 mapping×3 packageが生成物diffへ寄与するか。判断者: backend/frontend type contract owner。手順: 許可された`make codegen`で各mappingの出力寄与を個別記録し、寄与0の行だけを設定整理unitへ渡す。`make codegen`がUSER専権のためエージェントレーンへ割り当てない。
+- **【測定完了・2026-07-28】R-2 tygo pointer mapping 15行 — 全行が寄与0である。削除してよい**
+
+  `make codegen` を実行せずに決着した。**生成物そのものが証拠になる**からである。mappingが効いているなら出力に `| null` が現れるはずだが、5種すべてが `?:`（optional）で出力されている。
+
+  | mapping | 宣言値 | 実際の生成結果 |
+  |---|---|---|
+  | `*uint64: "number \| null"` | — | `medical_record_id?: number /* uint64 */` |
+  | `*string: "string \| null"` | — | `other_reason?: string` |
+  | `*bool: "boolean \| null"` | — | `value_bool?: boolean` |
+  | `*time.Time: "string \| null"` | — | `completed_at?: string` |
+  | `*float64: "number \| null"` | — | `min_value?: number /* float64 */` |
+
+  対照として **mappingに存在しない `*int64`** を見ると `price?: number /* int64 */` であり、**mapping済みの5種と生成形が完全に同一**である。つまり tygo は `*T` キーを一切参照せず、ポインタを deref して**基底型のmapping**（`uint64`→`number`、`time.Time`→`string`）を適用し、`?` で optional を表現している。`*time.Time` が `string | null` でなく `string` になっている点が決定的で、これは `time.Time: "string"` の基底mappingが効いた証拠である。
+
+  **生成物の鮮度も確認済み**: `models.ts` の最終生成は `44ce538a8`（2026-07-27）で、`*T` mapping の導入（`f57289fb4` 2026-07-11 / `dad69bc6a` 2026-07-24）および `tygo.yaml` の最終変更（`0bafc2770` 2026-07-25）より新しい。**古い生成物を見て「効いていない」と誤断定したのではない。**
+
+  → **`backend/tygo.yaml` の3 package × 5行 = 15行を削除してよい。** 残件は削除の実行と、`make codegen` で生成物差分が0であることの確認（USER専権）。判断者の確認事項は残っていない。
+
+- **【起票済 BUG-456・HIGH・2026-07-28 M-02発・生成セッションが根本原因まで確定】カルテの検査タブが入力済み検査値を1つも表示しない**
+
+  本ledgerの所掌外。**起票先は `3-session-agent.html#ledger`。** M-02 の実測で「カルテ側の結果値欄が空」と観測され、生成セッションがブラウザと API の両方で追って**原因を特定した。**
+
+  **症状**: `/medical-records/1425546` の「検査」タブで、`検査結果一覧` の表が `項目名` と `判定` だけを描画し、**`結果値`・`単位`・`基準値` の3列がすべて空**になる。獣医師が入力した WBC=10.0 / RBC=9.0 / HCT=30.0 が1つも出ない。screenshot: `tmp/m02-triage-tab.png`。
+
+  **API は正しく返している**（`GET /api/v1/examinations/1014562/items` の実測）:
+
+  ```
+  inspection_value  '10.0'                  ← 入力値はここ
+  normal_value      '6.0-17.0 x10^3/uL'     ← 基準値表示文字列はここ
+  result            ''                       ← 常に空
+  reference_value   ''                       ← 常に空
+  unit              ''
+  ```
+
+  **根本原因**: `frontend/src/features/medical-records/components/ExaminationGroup.tsx` が `結果値` に `{item.result}`（`:102`）、`基準値` に `{item.referenceValue}`（`:108`）を描画している。一方 mapper `frontend/src/lib/transforms/examination.ts:15-33` は `result ← item.result` / `referenceValue ← item.reference_value` と写しており、**入力値が入る `inspection_value` → `inspectionValue` と、基準値文字列が入る `normal_value` → `normalValue` は写されているのに描画されていない。**
+
+  **さらに `result` は書き込み経路が存在しない。** `backend/internal/medicalrecord/examination_request.go:151-159` の `upsertExamItemRequest` は `InspectionValue` / `NormalValue` / `Unit` / `ReferenceValue` を持つが **`Result` フィールドを持たない**。つまり通常の検査登録 API からは `result` を永続化できず、**この列は構造的に常に空である。**
+
+  **修正方針**: `ExaminationGroup.tsx` の描画を `item.inspectionValue` / `item.normalValue` へ向ける。ただし `result` / `reference_value` を使う別経路（lab_import 等）が存在するなら、どちらを正とするか、あるいは fallback（`result || inspectionValue`）にするかを決める必要がある。**`3-session-agent.html#ledger` 起票時に write 経路の全数調査を含めること。**
+
+  **検出できなかった理由**: 生成型 `models.ts` は GORM model 由来であり、`result` も `inspection_value` も両方フィールドとして存在する。したがって**型検査でも lint でも捕まらない。** 「データが出ない」系はこのクラスであり、実画面を開くまで見えない。
+
+- **【起票済 BUG-457・HIGH・2026-07-28 M-04で実測】退院の認可が FE と BE で食い違う** — 本ledgerの所掌外。**起票先は `3-session-agent.html#ledger`。** frontend の退院の表示制御と callback は hospitalization の **`delete`** 権限を使うが、backend の退院 route は **`edit`** を要求する。したがって「`delete` は持つが `edit` は持たない」persona には退院ボタンが見えて押せるが backend が拒否し、逆に「`edit` は持つが `delete` は持たない」persona は実行できるのにボタンが出ない。**どちらの action を正とするかは製品判断であり、決めた側へ FE/BE を揃える必要がある。** M-04 の independent healthcare reviewer が pre-existing HIGH として指摘し、production code 変更禁止の制約下で報告に留めた。退院は会計を伴う不可逆操作であり、認可の二重定義は放置できない。
+
+- **【起票済 BUG-458・MEDIUM・2026-07-28 M-04で実測】入院詳細のレスポンシブ崩れ 2件** — `800×1024` で予定日ヘッダカードが縦長に潰れて clip、`500×900` でヘッダタイトル・患者メタ情報・Plan タブが clip する。証跡は `tmp/fe12-m04-evidence/2026-07-28/shot-detail-800x1024.png` / `shot-detail-500x900.png`。`1440×900` と `1200×800` は異常なし。**起票先は `3-session-agent.html#ledger`。** 本ledgerの所掌外だが M-05 の横断 layout 実測と重なるため、M-05 完了後にまとめて是正するのが安い。
+
+- **【裁定不要・2026-07-28 M-04で実測】Board View の cage 403 は権限設計どおりで defect ではない** — 入院 Board は cage master を読むため `master-hospitalization` の view 権限を要求する。M-03 用に作った group `10` は `hospitalization` view しか持たないため `GET /api/v1/masters/cages` が 403 になる。**これは fixture の権限設計が Board の要件を満たしていなかっただけで、実装の欠陥ではない。** M-04 は既存 group `9`（hospitalization view + master-hospitalization view）を一時的に付与して runtime 観測を完了し、staff `38` を group `10` へ復元した。起票不要。
+
+- **【起票済 BUG-455・CRITICAL・2026-07-28実証】GORM `default:true` により bool の `false` を新規作成できない — systemic**
+
+  本ledgerの所掌外だが、M-03 fixture 作成中に実証したため取りこぼし防止として記録する。**起票先は `3-session-agent.html#ledger`。**
+
+  当初は「staff作成POSTが `reservation_visible:false` を無視する」という個別driftとして記録していたが、**staff固有ではなく機構由来である**ことを特定した。
+
+  - **機構**: GORM は `default` タグを持つfieldの zero value を INSERT 文から除外し、DB default を適用させる。`bool` の zero value は `false` なので、**`false` を明示指定しても INSERT に載らず DB default の `true` が入る**。HTTP DTO も service も `false` を正しく伝搬しているのに、永続化の直前で消える。
+  - **PATCH は通る**（`Updates` map 経由のため）。したがって「作成時だけ落ちる」挙動になり、発見が遅れる。
+  - **実証（2026-07-28）**: `POST /api/v1/masters/permission-groups` へ `{"is_active":false, ...}` を送信 → response `is_active=true`、read-back も `true`。probe用に作成したgroup `14` は `DELETE` (204) → `GET` 404 で撤去済み。**production codeは一切変更していない。**
+  - **影響範囲**: `backend/internal/model/*.go` に `bool` + `gorm:"default:true"` の field が **39箇所・26ファイル**。`*bool` で回避しているものは **0件**。内訳は `is_active` 29件、`reservation_visible` 2件、`accounting_document_show_*` 6件、`show_no_staff_option` 1件、`is_combinable` 1件。
+  - **到達可能性**: create request DTO が当該fieldを受けている経路が実在する（`auth/http_permission.go:132`、`trimming/trimming_option_request.go:6`、`trimming/trimming_course_request.go:6`、`reservation/reservation_type_group_request.go:7` 等）。**「無効」を指定して作ったマスタが有効な状態で作られる。** 権限グループでは「無効化した状態で作った権限グループが有効で作成される」ことを意味し、安全境界に触れる。
+  - **修正方針は2択**: (A) 該当fieldを `*bool` へ変える（GORMは非nilなら zero value も書く）。(B) 作成時に `Select` で当該列を明示する。**(A)を推す。** (B)は新しい作成経路を書くたびに再発し、lintでも型検査でも捕まらない。
 
 ### 維持する裁定（再提案を防ぐため保持）
 
