@@ -10,38 +10,49 @@
 
 **FE12 実測レーンは実質終結した。** M-01-E / M-02 / M-03 / M-04 / R-4 が COMPLETE、R-1 / R-3 / R-2測定 も完了。**fixture は R-4 で全て撤去済み**（例外: hospitalization `1` が日次記録制約で残存）。臨床状態は実測前の値へ復旧済み（pet `1001005`=alive、`1001004`=low、`1001002`/`1000018`=無傷）。
 
-**M-05 は 2026-07-28（TASK-461）で COMPLETE となった。残件は4つである。**
+**M-05 は `TASK-461`（2026-07-28）で COMPLETE。R-2 は同日 USER codegen 検証で COMPLETE。M-01-D は前提誤りのため裁定不要としてクローズ。残件は2つである。**
 
 | # | 残件 | 誰が | 着手前提 |
 |---|---|---|---|
-| 1 | **M-01-D 裁定** — 死亡ペットの編集/削除をブロックするか | **曽我** | 材料完備。下記「M-01-D 裁定材料」を読めば答えられる |
-| 2 | **R-2 実行** — `make codegen` 差分0確認 | **USER専権** | `backend/tygo.yaml` の15行削除は `fdbe77ef0` で完了済み。残るのは USER の codegen 検証3コマンドのみ。着手プラン: `3-session-agent.html#TASK-462` |
-| 3 | **line-reserve** — font実機確認 | QA/端末管理者 | 実機3台とQA環境の受け渡し |
-| 4 | **BUG-455〜458 の修正実装** | エージェント | 起票済み。`3-session-agent.html#ledger` が正本。本ledgerの所掌外 |
+| 1 | **line-reserve** — font実機確認 | QA/端末管理者 | 実機3台とQA環境の受け渡し。**本ledger内で唯一残る実作業** |
+| 2 | **BUG-455〜458 の修正実装** | エージェント | 起票済み。`3-session-agent.html#ledger` が正本。**本ledgerの所掌外** |
 
 **この実測が生んだ実装findings 4件は全て起票済みである**（`BUG-455` CRITICAL / `BUG-456` HIGH / `BUG-457` HIGH / `BUG-458` MEDIUM）。以降それらの追跡は `3-session-agent.html#ledger` を正本とする。
 
 **未起票の findings が1件残る**（下記「要起票」節の DBOrTx inventory gate）。
 
-### M-01-D 裁定材料（M-01-E の実測結果・これで答えられる）
+**本ledgerは line-reserve の実機確認が完了した時点で退役できる。**
 
-`/owners?include_deceased=true` の行アクションメニューを全権限 persona で観測した結果、**死亡行と生存行で提示される操作に差分が無い**。
+### M-01-D — 裁定不要でクローズ（2026-07-28・前提が誤りだった）
 
-| 操作 | 死亡行（pet `1001005`） | 生存行（pet `1001002`） | disabled |
-|---|---|---|---|
-| 編集 | 提示あり | 提示あり | **なし** |
-| レポート | 提示あり | 提示あり | **なし** |
-| 削除 | 提示あり | 提示あり | **なし** |
+**M-01-E が報告した「死亡行に物理ブロックが無い」は観測対象の誤りであり、defect ではない。** 追加実装は不要である。
 
-`docs/spec/specification.md:21` は「死亡ペットに対する誤操作の物理的ブロック」を規定するが、**一覧の行アクションはこれを満たしていない。** 製品哲学により確認ダイアログは選択肢に入らない（ロック・Undo・物理ブロックのいずれか）。
+**誤りの内容**: `/owners` 一覧の行アクション（`編集` / `レポート` / `削除`）は**飼主レベルの操作**である。`OwnersListTable.tsx:56-59` の型定義がそれを示す。
 
-**曽我が決めるのは2点だけ**: (a) 死亡ペットの**編集**をブロックするか。するなら誤記訂正の正規経路をどうするか（追記のみ許す／管理者権限でのみ許す／死亡解除→訂正→再登録を強制する）。(b) 死亡ペットの**削除**をブロックするか。
+```
+onEdit:          (ownerId: string) => void
+onDeleteRequest: (ownerId: string, ownerName: string) => void
+onReport:        (ownerId: string, petId: string) => void
+```
 
-なお F16（死亡バッジのグレー）は裁定済みで、実装（badge のみ）が合格である。死亡登録/解除は `45b681866` 以降 fail-closed で確定済み。**一覧に死亡登録/解除の導線は存在しない**（`PetCareSection.tsx` = 飼主詳細にある）。
+**いずれも `ownerId` を受け取る。ペットの編集でも削除でもない。** 一覧はペット行単位で描画されるため「死亡ペットの行に編集・削除が出ている」ように見えるが、その操作対象は飼主である。飼主は生存しており、他に生存ペットを飼っている可能性もある。**ペットの生死で飼主操作をブロックすれば正当な業務を壊す。**
+
+**ペット単位の操作には既に二重の物理ブロックが実装済み**（飼主詳細 `frontend/src/features/owners/components/OwnerPetsSection.tsx`）。
+
+- `:108` `{pet.status === "死亡" ? null : canCreate ? (` — 死亡なら要素自体をレンダリングしない
+- `:162` `{pet.status === "死亡" ? null : canDelete ? (` — 削除も同様
+- `:113` `:123` `:133` `:143` `:153` `:168` — callback 側でも `if (current.status === "死亡" || ...) return;` で positive match 拒否
+
+これは本ledgerの Active execution rules 1「死亡は明示的な positive match で遷移・mutation callback を拒否する」がそのまま実装された形である。**`docs/spec/specification.md:21` の「死亡ペットに対する誤操作の物理的ブロック」は達成済みである。**
+
+**教訓**: 実測の観測対象を決めるとき、UI の見た目（ペット行に出ている）ではなく **handler が受け取る ID（`ownerId` か `petId` か）で操作対象を確定させること。** M-01-E はこれを怠り、飼主操作をペット操作と誤認した。
+
+なお F16（死亡バッジのグレー）は裁定済みで実装（badge のみ）が合格。死亡登録/解除は `45b681866` 以降 fail-closed。**一覧に死亡登録/解除の導線は存在しない**（`PetCareSection.tsx` = 飼主詳細にある）。
 
 ## Active scope and authority
 
-- 追跡対象は M-01-D 裁定、line-reserve font実機確認、R-2 の USER codegen 検証とする。M-01-E・M-02・M-03・M-04・M-05・R-1・R-3・R-4 は裁定・実測済みで追跡を終了した。
+- 追跡対象は **line-reserve font実機確認のみ**とする。M-01-E・M-02・M-03・M-04・M-05・M-01-D・R-1・R-2・R-3・R-4 は裁定・実測済みで追跡を終了した。
+- **R-2 は 2026-07-28 に COMPLETE。** `backend/tygo.yaml` の15行削除（`fdbe77ef0`）に対し USER が `make codegen` を実行し、`git diff --exit-code -- frontend/src/types/generated/` と `-- frontend/line-reserve/src/types/models.ts` がともに差分なしで返った。生成物3本の mtime も更新されており、codegen は実際に走って同一出力を得ている。**pointer mapping 15行が寄与0であったことが最終確認された。**
 - **M-05 は `TASK-461`（2026-07-28）で COMPLETE。** 最後まで未証明だった danger 高 cue を runtime で確定させた: `/owners?search=クロ` の a11y に `button "クロの危険理由を表示"` / `dialog "クロの危険理由"` / `StaticText "FE12-M01 fixture"` を検出（pet `1001004`）。**先行走で0件だったのは絞り込み無しでページに載らなかっただけであり、実装欠陥ではない。** 期限4区分も再確認され today/future の誤検出は0件。臨床状態は cleanup 後に pet `1001004`=`alive/low/danger_reason 空` へ復旧済み（実測確認）。
 - **`TASK-461` が露呈させた計画側の欠陥1件**: exact-ID 契約（MR `1425547` / vaccination・checkup `1`-`4`）は **R-4 後に DB sequence が進んだため成立しない**（MR `1425548` が実在するため `1425547` は再取得できない）。executor は SQL による強制を避け、`M05-` label による identity-safe な同定へ切り替えて臨床目的を達成した。**今後 fixture 再作成を計画する際、連番 ID を完了条件にしてはならない。** label など内容ベースの同定を使う。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
