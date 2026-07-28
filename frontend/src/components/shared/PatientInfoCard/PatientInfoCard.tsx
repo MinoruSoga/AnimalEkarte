@@ -93,8 +93,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         </div>
 
         {/* Basic Info */}
-        <div className="flex flex-col gap-0.5 mr-3">
-          <div className="flex items-baseline gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5 mr-3">
+          <div className="flex flex-wrap items-baseline gap-2">
             {onOwnerClick ? (
               <button
                 type="button"
@@ -115,7 +115,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               </span>
             ) : null}
           </div>
-          <div className={`flex items-center gap-3 text-sm ${C.text60}`}>
+          <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${C.text60}`}>
             {petNumber ? (
               <span className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}>
                 #{petNumber}
@@ -135,10 +135,10 @@ export const PatientInfoCard = memo(function PatientInfoCard({
           </div>
         </div>
 
-        {/* Service / Insurance / Next Visit */}
-        <div className="flex items-center gap-3 flex-1 overflow-x-auto no-scrollbar">
+        {/* Service / Insurance / Next Visit — wrap at narrow widths; no rigid min-width cards (BUG-458) */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
           {/* Service Type */}
-          <div className="flex flex-col gap-0 min-w-[60px]">
+          <div className="flex min-w-0 flex-col gap-0">
             <span className={`text-sm ${C.text60}`}>{reservationTypeLabel}</span>
             {onReservationTypeClick ? (
               <button
@@ -155,13 +155,13 @@ export const PatientInfoCard = memo(function PatientInfoCard({
           </div>
 
           {/* Insurance */}
-          <div className={`flex flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} min-w-[120px]`}>
+          <div className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}>
             <span className={`text-sm font-medium ${C.text} truncate`}>{insuranceName}</span>
             <span className={`text-sm ${C.text60} truncate`}>{insuranceDetails}</span>
           </div>
 
-          {/* Next Visit */}
-          <div className={`flex flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} min-w-[120px]`}>
+          {/* Next Visit — clinical cue must remain visible */}
+          <div className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}>
             <div className="flex items-center gap-1">
               <Calendar className={`${ICON.xs} ${C.text60}`} />
               <span className={`text-sm ${C.text}`}>次回 {nextVisitDate}</span>
@@ -172,7 +172,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         </div>
 
         {/* Staff & Actions */}
-        <div className="flex items-center gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
           {onVitalClick ? (
             <Button
               type="button"

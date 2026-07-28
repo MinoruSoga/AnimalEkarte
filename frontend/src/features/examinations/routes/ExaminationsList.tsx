@@ -220,11 +220,11 @@ export function ExaminationsList() {
           {r.petName}
         </DataTableRowLink>
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-medium`}>{r.testType}</TableCell>
+      <TableCell className={`${STYLE.tableCell} font-medium hidden sm:table-cell`}>{r.testType}</TableCell>
       <TableCell className={`${C.text60} truncate max-w-[200px] hidden lg:table-cell`}>
         {r.resultSummary || "-"}
       </TableCell>
-      <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
+      <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>{r.doctor}</TableCell>
       <TableCell>
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}
@@ -278,6 +278,7 @@ export function ExaminationsList() {
           onToggle={() => toggleSort("testType")}
         />
       ),
+      className: "hidden sm:table-cell",
     },
     { header: "結果概要", className: "hidden lg:table-cell" },
     {
@@ -288,7 +289,7 @@ export function ExaminationsList() {
           onToggle={() => toggleSort("doctor")}
         />
       ),
-      className: "w-[100px]",
+      className: "w-[100px] hidden md:table-cell",
     },
     {
       header: (

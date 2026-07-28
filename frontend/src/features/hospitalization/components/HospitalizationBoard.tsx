@@ -175,13 +175,14 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="space-y-6 overflow-x-auto pb-4">
+      <div className="space-y-6 pb-4">
         {Object.entries(cagesByArea).map(([area, areaCages]) => (
-          <div key={area} className="min-w-[800px]">
+          // No min-w-[800px]: reflow 1/2/3+ columns by container width (BUG-458).
+          <div key={area} className="min-w-0">
             <h3 className={`${H_STYLES.text.lg} font-bold ${C.text} mb-3 border-b pb-1 ${C.borderPrimary10}`}>
               {area}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {areaCages.map(cage => {
                 const occupant = occupantByCageId.get(String(cage.id));
                 return (

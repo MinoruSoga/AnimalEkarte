@@ -242,3 +242,20 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(onNavigateToForm).toHaveBeenCalledWith();
   });
 });
+
+describe("HospitalizationBoard narrow layout (BUG-458)", () => {
+  it("area container に min-w-[800px] を付けない", () => {
+    const { container } = render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+    expect(container.innerHTML).not.toContain("min-w-[800px]");
+    expect(container.querySelector(".grid-cols-1")).not.toBeNull();
+  });
+});

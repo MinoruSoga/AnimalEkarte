@@ -25,4 +25,18 @@ describe("FormHeader", () => {
     expect(header).toHaveClass("min-h-[53px]", "py-1");
     expect(header).not.toHaveClass("h-[53px]");
   });
+
+  it("狭幅で title/action が折り返せる flex-wrap 契約を持つ (BUG-458)", () => {
+    const { container } = render(
+      <FormHeader
+        title="当日の受付"
+        description="受付状況をリアルタイムで確認"
+        action={<button type="button">新規予約登録</button>}
+      />,
+    );
+
+    const header = container.firstElementChild;
+    expect(header).toHaveClass("flex-wrap", "min-w-0");
+    expect(screen.getByRole("heading", { name: "当日の受付" })).toHaveClass("break-words");
+  });
 });

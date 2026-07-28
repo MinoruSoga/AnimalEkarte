@@ -17,7 +17,16 @@ describe("UnifiedTabs interaction surface", () => {
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.tagName).toBe("BUTTON");
       expect(tab).toHaveClass("min-h-11");
+      expect(tab).toHaveClass("shrink-0");
     }
+  });
+
+  it("tab list は overflow-x-auto で全項目到達可能にする (BUG-458)", () => {
+    const { container } = render(
+      <UnifiedTabs items={ITEMS} value="first" onValueChange={() => undefined} />,
+    );
+    const list = container.querySelector('[role="tablist"]');
+    expect(list).toHaveClass("overflow-x-auto", "max-w-full");
   });
 
   it("transition中のheadless rootをaria-busyで通知する", () => {

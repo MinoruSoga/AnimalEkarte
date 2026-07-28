@@ -169,7 +169,7 @@ export function Reception() {
                 title="当日の受付"
                 description={`${todayLabel} - 受付状況をリアルタイムで確認`}
                 action={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <PermissionBadges resource={ResourceReception} />
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}

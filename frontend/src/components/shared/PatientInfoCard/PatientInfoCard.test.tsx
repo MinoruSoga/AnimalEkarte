@@ -55,6 +55,15 @@ describe("PatientInfoCard next visit alert", () => {
     expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
   });
 
+  it("保険・次回カードに固定 min-w-[120px] を付けない (BUG-458)", () => {
+    const { container } = render(
+      <PatientInfoCard {...baseProps} insuranceName="アニコム" nextVisitDate="2026/08/01" />,
+    );
+    const fixedMin = container.querySelector('[class*="min-w-[120px]"], [class*="min-w-[60px]"]');
+    expect(fixedMin).toBeNull();
+    expect(screen.getByText("次回 2026/08/01")).toBeInTheDocument();
+  });
+
   it("実在しない日付や区切り混在は期限判定へ渡さない", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-21T12:00:00+09:00"));

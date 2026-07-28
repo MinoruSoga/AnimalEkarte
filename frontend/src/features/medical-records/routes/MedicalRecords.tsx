@@ -299,7 +299,7 @@ export function MedicalRecords() {
                   )}
                 </TableCell>
                 <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
-                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate`} title={r.chiefComplaint}>
+                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate hidden md:table-cell`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
@@ -319,7 +319,7 @@ export function MedicalRecords() {
                     <span className={`text-sm ${C.text40}`}>—</span>
                   )}
                 </TableCell>
-                <TableCell className={STYLE.tableCell}>
+                <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
                   <div className="flex items-center gap-1">
                     <span className={!isValidStaff(r.doctor) ? `${C.danger} font-medium` : ""}>
                       {r.doctor}

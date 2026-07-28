@@ -40,8 +40,10 @@ export const DataTable = memo(function DataTable<T>({
 }: DataTableProps<T>) {
   return (
     <div className={`${STYLE.tableContainer} ${className}`}>
-      <div className="flex-1 overflow-auto relative">
-        <Table className="min-w-[640px]">
+      {/* min-w-0 + overflow-auto: narrow viewports scroll instead of clipping (BUG-458).
+          Avoid fixed min-w-[640px] which forced off-screen status/action columns. */}
+      <div className="relative min-w-0 flex-1 overflow-auto">
+        <Table className="w-full min-w-0">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={headerRowClassName ?? STYLE.tableHeaderRow}>
               {columns.map((col, index) => (

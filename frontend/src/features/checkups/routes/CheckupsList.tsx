@@ -212,6 +212,7 @@ export function CheckupsList() {
             onToggle={() => toggleSort("checkupTypeName")}
           />
         ),
+        className: "hidden md:table-cell",
       },
       {
         header: (
@@ -221,10 +222,11 @@ export function CheckupsList() {
             onToggle={() => toggleSort("nextDate")}
           />
         ),
-        className: "w-[120px] hidden lg:table-cell",
+        // Clinical deadline cue: keep reachable via md+; full hide only under md (BUG-458).
+        className: "w-[120px] hidden md:table-cell",
       },
       { header: "結果・所見", className: "hidden lg:table-cell" },
-      { header: "担当医", className: "w-[100px]" },
+      { header: "担当医", className: "w-[100px] hidden md:table-cell" },
       { header: "操作", className: "w-[80px]", align: "right" as const },
     ],
     [directionFor, toggleSort],
@@ -293,8 +295,8 @@ export function CheckupsList() {
                     </DataTableRowLink>
                   ) : (c.petName || "-")}
                 </TableCell>
-                <TableCell className={C.text}>{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className={`font-mono ${C.text} hidden lg:table-cell`}>
+                <TableCell className={`${C.text} hidden md:table-cell`}>{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className={`font-mono ${C.text} hidden md:table-cell`}>
                   <div className="flex items-center gap-1.5">
                     {c.nextDate ? formatDate(c.nextDate) : "-"}
                     <CheckupAlertBadge nextDate={c.nextDate} />
@@ -303,7 +305,7 @@ export function CheckupsList() {
                 <TableCell className={`${C.text} max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
                 </TableCell>
-                <TableCell className={C.text}>{c.doctorName || "-"}</TableCell>
+                <TableCell className={`${C.text} hidden md:table-cell`}>{c.doctorName || "-"}</TableCell>
                 <TableCell className="text-right">
                   {canView && canEdit ? (
                     <RowActionButton

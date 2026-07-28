@@ -55,6 +55,25 @@ describe("DataTable", () => {
     expect(headerRow?.className).toContain("custom-row-class");
   });
 
+  it("table は固定 min-w-[640px] を持たず min-w-0 で狭幅スクロール可能 (BUG-458)", () => {
+    const { container } = render(
+      <DataTable
+        columns={[{ header: "名前" }]}
+        data={rows}
+        renderRow={(row) => (
+          <tr key={row.id}>
+            <td>{row.name}</td>
+          </tr>
+        )}
+      />,
+    );
+    const scroll = container.querySelector(".overflow-auto");
+    expect(scroll).toHaveClass("min-w-0");
+    const table = container.querySelector("table");
+    expect(table?.className ?? "").not.toContain("min-w-[640px]");
+    expect(table).toHaveClass("min-w-0");
+  });
+
   it("DESIGN_TABLE_HEADER_ROW/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {
     expect(DESIGN_TABLE_HEADER_ROW).toContain(C.bgPage);
     expect(DESIGN_TABLE_HEADER_ROW).toContain(C.borderLight);
