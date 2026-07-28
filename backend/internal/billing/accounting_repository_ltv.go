@@ -13,14 +13,15 @@ import (
 )
 
 // validBillingOwnerMedicalRecordScope keeps direct billings, but excludes a
-// billing whose optional medical record belongs to a different owner or clinic.
+// billing whose optional medical record is cross-clinic or soft-deleted.
+// DEC-27: medical_records.owner_id and billings.owner_id are independent
+// snapshots; do not require equality (pet transfer must not drop LTV rows).
 func validBillingOwnerMedicalRecordScope(db *gorm.DB) *gorm.DB {
 	return db.Where(`billings.medical_record_id IS NULL OR EXISTS (
 		SELECT 1
 		FROM medical_records AS mr
 		WHERE mr.id = billings.medical_record_id
 		  AND mr.clinic_id = billings.clinic_id
-		  AND mr.owner_id = billings.owner_id
 		  AND mr.deleted_at IS NULL
 	)`)
 }

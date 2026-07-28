@@ -54,8 +54,10 @@ type OwnerUnpaidBalance struct {
 }
 
 // validBillingOwnerPetScope excludes a billing whose optional owner or pet
-// relation crosses a clinic boundary or whose pet belongs to another owner.
-// NULL owner/pet values remain valid for direct billings.
+// relation crosses a clinic boundary. NULL owner/pet values remain valid for
+// direct billings.
+// DEC-27: pets.owner_id is the current owner; billings.owner_id is a snapshot
+// at billing time. Do not require equality after pet transfer.
 func validBillingOwnerPetScope(db *gorm.DB) *gorm.DB {
 	return db.Where(`
 		(
@@ -75,7 +77,6 @@ func validBillingOwnerPetScope(db *gorm.DB) *gorm.DB {
 				FROM pets AS billing_pet
 				WHERE billing_pet.id = billings.pet_id
 				  AND billing_pet.clinic_id = billings.clinic_id
-				  AND billing_pet.owner_id = billings.owner_id
 				  AND billing_pet.deleted_at IS NULL
 			)
 		)
@@ -215,7 +216,6 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 					FROM pets AS billing_pet
 					WHERE billing_pet.id = billings.pet_id
 					  AND billing_pet.clinic_id = billings.clinic_id
-					  AND billing_pet.owner_id = billings.owner_id
 					  AND billing_pet.deleted_at IS NULL
 				)
 			  )
@@ -225,12 +225,13 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 
-	// 飼主+ペット単位集約（CASE WHEN で3列同時集計）
+	// 飼主+ペット単位集約（CASE WHEN で3列同時集計）。
+	// DEC-27: join pets by identity + clinic only; do not require pets.owner_id
+	// = billings.owner_id (snapshot vs current owner after transfer).
 	if err := base.Session(&gorm.Session{}).
 		Joins(
 			"LEFT JOIN pets ON pets.id = billings.pet_id"+
 				" AND pets.clinic_id = billings.clinic_id"+
-				" AND pets.owner_id = billings.owner_id"+
 				" AND pets.deleted_at IS NULL",
 		).
 		Select(`

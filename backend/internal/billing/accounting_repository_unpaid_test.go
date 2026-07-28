@@ -472,6 +472,71 @@ func TestAccountingRepository_FindUnpaidByOwner_EmptyResult(t *testing.T) {
 	assert.Empty(t, aggregates)
 }
 
+// TestUnpaidAggregates_KeepsListingAfterPetTransfer は DEC-27 境界を検証する。
+// pets.owner_id が譲渡で変わっても、billings.owner_id スナップショット側の
+// 未納一覧・残高・月次繰越が clinic 一致時に落ちないこと。
+func TestUnpaidAggregates_KeepsListingAfterPetTransfer(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	date := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
+
+	originalOwner := testdb.MakeTestOwner(t, db, clinicID, "未納譲渡前飼主")
+	newOwner := testdb.MakeTestOwner(t, db, clinicID, "未納譲渡後飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, originalOwner.ID, "unpaid-transfer-pet")
+	makeBilling(t, db, clinicID, &originalOwner.ID, &pet.ID, 4_200, model.BillingStatusWaiting, date)
+
+	require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).
+		Where("id = ?", pet.ID).
+		Update("owner_id", newOwner.ID).Error)
+
+	t.Run("FindUnpaidByBilling still lists snapshot owner billing", func(t *testing.T) {
+		billings, total, err := repo.FindUnpaidByBilling(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, billings, 1)
+		assert.Equal(t, int64(4_200), billings[0].TotalAmount)
+		require.NotNil(t, billings[0].OwnerID)
+		assert.Equal(t, originalOwner.ID, *billings[0].OwnerID)
+		require.NotNil(t, billings[0].PetID)
+		assert.Equal(t, pet.ID, *billings[0].PetID)
+	})
+
+	t.Run("FindUnpaidByOwner and SumUnpaidByOwner keep snapshot attribution", func(t *testing.T) {
+		aggregates, totalOwners, summary, err := repo.FindUnpaidByOwner(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), totalOwners)
+		assert.Equal(t, int64(4_200), summary.TotalAmount)
+		require.Len(t, aggregates, 1)
+		assert.Equal(t, originalOwner.ID, aggregates[0].OwnerID)
+		assert.Equal(t, int64(4_200), aggregates[0].TotalAmount)
+
+		balance, err := repo.SumUnpaidByOwner(ctx, clinicID, originalOwner.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(4_200), balance.TotalAmount)
+		assert.Equal(t, int64(1), balance.Count)
+
+		newBalance, err := repo.SumUnpaidByOwner(ctx, clinicID, newOwner.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), newBalance.TotalAmount)
+		assert.Equal(t, int64(0), newBalance.Count)
+	})
+
+	t.Run("FindMonthlyUnpaidCarryover keeps pet join after transfer", func(t *testing.T) {
+		items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(4_200), summary.CurrentMonthUnpaid)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, items, 1)
+		assert.Equal(t, originalOwner.ID, items[0].OwnerID)
+		require.NotNil(t, items[0].PetID)
+		assert.Equal(t, pet.ID, *items[0].PetID)
+		assert.Equal(t, "unpaid-transfer-pet", items[0].PetName)
+		assert.Equal(t, int64(4_200), items[0].CurrentMonthUnpaid)
+	})
+}
+
 // TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality は
 // next_month_carryover = prev_month_carryover + current_month_unpaid の等式を検証する。
 func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {

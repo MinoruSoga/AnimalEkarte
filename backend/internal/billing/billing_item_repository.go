@@ -325,37 +325,34 @@ func (r *billingItemRepository) ValidateVaccinationCreateReference(
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", *billingRef.OwnerID))
 	}
 
-	var petRef struct {
-		OwnerID uint64
-	}
+	// DEC-27: pets.owner_id is the current owner; billings.owner_id is a
+	// snapshot. Verify pet identity + clinic only — do not require owner
+	// equality after pet transfer.
+	var petID uint64
 	if err := tx.
 		Table("pets").
-		Select("owner_id").
+		Select("id").
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *vaccinationRef.PetID, clinicID).
 		Clauses(clause.Locking{Strength: "SHARE"}).
-		Take(&petRef).Error; err != nil {
+		Take(&petID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *vaccinationRef.PetID))
-	}
-	if petRef.OwnerID != *billingRef.OwnerID {
-		return nil, invalidBillingItemReferenceCombination()
 	}
 
 	validateMedicalRecord := func(id uint64) error {
 		var medicalRecordRef struct {
-			OwnerID *uint64
-			PetID   *uint64
+			PetID *uint64
 		}
 		if err := tx.
 			Table("medical_records").
-			Select("owner_id", "pet_id").
+			Select("pet_id").
 			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&medicalRecordRef).Error; err != nil {
 			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 		}
-		if medicalRecordRef.OwnerID == nil ||
-			medicalRecordRef.PetID == nil ||
-			*medicalRecordRef.OwnerID != *billingRef.OwnerID ||
+		// DEC-27: MR.owner_id is a clinical-time snapshot; correlate by pet_id
+		// + clinic only (already scoped above).
+		if medicalRecordRef.PetID == nil ||
 			*medicalRecordRef.PetID != *billingRef.PetID {
 			return invalidBillingItemReferenceCombination()
 		}
@@ -483,7 +480,6 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 		          WHERE medical_record.id = vaccination.medical_record_id
 		            AND medical_record.clinic_id = vaccination.clinic_id
 		            AND medical_record.pet_id = vaccination.pet_id
-		            AND medical_record.owner_id = pet.owner_id
 		            AND medical_record.deleted_at IS NULL
 		      )
 		  )

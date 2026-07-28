@@ -225,6 +225,34 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
+
+	// DEC-27: after pet transfer, MR.owner_id (snapshot) may differ from
+	// pets.owner_id (current). Unbilled candidates must still appear when
+	// clinic + pet identity match.
+	t.Run("unbilled candidates remain after pet owner transfer", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(5200)
+		vaccine, vaccination := makeBillingVaccination(t, f, "transfer vaccine", &price)
+		_ = vaccine
+		require.NoError(t, f.db.Model(&model.Vaccination{}).
+			Where("id = ?", vaccination.ID).
+			Update("medical_record_id", f.medicalRecord.ID).Error)
+
+		newOwner := testdb.MakeTestOwner(t, f.db, f.clinicID, "post-transfer owner")
+		require.NoError(t, f.db.Model(&model.Pet{}).
+			Where("id = ?", f.pet.ID).
+			Update("owner_id", newOwner.ID).Error)
+
+		finder := f.repo.(unbilledVaccinationFinder)
+		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		require.NotNil(t, items[0].VaccinationID)
+		assert.Equal(t, vaccination.ID, *items[0].VaccinationID)
+		assert.Equal(t, "transfer vaccine", items[0].Name)
+		assert.Equal(t, price, items[0].UnitPrice)
+	})
 }
 
 func TestBillingItemVaccinationProvenance_CreatePreservesEditedCandidateValues(t *testing.T) {
@@ -382,7 +410,9 @@ func TestBillingItemVaccinationProvenance_CreateRejectsSmuggledReferences(t *tes
 		assert.Nil(t, item)
 	})
 
-	t.Run("billing owner must own the locked vaccination pet", func(t *testing.T) {
+	// DEC-27: pets.owner_id is current owner; billing.owner_id is a snapshot.
+	// Claim create must succeed after pet transfer when pet_id + clinic match.
+	t.Run("claim create still succeeds after pet owner transfer", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 		price := int64(3000)
 		_, vaccination := makeBillingVaccination(t, f, "owner correlation vaccine", &price)
@@ -396,9 +426,11 @@ func TestBillingItemVaccinationProvenance_CreateRejectsSmuggledReferences(t *tes
 
 		item, err := svc.CreateItem(context.Background(), input)
 
-		require.Error(t, err)
-		assert.Nil(t, item)
-		assert.True(t, apperrors.IsInvalidInput(err))
+		require.NoError(t, err)
+		require.NotNil(t, item)
+		require.NotNil(t, item.VaccinationID)
+		assert.Equal(t, vaccination.ID, *item.VaccinationID)
+		assert.Equal(t, model.ItemCategoryVaccine, item.Category)
 	})
 
 	t.Run("vaccination medical record must match clinic and locked billing graph", func(t *testing.T) {

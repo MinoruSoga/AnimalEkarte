@@ -201,7 +201,10 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwner
 	assert.Equal(t, int64(1_000), results[0].Revenue)
 }
 
-func TestAccountingRepository_LTVAggregates_ExcludeMismatchedMedicalRecordOwnerAndAllowDirectBilling(t *testing.T) {
+// DEC-27: medical_records.owner_id and billings.owner_id are independent
+// snapshots. Mismatched MR snapshot owner must not exclude LTV rows when
+// clinic matches; money attribution stays on billings.owner_id.
+func TestAccountingRepository_LTVAggregates_IncludeMismatchedMedicalRecordOwnerSnapshotAndAllowDirectBilling(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -227,17 +230,61 @@ func TestAccountingRepository_LTVAggregates_ExcludeMismatchedMedicalRecordOwnerA
 
 	total, err := repo.SumPaidByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1_000), total)
+	assert.Equal(t, int64(100_000), total, "direct + MR-linked billing both attribute to billing.owner_id")
 
 	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1_000), maxAmount)
+	assert.Equal(t, int64(99_000), maxAmount)
 
 	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, owner.ID, results[0].OwnerID)
-	assert.Equal(t, int64(1_000), results[0].Revenue)
+	assert.Equal(t, int64(100_000), results[0].Revenue)
+}
+
+// DEC-27 transfer: after pet moves to another owner, LTV for the original
+// billing snapshot owner still includes the completed billing (keyed by
+// billings.owner_id), even when the linked MR snapshot owner differs from
+// the current pets.owner_id.
+func TestAccountingRepository_LTVAggregates_KeepsAttributionAfterPetTransfer(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now()
+
+	originalOwner := testdb.MakeTestOwner(t, db, clinicID, "譲渡前飼主")
+	newOwner := testdb.MakeTestOwner(t, db, clinicID, "譲渡後飼主")
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{}))
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID: clinicID, OwnerID: originalOwner.ID, AnimalSpeciesID: species.ID, Name: "ltv-transfer-pet",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(pet).Error)
+	medicalRecord := &model.MedicalRecord{
+		ClinicID: clinicID, OwnerID: &originalOwner.ID, PetID: &pet.ID, Date: now, RecordNo: "LTV-TRANSFER",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(medicalRecord).Error)
+	billing := &model.Billing{
+		ClinicID: clinicID, OwnerID: &originalOwner.ID, PetID: &pet.ID, MedicalRecordID: &medicalRecord.ID,
+		TotalAmount: 7_500, Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
+
+	// Pet transfer: current owner changes; billing/MR snapshots stay.
+	require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).
+		Where("id = ?", pet.ID).
+		Update("owner_id", newOwner.ID).Error)
+
+	total, err := repo.SumPaidByOwner(ctx, clinicID, originalOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(7_500), total, "LTV stays on billing snapshot owner after pet transfer")
+
+	newOwnerTotal, err := repo.SumPaidByOwner(ctx, clinicID, newOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), newOwnerTotal, "current pet owner does not inherit historical LTV")
 }
 
 func timePtr(t time.Time) *time.Time { return &t }
