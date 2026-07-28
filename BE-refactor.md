@@ -2801,7 +2801,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LstepSettings|Connection'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: d26f86b75f6ca0a02615db83b6b035c2623ffcfc
 
 ##### BE-X08-LSTEP-SEND-01
 
