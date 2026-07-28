@@ -3,7 +3,8 @@ package reservation
 type createReservationStaffRequest struct {
 	Name               string   `json:"name"               binding:"required"`
 	StaffType          string   `json:"staff_type" binding:"omitempty,oneof=doctor nurse groomer other"`
-	ReservationVisible bool     `json:"reservation_visible"`
+	// ReservationVisible is *bool so omitted stays default true; explicit false is preserved.
+	ReservationVisible *bool    `json:"reservation_visible"`
 	ReservationComment string   `json:"reservation_comment"`
 	SortOrder          int      `json:"sort_order"`
 	ExcludedTypeIDs    []uint64 `json:"excluded_type_ids"`
@@ -13,7 +14,7 @@ func (r *createReservationStaffRequest) toServiceInput() *CreateReservationStaff
 	return &CreateReservationStaffInput{
 		Name:               r.Name,
 		StaffType:          r.StaffType,
-		ReservationVisible: r.ReservationVisible,
+		ReservationVisible: resolveBoolDefaultTrue(r.ReservationVisible),
 		ReservationComment: r.ReservationComment,
 		SortOrder:          r.SortOrder,
 		ExcludedTypeIDs:    r.ExcludedTypeIDs,

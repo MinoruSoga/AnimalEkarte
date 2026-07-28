@@ -213,11 +213,20 @@ func (r *staffRepository) FindByAccountID(ctx context.Context, accountID uint64)
 }
 
 func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error {
-	if err := persistence.DBOrTx(ctx, r.db).Create(staff).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantVisible := staff.ReservationVisible
+	if err := db.Create(staff).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("staff", staff.Name)
 		}
 		return apperrors.FromGORM(err, "staff", "")
+	}
+	if !wantVisible {
+		if err := db.Model(staff).Update("reservation_visible", false).Error; err != nil {
+			return apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", staff.ID))
+		}
+		staff.ReservationVisible = false
 	}
 	return nil
 }
@@ -439,9 +448,17 @@ func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model
 	if staff.ClinicID != clinicID {
 		return apperrors.WrapInvalidInput("reservation staff clinic_id mismatch")
 	}
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantVisible := staff.ReservationVisible
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(staff).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_staff", "")
+		}
+		if !wantVisible {
+			if err := tx.Model(staff).Update("reservation_visible", false).Error; err != nil {
+				return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", staff.ID))
+			}
+			staff.ReservationVisible = false
 		}
 		assignment := &model.StaffClinicAssignment{
 			StaffID:  staff.ID,

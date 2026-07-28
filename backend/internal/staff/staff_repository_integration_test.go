@@ -195,6 +195,36 @@ func TestStaffRepository_Create_HappyPath(t *testing.T) {
 	assert.Equal(t, "新規作成スタッフ", got.Name)
 }
 
+// BUG-455-S7: gorm default:true omits zero bools from INSERT.
+func TestStaffRepository_Create_ReservationVisibleFalsePersists(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	staff := &model.Staff{
+		ClinicID:           clinicID,
+		Name:               "hidden staff",
+		StaffType:          model.StaffTypeDoctor,
+		ReservationVisible: false,
+	}
+	require.NoError(t, repo.Create(ctx, staff))
+	assert.False(t, staff.ReservationVisible)
+
+	got, err := repo.FindByID(ctx, staff.ID)
+	require.NoError(t, err)
+	assert.False(t, got.ReservationVisible)
+
+	var raw bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Select("reservation_visible").
+		Where("id = ?", staff.ID).
+		Scan(&raw).Error)
+	assert.False(t, raw, "raw reservation_visible must be false")
+}
+
 // ---- FindAll ----
 
 func TestStaffRepository_FindAll_OnlyAssignedStaffVisible(t *testing.T) {

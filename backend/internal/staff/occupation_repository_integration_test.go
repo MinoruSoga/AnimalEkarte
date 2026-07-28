@@ -46,6 +46,24 @@ func TestOccupationRepository_Create_FindByID(t *testing.T) {
 		assert.Equal(t, "獣医師", got.Name)
 	})
 
+	t.Run("explicit is_active false persists (BUG-455-S7)", func(t *testing.T) {
+		occ := &model.Occupation{ClinicID: clinicA, Name: "inactive occupation", IsActive: false}
+		require.NoError(t, repo.Create(ctx, occ))
+		assert.False(t, occ.IsActive)
+
+		got, err := repo.FindByID(ctx, clinicA, occ.ID)
+		require.NoError(t, err)
+		assert.False(t, got.IsActive)
+
+		var raw bool
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.Occupation{}).
+			Select("is_active").
+			Where("id = ?", occ.ID).
+			Scan(&raw).Error)
+		assert.False(t, raw, "raw is_active must be false")
+	})
+
 	t.Run("別クリニックからは取得できずNotFoundを返す", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "看護師")
 		_, err := repo.FindByID(ctx, clinicB, occ.ID)

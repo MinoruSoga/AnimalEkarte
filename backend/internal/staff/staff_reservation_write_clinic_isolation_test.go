@@ -55,6 +55,30 @@ func TestStaffRepository_CreateForReservation_BindsAssignmentToClinic(t *testing
 	assert.True(t, assignment.IsMain)
 }
 
+// BUG-455-S7: reservation staff create path must persist explicit reservation_visible=false.
+func TestStaffRepository_CreateForReservation_ReservationVisibleFalsePersists(t *testing.T) {
+	db := setupStaffReservationWriteTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+
+	staff := &model.Staff{
+		ClinicID:           1,
+		Name:               "hidden reservation staff",
+		StaffType:          model.StaffTypeDoctor,
+		ReservationVisible: false,
+	}
+	require.NoError(t, repo.CreateForReservation(ctx, staff, 1))
+	assert.False(t, staff.ReservationVisible)
+
+	var raw bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Select("reservation_visible").
+		Where("id = ?", staff.ID).
+		Scan(&raw).Error)
+	assert.False(t, raw, "raw reservation_visible must be false")
+}
+
 func TestStaffRepository_CreateForReservation_RejectsClinicIDMismatchWithoutWrite(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
 	repo := NewStaffRepository(db)

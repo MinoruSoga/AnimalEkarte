@@ -97,8 +97,17 @@ func (r *shiftTemplateRepository) LockActiveByIDForUpdate(
 }
 
 func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTemplate) error {
-	if err := persistence.DBOrTx(ctx, r.db).Omit("Breaks").Create(tpl).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := tpl.IsActive
+	if err := db.Omit("Breaks").Create(tpl).Error; err != nil {
 		return apperrors.FromGORM(err, "shift_template", "")
+	}
+	if !wantActive {
+		if err := db.Model(tpl).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "shift_template", strconv.FormatUint(tpl.ID, 10))
+		}
+		tpl.IsActive = false
 	}
 	return nil
 }

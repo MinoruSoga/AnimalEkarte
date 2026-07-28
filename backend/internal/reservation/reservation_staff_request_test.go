@@ -3,10 +3,11 @@ package reservation
 import "testing"
 
 func TestCreateReservationStaffRequest_ToServiceInput(t *testing.T) {
+	visible := true
 	req := createReservationStaffRequest{
 		Name:               "Dr. A",
 		StaffType:          "doctor",
-		ReservationVisible: true,
+		ReservationVisible: &visible,
 		ReservationComment: "comment",
 		SortOrder:          3,
 		ExcludedTypeIDs:    []uint64{1, 2},
@@ -22,6 +23,21 @@ func TestCreateReservationStaffRequest_ToServiceInput(t *testing.T) {
 	}
 	if len(input.ExcludedTypeIDs) != 2 {
 		t.Errorf("len(ExcludedTypeIDs) = %d, want 2", len(input.ExcludedTypeIDs))
+	}
+}
+
+func TestCreateReservationStaffRequest_ReservationVisibleOmittedDefaultsTrue(t *testing.T) {
+	req := createReservationStaffRequest{Name: "Dr. A"}
+	if !req.toServiceInput().ReservationVisible {
+		t.Error("omitted reservation_visible must resolve to true")
+	}
+}
+
+func TestCreateReservationStaffRequest_ReservationVisibleFalse(t *testing.T) {
+	visible := false
+	req := createReservationStaffRequest{Name: "Dr. A", ReservationVisible: &visible}
+	if req.toServiceInput().ReservationVisible {
+		t.Error("explicit false must resolve to false")
 	}
 }
 

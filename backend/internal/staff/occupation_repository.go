@@ -103,9 +103,17 @@ func (r *occupationRepository) lockActiveByID(
 }
 
 func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {
-	err := persistence.DBOrTx(ctx, r.db).Create(occupation).Error
-	if err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := occupation.IsActive
+	if err := db.Create(occupation).Error; err != nil {
 		return apperrors.FromGORM(err, "occupation", "")
+	}
+	if !wantActive {
+		if err := db.Model(occupation).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "occupation", fmt.Sprintf("%d", occupation.ID))
+		}
+		occupation.IsActive = false
 	}
 	return nil
 }

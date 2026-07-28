@@ -124,6 +124,34 @@ func TestShiftTemplateRepository_Create(t *testing.T) {
 	assert.NotZero(t, tpl.ID)
 }
 
+// BUG-455-S7: gorm default:true omits zero bools from INSERT.
+func TestShiftTemplateRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupShiftTemplateTestDB(t)
+	repo := NewShiftTemplateRepository(db)
+	ctx := context.Background()
+
+	tpl := &model.ShiftTemplate{
+		ClinicID:  1,
+		Name:      "inactive template",
+		ShiftType: model.ShiftTypeFull,
+		IsActive:  false,
+	}
+	require.NoError(t, repo.Create(ctx, tpl))
+	assert.False(t, tpl.IsActive)
+
+	got, err := repo.FindByID(ctx, 1, tpl.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+
+	var raw bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ShiftTemplate{}).
+		Select("is_active").
+		Where("id = ?", tpl.ID).
+		Scan(&raw).Error)
+	assert.False(t, raw, "raw is_active must be false")
+}
+
 func TestShiftTemplateRepository_Update(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
 	repo := NewShiftTemplateRepository(db)

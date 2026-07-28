@@ -3,10 +3,11 @@ package staff
 import "testing"
 
 func TestCreateOccupationRequest_ToServiceInput(t *testing.T) {
+	active := true
 	req := createOccupationRequest{
 		Name:        "Veterinarian",
 		Description: "Medical staff",
-		IsActive:    true,
+		IsActive:    &active,
 		SortOrder:   2,
 	}
 
@@ -18,11 +19,26 @@ func TestCreateOccupationRequest_ToServiceInput(t *testing.T) {
 	if input.Description != req.Description {
 		t.Fatalf("Description = %q, want %q", input.Description, req.Description)
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = false, want true")
 	}
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
+	}
+}
+
+func TestCreateOccupationRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createOccupationRequest{Name: "x", IsActive: &active}
+	if req.toServiceInput().IsActive {
+		t.Fatal("explicit false must resolve to false")
+	}
+}
+
+func TestCreateOccupationRequest_IsActiveOmitted(t *testing.T) {
+	req := createOccupationRequest{Name: "x"}
+	if !req.toServiceInput().IsActive {
+		t.Fatal("omitted is_active must resolve to true")
 	}
 }
 
