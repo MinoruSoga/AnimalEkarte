@@ -418,11 +418,11 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 // AM=[am_start, boundary) / PM=[boundary, pmEnd) / EMG=[pmEnd, 翌日 am_start) は
 // 連続・非重複で24時間を被覆する（#215: 深夜 0:00〜am_start の会計は前日 EMG に帰属）。
 func resolvePeriodRange(dateJST time.Time, period string, schedule *sharedkernel.DaySchedule) (start, end time.Time, err error) {
-	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
+	boundaryH, boundaryM, parseErr := sharedkernel.ParseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_pm_boundary の形式が正しくありません")
 	}
-	pmEndH, pmEndM, parseErr := parseHHMM(schedule.PmEnd)
+	pmEndH, pmEndM, parseErr := sharedkernel.ParseHHMM(schedule.PmEnd)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("pm_end の形式が正しくありません")
 	}
@@ -431,7 +431,7 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *sharedkernel
 		// migration 011 以前のデータ・旧呼び出し元は既定 09:00 として扱う（#215 後方互換）
 		amStartStr = defaultClosingAmStart
 	}
-	amStartH, amStartM, parseErr := parseHHMM(amStartStr)
+	amStartH, amStartM, parseErr := sharedkernel.ParseHHMM(amStartStr)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start の形式が正しくありません")
 	}
@@ -458,22 +458,6 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *sharedkernel
 	}
 }
 
-// parseHHMM は "HH:MM" または "HH:MM:SS"（PostgreSQL time 型）形式の時刻文字列を時・分に分解する
-func parseHHMM(s string) (h, m int, err error) {
-	// PostgreSQL time 型は "HH:MM:SS" で返るので秒部分を除去する
-	if len(s) == 8 && s[2] == ':' && s[5] == ':' {
-		s = s[:5]
-	}
-	if len(s) != 5 || s[2] != ':' {
-		return 0, 0, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
-	}
-	var hh, mm int
-	_, parseErr := fmt.Sscanf(s, "%d:%d", &hh, &mm)
-	if parseErr != nil {
-		return 0, 0, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
-	}
-	return hh, mm, nil
-}
 
 // findCashMethodID は payment_methods マスタ群から現金マスタ（system_key='cash'）の id を返す（#197）。
 // system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。

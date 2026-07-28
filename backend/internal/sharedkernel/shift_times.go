@@ -1,13 +1,33 @@
 // shift_times.go — シフト時刻の正規化・検証（BE9-2C R②: service/shift_entry_service.go から昇格。
 // staff（shift_entry/shift_template）と reservation（reservation_schedule）の恒久ドメイン跨ぎ）。
+// ParseHHMM は closing/clinic と billing/cash_register の締め時刻パース正本（POC-16 / X-09）。
 package sharedkernel
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// ParseHHMM parses "HH:MM" or PostgreSQL time "HH:MM:SS" into hour and minute (POC-16).
+// Seconds are discarded; invalid formats return invalid input.
+func ParseHHMM(s string) (h, m int, err error) {
+	// PostgreSQL time 型は "HH:MM:SS" で返るので秒部分を除去する
+	if len(s) == 8 && s[2] == ':' && s[5] == ':' {
+		s = s[:5]
+	}
+	if len(s) != 5 || s[2] != ':' {
+		return 0, 0, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
+	}
+	var hh, mm int
+	_, parseErr := fmt.Sscanf(s, "%d:%d", &hh, &mm)
+	if parseErr != nil {
+		return 0, 0, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
+	}
+	return hh, mm, nil
+}
 
 // NormalizeTimeString は HH:MM / HH:MM:SS を HH:MM:SS へ正規化する（不正・空は nil）。
 func NormalizeTimeString(s *string) *string {

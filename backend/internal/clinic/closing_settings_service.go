@@ -268,11 +268,11 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	}
 	result, err := s.periodRepo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		// POC-15: log once at the request boundary with clinic_id/id context.
 		slog.ErrorContext(ctx, "failed to update closing special period",
 			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("id", id),
 			slog.Any("error", err))
-		slog.ErrorContext(ctx, "failed to update special period", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update special period")
 	}
 	slog.InfoContext(ctx, "closing special period updated",
@@ -364,13 +364,13 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 }
 
 func validateSpecialPeriodTimes(boundary, pmEnd string) error {
-	// parseHHMM を使って "HH:MM" / "HH:MM:SS" 混在を正規化してから分単位で比較する。
+	// sharedkernel.ParseHHMM で "HH:MM" / "HH:MM:SS" 混在を正規化してから分単位で比較する。
 	// 文字列比較だと "13:30" < "13:30:00" になり同一時刻を誤って通過させる。
-	bh, bm, err := parseHHMM(boundary)
+	bh, bm, err := sharedkernel.ParseHHMM(boundary)
 	if err != nil {
 		return apperrors.WrapInvalidInput("境界時刻の形式が正しくありません")
 	}
-	ph, pm, err := parseHHMM(pmEnd)
+	ph, pm, err := sharedkernel.ParseHHMM(pmEnd)
 	if err != nil {
 		return apperrors.WrapInvalidInput("PM締め終了時刻の形式が正しくありません")
 	}
@@ -380,20 +380,4 @@ func validateSpecialPeriodTimes(boundary, pmEnd string) error {
 	return nil
 }
 
-// parseHHMM は "HH:MM" を時分へ分解する純関数（billing/cash_register_service.go の同名helperの
-// 複製。clinic domain 移行時に片側へ統合）。
-func parseHHMM(s string) (h, m int, err error) {
-	// PostgreSQL time 型は "HH:MM:SS" で返るので秒部分を除去する
-	if len(s) == 8 && s[2] == ':' && s[5] == ':' {
-		s = s[:5]
-	}
-	if len(s) != 5 || s[2] != ':' {
-		return 0, 0, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
-	}
-	var hh, mm int
-	_, parseErr := fmt.Sscanf(s, "%d:%d", &hh, &mm)
-	if parseErr != nil {
-		return 0, 0, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
-	}
-	return hh, mm, nil
-}
+

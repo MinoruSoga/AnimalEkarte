@@ -1257,7 +1257,7 @@ func TestParseHHMM(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h, m, err := parseHHMM(tt.input)
+			h, m, err := sharedkernel.ParseHHMM(tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
