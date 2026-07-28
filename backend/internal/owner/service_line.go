@@ -3,12 +3,34 @@ package owner
 import (
 	"context"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// lineUserIDPattern: LINE user IDs are opaque tokens; allow alnum + _- only, max 64 (INF-03).
+var lineUserIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+func validateLineUserID(id string) error {
+	trimmed := strings.TrimSpace(id)
+	if trimmed == "" {
+		return apperrors.WrapInvalidInput("LINE User ID is required")
+	}
+	if utf8.RuneCountInString(trimmed) > 64 {
+		return apperrors.WrapInvalidInput("LINE User ID is too long")
+	}
+	if !lineUserIDPattern.MatchString(trimmed) {
+		return apperrors.WrapInvalidInput("LINE User ID contains invalid characters")
+	}
+	if strings.Contains(trimmed, "..") || strings.ContainsAny(trimmed, "?#/") {
+		return apperrors.WrapInvalidInput("LINE User ID contains invalid characters")
+	}
+	return nil
+}
 
 func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string, actorUserID *uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
@@ -16,6 +38,10 @@ func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, 
 	}
 	// Q22 Guard 1: 同一クリニック内で LINE User ID が重複していないか確認する。
 	if lineUserID != nil {
+		// INF-03: reject empty / path-injection-prone IDs before persistence or external API use.
+		if err := validateLineUserID(*lineUserID); err != nil {
+			return err
+		}
 		existing, err := s.repo.FindByLineUserID(ctx, clinicID, *lineUserID)
 		if err != nil && !apperrors.IsNotFound(err) {
 			slog.ErrorContext(ctx, "failed to check line user id uniqueness", "error", err, "id", id, "clinic_id", clinicID)

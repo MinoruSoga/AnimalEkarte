@@ -266,7 +266,8 @@ func (r *updateOwnerRequest) toServiceInput() *UpdateOwnerInput {
 
 // patchOwnerLineUserIDRequest は LINE User ID 連携リクエスト（BE-005）。nil で連携解除。
 type patchOwnerLineUserIDRequest struct {
-	LineUserID *string `json:"line_user_id"`
+	// INF-03: bound length at HTTP boundary; service validates character class.
+	LineUserID *string `json:"line_user_id" binding:"omitempty,max=64"`
 }
 
 // patchOwnerDeliveryExclusionRequest は配信除外フラグ更新リクエスト（FEAT-381）。

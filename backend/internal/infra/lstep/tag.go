@@ -3,6 +3,7 @@ package lstep
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"net/http"
 )
 
@@ -45,7 +46,7 @@ func (c *httpLstepClient) GetUserTags(ctx context.Context, lineUserID string) ([
 	}
 	resp, err := c.doWithRetry(ctx, func() (*http.Response, error) {
 		req, err := c.newRequest(ctx, http.MethodGet,
-			fmt.Sprintf("/contacts/%s/tags", lineUserID), nil)
+			fmt.Sprintf("/contacts/%s/tags", url.PathEscape(lineUserID)), nil)
 		if err != nil {
 			return nil, err
 		}
