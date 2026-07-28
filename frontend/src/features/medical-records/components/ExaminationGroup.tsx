@@ -102,7 +102,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
               {item.inspectionValue || item.result || "-"}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
-              {item.unit}
+              {item.unit || "-"}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
               {item.referenceValue || item.normalValue || "-"}

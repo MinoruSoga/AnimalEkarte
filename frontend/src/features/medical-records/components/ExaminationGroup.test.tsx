@@ -148,6 +148,27 @@ describe("ExaminationGroup", () => {
     expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
 
+  // BUG-456 residual: unit is a single field end-to-end; empty master/persisted
+  // unit must show "-" like ExamItemsTable / ExamPivotTable (parity).
+  it("unit が空のとき単位列に '-' を表示する", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "WBC",
+            inspectionValue: "12.3",
+            unit: "",
+            referenceValue: "5-15",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("WBC")).toBeInTheDocument();
+    expect(screen.getByText("12.3")).toBeInTheDocument();
+    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getByText("5-15")).toBeInTheDocument();
+  });
+
   it("status=high のとき HIGH バッジを表示する", () => {
     renderGroup(
       makeGroup({
