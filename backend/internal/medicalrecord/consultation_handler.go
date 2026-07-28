@@ -1,4 +1,3 @@
-// Package handler provides HTTP handler implementations for Consultation entity.
 package medicalrecord
 
 import (

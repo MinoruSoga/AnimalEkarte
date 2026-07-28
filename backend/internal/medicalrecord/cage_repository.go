@@ -1,4 +1,3 @@
-// Package cage owns cages master data access.
 package medicalrecord
 
 // Moved from internal/repository/cage (BE9-2D ⑥ Batch A roll-up・BE8-4 subpackage)。

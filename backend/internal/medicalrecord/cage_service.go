@@ -1,4 +1,3 @@
-// Package service provides business logic implementations for Cage entity.
 package medicalrecord
 
 import (
