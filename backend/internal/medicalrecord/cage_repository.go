@@ -6,6 +6,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -49,8 +50,17 @@ func (r *cageRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) 
 }
 
 func (r *cageRepositoryImpl) Create(ctx context.Context, cage *model.Cage) error {
-	if err := r.db.WithContext(ctx).Create(cage).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := cage.IsActive
+	if err := db.Create(cage).Error; err != nil {
 		return apperrors.FromGORM(err, "cage", "")
+	}
+	if !wantActive {
+		if err := db.Model(cage).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", cage.ID))
+		}
+		cage.IsActive = false
 	}
 	return nil
 }

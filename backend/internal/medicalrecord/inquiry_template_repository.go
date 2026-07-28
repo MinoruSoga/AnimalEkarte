@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -49,9 +50,16 @@ func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id u
 }
 
 func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
-	err := r.db.WithContext(ctx).Create(template).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := template.IsActive
+	if err := db.Create(template).Error; err != nil {
 		return apperrors.FromGORM(err, "inquiry_template", "")
+	}
+	if !wantActive {
+		if err := db.Model(template).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "inquiry_template", fmt.Sprintf("%d", template.ID))
+		}
+		template.IsActive = false
 	}
 	return nil
 }

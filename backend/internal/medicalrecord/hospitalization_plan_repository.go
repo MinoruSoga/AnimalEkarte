@@ -6,6 +6,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -46,9 +47,16 @@ func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, 
 }
 
 func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
-	err := r.db.WithContext(ctx).Create(plan).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := plan.IsActive
+	if err := db.Create(plan).Error; err != nil {
 		return apperrors.FromGORM(err, "hospitalization_plan", "")
+	}
+	if !wantActive {
+		if err := db.Model(plan).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "hospitalization_plan", fmt.Sprintf("%d", plan.ID))
+		}
+		plan.IsActive = false
 	}
 	return nil
 }

@@ -60,8 +60,16 @@ func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
-	if err := r.db.WithContext(ctx).Create(vaccine).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := vaccine.IsActive
+	if err := db.Create(vaccine).Error; err != nil {
 		return apperrors.FromGORM(err, "vaccine", "")
+	}
+	if !wantActive {
+		if err := db.Model(vaccine).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", vaccine.ID))
+		}
+		vaccine.IsActive = false
 	}
 	return nil
 }

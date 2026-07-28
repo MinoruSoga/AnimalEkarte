@@ -64,9 +64,16 @@ func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uin
 }
 
 func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.DiagnosisType) error {
-	err := r.db.WithContext(ctx).Create(category).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := category.IsActive
+	if err := db.Create(category).Error; err != nil {
 		return apperrors.FromGORM(err, "diagnosis_type", "")
+	}
+	if !wantActive {
+		if err := db.Model(category).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "diagnosis_type", fmt.Sprintf("%d", category.ID))
+		}
+		category.IsActive = false
 	}
 	return nil
 }

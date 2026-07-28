@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -47,9 +48,16 @@ func (r *chiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, i
 }
 
 func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
-	err := r.db.WithContext(ctx).Create(category).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := category.IsActive
+	if err := db.Create(category).Error; err != nil {
 		return apperrors.FromGORM(err, "chief_complaint_type", "")
+	}
+	if !wantActive {
+		if err := db.Model(category).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "chief_complaint_type", fmt.Sprintf("%d", category.ID))
+		}
+		category.IsActive = false
 	}
 	return nil
 }

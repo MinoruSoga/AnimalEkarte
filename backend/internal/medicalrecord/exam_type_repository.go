@@ -73,9 +73,16 @@ func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 }
 
 func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
-	err := r.db.WithContext(ctx).Create(exType).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := exType.IsActive
+	if err := db.Create(exType).Error; err != nil {
 		return apperrors.FromGORM(err, "examination_type", "")
+	}
+	if !wantActive {
+		if err := db.Model(exType).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", exType.ID))
+		}
+		exType.IsActive = false
 	}
 	return nil
 }

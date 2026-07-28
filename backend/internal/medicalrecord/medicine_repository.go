@@ -6,6 +6,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -89,9 +90,18 @@ func (r *medicineRepository) CountChildrenByParentID(ctx context.Context, clinic
 }
 
 func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
-	err := persistence.DBOrTx(ctx, r.db).Create(medicine).Error
-	if err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	// Use same DBOrTx handle so compensation stays inside ambient multi-write tx.
+	wantActive := medicine.IsActive
+	if err := db.Create(medicine).Error; err != nil {
 		return apperrors.FromGORM(err, "medicine", "")
+	}
+	if !wantActive {
+		if err := db.Model(medicine).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", medicine.ID))
+		}
+		medicine.IsActive = false
 	}
 	return nil
 }

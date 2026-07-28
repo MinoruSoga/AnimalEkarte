@@ -48,9 +48,16 @@ func (r *consultationRepositoryImpl) FindByID(ctx context.Context, clinicID, id 
 }
 
 func (r *consultationRepositoryImpl) Create(ctx context.Context, consultation *model.Consultation) error {
-	err := r.db.WithContext(ctx).Create(consultation).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := consultation.IsActive
+	if err := db.Create(consultation).Error; err != nil {
 		return apperrors.FromGORM(err, "consultation", "")
+	}
+	if !wantActive {
+		if err := db.Model(consultation).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", consultation.ID))
+		}
+		consultation.IsActive = false
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -47,9 +48,16 @@ func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint6
 }
 
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	err := r.db.WithContext(ctx).Create(checkupType).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := checkupType.IsActive
+	if err := db.Create(checkupType).Error; err != nil {
 		return apperrors.FromGORM(err, "checkup_type", "")
+	}
+	if !wantActive {
+		if err := db.Model(checkupType).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", checkupType.ID))
+		}
+		checkupType.IsActive = false
 	}
 	return nil
 }

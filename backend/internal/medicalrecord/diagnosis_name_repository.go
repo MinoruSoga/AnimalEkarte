@@ -92,9 +92,16 @@ func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uin
 }
 
 func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.DiagnosisName) error {
-	err := r.db.WithContext(ctx).Create(name).Error
-	if err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := name.IsActive
+	if err := db.Create(name).Error; err != nil {
 		return apperrors.FromGORM(err, "diagnosis_name", "")
+	}
+	if !wantActive {
+		if err := db.Model(name).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "diagnosis_name", fmt.Sprintf("%d", name.ID))
+		}
+		name.IsActive = false
 	}
 	return nil
 }

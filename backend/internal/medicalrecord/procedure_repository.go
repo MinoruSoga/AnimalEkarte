@@ -47,8 +47,16 @@ func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uin
 }
 
 func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.Procedure) error {
-	if err := r.db.WithContext(ctx).Create(procedure).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	wantActive := procedure.IsActive
+	if err := db.Create(procedure).Error; err != nil {
 		return apperrors.FromGORM(err, "procedure", "")
+	}
+	if !wantActive {
+		if err := db.Model(procedure).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", procedure.ID))
+		}
+		procedure.IsActive = false
 	}
 	return nil
 }
