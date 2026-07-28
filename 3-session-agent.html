@@ -1143,8 +1143,8 @@ rm -f -- "$FE12_COOKIE_JAR"</code></pre></details>
 <section class="task" id="TASK-462">
 <h3>TASK-462: tygo pointer mapping 15行を削除してUSER codegenへ引き渡す</h3>
 <ul>
-  <li><b>状態: Grok phase 完了（2026-07-28・<code>fdbe77ef0</code>）／残 = USER codegen。</b> 3 package×5 mappingは生成物への寄与0が実測済み。<code>backend/tygo.yaml</code> から15行を削除（89-93→60-64→31-35の順）。coordinator実測で <code>grep -c '"\*'</code> = 0、package block = 3維持、生成物3本と <code>frontend/line-reserve/src/types/models.ts</code> control は無変更、commitは1 file/15 deletionsのみを確認済み。
-    <br><b>USER手動（本entryのクローズ条件）</b>: ① <code>make codegen</code> ② <code>git diff --exit-code -- frontend/src/types/generated/</code> ③ <code>git diff --exit-code -- frontend/line-reserve/src/types/models.ts</code>。<b>いずれも exit 0・差分なしが期待値</b>（pointer mappingがno-opであることの最終確認）。差分が出たら前提が誤りであり、各blockの <code>"uint": "number"</code> 直後へ同じ5行を同じ順・indentで再挿入してロールバックする。<b>生成TSを手修正して差分0にしてはならない。</b></li>
+  <li><b>状態: CLOSED（2026-07-28・<code>fdbe77ef0</code>・USER codegen gate 通過）。</b> 3 package×5 mappingは生成物への寄与0が実測で確定した。<code>backend/tygo.yaml</code> から15行を削除（89-93→60-64→31-35の順）。coordinator実測で <code>grep -c '"\*'</code> = 0、package block = 3維持、commitは1 file/15 deletionsのみ。
+    <br><b>USER gate 実行結果（2026-07-28 14:35・PASS）</b>: <code>make codegen</code> 正常終了。<code>git diff --exit-code -- frontend/src/types/generated/</code> と <code>git diff --exit-code -- frontend/line-reserve/src/types/models.ts</code> はいずれも exit 0・出力なし。<b>差分ゼロが空振りでないことも確認済み</b>——生成3本（<code>models.ts</code> / <code>auth-responses.ts</code> / <code>trimming-responses.ts</code>）の mtime が実行時刻 <code>14:35:22</code> へ更新されており、tygoが実際に再生成した上でbyte-identicalだった。<code>frontend/line-reserve/src/types/models.ts</code> は mtime <code>Jul 21</code> のままで、非生成controlとして無変更。ロールバック不要。</li>
   <li><b>着手プラン</b>:
     <ul>
       <li><b>ファイル allowlist</b>: <code>backend/tygo.yaml</code> 1本だけ。他のpath、特にgenerated TypeScriptを触ったらFAIL。</li>
