@@ -91,6 +91,7 @@ type billingItemBillingReference struct {
 	MedicalRecordID *uint64
 	OwnerID         *uint64
 	PetID           *uint64
+	Status          model.BillingStatus
 }
 
 type billingItemMedicalRecordReference struct {
@@ -145,11 +146,16 @@ func (r *billingItemRepository) ValidateCreateReferences(
 	var billingRef billingItemBillingReference
 	if err := tx.
 		Table("billings").
-		Select("medical_record_id", "owner_id", "pet_id").
+		Select("medical_record_id", "owner_id", "pet_id", "status").
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Take(&billingRef).Error; err != nil {
 		return "", apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+	}
+	// BUG-463: defense in depth — finalized billings must not accept new items.
+	if billingRef.Status == model.BillingStatusCompleted ||
+		billingRef.Status == model.BillingStatusCancelled {
+		return "", apperrors.WrapConflict("確定済みまたは取消済みの会計明細は登録できません")
 	}
 
 	var merchandiseRef billingItemMerchandiseReference
@@ -566,9 +572,12 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+	// BUG-463: exclude completed/cancelled so totals cannot be rewritten after finalization
+	// even if a caller bypasses service-level status guards.
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Billing{}).
-		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", billingID).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status NOT IN (?, ?)", billingID, model.BillingStatusCompleted, model.BillingStatusCancelled).
 		Updates(map[string]any{
 			"subtotal":     subtotal,
 			"tax_total":    taxTotal,
@@ -577,8 +586,23 @@ func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicI
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
-	// P2: RowsAffected == 0 は clinic scope 外 or soft-delete の可能性（NOT FOUND）
 	if result.RowsAffected == 0 {
+		// Distinguish finalized (Conflict) from missing/out-of-scope (NotFound).
+		var row struct {
+			Status model.BillingStatus
+		}
+		err := persistence.DBOrTx(ctx, r.db).
+			Model(&model.Billing{}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Select("status").
+			Where("id = ?", billingID).
+			Take(&row).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+		}
+		if row.Status == model.BillingStatusCompleted || row.Status == model.BillingStatusCancelled {
+			return apperrors.WrapConflict("確定済みまたは取消済みの会計合計は更新できません")
+		}
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
 	return nil

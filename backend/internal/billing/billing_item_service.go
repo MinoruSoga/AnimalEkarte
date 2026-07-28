@@ -3,6 +3,7 @@ package billing
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -51,6 +52,10 @@ type CreateBillingItemInput struct {
 	TrimmingOptionID      *uint64
 	MerchandiseItemID     *uint64 // #81: 個別商品指定によるキャンペーンマッチング
 	SortOrder             int
+	// #115 / BUG-463: 締め後編集（handler がレジ締め済み判定を注入）
+	StaffID         *uint64
+	PostCloseReason *string
+	IsPostClose     bool
 }
 
 // UpdateBillingItemInput は billing_item 更新の入力DTO（nil = 未指定）
@@ -62,6 +67,10 @@ type UpdateBillingItemInput struct {
 	TaxType               *model.TaxType
 	TaxRate               *float64
 	IsInsuranceApplicable *bool
+	// #115 / BUG-463: 締め後編集（handler がレジ締め済み判定を注入）
+	StaffID         *uint64
+	PostCloseReason *string
+	IsPostClose     bool
 }
 
 func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
@@ -181,6 +190,10 @@ type BillingItemService interface {
 	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
 	// campaignRepo 未配線の場合は飼主割引のみ。
 	GetDiscountSuggestions(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
+	// GetBilling は締め後編集判定用に請求ヘッダを返す（handler が ScheduledDate を参照）。
+	GetBilling(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error)
+	// GetBillingForItem は明細 ID から親請求ヘッダを返す（締め後編集判定用）。
+	GetBillingForItem(ctx context.Context, clinicID, itemID uint64) (*model.Billing, error)
 }
 
 // UngroupedSameDaySummary は #77 取り残し警告用の未会計対象化件数サマリ。
@@ -198,6 +211,7 @@ type billingItemService struct {
 	trimmingOptionRepo trimmingOptionFinder // X-4: クロステナント write 防止用の所有権検証
 	campaignRepo       CampaignRepository   // #81 段階2b: nil の場合は自動割引なし
 	ownerRepo          billingOwnerReader   // #81 段階2b: 飼主割引取得用
+	auditTx            billingAuditTxLogger // #115 / BUG-463: 締め後編集 fail-closed 監査
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -208,9 +222,42 @@ type ungroupedTrimmingCounter interface {
 	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
+// billingItemServiceOption は BillingItemService 構築時の任意依存注入。
+type billingItemServiceOption func(*billingItemService)
+
+// WithBillingItemAuditTx は締め後編集の fail-closed 監査 logger を配線する（#115 / BUG-463）。
+func WithBillingItemAuditTx(auditTx billingAuditTxLogger) billingItemServiceOption {
+	return func(s *billingItemService) {
+		s.auditTx = auditTx
+	}
+}
+
 // NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
-func NewBillingItemServiceWithCampaign(repo BillingItemRepository, billingRepo accountingBillingView, treatmentRepo treatmentBillingReader, transactor Transactor, trimmingCourseRepo trimmingCourseFinder, trimmingOptionRepo trimmingOptionFinder, campaignRepo CampaignRepository, ownerRepo billingOwnerReader) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
+func NewBillingItemServiceWithCampaign(repo BillingItemRepository, billingRepo accountingBillingView, treatmentRepo treatmentBillingReader, transactor Transactor, trimmingCourseRepo trimmingCourseFinder, trimmingOptionRepo trimmingOptionFinder, campaignRepo CampaignRepository, ownerRepo billingOwnerReader, opts ...billingItemServiceOption) BillingItemService {
+	s := &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// rejectIfBillingFinalized は確定/取消済み会計への明細変更を Conflict で拒否する（BUG-463 / DeleteItem と同型）。
+func rejectIfBillingFinalized(billing *model.Billing, action string) error {
+	if billing == nil {
+		return apperrors.WrapInternalServerError("locked billing is nil")
+	}
+	if billing.Status == model.BillingStatusCompleted ||
+		billing.Status == model.BillingStatusCancelled {
+		return apperrors.WrapConflict(fmt.Sprintf("確定済みまたは取消済みの会計明細は%sできません", action))
+	}
+	return nil
+}
+
+func requirePostCloseReason(isPostClose bool, reason *string) error {
+	if isPostClose && (reason == nil || *reason == "") {
+		return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+	}
+	return nil
 }
 
 // validateBillingItemOwnership は billing および trimming マスタFKのテナント所有権を検証する。
@@ -283,6 +330,10 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	if err := validateCreateBillingItemInput(input); err != nil {
 		return nil, err
 	}
+	// #115 / BUG-463: 締め後編集は理由必須（handler 迂回経路にも強制）
+	if err := requirePostCloseReason(input.IsPostClose, input.PostCloseReason); err != nil {
+		return nil, err
+	}
 	if err := s.validateBillingItemOwnership(ctx, input); err != nil {
 		return nil, err
 	}
@@ -313,6 +364,16 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// BUG-463: lock parent billing and reject finalized status before any mutation
+		// (same guard as DeleteItem; ValidateCreateReferences also checks status).
+		billing, err := s.billingRepo.LockAndFindByID(txCtx, input.ClinicID, input.BillingID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock billing before creating item")
+		}
+		if err := rejectIfBillingFinalized(billing, "登録"); err != nil {
+			return err
+		}
+
 		category, err := s.repo.ValidateCreateReferences(
 			txCtx,
 			input.ClinicID,
@@ -388,6 +449,12 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
+		if input.IsPostClose {
+			if err := s.logBillingItemPostCloseEdit(txCtx, input.ClinicID, input.BillingID, &item.ID, input.StaffID, input.PostCloseReason, "create"); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create billing item in transaction")
@@ -402,6 +469,13 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 }
 
 func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("請求明細の更新内容は必須です")
+	}
+	// #115 / BUG-463: 締め後編集は理由必須（handler 迂回経路にも強制）
+	if err := requirePostCloseReason(input.IsPostClose, input.PostCloseReason); err != nil {
+		return nil, err
+	}
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get billing item", "error", err)
@@ -421,6 +495,15 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 
 	var updated *model.BillingItem
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// BUG-463: lock parent billing and reject finalized status before any mutation
+		billing, err := s.billingRepo.LockAndFindByID(txCtx, clinicID, item.BillingID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock billing before updating item")
+		}
+		if err := rejectIfBillingFinalized(billing, "更新"); err != nil {
+			return err
+		}
+
 		if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to update billing item", "error", err)
 			return apperrors.Wrap(err, "failed to update billing item")
@@ -434,12 +517,18 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
+		if input.IsPostClose {
+			itemID := id
+			if err := s.logBillingItemPostCloseEdit(txCtx, clinicID, item.BillingID, &itemID, input.StaffID, input.PostCloseReason, "update"); err != nil {
+				return err
+			}
+		}
+
 		slog.InfoContext(txCtx, "billing item updated",
 			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("item_id", id),
 			slog.Uint64("billing_id", item.BillingID),
 		)
-		var err error
 		updated, err = s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to get billing item after update", "error", err)
@@ -465,12 +554,8 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock billing before deleting item")
 		}
-		if billing == nil {
-			return apperrors.WrapInternalServerError("locked billing is nil")
-		}
-		if billing.Status == model.BillingStatusCompleted ||
-			billing.Status == model.BillingStatusCancelled {
-			return apperrors.WrapConflict("確定済みまたは取消済みの会計明細は削除できません")
+		if err := rejectIfBillingFinalized(billing, "削除"); err != nil {
+			return err
 		}
 
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
@@ -598,6 +683,65 @@ func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, bi
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
 	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
 		return apperrors.Wrap(err, "failed to update billing totals")
+	}
+	return nil
+}
+
+// GetBilling は締め後編集判定用に請求ヘッダを返す。
+func (s *billingItemService) GetBilling(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error) {
+	billing, err := s.billingRepo.FindByID(ctx, clinicID, billingID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find billing")
+	}
+	return billing, nil
+}
+
+// GetBillingForItem は明細 ID から親請求ヘッダを返す。
+func (s *billingItemService) GetBillingForItem(ctx context.Context, clinicID, itemID uint64) (*model.Billing, error) {
+	item, err := s.repo.FindByID(ctx, clinicID, itemID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find billing item")
+	}
+	billing, err := s.billingRepo.FindByID(ctx, clinicID, item.BillingID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find billing")
+	}
+	return billing, nil
+}
+
+// logBillingItemPostCloseEdit はレジ締め済み期間の明細編集監査ログを記録する（#115 / BUG-463）。
+// ambient tx に参加する LogEntryTx を使い、監査失敗時は明細変更ごとロールバックする（fail-closed）。
+func (s *billingItemService) logBillingItemPostCloseEdit(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	itemID *uint64,
+	staffID *uint64,
+	reason *string,
+	operation string,
+) error {
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("billing audit dependency is required for post-close edits")
+	}
+	meta := map[string]any{
+		"billing_id": billingID,
+		"operation":  operation,
+	}
+	if itemID != nil {
+		meta["item_id"] = *itemID
+	}
+	if reason != nil {
+		meta["reason"] = *reason
+	}
+	if err := s.auditTx.LogEntryTx(ctx, &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    staffID,
+		ActorType:  sharedkernel.AuditActorTypeFor(staffID),
+		Action:     model.AuditActionBillingPostCloseEdit,
+		Resource:   "billing_item",
+		ResourceID: itemID,
+		Metadata:   meta,
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to write post_close_edit audit log")
 	}
 	return nil
 }

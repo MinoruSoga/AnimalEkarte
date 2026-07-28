@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,17 +11,36 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// errHandlerAlreadyResponded は ExtractStaffID 等が既にレスポンスを書いたことを示す。
+// 呼び出し元は RespondError せず return する。
+var errHandlerAlreadyResponded = errors.New("handler already responded")
 
 // BillingItemHandler は BillingItemService の HTTP handler。
 type BillingItemHandler struct {
 	svc               BillingItemService
+	cashRegister      cashRegisterCloseChecker
+	hasPermission     httpapi.PermissionChecker
 	requirePermission PermissionMiddleware
 }
 
 // NewBillingItemHandler は BillingItemHandler を構築する。
-func NewBillingItemHandler(svc BillingItemService, requirePermission PermissionMiddleware) *BillingItemHandler {
-	return &BillingItemHandler{svc: svc, requirePermission: requirePermission}
+// cashRegister / hasPermission は締め後編集ゲート（#115 / BUG-463）用。テストでは nil 可
+// （nil の場合は締め済み判定をスキップし IsPostClose=false として扱う）。
+func NewBillingItemHandler(
+	svc BillingItemService,
+	cashRegister cashRegisterCloseChecker,
+	hasPermission httpapi.PermissionChecker,
+	requirePermission PermissionMiddleware,
+) *BillingItemHandler {
+	return &BillingItemHandler{
+		svc:               svc,
+		cashRegister:      cashRegister,
+		hasPermission:     hasPermission,
+		requirePermission: requirePermission,
+	}
 }
 
 // CreateBillingItem godoc
@@ -38,6 +58,16 @@ func (h *BillingItemHandler) CreateBillingItem(c *gin.Context) {
 
 	input := req.toServiceInput(clinicID)
 	input.CreatedBy = httpapi.OptionalStaffID(c)
+	input.StaffID = input.CreatedBy
+
+	// #115 / BUG-463: レジ締め済み期間の明細登録は post-close 権限 + 理由必須
+	if err := h.applyPostCloseFlags(c, clinicID, req.BillingID, 0, &input.IsPostClose, &input.PostCloseReason, &input.StaffID, req.PostCloseReason); err != nil {
+		if !errors.Is(err, errHandlerAlreadyResponded) {
+			httpapi.RespondError(c, err)
+		}
+		return
+	}
+
 	item, err := h.svc.CreateItem(c.Request.Context(), input)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -70,6 +100,15 @@ func (h *BillingItemHandler) UpdateBillingItem(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	input.StaffID = httpapi.OptionalStaffID(c)
+
+	// #115 / BUG-463: レジ締め済み期間の明細更新は post-close 権限 + 理由必須
+	if err := h.applyPostCloseFlags(c, clinicID, 0, id, &input.IsPostClose, &input.PostCloseReason, &input.StaffID, req.PostCloseReason); err != nil {
+		if !errors.Is(err, errHandlerAlreadyResponded) {
+			httpapi.RespondError(c, err)
+		}
+		return
+	}
 
 	item, err := h.svc.UpdateItem(c.Request.Context(), clinicID, id, input)
 	if err != nil {
@@ -77,6 +116,63 @@ func (h *BillingItemHandler) UpdateBillingItem(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, ToBillingItemResponse(item))
+}
+
+// applyPostCloseFlags は親請求の予定日がレジ締め済みかを判定し、権限チェックと IsPostClose 注入を行う。
+// billingID > 0 のとき create 経路、itemID > 0 のとき update 経路。
+// cashRegister 未配線時は判定をスキップ（テスト互換）。
+func (h *BillingItemHandler) applyPostCloseFlags(
+	c *gin.Context,
+	clinicID, billingID, itemID uint64,
+	isPostClose *bool,
+	postCloseReason **string,
+	staffID **uint64,
+	requestReason *string,
+) error {
+	*postCloseReason = requestReason
+	if h.cashRegister == nil {
+		return nil
+	}
+
+	ctx := c.Request.Context()
+	var billing *model.Billing
+	var err error
+	switch {
+	case billingID > 0:
+		billing, err = h.svc.GetBilling(ctx, clinicID, billingID)
+	case itemID > 0:
+		billing, err = h.svc.GetBillingForItem(ctx, clinicID, itemID)
+	default:
+		return apperrors.WrapInternalServerError("post-close resolution requires billing or item id")
+	}
+	if err != nil {
+		return err
+	}
+	if billing == nil {
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
+	}
+
+	closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)
+	if err != nil {
+		return err
+	}
+	if !closed {
+		return nil
+	}
+
+	if h.hasPermission == nil || !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+		return apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です")
+	}
+	// 監査 actor 用に staff を必須化（Optional で取れない場合は Extract で応答済み）
+	if staffID == nil || *staffID == nil {
+		id, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return errHandlerAlreadyResponded
+		}
+		*staffID = &id
+	}
+	*isPostClose = true
+	return nil
 }
 
 // DeleteBillingItem godoc

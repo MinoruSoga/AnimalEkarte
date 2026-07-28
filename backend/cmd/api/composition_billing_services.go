@@ -40,6 +40,7 @@ func newBillingCoreServices(
 			d.TrimmingOptions,
 			r.campaigns,
 			d.Owners,
+			billing.WithBillingItemAuditTx(auditTx),
 		),
 		insurance: billing.NewInsuranceService(r.insurance),
 		cashRegister: billing.NewCashRegisterService(

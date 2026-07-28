@@ -53,6 +53,8 @@ type createBillingItemRequest struct {
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	SortOrder             int     `json:"sort_order"`
+	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
+	PostCloseReason *string `json:"post_close_reason"`
 }
 
 // updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
@@ -64,6 +66,8 @@ type updateBillingItemRequest struct {
 	TaxType               *string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
+	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
+	PostCloseReason *string `json:"post_close_reason"`
 }
 
 func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillingItemInput {
@@ -88,6 +92,7 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillin
 		TrimmingOptionID:      r.TrimmingOptionID,
 		MerchandiseItemID:     r.MerchandiseItemID,
 		SortOrder:             r.SortOrder,
+		PostCloseReason:       r.PostCloseReason,
 	}
 }
 
@@ -109,6 +114,7 @@ func (r updateBillingItemRequest) toServiceInput() (*UpdateBillingItemInput, err
 		TaxType:               taxType,
 		TaxRate:               r.TaxRate,
 		IsInsuranceApplicable: r.IsInsuranceApplicable,
+		PostCloseReason:       r.PostCloseReason,
 	}, nil
 }
 

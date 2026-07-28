@@ -74,7 +74,7 @@ func (c billingComposition) newHandler(
 		billing.NewPaymentMethodMasterHandler(s.references.paymentMethods),
 		billing.NewEstimateHandler(s.documents.estimates, hasPermission),
 		billing.NewBillingConfirmationHandler(s.documents.confirmations, requirePermission),
-		billing.NewBillingItemHandler(s.core.billingItems, requirePermission),
+		billing.NewBillingItemHandler(s.core.billingItems, s.core.cashRegister, hasPermission, requirePermission),
 		billing.NewRefundHandler(s.documents.refunds, requirePermission),
 		billing.NewAccountingHandler(s.core.accounting, s.core.cashRegister, hasPermission),
 		billing.NewCashRegisterHandler(s.core.cashRegister, requirePermission),

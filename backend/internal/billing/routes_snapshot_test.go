@@ -35,7 +35,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewPaymentMethodMasterHandler(nil),
 		NewEstimateHandler(nil, func(_ *gin.Context, _, _ string) bool { return true }),
 		NewBillingConfirmationHandler(nil, noopPermission),
-		NewBillingItemHandler(nil, noopPermission),
+		NewBillingItemHandler(nil, nil, nil, noopPermission),
 		NewRefundHandler(nil, noopPermission),
 		NewAccountingHandler(nil, nil, func(_ *gin.Context, _, _ string) bool { return true }),
 		NewCashRegisterHandler(nil, noopPermission),

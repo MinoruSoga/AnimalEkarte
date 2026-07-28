@@ -32,6 +32,8 @@ type mockBillingItemService struct {
 	getUnbilledItemsFn           func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
+	getBillingFn                 func(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error)
+	getBillingForItemFn          func(ctx context.Context, clinicID, itemID uint64) (*model.Billing, error)
 }
 
 func (m *mockBillingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -58,8 +60,22 @@ func (m *mockBillingItemService) GetDiscountSuggestions(ctx context.Context, cli
 	return m.getDiscountSuggestionsFn(ctx, clinicID, itemID)
 }
 
+func (m *mockBillingItemService) GetBilling(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error) {
+	if m.getBillingFn != nil {
+		return m.getBillingFn(ctx, clinicID, billingID)
+	}
+	return &model.Billing{ID: billingID, ClinicID: clinicID}, nil
+}
+
+func (m *mockBillingItemService) GetBillingForItem(ctx context.Context, clinicID, itemID uint64) (*model.Billing, error) {
+	if m.getBillingForItemFn != nil {
+		return m.getBillingForItemFn(ctx, clinicID, itemID)
+	}
+	return &model.Billing{ID: 10, ClinicID: clinicID}, nil
+}
+
 func newHandlerWithBillingItemSvc(svc BillingItemService) *BillingItemHandler {
-	return NewBillingItemHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
+	return NewBillingItemHandler(svc, nil, nil, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 // ---- CreateBillingItem ----
