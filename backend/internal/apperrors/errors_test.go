@@ -206,14 +206,23 @@ func TestFromGORM(t *testing.T) {
 	})
 
 	t.Run("maps encode error to WrapInvalidInput", func(t *testing.T) {
-		err1 := FromGORM(errors.New("unable to encode something"), "pet", "123")
-		assert.True(t, IsInvalidInput(err1))
+		assert.Equal(t, []string{
+			"unable to encode",
+			"greater than maximum value",
+			"less than minimum value",
+		}, pgxEncodeRangeNeedles)
 
-		err2 := FromGORM(errors.New("value greater than maximum value"), "pet", "123")
-		assert.True(t, IsInvalidInput(err2))
+		for _, needle := range pgxEncodeRangeNeedles {
+			err := FromGORM(errors.New("driver: "+needle+" for column"), "pet", "123")
+			assert.True(t, IsInvalidInput(err), "needle %q", needle)
+			assert.Contains(t, err.Error(), "数値が範囲外です")
+		}
+	})
 
-		err3 := FromGORM(errors.New("value less than minimum value"), "pet", "123")
-		assert.True(t, IsInvalidInput(err3))
+	t.Run("does not classify unrelated messages as encode range", func(t *testing.T) {
+		err := FromGORM(errors.New("connection reset by peer"), "pet", "123")
+		assert.False(t, IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "database error")
 	})
 
 	t.Run("maps pgconn.PgError unique_violation to WrapAlreadyExists", func(t *testing.T) {

@@ -194,3 +194,20 @@ func FromGORM(err error, resource, id string) error {
 	// BUG-129: リソース名は内部ログ用。ユーザーには汎化メッセージを返す
 	return Wrap(err, "database error")
 }
+
+// pgxEncodeRangeNeedles are the only message fragments FromGORM may use for
+// encode/range classification (DEC-34 exception; no typed pgx encode error).
+var pgxEncodeRangeNeedles = []string{
+	"unable to encode",
+	"greater than maximum value",
+	"less than minimum value",
+}
+
+func isPgxEncodeRangeMessage(errMsg string) bool {
+	for _, needle := range pgxEncodeRangeNeedles {
+		if strings.Contains(errMsg, needle) {
+			return true
+		}
+	}
+	return false
+}
