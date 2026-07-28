@@ -1,9 +1,58 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import react from "eslint-plugin-react";
+
+// TASK-444-S1: frozen residual importers of @/types/generated/models.
+// ESLint flat config does not deep-merge no-restricted-imports options — later
+// matching blocks fully replace earlier ones. The models boundary therefore
+// re-states the FE7-0 deep-import / layer-inversion patterns for non-allowlisted
+// files only (allowlisted files keep the earlier blocks unchanged).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const generatedModelsImportAllowlist = JSON.parse(
+  readFileSync(
+    path.join(__dirname, "generated-models-import-allowlist.json"),
+    "utf8",
+  ),
+);
+
+const deepImportRestrictedPattern = {
+  regex: "^@/features/(?!auth/provider$)[^/]+/.+$",
+  caseSensitive: true,
+  message:
+    "feature の外からは @/features/<name>（index.ts）経由で import する。feature 内部は相対 import を使うこと。deep import は禁止。",
+};
+
+const layerInversionRestrictedPattern = {
+  group: ["@/features", "@/features/**"],
+  message:
+    "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
+};
+
+const generatedModelsBoundaryMessage =
+  "TASK-444-S1: @/types/generated/models は Go ドメインモデル由来で HTTP wire 応答型ではない（BUG-431/BUG-433）。新規 import 禁止。既存利用は generated-models-import-allowlist.json に凍結。応答型は domain 別 generated/*-responses または専用 DTO を使うこと（TASK-444-S2）。";
+
+// paths.name matches the written specifier only — relative `./generated/models`
+// (and similar) would bypass a paths-only ban. Pair exact alias path with a
+// regex that catches any import path ending at generated/models.
+const generatedModelsPathRestriction = {
+  name: "@/types/generated/models",
+  message: generatedModelsBoundaryMessage,
+};
+
+const generatedModelsRelativeImportPattern = {
+  // Relative only (./generated/models, ../types/generated/models, …).
+  // Alias `@/types/generated/models` is covered by paths above — exclude `@`
+  // so an alias import does not emit two identical TASK-444-S1 errors.
+  regex: "^\\.{1,2}/(?:[\\w.@-]+/)*generated/models(?:\\.ts)?$",
+  caseSensitive: true,
+  message: generatedModelsBoundaryMessage,
+};
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "src/types/generated/**"] },
@@ -91,14 +140,7 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
-            {
-              regex: "^@/features/(?!auth/provider$)[^/]+/.+$",
-              caseSensitive: true,
-              message:
-                "feature の外からは @/features/<name>（index.ts）経由で import する。feature 内部は相対 import を使うこと。deep import は禁止。",
-            },
-          ],
+          patterns: [deepImportRestrictedPattern],
         },
       ],
     },
@@ -111,13 +153,7 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
-            {
-              group: ["@/features", "@/features/**"],
-              message:
-                "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
-            },
-          ],
+          patterns: [layerInversionRestrictedPattern],
         },
       ],
     },
@@ -136,6 +172,52 @@ export default tseslint.config(
               message:
                 "liff/line-reserve から frontend の @/features への import は禁止（アプリ境界）。共有が必要なら shared-liff 経由にすること。",
             },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // TASK-444-S1: block new @/types/generated/models imports outside the frozen
+    // allowlist. Non-layer src files only — re-state deep-import so this later
+    // no-restricted-imports block does not weaken FE7-0.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      ...generatedModelsImportAllowlist,
+      "src/components/**",
+      "src/hooks/**",
+      "src/lib/**",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [generatedModelsPathRestriction],
+          patterns: [
+            deepImportRestrictedPattern,
+            generatedModelsRelativeImportPattern,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // TASK-444-S1: same models freeze for components/hooks/lib, re-stating the
+    // layer-inversion boundary (flat config replaces, does not merge, rule options).
+    files: [
+      "src/components/**/*.{ts,tsx}",
+      "src/hooks/**/*.{ts,tsx}",
+      "src/lib/**/*.{ts,tsx}",
+    ],
+    ignores: generatedModelsImportAllowlist,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [generatedModelsPathRestriction],
+          patterns: [
+            layerInversionRestrictedPattern,
+            generatedModelsRelativeImportPattern,
           ],
         },
       ],
