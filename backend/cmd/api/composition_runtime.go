@@ -481,6 +481,11 @@ func (c runtimeComposition) registerRoutes(
 	if err != nil {
 		return err
 	}
+	// POC-12 / TRM-03 / X-07: unified body size on the authenticated API surface.
+	// Global SanitizeNullBytes already caps raw bytes; this re-applies the same
+	// ceiling on protected routes so packages without per-handler MaxBytesReader
+	// (pet/owner/clinic/trimming/manualarticle) stay bounded.
+	protected.Use(middleware.LimitRequestBody(middleware.DefaultJSONBodyMaxBytes))
 	c.auth.Handler.RegisterPermissionGroupRoutes(
 		protected.Group("/masters"),
 	)

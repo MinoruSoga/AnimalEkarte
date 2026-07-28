@@ -1,7 +1,10 @@
 package manualarticle
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -24,5 +27,20 @@ func TestUpsertManualArticleRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.BodyMarkdown != req.BodyMarkdown {
 		t.Errorf("BodyMarkdown = %q, want %q", input.BodyMarkdown, req.BodyMarkdown)
+	}
+}
+
+func TestUpsertManualArticleRequest_BindingLimits(t *testing.T) {
+	ok := UpsertManualArticleRequest{
+		Title: "Title", Section: "section", BodyMarkdown: "# Body",
+	}
+	if err := binding.Validator.ValidateStruct(ok); err != nil {
+		t.Fatalf("valid request rejected: %v", err)
+	}
+	tooLongTitle := UpsertManualArticleRequest{
+		Title: string(bytes.Repeat([]byte("a"), 256)), Section: "s", BodyMarkdown: "b",
+	}
+	if err := binding.Validator.ValidateStruct(tooLongTitle); err == nil {
+		t.Fatal("expected max title error")
 	}
 }

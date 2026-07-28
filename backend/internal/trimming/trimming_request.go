@@ -67,15 +67,15 @@ type createTrimmingRequest struct {
 	ReservationRoute  string     `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
-	StyleRequest   string   `json:"style_request"`
+	StyleRequest   string   `json:"style_request" binding:"omitempty,max=2000"`
 	BW             *float64 `json:"bw"`
-	BWUnit         string   `json:"bw_unit"`
+	BWUnit         string   `json:"bw_unit" binding:"omitempty,oneof=Kg g"`
 	BT             *float64 `json:"bt"`
-	UsedShampoo    string   `json:"used_shampoo"`
-	UsedRibbon     string   `json:"used_ribbon"`
-	Remarks        string   `json:"remarks"`
-	StyleImage     string   `json:"style_image"`
-	CompletedImage string   `json:"completed_image"`
+	UsedShampoo    string   `json:"used_shampoo" binding:"omitempty,max=2000"`
+	UsedRibbon     string   `json:"used_ribbon" binding:"omitempty,max=2000"`
+	Remarks        string   `json:"remarks" binding:"omitempty,max=2000"`
+	StyleImage     string   `json:"style_image" binding:"omitempty,max=2048"`
+	CompletedImage string   `json:"completed_image" binding:"omitempty,max=2048"`
 	OptionIDs      []uint64 `json:"option_ids" binding:"max=50,dive"`
 }
 
@@ -123,15 +123,15 @@ type updateTrimmingRequest struct {
 	Status    *string    `json:"status"      binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
-	StyleRequest   *string  `json:"style_request"`
+	StyleRequest   *string  `json:"style_request" binding:"omitempty,max=2000"`
 	BW             *float64 `json:"bw"`
-	BWUnit         *string  `json:"bw_unit"`
+	BWUnit         *string  `json:"bw_unit" binding:"omitempty,oneof=Kg g"`
 	BT             *float64 `json:"bt"`
-	UsedShampoo    *string  `json:"used_shampoo"`
-	UsedRibbon     *string  `json:"used_ribbon"`
-	Remarks        *string  `json:"remarks"`
-	StyleImage     *string  `json:"style_image"`
-	CompletedImage *string  `json:"completed_image"`
+	UsedShampoo    *string  `json:"used_shampoo" binding:"omitempty,max=2000"`
+	UsedRibbon     *string  `json:"used_ribbon" binding:"omitempty,max=2000"`
+	Remarks        *string  `json:"remarks" binding:"omitempty,max=2000"`
+	StyleImage     *string  `json:"style_image" binding:"omitempty,max=2048"`
+	CompletedImage *string  `json:"completed_image" binding:"omitempty,max=2048"`
 	// nil = 変更なし、non-nil（空スライス含む）= 全置換
 	OptionIDs *[]uint64 `json:"option_ids" binding:"omitempty,max=50,dive"`
 }

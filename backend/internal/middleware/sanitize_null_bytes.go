@@ -8,7 +8,15 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
+
+// DefaultJSONBodyMaxBytes is the global raw-body ceiling for non-binary
+// POST/PATCH/PUT traffic (INF-02 / POC-12 / X-07). Counts bytes before
+// control-character sanitization so MaxBytesReader cannot be bypassed.
+const DefaultJSONBodyMaxBytes int64 = 1 << 20 // 1 MiB
 
 // SanitizeNullBytes は POST/PATCH/PUT リクエストのボディから NULL バイトおよび
 // 制御文字を除去するミドルウェア。
@@ -59,9 +67,20 @@ func SanitizeNullBytes() gin.HandlerFunc {
 			return
 		}
 
+		// INF-02: reject oversized declared length before wrapping. Raw body
+		// bytes (including later-discarded control bytes) are bounded by
+		// MaxBytesReader under the sanitizer so filtered n cannot bypass the cap.
+		if c.Request.ContentLength > DefaultJSONBodyMaxBytes {
+			httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("request body exceeds size limit"))
+			c.Abort()
+			return
+		}
+
 		// 認証・route固有のbody limitより前に全量をheapへ載せないよう、
 		// downstreamが読む分だけin-placeで制御文字を除去する。
-		c.Request.Body = &sanitizedBodyReader{source: c.Request.Body}
+		// MaxBytesReader を source 側に置き、除去前の生バイト消費を計上する。
+		limited := http.MaxBytesReader(c.Writer, c.Request.Body, DefaultJSONBodyMaxBytes)
+		c.Request.Body = &sanitizedBodyReader{source: limited}
 		c.Request.ContentLength = -1
 		if getBody := c.Request.GetBody; getBody != nil {
 			c.Request.GetBody = func() (io.ReadCloser, error) {
@@ -69,10 +88,45 @@ func SanitizeNullBytes() gin.HandlerFunc {
 				if err != nil {
 					return nil, err
 				}
-				return &sanitizedBodyReader{source: body}, nil
+				return &sanitizedBodyReader{
+					source: http.MaxBytesReader(c.Writer, body, DefaultJSONBodyMaxBytes),
+				}, nil
 			}
 		}
 
+		c.Next()
+	}
+}
+
+// LimitRequestBody bounds raw request body size for non-binary write methods.
+// Apply on authenticated API groups (POC-12) as defense-in-depth after global
+// SanitizeNullBytes; MaxBytesReader still counts raw bytes when stacked under
+// sanitizedBodyReader (see SanitizeNullBytes).
+func LimitRequestBody(maxBytes int64) gin.HandlerFunc {
+	if maxBytes <= 0 {
+		maxBytes = DefaultJSONBodyMaxBytes
+	}
+	return func(c *gin.Context) {
+		method := c.Request.Method
+		if method != http.MethodPost && method != http.MethodPatch && method != http.MethodPut {
+			c.Next()
+			return
+		}
+		contentType := c.Request.Header.Get("Content-Type")
+		if isBinaryContentType(contentType) {
+			c.Next()
+			return
+		}
+		if c.Request.Body == nil || c.Request.ContentLength == 0 {
+			c.Next()
+			return
+		}
+		if c.Request.ContentLength > maxBytes {
+			httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("request body exceeds size limit"))
+			c.Abort()
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
 		c.Next()
 	}
 }

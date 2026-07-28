@@ -252,6 +252,57 @@ func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
 	assert.Zero(t, body.bytesRead, "global middleware must not pre-read request bodies")
 }
 
+func TestSanitizeNullBytes_ControlOnlyBodyRespectsRawByteLimit(t *testing.T) {
+	// INF-02: filtered-byte-only bodies must still exhaust MaxBytesReader on raw reads.
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{0x00}, int(DefaultJSONBodyMaxBytes)+1)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = int64(len(raw))
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	// Declared ContentLength above the cap aborts before wrapping.
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+}
+
+func TestSanitizeNullBytes_ChunkedControlOnlyBodyHitsMaxBytesReader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{0x01}, int(DefaultJSONBodyMaxBytes)+8)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = -1 // force stream path
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	require.Equal(t, http.StatusOK, w.Code) // middleware itself does not abort on stream
+	_, readErr := io.ReadAll(c.Request.Body)
+	require.Error(t, readErr)
+	var maxBytesError *http.MaxBytesError
+	assert.ErrorAs(t, readErr, &maxBytesError)
+}
+
+func TestLimitRequestBody_RejectsOversizedDeclaredLength(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/pets", bytes.NewReader([]byte(`{}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = DefaultJSONBodyMaxBytes + 1
+	c.Request = req
+
+	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
 type countingSanitizerReader struct {
 	reader    io.Reader
 	bytesRead int

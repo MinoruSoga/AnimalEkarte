@@ -1,6 +1,7 @@
 package trimming
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -221,6 +222,67 @@ func TestTrimmingRequest_BindingOptionIDsLimit(t *testing.T) {
 			name:    "update rejects 51 options",
 			request: &updateTrimmingRequest{OptionIDs: &fiftyOneIDs},
 			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := binding.Validator.ValidateStruct(tt.request)
+			if tt.wantErr && err == nil {
+				t.Fatal("ValidateStruct() = nil, want validation error")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("ValidateStruct() = %v, want nil", err)
+			}
+		})
+	}
+}
+
+func TestTrimmingRequest_BindingBWUnitAndFreeTextLimits(t *testing.T) {
+	petID := uint64(1)
+	tooLong := string(bytes.Repeat([]byte("a"), 2001))
+	okUnit := "Kg"
+	badUnit := "lb"
+
+	tests := []struct {
+		name    string
+		request any
+		wantErr bool
+	}{
+		{
+			name: "create accepts bw_unit Kg",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1, PetID: &petID, BWUnit: "Kg",
+			},
+		},
+		{
+			name: "create accepts bw_unit g",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1, PetID: &petID, BWUnit: "g",
+			},
+		},
+		{
+			name: "create rejects invalid bw_unit",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1, PetID: &petID, BWUnit: "lb",
+			},
+			wantErr: true,
+		},
+		{
+			name: "create rejects overlong style_request",
+			request: &createTrimmingRequest{
+				ReservationTypeID: 1, PetID: &petID, StyleRequest: tooLong,
+			},
+			wantErr: true,
+		},
+		{
+			name:    "update rejects invalid bw_unit",
+			request: &updateTrimmingRequest{BWUnit: &badUnit},
+			wantErr: true,
+		},
+		{
+			name:    "update accepts bw_unit Kg",
+			request: &updateTrimmingRequest{BWUnit: &okUnit},
 		},
 	}
 
