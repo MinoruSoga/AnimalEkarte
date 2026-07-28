@@ -16,11 +16,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	reservationdomain "github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupMedicalRecordOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupMedicalRecordListTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}))
 	db.Exec("TRUNCATE TABLE medical_records, pets, animal_species, owners CASCADE")
 	return db
 }
