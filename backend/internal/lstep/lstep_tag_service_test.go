@@ -322,8 +322,8 @@ func TestGetOwnerTags_CacheFallbackError(t *testing.T) {
 	}
 	svc := NewLstepTagService(&mockLstepSettingsService{}, ownerRepo, tagCache, &mockAuditService{}, nil)
 	res, err := svc.GetOwnerTags(context.Background(), 1, 1)
-	assert.NoError(t, err)
-	assert.Empty(t, res.Tags)
+	assert.Error(t, err)
+	assert.Nil(t, res)
 }
 
 // ---- GetOwnerTags: real client via httptest server (GetUserTags is not disabled) ----

@@ -158,8 +158,9 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 	if client == nil {
 		cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 		if cacheErr != nil {
+			// LSA-10: do not disguise cache DB failure as "zero tags".
 			slog.ErrorContext(ctx, "failed to find tag cache", "error", cacheErr, "owner_id", ownerID)
-			return result, nil
+			return nil, apperrors.Wrap(cacheErr, "failed to load lstep tag cache")
 		}
 		for _, c := range cached {
 			result.Tags = append(result.Tags, c.TagName)
