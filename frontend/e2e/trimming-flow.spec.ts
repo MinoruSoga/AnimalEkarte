@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_IRIS_PET } from './helpers/demo-seed';
 import { TrimmingPage } from './pages/trimming-page';
 
 // E2E flow tests for trimming (/trimming) pages.
-// Seed data: pet 1 "Iris(イリス)" exists in seed.
-// admin@noavet.jp is system_admin with full access.
+// Demo seed: Iris pet id=1000099 (not petId=1).
 //
 // Design: fresh page per test within shared context.
 
@@ -49,11 +49,11 @@ test.describe('トリミング管理 フロー E2E', () => {
     }
   });
 
-  test('/trimming/new?petId=1 — トリミング登録フォームが表示される', async () => {
+  test(`/trimming/new?petId=${DEMO_IRIS_PET.id} — トリミング登録フォームが表示される`, async () => {
     const page = await context.newPage();
     const trimming = new TrimmingPage(page);
     try {
-      await trimming.gotoNew('?petId=1');
+      await trimming.gotoNew(`?petId=${DEMO_IRIS_PET.id}`);
       await expect(trimming.newFormHeading()).toBeVisible({
         timeout: 15000,
       });

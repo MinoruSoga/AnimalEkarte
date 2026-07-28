@@ -49,15 +49,22 @@ export class MedicalRecordsPage extends BasePage {
   }
 
   searchInput(): Locator {
-    return this.page.getByPlaceholder('飼主名、ペット名、カルテNo、主訴で検索...');
+    // Placeholder includes treatment/memo fields; match the stable prefix.
+    return this.page.getByPlaceholder(/飼主名、ペット名、カルテNo/);
   }
 
   hayashiText(): Locator {
-    return this.page.getByText('林 文明').first();
+    // Seed uses ideographic space (U+3000) between family/given name.
+    return this.page.getByText(/林[\s\u3000]*文明/).first();
   }
 
   irisText(): Locator {
     return this.page.getByText('Iris').first();
+  }
+
+  /** DataTable rows are non-interactive; open detail via the pet-name link. */
+  firstDetailLink(): Locator {
+    return this.page.getByRole('link', { name: /カルテ詳細:/ }).first();
   }
 
   saveButton(): Locator {

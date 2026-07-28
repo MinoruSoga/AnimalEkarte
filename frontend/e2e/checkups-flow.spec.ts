@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_IRIS_PET } from './helpers/demo-seed';
 import { CheckupsPage } from './pages/checkups-page';
 
 // E2E flow tests for checkups (/checkups) pages.
 // Covers: list page, pet selection, new form.
 // Note: /checkups/:id detail route does not exist in router.
-// Seed data: admin@noavet.jp is system_admin with full access.
+// Demo seed: Iris pet id=1000099 (not petId=1).
 
 test.describe('定期健診 フロー E2E', () => {
   let context: BrowserContext;
@@ -42,18 +43,19 @@ test.describe('定期健診 フロー E2E', () => {
       await expect(checkups.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(checkups.irisText()).toBeVisible({ timeout: 10000 });
+      // Iris is outside the unfiltered first page — search via #search auto-debounce.
+      await checkups.patientSearchInput().fill(DEMO_IRIS_PET.name);
+      await expect(checkups.irisText()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test('/checkups/new?petId=1 — 定期健診新規登録フォームが表示される', async () => {
+  test(`/checkups/new?petId=${DEMO_IRIS_PET.id} — 定期健診新規登録フォームが表示される`, async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
-      // Use petId=1 (Iris from seed)
-      await checkups.gotoNew('?petId=1');
+      await checkups.gotoNew(`?petId=${DEMO_IRIS_PET.id}`);
       await expect(checkups.newFormHeading()).toBeVisible({ timeout: 15000 });
       await expect(checkups.irisText()).toBeVisible({ timeout: 10000 });
       await expect(checkups.saveButton()).toBeVisible({ timeout: 10000 });

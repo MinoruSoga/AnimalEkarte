@@ -36,9 +36,9 @@ export class OwnersPage extends BasePage {
     return this.page.getByText('林 文明').first();
   }
 
-  /** Pet "ピーター" — kana-search assertion target. */
+  /** Pet "ピーター" — kana-search assertion target (multiple seed rows). */
   peterText(): Locator {
-    return this.page.getByText('ピーター');
+    return this.page.getByRole('cell', { name: 'ピーター', exact: true }).first();
   }
 
   ownerNameInput(): Locator {
