@@ -52,11 +52,26 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 	return nil
 }
 
+// Update updates fields and reloads the row in one transaction so a reload
+// failure cannot invert a committed write into a failure response (BUG-465).
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
-		return nil, err
+	var loaded *model.MerchandiseItem
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
+			return err
+		}
+		var err error
+		loaded, err = persistence.FindByIDScoped[model.MerchandiseItem](txCtx, tx, "merchandise_item", clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload merchandise_item after update")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to update and reload merchandise_item")
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

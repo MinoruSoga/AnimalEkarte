@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -184,6 +186,74 @@ func TestMerchandiseItemRepository_Update(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+// TestMerchandiseItemRepository_Update_AmbientTxRollback は BUG-465 の回帰:
+// Update の書き込みと再取得が同一 tx に参加し、呼び出し元の ambient tx が
+// rollback されると更新も取り消されることを検証する。
+func TestMerchandiseItemRepository_Update_AmbientTxRollback(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeMerchItem(t, db, clinicA, "更新前品目", model.ItemCategoryGoods)
+	forcedErr := errors.New("force rollback after merchandise update")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		got, err := repo.Update(txCtx, clinicA, item.ID, map[string]any{"name": "更新後品目", "unit_price": int64(3000)})
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, "更新後品目", got.Name, "同一 tx 内では更新後の値を再取得できる")
+		assert.Equal(t, int64(3000), got.UnitPrice)
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, err := repo.FindByID(ctx, clinicA, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "更新前品目", got.Name, "ambient transaction rollback must restore the merchandise name")
+	assert.Equal(t, int64(1500), got.UnitPrice, "ambient transaction rollback must restore the unit price")
+}
+
+// TestMerchandiseItemRepository_Update_ReloadFailureRollsBackUpdate は BUG-465:
+// Update 成功後の再取得が失敗した場合、コミット済み更新を失敗応答へ反転させないよう
+// 同一 tx 内で rollback することを検証する。
+func TestMerchandiseItemRepository_Update_ReloadFailureRollsBackUpdate(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeMerchItem(t, db, clinicA, "更新前品目", model.ItemCategoryGoods)
+	const callbackName = "merchandise:update_reload_failure"
+	reloadErr := errors.New("forced merchandise reload failure")
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register(callbackName, func(query *gorm.DB) {
+		if query.Statement != nil && query.Statement.Table == "merchandise_items" {
+			query.AddError(reloadErr)
+		}
+	}))
+	callbackRegistered := true
+	t.Cleanup(func() {
+		if callbackRegistered {
+			require.NoError(t, db.Callback().Query().Remove(callbackName))
+		}
+	})
+
+	got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後品目"})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, reloadErr)
+
+	require.NoError(t, db.Callback().Query().Remove(callbackName))
+	callbackRegistered = false
+
+	var persisted model.MerchandiseItem
+	require.NoError(t, db.WithContext(ctx).First(&persisted, item.ID).Error)
+	assert.Equal(t, "更新前品目", persisted.Name, "reload failure must roll back the committed-looking update")
 }
 
 func TestMerchandiseItemRepository_Delete(t *testing.T) {

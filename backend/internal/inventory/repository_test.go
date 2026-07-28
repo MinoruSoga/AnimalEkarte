@@ -343,6 +343,72 @@ func TestInventoryRepository_DecreaseStock_AmbientTxRollback(t *testing.T) {
 	assert.Equal(t, 10, got.Quantity, "ambient transaction rollback must restore the stock quantity")
 }
 
+// TestInventoryRepository_Update_AmbientTxRollback は BUG-465 の回帰:
+// Update の書き込みと再取得が同一 tx に参加し、呼び出し元の ambient tx が
+// rollback されると更新も取り消されることを検証する。
+func TestInventoryRepository_Update_AmbientTxRollback(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeInventoryItem(t, db, clinicA, "更新前在庫名", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	forcedErr := errors.New("force rollback after inventory update")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		got, err := repo.Update(txCtx, clinicA, item.ID, map[string]any{"name": "更新後在庫名"})
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, "更新後在庫名", got.Name, "同一 tx 内では更新後の値を再取得できる")
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, err := repo.FindByID(ctx, clinicA, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "更新前在庫名", got.Name, "ambient transaction rollback must restore the inventory name")
+}
+
+// TestInventoryRepository_Update_ReloadFailureRollsBackUpdate は BUG-465:
+// Update 成功後の再取得が失敗した場合、コミット済み更新を失敗応答へ反転させないよう
+// 同一 tx 内で rollback することを検証する。
+func TestInventoryRepository_Update_ReloadFailureRollsBackUpdate(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeInventoryItem(t, db, clinicA, "更新前", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 5)
+	const callbackName = "inventory:update_reload_failure"
+	reloadErr := errors.New("forced inventory reload failure")
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register(callbackName, func(query *gorm.DB) {
+		if query.Statement != nil && query.Statement.Table == "inventory_items" {
+			query.AddError(reloadErr)
+		}
+	}))
+	callbackRegistered := true
+	t.Cleanup(func() {
+		if callbackRegistered {
+			require.NoError(t, db.Callback().Query().Remove(callbackName))
+		}
+	})
+
+	got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後"})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, reloadErr)
+
+	require.NoError(t, db.Callback().Query().Remove(callbackName))
+	callbackRegistered = false
+
+	var persisted model.InventoryItem
+	require.NoError(t, db.WithContext(ctx).First(&persisted, item.ID).Error)
+	assert.Equal(t, "更新前", persisted.Name, "reload failure must roll back the committed-looking update")
+}
+
 // TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate は SD-4 決裁A
 // （q&a.html SD-4: status を保存せず読み取り時に導出する）の回帰:
 // status クエリフィルタが保存された status 列（もはや信頼できない）ではなく、

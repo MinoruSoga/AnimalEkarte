@@ -114,11 +114,26 @@ func (r *repository) Create(ctx context.Context, clinicID uint64, item *model.In
 	return nil
 }
 
+// Update updates fields and reloads the row in one transaction so a reload
+// failure cannot invert a committed write into a failure response (BUG-465).
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
-		return nil, err
+	var loaded *model.InventoryItem
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
+			return err
+		}
+		var err error
+		loaded, err = r.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload inventory_item after update")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to update and reload inventory_item")
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
