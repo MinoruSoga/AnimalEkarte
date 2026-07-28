@@ -14,6 +14,8 @@
 >
 > **writer 規則**: 本書の writer は監査を実行するセッション単独とする。レーン A/B の実行セッションは本書を読むのみで書かない（4 セッション並行のため）。
 >
+> **2026-07-28 追補（着手フェーズの writer 規則）**: 着手プランの実行セッションは例外として、**自分が担当するユニットの `- Status:` 行 1 行だけ**を書き換えてよい。それ以外（所見本文・判定行・ユニット定義・表）は読むのみ。書き換え前に本ファイルを再読し、commit は本ファイルと自ユニットの所有パスを path 指定した形で行うこと。**commit 後は速やかに push する** — ローカルにしかない commit は、並行セッションが origin へ強制的に合わせ直す操作を打った際に消える（2026-07-28 に実害あり。reflog から復旧した）。
+>
 > **着手手順**: 本書の項目は台帳タスクではない。着手すると決めたものを `3-session-agent.html#ledger` へ `<section class="task">` として起票し、本書の該当項目へ起票先 ID を追記する。**着手前に evidence の再実測を必須とする**（下記「監査の限界」5 を参照）。
 
 ---
@@ -1986,6 +1988,85 @@
 
 **着手時の扱い**: 各ユニットの `決裁:` 欄が上記 ID を指している場合、選択肢 A の方針で実装する。A の具体的な選択肢本文は `q&a.html` の当該パケットを参照（本書へ全文転記しない — 二重管理を避ける）。
 
+### セッション振り分け（2026-07-28）
+
+全 84 ユニットを **6 レーン**へ配分する。配分軸は所有パスのパッケージ局所性であり、1 レーン = 1 セッションが担当する。
+
+**所有パスの排他性**: 全ユニットの所有パスは相互に非重複であるため、**レーンをまたぐファイル書き込み衝突は起きない**（重複パス 0 件）。
+
+| レーン | 担当パッケージ | ユニット数 |
+|---|---|---:|
+| LANE-1 | internal/medicalrecord | 15 |
+| LANE-2 | internal/lstep (A) / cmd/lstep | 14 |
+| LANE-3 | internal/lstep (B) / cmd/csv | 14 |
+| LANE-4 | internal/billing / internal/pet / internal/trimming / internal/auth / internal/infra | 14 |
+| LANE-5 | internal/reservation / cmd/api / internal/staff / internal/manualarticle / internal/audit / internal/apperrors | 14 |
+| LANE-6 | internal/clinic / internal/owner / internal/lintscan / internal/inventory / internal/csvimport / cmd/coverage | 13 |
+
+#### レーン別ユニット一覧
+
+**LANE-1**
+
+- `internal/medicalrecord`: `BE-X06-MEDICAL-ATOMIC-01`, `BE-X09-MEDICAL-DIAGNOSIS-01`, `SOLO-21`, `SOLO-25`, `SOLO-29`, `SOLO-30`, `U-MR-TREATMENT-PLAN`, `U-X01-MR-PRESCRIPTION`, `U-X01X03-MR-CARE`, `U-X02-MR-CONSULTATION`, `U-X02-MR-LAB-IMPORT`, `U-X02X03X05-MR-HOSPITALIZATION`, `U-X04-MR-SUBRECORDS`, `U-X05-MR-EXAMTYPE`, `U-X05-MR-MEDICINE-MASTERS`
+
+**LANE-2**
+
+- `internal/lstep (A)`: `BE-X06-LSTEP-SETTINGS-01`, `BE-X08-LSTEP-CONNECTION-01`, `BE-X08-LSTEP-SEND-01`, `SOLO-09`, `SOLO-10`, `SOLO-11`, `SOLO-12`, `SOLO-13`, `SOLO-14`, `SOLO-15`, `SOLO-16`, `SOLO-17`, `SOLO-19`
+- `cmd/lstep`: `U-X04-LSTEP-MIGRATE`
+
+**LANE-3**
+
+- `internal/lstep (B)`: `U-LSTEP-OPTOUT`, `U-X01-LSTEP-LINE-CUSTOMER`, `U-X01X03X04-LSTEP-LIFECYCLE`, `U-X02-LSTEP-AGGREGATION`, `U-X02-LSTEP-SHARED-FILE`, `U-X02-LSTEP-TAG-CONFIG`, `U-X02-LSTEP-TAG-MAPPING`, `U-X02-LSTEP-TRIGGER-PRIORITY`, `U-X04-LSTEP-BATCH`, `U-X04-LSTEP-HEALTH-REMOVE`, `U-X04-LSTEP-OWNER-TAGS`, `U-X04-LSTEP-STALE-TAGS`, `U-X04X05-LSTEP-DELIVERY`
+- `cmd/csv`: `SOLO-06`
+
+**LANE-4**
+
+- `internal/billing`: `BE-X06-BIL-CAMPAIGN-01`, `BE-X09-CLOSING-01`, `BE-X09-ESTIMATE-TAX-01`, `SOLO-02`, `SOLO-03`, `SOLO-20`, `SOLO-24`
+- `internal/pet`: `BE-X09-PET-PATCH-01`, `U-X03-PET-SPECIES-AUDIT`, `U-X05-PET-UPDATE`
+- `internal/trimming`: `SOLO-36`, `U-TRIMMING-SERVICE`
+- `internal/auth`: `BE-X10-AUTH-RESPONSE-01`
+- `internal/infra`: `SOLO-08`
+
+**LANE-5**
+
+- `internal/reservation`: `BE-X06-RSV-CANCEL-01`, `SOLO-18`, `U-X01X05-RESERVATION`, `U-X02-RESERVATION-SETTINGS`, `U-X04-RESERVATION-AUTODELEGATE`
+- `cmd/api`: `BE-X07-BODY-01`, `SOLO-04`, `SOLO-05`
+- `internal/staff`: `SOLO-01`, `U-X02-STAFF-TYPE`, `U-X03-STAFF-ASSIGNMENT-AUDIT`
+- `internal/manualarticle`: `U-X01X03-MANUALARTICLE`
+- `internal/audit`: `U-X04-AUDIT-MARSHAL`
+- `internal/apperrors`: `SOLO-22`
+
+**LANE-6**
+
+- `internal/clinic`: `SOLO-32`, `SOLO-34`, `U-X01X05-CLINIC`, `U-X02-CLINIC-CONTACT`
+- `internal/owner`: `BE-X09-PET-ENUMS-01`, `SOLO-33`, `U-X02-PET-OWNER-FREETEXT`, `U-X05-OWNER-PHONE`
+- `internal/lintscan`: `SOLO-23`, `SOLO-26`
+- `internal/inventory`: `U-X01X02-INVENTORY`
+- `internal/csvimport`: `U-X03-CSVIMPORT-GUARD`
+- `cmd/coverage`: `U-X04-COVERAGE-RATCHET`
+
+#### レーンをまたぐ先行依存（15 件）
+
+下記は先行ユニットが別レーンにある。**後続レーンは先行ユニットの完了（Status=完了）を確認してから着手する。**
+
+| 後続 unit | レーン | 先行 unit | 先行レーン |
+|---|---:|---|---:|
+| `SOLO-05` | 5 | `U-X05-PET-UPDATE` | 4 |
+| `SOLO-08` | 4 | `U-X02-PET-OWNER-FREETEXT` | 6 |
+| `SOLO-09` | 2 | `U-X02-LSTEP-TAG-CONFIG` | 3 |
+| `SOLO-12` | 2 | `U-LSTEP-OPTOUT` | 3 |
+| `SOLO-14` | 2 | `U-X04-LSTEP-HEALTH-REMOVE` | 3 |
+| `SOLO-15` | 2 | `U-X04-LSTEP-BATCH` | 3 |
+| `SOLO-15` | 2 | `U-X05-OWNER-PHONE` | 6 |
+| `SOLO-19` | 2 | `U-X01X05-RESERVATION` | 5 |
+| `SOLO-21` | 1 | `U-X01X02-INVENTORY` | 6 |
+| `SOLO-34` | 6 | `BE-X06-LSTEP-SETTINGS-01` | 2 |
+| `SOLO-34` | 6 | `BE-X09-CLOSING-01` | 4 |
+| `U-TRIMMING-SERVICE` | 4 | `BE-X07-BODY-01` | 5 |
+| `U-X01X03X04-LSTEP-LIFECYCLE` | 3 | `BE-X06-LSTEP-SETTINGS-01` | 2 |
+| `U-X01X03X04-LSTEP-LIFECYCLE` | 3 | `BE-X08-LSTEP-CONNECTION-01` | 2 |
+| `U-X05-MR-MEDICINE-MASTERS` | 1 | `U-X01X02-INVENTORY` | 6 |
+
 ### Execution waves and parallel groups
 
 | Wave | Parallel group | Units | Reason |
@@ -2107,6 +2188,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/model/... ./internal/billing/... -run 'Estimate|CalculateTaxAmount'`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-04
 
@@ -2124,6 +2206,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/api/ ./internal/scheduler/ -run "Scheduler|Route|Upload"`
 - 既知台帳: none
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-11
 
@@ -2138,6 +2221,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "Suppression|Priority|DeliveryTrigger"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-16
 
@@ -2152,6 +2236,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "LineCustomer"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-18
 
@@ -2164,6 +2249,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/ -run "AppointmentAdminRepository"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-26
 
@@ -2180,6 +2266,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ ./internal/reservation/ ./internal/trimming/ ./internal/lintscan/ -run "Hospitalization|Schedule|Trimming|Preload|Grandchild"`
 - 既知台帳: RSV-08=SEC-SWEEP-02 (table-only known pointer); TRM-08=SEC-SWEEP-02 / DEC-23
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-32
 
@@ -2195,6 +2282,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/ -run "Holiday|ClosingSettings"`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-33
 
@@ -2209,6 +2297,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/ ./internal/apicontract/ -run "Routes|OpenAPI"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-LSTEP-OPTOUT
 
@@ -2225,6 +2314,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|PetExclusion|OptOut'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-MR-TREATMENT-PLAN
 
@@ -2243,6 +2333,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'TreatmentPlan'`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### 共有所有 barrier U-SCHEMA-BARRIER
 
@@ -2254,6 +2345,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - Barrier検証: `docker compose exec backend go test ./internal/model/... -run 'SchemaDrift' && docker compose exec backend go test ./internal/lintscan/... -run 'Migration|DBOrTx'`
 - 既知台帳: TASK-445 / DEC-28 supports MDL-06; BUG-466 supports G2P-03
 - Size: S (1/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01-LSTEP-LINE-CUSTOMER
 
@@ -2266,6 +2358,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LineCustomer'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01-MR-PRESCRIPTION
 
@@ -2280,6 +2373,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Prescription'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-LSTEP-TAG-MAPPING
 
@@ -2293,6 +2387,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TagCodeMapping'`
 - 既知台帳: none
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-LSTEP-TRIGGER-PRIORITY
 
@@ -2308,6 +2403,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TriggerPriority'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-PET-OWNER-FREETEXT
 
@@ -2322,6 +2418,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/... ./internal/pet/... -run 'Request|Validation'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-RESERVATION-SETTINGS
 
@@ -2337,6 +2434,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'LineReservationSettingRequest|AvailableDates'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X03-PET-SPECIES-AUDIT
 
@@ -2354,6 +2452,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/pet/... -run 'AnimalSpecies.*Audit|AnimalSpecies'`
 - 既知台帳: none
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X03-STAFF-ASSIGNMENT-AUDIT
 
@@ -2370,6 +2469,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/staff/... -run 'ClinicAssignment|PermissionAssignment|Audit'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X05-MR-EXAMTYPE
 
@@ -2385,6 +2485,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ExamType' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X05-PET-UPDATE
 
@@ -2401,6 +2502,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/pet/... -run 'Update.*Owner|Update.*Insurance|UpdateAndFind'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X06-BIL-CAMPAIGN-01
 
@@ -2416,6 +2518,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/... ./cmd/api/... -run 'Campaign|BillingComposition' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X06-LSTEP-SETTINGS-01
 
@@ -2434,6 +2537,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... ./internal/clinic/... -run 'LstepSettings|ClinicSettings' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X06-MEDICAL-ATOMIC-01
 
@@ -2452,6 +2556,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... ./cmd/api/... -run 'LabImportExamination|Inquiry|CrossTenantMasterFK' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: MRC-12=phase2.html:195
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X06-RSV-CANCEL-01
 
@@ -2464,6 +2569,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'ReservationService.*Update|Cancel' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X07-BODY-01
 
@@ -2482,6 +2588,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/middleware/... ./internal/trimming/... ./internal/manualarticle/... ./cmd/api/... -run 'Body|Sanitize|Request|Composition'`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-24
 
@@ -2495,6 +2602,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "Payment|TxAtomicity"`
 - 既知台帳: MDL-06=TASK-445 / DEC-28
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X02-INVENTORY
 
@@ -2511,6 +2619,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/inventory/... -run 'Update|Decrease|Quantity' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: G2P-02=BUG-465; G2P-03=BUG-466
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X03-MANUALARTICLE
 
@@ -2527,6 +2636,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/manualarticle/...`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X03-MR-CARE
 
@@ -2543,6 +2653,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'CarePlanItem' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X05-CLINIC
 
@@ -2557,6 +2668,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/pet/... -run 'Clinic|Company|SpecialPeriod|Chronic' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-LSTEP-SHARED-FILE
 
@@ -2572,6 +2684,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'SharedFile'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-LSTEP-TAG-CONFIG
 
@@ -2588,6 +2701,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TagConfig|Lifecycle'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-MR-CONSULTATION
 
@@ -2600,6 +2714,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ConsultationRequest'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-STAFF-TYPE
 
@@ -2618,6 +2733,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/staff/... -run 'StaffType|Create|Update'`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02X03X05-MR-HOSPITALIZATION
 
@@ -2634,6 +2750,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Hospitalization'`
 - 既知台帳: MRB-03=BUG-437 / SEC-SWEEP-02
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X03-CSVIMPORT-GUARD
 
@@ -2651,6 +2768,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/csvimport/... ./cmd/seed-export/...`
 - 既知台帳: none
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-RESERVATION-AUTODELEGATE
 
@@ -2663,6 +2781,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'Liff.*Reservation|Delegate'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04X05-LSTEP-DELIVERY
 
@@ -2677,6 +2796,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|DeliveryMonitor'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X05-OWNER-PHONE
 
@@ -2691,6 +2811,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/... -run 'Phone|Unique'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X08-LSTEP-CONNECTION-01
 
@@ -2707,6 +2828,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LstepSettings|Connection'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X08-LSTEP-SEND-01
 
@@ -2722,6 +2844,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LineSend'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X09-PET-ENUMS-01
 
@@ -2738,6 +2861,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/... ./internal/pet/... ./internal/sharedkernel/... -run 'Valid|Enum|Pet'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X10-AUTH-RESPONSE-01
 
@@ -2754,6 +2878,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/auth/... ./internal/httpapi/... -run 'HasPermission|RequirePermission|CalculateEffectivePermissions|ExtractContext'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-09
 
@@ -2767,6 +2892,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagConfig|AutoManaged|PurposeTag"`
 - 既知台帳: none
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-TRIMMING-SERVICE
 
@@ -2781,6 +2907,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/trimming/... -run 'ExistingAppointment|Create|Conflict|Detail|Log'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X05-RESERVATION
 
@@ -2798,6 +2925,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'Admin|LineReservationSetting|ReservationType|Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-CLINIC-CONTACT
 
@@ -2813,6 +2941,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/owner/... -run 'Request|Email|Phone|Postal'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-LSTEP-AGGREGATION
 
@@ -2825,6 +2954,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'AggregationRequest'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X02-MR-LAB-IMPORT
 
@@ -2836,6 +2966,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'LabImport'`
 - 既知台帳: none
 - Size: S (1/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X05-MR-MEDICINE-MASTERS
 
@@ -2854,6 +2985,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'MedicineDoseParam|Medicine.*Delete|Procedure.*Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X09-CLOSING-01
 
@@ -2869,6 +3001,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/billing/... ./internal/sharedkernel/... -run 'Closing|CashRegister|HHMM'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X09-MEDICAL-DIAGNOSIS-01
 
@@ -2883,6 +3016,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'CreateSubRecords.*Diagnosis|ClinicalPlan.*Diagnosis'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### BE-X09-PET-PATCH-01
 
@@ -2895,6 +3029,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/pet/... -run 'ChronicCondition.*Update'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X01X03X04-LSTEP-LIFECYCLE
 
@@ -2909,6 +3044,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'Lifecycle|Settings|Credentials'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-AUDIT-MARSHAL
 
@@ -2923,6 +3059,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/audit/... -run 'Marshal|BuildLog'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-COVERAGE-RATCHET
 
@@ -2936,6 +3073,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/coverage-ratchet/...`
 - 既知台帳: none
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-LSTEP-BATCH
 
@@ -2950,6 +3088,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'VisitDormant|Batch'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-LSTEP-HEALTH-REMOVE
 
@@ -2965,6 +3104,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'Health.*Tag|Prevention|Vaccine'`
 - 既知台帳: none
 - Size: M (5/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-LSTEP-MIGRATE
 
@@ -2977,6 +3117,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/lstep-migrate/...`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-LSTEP-OWNER-TAGS
 
@@ -2991,6 +3132,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'GetOwnerTags'`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-LSTEP-STALE-TAGS
 
@@ -3003,6 +3145,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'RemoveStaleTags'`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-01
 
@@ -3021,6 +3164,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/staff/ -run "ShiftTemplate|ShiftResponse|ShiftEntry"`
 - 既知台帳: none
 - Size: L (8/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-02
 
@@ -3038,6 +3182,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "BillingItem|PostClose"`
 - 既知台帳: BIL-01=BUG-463
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-03
 
@@ -3052,6 +3197,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "CreditCorrection|Cancel"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-05
 
@@ -3064,6 +3210,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/api/ ./internal/pet/ ./internal/lstep/ -run "Lifecycle|PetDeath"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-06
 
@@ -3076,6 +3223,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/csv-import-failure-rehearsal/`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-08
 
@@ -3090,6 +3238,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/infra/lstep/ ./internal/owner/ -run "Line|Lstep"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-10
 
@@ -3102,6 +3251,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "LineMessaging"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-12
 
@@ -3113,6 +3263,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagCache|DeliveryTriggerBatch|DeliveryTriggerState"`
 - 既知台帳: none
 - Size: S (1/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-13
 
@@ -3127,6 +3278,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagSummary"`
 - 既知台帳: G2C-04=BUG-464
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-14
 
@@ -3141,6 +3293,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "HealthTagSync"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-15
 
@@ -3155,6 +3308,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/owner/ ./internal/medicalrecord/ ./internal/billing/ -run "LTV|Dormant|Segmentation"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-17
 
@@ -3169,6 +3323,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "SharedFile"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-19
 
@@ -3182,6 +3337,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/reservation/ -run "NoShow"`
 - 既知台帳: none
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-20
 
@@ -3194,6 +3350,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "Close"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-21
 
@@ -3206,6 +3363,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ ./internal/inventory/ -run "Consultation|ExamType|Merchandise"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-22
 
@@ -3218,6 +3376,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/apperrors/ -run "FromGORM"`
 - 既知台帳: none
 - Size: S (2/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-23
 
@@ -3229,6 +3388,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lintscan/ -run "MigrationCascade"`
 - 既知台帳: none
 - Size: S (1/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-25
 
@@ -3245,6 +3405,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "Cage|Consultation"`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-29
 
@@ -3261,6 +3422,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "MedicalRecordImage"`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-30
 
@@ -3275,6 +3437,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "Treatment.*Sort|BulkUpdate"`
 - 既知台帳: none
 - Size: M (4/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-34
 
@@ -3288,6 +3451,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/ -run "ClinicSettings|HolidayRepository|ClosingSettingsService"`
 - 既知台帳: none
 - Size: M (3/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### SOLO-36
 
@@ -3305,6 +3469,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/trimming/ && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (7/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ##### U-X04-MR-SUBRECORDS
 
@@ -3321,6 +3486,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'SubRecord|MedicalRecord.*Create|AutoCreate'`
 - 既知台帳: none
 - Size: M (6/8 files)
+- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
 
 ### Ownership TSV
 
