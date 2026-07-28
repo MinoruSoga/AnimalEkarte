@@ -2922,7 +2922,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'AggregationRequest'`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: 293d516da5e7270124c8e283a11599efcf40211b
 
 ##### U-X02-MR-LAB-IMPORT
 
