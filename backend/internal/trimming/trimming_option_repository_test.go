@@ -196,6 +196,43 @@ func TestTrimmingOptionRepository_Create(t *testing.T) {
 	assert.Equal(t, "新規オプション", got.Name)
 }
 
+// BUG-455-S8: gorm default:true omits zero bools from INSERT.
+func TestTrimmingOptionRepository_Create_BoolDefaultsFalsePersist(t *testing.T) {
+	db := setupTrimmingOptionTestDB(t)
+	repo := NewTrimmingOptionRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	o := &model.TrimmingOption{
+		ClinicID:     clinicA,
+		Name:         "inactive noncombinable option",
+		IsActive:     false,
+		IsCombinable: false,
+	}
+	require.NoError(t, repo.Create(ctx, o))
+	assert.False(t, o.IsActive)
+	assert.False(t, o.IsCombinable)
+
+	got, err := repo.FindByID(ctx, clinicA, o.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+	assert.False(t, got.IsCombinable)
+
+	var rawActive, rawCombinable bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.TrimmingOption{}).
+		Select("is_active").
+		Where("id = ?", o.ID).
+		Scan(&rawActive).Error)
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.TrimmingOption{}).
+		Select("is_combinable").
+		Where("id = ?", o.ID).
+		Scan(&rawCombinable).Error)
+	assert.False(t, rawActive, "raw is_active must be false")
+	assert.False(t, rawCombinable, "raw is_combinable must be false")
+}
+
 func TestTrimmingOptionRepository_Update(t *testing.T) {
 	db := setupTrimmingOptionTestDB(t)
 	repo := NewTrimmingOptionRepository(db)

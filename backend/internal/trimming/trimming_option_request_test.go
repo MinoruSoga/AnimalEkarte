@@ -5,14 +5,16 @@ import "testing"
 func TestCreateTrimmingOptionRequest_ToServiceInput(t *testing.T) {
 	price := int64(1200)
 	duration := 15
+	active := true
+	combinable := true
 
 	req := createTrimmingOptionRequest{
 		Name:         "Nail trim",
 		Price:        &price,
-		IsActive:     true,
+		IsActive:     &active,
 		Description:  "Basic nail trimming",
 		Duration:     &duration,
-		IsCombinable: true,
+		IsCombinable: &combinable,
 		SortOrder:    3,
 	}
 
@@ -24,8 +26,8 @@ func TestCreateTrimmingOptionRequest_ToServiceInput(t *testing.T) {
 	if input.Price != &price {
 		t.Fatalf("Price pointer was not preserved")
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = false, want true")
 	}
 	if input.Description != req.Description {
 		t.Fatalf("Description = %q, want %q", input.Description, req.Description)
@@ -33,11 +35,26 @@ func TestCreateTrimmingOptionRequest_ToServiceInput(t *testing.T) {
 	if input.Duration != &duration {
 		t.Fatalf("Duration pointer was not preserved")
 	}
-	if input.IsCombinable != req.IsCombinable {
-		t.Fatalf("IsCombinable = %v, want %v", input.IsCombinable, req.IsCombinable)
+	if !input.IsCombinable {
+		t.Fatalf("IsCombinable = false, want true")
 	}
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
+	}
+}
+
+func TestCreateTrimmingOptionRequest_BoolFalseAndOmitted(t *testing.T) {
+	active := false
+	combinable := false
+	if (createTrimmingOptionRequest{Name: "x", IsActive: &active, IsCombinable: &combinable}).toServiceInput().IsActive {
+		t.Fatal("explicit is_active false must resolve to false")
+	}
+	if (createTrimmingOptionRequest{Name: "x", IsActive: &active, IsCombinable: &combinable}).toServiceInput().IsCombinable {
+		t.Fatal("explicit is_combinable false must resolve to false")
+	}
+	omitted := (createTrimmingOptionRequest{Name: "x"}).toServiceInput()
+	if !omitted.IsActive || !omitted.IsCombinable {
+		t.Fatal("omitted bools must resolve to true")
 	}
 }
 

@@ -52,8 +52,24 @@ func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id ui
 }
 
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
-	if err := r.db.WithContext(ctx).Create(option).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := option.IsActive
+	wantCombinable := option.IsCombinable
+	if err := db.Create(option).Error; err != nil {
 		return apperrors.FromGORM(err, "trimming_option", "")
+	}
+	if !wantActive {
+		if err := db.Model(option).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", option.ID))
+		}
+		option.IsActive = false
+	}
+	if !wantCombinable {
+		if err := db.Model(option).Update("is_combinable", false).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", option.ID))
+		}
+		option.IsCombinable = false
 	}
 	return nil
 }

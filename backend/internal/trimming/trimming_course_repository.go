@@ -52,8 +52,17 @@ func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id ui
 }
 
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
-	if err := persistence.DBOrTx(ctx, r.db).Create(course).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := course.IsActive
+	if err := db.Create(course).Error; err != nil {
 		return apperrors.FromGORM(err, "trimming_course", "")
+	}
+	if !wantActive {
+		if err := db.Model(course).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", course.ID))
+		}
+		course.IsActive = false
 	}
 	return nil
 }

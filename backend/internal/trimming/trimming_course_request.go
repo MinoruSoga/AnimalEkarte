@@ -3,7 +3,9 @@ package trimming
 type createTrimmingCourseRequest struct {
 	Name         string  `json:"name"        binding:"required"`
 	Price        *int64  `json:"price"`
-	IsActive     bool    `json:"is_active"`
+	// IsActive is *bool so JSON binding can distinguish omitted / false / true.
+	// Omitted (nil) resolves to true in toServiceInput.
+	IsActive     *bool   `json:"is_active"`
 	Description  string  `json:"description"`
 	TargetSize   string  `json:"target_size" binding:"omitempty,oneof=small medium large cat"`
 	CourseTypeID *uint64 `json:"course_type_id"`
@@ -12,13 +14,17 @@ type createTrimmingCourseRequest struct {
 }
 
 func (r *createTrimmingCourseRequest) toServiceInput() *CreateTrimmingCourseInput {
+	isActive := true
+	if r.IsActive != nil {
+		isActive = *r.IsActive
+	}
 	return &CreateTrimmingCourseInput{
 		Name:         r.Name,
 		TargetSize:   r.TargetSize,
 		CourseTypeID: r.CourseTypeID,
 		Price:        r.Price,
 		Duration:     r.Duration,
-		IsActive:     r.IsActive,
+		IsActive:     isActive,
 		Description:  r.Description,
 		SortOrder:    r.SortOrder,
 	}

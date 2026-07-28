@@ -143,6 +143,30 @@ func TestTrimmingCourseRepository_Create(t *testing.T) {
 	assert.Equal(t, "新規コース", got.Name)
 }
 
+// BUG-455-S8: gorm default:true omits zero bools from INSERT.
+func TestTrimmingCourseRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupTrimmingCourseTestDB(t)
+	repo := NewTrimmingCourseRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	c := &model.TrimmingCourse{ClinicID: clinicA, Name: "inactive course", IsActive: false}
+	require.NoError(t, repo.Create(ctx, c))
+	assert.False(t, c.IsActive)
+
+	got, err := repo.FindByID(ctx, clinicA, c.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+
+	var raw bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.TrimmingCourse{}).
+		Select("is_active").
+		Where("id = ?", c.ID).
+		Scan(&raw).Error)
+	assert.False(t, raw, "raw is_active must be false")
+}
+
 func TestTrimmingCourseRepository_Update(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
 	repo := NewTrimmingCourseRepository(db)

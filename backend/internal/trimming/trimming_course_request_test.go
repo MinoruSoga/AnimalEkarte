@@ -5,11 +5,12 @@ import "testing"
 func TestCreateTrimmingCourseRequest_ToServiceInput(t *testing.T) {
 	price := int64(5500)
 	duration := 60
+	active := true
 
 	req := createTrimmingCourseRequest{
 		Name:        "Basic groom",
 		Price:       &price,
-		IsActive:    true,
+		IsActive:    &active,
 		Description: "Bath and trim",
 		TargetSize:  "medium",
 		Duration:    &duration,
@@ -24,8 +25,8 @@ func TestCreateTrimmingCourseRequest_ToServiceInput(t *testing.T) {
 	if input.Price != &price {
 		t.Fatalf("Price pointer was not preserved")
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = false, want true")
 	}
 	if input.Description != req.Description {
 		t.Fatalf("Description = %q, want %q", input.Description, req.Description)
