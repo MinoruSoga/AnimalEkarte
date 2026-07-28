@@ -19,6 +19,12 @@
 - タスク切り替え前に `/compact` を検討する
 - `stop-save-progress.js` がセッション終了時に進捗スナップショットを保存
 
+## 並行エージェント / Git 安全
+
+- 正本: `git-worktree-safety.md`
+- 並行タスクは **worktree 隔離必須**（共有 working tree 禁止）
+- `git reset --hard` / `git clean -fd(x)` / discard-all restore / force-push は deny + PreToolUse でブロック
+
 ## 読み取り効率ルール（トークン削減）
 
 **ファイル読み取り:**

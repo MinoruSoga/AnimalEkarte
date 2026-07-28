@@ -19,11 +19,20 @@ Also load the project-wide rules in [.claude/rules/](.claude/rules/) (including 
 - After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
 - Agents must not auto-apply migrations; when the post-pull rule applies, surface `make migrate` for the user to run manually.
 
+## Git / Parallel Agent Safety (Mandatory)
+
+Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-safety.md).
+
+- **Never** run `git reset --hard`, `git clean -fd(x)`, `git checkout -- .`, `git restore .`, or force-push. These are permission-deny + PreToolUse hook blocked.
+- To sync with remote: `git fetch` + `git merge` / `git pull --ff-only` (after checking `git status` for foreign WIP).
+- **Parallel Grok/Claude tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
+- Prefer WIP commits over discarding work. Do not “clean the tree” to unblock yourself.
+
 ## Execution Autonomy
 
 - Ask specification questions only before execution starts, such as during /grill-me or an equivalent clarification phase.
 - Once scope is clear, proceed through the in-scope work without asking mid-task confirmation questions.
-- Stop only for explicit safety boundaries: destructive operations, credential or secret changes, external posting/publishing/pushing/merging, paid actions, production-impacting actions, or irreversible third-party changes.
+- Stop only for explicit safety boundaries: destructive operations (including any working-tree wipe), credential or secret changes, external posting/publishing/pushing/merging, paid actions, production-impacting actions, or irreversible third-party changes.
 
 ## Verification
 

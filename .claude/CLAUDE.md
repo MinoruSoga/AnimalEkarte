@@ -48,6 +48,8 @@
 - **Branches**: Daily work on `main`. `main` → `staging` via PR. No direct `production` push
 - **Post-Pull Migrations**: After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
 - **Agent Migration Authority**: Agents must not auto-apply migrations. Surface `make migrate` for the user to run manually when the post-pull rule applies.
+- **Git Safety**: Never `git reset --hard`, `git clean -fd(x)`, discard-all `checkout`/`restore .`, or force-push. See [.claude/rules/git-worktree-safety.md](rules/git-worktree-safety.md). Enforced by `permissions.deny` and `.claude/hooks/pre-bash-block-dangerous.js`.
+- **Parallel Agents**: Concurrent Grok/Claude/Codex tasks **must** use separate `git worktree`s (or harness worktree isolation). One shared working tree = one active editor agent only.
 
 ## 🚫 Auto-Execution Prohibited Commands
 
@@ -77,6 +79,13 @@ If one of these exact full commands is needed, inform the user with the command 
 ### Dependency Installation (verbose and slow)
 - `docker compose exec frontend pnpm install`
 - `docker compose exec backend go mod download`
+
+### Destructive Git (hard-blocked — agents must never run)
+- `git reset --hard` (any ref)
+- `git clean -fd` / `git clean -fdx` / force clean variants
+- `git checkout -- .` / `git restore .` (discard all worktree changes)
+- `git push --force` / `git push -f` / `git push --force-with-lease`
+- Prefer: path-scoped `git restore <path>`, `git stash`, `git pull --ff-only`, or a new worktree
 
 ### Scoped Verification Exception
 
