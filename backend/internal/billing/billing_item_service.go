@@ -73,6 +73,16 @@ type UpdateBillingItemInput struct {
 	IsPostClose     bool
 }
 
+// DeleteBillingItemInput は明細削除の入力DTO。
+// StaffID は vaccination claim 解放監査 actor（BUG-440）および締め後編集監査 actor。
+// IsPostClose / PostCloseReason はレジ締め後削除ゲート（BUG-463 residual）。
+// nil input は非締め後削除として扱う。
+type DeleteBillingItemInput struct {
+	StaffID         *uint64
+	PostCloseReason *string
+	IsPostClose     bool
+}
+
 func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	fields := make(map[string]any)
 	if input.UnitPrice != nil {
@@ -183,8 +193,11 @@ func applyBillingItemOtherMetadata(input *CreateBillingItemInput, item *model.Bi
 type BillingItemService interface {
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
-	// DeleteItem は明細を soft-delete する。staffID は vaccination claim 解放監査の actor（BUG-440）。
-	DeleteItem(ctx context.Context, clinicID, id uint64, staffID *uint64) error
+	// DeleteItem は明細を soft-delete する。
+	// input.StaffID は vaccination claim 解放監査 actor（BUG-440）および締め後編集監査 actor。
+	// input.IsPostClose 時は post_close_reason 必須 + 同 tx fail-closed 監査（BUG-463 residual）。
+	// nil input は非締め後削除として扱う。
+	DeleteItem(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error
 	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
@@ -543,7 +556,15 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	return updated, nil
 }
 
-func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64, staffID *uint64) error {
+func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error {
+	if input == nil {
+		input = &DeleteBillingItemInput{}
+	}
+	// #115 / BUG-463 residual: 締め後削除は理由必須（handler 迂回経路にも強制）
+	if err := requirePostCloseReason(input.IsPostClose, input.PostCloseReason); err != nil {
+		return err
+	}
+
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get billing item")
@@ -574,10 +595,19 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
+		// BUG-463 residual: 締め後削除は post-close 監査を同 tx fail-closed で記録する。
+		// vaccination claim 解放監査（BUG-440）と両立し、両方発火し得る。
+		if input.IsPostClose {
+			itemID := id
+			if err := s.logBillingItemPostCloseEdit(txCtx, clinicID, billingID, &itemID, input.StaffID, input.PostCloseReason, "delete"); err != nil {
+				return err
+			}
+		}
+
 		// BUG-440: vaccination claim 解放時のみ immutable actor 監査（同 tx fail-closed）。
-		// 非 vaccination 明細削除は監査しない（ledger 方針: claim 解放の追跡が目的）。
+		// 非 vaccination 明細削除は claim-release 監査しない（ledger 方針: claim 解放の追跡が目的）。
 		if releasedVaccinationID != nil {
-			if err := s.logVaccinationClaimRelease(txCtx, clinicID, billingID, id, *releasedVaccinationID, staffID); err != nil {
+			if err := s.logVaccinationClaimRelease(txCtx, clinicID, billingID, id, *releasedVaccinationID, input.StaffID); err != nil {
 				return err
 			}
 		}

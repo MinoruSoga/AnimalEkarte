@@ -119,7 +119,7 @@ func (h *BillingItemHandler) UpdateBillingItem(c *gin.Context) {
 }
 
 // applyPostCloseFlags は親請求の予定日がレジ締め済みかを判定し、権限チェックと IsPostClose 注入を行う。
-// billingID > 0 のとき create 経路、itemID > 0 のとき update 経路。
+// billingID > 0 のとき create 経路、itemID > 0 のとき update/delete 経路。
 // cashRegister 未配線時は判定をスキップ（テスト互換）。
 func (h *BillingItemHandler) applyPostCloseFlags(
 	c *gin.Context,
@@ -187,9 +187,26 @@ func (h *BillingItemHandler) DeleteBillingItem(c *gin.Context) {
 		return
 	}
 
+	// Optional body: post_close_reason（締め後削除時）。空 body は非締め後として扱う。
+	var req deleteBillingItemRequest
+	if c.Request.Body != nil && c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+			return
+		}
+	}
+
 	// BUG-440: vaccination claim 解放監査の actor。認証経路では通常設定済み。
-	staffID := httpapi.OptionalStaffID(c)
-	if err := h.svc.DeleteItem(c.Request.Context(), clinicID, id, staffID); err != nil {
+	// BUG-463 residual: レジ締め済みなら post-close 権限 + 理由必須を注入。
+	input := &DeleteBillingItemInput{StaffID: httpapi.OptionalStaffID(c)}
+	if err := h.applyPostCloseFlags(c, clinicID, 0, id, &input.IsPostClose, &input.PostCloseReason, &input.StaffID, req.PostCloseReason); err != nil {
+		if !errors.Is(err, errHandlerAlreadyResponded) {
+			httpapi.RespondError(c, err)
+		}
+		return
+	}
+
+	if err := h.svc.DeleteItem(c.Request.Context(), clinicID, id, input); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

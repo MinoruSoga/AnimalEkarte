@@ -734,7 +734,7 @@ func TestBillingItemVaccinationProvenance_DeleteReleasesClaim(t *testing.T) {
 	assert.Empty(t, items)
 
 	staffID := uint64(42)
-	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{StaffID: &staffID}))
 
 	var released struct {
 		VaccinationID *uint64
@@ -791,7 +791,7 @@ func TestBillingItemVaccinationProvenance_DeleteStatusGuard(t *testing.T) {
 				Update("status", tt.status).Error)
 			f.billing.Status = tt.status
 
-			err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, nil)
+			err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{})
 			if tt.wantConflict {
 				require.Error(t, err)
 				assert.True(t, apperrors.IsConflict(err), "finalized billing delete must return conflict: %v", err)
@@ -851,7 +851,7 @@ func TestBillingItemVaccinationClaimRelease_DeleteWritesAudit(t *testing.T) {
 	require.NoError(t, err)
 
 	staffID := uint64(11)
-	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{StaffID: &staffID}))
 
 	require.True(t, audit.logEntryTxCalled, "vaccination claim release must write audit in same tx")
 	require.NotNil(t, audit.logEntryTxInput)
@@ -887,7 +887,7 @@ func TestBillingItemVaccinationClaimRelease_AuditFailureRollsBack(t *testing.T) 
 	audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
 	svc := newBillingItemReferenceService(f, f.repo, WithBillingItemAuditTx(audit))
 	staffID := uint64(12)
-	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID)
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{StaffID: &staffID})
 	require.Error(t, err)
 	assert.True(t, audit.logEntryTxCalled, "audit must be attempted before commit")
 
@@ -925,7 +925,7 @@ func TestBillingItemDelete_NonVaccinationItemSkipsClaimReleaseAudit(t *testing.T
 	require.Nil(t, created.VaccinationID)
 
 	staffID := uint64(13)
-	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{StaffID: &staffID}))
 	assert.False(t, audit.logEntryTxCalled, "non-vaccination delete must not emit claim-release audit")
 
 	var stored struct {

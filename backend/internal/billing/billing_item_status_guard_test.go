@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -334,4 +335,126 @@ func TestBillingItemService_UpdateItem_PostCloseAuditFailureRollsBack(t *testing
 	var stored model.BillingItem
 	require.NoError(t, f.db.First(&stored, created.ID).Error)
 	assert.Equal(t, originalPrice, stored.UnitPrice, "audit failure must roll back item update")
+}
+
+// ---- DeleteItem post-close gate (BUG-463 residual) ----
+
+func TestBillingItemService_DeleteItem_PostCloseReasonRequired(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	svc := newBillingItemReferenceService(f, f.repo)
+	created, err := svc.CreateItem(context.Background(), billingItemReferenceCreateInput(f))
+	require.NoError(t, err)
+
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{
+		IsPostClose: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "missing post_close_reason must be invalid input: %v", err)
+
+	empty := ""
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{
+		IsPostClose:     true,
+		PostCloseReason: &empty,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	// Item must still exist (reason rejected outside tx).
+	var count int64
+	require.NoError(t, f.db.Model(&model.BillingItem{}).
+		Where("id = ? AND deleted_at IS NULL", created.ID).
+		Count(&count).Error)
+	assert.Equal(t, int64(1), count, "invalid post-close delete must not soft-delete the item")
+}
+
+func TestBillingItemService_DeleteItem_PostCloseEmitsAudit(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	baseSvc := newBillingItemReferenceService(f, f.repo)
+	created, err := baseSvc.CreateItem(context.Background(), billingItemReferenceCreateInput(f))
+	require.NoError(t, err)
+
+	audit := &mockAuditService{}
+	billingRepo := defaultMockBillingRepo()
+	billingRepo.findByIDFn = func(_ context.Context, clinicID, billingID uint64) (*model.Billing, error) {
+		if clinicID != f.clinicID || billingID != f.billing.ID {
+			return nil, apperrors.WrapNotFound("billing", "test")
+		}
+		return f.billing, nil
+	}
+	svc := NewBillingItemServiceWithCampaign(
+		f.repo,
+		billingRepo,
+		defaultMockTreatmentRepo(),
+		testNewTransactor(f.db),
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		nil,
+		nil,
+		WithBillingItemAuditTx(audit),
+	)
+
+	reason := "締め後明細削除"
+	staffID := uint64(15)
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{
+		StaffID:         &staffID,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+	require.NoError(t, err)
+	require.True(t, audit.logEntryTxCalled)
+	require.NotNil(t, audit.logEntryTxInput)
+	assert.Equal(t, model.AuditActionBillingPostCloseEdit, audit.logEntryTxInput.Action)
+	assert.Equal(t, "billing_item", audit.logEntryTxInput.Resource)
+	meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, reason, meta["reason"])
+	assert.Equal(t, f.billing.ID, meta["billing_id"])
+	assert.Equal(t, "delete", meta["operation"])
+}
+
+func TestBillingItemService_DeleteItem_PostCloseAuditFailureRollsBack(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	baseSvc := newBillingItemReferenceService(f, f.repo)
+	created, err := baseSvc.CreateItem(context.Background(), billingItemReferenceCreateInput(f))
+	require.NoError(t, err)
+
+	audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
+	billingRepo := defaultMockBillingRepo()
+	billingRepo.findByIDFn = func(_ context.Context, clinicID, billingID uint64) (*model.Billing, error) {
+		if clinicID != f.clinicID || billingID != f.billing.ID {
+			return nil, apperrors.WrapNotFound("billing", "test")
+		}
+		return f.billing, nil
+	}
+	svc := NewBillingItemServiceWithCampaign(
+		f.repo,
+		billingRepo,
+		defaultMockTreatmentRepo(),
+		testNewTransactor(f.db),
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		nil,
+		nil,
+		WithBillingItemAuditTx(audit),
+	)
+
+	reason := "締め後削除失敗"
+	staffID := uint64(16)
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &DeleteBillingItemInput{
+		StaffID:         &staffID,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+	require.Error(t, err)
+	assert.True(t, audit.logEntryTxCalled, "post-close delete must attempt audit")
+
+	var stored struct {
+		DeletedAt *time.Time
+	}
+	require.NoError(t, f.db.Unscoped().
+		Table("billing_items").
+		Select("deleted_at").
+		Where("id = ?", created.ID).
+		Take(&stored).Error)
+	assert.Nil(t, stored.DeletedAt, "audit failure must roll back soft-delete")
 }

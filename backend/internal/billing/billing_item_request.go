@@ -70,6 +70,12 @@ type updateBillingItemRequest struct {
 	PostCloseReason *string `json:"post_close_reason"`
 }
 
+// deleteBillingItemRequest は明細削除の任意 body。
+// 締め後削除時のみ post_close_reason を送る（BUG-463 residual）。
+type deleteBillingItemRequest struct {
+	PostCloseReason *string `json:"post_close_reason"`
+}
+
 func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillingItemInput {
 	return &CreateBillingItemInput{
 		ClinicID:              clinicID,

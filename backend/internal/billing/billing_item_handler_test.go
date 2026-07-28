@@ -28,7 +28,7 @@ func TestBillingItemHandlerCompiles(t *testing.T) {
 type mockBillingItemService struct {
 	createItemFn                 func(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	updateItemFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
-	deleteItemFn                 func(ctx context.Context, clinicID, id uint64, staffID *uint64) error
+	deleteItemFn                 func(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error
 	getUnbilledItemsFn           func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
@@ -44,8 +44,8 @@ func (m *mockBillingItemService) UpdateItem(ctx context.Context, clinicID, id ui
 	return m.updateItemFn(ctx, clinicID, id, input)
 }
 
-func (m *mockBillingItemService) DeleteItem(ctx context.Context, clinicID, id uint64, staffID *uint64) error {
-	return m.deleteItemFn(ctx, clinicID, id, staffID)
+func (m *mockBillingItemService) DeleteItem(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error {
+	return m.deleteItemFn(ctx, clinicID, id, input)
 }
 
 func (m *mockBillingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
@@ -278,11 +278,13 @@ func TestDeleteBillingItem(t *testing.T) {
 			name:    "deletes billing item successfully",
 			paramID: "5",
 			svc: &mockBillingItemService{
-				deleteItemFn: func(_ context.Context, clinicID, id uint64, staffID *uint64) error {
+				deleteItemFn: func(_ context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), id)
-					require.NotNil(t, staffID)
-					assert.Equal(t, uint64(1), *staffID)
+					require.NotNil(t, input)
+					require.NotNil(t, input.StaffID)
+					assert.Equal(t, uint64(1), *input.StaffID)
+					assert.False(t, input.IsPostClose)
 					return nil
 				},
 			},
@@ -298,7 +300,7 @@ func TestDeleteBillingItem(t *testing.T) {
 			name:    "returns 404 when item does not exist",
 			paramID: "999",
 			svc: &mockBillingItemService{
-				deleteItemFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+				deleteItemFn: func(_ context.Context, _, _ uint64, _ *DeleteBillingItemInput) error {
 					return apperrors.WrapNotFound("billing_item", "999")
 				},
 			},
