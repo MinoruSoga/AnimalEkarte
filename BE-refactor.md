@@ -3441,7 +3441,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/trimming/ && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (7/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: f51f25b7435d85901d33cc9d7acccdbff891364b
 
 ##### U-X04-MR-SUBRECORDS
 
