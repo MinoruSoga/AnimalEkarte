@@ -25,7 +25,6 @@ type ShiftTemplateRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 }
 
 type shiftTemplateRepository struct{ db *gorm.DB }
@@ -156,13 +155,4 @@ func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, 
 	return persistence.ReorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids, "sort_order")
 }
 
-// CountUsageByShiftTemplateID is retained for compatibility. The only
-// shift_template_id FK belongs to shift_template_breaks, which is an owned
-// cascade child rather than external usage, so an existing scoped template has
-// no blocking references.
-func (r *shiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	_ = ctx
-	_ = clinicID
-	_ = id
-	return 0, nil
-}
+

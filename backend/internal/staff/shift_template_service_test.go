@@ -21,7 +21,9 @@ type mockShiftTemplateRepository struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	updateBreaksFn         func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
-	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+	// countUsageByTemplateID is retained only so older Delete table fixtures in
+	// shift_template_service_update_test.go still compile; the repository method is gone (AUS-04).
 	countUsageByTemplateID func(ctx context.Context, clinicID, id uint64) (int64, error)
 	withTxFn               func(ctx context.Context, fn func(context.Context) error) error
 	withTxCalls            int
@@ -92,13 +94,6 @@ func (m *mockShiftTemplateRepository) Reorder(ctx context.Context, clinicID uint
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
-}
-
-func (m *mockShiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	if m.countUsageByTemplateID != nil {
-		return m.countUsageByTemplateID(ctx, clinicID, id)
-	}
-	return 0, nil
 }
 
 // ---- Tests: GetByID ----

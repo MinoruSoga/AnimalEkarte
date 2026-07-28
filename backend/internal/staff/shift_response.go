@@ -60,7 +60,7 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 		CreatedAt: localTimeRFC3339(s.CreatedAt),
 		UpdatedAt: localTimeRFC3339(s.UpdatedAt),
 	}
-	if s.Staff.ID != 0 {
+	if s.Staff != nil && s.Staff.ID != 0 {
 		r.StaffName = s.Staff.Name
 		r.Staff = &staffSummaryResponse{ID: s.Staff.ID, Name: s.Staff.Name}
 	}

@@ -112,10 +112,12 @@ func NewShiftEntryService(
 }
 
 func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error) {
-	if yearMonth != "" {
-		if err := validateYearMonth(yearMonth); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate year month")
-		}
+	// G2F-10: empty year_month defaults to the current local month so list stays bounded.
+	if yearMonth == "" {
+		yearMonth = time.Now().In(time.Local).Format("2006-01")
+	}
+	if err := validateYearMonth(yearMonth); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate year month")
 	}
 	filter := ShiftEntryFilter{
 		YearMonth: yearMonth,

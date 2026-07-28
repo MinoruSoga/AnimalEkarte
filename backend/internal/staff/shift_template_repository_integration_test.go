@@ -3,10 +3,9 @@ package staff_test
 // repository_test.go — Repository 統合テスト。
 //
 // 保護する不変条件:
-//   - FindAll / FindByID / CountUsageByShiftTemplateID は clinic_id でテナント隔離される。
+//   - FindAll / FindByID は clinic_id でテナント隔離される。
 //   - FindAll はソフトデリート済みテンプレートを除外し sort_order/name 順で返す。
 //   - Delete はソフトデリートであり、以後 FindByID/FindAll から除外される。
-//   - CountUsageByShiftTemplateID (P2) は deleted_at IS NULL のテンプレートに紐づく breaks のみ数える。
 //   - Reorder は指定順に sort_order=1..n を割り当て、他クリニックの id を含むと失敗する。
 
 import (
@@ -289,36 +288,4 @@ func TestShiftTemplateRepository_Reorder(t *testing.T) {
 	})
 }
 
-func TestShiftTemplateRepository_CountUsageByShiftTemplateID(t *testing.T) {
-	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
-	ctx := context.Background()
 
-	const clinicA = uint64(1)
-	tpl := makeShiftTemplate(t, db, clinicA, "使用中テンプレ", 1)
-	unused := makeShiftTemplate(t, db, clinicA, "未使用テンプレ", 2)
-
-	require.NoError(t, repo.UpdateBreaks(ctx, tpl.ID, []model.ShiftTemplateBreak{
-		{BreakStart: "12:00", BreakEnd: "13:00"},
-		{BreakStart: "15:00", BreakEnd: "15:30"},
-	}))
-
-	t.Run("returns zero when unused", func(t *testing.T) {
-		count, err := repo.CountUsageByShiftTemplateID(ctx, clinicA, unused.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-
-	t.Run("owned break children are not counted as blocking usage", func(t *testing.T) {
-		count, err := repo.CountUsageByShiftTemplateID(ctx, clinicA, tpl.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-
-	t.Run("excludes usage of soft-deleted template (P2)", func(t *testing.T) {
-		require.NoError(t, repo.Delete(ctx, clinicA, tpl.ID))
-		count, err := repo.CountUsageByShiftTemplateID(ctx, clinicA, tpl.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count, "ソフトデリート済みテンプレートの使用数は0")
-	})
-}

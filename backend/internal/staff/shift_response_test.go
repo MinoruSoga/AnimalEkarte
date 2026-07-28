@@ -59,13 +59,6 @@ func TestToShiftResponse(t *testing.T) {
 			},
 		},
 		{
-			// NOTE: toShiftResponse dereferences s.Staff.ID unconditionally (no nil guard on
-			// s.Staff itself), so this test intentionally keeps Staff non-nil with a zero ID
-			// (matches "staff record present but ID unset") rather than leaving Staff nil
-			// (which would panic). A nil Staff pointer can occur in production when the
-			// repository's `Preload("Staff", "deleted_at IS NULL")` filters out a soft-deleted
-			// staff record — that is a pre-existing latent nil-pointer risk in shift_response.go,
-			// left unchanged here since fixing it is outside this coverage-only task's scope.
 			name: "shift without start/end time, breaks, or a named staff",
 			shift: &model.ShiftEntry{
 				ID:        10,
@@ -84,6 +77,24 @@ func TestToShiftResponse(t *testing.T) {
 				assert.NotNil(t, resp.Breaks)
 				assert.Empty(t, resp.StaffName)
 				assert.Nil(t, resp.Staff, "Staff must stay nil in response when Staff.ID is zero value")
+			},
+		},
+		{
+			// AUS-05: Preload may leave Staff nil when assignment is inactive for the clinic.
+			name: "nil Staff association does not panic and omits staff summary",
+			shift: &model.ShiftEntry{
+				ID:        11,
+				ClinicID:  1,
+				StaffID:   4,
+				Date:      date,
+				ShiftType: model.ShiftType("off"),
+				CreatedAt: created,
+				UpdatedAt: updated,
+				Staff:     nil,
+			},
+			check: func(t *testing.T, resp shiftResponse) {
+				assert.Empty(t, resp.StaffName)
+				assert.Nil(t, resp.Staff)
 			},
 		},
 	}
