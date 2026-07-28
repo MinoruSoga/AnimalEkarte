@@ -1,66 +1,31 @@
 package pet
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const ErrMsgWeightZeroOrMore = "体重は0以上の値を入力してください"
 
 func validatePetGender(gender string) error {
-	if gender == "" {
-		return nil
-	}
-	switch model.PetGender(gender) {
-	case model.PetGenderMale, model.PetGenderFemale, model.PetGenderUnknown:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("性別の値が不正です: %s", gender))
-	}
+	return sharedkernel.ValidatePetGender(gender)
 }
 
 // validatePetStatus は生存ステータスの値がドメイン上有効かを検証する
 func validatePetStatus(status string) error {
-	if status == "" {
-		return nil
-	}
-	switch model.PetStatus(status) {
-	case model.PetStatusAlive, model.PetStatusDeceased:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("ステータスの値が不正です: %s", status))
-	}
+	return sharedkernel.ValidatePetStatus(status)
 }
 
 // validatePetAcquisitionType は入手経路の値がドメイン上有効かを検証する
 func validatePetAcquisitionType(t string) error {
-	if t == "" {
-		return nil
-	}
-	switch model.AcquisitionType(t) {
-	case model.AcquisitionTypePurchase, model.AcquisitionTypeTransfer,
-		model.AcquisitionTypeRescued, model.AcquisitionTypeOther:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("入手経路の値が不正です: %s", t))
-	}
+	return sharedkernel.ValidatePetAcquisitionType(t)
 }
 
 // validatePetDangerLevel は危険度の値がドメイン上有効かを検証する
 func validatePetDangerLevel(level string) error {
-	if level == "" {
-		return nil
-	}
-	switch model.DangerLevel(level) {
-	case model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
-	}
+	return sharedkernel.ValidatePetDangerLevel(level)
 }
 
 func validateCreatePetInput(input *CreatePetInput) error {

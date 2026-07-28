@@ -82,3 +82,45 @@ func TestSharedKernelValidators(t *testing.T) {
 		assert.Equal(t, model.AuditActorTypeSystem, AuditActorTypeFor(nil))
 	})
 }
+
+// TestValidatePetEnums は POC-11: owner/pet で複製されていたペット列挙検証の単一正本。
+func TestValidatePetEnums(t *testing.T) {
+	tests := []struct {
+		name     string
+		validate func(string) error
+		valid    string
+		invalid  string
+	}{
+		{
+			name:     "gender",
+			validate: ValidatePetGender,
+			valid:    string(model.PetGenderMale),
+			invalid:  "invalid_gender",
+		},
+		{
+			name:     "status",
+			validate: ValidatePetStatus,
+			valid:    string(model.PetStatusAlive),
+			invalid:  "invalid_status",
+		},
+		{
+			name:     "acquisition type",
+			validate: ValidatePetAcquisitionType,
+			valid:    string(model.AcquisitionTypePurchase),
+			invalid:  "invalid_acquisition",
+		},
+		{
+			name:     "danger level",
+			validate: ValidatePetDangerLevel,
+			valid:    string(model.DangerLevelLow),
+			invalid:  "invalid_danger",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NoError(t, tt.validate(""))
+			assert.NoError(t, tt.validate(tt.valid))
+			assert.Error(t, tt.validate(tt.invalid))
+		})
+	}
+}

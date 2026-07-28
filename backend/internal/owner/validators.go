@@ -106,38 +106,17 @@ func validatePetForOwnerInput(input *CreatePetForOwnerInput) error {
 }
 
 func validatePetGender(gender string) error {
-	switch model.PetGender(gender) {
-	case "", model.PetGenderMale, model.PetGenderFemale, model.PetGenderUnknown:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("性別の値が不正です: %s", gender))
-	}
+	return sharedkernel.ValidatePetGender(gender)
 }
 
 func validatePetStatus(status string) error {
-	switch model.PetStatus(status) {
-	case "", model.PetStatusAlive, model.PetStatusDeceased:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("ステータスの値が不正です: %s", status))
-	}
+	return sharedkernel.ValidatePetStatus(status)
 }
 
 func validatePetAcquisitionType(acquisitionType string) error {
-	switch model.AcquisitionType(acquisitionType) {
-	case "", model.AcquisitionTypePurchase, model.AcquisitionTypeTransfer,
-		model.AcquisitionTypeRescued, model.AcquisitionTypeOther:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("入手経路の値が不正です: %s", acquisitionType))
-	}
+	return sharedkernel.ValidatePetAcquisitionType(acquisitionType)
 }
 
 func validatePetDangerLevel(level string) error {
-	switch model.DangerLevel(level) {
-	case "", model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
-	}
+	return sharedkernel.ValidatePetDangerLevel(level)
 }
