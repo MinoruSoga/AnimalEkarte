@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -308,8 +309,33 @@ func TestChronicConditionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewChronicConditionService(repo, petRepo, nil)
-		_, err := svc.Update(ctx, 1, 100, 10, UpdateChronicConditionInput{})
+		code := "C02"
+		_, err := svc.Update(ctx, 1, 100, 10, UpdateChronicConditionInput{ConditionCode: &code})
 		assert.Error(t, err)
+	})
+
+	t.Run("returns error when no fields provided", func(t *testing.T) {
+		updateCalled := false
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID, OwnerID: 500}, nil
+			},
+		}
+		repo := &mockPetChronicConditionRepository{
+			findByIDFn: func(_ context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error) {
+				return &model.PetChronicCondition{ID: id, ClinicID: clinicID, PetID: petID}, nil
+			},
+			updateFn: func(_ context.Context, _, _, _ uint64, _ map[string]any) error {
+				updateCalled = true
+				return nil
+			},
+		}
+		svc := NewChronicConditionService(repo, petRepo, &mockLstepTagSyncService{})
+		res, err := svc.Update(ctx, 1, 100, 10, UpdateChronicConditionInput{})
+		assert.Error(t, err)
+		assert.Nil(t, res)
+		assert.False(t, updateCalled, "empty PATCH must not reach repository.Update")
+		assert.True(t, apperrors.IsInvalidInput(err), "empty PATCH must be client-correctable invalid input, not not-found")
 	})
 }
 

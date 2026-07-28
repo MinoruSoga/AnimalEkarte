@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateChronicConditionInput は慢性疾患フラグ作成の入力（BE-012）。
@@ -114,6 +115,9 @@ func (s *chronicConditionService) Update(ctx context.Context, clinicID, petID, i
 	}
 
 	fields := buildChronicConditionUpdateFields(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
+	}
 	if err := s.repo.Update(ctx, clinicID, petID, id, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to update chronic condition", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update chronic condition")
