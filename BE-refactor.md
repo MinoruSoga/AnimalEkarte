@@ -3250,7 +3250,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagSummary"`
 - 既知台帳: G2C-04=BUG-464
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 対象消失（BUG-464 実装済み: fail-closed 5000 行上限 + stream 後 RespondError 抑止） ｜ 担当レーン: LANE-4 ｜ 完了 commit: —
 
 ##### SOLO-14
 
