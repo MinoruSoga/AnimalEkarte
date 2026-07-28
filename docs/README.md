@@ -33,8 +33,8 @@ docs/
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: 個別タスクはリポジトリ直下の [`todo.md`](../todo.md) に一元化（旧 `docs/tasks/` は廃止）。過去の完了記録・監査アーカイブは git 履歴を参照（旧 `docs/archive/` は削除済み）。
+- **タスク台帳**: 個別タスクはリポジトリ直下 [`3-session-agent.html` の実装タスク台帳（正本）](../3-session-agent.html#ledger) に一元化し、`<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="<タスクID>">` 形式で追記する（旧 `docs/tasks/` は廃止）。過去の完了記録・監査アーカイブは git 履歴を参照（旧 `docs/archive/` は削除済み）。
 
 ---
 
-**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
+**最新更新**: 2026-07-27 | **ステータス**: Static/Code Sync (110 Tables / 34 Resources; Fresh DB Apply Pending — `q&a.html` OPS-13)

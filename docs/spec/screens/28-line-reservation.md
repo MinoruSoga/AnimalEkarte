@@ -1,6 +1,6 @@
 # LINE予約設定 仕様書 (LINE Reservation Settings)
 
-<!-- TODO: Add screenshot at docs/spec/screens/images/28-line-reservation-settings.png -->
+> **注記**: 本画面仕様は文面定義のみで、現時点で画像差分は未収録。
 
 ## 概要
 - **画面の目的**: 飼い主向け LINE 予約システムの稼働状態、受付ルール、および表示内容を一元管理する。
@@ -85,4 +85,3 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。`LineR
 | DELETE | `/api/v1/masters/reservation-types/:id/available-slots/:available_slot_id` | 予約可能枠の削除 | `master-reservation-type` | `delete` |
 
 ---
-

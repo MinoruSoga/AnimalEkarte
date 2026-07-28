@@ -1,0 +1,743 @@
+// Package repository provides data access implementations for BillingItem entity.
+package billing
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
+)
+
+// BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
+type BillingItemRepository interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
+	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
+	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) (model.ItemCategory, error)
+	ValidateVaccinationCreateReference(ctx context.Context, clinicID, billingID, vaccinationID uint64) (*vaccinationBillingValues, error)
+	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
+	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	Create(ctx context.Context, item *model.BillingItem) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
+	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	// HasItemByOwnerSince は指定飼い主の請求アイテムに names いずれかが存在するか返す（FEAT-379）。
+	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	// HasFoodPurchaseByOwnerSince は names 指定時は名前で、未指定時は category=food で判定する（FEAT-379）。
+	HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
+	// FindUnbilledTrimmingItemsByPetID は指定ペットの未請求トリミングコース/オプションを返す(#77)。
+	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
+	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
+}
+
+type activeStaffAssignmentLocker interface {
+	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
+}
+
+type billingItemRepository struct {
+	db *gorm.DB
+	activeStaffAssignmentLocker
+}
+
+// NewBillingItemRepository は BillingItemRepository を初期化して返す
+func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
+	return &billingItemRepository{
+		db:                          db,
+		activeStaffAssignmentLocker: NewBillingConfirmationRepository(db),
+	}
+}
+
+// BE-refactor.md R1-1 follow-up (go-reviewer指摘・D2と同型): billing_item_service の
+// CreateItem/UpdateItem/DeleteItem は Create/Update/Delete + recalculateTotals
+// （FindByBillingID + UpdateBillingTotals）を WithTx 内で txCtx 付きで呼ぶ。
+// dbOrTx 未参加のままだと SavePaymentSplits と同じ部分コミットが起こりうる
+// （明細書込は独立 tx で即コミット、直後の合計再計算のみ失敗すると ambient tx の rollback で
+// 明細だけ残り billing.subtotal/tax_total/total_amount と不整合になる）。
+// FindByID も Update 後の再読込（txCtx 付き）で呼ばれるため対象に含める。
+func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
+	var item model.BillingItem
+	err := persistence.DBOrTx(ctx, r.db).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billing_items.id = ?", id).
+		First(&item).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("%d", id))
+	}
+	return &item, nil
+}
+
+func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
+	items := make([]model.BillingItem, 0)
+	if err := persistence.DBOrTx(ctx, r.db).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billing_items.billing_id = ?", billingID).
+		Order("sort_order ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", "")
+	}
+	return items, nil
+}
+
+type billingItemBillingReference struct {
+	MedicalRecordID *uint64
+	OwnerID         *uint64
+	PetID           *uint64
+}
+
+type billingItemMedicalRecordReference struct {
+	ID            uint64
+	AppointmentID *uint64
+	OwnerID       *uint64
+	PetID         *uint64
+}
+
+type billingItemAppointmentReference struct {
+	OwnerID *uint64
+	PetID   *uint64
+}
+
+type billingItemMerchandiseReference struct {
+	ID       uint64
+	Category model.ItemCategory
+}
+
+type vaccinationBillingValues struct {
+	Name      string
+	UnitPrice int64
+}
+
+func sameOptionalBillingReference(left, right *uint64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func invalidBillingItemReferenceCombination() error {
+	return apperrors.WrapInvalidInput("参照先の組み合わせが正しくありません")
+}
+
+// ValidateCreateReferences validates every request-derived billing_items FK
+// against the authenticated clinic and its parent graph. It must run in the
+// same transaction as Create so that row locks keep the validated graph stable
+// until persistence commits. The billing parent is locked FOR UPDATE because
+// the same transaction recalculates and updates its totals.
+func (r *billingItemRepository) ValidateCreateReferences(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
+) (model.ItemCategory, error) {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return "", apperrors.WrapInternalServerError("billing item reference validation requires an active transaction")
+	}
+	tx = tx.WithContext(ctx)
+
+	var billingRef billingItemBillingReference
+	if err := tx.
+		Table("billings").
+		Select("medical_record_id", "owner_id", "pet_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Take(&billingRef).Error; err != nil {
+		return "", apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+	}
+
+	var merchandiseRef billingItemMerchandiseReference
+	if merchandiseItemID != nil {
+		if err := tx.
+			Table("merchandise_items").
+			Select("id", "category").
+			Where("id = ? AND clinic_id = ? AND is_active = TRUE AND deleted_at IS NULL", *merchandiseItemID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&merchandiseRef).Error; err != nil {
+			return "", apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", *merchandiseItemID))
+		}
+	}
+
+	var medicalRecordRef *billingItemMedicalRecordReference
+	if billingRef.MedicalRecordID != nil && (treatmentID != nil || appointmentID != nil) {
+		var ref billingItemMedicalRecordReference
+		if err := tx.
+			Table("medical_records").
+			Select("id", "appointment_id", "owner_id", "pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.MedicalRecordID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&ref).Error; err != nil {
+			return "", apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *billingRef.MedicalRecordID))
+		}
+		if !sameOptionalBillingReference(billingRef.OwnerID, ref.OwnerID) ||
+			!sameOptionalBillingReference(billingRef.PetID, ref.PetID) {
+			return "", invalidBillingItemReferenceCombination()
+		}
+		medicalRecordRef = &ref
+	}
+
+	if treatmentID != nil {
+		var treatmentRef struct {
+			MedicalRecordID uint64
+		}
+		if err := tx.
+			Table("treatments").
+			Select("treatments.medical_record_id").
+			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+			Where("treatments.id = ? AND treatments.deleted_at IS NULL", *treatmentID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&treatmentRef).Error; err != nil {
+			return "", apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *treatmentID))
+		}
+		if billingRef.MedicalRecordID == nil ||
+			treatmentRef.MedicalRecordID != *billingRef.MedicalRecordID {
+			return "", invalidBillingItemReferenceCombination()
+		}
+	}
+
+	if appointmentID != nil {
+		var appointmentRef billingItemAppointmentReference
+		if err := tx.
+			Table("appointments").
+			Select("owner_id", "pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *appointmentID, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&appointmentRef).Error; err != nil {
+			return "", apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *appointmentID))
+		}
+		if !sameOptionalBillingReference(billingRef.OwnerID, appointmentRef.OwnerID) ||
+			!sameOptionalBillingReference(billingRef.PetID, appointmentRef.PetID) {
+			return "", invalidBillingItemReferenceCombination()
+		}
+		if medicalRecordRef != nil &&
+			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *appointmentID) {
+			return "", invalidBillingItemReferenceCombination()
+		}
+	}
+
+	if (trimmingCourseID != nil || trimmingOptionID != nil) && appointmentID == nil {
+		return "", invalidBillingItemReferenceCombination()
+	}
+	if trimmingCourseID != nil {
+		var id uint64
+		// Parent appointments clinic correlation (SEC-SWEEP-02-BILL-B1a): child clinic
+		// alone is insufficient when appointment_id is a corrupt cross-tenant FK.
+		// No appointments.deleted_at — matches TRIM-B1 / MR-B1 appointments-parent pattern.
+		// Use unaliased table names so AST lint sees appointments.id=appointment_trimming_details.appointment_id.
+		if err := tx.
+			Table("appointment_trimming_details").
+			Select("trimming_courses.id").
+			Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
+			Joins("JOIN trimming_courses ON trimming_courses.id = appointment_trimming_details.course_id AND trimming_courses.clinic_id = appointment_trimming_details.clinic_id AND trimming_courses.deleted_at IS NULL").
+			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&id).Error; err != nil {
+			return "", apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
+		}
+	}
+	if trimmingOptionID != nil {
+		var id uint64
+		if err := tx.
+			Table("appointment_trimming_options AS ato").
+			Select("topt.id").
+			Joins("JOIN appointments AS a ON a.id = ato.appointment_id AND a.clinic_id = ? AND a.deleted_at IS NULL", clinicID).
+			Joins("JOIN trimming_options AS topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL").
+			Where("ato.appointment_id = ? AND ato.option_id = ?", *appointmentID, *trimmingOptionID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&id).Error; err != nil {
+			return "", apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", *trimmingOptionID))
+		}
+	}
+
+	return merchandiseRef.Category, nil
+}
+
+func (r *billingItemRepository) ValidateVaccinationCreateReference(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	vaccinationID uint64,
+) (*vaccinationBillingValues, error) {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return nil, apperrors.WrapInternalServerError("vaccination billing validation requires an active transaction")
+	}
+	tx = tx.WithContext(ctx)
+
+	var billingRef struct {
+		MedicalRecordID *uint64
+		OwnerID         *uint64
+		PetID           *uint64
+		Status          model.BillingStatus
+	}
+	if err := tx.
+		Table("billings").
+		Select("medical_record_id", "owner_id", "pet_id", "status").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
+		Take(&billingRef).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
+	}
+	if billingRef.Status == model.BillingStatusCompleted ||
+		billingRef.Status == model.BillingStatusCancelled {
+		return nil, apperrors.WrapConflict("確定済みまたは取消済みの会計には予防接種を追加できません")
+	}
+
+	var vaccinationRef struct {
+		MedicalRecordID *uint64
+		PetID           *uint64
+		VaccineID       uint64
+	}
+	// Read the event graph without a lock first so its medical-record parent can
+	// be locked before the event. Vaccination writes use the same canonical
+	// MedicalRecord -> Vaccination lock order.
+	if err := tx.
+		Table("vaccinations").
+		Select("medical_record_id", "pet_id", "vaccine_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", vaccinationID, clinicID).
+		Take(&vaccinationRef).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", vaccinationID))
+	}
+	if billingRef.OwnerID == nil ||
+		billingRef.PetID == nil ||
+		vaccinationRef.PetID == nil ||
+		*billingRef.PetID != *vaccinationRef.PetID {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+
+	var ownerID uint64
+	if err := tx.
+		Table("owners").
+		Select("id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.OwnerID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&ownerID).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", *billingRef.OwnerID))
+	}
+
+	var petRef struct {
+		OwnerID uint64
+	}
+	if err := tx.
+		Table("pets").
+		Select("owner_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *vaccinationRef.PetID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&petRef).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *vaccinationRef.PetID))
+	}
+	if petRef.OwnerID != *billingRef.OwnerID {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+
+	validateMedicalRecord := func(id uint64) error {
+		var medicalRecordRef struct {
+			OwnerID *uint64
+			PetID   *uint64
+		}
+		if err := tx.
+			Table("medical_records").
+			Select("owner_id", "pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&medicalRecordRef).Error; err != nil {
+			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
+		}
+		if medicalRecordRef.OwnerID == nil ||
+			medicalRecordRef.PetID == nil ||
+			*medicalRecordRef.OwnerID != *billingRef.OwnerID ||
+			*medicalRecordRef.PetID != *billingRef.PetID {
+			return invalidBillingItemReferenceCombination()
+		}
+		return nil
+	}
+	medicalRecordIDs := make([]uint64, 0, 2)
+	if billingRef.MedicalRecordID != nil {
+		medicalRecordIDs = append(medicalRecordIDs, *billingRef.MedicalRecordID)
+	}
+	if vaccinationRef.MedicalRecordID != nil &&
+		(billingRef.MedicalRecordID == nil ||
+			*vaccinationRef.MedicalRecordID != *billingRef.MedicalRecordID) {
+		medicalRecordIDs = append(medicalRecordIDs, *vaccinationRef.MedicalRecordID)
+	}
+	sort.Slice(medicalRecordIDs, func(i, j int) bool {
+		return medicalRecordIDs[i] < medicalRecordIDs[j]
+	})
+	for _, medicalRecordID := range medicalRecordIDs {
+		if err := validateMedicalRecord(medicalRecordID); err != nil {
+			return nil, err
+		}
+	}
+	if billingRef.MedicalRecordID != nil &&
+		vaccinationRef.MedicalRecordID != nil &&
+		*billingRef.MedicalRecordID != *vaccinationRef.MedicalRecordID {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+
+	var lockedVaccinationRef struct {
+		MedicalRecordID *uint64
+		PetID           *uint64
+		VaccineID       uint64
+	}
+	// The event row is the cross-billing serialization point. It is acquired
+	// only after every referenced medical-record row is locked.
+	if err := tx.
+		Table("vaccinations").
+		Select("medical_record_id", "pet_id", "vaccine_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", vaccinationID, clinicID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Take(&lockedVaccinationRef).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", vaccinationID))
+	}
+	if !sameOptionalBillingReference(vaccinationRef.MedicalRecordID, lockedVaccinationRef.MedicalRecordID) ||
+		!sameOptionalBillingReference(vaccinationRef.PetID, lockedVaccinationRef.PetID) ||
+		vaccinationRef.VaccineID != lockedVaccinationRef.VaccineID {
+		return nil, apperrors.WrapConflict("予防接種情報が更新されたため再試行してください")
+	}
+
+	var vaccineRef struct {
+		Name  string
+		Price *int64
+	}
+	if err := tx.
+		Table("vaccines").
+		Select("name", "price").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", lockedVaccinationRef.VaccineID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&vaccineRef).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", lockedVaccinationRef.VaccineID))
+	}
+	if strings.TrimSpace(vaccineRef.Name) == "" || vaccineRef.Price == nil || *vaccineRef.Price < 0 {
+		return nil, apperrors.WrapInternalServerError("vaccination vaccine master is not billable")
+	}
+
+	var existingCount int64
+	if err := tx.
+		Table("billing_items AS bi").
+		Where(
+			"bi.vaccination_id = ? AND bi.clinic_id = ? AND bi.deleted_at IS NULL",
+			vaccinationID,
+			clinicID,
+		).
+		Count(&existingCount).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("vaccination:%d", vaccinationID))
+	}
+	if existingCount > 0 {
+		return nil, apperrors.WrapConflict("この予防接種は既に会計明細へ取り込まれています")
+	}
+
+	return &vaccinationBillingValues{
+		Name:      vaccineRef.Name,
+		UnitPrice: *vaccineRef.Price,
+	}, nil
+}
+
+func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
+	ctx context.Context,
+	clinicID, petID uint64,
+) ([]model.BillingItem, error) {
+	type vaccinationBillingRow struct {
+		VaccinationID uint64
+		VaccineID     *uint64
+		Name          *string
+		UnitPrice     *int64
+	}
+	rows := make([]vaccinationBillingRow, 0)
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			vaccination.id AS vaccination_id,
+			vaccine.id AS vaccine_id,
+			vaccine.name AS name,
+			vaccine.price AS unit_price
+		FROM vaccinations AS vaccination
+		JOIN pets AS pet
+		  ON pet.id = vaccination.pet_id
+		 AND pet.clinic_id = vaccination.clinic_id
+		 AND pet.deleted_at IS NULL
+		JOIN owners AS owner
+		  ON owner.id = pet.owner_id
+		 AND owner.clinic_id = vaccination.clinic_id
+		 AND owner.deleted_at IS NULL
+		LEFT JOIN vaccines AS vaccine
+		  ON vaccine.id = vaccination.vaccine_id
+		 AND vaccine.clinic_id = vaccination.clinic_id
+		 AND vaccine.deleted_at IS NULL
+		WHERE vaccination.clinic_id = ?
+		  AND vaccination.pet_id = ?
+		  AND vaccination.deleted_at IS NULL
+		  AND (
+		      vaccination.medical_record_id IS NULL
+		      OR EXISTS (
+		          SELECT 1
+		          FROM medical_records AS medical_record
+		          WHERE medical_record.id = vaccination.medical_record_id
+		            AND medical_record.clinic_id = vaccination.clinic_id
+		            AND medical_record.pet_id = vaccination.pet_id
+		            AND medical_record.owner_id = pet.owner_id
+		            AND medical_record.deleted_at IS NULL
+		      )
+		  )
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items AS billing_item
+		      WHERE billing_item.vaccination_id = vaccination.id
+		        AND billing_item.clinic_id = vaccination.clinic_id
+		        AND billing_item.deleted_at IS NULL
+		  )
+		ORDER BY vaccination.date ASC, vaccination.id ASC
+	`, clinicID, petID).Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("pet:%d", petID))
+	}
+
+	items := make([]model.BillingItem, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		if row.VaccineID == nil ||
+			row.Name == nil ||
+			strings.TrimSpace(*row.Name) == "" ||
+			row.UnitPrice == nil ||
+			*row.UnitPrice < 0 {
+			return nil, apperrors.WrapInternalServerError("vaccination vaccine master is not billable")
+		}
+		vaccinationID := row.VaccinationID
+		items = append(items, model.BillingItem{
+			ID:            vaccinationID,
+			Category:      model.ItemCategoryVaccine,
+			Name:          *row.Name,
+			UnitPrice:     *row.UnitPrice,
+			Quantity:      1,
+			TaxType:       model.TaxTypeExcluded,
+			TaxRate:       sharedkernel.DefaultTaxRate,
+			Source:        model.ItemSourceMedicalRecord,
+			VaccinationID: &vaccinationID,
+		})
+	}
+	return items, nil
+}
+
+func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
+	if err := persistence.DBOrTx(ctx, r.db).Create(item).Error; err != nil {
+		return apperrors.FromGORM(err, "billing_item", "")
+	}
+	return nil
+}
+
+// Update は clinic 述語を EXISTS subquery で強制する（BUG-417: GORM の Joins() は
+// UPDATE/DELETE SQL へ伝播せず実質 no-op だった——service 層の事前 FindByID gate に
+// 依存しない repository 層 defense-in-depth を回復）。
+func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.BillingItem{}).
+		Where("billing_items.id = ?", id).
+		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// Delete は clinic 述語を EXISTS subquery で強制し、soft-delete と同じ原子的更新で
+// vaccination provenanceを解放する。これにより削除した接種イベントを再度取り込める。
+func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.BillingItem{}).
+		Where("billing_items.id = ?", id).
+		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
+		Updates(map[string]any{
+			"vaccination_id": nil,
+			"clinic_id":      nil,
+			"deleted_at":     time.Now(),
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Billing{}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", billingID).
+		Updates(map[string]any{
+			"subtotal":     subtotal,
+			"tax_total":    taxTotal,
+			"total_amount": totalAmount,
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
+	}
+	// P2: RowsAffected == 0 は clinic scope 外 or soft-delete の可能性（NOT FOUND）
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
+	}
+	return nil
+}
+
+func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	if len(names) == 0 {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.BillingItem{}).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id").
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billing_items.name IN ? AND billing_items.deleted_at IS NULL", names).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
+	}
+	return count > 0, nil
+}
+
+func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
+	q := r.db.WithContext(ctx).Model(&model.BillingItem{}).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id").
+		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
+		Where("billing_items.deleted_at IS NULL")
+	if len(names) > 0 {
+		q = q.Where("billing_items.name IN ?", names)
+	} else {
+		q = q.Where("billing_items.category = ?", string(model.ItemCategoryFood))
+	}
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
+	}
+	return count > 0, nil
+}
+
+func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+	type row struct {
+		AppointmentID    uint64
+		OriginID         uint64
+		Name             string
+		UnitPrice        int64
+		SortOrder        int
+		TrimmingCourseID *uint64
+		TrimmingOptionID *uint64
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			a.id AS appointment_id,
+			tc.id AS origin_id,
+			tc.name AS name,
+			COALESCE(tc.price, 0)::bigint AS unit_price,
+			0 AS sort_order,
+			tc.id AS trimming_course_id,
+			NULL::bigint AS trimming_option_id
+		FROM appointment_trimming_details atd
+		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
+		JOIN trimming_courses tc ON tc.id = atd.course_id AND tc.clinic_id = a.clinic_id AND tc.deleted_at IS NULL
+		WHERE a.clinic_id = ?
+		  AND a.pet_id = ?
+		  AND EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id)
+		  AND a.status = ?
+		  AND rt.category = ?
+		  AND COALESCE(tc.price, 0) > 0
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items bi
+		      JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = a.clinic_id AND b.deleted_at IS NULL
+		      WHERE bi.appointment_id = a.id
+		        AND bi.trimming_course_id = tc.id
+		        AND bi.deleted_at IS NULL
+		        AND b.status != ?
+		  )
+		UNION ALL
+		SELECT
+			a.id AS appointment_id,
+			topt.id AS origin_id,
+			topt.name AS name,
+			COALESCE(topt.price, 0)::bigint AS unit_price,
+			100 + COALESCE(ato.sort_order, 0) AS sort_order,
+			NULL::bigint AS trimming_course_id,
+			topt.id AS trimming_option_id
+		FROM appointment_trimming_details atd
+		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
+		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
+		JOIN appointment_trimming_options ato ON ato.appointment_id = a.id
+		JOIN trimming_options topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL
+		WHERE a.clinic_id = ?
+		  AND a.pet_id = ?
+		  AND EXISTS (SELECT 1 FROM pets p WHERE p.id = a.pet_id AND p.clinic_id = a.clinic_id)
+		  AND a.status = ?
+		  AND rt.category = ?
+		  AND COALESCE(topt.price, 0) > 0
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items bi
+		      JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = a.clinic_id AND b.deleted_at IS NULL
+		      WHERE bi.appointment_id = a.id
+		        AND bi.trimming_option_id = topt.id
+		        AND bi.deleted_at IS NULL
+		        AND b.status != ?
+		  )
+		ORDER BY appointment_id ASC, sort_order ASC, origin_id ASC
+	`,
+		clinicID, petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming, model.BillingStatusCancelled,
+		clinicID, petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming, model.BillingStatusCancelled,
+	).Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, petID))
+	}
+
+	items := make([]model.BillingItem, 0, len(rows))
+	for i, row := range rows {
+		appointmentID := row.AppointmentID
+		items = append(items, model.BillingItem{
+			ID:        uint64(i + 1),
+			BillingID: 0,
+			Category: sharedkernel.ResolveItemCategory(sharedkernel.ItemCategoryResolverInput{
+				Source: model.ItemSourceTrimming,
+			}),
+			Name:                  row.Name,
+			UnitPrice:             row.UnitPrice,
+			Quantity:              1,
+			TaxType:               model.TaxTypeExcluded,
+			TaxRate:               0.10,
+			IsInsuranceApplicable: false,
+			Source:                model.ItemSourceTrimming,
+			AppointmentID:         &appointmentID,
+			TrimmingCourseID:      row.TrimmingCourseID,
+			TrimmingOptionID:      row.TrimmingOptionID,
+			SortOrder:             row.SortOrder,
+		})
+	}
+	return items, nil
+}
+
+// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
+// トリミング予約区分で status が accounting/completed/cancelled でない = まだ会計待ちに進んでいない取り残し候補。
+func (r *billingItemRepository) CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Joins("JOIN reservation_types rt ON rt.id = appointments.reservation_type_id AND rt.clinic_id = appointments.clinic_id AND rt.deleted_at IS NULL").
+		Where("appointments.clinic_id = ? AND appointments.pet_id = ? AND appointments.deleted_at IS NULL", clinicID, petID).
+		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = appointments.pet_id AND p.clinic_id = appointments.clinic_id)").
+		Where("rt.category = ?", model.ReservationTypeCategoryTrimming).
+		Where("appointments.status NOT IN ?", []model.ReservationStatus{
+			model.ReservationStatusAccounting,
+			model.ReservationStatusCompleted,
+			model.ReservationStatusCancelled,
+		}).
+		Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", date).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "appointment", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, petID))
+	}
+	return count, nil
+}

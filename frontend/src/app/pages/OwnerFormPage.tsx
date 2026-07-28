@@ -4,7 +4,7 @@
  * feature 間 import を排除する。
  */
 import { useState, lazy } from "react";
-import { useParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import { Send } from "lucide-react";
 
 // features（app層なので複数 feature を import 可能）
@@ -12,8 +12,8 @@ import {
   OwnerForm,
   LineIntegrationCard,
   LineSendPanel,
-  useGetOwner,
 } from "@/features/owners";
+import type { OwnerLoaderData } from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 import { LinkedLineCustomers } from "@/features/line-reservation";
@@ -30,6 +30,7 @@ const OwnerAccountingHistory = lazy(() =>
 
 export function OwnerFormPage() {
   const { id: ownerId } = useParams();
+  const loaderData = useLoaderData<OwnerLoaderData | undefined>();
   const { user } = useAuth();
   const clinicId = user?.mainClinicId ?? null;
 
@@ -38,7 +39,7 @@ export function OwnerFormPage() {
   const { mutate: deletePetMutate } = useDeletePet();
   const { mutate: revokePetDeathMutate } = useRevokePetDeath();
 
-  const { data: owner } = useGetOwner(ownerId ?? "");
+  const owner = loaderData?.owner;
   const ownerName = owner?.ownerName ?? "";
 
   const [sendPanelOpen, setSendPanelOpen] = useState(false);
@@ -67,7 +68,7 @@ export function OwnerFormPage() {
       <div className="flex justify-end">
         <PrimaryButton
           type="button"
-          colorVariant="brand"
+          colorVariant="primary"
           onClick={() => setSendPanelOpen(true)}
           className="px-4 text-base"
         >

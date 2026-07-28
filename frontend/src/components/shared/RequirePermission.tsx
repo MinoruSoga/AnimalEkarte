@@ -35,7 +35,7 @@ export const RequirePermission = memo(function RequirePermission({
 function AccessDenied() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-      <p className={`text-lg font-medium ${C.text}`}>アクセス権限がありません</p>
+      <h1 className={`text-xl font-semibold ${C.text}`}>アクセス権限がありません</h1>
       <p className={`text-sm ${C.text50}`}>
         このページを表示するための権限が付与されていません。
       </p>

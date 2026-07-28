@@ -13,7 +13,7 @@
 | [003-payment-method-identity-and-consistency.md](003-payment-method-identity-and-consistency.md) | 支払方法の安定識別と payment_methods 整合性 |
 | [004-checkup-canonical-system.md](004-checkup-canonical-system.md) | 健診機能の正系統 — Checkup パッケージ系に一本化 |
 | [005-go-gin-backend-guidelines.md](005-go-gin-backend-guidelines.md) | Go/Gin公式ベースライン採用と固定3層構成の廃止 |
-| [006-backend-domain-package-boundaries.md](006-backend-domain-package-boundaries.md) | backend domain package境界・許可依存グラフ（Status: Proposed、Accepted昇格はユーザー決裁事項） |
+| [006-backend-domain-package-boundaries.md](006-backend-domain-package-boundaries.md) | backend domain package境界・許可依存グラフ（Status: Accepted、2026-07-22 amended） |
 
 ## 運用ルール
 

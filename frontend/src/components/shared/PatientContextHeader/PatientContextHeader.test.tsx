@@ -45,6 +45,81 @@ describe("PatientContextHeader", () => {
     expect(elements.length).toBeGreaterThan(0);
   });
 
+  describe("カルテ確認用ペット属性", () => {
+    it("犬の性別・去勢済・品種を表示する", () => {
+      render(
+        <PatientContextHeader
+          {...baseProps}
+          species="犬"
+          gender="雄"
+          neuteredDate="2020-06-01"
+          breed="柴犬"
+        />,
+      );
+
+      expect(screen.getByText("性別")).toBeInTheDocument();
+      expect(screen.getByText("雄")).toBeInTheDocument();
+      expect(screen.getByText("避妊去勢")).toBeInTheDocument();
+      expect(screen.getByText("去勢済")).toBeInTheDocument();
+      expect(screen.getByText("品種")).toBeInTheDocument();
+      expect(screen.getByText("柴犬")).toBeInTheDocument();
+    });
+
+    it("猫の性別・避妊済・品種を表示する", () => {
+      render(
+        <PatientContextHeader
+          {...baseProps}
+          species="猫"
+          gender="雌"
+          neuteredDate="2021-04-15"
+          breed="ミックス"
+        />,
+      );
+
+      expect(screen.getByText("雌")).toBeInTheDocument();
+      expect(screen.getByText("避妊済")).toBeInTheDocument();
+      expect(screen.getByText("ミックス")).toBeInTheDocument();
+    });
+
+    it("性別不明で避妊去勢日があれば中立な済表現を表示する", () => {
+      render(
+        <PatientContextHeader
+          {...baseProps}
+          gender="不明"
+          neuteredDate="2022-03-10"
+          breed="ミックス"
+        />,
+      );
+
+      expect(screen.getByText("不明")).toBeInTheDocument();
+      expect(screen.getByText("避妊・去勢済")).toBeInTheDocument();
+    });
+
+    it("不明な性別はそのまま表示し、避妊去勢日と品種の未設定値を推測しない", () => {
+      render(
+        <PatientContextHeader
+          {...baseProps}
+          species="猫"
+          gender="不明"
+          breed=""
+        />,
+      );
+
+      expect(screen.getByText("不明")).toBeInTheDocument();
+      expect(screen.getAllByText("—")).toHaveLength(2);
+      expect(screen.queryByText("未去勢")).not.toBeInTheDocument();
+      expect(screen.queryByText("未実施")).not.toBeInTheDocument();
+    });
+
+    it("属性 props が未指定なら既存呼び出し元へ属性欄を追加しない", () => {
+      render(<PatientContextHeader {...baseProps} />);
+
+      expect(screen.queryByText("性別")).not.toBeInTheDocument();
+      expect(screen.queryByText("避妊去勢")).not.toBeInTheDocument();
+      expect(screen.queryByText("品種")).not.toBeInTheDocument();
+    });
+  });
+
   describe("年齢表示の特性テスト（FE3-9: calcAgePartsAt 統合前後で出力を1文字も変えない）", () => {
     afterEach(() => {
       vi.useRealTimers();

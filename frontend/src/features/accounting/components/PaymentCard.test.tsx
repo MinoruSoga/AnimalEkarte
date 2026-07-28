@@ -107,3 +107,49 @@ describe("PaymentCard クレジット確定前バリデーション (#182 ③: �
     expect(screen.getByRole("button", { name: /会計を確定する/ })).toBeDisabled();
   });
 });
+
+describe("PaymentCard permission and labels", () => {
+  it("新規作成ではcreate権限だけでも編集UIと固有labelを表示する", () => {
+    render(
+      <PaymentCard
+        billingAmount={1000}
+        paymentSplits={[{ method: "cash", amount: "1000", receivedAmount: "1000" }]}
+        onSplitsChange={vi.fn()}
+        isCompleted={false}
+        canEdit={false}
+        canCreate
+        isEditMode={false}
+      />,
+    );
+
+    expect(screen.getByRole("spinbutton", { name: "支払1の金額" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "支払1のお預かり金額" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeEnabled();
+  });
+
+  it("既存会計でedit権限がなければ入力・submitを表示しない", () => {
+    render(
+      <PaymentCard
+        billingAmount={1000}
+        paymentSplits={[{ method: "cash", amount: "1000", receivedAmount: "1000" }]}
+        onSplitsChange={vi.fn()}
+        isCompleted={false}
+        canEdit={false}
+        canCreate
+        isEditMode
+      />,
+    );
+
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "会計を確定する" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("¥1,000")).toHaveLength(2);
+  });
+
+  it("手動修正buttonは44px以上の操作領域を持つ", () => {
+    renderCard([{ method: "cash", amount: "1000", receivedAmount: "1000" }], 1000);
+    expect(screen.getByRole("button", { name: "手動修正" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+});

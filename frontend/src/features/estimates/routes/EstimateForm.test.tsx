@@ -5,7 +5,7 @@ import type { Estimate } from "../types";
 import {
   CREATE_STATUS_OPTIONS,
   EDIT_STATUS_OPTIONS,
-} from "../utils/estimate-status-options";
+} from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
 const { mockEstimate, mockNavigate, mockToast, mockFormState } = vi.hoisted(() => ({
@@ -211,5 +211,25 @@ describe("EstimateForm locked edit redirect", () => {
       expect(mockNavigate).not.toHaveBeenCalled();
       expect(mockToast.info).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("EstimateForm mobile-first layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEstimate.current = null;
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+  });
+
+  it("固定幅 fields と金額2列を mobile では全幅・単一列にする", () => {
+    renderCreateForm();
+
+    const statusTrigger = screen.getByRole("combobox");
+    const validUntilInput = screen.getByLabelText("有効期限");
+    const amountGrid = screen.getByLabelText("小計（税抜）").closest('[class*="grid-cols"]');
+
+    expect(statusTrigger).toHaveClass("w-full", "sm:w-[200px]");
+    expect(validUntilInput.parentElement).toHaveClass("w-full", "sm:w-[220px]");
+    expect(amountGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
   });
 });

@@ -80,7 +80,7 @@ export function parseDateInput(input: string): Date | null {
 
 export const SINGLE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgPrimary} ${C.textWhite} hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+    `${C.bgBrand} ${C.textOnBrand} hover:${C.bgBrand} focus:${C.bgBrand} focus:text-white`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
   month_caption: "hidden",
@@ -88,10 +88,10 @@ export const SINGLE_CALENDAR_CLASSES = {
 
 export const RANGE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgPrimary} ${C.textWhite} hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+    `${C.bgBrand} ${C.textOnBrand} hover:${C.bgBrand} focus:${C.bgBrand} focus:text-white`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
 };
 
 export const TRIGGER_BASE =
-  `flex h-11 w-full items-center justify-between rounded-md border ${C.borderMedium} bg-white px-3 text-sm ${C.text} transition-colors ${C.hoverBgPage} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`;
+  `flex h-11 min-w-0 w-full items-center justify-between rounded-md border ${C.borderMedium} bg-white px-3 text-sm ${C.text} transition-colors ${C.hoverBgPage} focus-within:outline-none focus-within:ring-1 focus-within:ring-ring`;

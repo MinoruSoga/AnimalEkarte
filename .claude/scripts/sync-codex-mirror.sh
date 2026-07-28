@@ -14,4 +14,5 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
+python3 "$(dirname "$0")/test_sync_codex_mirror.py"
 python3 "$(dirname "$0")/sync-codex-mirror.py" "$ROOT"

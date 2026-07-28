@@ -41,7 +41,9 @@ describe("RequirePermission — 振る舞いテスト", () => {
         </RequirePermission>
       </AuthContext.Provider>
     );
-    expect(screen.getByText(/アクセス権限がありません/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "アクセス権限がありません" }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 

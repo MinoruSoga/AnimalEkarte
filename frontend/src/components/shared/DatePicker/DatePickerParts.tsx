@@ -10,6 +10,7 @@ export interface SingleDatePickerProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  name?: string;
   disabledDays?: React.ComponentProps<typeof Calendar>["disabled"];
 }
 
@@ -33,7 +34,7 @@ const MONTH_LABELS = [
 ];
 
 const NAV_BTN =
-  `inline-flex items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
+  `inline-flex min-h-11 min-w-11 items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
 
 export function CalendarNav({
   displayMonth,
@@ -57,7 +58,7 @@ export function CalendarNav({
       <button
         type="button"
         onClick={onTitleClick}
-        className={`rounded px-2 py-1 text-sm font-medium ${C.text} ${C.hoverBgPage} transition-colors`}
+        className={`min-h-11 min-w-11 rounded px-2 py-1 text-sm font-medium ${C.text} ${C.hoverBgPage} transition-colors`}
       >
         {year}年 {month}月
       </button>
@@ -105,9 +106,9 @@ export function MonthGrid({
           type="button"
           onClick={() => onSelect(i)}
           className={cn(
-            "rounded px-2 py-2 text-sm transition-colors",
+            "min-h-11 min-w-11 rounded px-2 py-2 text-sm transition-colors",
             i === currentMonth
-              ? `${C.bgPrimary} ${C.textWhite} font-medium`
+              ? `${C.bgBrand} ${C.textOnBrand} font-medium`
               : `${C.text} ${C.hoverBgPage}`,
           )}
         >
@@ -123,7 +124,7 @@ export function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLBut
     <button
       type="button"
       onClick={onClick}
-      className={`ml-1 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText}/70 cursor-pointer`}
+      className={`ml-1 -my-px min-h-11 min-w-11 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText}/70 cursor-pointer`}
       aria-label="日付をクリア"
     >
       <X className={ICON.action} />

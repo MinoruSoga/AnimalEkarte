@@ -1,0 +1,113 @@
+package main
+
+import "github.com/animal-ekarte/backend/internal/billing"
+
+type billingServices struct {
+	core       billingCoreServices
+	documents  billingDocumentServices
+	references billingReferenceServices
+}
+
+type billingCoreServices struct {
+	accounting   billing.AccountingService
+	billingItems billing.BillingItemService
+	insurance    billing.InsuranceService
+	cashRegister billing.CashRegisterService
+}
+
+func newBillingCoreServices(
+	r billingRepositories,
+	d billingCompositionDependencies,
+	auditTx billingAuditTxBridge,
+) billingCoreServices {
+	return billingCoreServices{
+		accounting: billing.NewAccountingService(
+			r.accounting,
+			d.MedicalRecords,
+			d.Hospitalizations,
+			d.Reservations,
+			d.TagSync,
+			d.Transactor,
+			auditTx,
+			r.paymentMethods,
+		),
+		billingItems: billing.NewBillingItemServiceWithCampaign(
+			r.billingItems,
+			r.accounting,
+			d.Treatments,
+			d.Transactor,
+			d.TrimmingCourses,
+			d.TrimmingOptions,
+			r.campaigns,
+			d.Owners,
+		),
+		insurance: billing.NewInsuranceService(r.insurance),
+		cashRegister: billing.NewCashRegisterService(
+			r.cashRegisterCloses,
+			r.accounting,
+			d.ClosingSettings,
+			r.paymentMethods,
+			d.Clinics,
+		),
+	}
+}
+
+type billingDocumentServices struct {
+	confirmations billing.BillingConfirmationService
+	estimates     billing.EstimateService
+	refunds       billing.RefundService
+}
+
+func newBillingDocumentServices(
+	r billingRepositories,
+	d billingCompositionDependencies,
+	auditLogger billingAuditBridge,
+	auditTx billingAuditTxBridge,
+) billingDocumentServices {
+	return billingDocumentServices{
+		confirmations: billing.NewBillingConfirmationService(
+			r.billingConfirmations,
+			d.MedicalRecords,
+			d.Transactor,
+		),
+		estimates: billing.NewEstimateService(
+			r.estimates,
+			d.MedicalRecords,
+			d.Reservations,
+			d.StaffAssignments,
+			auditLogger,
+			d.Transactor,
+		),
+		refunds: billing.NewRefundService(
+			r.refunds,
+			r.accounting,
+			auditTx,
+			d.Transactor,
+		),
+	}
+}
+
+type billingReferenceServices struct {
+	campaigns         billing.CampaignService
+	paymentMethods    billing.PaymentMethodMasterService
+	accountingReports billing.AccountingReportService
+}
+
+func newBillingReferenceServices(
+	r billingRepositories,
+	d billingCompositionDependencies,
+) billingReferenceServices {
+	return billingReferenceServices{
+		campaigns: billing.NewCampaignService(
+			r.campaigns,
+			d.MerchandiseItems,
+		),
+		paymentMethods: billing.NewPaymentMethodMasterService(r.paymentMethods),
+		accountingReports: billing.NewAccountingReportService(
+			r.accounting,
+			r.paymentMethods,
+			d.ClinicHolidays,
+			d.Clinics,
+		),
+	}
+}

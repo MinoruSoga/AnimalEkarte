@@ -24,12 +24,15 @@ export function ReportPanel({ title, count, children }: ReportPanelProps) {
   const headingId = useId();
   return (
     <section
-      className={`flex min-h-0 flex-col overflow-hidden rounded-md border ${C.borderLight} ${C.bgWhite}`}
+      className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border ${C.borderLight} ${C.bgWhite}`}
     >
       <div
-        className={`flex shrink-0 items-baseline justify-between gap-2 border-b ${C.borderLight} px-3 py-1.5`}
+        className={`flex shrink-0 items-baseline justify-between gap-2 border-b px-3 py-2 ${C.borderLight} ${C.bgPage30} [@media(max-height:600px)]:py-0`}
       >
-        <h2 className={`truncate text-xs font-semibold ${C.text}`} id={headingId}>
+        <h2
+          className={`truncate text-sm font-medium ${C.text} [@media(max-height:600px)]:text-xs`}
+          id={headingId}
+        >
           {title}
         </h2>
         {typeof count === "number" ? (

@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -218,7 +218,7 @@ export function TrimmingForm() {
       onBack={handleBack}
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
       resource={ResourceTrimming}
-      maxWidth="max-w-[1400px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
         <div className="flex gap-2">
           {/* rendering-conditional-render: && → ? ... : null */}
@@ -227,7 +227,7 @@ export function TrimmingForm() {
               type="button"
               onClick={() => setDeleteConfirmOpen(true)}
               variant="ghost-danger"
-              className="h-10 rounded-[6px] text-sm px-4"
+              className="h-10 rounded-sm text-sm px-4"
               disabled={isDeleting}
             >
               <Trash2 className={`mr-1.5 ${ICON.action}`} />
@@ -238,7 +238,7 @@ export function TrimmingForm() {
             <Button
               type="submit"
               form={TRIMMING_FORM_ID}
-              className={`${C.bgBrand} ${C.hoverBgBrand} text-white px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
               disabled={isSaving}
             >
               {isSaving ? "保存中..." : "保存"}

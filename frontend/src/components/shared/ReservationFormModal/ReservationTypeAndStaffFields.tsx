@@ -51,7 +51,7 @@ export function ReservationTypeAndStaffFields({
               <MasterLink
                 category="reservationType"
                 label="編集"
-                className="text-[11px]"
+                className="text-2xs"
               />
             }
           >
@@ -113,7 +113,7 @@ export function ReservationTypeAndStaffFields({
                 className={cn(
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
-                    ? `${C.borderDanger} ${C.bgDanger8}`
+                    ? `${C.borderBrand} ${C.bgBrand8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >
@@ -144,7 +144,7 @@ export function ReservationTypeAndStaffFields({
             <MasterLink
               category="staff"
               label="編集"
-              className="text-[11px]"
+              className="text-2xs"
             />
           }
         >

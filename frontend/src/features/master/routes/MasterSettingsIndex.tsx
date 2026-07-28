@@ -112,8 +112,8 @@ function PermissionFilteredSection({
   if (!hasVisibleCards) return null;
 
   return (
-    <div className="mb-5">
-      <div className={`px-1 pb-1.5 text-base ${C.text40} uppercase tracking-wide select-none`}>
+    <div className="mb-6">
+      <div className={`px-1 pb-1.5 ${STYLE.sectionLabel}`}>
         {section.title}
       </div>
       <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
@@ -155,6 +155,7 @@ export function MasterSettingsIndex() {
               fontSize: LAYOUT.pageTitle.fontSize,
               fontWeight: LAYOUT.pageTitle.fontWeight,
               lineHeight: LAYOUT.pageTitle.lineHeight,
+              letterSpacing: LAYOUT.pageTitle.letterSpacing,
             }}
             className={C.text}
           >

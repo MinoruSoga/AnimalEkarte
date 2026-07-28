@@ -1,7 +1,8 @@
-import { useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Hook to warn users about unsaved changes when navigating away.
+ * - Centralizes the beforeunload subscription for shared dirty-state hooks.
  * - Uses the browser's beforeunload event for tab close / browser navigation.
  * - Returns `isDirty` so the caller can pass it to <NavigationBlocker when={isDirty} />
  *   for SPA in-app navigation protection via React Router's useBlocker.

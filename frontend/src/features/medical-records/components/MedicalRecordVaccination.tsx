@@ -97,6 +97,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           lot3: lot3 || undefined,
           lot4: lot4 || undefined,
           next_date: nextDate || null,
+          supplemental: supplemental || undefined,
+          next_schedule_type: nextScheduleType || undefined,
           remarks: remarks || undefined,
         });
         // フォームをリセット
@@ -114,7 +116,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         handleApiError(err, "予防接種の登録");
       }
     });
-  }, [petId, vaccineName, date, lot1, lot2, lot3, lot4, nextDate, remarks, createVaccination]);
+  }, [petId, vaccineName, date, supplemental, lot1, lot2, lot3, lot4, nextScheduleType, nextDate, remarks, createVaccination]);
 
   return (
     <>
@@ -123,7 +125,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           <LstepStatusBadge status={lstepStatus} />
         </div>
       ) : null}
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
+    <div className="grid grid-cols-1 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1 lg:grid-cols-12">
       {/* Left Column: Form */}
       <VaccinationForm
         vaccineOptions={vaccineOptions}

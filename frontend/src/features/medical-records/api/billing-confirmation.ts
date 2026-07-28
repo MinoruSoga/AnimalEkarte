@@ -33,10 +33,10 @@ export function useCreateBillingConfirmation(medicalRecordId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { confirmed_by: number; memo?: string }) =>
+    mutationFn: (input: { memo?: string }) =>
       axios.post<BillingConfirmation>(
         `/v1/medical-records/${medicalRecordId}/billing-confirmation/confirm`,
-        input
+        { memo: input.memo },
       ),
     onSuccess: () => {
       // Invalidate billing-confirmation cache for current medical record
@@ -53,8 +53,7 @@ export function useCreateBillingConfirmation(medicalRecordId: string) {
 }
 
 // POST /v1/medical-records/:id/billing-confirmation/return
-// rerender-defer-reads: userId は呼び出し側で useAuth から取得して渡す（hook 内の useAuth 依存を排除）
-export function useCreateBillingReturn(medicalRecordId: string, userId: number) {
+export function useCreateBillingReturn(medicalRecordId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -62,9 +61,8 @@ export function useCreateBillingReturn(medicalRecordId: string, userId: number) 
       axios.post<BillingConfirmation>(
         `/v1/medical-records/${medicalRecordId}/billing-confirmation/return`,
         {
-          returned_by: userId,
           return_reason: input.return_reason,
-        }
+        },
       ),
     onSuccess: () => {
       // Invalidate billing-confirmation cache for current medical record

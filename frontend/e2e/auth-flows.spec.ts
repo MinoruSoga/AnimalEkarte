@@ -84,18 +84,57 @@ test.describe('認証フロー E2E', () => {
     await expect(passwordInput).toHaveAttribute('type', 'text');
   });
 
+  test('/login — パスワード再設定リンクから公開画面へ到達できる', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.gotoLogin();
+
+    await page.getByRole('link', { name: 'パスワードをお忘れですか？' }).click();
+
+    await expect(page).toHaveURL(/\/forgot-password$/);
+    await expect(page.getByRole('heading', { name: 'パスワードのリセット' })).toBeVisible();
+  });
+
   test('/forgot-password — ページにアクセスできる', async ({ page }) => {
-    // Smoke test: page load or redirect to login
-    await page.goto('/forgot-password', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    const urlPath = page.url();
-    // Accept either the forgot-password page or redirect to login
-    expect(urlPath).toMatch(/\/(forgot-password|login)/);
+    await page.goto('/forgot-password/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    await expect(page).toHaveURL(/\/forgot-password\/?$/);
+    await expect(page.getByRole('heading', { name: 'パスワードのリセット' })).toBeVisible();
   });
 
   test('/reset-password — ページにアクセスできる', async ({ page }) => {
-    // Smoke test: reset password page requires token; without it redirects to login
-    await page.goto('/reset-password?token=test-token', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    const urlPath = page.url();
-    expect(urlPath).toMatch(/\/(reset-password|login)/);
+    await page.goto('/reset-password/#token=test-token', { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    await expect(page).toHaveURL(/\/reset-password$/);
+    await expect(page.getByRole('heading', { name: '新しいパスワードの設定' })).toBeVisible();
+  });
+
+  test('/reset-password — token欠落は画面固有エラーのまま留まる', async ({ page }) => {
+    await page.goto('/reset-password/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    await expect(page).toHaveURL(/\/reset-password\/$/);
+    await expect(page.getByRole('heading', { name: '無効なリンクです' })).toBeVisible();
+  });
+
+  test('/reset-password — 不正tokenのAPIエラーでもloginへ遷移しない', async ({ page }) => {
+    await page.route('**/v1/auth/reset-password', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'invalid or expired token' }),
+      });
+    });
+    await page.goto('/reset-password?token=invalid-token', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+    });
+
+    await page.getByLabel('新しいパスワード').fill('password123');
+    await page.getByLabel('パスワード（確認）').fill('password123');
+    await page.getByRole('button', { name: 'パスワードを設定する' }).click();
+
+    await expect(page).toHaveURL(/\/reset-password$/);
+    await expect(
+      page.getByText('パスワードのリセットに失敗しました。リンクの有効期限が切れている可能性があります。'),
+    ).toBeVisible();
   });
 });

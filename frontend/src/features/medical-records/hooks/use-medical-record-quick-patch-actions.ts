@@ -1,8 +1,9 @@
-import { useCallback, useTransition } from "react";
+import { useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+import { usePermission } from "@/hooks/use-permission";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import { toVisitTypeValue } from "./use-medical-record-form-model";
 
@@ -17,6 +18,8 @@ interface UseMedicalRecordQuickPatchActionsArgs {
   updateMutation: {
     mutateAsync: (variables: { id: string; req: UpdateMedicalRecordRequest }) => Promise<unknown>;
   };
+  canEdit?: boolean;
+  isSelectedPetDeceased: boolean;
 }
 
 export function useMedicalRecordQuickPatchActions({
@@ -28,14 +31,32 @@ export function useMedicalRecordQuickPatchActions({
   setNextVisitDate,
   queryClient,
   updateMutation,
+  canEdit: canEditOverride,
+  isSelectedPetDeceased,
 }: UseMedicalRecordQuickPatchActionsArgs) {
+  const { canEdit: permissionCanEdit } = usePermission("medical-records");
+  const canEdit = canEditOverride ?? permissionCanEdit;
+  const canEditRef = useRef(canEdit);
+  const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  useLayoutEffect(() => {
+    isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
+  }, [isSelectedPetDeceased]);
+  const isMutationAllowed = useCallback(
+    () => canEditRef.current === true && !isSelectedPetDeceasedRef.current,
+    [],
+  );
+
   // useTransition: 即時PATCH系ハンドラの pending 管理 (rerender-transitions)
   const [isSavingTransition, startSaveTransition] = useTransition();
 
   // 担当医変更ハンドラ
   const handleChangeDoctor = (newDoctorId: string, newDoctorName: string) => {
-    if (!recordId) return;
+    if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -54,10 +75,12 @@ export function useMedicalRecordQuickPatchActions({
   // 来院種別変更ハンドラ（即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleVisitTypeChange = useCallback((newVisitType: string) => {
+    if (!isMutationAllowed()) return;
     const prevVisitType = visitType;
     setVisitType(newVisitType);
     if (!recordId) return; // 新規作成時はローカルstateのみ
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -72,15 +95,17 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "来院種別変更");
       }
     });
-  }, [visitType, setVisitType, recordId, existingRecordVersion, updateMutation, startSaveTransition]);
+  }, [visitType, setVisitType, recordId, existingRecordVersion, updateMutation, startSaveTransition, isMutationAllowed]);
 
   // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleNextVisitDatePatch = useCallback((newDate: string) => {
+    if (!isMutationAllowed()) return;
     const prev = nextVisitDate;
     setNextVisitDate(newDate);
-    if (!recordId) return;
+    if (!recordId) return; // 新規作成時はローカルstateのみ
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -96,13 +121,14 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "次回予定変更");
       }
     });
-  }, [nextVisitDate, setNextVisitDate, recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition]);
+  }, [nextVisitDate, setNextVisitDate, recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
 
   // 診察日変更ハンドラ
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleChangeDate = useCallback((newDate: string) => {
-    if (!recordId) return;
+    if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -117,15 +143,16 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "診察日変更");
       }
     });
-  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition]);
+  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
 
   // カルテ確定（SPEC-GAP）: draft→finalized の一方向遷移。BE は確定済みカルテへの
   // 更新を 409 で拒否し（medical_record_crud.go）、確定の取り消し API は存在しない
   // （訂正は addendum のみ）。既存の quick-patch と同じ OCC versioning パターンに従う。
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleFinalize = useCallback(() => {
-    if (!recordId) return;
+    if (!recordId || !isMutationAllowed()) return;
     startSaveTransition(async () => {
+      if (!isMutationAllowed()) return;
       try {
         await updateMutation.mutateAsync({
           id: recordId,
@@ -140,7 +167,7 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "カルテ確定");
       }
     });
-  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition]);
+  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
 
   return {
     isSavingTransition,

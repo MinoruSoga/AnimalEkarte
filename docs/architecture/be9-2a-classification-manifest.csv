@@ -66,9 +66,9 @@ internal/handler/checkup_field_response.go,target:medicalrecord,prefix token='ch
 internal/handler/checkup_handler.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_request.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_response.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_handler.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_request.go,target:medicalrecord,prefix token='checkup'
-internal/handler/checkup_sync_response.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_sync_handler.go,target:lstep,L③b: route/application dependency is lstep
+internal/handler/checkup_sync_request.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
+internal/handler/checkup_sync_response.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
 internal/handler/checkup_type_handler.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_type_request.go,target:medicalrecord,prefix token='checkup'
 internal/handler/checkup_type_response.go,target:medicalrecord,prefix token='checkup'
@@ -246,9 +246,9 @@ internal/handler/reservation_type_request.go,target:reservation,prefix token='re
 internal/handler/reservation_type_response.go,target:reservation,prefix token='reservation'
 internal/handler/response.go,target:httpapi,generic Gin response helper
 internal/handler/response_pg.go,target:httpapi,generic pagination response helper
-internal/handler/shared_file_handler.go,target:lstep,prefix token='shared'
-internal/handler/shared_file_request.go,target:lstep,prefix token='shared'
-internal/handler/shared_file_response.go,target:lstep,prefix token='shared'
+internal/handler/shared_file_handler.go,target:lstep,L⑥: internal/lstep/shared_file_handler.goへ移動
+internal/handler/shared_file_request.go,target:lstep,L⑥: internal/lstep/shared_file_request.goへ移動
+internal/handler/shared_file_response.go,target:lstep,L⑥: internal/lstep/shared_file_response.goへ移動
 internal/handler/shift_handler.go,target:staff,prefix token='shift'
 internal/handler/shift_request.go,target:staff,prefix token='shift'
 internal/handler/shift_response.go,target:staff,prefix token='shift'
@@ -266,18 +266,18 @@ internal/handler/treatment_plan_request.go,target:medicalrecord,prefix token='tr
 internal/handler/treatment_plan_response.go,target:medicalrecord,prefix token='treatment'
 internal/handler/treatment_request.go,target:medicalrecord,prefix token='treatment'
 internal/handler/treatment_response.go,target:medicalrecord,prefix token='treatment'
-internal/handler/trimming_course_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_course_type_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_handler.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_option_response.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_request.go,target:trimming,prefix token='trimming'
-internal/handler/trimming_response.go,target:trimming,prefix token='trimming'
+internal/handler/trimming_course_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_type_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しtrimming route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_option_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_response.go,target:trimming,BE9-2E trimming: runtime DTOをtargetへ移動しtygo carrierをBE9-2Fまで保持
 internal/handler/vaccination_handler.go,target:medicalrecord,prefix token='vaccination'
 internal/handler/vaccination_request.go,target:medicalrecord,prefix token='vaccination'
 internal/handler/vaccination_response.go,target:medicalrecord,prefix token='vaccination'
@@ -429,9 +429,9 @@ internal/repository/cash_register_close_repository.go,target:billing,prefix toke
 internal/repository/checkup/repository.go,target:medicalrecord,repository/checkup をdomain roll-up
 internal/repository/checkup_field_repository.go,target:medicalrecord,prefix token='checkup'
 internal/repository/checkup_repository.go,target:medicalrecord,prefix token='checkup'
-internal/repository/checkup_sync_repository.go,target:medicalrecord,prefix token='checkup'
+internal/repository/checkup_sync_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
 internal/repository/checkup_type_repository.go,target:medicalrecord,prefix token='checkup'
-internal/repository/checkupsync/repository.go,target:medicalrecord,repository/checkupsync をdomain roll-up
+internal/repository/checkupsync/repository.go,target:lstep,L③b: cross-domain preview query owned by lstep checkup sync
 internal/repository/checkuptype/repository.go,target:medicalrecord,repository/checkuptype をdomain roll-up
 internal/repository/chief_complaint_repository.go,target:medicalrecord,prefix token='chief'
 internal/repository/chiefcomplaint/repository.go,target:medicalrecord,repository/chiefcomplaint をdomain roll-up
@@ -470,20 +470,20 @@ internal/repository/inventory_repository.go,target:inventory,prefix token='inven
 internal/repository/junction_helpers.go,keep,generic M:N join helper
 internal/repository/kana_normalize.go,keep,generic search-normalization utility
 internal/repository/lab_import_repository.go,target:medicalrecord,prefix token='lab'
-internal/repository/line_customer_repository.go,target:lstep,prefix token='line'
-internal/repository/line_link_token_repository.go,target:lstep,"LINE link token, not auth token"
-internal/repository/line_reservation_setting_repository.go,target:reservation,prefix token='reservation'
-internal/repository/line_send_log_repository.go,target:lstep,prefix token='line'
-internal/repository/lstep_csv_import_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_delivery_trigger_log_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_friend_attribute_snapshot_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_settings_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_sync_error_counter_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_sync_settings_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_cache_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_code_mapping_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_tag_config_repository.go,target:lstep,prefix token='lstep'
-internal/repository/lstep_trigger_priority_repository.go,target:lstep,prefix token='lstep'
+internal/repository/line_customer_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_link_token_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_reservation_setting_repository.go,target:reservation,L⑥: reservation constructor直結後consumer 0のfacadeを削除
+internal/repository/line_send_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_csv_import_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_delivery_trigger_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_friend_attribute_snapshot_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_error_counter_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_cache_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_code_mapping_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_config_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_trigger_priority_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
 internal/repository/ltv_repository.go,target:owner,owner LTV analytics (C-10)
 internal/repository/manual_article_repository.go,target:manualarticle,prefix token='manual'
 internal/repository/manualarticle/repository.go,target:manualarticle,repository/manualarticle をdomain roll-up
@@ -530,8 +530,8 @@ internal/repository/reservationtype/repository.go,target:reservation,repository/
 internal/repository/reservationtypeavailableslot/repository.go,target:reservation,repository/reservationtypeavailableslot をdomain roll-up
 internal/repository/reservationtypegroup/repository.go,target:reservation,repository/reservationtypegroup をdomain roll-up
 internal/repository/reservationtypeunavailabletime/repository.go,target:reservation,repository/reservationtypeunavailabletime をdomain roll-up
-internal/repository/shared_file_repository.go,target:lstep,prefix token='shared'
-internal/repository/sharedfile/repository.go,target:lstep,repository/sharedfile をdomain roll-up
+internal/repository/shared_file_repository.go,target:lstep,L⑥: consumer 0のroot facadeを削除
+internal/repository/sharedfile/repository.go,target:lstep,L⑥: internal/lstep/shared_file_repository.goへroll-up
 internal/repository/shift_entry_repository.go,target:staff,prefix token='shift'
 internal/repository/shift_template_repository.go,target:staff,prefix token='shift'
 internal/repository/shiftentry/repository.go,target:staff,repository/shiftentry をdomain roll-up
@@ -544,13 +544,13 @@ internal/repository/tokenblacklist/repository.go,target:auth,repository/tokenbla
 internal/repository/transactor.go,keep,repository cross-cutting helper
 internal/repository/treatment_plan_repository.go,target:medicalrecord,prefix token='treatment'
 internal/repository/treatment_repository.go,target:medicalrecord,prefix token='treatment'
-internal/repository/trimming_course_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_course_type_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_option_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimming_repository.go,target:trimming,prefix token='trimming'
-internal/repository/trimmingcourse/repository.go,target:trimming,repository/trimmingcourse をdomain roll-up
-internal/repository/trimmingcoursetype/repository.go,target:trimming,repository/trimmingcoursetype をdomain roll-up
-internal/repository/trimmingoption/repository.go,target:trimming,repository/trimmingoption をdomain roll-up
+internal/repository/trimming_course_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_course_type_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_option_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimmingcourse/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingcoursetype/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingoption/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
 internal/repository/vaccination_repository.go,target:medicalrecord,prefix token='vaccination'
 internal/repository/vaccine/repository.go,target:medicalrecord,repository/vaccine をdomain roll-up
 internal/repository/vaccine_repository.go,target:medicalrecord,prefix token='vaccine'
@@ -582,10 +582,10 @@ internal/service/care_plan_item_service.go,target:medicalrecord,prefix token='ca
 internal/service/cash_register_service.go,target:billing,prefix token='cash'
 internal/service/checkup_field_result_service.go,target:medicalrecord,prefix token='checkup'
 internal/service/checkup_service.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_create.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_metadata.go,target:medicalrecord,prefix token='checkup'
-internal/service/checkup_sync_service_preview.go,target:medicalrecord,prefix token='checkup'
+internal/service/checkup_sync_service.go,target:lstep,L③b: lstep checkup sync application service
+internal/service/checkup_sync_service_create.go,target:lstep,L③b: lstep tag application workflow
+internal/service/checkup_sync_service_metadata.go,target:lstep,L③b: lstep audit metadata
+internal/service/checkup_sync_service_preview.go,target:lstep,L③b: lstep checkup sync preview
 internal/service/checkup_type_service.go,target:medicalrecord,prefix token='checkup'
 internal/service/chief_complaint_service.go,target:medicalrecord,prefix token='chief'
 internal/service/chronic_condition_service.go,target:pet,prefix token='chronic'
@@ -621,7 +621,7 @@ internal/service/liff_service_availability_business.go,target:reservation,"RE-CL
 internal/service/liff_service_availability_delegate.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_availability_filters.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_availability_slots.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
-internal/service/liff_service_availability_staff.go,target:staff,prefix token='staff'
+internal/service/liff_service_availability_staff.go,target:reservation,RE-CLASSIFIED 2026-07-23 Wave 2a: BE9-2C R5(de5f0d348)でinternal/reservationへ縦移動済みの実態へ是正(旧reason: prefix token='staff')
 internal/service/liff_service_availability_time.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
 internal/service/liff_service_catalog.go,target:reservation,"RE-CLASSIFIED, see liff_service.go (trimming/reservation catalog for LIFF)"
 internal/service/liff_service_health_card.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
@@ -669,11 +669,11 @@ internal/service/lstep_tag_sync_care.go,target:lstep,RE-CLASSIFIED (bm-medrecord
 internal/service/lstep_tag_sync_care_checkup.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
 internal/service/lstep_tag_sync_care_chronic.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
 internal/service/lstep_tag_sync_care_resync.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
-internal/service/lstep_tag_sync_pet.go,target:pet,prefix token='pet'
-internal/service/lstep_tag_sync_pet_basic.go,target:pet,prefix token='pet'
-internal/service/lstep_tag_sync_pet_exclusion.go,target:pet,prefix token='pet'
+internal/service/lstep_tag_sync_pet.go,target:lstep,RE-CLASSIFIED (L③a): receiver *lstepTagSyncService; pet-derived LSTEP tag protocol
+internal/service/lstep_tag_sync_pet_basic.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
+internal/service/lstep_tag_sync_pet_exclusion.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
 internal/service/lstep_tag_sync_service.go,target:lstep,prefix token='lstep'
-internal/service/lstep_tag_sync_vaccine.go,target:medicalrecord,prefix token='vaccine'
+internal/service/lstep_tag_sync_vaccine.go,target:lstep,"RE-CLASSIFIED (bm-medrecord-a): receiver *lstepTagSyncService (same type as lstep_tag_sync_service.go), Go requires same-package methods"
 internal/service/lstep_tag_sync_visit.go,target:lstep,prefix token='lstep'
 internal/service/lstep_tag_sync_visit_cpm.go,target:lstep,prefix token='lstep'
 internal/service/lstep_tag_sync_visit_dormant.go,target:lstep,prefix token='lstep'
@@ -725,7 +725,7 @@ internal/service/reservation_type_service_occupation.go,target:reservation,prefi
 internal/service/reservation_type_service_unavailable.go,target:reservation,prefix token='reservation'
 internal/service/reservation_validators.go,target:reservation,prefix token='reservation'
 internal/service/service.go,keep,composition-root facade (BE9-2F removal target)
-internal/service/shared_file_service.go,target:lstep,prefix token='shared'
+internal/service/shared_file_service.go,target:lstep,L⑥: internal/lstep/shared_file_service.goへ移動
 internal/service/shift_entry_service.go,target:staff,prefix token='shift'
 internal/service/shift_template_service.go,target:staff,prefix token='shift'
 internal/service/smtp_sender.go,keep,generic email-sending infra
@@ -742,10 +742,10 @@ internal/service/token_service.go,target:auth,prefix token='token'
 internal/service/treatment_dose_save.go,target:medicalrecord,prefix token='treatment'
 internal/service/treatment_plan_service.go,target:medicalrecord,prefix token='treatment'
 internal/service/treatment_service.go,target:medicalrecord,prefix token='treatment'
-internal/service/trimming_course_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_course_type_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_option_service.go,target:trimming,prefix token='trimming'
-internal/service/trimming_service.go,target:trimming,prefix token='trimming'
+internal/service/trimming_course_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_course_type_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_option_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
 internal/service/update_fields.go,keep,shared partial-update kernel (§9 2共有カーネル)
 internal/service/vaccination_service.go,target:medicalrecord,prefix token='vaccination'
 internal/service/vaccine_service.go,target:medicalrecord,prefix token='vaccine'

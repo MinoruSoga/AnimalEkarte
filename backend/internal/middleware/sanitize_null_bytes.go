@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"bytes"
+	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -25,8 +26,7 @@ import (
 // BUG-067: フロントエンド（axios インターセプター）での除去と同様の処理を API レベルで実施。
 //
 // X-1: multipart/form-data・application/octet-stream 等のバイナリボディは対象外。
-// bytes.Map（UTF-8 コードポイント単位の走査）をバイナリに適用すると、不正な UTF-8
-// バイト列が U+FFFD に置換されたり、0x0E-0x1F 範囲のバイトが誤って除去されたりして、
+// テキスト用の制御文字除去をバイナリに適用すると、0x0E-0x1F 範囲のバイトが除去され、
 // アップロードされた画像等のバイナリデータが破損する（例: PNG シグネチャの 7 バイト目 0x1A）。
 // 該当する Content-Type のリクエストはボディを読み取り・書き換えせずそのまま後続ハンドラに渡す。
 //
@@ -35,7 +35,7 @@ import (
 // Content-Type を省略・誤指定・偽装された JSON リクエストがサニタイズを素通りし、
 // BUG-067（NULL バイトが PostgreSQL に到達する不具合）が再発する。そのため、既知の
 // バイナリ系 Content-Type のみを除外する blocklist とし、それ以外は全て対象に含める。
-var binaryContentTypePrefixes = []string{
+var binaryMediaTypes = []string{
 	"multipart/form-data",
 	"application/octet-stream",
 }
@@ -59,44 +59,68 @@ func SanitizeNullBytes() gin.HandlerFunc {
 			return
 		}
 
-		body, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			c.Next()
-			return
-		}
-		_ = c.Request.Body.Close()
-
-		// NULL バイトおよび制御文字を除去。
-		// bytes.Map は戻り値 -1 でその rune をドロップする。
-		sanitized := bytes.Map(func(r rune) rune {
-			switch {
-			case r == 0x00: // NULL バイト
-				return -1
-			case r >= 0x01 && r <= 0x08: // SOH〜BS
-				return -1
-			case r == 0x0B: // 垂直タブ（VT）
-				return -1
-			case r == 0x0C: // フォームフィード（FF）
-				return -1
-			case r >= 0x0E && r <= 0x1F: // SO〜US
-				return -1
-			default:
-				return r
+		// 認証・route固有のbody limitより前に全量をheapへ載せないよう、
+		// downstreamが読む分だけin-placeで制御文字を除去する。
+		c.Request.Body = &sanitizedBodyReader{source: c.Request.Body}
+		c.Request.ContentLength = -1
+		if getBody := c.Request.GetBody; getBody != nil {
+			c.Request.GetBody = func() (io.ReadCloser, error) {
+				body, err := getBody()
+				if err != nil {
+					return nil, err
+				}
+				return &sanitizedBodyReader{source: body}, nil
 			}
-		}, body)
-
-		// ボディを置き換え
-		c.Request.Body = io.NopCloser(bytes.NewReader(sanitized))
-		c.Request.ContentLength = int64(len(sanitized))
+		}
 
 		c.Next()
 	}
 }
 
+type sanitizedBodyReader struct {
+	source io.ReadCloser
+}
+
+func (r *sanitizedBodyReader) Read(p []byte) (int, error) {
+	for {
+		n, err := r.source.Read(p)
+		writeIndex := 0
+		for _, b := range p[:n] {
+			if isSanitizedControlByte(b) {
+				continue
+			}
+			p[writeIndex] = b
+			writeIndex++
+		}
+		if writeIndex > 0 || err != nil || n == 0 {
+			return writeIndex, err //nolint:wrapcheck // transparent Reader must preserve io.EOF identity
+		}
+	}
+}
+
+func (r *sanitizedBodyReader) Close() error {
+	if err := r.source.Close(); err != nil {
+		return fmt.Errorf("close sanitized request body: %w", err)
+	}
+	return nil
+}
+
+func isSanitizedControlByte(b byte) bool {
+	return b == 0x00 ||
+		(b >= 0x01 && b <= 0x08) ||
+		b == 0x0B ||
+		b == 0x0C ||
+		(b >= 0x0E && b <= 0x1F)
+}
+
 // isBinaryContentType は Content-Type がサニタイズ対象外のバイナリ系かどうかを判定する。
 func isBinaryContentType(contentType string) bool {
-	for _, prefix := range binaryContentTypePrefixes {
-		if strings.HasPrefix(contentType, prefix) {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
+	}
+	for _, binaryMediaType := range binaryMediaTypes {
+		if strings.EqualFold(mediaType, binaryMediaType) {
 			return true
 		}
 	}

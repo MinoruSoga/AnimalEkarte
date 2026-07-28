@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useActionState } from 'react';
 import axios from 'axios';
 import liff from '@line/liff';
 import { z } from 'zod';
@@ -8,7 +8,7 @@ import { LIFF_MOCK } from '../lib/liff-config';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
-import { formatJapaneseDate } from '@/shared-liff/jst-date';
+import { formatJapaneseDate, formatTimeHHMM } from '@/shared-liff/jst-date';
 import { getStepProgress } from '../lib/step-progress';
 
 const slotTakenResponseSchema = z.object({
@@ -29,17 +29,8 @@ interface ConfirmPageProps {
   onBack: () => void;
 }
 
-function formatTime(hhmm: string): string {
-  if (!hhmm || hhmm.length < 4) return hhmm;
-  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
-}
-
-function formatDate(dateStr: string): string {
-  return formatJapaneseDate(dateStr);
-}
-
-function formatDatePadded(dateStr: string): string {
-  return formatJapaneseDate(dateStr, true);
+interface ConfirmFormState {
+  error: string | null;
 }
 
 /** 予約完了後に LINE トーク画面へメッセージを送信する */
@@ -48,7 +39,7 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
   if (!liff.isInClient()) return; // LINE アプリ外では送信不可
 
   const confirmNum = notes.match(/R-\d{8}-\d{4}/)?.[0] ?? '';
-  const time = `${formatTime(flow.startTime)}〜${formatTime(flow.endTime)}`;
+  const time = `${formatTimeHHMM(flow.startTime)}〜${formatTimeHHMM(flow.endTime)}`;
 
   const petList = flow.customerInfo.pets
     .map(p => p.type ? `${p.name}(${p.type})` : p.name)
@@ -58,7 +49,7 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
     'ご予約を承りました。',
     '',
     `■ 予約番号: ${confirmNum}`,
-    `■ 日時: ${formatDatePadded(flow.date)} ${time}`,
+    `■ 日時: ${formatJapaneseDate(flow.date, true)} ${time}`,
     `■ コース: ${flow.courseName}`,
     flow.staffId > 0 ? `■ 担当: ${flow.staffName}` : '',
     petList ? `■ ペット: ${petList}` : '',
@@ -85,15 +76,14 @@ export function ConfirmPage({
   onSlotTaken,
   onBack,
 }: ConfirmPageProps) {
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
   const { current, total } = getStepProgress('confirm', flow.courseCategory === 'trimming');
 
-  const handleConfirm = useCallback(async () => {
-    if (!flow.courseId) return;
-    setSubmitting(true);
-    setError(null);
+  async function confirmAction(
+    previousState: ConfirmFormState,
+    _formData: FormData,
+  ): Promise<ConfirmFormState> {
+    if (!flow.courseId) return previousState;
 
     try {
       const reservation = await liffApi.createReservation(
@@ -124,19 +114,20 @@ export function ConfirmPage({
       );
       await sendLiffMessage(flow, reservation.notes);
       onConfirm(reservation.id, reservation.notes);
+      return { error: null };
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         const parsed = slotTakenResponseSchema.safeParse(err.response.data);
         const message = (parsed.success && parsed.data.error) || '選択された時間枠は既に予約が入っています。';
         const redirectStep = (parsed.success && parsed.data.redirect_step) || 4;
         onSlotTaken(message, redirectStep);
-        return;
+        return { error: null };
       }
-      setError('予約の確定に失敗しました。もう一度お試しください。');
-    } finally {
-      setSubmitting(false);
+      return { error: '予約の確定に失敗しました。もう一度お試しください。' };
     }
-  }, [clinicId, idToken, flow, onConfirm, onSlotTaken]);
+  }
+
+  const [formState, formAction, isPending] = useActionState(confirmAction, { error: null });
 
   const petDisplay = flow.customerInfo.pets.length > 0
     ? flow.customerInfo.pets.map(p => p.type ? `${p.name}（${p.type}）` : p.name).join('、')
@@ -149,10 +140,10 @@ export function ConfirmPage({
     { label: 'ペット', value: petDisplay },
     { label: 'コース', value: flow.courseName },
     { label: 'スタッフ', value: flow.staffName || '指名なし' },
-    { label: '日付', value: formatDate(flow.date) },
+    { label: '日付', value: formatJapaneseDate(flow.date) },
     {
       label: '時間',
-      value: `${formatTime(flow.startTime)} 〜 ${formatTime(flow.endTime)}`,
+      value: `${formatTimeHHMM(flow.startTime)} 〜 ${formatTimeHHMM(flow.endTime)}`,
     },
     { label: 'ご要望', value: flow.requestText || '—' },
   ];
@@ -179,7 +170,7 @@ export function ConfirmPage({
           </div>
 
           {/* 予約内容テーブル */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {rows.map(row => (
               <div
                 key={row.label}
@@ -209,21 +200,21 @@ export function ConfirmPage({
             </div>
           ) : null}
 
-          {error ? (
+          {formState.error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <p className="text-sm text-red-700" role="alert">{error}</p>
+              <p className="text-sm text-red-700" role="alert">{formState.error}</p>
             </div>
           ) : null}
         </div>
 
-        <div className="px-4 py-6 space-y-3">
+        <form action={formAction} className="px-4 py-6 space-y-3">
           {privacyPolicy ? (
             <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
           ) : null}
-          <PrimaryButton onClick={handleConfirm} disabled={submitting}>
-            {submitting ? '送信中...' : '予約を確定する'}
+          <PrimaryButton type="submit" disabled={isPending}>
+            {isPending ? '送信中...' : '予約を確定する'}
           </PrimaryButton>
-        </div>
+        </form>
       </div>
     </div>
   );

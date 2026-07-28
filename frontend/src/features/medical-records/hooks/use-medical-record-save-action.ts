@@ -1,4 +1,4 @@
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useLayoutEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -11,6 +11,8 @@ interface UseMedicalRecordSaveActionArgs {
   recordId?: string;
   activeTab: string;
   canEdit: boolean;
+  isSelectedPetDeceased: boolean;
+  isFinalized: boolean;
   isNextVisitDateValid: boolean;
   diagnosis1CategoryId: number | null;
   diagnosis1NameId: number | null;
@@ -55,6 +57,8 @@ export function useMedicalRecordSaveAction({
   recordId,
   activeTab,
   canEdit,
+  isSelectedPetDeceased,
+  isFinalized,
   isNextVisitDateValid,
   diagnosis1CategoryId,
   diagnosis1NameId,
@@ -76,6 +80,15 @@ export function useMedicalRecordSaveAction({
   updateTreatmentPlanMutation,
   updateMutation,
 }: UseMedicalRecordSaveActionArgs) {
+  const canEditRef = useRef(canEdit);
+  const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  useLayoutEffect(() => {
+    isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
+  }, [isSelectedPetDeceased]);
+
   // activeTab を保存時に正確に参照するための ref
   const activeTabRef = useRef(activeTab);
   useEffect(() => {
@@ -84,7 +97,16 @@ export function useMedicalRecordSaveAction({
 
   const [formState, formAction, isSaving] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
-      if (!recordId) return { success: false, timestamp: Date.now() };
+      // UI の disabled は操作補助にすぎない。programmatic submit や race でも
+      // 確定済み・権限なしカルテを更新しないよう action 境界で拒否する。
+      if (
+        !recordId
+        || canEditRef.current !== true
+        || isSelectedPetDeceasedRef.current
+        || isFinalized
+      ) {
+        return { success: false, timestamp: Date.now() };
+      }
 
       try {
         setManualErrors({});
@@ -92,6 +114,12 @@ export function useMedicalRecordSaveAction({
 
         switch (currentTab) {
           case "問診":
+            if (
+              canEditRef.current !== true
+              || isSelectedPetDeceasedRef.current
+            ) {
+              return { success: false, timestamp: Date.now() };
+            }
             await updateInquiryMutation.mutateAsync({
               chief_complaint: chiefComplaint !== chiefComplaintDefault ? chiefComplaint : undefined,
               chief_complaint_type_id: chiefComplaintTypeId,
@@ -100,7 +128,6 @@ export function useMedicalRecordSaveAction({
             break;
 
           case "診察/治療プラン": {
-            if (!canEdit) break;
             if (!isNextVisitDateValid) {
               return { success: false, timestamp: Date.now() };
             }
@@ -127,8 +154,20 @@ export function useMedicalRecordSaveAction({
               // バージョンチェックをスキップする（後方互換）ため常に送信する。
               version: existingClinicalPlanVersion,
             };
+            if (
+              canEditRef.current !== true
+              || isSelectedPetDeceasedRef.current
+            ) {
+              return { success: false, timestamp: Date.now() };
+            }
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
+            if (
+              canEditRef.current !== true
+              || isSelectedPetDeceasedRef.current
+            ) {
+              return { success: false, timestamp: Date.now() };
+            }
             await updateMutation.mutateAsync({
               id: recordId as string,
               req: {

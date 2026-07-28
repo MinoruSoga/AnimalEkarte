@@ -50,7 +50,10 @@ const RECEPTION_COLUMN_COLOR_MAP: Record<string, ReceptionColumnColorSet> = {
   },
   "受付済": {
     bg: C.bgAccentLight50,
-    dot: C.bgAccent,
+    // FE10: legacy accent の値を brand へ統合した結果、このドットが構造色の装飾使用になったため、
+    // 既存の「受付済(checked_in)」指定トークン（予約ステータスと同一）へ繋ぎ替え。
+    // DESIGN.md Do「primary は CTA/リンク/active/focus のみ・装飾には使わない」準拠。
+    dot: C.bgStatusBlueDot,
     text: C.textAccentDark,
     text60: C.textAccentDark60,
     hoverBgPage: C.hoverBgAccentBadge40,
@@ -171,7 +174,9 @@ export const getTrimmingStatusColor = (status: string) => {
 };
 
 export const getPetStatusColor = (status: string) => {
-  return status === "生存" ? BADGE.greenHover : BADGE.grayHover;
+  if (status === "生存") return BADGE.greenHover;
+  if (status === "死亡") return BADGE.grayHover;
+  return BADGE.grayHover;
 };
 
 

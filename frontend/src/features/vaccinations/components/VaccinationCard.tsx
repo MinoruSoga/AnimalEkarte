@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Calendar, Syringe, AlertTriangle } from "lucide-react";
+import { Calendar, Syringe, AlertTriangle, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C, ICON } from "@/lib/design-tokens";
+import { isPastJSTDate } from "@/lib/jst-date";
 import type { VaccinationRecord } from "@/types";
 
 interface VaccinationCardProps {
@@ -10,23 +11,16 @@ interface VaccinationCardProps {
   className?: string;
 }
 
-function isOverdue(nextDate: string): boolean {
-  if (!nextDate) return false;
-  const next = new Date(nextDate);
-  if (isNaN(next.getTime())) return false;
-  return next < new Date();
-}
-
 export const VaccinationCard = memo(function VaccinationCard({
   vaccination,
   onClick,
   className,
 }: VaccinationCardProps) {
-  const overdue = isOverdue(vaccination.nextDate);
+  const overdue = isPastJSTDate(vaccination.nextDate);
 
   return (
     <Card
-      className={`${C.bgWhite} border ${C.borderLight} shadow-none rounded-[4px] ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
+      className={`${C.bgWhite} border ${C.borderLight} shadow-none rounded-xs ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
       onClick={onClick}
     >
       <CardContent className="px-4 py-3">
@@ -46,9 +40,12 @@ export const VaccinationCard = memo(function VaccinationCard({
             接種: {vaccination.date}
           </span>
 
-          {/* 担当医 */}
-          {/* VaccinationRecord に doctor フィールドは現状存在しないため
-              ownerName を代替表示せず、フィールドが追加されたときに対応 */}
+          {vaccination.doctor ? (
+            <span className="flex items-center gap-1">
+              <UserRound className={`${ICON.xs} shrink-0`} />
+              担当医: {vaccination.doctor}
+            </span>
+          ) : null}
         </div>
 
         {/* 次回接種予定日 */}

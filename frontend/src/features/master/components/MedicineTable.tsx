@@ -53,7 +53,7 @@ export function MedicineTable({
           <Table>
             <TableHeader className="sticky top-0 z-10">
               <TableRow className={STYLE.tableHeaderRow}>
-                <TableHead className="w-8 px-0" />
+                <TableHead className="w-11 px-0" />
                 <TableHead className={`${STYLE.tableHeaderCell} pl-3`}>薬品名</TableHead>
                 <TableHead className={`${STYLE.tableHeaderCell} w-[100px] text-center`}>剤形</TableHead>
                 <TableHead className={`${STYLE.tableHeaderCell} w-[130px] text-right pr-4`}>

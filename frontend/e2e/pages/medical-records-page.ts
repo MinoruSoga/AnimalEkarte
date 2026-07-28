@@ -27,6 +27,23 @@ export class MedicalRecordsPage extends BasePage {
     return this.heading('カルテ作成 - ペット選択');
   }
 
+  patientSearchInput(): Locator {
+    return this.page.locator('#search');
+  }
+
+  patientRow(name: string): Locator {
+    return this.page
+      .getByRole('row')
+      .filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  selectPatientButton(id: string, name: string): Locator {
+    return this.page.getByRole('button', {
+      name: `選択: ${name} (ID ${id})`,
+      exact: true,
+    });
+  }
+
   newButton(): Locator {
     return this.page.getByRole('button', { name: '新規カルテ登録' });
   }

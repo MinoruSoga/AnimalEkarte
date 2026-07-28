@@ -2,7 +2,7 @@
 // backend's safety lints (clinic-scope Preload, audit-tx inventory, DB-or-tx inventory,
 // master-FK write inventory, N+1, and future lints under BE9-1's package-restructuring work).
 //
-// BE9-0 lesson (see internal/repository/repotest.go's own header comment for the precedent of
+// BE9-0 lesson (see internal/testdb/testdb.go for the current shared test-kernel precedent of
 // this exact move): helpers defined inside a "_test.go" file cannot be imported from another
 // package's "_test.go" files — the Go toolchain excludes "_test.go" files from a package's
 // normal build graph, so only files ending in a plain ".go" extension are importable across

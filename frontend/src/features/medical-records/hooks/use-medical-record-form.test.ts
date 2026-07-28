@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
+import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -27,9 +30,13 @@ vi.mock("react-router", () => ({
   useLocation: () => ({ pathname: "/medical-records/10", search: "", state: mockLocationState }),
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-}));
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  };
+});
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
@@ -41,7 +48,10 @@ vi.mock("@/hooks/use-permission", () => ({
 const noData = { data: undefined, isLoading: false, isError: false };
 const noMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 
-vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
+  useGetPets: vi.fn(() => ({ data: [], isLoading: false, isError: false })),
+}));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
@@ -87,6 +97,32 @@ vi.mock("@/hooks/use-reservation-types", () => ({
 // ──────────────────────────────────────────────────────────
 // テスト
 // ──────────────────────────────────────────────────────────
+
+describe("useGetPets enabled guard", () => {
+  it.each([
+    ["undefined", undefined],
+    ["空文字", ""],
+  ])("ownerId が%sで enabled=false のときAPIリクエストを発行しない", async (_label, ownerId) => {
+    let requestCount = 0;
+    server.use(
+      http.get("/api/v1/pets", () => {
+        requestCount += 1;
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+    const { useGetPets: useActualGetPets } = await vi.importActual<
+      typeof import("@/hooks/use-pet")
+    >("@/hooks/use-pet");
+
+    const { result } = renderHook(
+      () => useActualGetPets(ownerId, {}, { enabled: false }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+    expect(requestCount).toBe(0);
+  });
+});
 
 describe("useMedicalRecordForm", () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -17,6 +17,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -208,22 +209,34 @@ export function ExaminationsList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
-    <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
+    <DataTableRow key={r.id}>
       <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
       <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
-      <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        <DataTableRowLink
+          to={paths.examinations.detail.getHref(r.id)}
+          aria-label={`検査詳細: ${r.petName} ${r.date} ID ${r.id}`}
+        >
+          {r.petName}
+        </DataTableRowLink>
+      </TableCell>
       <TableCell className={`${STYLE.tableCell} font-medium`}>{r.testType}</TableCell>
-      <TableCell className={`text-base ${C.text60} truncate max-w-[200px] py-2.5 hidden lg:table-cell`}>
+      <TableCell className={`${C.text60} truncate max-w-[200px] hidden lg:table-cell`}>
         {r.resultSummary || "-"}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
-      <TableCell className="py-2.5">
+      <TableCell>
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}
         </StatusBadge>
       </TableCell>
-      <TableCell className="text-right py-2.5">
-        {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            onClick={() => handleEdit(r.id)}
+            aria-label={`検査操作: ${r.petName} ${r.date} ID ${r.id}`}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   ), [handleEdit, canEdit]);
@@ -301,14 +314,14 @@ export function ExaminationsList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+            <PrimaryButton colorVariant="primary" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規検査登録
             </PrimaryButton>
           ) : null}
         </div>
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         <PropertyFilter

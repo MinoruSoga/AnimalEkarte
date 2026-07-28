@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useActionState } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useActionState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { addWeeks, addYears, format } from "date-fns";
 import { toast } from "sonner";
@@ -26,6 +26,18 @@ interface VaccinationFormState {
   nextDate: string;
   remarks: string;
 }
+
+interface VaccinationMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
 
 const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
@@ -81,7 +93,10 @@ export function calculateNextDate(vaccinationDate: string, scheduleType: string)
   }
 }
 
-export function useVaccinationForm(id?: string) {
+export function useVaccinationForm(
+  id?: string,
+  permissions: Readonly<VaccinationMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -108,9 +123,28 @@ export function useVaccinationForm(id?: string) {
   const editPetId = isEdit ? (existingVaccination?.petId ?? "") : "";
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const { data: petFromEdit } = useGetPet(editPetId);
+  const selectedPetRef = useRef(selectedPets[0]);
+  const queryPetRef = useRef(petFromQuery);
+  const editPetRef = useRef(petFromEdit);
+  useLayoutEffect(() => {
+    selectedPetRef.current = selectedPets[0];
+    queryPetRef.current = petFromQuery;
+  }, [petFromQuery, selectedPets]);
+  useLayoutEffect(() => {
+    editPetRef.current = petFromEdit;
+  }, [petFromEdit]);
   const createMutation = useCreateVaccination();
   const updateMutation = useUpdateVaccination();
   const deleteMutation = useDeleteVaccination();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof VaccinationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
 
   // BUG-024/074: validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -206,10 +240,16 @@ export function useVaccinationForm(id?: string) {
             supplemental: formData.supplemental || undefined,
             next_schedule_type: formData.nextScheduleType || undefined,
           };
+          if (
+            !isMutationAllowed("canEdit") ||
+            editPetRef.current?.status === "死亡"
+          ) {
+            return { success: false, timestamp: Date.now() };
+          }
           await updateMutation.mutateAsync({ id, req });
           toast.success("予防接種情報を更新しました");
         } else {
-          const pet = selectedPets[0];
+          const pet = petId ? queryPetRef.current : selectedPetRef.current;
           if (!pet) return { success: false, timestamp: Date.now() };
           const req: CreateVaccinationRequest = {
             medical_record_id: null,
@@ -225,6 +265,12 @@ export function useVaccinationForm(id?: string) {
             supplemental: formData.supplemental || undefined,
             next_schedule_type: formData.nextScheduleType || undefined,
           };
+          if (
+            !isMutationAllowed("canCreate") ||
+            pet.status === "死亡"
+          ) {
+            return { success: false, timestamp: Date.now() };
+          }
           await createMutation.mutateAsync(req);
           toast.success("予防接種を登録しました");
         }
@@ -316,6 +362,12 @@ export function useVaccinationForm(id?: string) {
   const { mutate: deleteVaccinationFn } = deleteMutation;
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
+    if (
+      !isMutationAllowed("canDelete") ||
+      editPetRef.current?.status === "死亡"
+    ) {
+      return;
+    }
     deleteVaccinationFn(id, {
       onSuccess: () => {
         toast.success("予防接種情報を削除しました");
@@ -325,11 +377,12 @@ export function useVaccinationForm(id?: string) {
         handleApiError(error, "削除");
       },
     });
-  }, [isEdit, id, deleteVaccinationFn]);
+  }, [isEdit, id, isMutationAllowed, deleteVaccinationFn]);
 
   const isDeleting = deleteMutation.isPending;
 
   const form = useMemo(() => ({
+    doctorName: existingVaccination?.doctor ?? "",
     vaccineId: formData.vaccineId,
     setVaccineId,
     vaccineOptions,
@@ -352,6 +405,7 @@ export function useVaccinationForm(id?: string) {
     remarks: formData.remarks,
     setRemarks,
   }), [
+    existingVaccination?.doctor,
     formData.vaccineId, setVaccineId, vaccineOptions,
     formData.date, setDate,
     formData.supplemental, setSupplemental,
