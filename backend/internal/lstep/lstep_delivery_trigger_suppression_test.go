@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -217,6 +218,81 @@ func TestLstepDeliveryTriggerService_ApplySuppression(t *testing.T) {
 		assert.False(t, suppressed, "current trigger fires normally; existing lower-priority logs are demoted instead")
 		assert.Equal(t, uint64(1), suppressedLogID)
 		assert.NotEmpty(t, suppressedReason)
+	})
+
+	t.Run("demote removes previously applied LSTEP tag before suppressing log (G2B-03)", func(t *testing.T) {
+		lineID := "U-line-1"
+		var removedTag string
+		repo := &suppressionMockTriggerLogRepository{
+			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "vaccine"}}, nil
+			},
+			updateSuppressedFn: func(_ context.Context, _, _ uint64, _ string) error { return nil },
+		}
+		prioritySvc := &suppressionMockPriorityService{
+			getPriorityForFn: func(_ context.Context, _ uint64, triggerType string) (int, error) {
+				if triggerType == "dormant" {
+					return 1, nil
+				}
+				return 5, nil
+			},
+		}
+		svc := newSuppressionTestService(repo, prioritySvc)
+		svc.ownerRepo = &mockOwnerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 10, LineUserID: &lineID}, nil
+			},
+		}
+		svc.clientBuilderFn = func(_ context.Context, _ uint64) (lstep.Client, error) {
+			return &mockLstepAPIClient{
+				removeTagFn: func(_ context.Context, _, tag string) error {
+					removedTag = tag
+					return nil
+				},
+			}, nil
+		}
+		suppressed, err := svc.applySuppression(context.Background(), 1, 10, "dormant", asOf)
+		assert.NoError(t, err)
+		assert.False(t, suppressed)
+		assert.Equal(t, "vaccine", removedTag)
+	})
+
+	t.Run("demote fails closed when RemoveTag fails (G2B-03)", func(t *testing.T) {
+		lineID := "U-line-1"
+		updateCalled := false
+		repo := &suppressionMockTriggerLogRepository{
+			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "vaccine"}}, nil
+			},
+			updateSuppressedFn: func(_ context.Context, _, _ uint64, _ string) error {
+				updateCalled = true
+				return nil
+			},
+		}
+		prioritySvc := &suppressionMockPriorityService{
+			getPriorityForFn: func(_ context.Context, _ uint64, triggerType string) (int, error) {
+				if triggerType == "dormant" {
+					return 1, nil
+				}
+				return 5, nil
+			},
+		}
+		svc := newSuppressionTestService(repo, prioritySvc)
+		svc.ownerRepo = &mockOwnerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 10, LineUserID: &lineID}, nil
+			},
+		}
+		svc.clientBuilderFn = func(_ context.Context, _ uint64) (lstep.Client, error) {
+			return &mockLstepAPIClient{
+				removeTagFn: func(_ context.Context, _, _ string) error {
+					return errors.New("lstep remove failed")
+				},
+			}, nil
+		}
+		_, err := svc.applySuppression(context.Background(), 1, 10, "dormant", asOf)
+		assert.Error(t, err)
+		assert.False(t, updateCalled, "log demote must not proceed after RemoveTag failure")
 	})
 
 	t.Run("returns wrapped error when demoting an existing log fails", func(t *testing.T) {
