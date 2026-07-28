@@ -15,8 +15,9 @@ import (
 func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string, prefixes []string, skipTags map[string]struct{}) bool {
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
+		// LSA-11: cache load failure must not look like a clean run (callers skip apply/notify when true).
 		slog.ErrorContext(ctx, "failed to load tag cache for stale cleanup", "error", err)
-		return false
+		return true
 	}
 	apiFailed := false
 	for _, c := range cached {

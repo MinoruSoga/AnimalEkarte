@@ -26,7 +26,8 @@ func TestRemoveStaleTagsByPrefixes_FindByOwnerError(t *testing.T) {
 		},
 	}
 	apiFailed := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
-	assert.False(t, apiFailed)
+	// LSA-11: cache failure must report as failed so callers do not apply tags / notify success.
+	assert.True(t, apiFailed)
 }
 
 func TestRemoveStaleTagsByPrefixes_SkipsTagsInSkipSet(t *testing.T) {
