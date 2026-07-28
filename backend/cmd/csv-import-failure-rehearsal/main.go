@@ -143,7 +143,7 @@ func runWithDependencies(
 	deps runDependencies,
 ) error {
 	if err := deps.configureTimeZone(); err != nil {
-		return fmt.Errorf("timezone configuration failed")
+		return fmt.Errorf("timezone configuration failed: %w", err)
 	}
 	opt, err := parseOptions(args)
 	if err != nil {
@@ -163,11 +163,11 @@ func runWithDependencies(
 	}
 	target, err := deps.openTarget(ctx, poolConfig)
 	if err != nil {
-		return fmt.Errorf("open disposable target database")
+		return fmt.Errorf("open disposable target database: %w", err)
 	}
 	defer target.Close()
 	if err := target.Ping(ctx); err != nil {
-		return fmt.Errorf("ping disposable target database")
+		return fmt.Errorf("ping disposable target database: %w", err)
 	}
 
 	input := syntheticFailureInput(opt)
@@ -207,7 +207,7 @@ func runWithDependencies(
 	encoder := json.NewEncoder(output)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(receipt); err != nil {
-		return fmt.Errorf("write aggregate execution receipt")
+		return fmt.Errorf("write aggregate execution receipt: %w", err)
 	}
 	return nil
 }
@@ -302,7 +302,7 @@ func buildDisposablePoolConfig(
 	}
 	poolConfig, err := pgxpool.ParseConfig("sslmode=disable")
 	if err != nil {
-		return nil, fmt.Errorf("initialize disposable database configuration")
+		return nil, fmt.Errorf("initialize disposable database configuration: %w", err)
 	}
 	poolConfig.ConnConfig.Host = conn.Host
 	poolConfig.ConnConfig.Port = uint16(port)

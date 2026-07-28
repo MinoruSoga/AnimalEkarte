@@ -135,19 +135,19 @@ func TestParseOptionsRejectsVariableInjectionSurface(t *testing.T) {
 	}
 }
 
-func TestRunWithDependenciesSanitizesDatabaseFailures(t *testing.T) {
+func TestRunWithDependenciesPreservesErrorChain(t *testing.T) {
 	t.Setenv("DB_NAME", "animalekarte_f8_g4_run_1")
 	for _, test := range []struct {
 		name   string
 		mutate func(*runDependencies, *fakeFailureTarget)
-		want   string
+		want   []string
 	}{
 		{
 			name: "ping",
 			mutate: func(_ *runDependencies, target *fakeFailureTarget) {
 				target.pingError = errors.New("secret database detail")
 			},
-			want: "ping disposable target database",
+			want: []string{"ping disposable target database", "secret database detail"},
 		},
 		{
 			name: "rehearsal",
@@ -160,7 +160,7 @@ func TestRunWithDependenciesSanitizesDatabaseFailures(t *testing.T) {
 					return csvimport.SyntheticFailureResult{}, errors.New("synthetic failure rollback changed the target band")
 				}
 			},
-			want: "rollback changed",
+			want: []string{"rollback changed"},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -168,11 +168,13 @@ func TestRunWithDependenciesSanitizesDatabaseFailures(t *testing.T) {
 			deps := validRunDependencies(target)
 			test.mutate(&deps, target)
 			err := runWithDependencies(context.Background(), validArgs(), &bytes.Buffer{}, deps)
-			if err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("error = %v, want %q", err, test.want)
+			if err == nil {
+				t.Fatal("expected error")
 			}
-			if strings.Contains(err.Error(), "secret database detail") {
-				t.Fatalf("database detail leaked: %v", err)
+			for _, want := range test.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %v, want substring %q", err, want)
+				}
 			}
 		})
 	}
@@ -183,14 +185,14 @@ func TestRunWithDependenciesFailsClosedBeforeReceipt(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*runDependencies)
-		want   string
+		want   []string
 	}{
 		{
 			name: "timezone",
 			mutate: func(deps *runDependencies) {
 				deps.configureTimeZone = func() error { return errors.New("private timezone detail") }
 			},
-			want: "timezone configuration failed",
+			want: []string{"timezone configuration failed", "private timezone detail"},
 		},
 		{
 			name: "environment",
@@ -199,7 +201,7 @@ func TestRunWithDependenciesFailsClosedBeforeReceipt(t *testing.T) {
 					return dbconn.ConnParams{}, errors.New("missing database environment")
 				}
 			},
-			want: "missing database environment",
+			want: []string{"missing database environment"},
 		},
 		{
 			name: "open",
@@ -208,7 +210,7 @@ func TestRunWithDependenciesFailsClosedBeforeReceipt(t *testing.T) {
 					return nil, errors.New("private open detail")
 				}
 			},
-			want: "open disposable target database",
+			want: []string{"open disposable target database", "private open detail"},
 		},
 	}
 	for _, test := range tests {
@@ -216,11 +218,13 @@ func TestRunWithDependenciesFailsClosedBeforeReceipt(t *testing.T) {
 			deps := validRunDependencies(&fakeFailureTarget{})
 			test.mutate(&deps)
 			err := runWithDependencies(context.Background(), validArgs(), &bytes.Buffer{}, deps)
-			if err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("error = %v, want %q", err, test.want)
+			if err == nil {
+				t.Fatal("expected error")
 			}
-			if strings.Contains(err.Error(), "private") {
-				t.Fatalf("private detail leaked: %v", err)
+			for _, want := range test.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %v, want substring %q", err, want)
+				}
 			}
 		})
 	}
