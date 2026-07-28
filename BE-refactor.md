@@ -195,6 +195,9 @@
 - **coordinator 独立実測済み（2026-07-27）**: `UpdateItem`（`billing_item_service.go:404-425`）は `FindByID` → 単価/数量検証 → `WithTx` → `repo.Update` で `LockAndFindByID` も status 検査も持たない。`DeleteItem`（`:456-475`）は `LockAndFindByID` で行を固定し completed/cancelled を `WrapConflict` で拒否する。`routes.go:112` の PATCH は `accounting:edit` のみを要求する。**本項はエージェント報告ではなく直接確認に基づく**（他 104 件は未実測 — 「監査の限界」5 を参照）。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — UpdateBillingTotals は billing_item_repository.go:568-576（旧:563）。IsDateClosed は cash_register_service.go:407（旧:359）。CreateItem/UpdateItem に status/post-close ゲート無し・DeleteItem のみ completed/cancelled 拒否は継続。dirty: billing_item_repository.go 作業ツリー変更中だが status 欠落構造は残存。
+- 起票先: `BUG-462`（`3-session-agent.html#BUG-462`）
+
+
 #### BIL-03: campaignService.Update が本体更新と対象（カテゴリ/商品）差し替えを別々のtransactionで実行し、部分成功で割引マッチング対象が不整合になる — HIGH
 - 区分: 新規 ／ 横断パターン: X-06
 - 規約: `backend/CLAUDE.md:33` 「1つのbusiness graphを構成する複数rowのwriteは同じtransactionで原子的に扱い、commit済みの成功を後段の再取得errorで失敗応答へ反転させない。」
@@ -1465,6 +1468,9 @@
 - 修正: total>5000 は fail-closed または paginate。stream 後は JSON error しない。
 
 - round2-review(2026-07-28): **UPHELD** — 反証失敗: headers 後の RespondError は `guidelines:154` / `error-handling.md:29` 違反がコード上明確（`lstep_tag_summary_handler.go:43-59`）。truncate 無信号は副次。
+- 起票先: `BUG-463`（`3-session-agent.html#BUG-463`）
+
+
 #### G2C-05: owner tags API が line_user_id 全文を返し masked フィールドが未配線 — LOW
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:24` 「response、export、event、audit log は最小限の field だけを含める。」
@@ -1513,6 +1519,9 @@
 - 修正: 同一 tx 内 UpdateAndFind。
 
 - round2-review(2026-07-28): **UPHELD** — 反証: 稀有だが CODING_RULES:78 字面どおり（`inventory/repository.go:117-121` Update 後別 Find）。成功の 5xx 反転 contract 違反。
+- 起票先: `BUG-464`（`3-session-agent.html#BUG-464`）
+
+
 #### G2P-03: inventory quantity が非負未検証で DecreaseStock が負在庫を作れる — MEDIUM
 - 区分: 新規 ／ 横断: X-02
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -1521,6 +1530,9 @@
 - 修正: binding min=0、WHERE quantity>=? 条件付き減算、CHECK。
 
 - round2-review(2026-07-28): **UPHELD** — 反証: DecreaseStock の無条件 `quantity - N` と min/CHECK 欠落は CODING_RULES:79 に直撃。負在庫は status で隠れるだけで数値が壊れる。
+- 起票先: `BUG-465`（`3-session-agent.html#BUG-465`）
+
+
 #### G2T-02: inquiry_template CountUsage が常に 0 を返す AUS-04 同型 — MEDIUM
 - 区分: **決裁済み**（PO 2026-05-25: inquiry_answers 当面実装しない）／ 旧「新規」は撤回
 - 規約: `backend/internal/medicalrecord/inquiry_template_repository.go:71` 「PO判断（2026-05-25）: inquiry_answers は当面実装しない。」（旧 error-handling.md:9 および出典なし interface 規則は本事象に不適用のため差し替え）

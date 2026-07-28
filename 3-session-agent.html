@@ -1123,6 +1123,152 @@ rm -f -- "$FE12_COOKIE_JAR"</code></pre></details>
 </ul>
 </section>
 
+<section class="task" id="BUG-462">
+<h3>BUG-462: BIL-01 — billing-items の POST/PATCH がレジ締め後ゲートを迂回して billing 総額を書き換える</h3>
+<ul>
+  <li><b>状態: OPEN / CRITICAL（financial integrity / post-close bypass）</b>。出所 <code>BE-refactor.md</code> <code>BIL-01</code>（coordinator 独立実測済み・2026-07-28 再実測で構造継続）。<code>POST/PATCH /billing-items</code> は <code>accounting:create</code>/<code>accounting:edit</code> だけで通り、billing の <code>status</code> もレジ締め状態も検査せず、post-close 監査も残さずに <code>recalculateTotals</code> → <code>UpdateBillingTotals</code> で <code>billings.subtotal/tax_total/total_amount</code> を書き換える。</li>
+  <li><b>対象（現 HEAD 再実測・2026-07-28）</b>:
+    <ul>
+      <li><code>backend/internal/billing/routes.go:111-112</code> — POST/PATCH は post-close 権限なし</li>
+      <li><code>backend/internal/billing/billing_item_service.go:404-454</code> — <code>UpdateItem</code> に status / IsDateClosed / 監査なし（FindByID → Update → recalculateTotals）</li>
+      <li><code>backend/internal/billing/billing_item_service.go:282</code> 起点 — <code>CreateItem</code> も一般経路に status ガードなし（vaccination 枝のみ status 衝突あり）</li>
+      <li><code>backend/internal/billing/billing_item_repository.go:145-153</code> — <code>ValidateCreateReferences</code> は billing を <code>FOR UPDATE</code> しつつ <code>medical_record_id, owner_id, pet_id</code> のみ SELECT（status 未読）</li>
+      <li><code>backend/internal/billing/billing_item_repository.go:568-576</code> — <code>UpdateBillingTotals</code>（旧所見 :563 は LINE-DRIFT）status 述語なし</li>
+      <li><code>backend/internal/billing/cash_register_service.go:407-414</code> — <code>IsDateClosed</code>（旧所見 :359 は LINE-DRIFT）。production 呼び出しは <code>accounting_handler.go:173,232</code> のみで billing-items 経路からは未呼出</li>
+    </ul>
+  </li>
+  <li><b>正しい先例</b>: <code>DeleteItem</code>（<code>billing_item_service.go:456-473</code>）は <code>LockAndFindByID</code> の後に completed/cancelled を <code>WrapConflict</code> で 409 拒否。締め後会計編集は <code>accounting_handler.go:173-189</code> の post-close 権限 + <code>accounting_service_core.go:159-161</code> の <code>post_close_reason</code> 必須 + <code>:234-238,:274-296</code> の <code>logPostCloseEdit</code> 同一 tx fail-closed 監査。</li>
+  <li><b>規約</b>: <code>.claude/refs/backend-application-invariants.md:37</code>（締め後の会計編集は fail-closed 監査対象）。status ガード非対称は同条項単独ではなく <code>backend/CLAUDE.md</code> の business-graph / fail-closed 系と <code>DeleteItem</code> 先例で扱う（BIL-01 の検証時補正どおり 2 命題）。</li>
+  <li><b>修正方針</b>: CreateItem/UpdateItem を DeleteItem と同型にし、tx 内で billing を lock して completed/cancelled を 409。締め済み期間の明細変更は accounting PATCH と同じ post-close 権限・理由・<code>logPostCloseEdit</code> 相当の同一 tx fail-closed 監査を必須にする。</li>
+  <li><b>着手前に evidence を再実測せよ</b>（必須）: (1) <code>rg -n 'IsDateClosed|LockAndFindByID|logPostCloseEdit|UpdateBillingTotals' backend/internal/billing/</code> (2) CreateItem/UpdateItem/DeleteItem の status 分岐有無を <code>sed -n</code> で開く (3) routes の permission 文字列を確認 (4) 既に修正が入っていないか確認してから着手。</li>
+  <li><b>境界</b>: 本エントリは起票のみ。production コード修正は別 session。BUG-440（Delete の vaccination claim 監査）とは別問題。</li>
+  <li><b>出典</b>: <code>BE-refactor.md</code> BIL-01。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-463">
+<h3>BUG-463: G2C-04 — tag owners CSV が 5000 件で無信号 truncate し stream 後に JSON error し得る</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM</b>。出所 <code>BE-refactor.md</code> <code>G2C-04</code>（round2-review UPHELD）。tag owners CSV export が total を破棄して 5000 件で無信号 truncate し、CSV header 送出・body stream 開始後に <code>RespondError</code>（JSON）を重ね得る。</li>
+  <li><b>対象（現 HEAD 再実測）</b>:
+    <ul>
+      <li><code>backend/internal/lstep/lstep_tag_summary_service.go:131-133</code> — <code>ExportOwnersByTagCSV</code> が <code>FindOwnersByTag(..., 0, 5000)</code> で <code>total</code> を <code>_</code> 破棄</li>
+      <li><code>backend/internal/lstep/lstep_tag_summary_handler.go:43-59</code> — CSV headers 設定後に export、error 時 <code>httpapi.RespondError</code></li>
+      <li><code>backend/internal/httpapi/response.go:15-20</code> — <code>RespondError</code> は無条件 <code>c.JSON</code></li>
+    </ul>
+  </li>
+  <li><b>規約</b>: <code>.claude/rules/go-gin-backend-guidelines.md:154</code>「response は一度だけ書き、return して handler を終了する。」／ <code>.claude/refs/error-handling.md:29</code>「response を書いた後に別の error response を重ねない。」</li>
+  <li><b>修正方針</b>: <code>total &gt; 5000</code> は fail-closed または paginate（無信号 truncate 禁止）。stream 開始後は JSON error を重ねず、log / abort のみ。stream 前の error は CSV headers を立てる前に返す。</li>
+  <li><b>着手前に evidence を再実測せよ</b>: service の 5000 cap と total 破棄、handler の header→export→RespondError 順、および response.go の JSON 経路を再読すること。</li>
+  <li><b>出典</b>: <code>BE-refactor.md</code> G2C-04。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-464">
+<h3>BUG-464: G2P-02 — inventory/merchandise Update 後 re-fetch が transaction 外</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM</b>。出所 <code>BE-refactor.md</code> <code>G2P-02</code>（round2-review UPHELD）。Update 成功後の別 <code>FindByID</code> が commit 済み write の後に走り、re-fetch 失敗を write 失敗へ反転し得る。</li>
+  <li><b>対象（現 HEAD 再実測）</b>:
+    <ul>
+      <li><code>backend/internal/inventory/repository.go:117-121</code> — <code>UpdateScopedByID</code> の後に <code>FindByID</code>（同一 tx 開始なし）</li>
+      <li><code>backend/internal/inventory/merchandise_item_repository.go:55-59</code> — 同型（merchandise は bare <code>r.db</code>）</li>
+      <li>service 層（inventory/merchandise）は <code>repo.Update</code> を包む tx を持たない</li>
+    </ul>
+  </li>
+  <li><b>規約</b>: <code>backend/CODING_RULES.md:78</code>「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」</li>
+  <li><b>修正方針</b>: Update+Find を同一 tx に入れるか、post-commit re-fetch 失敗を write 成功 contract に落とす（どちらかを規約どおり明示）。</li>
+  <li><b>着手前に evidence を再実測せよ</b>: 両 <code>Update</code> 関数と service 呼び出し、および CODING_RULES:78 字面を再確認すること。</li>
+  <li><b>出典</b>: <code>BE-refactor.md</code> G2P-02（横断 X-01）。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-465">
+<h3>BUG-465: G2P-03 — inventory quantity 非負未検証で DecreaseStock が負在庫を作れる</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM</b>。出所 <code>BE-refactor.md</code> <code>G2P-03</code>（round2-review UPHELD）。request binding / service / schema / DecreaseStock のいずれにも非負ガードがなく、負在庫を書き込み得る。</li>
+  <li><b>対象（現 HEAD 再実測）</b>:
+    <ul>
+      <li><code>backend/internal/inventory/inventory_request.go:38</code>（create）・<code>:75</code>（update）— <code>quantity</code> に <code>min=0</code> なし</li>
+      <li><code>backend/internal/inventory/repository.go:133-144</code> — <code>DecreaseStock</code> が <code>quantity - ?</code> を無条件 UPDATE（<code>quantity &gt;= ?</code> なし）</li>
+      <li><code>backend/migrations/001_init.sql:668</code> — <code>inventory_items.quantity integer DEFAULT 0</code> に CHECK なし</li>
+    </ul>
+  </li>
+  <li><b>規約</b>: <code>backend/CODING_RULES.md:79</code>「schema constraint と application validation の両方を使う。」</li>
+  <li><b>修正方針</b>: binding <code>min=0</code>（service でも拒否）、DecreaseStock を条件付き減算（<code>WHERE quantity &gt;= ?</code> 等）、migration で <code>CHECK (quantity &gt;= 0)</code>。両方必須。</li>
+  <li><b>着手前に evidence を再実測せよ</b>: request tags、DecreaseStock SQL、001 以降の ALTER 有無（CHECK 追加の有無）を再確認すること。</li>
+  <li><b>出典</b>: <code>BE-refactor.md</code> G2P-03（横断 X-02）。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-463">
+<h3>TASK-463: count→delete TOCTOU を規約へ成文化するか決める（G2P-01 撤回の残余）</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM（docs/decision。コード欠陥の直接起票ではない）</b>。New Work。G2P-01（inventory/merchandise の使用中カウント→削除 TOCTOU）は <code>backend/CODING_RULES.md:38</code> の字面外（FOR UPDATE/SHARE/advisory lock 依存 operation の ambient 拒否）として WITHDRAWN された。工学的な count→delete 競合自体は残る。</li>
+  <li><b>決めるべき問い</b>:
+    <ol>
+      <li>依存存在チェックを根拠に親行を削除する operation を規約に書くか（書かないと決めるか）。</li>
+      <li>書くなら強度: (A) 条件付き原子 DELETE のみ (B) + 親 FOR UPDATE (C) 低リスク master は residual race 文書化で許容。</li>
+      <li>適用範囲: inventory/merchandise のみ / 全 master「使用中のため削除できません」 / 新規のみ vs 既存 retrofit。</li>
+      <li>正本の置き場: <code>CODING_RULES.md</code> のみか guidelines / invariants も同期するか。</li>
+      <li>規約後に G2P-01 相当を再起票するか（コード修正は本 TASK の後続）。</li>
+    </ol>
+  </li>
+  <li><b>参照（判断材料）</b>:
+    <ul>
+      <li>現行字面: <code>backend/CODING_RULES.md:38</code>（lock 依存 ambient 拒否）。関連: guidelines project decision / invariants 同趣旨。</li>
+      <li>ギャップ例: <code>backend/internal/inventory/inventory_service.go:172-189</code>（Find → CountUsage → Delete、tx なし）、merchandise 同型。</li>
+      <li>良い先例: estimate の条件付き原子削除（<code>DeleteIfNotLocked</code> / NOT EXISTS 系）。</li>
+      <li><code>BE-refactor.md</code> G2P-01 WITHDRAWN 節・規約疑義 #27・New Work #1。</li>
+    </ul>
+  </li>
+  <li><b>境界</b>: 本 TASK は規約ファイルの文案と採用可否の決定まで。inventory 削除コードの修正は規約決定後の別チケット。</li>
+  <li><b>出典</b>: New Work Surfaced（closed list 項目 5）。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-464">
+<h3>TASK-464: LSTEP best-effort 経路の部分成功 contract を明文化する</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM（docs/decision）</b>。New Work。<code>backend/CODING_RULES.md:36</code> は intentional best-effort に部分成功 contract・再試行・補償・監査の明示を要求する。lstep バッチ群には意図的 best-effort と silent swallow が混在し、:36 充足可否がレビュー不能。</li>
+  <li><b>決めるべき問い</b>:
+    <ol>
+      <li>:36 は LSTEP 定期バッチ（external API 含む）にも適用するか、適用外なら automation 条項（:41 付近）へ別 contract を置くか。</li>
+      <li>部分成功 / 再試行 / 補償 / 監査の最低バーは何か（例: durable failure + 次回収束で足りるか）。</li>
+      <li>各 entrypoint を fail-closed / intentional BE / forbidden swallow に分類する（no-show / dormant / visit-dormant / LTV / health tag / delivery trigger 等）。</li>
+      <li><code>return 0, nil</code> 後の実 error をいつ許可するか（例: <code>lstep_batch_segmentation.go</code> の Find 失敗 silent skip）。</li>
+      <li>外部 LSTEP API の Remove→apiFailed nil は承認済み product contract か。</li>
+    </ol>
+  </li>
+  <li><b>参照</b>:
+    <ul>
+      <li><code>backend/CODING_RULES.md:36</code>（best-effort 4 要件）・<code>:41</code>（自動処理の停止・通知・監査・fallback・idempotency）</li>
+      <li>関連: <code>.claude/rules/go-gin-backend-guidelines.md</code> best-effort 節、invariants の saga/best-effort</li>
+      <li>サンプル: <code>lstep_batch_service.go</code> <code>runBatchAllClinicsWithResult</code>、<code>lstep_batch_segmentation.go</code>（silent skip）、noshow/dormant/delivery/health 各 batch</li>
+      <li><code>BE-refactor.md</code> New Work #2・規約疑義 #7–8 等</li>
+    </ul>
+  </li>
+  <li><b>境界</b>: 本 TASK は contract の文章化と分類表の確定。batch 実装の一括改修は後続（分類で swallow と確定した経路のみ別 BUG 化）。</li>
+  <li><b>出典</b>: New Work Surfaced（closed list 項目 6）。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-465">
+<h3>TASK-465: BE-refactor inventory 所見の「横断:」タグを横断パターン表と整合させる</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（任意・docs only）</b>。New Work。<code>BE-refactor.md</code> の inventory 関連所見に付いた個別「横断:」タグが <code>## 横断パターン</code> 表の構成員 ID 列と一致していない箇所がある。表側が正本なので所見側を寄せる。</li>
+  <li><b>決めるべきこと / 作業</b>:
+    <ol>
+      <li><code>## 横断パターン</code> 表の各 X-ID 構成員列を正本として読む。</li>
+      <li>inventory 関連（少なくとも G2P-01/02/03 周辺と inventory 横断: 付与済み見出し）の個別「横断:」を表と突合し、不一致のみ修正する。</li>
+      <li>表の構成員を増やしたい場合は表を先に更新し、所見タグを後から合わせる（所見だけ独自タグを増やさない）。</li>
+    </ol>
+  </li>
+  <li><b>参照</b>: <code>BE-refactor.md</code> の <code>## 横断パターン</code> 表、<code>#### G2P-01</code>〜<code>G2P-03</code> の「区分」行、同ファイルの fold/更新節。</li>
+  <li><b>境界</b>: 判定（UPHELD/WITHDRAWN）や所見本文の変更は並行 writer 専権。本 TASK は横断タグ整合のみ。コード変更なし。</li>
+  <li><b>出典</b>: New Work Surfaced（closed list 項目 7）。</li>
+</ul>
+</section>
+
 <!-- LEDGER:APPEND -->
 
 <h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
