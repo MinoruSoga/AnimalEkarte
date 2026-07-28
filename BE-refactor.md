@@ -2193,7 +2193,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "Suppression|Priority|DeliveryTrigger"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: e6e92b39fb12015c02537bf7be119256b9bfd254
 
 ##### SOLO-16
 
