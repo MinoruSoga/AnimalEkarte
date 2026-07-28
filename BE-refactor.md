@@ -3219,7 +3219,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "LineMessaging"`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: e42b295554dd258815743ed3eb35c99ccf4f8745
 
 ##### SOLO-12
 
