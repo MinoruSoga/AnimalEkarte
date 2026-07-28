@@ -250,7 +250,7 @@
       <li><b>② MR-C1-3 完了（2026-07-28・<code>750c6ebb5</code>・11 file）</b>: 臨床面のスナップショット等値を撤去。<code>clinical_relation_validation.go</code>／<code>vaccination_service.go</code>／<code>examination_repository.go</code>／<code>vaccination_repository.go</code> から owner 等値を削除し、<code>daily_record_service.go</code>・<code>hospitalization_service.go</code> は <code>ValidateReservationOwnerPetLinks</code> を <code>AssertOwnerInClinic</code>＋<code>FindPetOwnerInClinic</code> の2検証へ分解（clinic の fail-closed は維持）。<b>reviewer の HIGH「同一 clinic の owner/pet 不一致が通る」は DEC-27 が意図した仕様であり欠陥ではない</b> — coordinator 実測で、削除された test は <code>rejects_owner_pet_mismatch_*</code> 2件のみ（同一 clinic 内）、cross-clinic 防御 test は8本すべて健在。むしろ旧挙動は譲渡後に入院継続を恒久ブロックする臨床リスクだった。</li>
       <li><b>MR-C1-3b（write 面回帰テスト）= 未着手・prompt 第2版待ち</b>: <code>750c6ebb5</code> は read 2面の回帰しか追加していない。write 面（<code>ExaminationService.Update</code>／ワクチン更新／<code>DischargeWithBilling(CreateAccounting:false)</code>／記録確定）が未カバー。production code 不変の test 専用 unit。</li>
       <li><b>発見: 冗長述語（dead predicate）— 撤去は別 unit</b>: <code>clinical_relation_validation.go:79-86</code> と <code>vaccination_service.go:356</code> の owner 比較節は<b>実 DB で到達不能</b>。pet ID が異なれば <code>*record.PetID != *petID</code> で短絡し、同じなら両 owner が同一 pet 行への <code>FindPetOwnerInClinic</code> 由来で必ず一致するため。pet ID 等値が既に保証しており、残しておくと「owner も検証している」という誤読を生む。撤去する場合は pet ID 等値・clinic 検証を残すこと。</li>
-      <li><b>②の発行gate</b>: MR-A1・MR-C1-3 は完了。残 = MR-C1-3b（test 専用・即発行可）と BILL-C1-3。BILL-C1-3 は <a href="#TASK-251">TASK-251</a>（締め集計 category contract・U2b-full 第2段が別session稼働中）と同一面を踏む。<b>#251 の稼働unit清算後に発行する</b>。MR-A1／MR-C1-3 は billing 非依存のため先行可能。<a href="#SEC-SWEEP-02">SEC-SWEEP-02</a> とはrelation scope・prescription/billing joinで重複するため所有pathの突合が必要。②は <code>deleted_at</code>/<code>deceased_at</code> を相関述語へ追加しない規約を維持する。</li>
+      <li><b>②の発行gate</b>: MR-A1・MR-C1-3 は完了。残 = MR-C1-3b（test 専用・即発行可）と BILL-C1-3。BILL-C1-3 は <a href="#TASK-251">TASK-251</a>（締め集計 category contract・U2b-full 第2段が別session稼働中）と同一面を踏む。<b>#251 の稼働unit清算後に発行する</b>。MR-A1／MR-C1-3 は billing 非依存のため先行可能。SEC-SWEEP-02（2026-07-28 全残余サイト解消・完了によりentry削除済み）とはrelation scope・prescription/billing joinで重複していたため所有pathの突合が必要だったが、SEC-SWEEP-02側は解消済みのため本項の残作業（MR-C1-3b・BILL-C1-3）のみが残る。②は <code>deleted_at</code>/<code>deceased_at</code> を相関述語へ追加しない規約を維持する。</li>
     </ul>
   </li>
 </ul>
@@ -265,20 +265,6 @@
 </ul>
 </section>
 
-<section class="task" id="SEC-SWEEP-02">
-<h3>SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設</h3>
-<ul>
-  <li>SEC-SWEEP-01（掃引 <code>3321c801f</code>、修正 <code>c16c011f2</code>＋<code>0736cd6f9</code> で <b>完了</b>）が明示的に繰り越した2件。掃引はpet直下の子テーブルreadのみを対象としており、孫テーブルは別クラスとして未着手。</li>
-  <li><b>① grandchild相関の掃引（read-only調査）</b>: <code>daily_records</code> / <code>care_logs</code> / <code>exam_results</code> / <code>billing_items</code> / <code>medical_record_images</code> / <code>medical_record_addenda</code> 等、petの孫にあたる表のreadが中間表を経由した親clinic相関を持つかをschema-firstで全数確認する。SEC-SWEEP-01と同じ手順（schema universe → model mapping → consumer discovery → state分類）を適用する。</li>
-  <li><b>② static lintの新設</b>: 同型欠陥（<code>pet_id</code>等の単一FKに対し親clinic相関を欠くread）をraw SQLとGORMの双方で検出するlintを既存6 lintの隣へ追加する。BUG-429の1件もSEC-SWEEP-01の9件も人手監査でしか見つかっていない。機械で止めない限り同じクラスが再発する。</li>
-  <li>修正の参照実装 = <code>backend/internal/pet/chronic_condition_repository.go:37,52</code>。相関にpets側の <code>deleted_at</code> / <code>deceased_at</code> を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。</li>
-  <li><b>第1走完了（7/27・<code>864a886b7</code>・Mode 3 照合済み）</b>: ①census 28表を独立reconcile付きで全数分類 ②lint <code>grandchild_parent_clinic_correlation_lint_test.go</code> をRED→GREENで新設（9対象+raw SQL） ③修復 = checkup_field_results / prescriptions / treatment_plans（直読+hospitalization側count・ambiguous column修正込み）。並行走の daily_records / medical_record_addenda 修復+副lint <code>pet_grandchild_...</code> は検証のうえ <code>5c81ac8af</code> で清算済み（<b>同目的 lint 2本の統合が残</b>）。</li>
-  <li><b>残（CRITICAL・修復予算超過/legacy契約裁定要で第1走が正しくBLOCKED返し）</b>: <code>appointment_trimming_details</code>（trimming_repository.go:30）／<code>billings</code>（accounting_repository.go:192,280）／<code>estimates</code>（estimate_repository.go:43）／<code>medical_records</code> appointment edge（medical_record_repository.go:375）／<code>vital_records</code>（vital_repository.go:40）。HIGH: staff_repository.go:329 の addenda/vitals 依存count。vital→accounting→estimate は既存legacy testが「親をsanitizeしつつ壊れた子は可視のまま」を要求し3-strikeでBLOCKED — 修復には既存契約の裁定が先。lintのraw SQL検出は <code>*</code>/<code>id</code>/<code>alias.id</code> 形のみで一般化も残。</li>
-  <li>出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。</li>
-  <li><b>DEC-23 裁定（2026-07-27・A）</b>: legacy read 契約の変更を承認 — 残5面＋HIGH 1件は「孫 read にも親 clinic 相関を必須化＋該当 legacy テスト書換え」で着手可能（<code>deleted_at</code>/<code>deceased_at</code> を相関に含めない規約は維持）。発行はレーンA/B の稼働 unit（medicalrecord/billing/pet 面）の清算後に所有 path を突合して行う。</li>
-</ul>
-</section>
-
 <section class="task" id="BUG-433">
 <h3>BUG-433: 生成FE型がGoドメインモデル由来のため、応答DTOに無いフィールドが型上は存在扱いになる</h3>
 <ul>
@@ -287,7 +273,7 @@
   <li>実測された残存ギャップ: 生成 <code>Pet</code> は31プロパティ、修正後の予約pet DTOは9。残22フィールド（<code>clinic_id</code> <code>owner_id</code> <code>animal_species_id</code> <code>name_kana</code> <code>gender</code> <code>birth_date</code> <code>color</code> <code>blood_type</code> <code>microchip_number</code> <code>neutered_date</code> <code>acquisition_type</code> <code>food</code> <code>environment</code> <code>phone</code> <code>last_visit</code> <code>insurance_id</code> <code>remarks</code> <code>deceased_at</code> <code>deceased_reason</code> <code>created_at</code> <code>updated_at</code> <code>insurance</code>）は型上は利用可能だがワイヤに存在しない。他モデル（Owner/Reservation等）も同構造。</li>
   <li>対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。①②は生成基盤の変更を伴うため納品後が妥当。納品前は、新規に生成型のフィールドへ依存する実装を書くときに<b>そのフィールドが応答DTOに実在するかを都度確認する</b>運用で凌ぐ。</li>
   <li>出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。</li>
-  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）</b>: 短期 = 型分離 = <a href="#TASK-444">TASK-444</a>。恒久 = 応答DTO生成への切替（TASK-444 完了後に別起票・納品後）。個別対症の暫定運用は TASK-444 完了まで継続。</li>
+  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）</b>: <b>短期（TASK-444-S1）完了（2026-07-28・<code>226a7dc29</code>）</b>——新規importが生成型を応答型として使えないESLint境界を新設し、既存266+相対2=268 importサイトをallowlistで凍結（旧記述の268/294件は誤測、実測268/277相当で訂正）。既存サイトの移行は行っていないため個別対症の暫定運用は継続する。恒久段（応答DTOからの生成切替・TASK-444-S2）は未起票・納品後。</li>
 </ul>
 </section>
 
@@ -309,14 +295,6 @@
 </section>
 
 <p>2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本節へ再掲しない。</p>
-
-<section class="task" id="TASK-444">
-<h3>TASK-444: FE 生成型の分離 — ドメインモデル型と応答 DTO 型の誤用防止（DEC-26 短期段）</h3>
-<ul>
-  <li>DEC-26 裁定（2026-07-27・A）の短期段。<code>frontend/src/types/generated/models.ts</code>（tygo・Go ドメインモデル由来）を「ドメインモデル型」として隔離（名前空間/ディレクトリ/命名で明示）し、画面・hooks が応答 DTO として誤用している箇所を応答 DTO 由来型へ分離する。出発点 = <a href="#BUG-433">BUG-433</a> の実測（生成 <code>Pet</code> 31 プロパティ vs 予約 pet DTO 9・残 22 フィールドがワイヤ不在）。</li>
-  <li>受け入れ条件: 新規コードが生成型を応答型として import できない構造（lint/型レベルで阻止）・既存誤用の棚卸し一覧が成果物に含まれる。恒久段（応答 DTO からの生成切替）は本 unit 完了後に別起票。</li>
-</ul>
-</section>
 
 <section class="task" id="TASK-445">
 <h3>TASK-445: clinic_id 軸の宣言的複合FK掃引 — payments 案b 同梱（DEC-28）</h3>
@@ -452,32 +430,23 @@ exit 0</pre>
 <section class="task" id="BUG-454">
 <h3>BUG-454: pet→owner graphのclinic相関をDB制約でも固定するdata-integrity hardening</h3>
 <ul>
-  <li><b>状態: OPEN / MEDIUM（data-integrity hardening・本closeoutでは修正しない）。</b> manifestationには、viewerがclinic Aとclinic Bの両方へ既に認可済みであること、および破損したpet(A)→owner(B)行が事前に存在することの両方が必要である。返却対象は認可済み<code>clinicIDs</code>の外へ出ないためunauthorized cross-clinic disclosureではない一方、association・検索・並び順・preloadのgraph integrityは誤る。</li>
-  <li><b>現行repository / DDL evidence（verbatim）</b>:
-    <ul>
-      <li>owners JOIN: <code>Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)</code></li>
-      <li><code>pets.owner_id</code> single-column FK: <code>    owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,</code></li>
-      <li>owners composite-key prerequisite: <code>ALTER TABLE owners
-    ADD CONSTRAINT uq_owners_clinic_id_id
-    UNIQUE (clinic_id, id);</code></li>
-      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),</code></li>
-      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)</code></li>
-    </ul>
-  </li>
-  <li><b>既存repair path</b>: <code>FindAll</code> のJOINとpreloadを<code>pets.clinic_id</code>へ相関させ、破損FKを含むDB-backed multi-clinic回帰testでassociation・検索・order・復元を固定し、<code>FindByIDForClinics</code>も同型の相関欠落がないか監査する。DB側は既存の<code>uq_owners_clinic_id_id</code>を前提に<code>pets (clinic_id, owner_id)</code>→<code>owners (clinic_id, id)</code>の複合FK化を別migration unitとして設計する。</li>
-  <li><b>境界</b>: backend実装・DDL・migration・DBデータは本closeoutのout of scopeであり未変更。本entryは認可済みscope内の破損associationに対するhardeningを記録し、ownerの個人情報を保持しない。</li>
+  <li><b>状態: OPEN / LOW（application層は解消済み・残るのはDB制約によるhardeningのみ）。</b> manifestationには、viewerがclinic Aとclinic Bの両方へ既に認可済みであること、および破損したpet(A)→owner(B)行が事前に存在することの両方が必要である。返却対象は認可済み<code>clinicIDs</code>の外へ出ないためunauthorized cross-clinic disclosureではない一方、association・検索・並び順・preloadのgraph integrityは誤っていた。</li>
+  <li><b>BUG-454-B1 完了（2026-07-28・<code>47b7b5b5a</code>）</b>: <code>FindAll</code>の<code>LEFT JOIN owners</code>へ<code>owners.clinic_id = pets.clinic_id</code>相関を追加（search/orderの汚染も解消）。<code>findPetByID</code>（<code>FindByID</code>/<code>FindByIDForClinics</code>共通）はGORMのbatched Preloadが親行のカラムを参照できないため、Preload後に<code>sanitizePetOwnerRelation</code>でpost-sanitizeする方式（billing の既存パターンと同型）を採用。既存test<code>TestPetRepository_OwnerPreload_ClinicIsolation</code>の<code>gotForBoth</code>アサーション（「認可した両clinicなら破損graphでもOwner復元」という旧#86 semantics）を意図的に反転し、新規<code>TestPetRepository_FindAll_CorruptedOwnerGraph_NoCrossClinicRestore</code>でlist/search/order/detail全経路を回帰化。coordinator実測で<code>go test ./internal/pet/...</code> green・<code>go vet</code>/<code>gofmt</code> clean・変更2 file限定を確認済み。<code>FindOwnerReportPets</code>は元々正しく相関済みで無変更。</li>
+  <li><b>残作業（DB制約によるhardening・別migration unit）</b>: 既存の<code>uq_owners_clinic_id_id UNIQUE (clinic_id, id)</code>を前提に<code>pets (clinic_id, owner_id)</code>→<code>owners (clinic_id, id)</code>の複合FK化を設計する。application層の修正により実害（graph integrity誤り）は解消済みのため優先度はMEDIUM→LOWへ格下げ。<a href="#TASK-445">TASK-445</a>（clinic_id軸の宣言的複合FK掃引）と同種のmigration unitとして合流できる。</li>
+  <li><b>境界</b>: DDL・migration・DBデータは未変更。</li>
 </ul>
 </section>
 
 <section class="task" id="BUG-455">
 <h3>BUG-455: GORM default:true により bool の false を新規作成できない</h3>
 <ul>
-  <li><b>状態: OPEN / CRITICAL（systemic defect）。ただし PermissionGroup 1件は解消済みで、残るのは他 resource への展開判断である。</b> 作成APIへ <code>false</code> を明示しても response とDB read-back が <code>true</code> になる。PATCHでは <code>false</code> を書けるため、作成時だけ失敗する。inventory は <code>bool</code> + <code>gorm:"default:true"</code> が <b>39箇所・26ファイル</b>（2026-07-28 coordinator 再実測で一致）、<code>*bool</code> 回避は0件。<b>残作業 = BUG-455-I（残27 field の write-path census）と、そこで確定した各 resource の実装。</b></li>
+  <li><b>状態: OPEN / CRITICAL（systemic defect）。ただし PermissionGroup 1件は解消済みで、残るのは他 resource への展開判断である。</b> 作成APIへ <code>false</code> を明示しても response とDB read-back が <code>true</code> になる。PATCHでは <code>false</code> を書けるため、作成時だけ失敗する。inventory は <code>bool</code> + <code>gorm:"default:true"</code> が <b>39箇所・26ファイル</b>（2026-07-28 coordinator 再実測で一致）、<code>*bool</code> 回避は0件。<b>残作業 = 残27 field の各 resource 実装（S2〜S8、8 slice・未起票）。census（BUG-455-I）は完了済み。</b></li>
   <li><b>進捗: AUTH-S（<code>ab9eaa170</code>）+ AUTH-B（<code>6515ffd68</code>）で PermissionGroup は完了。</b> AUTH-S は handler 未接続の <code>PermissionGroupCreateRequest</code>（<code>backend/internal/auth/permission_group_create_request.go</code>）と binding fixture を追加し、<code>is_active</code> の omitted / false / true を <code>*bool</code> の presence として区別できるようにした（新規2 file・86 insertions）。
     <br><b>coordinator独立検証</b>: 既存 <code>CreatePermissionGroupRequest</code>（<code>http_permission.go:128-135</code>）とフィールド構成・binding tag・<code>PermissionGroupRuleInput</code> が完全一致し、差分は <code>IsActive</code> の <code>bool</code>→<code>*bool</code> のみ——AUTH-B での差し替え時に余計なドリフトが出ない。fixtureは <code>bindAuthJSON</code> 経由で AUTH-B が再利用する境界と同一。<code>go test -run '^TestPermissionGroupCreateRequest_'</code>（ok）、<code>go vet ./internal/auth/...</code>（exit 0）、<code>gofmt -l</code>（出力なし）を coordinator が再実行して確認。handler は引き続き旧DTOをbindしており production 挙動・DBは不変。
     <br><b>進捗: AUTH-B 完了（2026-07-28・<code>6515ffd68</code>）。PermissionGroup の <code>false</code> 保存不能は解消した。</b> ①<code>CreatePermissionGroupRequest</code> を <code>PermissionGroupCreateRequest</code> への type alias にして live path へ接続、②<code>ToInput</code> で omitted(nil)→<code>true</code>、明示 <code>false</code>/<code>true</code> はそのまま解決、③<code>permission_group_repository.go</code> の <code>Create</code> は <code>db := persistence.DBOrTx(ctx, r.db)</code> を1回だけ取り、<b>Create 前に <code>wantActive := group.IsActive</code> で意図を捕捉</b>してから、<code>false</code> の場合のみ<b>同一 db/tx handle</b> で <code>Update("is_active", false)</code> を実行する。UPDATE 失敗時は error を返し fail-closed。<code>model.PermissionGroup</code> の tag と service 本体は未変更で、clinic 初期グループの <code>IsActive: true</code> 契約も不変。変更6 file・246 insertions。
     <br><b>coordinator独立検証（2026-07-28）</b>: ① <code>go test ./internal/auth/ -run 'PermissionGroup.*(Create|False|Default)' -count=1 -p 1 -v</code> を再実行し、実際に走った test を全数列挙して確認（空振りではない）。<code>TestPermissionGroupRepository_Create_IsActiveFalsePersists</code> は mock ではなく DB backed で、<code>repo.FindByID</code> の read-back に加えて <b>ORM struct を経由しない生カラム読み出し</b>（<code>Select("is_active").Where("id = ?").Scan(&amp;rawActive)</code>）で <code>false</code> を確認している。② <code>TestPermissionGroupService_CreateWithRules_AuditsFinalAggregateInTransaction</code> と <code>TestPermissionGroupRepository_CreateWithRules_RollsBackWithAmbientTransaction</code> が引き続き PASS——監査の同一tx契約と ambient tx rollback 契約は無傷。③ <b>報告が漏らしていた <code>go test ./internal/lintscan/ -run 'DBOrTx' -count=1 -p 1</code> を coordinator が実行して ok を確認</b>（DBOrTx の新規参加者を作る unit は別packageのlintscan testを赤くし得るため、変更package だけのscopeでは原理的に捕まらない）。④ <code>go vet ./internal/auth/...</code> exit 0。
     <br><b>設計上の申し送り（BUG-455-I 着手前に必ず判断すること）</b>: 本 unit が採った INSERT→条件付き UPDATE の補償方式は、同一 tx 内で正しく fail-closed だが、<code>false</code> の場合に <b>write が2回</b>になり、tx 内部に <code>is_active=true</code> の過渡状態を作る。DB trigger や監査がこの過渡状態を観測する設計だと影響が出る。残27 field へ同じ形を26 repository へ複製する前に、<code>Create</code> 側で zero value を INSERT に含める単文の方式（GORM の <code>Select</code> による明示 field 指定など）が本 repo の model/tag 構成で成立するかを実測で評価すること。<b>成立するなら単文方式が正であり、本 unit の補償方式を template として横展開してはならない。</b></li>
+  <li><b>BUG-455-I 完了（2026-07-28・census + 単文方式の実測評価。production code差分0・investigation-onlyのためcommitなし）</b>: 残27 fieldの分類を再確認し変更なし（実害あり27・実害なし11。旧記述の「Clinic周辺5 field」は実測6 fieldへ訂正）。<b>単文方式は不成立と実測で確定した</b>——<code>AnimalSpecies.IsActive</code>を対象に<code>db.Select("name","is_active","sort_order").Create(...)</code>（GORM v1.31.2）を実行したが、生カラム読み出しで<code>is_active</code>は<code>true</code>のままだった（<code>gorm:"default:true"</code>タグがSelect指定を上書きする）。<b>結論: 残27 fieldの実装はすべてAUTH-Bの補償方式（Create→条件付きUpdate、同一tx）をtemplateとする。</b>実験用の一時ファイルは削除済み・作業ツリーへの残留差分0を確認済み。8 sliceの着手順（S2単純→S5多数→S6/S7 upsert混在→S8）はcoordinatorの推奨として残す。</li>
   <li><b>実測根拠（2026-07-28・verbatim）</b>: <code>POST /api/v1/masters/permission-groups</code> へ <code>{"name":"ZZ-gorm-defect-probe","color":"#111111","is_active":false,"sort_order":999}</code> を送信し、response/read-back とも <code>is_active=true</code>。probe group <code>14</code> は DELETE HTTP 204 後に GET 404 で撤去済み。production code は未変更。</li>
   <li><b>機構・影響範囲</b>: GORM は <code>default</code> tag の zero value をINSERTから除外し、boolのzero value <code>false</code> にDB default <code>true</code> を適用する。<code>bool</code> + <code>gorm:"default:true"</code> は <b>39箇所・26ファイル</b>、<code>*bool</code> 回避は0件。代表例は <code>backend/internal/model/staff.go:35</code> と <code>backend/internal/model/permission_group.go:16</code>。create DTO到達経路は <code>backend/internal/auth/http_permission.go:132</code>、<code>backend/internal/trimming/trimming_option_request.go:6</code>、<code>backend/internal/trimming/trimming_course_request.go:6</code>、<code>backend/internal/reservation/reservation_type_group_request.go:7</code>。</li>
   <li><b>修正方針</b>: 作成時に無効を保持できるよう該当fieldを <code>*bool</code> へ変える案Aを推奨する。作成時 <code>Select</code> で列を明示する案Bは新規経路で再発し得るため、全39箇所をcreate経路の有無でトリアージする。</li>
