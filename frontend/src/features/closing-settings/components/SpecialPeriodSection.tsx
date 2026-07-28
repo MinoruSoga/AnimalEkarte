@@ -58,7 +58,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
         <button
           type="button"
           onClick={handleShowForm}
-          className={`flex items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-[4px] px-3 py-1.5 transition-colors`}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
           追加
@@ -68,7 +68,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
       {showForm ? (
         <form action={formAction} className={`mb-4 p-4 rounded-lg border ${C.borderMedium} space-y-3`}>
           <p className={`text-base font-medium ${C.text}`}>新しい特別期間</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="start_date" className={STYLE.formLabel}>
                 開始日
@@ -77,7 +77,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 id="start_date"
                 name="start_date"
                 type="date"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 required
               />
             </div>
@@ -89,7 +89,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 id="end_date"
                 name="end_date"
                 type="date"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 required
               />
             </div>
@@ -101,7 +101,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 id="am_pm_boundary"
                 name="am_pm_boundary"
                 type="time"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 required
               />
             </div>
@@ -113,7 +113,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 id="pm_end"
                 name="pm_end"
                 type="time"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 required
               />
             </div>
@@ -126,7 +126,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               id="note"
               name="note"
               type="text"
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               placeholder="例: 年末年始"
             />
           </div>
@@ -134,7 +134,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
             <button
               type="button"
               onClick={handleHideForm}
-              className={`px-4 py-2 text-base ${C.text60} ${C.hoverBgLight} rounded-[4px] transition-colors`}
+              className={`min-h-11 px-4 text-base ${C.text60} ${C.hoverBgLight} rounded-xs transition-colors`}
             >
               キャンセル
             </button>
@@ -162,8 +162,8 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               <button
                 type="button"
                 onClick={() => handleDelete(period.id)}
-                aria-label="削除"
-                className={`size-8 flex items-center justify-center rounded-[3px] ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
+                aria-label={`${period.start_date}から${period.end_date}の特別期間を削除`}
+                className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >
                 <Trash2 className="size-4" />
               </button>

@@ -26,6 +26,7 @@ export interface AnimalSpeciesOption {
 interface PetIdentitySectionProps extends PetFieldSectionProps {
   animalSpeciesOptions: SearchableSelectOption[];
   isLoadingSpecies: boolean;
+  speciesPlaceholder: string;
   isEdit: boolean;
   onAnimalSpeciesChange: (value: string) => void;
 }
@@ -37,6 +38,7 @@ export function PetIdentitySection({
   clearFieldError,
   animalSpeciesOptions,
   isLoadingSpecies,
+  speciesPlaceholder,
   isEdit,
   onAnimalSpeciesChange,
 }: PetIdentitySectionProps) {
@@ -98,7 +100,7 @@ export function PetIdentitySection({
           onValueChange={onAnimalSpeciesChange}
           options={animalSpeciesOptions}
           disabled={isLoadingSpecies}
-          placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"}
+          placeholder={speciesPlaceholder}
           searchPlaceholder="動物種を検索..."
           ariaInvalid={Boolean(fieldErrors.animalSpeciesId)}
           className={INPUT_CLS}

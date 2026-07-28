@@ -69,7 +69,11 @@ describe("SpecialPeriodSection", () => {
 
   it("削除ボタンで deleteMutation.mutateAsync が id で呼ばれる", async () => {
     render(<SpecialPeriodSection periods={[makePeriod({ id: 7 })]} />);
-    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "2026-12-29から2027-01-03の特別期間を削除",
+      }),
+    );
 
     await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith(7));
   });
@@ -81,6 +85,29 @@ describe("SpecialPeriodSection", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(screen.queryByText("新しい特別期間")).not.toBeInTheDocument();
+  });
+
+  it("追加・キャンセル・削除を44px以上とし、削除対象を名前で識別できる", () => {
+    render(<SpecialPeriodSection periods={[makePeriod()]} />);
+
+    const addButton = screen.getByRole("button", { name: "追加" });
+    expect(addButton).toHaveClass("min-h-11");
+    const deleteButton = screen.getByRole("button", {
+      name: "2026-12-29から2027-01-03の特別期間を削除",
+    });
+    expect(deleteButton).toHaveClass("size-11");
+
+    fireEvent.click(addButton);
+    expect(screen.getByRole("button", { name: "キャンセル" })).toHaveClass("min-h-11");
+  });
+
+  it("追加フォームはmobileで1列、sm以上で2列になる", () => {
+    render(<SpecialPeriodSection periods={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+
+    const grid = screen.getByLabelText("開始日").parentElement?.parentElement;
+    expect(grid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+    expect(grid).not.toHaveClass("grid-cols-2");
   });
 
   it("正常な期間（開始 < 終了、区切り < 終了時刻）で送信すると createMutation が呼ばれる", async () => {

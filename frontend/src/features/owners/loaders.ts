@@ -1,12 +1,17 @@
+import { isAxiosError } from "axios";
 import { getOwner } from "./api/get-owner";
+// `axios` は Axios.create() 由来の instance で isAxiosError static を持たないため、
+// 型ガードは axios package の named export を使う（features/auth 等と同じ流儀）。
 import { axios } from "@/lib/axios";
 import {
   PET_GENDER_MAP,
   PET_STATUS_MAP,
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
+  transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
+import type { Pet as BackendPet } from "@/types/generated/models";
 import type { Owner } from "@/types/owner";
 
 // #266: GET /v1/pets 専用の petListResponse（pet_response.go 参照）は petResponse（詳細）より
@@ -54,6 +59,7 @@ interface PetListApiItem {
   neutered_date?: string;
   acquisition_type?: string;
   danger_level: string;
+  danger_reason?: string;
   food: string;
   environment: string;
   last_visit?: string;
@@ -113,6 +119,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     environment: p.environment,
     acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
     dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+    dangerReason: p.danger_reason,
     lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
     insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
     insuranceName: p.insurance?.name,
@@ -157,8 +164,12 @@ export const ownersLoader = async ({ request }: { request: Request }): Promise<O
       limit: result.limit,
       total: result.total,
     };
-  } catch {
-    throw new Response("飼主一覧の取得に失敗しました", { status: 500 });
+  } catch (err) {
+    // 上流のHTTPステータスを保全する。500 へ潰すと 400（リクエスト不正・スキーマ不整合）や
+    // 403（権限不足）がすべて「サーバ内部エラー」に見え、原因の切り分けが不可能になる。
+    // status を持たない通信エラー（ネットワーク断）と非 axios 例外のみ 500 とする。
+    const status = isAxiosError(err) ? (err.response?.status ?? 500) : 500;
+    throw new Response("飼主一覧の取得に失敗しました", { status });
   }
 };
 
@@ -172,5 +183,11 @@ export const ownerLoader = async ({ params }: { params: Record<string, string | 
     throw new Response("Owner ID is required", { status: 400 });
   }
   const owner = await getOwner(id);
-  return { owner };
+  const pets = await Promise.all(
+    (owner.pets ?? []).map(async (pet) => {
+      const { data } = await axios.get<BackendPet>(`/v1/pets/${pet.id}`);
+      return transformBackendPetToFrontend(data);
+    }),
+  );
+  return { owner: { ...owner, pets } };
 };

@@ -1,8 +1,9 @@
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { UploadCloud } from "lucide-react";
 
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { requireStoredClinicId } from "@/lib/current-clinic";
@@ -20,7 +21,7 @@ export function CsvImportSection() {
         友だち属性 CSV インポート
       </h2>
 
-      <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4 space-y-5`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-6`}>
         <div>
           <p className={`text-sm font-medium ${C.text80} mb-3`}>新規アップロード</p>
           <CsvUploadSection />
@@ -40,6 +41,7 @@ type UploadState = { success: true } | { error: string } | null;
 function CsvUploadSection() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [state, formAction, isPending] = useActionState<UploadState, FormData>(
     async () => {
       const file = fileInputRef.current?.files?.[0];
@@ -61,22 +63,45 @@ function CsvUploadSection() {
 
   return (
     <form action={formAction} className="space-y-3">
-      <div className={`flex items-center gap-3 p-4 border ${C.borderLight} rounded-[4px] ${C.bgLight}`}>
-        <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>
-          <p className={`text-xs ${C.text40}`}>
-            Lステップ管理画面からエクスポートした CSV をアップロード
-          </p>
+      <div
+        className={`flex flex-col items-stretch gap-3 p-4 border ${C.borderLight} rounded-xs ${C.bgLight} sm:flex-row sm:items-center`}
+        data-testid="csv-upload-row"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>
+            <p className={`text-xs ${C.text40}`}>
+              Lステップ管理画面からエクスポートした CSV をアップロード
+            </p>
+          </div>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          name="file"
-          accept=".csv"
-          className={`text-sm ${C.text60} file:mr-3 file:px-3 file:py-1.5 file:rounded file:border-0 file:text-xs file:font-medium file:${C.bgWhite} file:border file:${C.borderLight}`}
-          aria-label="友だち属性CSVファイルを選択"
-        />
+        <div
+          className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0"
+          data-testid="csv-upload-controls"
+        >
+          <label
+            className={`relative inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-xs border ${C.borderLight} ${C.bgWhite} px-3 text-xs font-medium ${C.text60} focus-within:ring-2 focus-within:ring-ring`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              name="file"
+              accept=".csv"
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              aria-label="友だち属性CSVファイルを選択"
+              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")}
+            />
+            CSVファイルを選択
+          </label>
+          <span
+            className={`min-w-0 flex-1 truncate text-xs ${C.text60} sm:max-w-40`}
+            aria-live="polite"
+            data-testid="csv-selected-file-name"
+          >
+            {selectedFileName || "未選択"}
+          </span>
+        </div>
       </div>
       {state && "error" in state ? (
         <p className={`text-sm text-[${PALETTE.danger}]`}>{state.error}</p>
@@ -114,33 +139,33 @@ function CsvImportHistoryTable() {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80}`}>ファイル名</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>総行数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>成功</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>失敗</th>
-            <th className={`text-center px-3 py-2 font-medium ${C.text80}`}>ステータス</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80}`}>アップロード日時</th>
+            <TableHead className={C.text55}>ファイル名</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>総行数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>成功</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>失敗</TableHead>
+            <TableHead className={`text-center ${C.text55}`}>ステータス</TableHead>
+            <TableHead className={C.text55}>アップロード日時</TableHead>
           </tr>
         </thead>
         <tbody>
           {data.map((item) => (
             <tr key={item.id} className={`border-b ${C.borderLight}`}>
-              <td className={`px-3 py-2 ${C.text80} max-w-[240px] truncate`} title={item.file_name}>
+              <TableCell className={`${C.text80} max-w-[240px] truncate`} title={item.file_name}>
                 {item.file_name}
-              </td>
-              <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+              </TableCell>
+              <TableCell className={`text-right ${C.text60} tabular-nums`}>
                 {item.row_count.toLocaleString()}
-              </td>
-              <td className="text-right px-3 py-2 tabular-nums" style={{ color: PALETTE.successGreen }}>
+              </TableCell>
+              <TableCell className="text-right tabular-nums" style={{ color: PALETTE.successGreen }}>
                 {item.success_count.toLocaleString()}
-              </td>
-              <td
-                className="text-right px-3 py-2 tabular-nums"
+              </TableCell>
+              <TableCell
+                className="text-right tabular-nums"
                 style={{ color: item.error_count > 0 ? PALETTE.danger : undefined }}
               >
                 {item.error_count.toLocaleString()}
-              </td>
-              <td className="text-center px-3 py-2">
+              </TableCell>
+              <TableCell className="text-center">
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full ${
                     item.status === "completed"
@@ -152,10 +177,10 @@ function CsvImportHistoryTable() {
                 >
                   {CSV_STATUS_LABELS[item.status] ?? item.status}
                 </span>
-              </td>
-              <td className={`px-3 py-2 ${C.text60} text-xs`}>
+              </TableCell>
+              <TableCell className={C.text60}>
                 {formatJSTDateTimeLocal(item.created_at).replace("T", " ")}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>

@@ -4,15 +4,16 @@ import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSe
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { paths } from "@/config/paths";
+import { LAYOUT } from "@/lib/design-tokens";
 
 export function MedicalRecordPetSelection() {
-  const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
+  const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: paths.medicalRecords.new.getHref(), backPath: paths.medicalRecords.getHref() });
 
   return (
-    <PageLayout title="カルテ作成 - ペット選択" onBack={handleBack} resource={ResourceMedicalRecords} maxWidth="max-w-full">
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
-      <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
+    <PageLayout title="カルテ作成 - ペット選択" onBack={handleBack} resource={ResourceMedicalRecords} maxWidth={LAYOUT.pageContentMaxWidth.full}>
+      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
+      <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
     </PageLayout>
   );
 }

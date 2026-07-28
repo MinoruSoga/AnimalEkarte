@@ -60,10 +60,10 @@ describe("useInventoryForm", () => {
   });
 
   // ──────────────────────────
-  // バリデーション: minStockLevel > quantity
+  // 最低在庫数は発注点なので、現在庫より大きくても保存できる
   // ──────────────────────────
   describe("バリデーション: minStockLevel と quantity の関係", () => {
-    it("minStockLevel > quantity のとき success: false かつ fieldErrors.minStockLevel が定義される", async () => {
+    it("minStockLevel > quantity のとき在庫不足状態として保存できる", async () => {
       const { result } = renderHook(() => useInventoryForm());
 
       await act(async () => {
@@ -72,9 +72,9 @@ describe("useInventoryForm", () => {
         );
       });
 
-      expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.minStockLevel).toBe(
-        "最低在庫数は現在庫数以下で設定してください"
+      expect(result.current.formState.fieldErrors?.minStockLevel).toBeUndefined();
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ quantity: 100, min_stock_level: 150 }),
       );
     });
 
@@ -286,7 +286,7 @@ describe("useInventoryForm", () => {
       expect(mockCreateMutateAsync).toHaveBeenCalled();
     });
 
-    it("quantity = 1, minStockLevel = 2 → バリデーションエラー（fieldErrors あり）", async () => {
+    it("quantity = 1, minStockLevel = 2 → 残少状態として保存できる", async () => {
       const { result } = renderHook(() => useInventoryForm());
 
       await act(async () => {
@@ -295,8 +295,26 @@ describe("useInventoryForm", () => {
         );
       });
 
+      expect(result.current.formState.success).toBe(true);
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ quantity: 1, min_stock_level: 2 }),
+      );
+    });
+
+    it.each([
+      ["-1", "1", "現在庫数"],
+      ["1", "-1", "最低在庫数"],
+      ["not-a-number", "1", "現在庫数"],
+    ])("quantity=%s, min=%s は拒否する", async (quantity, minStockLevel, fieldLabel) => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ quantity, minStockLevel }));
+      });
+
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.minStockLevel).toBeDefined();
+      expect(Object.values(result.current.formState.fieldErrors ?? {}).join(" ")).toContain(fieldLabel);
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
   });
 });

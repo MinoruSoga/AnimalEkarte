@@ -14,10 +14,10 @@ vi.mock("@/hooks/use-permission", () => ({
   }),
 }));
 
-function renderSidebarItem(item: MenuItem) {
+function renderSidebarItem(item: MenuItem, collapsed = false, initialEntry = "/") {
   return render(
-    <MemoryRouter>
-      <SidebarItemWithPermission item={item} />
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <SidebarItemWithPermission item={item} collapsed={collapsed} />
     </MemoryRouter>,
   );
 }
@@ -34,7 +34,25 @@ describe("SidebarItemWithPermission", () => {
 
     expect(container.querySelector("button button")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("button", { name: "LINE予約管理を展開" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "LINE予約管理を展開" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+
+  it("折りたたみ時も親メニューbuttonにaccessible nameと44px以上の操作領域を保つ", () => {
+    renderSidebarItem({
+      label: "マスタ設定",
+      path: "/settings/master",
+      subItems: [{ label: "スタッフ", path: "/settings/master/staffs" }],
+    }, true, "/settings/master/staffs");
+
+    const parentButton = screen.getByRole("button", { name: "マスタ設定" });
+    expect(parentButton).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+    expect(parentButton).not.toHaveAttribute("aria-expanded");
   });
 
   it("展開ボタンからサブメニューを開閉できる", () => {
@@ -49,6 +67,10 @@ describe("SidebarItemWithPermission", () => {
     fireEvent.click(screen.getByRole("button", { name: "LINE予約管理を展開" }));
 
     expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "LINE予約管理を折りたたむ" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
     expect(screen.getByRole("link", { name: "基本設定" })).toBeInTheDocument();
   });
 });

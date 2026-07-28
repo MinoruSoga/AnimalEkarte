@@ -16,6 +16,8 @@ Also load the project-wide rules in [.claude/rules/](.claude/rules/) (including 
 - Keep changes minimal and aligned with the nearest directory-level `CLAUDE.md`.
 - Validate inputs at boundaries and preserve clinic, owner, pet, and staff data separation.
 - Never expose secrets, tokens, credentials, private data, or operationally sensitive details.
+- After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
+- Agents must not auto-apply migrations; when the post-pull rule applies, surface `make migrate` for the user to run manually.
 
 ## Execution Autonomy
 

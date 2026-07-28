@@ -14,22 +14,48 @@ export interface TrimmingFilters {
   enabled?: boolean;
 }
 
-const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
+export interface TrimmingPageResult {
+  items: TrimmingUI[];
+  total: number;
+  isTruncated: boolean;
+}
+
+const getTrimmingsPage = async (filters?: TrimmingFilters): Promise<TrimmingPageResult> => {
   const params: Record<string, string | number> = { page: 1, limit: HISTORY_FETCH_LIMIT };
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.petId) params.pet_id = filters.petId;
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", { params });
-  return data.data.reduce<ReturnType<typeof transformTrimming>[]>((acc, d) => {
+  const items = data.data.reduce<ReturnType<typeof transformTrimming>[]>((acc, d) => {
     if (d.pet?.id != null) acc.push(transformTrimming(d));
     return acc;
   }, []);
+  return {
+    items,
+    total: data.total,
+    isTruncated: data.total > data.data.length,
+  };
+};
+
+const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
+  const page = await getTrimmingsPage(filters);
+  return page.items;
 };
 
 export const useGetTrimmings = (filters?: TrimmingFilters) => {
   return useQuery({
     queryKey: queryKeys.trimmings.list(filters),
     queryFn: () => getTrimmings(filters),
+    enabled: filters?.enabled ?? true,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
+  });
+};
+
+export const useGetTrimmingsPage = (filters?: TrimmingFilters) => {
+  return useQuery({
+    queryKey: queryKeys.trimmings.list({ ...filters, resultShape: "bounded-page" }),
+    queryFn: () => getTrimmingsPage(filters),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

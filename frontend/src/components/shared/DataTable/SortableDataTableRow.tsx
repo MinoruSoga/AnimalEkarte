@@ -1,20 +1,20 @@
-import { memo } from "react";
-import { C, ICON } from "@/lib/design-tokens";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
+import type { UniqueIdentifier } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
+
 import { TableCell } from "@/components/ui/table";
+import { C, ICON } from "@/lib/design-tokens";
 import { DataTableRow } from "./DataTableRow";
 
 interface SortableDataTableRowProps {
-  id: string | number;
-  onClick?: () => void;
+  id: UniqueIdentifier;
+  dragLabel: string;
+  dragDisabled: boolean;
   children: ReactNode;
   /** Additional classes passed through to DataTableRow (e.g. `"group/row"` for CSS group hover). */
   className?: string;
-  /** Override grip cell className. Default: `"w-[32px] ${C.text20} cursor-grab"`. */
-  gripClassName?: string;
   /** Opacity applied to the row while dragging. Default: `0.5`. */
   isDraggingOpacity?: number;
 }
@@ -24,23 +24,29 @@ interface SortableDataTableRowProps {
  * Wraps DataTableRow with useSortable and prepends a GripVertical handle cell.
  * Parent must render inside DndContext + SortableContext from @dnd-kit.
  *
- * Column definition must include a leading column: `{ header: "", className: "w-[32px]" }`
+ * Column definition must include a leading column: `{ header: "", className: "w-11 px-0" }`
  *
  * Optional customization props:
  * - `className` — forwarded to DataTableRow for additional classes (e.g. `"group/row"`).
- * - `gripClassName` — overrides the grip cell className.
  * - `isDraggingOpacity` — controls row opacity while dragging (default: `0.5`).
  */
 export const SortableDataTableRow = memo(function SortableDataTableRow({
   id,
-  onClick,
+  dragLabel,
+  dragDisabled,
   children,
   className,
-  gripClassName = `w-[32px] ${C.text20} cursor-grab`,
   isDraggingOpacity = 0.5,
 }: SortableDataTableRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable(dragDisabled ? { id, disabled: true } : { id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -49,9 +55,19 @@ export const SortableDataTableRow = memo(function SortableDataTableRow({
   };
 
   return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onClick} className={className}>
-      <TableCell className={gripClassName} {...listeners}>
-        <GripVertical className={ICON.action} />
+    <DataTableRow ref={setNodeRef} style={style} className={className}>
+      <TableCell className="w-11 px-0">
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={dragLabel}
+          disabled={dragDisabled}
+          className={`flex min-h-11 min-w-11 touch-none items-center justify-center rounded-xs ${C.text20} ${C.hoverBgMedium} outline-none focus-visible:ring-2 ${C.focusRingAccent40} disabled:cursor-default disabled:opacity-30 ${dragDisabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+        >
+          <GripVertical className={ICON.action} aria-hidden="true" />
+        </button>
       </TableCell>
       {children}
     </DataTableRow>

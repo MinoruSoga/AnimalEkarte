@@ -1,0 +1,272 @@
+package medicalrecord
+
+import (
+	"context"
+	"fmt"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
+)
+
+// CheckupFilters はクリニック横断一覧のフィルタ条件。
+// Moved from internal/repository/checkup (BE8-4 batch24) — BE9-2D roll-up. Renamed from that
+// subpackage's generic "Filters" to this entity-specific name to avoid collisions in this
+// multi-repository package; every external caller only ever saw it via the internal/repository
+// facade (CheckupFilters alias), so no call site changes.
+type CheckupFilters struct {
+	StartDate     *string
+	EndDate       *string
+	NextStartDate *string
+	NextEndDate   *string
+}
+
+// CheckupRepository is the data access interface for checkups (健診記録).
+// Moved from internal/repository/checkup (BE8-4 batch24) — BE9-2D roll-up. Renamed from that
+// subpackage's generic "Repository" to this entity-specific name only because medicalrecord
+// holds multiple repository interfaces in one package; every external caller only ever saw
+// this name via the internal/repository facade, so no call site changes.
+type CheckupRepository interface {
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
+	FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error)
+	// FindByOwnerID は飼い主に紐づく生存健診記録を全件返す（ISSUE-004 タグ再同期用）。
+	// medical_records.pet_id から現在の pets.owner_id を解決する。
+	FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
+	Create(ctx context.Context, checkup *model.Checkup) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
+}
+
+type checkupRepository struct {
+	db *gorm.DB
+}
+
+// NewCheckupRepository は CheckupRepository を初期化して返す。
+func NewCheckupRepository(db *gorm.DB) CheckupRepository {
+	return &checkupRepository{db: db}
+}
+
+func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
+	buildBase := func() *gorm.DB {
+		q := persistence.DBOrTx(ctx, r.db).Model(&model.Checkup{}).
+			Scopes(
+				persistence.ClinicScope(clinicID),
+				checkupPatientRelationsScope(clinicID),
+			)
+		if filters.StartDate != nil {
+			q = q.Where("date >= ?", *filters.StartDate)
+		}
+		if filters.EndDate != nil {
+			q = q.Where("date <= ?", *filters.EndDate)
+		}
+		if filters.NextStartDate != nil {
+			q = q.Where("next_date >= ?", *filters.NextStartDate)
+		}
+		if filters.NextEndDate != nil {
+			q = q.Where("next_date <= ?", *filters.NextEndDate)
+		}
+		return q
+	}
+
+	var total int64
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "checkup", "")
+	}
+
+	checkups := make([]model.Checkup, 0)
+	err := buildBase().
+		Scopes(checkupReadPreloads(clinicID)).
+		Order("date DESC").
+		Scopes(paginate(page, limit)).
+		Find(&checkups).Error
+	if err != nil {
+		return nil, 0, apperrors.FromGORM(err, "checkup", "")
+	}
+	return checkups, total, nil
+}
+
+// FindByOwnerID は現在飼主のペットに紐づく生存健診記録を返す（ISSUE-004 タグ再同期用）。
+// medical_records.pet_id から pets.owner_id を解決し、checkup と medical_record の両方が生存しているレコードのみ返す。
+func (r *checkupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
+	checkups := make([]model.Checkup, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Joins("JOIN medical_records ON medical_records.id = checkups.medical_record_id"+
+			" AND medical_records.clinic_id = ?"+
+			" AND medical_records.deleted_at IS NULL", clinicID).
+		Where(`
+			checkups.clinic_id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = medical_records.pet_id
+				  AND current_owner_pet.clinic_id = medical_records.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, clinicID, ownerID).
+		Scopes(checkupPatientRelationsScope(clinicID)).
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Order("checkups.date DESC").
+		Find(&checkups).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("owner=%d", ownerID))
+	}
+	return checkups, nil
+}
+
+func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+	checkups := make([]model.Checkup, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Joins("JOIN medical_records ON medical_records.id = checkups.medical_record_id"+
+			" AND medical_records.clinic_id = ?"+
+			" AND medical_records.deleted_at IS NULL", clinicID).
+		Where("checkups.clinic_id = ? AND checkups.medical_record_id = ?", clinicID, medicalRecordID).
+		Scopes(checkupPatientRelationsScope(clinicID)).
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Doctor", "deleted_at IS NULL AND is_active = TRUE AND staff_type = ?", model.StaffTypeDoctor).
+		Order("checkups.date ASC").
+		Find(&checkups).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", "")
+	}
+	return checkups, nil
+}
+
+func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
+	var checkup model.Checkup
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(
+			persistence.ClinicScope(clinicID),
+			checkupPatientRelationsScope(clinicID),
+			checkupReadPreloads(clinicID),
+		).
+		Where("id = ?", id).
+		First(&checkup).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("%d", id))
+	}
+	return &checkup, nil
+}
+
+// LockByIDForUpdate serializes checkup deletion with other writes under the
+// caller's medical-record-first transaction lock order.
+func (r *checkupRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("checkup lock requires an ambient transaction")
+	}
+	var checkup model.Checkup
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&checkup).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("%d", id))
+	}
+	return &checkup, nil
+}
+
+func (r *checkupRepository) Create(ctx context.Context, checkup *model.Checkup) error {
+	err := persistence.DBOrTx(ctx, r.db).Create(checkup).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "checkup", "")
+	}
+	return nil
+}
+
+func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Checkup{}, "checkup", clinicID, id, fields)
+}
+
+func (r *checkupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Checkup{}, "checkup", clinicID, id)
+}
+
+func checkupReadPreloads(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.
+			Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("Doctor", "deleted_at IS NULL AND is_active = TRUE AND staff_type = ?", model.StaffTypeDoctor).
+			Preload("MedicalRecord", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("MedicalRecord.Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+			Preload("MedicalRecord.Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID)
+	}
+}
+
+// checkupPatientRelationsScope excludes polluted rows before their raw foreign IDs can
+// reach an HTTP response. The required medical record and checkup type, plus every
+// non-nil patient relation, must resolve inside the checkup clinic.
+func checkupPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(`
+			EXISTS (
+				SELECT 1 FROM checkup_types scoped_checkup_type
+				WHERE scoped_checkup_type.id = checkups.checkup_type_id
+				  AND scoped_checkup_type.clinic_id = ?
+				  AND scoped_checkup_type.deleted_at IS NULL
+			)
+			AND EXISTS (
+				SELECT 1 FROM medical_records scoped_record
+				WHERE scoped_record.id = checkups.medical_record_id
+				  AND scoped_record.clinic_id = ?
+				  AND scoped_record.deleted_at IS NULL
+				  AND (
+					scoped_record.owner_id IS NULL OR EXISTS (
+						SELECT 1 FROM owners scoped_record_owner
+						WHERE scoped_record_owner.id = scoped_record.owner_id
+						  AND scoped_record_owner.clinic_id = ?
+						  AND scoped_record_owner.deleted_at IS NULL
+					)
+				  )
+				  AND (
+					scoped_record.pet_id IS NULL OR EXISTS (
+						SELECT 1 FROM pets scoped_record_pet
+						JOIN owners scoped_record_pet_owner
+						  ON scoped_record_pet_owner.id = scoped_record_pet.owner_id
+						 AND scoped_record_pet_owner.clinic_id = scoped_record_pet.clinic_id
+						 AND scoped_record_pet_owner.deleted_at IS NULL
+						WHERE scoped_record_pet.id = scoped_record.pet_id
+						  AND scoped_record_pet.clinic_id = ?
+						  AND scoped_record_pet.deleted_at IS NULL
+					)
+				  )
+				  AND (
+					checkups.pet_id IS NULL OR
+					scoped_record.pet_id = checkups.pet_id
+				  )
+			)
+				AND (
+					checkups.pet_id IS NULL OR EXISTS (
+					SELECT 1 FROM pets scoped_pet
+					JOIN owners scoped_pet_owner
+					  ON scoped_pet_owner.id = scoped_pet.owner_id
+					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
+					 AND scoped_pet_owner.deleted_at IS NULL
+					WHERE scoped_pet.id = checkups.pet_id
+					  AND scoped_pet.clinic_id = ?
+					  AND scoped_pet.deleted_at IS NULL
+					)
+				)
+				AND (
+					checkups.doctor_id IS NULL OR EXISTS (
+						SELECT 1 FROM staff_clinic_assignments scoped_doctor_assignment
+						JOIN staffs scoped_doctor
+						  ON scoped_doctor.id = scoped_doctor_assignment.staff_id
+						 AND scoped_doctor.deleted_at IS NULL
+						 AND scoped_doctor.is_active = TRUE
+						 AND scoped_doctor.staff_type = ?
+						WHERE scoped_doctor_assignment.staff_id = checkups.doctor_id
+						  AND scoped_doctor_assignment.clinic_id = ?
+						  AND scoped_doctor_assignment.deleted_at IS NULL
+					)
+				)
+			`, clinicID, clinicID, clinicID, clinicID, clinicID, model.StaffTypeDoctor, clinicID)
+	}
+}

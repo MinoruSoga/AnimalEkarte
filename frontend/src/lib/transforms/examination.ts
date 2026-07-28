@@ -1,5 +1,9 @@
 import type { Examination, ExamResult as BackendExamResult } from "@/types/generated/models";
 
+type ExamResultResponse = BackendExamResult & {
+  is_assessed?: boolean;
+};
+
 export const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定"> = {
   pending: "依頼中",
   in_progress: "検査中",
@@ -8,7 +12,7 @@ export const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "�
   confirmed: "確定",
 };
 
-export function transformExamResult(item: BackendExamResult) {
+export function transformExamResult(item: ExamResultResponse) {
   return {
     id: String(item.id ?? 0),
     examTypeFieldId: item.exam_type_field_id ?? undefined,
@@ -20,6 +24,7 @@ export function transformExamResult(item: BackendExamResult) {
     referenceValue: item.reference_value ?? "",
     refMin: item.ref_min ?? undefined,
     refMax: item.ref_max ?? undefined,
+    isAssessed: item.is_assessed,
     isAbnormal: item.is_abnormal ?? false,
     // backend が ref_min/ref_max から導出した判定結果（"normal" | "high" | "low"）
     status: (item.status ?? "normal") as "normal" | "high" | "low",

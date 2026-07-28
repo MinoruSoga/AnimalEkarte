@@ -36,7 +36,7 @@ export interface PetTrimmingHistoryResult {
  */
 const getPetTrimmingHistory = async (petId: string): Promise<PetTrimmingHistoryResult> => {
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
-    params: { pet_id: Number(petId), page: 1, limit: HISTORY_FETCH_LIMIT },
+    params: { pet_id: petId, page: 1, limit: HISTORY_FETCH_LIMIT },
   });
   const rawRows = data.data ?? [];
   return {

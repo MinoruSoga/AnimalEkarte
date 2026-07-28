@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -24,11 +24,12 @@ import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
+import { H_STYLES } from "../styles";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationForm() {
@@ -43,6 +44,7 @@ export function HospitalizationForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
+  const canDeleteRef = useRef(canDelete);
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
@@ -63,7 +65,7 @@ export function HospitalizationForm() {
       petSelection,
       formAction,
       formState,
-  } = useHospitalizationForm(hospitalizationId);
+  } = useHospitalizationForm(hospitalizationId, canSubmit === true);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -96,6 +98,12 @@ export function HospitalizationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
+  const petIsDeceased = selectedPet?.status === "死亡";
+  const petIsDeceasedRef = useRef(petIsDeceased);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+    petIsDeceasedRef.current = petIsDeceased;
+  }, [canDelete, petIsDeceased]);
   const totals = calculateTotals();
 
   const handleBack = useCallback(() => {
@@ -107,7 +115,11 @@ export function HospitalizationForm() {
   }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
-    if (!hospitalizationId) return;
+    if (
+      !hospitalizationId ||
+      canDeleteRef.current !== true ||
+      petIsDeceasedRef.current === true
+    ) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(hospitalizationId, {
         onSuccess: () => {
@@ -144,13 +156,13 @@ export function HospitalizationForm() {
 
   return (
     <>
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       resource={ResourceHospitalization}
-      maxWidth="max-w-[1400px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
         <div className="flex gap-2">
             {hospitalizationId ? (
@@ -238,11 +250,17 @@ export function HospitalizationForm() {
         </div>
 
         {/* 治療プラン */}
+        {isEdit ? (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            既存の治療プランと割引は参照のみです。この画面の更新では変更されません。
+          </p>
+        ) : null}
         <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
             onRemove={canDelete ? removeTreatmentPlan : undefined}
+            readOnly={isEdit}
         />
 
         {/* 診療費計算 */}
@@ -252,6 +270,7 @@ export function HospitalizationForm() {
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
+            readOnly={isEdit}
         />
         </fieldset>
     </PageLayout>

@@ -80,7 +80,7 @@ export function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
             <div className="flex flex-col gap-2">
                 <div className="flex gap-2 items-center">
                     <Select value={type} onValueChange={(v) => handleTypeChange(v as CarePlanItemType)}>
-                        <SelectTrigger className="w-28 h-8 text-xs">
+                        <SelectTrigger className="w-28 h-11 text-xs" aria-label="ケアプラン項目種別">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>{TYPE_SELECT_ITEMS}</SelectContent>
@@ -88,7 +88,8 @@ export function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
                     <Input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="h-8 text-sm flex-1"
+                        aria-label="ケアプラン項目名"
+                        className="h-11 text-sm flex-1"
                         placeholder="名称を入力"
                         onKeyDown={(e) => {
                             if (e.key === "Enter") handleSubmit();
@@ -103,7 +104,7 @@ export function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
                         <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
                         <div className="flex gap-2">
                             {TIMING_OPTIONS.map((opt) => (
-                                <label key={opt.value} className="flex items-center gap-1 cursor-pointer">
+                                <label key={opt.value} className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={timing.includes(opt.value)}

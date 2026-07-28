@@ -9,11 +9,7 @@ export function useStaffValidation() {
   const { data: staffItems } = useMasterItems("staff");
 
   const validStaffNames = useMemo(() => {
-    return new Set(
-      staffItems
-        .filter((item) => item.status === "active")
-        .map((item) => item.name)
-    );
+    return new Set(staffItems.flatMap((item) => item.status === "active" ? [item.name] : []));
   }, [staffItems]);
 
   const isValidStaff = (name: string): boolean => {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import { C } from "@/lib/design-tokens";
 import { ReceptionTelemetryStrip } from "./ReceptionTelemetryStrip";
 
 describe("ReceptionTelemetryStrip", () => {
@@ -40,7 +41,7 @@ describe("ReceptionTelemetryStrip", () => {
     expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
   });
 
-  it("最長待ちの強調はテキスト色のみで、構造色 #038b94 系のクラスを使わない", () => {
+  it("最長待ちの強調はテキスト色のみで、primary/brand identity の構造クラスを使わない", () => {
     render(
       <ReceptionTelemetryStrip
         totalCount={32}
@@ -49,7 +50,10 @@ describe("ReceptionTelemetryStrip", () => {
     );
 
     const longest = screen.getByText("32分 — ミルク");
-    expect(longest.className).not.toMatch(/038B94|038b94/);
+    expect(longest).not.toHaveClass(C.textActionPrimary);
+    expect(longest).not.toHaveClass(C.bgActionPrimary);
+    expect(longest).not.toHaveClass(C.textBrandIdentity);
+    expect(longest).not.toHaveClass(C.bgBrandIdentity);
   });
 
   it("コンポーネントソースに raw hex カラーリテラルを直書きしない(design-tokens 経由のみ)", () => {

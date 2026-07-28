@@ -1,9 +1,10 @@
 import { ChevronDown, Pencil, Plus } from "lucide-react";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
-import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 
@@ -33,7 +34,9 @@ export function ReservationTypeGroupHeader({
           <button
             type="button"
             onClick={onToggle}
-            className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            aria-label={`${group.name}グループを${isCollapsed ? "展開" : "折りたたむ"}`}
+            aria-expanded={!isCollapsed}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}
@@ -44,7 +47,7 @@ export function ReservationTypeGroupHeader({
           <button
             type="button"
             onClick={onGroupEdit}
-            className={`text-sm font-medium ${C.text} ${C.hoverBgLight} px-1 rounded-[3px] transition-colors`}
+            className={`min-h-11 min-w-11 text-sm font-medium ${C.text} ${C.hoverBgLight} px-1 rounded-xxs transition-colors`}
           >
             {group.name}
           </button>
@@ -54,7 +57,7 @@ export function ReservationTypeGroupHeader({
               <button
                 type="button"
                 onClick={onGroupEdit}
-                className={`flex items-center gap-1 text-xs ${C.text45}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
                 <Pencil className={ICON.action} />編集
@@ -62,7 +65,7 @@ export function ReservationTypeGroupHeader({
               <button
                 type="button"
                 onClick={onCategoryAdd}
-                className={`flex items-center gap-1 text-xs ${C.text45}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
                 <Plus className={ICON.action} />追加
@@ -97,7 +100,9 @@ export function ReservationTypeUncategorizedHeader({
           <button
             type="button"
             onClick={onToggle}
-            className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            aria-label={`未分類を${isCollapsed ? "展開" : "折りたたむ"}`}
+            aria-expanded={!isCollapsed}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}
@@ -111,7 +116,7 @@ export function ReservationTypeUncategorizedHeader({
             <button
               type="button"
               onClick={onCategoryAdd}
-              className={`ml-auto flex items-center gap-1 text-xs ${C.text45}
+              className={`ml-auto flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                 ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
             >
               <Plus className={ICON.action} />追加
@@ -141,16 +146,32 @@ interface ReservationTypeRowProps {
 
 export function ReservationTypeRow({ category, canEdit, onEdit }: ReservationTypeRowProps) {
   return (
-    <SortableDataTableRow id={category.id} onClick={onEdit}>
-      <TableCell className={`font-medium text-sm ${C.text} pl-7`}>{category.name}</TableCell>
+    <SortableDataTableRow
+      id={category.id}
+      dragLabel={`並べ替え: 予約区分 ${category.name} (ID ${category.id})`}
+      dragDisabled={!canEdit}
+    >
+      <TableCell className={`font-medium text-sm ${C.text} pl-7`}>
+        <DataTableRowButton
+          aria-label={`詳細: 予約区分 ${category.name} (ID ${category.id})`}
+          onClick={onEdit}
+        >
+          {category.name}
+        </DataTableRowButton>
+      </TableCell>
       <TableCell className={`text-sm ${C.text60} max-w-[220px] truncate`}>
         {category.description || "-"}
       </TableCell>
       <TableCell className="text-center">
         <StatusPill isActive={category.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: 予約区分 ${category.name} (ID ${category.id})`}
+            onClick={onEdit}
+          />
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );

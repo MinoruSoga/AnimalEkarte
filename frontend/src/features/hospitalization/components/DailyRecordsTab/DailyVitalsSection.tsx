@@ -171,7 +171,7 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onA
                                 className="mt-1"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
                             <div>
                                 <Label htmlFor="vital-temp" className="text-xs">
                                     体温 (℃)

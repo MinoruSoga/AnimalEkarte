@@ -2,8 +2,8 @@ import { C } from "@/lib/design-tokens";
 import { formatJSTWallDate, formatJSTWallTime, toJSTWallDate } from "@/lib/jst-date";
 import type { BodyWeightUnit } from "../../types";
 
-export const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`;
-export const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`;
+export const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`;
+export const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`;
 
 export interface VitalsAddFormState {
   recorded_at: string;

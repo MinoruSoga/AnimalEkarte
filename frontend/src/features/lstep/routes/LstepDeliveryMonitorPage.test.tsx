@@ -378,3 +378,31 @@ describe("LstepDeliveryMonitorPage — G: ローディング状態", () => {
     expect(screen.getByTestId("logs-loading")).toBeInTheDocument();
   });
 });
+
+describe("LstepDeliveryMonitorPage — H: mobile-first layout", () => {
+  it("固定幅フィルターとサマリーカードを mobile では全幅・単一列にする", async () => {
+    await renderAndWait();
+
+    expect(screen.getByTestId("filter-trigger-type")).toHaveClass(
+      "w-full",
+      "h-11",
+      "sm:w-[220px]",
+    );
+    expect(screen.getByTestId("filter-status")).toHaveClass(
+      "w-full",
+      "h-11",
+      "sm:w-[140px]",
+    );
+    expect(screen.getByRole("combobox", { name: "配信トリガー種別" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "配信ステータス" })).toBeInTheDocument();
+    const dateRange = screen.getByTestId("filter-from").parentElement;
+    expect(dateRange).toHaveClass("w-full", "flex-col", "sm:w-auto", "sm:flex-row");
+    expect(screen.getByTestId("filter-from")).toHaveClass("w-full", "sm:w-auto");
+    expect(screen.getByTestId("filter-to")).toHaveClass("w-full", "sm:w-auto");
+    expect(screen.getByTestId("filter-from")).toHaveClass("h-11");
+    expect(screen.getByTestId("filter-to")).toHaveClass("h-11");
+
+    const summaryGrid = screen.getByTestId("summary-card-scheduled").parentElement;
+    expect(summaryGrid).toHaveClass("grid-cols-1", "sm:grid-cols-3", "xl:grid-cols-5");
+  });
+});

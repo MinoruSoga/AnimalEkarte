@@ -50,6 +50,24 @@ const (
 	ItemCategoryTraining    ItemCategory = "training"
 )
 
+// AllItemCategories returns every supported billing item category in declaration order.
+func AllItemCategories() []ItemCategory {
+	return []ItemCategory{
+		ItemCategoryExamination,
+		ItemCategoryTest,
+		ItemCategoryProcedure,
+		ItemCategorySurgery,
+		ItemCategoryMedicine,
+		ItemCategoryFood,
+		ItemCategoryGoods,
+		ItemCategoryOther,
+		ItemCategoryVaccine,
+		ItemCategoryTrimming,
+		ItemCategoryHotel,
+		ItemCategoryTraining,
+	}
+}
+
 type ItemSource string
 
 const (
@@ -96,6 +114,7 @@ func (Billing) TableName() string { return "billings" }
 type BillingItem struct {
 	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID             uint64         `gorm:"not null"                                       json:"billing_id"`
+	ClinicID              *uint64        `                                                      json:"-"`
 	Category              ItemCategory   `gorm:"type:item_category;not null"                    json:"category"`
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
@@ -106,8 +125,11 @@ type BillingItem struct {
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`
+	OtherReason           *string        `                                                      json:"other_reason,omitempty"`
+	CreatedBy             *uint64        `                                                      json:"-"`
 	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
 	TreatmentID           *uint64        `                                                      json:"treatment_id,omitempty"`
+	VaccinationID         *uint64        `                                                      json:"vaccination_id,omitempty"`
 	AppointmentID         *uint64        `                                                      json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64        `                                                      json:"trimming_course_id,omitempty"`
 	TrimmingOptionID      *uint64        `                                                      json:"trimming_option_id,omitempty"`

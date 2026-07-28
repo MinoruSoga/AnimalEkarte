@@ -28,7 +28,7 @@ interface HospitalizationBasicInfoProps {
 
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box}`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
@@ -49,17 +49,19 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             <RadioGroupItem
               value="入院"
               id="type-hospitalization"
+              aria-label="入院タイプ: 入院"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hospitalization" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
+            <Label htmlFor="type-hospitalization" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
           </div>
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
               value="ホテル"
               id="type-hotel"
+              aria-label="入院タイプ: ホテル"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hotel" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
+            <Label htmlFor="type-hotel" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
           </div>
         </RadioGroup>
       </div>
@@ -70,7 +72,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           <Calendar className={ICON.action} />
           期間
         </Label>
-        <div className={`flex items-center ${H_STYLES.gap.default}`}>
+        <div className={`flex flex-col items-stretch ${H_STYLES.gap.default}`}>
+          <Label htmlFor="start_date" className="sr-only">開始日</Label>
           <DatePicker
             id="start_date"
             value={formData.displayDate}
@@ -78,7 +81,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             placeholder="開始日"
             className="flex-1"
           />
-          <span className={`${C.text40} text-sm`}>〜</span>
+          <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">〜</span>
+          <Label htmlFor="end_date" className="sr-only">終了日</Label>
           <DatePicker
             id="end_date"
             value={formData.endDate ?? ""}
@@ -92,8 +96,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
       {/* ケージ/個室 */}
       <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <Label className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
-            <MasterLink category="cage" label="編集" className="text-[11px]" />
+            <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
+            <MasterLink category="cage" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
               id="cage_id"
@@ -113,6 +117,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         <div className="flex items-center gap-2 mb-1.5">
           <Checkbox
             id="is_insurance"
+            aria-label="保険適用"
+            touchTarget
             checked={formData.isInsurance}
             onCheckedChange={(checked) =>
               onChange({
@@ -164,13 +170,13 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* メモ */}
       <div>
-        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
+        <Label htmlFor="memo" className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
         <Textarea
           id="memo"
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusRingMedicalBlue}`}
+          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
         />
       </div>
     </div>

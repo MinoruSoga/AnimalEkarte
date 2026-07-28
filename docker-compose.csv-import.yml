@@ -1,0 +1,28 @@
+# One-shot F6 CSV importer. The producer directory is mounted read-only and
+# this service joins only AnimalEkarte's target network; it cannot reach old_db.
+services:
+  csv-import:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    networks:
+      - ekarte-network
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app:ro
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+      - ${CSV_IMPORT_SOURCE_DIR:?set CSV_IMPORT_SOURCE_DIR to the absolute producer bundle directory}:/migration-input:ro
+      - ./sensitive-local/csv-import-reports:/migration-reports
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:?set DB_USER in the Compose env file}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in the Compose env file}
+      DB_NAME: ${DB_NAME:?set DB_NAME in the Compose env file}
+      DB_SSL_MODE: ${DB_SSL_MODE:-disable}
+    entrypoint: ["go", "run", "./cmd/csv-import"]
+    restart: "no"

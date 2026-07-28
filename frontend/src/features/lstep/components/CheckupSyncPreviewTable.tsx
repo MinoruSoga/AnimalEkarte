@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 
+import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
 import type { CheckupSyncPreviewOwner } from "../api/get-checkup-sync-preview";
 
@@ -7,6 +8,7 @@ interface CheckupSyncPreviewRowProps {
   owner: CheckupSyncPreviewOwner;
   eligible: boolean;
   selected: boolean;
+  selectionLimitReached: boolean;
   onToggle: (ownerId: string, checked: boolean) => void;
 }
 
@@ -14,16 +16,17 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
   owner,
   eligible,
   selected,
+  selectionLimitReached,
   onToggle,
 }: CheckupSyncPreviewRowProps) {
   return (
     <tr className={`${STYLE.tableRow} ${eligible ? "" : "opacity-50"}`}>
-      <td className="px-4">
+      <td className={STYLE.tableCell}>
         <input
           type="checkbox"
           checked={selected}
           onChange={(e) => onToggle(owner.owner_id, e.target.checked)}
-          disabled={!eligible}
+          disabled={!eligible || (!selected && selectionLimitReached)}
           className={`size-4 cursor-pointer ${C.accentBrand} disabled:cursor-not-allowed`}
           aria-label={`${owner.owner_name}を選択`}
         />
@@ -35,7 +38,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
       <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
         {owner.last_visit_date ? owner.last_visit_date : "—"}
       </td>
-      <td className="px-4 py-2.5">
+      <td className={STYLE.tableCell}>
         {owner.has_line ? (
           <span
             className="inline-flex items-center gap-1 text-sm font-medium rounded-full px-2 py-0.5"
@@ -50,7 +53,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
           <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
         )}
       </td>
-      <td className={`px-4 py-2.5 text-sm ${C.danger}`}>
+      <td className={`${STYLE.tableCell} ${C.danger}`}>
         {owner.exclusion_reason ?? null}
       </td>
     </tr>
@@ -83,19 +86,21 @@ export function CheckupSyncPreviewTable({
   totalCount,
 }: CheckupSyncPreviewTableProps) {
   const eligibleOwners = owners.filter(isEligible);
+  const selectableOwners = eligibleOwners.slice(0, CHECKUP_SYNC_OWNER_LIMIT);
   const allEligibleSelected =
-    eligibleOwners.length > 0 &&
-    eligibleOwners.every((o) => selectedIds.has(o.owner_id));
+    selectableOwners.length > 0 &&
+    selectableOwners.every((o) => selectedIds.has(o.owner_id));
+  const selectionLimitReached = selectedIds.size >= CHECKUP_SYNC_OWNER_LIMIT;
 
   const handleSelectAll = useCallback(
     (checked: boolean) => {
       if (checked) {
-        onSelectionChange(new Set(eligibleOwners.map((o) => o.owner_id)));
+        onSelectionChange(new Set(selectableOwners.map((o) => o.owner_id)));
       } else {
         onSelectionChange(new Set());
       }
     },
-    [eligibleOwners, onSelectionChange],
+    [selectableOwners, onSelectionChange],
   );
 
   const selectedIdsRef = useRef(selectedIds);
@@ -107,6 +112,9 @@ export function CheckupSyncPreviewTable({
     (ownerId: string, checked: boolean) => {
       const next = new Set(selectedIdsRef.current);
       if (checked) {
+        if (next.size >= CHECKUP_SYNC_OWNER_LIMIT) {
+          return;
+        }
         next.add(ownerId);
       } else {
         next.delete(ownerId);
@@ -147,6 +155,12 @@ export function CheckupSyncPreviewTable({
         ) : null}
       </div>
 
+      {eligibleOwners.length > CHECKUP_SYNC_OWNER_LIMIT || selectionLimitReached ? (
+        <p className={`text-sm ${C.text50}`}>
+          一度に選択できるのは最大{CHECKUP_SYNC_OWNER_LIMIT}名です
+        </p>
+      ) : null}
+
       <div className={STYLE.tableContainer}>
         <table className="w-full table-fixed">
           <thead>
@@ -182,6 +196,7 @@ export function CheckupSyncPreviewTable({
                 owner={owner}
                 eligible={isEligible(owner)}
                 selected={selectedIds.has(owner.owner_id)}
+                selectionLimitReached={selectionLimitReached}
                 onToggle={handleRowToggle}
               />
             ))}

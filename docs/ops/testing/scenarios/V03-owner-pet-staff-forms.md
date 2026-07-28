@@ -57,6 +57,9 @@
 | 6 | (C3-1) 新規登録時の登録先医院の選択肢 | 医院マスタ実データ由来（§7 手順 2 で追加する「V03医院」が選択肢へ反映される）。未選択時はサーバ側で現在医院に登録（#84） |
 | 7 | (C3-2) 既存飼主と同一メール / 同一電話番号で新規登録 | いずれも拒否。「このメールアドレスはすでに登録されています」「この電話番号はすでに登録されています」（BE 409。メールは `(clinic_id, email)` 部分 UNIQUE・電話は service 層チェック） |
 | 8 | (C3-3) `/owners/<存在しない ID>` を直叩き | 404/エラー画面 |
+| 9 | (C2) 既存飼主の飼主生年月日を任意の過去日へ変更して保存 → 再読込 → 再オープン | C2-1〜C2-3 のとおり、同じ日付が永続・初期表示される |
+| 10 | 飼主生年月日を空にして保存し、Network の PATCH payload を確認 → 再読込 → 再オープン | `birth_date: null` が送信され、DB 値が NULL となり、再オープンでも空欄になる |
+| 11 | 生年月日を設定し直した後、直前の PATCH を DevTools の「編集して再送」で開き、`birth_date` を payload から削除して備考だけ変更 → 再読込 → 再オープン | 備考は更新されるが、生年月日は変更されない（`birth_date` 省略 = 変更なし） |
 
 - `(clinic_id, line_user_id)` の UNIQUE は LINE 連携経由でのみ書かれ本フォーム対象外。会員種別は定義済み 4 区分（non_member/member/deceased/transferred）のボタン選択で enum 外は BE が拒否。
 
@@ -108,7 +111,7 @@
 | 1 | (C1-1) 氏名を空で保存 / メールアドレス指定＋パスワード空で保存 | いずれも保存されない（「氏名を入力してください」。BE: email 指定時は password 必須） |
 | 2 | (C1-3) パスワード英数字混在 7 文字 → 8 文字で保存 | 7 文字は拒否、8 文字は受理（BE: 8 文字以上） |
 | 3 | FE/BE 非対称: パスワードに数字のみ 8 桁を入力して保存 | FE は通過するが BE `validatePassword`（英字と数字の両方必須）で拒否され、エラーがトースト表示される |
-| 4 | メールなし・氏名のみで新規スタッフ「V03スタッフ」を保存 | 保存成功（ログインアカウント紐付けは任意） |
+| 4 | メールなし・氏名のみで新規スタッフ「V03スタッフ」を保存しようとする。拒否後、メールアドレスと英数字混在 8 文字以上のパスワードを追加入力して保存 | 最初は現行 UI の「メールアドレスは必須です」で保存されない。追加入力後はログインアカウント付きスタッフとして保存成功する。バックエンド API はメール省略時のアカウントなし作成も受理するため、UI/BE 契約は不一致 |
 | 5 | 2 段階保存: 保存後に「V03スタッフ」を再度開き、権限グループ・所属医院・対応可能予約種別を設定して保存 → 再オープン | 割当が保存され初期表示される。**新規作成時のパネルでは割当 3 種は保存されない**（isNew 時は本体のみ保存 — 「保存 → 再編集で割当」の 2 段階が正しい手順であることを確認） |
 | 6 | (C3-1) 職種マスタに「V03職種」を追加 → スタッフ編集の職種選択肢を確認 | 「V03職種」が現れる。権限グループ・所属医院・対応可能予約種別の選択肢も各マスタ実データ由来 |
 | 7 | (C3-2) 既存スタッフと同一メールアドレスで新規保存 | 拒否される（accounts.email はグローバル UNIQUE — BE 409 AlreadyExists） |
@@ -147,7 +150,7 @@
 
 ## 確認観点
 
-- 既存の機械テストが覆う範囲: FE component test（`OwnerForm` 系 3 本＋`OwnerInfoSection`、`PetEditModalFields`・`PetCareSection`・`pet-form-data`・`use-pet-form-list-state`、`PetDeceasedDialog`/`PetDeceasedBanner`、`StaffSettings`・`StaffSidePanelSections`、`permission-rule-table-model`、clinic `transforms`）が FE 単体のバリデーション分岐を、BE テスト（validators_owner/contact/pet/auth・`owner_service_core_test.go` の重複 409・staff_service_account/permissions・permission_group_service・clinic_service）がサーバ側検証を網羅する。E2E は owners-flow（フォーム表示まで）と settings-smoke（表示のみ）で、保存成功・一意制約違反の通しフローは存在しない。
+- 既存の機械テストが覆う範囲: FE component test（`OwnerForm` 系 3 本＋`OwnerInfoSection`、`PetEditModalFields`・`PetCareSection`・`pet-form-data`・`use-pet-form-list-state`、`PetDeceasedDialog`/`PetDeceasedBanner`、`StaffSettings`・`StaffSidePanelSections`、`permission-rule-table-model`、clinic `transforms`）が FE 単体のバリデーション分岐を、BE テスト（validators_owner/contact/pet/auth・`backend/internal/owner/service_core_test.go` の重複 409・staff_service_account/permissions・permission_group_service・clinic_service）がサーバ側検証を網羅する。E2E は owners-flow（フォーム表示まで）と settings-smoke（表示のみ）で、保存成功・一意制約違反の通しフローは存在しない。
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ → API → DB → 再表示の統合点で通す受け入れ時の実機検証**であり、特に「保存の永続化（C2）」と FE/BE 非対称ガード（ペット性別・体重上限 200kg = FE のみ、スタッフパスワード英数字混在 = BE のみ）を重点とする。
 - マスタ系 3 フォーム（§5〜§7）は共通の MasterSidePanel シェル上にあり、FE 必須は名称のみ・形式/範囲は BE 依存という構造 — BE エラー（409/400）がトーストへ正しく表示されること（handleApiError 経由）が共通確認点。
-- NG 項目はリポジトリ直下 bug.md へ BUG-XXX として起票する（[README.md](README.md) のルールに従う）。
+- NG 項目はリポジトリ直下 [`3-session-agent.html` の実装タスク台帳（正本）](../../../../3-session-agent.html#ledger) の `<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="BUG-XXX">` として起票する（[README.md](README.md) のルールに従う）。

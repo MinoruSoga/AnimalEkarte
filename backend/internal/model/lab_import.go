@@ -7,7 +7,7 @@ import (
 )
 
 // LabImportJobStatus は lab_import_jobs のジョブ状態。
-// 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+// 許可された遷移は medicalrecord.CanTransitionTo で強制される（BE9-2D sub-batch③ で internal/service から移動）。
 type LabImportJobStatus string
 
 const (

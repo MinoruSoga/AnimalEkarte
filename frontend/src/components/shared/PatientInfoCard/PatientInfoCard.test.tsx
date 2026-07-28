@@ -1,0 +1,70 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+
+import { PatientInfoCard } from "./PatientInfoCard";
+
+vi.mock(
+  "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png",
+  () => ({ default: "/pet.png" }),
+);
+
+vi.mock("@/components/shared/Feedback", () => ({
+  ImageWithFallback: ({ src, alt, className }: { src: string; alt: string; className?: string }) => (
+    <img src={src} alt={alt} className={className} />
+  ),
+}));
+
+const baseProps = {
+  ownerName: "山田 太郎",
+  petName: "ポチ",
+  petNumber: "0001",
+  weight: "5.0kg",
+};
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("PatientInfoCard next visit alert", () => {
+  it("次回予定日が過去なら日付に加えて非色依存の「期限切れ」表示を出す", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T12:00:00+09:00"));
+
+    render(<PatientInfoCard {...baseProps} nextVisitDate="2025/10/10" />);
+
+    expect(screen.getByText("次回 2025/10/10")).toBeInTheDocument();
+    expect(screen.getByText("期限切れ")).toBeInTheDocument();
+  });
+
+  it("次回予定日が30日より先なら期限アラートを出さない", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T12:00:00+09:00"));
+
+    render(<PatientInfoCard {...baseProps} nextVisitDate="2026/10/10" />);
+
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
+  });
+
+  it("次回予定日を渡さない画面では仮の日付や期限アラートを表示しない", () => {
+    render(<PatientInfoCard {...baseProps} />);
+
+    expect(screen.getByText("次回 -")).toBeInTheDocument();
+    expect(screen.queryByText("次回 2025/10/10")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
+  });
+
+  it("実在しない日付や区切り混在は期限判定へ渡さない", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T12:00:00+09:00"));
+
+    const { rerender } = render(
+      <PatientInfoCard {...baseProps} nextVisitDate="2025/02/31" />,
+    );
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+
+    rerender(<PatientInfoCard {...baseProps} nextVisitDate="2025/02-01" />);
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+  });
+});

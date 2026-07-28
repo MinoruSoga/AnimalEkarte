@@ -3,6 +3,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PetDeceasedBanner } from "./PetDeceasedBanner";
 
 const { mockMutate } = vi.hoisted(() => ({ mockMutate: vi.fn() }));
+const { capturedConfirm } = vi.hoisted(() => ({
+  capturedConfirm: { current: undefined as (() => void) | undefined },
+}));
+
+vi.mock("@/components/shared/ConfirmDialog", () => ({
+  ConfirmDialog: ({
+    open,
+    onConfirm,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+  }) => {
+    capturedConfirm.current = onConfirm;
+    return open ? <button onClick={onConfirm}>解除する</button> : null;
+  },
+}));
 
 vi.mock("@/hooks/use-revoke-pet-death", () => ({
   useRevokePetDeath: () => ({ mutate: mockMutate, isPending: false }),
@@ -58,5 +74,23 @@ describe("PetDeceasedBanner (BUG-407)", () => {
     fireEvent.click(screen.getByRole("button", { name: "解除する" }));
 
     await waitFor(() => expect(onRevoked).toHaveBeenCalledTimes(1));
+  });
+
+  it("取得済み解除callbackは最新の編集権限がfalseなら解除mutationを発行しない", () => {
+    const props = {
+      deceasedAt: "2026-07-11T00:00:00+09:00",
+      petId: "1",
+      canEdit: true,
+    };
+    const { rerender } = render(<PetDeceasedBanner {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    const confirm = capturedConfirm.current;
+    expect(confirm).toBeDefined();
+
+    rerender(<PetDeceasedBanner {...props} canEdit={false} />);
+    confirm?.();
+
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });

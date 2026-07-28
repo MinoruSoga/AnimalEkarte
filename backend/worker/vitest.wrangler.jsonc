@@ -1,4 +1,4 @@
-// G10-6: minimal wrangler config used ONLY by vitest-pool-workers (backend/worker/vitest.config.ts).
+// G10-6: minimal wrangler config used ONLY by vitest-pool-workers (backend/worker/vitest.config.mts).
 // Intentionally excludes containers/durable_objects/hyperdrive/r2_buckets/secrets — those live in
 // ../wrangler.jsonc (the real deploy config) and are irrelevant to the pure-function unit tests
 // this config backs. Only compatibility_date/flags matter here, to get a real workerd runtime.

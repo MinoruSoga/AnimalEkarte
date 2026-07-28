@@ -55,7 +55,7 @@
 ## 4. 実行・レポート手順
 
 1.  **環境構築**: `make up` による検証用クリーン環境の起動。
-2.  **テスト実行**: フルスイートは CI（`ci.yml` / `e2e.yml`）が正本。ローカルはスコープ限定で実行する — BE は `docker compose exec backend go test ./internal/<pkg>/ -run <Name> -count=1`（フル `go test ./...` は実行禁止 — リポジトリ直下 `todo.md`「Docker 検証規約」）、E2E は `frontend/scripts/run-e2e.sh <spec>`。
+2.  **テスト実行**: フルスイートは CI（`ci.yml` / `e2e.yml`）が正本。ローカルはスコープ限定で実行する — BE は `docker compose exec backend go test ./internal/<pkg>/ -run <Name> -count=1`（フル `go test ./...` は実行禁止 — [`.claude/CLAUDE.md`](../../../.claude/CLAUDE.md) の「Auto-Execution Prohibited Commands / Scoped Verification Exception」）、E2E は `frontend/scripts/run-e2e.sh <spec>`。
 3.  **結果集計**: 失敗したテストケースのトリアージと修正、再実行。
 4.  **最終報告**: 実施時のテスト結果レポートとして記録（旧 FUNCTIONAL_TEST_REPORT.md は削除済み — git 履歴参照）。
 

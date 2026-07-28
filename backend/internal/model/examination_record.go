@@ -65,6 +65,8 @@ type ExamResult struct {
 	ReferenceValue  string                  `gorm:"column:reference_value;default:''"              json:"reference_value"`
 	RefMin          *float64                `gorm:"column:ref_min;type:decimal(10,4)"              json:"ref_min,omitempty"`
 	RefMax          *float64                `gorm:"column:ref_max;type:decimal(10,4)"              json:"ref_max,omitempty"`
+	QualitativeMin  *string                 `gorm:"column:qualitative_min"                         json:"qualitative_min,omitempty"`
+	QualitativeMax  *string                 `gorm:"column:qualitative_max"                         json:"qualitative_max,omitempty"`
 	IsAbnormal      bool                    `gorm:"column:is_abnormal;default:false"               json:"is_abnormal"`
 	Status          ExaminationResultStatus `gorm:"type:exam_result_status;default:'normal'"        json:"status"`
 	SortOrder       int                     `gorm:"type:integer;default:0"                         json:"sort_order"`

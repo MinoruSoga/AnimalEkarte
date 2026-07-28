@@ -8,7 +8,10 @@
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;
+  --brand: #038b94;
+  --brand-active: #027078;
   --primary: #038b94;
+  --primary-active: #027078;
   --primary-foreground: #ffffff;
   --secondary: #F1F0EE;
   --secondary-foreground: #000000;
@@ -18,13 +21,13 @@
   --accent-foreground: #000000;
   --destructive: #C0392B;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.09);
-  --input: rgba(0, 0, 0, 0.16);
+  --border: #e6e6e6;
+  --input: #dddddd;
   --input-background: rgba(242, 241, 238, 0.6);
   --switch-background: #E3E2E0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(3, 139, 148, 0.32);
+  --ring: #038b94;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -39,8 +42,8 @@
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f6f5f4;
   --sidebar-accent-foreground: #000000;
-  --sidebar-border: rgba(0, 0, 0, 0.09);
-  --sidebar-ring: rgba(3, 139, 148, 0.32);
+  --sidebar-border: #e6e6e6;
+  --sidebar-ring: #038b94;
 }
 
 .dark {
@@ -50,8 +53,11 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --brand: #038b94;
+  --brand-active: #027078;
+  --primary: #038b94;
+  --primary-active: #027078;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -62,7 +68,7 @@
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --ring: #038b94;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: oklch(0.488 0.243 264.376);
@@ -72,31 +78,61 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #038b94;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar-ring: #038b94;
 }
 
 @theme inline {
   --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* Notion text scale: matches Figma's custom text sizes (xs=13px, sm=15px at 16px base) */
-  --text-xs: 0.8125rem;  /* 13px */
-  --text-sm: 0.9375rem;  /* 15px */
-  --tracking-compact: 0;
-  --tracking-compact-sm: 0;
-  --tracking-compact-xs: 0;
+  /* ── DESIGN.md typography 字義スケール（FE11: size/line-height/letter-spacing の3属性を全ロールで一致させる）──
+     Tailwind v4 の type-scale namespace は --text-*--line-height / --text-*--letter-spacing を伴走させられるため、
+     呼び出し側のクラスを変えずに全域へ字義値を適用できる。 */
+  --text-xs: 0.875rem;  /* 14px — DESIGN.md caption */
+  --text-xs--line-height: 1.43;  /* DESIGN.md caption 1.43（Tailwind 既定 1.33 を上書き） */
+  --text-sm: 0.9375rem;  /* 15px — DESIGN.md body-sm */
+  --text-sm--line-height: 1.33;  /* DESIGN.md body-sm 1.33（Tailwind 既定 1.43 を上書き） */
+  --text-base--line-height: 1.5;  /* DESIGN.md body-md 1.5 */
+  --text-xl--letter-spacing: -0.125px;  /* DESIGN.md title の負トラッキング（Inter 代替時は明示適用と規定） */
+  /* DESIGN.md heading ロール（FE11-F4）。Tailwind 既定の text-2xl/3xl/4xl(24/30/36px) は
+     DESIGN.md のスケールに存在しない値なので、描画箇所を以下のロールへ写像する。 */
+  --text-heading-3: 1.375rem;  /* 22px — カードタイトル */
+  --text-heading-3--line-height: 1.27;
+  --text-heading-3--letter-spacing: -0.25px;
+  --text-heading-2: 1.625rem;  /* 26px — サブセクション見出し */
+  --text-heading-2--line-height: 1.23;
+  --text-heading-2--letter-spacing: -0.625px;
+  --text-heading-1: 2.5rem;  /* 40px — ページ/セクション見出し */
+  --text-heading-1--line-height: 1.1;
+  --text-heading-1--letter-spacing: -1px;
   --notion-shadow: rgba(15,15,15,0.04) 0px 0px 0px 1px, rgba(15,15,15,0.04) 0px 4px 18px;
   --notion-shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
+  /* FE9-1: DESIGN.md §5 Elevation 実装トークン（design-system.md §5.1 が正本。Tailwind v4 が shadow-level1 等を生成） */
+  --shadow-level1: 0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04);
+  --shadow-level2: 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05);
+  --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
+  --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
+  --shadow-focus-primary: 0 0 0 2px #038b94;
+  --shadow-focus-brand: 0 0 0 2px #038b94;
+  /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
+  --shadow-brand-glow: 0 0 8px rgba(3,139,148,0.5);
+  --shadow-primary-glow: 0 0 8px rgba(3,139,148,0.5);
+  --text-2xs: 0.75rem;  /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
+  --text-2xs--line-height: 1.33;  /* DESIGN.md eyebrow 1.33（FE11: 製品値 1.45 を撤回） */
+  --text-2xs--letter-spacing: 0.125px;  /* DESIGN.md eyebrow +0.125px（FE11: tracking-wide=+0.3px 代用を撤回） */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-brand: var(--brand);
+  --color-brand-active: var(--brand-active);
   --color-primary: var(--primary);
+  --color-primary-active: var(--primary-active);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -119,6 +155,7 @@
   /* Pinned directly to DESIGN.md's rounded scale (xs/sm/md/lg/xl = 4/5/8/12/16px)
      instead of the shadcn default relative-offset chain, so rounded-sm doesn't
      balloon in lockstep with rounded-lg/xl. */
+  --radius-xxs: 4px; /* FE10: DESIGN.md 最小段 xs=4px に整列（3px 製品拡張を撤回） */
   --radius-xs: 4px;
   --radius-sm: 5px;
   --radius-md: 8px;
@@ -136,7 +173,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   html {
@@ -167,22 +204,26 @@
  */
 @layer base {
   :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    /* FE11-F4: DESIGN.md heading ロールへ整列（旧 text-2xl/xl/lg = 24/20/18px は DESIGN.md 非仕様値） */
     h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-heading-2);
+      font-weight: 700;
+      line-height: var(--text-heading-2--line-height);
+      letter-spacing: var(--text-heading-2--letter-spacing);
     }
 
     h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-heading-3);
+      font-weight: 700;
+      line-height: var(--text-heading-3--line-height);
+      letter-spacing: var(--text-heading-3--letter-spacing);
     }
 
     h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      font-size: var(--text-xl);
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: var(--text-xl--letter-spacing);
     }
 
     h4 {

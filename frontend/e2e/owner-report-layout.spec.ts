@@ -1,21 +1,22 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
+
 import { loginAsDemoAdmin } from './helpers/auth';
 
-// #158 飼主レポート 高密度レイアウト回帰テスト。
-// 目的: デスクトップでページ全体をスクロールさせず、各履歴パネルが境界内スクロールすることを
-//       実ブラウザの DOM 計測で証明する（jsdom ではレイアウトが無いため検証できない）。
-//
-// Seed: owner id=1 「林 文明」, pet id=1 「Iris(イリス)」 at clinic_id=1 (003_seed_demo.sql)。
-// 認証: admin@noavet.jp / password (system_admin)。
-//
-// スクリーンショット出力先は SHOT_DIR 環境変数で差し替え可能（リポジトリを汚さないため /tmp 等にマウント）。
-
-const REPORT_URL = '/owners/1/report?petId=1';
+const REPORT_OWNER_ID = process.env.OWNER_REPORT_E2E_OWNER_ID ?? '1';
+const REPORT_PET_ID = process.env.OWNER_REPORT_E2E_PET_ID ?? '1';
+const REPORT_URL = `/owners/${REPORT_OWNER_ID}/report?petId=${REPORT_PET_ID}`;
 const SHOT_DIR = process.env.SHOT_DIR ?? 'test-results/owner-report';
-
-// 上部固定バーを除いた本文がページスクロールしないことを許容する誤差(px)。
 const SCROLL_TOLERANCE = 2;
+
+const PANEL_NAMES = [
+  '診療前の確認',
+  '今日の来院',
+  '次の行動',
+  '前回診療',
+  '基本情報',
+  '種類別履歴',
+] as const;
 
 interface PanelMetric {
   overflowY: string;
@@ -27,27 +28,49 @@ async function gotoReport(context: BrowserContext, width: number, height: number
   const page = await context.newPage();
   await page.setViewportSize({ width, height });
   await page.goto(REPORT_URL, { waitUntil: 'domcontentloaded' });
-  // 飼主名(h1) と最初のパネル見出しが出るまで待つ。
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30000 });
-  await expect(page.getByRole('heading', { name: 'ペット詳細' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('region', { name: '診療前の確認' })).toBeVisible({ timeout: 30000 });
   return page;
 }
 
-async function panelMetrics(page: import('@playwright/test').Page): Promise<PanelMetric[]> {
+async function panelMetrics(page: Page): Promise<PanelMetric[]> {
   return page.evaluate(() => {
-    const bodies = Array.from(document.querySelectorAll('main [tabindex="0"]'));
-    return bodies.map((el) => {
-      const cs = getComputedStyle(el);
-      return {
-        overflowY: cs.overflowY,
-        clientHeight: (el as HTMLElement).clientHeight,
-        scrollHeight: (el as HTMLElement).scrollHeight,
-      };
-    });
+    return Array.from(document.querySelectorAll<HTMLElement>('[data-owner-report-scroll]')).map(
+      (element) => {
+        const style = getComputedStyle(element);
+        return {
+          overflowY: style.overflowY,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        };
+      },
+    );
   });
 }
 
-test.describe('#158 飼主レポート 高密度レイアウト', () => {
+async function expectFixedViewport(page: Page) {
+  const documentMetric = await page.evaluate(() => {
+    window.scrollTo(0, 5000);
+    return {
+      scrollHeight: document.scrollingElement?.scrollHeight ?? 0,
+      scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
+      innerHeight: window.innerHeight,
+      innerWidth: window.innerWidth,
+      scrollY: window.scrollY,
+      scrollX: window.scrollX,
+    };
+  });
+  expect(documentMetric.scrollHeight).toBeLessThanOrEqual(
+    documentMetric.innerHeight + SCROLL_TOLERANCE,
+  );
+  expect(documentMetric.scrollWidth).toBeLessThanOrEqual(
+    documentMetric.innerWidth + SCROLL_TOLERANCE,
+  );
+  expect(documentMetric.scrollY).toBe(0);
+  expect(documentMetric.scrollX).toBe(0);
+}
+
+test.describe('#158 飼主レポート 1画面ブリーフィング', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -58,159 +81,110 @@ test.describe('#158 飼主レポート 高密度レイアウト', () => {
   });
 
   test.afterAll(async () => {
-    await context.close();
+    await context?.close();
   });
 
-  for (const vp of [
+  for (const viewport of [
     { name: '1440x900', width: 1440, height: 900 },
-    { name: '1920x1080', width: 1920, height: 1080 },
+    { name: '1280x720', width: 1280, height: 720 },
+    { name: '390x844', width: 390, height: 844 },
+    { name: '844x390', width: 844, height: 390 },
+    { name: '568x320', width: 568, height: 320 },
+    { name: '320x480', width: 320, height: 480 },
   ]) {
-    test(`デスクトップ ${vp.name}: ページ全体はスクロールせず、8 パネルが境界内スクロールになる`, async () => {
-      const page = await gotoReport(context, vp.width, vp.height);
+    test(`${viewport.name}: 6領域をページスクロールなしで同時提示する`, async () => {
+      const page = await gotoReport(context, viewport.width, viewport.height);
       try {
-        // --- AC1: ページ(body)レベルの縦スクロールが発生しない ---
-        const doc = await page.evaluate(() => {
-          // ページスクロールを試みても動かないことも確認する。
-          window.scrollTo(0, 5000);
-          return {
-            scrollH: document.scrollingElement?.scrollHeight ?? 0,
-            innerH: window.innerHeight,
-            scrollYAfterAttempt: window.scrollY,
-          };
-        });
-        expect(doc.scrollH).toBeLessThanOrEqual(doc.innerH + SCROLL_TOLERANCE);
-        expect(doc.scrollYAfterAttempt).toBe(0);
+        await expectFixedViewport(page);
 
-        // --- AC2: 9 パネルそれぞれが overflow:auto かつビューポート内に収まる境界高さを持つ ---
+        for (const panelName of PANEL_NAMES) {
+          await expect(page.getByRole('region', { name: panelName })).toBeVisible();
+          await expect(page.getByRole('heading', { name: panelName })).toBeVisible();
+        }
+        await expect(page.getByRole('tablist')).toHaveCount(0);
+        await expect(page.getByRole('tab')).toHaveCount(0);
+        await expect(page.getByRole('tabpanel')).toHaveCount(0);
+
         const metrics = await panelMetrics(page);
-        expect(metrics).toHaveLength(9);
-        for (const m of metrics) {
-          expect(['auto', 'scroll']).toContain(m.overflowY);
-          expect(m.clientHeight).toBeGreaterThan(0);
-          expect(m.clientHeight).toBeLessThanOrEqual(doc.innerH);
+        expect(metrics).toHaveLength(6);
+        for (const metric of metrics) {
+          expect(['auto', 'scroll']).toContain(metric.overflowY);
+          expect(metric.clientHeight).toBeGreaterThan(0);
+          expect(metric.clientHeight).toBeLessThanOrEqual(viewport.height);
         }
 
-        // --- AC4: 9 セクション見出しが最初のビューポートに同時提示される ---
-        for (const title of [
-          'ペット詳細',
-          '予防接種履歴',
-          '健康診断（検査）履歴',
-          '健診（パッケージ）履歴',
-          '投薬履歴',
-          '麻酔処置履歴',
-          '手術処置履歴',
-          '治療履歴',
-          'トリミング履歴',
-        ]) {
-          await expect(page.getByRole('heading', { name: title })).toBeVisible();
-        }
-
-        await page.screenshot({ path: `${SHOT_DIR}/owner-report-${vp.name}.png` });
+        await page.screenshot({ path: `${SHOT_DIR}/owner-report-${viewport.name}.png` });
       } finally {
         await page.close();
       }
     });
   }
 
-  test('短いビューポートで履歴が溢れても、内部スクロールに閉じ込められページは動かない (AC2/AC3)', async () => {
-    // 高さを意図的に詰めて、データ量に依存せず必ずパネル内オーバーフローを起こす。
-    const page = await gotoReport(context, 1280, 520);
+  test('履歴は縦を種類、横を日付にし、薬・予防接種・処置を別行表示する', async () => {
+    const page = await gotoReport(context, 1440, 900);
+    try {
+      const history = page.getByRole('table', {
+        name: '診療履歴を種類別に分け、日付の新しい順に左から表示',
+      });
+      await expect(history).toBeVisible();
+      for (const kind of ['診療', '検査', '薬・処方', '予防接種', '処置', 'ケア']) {
+        await expect(history.getByRole('rowheader', { name: new RegExp(kind) })).toBeVisible();
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
+  test('短い画面で内容が溢れても内部だけスクロールし、ページは動かない', async () => {
+    const page = await gotoReport(context, 568, 320);
     try {
       const before = await panelMetrics(page);
-      // 少なくとも 1 つのパネルが内容過多でスクロール可能(scrollHeight > clientHeight)になる。
-      const overflowingIndex = before.findIndex((m) => m.scrollHeight > m.clientHeight + 1);
+      const overflowingIndex = before.findIndex(
+        (metric) => metric.scrollHeight > metric.clientHeight + 1,
+      );
       expect(overflowingIndex).toBeGreaterThanOrEqual(0);
 
-      const result = await page.evaluate((idx) => {
-        const bodies = Array.from(document.querySelectorAll('main [tabindex="0"]')) as HTMLElement[];
-        const el = bodies[idx];
-        el.scrollTop = el.scrollHeight; // パネル内を最下部までスクロール
-        return { panelScrollTop: el.scrollTop, windowScrollY: window.scrollY };
+      const result = await page.evaluate((index) => {
+        const panels = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-owner-report-scroll]'),
+        );
+        const panel = panels[index];
+        panel.scrollTop = panel.scrollHeight;
+        return { panelScrollTop: panel.scrollTop, windowScrollY: window.scrollY };
       }, overflowingIndex);
 
-      // パネル内はスクロールした / ページ(window)は動いていない。
       expect(result.panelScrollTop).toBeGreaterThan(0);
       expect(result.windowScrollY).toBe(0);
-
-      // AC3: 内部スクロール後も飼主コンテキスト(飼主名 h1)は上部バーに残り視認できる。
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     } finally {
       await page.close();
     }
   });
 
-  test('ペット切替はページ遷移せず ?petId= を同期する (AC5)', async () => {
+  test('ペット選択はタブを使わず、ページ遷移なしでpetIdを同期する', async () => {
     const page = await gotoReport(context, 1440, 900);
     try {
-      const tabs = page.getByRole('tab');
-      const count = await tabs.count();
+      const selector = page.getByRole('combobox', { name: 'ペット切替' });
+      const options = selector.getByRole('option');
+      const count = await options.count();
       if (count < 2) {
         test.info().annotations.push({
           type: 'note',
-          description: `飼主1 のペットは ${count} 件のため切替はライブ検証不可。RTL テストで担保。`,
+          description: `対象飼主のペットは${count}件のため、切替はRTLテストで担保する。`,
         });
         return;
       }
-      const pathBefore = new URL(page.url()).pathname;
-      await tabs.nth(1).click();
-      await expect(async () => {
-        const url = new URL(page.url());
-        expect(url.pathname).toBe(pathBefore); // ルート遷移していない
-        expect(url.searchParams.get('petId')).not.toBeNull();
-      }).toPass({ timeout: 5000 });
-      // 切替後も全パネルは健在（末尾のトリミング履歴まで残る）
-      await expect(page.getByRole('heading', { name: 'トリミング履歴' })).toBeVisible();
-    } finally {
-      await page.close();
-    }
-  });
 
-  test('モバイル 390x844: 飼主と全セクションが利用可能（ページスクロール許容） (AC8)', async () => {
-    const page = await gotoReport(context, 390, 844);
-    try {
-      // 飼主名 + 9 セクション見出しが（スクロールすれば）到達可能であること。
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      for (const title of [
-        'ペット詳細',
-        '予防接種履歴',
-        '健康診断（検査）履歴',
-        '健診（パッケージ）履歴',
-        '投薬履歴',
-        '麻酔処置履歴',
-        '手術処置履歴',
-        '治療履歴',
-        'トリミング履歴',
-      ]) {
-        await expect(page.getByRole('heading', { name: title })).toBeAttached();
+      const pathname = new URL(page.url()).pathname;
+      const nextPetId = await options.nth(1).getAttribute('value');
+      if (!nextPetId) throw new Error('2頭目のpetIdを取得できません');
+      await selector.selectOption(nextPetId);
+
+      await expect.poll(() => new URL(page.url()).pathname).toBe(pathname);
+      await expect.poll(() => new URL(page.url()).searchParams.get('petId')).toBe(nextPetId);
+      for (const panelName of PANEL_NAMES) {
+        await expect(page.getByRole('region', { name: panelName })).toBeVisible();
       }
-
-      // モバイルでは root(div) 自身がスクロールコンテナ（html/body は overflow:hidden 固定）。
-      // 内容がビューポートを超えてスクロール可能で、末尾セクションまで実際に到達できることを確認する。
-      const reach = await page.evaluate(() => {
-        const main = document.querySelector('main') as HTMLElement;
-        const root = main.parentElement as HTMLElement; // h-dvh の root = スクロールコンテナ
-        root.scrollTop = root.scrollHeight; // 末尾までスクロール
-        const sections = Array.from(document.querySelectorAll('main section')) as HTMLElement[];
-        const last = sections[sections.length - 1];
-        const rect = last.getBoundingClientRect();
-        return {
-          rootScrollable: root.scrollHeight > root.clientHeight + 1,
-          lastVisibleInViewport: rect.top < window.innerHeight && rect.bottom > 0,
-        };
-      });
-      // 内容過多でも root スクロールで全コンテンツに到達可能（祖先クリップで埋もれない）。
-      expect(reach.rootScrollable).toBe(true);
-      expect(reach.lastVisibleInViewport).toBe(true);
-
-      // AC3(モバイル): スクロール後も飼主名は sticky ヘッダーでビューポート内に残る。
-      await expect(page.getByRole('heading', { level: 1 })).toBeInViewport();
-
-      // スクリーンショットは先頭に戻して撮る。
-      await page.evaluate(() => {
-        const main = document.querySelector('main') as HTMLElement;
-        (main.parentElement as HTMLElement).scrollTop = 0;
-      });
-      await page.screenshot({ path: `${SHOT_DIR}/owner-report-390x844.png`, fullPage: true });
     } finally {
       await page.close();
     }

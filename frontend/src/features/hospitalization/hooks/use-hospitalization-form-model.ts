@@ -148,6 +148,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
     gender: hospitalization.pet.gender,
+    status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
   } as Pet;
 }
 
@@ -168,6 +169,22 @@ export function mergePetIntoHospitalizationFormData(
     species: selectedPet.species,
     weight: selectedPet.weight ? `${selectedPet.weight}kg` : "",
   };
+}
+
+export function buildTreatmentPlansFromRecord(
+  hospitalization: BackendHospitalization,
+): HospitalizationTreatmentPlan[] {
+  return (hospitalization.treatment_plans ?? []).map((plan) => ({
+    id: String(plan.id),
+    treatmentContent: plan.treatment_content,
+    memo: plan.memo,
+    is_insurance: plan.is_insurance,
+    unitPrice: plan.unit_price,
+    quantity: plan.quantity,
+    discount: plan.discount_rate,
+    discountAmount: plan.discount_amount,
+    subtotal: plan.subtotal,
+  }));
 }
 
 export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {

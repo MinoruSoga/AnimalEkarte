@@ -1,4 +1,12 @@
-import { useState, lazy, Suspense, useCallback, useEffect } from "react";
+import {
+  useState,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +18,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -47,6 +55,10 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
   // #84: 登録先医院の選択肢（所属医院のみ）と現在の医院。複数所属時のみセレクト表示
   const { user, currentClinicId } = useAuth();
   // BUG-372: 割引権限（値引率フィールド制御用）
@@ -84,7 +96,15 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     formState,
     fieldErrors,
     clearFieldError,
-  } = useOwnerForm(ownerId, initialOwner, petMutations);
+  } = useOwnerForm(ownerId, initialOwner, petMutations, {
+    canCreate,
+    canEdit,
+    canDelete,
+  });
+  const editingPetRef = useRef(editingPet);
+  useLayoutEffect(() => {
+    editingPetRef.current = editingPet;
+  }, [editingPet]);
 
   const canSubmit = isEdit ? canEdit : canCreate;
 
@@ -124,15 +144,24 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   // BUG-373: 飼主変更 — discount_rate/membership_type が異なる時のみ確認モーダル
   const handlePetChangeOwner = useCallback(
     (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
-      if (!editingPet?.id || !petMutations) return;
+      const currentEditingPet = editingPetRef.current;
+      if (
+        canEditRef.current !== true ||
+        !currentEditingPet?.id ||
+        currentEditingPet.status === "死亡" ||
+        !petMutations
+      ) {
+        return;
+      }
       const needsConfirm =
         (ownerData.discountRate ?? 0) !== newOwner.discountRate ||
         ownerData.membershipType !== newOwner.membershipType;
       if (needsConfirm) {
         setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
       } else {
+        if (canEditRef.current !== true) return;
         petMutations.updatePetMutate(
-          { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+          { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
           {
             onSuccess: () => {
               toast.success(`飼主を ${newOwner.name} に変更しました`);
@@ -145,14 +174,24 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         );
       }
     },
-    [editingPet, petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
+    [petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
   );
 
   const handleConfirmOwnerChange = useCallback(() => {
-    if (!pendingOwnerChange || !editingPet?.id || !petMutations) return;
+    const currentEditingPet = editingPetRef.current;
+    if (
+      canEditRef.current !== true ||
+      !pendingOwnerChange ||
+      !currentEditingPet?.id ||
+      currentEditingPet.status === "死亡" ||
+      !petMutations
+    ) {
+      return;
+    }
     const newOwner = pendingOwnerChange;
+    if (canEditRef.current !== true) return;
     petMutations.updatePetMutate(
-      { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+      { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
       {
         onSuccess: () => {
           toast.success(`飼主を ${newOwner.name} に変更しました`);
@@ -165,7 +204,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         },
       },
     );
-  }, [pendingOwnerChange, editingPet, petMutations, setPetModalOpen]);
+  }, [pendingOwnerChange, petMutations, setPetModalOpen]);
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
@@ -205,15 +244,15 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   );
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
         resource={ResourceOwners}
-        maxWidth="max-w-[1400px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
         headerAction={
           canSubmit ? (
-            <SubmitButton size="sm" colorVariant="brand">
+            <SubmitButton size="sm" colorVariant="primary">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
           ) : null

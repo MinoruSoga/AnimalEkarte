@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { MasterSidePanel, MoneyInput, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -20,7 +20,7 @@ export type TreatmentFormData = {
   parentId?: string;
 };
 
-const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-full`;
 
 interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
@@ -33,6 +33,7 @@ interface TreatmentItemSidePanelProps {
   onDeleteRequest?: () => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  details?: ReactNode;
 }
 
 export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -44,6 +45,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onDeleteRequest,
   readOnly,
   onDirtyChange,
+  details,
 }: TreatmentItemSidePanelProps) {
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
     name: item?.name ?? "",
@@ -120,7 +122,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>
@@ -169,6 +171,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           placeholder="補足情報など"
         />
       </PropertyRow>
+      {details}
     </MasterSidePanel>
   );
 });

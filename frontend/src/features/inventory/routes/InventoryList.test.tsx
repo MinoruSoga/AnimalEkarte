@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -6,6 +6,10 @@ import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/utils";
 import type { InventoryItem as BackendInventoryItem } from "@/types/generated/models";
 import { InventoryList } from "./InventoryList";
+
+const { mockHasPermission } = vi.hoisted(() => ({
+  mockHasPermission: vi.fn((_resource: string, _action: string) => true),
+}));
 
 // PageLayout の resource prop 経由で PermissionBadges → usePermission → useAuth が呼ばれるため、
 // AuthProvider 非依存でレンダーできるよう最小限のモックを用意する（CashRegisterHistoryPage.test.tsx と同パターン）。
@@ -16,7 +20,7 @@ vi.mock("@/hooks/use-auth", () => ({
       clinic: { name: "テスト動物病院" },
     },
     currentClinicId: "1",
-    hasPermission: () => true,
+    hasPermission: mockHasPermission,
   }),
 }));
 
@@ -74,6 +78,10 @@ const mockItems: BackendInventoryItem[] = [
 const renderList = () =>
   render(<InventoryList />, { wrapper: createTestWrapper({ initialEntries: ["/inventory"] }) });
 
+beforeEach(() => {
+  mockHasPermission.mockImplementation(() => true);
+});
+
 describe("InventoryList — BUG-414 category/status の is_not フィルタ", () => {
   afterEach(() => {
     server.resetHandlers();
@@ -119,5 +127,41 @@ describe("InventoryList — BUG-414 category/status の is_not フィルタ", ()
       expect(screen.queryByText("ワクチンA")).not.toBeInTheDocument();
     });
     expect(screen.getByText("フードB")).toBeInTheDocument();
+  });
+});
+
+describe("InventoryList row navigation accessibility", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("編集権限がある行に品名・ID付き44px native detail linkを表示する", async () => {
+    server.use(
+      http.get("*/v1/inventory", () =>
+        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 })
+      )
+    );
+
+    renderList();
+
+    const detailLink = await screen.findByRole("link", { name: /ワクチンA/ });
+    expect(detailLink).toHaveAttribute("href", "/inventory/1");
+    expect(detailLink).toHaveAccessibleName(/ID: 1/);
+    expect(detailLink).toHaveClass("min-h-11", "min-w-11");
+  });
+
+  it("編集権限がない行は品名をlinkにせず操作buttonも表示しない", async () => {
+    mockHasPermission.mockImplementation((_resource, action) => action !== "edit");
+    server.use(
+      http.get("*/v1/inventory", () =>
+        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 })
+      )
+    );
+
+    renderList();
+
+    expect(await screen.findByText("ワクチンA")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /ワクチンA/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ワクチンA/ })).not.toBeInTheDocument();
   });
 });

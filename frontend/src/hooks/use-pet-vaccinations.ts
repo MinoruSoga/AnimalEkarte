@@ -43,7 +43,7 @@ const getPetVaccinations = async (
   petId: string,
 ): Promise<PetVaccinationHistoryItem[]> => {
   const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {
-    params: { pet_id: Number(petId) },
+    params: { pet_id: petId },
   });
   return (data.data ?? []).map(transformToHistoryItem);
 };

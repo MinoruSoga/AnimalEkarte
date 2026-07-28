@@ -38,7 +38,7 @@ export const SidePeekFooter = memo(function SidePeekFooter({
       <SubmitButton
         onClick={onSave}
         disabled={isPending}
-        className="h-9 px-5"
+        className="h-9 px-4"
         loadingText="保存中..."
       >
         {saveLabel}

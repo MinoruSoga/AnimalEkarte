@@ -4,27 +4,28 @@
 > **読者**: 開発者。
 > **タイミング**: seed/migration変更時。
 
-更新日: 2026-07-10
+更新日: 2026-07-27
 
 ## 前提
 
-- `backend/migrations/` に存在する `.sql` は `001_init.sql`（DDL 専用、変更しない）のみ。002/003/004 の stub SQL ファイルは **2026-07 に削除済み**。002〜004 は現在 `backend/migrations/seeds/{002_master,003_demo,004_staging}/` という CSV + `manifest.json` のディレクトリとしてのみ存在する。
+- `backend/migrations/` 直下の `.sql` はDDL専用で、現行は旧増分002〜009を末尾へ統合した `001_init.sql` 1本だけが存在する。統合した旧ファイルの原文・元コミット・SHA-256は001末尾のアーカイブ節に保持する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
-  1. `*.sql`（実質 `001_init.sql` のみ）を昇順適用し `schema_migrations` にファイル名で記録
+  1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrder` の固定順（`002_master → 003_demo → 004_staging`）で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
-- fresh DB 適用後の正しい終了状態は `schema_migrations` に **4行**: `001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
-- 既に適用済みの `001_init.sql` / seed バンドル（CSV・manifest.json）を編集すると、既存 DB の `schema_migrations` に記録された checksum と不一致になる。
-- **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを「適用済み」として baseline する（見つかった旧キーに対応するものだけでなく常に全件。`baselineIfNeeded` と同じ保守的方針 — 一部だけ baseline すると残りのバンドルが `runSeedBundles` に CSV 自動ロードされてしまうため）。`db_reset=true`/ボリューム再構築は不要になった。
+- fresh DB 適用後の正しい終了状態は `schema_migrations` に **4行**（DDL 1 + seed 3）: `001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
+- `schema_migrations`が空で既存の`clinics`テーブルを検出した場合、`guardEmptyMigrationHistory`はschema完全性を検証できないためfail-closedで停止する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築後、通常のDDL・seed適用経路を完走させる。
+- 2026-07-27統合前の `001_init.sql` が適用済みのDBでは、統合後001とのchecksum mismatchが必ず発生する。ローカルは`DB_RESET=true`相当の手動再構築が必要で、現行Cloudflare workflowにはSTGを自動resetする経路がない。共有STGは破壊的操作の明示承認後に再構築する。
+- **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し、旧 stub に対応する `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを現行キーへ翻訳して「適用済み」として記録する（見つかった旧キーに対応するものだけでなく、旧形式相当3件を常に全件）。これは履歴が存在するDBだけの互換処理で、CSVは再ロードせず、DDL checksum検証も迂回しない。旧キー移行だけを理由とする DB 再作成は不要。
 
 ## 今回の事故で確認したこと
 
 - seed master 差し替えは静的 grep だけでは不十分で、**fresh DB apply** まで通して初めて `(clinic_id, name)` の実衝突を検知できた。この教訓が CSV 移行時の「正データ=DBダンプ・静的パース禁止」の根拠になっている。
 - 今回の demo/master 差し替えは **DB reset 前提** で判断した。既存 DB にそのまま上書き適用する前提ではない。
 - ローカル復旧で必要だったのは `make reset` 相当の DB 再構築であり、`make db` は `psql` 接続用コマンドであって reset ではない。
-- STG で適用済み migration/seed を編集して反映する場合、DB リセットが必要になる可能性が高い。stub SQL 削除自体は 002〜004 の記録キーを変える変更だが、**旧キーが残った既存環境（STG 等）は `detectLegacySeedKeys` が自動 baseline するため DB リセット不要**（上記「旧形式互換」参照。P1-3, PR #186 review 以降）。Cloudflare 正系統の `backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力は存在しない（`.env.staging` の `DB_RESET` 値に従う想定）。明示指定できるのは旧 AWS ECS ロールバック経路 `backend-deploy-ecs.yml` の `-f db_reset=true` のみ。
+- STG で適用済み migration/seed を編集して反映する場合、DB 再作成が必要になる可能性が高い。stub SQL 削除自体は 002〜004 の記録キーを変える変更だが、**旧キーが残った既存環境（STG 等）は `detectLegacySeedKeys` が旧形式相当3件を現行キーへ自動翻訳するため、旧キー移行だけを理由とする DB 再作成は不要**（上記「旧形式互換」参照）。空履歴＋既存schemaはこの互換処理の対象外でfail-closedする。現行 Cloudflare の `backend-deploy.yml` に `db_reset` 入力はなく、AWS ECS/RDS 経路も廃止済み。共有 STG の再作成が必要な場合は、明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) の破壊的操作境界に従う。
 
 ## CSV シードバンドルの再生成（seed データ内容を変更する場合）
 
@@ -54,71 +55,15 @@ docker compose exec backend go run ./cmd/seed-export
 
 ---
 
-## 旧DB移行：推奨経路は stage-import（animalekarte_stage → 本テーブル）
+## 旧DB移行：正式経路は CSV import（F6）
 
-更新日: 2026-06-25
-
-> **⚠️ 直下の TSV ベース直接 seeder (`make seed-old-db`) は deprecated（comparison-only）。**
-> 新規の移行作業・本テーブル投入は **`make stage-import`** を使うこと。下記
-> 「旧DB移行データのローカル投入 (old-db seed)」節は比較用に残す。
-
-### なぜ stage-import か
-
-直接 seeder は変換ロジックを2リポジトリ（old_db の Node generator + AnimalEkarte の Go seeder）
-に分割していたため、マッピング正しさを単一クエリで検証できなかった。空 clinic / branch code
-leakage / owner `000001` 衝突 / `record_no`単独 mis-link / 子明細 orphan / lineage 欠落 といった
-既知の失敗はすべて下流で個別に潰すしかなかった。
-
-`old_db` の3層パイプライン（`legacy_raw` → `legacy_canonical` → `animalekarte_stage`、
-old_db `make migration-pipeline`）は全変換を純 SQL に集約し、`make migration-stage-check` が
-各失敗モードを決定的に検証する。stage-import はその **検証済み stage** を唯一の投入元として
-本テーブルへ取り込むため、投入前に正しさが保証される。
-
-### 手順（推奨）
-
-```bash
-# 0. old_db 側（別 repo）でパイプラインを構築・検証
-#    cd old_db && make local-postgres-up && make migration-pipeline && make migration-stage-check
-
-# 1. stage の TCP パスワードを渡す（old_db の POSTGRES_PASSWORD と同一）
-export OLD_DB_POSTGRES_PASSWORD=...
-
-# 2. dry-run（件数表示・本テーブルへの書き込みは0）
-make stage-import-dry-run
-
-# 3. apply（破壊的：old_db 由来行を削除し stage から再投入。demo/master/config は保持）
-make stage-import
-
-# 4. 投入後検証（空clinic / branch leakage / owner collision / orphan / record_no / demo混入）
-make verify-stage-import
-```
-
-### 仕組み（要点）
-
-| 項目 | 内容 |
-|------|------|
-| 投入元 | `animalekarte_stage.*`（old_db の `ani_legacy` Postgres）のみ。`legacy_raw`/`legacy_canonical` から本テーブルへは書かない |
-| 対象行 | `mapping_status IN ('confirmed','inferred')` のみ。`needs_review`/`archive_only`/`blocked` は投入せず件数と理由を report |
-| 親子整合 | hard-FK 子（billing_items→billings、exam_results→exams）は親が非対象なら子もスキップ（dangling FK 防止） |
-| clinic | 本テーブルの 八王子病院 を名前解決した id に固定。legacy branch code は使わない |
-| NOT NULL 補完 | `animal_species_id`/`exam_type_id` は本テーブルの fallback id、`date`/`scheduled_date` は 1900-01-01 へ COALESCE、`name_kana` は katakana CHECK 回避のため非投入（DEFAULT '') |
-| 安全境界 | 非ローカル TARGET DB_HOST を拒否。stage 接続は read-only。apply は `--apply` かつ `--confirm-local-destroy` 必須 |
-| トランザクション | 削除→投入を単一トランザクションで実行。失敗時は全ロールバック（中途半端な本テーブル状態を残さない） |
-| 冪等性 | 再実行で old_db 由来行を削除してから再投入するため重複しない |
-| 実装 | `backend/cmd/stage-import/`、`docker-compose.stage-import.yml`、`scripts/verify-stage-import.sh` |
-
-### テスト
-
-- unit: `make test`（SQL生成・status filter・親子cascade・guard・delete scope・FK順）
-- rollback / read-only 統合: `make stage-import-rollback-test`（注入失敗後に件数不変・stage は read-only）
-
----
+正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の21表 CSV + manifest を read-only mount して `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で実行する。
 
 ## 旧DB移行データのローカル投入 (old-db seed) — **deprecated / comparison-only**
 
 更新日: 2026-06-24
 
-> **⚠️ deprecated。** 上の `make stage-import` を使うこと。本節は比較用に保持。
+> **⚠️ deprecated。** 本節は比較用に保持。
 
 `old_db/sensitive-local/migration-output/` にある TSV ファイル（旧DB→新スキーマのマッピング済みデータ）をローカル開発DBへ投入する手順。
 

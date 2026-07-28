@@ -35,7 +35,7 @@ docker volume rm ekarte-postgres-data
 # 再びコンテナを起動
 make up
 ```
-起動時に `001_init.sql`（DDL）が適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（2026-07 以降、002-004 は stub SQL ではなく CSV バンドルのみ）。
+起動時に旧増分002〜009を末尾へ統合済みの `001_init.sql` が単一DDLとして適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。2026-07-27統合前の001が適用済みのDBはchecksum mismatchになるため、この再構築が必須です。
 
 ---
 
@@ -59,6 +59,6 @@ Seed bundle summary applied=3 skipped=0 total=3
 
 ## 4. 注意事項
 - **データ消失**: この操作により、ローカル環境に入力したテスト用データは全て削除されます。
-- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行せず、`gh workflow run` による正規のデプロイ手順に従ってください。
+- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行しないでください。現行workflowはDBを再作成しません。再構築が必要な場合は、破壊的操作の明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従います。
 
 ---

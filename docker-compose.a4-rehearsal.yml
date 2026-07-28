@@ -1,0 +1,70 @@
+# A4 UI rehearsal only. This override creates a disposable, localhost-only
+# full stack under a unique Compose project. It must never target shared data.
+services:
+  db:
+    env_file: !override
+      - ${A4_ENV_FILE:?set A4_ENV_FILE to an owner-only minimal env file}
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+    ports: !override
+      - "127.0.0.1:${A4_DB_PORT:-15434}:5432"
+
+  backend:
+    env_file: !override
+      - ${A4_ENV_FILE:?set A4_ENV_FILE to an owner-only minimal env file}
+    image: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_backend:${A4_TARGET_RELEASE_COMMIT:?set A4_TARGET_RELEASE_COMMIT}
+    build:
+      labels:
+        org.opencontainers.image.revision: ${A4_TARGET_RELEASE_COMMIT:?set A4_TARGET_RELEASE_COMMIT}
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+    environment:
+      DB_NAME: ${DB_NAME:?set DB_NAME in A4_ENV_FILE}
+    ports: !override
+      - "127.0.0.1:${A4_BACKEND_PORT:-18080}:8080"
+
+  frontend:
+    image: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_frontend:${A4_TARGET_RELEASE_COMMIT:?set A4_TARGET_RELEASE_COMMIT}
+    build:
+      tags: !override
+        - ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_frontend:${A4_TARGET_RELEASE_COMMIT:?set A4_TARGET_RELEASE_COMMIT}
+      labels:
+        org.opencontainers.image.revision: ${A4_TARGET_RELEASE_COMMIT:?set A4_TARGET_RELEASE_COMMIT}
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+    ports: !override
+      - "127.0.0.1:${A4_FRONTEND_PORT:-13003}:3000"
+
+volumes:
+  postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_postgres_data
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+  frontend_node_modules:
+    name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_frontend_node_modules
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+  go_mod_cache:
+    name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_go_mod_cache
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+  go_build_cache:
+    name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_go_build_cache
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}
+
+networks:
+  ekarte-network:
+    name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}_ekarte-network
+    internal: true
+    attachable: false
+    labels:
+      com.animalekarte.a4.disposable: "true"
+      com.animalekarte.a4.run-id: ${A4_RUN_ID:?set A4_RUN_ID}

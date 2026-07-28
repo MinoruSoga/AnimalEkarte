@@ -38,8 +38,9 @@ func BundleMigrationKey(bundleDir string) string {
 // an older binary before these files were deleted from the repo will still
 // carry these keys but will never gain the new "seeds/<bundle>" keys, since
 // nothing on disk maps to them anymore. cmd/migrate checks for their
-// presence at startup and, if any are found, baselines ALL seeds/<bundle>
-// keys as applied (never just the bundles matching the legacy keys found —
+// presence at startup and, if any are found, baselines all legacy-equivalent
+// seeds/<bundle> keys as applied (never just the bundle matching the specific
+// legacy key found —
 // see legacyTranslationTargets in cmd/migrate) rather than fail-fasting or
 // silently reinterpreting/skipping seed application — see
 // detectLegacySeedKeys in cmd/migrate.

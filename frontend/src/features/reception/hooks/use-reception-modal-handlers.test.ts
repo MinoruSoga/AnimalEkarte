@@ -1,15 +1,23 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Pet } from "@/types";
+import {
+  DangerLevelHigh,
+  PetStatusAlive,
+  PetStatusDeceased,
+} from "@/types/generated/models";
+
 import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
 
-const { updateReservationMock } = vi.hoisted(() => ({
+const { toastSuccessMock, updateReservationMock } = vi.hoisted(() => ({
+  toastSuccessMock: vi.fn(),
   updateReservationMock: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn() },
+  toast: { success: toastSuccessMock },
 }));
 
 vi.mock("@/hooks/use-update-reservation", () => ({
@@ -39,16 +47,79 @@ const baseAppointment: ReceptionAppointment = {
   source: "manual",
 };
 
-function renderHandlers(updateAppointment = vi.fn()) {
-  return renderHook(() => useReceptionModalHandlers({
-    advanceStatus: vi.fn(),
-    cancelAppointment: vi.fn(),
-    updateAppointment,
-  }));
+const baseSelectedPet = {
+  id: "11",
+  clinicId: "1",
+  ownerId: "21",
+  ownerNumber: 21,
+  ownerName: "佐藤",
+  ownerNameKana: undefined,
+  address: undefined,
+  phone: "",
+  petNumber: "P-11",
+  name: "ミケ",
+  petNameKana: undefined,
+  species: "猫",
+  animalSpeciesId: "2",
+  breed: "",
+  color: "",
+  bloodType: undefined,
+  microchipNumber: undefined,
+  gender: "雌",
+  status: "生存",
+  birthDate: undefined,
+  neuteredDate: undefined,
+  weight: undefined,
+  food: "",
+  environment: "",
+  acquisitionType: undefined,
+  dangerLevel: "低",
+  dangerReason: undefined,
+  lastVisit: undefined,
+  insuranceId: undefined,
+  insuranceName: undefined,
+  insuranceDetails: undefined,
+  remarks: "",
+  deceasedAt: undefined,
+} satisfies Pet;
+
+interface HandlerProps {
+  canEditReservation?: boolean;
+  canDeleteReservation?: boolean;
+}
+
+function renderHandlers(
+  updateAppointment = vi.fn(),
+  initialPermissions: HandlerProps = {
+    canEditReservation: true,
+    canDeleteReservation: true,
+  },
+) {
+  const advanceStatus = vi.fn();
+  const cancelAppointment = vi.fn();
+  const view = renderHook(
+    (permissions: HandlerProps) => useReceptionModalHandlers({
+      advanceStatus,
+      cancelAppointment,
+      updateAppointment,
+      ...permissions,
+    }),
+    { initialProps: initialPermissions },
+  );
+  return { ...view, advanceStatus, cancelAppointment };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 describe("useReceptionModalHandlers", () => {
   beforeEach(() => {
+    toastSuccessMock.mockReset();
     updateReservationMock.mockReset();
     updateReservationMock.mockImplementation((_payload, options?: { onSuccess?: () => void }) => {
       options?.onSuccess?.();
@@ -119,6 +190,105 @@ describe("useReceptionModalHandlers", () => {
     );
   });
 
+  it("新しく選択した生存・高危険ペットの sentinel を楽観更新へ渡す", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petDangerLevel: "low",
+        petDangerReason: "旧ペットの理由",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [
+          {
+            ...baseSelectedPet,
+            dangerLevel: "高",
+            dangerReason: "保定時に噛む",
+          },
+        ],
+      );
+    });
+
+    expect(updateAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        petId: "11",
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      }),
+    );
+  });
+
+  it("新しく選択したペットの危険度が不明なら API 成功後も server refetch を待つ", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "旧ペットの理由",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [{ ...baseSelectedPet, dangerLevel: undefined }],
+      );
+    });
+
+    expect(updateReservationMock).toHaveBeenCalledOnce();
+    expect(updateAppointment).not.toHaveBeenCalled();
+  });
+
+  it("ペット選択を変更しない編集では既存 sentinel を楽観更新で保持する", () => {
+    const updateAppointment = vi.fn();
+    const { result } = renderHandlers(updateAppointment);
+
+    act(() => {
+      result.current.handleEditAppointment({
+        ...baseAppointment,
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      });
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [],
+      );
+    });
+
+    expect(updateAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        petStatus: PetStatusAlive,
+        petDangerLevel: DangerLevelHigh,
+        petDangerReason: "保定時に噛む",
+      }),
+    );
+  });
+
   it("編集保存では予約区分IDと担当者IDが不正値なら undefined にする", () => {
     const { result } = renderHandlers();
 
@@ -149,6 +319,32 @@ describe("useReceptionModalHandlers", () => {
     );
   });
 
+  it("編集対象に新しく選択されたペットが死亡の場合は予約更新を拒否する", () => {
+    const { result } = renderHandlers();
+
+    act(() => {
+      result.current.handleEditAppointment(baseAppointment);
+    });
+    act(() => {
+      result.current.handleEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [
+          {
+            ...baseSelectedPet,
+            status: "死亡",
+          },
+        ],
+      );
+    });
+
+    expect(updateReservationMock).not.toHaveBeenCalled();
+  });
+
   it("受付予約カラムの編集では pending 表示を confirmed として保存する", () => {
     const { result } = renderHandlers();
 
@@ -176,5 +372,135 @@ describe("useReceptionModalHandlers", () => {
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("死亡 appointment の card click・status・edit・cancel callback を拒否する", () => {
+    const deceasedAppointment = {
+      ...baseAppointment,
+      petStatus: PetStatusDeceased,
+    };
+    const { result, advanceStatus, cancelAppointment } = renderHandlers();
+
+    act(() => {
+      result.current.handleCardClick(deceasedAppointment);
+      result.current.handleAdvanceStatus();
+      result.current.handleEditAppointment(deceasedAppointment);
+      result.current.handleCancelAppointment(deceasedAppointment);
+      result.current.executeCancel();
+    });
+
+    expect(result.current.modalOpen).toBe(false);
+    expect(result.current.isEditModalOpen).toBe(false);
+    expect(result.current.cancelConfirmOpen).toBe(false);
+    expect(advanceStatus).not.toHaveBeenCalled();
+    expect(cancelAppointment).not.toHaveBeenCalled();
+    expect(updateReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("captured status callback は commit 後の最新 edit 権限を再確認する", () => {
+    const { result, rerender, advanceStatus } = renderHandlers();
+
+    act(() => {
+      result.current.handleCardClick(baseAppointment);
+    });
+    const capturedAdvanceStatus = result.current.handleAdvanceStatus;
+
+    rerender({ canEditReservation: false, canDeleteReservation: true });
+    act(() => {
+      capturedAdvanceStatus();
+    });
+
+    expect(advanceStatus).not.toHaveBeenCalled();
+  });
+
+  it("captured edit save callback は commit 後の最新 edit 権限を再確認する", () => {
+    const { result, rerender } = renderHandlers();
+
+    act(() => {
+      result.current.handleEditAppointment(baseAppointment);
+    });
+    const capturedEditSave = result.current.handleEditSave;
+
+    rerender({ canEditReservation: undefined, canDeleteReservation: true });
+    act(() => {
+      capturedEditSave(
+        {
+          start: new Date(2026, 5, 1, 9, 45, 0),
+          visitType: "revisit",
+          type: "1",
+          doctor: "33",
+        },
+        [],
+      );
+    });
+
+    expect(updateReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("captured cancel callback は commit 後の最新 delete 権限を再確認する", () => {
+    const { result, rerender, cancelAppointment } = renderHandlers();
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    const capturedExecuteCancel = result.current.executeCancel;
+
+    rerender({ canEditReservation: true, canDeleteReservation: false });
+    act(() => {
+      capturedExecuteCancel();
+    });
+
+    expect(cancelAppointment).not.toHaveBeenCalled();
+  });
+
+  it("cancel API pending 中は成功 toast を表示しない", async () => {
+    const pendingCancel = createDeferred<boolean>();
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockReturnValueOnce(pendingCancel.promise);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    act(() => {
+      void result.current.executeCancel();
+    });
+
+    expect(cancelAppointment).toHaveBeenCalledWith(baseAppointment.id);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pendingCancel.resolve(true);
+      await pendingCancel.promise;
+    });
+  });
+
+  it("cancel API 失敗時は成功 toast を表示せず確認画面を維持する", async () => {
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockResolvedValueOnce(false);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    await act(async () => {
+      await result.current.executeCancel();
+    });
+
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(result.current.cancelConfirmOpen).toBe(true);
+  });
+
+  it("cancel API 成功後にだけ成功 toast を表示して確認画面を閉じる", async () => {
+    const { result, cancelAppointment } = renderHandlers();
+    cancelAppointment.mockResolvedValueOnce(true);
+
+    act(() => {
+      result.current.handleCancelAppointment(baseAppointment);
+    });
+    await act(async () => {
+      await result.current.executeCancel();
+    });
+
+    expect(toastSuccessMock).toHaveBeenCalledWith("予約を取り消しました");
+    expect(result.current.cancelConfirmOpen).toBe(false);
   });
 });
