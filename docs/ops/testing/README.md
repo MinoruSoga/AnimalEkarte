@@ -15,9 +15,9 @@
 | [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | Playwright による業務フロー自動検証の実行・追加手順 | E2E テストの実行・追加時 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | ブラウザによる詳細な手動検証シナリオ（browser-test スキルが使用） | 手動検証・ブラウザ QA 時 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | レスポンスタイム目標とプロファイリング手法（pprof / Lighthouse） | 性能調査・ボトルネック特定時 |
-| [HANDLER_TEST_DOCUMENTATION_STATUS.md](HANDLER_TEST_DOCUMENTATION_STATUS.md) | バックエンドハンドラーのテストカバレッジ状況 | ハンドラーテスト整備の計画時 |
 
 ## AI エージェント向け注記
 
 - カバレッジ基準の正本は [../coverage-policy.md](../coverage-policy.md)（ratchet 方式）。
+- BE9完了後のHTTPテストは各`internal/<domain>`と`cmd/api`に配置する。削除済み`internal/handler`を前提にした旧集計はgit履歴で参照する。
 - 検証結果はテスト実施時のレポートとして記録する（旧 FUNCTIONAL_TEST_REPORT.md は凍結スナップショットだったため削除済み — git 履歴参照）。

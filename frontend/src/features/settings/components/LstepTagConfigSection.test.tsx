@@ -256,6 +256,7 @@ describe("LstepTagConfigSection — C: DELETE 削除", () => {
 
     const user = userEvent.setup();
     const deleteButton = screen.getByRole("button", { name: "削除" });
+    expect(deleteButton).toHaveClass("min-h-11", "min-w-11");
     await user.click(deleteButton);
 
     await waitFor(() => {

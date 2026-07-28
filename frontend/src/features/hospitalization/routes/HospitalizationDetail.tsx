@@ -1,3 +1,4 @@
+import { LAYOUT } from "@/lib/design-tokens";
 // React/Framework
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
@@ -62,7 +63,7 @@ export function HospitalizationDetail() {
                     onDischargeClick={() => setShowDischargeDialog(true)}
                 />
             }
-            maxWidth="max-w-[1600px]"
+            maxWidth={LAYOUT.pageContentMaxWidth.detailWide}
         >
             <div>
                 <HospitalizationExpandedView hospitalization={hospitalization} />

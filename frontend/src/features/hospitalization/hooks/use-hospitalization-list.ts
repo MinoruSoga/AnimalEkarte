@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateHospitalization } from "../api/update-hospitalization";
@@ -9,12 +9,16 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
 
-export const useHospitalizationList = () => {
+export const useHospitalizationList = (canEdit = false) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<HospitalizationFilterStatus>(HOSPITALIZATION_FILTER_STATUS.ACTIVE);
   const [viewMode, setViewMode] = useState<"list" | "board">("board");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const { data: cages } = useMasterItems("cage");
 
@@ -27,6 +31,7 @@ export const useHospitalizationList = () => {
 
     const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
     if (!sourceHosp) return;
+    if (canEditRef.current !== true || sourceHosp.petIsDeceased) return;
 
     // 移動先にアクティブな入院がある場合はスワップ
     const targetHosp = hospitalizations.find(
@@ -35,6 +40,7 @@ export const useHospitalizationList = () => {
         h.status === HOSPITALIZATION_STATUS.ACTIVE &&
         h.id !== hospitalizationId,
     );
+    if (targetHosp?.petIsDeceased) return;
 
     try {
       if (targetHosp) {

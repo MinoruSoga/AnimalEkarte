@@ -164,6 +164,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             value={selectedStaffId}
             onValueChange={onStaffChange}
             options={staffFilterOptions}
+            ariaLabel="スタッフ絞り込み"
             placeholder="スタッフ選択"
             searchPlaceholder="スタッフを検索..."
             className="w-[160px]"
@@ -200,7 +201,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                   className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r ${C.borderLight} ${colorClass} relative${isClickable ? ` cursor-pointer ${STYLE.tableRowHover} transition-colors` : ""}`}
                 >
                   <div>{day}</div>
-                  <div className="text-[10px] opacity-70">
+                  <div className="text-2xs opacity-70">
                     {DAY_OF_WEEK_LABELS[dayOfWeek]}
                   </div>
                   {isHoliday ? (

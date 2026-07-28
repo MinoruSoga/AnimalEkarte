@@ -8,7 +8,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
 
 // Relative
@@ -30,10 +30,13 @@ export function ExaminationForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
+  const historyView =
+    searchParams.get("historyView") === "pivot" ? "pivot" : "cards";
   const { canEdit, canCreate, canDelete } = usePermission("examinations");
+  const canSubmit = id ? canEdit : canCreate && canEdit;
 
   const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
   const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
@@ -59,9 +62,11 @@ export function ExaminationForm() {
     isDeleting,
     formItems,
     setInspectionValue,
-  } = useExaminationForm(id, medicalRecordId ?? undefined);
-
-  const canSubmit = isEdit ? canEdit : canCreate;
+  } = useExaminationForm(
+    id,
+    medicalRecordId ?? undefined,
+    { canCreate, canEdit, canDelete },
+  );
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -77,6 +82,19 @@ export function ExaminationForm() {
     setHistoryStartDate("");
     setHistoryEndDate("");
   }, []);
+
+  const handleHistoryViewChange = useCallback(
+    (nextView: "cards" | "pivot") => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (nextView === "pivot") {
+        nextParams.set("historyView", "pivot");
+      } else {
+        nextParams.delete("historyView");
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   // --- Focus Management (Accessibility) ---
   useEffect(() => {
@@ -111,33 +129,43 @@ export function ExaminationForm() {
 
   // 検査履歴取得
   const { data: allExaminations = [] } = useGetExaminations({
+    petId: currentPetId,
     startDate: historyStartDate || undefined,
     endDate: historyEndDate || undefined,
   });
 
   const deferredHistorySearch = useDeferredValue(historySearchTerm);
 
-  // js-cache-function-results: 履歴フィルタ結果をメモ化
-  const filteredHistory = useMemo(() => {
+  const petHistory = useMemo(() => {
     if (!currentPetId) return [];
-    let result = allExaminations.filter((e) => e.petId === currentPetId);
+    return allExaminations.filter((e) => e.petId === currentPetId);
+  }, [allExaminations, currentPetId]);
+
+  const searchedPetHistory = useMemo(() => {
+    if (!deferredHistorySearch) return petHistory;
+
+    const searchValue = normalizeKana(deferredHistorySearch).toLowerCase();
+    return petHistory.filter(
+      (examination) =>
+        normalizeKana(examination.testType).toLowerCase().includes(searchValue) ||
+        normalizeKana(examination.resultSummary ?? "")
+          .toLowerCase()
+          .includes(searchValue),
+    );
+  }, [deferredHistorySearch, petHistory]);
+
+  // js-cache-function-results: カード履歴フィルタ結果をメモ化
+  const filteredHistory = useMemo(() => {
+    let result = searchedPetHistory;
     // 編集中の記録自体は除外
     if (isEdit && id) {
       result = result.filter((e) => e.id !== id);
-    }
-    if (deferredHistorySearch) {
-      const lower = normalizeKana(deferredHistorySearch).toLowerCase();
-      result = result.filter(
-        (e) =>
-          normalizeKana(e.testType).toLowerCase().includes(lower) ||
-          normalizeKana(e.resultSummary ?? "").toLowerCase().includes(lower),
-      );
     }
     return [...result].sort((a, b) => {
       const cmp = a.date.localeCompare(b.date);
       return historySortOrder === "asc" ? cmp : -cmp;
     });
-  }, [allExaminations, currentPetId, deferredHistorySearch, isEdit, id, historySortOrder]);
+  }, [searchedPetHistory, isEdit, id, historySortOrder]);
 
   const handleBack = useCallback(() => {
     if (location.state?.from) {
@@ -181,78 +209,84 @@ export function ExaminationForm() {
       title={isEdit ? "検査詳細・編集" : "新規検査登録"}
       resource={ResourceExaminations}
       onBack={handleBack}
-      maxWidth="max-w-[1200px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.formMid}
       align="left"
     >
       {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
       <NavigationBlocker when={!!isDirty && !isSaving} />
-      <form action={formAction}>
-        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-        <div className="flex flex-col gap-4">
-          {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
-          {selectedPet ? (
-            <PatientInfoCard
-              ownerName={selectedPet.ownerName}
-              petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-              petNumber={selectedPet.petNumber || selectedPet.id}
-              weight={selectedPet.weight || "-"}
-              staffName="医師A"
-              reservationType="検査"
-              petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-              insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-              insuranceDetails={selectedPet.insuranceDetails || "-"}
-              nextVisitDate="-"
-              nextVisitContent="-"
-            />
-          ) : null}
+      <div className="flex flex-col gap-4">
+        {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
+        {selectedPet ? (
+          <PatientInfoCard
+            ownerName={selectedPet.ownerName}
+            petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+            petNumber={selectedPet.petNumber || selectedPet.id}
+            weight={selectedPet.weight || "-"}
+            staffName="医師A"
+            reservationType="検査"
+            petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
+            insuranceName={selectedPet.insuranceName || "保険情報未登録"}
+            insuranceDetails={selectedPet.insuranceDetails || "-"}
+            nextVisitDate="-"
+            nextVisitContent="-"
+          />
+        ) : null}
 
-          {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-            {/* 左カラム: フォームフィールド + 検査項目テーブル */}
-            <div className="lg:col-span-3 space-y-4">
-              <ExaminationFormFields
-                formData={formData}
-                examTypes={examTypes}
-                staffList={staffList}
-                masterLoading={masterLoading}
-                isEdit={isEdit}
-                isDeleting={isDeleting}
-                isConfirmed={isConfirmed}
-                canEdit={canEdit}
-                canCreate={canCreate}
-                canDelete={canDelete}
-                onSetFormData={handleSetFormData}
-                onBack={handleBack}
-                onDeleteClick={handleDeleteClick}
-              />
-
-              <div className="space-y-2">
-                <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
-                <ExamItemsTable
-                  items={formItems}
-                  onChangeInspectionValue={setInspectionValue}
-                  disabled={isConfirmed}
+        {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+          {/* 左カラム: フォームフィールド + 検査項目テーブル */}
+          <form action={formAction} className="min-w-0 lg:col-span-3">
+            <fieldset
+              disabled={!canSubmit}
+              className="border-0 p-0 m-0 min-w-0"
+            >
+              <div className="space-y-4">
+                <ExaminationFormFields
+                  formData={formData}
+                  examTypes={examTypes}
+                  staffList={staffList}
+                  masterLoading={masterLoading}
+                  isEdit={isEdit}
+                  isDeleting={isDeleting}
+                  isConfirmed={isConfirmed}
+                  canEdit={canEdit}
+                  canCreate={canCreate}
+                  canDelete={canDelete}
+                  onSetFormData={handleSetFormData}
+                  onBack={handleBack}
+                  onDeleteClick={handleDeleteClick}
                 />
-              </div>
-            </div>
 
-            <ExaminationHistoryPanel
-              filteredHistory={filteredHistory}
-              currentPetId={currentPetId}
-              historyStartDate={historyStartDate}
-              historyEndDate={historyEndDate}
-              historySearchTerm={historySearchTerm}
-              historySortOrder={historySortOrder}
-              onHistoryStartDateChange={setHistoryStartDate}
-              onHistoryEndDateChange={setHistoryEndDate}
-              onHistorySearchTermChange={setHistorySearchTerm}
-              onHistorySortOrderChange={setHistorySortOrder}
-              onHistoryClear={handleHistoryClear}
-            />
-          </div>
+                <div className="space-y-2">
+                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
+                  <ExamItemsTable
+                    items={formItems}
+                    onChangeInspectionValue={setInspectionValue}
+                    disabled={isConfirmed}
+                  />
+                </div>
+              </div>
+            </fieldset>
+          </form>
+
+          <ExaminationHistoryPanel
+            filteredHistory={filteredHistory}
+            pivotHistory={searchedPetHistory}
+            currentPetId={currentPetId}
+            historyStartDate={historyStartDate}
+            historyEndDate={historyEndDate}
+            historySearchTerm={historySearchTerm}
+            historySortOrder={historySortOrder}
+            historyView={historyView}
+            onHistoryStartDateChange={setHistoryStartDate}
+            onHistoryEndDateChange={setHistoryEndDate}
+            onHistorySearchTermChange={setHistorySearchTerm}
+            onHistorySortOrderChange={setHistorySortOrder}
+            onHistoryViewChange={handleHistoryViewChange}
+            onHistoryClear={handleHistoryClear}
+          />
         </div>
-        </fieldset>
-      </form>
+      </div>
 
       <ConfirmDialog
         open={isDeleteConfirmOpen}

@@ -37,4 +37,4 @@
 - 空き枠計算はバックエンド `timeslot_engine.go`（§4 の 3 要素合算）。LIFF 認証モックは `backend/internal/middleware/liff_auth.go`（release モードでは無効）。
 - URL パスの clinicId と、病院側で予約が現れるクリニックが一致すること（clinic_id 隔離）。
 - 予約確定時に枠が直前で埋まっていた場合は競合通知が表示され再選択に戻ること（異常時の無音失敗がないこと）。
-- 予約可能枠のホワイトリスト仕様: 予約可能枠が 1 件でも登録された予約区分は登録時刻のみ予約可能になる（[28-line-reservation.md §4](../../../spec/screens/28-line-reservation.md)）— 空き枠が想定外に表示されない場合はまずこの設定を疑う。
+- 予約可能枠は加算方式: 登録した開始時刻は営業時間から自動生成した枠へ追加され、他の営業時間内枠を無効化しない（`backend/internal/reservation/availability_slot_merge.go`・[28-line-reservation.md §4](../../../spec/screens/28-line-reservation.md)）。

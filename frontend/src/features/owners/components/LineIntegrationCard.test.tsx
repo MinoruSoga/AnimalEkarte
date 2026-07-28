@@ -214,6 +214,14 @@ describe("LineIntegrationCard — C: 配信停止バナー表示条件", () => {
 // ─────────────────────────────────────────────────────────────
 
 describe("LineIntegrationCard — D: 配信除外スイッチ", () => {
+  it("配信制御スイッチは用途を区別できる accessible name を持つ", async () => {
+    await renderAndWait();
+
+    expect(screen.getByRole("switch", { name: "配信除外" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "配信注意" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "転院済み" })).toBeInTheDocument();
+  });
+
   it("除外理由入力フィールドは maxLength=100 属性を持つ", async () => {
     await renderAndWait();
     const input = screen.getByPlaceholderText("除外理由（任意・100文字以内）");

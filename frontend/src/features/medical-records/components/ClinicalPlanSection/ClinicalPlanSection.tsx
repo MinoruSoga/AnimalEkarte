@@ -84,7 +84,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
   }
 
   return (
-    <div className={`mt-4 ${C.bgWhite} border ${C.borderMedium} rounded-[4px] p-5`}>
+    <div className={`${C.bgWhite} border ${C.borderMedium} rounded-xs p-4`}>
       <h2 className={`text-sm font-bold ${C.text} mb-4`}>診察所見・診断・治療方針</h2>
 
       <div className="flex flex-col gap-4">
@@ -104,7 +104,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={STYLE.formLabel}>診断カテゴリ</label>
-            <MasterLink category="diagnosis_type" label="編集" className="text-[11px]" />
+            <MasterLink category="diagnosis_type" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
             value={diagnosisTypeId ? String(diagnosisTypeId) : ""}
@@ -123,7 +123,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={STYLE.formLabel}>診断病名</label>
-            <MasterLink category="diagnosis_name" label="編集" className="text-[11px]" />
+            <MasterLink category="diagnosis_name" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
             value={diagnosisNameId ? String(diagnosisNameId) : ""}

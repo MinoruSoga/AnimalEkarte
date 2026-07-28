@@ -69,7 +69,7 @@ function transformPetCheckupResult(r: PetCheckupResultApi): PetCheckupResult {
 // GET /v1/checkups/field-results?pet_id=X
 const getPetCheckupResults = async (petId: string): Promise<PetCheckupResult[]> => {
   const { data } = await axios.get<PetCheckupResultApi[]>("/v1/checkups/field-results", {
-    params: { pet_id: Number(petId) },
+    params: { pet_id: petId },
   });
   return (data ?? []).map(transformPetCheckupResult);
 };

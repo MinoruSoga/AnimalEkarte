@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { memo, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { Plus } from "lucide-react";
@@ -59,7 +59,7 @@ export const MasterPageShell = memo(function MasterPageShell({
           icon={icon}
           resource={resource}
           onBack={() => navigate(paths.settings.getHref())}
-          maxWidth="max-w-full"
+          maxWidth={LAYOUT.pageContentMaxWidth.full}
           headerAction={
             canCreate ? (
               <PrimaryButton onClick={onNew}>

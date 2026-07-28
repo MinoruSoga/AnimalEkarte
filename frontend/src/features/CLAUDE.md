@@ -2,24 +2,7 @@
 
 ## ディレクトリ構造 (MANDATORY)
 
-```
-features/
-└── owners/
-    ├── index.ts          ← 公開 API (必須)
-    ├── api/
-    │   ├── get-owners.ts
-    │   └── create-owner.ts
-    ├── components/
-    │   ├── OwnerCard.tsx
-    │   └── OwnerForm.tsx
-    ├── hooks/
-    │   └── use-owners.ts
-    ├── routes/
-    │   └── OwnerForm.tsx   ← ルートコンポーネント（react-router の要素）
-    ├── loaders.ts          ← react-router ローダー（owners のみが使う例外的パターン）
-    └── types/
-        └── index.ts
-```
+各 feature は `index.ts`（公開 API）を必須とし、`api/` `components/` `hooks/` `routes/` `types/` のサブディレクトリに分ける（実例は `ls features/owners` 参照）。`loaders.ts`（react-router ローダー）は `owners` のみが使う例外的パターン。
 
 ## index.ts の責務
 

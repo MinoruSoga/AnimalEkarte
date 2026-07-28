@@ -71,6 +71,19 @@ const rootLeaf = makeType({
 const types = [parentNode, child1, child2, rootLeaf];
 
 describe("ReservationTypeTree", () => {
+  it("親・leafの予約種別buttonを44px以上に保つ", async () => {
+    const user = userEvent.setup();
+    render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);
+
+    const parent = screen.getByRole("button", { name: /LINEコース/ });
+    const rootLeafButton = screen.getByRole("button", { name: /一般診療/ });
+    expect(parent).toHaveClass("min-h-11");
+    expect(rootLeafButton).toHaveClass("min-h-11");
+
+    await user.click(parent);
+    expect(screen.getByRole("button", { name: /初診コース/ })).toHaveClass("min-h-11");
+  });
+
   it("親ノードクリックで子が展開/折りたたみされる", async () => {
     const user = userEvent.setup();
     render(<ReservationTypeTree types={types} selectedId={null} onSelect={vi.fn()} />);

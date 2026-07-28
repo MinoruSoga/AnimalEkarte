@@ -32,12 +32,13 @@ export function ReservationTypeGroupedTable({
 
   const handleReorder = useCallback(
     (newIds: string[]) => {
+      if (!canEdit) return;
       reorderMutation.mutate(
         { ids: newIds.map(Number) },
         { onError: () => resetOrderRef.current() },
       );
     },
-    [reorderMutation],
+    [canEdit, reorderMutation],
   );
 
   const toggleCollapse = useCallback((id: string) => {
@@ -73,15 +74,15 @@ export function ReservationTypeGroupedTable({
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={orderedItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden ${C.bgWhite}`}>
+        <div className={`rounded-xs border ${C.borderLight} overflow-x-auto overflow-y-hidden ${C.bgWhite}`}>
           <table className="w-full border-collapse">
             <thead>
               <tr className={STYLE.tableHeaderRow}>
-                <th className="w-8" />
-                <th className={`text-left ${STYLE.tableHeaderCell} px-3`}>名称</th>
-                <th className={`text-left ${STYLE.tableHeaderCell} px-3 w-56`}>備考</th>
-                <th className={`text-center ${STYLE.tableHeaderCell} px-3 w-24 whitespace-nowrap`}>ステータス</th>
-                <th className="w-20" />
+                <th data-c18-structural-cell className="w-11 px-0" />
+                <th className={`text-left ${STYLE.tableHeaderCell}`}>名称</th>
+                <th className={`text-left ${STYLE.tableHeaderCell} w-56`}>備考</th>
+                <th className={`text-center ${STYLE.tableHeaderCell} w-24 whitespace-nowrap`}>ステータス</th>
+                <th data-c18-structural-cell className="w-20" />
               </tr>
             </thead>
             <ReservationTypeGroupedTableBody

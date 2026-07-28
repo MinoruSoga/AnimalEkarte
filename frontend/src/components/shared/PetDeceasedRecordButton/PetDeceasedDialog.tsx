@@ -1,4 +1,4 @@
-import { useActionState } from "react";
+import { useActionState, useLayoutEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ interface PetDeceasedDialogProps {
   petBreed?: string;
   petGender?: string;
   petAge?: string;
+  canEdit?: boolean;
   /**
    * BUG-407: 保存成功時に呼ばれる。バックエンドへの即時保存はこのダイアログが
    * 既に完結させているが、この通知が無いと外側 PetEditModal のローカル
@@ -47,9 +48,14 @@ export function PetDeceasedDialog({
   petBreed,
   petGender,
   petAge,
+  canEdit = false,
   onRecorded,
 }: PetDeceasedDialogProps) {
   const mutation = useRecordPetDeath();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const [state, formAction, isPending] = useActionState(
     async (
@@ -78,6 +84,9 @@ export function PetDeceasedDialog({
 
       try {
         const normalizedReason = deceasedReason || undefined;
+        if (canEditRef.current !== true) {
+          return { success: false, timestamp: Date.now() };
+        }
         await mutation.mutateAsync({
           petId,
           deceasedAt,
@@ -115,7 +124,7 @@ export function PetDeceasedDialog({
 
         {/* Pet summary */}
         <div
-          className={`rounded-[4px] border ${C.borderMedium} bg-white px-3 py-2.5 text-sm space-y-0.5`}
+          className={`rounded-xs border ${C.borderMedium} bg-white px-3 py-2.5 text-sm space-y-0.5`}
         >
           <p className={`font-medium ${C.text}`}>{petName}</p>
           <p className={C.text50}>
@@ -140,7 +149,7 @@ export function PetDeceasedDialog({
               defaultValue={todayString()}
               max={todayString()}
               required
-              className={`${STYLE.formInput} w-full rounded-[4px] border px-3 text-sm`}
+              className={`${STYLE.formInput} w-full rounded-xs border px-3 text-sm`}
               disabled={isPending}
             />
           </div>
@@ -166,7 +175,7 @@ export function PetDeceasedDialog({
 
           {/* 警告文 */}
           <div
-            className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
+            className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
           >
             記録後、このペットへの自動LINE配信が停止されます。
           </div>

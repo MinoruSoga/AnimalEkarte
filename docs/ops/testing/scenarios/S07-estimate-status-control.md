@@ -26,7 +26,7 @@
 
 ## 確認観点
 
-- **確定ロックの不変条件**: 承認済み・却下の見積は Update/Delete が API レベルで拒否される（`backend/internal/service/estimate_service.go` の `isEstimateLocked` ＋ status NOT IN 述語による原子的拒否）。新規作成のステータスは draft/sent のみ許可（approved/rejected 指定は Conflict 拒否、2026-07 実装）。
+- **確定ロックの不変条件**: 承認済み・却下の見積は Update/Delete が API レベルで拒否される（`backend/internal/billing/estimate_service.go` の `isEstimateLocked` ＋ `backend/internal/billing/estimate_repository.go` の status NOT IN 述語による原子的拒否）。新規作成のステータスは draft/sent のみ許可（approved/rejected 指定は Conflict 拒否、2026-07 実装）。
 - **#6 の実装由来の期待値**: ロック済み見積の編集 URL 直アクセスは「承認済みまたは却下済みの見積書は編集できません」の通知とともに詳細画面へリダイレクトされる（`frontend/src/features/estimates/routes/EstimateForm.tsx`）。実測一致を確認したら【要実測】を外し期待結果へ昇格させる。
 - **監査証跡**: 見積の Create/Update/Delete は監査ログに記録される（2026-07 実装）。#1〜#3・#9 実施後に audit_logs へ対応レコードが存在すること。
 - **削除の性質**: 見積の削除は論理削除（仕様正本 22 §2）。#9 の削除後、一覧に再表示されないこと。

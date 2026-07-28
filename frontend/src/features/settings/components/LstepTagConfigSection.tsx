@@ -35,7 +35,7 @@ function DeleteButton({
       type="button"
       onClick={onDelete}
       disabled={disabled}
-      className={`text-xs ${C.text50} hover:opacity-70 shrink-0 disabled:opacity-30`}
+      className={`min-h-11 min-w-11 text-xs ${C.text50} hover:opacity-70 shrink-0 disabled:opacity-30`}
     >
       削除
     </button>
@@ -173,7 +173,7 @@ function AutoManagedPrefixesSection() {
             value={prefix}
             onChange={(e) => setPrefix(e.target.value)}
             placeholder="例: vaccine_"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-36`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-36`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -184,7 +184,7 @@ function AutoManagedPrefixesSection() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="例: C2"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-24`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-24`}
           />
         </div>
         <Button
@@ -271,7 +271,7 @@ function ConditionTagMappingsSection() {
             value={conditionCode}
             onChange={(e) => setConditionCode(e.target.value)}
             placeholder="例: DM"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-24`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-24`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -282,7 +282,7 @@ function ConditionTagMappingsSection() {
             value={tagName}
             onChange={(e) => setTagName(e.target.value)}
             placeholder="例: CHRON_DM"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-36`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-36`}
           />
         </div>
         <Button
@@ -369,7 +369,7 @@ function SendPurposeTagPrefixesSection() {
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="例: vaccine_reminder"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-40`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-40`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -380,7 +380,7 @@ function SendPurposeTagPrefixesSection() {
             value={tagPrefix}
             onChange={(e) => setTagPrefix(e.target.value)}
             placeholder="例: PREV_"
-            className={`${STYLE.formInput} rounded-[4px] border px-2 py-1 text-sm outline-none w-28`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none w-28`}
           />
         </div>
         <Button

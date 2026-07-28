@@ -3,111 +3,1158 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3セッション開発計画 — Readiness View（2026-07-16）</title>
+<title>開発計画（2レーン体制） — Readiness View＋実装タスク台帳（納品 2026-07-27）</title>
 <style>
   :root {
-    --ink: #1a202c; --sub: #4a5568; --line: #e2e8f0; --bg: #f7fafc;
-    --a: #2b6cb0; --b: #2f855a; --c: #9b2c2c;
+    --ink: #172033;
+    --sub: #526079;
+    --line: #dce3ec;
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --accent: #2858a4;
+    --done: #237a4b;
+    --current: #9a6700;
+    --wait: #667085;
+    --risk: #b42318;
   }
   * { box-sizing: border-box; }
-  body { font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 24px; line-height: 1.65; }
-  main { max-width: 1080px; margin: 0 auto; }
-  h1 { font-size: 22px; border-bottom: 3px solid var(--ink); padding-bottom: 8px; }
-  h2 { font-size: 18px; margin-top: 36px; }
-  .meta { color: var(--sub); font-size: 13px; }
-  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13.5px; }
-  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: #edf2f7; }
-  code { background: #edf2f7; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
-  .card { background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--sub); border-radius: 6px; padding: 16px 20px; margin: 16px 0; }
-  .card.s1 { border-left-color: var(--a); } .card.s2 { border-left-color: var(--b); }
-  .card.s3 { border-left-color: var(--c); }
-  .card h3 { margin: 0 0 6px; font-size: 16px; }
-  .tag { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: #edf2f7; color: var(--sub); margin-left: 6px; }
-  .warn { background: #fffaf0; border: 1px solid #ecc94b; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; }
-  ul { margin: 6px 0; padding-left: 22px; }
-  li { margin: 3px 0; }
-  .small { font-size: 12.5px; color: var(--sub); }
+  body {
+    margin: 0;
+    padding: 24px;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.65;
+  }
+  main { max-width: 1160px; margin: 0 auto; }
+  h1 { margin: 0; padding-bottom: 10px; border-bottom: 3px solid var(--ink); font-size: 24px; }
+  h2 { margin-top: 38px; font-size: 19px; }
+  h3 { margin: 0 0 6px; font-size: 15px; }
+  a { color: var(--accent); }
+  code { padding: 1px 5px; border-radius: 4px; background: #edf1f6; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); font-size: 13.5px; }
+  th, td { padding: 9px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: #eaf0f7; }
+  ul { margin: 7px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .meta { margin: 10px 0 0; color: var(--sub); font-size: 13px; }
+  .notice, .gate {
+    margin: 18px 0;
+    padding: 12px 15px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--accent);
+    border-radius: 7px;
+    background: var(--panel);
+    font-size: 13.5px;
+  }
+  .gate { border-left-color: var(--risk); background: #fff7f6; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+  .card p { margin: 0; font-size: 13.5px; }
+  .task { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+  .status { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11.5px; white-space: nowrap; }
+  .status.done { background: var(--done); }
+  .status.current { background: var(--current); }
+  .status.wait { background: var(--wait); }
+  .status.risk { background: var(--risk); }
+  .table-wrap { overflow-x: auto; }
+  .small { color: var(--sub); font-size: 12.5px; }
+  @media (max-width: 820px) {
+    body { padding: 16px; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 <main>
 
-<h1>3セッション開発計画 — Readiness View</h1>
+<h1>開発計画（2レーン体制） — Readiness View＋実装タスク台帳</h1>
 <p class="meta">
-監査日: 2026-07-16 ／ 基準: HEAD <code>5e91a520</code> ／ 当初納品予定: 2026-07-18（下記 blocker 解消が前提）<br>
-正本の優先順位: <b>各実装 Issue の受け入れ条件 → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">計画 #260</a> → 本 HTML</b>。本 HTML は tracked view であり、詳細仕様や実行 prompt を重複保持しない。
+同期日: 2026-07-28 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
+<b>Issue事項の正本は各GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）、決裁の正本は<a href="q&amp;a.html">q&amp;a.html</a>、着手可能な実装タスクの正本は本fileの<a href="#ledger">#ledger</a></b>。本fileのreadiness viewはIssue群を2並行レーンで着手するためのガイドであり、Issueの受け入れ条件を複製しない。<br>
+決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・PO判断待ち — 回答済みDEC/SD/POカードは2026-07-26に削除済み・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
 </p>
 
-<h2>P0 — 開始・Go-live ブロッカー</h2>
+<div class="notice">
+本HTMLのreadiness viewは進捗と着手順を一目で確認するためのガイドであり、Issueの受け入れ条件・決裁内容を複製しない。実装タスクは本fileの<a href="#ledger">#ledger</a>を正本とする。差異がある場合、Issue事項は各Issue、決裁はq&amp;a.html、着手可能な実装タスクは本fileの#ledgerを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（2026-07-26時点 31件・全件を本viewに記載）。
+</div>
+
+<h2>現在地（2026-07-28）</h2>
+<div class="grid">
+  <section class="card">
+    <h3>納品</h3>
+    <p><span class="status risk">納品日経過</span> Go-live 2026-07-27／残作業は納品後バッチで継続</p>
+  </section>
+  <section class="card">
+    <h3>検査ハイライト</h3>
+    <p><span class="status done">コード面 解消</span> <span class="status risk">基準値マスタ 0行＝未点灯</span></p>
+  </section>
+  <section class="card">
+    <h3>決裁状況</h3>
+    <p><span class="status done">DEC-1/9/14〜21裁定済み</span> <span class="status wait">残=DEC-10（課金・USER）</span></p>
+  </section>
+  <section class="card">
+    <h3>BE9 backend refactor</h3>
+    <p><span class="status done">CODE COMPLETE</span> <span class="status risk">release gate=OPS-13〜17</span></p>
+  </section>
+</div>
+
+<h2>納品（2026-07-27）クリティカルパス</h2>
+<div class="table-wrap">
 <table>
-<tr><th>領域</th><th>Issue</th><th>現在の判定</th></tr>
-<tr><td>Credential</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a></td><td>公開 repository の release blocker。USER による rotation・旧値無効化・履歴／不正利用確認が必要。STG 限定 park ではない。</td></tr>
-<tr><td>CI / Production</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>最新 main run は account billing/spending 状態により job 開始前に失敗。USER 復旧後、最新 main の全必須 job green が開始・Go-live 条件。</td></tr>
-<tr><td>臨床安全</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td><td>#201 は再オープン。薬量上限を ConfirmDialog で解除できる現状を BE 物理ブロックまたは権限付き例外フローへ是正する。Lock UI 等は #261 で PO 判定。</td></tr>
+  <tr><th>順</th><th>項目</th><th>Issue/台帳</th><th>所有</th><th>状態</th></tr>
+  <tr>
+    <td>1</td>
+    <td>dev完了。残 = STG実URLでの3秒以内表示実測とFEフルゲート手動実行</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a></td>
+    <td>USER</td>
+    <td><span class="status wait">STG実測待ち</span></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>cutoverは正式21表csv-import経路（F6 runbook）で実施。旧 stage-import は<b>2026-07-28に退役完了</b>（<code>905e686c5</code>・DEC-20/DEC-24。tool本体9 file・compose・検証script・Makefile 4 target・ビルド済みbinaryを削除し、生きた運用docをcsv-import経路のみへ統一。BUG-430解消）。<b>実ブロッカーはデータ側</b>: producer bundle完成（billings.completed_at・payment graph・crosswalk = USER/PO入力）</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a> / DEC-20・DEC-24（原文=q&amp;a.html git履歴）</td>
+    <td>USER＋dev</td>
+    <td><span class="status risk">bundle待ち</span></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>全業務シナリオ通し確認（UAT代行）— #266修正が前提</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
+    <td>dev → USER</td>
+    <td><span class="status wait">#266待ち</span></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>BE9 release gate 5件（fresh DB migration実適用／remote CI／production secrets+deploy／scheduler rehearsal／LINE Console redelivery）</td>
+    <td><a href="q&amp;a.html#ops">q&amp;a.html OPS-13〜17</a></td>
+    <td>USER承認</td>
+    <td><span class="status risk">未着手</span></td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>credential rotation・履歴対応＋GitHub Actions billing復旧→最新main全必須job green。#99（旧ECS deploy経路撤去）／#109（CI認証二重管理解消）はmitigationの実地確認が必要</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
+    <td>USER専権</td>
+    <td><span class="status risk">未完</span></td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a>=<b>dev完了</b>（<code>fa119abb9</code>・絶対上限超過をBEで物理reject＋FEのConfirmDialog解除2経路を撤去）。残 = <b>#261 PO決裁</b>と、臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯・欠落ケース別挙動表）</td>
+    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / DEC-1（原文=q&amp;a.html git履歴）</td>
+    <td>PO＋臨床責任者</td>
+    <td><span class="status wait">#261・臨床確認待ち</span></td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>OPS群: 旧Access移行cutover(#250・BUG-430は2026-07-28に完了済)・締め時間投入(#252)・スタッフアカウント発行(#255・先方スタッフ一覧待ち)・マニュアル(#256)・切替手順(#257)・納品ドキュメント(#258)</td>
+    <td>#250 #252 #255 #256 #257 #258</td>
+    <td>USER中心</td>
+    <td><span class="status wait">進行中</span></td>
+  </tr>
 </table>
+</div>
 
-<h2>全体マップ</h2>
+<h2 id="ledger">実装タスク台帳（正本）</h2>
+
+<div class="notice">
+<b>統合: 2026-07-27</b> — 旧<code>todo.md</code>の全内容を本節へ移設し、着手可能な実装タスクの正本を一本化した。
+</div>
+
+<blockquote>
+<p>更新: 2026-07-28(1)（<b>レーンA: #249 Phase 2 完了</b>。U1〜U3 に続き <b>U4（F-2d 検査項目マスタ管理 UI/API）が着地</b>〔<code>afd8404a4</code> API＋<code>1adf55b6e</code> UI＋索引 migration <code>003_add_exam_results_exam_type_field_id_index.sql</code>〕。これに続く3件も清算済み: <b>TASK-249-U4B</b>（動物種権限の不整合＝seed 実測で該当グループ0件・実装不要と確定/entry 削除）、<b>TASK-249-U4C</b>（基準範囲エディタの取得失敗可視化 <code>ad616d269</code>/entry 削除）、<b>TASK-SPECIES-01</b>（同欠陥の横断掃引5面 <code>6a74d7dcc</code>＋<code>a804ac09c</code>/entry 削除）。<b><a href="#BUG-449">BUG-449</a> はコード面を解消</b>（<code>546e26f80</code> FE＋<code>e7721b6bd</code> BE で死んだ基準値経路を撤去し、通常検査の判定入力を <code>exam_reference_ranges</code> の1本に確定）。<b>次の着手対象＝<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></b>（#249 との直列化制約が解けたため）。<br><b>⚠最優先の残件（コードでなく運用）</b>: <code>exam_reference_ranges</code> は seed 0 行のままであり、<b>検査異常値のハイライトは依然として1件も出ない</b>。投入画面は U4 で開通済み。獣医師による動物種別基準値の入力が要る（臨床判断のため委任外）。<br><b>USER 滞留</b>: 上記の基準値投入／migration <code>004</code>+<code>003</code> の共有環境への適用＋<code>make codegen</code>＋full lint/build＋runtime確認。<br>レーンB: <b>#262 Phase 2 は unit 1〜9 まで完了（dev 完了）</b>（migration 002 <code>a0165b1c5</code>・003 <code>b4933b50b</code>／unit 3 <code>729580d46</code>＋<code>a00f92490</code>／unit 4a+4b+4c <code>76a00ec70</code>／unit 5+5b <code>556130d27</code>／unit 6 api.yaml <code>512bc73f6</code>／生成型追随 <code>44ce538a8</code>／unit 7+7b FE <code>d6bdd0d21</code>／unit 8a <code>e48d883e3</code>／unit 8b <code>8317e168c</code>／unit 9 ERD <code>2c13b563c</code>。<b>残 = USER 操作待ち</b>: migration <code>002</code>・<code>003</code> 適用済み、<code>make codegen</code>／<code>codegen-check</code>／full type-check green 済み、残る runtime 確認と GitHub Issue #262 クローズ）。BUG-451 クローズ（BUG-452 は本 view 同期時点で entry が存在せず、所有セッションが清算済みと解する）。TASK-251 残 = U2b-full 第2段〔進行中・別 session〕と U4。⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）</p>
+<p><b>テストDBに関する既知の落とし穴（2026-07-27 実測）</b>: <code>backend/internal/testdb/testdb.go</code> は <code>ekarte_db_test</code> を空で <code>CREATE DATABASE</code> するだけで <code>backend/migrations/*.sql</code> を適用しない。テストDBのスキーマは各 setup が <code>testdb.EnsureAutoMigrated(db, &amp;model.X{})</code> を呼んだモデルぶんだけ GORM AutoMigrate で作られる。したがって新テーブルの <code>SQLSTATE 42P01</code> は「migration 未適用」ではなく <b>モデル未登録</b>であり、<code>make reset</code> では直らない。切り分け = <code>docker compose exec -T db psql -U ekarte_user -d ekarte_db_test -c "\dt &lt;table&gt;"</code>。あわせて AutoMigrate は GORM tag からしか制約を作らないため、DDL の <code>UNIQUE</code> を model の <code>uniqueIndex</code> tag で宣言しないと制約不在のまま重複 insert 系テストが素通りする。</p>
+<p><b>整形チェックの既知 baseline debt（2026-07-27 実測・所有者不在）</b>: directory 引数の <code>gofmt -l</code> は <code>internal/billing/accounting_complete_appointments_test.go</code>、<code>internal/billing/accounting_repository_tx_atomicity_test.go</code>、<code>internal/medicalrecord/discount_permission.go</code> の3件を必然的に列挙する。したがって<b>整形ゲートに directory 引数を渡すと充足不能になる</b> — 各 unit は自分の変更ファイルを列挙して <code>gofmt -l &lt;files&gt;</code> の引数にすること。3件の整形は担当 unit を立てるまで未対応のままとする。</p>
+<p><b>coordinator レーン 2026-07-28 の清算</b>: 下記5件が完了し、運用規約（本節「運用」の第3項）どおり <code>&lt;section&gt;</code> を削除した。<b>探しても見つからないのは削除済みだからであり、未起票ではない。</b>正本は git 履歴である。<br>
+・<b>BUG-430</b> stage-import 退役 = <code>905e686c5</code>（tool/compose/script/Make target/ignore/13.7MB binary の21 file）<br>
+・<b>BUG-453</b> カタカナ exact 検索 = <code>bbb31f9be</code> + <code>bbb87c6a1</code><br>
+・<b>BUG-457</b> 退院認可の FE/BE 一致 = <code>75aff5786</code>（FE 4 file）+ <code>b415892ec</code>（BE route permission test 78行）+ <code>7f17aeb53</code>（<code>docs/spec/screens/08-hospitalization-detail.md:34</code> の drift 是正）。製品判断 = <b><code>edit</code></b>（退院は record を消さない状態遷移であるため）。<br>
+・<b>TASK-462</b> tygo pointer mapping 削除 = <code>fdbe77ef0</code>。USER codegen gate 通過済み（生成3本の mtime が更新されたうえで byte-identical であることを確認＝空振りではない）。<br>
+・<b>SEC-DUR-01 の一部</b> = <code>b103e4a73</code>（MR-A1: 譲渡後に臨床履歴が両飼主から消える欠陥の解消・7 read surface）+ <code>8ad92f763</code>（TESTDB-APPT-01）+ <code>750c6ebb5</code>（MR-C1-3）。<b>SEC-DUR-01 の残（MR-T1 / MR-S1 / BILL-B1 / BILL-B2）は <a href="#SEC-DUR-01">SEC-DUR-01</a> に残置している。</b><br>
+あわせて <b>BUG-455</b> は AUTH-S（<code>ab9eaa170</code>）+ AUTH-B（<code>6515ffd68</code>）で PermissionGroup 1件が解消、<b>BUG-456</b> は結果値・基準値のみ解消（<code>7ed9ae808</code>）。どちらも残作業があるため section は残置している。</p>
+<p><b>着手プランの参照先</b>: repo 直下の <code>grok-handoff-plan.md</code> に本節の残件を作業単位へ分解した計画がある（共通スコープ検査 + 各単位の7要素契約）。<b>ただし同 file の BUG-457 節は上記決定より前に書かれており陳腐化している</b>（決定待ちの記述と不採用の <code>delete</code> 案が残る）。他 entry も本節の記述と食い違う場合は<b>本節が正</b>である。</p>
+</blockquote>
+
+<h3>運用</h3>
+<ul>
+  <li>本節は、エージェントが直ちに着手できる未完了タスクの台帳とする。</li>
+  <li>タスクは「個別タスク詳細」に <code>&lt;section class="task" id="&lt;タスクID&gt;"&gt;</code> 形式で追加する。</li>
+  <li>対応済みの <code>&lt;section&gt;</code> は削除し、完了記録はgit履歴と各実装testを正本とする。旧台帳期の記録は <code>git log --all -- todo.md</code> で参照する。</li>
+  <li>GitHub Issueと対応するタスクはIssueのstateを実測し、Issue一覧を本節へ重複掲出しない。</li>
+  <li>release/運用gateは実装タスクと混在させず、<a href="q&amp;a.html#ops"><code>q&amp;a.html</code> OPS-13〜17</a>と該当runbookで追跡する。</li>
+</ul>
+
+<h3>正本の境界</h3>
+<div class="table-wrap">
 <table>
-<tr><th>セッション</th><th>対象</th><th>Readiness</th><th>主なゲート</th></tr>
-<tr><td><b>S1</b> 検査</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td><td>Phase 単位で条件付き</td><td>legacy mapping、enforceable な clinic/species schema、実機 export、manual validation を先行。</td></tr>
-<tr><td><b>S2</b> カルテ・飼主</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a></td><td>Issue 修正後に scoped 実装可</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a> は運用確認待ち、<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a> は価値検証待ち。#201 は safety work。</td></tr>
-<tr><td><b>S3</b> 会計・医院間リンク</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td><td>設計／業務決裁待ち</td><td>全書込経路の分類、会計保存則、clinic isolation・権限・RLS・audit atomicity を先に確定。</td></tr>
+  <tr><th>内容</th><th>正本</th></tr>
+  <tr><td>着手可能な実装タスク</td><td>本fileの<a href="#ledger">#ledger</a>「個別タスク詳細」</td></tr>
+  <tr><td>GitHub Issueのstate・一覧</td><td>GitHub Issues</td></tr>
+  <tr><td>BE9構造移行・進捗・release gate</td><td>BE9は2026-07-24にcode complete（release pending）。境界は<a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> / <a href="docs/architecture/be9-2a-boundary-map.md">boundary map</a>、release gateは<a href="q&amp;a.html#ops"><code>q&amp;a.html</code> OPS-13〜17</a></td></tr>
+  <tr><td>FEデザイン準拠・リファクタリング計画</td><td><a href="FE-refactor.md"><code>FE-refactor.md</code></a></td></tr>
+  <tr><td>今フェーズで着手しない事項</td><td><a href="phase2.html"><code>phase2.html</code></a></td></tr>
+  <tr><td>着手保留・任意検証のBE技術債</td><td><a href="BE-pending.md"><code>BE-pending.md</code></a></td></tr>
+  <tr><td>PO判断・USER実操作・P0ブロッカー</td><td><a href="q&amp;a.html"><code>q&amp;a.html</code></a></td></tr>
+  <tr><td>本fileのreadiness view</td><td>Issueを2並行レーン（A=検査・backend基盤／B=カルテ・飼主・会計残）で着手するためのガイドview。正本は各Issueであり、Issueの受け入れ条件を複製しない。</td></tr>
 </table>
-
-<div class="card s1">
-<h3>S1 — #249 検査機能<span class="tag">条件付き</span></h3>
-<ul>
-<li>legacy 相当 CSV は 1,324,612 行中 1,323,933 行で field ID が空。ID-only pivot は不可。読み取り専用の visibly-unmapped 表示と mapping/backfill review を先に行う。</li>
-<li>reference range は clinic ownership を DB で強制できる schema にし、species は既存 <code>animal_species_id</code> を正本にする。</li>
-<li>lab import の自動 commit は最後。初期 <code>auto_commit=false</code>、実機形式確認、代表データの手動照合、権限付き enable、停止・通知・監査を必須とする。</li>
-<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> の A1+A2/A6 は実装済み。A6 は <code>checkup_type_fields → checkup_types</code> 複合 FK であり、<code>exam_results</code> ではない。残りは USER の DB 適用確認と臨床確認。</li>
-</ul>
 </div>
 
-<div class="card s2">
-<h3>S2 — カルテ・飼主<span class="tag">安全境界を先に固定</span></h3>
-<ul>
-<li>#237 は correlated <code>EXISTS</code> を使い、JOIN する全 master を <code>medical_records.clinic_id</code> で再度 scope する。result と count は同じ条件を使う。</li>
-<li>#238 は条件付き OPS ではなく確定 backend bug。inactive 種別を公開一覧と直接予約 API から拒否し、既存予約表示は残す。</li>
-<li>#234 は既存の危険理由記録工程を確認して一本化を先に判断。理由は owner-facing DTO からキーごと除外し、院内 UI は touch/focus/keyboard でも1操作で確認可能にする。</li>
-<li>#235 は既存 upload path を再利用し、確定済みカルテでは drop UI・handler・BE の全境界で追加を拒否する。</li>
-</ul>
-</div>
+<h3>個別タスク詳細</h3>
 
-<div class="card s3">
-<h3>S3 — 会計・医院間リンク<span class="tag">Block</span></h3>
+<section class="task" id="TASK-ADR003">
+<h3>TASK-ADR003: 予約⇔会計の支払方法二重保持解消（ADR-003 案1B）</h3>
 <ul>
-<li>#251 は surgery、hospitalization、vaccine、hotel、training を含む全書込経路を棚卸ししてから BE/FE の分類 contract を決める。根拠のない <code>other</code> default は使わない。</li>
-<li>#247 は現行締め表の単純移植を禁止。discount・tax・insurance・refund・端数・件数の定義を決め、動的な支払方法列と row/column/grand total の保存則を共通 helper で保証する。</li>
-<li>#239 は明示 search → 手動 link/unlink → 最小履歴を先に検証し、候補自動化は最後。全 request ID の clinic scope、専用権限、custom RLS、transactional audit、owner/pet 整合を実装条件とする。</li>
-<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a> は current phase から外し、正式 CI baseline と PO の coverage policy 決裁後に高リスク repository test へ分解する。</li>
+  <li>PO-006／DEC-9 裁定済み。<b>実装は完了</b>（旧migration 006の複合FK〔現行所在は統合済み001末尾の旧006アーカイブブロック〕とmodel inventory登録 = <code>c434c4e66</code>）。完了証跡・詳細な検証記録の正本 = git 履歴（本 entry の旧全文は <code>b2897a409</code> 以前）。USER が Issue 起票したら本エントリを Issue へ移設し二重掲出しない。</li>
+  <li>残作業:
+    <ul>
+      <li><b>USER/CI 手順（未実施）</b>: 既存データを事前照合 → 統合済み <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ <code>make codegen</code> → full type-check → payment splitのclinic複合FKをruntime確認（<a href="q&amp;a.html">q&amp;a.html OPS-2</a> で追跡。DB操作は実装taskではない）。</li>
+      <li><b>未防御の <code>payments</code> — DEC-28 裁定（2026-07-27・A）で案b確定</b>: <code>payments.clinic_id</code> 追加＋backfill＋複合FK 2本（<code>billings</code>/<code>payment_methods</code>・親側 UNIQUE は <code>001_init.sql:3885</code>/<code>:3935</code> で既存）。実装は <a href="#TASK-445">TASK-445</a> の掃引に同梱。</li>
+    </ul>
+  </li>
 </ul>
-</div>
+</section>
 
-<h2>Delivery workstream</h2>
+<section class="task" id="TASK-251">
+<h3>TASK-251: 締め集計 category contract 確定実装（#251・12分類）</h3>
+<ul>
+  <li>contract 正本 = #251 本文（DEC-21・<b>USER 本人裁定</b> 2026-07-25・原文 = q&amp;a.html git 履歴）。完了 unit の証跡正本 = git 履歴と各実装 test（本 entry には残作業のみを置く。旧全文 = <code>b2897a409</code> 以前の本 entry 履歴）。</li>
+  <li><b>完了済み unit（hash のみ）</b>: U1 category resolver 単一ソース化 <code>2154dc9de</code> ／ U2a 物販 master 由来導出 <code>33690944e</code>+<code>24d4ae2fd</code>（BUG-436 解消） ／ U2b-min 手入力12分類必須 Select <code>b8a29d3e7</code> ／ U2b-full 第1段 other 理由必須化+旧migration 009（現行001内）<code>7a64d9e63</code> ／ U5 締め集計12値 fail-closed+<code>AllItemCategories</code> <code>581d6b87c</code> ／ U3 ワクチン接種 pull 型導出+旧migration 008（現行001内）<code>65a0dd08d</code>（第2走の trigger 案は coordinator 裁定で宣言的構成へ簡素化。派生 = SEC-DUR-01・BUG-440）。</li>
+  <li><b>残 unit</b>:
+    <ul>
+      <li><b>U2b-full 第2段</b> = 締め表「未分類・要確認」件数表示（DEC-16③残・別 session が Codex 発行済み・進行中）。</li>
+      <li><b>U4</b> = ④ training の新規 source 設計（DEC-21・現状 source 不在のため設計から。hotel 側は U1 の <code>HospitalizationTypeHotel</code> 経路で到達済み）。</li>
+    </ul>
+  </li>
+  <li><b>USER/CI 手順（未実施）</b>: 旧008/009を末尾へ統合済みの <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ <code>make codegen</code> → full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。</li>
+  <li>#247（月次統合表）は本 TASK の contract 完了後に着手。</li>
+</ul>
+</section>
+
+<section class="task" id="SEC-DUR-01">
+<h3>SEC-DUR-01: provenance FK graphのdurable enforcement方針（全FK共通・横断）</h3>
+<ul>
+  <li>第2走reviewer所見: provenance link後に<code>pets.owner_id</code>/<code>pets.clinic_id</code>、<code>owners.clinic_id</code>、<code>medical_records.owner_id</code>/<code>medical_records.pet_id</code>/<code>medical_records.clinic_id</code>、各source master（<code>vaccines.clinic_id</code>等）が変更されると、Vaccination/Treatment/Merchandise等の既存provenance graphが後から不整合になり得る。</li>
+  <li>個別sourceだけへtriggerを追加するのではなく、全provenance FKに共通するarchitecture/PO論点として、service依存チェック・宣言的FK・許可された親mutationの再相関/移送をどの層で保証するかを決める。飼主変更（<code>pets.owner_id</code>）等の実機能を恒久ブロックしないことを必須条件とする。</li>
+  <li><b>DEC-27 裁定（2026-07-27・A）</b>: <code>owner_id</code> は「診療時点のスナップショット」と定義する。等値検証（<code>clinical_relation_validation.go:67-69</code>）を削除し、整合性検証は pet 軸＋clinic 軸に限定。「飼主でカルテを絞る」読み取りは現在の飼主基準（pets 経由）へ統一（現状でも <code>examination_repository.go:56</code> と <code>checkup_repository.go:101</code> で基準が割れている）。<b>着手手順（納品後バッチ）</b>: ①読み取り経路の全数掃引（調査 unit・実装前必須） ②等値検証削除＋フィルタ統一の実装。clinic_id 軸の複合FKは <a href="#TASK-445">TASK-445</a>（DEC-28）へ分離。U3のdelivery boundary（link時app検証・transaction lock・宣言的clinic FK）は維持。</li>
+  <li><b>①掃引 完了（2026-07-28・read-only unit・source無変更）</b>: <code>backend/internal</code> の非test Go = <b>156 file / 840 occurrence</b>を全数分類（A=現飼主基準read／B=スナップショット保持／C=削除対象の等値／D=durable write 50件／E=残余）。coordinator実測で census・<code>git diff -- backend/</code> 0件・抜き取り3箇所の逐語一致を確認済み。<b>成果物（分類表・test対応・挙動変化シナリオ）はcoordinatorが保持</b>し、②発行時にプロンプトへ埋め込む。
+    <ul>
+      <li><b>台帳の見積もりが甘かった</b>: Cは17箇所で <code>medicalrecord</code>／<code>billing</code>／<code>owner</code>／<code>lstep</code> の4ドメインに散在する。1 unitでは出せない。②は3分割が妥当 = <b>MR-A1</b>（現飼主基準read 7 file）／<b>MR-C1-3</b>（臨床面の等値削除）／<b>BILL-C1-3</b>（accounting/LTV/未収/締め集計）。</li>
+      <li><b>実害の発見（基準割れより重い）</b>: ペット譲渡後、<b>健診履歴が旧飼主・新飼主の双方から不可視になる</b>。<code>checkup_repository.go</code> は外側フィルタが <code>medical_records.owner_id</code>（旧飼主スナップショット）、内側relation scopeが旧/現の不一致を弾くため、旧飼主で検索→relation scopeが拒否、新飼主で検索→外側フィルタが拒否。臨床データが黙って消える。</li>
+      <li><b>既存testが複数REDになる</b>（DEC-23と同型のlegacy契約変更）: <code>TestAccountingRepository_LTVAggregates_ExcludeMismatchedMedicalRecordOwnerAndAllowDirectBilling</code>／<code>TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation</code>／<code>TestFindOwnerLTV_ExcludesBillingOwnedByAnotherOwner</code>／<code>TestPetGrandchildReadClinicIsolation</code>／<code>TestCheckupRepository_FindByOwnerID</code>。②のプロンプトはrebaselineを明示scopeに含めること。</li>
+      <li><b>② MR-A1 完了（2026-07-28・<code>b103e4a73</code>・16 file / 613 insertions）</b>: 「飼主で絞る」read 7面を pets 経由の現飼主基準へ統一。<b>ペット譲渡後に臨床履歴が旧飼主・新飼主の双方から消える欠陥を解消した。</b>第1走は「譲渡レコードが返ること」を要求しつつ、それを妨げる relation scope 内 owner 等値を Out of scope にした<b>充足不能な契約</b>で着手前 BLOCKED（分析上の分類 A/C をそのままユニット境界に流用した設計ミス）。第2走で当該3述語（<code>scoped_pet.owner_id = medical_records.owner_id</code>／<code>scoped_record.owner_id = scoped_record_pet.owner_id</code>／<code>pets.owner_id = prescriptions.owner_id</code>）を In scope へ編入し完遂。coordinator 実測で3述語の grep 0件・保護対象0件を確認済み。RED→GREEN 証跡あり。<b>境界は「分類」でなく「1つの観測可能な挙動が end-to-end で正しくなる範囲」で引く。</b></li>
+      <li><b>付随: TESTDB-APPT-01 完了（2026-07-28・<code>8ad92f763</code>・2行）</b>: MR-A1 が package 単位testを走らせたことで顕在化した既存欠陥。<code>medical_record_owner_pet_preload_clinic_isolation_test.go</code> の setup が <code>model.ReservationType{}</code>／<code>model.Reservation{}</code>（<code>appointments</code> へマップ）を <code>EnsureAutoMigrated</code> へ渡しておらず、TRUNCATE が <code>SQLSTATE 42P01</code> で落ちていた。55 TRUNCATE site を全数突合し差集合は空。<code>internal/medicalrecord</code> の package test が完走可能になった。</li>
+      <li><b>新規課題（実装プロンプト化を保留・要件を疑う段へ差し戻し）</b>: <code>idx_reservation_types_clinic_name</code>（<code>WHERE deleted_at IS NULL</code>）と <code>uk_appointment_staff_time</code>（<code>WHERE deleted_at IS NULL AND status != 'cancelled'</code>）は<b>部分</b>ユニークindexだが、model に対応 tag が無くAutoMigrate後は制約不在。<b>素朴に <code>uniqueIndex</code> tag を足すと無条件制約になり本番より強くなる</b>（soft-delete済み同名・cancelled済み同時刻が拒否され、本番で合法なシナリオでtestが落ちる）。codebase に partial index tag の前例は0件。本質は「AutoMigrate ベースのtest schemaで部分制約をどう表現するか」というmodel層横断の設計問題であり、この2モデルの修正ではない。</li>
+      <li><b>② MR-C1-3 完了（2026-07-28・<code>750c6ebb5</code>・11 file）</b>: 臨床面のスナップショット等値を撤去。<code>clinical_relation_validation.go</code>／<code>vaccination_service.go</code>／<code>examination_repository.go</code>／<code>vaccination_repository.go</code> から owner 等値を削除し、<code>daily_record_service.go</code>・<code>hospitalization_service.go</code> は <code>ValidateReservationOwnerPetLinks</code> を <code>AssertOwnerInClinic</code>＋<code>FindPetOwnerInClinic</code> の2検証へ分解（clinic の fail-closed は維持）。<b>reviewer の HIGH「同一 clinic の owner/pet 不一致が通る」は DEC-27 が意図した仕様であり欠陥ではない</b> — coordinator 実測で、削除された test は <code>rejects_owner_pet_mismatch_*</code> 2件のみ（同一 clinic 内）、cross-clinic 防御 test は8本すべて健在。むしろ旧挙動は譲渡後に入院継続を恒久ブロックする臨床リスクだった。</li>
+      <li><b>MR-C1-3b（write 面回帰テスト）= 未着手・prompt 第2版待ち</b>: <code>750c6ebb5</code> は read 2面の回帰しか追加していない。write 面（<code>ExaminationService.Update</code>／ワクチン更新／<code>DischargeWithBilling(CreateAccounting:false)</code>／記録確定）が未カバー。production code 不変の test 専用 unit。</li>
+      <li><b>発見: 冗長述語（dead predicate）— 撤去は別 unit</b>: <code>clinical_relation_validation.go:79-86</code> と <code>vaccination_service.go:356</code> の owner 比較節は<b>実 DB で到達不能</b>。pet ID が異なれば <code>*record.PetID != *petID</code> で短絡し、同じなら両 owner が同一 pet 行への <code>FindPetOwnerInClinic</code> 由来で必ず一致するため。pet ID 等値が既に保証しており、残しておくと「owner も検証している」という誤読を生む。撤去する場合は pet ID 等値・clinic 検証を残すこと。</li>
+      <li><b>②の発行gate</b>: MR-A1・MR-C1-3 は完了。残 = MR-C1-3b（test 専用・即発行可）と BILL-C1-3。BILL-C1-3 は <a href="#TASK-251">TASK-251</a>（締め集計 category contract・U2b-full 第2段が別session稼働中）と同一面を踏む。<b>#251 の稼働unit清算後に発行する</b>。MR-A1／MR-C1-3 は billing 非依存のため先行可能。<a href="#SEC-SWEEP-02">SEC-SWEEP-02</a> とはrelation scope・prescription/billing joinで重複するため所有pathの突合が必要。②は <code>deleted_at</code>/<code>deceased_at</code> を相関述語へ追加しない規約を維持する。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="BUG-440">
+<h3>BUG-440: vaccination claim解放のimmutable actor監査</h3>
+<ul>
+  <li>HIGH（独立security review）。U3の要求どおり明細soft-delete時に<code>vaccination_id</code>/内部<code>clinic_id</code>をNULL化して再候補化するため、削除済み<code>billing_items</code>行だけでは「どの接種claimを誰が解放したか」を復元できない。通常ログはdurable actor auditの代替にならない。</li>
+  <li>対応はclaim作成・解放を同一transaction内のimmutable audit/historyへactor・対象vaccination・理由付きで保存し、audit失敗時に本体writeもrollbackする設計とする。completed/cancelled会計の削除防御はU3 repair round 1で実装済み。</li>
+  <li><b>DEC-28 裁定（2026-07-27・A）</b>: 既存 <code>audit_logs</code>＋<code>audit.LogEntryTx</code> の同一 tx・fail-closed 方式で確定（DDL 不要・専用履歴表は二重管理のため不採用・<code>DeleteItem</code> への actor 配線・backend 4〜6 file）。<code>audit_logs</code> の DB レベル改竄防止は横断課題として分離（DB ロール確認後に別カード起票）。着手 = 納品後・billing 面の稼働 unit 清算後に発行。U3のexact delete→再候補化contractは維持。</li>
+</ul>
+</section>
+
+<section class="task" id="SEC-SWEEP-02">
+<h3>SEC-SWEEP-02: grandchild FKの親相関掃引 + 同型欠陥のstatic lint新設</h3>
+<ul>
+  <li>SEC-SWEEP-01（掃引 <code>3321c801f</code>、修正 <code>c16c011f2</code>＋<code>0736cd6f9</code> で <b>完了</b>）が明示的に繰り越した2件。掃引はpet直下の子テーブルreadのみを対象としており、孫テーブルは別クラスとして未着手。</li>
+  <li><b>① grandchild相関の掃引（read-only調査）</b>: <code>daily_records</code> / <code>care_logs</code> / <code>exam_results</code> / <code>billing_items</code> / <code>medical_record_images</code> / <code>medical_record_addenda</code> 等、petの孫にあたる表のreadが中間表を経由した親clinic相関を持つかをschema-firstで全数確認する。SEC-SWEEP-01と同じ手順（schema universe → model mapping → consumer discovery → state分類）を適用する。</li>
+  <li><b>② static lintの新設</b>: 同型欠陥（<code>pet_id</code>等の単一FKに対し親clinic相関を欠くread）をraw SQLとGORMの双方で検出するlintを既存6 lintの隣へ追加する。BUG-429の1件もSEC-SWEEP-01の9件も人手監査でしか見つかっていない。機械で止めない限り同じクラスが再発する。</li>
+  <li>修正の参照実装 = <code>backend/internal/pet/chronic_condition_repository.go:37,52</code>。相関にpets側の <code>deleted_at</code> / <code>deceased_at</code> を含めない制約は本掃引にも適用する（含めるとsoft-delete済み・死亡ペットの履歴が黙って消える挙動回帰になる）。</li>
+  <li><b>第1走完了（7/27・<code>864a886b7</code>・Mode 3 照合済み）</b>: ①census 28表を独立reconcile付きで全数分類 ②lint <code>grandchild_parent_clinic_correlation_lint_test.go</code> をRED→GREENで新設（9対象+raw SQL） ③修復 = checkup_field_results / prescriptions / treatment_plans（直読+hospitalization側count・ambiguous column修正込み）。並行走の daily_records / medical_record_addenda 修復+副lint <code>pet_grandchild_...</code> は検証のうえ <code>5c81ac8af</code> で清算済み（<b>同目的 lint 2本の統合が残</b>）。</li>
+  <li><b>残（CRITICAL・修復予算超過/legacy契約裁定要で第1走が正しくBLOCKED返し）</b>: <code>appointment_trimming_details</code>（trimming_repository.go:30）／<code>billings</code>（accounting_repository.go:192,280）／<code>estimates</code>（estimate_repository.go:43）／<code>medical_records</code> appointment edge（medical_record_repository.go:375）／<code>vital_records</code>（vital_repository.go:40）。HIGH: staff_repository.go:329 の addenda/vitals 依存count。vital→accounting→estimate は既存legacy testが「親をsanitizeしつつ壊れた子は可視のまま」を要求し3-strikeでBLOCKED — 修復には既存契約の裁定が先。lintのraw SQL検出は <code>*</code>/<code>id</code>/<code>alias.id</code> 形のみで一般化も残。</li>
+  <li>出典: SEC-SWEEP-01実行結果のcalibration / follow-up節（2026-07-25・掃引完了に伴い本エントリへ移設）。</li>
+  <li><b>DEC-23 裁定（2026-07-27・A）</b>: legacy read 契約の変更を承認 — 残5面＋HIGH 1件は「孫 read にも親 clinic 相関を必須化＋該当 legacy テスト書換え」で着手可能（<code>deleted_at</code>/<code>deceased_at</code> を相関に含めない規約は維持）。発行はレーンA/B の稼働 unit（medicalrecord/billing/pet 面）の清算後に所有 path を突合して行う。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-433">
+<h3>BUG-433: 生成FE型がGoドメインモデル由来のため、応答DTOに無いフィールドが型上は存在扱いになる</h3>
+<ul>
+  <li>HIGH（サイレント機能不全の生成器）。<b>特定レーンに属さない横断課題</b>。<code>frontend/src/types/generated/models.ts</code> は tygo が <code>backend/internal/model/</code> から生成しており（同ファイル冒頭コメント）、OpenAPI／応答DTOからではない。このため FE の型は <em>Goドメインモデル</em> を写し、HTTP が実際に返す <em>応答DTO</em> とは一致しない。DTOに無いフィールドは実行時 <code>undefined</code> なのに型検査は通る。</li>
+  <li>実害の実例: BUG-431（受付の危険度バッジが実APIで一度も点灯しなかった・<code>463e07424</code> で修正）は本ドリフトの1インスタンスに過ぎない。fixtureは型どおり作られるためテストでも検出されない。</li>
+  <li>実測された残存ギャップ: 生成 <code>Pet</code> は31プロパティ、修正後の予約pet DTOは9。残22フィールド（<code>clinic_id</code> <code>owner_id</code> <code>animal_species_id</code> <code>name_kana</code> <code>gender</code> <code>birth_date</code> <code>color</code> <code>blood_type</code> <code>microchip_number</code> <code>neutered_date</code> <code>acquisition_type</code> <code>food</code> <code>environment</code> <code>phone</code> <code>last_visit</code> <code>insurance_id</code> <code>remarks</code> <code>deceased_at</code> <code>deceased_reason</code> <code>created_at</code> <code>updated_at</code> <code>insurance</code>）は型上は利用可能だがワイヤに存在しない。他モデル（Owner/Reservation等）も同構造。</li>
+  <li>対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。①②は生成基盤の変更を伴うため納品後が妥当。納品前は、新規に生成型のフィールドへ依存する実装を書くときに<b>そのフィールドが応答DTOに実在するかを都度確認する</b>運用で凌ぐ。</li>
+  <li>出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。</li>
+  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）</b>: 短期 = 型分離 = <a href="#TASK-444">TASK-444</a>。恒久 = 応答DTO生成への切替（TASK-444 完了後に別起票・納品後）。個別対症の暫定運用は TASK-444 完了まで継続。</li>
+</ul>
+</section>
+
+
+<section class="task" id="BUG-437">
+<h3>BUG-437: <code>Preload("Items")</code> の clinic-scope を機械的に守る手段が無い（cross-tenant read IDOR の再発防止が未完）</h3>
+<ul>
+  <li><b>状態: OPEN / HIGH（clinic 分離）。registry 登録は完了しており、残るのは再発防止の穴だけである。</b>
+    <br><b>⚠ 旧記述の訂正（coordinator 実測・2026-07-28）</b>: 本 entry は長らく「read 側 registry へ<b>未登録</b>」と記述していたが、これは陳腐化していた。<code>backend/internal/lintscan/preload_clinic_scope_lint_test.go:93</code> に <code>"ExamTypeField": "ExamTypeField"</code> が<b>コミット済みで実在する</b>（最終変更 <code>9ca93f249</code>）。登録は済んでおり、照合ゲートも read lint も green である。<b>着手する側はこの前提で読むこと。「登録する」作業は既に不要である。</b>
+    <br><b>残っている真の問題</b>: read lint は Preload path の<b>末尾 association 名だけ</b>で registry を引き、未登録名を無視する（<code>preload_clinic_scope_lint_test.go:245-256</code>）。live read 経路は <code>Preload("Items")</code> であり、<code>Items</code> は <code>ExamResult</code> / <code>BillingItem</code> / <code>EstimateItem</code> / <code>LabExamResultItem</code> にも使われる汎用名のため一律登録できない（誤検出する）。したがって <code>backend/internal/medicalrecord/exam_type_repository.go:37,46</code> の2件から <code>clinic_id</code> 述語を削除しても lint は検出しない。
+    <br><b>現行 runtime の安全性</b>: 上記2件は既に <code>"clinic_id = ?"</code> を持ち、DB-backed cross-tenant test も green。<b>いま漏れているわけではない。</b>問題は「将来この述語が消されても機械的に気付けない」点である。
+    <br>経緯: <code>b4d10e083</code>（#249 Phase 2 U1）が <code>backend/internal/model/examination_type.go:32</code> の <code>ExamTypeField</code> へ <code>ClinicID uint64</code> を追加した。write 側 registry には <code>master_fk_write_inventory_lint_test.go:129</code> で登録済み。</li>
+  <li>実害: clinic-scoped master を FK 値で Preload する際に <code>clinic_id</code> 述語が無いと、汚染された FK（#124/#125 の write 側検証ギャップ、または是正前データ）に対して<b>他院の master 名・値が返る</b>。b3638d5e で手作業修正した cross-tenant read IDOR と同型である。</li>
+  <li>検出経路: BE10-2 B5（<code>b28c4a105</code>）が <code>TestMasterModelReconciliation_RealSourceIsConsistent</code> を復旧した直後に検出した。<b>B4（<code>c430072d8</code>）以降このゲートは <code>no such file or directory</code> で死んでおり、B5 が直すまでこの追加は無検出で通過する状態だった。</b></li>
+  <li><b>対応方針（着手ユニットが選ぶ・登録は済んでいるので選択肢から外れている）</b>: ① <code>Preload</code> path の親 model / 呼び出し site を識別する context-aware rule を read lint へ導入し、<code>Items</code> のような同名別モデル association を親ごとに判定できるようにする ② <code>ExamTypeField</code> 側の association 名を一意な名前へ変更し、末尾名だけで registry を引ける現行 rule のまま守れる形にする。<b>ゲートを黙らせる目的だけの <code>masterModelReadWriteExemptions</code> 追加は禁止。</b>いずれも registry へ1行足すより大きい設計変更であり、独立ユニットとして予算を取ること。</li>
+  <li><b>検証コマンド</b>: <code>docker compose exec backend go test ./internal/lintscan/ -run TestMasterModelReconciliation_RealSourceIsConsistent -count=1</code> と read lint、および <code>backend/internal/medicalrecord</code> の DB-backed cross-tenant test。<b>現時点でこれらは全て green である</b>（<code>internal/lintscan</code> package 全体が green: R-4 = <code>9ca93f249</code> の stale sentinel 是正と BUG-438 = <code>296ea7bb7</code> の CASCADE allowlist 登録で残 FAIL 2件が解消済み）。したがって本件は<b>「ゲートが赤い」問題ではない</b>。着手ユニットは「green を維持したまま、削除されたら赤くなる仕組みを足す」ことを完了条件にすること。既存 gate の green を根拠に完了扱いしてはならない。</li>
+  <li>出典: BE10-2 B5 の Mode 3 照合（2026-07-25・生成側が独立実測）。</li>
+</ul>
+</section>
+
+<p>2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本節へ再掲しない。</p>
+
+<section class="task" id="TASK-444">
+<h3>TASK-444: FE 生成型の分離 — ドメインモデル型と応答 DTO 型の誤用防止（DEC-26 短期段）</h3>
+<ul>
+  <li>DEC-26 裁定（2026-07-27・A）の短期段。<code>frontend/src/types/generated/models.ts</code>（tygo・Go ドメインモデル由来）を「ドメインモデル型」として隔離（名前空間/ディレクトリ/命名で明示）し、画面・hooks が応答 DTO として誤用している箇所を応答 DTO 由来型へ分離する。出発点 = <a href="#BUG-433">BUG-433</a> の実測（生成 <code>Pet</code> 31 プロパティ vs 予約 pet DTO 9・残 22 フィールドがワイヤ不在）。</li>
+  <li>受け入れ条件: 新規コードが生成型を応答型として import できない構造（lint/型レベルで阻止）・既存誤用の棚卸し一覧が成果物に含まれる。恒久段（応答 DTO からの生成切替）は本 unit 完了後に別起票。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-445">
+<h3>TASK-445: clinic_id 軸の宣言的複合FK掃引 — payments 案b 同梱（DEC-28）</h3>
+<ul>
+  <li>DEC-28 裁定（2026-07-27・A）。アプリは <code>clinic_id</code> を書き換えない（backend 全走査・書換えヒット0）ため機能影響ゼロの defense-in-depth。新規 incremental migration 1 本（001 不変・追加 DB_RESET 不要）で、<code>medical_records</code>→<code>pets</code>/<code>owners</code>・<code>vaccinations</code>→<code>pets</code>/<code>medical_records</code>・<code>billings</code>→<code>pets</code>/<code>owners</code> 等へ親側 <code>UNIQUE(id, clinic_id)</code>＋子側複合FKを掃引する。<b>payments 同梱</b> = <code>payments.clinic_id</code> 追加＋backfill＋複合FK 2本（親側 UNIQUE は既存）。</li>
+  <li>前提 = 適用前の既存データ照合クエリ（<code>001_init.sql:3891-3903</code> の payment_splits 前例と同型・不整合行があれば ALTER 失敗）。model 列追加は <code>make codegen</code>（USER 専権）を伴う。関連 = <a href="#SEC-DUR-01">SEC-DUR-01</a>（clinic 軸実装）・<a href="#TASK-ADR003">TASK-ADR003</a>。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-448">
+<h3>BUG-448: 検査明細削除監査に判定基準値のprovenanceが残らない</h3>
+<ul>
+  <li>HIGH（#249 U2 直前runの独立 healthcare review 検出）。明細置換で旧行が削除された際、監査snapshotに <code>ref_min</code> / <code>ref_max</code> と評価状態が含まれず、どの基準値で判定された結果が消えたかを復元できない。</li>
+  <li>本unitはread responseとFE表示の曖昧性解消が対象で、audit contract変更はスコープ外。別unitで削除監査のold/newへ解決済みboundと評価状態を追加し、同一transaction・fail-closedを維持する。</li>
+</ul>
+</section>
+
+
+<section class="task" id="BUG-449">
+<h3>BUG-449: 検査異常値の自動ハイライトが全件無効化されている（基準値マスタの投入経路が存在しない）</h3>
+<ul>
+  <li><b>CRITICAL</b>（2026-07-27・FE12-02 M-02 fixture作成中に実測）。<code>docs/spec/specification.md:21</code> が「検査異常値の自動ハイライト」を標準装備と謳うが、<b>現在システム全体で 1 件も異常判定されない</b>。M-02 の fixture だけの問題ではない。</li>
+  <li><b>機序</b>: 判定基準値の供給経路が #249 U3 で切り替わり、旧経路が死んだまま新経路のデータが存在しない。<code>backend/internal/medicalrecord/examination_service.go:472-490</code> の <code>ReplaceItems</code> は item ごとの <code>refMin</code>/<code>refMax</code> を <b><code>resolvedRanges</code>（= <code>exam_reference_ranges</code> の解決結果）からしか設定しない</b>。request が運ぶ <code>in.RefMin</code>/<code>in.RefMax</code> は一度も読まれない。</li>
+  <li><b>旧経路が生きたまま無視されている</b>: request DTO は今も <code>ref_min</code>/<code>ref_max</code> を受け取り（<code>examination_request.go:137-138</code>、<code>UpsertExamItemInput</code> は <code>examination_service.go:50-51</code>）、frontend は <code>frontend/src/features/examinations/api/get-exam-type-fields.ts</code> の <code>parseNormalRange</code> で <code>exam_type_fields.normal_value</code> を 6 表記（<code>3.5-7.0</code> / <code>3.5〜7.0</code> / <code>3.5以上7.0以下</code> / <code>3.5以上</code> / <code>&lt;7.0</code> / <code>&gt;3.5</code>）からパースして送り続けている。<b>API は受理して黙って破棄する。</b>silent contract break。</li>
+  <li><b>新経路にデータが無く、入れる手段も無い</b>: <code>exam_reference_ranges</code> は seed に 0 行で、read/write API も master 画面も存在しない。結果として <code>exam_result_assessment.go</code> の <code>unassessedExamResult()</code> が全件に適用され、<code>is_assessed=false, is_abnormal=false, status=normal</code> が返る。<b>この <code>normal</code> は「正常」ではなく「未評価」であり、臨床的な正常判定と読み違える危険がある。</b></li>
+  <li><b>実測証跡</b>（2026-07-27・disposable local・exam <code>1014562</code>）: RBC <code>9.0</code>（<code>normal_value</code> 表記 5.5-8.5 の上限超過）と HCT <code>30.0</code>（同 37-55 の下限未満）が、いずれも <code>is_assessed=false, is_abnormal=false, status=normal</code> で read-back された。</li>
+  <li><b>是正方針（未裁定）</b>: 基準値を「動物種ごとに動的設定できるマスタ」として投入経路（API + 画面）を作る。<code>exam_reference_ranges</code> は既に <code>(clinic_id, exam_type_field_id, animal_species_id)</code> キーで species 次元を持つため <b>schema 変更は不要</b>で、欠けているのは入力面だけである。<b>既存 <code>normal_value</code> からの機械移行は禁止</b> — <code>normal_value</code> は単位混在の自由文字列で species 次元を持たず、変換すると「全 species で同一基準値」を暗黙に主張して臨床的に誤る（犬猫で基準値は異なる）。値は獣医師が種別ごとに与える。</li>
+  <li><b>同時に削除できるもの（哲学②）</b>: ranges が単一の正本になれば、判定入力としての <code>normal_value</code>、FE の <code>parseNormalRange</code>、request の <code>ref_min</code>/<code>ref_max</code> は不要になる。現在は同じ事実が 3 箇所にあり、うち 2 箇所は既に機能していない。</li>
+  <li><b>スコープ外</b>: 個体別（pet 単位）の基準値。現 schema は <code>uq_exam_reference_ranges_clinic_field_species</code> で個体を持てず、要求も出ていない。実在する要求が出るまで作らない。</li>
+  <li><b>状況更新（2026-07-28）— 機構は開通、残るのは臨床値の投入だけ</b>: #249 U4（<code>afd8404a4</code> API＋<code>1adf55b6e</code> UI）で <code>PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges</code> が入り、<b>上記「入れる手段も無い」は解消した</b>。<b>ただし本Issueはまだ閉じない</b> — <code>exam_reference_ranges</code> は依然0行で、獣医師が動物種ごとの値を実際に投入するまで <code>unassessedExamResult()</code> が全件へ適用される状態は変わらないため。<b>その間の誤読対策は完了済み</b>: 未評価と評価済み正常の区別を検査フォーム（<code>19bbdbae2</code>）・検歴ピボット・カルテ検査結果一覧の3 surface全てで実装し、BUG-450（一覧レスポンスの明細欠落でカルテ検査結果一覧が常に空・飼主レポートの異常件数が常に0。<code>include_items</code> の opt-in 追加で解消・closed）も併せて片付いた。<b>残作業＝臨床値の投入のみ（委任外）。</b></li>
+  <li><b>死んだ基準値経路の撤去 unit（2026-07-28）— BLOCKED</b>: Phase A の全送受信経路 sweep で、通常検査の request <code>RefMin</code>/<code>RefMax</code> は <code>examination_request.go:149-180</code> から <code>UpsertExamItemInput</code> へ届くものの、<code>examination_service.go:454-506</code> は <code>exam_reference_ranges</code> の解決値だけを判定・snapshot に使うため死んでいることを再確認した。frontend の <code>parseNormalRange</code> は <code>get-exam-type-fields.ts:118</code> から <code>use-examination-form.ts:79-80</code> へ流れ、実際に <code>ref_min</code>/<code>ref_max</code> を送る到達可能だが臨床的には無効な経路である。一方、認証済み <code>POST /lab-imports</code>（<code>routes.go:373-380</code>）は <code>lab_import_request.go:61-67,109-145</code> で request 由来の bounds を受け取り、<code>lab_import_examination_service.go:76-93</code> がその値で high/low 判定して snapshot を保存する<b>生きた第2の判定入力</b>だった。したがって「<code>exam_reference_ranges</code> を判定基準値の唯一の正本にする」という unit の前提・Success Criteria は列挙済み patch では充足不能で、saved prompt の Phase A stop rule に従い Phase B/C、code edit、stage、commit を開始せず停止した。lab import には安定した <code>exam_type_field_id</code> と species 解決が無いため、勝手に bounds を削除すると imported result が未判定へ落ち、飼主レポート等の <code>基準外なし</code>/<code>0件</code> 表示へ誤読を再導入し得る。通常検査だけへ unique-SOT claim を狭めるか、lab import の field mapping・master resolution・未判定表示を別 unit として設計する必要がある。</li>
+  <li><b>Phase A の陳腐化確認</b>: <code>afd8404a4</code> の現行 route は <code>backend/internal/medicalrecord/routes.go:157</code>、<code>1adf55b6e</code>/<code>ad616d269</code> の editor は <code>ExamTypeFieldsEditor.tsx:154-162,207-226,411-479</code> に存在するため、「read/write API も master 画面も存在しない」は陳腐化済み。残っていたのは通常検査の死んだ request/parser/sender、DB-backed high/low/unassessed 一体証明の不足、そして今回判明した lab-import の生きた request 判定経路である。<code>normal_value</code> の表示は <code>ExamItemsTable.tsx:169-170</code> と既存 test <code>ExamItemsTable.test.tsx:113-127</code> で維持されている。current runtime の range 行数は direct SQL 禁止のため再認定していない。</li>
+  <li><b>prompt gate / 実行証跡</b>: prompt SHA-256 = <code>abd1c943efd880609f27dc327a50fc93f32a86d1ee8ad6c18d198b072dd4f0c2</code>、commit SHA = なし、変更 file = 本 ledger section のみ（stage/commit しない）。
+<pre>$ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-bug449-dead-refrange-path-removal.md
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Target: agent (source-path)
+Quality mode: standard
+Execution contract: dynamic-workflow/v1
+exit 0
+
+$ docker compose exec -T backend go test ./internal/lintscan/ -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/lintscan	2.283s
+exit 0
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestExamination|TestExamResultAssessment|TestExamReferenceRange' -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	2.804s
+exit 0
+
+$ docker compose exec -T frontend npx vitest run src/features/examinations/components/ExamItemsTable.test.tsx
+Test Files  1 passed (1)
+Tests  32 passed (32)
+exit 0
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run '^TestLabImportExaminationService_PersistExam_Happy$' -count=1 -p 1 -v
+=== RUN   TestLabImportExaminationService_PersistExam_Happy
+--- PASS: TestLabImportExaminationService_PersistExam_Happy (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.004s
+exit 0</pre></li>
+  <li><b>workflow orchestration</b>: native Workflow tool は未提供のため parallel subagent fan-out を使用。<code>phase_a_u4_route_ui</code>（U4/API/UI）、<code>phase_a_ref_range_sweep</code>（全送受信経路）、<code>phase_a_normal_value</code>（用途分類）、<code>phase_a_assessment_tests</code>（判定/test棚卸し）、<code>bug449_planner</code>（13 checklist/ownership計画）は read-only 完了・findings を採用。<code>clinical_blocker_review</code> は独立臨床安全 review の最終証跡提出後に明示 interrupt（追加探索不要）し、CRITICAL blocker を採用した。全 lane は joined または明示 cancel 済み。writer は Phase A stop rule により起動していない。Failure Signature = <code>Phase-A-unique-SOT-01</code>（expected: request bounds は全て死んでいる、actual: lab import が request bounds で判定・保存、verification: source trace + focused test、attempt 1、fix: なし—scope/design authority 不足、result: BLOCKED）。別の ownership blocker として <code>examination_request.go</code>/<code>examination_request_test.go</code>/<code>backend/docs/api.yaml</code> に他 session の未commit差分があり、これも保持した。</li>
+  <li><b>死んだ基準値経路の撤去 unit（2026-07-28・通常検査限定の再実行）— COMPLETE</b>: 通常検査 frontend の <code>parseNormalRange</code>、template由来 <code>refMin</code>/<code>refMax</code>、POST/PATCH/PUT の <code>ref_min</code>/<code>ref_max</code> senderを撤去し、backendの通常検査 request DTO・service input・OpenAPI request schemaからも同fieldを撤去した。<code>normal_value</code> の表示と保存済みresponse snapshotは維持。Stage 1 commit = <code>546e26f808adbe18222140a9a3027abfd7c0fdac</code>、Stage 2 commit = <code>e7721b6bd5fb820fa0b16031306ce8298c2a8769</code>。Stage 2直前のownership gateは0行となり、他sessionのBUG-450 WIPがcommit済みであることを確認してから着手した。
+<pre>$ git status --porcelain -- backend/internal/medicalrecord/examination_request.go backend/internal/medicalrecord/examination_request_test.go backend/docs/api.yaml
+[0 lines]
+exit 0
+
+$ docker compose exec -T frontend sh -lc "grep -rn parseNormalRange src/ || echo NO_MATCH"
+NO_MATCH
+exit 0</pre></li>
+  <li><b>臨床安全contract</b>: 通常検査は引き続き認証clinic・pet species・field IDで <code>exam_reference_ranges</code> を解決し、その値だけでHIGH/LOW判定とsnapshot保存を行う。追加characterization <code>TestExaminationService_ReplaceItemsUsesSingleMasterRangeForHighLowAndLeavesMissingUnassessed</code> は同一master rangeからHIGH/LOWを作り、range不在fieldを <code>status=normal</code> でも <code>is_assessed=false</code>・snapshot nilとして固定した。<b>lab importは生きた例外</b>であり、安定した <code>exam_type_field_id</code> を持たないため request由来 <code>ref_min</code>/<code>ref_max</code> で判定・保存する現行contractを変更していない。protected 2 filesのdiffは0行、<code>TestLabImport</code>はPASS。通常検査の単一正本という主張をsystem全体へ拡張しない。</li>
+  <li><b>再実行の決定的gate</b>: prompt SHA-256 = <code>f2f1cd4b336fef09864a00c8e708955effad9d7cc2f79042b97c41a874f3960a</code>。
+<pre>$ node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-bug449-frontend-refrange-path-removal.md
+Prompt Craft Harness Validation: PASS
+Profile: standard (declared-risk-tier)
+Target: agent (source-path)
+Quality mode: standard
+Execution contract: dynamic-workflow/v1
+exit 0
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestExamination|TestExamResultAssessment|TestExamReferenceRange|TestLabImport' -count=1 -p 1
+# baseline
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	3.037s
+# after（共有DB競合を避けて単独再実行）
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	3.032s
+
+$ docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestLabImport' -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	2.771s
+
+$ docker compose exec -T backend go test ./internal/lintscan/ -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/lintscan	2.922s
+
+$ docker compose exec -T backend go test ./internal/apicontract/ -count=1 -p 1
+ok  	github.com/animal-ekarte/backend/internal/apicontract	0.523s
+
+$ docker compose exec -T frontend npx vitest run src/features/examinations/hooks/use-examination-form.test.ts src/features/examinations/components/ExamItemsTable.test.tsx
+Test Files  2 passed (2)
+Tests       74 passed (74)
+exit 0
+
+$ git diff --name-only -- backend/internal/medicalrecord/lab_import_request.go backend/internal/medicalrecord/lab_import_examination_service.go
+[0 lines]
+exit 0</pre>
+変更file限定ESLint、<code>go vet ./internal/medicalrecord/</code>、明示file <code>gofmt -l</code>、<code>git diff --check</code> は全てexit 0（gofmt/diff stdout 0行）。full type-check / full lint / full build / runtime確認はproject ruleどおりUSER手動でありPASS扱いしていない。</li>
+  <li><b>再実行 orchestration / failure log</b>: native Workflow tool未提供のためsubagent multi-agent fan-outを使用。read-onlyは <code>fe_flow_probe</code>（frontend分類）、<code>clinical_path_probe</code>（通常検査/lab差分）、<code>characterization_probe</code>（test設計）、<code>stage2_gate_probe</code>（WIP gate）を並列join。writerは <code>characterization_writer</code>（range test 1 path）、<code>stage1_frontend_writer</code>（frontend 6 paths）、<code>stage2_backend_writer</code>（backend/OpenAPI 7 paths）を順序付きでjoin。独立reviewは <code>clinical_safety_review</code>、<code>typescript_review</code>、<code>go_review</code> を並列joinし、CRITICAL/HIGH/MEDIUM blockerなし。Failure Signature <code>After-suite-shared-DB-01</code>: after suiteをfocused lab/characterization processと並列実行したattempt 1でPostgreSQL deadlock（SQLSTATE 40P01）が発生。仮説を共有DB process競合へ更新し、同じafter commandを単独再実行してPASS（code修復なし）。臨床値そのものの登録は獣医師/master-data責任者のUSER所管で、現在のruntime行数はdirect SQL禁止のため再認定していない。</li>
+  <li>判断者: PO / master-data 責任者（投入する基準値そのものは臨床値のため代理決裁の委任外）。関連: BUG-447（#249 U3 <code>cb3b1c448</code> で解消・closed）、<a href="#BUG-448">BUG-448</a>、FE-refactor.md の R-3。</li>
+</ul>
+</section>
+
+<section class="task" id="E2E-BASELINE-DEBT-01">
+<h3>E2E-BASELINE-DEBT-01: 検索・業務flow E2E の既存fixture / selector drift</h3>
+<ul>
+  <li><b>状態: OPEN（本closeoutの先頭20件外server-search証明とは別のbaseline debt）。</b> 編集前の2 batchは <code>4 passed / 7 failed</code> と <code>13 passed / 8 failed</code>。失敗はページネーション/<code>total</code>乖離ではなく、現行UIから外れたselector・headingまたは現行seedと不一致のfixtureだった。予約患者検索の3件だけは本closeoutで修理済みとし、それ以外の赤はOPENのまま維持する。</li>
+  <li><b>Batch 1（4 passed / 7 failed）</b>:
+    <ul>
+      <li><code>clinical-flows.spec.ts</code>（2件）: 検索placeholderが現行画面に存在しない／行クリック後に期待する編集headingが存在しない。</li>
+      <li><code>owners-search.spec.ts</code>（2件）: ひらがな・カタカナ双方の「ピーター」assertionが失敗。現行seedの <code>name_kana</code> が空で、テストfixture前提と一致しない。</li>
+      <li><code>reservation-patient-search.spec.ts</code>（3件・<b>本closeoutでREPAIRED</b>）: 削除済みの <code>#petName</code> と手動trigger参照を、現行 <code>#search</code> のauto-debounceを使う先頭20件外のexact pet-name回帰へ置換。代表面の <code>medical-records-patient-search.spec.ts</code> と同時実行した現行回帰は <code>2 passed</code>。この修理は他specの既存赤を解消した証拠にはしない。</li>
+    </ul>
+  </li>
+  <li><b>Batch 2（13 passed / 8 failed）</b>:
+    <ul>
+      <li><code>checkups-flow.spec.ts</code>（2件）: select-petでfixture「Iris」が存在しない／新規routeが陳腐化した <code>petId=1</code> を参照。</li>
+      <li><code>examinations-flow.spec.ts</code>（3件）: select-petでfixture「Iris」が存在しない／新規routeが陳腐化した <code>petId=1</code> を参照／詳細headingが現行UIと不一致。</li>
+      <li><code>trimming-flow.spec.ts</code>（1件）: 新規routeが陳腐化した <code>petId=1</code> を参照。</li>
+      <li><code>vaccinations-flow.spec.ts</code>（2件）: 「林」検索fixtureが現行seedと不一致／詳細headingが現行UIと不一致。</li>
+      <li><code>hospitalization-flow.spec.ts</code>: 全件passedであり、本debtの対象外。</li>
+    </ul>
+  </li>
+  <li><b>残作業</b>: 退役した<code>bug.md:113/132</code>から移した「開いた直後は空」「総件数とページャ」「ページ跨ぎの選択保持」を専用回帰で証明する。加えてOPENの各specのselector / headingを現行UIへ追随し、<code>petId=1</code>・「Iris」・「林」・空の<code>name_kana</code>に依存するfixtureを現行seedと整合する安定fixtureへ置換する。seed bundleは本closeoutで変更せず、各spec名を明示した <code>bash frontend/scripts/run-e2e.sh e2e/&lt;spec&gt;.spec.ts</code> で個別に再検証する。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-454">
+<h3>BUG-454: pet→owner graphのclinic相関をDB制約でも固定するdata-integrity hardening</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM（data-integrity hardening・本closeoutでは修正しない）。</b> manifestationには、viewerがclinic Aとclinic Bの両方へ既に認可済みであること、および破損したpet(A)→owner(B)行が事前に存在することの両方が必要である。返却対象は認可済み<code>clinicIDs</code>の外へ出ないためunauthorized cross-clinic disclosureではない一方、association・検索・並び順・preloadのgraph integrityは誤る。</li>
+  <li><b>現行repository / DDL evidence（verbatim）</b>:
+    <ul>
+      <li>owners JOIN: <code>Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)</code></li>
+      <li><code>pets.owner_id</code> single-column FK: <code>    owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,</code></li>
+      <li>owners composite-key prerequisite: <code>ALTER TABLE owners
+    ADD CONSTRAINT uq_owners_clinic_id_id
+    UNIQUE (clinic_id, id);</code></li>
+      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),</code></li>
+      <li><code>pet_owners</code> composite FK: <code>    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)</code></li>
+    </ul>
+  </li>
+  <li><b>既存repair path</b>: <code>FindAll</code> のJOINとpreloadを<code>pets.clinic_id</code>へ相関させ、破損FKを含むDB-backed multi-clinic回帰testでassociation・検索・order・復元を固定し、<code>FindByIDForClinics</code>も同型の相関欠落がないか監査する。DB側は既存の<code>uq_owners_clinic_id_id</code>を前提に<code>pets (clinic_id, owner_id)</code>→<code>owners (clinic_id, id)</code>の複合FK化を別migration unitとして設計する。</li>
+  <li><b>境界</b>: backend実装・DDL・migration・DBデータは本closeoutのout of scopeであり未変更。本entryは認可済みscope内の破損associationに対するhardeningを記録し、ownerの個人情報を保持しない。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-455">
+<h3>BUG-455: GORM default:true により bool の false を新規作成できない</h3>
+<ul>
+  <li><b>状態: OPEN / CRITICAL（systemic defect）。ただし PermissionGroup 1件は解消済みで、残るのは他 resource への展開判断である。</b> 作成APIへ <code>false</code> を明示しても response とDB read-back が <code>true</code> になる。PATCHでは <code>false</code> を書けるため、作成時だけ失敗する。inventory は <code>bool</code> + <code>gorm:"default:true"</code> が <b>39箇所・26ファイル</b>（2026-07-28 coordinator 再実測で一致）、<code>*bool</code> 回避は0件。<b>残作業 = BUG-455-I（残27 field の write-path census）と、そこで確定した各 resource の実装。</b></li>
+  <li><b>進捗: AUTH-S（<code>ab9eaa170</code>）+ AUTH-B（<code>6515ffd68</code>）で PermissionGroup は完了。</b> AUTH-S は handler 未接続の <code>PermissionGroupCreateRequest</code>（<code>backend/internal/auth/permission_group_create_request.go</code>）と binding fixture を追加し、<code>is_active</code> の omitted / false / true を <code>*bool</code> の presence として区別できるようにした（新規2 file・86 insertions）。
+    <br><b>coordinator独立検証</b>: 既存 <code>CreatePermissionGroupRequest</code>（<code>http_permission.go:128-135</code>）とフィールド構成・binding tag・<code>PermissionGroupRuleInput</code> が完全一致し、差分は <code>IsActive</code> の <code>bool</code>→<code>*bool</code> のみ——AUTH-B での差し替え時に余計なドリフトが出ない。fixtureは <code>bindAuthJSON</code> 経由で AUTH-B が再利用する境界と同一。<code>go test -run '^TestPermissionGroupCreateRequest_'</code>（ok）、<code>go vet ./internal/auth/...</code>（exit 0）、<code>gofmt -l</code>（出力なし）を coordinator が再実行して確認。handler は引き続き旧DTOをbindしており production 挙動・DBは不変。
+    <br><b>進捗: AUTH-B 完了（2026-07-28・<code>6515ffd68</code>）。PermissionGroup の <code>false</code> 保存不能は解消した。</b> ①<code>CreatePermissionGroupRequest</code> を <code>PermissionGroupCreateRequest</code> への type alias にして live path へ接続、②<code>ToInput</code> で omitted(nil)→<code>true</code>、明示 <code>false</code>/<code>true</code> はそのまま解決、③<code>permission_group_repository.go</code> の <code>Create</code> は <code>db := persistence.DBOrTx(ctx, r.db)</code> を1回だけ取り、<b>Create 前に <code>wantActive := group.IsActive</code> で意図を捕捉</b>してから、<code>false</code> の場合のみ<b>同一 db/tx handle</b> で <code>Update("is_active", false)</code> を実行する。UPDATE 失敗時は error を返し fail-closed。<code>model.PermissionGroup</code> の tag と service 本体は未変更で、clinic 初期グループの <code>IsActive: true</code> 契約も不変。変更6 file・246 insertions。
+    <br><b>coordinator独立検証（2026-07-28）</b>: ① <code>go test ./internal/auth/ -run 'PermissionGroup.*(Create|False|Default)' -count=1 -p 1 -v</code> を再実行し、実際に走った test を全数列挙して確認（空振りではない）。<code>TestPermissionGroupRepository_Create_IsActiveFalsePersists</code> は mock ではなく DB backed で、<code>repo.FindByID</code> の read-back に加えて <b>ORM struct を経由しない生カラム読み出し</b>（<code>Select("is_active").Where("id = ?").Scan(&amp;rawActive)</code>）で <code>false</code> を確認している。② <code>TestPermissionGroupService_CreateWithRules_AuditsFinalAggregateInTransaction</code> と <code>TestPermissionGroupRepository_CreateWithRules_RollsBackWithAmbientTransaction</code> が引き続き PASS——監査の同一tx契約と ambient tx rollback 契約は無傷。③ <b>報告が漏らしていた <code>go test ./internal/lintscan/ -run 'DBOrTx' -count=1 -p 1</code> を coordinator が実行して ok を確認</b>（DBOrTx の新規参加者を作る unit は別packageのlintscan testを赤くし得るため、変更package だけのscopeでは原理的に捕まらない）。④ <code>go vet ./internal/auth/...</code> exit 0。
+    <br><b>設計上の申し送り（BUG-455-I 着手前に必ず判断すること）</b>: 本 unit が採った INSERT→条件付き UPDATE の補償方式は、同一 tx 内で正しく fail-closed だが、<code>false</code> の場合に <b>write が2回</b>になり、tx 内部に <code>is_active=true</code> の過渡状態を作る。DB trigger や監査がこの過渡状態を観測する設計だと影響が出る。残27 field へ同じ形を26 repository へ複製する前に、<code>Create</code> 側で zero value を INSERT に含める単文の方式（GORM の <code>Select</code> による明示 field 指定など）が本 repo の model/tag 構成で成立するかを実測で評価すること。<b>成立するなら単文方式が正であり、本 unit の補償方式を template として横展開してはならない。</b></li>
+  <li><b>実測根拠（2026-07-28・verbatim）</b>: <code>POST /api/v1/masters/permission-groups</code> へ <code>{"name":"ZZ-gorm-defect-probe","color":"#111111","is_active":false,"sort_order":999}</code> を送信し、response/read-back とも <code>is_active=true</code>。probe group <code>14</code> は DELETE HTTP 204 後に GET 404 で撤去済み。production code は未変更。</li>
+  <li><b>機構・影響範囲</b>: GORM は <code>default</code> tag の zero value をINSERTから除外し、boolのzero value <code>false</code> にDB default <code>true</code> を適用する。<code>bool</code> + <code>gorm:"default:true"</code> は <b>39箇所・26ファイル</b>、<code>*bool</code> 回避は0件。代表例は <code>backend/internal/model/staff.go:35</code> と <code>backend/internal/model/permission_group.go:16</code>。create DTO到達経路は <code>backend/internal/auth/http_permission.go:132</code>、<code>backend/internal/trimming/trimming_option_request.go:6</code>、<code>backend/internal/trimming/trimming_course_request.go:6</code>、<code>backend/internal/reservation/reservation_type_group_request.go:7</code>。</li>
+  <li><b>修正方針</b>: 作成時に無効を保持できるよう該当fieldを <code>*bool</code> へ変える案Aを推奨する。作成時 <code>Select</code> で列を明示する案Bは新規経路で再発し得るため、全39箇所をcreate経路の有無でトリアージする。</li>
+  <li><b>境界</b>: 39箇所すべてが現に壊れているとは限らず、実害は作成APIが <code>false</code> を受け取る経路に依存する。無効作成の権限グループやLINE予約非表示staffが有効化される業務影響を含め、全数トリアージと回帰証明を着手ユニットで行う。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>全数調査</b>: <code>grep -rnE '^\s+[A-Z][A-Za-z0-9]*\s+bool\s+\`gorm:"[^"]*default:true' backend/internal/model/*.go</code> は <b>39件・26ファイル</b>。request DTO と create/upsert handler を実読した分類は <b>実害あり28 / 実害なし11 / 未分類0</b>。<code>ShowNoStaffOption</code> は PUT upsert が201 createになり得るため実害ありへ含める。
+        <div class="table-wrap"><table>
+          <tr><th>model field</th><th>分類</th><th>create到達根拠</th></tr>
+          <tr><td><code>backend/internal/model/account.go:13 Account.IsActive</code></td><td>実害なし</td><td><code>backend/internal/staff/staff_request.go:8-22</code> は受けず、<code>backend/internal/staff/staff_service_account.go:73-77</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/animal_species.go:11 AnimalSpecies.IsActive</code></td><td>実害あり</td><td><code>backend/internal/pet/animal_species_request.go:3-5</code> / <code>backend/internal/pet/animal_species_handler.go:40</code></td></tr>
+          <tr><td><code>backend/internal/model/cage.go:31 Cage.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/cage_request.go:20-25</code> / <code>backend/internal/medicalrecord/cage_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/campaign.go:28 Campaign.IsActive</code></td><td>実害あり</td><td><code>backend/internal/billing/campaign_request.go:11-17</code> / <code>backend/internal/billing/campaign_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/checkup_type.go:14 CheckupType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/checkup_type_request.go:3-6</code> / <code>backend/internal/medicalrecord/checkup_type_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/chief_complaint_type.go:15 ChiefComplaintType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/chief_complaint_request.go:3-6</code> / <code>backend/internal/medicalrecord/chief_complaint_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:22 Clinic.IsActive</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けず、<code>backend/internal/clinic/clinic_service.go:310-327</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:26 AccountingDocumentShowRegistrationWarning</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:27 AccountingDocumentShowItemCategory</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:30 AccountingDocumentShowClinicHeader</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:31 AccountingDocumentShowOwnerPetInfo</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:32 AccountingDocumentShowItemsTable</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/clinic.go:33 AccountingDocumentShowPaymentSummary</code></td><td>実害なし</td><td><code>backend/internal/clinic/clinic_request.go:14-24</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/consultation.go:14 Consultation.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/consultation_request.go:3-6</code> / <code>backend/internal/medicalrecord/consultation_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/diagnosis.go:13 DiagnosisType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/diagnosis_request.go:3-5</code> / <code>backend/internal/medicalrecord/diagnosis_handler.go:75</code></td></tr>
+          <tr><td><code>backend/internal/model/diagnosis.go:30 DiagnosisName.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/diagnosis_request.go:35-38</code> / <code>backend/internal/medicalrecord/diagnosis_handler.go:225</code></td></tr>
+          <tr><td><code>backend/internal/model/examination_type.go:14 ExaminationType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/exam_type_request.go:3-6</code> / <code>backend/internal/medicalrecord/exam_type_handler.go:203</code></td></tr>
+          <tr><td><code>backend/internal/model/hospitalization_plan.go:29 HospitalizationPlan.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/hospitalization_plan_request.go:4-7</code> / <code>backend/internal/medicalrecord/hospitalization_plan_handler.go:66</code></td></tr>
+          <tr><td><code>backend/internal/model/inquiry_template.go:16 InquiryTemplate.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/inquiry_template_request.go:3-7</code> / <code>backend/internal/medicalrecord/inquiry_template_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/insurance.go:13 Insurance.IsActive</code></td><td>実害あり</td><td><code>backend/internal/billing/insurance_request.go:3-5</code> / <code>backend/internal/billing/insurance_handler.go:66</code></td></tr>
+          <tr><td><code>backend/internal/model/line_reservation_setting.go:30 ShowNoStaffOption</code></td><td>実害あり</td><td><code>backend/internal/reservation/line_reservation_setting_request.go:30</code> / <code>backend/internal/reservation/line_reservation_setting_handler.go:48-60</code> / <code>backend/internal/reservation/line_reservation_setting_service.go:167-198</code></td></tr>
+          <tr><td><code>backend/internal/model/medicine.go:34 Medicine.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/medicine_request.go:4-8</code> / <code>backend/internal/medicalrecord/medicine_handler.go:69</code></td></tr>
+          <tr><td><code>backend/internal/model/merchandise_item.go:18 MerchandiseItem.IsActive</code></td><td>実害あり</td><td><code>backend/internal/inventory/merchandise_item_request.go:14-20</code> / <code>backend/internal/inventory/merchandise_item_handler.go:57</code></td></tr>
+          <tr><td><code>backend/internal/model/occupation.go:16 Occupation.IsActive</code></td><td>実害あり</td><td><code>backend/internal/staff/occupation_request.go:3-6</code> / <code>backend/internal/staff/occupation_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/payment_method_master.go:16 PaymentMethodMaster.IsActive</code></td><td>実害なし</td><td><code>backend/internal/billing/payment_method_master_request.go:3-6</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/permission_group.go:16 PermissionGroup.IsActive</code></td><td>実害あり</td><td><code>backend/internal/auth/http_permission.go:128-145,351-389</code></td></tr>
+          <tr><td><code>backend/internal/model/procedure.go:23 Procedure.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/procedure_request.go:3-6</code> / <code>backend/internal/medicalrecord/procedure_handler.go:65</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:48 ReservationType.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:7-10</code> / <code>backend/internal/reservation/reservation_type_handler.go:68</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:62 ReservationType.ReservationVisible</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:7-23</code> / <code>backend/internal/reservation/reservation_type_service.go:51-74</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type.go:114 ReservationTypeAvailableSlot.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_request.go:132-145</code> / <code>backend/internal/reservation/reservation_type_service_available_slot.go:46-59</code></td></tr>
+          <tr><td><code>backend/internal/model/reservation_type_group.go:16 ReservationTypeGroup.IsActive</code></td><td>実害あり</td><td><code>backend/internal/reservation/reservation_type_group_request.go:3-7</code> / <code>backend/internal/reservation/reservation_type_group_handler.go:62</code></td></tr>
+          <tr><td><code>backend/internal/model/staff.go:24 Staff.IsActive</code></td><td>実害なし</td><td><code>backend/internal/staff/staff_request.go:8-22</code> は受けず、<code>backend/internal/staff/staff_service_account.go</code> がtrue固定</td></tr>
+          <tr><td><code>backend/internal/model/staff.go:35 Staff.ReservationVisible</code></td><td>実害あり</td><td><code>backend/internal/staff/staff_request.go:8-20</code> / <code>backend/internal/reservation/reservation_staff_request.go:3-6</code></td></tr>
+          <tr><td><code>backend/internal/model/staff.go:87 ShiftTemplate.IsActive</code></td><td>実害あり</td><td><code>backend/internal/staff/shift_template_request.go:25-44</code> / <code>backend/internal/staff/shift_template_service.go:118-146</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_course_type.go:16 TrimmingCourseType.IsActive</code></td><td>実害なし</td><td><code>backend/internal/trimming/trimming_course_type_request.go:3-6</code> は受けない</td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:23 TrimmingCourse.IsActive</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_course_request.go:3-6</code> / <code>backend/internal/trimming/trimming_course_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:41 TrimmingOption.IsActive</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_option_request.go:3-6</code> / <code>backend/internal/trimming/trimming_option_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/trimming_master.go:44 TrimmingOption.IsCombinable</code></td><td>実害あり</td><td><code>backend/internal/trimming/trimming_option_request.go:3-9</code> / <code>backend/internal/trimming/trimming_option_handler.go:52</code></td></tr>
+          <tr><td><code>backend/internal/model/vaccine.go:22 Vaccine.IsActive</code></td><td>実害あり</td><td><code>backend/internal/medicalrecord/vaccine_request.go:19-22</code> / <code>backend/internal/medicalrecord/vaccine_handler.go:63</code></td></tr>
+        </table></div>
+      </li>
+      <li><b>ファイル allowlist（28 fieldを8 sliceへ固定）</b>: 一括変更は禁止。各sliceは次のrepo-relative pathだけを変更可とし、<code>frontend/src/types/generated/models.ts</code> はUSER codegen後のread-only diff controlであってGrokの変更対象ではない。新規helper fileは作らず、各既存serviceでnil defaultを正規化する。実害なし11件は変更しない。
+        <details><summary>8 sliceのexact allowlist</summary><pre><code>S1 PermissionGroup (1):
+backend/internal/model/permission_group.go
+backend/internal/auth/http_permission.go
+backend/internal/auth/permission_group_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/auth/http_permission_handlers_test.go
+backend/internal/auth/permission_group_service_mock_test.go
+backend/internal/auth/permission_group_service_test.go
+backend/internal/auth/permission_group_audit_db_test.go
+backend/internal/auth/permission_group_effective_permissions_test.go
+backend/internal/clinic/clinic_permission_group_tx_atomicity_test.go
+
+S2 AnimalSpecies (1):
+backend/internal/model/animal_species.go
+backend/internal/pet/animal_species_request.go
+backend/internal/pet/animal_species_response.go
+backend/internal/pet/animal_species_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/pet/animal_species_handler_test.go
+backend/internal/pet/animal_species_request_test.go
+backend/internal/pet/animal_species_repository_test.go
+backend/internal/pet/animal_species_service_test.go
+backend/internal/clinic/clinic_service_test.go
+
+S3 Campaign + Insurance (2):
+backend/internal/model/campaign.go
+backend/internal/model/insurance.go
+backend/internal/billing/campaign_request.go
+backend/internal/billing/campaign_response.go
+backend/internal/billing/campaign_service.go
+backend/internal/billing/campaign_discount.go
+backend/internal/billing/insurance_request.go
+backend/internal/billing/insurance_response.go
+backend/internal/billing/insurance_service.go
+backend/internal/clinic/clinic_service.go
+backend/internal/billing/campaign_handler_test.go
+backend/internal/billing/campaign_request_test.go
+backend/internal/billing/campaign_response_test.go
+backend/internal/billing/campaign_service_test.go
+backend/internal/billing/campaign_discount_test.go
+backend/internal/billing/insurance_handler_test.go
+backend/internal/billing/insurance_request_test.go
+backend/internal/billing/insurance_repository_test.go
+backend/internal/billing/insurance_service_test.go
+backend/internal/clinic/clinic_service_test.go
+
+S4 MerchandiseItem (1):
+backend/internal/model/merchandise_item.go
+backend/internal/inventory/merchandise_item_request.go
+backend/internal/inventory/merchandise_item_response.go
+backend/internal/inventory/merchandise_item_service.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/inventory/merchandise_item_handler_test.go
+backend/internal/inventory/merchandise_item_request_test.go
+backend/internal/inventory/merchandise_item_service_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+
+S5 Medical masters (12):
+backend/internal/model/cage.go
+backend/internal/model/checkup_type.go
+backend/internal/model/chief_complaint_type.go
+backend/internal/model/consultation.go
+backend/internal/model/diagnosis.go
+backend/internal/model/examination_type.go
+backend/internal/model/hospitalization_plan.go
+backend/internal/model/inquiry_template.go
+backend/internal/model/medicine.go
+backend/internal/model/procedure.go
+backend/internal/model/vaccine.go
+backend/internal/medicalrecord/cage_request.go
+backend/internal/medicalrecord/cage_response.go
+backend/internal/medicalrecord/cage_service.go
+backend/internal/medicalrecord/checkup_type_request.go
+backend/internal/medicalrecord/checkup_type_response.go
+backend/internal/medicalrecord/checkup_type_service.go
+backend/internal/medicalrecord/chief_complaint_request.go
+backend/internal/medicalrecord/chief_complaint_response.go
+backend/internal/medicalrecord/chief_complaint_service.go
+backend/internal/medicalrecord/consultation_request.go
+backend/internal/medicalrecord/consultation_response.go
+backend/internal/medicalrecord/consultation_service.go
+backend/internal/medicalrecord/diagnosis_request.go
+backend/internal/medicalrecord/diagnosis_response.go
+backend/internal/medicalrecord/diagnosis_service.go
+backend/internal/medicalrecord/exam_type_request.go
+backend/internal/medicalrecord/exam_type_response.go
+backend/internal/medicalrecord/exam_type_service.go
+backend/internal/medicalrecord/hospitalization_plan_request.go
+backend/internal/medicalrecord/hospitalization_plan_response.go
+backend/internal/medicalrecord/hospitalization_plan_service.go
+backend/internal/medicalrecord/inquiry_template_request.go
+backend/internal/medicalrecord/inquiry_template_response.go
+backend/internal/medicalrecord/inquiry_template_service.go
+backend/internal/medicalrecord/medicine_request.go
+backend/internal/medicalrecord/medicine_response.go
+backend/internal/medicalrecord/medicine_service.go
+backend/internal/medicalrecord/procedure_request.go
+backend/internal/medicalrecord/procedure_response.go
+backend/internal/medicalrecord/procedure_service.go
+backend/internal/medicalrecord/vaccine_request.go
+backend/internal/medicalrecord/vaccine_response.go
+backend/internal/medicalrecord/vaccine_service.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/medicalrecord/cage_handler_test.go
+backend/internal/medicalrecord/cage_service_test.go
+backend/internal/medicalrecord/checkup_type_handler_test.go
+backend/internal/medicalrecord/checkup_type_service_test.go
+backend/internal/medicalrecord/chief_complaint_handler_test.go
+backend/internal/medicalrecord/chief_complaint_service_test.go
+backend/internal/medicalrecord/consultation_handler_test.go
+backend/internal/medicalrecord/consultation_service_test.go
+backend/internal/medicalrecord/diagnosis_handler_test.go
+backend/internal/medicalrecord/diagnosis_service_test.go
+backend/internal/medicalrecord/exam_type_handler_test.go
+backend/internal/medicalrecord/exam_type_response_test.go
+backend/internal/medicalrecord/exam_type_service_test.go
+backend/internal/medicalrecord/hospitalization_plan_handler_test.go
+backend/internal/medicalrecord/hospitalization_plan_service_test.go
+backend/internal/medicalrecord/inquiry_template_handler_test.go
+backend/internal/medicalrecord/inquiry_template_service_test.go
+backend/internal/medicalrecord/medicine_handler_test.go
+backend/internal/medicalrecord/medicine_service_test.go
+backend/internal/medicalrecord/procedure_handler_test.go
+backend/internal/medicalrecord/procedure_service_test.go
+backend/internal/medicalrecord/vaccine_handler_test.go
+backend/internal/medicalrecord/vaccine_service_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+backend/internal/billing/billing_item_vaccination_test.go
+
+S6 Reservation models/settings (5):
+backend/internal/model/line_reservation_setting.go
+backend/internal/model/reservation_type.go
+backend/internal/model/reservation_type_group.go
+backend/internal/reservation/line_reservation_setting_request.go
+backend/internal/reservation/line_reservation_setting_response.go
+backend/internal/reservation/line_reservation_setting_service.go
+backend/internal/reservation/reservation_type_request.go
+backend/internal/reservation/reservation_type_response.go
+backend/internal/reservation/reservation_type_service.go
+backend/internal/reservation/reservation_type_service_core.go
+backend/internal/reservation/reservation_type_service_available_slot.go
+backend/internal/reservation/reservation_type_service_builders.go
+backend/internal/reservation/reservation_type_liff_request.go
+backend/internal/reservation/reservation_type_liff_response.go
+backend/internal/reservation/reservation_type_liff_service.go
+backend/internal/reservation/reservation_type_group_request.go
+backend/internal/reservation/reservation_type_group_response.go
+backend/internal/reservation/reservation_type_group_service.go
+backend/internal/reservation/liff_response.go
+backend/internal/reservation/liff_service_catalog.go
+backend/internal/reservation/line_reservation_setting_handler_test.go
+backend/internal/reservation/line_reservation_setting_request_test.go
+backend/internal/reservation/line_reservation_setting_service_test.go
+backend/internal/reservation/reservation_type_handler_test.go
+backend/internal/reservation/reservation_type_request_test.go
+backend/internal/reservation/reservation_type_service_core_test.go
+backend/internal/reservation/reservation_type_service_available_slot_test.go
+backend/internal/reservation/reservation_type_liff_handler_test.go
+backend/internal/reservation/reservation_type_liff_request_test.go
+backend/internal/reservation/reservation_type_liff_service_test.go
+backend/internal/reservation/reservation_type_group_handler_test.go
+backend/internal/reservation/reservation_type_group_request_test.go
+backend/internal/reservation/reservation_type_group_service_test.go
+backend/internal/reservation/liff_service_test.go
+
+S7 Staff visibility/occupation/shift (3):
+backend/internal/model/occupation.go
+backend/internal/model/staff.go
+backend/internal/staff/occupation_request.go
+backend/internal/staff/occupation_response.go
+backend/internal/staff/occupation_service.go
+backend/internal/staff/shift_template_request.go
+backend/internal/staff/shift_template_response.go
+backend/internal/staff/shift_template_service.go
+backend/internal/staff/staff_request.go
+backend/internal/staff/staff_response.go
+backend/internal/staff/staff_service.go
+backend/internal/staff/staff_service_account.go
+backend/internal/staff/staff_service_builders.go
+backend/internal/staff/staff_service_core.go
+backend/internal/reservation/reservation_staff_request.go
+backend/internal/reservation/reservation_staff_response.go
+backend/internal/reservation/reservation_staff_service.go
+backend/internal/reservation/reservation_staff_capability_validator.go
+backend/internal/reservation/liff_service_availability_staff.go
+backend/internal/staff/occupation_handler_http_test.go
+backend/internal/staff/occupation_request_test.go
+backend/internal/staff/occupation_service_test.go
+backend/internal/staff/shift_template_handler_http_test.go
+backend/internal/staff/shift_template_request_test.go
+backend/internal/staff/shift_template_service_test.go
+backend/internal/staff/shift_template_service_update_test.go
+backend/internal/staff/staff_request_test.go
+backend/internal/staff/staff_service_account_test.go
+backend/internal/staff/staff_service_builders_test.go
+backend/internal/staff/staff_service_core_test.go
+backend/internal/reservation/reservation_staff_request_test.go
+backend/internal/reservation/reservation_staff_service_test.go
+backend/internal/reservation/reservation_staff_capability_validator_test.go
+backend/internal/reservation/reservation_cross_tenant_master_fk_write_test.go
+backend/internal/reservation/reservation_validators_test.go
+
+S8 Trimming course/option (3):
+backend/internal/model/trimming_master.go
+backend/internal/trimming/trimming_course_request.go
+backend/internal/trimming/trimming_course_response.go
+backend/internal/trimming/trimming_course_service.go
+backend/internal/trimming/trimming_option_request.go
+backend/internal/trimming/trimming_option_response.go
+backend/internal/trimming/trimming_option_service.go
+backend/internal/trimming/trimming_repository.go
+backend/internal/trimming/trimming_service.go
+backend/internal/reservation/reservation_validators.go
+backend/internal/billing/billing_item_repository.go
+backend/internal/trimming/trimming_course_handler_test.go
+backend/internal/trimming/trimming_course_request_test.go
+backend/internal/trimming/trimming_course_repository_test.go
+backend/internal/trimming/trimming_course_service_test.go
+backend/internal/trimming/trimming_option_handler_test.go
+backend/internal/trimming/trimming_option_request_test.go
+backend/internal/trimming/trimming_option_repository_test.go
+backend/internal/trimming/trimming_option_service_test.go
+backend/internal/trimming/trimming_repository_test.go
+backend/internal/trimming/trimming_service_test.go
+backend/internal/trimming/trimming_cross_tenant_master_fk_write_test.go
+backend/internal/trimming/trimming_inactive_master_fk_test.go
+backend/internal/trimming/trimming_master_delete_toctou_test.go
+backend/internal/reservation/reservation_cross_tenant_master_fk_write_test.go
+backend/internal/reservation/reservation_validators_test.go
+backend/internal/reservation/service_mocks_test.go
+backend/internal/billing/billing_item_reference_repository_test.go
+backend/internal/billing/billing_item_trimming_test.go</code></pre></details>
+      </li>
+      <li><b>順序付き手順</b>: (1) allowlistがcleanか確認。(2) DB-backed create/read-backで明示falseがtrueになるREDを追加。(3) create requestを<code>*bool</code>にしnilとfalseを分離。(4) modelを<code>*bool</code>化し、serviceでnilはtrue、非nilは値を保持。(5) public responseは必須boolへ正規化。(6) literal/比較/testを同sliceで更新。(7) scoped gate後に停止して次sliceのallowlistを作る。<code>reservation_type_available_slot_test.go:30-33</code>、<code>shift_template_handler_http_test.go:99,174,292</code>、<code>trimming_cross_tenant_master_fk_write_test.go:19,28</code>、<code>trimming_repository_test.go:406</code> はpointer化で壊れる既存例であり、modelだけを先行変更しない。</li>
+      <li><b>逐語検証コマンド</b>: 各sliceの3コマンドをそのまま実行する（gofmt/diffはallowlistを包含する既知directoryへ広げたread-only gateで、出力0を要求）。
+        <details><summary>S1〜S8 exact commands</summary><pre><code># S1
+docker compose exec -T backend go test ./internal/auth/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/auth backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/auth backend/internal/clinic backend/internal/model
+# S2
+docker compose exec -T backend go test ./internal/pet/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/pet backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/pet backend/internal/clinic backend/internal/model
+# S3
+docker compose exec -T backend go test ./internal/billing/... ./internal/clinic/... ./internal/model/...
+git diff --name-only -- backend/internal/billing backend/internal/clinic backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/billing backend/internal/clinic backend/internal/model
+# S4
+docker compose exec -T backend go test ./internal/inventory/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/inventory backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/inventory backend/internal/billing backend/internal/model
+# S5
+docker compose exec -T backend go test ./internal/medicalrecord/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/medicalrecord backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/medicalrecord backend/internal/billing backend/internal/model
+# S6
+docker compose exec -T backend go test ./internal/reservation/... ./internal/model/...
+git diff --name-only -- backend/internal/reservation backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/reservation backend/internal/model
+# S7
+docker compose exec -T backend go test ./internal/staff/... ./internal/reservation/... ./internal/model/...
+git diff --name-only -- backend/internal/staff backend/internal/reservation backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/staff backend/internal/reservation backend/internal/model
+# S8
+docker compose exec -T backend go test ./internal/trimming/... ./internal/reservation/... ./internal/billing/... ./internal/model/...
+git diff --name-only -- backend/internal/trimming backend/internal/reservation backend/internal/billing backend/internal/model | sed -n 's#^backend/\(.*\.go\)$#\1#p' | docker compose exec -T backend xargs -r gofmt -l
+git diff --check -- backend/internal/trimming backend/internal/reservation backend/internal/billing backend/internal/model</code></pre></details>
+        USER handoffは <code>make codegen</code> と <code>git diff --exit-code -- frontend/src/types/generated/models.ts</code>（差分0）。Grokはcodegen/generated file編集をしない。<code>tstype:"boolean,required"</code> でpublic必須boolを維持できなければ停止。
+      </li>
+      <li><b>ロールバック</b>: clean baselineを確認したsliceだけ、Grok自身のexact path差分を逆patchする。共有worktreeで広いrestoreを使わず、事前差分があれば着手しない。</li>
+      <li><b>停止条件</b>: allowlistに既存差分、public bool contractを維持不能、allowlist外reader変更が必要、同一failure signatureが3回、またはcodegenが必要になった時点で停止して人へ報告する。</li>
+      <li><b>完了判定</b>: 実害あり28件の各create/upsertに「明示false→DB read-back false」「未指定→true」のDB-backed回帰があり、実害なし11件は無変更、各slice gateとUSER codegenがgreen、意図しないfrontend optional contractが無く、allowlist外変更0。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="BUG-456">
+<h3>BUG-456: カルテの検査タブが入力済み検査値を表示しない</h3>
+<ul>
+  <li><b>状態: 結果値・基準値は修正完了（2026-07-28・<code>7ed9ae808</code>）／<b>単位列の空欄は未解決で本entryを OPEN / MEDIUM のまま残す</b>。</b> <code>/medical-records/&lt;id&gt;</code> の「検査」タブで <code>検査結果一覧</code> の結果値・単位・基準値が空になっていた。WBC=10.0、RBC=9.0、HCT=30.0を入力しても表示されなかった。
+    <br><b>修正内容</b>: <code>ExaminationGroup.tsx</code> を <code>inspectionValue || result || "-"</code>（結果値）と <code>referenceValue || normalValue || "-"</code>（基準値）の legacy-safe fallback へ変更。test-firstで新field優先・旧field fallback・両方空の3系統を固定（RED 3 failed → GREEN 14 passed）。差分は本体2行と test 61行の2 fileのみ。
+    <br><b>coordinator独立検証（2026-07-28）</b>: ① response DTO <code>examResultResponse</code>（<code>backend/internal/medicalrecord/examination_response.go:70-90</code>）が <code>inspection_value</code> / <code>normal_value</code> / <code>result</code> / <code>reference_value</code> の4本すべてを emit し、<code>toExamResultResponse</code> が model から全て写すことを確認——BUG-450型のDTO欠落ドリフトはなく、本修正は実行時に効く。② fallback順の妥当性を backend writer で裏取り: <code>examination_service.go:492-495</code> は <code>InspectionValue</code>/<code>NormalValue</code>/<code>ReferenceValue</code> を、<code>lab_import_examination_service.go:83-85</code> は <code>InspectionValue</code>/<code>ReferenceValue</code> を書く。本entry <code>:811</code> の実測レスポンスが <code>reference_value ''</code>・<code>normal_value '6.0-17.0 x10^3/uL'</code> であることと整合する。③ <code>npx vitest run ExaminationGroup.test.tsx</code> を coordinator が再実行し 14 passed を実測。
+    <br><b>残件（本entryが CLOSE できない理由）</b>: <code>:811</code> の実測レスポンスは <code>unit ''</code> であり、<b>単位列は依然として空</b>。これは表示側の名前不一致ではなくrequest payload→永続化の問題であり、着手プランどおり表示修正へ混ぜていない。次ユニットで <code>upsertExamItemRequest</code> の <code>unit</code> 到達性を request→handler→service→GORM で測定してから分解する。ブラウザ実画面での目視確認も未実施。</li>
+  <li><b>実測根拠（2026-07-28・verbatim）</b>: pet <code>1000018</code> / medical record <code>1425546</code> / examination <code>1014562</code> で再現。screenshotは <code>tmp/m02-triage-tab.png</code>。<code>GET /api/v1/examinations/1014562/items</code> は <code>inspection_value '10.0'</code>、<code>normal_value '6.0-17.0 x10^3/uL'</code>、<code>result ''</code>、<code>reference_value ''</code>、<code>unit ''</code> を返す。</li>
+  <li><b>根本原因（verbatim）</b>: <code>frontend/src/features/medical-records/components/ExaminationGroup.tsx</code> は結果値に <code>{item.result}</code>（<code>:102</code>）、基準値に <code>{item.referenceValue}</code>（<code>:108</code>）を描画する。mapper <code>frontend/src/lib/transforms/examination.ts:15-33</code> は <code>inspection_value → inspectionValue</code>（<code>:21</code>）と <code>normal_value → normalValue</code>（<code>:22</code>）も写すが描画していない。通常登録の <code>upsertExamItemRequest</code>（<code>backend/internal/medicalrecord/examination_request.go:151-159</code>）には <code>Result</code> がなく、通常APIでは永続化できない。</li>
+  <li><b>修正方針</b>: <code>ExaminationGroup.tsx</code> の描画を <code>item.inspectionValue</code> / <code>item.normalValue</code> へ向ける。着手時に <code>result</code> / <code>reference_value</code> を使うlab_import等のwrite経路を全数調査し、正本またはfallback（<code>result || inspectionValue</code>）を決める。</li>
+  <li><b>境界</b>: 一覧 <code>/examinations</code> はitem値を表示しない設計のため対象外。detail側の <code>ExamItemsTable</code> に同欠陥があるかは未確認。型検査・lintでは捕捉できず、実画面での回帰確認が必要である。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>write経路調査</b>: 通常APIは <code>backend/internal/medicalrecord/examination_request.go:151-158</code> と <code>backend/internal/medicalrecord/examination_service.go:481-503</code>、lab importは <code>backend/internal/medicalrecord/lab_import_examination_service.go:33-40,76-93</code>、active CSV importは <code>backend/internal/csvimport/import.go:169-170</code> で、いずれも <code>inspection_value</code> を書き、<code>result</code> は書かない。demo seedの非空件数は <code>inspection_value=220716 / normal_value=1307970 / result=0 / reference_value=0</code>。ただしarchive importer <code>backend/cmd/_archive/seed-old-db/transform.go:856-859</code> と <code>backend/cmd/_archive/seed-old-db/main.go:613-619,692</code> は <code>result/reference_value</code> を書けるため、製品判断停止条件が成立する。</li>
+      <li><b>detail確認</b>: <code>frontend/src/features/examinations/components/ExamItemsTable.tsx:153-171</code> は既に <code>inspectionValue</code> と <code>referenceValue || normalValue || "-"</code> を描画し、<code>frontend/src/features/examinations/components/ExamItemsTable.test.tsx:70-79,113-147</code> が固定するため同欠陥なし。<code>frontend/src/features/medical-records/components/ExaminationGroup.test.tsx:13-27,71-88</code> は <code>result</code> と <code>inspectionValue</code> を同じ値にして欠陥を隠している。</li>
+      <li><b>ファイル allowlist</b>: <code>frontend/src/features/medical-records/components/ExaminationGroup.tsx</code>、<code>frontend/src/features/medical-records/components/ExaminationGroup.test.tsx</code>、<code>frontend/src/lib/transforms/examination.test.ts</code> の3本のみ。外を触ったらFAIL。</li>
+      <li><b>順序付き手順</b>: (1) 3本のclean baseline確認。(2) <b>ここで人へ上げ</b>、archive importerを互換対象にするか決める。(3) REDで <code>result="legacy"</code> / <code>inspectionValue="95"</code> の不一致fixture、referenceのfallback、両方空の<code>"-"</code>を追加。(4) mapperの4 field分離を回帰。(5) 決定が互換維持なら <code>inspectionValue || result || "-"</code>、archive廃止・backfill済みなら <code>inspectionValue || "-"</code>。基準値は <code>referenceValue || normalValue || "-"</code>。(6) scoped gate。</li>
+      <li><b>逐語検証コマンド</b>: <code>docker compose exec -T frontend npx vitest run src/features/medical-records/components/ExaminationGroup.test.tsx src/lib/transforms/examination.test.ts</code>、<code>docker compose exec -T frontend npx eslint src/features/medical-records/components/ExaminationGroup.tsx src/features/medical-records/components/ExaminationGroup.test.tsx src/lib/transforms/examination.test.ts</code>、<code>git diff --check -- frontend/src/features/medical-records/components/ExaminationGroup.tsx frontend/src/features/medical-records/components/ExaminationGroup.test.tsx frontend/src/lib/transforms/examination.test.ts</code>。期待はtest PASS、lint/diff出力なし。</li>
+      <li><b>ロールバック</b>: clean baselineから作った3本限定のbinary diffを <code>/tmp/BUG-456.patch</code> へ保存し、<code>git apply --reverse --check</code> 後に逆適用する。共有差分を広いrestoreで消さない。</li>
+      <li><b>停止条件</b>: 人のcanonical/fallback判断がない、allowlistがdirty、別のactive <code>result</code> writerを発見、またはallowlist外変更が必要なら停止。<code>result || inspectionValue</code> はserver assessmentと不一致値を優先し得るため採用しない。</li>
+      <li><b>完了判定</b>: 承認されたprecedenceで入力値が表示され、基準値fallbackと両方空が回帰され、指定test/lint/diffがgreen、変更3本のみ。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="BUG-458">
+<h3>BUG-458: 臨床画面のレスポンシブ崩れ（入院詳細2件・sentinel系8件）</h3>
+<ul>
+  <li><b>状態: OPEN / MEDIUM（臨床画面の狭幅layout defect）。</b> 入院詳細は <code>800×1024</code> で予定日ヘッダカードが縦長に潰れてclipし、<code>500×900</code> でヘッダタイトル・患者メタ情報・Planタブがclipする。<code>1440×900</code> と <code>1200×800</code> は異常なし。</li>
+  <li><b>実測根拠（verbatim）</b>: 入院詳細の証跡は <code>tmp/fe12-m04-evidence/2026-07-28/shot-detail-800x1024.png</code> と <code>tmp/fe12-m04-evidence/2026-07-28/shot-detail-500x900.png</code>。M-05先行走ではresponsive wrap/clipを <b>8件</b>観測したが、個別route×viewportの内訳は未確認。証跡は <code>tmp/fe12-m05-evidence/2026-07-28/completion-report.md</code>。</li>
+  <li><b>修正方針</b>: 臨床sentinelと操作要素が狭幅で切れないようlayoutを是正する。M-05を再実測しroute×viewportの全数内訳を確定してから着手し、横断的な共通原因の有無を確認する。</li>
+  <li><b>境界</b>: 具体的なCSS・componentの該当箇所は未特定。入院詳細2件とsentinel系8件の重複関係、各route×viewportの対応は未確認であり、推測で修正範囲を広げない。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>全件表</b>: completion reportと <code>layout-review.md</code> から route×viewport は10件、複数要素を分けると13 findings。未特定0。
+        <div class="table-wrap"><table>
+          <tr><th>route</th><th>viewport</th><th>要素</th><th>該当ファイル</th></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>800×1024</td><td>退院予定日card</td><td><code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx:139-171</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>title</td><td><code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>patient metadata</td><td><code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx:95-139</code></td></tr>
+          <tr><td><code>/hospitalization/1</code></td><td>500×900</td><td>プラン管理・詳細tab</td><td><code>frontend/src/features/hospitalization/components/HospitalizationTabbedView.tsx:35-54</code> → <code>frontend/src/components/shared/UnifiedTabs.tsx:36-60</code></td></tr>
+          <tr><td><code>/</code></td><td>800×1024</td><td>見出し/説明wrap</td><td><code>frontend/src/features/reception/routes/Reception.tsx:166-192</code> → <code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/</code></td><td>500×900</td><td>見出しwrap</td><td><code>frontend/src/features/reception/routes/Reception.tsx:168-190</code> → <code>frontend/src/components/shared/Form/FormHeader.tsx:16-37</code></td></tr>
+          <tr><td><code>/</code></td><td>500×900</td><td>新規予約登録CTA</td><td><code>frontend/src/features/reception/routes/Reception.tsx:172-190</code></td></tr>
+          <tr><td><code>/medical-records</code></td><td>800×1024</td><td>右端列</td><td><code>frontend/src/features/medical-records/routes/MedicalRecords.tsx:275-381</code> / <code>frontend/src/features/medical-records/routes/medical-records-columns.tsx:47-56</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/medical-records</code></td><td>500×900</td><td>右側列</td><td><code>frontend/src/features/medical-records/routes/MedicalRecords.tsx:275-381</code> / <code>frontend/src/features/medical-records/routes/medical-records-columns.tsx:47-56</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/hospitalization</code></td><td>800×1024</td><td>board右側</td><td><code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx:176-201</code></td></tr>
+          <tr><td><code>/examinations</code></td><td>800×1024</td><td>操作列</td><td><code>frontend/src/features/examinations/routes/ExaminationsList.tsx:211-304,350-358</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/examinations</code></td><td>500×900</td><td>表右側列</td><td><code>frontend/src/features/examinations/routes/ExaminationsList.tsx:211-304,350-358</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+          <tr><td><code>/checkups</code></td><td>500×900</td><td>pet名列右端</td><td><code>frontend/src/features/checkups/routes/CheckupsList.tsx:177-231,273-317</code> / <code>frontend/src/components/shared/DataTable/DataTable.tsx:42-45</code></td></tr>
+        </table></div>
+      </li>
+      <li><b>共通原因</b>: header群は <code>frontend/src/components/shared/Form/FormHeader.tsx</code> のnowrap、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx</code> の固定min-width、<code>frontend/src/components/shared/UnifiedTabs.tsx</code> のflex-none。3一覧は共通 <code>frontend/src/components/shared/DataTable/DataTable.tsx</code> の <code>min-w-[640px]</code> と列優先度。boardは <code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx</code> の独立した <code>min-w-[800px]</code>。<code>frontend/src/components/shared/Layout/Sidebar.tsx:71-80</code> は既に1280未満でcollapseするため直接原因とは断定しない。</li>
+      <li><b>ファイル allowlist</b>: productionは <code>frontend/src/components/shared/Form/FormHeader.tsx</code>、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx</code>、<code>frontend/src/components/shared/UnifiedTabs.tsx</code>、<code>frontend/src/components/shared/DataTable/DataTable.tsx</code>、<code>frontend/src/features/reception/routes/Reception.tsx</code>、<code>frontend/src/features/hospitalization/components/HospitalizationBoard.tsx</code>、<code>frontend/src/features/medical-records/routes/MedicalRecords.tsx</code>、<code>frontend/src/features/medical-records/routes/medical-records-columns.tsx</code>、<code>frontend/src/features/examinations/routes/ExaminationsList.tsx</code>、<code>frontend/src/features/checkups/routes/CheckupsList.tsx</code>。testは <code>frontend/src/components/shared/Form/FormHeader.test.tsx</code>、<code>frontend/src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx</code>、<code>frontend/src/components/shared/UnifiedTabs.test.tsx</code>、<code>frontend/src/components/shared/DataTable/DataTable.test.tsx</code>、<code>frontend/src/features/reception/routes/Reception.telemetry.test.tsx</code>、<code>frontend/src/features/hospitalization/components/HospitalizationBoard.test.tsx</code>、<code>frontend/src/features/medical-records/routes/MedicalRecords.test.tsx</code>、<code>frontend/src/features/examinations/routes/ExaminationsList.test.tsx</code>、<code>frontend/src/features/checkups/routes/CheckupsList.test.tsx</code>。全19本は現行treeで実在確認済み。allowlist外はFAIL。</li>
+      <li><b>順序付き手順</b>: (1) clean baseline。(2) shared testへnarrow contractをRED。(3) header stack/wrap。(4) patient metadata/card reflow、臨床cueは隠さない。(5) tabは44px targetを保ち全項目到達可能にする。(6) table共通min-widthとroute列優先度を修正しstatus/sentinel/actionは隠さない。(7) boardをcontainer幅で1/2/3列化。(8) gate。(9) 10 route×viewport・13要素をbrowser再実測。</li>
+      <li><b>逐語検証コマンド</b>: <code>docker compose exec frontend npx vitest run src/components/shared/Form/FormHeader.test.tsx src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx src/components/shared/UnifiedTabs.test.tsx src/components/shared/DataTable/DataTable.test.tsx src/features/reception/routes/Reception.telemetry.test.tsx src/features/hospitalization/components/HospitalizationBoard.test.tsx src/features/medical-records/routes/MedicalRecords.test.tsx src/features/examinations/routes/ExaminationsList.test.tsx src/features/checkups/routes/CheckupsList.test.tsx</code>、<code>docker compose exec frontend pnpm design-audit</code>（期待末尾 <code>design-system-audit: PASS — 違反 0 件</code>）、<code>git diff --check -- frontend/src/components/shared/Form/FormHeader.tsx frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx frontend/src/components/shared/UnifiedTabs.tsx frontend/src/components/shared/DataTable/DataTable.tsx frontend/src/features/reception/routes/Reception.tsx frontend/src/features/hospitalization/components/HospitalizationBoard.tsx frontend/src/features/medical-records/routes/MedicalRecords.tsx frontend/src/features/medical-records/routes/medical-records-columns.tsx frontend/src/features/examinations/routes/ExaminationsList.tsx frontend/src/features/checkups/routes/CheckupsList.tsx frontend/src/components/shared/Form/FormHeader.test.tsx frontend/src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx frontend/src/components/shared/UnifiedTabs.test.tsx frontend/src/components/shared/DataTable/DataTable.test.tsx frontend/src/features/reception/routes/Reception.telemetry.test.tsx frontend/src/features/hospitalization/components/HospitalizationBoard.test.tsx frontend/src/features/medical-records/routes/MedicalRecords.test.tsx frontend/src/features/examinations/routes/ExaminationsList.test.tsx frontend/src/features/checkups/routes/CheckupsList.test.tsx</code>。</li>
+      <li><b>ロールバック</b>: BUG-458のexact hunkだけを逆patchする。cleanな専用worktree以外では一括restore禁止。</li>
+      <li><b>停止条件</b>: allowlist dirty、status/death/danger/deadline/actionを隠す必要、44px targetを縮小、raw hex/new token/allowlist外が必要、shared primitiveで無関係routeが壊れる、design audit違反、または10件のclip/overlapが1件でも残る。</li>
+      <li><b>完了判定</b>: 9 scoped testsとdesign auditがgreen、10 route×viewport・13要素のunexpected wrap/clip/overlap 0、臨床cueと操作が可視/到達可能、44px維持、allowlist外変更0。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<section class="task" id="BUG-459">
+<h3>BUG-459: ケアプランFK型不一致修正の実行時未検証（旧 BUG-403 / bug.md BUG-2026-07-28-01 の残余）</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（コードは完了。残るのは稼働環境での実証のみ）。</b> S01〜S06 再実行（2026-07-28）で、ケアプラン項目の <code>type=medicine/treatment/item</code> 登録が <code>400 {"error":"medicine_id: 正しい形式で入力してください"}</code> で失敗した。原因は FE が <code>medicine_id</code> 等を文字列で送る一方、BE <code>createCarePlanItemRequest</code> / <code>updateCarePlanItemRequest</code> が <code>*uint64</code> でバインドしていた型不一致。</li>
+  <li><b>修正済みの内容</b>: <code>frontend/src/features/hospitalization/api/care-plan-items.ts</code> の fetcher 境界に <code>toRequestReferenceId</code> / <code>toCarePlanItemRequestInput</code> を追加し、作成（POST）・更新（PATCH）の両方で <code>medicine_id</code> / <code>procedure_id</code> / <code>hospitalization_plan_id</code> を正の safe integer へ変換する。<code>null</code> は保持し、<code>undefined</code>・空文字はキー自体を省略して <code>0</code> を送らない。BE は規約どおり数値バインドのまま変更しない（request body の FK は数値・response の ID は文字列がリポジトリ全体の規約。<code>treatment_request.go</code> 等が同型）。前例は同 feature の <code>create-hospitalization.ts</code> の fetcher 境界変換。</li>
+  <li><b>証跡（スコープ限定）</b>: <code>care-plan-items.test.ts</code> が <code>Test Files 1 passed (1) / Tests 17 passed (17)</code>、スコープ限定 ESLint が exit 0、<code>git diff --quiet HEAD -- backend/internal/medicalrecord/care_plan_item_request.go</code> が exit 0。<b>coordinator が 2026-07-28 15:14 に3項目すべてを独立再実測して一致を確認し、2時間未コミットで浮いていた実装を <code>82cd52959</code> として回収した</b>（test は payload の実体——<code>null</code> 保持・キー省略・不正入力の拒否——を固定しており空テストではない）。</li>
+  <li><b>残作業</b>: 稼働中のローカル API に対する実証が未了。<code>POST /v1/hospitalizations/{id}/care-plan-items</code> に修正後 payload（当該種別の FK は数値・他2つは明示 <code>null</code>）を <code>medicine</code>/<code>treatment</code>/<code>item</code> の3種別で送って成功を確認し、対比として文字列 FK が <code>400</code> になることを取得する。<code>PATCH</code> も同様。<b>検証で作成したレコードは API の <code>DELETE</code> で全件消すこと</b>（<code>docker compose exec db psql</code> による直接 SQL は禁止コマンド）。生成済みプロンプト <code>~/.claude/prompt-craft-runs/agent-fast-bugmd-runtime-verification-closeout.md</code> が本残作業の実行契約。</li>
+  <li><b>境界</b>: <code>PATCH</code> の <code>null</code> が「FK をクリアする」意図と「未指定」を区別できない件は BE DTO <code>*uint64</code> 由来の既存制約であり、本entryの範囲外（新規要件）。</li>
+</ul>
+</section>
+
+<section class="task" id="BUG-460">
+<h3>BUG-460: 当日開始入院の「入院中」タブ非表示は仕様どおり（旧 BUG-405 / bug.md BUG-2026-07-28-02 の記録訂正）</h3>
+<ul>
+  <li><b>状態: OPEN / LOW（コード欠陥ではない。残るのはブラウザでの目視確認のみ）。</b> S05 再実行で「開始日を本日にした新規入院が <code>status: "reserved"</code> で作成され『入院中』タブに出ない」と観察し、当初これをコード不具合と解釈した。<b>この解釈は現行ツリーと不整合であり、記録訂正済み。</b></li>
+  <li><b>訂正の根拠</b>: DEC-2 は日付による自動遷移ではなく明示的な手動チェックインを要求しており、<code>2f255fe39</code>（FEAT-CHECKIN）で実装済み。<code>frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx</code> は <code>showCheckIn = canEdit &amp;&amp; isReserved</code> / <code>showDischarge = canEdit &amp;&amp; isAdmitted</code>（<code>canDelete</code> だったが BUG-457 の製品判断で <code>75aff5786</code> にて <code>canEdit</code> へ是正済み）であり、<code>reserved</code> ではチェックインのみが描画され退院処理は描画されない。<code>api/transforms.ts</code> の <code>statusMap</code> も <code>reserved → 「予約」</code> で正しい。<b>予約は「本日来院予定」であって「来院した」ではないため、自動遷移は臨床事実に反する記録を生む。実装してはならない。</b></li>
+  <li><b>証跡</b>: <code>HospitalizationDetailActions.checkin.test.tsx</code> が <code>Test Files 1 passed (1) / Tests 5 passed (5)</code>。</li>
+  <li><b>残作業</b>: ブラウザでの目視確認のみ未了（<code>reserved</code> の入院詳細でチェックインが表示され退院処理が表示されないこと）。<b>ブラウザ操作手段が無い場合は BLOCKED が正しい結論であり、上記コンポーネントテストの再掲を目視確認の代替として PASS にしてはならない。</b></li>
+  <li><b>範囲外</b>: 入院一覧に「開始日が本日なのに未チェックイン」を例外として浮かび上がらせる機能（product-philosophy ③）は PO 裁定を要する新規要件。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-461">
+<h3>TASK-461: M-05残2件を最小3routeで実測する</h3>
+<ul>
+  <li><b>状態: OPEN / HIGH（runtime clinical evidence）。</b> danger高の非色cueと、past/today/future/emptyの期限表示を、R-4後にfixtureを再作成して証明する。7 route×4 viewportの全再走はしない。</li>
+  <li><b>着手プラン</b>:
+    <ul>
+      <li><b>ファイル allowlist</b>: writeは <code>tmp/fe12-m05-evidence/&lt;RUN_DATE&gt;/**</code> のみ。<code>backend/**</code>、<code>frontend/**</code>、seed、migration、ledgerはread-only。captureは実在確認済み <code>tmp/fe12-m05-evidence/2026-07-28/capture.mjs</code> を使う。promptが指した <code>tmp/fe12-m03-evidence/2026-07-28/capture.mjs</code> は存在しない。</li>
+      <li><b>順序付き手順</b>: (1) disposable local・clinic 1・認証を確認し、secretはenv placeholderだけで渡す。(2) JSTの実行日D、past=D-1、future=D+1、base=D-8を算出。(3) pet <code>1001004</code> がalive/low/null、MR <code>1425547</code> とvaccination/checkup <code>1-4</code> が不存在、M05 label衝突なしをGETで確認。(4) petを <code>{"danger_level":"high","danger_reason":"FE12-M01 fixture"}</code> へPATCHしread-back。(5) <code>POST /api/v1/medical-records</code> へ <code>{"visit_date":"D","owner_id":"300588","pet_id":"1001002","status":"draft"}</code> を送り201かつ返却ID <code>1425547</code> を要求。(6) <code>POST /api/v1/vaccinations</code> へ共通 <code>medical_record_id=1425547,pet_id=1001002,vaccine_id=1,date=base</code> と、<code>next_date/next_schedule_type/remarks</code> を順に <code>past/other/M05-past</code>、<code>D/other/M05-today</code>、<code>future/other/M05-future</code>、emptyはnext両key省略＋<code>M05-empty</code> で4件作成。(7) <code>POST /api/v1/medical-records/1425547/checkups</code> へ共通 <code>checkup_type_id=1,pet_id=1001002,date=base</code> と <code>next_date/result</code> をpast/today/future/emptyで4件作成。(8) 即時read-backし、日跨ぎ禁止。(9) dedicated Chrome 9222・1440×900で <code>/owners</code> をpet名検索、<code>/vaccinations</code> をpet filter、<code>/checkups</code> を <code>M05-</code> 検索して3routeだけ観測。(10) identity確認後、checkup→vaccination→MRをAPI DELETEし、petをlow/nullへ戻して全read-back。</li>
+      <li><b>逐語API手順（bash・同一shellでpreflight→create→read-back→観測→cleanup）</b>: secretを表示せず、各HTTP status不一致で即停止する。create後に失敗した場合も、下記cleanupをidentity確認付きで実行してから終了する。
+        <details><summary>copy-executable fixture/preflight/read-back</summary><pre><code>set -euo pipefail
+: "${FE12_ADMIN_EMAIL:?set FE12_ADMIN_EMAIL}"
+: "${FE12_ADMIN_PASSWORD:?set FE12_ADMIN_PASSWORD}"
+FE12_API_BASE='http://127.0.0.1:8080/api/v1'
+FE12_COOKIE_JAR="$(mktemp -t fe12-m05-cookie.XXXXXX)"
+FE12_RUN_DATE="$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')"
+FE12_PAST="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()-1);console.log(d.toISOString().slice(0,10))')"
+FE12_FUTURE="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()+1);console.log(d.toISOString().slice(0,10))')"
+FE12_BASE_DATE="$(node -e 'const d=new Date(Date.now()+9*36e5);d.setUTCDate(d.getUTCDate()-8);console.log(d.toISOString().slice(0,10))')"
+EVIDENCE="tmp/fe12-m05-evidence/$FE12_RUN_DATE"
+mkdir -p "$EVIDENCE"
+req() {
+  local method="$1" path="$2" expected="$3" output="$4" body="${5-}" actual
+  local args=(-sS -b "$FE12_COOKIE_JAR" -c "$FE12_COOKIE_JAR"
+    -H 'Content-Type: application/json'
+    -H 'X-Requested-With: XMLHttpRequest'
+    -H 'X-Clinic-ID: 1')
+  if [[ -n "$body" ]]; then args+=(--data "$body"); fi
+  actual="$(curl "${args[@]}" -o "$output" -w '%{http_code}' -X "$method" "$FE12_API_BASE$path")"
+  [[ "$actual" == "$expected" ]] || {
+    echo "FAIL $method $path expected=$expected actual=$actual" &gt;&amp;2
+    return 1
+  }
+}
+CREATED_MR=''
+PET_CHANGED=0
+VACC_IDS=()
+CHECKUP_IDS=()
+cleanup_chrome() {
+  if [[ -n "${CHROME_PID-}" ]]; then
+    kill "$CHROME_PID" 2&gt;/dev/null || true
+    wait "$CHROME_PID" 2&gt;/dev/null || true
+    unset CHROME_PID
+  fi
+  if [[ -n "${CHROME_PROFILE-}" &amp;&amp; -d "$CHROME_PROFILE" &amp;&amp;
+        "$CHROME_PROFILE" == "$PWD/$EVIDENCE"/chrome-profile.* ]]; then
+    rm -rf -- "$CHROME_PROFILE"
+    unset CHROME_PROFILE
+  fi
+}
+emergency_cleanup() {
+  local id output
+  set +e
+  for ((i=${#CHECKUP_IDS[@]}-1; i&gt;=0; i--)); do
+    id=&quot;${CHECKUP_IDS[$i]}&quot;; output="$EVIDENCE/checkup-$id-create.json"
+    jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.result // .data.result)|startswith("M05-"))' "$output" &gt;/dev/null &amp;&amp;
+      req DELETE "/medical-records/$CREATED_MR/checkups/$id" 204 "$EVIDENCE/checkup-$id-emergency-delete.json"
+  done
+  for ((i=${#VACC_IDS[@]}-1; i&gt;=0; i--)); do
+    id=&quot;${VACC_IDS[$i]}&quot;; output="$EVIDENCE/vaccination-$id-create.json"
+    jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$output" &gt;/dev/null &amp;&amp;
+      req DELETE "/vaccinations/$id" 204 "$EVIDENCE/vaccination-$id-emergency-delete.json"
+  done
+  if [[ -n "$CREATED_MR" ]] &amp;&amp; jq -e --arg id "$CREATED_MR" '((.id // .data.id)|tostring)==$id and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-create.json" &gt;/dev/null; then
+    req DELETE "/medical-records/$CREATED_MR" 204 "$EVIDENCE/mr-emergency-delete.json"
+  fi
+  if [[ "$PET_CHANGED" == 1 ]]; then
+    req PATCH /pets/1001004 200 "$EVIDENCE/pet-emergency-restore.json" '{"danger_level":"low","danger_reason":null}'
+  fi
+  cleanup_chrome
+}
+on_error() {
+  local status=$?
+  trap - ERR
+  emergency_cleanup
+  rm -f -- "$FE12_COOKIE_JAR"
+  exit "$status"
+}
+trap on_error ERR
+LOGIN_BODY="$(jq -nc --arg email "$FE12_ADMIN_EMAIL" --arg password "$FE12_ADMIN_PASSWORD" '{email:$email,password:$password}')"
+req POST /login 200 "$EVIDENCE/login.json" "$LOGIN_BODY"
+req GET /me 200 "$EVIDENCE/me.json"
+jq -e '.id=="42" and .main_clinic_id=="1" and .is_system_admin==false and .clinic.id=="1" and (.permissions|type)=="object"' "$EVIDENCE/me.json"
+req GET /masters/staffs/42/permission-groups 200 "$EVIDENCE/permission-groups.json"
+jq -e '.group_ids==[9]' "$EVIDENCE/permission-groups.json"
+req GET /pets/1001004 200 "$EVIDENCE/pet-before.json"
+jq -e '((.id // .data.id)|tostring)=="1001004" and ((.clinic_id // .data.clinic_id)|tonumber)==1 and (.status // .data.status)=="alive" and (.danger_level // .data.danger_level)=="low" and ((.danger_reason // .data.danger_reason // null)==null)' "$EVIDENCE/pet-before.json"
+PET_NAME="$(jq -er '(.name // .data.name)' "$EVIDENCE/pet-before.json")"
+req GET /medical-records/1425547 404 "$EVIDENCE/mr-before.json"
+for id in 1 2 3 4; do req GET "/vaccinations/$id" 404 "$EVIDENCE/vaccination-$id-before.json"; done
+# checkup detail GETは存在しないため、clinic全pageを走査してID 1-4とM05 labelの不存在を証明する。
+: &gt; "$EVIDENCE/checkups-preflight.ndjson"
+page=1
+total=1
+while (( (page - 1) * 100 &lt; total )); do
+  req GET "/checkups?page=$page&amp;limit=100" 200 "$EVIDENCE/checkups-page-$page-before.json"
+  total="$(jq -er '.total' "$EVIDENCE/checkups-page-$page-before.json")"
+  jq -c '.data[]' "$EVIDENCE/checkups-page-$page-before.json" &gt;&gt; "$EVIDENCE/checkups-preflight.ndjson"
+  page=$((page + 1))
+done
+jq -se '[.[] | select(((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4) or ((.result // "")|startswith("M05-")))] | length==0' "$EVIDENCE/checkups-preflight.ndjson"
+req PATCH /pets/1001004 200 "$EVIDENCE/pet-high.json" '{"danger_level":"high","danger_reason":"FE12-M01 fixture"}'
+PET_CHANGED=1
+req GET /pets/1001004 200 "$EVIDENCE/pet-high-readback.json"
+jq -e '(.danger_level // .data.danger_level)=="high" and (.danger_reason // .data.danger_reason)=="FE12-M01 fixture"' "$EVIDENCE/pet-high-readback.json"
+MR_BODY="$(jq -nc --arg d "$FE12_RUN_DATE" '{visit_date:$d,owner_id:"300588",pet_id:"1001002",status:"draft"}')"
+req POST /medical-records 201 "$EVIDENCE/mr-create.json" "$MR_BODY"
+MR_ID="$(jq -er '(.id // .data.id)|tostring' "$EVIDENCE/mr-create.json")"
+CREATED_MR="$MR_ID"
+[[ "$MR_ID" == 1425547 ]] || { echo "STOP: medical-record ID=$MR_ID (expected 1425547)" &gt;&amp;2; false; }
+for spec in "M05-past|$FE12_PAST" "M05-today|$FE12_RUN_DATE" "M05-future|$FE12_FUTURE" 'M05-empty|'; do
+  label="${spec%%|*}"; next="${spec#*|}"
+  if [[ -n "$next" ]]; then
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg n "$next" --arg r "$label" '{medical_record_id:1425547,pet_id:1001002,vaccine_id:1,date:$d,next_date:$n,next_schedule_type:"other",remarks:$r}')"
+  else
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg r "$label" '{medical_record_id:1425547,pet_id:1001002,vaccine_id:1,date:$d,remarks:$r}')"
+  fi
+  index="$(case "$label" in M05-past) echo 1;; M05-today) echo 2;; M05-future) echo 3;; M05-empty) echo 4;; esac)"
+  req POST /vaccinations 201 "$EVIDENCE/vaccination-$index-create.json" "$body"
+  actual_id=&quot;$(jq -er '(.id // .data.id)|tonumber' "$EVIDENCE/vaccination-$index-create.json")&quot;
+  VACC_IDS+=("$actual_id")
+  [[ "$actual_id" == "$index" ]] || { echo "STOP: vaccination ID mismatch at $label" &gt;&amp;2; false; }
+done
+for spec in "M05-past|$FE12_PAST" "M05-today|$FE12_RUN_DATE" "M05-future|$FE12_FUTURE" 'M05-empty|'; do
+  label="${spec%%|*}"; next="${spec#*|}"
+  if [[ -n "$next" ]]; then
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg n "$next" --arg r "$label" '{checkup_type_id:1,pet_id:1001002,date:$d,next_date:$n,result:$r}')"
+  else
+    body="$(jq -nc --arg d "$FE12_BASE_DATE" --arg r "$label" '{checkup_type_id:1,pet_id:1001002,date:$d,result:$r}')"
+  fi
+  index="$(case "$label" in M05-past) echo 1;; M05-today) echo 2;; M05-future) echo 3;; M05-empty) echo 4;; esac)"
+  req POST /medical-records/1425547/checkups 201 "$EVIDENCE/checkup-$index-create.json" "$body"
+  actual_id=&quot;$(jq -er '(.id // .data.id)|tonumber' "$EVIDENCE/checkup-$index-create.json")&quot;
+  CHECKUP_IDS+=("$actual_id")
+  [[ "$actual_id" == "$index" ]] || { echo "STOP: checkup ID mismatch at $label" &gt;&amp;2; false; }
+done
+[[ "$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')" == "$FE12_RUN_DATE" ]]
+req GET /medical-records/1425547 200 "$EVIDENCE/mr-readback.json"
+jq -e '((.id // .data.id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-readback.json"
+for id in 1 2 3 4; do
+  req GET "/vaccinations/$id" 200 "$EVIDENCE/vaccination-$id-readback.json"
+  jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.medical_record_id // .data.medical_record_id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$EVIDENCE/vaccination-$id-readback.json"
+done
+req GET /medical-records/1425547/checkups 200 "$EVIDENCE/checkups-readback.json"
+jq -e '(.data // .) as $rows | ($rows|length)==4 and ([ $rows[] | select((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4 and (.pet_id|tonumber)==1001002 and (.result|startswith("M05-"))) ]|length)==4' "$EVIDENCE/checkups-readback.json"</code></pre></details>
+        <details><summary>browser evidence and identity-safe cleanup</summary><pre><code># 専用Chromeを起動し、CDPがHTTP 200になるまでfail-fast gateする。
+CHROME_PROFILE="$(mktemp -d "$PWD/$EVIDENCE/chrome-profile.XXXXXX")"
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$CHROME_PROFILE" \
+  --no-first-run \
+  http://127.0.0.1:3003/login &gt;"$EVIDENCE/chrome.stdout.log" 2&gt;&amp;1 &amp;
+CHROME_PID=$!
+cdp_status=000
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  cdp_status="$(curl -sS -o "$EVIDENCE/cdp-version.json" -w '%{http_code}' http://127.0.0.1:9222/json/version || true)"
+  [[ "$cdp_status" == 200 ]] &amp;&amp; break
+  sleep 1
+done
+[[ "$cdp_status" == 200 ]]
+jq -e '.webSocketDebuggerUrl|startswith("ws://127.0.0.1:9222/")' "$EVIDENCE/cdp-version.json"
+
+# Chrome controllerで次を逐語実行する。UI loginにはenvの値を入力し、値をartifactへ出力しない。
+# 1. /login: Email/PasswordへFE12_ADMIN_EMAIL/FE12_ADMIN_PASSWORDを入力し「ログイン」。
+#    /api/v1/me応答のstaff=42, clinic=1, non-adminを再確認。不一致は停止。
+# 2. Network記録を開始し /owners へ移動。「飼主名、ペット名、飼主No、種別...」textboxへ
+#    PET_NAMEを入力し「検索」。対象pet 1001004の1行だけを要求し、
+#    「${PET_NAME}の危険理由を表示」を押して「${PET_NAME}の危険理由」と
+#    「FE12-M01 fixture」を確認。full accessibility treeをa11y-owners.txt、
+#    request method + URLをnet-owners.txtへ保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/owners.png" 1440 900 /owners
+# 3. Networkをclear/restartし /vaccinations へ移動。「飼主名、ペット名、予防接種名...」
+#    textboxへfixture pet名を入力。ID 1-4を確認し、pastだけ「期限超過」、
+#    today/future/emptyはdanger/overdue cueなし。a11y-vaccinations.txtと
+#    net-vaccinations.txtへ同形式で保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/vaccinations.png" 1440 900 /vaccinations
+# 4. Networkをclear/restartし /checkups へ移動。「ペット名・飼主名・種別で検索...」
+#    textboxへM05-を入力。ID 1-4を確認し、pastだけ「期限切れ」、
+#    today/futureは「期限間近」可だが期限切れ/dangerなし、emptyは日付/badgeなし。
+#    a11y-checkups.txtとnet-checkups.txtへ同形式で保存してからcaptureする。
+node tmp/fe12-m05-evidence/2026-07-28/capture.mjs "$EVIDENCE/checkups.png" 1440 900 /checkups
+for artifact in \
+  "$EVIDENCE/a11y-owners.txt" "$EVIDENCE/a11y-vaccinations.txt" "$EVIDENCE/a11y-checkups.txt" \
+  "$EVIDENCE/net-owners.txt" "$EVIDENCE/net-vaccinations.txt" "$EVIDENCE/net-checkups.txt" \
+  "$EVIDENCE/owners.png" "$EVIDENCE/vaccinations.png" "$EVIDENCE/checkups.png"; do
+  test -s "$artifact"
+done
+rg -F "${PET_NAME}の危険理由を表示" "$EVIDENCE/a11y-owners.txt"
+rg -F "${PET_NAME}の危険理由" "$EVIDENCE/a11y-owners.txt"
+rg -F 'FE12-M01 fixture' "$EVIDENCE/a11y-owners.txt"
+test "$(rg -c '期限超過' "$EVIDENCE/a11y-vaccinations.txt")" -eq 1
+test "$(rg -c '期限切れ' "$EVIDENCE/a11y-checkups.txt")" -eq 1
+if rg -n '(^|[[:space:]])(POST|PATCH|PUT|DELETE)([[:space:]]|$)' \
+  "$EVIDENCE/net-owners.txt" "$EVIDENCE/net-vaccinations.txt" "$EVIDENCE/net-checkups.txt"; then
+  echo 'STOP: unexpected browser mutation' &gt;&amp;2
+  false
+fi
+[[ "$(node -e 'const d=new Date(Date.now()+9*36e5);console.log(d.toISOString().slice(0,10))')" == "$FE12_RUN_DATE" ]]
+# delete前identity再確認
+req GET /medical-records/1425547 200 "$EVIDENCE/mr-predelete.json"
+jq -e '((.id // .data.id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.owner_id // .data.owner_id)|tonumber)==300588' "$EVIDENCE/mr-predelete.json"
+for id in 1 2 3 4; do
+  req GET "/vaccinations/$id" 200 "$EVIDENCE/vaccination-$id-predelete.json"
+  jq -e --argjson id "$id" '((.id // .data.id)|tonumber)==$id and ((.medical_record_id // .data.medical_record_id)|tonumber)==1425547 and ((.pet_id // .data.pet_id)|tonumber)==1001002 and ((.remarks // .data.remarks)|startswith("M05-"))' "$EVIDENCE/vaccination-$id-predelete.json"
+done
+req GET /medical-records/1425547/checkups 200 "$EVIDENCE/checkups-predelete.json"
+jq -e '(.data // .) as $rows | ($rows|length)==4 and ([ $rows[] | select((.id|tonumber)&gt;=1 and (.id|tonumber)&lt;=4 and (.pet_id|tonumber)==1001002 and (.result|startswith("M05-"))) ]|length)==4' "$EVIDENCE/checkups-predelete.json"
+for id in 1 2 3 4; do req DELETE "/medical-records/1425547/checkups/$id" 204 "$EVIDENCE/checkup-$id-delete.json"; done
+for id in 1 2 3 4; do req DELETE "/vaccinations/$id" 204 "$EVIDENCE/vaccination-$id-delete.json"; done
+req DELETE /medical-records/1425547 204 "$EVIDENCE/mr-delete.json"
+CREATED_MR=''
+req PATCH /pets/1001004 200 "$EVIDENCE/pet-restore.json" '{"danger_level":"low","danger_reason":null}'
+PET_CHANGED=0
+req GET /medical-records/1425547 404 "$EVIDENCE/mr-after.json"
+for id in 1 2 3 4; do req GET "/vaccinations/$id" 404 "$EVIDENCE/vaccination-$id-after.json"; done
+req GET /medical-records/1425547/checkups 404 "$EVIDENCE/checkups-after.json"
+req GET /pets/1001004 200 "$EVIDENCE/pet-after.json"
+jq -e '((.id // .data.id)|tostring)=="1001004" and (.status // .data.status)=="alive" and (.danger_level // .data.danger_level)=="low" and ((.danger_reason // .data.danger_reason // null)==null)' "$EVIDENCE/pet-after.json"
+trap - ERR
+cleanup_chrome
+rm -f -- "$FE12_COOKIE_JAR"</code></pre></details>
+      </li>
+      <li><b>期待するruntime</b>: ownersはpet <code>1001004</code> の名前で1行へ絞り、accessible name <code>&lt;PET_NAME&gt;の危険理由を表示</code> とpop-over label/reasonを取得。vaccinationはpastだけ <code>期限超過</code>、today/future/emptyにdanger/overdue cueなし。checkupはpastだけ <code>期限切れ</code>、today/futureは <code>期限間近</code> 可だが期限切れ/danger扱いなし、emptyは日付/badgeなし。</li>
+      <li><b>ロールバック</b>: numeric IDだけで消さず全recordのM05 identityを確認し、<code>DELETE /medical-records/1425547/checkups/:id</code> → <code>DELETE /vaccinations/:id</code> → <code>DELETE /medical-records/1425547</code>、最後にpet low/nullへPATCH。MR/vaccination 404、checkup listのM05 0件、pet alive/low/nullを確認する。</li>
+      <li><b>停止条件</b>: non-local、clinic/authority/login不一致、既存IDが別identity、createが201でない、sequence生成IDが <code>1425547</code> / <code>1-4</code> と異なる、JST日跨ぎ、owner検索で対象1行に絞れない、unexpected mutation、cleanup identity不一致。IDはAPIから指定不能なので、差異をDB reset/direct SQL/sequence操作で補正してはならない。</li>
+      <li><b>完了判定</b>: exact-ID read-back、3routeのa11y/network/PNG、danger高cue、期限4区分が期待どおり、cleanupでpreflight状態へ完全復旧。未確認のlive sequence、fixture absence、credential、Chrome、runtime a11yは実行時に確認し、代替証跡でPASSにしない。</li>
+    </ul>
+  </li>
+</ul>
+</section>
+
+<!-- LEDGER:APPEND -->
+
+<h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
+<div class="table-wrap">
 <table>
-<tr><th>Issue</th><th>扱い</th></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td><td>既存 <code>backend/cmd/stage-import</code> の gap analysis／拡張は開発。rehearsal・cutover は privileged USER operations。</td></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>CI/CD・監視・backup/restore の delivery prerequisite。main→STG 自動、production branch + required reviewer を維持。</td></tr>
-<tr><td>#256 / #258</td><td>システム内コンテンツ・repo docs の納品作業。人間 OPS だけではない。</td></tr>
-<tr><td>#254 / #255 / #257</td><td>UAT・アカウント発行・cutover を中心とする USER operations。</td></tr>
-<tr><td>#252 / #259</td><td>設定投入／納品後の外部 API 待ち。</td></tr>
+  <tr><th>レーン</th><th>領域</th><th>Issue・台帳（着手順・ゲートは各Issue/#260/q&amp;a.html参照）</th></tr>
+  <tr><td><b>A</b></td><td>検査・backend基盤</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a>=<b>実装進行中</b>。<b>Phase 1完了</b>（<code>bc4fe88cb</code>・検歴の項目×日付ピボット。<code>exam_type_field_id</code> NULLのlegacy行をsnapshot keyでグルーピングし「未マッピング」を可視表示 — field IDのみを行キーにすると旧Access検歴がほぼ全件欠落するため）。<b>Phase 2 U1完了</b>（<code>b4d10e083</code>・migration 005。<code>exam_types</code>→<code>exam_type_fields</code>→<code>exam_reference_ranges</code>の3段複合FKでclinic越境をDB制約化し、動物種次元は<code>animal_species_id</code>を正本とする〔<code>vaccine_species</code>は適用範囲の語彙のため不採用〕。RLSは同名policyでdirect条件へ置換、<code>Preload("Items")</code>にchild側clinic predicate追加）。<b>#250 cutoverを待つ必要はない</b>（正式21表契約に<code>exam_types</code>/<code>exam_type_fields</code>は含まれず、cutoverは両masterへ1行も書かない — 2026-07-25実測確定・Issue本文C-5）。<br><b>U1b完了（2026-07-27・commit前）</b>: read-side registryの <code>"ExamTypeField": "ExamTypeField"</code> は既登録、modelのschema-drift/RLS gateは最終ALTERと最終direct policyを検査する形へ是正、<code>cmd/migrate</code> にmigration inventory testは存在しないことを実測し本unitでは新設していない。<code>TestMasterModelReconciliation_RealSourceIsConsistent</code> はphase 1のpackage実測でFAILしておらず、旧台帳の「現在FAIL」は陳腐化していた。<b>BUG-441 残余清算完了（entry削除済・2026-07-27・<code>5c0ffef89</code>）</b>: U2由来のmedicalrecord 2件（<code>examinationRepository.FindAnimalSpeciesID</code>/<code>ResolveByFieldIDs</code>）をmethod別ambient-lock test付きで<code>dbOrTxParticipatingMethods</code>へ登録しdbOrTx gateをgreen化。<code>ambientTxRequired</code> shapeは現行matcherが<code>TxFromContext</code>由来handleを要求するため不一致で、direct mapが正。<br><b>Phase 2 U2完了（2026-07-27・<code>5708ae68e</code>＋<code>19bbdbae2</code>）</b>: F-2a サーバ側基準値解決・スナップショット保存。U1で作られたが未配線だった<code>exam_reference_ranges</code>を<code>(clinic_id, exam_type_field_id, animal_species_id)</code>で一括解決し（N+1なし・動物種は<code>exams.pet_id</code>→<code>pets.animal_species_id</code>・pet不定はfail closed）、解決値を<code>exam_results.ref_min/ref_max</code>へスナップショット。リクエスト由来の境界値は判定にもスナップショットにも使わない。あわせて<code>is_assessed</code>を応答DTOへ追加（DDL変更なし）し、基準値不在を「未判定」としてFEで区別表示（<code>基準値内</code>との混同を解消。臨床安全）。<br><b>Phase 2 U3完了（2026-07-27・<code>cb3b1c448</code>）</b>: F-2c 定性値判定＋BUG-447解消。順序表<code>(-) &lt; (±) &lt; (+) &lt; (++) &lt; (+++)</code>をGo定数で持ち範囲外をhigh/lowへ写像。<code>is_assessed</code>の意味を「境界が存在するか」から<b>「その入力値がその境界に対して実際に比較されたか」</b>へ引き上げ、数値境界×非数値・定性境界×表外表記を未判定へ落とした。数値境界と定性境界の併存はデータ不整合としてfail-closed。migration <code>004_add_exam_result_qualitative_bounds.sql</code>で<code>exam_results</code>へ定性境界のスナップショット列2本を追加。enumは<code>('normal','high','low')</code>のまま。<br><b>Phase 2 U4完了（2026-07-27・<code>afd8404a4</code> API＋<code>1adf55b6e</code> UI）</b>: F-2d 検査項目マスタ管理UI/API。<code>PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges</code> で <code>exam_reference_ranges</code> への投入経路が開通し、<a href="#BUG-449">BUG-449</a> の「投入手段が無い」状態は解消した（残るのは臨床値そのものの投入で委任外）。<b>Phase 2 は U4 をもって完了</b>。派生3件も清算済み（動物種取得失敗の可視化 <code>ad616d269</code>＋横断5面 <code>6a74d7dcc</code>/<code>a804ac09c</code>、動物種権限は seed 実測で該当グループ0件のため実装不要と確定）。<b>次の着手対象=<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></b>（#249 完了により直列化制約が解けた）。<a href="#BUG-437">BUG-437</a>は前走が予算超過でBLOCKED（context-aware lint ruleまたはassociation構造変更の設計予算を明示した別unitが必要）のため納品後。<b>USER手動</b>: ①migration <code>004</code>の適用 ②<code>make codegen</code>（U3でmodelへ列追加のため生成型に差分が出る） ③frontend full type-check ④runtime確認（数値項目への非数値入力が「未判定」・定性値のhigh/low・lab report応答）。seed bundle checksum変更による既存ローカルDBの<code>DB_RESET</code>相当再構築も未実施（共有STG/PRODでは実行しない）。<br><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> 残=USERのDB適用と臨床責任者のseed確認のみ。<br><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a>=DEC-15裁定済み（7項目＋単独権限＋group soft-delete）。Phase 0の設計確定は<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239#issuecomment-5077710947">#239コメント</a>が正本。<b>#249 Phase 2 完了により着手可能になった（2026-07-28・本レーンの次タスク）</b>。着手の前提だったstaff権限面はいずれも解消済み（BUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>）。#239はstaff権限面の既知欠陥が無い状態から着手できる。<br><b>台帳所掌</b>: <a href="#BUG-437">BUG-437</a>（<code>internal/lintscan</code>面）。</td></tr>
+  <tr><td><b>B</b></td><td>カルテ／飼主／会計・医院間リンク</td><td><b>着手対象（納品日 2026-07-27 に到達したため、旧「納品後」繰り延べラベルは失効）</b>。<b>#251 の unit 別進捗は本 view に複製せず、正本 = <a href="#TASK-251">#ledger TASK-251</a></b>（2026-07-27 に本行が U3/U5 を未了と誤記していた。unit 状態の二重管理が原因のため列挙をやめる）。<br>① <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a> <b>U4</b>（④training の新規 source 設計 — <b>現状 source 不在で仕様未確定のため設計から</b>。着手前に「この source をどの業務工程が生むのか」を確定する必要がある〔product-philosophy ①要件を疑う〕。#247 のゲートを解く最後の 1 unit でもあり最優先）<br>② <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a> <b>複数飼主紐付け — Phase 2 dev 完了・USER 操作待ち</b>（L）。サイグラム自動算出（<code>e146b212e</code>・81 test）と BUG-432（<code>0889be9bc</code>）は解消済み。<b>DEC-17 補強の実装前提 3 件は 2026-07-27 に全て充足</b>（<code>UNIQUE (clinic_id, id)</code> = migration 002 <code>a0165b1c5</code>／<code>pet_owners</code> 本体 + <code>app_private.apply_rls_policy</code> による RLS = migration 003 <code>b4933b50b</code>／番号は作成直前の実ファイル最大値から採番）。<b>unit 1〜9 完了（2026-07-28）</b>:
+<br>・unit 3 <code>729580d46</code>＋<code>a00f92490</code> = <code>model.PetOwner</code>＋<code>PetOwnerRepository</code>（clinic 相関は pets/owners の両親へ EXISTS）
+<br>・unit 4a/4b/4c <code>76a00ec70</code> = <code>pets.version</code> 追加（migration <code>002_add_pets_version.sql</code>）＋<code>ReplaceForPet</code> の version CAS／副飼主 service（バリデーション 8 項目・置換と audit の同一 tx fail-closed・空配列 PUT も監査必須）／<code>owner</code> 側 Delete の 409 ガード。<b>副次的に既存欠陥 2 件を是正</b>: <code>ReplaceForPet</code> の owner 存在確認が <code>Unscoped()</code> で soft-delete 済み飼主を受理していた／<code>ownerRepository</code> の <code>Delete</code>・<code>CountPetsByOwnerID</code> が <code>DBOrTx</code> を経由せず、呼び出し元 tx 内で self-block する状態だった
+<br>・unit 5/5b <code>556130d27</code> = <code>GET|PUT /pets/:id/sub-owners</code>（PUT は <code>version</code> 必須・成功は body 無し 204）＋pet 応答への <code>version</code> 露出。route 件数ゲート 2 件も実測値へ是正
+<br>・unit 6 <code>512bc73f6</code> = <code>api.yaml</code> へ 2 経路と <code>Pet.version</code> を記述／生成型追随 <code>44ce538a8</code>
+<br>・unit 7/7b <code>d6bdd0d21</code> = <code>PetEditModalFields</code> へ副飼主セクション（<code>PetEditModal</code> 本体は無変更）。候補取得は <code>GET /v1/owners?search=</code> のサーバ側検索＋300ms デバウンス（初版の全飼主ページ全走査を 7b で撤去）
+<br>・unit 8a <code>e48d883e3</code> = <code>GET /owners/:id/shared-pets</code>（飼主→副飼主として紐付くペット。unit 5 の逆方向で、unit 8b の表示に必須）
+<br>・unit 8b <code>8317e168c</code> = <code>OwnerPetsSection</code> へ共同飼育ペットを「副飼主」バッジ＋続柄付きの read-only 行として表示
+<br>・unit 9 <code>2c13b563c</code> = <code>docs/architecture/erd.md</code> へ <code>pet_owners</code>（ドメイン一覧・Mermaid 3 relation・複合FK越境防止・全110テーブル）を反映済み
+<br><b>#262 Phase 2 dev 完了・USER 操作待ち</b>: migration <code>002</code>・<code>003</code> は適用済み、<code>make codegen</code>／<code>codegen-check</code>／full type-check も 2026-07-28 に実行し green。残 = runtime 確認と GitHub Issue #262 のクローズ。<b>Issue #262 本文の記載は 2 点陳腐化している</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である<br>③ <b>着手不可</b>: <a href="#TASK-251">#251</a> <b>U2b-full 第2段</b>（締め表「未分類・要確認」件数表示）は<b>別 session が実行中</b>。重複着手禁止 — 着手前に <code>git log</code> で先行完了を実測する<br>④ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表）— <b>ゲート継続</b>。受け入れ条件「#251 の全書込経路 category contract が確定」に対し U2b-full 第2段と U4 が未了<br><br><b>dev 完了・USER 操作待ち（2026-07-27 に <code>gh</code> 実測で全件 OPEN）</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>（<code>711bcf561</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（U-A <code>a0a3d17f8</code>・U-B <code>49029973b</code>・U-C <code>9b9f57f9f</code>・U-D <code>ac7f35b1c</code> で dev 全完了。残 = <b>migrate → codegen → 動作確認 → クローズ</b>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>（<code>db9e0db59</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>（<code>7bce0e83b</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>（<code>bc2efba12</code>）。実装詳細は commit が正本のため本 view に複製しない。<br><b>#251 の完了済み unit の hash 一覧</b>: <a href="#TASK-251">#ledger TASK-251</a> を正本とする（本 view に複製しない）。<br><b>phase2 送り</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19）。#239 はレーン A へ移設（#249 と直列化裁定）。<br><b>台帳所掌</b>: <b>現在なし</b>。BUG-442（権限グループ割当の権限昇格）= <code>1f9108e6e</code>、BUG-446（credential 置換の認可欠落・PO 裁定案①＝password 供給時のみ <code>master-permission:edit</code> を条件付き要求）= <code>3673acbbd</code> で解消済み。生成 FE 型の追随も <code>0e40d1b18</code> で消化し <code>make codegen-check</code> は green。<b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。</td></tr>
+  <tr><td colspan="2">USER/外部待ち</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a> Lステップ再開=先方API有効化待ち／OPS-2 DB適用（migration 005/006含む・DEC-9実装済み<code>c434c4e66</code>）／OPS-18 Sentry DSN発行（DEC-10裁定=無償プラン・課金契約なし）</td></tr>
+  <tr id="lane-a-249-u2-review"><td><b>A / #249 U2</b></td><td>基準値解決</td><td><b>dev完了（2026-07-27）</b>: Commit A <code>5708ae68e</code>でclinic/species相関resolver、request基準値の不採用、解決値snapshotと回帰testを清算。Commit Bで応答DTO computed field <code>is_assessed</code>（両bound nilのみfalse）を追加し、FEはサーバ値だけを変換して未評価normalを「未判定」、評価済みnormalを「基準値内」と視覚・支援技術の双方で区別する。legacyのHIGH/LOWは未評価表示より優先して異常警告を維持。独立 healthcare / TypeScript / Go reviewのCRITICAL/HIGHは解消。follow-up=<a href="#BUG-448">BUG-448</a>。U3は本unitで完了。</td></tr>
+  <tr id="lane-a-249-u3"><td><b>A / #249 U3</b></td><td>定性値判定</td><td><b>dev完了（2026-07-27・本commit）</b>: 順序 <code>(-)&lt;(±)&lt;(+)&lt;(++)&lt;(+++)</code> を単一判定関数で実装し、numeric/qualitative境界の比較可能性から <code>is_assessed</code> を算出。定性境界を <code>exam_results.qualitative_min/max</code> へsnapshotし、clinic/species相関resolverは一括解決を維持。数値・定性境界の同時存在、非数値入力、非finite/逆転境界はfail-closedで未判定。BUG-447を解消しBUG-448は継続。変更=<code>backend/internal/medicalrecord/{exam_result_assessment.go,exam_reference_range_repository.go,examination_service.go,examination_response.go,lab_report_query_service.go,lab_report_response.go}</code>、関連test、<code>backend/internal/model/{examination_record.go,lab_report.go}</code>、<code>backend/migrations/004_add_exam_result_qualitative_bounds.sql</code>。検証=<code>go test ./internal/medicalrecord/ -count=1</code> → <code>ok github.com/animal-ekarte/backend/internal/medicalrecord 47.154s</code>、<code>go test ./internal/lintscan/ -run '^TestMigration' -count=1</code> → <code>ok github.com/animal-ekarte/backend/internal/lintscan 0.008s</code>、<code>go test ./internal/lintscan/ -run '^TestPreload' -count=1</code> → <code>ok github.com/animal-ekarte/backend/internal/lintscan 0.749s</code>、<code>go vet ./internal/medicalrecord/</code>・<code>gofmt -l</code>・<code>git diff --check</code>は出力なし。独立 healthcare / Go / database / tenant-isolation review は承認、CRITICAL/HIGHなし。前提差分: DBOrTx live baselineはprompt記載のpet 2件でなく既存medicalrecord 2件で、前後同一のため本unit差分なし。migration適用・codegen・frontend型検査・runtime確認はUSER手動。</td></tr>
 </table>
-
-<h2>依存・実行ルール</h2>
-<div class="warn">
-<ul>
-<li><b>migration</b>: 作成直前に実ファイル最大+1を再計算する。監査時点の最大は 002（現在作るなら 003）。#249・#234・#239・#250 を含め、作成と integration は単一担当が直列化する。</li>
-<li><b>並列化</b>: 独立 worktree／checkout と file ownership を使い、単一 integration owner が順に取り込む。S2 owners と #239、S1 examinations と #239 は重なる。同一 dirty worktree で blind <code>git pull</code> しない。</li>
-<li><b>哲学</b>: 要件ごとに一人の責任者と業務目的を確定し、削除→簡素化→高速化→自動化の順で判断する。確認ダイアログを安全装置にせず、二重入力・二重管理を増やさない。</li>
-<li><b>責任者</b>: 公開 Issue から access-controlled 台帳上の一人へ一意に解決できることを開始条件とする。「現場」「担当部門」だけでは着手しない。</li>
-<li><b>横断規約</b>: 仕様機能を推測追加しない。ただし clinic isolation、input validation、audit atomicity、API/docs/type sync、既存 security/verification gate は Issue の書き漏れでも省略せず、先に Issue を修正する。</li>
-<li><b>外部操作</b>: scoped verification のみ自動実行。push、本番操作、credential・billing 変更は明示依頼なしに行わない。</li>
-</ul>
 </div>
 
-<p class="small">#229 は実装・close 済み。public serializer の非露出は raw grep 件数ではなく contract test で維持する。#99 は旧 ECS 経路撤去、#109 は CI 認証設定の二重管理／サイレント skip 解消として別途追跡する。</p>
+<div class="notice">
+<b>並行実行ルール（#260要約）:</b> 「全件ready・同一checkoutで完全並列」は撤回済み。並列時は独立worktree＋file ownership＋単一integration ownerの直列取り込み。migrationは作成直前に実ファイル最大番号を再計算し<code>max+1</code>、作成とintegrationは単一担当が直列化する。確認ダイアログを安全装置にしない。scoped verificationのみ自動実行。#239⇔#249は競合面があるため直列化する（#239はレーンAで#249完了後。前提だったstaff権限面の欠陥はBUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>で解消済み）。<b>現在の直列化</b>: <code>internal/lintscan</code>面（#249 U1b・BUG-441・BUG-437）はレーンA内の作業順で処理する（BE10 roundは2026-07-26終結済み）。
+</div>
+
+<div class="gate">
+<b>安全境界:</b> push・migration実適用・credential/billing変更・STG/PROD操作・GitHub Issueへの書き込みは本viewから自動実行しない。すべて明示承認を要する。
+</div>
+
+<p class="small">ファイル名<code>3-session-agent.html</code>は既存リンク互換のため維持。本fileは<code>52880142d</code>の台帳一本化で一時削除されたが、「Issueを3セッションで着手するためのガイドview」という役割定義（正本=各Issue・受け入れ条件を複製しない）でUSER指示により復元した（2026-07-25）。2026-07-27に旧<code>todo.md</code>を本fileの<a href="#ledger">#ledger</a>へ全文統合し、着手可能な実装タスクの正本も本fileへ移した。同日、セッション配分を3セッション→2レーン（A/B）へ再編した（曽我承認 — 直列化制約〔#239⇔#249・<code>internal/lintscan</code>面〕と裁定待ち滞留により3本目の独立レーンが成立しないため）。役割登録=本fileの「正本の境界」表。BE9の旧計画文書は退役済み（境界の正本=ADR-006／boundary map、release gate=q&amp;a.html OPS-13〜17）。</p>
 
 </main>
 </body>

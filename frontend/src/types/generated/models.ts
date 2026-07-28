@@ -111,8 +111,10 @@ export interface BillingItem {
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
+  other_reason?: string;
   merchandise_item_id?: number /* uint64 */;
   treatment_id?: number /* uint64 */;
+  vaccination_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
   trimming_option_id?: number /* uint64 */;
@@ -207,13 +209,13 @@ export interface AuditLog {
   action: string;
   resource: string;
   resource_id?: number /* uint64 */;
-  old_value: any /* json.RawMessage */;
-  new_value: any /* json.RawMessage */;
+  old_value: unknown;
+  new_value: unknown;
   /**
    * Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
    * resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
    */
-  metadata: any /* json.RawMessage */;
+  metadata: unknown;
   /**
    * IPAddress は実DDLで inet NULL（X-3）。空文字列は `''::inet` として 22P02 になるため、
    * 未設定/空を表す値は Go の nil として保持する（*string、"" ではない）。
@@ -228,9 +230,13 @@ export const AuditActionPermissionGroupCreate = "permission_group.create";
 export const AuditActionPermissionGroupUpdate = "permission_group.update";
 export const AuditActionPermissionGroupDelete = "permission_group.delete";
 export const AuditActionPermissionRulesUpdate = "permission_rules.update";
+export const AuditActionStaffPermissionGroupsReplace = "staff.permission_groups.replace";
 export const AuditActionAuthLoginSuccess = "auth.login.success";
 export const AuditActionAuthLoginFailure = "auth.login.failure";
 export const AuditActionAuthLogout = "auth.logout";
+export const AuditActionAuthPasswordChange = "auth.password.change";
+export const AuditActionAuthPasswordReset = "auth.password.reset";
+export const AuditActionAuthPasswordAdminReplace = "auth.password.admin_replace";
 /**
  * Lステップ / LINE連携 監査アクション
  */
@@ -240,11 +246,18 @@ export const AuditActionLstepTagSyncBulk = "lstep.tag.sync_bulk";
 export const AuditActionLineNotificationSend = "line.notification.send";
 export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
+export const AuditActionReservationNoShow = "reservation.no_show.auto";
 /**
  * 取扱説明書（マニュアル）編集 監査アクション
  */
 export const AuditActionManualArticleUpsert = "manual_article.upsert";
 export const AuditActionManualArticleDelete = "manual_article.delete";
+/**
+ * トリミング予約の臨床変更監査（BUG-422）
+ */
+export const AuditActionTrimmingCreate = "trimming.create";
+export const AuditActionTrimmingUpdate = "trimming.update";
+export const AuditActionTrimmingDelete = "trimming.delete";
 /**
  * 会計・返金 監査アクション（#122）
  */
@@ -280,10 +293,14 @@ export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replac
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
 export const AuditActionExamResultReplace = "exam_result.replace";
+export const AuditActionPetOwnerReplace = "pet_owner.replace";
+export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling;
+export const AuditResourceAccount = "account";
+export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
 /**
  * #201 薬量自動計算
@@ -299,10 +316,13 @@ export const AuditResourceCheckupFieldResult = "checkup_field_result";
  * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
  */
 export const AuditResourceExamResult = "exam_result";
+export const AuditResourceReservation = "reservation";
+export const AuditResourceHospitalization = "hospitalization";
+export const AuditResourceTrimming = "trimming";
 /**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming;
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。
@@ -490,7 +510,7 @@ export interface CashRegisterClose {
   theoretical_cash: number /* int64 */;
   actual_cash: number /* int64 */;
   cash_difference: number /* int64 */;
-  category_breakdown: any /* json.RawMessage */;
+  category_breakdown: unknown;
   memo: string;
   closed_by?: number /* uint64 */;
   closed_at: string;
@@ -549,7 +569,7 @@ export interface CheckupTypeField {
   unit: string;
   min_value?: number /* float64 */;
   max_value?: number /* float64 */;
-  options: any /* datatypes.JSON */;
+  options: unknown;
   is_provisional: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -744,7 +764,7 @@ export interface ClinicSettings {
    * #215: AM 開始時刻。AM=[am_start, boundary) / EMG=[pm_end, 翌日 am_start) の越日レンジに使う（migration 011）。
    */
   closing_am_start: string;
-  closed_weekdays: any /* pq.Int64Array */;
+  closed_weekdays: number[];
   cpm_version: string;
   /**
    * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
@@ -804,6 +824,7 @@ export interface ClinicalPlan {
   diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -1083,6 +1104,24 @@ export interface EstimateItem {
 }
 
 //////////
+// source: exam_reference_range.go
+
+/**
+ * ExamReferenceRange is a clinic-owned reference range for an examination field and species.
+ */
+export interface ExamReferenceRange {
+  id: number /* uint64 */;
+  exam_type_field_id: number /* uint64 */;
+  animal_species_id: number /* uint64 */;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: examination_record.go
 
 export const ExaminationStatusPending = "pending";
@@ -1106,7 +1145,7 @@ export interface Examination {
    * JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
    * ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
    */
-  job_id?: any /* uuid.UUID */;
+  job_id?: string;
   date: string;
   result_summary: string;
   machine: string;
@@ -1134,6 +1173,8 @@ export interface ExamResult {
   reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
   is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
@@ -1496,7 +1537,7 @@ export interface InventoryItem {
 
 /**
  * LabImportJobStatus は lab_import_jobs のジョブ状態。
- * 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+ * 許可された遷移は medicalrecord.CanTransitionTo で強制される（BE9-2D sub-batch③ で internal/service から移動）。
  */
 export const LabImportJobStatusReceived = "received";
 export const LabImportJobStatusValidated = "validated";
@@ -1520,7 +1561,7 @@ export type LabImportSourceType = typeof LabImportSourceTypeFixture | typeof Lab
  * error_message には安全なメッセージのみ格納し、スタックトレース・PHI 不可。
  */
 export interface LabImportJob {
-  id: any /* uuid.UUID */;
+  id: string;
   clinic_id: number /* uint64 */;
   source_type: LabImportSourceType;
   source_fingerprint: string;
@@ -1554,7 +1595,7 @@ export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typ
 export interface LabImportEvent {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  job_id: any /* uuid.UUID */;
+  job_id: string;
   event_type: LabImportEventType;
   from_status?: LabImportJobStatus;
   to_status?: LabImportJobStatus;
@@ -1603,7 +1644,7 @@ export interface LabImportPreviewResponse {
  * LabImportCommitResponse は commit エンドポイントのレスポンス。
  */
 export interface LabImportCommitResponse {
-  job_id: any /* uuid.UUID */;
+  job_id: string;
   persisted_count: number /* int */;
   duplicate_count: number /* int */;
   needs_review_count: number /* int */;
@@ -1728,7 +1769,7 @@ export interface LstepConditionTagMapping {
  * LstepCsvImport は Lステップ CSV インポート履歴。
  */
 export interface LstepCsvImport {
-  id: any /* uuid.UUID */;
+  id: string;
   clinic_id: number /* uint64 */;
   csv_type: string;
   file_name: string;
@@ -1737,7 +1778,7 @@ export interface LstepCsvImport {
   success_count: number /* int */;
   error_count: number /* int */;
   status: string;
-  error_log?: any /* datatypes.JSON */;
+  error_log?: unknown;
   imported_at?: string;
   created_at: string;
 }
@@ -1808,13 +1849,13 @@ export interface LstepFriendAttributeSnapshot {
   line_user_id: string;
   display_name?: string;
   registered_at?: string;
-  tags?: any /* datatypes.JSON */;
-  scenarios?: any /* datatypes.JSON */;
+  tags?: unknown;
+  scenarios?: unknown;
   traffic_source?: string;
   block_status?: string;
   last_message_at?: string;
   snapshot_taken_at: string;
-  csv_import_id?: any /* uuid.UUID */;
+  csv_import_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -2440,6 +2481,7 @@ export interface Pet {
   neutered_date?: string;
   acquisition_type?: AcquisitionType;
   danger_level: DangerLevel;
+  danger_reason?: string;
   food: string;
   environment: string;
   phone: string;
@@ -2448,6 +2490,7 @@ export interface Pet {
   remarks: string;
   deceased_at?: string;
   deceased_reason?: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -2479,6 +2522,26 @@ export interface PetChronicCondition {
    * Relations
    */
   pet?: Pet;
+}
+
+//////////
+// source: pet_owner.go
+
+/**
+ * PetOwner はペットと副飼主の追加紐付けを表す。
+ */
+export interface PetOwner {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  /**
+   * PetID / OwnerID: DDL の UNIQUE (pet_id, owner_id) を宣言する。
+   * index 名は PostgreSQL が UNIQUE 制約へ自動採番する名前に合わせる。
+   */
+  pet_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  relationship: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -2583,7 +2646,7 @@ export interface Reservation {
   created_by?: number /* uint64 */;
   line_customer_id?: number /* uint64 */;
   is_staff_delegated: boolean;
-  customer_fields: any /* json.RawMessage */;
+  customer_fields: unknown;
   /**
    * Relations
    */
@@ -2913,8 +2976,8 @@ export interface StaffReservationExclusion {
 // source: token_blacklist.go
 
 /**
- * TokenBlacklist は失効済み refresh_token の JTI を記録する。
- * ログアウト時に JTI を登録し、RefreshToken エンドポイントで照合する。
+ * TokenBlacklist は失効済み refresh_token の JTI または family marker を記録する。
+ * family marker は既存の JTI denylist 上で token family 全体を失効させる。
  */
 export interface TokenBlacklist {
   jti: string;
@@ -2970,7 +3033,7 @@ export interface Treatment {
   dose_weight_source?: string; // 体重の出典（vital_records.id / 時刻 pin）
   dose_amount_mg?: number /* float64 */; // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
   dose_amount_unit?: string; // 'mg' | 'ug'
-  dose_param_snapshot?: any /* json.RawMessage */; // species/dose_per_kg/strength/丸め設定/計算式版
+  dose_param_snapshot?: unknown; // species/dose_per_kg/strength/丸め設定/計算式版
   created_at: string;
   updated_at: string;
   /**

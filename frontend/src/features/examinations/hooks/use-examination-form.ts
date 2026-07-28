@@ -1,4 +1,12 @@
-import { useState, useEffect, useTransition, useCallback, useActionState, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useTransition,
+  useCallback,
+  useActionState,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
@@ -12,11 +20,9 @@ import { useCreateExamination } from "../api/create-examination";
 import { useUpdateExamination } from "../api/update-examination";
 import { useDeleteExamination } from "../api/delete-examination";
 import { useGetExaminationItems } from "../api/get-examination-items";
-import { useUpdateExaminationItems } from "../api/update-examination-items";
 import { useGetExamTypeFields, type ExamTypeFieldRow } from "../api/get-exam-type-fields";
 import type {
   CreateExaminationRequest,
-  ReplaceExamItemsRequest,
   UpdateExaminationRequest,
   UpsertExamItemRequest,
 } from "../api/types";
@@ -30,6 +36,18 @@ const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
   Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
 ) as Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed">;
 
+interface ExaminationMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<ExaminationMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
 // テンプレ（exam_type_fields）から ExamItemRow の初期行を組み立てる。
 // status/isAbnormal は backend が保存後に導出するため未設定で開始する。
 function buildRowsFromTemplate(fields: ExamTypeFieldRow[]): ExamItemRow[] {
@@ -41,8 +59,6 @@ function buildRowsFromTemplate(fields: ExamTypeFieldRow[]): ExamItemRow[] {
     unit: f.unit,
     normalValue: f.normalValue,
     referenceValue: f.normalValue,
-    refMin: f.refMin,
-    refMax: f.refMax,
     sortOrder: f.sortOrder !== 0 ? f.sortOrder : idx,
   }));
 }
@@ -58,14 +74,16 @@ function rowsToRequest(items: ExamItemRow[]): UpsertExamItemRequest[] {
       normal_value: it.normalValue,
       unit: it.unit,
       reference_value: it.referenceValue,
-      ref_min: it.refMin ?? null,
-      ref_max: it.refMax ?? null,
       sort_order: it.sortOrder !== 0 ? it.sortOrder : idx,
     }));
 }
 
 // v2: added handleDelete, isDeleting
-export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
+export function useExaminationForm(
+  id?: string,
+  medicalRecordIdParam?: string,
+  permissions: Readonly<ExaminationMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -79,12 +97,31 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
 
   // API hooks
   const { data: existingExam } = useGetExamination(id ?? "");
-  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const mutationPetId = isEdit ? existingExam?.petId ?? "" : petId ?? "";
+  const { data: mutationPet, isLoading: isPetLoading } = useGetPet(mutationPetId);
   const createMutation = useCreateExamination();
   const updateMutation = useUpdateExamination();
   const deleteMutation = useDeleteExamination();
   const { data: existingItems } = useGetExaminationItems(id ?? "");
-  const updateItemsMutation = useUpdateExaminationItems();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const hasExplicitlyDeceasedPet =
+    mutationPet?.status === "死亡" || selectedPets[0]?.status === "死亡";
+  const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
+  useLayoutEffect(() => {
+    hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
+  }, [hasExplicitlyDeceasedPet]);
+  const isMutationAllowed = useCallback(
+    (action: keyof ExaminationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+  const isPetExplicitlyDeceased = useCallback(
+    () => hasExplicitlyDeceasedPetRef.current === true,
+    [],
+  );
 
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
@@ -159,6 +196,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         referenceValue: it.referenceValue,
         refMin: it.refMin,
         refMax: it.refMax,
+        isAssessed: it.isAssessed,
         sortOrder: it.sortOrder,
         status: it.status,
         isAbnormal: it.isAbnormal,
@@ -225,10 +263,14 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
       }
 
       try {
-        // 親 exam (PATCH/POST) と検査項目 (PUT items) を順次保存する。
-        // 確定済みの場合は items の更新も backend で 400 になるため、ここでは送らない。
-        const itemsReq: ReplaceExamItemsRequest = { items: rowsToRequest(formItemsRef.current) };
+        // 確定済みの場合は items の更新が backend で 400 になるため、従来どおり省略する。
+        // それ以外は空配列も含めて parent と同じ operation に載せ、全体を原子的に保存する。
+        const items = rowsToRequest(formItemsRef.current);
         const isConfirmed = current.status === "確定";
+
+        if (isPetExplicitlyDeceased()) {
+          return { success: false, timestamp: Date.now() };
+        }
 
         if (isEdit && id) {
           const req: UpdateExaminationRequest = {
@@ -240,11 +282,12 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
                 ? current.date
                 : jstDateStartISOString(current.date)
               : undefined,
+            ...(!isConfirmed ? { items } : {}),
           };
-          await updateMutation.mutateAsync({ id, req });
-          if (!isConfirmed) {
-            await updateItemsMutation.mutateAsync({ id, req: itemsReq });
+          if (!isMutationAllowed("canEdit")) {
+            return { success: false, timestamp: Date.now() };
           }
+          await updateMutation.mutateAsync({ id, req });
         } else {
           const pet = selectedPets[0];
           if (!pet) return { success: false, timestamp: Date.now() };
@@ -256,12 +299,15 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
             date: current.date ?? jstDateStartISOString(todayJSTISO()),
             result_summary: current.resultSummary,
             machine: current.machine,
+            ...(!isConfirmed ? { items } : {}),
           };
-          const created = await createMutation.mutateAsync(req);
-          // 新規作成後に items を保存。items が空なら呼ばない（不要な PUT を回避）。
-          if (!isConfirmed && itemsReq.items.length > 0 && created?.id) {
-            await updateItemsMutation.mutateAsync({ id: String(created.id), req: itemsReq });
+          if (
+            !isMutationAllowed("canCreate") ||
+            !isMutationAllowed("canEdit")
+          ) {
+            return { success: false, timestamp: Date.now() };
           }
+          await createMutation.mutateAsync(req);
         }
         return { success: true, timestamp: Date.now() };
       } catch (error) {
@@ -275,18 +321,20 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   // New mode: populate pet selection from petId query param
   useEffect(() => {
     if (!isEdit) {
-      if (petFromQuery) {
-        setSelectedPets([petFromQuery]);
+      if (mutationPet) {
+        setSelectedPets([mutationPet]);
       } else if (!petId && !isPetLoading) {
         // No petId provided and not loading — redirect to pet selection
         navigate(paths.examinations.selectPet.getHref());
       }
-      // If petId is provided but petFromQuery is not yet resolved, wait
+      // If petId is provided but mutationPet is not yet resolved, wait
     }
-  }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
+  }, [isEdit, petId, mutationPet, isPetLoading, setSelectedPets, navigate]);
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
+    if (!isMutationAllowed("canDelete")) return;
+    if (isPetExplicitlyDeceased()) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(id, {
         onSuccess: () => {
@@ -295,9 +343,16 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         },
       });
     });
-  }, [isEdit, id, deleteMutation, startDeleteTransition]);
+  }, [
+    isEdit,
+    id,
+    isMutationAllowed,
+    isPetExplicitlyDeceased,
+    deleteMutation,
+    startDeleteTransition,
+  ]);
 
-  const isSaving = isPending || updateItemsMutation.isPending;
+  const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
 
   return {

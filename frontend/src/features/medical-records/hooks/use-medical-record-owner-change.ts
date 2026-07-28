@@ -1,8 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { TransitionStartFunction } from "react";
 import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
+import { usePermission } from "@/hooks/use-permission";
 
 import type { MedicalRecord } from "../api/transforms";
 import type { UpdateMedicalRecordRequest } from "../api/types";
@@ -32,6 +33,8 @@ interface UseMedicalRecordOwnerChangeArgs {
     mutateAsync: (variables: { id: string; req: UpdateMedicalRecordRequest }) => Promise<unknown>;
   };
   startSaveTransition: TransitionStartFunction;
+  canEdit?: boolean;
+  isSelectedPetDeceased: boolean;
 }
 
 export function useMedicalRecordOwnerChange({
@@ -40,14 +43,31 @@ export function useMedicalRecordOwnerChange({
   existingRecord,
   updateMutation,
   startSaveTransition,
+  canEdit: canEditOverride,
+  isSelectedPetDeceased,
 }: UseMedicalRecordOwnerChangeArgs) {
+  const { canEdit: permissionCanEdit } = usePermission("medical-records");
+  const canEdit = canEditOverride ?? permissionCanEdit;
+  const canEditRef = useRef(canEdit);
+  const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  useLayoutEffect(() => {
+    isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
+  }, [isSelectedPetDeceased]);
+  const isMutationAllowed = useCallback(
+    () => canEditRef.current === true && !isSelectedPetDeceasedRef.current,
+    [],
+  );
   const [pendingOwnerChange, setPendingOwnerChange] = useState<PendingOwnerChange | null>(null);
   const recordVersion = existingRecord?.version;
 
   const updateOwner = useCallback(
     (newOwner: PendingOwnerChange) => {
-      if (!recordId) return;
+      if (!recordId || !isMutationAllowed()) return;
       startSaveTransition(async () => {
+        if (!isMutationAllowed()) return;
         try {
           await updateMutation.mutateAsync({
             id: recordId,
@@ -62,11 +82,12 @@ export function useMedicalRecordOwnerChange({
         }
       });
     },
-    [recordId, recordVersion, startSaveTransition, updateMutation],
+    [recordId, recordVersion, startSaveTransition, updateMutation, isMutationAllowed],
   );
 
   const requestOwnerChange = useCallback(
     (newOwner: OwnerChangeRequest) => {
+      if (!isMutationAllowed()) return;
       const needsConfirm =
         !owner ||
         owner.discountRate !== newOwner.discountRate ||
@@ -77,7 +98,7 @@ export function useMedicalRecordOwnerChange({
       }
       updateOwner(newOwner);
     },
-    [owner, updateOwner],
+    [owner, updateOwner, isMutationAllowed],
   );
 
   const confirmOwnerChange = useCallback(() => {

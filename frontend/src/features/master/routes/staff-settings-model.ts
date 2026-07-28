@@ -31,7 +31,8 @@ export function buildGroupsByStaffId({
   if (!staffGroupMap) return map;
 
   for (const [staffId, groupIds] of staffGroupMap.entries()) {
-    map.set(staffId, groups.filter((group) => groupIds.includes(group.id)));
+    const groupIdSet = new Set(groupIds);
+    map.set(staffId, groups.filter((group) => groupIdSet.has(group.id)));
   }
   return map;
 }

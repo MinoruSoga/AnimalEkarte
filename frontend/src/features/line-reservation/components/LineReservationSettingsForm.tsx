@@ -146,6 +146,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           <div className="flex items-center gap-3">
             <Switch
               id="status-toggle"
+              aria-label="LINE予約受付"
               checked={status === "running"}
               onCheckedChange={handleStatusToggle}
             />
@@ -164,6 +165,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
               <div key={day} className="flex items-center gap-1.5">
                 <Checkbox
                   id={`closed-weekday-${day}`}
+                  touchTarget
                   checked={closedWeekdays.includes(day)}
                   onCheckedChange={(checked) => handleWeekdayToggle(day, checked === true)}
                 />
@@ -178,6 +180,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="祝日休診">
           <Switch
             id="national-holiday"
+            aria-label="祝日休診"
             checked={nationalHolidayClosed}
             onCheckedChange={setNationalHolidayClosed}
           />
@@ -191,6 +194,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           <div className="flex items-center gap-2">
             <Input
               type="time"
+              aria-label="通常営業時間 開始"
               value={toDisplayTime(businessHours.start)}
               onChange={(e) => handleBusinessHoursChange("start", e.target.value)}
               className="max-w-[120px]"
@@ -198,6 +202,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             <span className={`text-sm ${C.textMuted}`}>〜</span>
             <Input
               type="time"
+              aria-label="通常営業時間 終了"
               value={toDisplayTime(businessHours.end)}
               onChange={(e) => handleBusinessHoursChange("end", e.target.value)}
               className="max-w-[120px]"
@@ -210,6 +215,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             <div className="flex items-center gap-3">
               <Switch
                 id="weekday-hours-toggle"
+                aria-label="曜日別営業時間"
                 checked={enableWeekdayHours}
                 onCheckedChange={setEnableWeekdayHours}
               />
@@ -235,6 +241,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="最短予約受付（日前）">
           <Input
             name="booking_window_min_days"
+            aria-label="最短予約受付（日数）"
             type="number"
             min={0}
             defaultValue={setting.booking_window_min_days}
@@ -244,6 +251,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="最長予約受付（日前）">
           <Input
             name="booking_window_max_days"
+            aria-label="最長予約受付（日数）"
             type="number"
             min={1}
             defaultValue={setting.booking_window_max_days}
@@ -253,6 +261,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="表示カレンダー月数">
           <Input
             name="calendar_months"
+            aria-label="表示カレンダー月数"
             type="number"
             min={1}
             max={6}
@@ -262,7 +271,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         </FieldRow>
         <FieldRow label="タイムスロットモード">
           <Select value={timeSlotMode} onValueChange={setTimeSlotMode}>
-            <SelectTrigger className="max-w-[240px]">
+            <SelectTrigger className="max-w-[240px]" aria-label="タイムスロットモード">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{TIME_SLOT_MODE_ITEMS}</SelectContent>
@@ -271,6 +280,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="スロット間隔（分）">
           <Input
             name="time_slot_interval_minutes"
+            aria-label="スロット間隔（分）"
             type="number"
             min={5}
             step={5}
@@ -280,7 +290,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         </FieldRow>
         <FieldRow label="スタッフ不在モード">
           <Select value={noStaffMode} onValueChange={setNoStaffMode}>
-            <SelectTrigger className="max-w-[240px]">
+            <SelectTrigger className="max-w-[240px]" aria-label="スタッフ不在モード">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{NO_STAFF_MODE_ITEMS}</SelectContent>
@@ -293,6 +303,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="電話番号">
           <Input
             name="phone_number"
+            aria-label="電話番号"
             defaultValue={setting.phone_number}
             className="max-w-[240px]"
             placeholder="例: 03-1234-5678"
@@ -301,6 +312,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="通知メール">
           <Input
             name="notification_email"
+            aria-label="通知メール"
             type="email"
             defaultValue={setting.notification_email}
             className="max-w-[320px]"
@@ -314,6 +326,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="チャネルID">
           <Input
             name="line_channel_id"
+            aria-label="チャネルID"
             defaultValue={setting.line_channel_id}
             className="max-w-[320px]"
             placeholder="LINE チャネルID"
@@ -322,6 +335,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         <FieldRow label="LIFF ID">
           <Input
             name="liff_id"
+            aria-label="LIFF ID"
             defaultValue={setting.liff_id}
             className="max-w-[320px]"
             placeholder="LIFF ID"

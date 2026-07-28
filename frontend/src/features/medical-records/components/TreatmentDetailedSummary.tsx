@@ -30,7 +30,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   disabled = false,
 }: TreatmentDetailedSummaryProps) {
   return (
-    <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg ${C.bgWhite} text-sm overflow-hidden mb-8 shadow-sm`}>
+    <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg ${C.bgWhite} text-sm overflow-hidden mb-8`}>
       <div className="col-span-2">
         {/* Summary Headers — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
         <div className={`grid grid-cols-5 border-b ${C.borderMedium} ${C.bgPage}`}>
@@ -91,7 +91,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}>
             ￥{tax.toLocaleString()}
           </div>
-          <div className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-lg`}>
+          <div className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-xl`}>
             ￥{total.toLocaleString()}
           </div>
         </div>

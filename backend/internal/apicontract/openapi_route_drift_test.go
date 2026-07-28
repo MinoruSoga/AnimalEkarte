@@ -1,7 +1,7 @@
 package apicontract
 
 // openapi_route_drift_test.go — BE-refactor.md G1-4 (apicontract-route-inventory-gate):
-// ルートインベントリ drift gate. 実装ルート(internal/handler の Register*Routes 呼び出しグラフを
+// ルートインベントリ drift gate. 実装ルート(target package の Register*Routes 呼び出しグラフを
 // go/ast で静的解決したフルパス集合) ↔ docs/api.yaml paths を突合し、allowlist 外の新規 drift
 // (missingFromSpec: 実装にあるが未文書化 / phantomInSpec: 文書にあるが実装なし) を fail させる。
 //
@@ -9,28 +9,28 @@ package apicontract
 //
 // internal/apicontract は date-format drift(openapi_date_format_drift_test.go)専用だったが、
 // doc.go が元々「複数の invariant を前提に設計」と明記している枠組みを拡張する。ルート列挙は
-// 全 477 verb 呼び出しが internal/handler 内の Group()/GET()/POST()/PUT()/PATCH()/DELETE() の
-// 静的文字列リテラルだけで 100% 解決できること(未解決 0 件)を実測確認済み。RegisterRoutes から
-// h.RegisterXxx/h.registerXxxWithAuth の呼び出しグラフを辿り、各関数の *gin.RouterGroup/*gin.Engine
-// 引数を呼び出し元で解決したプレフィックスに束縛して再帰することでフルパスを組み立てる。
+// 全 477 route が cmd/api, auth, owner, pet, staff, clinic, manualarticle, inventory,
+// medicalrecord, reservation, billing, lstep, trimming, scheduler の明示 root registry から
+// 100% 解決できること(未解決 0 件)を実測確認済み。各 Register*Routes の呼び出しグラフを辿り、
+// *gin.RouterGroup/*gin.Engine/gin.IRoutes 引数へ実行時と同じ prefix を束縛してフルパスを組み立てる。
 //
 // ─── Scope ──────────────────────────────────────────────────────────────────────────
 //
-// - 対象: internal/handler 配下の非テスト .go 全ファイル（*_request.go/*_response.go は
-//   Group/verb 呼び出しを持たないため実質無視されるが、handlerDir 全体を glob 対象にすることで
-//   将来ファイルが増えても取りこぼさない）。
+// - 対象: routeRootPackages に列挙した target package の非テスト .go ファイル。root registry は
+//   cmd/api の実行時 composition と同じ prefix と entrypoint を明示し、package 追加時は fail loud
+//   ではなくレビュー可能な registry 差分として更新する。
 // - LIFF（/api/liff/:clinicId、reservation_line_routes.go:64 RegisterLiffRoutes(ctx, r)）は
 //   r *gin.Engine を起点とし、docs/api.yaml 側でも servers(/api/v1)固定を避けるため絶対パス
 //   （/api/liff/{clinicId}/...）で記載されている（コメント: reservation_line_routes.go:72-92 相当）。
 //   本ゲートは api.yaml の path key が "/api/liff" で始まる場合のみ絶対パス扱いとし、それ以外は
 //   servers の /api/v1 を前置して比較する。
-// - /health（r.GET("/health", ...)、handler.go:52）は api.yaml 上 "/health" キーで記載されて
+// - /health（cmd/api/registerBaseRoutes）は api.yaml 上 "/health" キーで記載されて
 //   いるが、これは他のキーと同じ相対規約で書かれているため本ゲートは /api/v1 を前置して比較する
 //   （結果 real "/health" が missingFromSpec、spec "/api/v1/health" 相当が phantomInSpec として
 //   現れる）。これは LIFF と異なり yaml 側に絶対パス注記が無い既存の小さな整合齟齬であり、本ゲート
 //   の責務は「検出して allowlist に pin する」ことであって api.yaml の書き方を変えることではない
 //   （yaml 修正は別 finding のスコープ）。
-// - /api/line/webhook（r.POST、handler.go:140）は api.yaml に一切未記載のため missingFromSpec。
+// - /api/line/webhook（lstep.RegisterWebhookRoutes）は api.yaml に一切未記載のため missingFromSpec。
 //
 // パラメータ名は gin の `:name` セグメントを OpenAPI の `{name}` へ正規化して比較する
 // （両者のセグメント名は現状全て一致 — 例: :id→{id}, :clinic_id→{clinic_id}, :clinicId→{clinicId}）。
@@ -48,8 +48,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
-
-const handlerDir = "../handler"
 
 // ─── knownRouteDrifts allowlist ──────────────────────────────────────────────────────
 //
@@ -136,6 +134,7 @@ var knownMissingFromSpec = map[string]bool{
 	// prefix check to also cover "/api/line", which is a parsing-logic change outside this
 	// docs-only series' scope (ground rule: only remove now-resolved entries from this allowlist).
 	"POST /api/line/webhook":                                             true, // needs parseOpenAPIOperations prefix-check extension (see comment above); not an alias
+	"POST /_internal/scheduled-jobs/{jobAction}":                         true, // private Worker-to-Container control-plane route; intentionally absent from public OpenAPI
 	"DELETE /api/v1/clinics/{clinic_id}/lstep-settings":                  true, // alias of documented DELETE /lstep-settings
 	"DELETE /api/v1/clinics/{clinic_id}/pets/{id}/death":                 true, // alias of documented DELETE /pets/{id}/death
 	"GET /api/v1/clinics/{clinic_id}/lstep-settings":                     true, // alias of documented GET /lstep-settings
@@ -193,13 +192,14 @@ func flattenParams(ft *ast.FuncType) []routeParam {
 	return out
 }
 
-// isGinRoutingType reports whether expr is *gin.RouterGroup or *gin.Engine.
+// isGinRoutingType reports whether expr is *gin.RouterGroup, *gin.Engine, or
+// gin.IRoutes. The interface form is used by the private scheduler handler.
 func isGinRoutingType(expr ast.Expr) bool {
 	star, ok := expr.(*ast.StarExpr)
-	if !ok {
-		return false
+	if ok {
+		expr = star.X
 	}
-	sel, ok := star.X.(*ast.SelectorExpr)
+	sel, ok := expr.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
@@ -207,11 +207,13 @@ func isGinRoutingType(expr ast.Expr) bool {
 	if !ok || pkg.Name != "gin" {
 		return false
 	}
-	return sel.Sel.Name == "RouterGroup" || sel.Sel.Name == "Engine"
+	return sel.Sel.Name == "RouterGroup" ||
+		sel.Sel.Name == "Engine" ||
+		sel.Sel.Name == "IRoutes"
 }
 
-// routingParamIndex returns the flattened-param index of the single *gin.RouterGroup/
-// *gin.Engine parameter, or -1 if none is found.
+// routingParamIndex returns the flattened-param index of the single Gin routing
+// parameter, or -1 if none is found.
 func routingParamIndex(params []routeParam) int {
 	for i, p := range params {
 		if p.isRoutingType {
@@ -430,28 +432,33 @@ func (rc *routeCollector) handleExprStmt(s *ast.ExprStmt, env map[string]string)
 	}
 }
 
-// migratedDomainRoutePackages lists BE9-2 domain packages whose RegisterRoutes lives
-// outside internal/handler (composed directly from cmd/api/main.go — ADR-006
-// "aggregator 非経由"). Each is walked as its own independent root, bound to the exact
-// prefix its RegisterRoutes call site is wired to in main.go (today, always the
-// `protected` group = "/api/v1" + middleware.Auth — see main.go's
-// `protected := h.RegisterRoutes(appCtx, r)` followed by `manualArticleHandler.RegisterRoutes(protected)`).
-//
-// This is a deliberately narrow, explicit, hand-maintained registry (same pattern as
-// this file's own knownMissingFromSpec/knownPhantomInSpec and
-// internal/service/master_fk_write_inventory_lint_test.go's
-// serviceWriteRolePackagePrefixes) rather than a generic cross-package AST trace of
-// cmd/api/main.go's composition root — a fully general walker would need to resolve
-// arbitrary `X := pkg.NewHandler(...)` + `X.RegisterRoutes(group)` call shapes across
-// every future domain package, which is real future work (tracked as a BE9-2 follow-up
-// alongside the next migration) but is not required to correctly gate the one domain
-// migrated so far. BE9-2C/2D/2E: when a domain package's RegisterRoutes moves out of
-// internal/handler, add its {dir, prefix} pair here in the same commit.
-var migratedDomainRoutePackages = []struct {
+// routeRootPackages is the explicit source inventory for the target composition
+// graph. Each root is bound to the same prefix it receives in cmd/api.
+var routeRootPackages = []struct {
 	dir    string
 	prefix string
+	rootFn string
 }{
+	{dir: "../../cmd/api", prefix: "", rootFn: "registerBaseRoutes"},
+	{dir: "../auth", prefix: "/api/v1"},
+	{dir: "../auth", prefix: "/api/v1/masters", rootFn: "RegisterPermissionGroupRoutes"},
+	{dir: "../owner", prefix: "/api/v1"},
+	{dir: "../pet", prefix: "/api/v1"},
+	{dir: "../staff", prefix: "/api/v1"},
+	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterClinicRoutes"},
+	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterClinicHolidayRoutes"},
+	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterCompanyRoutes"},
+	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterClosingSettingsRoutes"},
 	{dir: "../manualarticle", prefix: "/api/v1"},
+	{dir: "../inventory", prefix: "/api/v1"},
+	{dir: "../medicalrecord", prefix: "/api/v1"},
+	{dir: "../reservation", prefix: "/api/v1"},
+	{dir: "../billing", prefix: "/api/v1"},
+	{dir: "../lstep", prefix: "/api/v1"},
+	{dir: "../trimming", prefix: "/api/v1"},
+	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
+	{dir: "../lstep", prefix: "", rootFn: "RegisterWebhookRoutes"},
+	{dir: "../scheduler", prefix: ""},
 }
 
 // buildFuncsFromDir parses every non-test .go file directly under dir and returns its
@@ -480,7 +487,7 @@ func buildFuncsFromDir(t *testing.T, dir string) map[string]*ast.FuncDecl {
 		}
 		for _, decl := range f.Decls {
 			fd, ok := decl.(*ast.FuncDecl)
-			if !ok || fd.Recv == nil || fd.Body == nil {
+			if !ok || fd.Body == nil {
 				continue
 			}
 			funcs[fd.Name.Name] = fd
@@ -489,43 +496,39 @@ func buildFuncsFromDir(t *testing.T, dir string) map[string]*ast.FuncDecl {
 	return funcs
 }
 
-// collectRealRoutes resolves the Register*Routes call graph rooted at
-// internal/handler's RegisterRoutes, plus each migratedDomainRoutePackages entry's own
-// independent root, and returns the merged set of resolved routes plus any unresolved
-// call sites (which should always be empty; a non-empty result means the codebase's
-// routing style changed and the walker needs updating).
+// collectRealRoutes resolves every target composition route root and returns the
+// merged set plus any call sites the static walker could not resolve.
 func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string) {
 	t.Helper()
-	funcs := buildFuncsFromDir(t, handlerDir)
-
-	root, ok := funcs["RegisterRoutes"]
-	if !ok {
-		t.Fatalf("RegisterRoutes not found in %s — handler package layout changed", handlerDir)
-	}
-
-	rc := &routeCollector{funcs: funcs, visiting: map[string]bool{}}
-	rc.walkFunc(root, "")
-
 	agg := map[string]int{}
-	for _, r := range rc.routes {
-		agg[r]++
-	}
-	allUnresolved := append([]string{}, rc.unresolved...)
-
-	for _, domain := range migratedDomainRoutePackages {
-		domainFuncs := buildFuncsFromDir(t, domain.dir)
-		domainRoot, ok := domainFuncs["RegisterRoutes"]
-		if !ok {
-			t.Fatalf("RegisterRoutes not found in %s — migratedDomainRoutePackages entry is stale", domain.dir)
+	var allUnresolved []string
+	for _, routeRoot := range routeRootPackages {
+		rootFuncs := buildFuncsFromDir(t, routeRoot.dir)
+		rootName := routeRoot.rootFn
+		if rootName == "" {
+			rootName = "RegisterRoutes"
 		}
-		drc := &routeCollector{funcs: domainFuncs, visiting: map[string]bool{}}
-		drc.walkFunc(domainRoot, domain.prefix)
-		for _, r := range drc.routes {
+		root, ok := rootFuncs[rootName]
+		if !ok {
+			t.Fatalf(
+				"%s not found in %s — routeRootPackages entry is stale",
+				rootName,
+				routeRoot.dir,
+			)
+		}
+		collector := &routeCollector{
+			funcs:    rootFuncs,
+			visiting: map[string]bool{},
+		}
+		collector.walkFunc(root, routeRoot.prefix)
+		for _, r := range collector.routes {
 			agg[r]++
 		}
-		allUnresolved = append(allUnresolved, drc.unresolved...)
+		allUnresolved = append(
+			allUnresolved,
+			collector.unresolved...,
+		)
 	}
-
 	return agg, allUnresolved
 }
 
@@ -637,8 +640,8 @@ func TestOpenAPIRouteDrift_MatchesAllowlist(t *testing.T) {
 		t.Fatalf("route walker could not statically resolve %d call site(s), refusing to trust the "+
 			"partial result (the routing style changed — update the walker): %v", len(unresolved), unresolved)
 	}
-	if len(realRoutes) < 400 {
-		t.Fatalf("only %d real routes resolved; AST walk likely broke (expected ~477). Would vacuously pass.",
+	if len(realRoutes) < 477 {
+		t.Fatalf("only %d real routes resolved; AST walk likely broke (expected at least 477). Would vacuously pass.",
 			len(realRoutes))
 	}
 

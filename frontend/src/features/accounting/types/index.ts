@@ -14,6 +14,15 @@ import type {
 } from "@/types/generated/models";
 export type { AccountingStatus, PaymentMethod, ItemCategory };
 
+export interface AddAccountingItemInput {
+  name: string;
+  price: string;
+  category: string;
+  otherReason?: string;
+  taxRate?: number;
+  merchandiseItemId?: string;
+}
+
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
   id: string;
@@ -30,6 +39,9 @@ export interface AccountingItem {
   subtotal: number;  // (unit_price × quantity − 割引額)（税抜・割引後 #85）
   isInsuranceApplicable: boolean;
   source: "medical_record" | "manual" | "hospitalization" | "trimming";
+  otherReason?: string;
+  merchandiseItemId?: string;
+  vaccinationId?: string;
   treatmentId?: string;
   appointmentId?: string;
   trimmingCourseId?: string;

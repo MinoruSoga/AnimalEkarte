@@ -130,3 +130,28 @@ describe("transformBackendPetToFrontend", () => {
     expect(request.status).toBeUndefined();
   });
 });
+
+describe("transformUpdatePetRequest", () => {
+  it("既存の危険理由をクリアすると danger_reason を null として送信する", () => {
+    const request = transformUpdatePetRequest({
+      dangerReason: "",
+      originalDangerReason: "咬傷歴あり",
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
+    ).toBe(true);
+    expect(request.danger_reason).toBeNull();
+  });
+
+  it("危険理由が未変更なら danger_reason を送信しない", () => {
+    const request = transformUpdatePetRequest({
+      dangerReason: "咬傷歴あり",
+      originalDangerReason: "咬傷歴あり",
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
+    ).toBe(false);
+  });
+});

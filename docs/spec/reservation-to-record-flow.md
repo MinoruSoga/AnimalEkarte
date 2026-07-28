@@ -342,6 +342,21 @@ UI と仕様上は「対応可能コース」として扱う。
 
 院内予約フォームでは、院内用の空き枠 API として切り出した `GET /v1/reservations/available-times` を使う。
 
+### 5.5 appointment lifecycle write contract
+
+`appointments`とそのlifecycleのwrite ownerは`internal/reservation`とする。billing、medicalrecord、trimming、lstepは`appointments`を直接永続化せず、各workflowのbusiness intentを表すoperationを呼ぶ。
+
+- 会計完了では、同clinic・同日・同一飼主/ペットの`accounting` appointment、または会計が参照する同clinic medical recordに紐づく非terminal appointmentを`completed`にする。billingが開始したambient transactionを必須とし、billing write、appointment更新、返却状態のreloadは同じtransaction内で成功させてからcommitする。transaction欠落または途中失敗はfail-closedとして一括rollbackする。
+- appointmentに紐づく通常カルテCreateは、`reservation_types.category = general`だけを対象とする。補完対象がなくても同じtransaction内でappointmentをrow lockして安定読込し、`appointment_id`による直接の重複判定とmedical record INSERTまで保持する。並行Createは直列化し、同じappointmentには未削除の通常カルテを最大1件だけ作る。duplicate lookupのDB error、transaction/verifier依存の欠落は安全側に失敗させる。補完は未設定のowner/pet/doctorだけを対象とし、既存値との不一致、別clinicのowner/pet/doctor、petが参照するownerのclinic不一致を拒否する。pet/ownerとdoctor所属はcommitまで固定する。`medical_records.date`はappointment開始時刻のJST日付へ正規化し、作成後は`date`も`appointment_id`も通常更新で変更しない。trimming categoryのappointmentへ通常カルテを紐付けない。
+- 通常カルテの削除はdraftだけを対象とし、対象カルテを`FOR UPDATE`したtransaction内で同clinicの有効な見積依存を再確認してから、`clinic_id + id + status=draft`を単一のsoft-delete条件にする。見積Createも親カルテ行を先にlockするため、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定処理が先行した場合や既に非draftの場合もConflictとし、確定済みカルテを削除しない。
+- appointmentに紐づく通常カルテのfinalized Create/Updateとno-show自動検知は、同じappointment単位のlifecycle lockへ参加し、各transactionのcommitまで保持する。finalized Createはlifecycle lockをrow lockより先に取得する。カルテ確定が先なら後続no-showはno-op、no-showが先なら後続カルテ確定はconflictとし、`no_show`/`cancelled`予約を通常カルテ側だけで確定扱いにしない。
+- no-show自動検知は、同clinicの`pending`または`confirmed`で、`end_time`から4時間以上経過し、同clinicの確定済みmedical recordが存在しないappointmentだけを`no_show`へ原子的に遷移させる。候補取得後に状態が変わった予約と再実行済み予約は更新・処理件数に含めない。実遷移は1予約単位のsystem監査（直前status、評価時刻、rule version、batch run ID）と同じtransactionでcommitし、監査失敗時はstatus変更もrollbackする。
+- トリミングの作成・更新・削除に使うreservationのtyped operationはambient transactionを必須とする。新規作成は同clinicのactiveな`trimming`予約区分だけを許可し、petから同clinic ownerを導出してappointmentの`owner_id`にも保存する。既存予約でownerが欠損していれば、appointment fieldを変更しないdetail-only writeでもtyped updateにより補完する。既存のinactive予約区分に紐づく履歴は同clinic・非削除なら参照可能とする。一般診療appointmentは同じclinicでもtrimming権限で参照・変更・削除できない。petとそのownerは同clinic、doctorは同clinicへの有効な所属、course/optionは同clinicのactive masterであることを同じtransactionで検証し、参照行をcommitまで固定する。course/option/staff検証に必要なrepositoryが欠ける場合はwrite前にfail-closedとする。新規作成、既存appointmentへの詳細追加、日時/担当者変更ではadvisory/row lock後にslot/capacityを再検証する。medical record紐付け後は患者・担当者・日時を変更できず、削除も拒否する。`completed`/`cancelled`/`no_show`ではappointment本体・trimming詳細の変更と削除を拒否し、trimming経由の`no_show`化も拒否する。
+- LIFFからの予約作成はtransactor・reservation repositoryを必須とし、LINE顧客が同clinicに属すること、予約区分が同clinicでactive・公開中・非internalであること、明示staffが同clinicに所属してその予約区分へ対応可能かつ`is_active=true`・`reservation_visible=true`であること、trimming course/optionが同clinicでactiveであることをwrite transaction内で再検証する。LINE顧客と参照master/assignment/capability行はcommitまで固定し、appointment、trimming detail、optionsを原子的に保存する。必須依存または詳細・option保存に失敗した場合、appointmentだけを残さない。
+- トリミング一覧で予約区分、pet、ownerをJOINするときは、関連行の`clinic_id`が`appointments.clinic_id`と一致することを必須とし、別clinicのmaster/pet/ownerを誤参照する破損データを表示・絞り込み根拠にしない。nested Preloadでは末尾のcourse/optionだけでなく中間の`appointment_trimming_details`にもclinic predicateを付ける。
+
+実装上のpackage境界とtransaction ownershipは[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md#appointments-write-ownerの実装決定be9-2e-0)、検証gateは[`appointment_write_owner_lint_test.go`](../../backend/internal/reservation/appointment_write_owner_lint_test.go)を正本とする（移行は2026-07-24完了・経緯はgit履歴）。
+
 ## 6. 画面別の改善仕様
 
 ### 予約フォーム
@@ -443,10 +458,10 @@ erDiagram
 | 制約 | 内容 |
 |---|---|
 | 当日業務は appointment 必須 | 当日の受付、通常カルテ入力、トリミングカルテ入力は必ず `appointments` を持つ |
-| 通常カルテは appointment に最大1件 | 同じ `appointment_id` に通常カルテを複数作らない |
+| 通常カルテは appointment に最大1件 | 同じ `appointment_id` に未削除の通常カルテを複数作らない。appointment row lockと同一transaction内の直接duplicate queryで並行作成も1件へ収束させる |
 | トリミング詳細は appointment に最大1件 | 同じ `appointment_id` に `appointment_trimming_details` を複数作らない |
 | category で遷移先を判定 | `reservation_types.category = general` は通常カルテ、`trimming` はトリミングカルテ |
-| date は JST 基準 | 当日判定、`medical_records.date`, `appointments.start_time` は JST の日付として扱う |
+| date は JST 基準 | 当日判定と`appointments.start_time`はJST基準。appointment-linked `medical_records.date`は開始時刻のJST日付へ正規化し、紐付け後は変更しない |
 | owner/pet 整合性 | `medical_records.owner_id/pet_id` は紐付く appointment と矛盾させない |
 | LINE予約の owner/pet 未確定 | LINE予約では `line_customer_id` が先に入り、`owner_id` / `pet_id` が未確定の場合がある。カルテ作成前に確定させる |
 | pet 選択中も予約文脈を保持 | `pet_id` 未確定でペット選択を挟む場合も、`appointment_id` / `visit_date` / 遷移元 state を作成画面まで引き継ぐ |
@@ -457,7 +472,7 @@ erDiagram
 
 | 入口 | 作成・更新するデータ | 備考 |
 |---|---|---|
-| LINE予約 | `appointments`, 必要に応じて `appointment_trimming_details`, `line_customers` の追加項目 | `source = line`。公開予約区分と LIFF 空き枠設定を使う。`owner_id` / `pet_id` は best effort 補完 |
+| LINE予約 | `appointments`, 必要に応じて `appointment_trimming_details`とoption junction、`line_customers` の追加項目 | `source = line`。active・公開中の予約区分と LIFF 空き枠設定を使い、明示staffの所属・対応可能種別・active・公開状態も再検証する。appointment/detail/optionsは原子的に保存し、`owner_id` / `pet_id` は best effort 補完 |
 | 予約管理 | `appointments` | `source = manual`。改善後は院内用空き枠計算を使う。`reservation_route` / `actual_reservation_at` を維持する |
 | 当日の受付 | `appointments.status` 更新、または新規 `appointments` 作成 | 予約なし来院は `checked_in` または `in_consultation` で作る。受付起点は `reservation_route = reception` |
 | 受付から通常カルテ | `medical_records` | 既存 `appointments.id` を `appointment_id` に入れる |

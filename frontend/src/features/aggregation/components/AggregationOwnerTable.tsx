@@ -53,11 +53,12 @@ export function AggregationOwnerTable({
           <TableRow className={`${STYLE.tableHeaderRow} ${C.bgPage}`}>
             <TableHead className={`${STYLE.tableHeaderCell} ${STYLE.sectionLabel} w-12 px-4`}>
               <Checkbox
+                touchTarget
                 checked={someSelected ? "indeterminate" : allSelected}
                 onCheckedChange={(checked) => onSelectAll(!!checked)}
                 aria-label="全選択"
                 disabled={isHeaderSelectDisabled}
-                className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
+                className="-my-3"
               />
             </TableHead>
             {columns.map((col) => (
@@ -97,14 +98,15 @@ export function AggregationOwnerTable({
                 key={owner.owner_id}
                 className={`${STYLE.tableRow} ${selectedOwnerIds.has(owner.owner_id) ? C.bgBrand10 : ""}`}
               >
-                <TableCell className="px-4 py-2">
+                <TableCell className="px-4">
                   <Checkbox
+                    touchTarget
                     checked={selectedOwnerIds.has(owner.owner_id)}
                     onCheckedChange={(checked) =>
                       onSelectOwner(owner.owner_id, !!checked)
                     }
                     aria-label={`${owner.owner_name}を選択`}
-                    className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
+                    className="-my-3"
                   />
                 </TableCell>
                 {columns.map((col) => (

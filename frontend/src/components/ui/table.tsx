@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { C } from "@/lib/design-tokens";
 import { cn } from "./utils";
 
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
@@ -25,7 +26,7 @@ interface TableSectionProps
 
 function TableHeader({ className, ref, ...props }: TableSectionProps) {
   return (
-    <thead ref={ref} className={cn("bg-muted/30", className)} {...props} />
+    <thead ref={ref} className={cn(C.bgPage, className)} {...props} />
   );
 }
 
@@ -79,7 +80,8 @@ function TableHead({ className, ref, ...props }: TableHeadProps) {
       ref={ref}
       scope="col"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        // FE10: DESIGN.md ex-data-table-cell headerTypography（eyebrow 12px/600）を基底化 — 個別 className が cn() で上書き可能
+        "px-4 py-3 text-left align-middle text-2xs font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}
@@ -96,7 +98,7 @@ function TableCell({ className, ref, ...props }: TableCellProps) {
     <td
       ref={ref}
       className={cn(
-        "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-4 py-3 align-middle text-sm font-normal [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}

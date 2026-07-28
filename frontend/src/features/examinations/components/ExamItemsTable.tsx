@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useCallback } from "react";
+import { memo, useCallback, useId } from "react";
 
 // External
 import { CheckCircle } from "lucide-react";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { C, ICON } from "@/lib/design-tokens";
 
 // 検査項目テーブルの 1 行。
-// status / isAbnormal は backend が ref_min/ref_max から導出した値を表示するだけ（FE で再計算しない）。
+// status / isAssessed / isAbnormal は backend が導出した値を表示するだけ（FE で再計算しない）。
 export interface ExamItemRow {
   /** クライアント側の React key 用ローカル ID（不変） */
   key: string;
@@ -26,6 +26,8 @@ export interface ExamItemRow {
   sortOrder: number;
   /** backend が導出した判定。新規行・未保存値では undefined */
   status?: "normal" | "high" | "low";
+  /** backend が基準値の有無から導出した評価状態。新規行・未保存値では undefined */
+  isAssessed?: boolean;
   isAbnormal?: boolean;
 }
 
@@ -35,7 +37,13 @@ interface ExamItemsTableProps {
   disabled?: boolean;
 }
 
-function StatusBadge({ status }: { status?: "normal" | "high" | "low" }) {
+function StatusBadge({
+  status,
+  isAssessed,
+}: {
+  status?: "normal" | "high" | "low";
+  isAssessed?: boolean;
+}) {
   if (status === "high") {
     return (
       <Badge
@@ -50,14 +58,31 @@ function StatusBadge({ status }: { status?: "normal" | "high" | "low" }) {
     return (
       <Badge
         variant="outline"
-        className={`h-8 px-3 text-xs ${C.textBrand} ${C.borderBrand} ${C.bgBrand5}`}
+        className={`h-8 px-3 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
       >
         LOW
       </Badge>
     );
   }
+  if (isAssessed === false) {
+    return (
+      <Badge
+        variant="outline"
+        className={`h-8 px-3 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
+      >
+        未判定
+        <span className="sr-only">（基準値未設定のため判定していない）</span>
+      </Badge>
+    );
+  }
   if (status === "normal") {
-    return <CheckCircle className={`${ICON.action} ${C.textStatusGreen} opacity-50`} />;
+    return (
+      <CheckCircle
+        role="img"
+        aria-label="基準値内"
+        className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
+      />
+    );
   }
   // 未判定（保存前）
   return <span className={`text-xs ${C.text45}`}>-</span>;
@@ -76,6 +101,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   onChangeInspectionValue,
   disabled = false,
 }: ExamItemsTableProps) {
+  const tableId = useId();
   const handleChange = useCallback(
     (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
       onChangeInspectionValue(key, e.target.value);
@@ -94,7 +120,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   }
 
   return (
-    <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm overflow-x-auto`}>
+    <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden overflow-x-auto`}>
       {/* ヘッダー */}
       <div
         className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-11 items-center`}
@@ -116,23 +142,25 @@ export const ExamItemsTable = memo(function ExamItemsTable({
             item.isAbnormal
               ? item.status === "high"
                 ? C.bgDanger8
-                : C.bgBrandLight8
+                : C.bgStatusBlueLight
               : C.bgWhite
           } text-sm ${C.text} items-center h-12`}
         >
           <div className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}>
             {item.name}
           </div>
-          <div className={`p-1.5 border-r ${C.borderMedium}`}>
+          <div className={`px-1.5 border-r ${C.borderMedium}`}>
             <Input
+              id={`${tableId}-result-${idx + 1}`}
+              name={`examItems.${idx}.inspectionValue`}
               type="text"
               inputMode="decimal"
               value={item.inspectionValue}
               disabled={disabled}
               onChange={handleChange(item.key)}
               placeholder="-"
-              className={`h-8 text-sm text-right font-mono ${C.bgWhite} ${C.borderMedium}`}
-              aria-label={`${item.name}の結果値`}
+              className={`h-11 min-w-11 text-sm text-right font-mono ${C.bgWhite} ${C.borderMedium}`}
+              aria-label={`${item.name.trim() || `検査項目${idx + 1}`}の結果値`}
             />
           </div>
           <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
@@ -142,7 +170,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
             {item.referenceValue || item.normalValue || "-"}
           </div>
           <div className="p-2 flex justify-center items-center">
-            <StatusBadge status={item.status} />
+            <StatusBadge status={item.status} isAssessed={item.isAssessed} />
           </div>
         </div>
       ))}

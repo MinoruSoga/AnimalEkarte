@@ -34,6 +34,5 @@ GORM helperの使用有無だけで安全と判定しない。raw SQL、join、p
 
 ## References
 
-- [backend/internal/repository/CLAUDE.md](../../../backend/internal/repository/CLAUDE.md)
 - [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md)
 - [Go/Gin Backend Review](../../../.claude/refs/go-gin-backend-review.md)

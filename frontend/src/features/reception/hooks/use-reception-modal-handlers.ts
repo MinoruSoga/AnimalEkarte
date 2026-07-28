@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { addHours } from "date-fns";
 import { toast } from "sonner";
@@ -11,13 +11,24 @@ import {
   jstWallDateToISOString,
 } from "@/lib/jst-date";
 import type { Pet, Reservation } from "@/types";
+import {
+  DangerLevelHigh,
+  DangerLevelLow,
+  DangerLevelMedium,
+  PetStatusAlive,
+  PetStatusDeceased,
+  type DangerLevel,
+  type PetStatus,
+} from "@/types/generated/models";
 
 import type { ReceptionAppointment } from "../api/types";
 
 interface UseReceptionModalHandlersParams {
   advanceStatus: (appointment: ReceptionAppointment) => unknown;
-  cancelAppointment: (appointmentId: string) => unknown;
+  cancelAppointment: (appointmentId: string) => Promise<boolean>;
   updateAppointment: (appointment: ReceptionAppointment) => unknown;
+  canEditReservation?: boolean;
+  canDeleteReservation?: boolean;
 }
 
 function optionalNumericID(value: string | undefined): number | undefined {
@@ -30,10 +41,36 @@ function preserveEditableStatus(appointment: ReceptionAppointment): Reservation[
   return appointment.status === "pending" ? "confirmed" : appointment.status;
 }
 
+function toPetStatus(status: Pet["status"]): PetStatus | undefined {
+  switch (status) {
+    case "生存":
+      return PetStatusAlive;
+    case "死亡":
+      return PetStatusDeceased;
+    default:
+      return undefined;
+  }
+}
+
+function toPetDangerLevel(dangerLevel: Pet["dangerLevel"]): DangerLevel | undefined {
+  switch (dangerLevel) {
+    case "低":
+      return DangerLevelLow;
+    case "中":
+      return DangerLevelMedium;
+    case "高":
+      return DangerLevelHigh;
+    default:
+      return undefined;
+  }
+}
+
 export function useReceptionModalHandlers({
   advanceStatus,
   cancelAppointment,
   updateAppointment,
+  canEditReservation,
+  canDeleteReservation,
 }: UseReceptionModalHandlersParams) {
   const updateReservationMutation = useUpdateReservation();
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,20 +86,30 @@ export function useReceptionModalHandlers({
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const selectedAppointmentRef = useRef(selectedAppointment);
-  useEffect(() => {
+  const cancelTargetRef = useRef(cancelTarget);
+  const permissionsRef = useRef({ canEditReservation, canDeleteReservation });
+  useLayoutEffect(() => {
     selectedAppointmentRef.current = selectedAppointment;
   }, [selectedAppointment]);
+  useLayoutEffect(() => {
+    cancelTargetRef.current = cancelTarget;
+  }, [cancelTarget]);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canEditReservation, canDeleteReservation };
+  }, [canEditReservation, canDeleteReservation]);
 
   const handleCardClick = useCallback((appointment: ReceptionAppointment) => {
+    if (appointment.petStatus === PetStatusDeceased) return;
     setSelectedAppointment(appointment);
     setSelectedAppointmentId(appointment.id);
     setModalOpen(true);
   }, []);
 
   const handleAdvanceStatus = useCallback(() => {
+    if (permissionsRef.current.canEditReservation !== true) return;
     if (!selectedAppointmentId) return;
     const appointment = selectedAppointmentRef.current;
-    if (!appointment) return;
+    if (!appointment || appointment.petStatus === PetStatusDeceased) return;
     advanceStatus(appointment);
     setModalOpen(false);
     setSelectedAppointment(null);
@@ -70,6 +117,8 @@ export function useReceptionModalHandlers({
   }, [selectedAppointmentId, advanceStatus]);
 
   const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
+    if (permissionsRef.current.canEditReservation !== true) return;
+    if (appointment.petStatus === PetStatusDeceased) return;
     selectedAppointmentRef.current = appointment;
     const start = buildJSTWallDateTime(appointment.visitDate, appointment.time);
 
@@ -95,31 +144,55 @@ export function useReceptionModalHandlers({
 
   const handleEditSave = useCallback(
     (data: Partial<Reservation>, selectedPets: Pet[]) => {
+      const selectedAppointmentSnapshot = selectedAppointmentRef.current;
+      const selectedPetSnapshot = selectedPets[0];
+      if (permissionsRef.current.canEditReservation !== true) return;
       if (!editingAppointmentId || !data.start) return;
-      const resolvedPetId = selectedPets[0]?.id || data.petId || selectedAppointmentRef.current?.petId;
-      const resolvedOwnerId = selectedPets[0]?.ownerId || data.ownerId || selectedAppointmentRef.current?.ownerId;
+      if (selectedAppointmentSnapshot?.petStatus === PetStatusDeceased) return;
+      if (selectedPetSnapshot?.status === "死亡") return;
+      const resolvedPetId = selectedPetSnapshot?.id || data.petId || selectedAppointmentSnapshot?.petId;
+      const resolvedOwnerId = selectedPetSnapshot?.ownerId || data.ownerId || selectedAppointmentSnapshot?.ownerId;
+      const selectedPetDangerLevel = toPetDangerLevel(selectedPetSnapshot?.dangerLevel);
+      const petSentinelFields: {
+        petStatus?: PetStatus;
+        petDangerLevel?: DangerLevel;
+        petDangerReason?: string;
+      } = selectedPetSnapshot
+        ? {
+            petStatus: toPetStatus(selectedPetSnapshot.status),
+            petDangerLevel: selectedPetDangerLevel,
+            petDangerReason: selectedPetSnapshot.dangerReason,
+          }
+        : {
+            petStatus: selectedAppointmentSnapshot?.petStatus,
+            petDangerLevel: selectedAppointmentSnapshot?.petDangerLevel,
+            petDangerReason: selectedAppointmentSnapshot?.petDangerReason,
+          };
+      const shouldUpdateAppointmentLocally =
+        !selectedPetSnapshot || selectedPetDangerLevel !== undefined;
 
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
         time: formatJSTWallTime(data.start),
         visitDate: formatJSTWallDate(data.start),
-        ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
-        petName: selectedPets[0]?.name || data.petName || "",
-        petType: selectedPets[0]?.species || "犬",
+        ownerName: selectedPetSnapshot?.ownerName || data.ownerName || "",
+        petName: selectedPetSnapshot?.name || data.petName || "",
+        petType: selectedPetSnapshot?.species || "犬",
+        ...petSentinelFields,
         visitType: data.visitType === "first" ? "初診" : "再診",
-        reservationType: selectedAppointmentRef.current?.reservationType || "診療",
+        reservationType: selectedAppointmentSnapshot?.reservationType || "診療",
         reservationTypeId: data.type || "",
-        reservationCategory: selectedAppointmentRef.current?.reservationCategory || "general",
-        doctor: selectedAppointmentRef.current?.doctor,
+        reservationCategory: selectedAppointmentSnapshot?.reservationCategory || "general",
+        doctor: selectedAppointmentSnapshot?.doctor,
         doctorId: data.doctor || "",
         isDesignated: data.isDesignated ?? false,
-        petId: selectedPets[0]?.id || data.petId || "",
-        ownerId: selectedPets[0]?.ownerId || selectedAppointmentRef.current?.ownerId || "",
-        status: data.status || (selectedAppointmentRef.current ? preserveEditableStatus(selectedAppointmentRef.current) : "confirmed"),
+        petId: selectedPetSnapshot?.id || data.petId || "",
+        ownerId: selectedPetSnapshot?.ownerId || selectedAppointmentSnapshot?.ownerId || "",
+        status: data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed"),
         notes: data.notes,
-        source: selectedAppointmentRef.current?.source || "manual",
+        source: selectedAppointmentSnapshot?.source || "manual",
         // 予約内容の編集(時間/医師変更等)では checked_in_at は不変。ローカルの楽観更新でも既存値を保持する。
-        checkedInAt: selectedAppointmentRef.current?.checkedInAt,
+        checkedInAt: selectedAppointmentSnapshot?.checkedInAt,
       };
 
       updateReservationMutation.mutate(
@@ -134,13 +207,15 @@ export function useReceptionModalHandlers({
             reservation_type_id: optionalNumericID(data.type),
             doctor_id: optionalNumericID(data.doctor),
             is_designated: data.isDesignated ?? false,
-            status: data.status || (selectedAppointmentRef.current ? preserveEditableStatus(selectedAppointmentRef.current) : "confirmed"),
+            status: data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed"),
             notes: data.notes,
           },
         },
         {
           onSuccess: () => {
-            updateAppointment(updatedAppointment);
+            if (shouldUpdateAppointmentLocally) {
+              updateAppointment(updatedAppointment);
+            }
             setIsEditModalOpen(false);
             setEditingAppointment(null);
             setEditingAppointmentId(null);
@@ -152,14 +227,20 @@ export function useReceptionModalHandlers({
   );
 
   const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {
+    if (permissionsRef.current.canDeleteReservation !== true) return;
+    if (appointment.petStatus === PetStatusDeceased) return;
+    cancelTargetRef.current = appointment;
     setCancelTarget(appointment);
     setCancelTargetId(appointment.id);
     setCancelConfirmOpen(true);
   }, []);
 
-  const executeCancel = useCallback(() => {
+  const executeCancel = useCallback(async (): Promise<void> => {
+    if (permissionsRef.current.canDeleteReservation !== true) return;
     if (!cancelTargetId) return;
-    cancelAppointment(cancelTargetId);
+    if (cancelTargetRef.current?.petStatus === PetStatusDeceased) return;
+    const succeeded = await cancelAppointment(cancelTargetId);
+    if (!succeeded) return;
     toast.success("予約を取り消しました");
     setModalOpen(false);
     setCancelConfirmOpen(false);

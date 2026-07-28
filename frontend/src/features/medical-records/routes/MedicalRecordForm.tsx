@@ -1,5 +1,13 @@
 // React/Framework
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -14,6 +22,7 @@ import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
+import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
   MedicalRecordFinalizeDialog,
@@ -49,13 +58,18 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     activeTab,
     setActiveTab,
     selectedPet,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
     handleBack,
     formAction,
     formState,
+    isSaving,
+    isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems: _treatmentPlanItems,
     setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
@@ -133,6 +147,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = isNewRecord ? canCreate : canEdit;
+  const canDeleteRef = useRef(canDelete);
+  const selectedPetStatusRef = useRef(selectedPet?.status);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
+  useLayoutEffect(() => {
+    selectedPetStatusRef.current = selectedPet?.status;
+  }, [selectedPet?.status]);
 
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
@@ -165,11 +187,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+  const [isTabPending, startTabTransition] = useTransition();
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
-
-  // SPEC-GAP: カルテ確定状態。確定済みは編集不可となり、以降の修正は追記(addendum)のみ
-  const isFinalized = currentRecord?.status === "確定済";
 
   const handleFinalizeConfirm = useCallback(() => {
     handleFinalize();
@@ -177,7 +197,11 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [handleFinalize, setIsFinalizeConfirmOpen]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!recordId) return;
+    if (
+      !recordId
+      || canDeleteRef.current !== true
+      || selectedPetStatusRef.current === "死亡"
+    ) return;
     deleteRecord(recordId, {
       onSuccess: () => {
         toast.success("カルテを削除しました");
@@ -199,12 +223,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    setMountedTabs((prev) => {
-      if (prev.has(tab)) return prev;
-      const next = new Set(prev);
-      next.add(tab);
-      return next;
+    startTabTransition(() => {
+      setActiveTab(tab);
+      setMountedTabs((prev) => {
+        if (prev.has(tab)) return prev;
+        const next = new Set(prev);
+        next.add(tab);
+        return next;
+      });
     });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
@@ -272,9 +298,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
-      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange}>
+      {autoCreateFailurePhase !== null ? (
+        <MedicalRecordAutoCreateFailure
+          failurePhase={autoCreateFailurePhase}
+          isRetrying={isCreating}
+          onRetry={retryAutoCreate}
+        />
+      ) : null}
+      <UnifiedTabsRoot
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className={activeTab === "問診" ? "flex-1 min-h-0" : undefined}
+        ariaBusy={isTabPending}
+      >
       <MedicalRecordStickyHeader
         selectedPet={selectedPet}
+        cohabitingPets={cohabitingPets}
         staffName={staffName}
         visitType={visitType}
         visitCount={visitCount ?? 0}
@@ -292,12 +331,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      {/* SPEC-GAP (GAP-1): 確定済みカルテは編集不可 UI。BE は主要な子リソース
+      {/* SPEC-GAP (GAP-1): 確定済みカルテと非編集権限のカルテは編集不可 UI。BE は主要な子リソース
           (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
           エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
           個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
           ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
-      <fieldset disabled={isFinalized} className="contents border-0 m-0 p-0">
+      <fieldset disabled={isFinalized || !canSubmit} className="contents border-0 m-0 p-0">
         {isFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
@@ -360,6 +399,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
+        isSaving={isSaving}
         isFinalized={isFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}

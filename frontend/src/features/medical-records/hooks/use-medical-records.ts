@@ -10,6 +10,7 @@ interface UseMedicalRecordsListParams {
   activeFilters: ActiveFilter[];
   /** #86: 拠点横断表示。2件以上のときのみ送信 */
   clinicIds?: string[];
+  petId?: string;
   page: number;
   limit?: number;
   /** B-1 follow-up: 列ソート server 化 */
@@ -29,6 +30,7 @@ export function useMedicalRecordsList({
   searchTerm,
   activeFilters,
   clinicIds,
+  petId,
   page,
   limit,
   sort,
@@ -46,6 +48,7 @@ export function useMedicalRecordsList({
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
       clinicIds,
+      petId,
       search: searchTerm || undefined,
       status:
         typeof statusFilter?.value === "string"
@@ -58,7 +61,7 @@ export function useMedicalRecordsList({
       sort,
       order,
     };
-  }, [searchTerm, activeFilters, clinicIds, page, limit, sort, order]);
+  }, [searchTerm, activeFilters, clinicIds, petId, page, limit, sort, order]);
 
   const { data, isLoading, isError } = useGetMedicalRecords(filters);
 

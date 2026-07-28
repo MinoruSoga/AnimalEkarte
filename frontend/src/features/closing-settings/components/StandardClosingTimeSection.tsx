@@ -1,7 +1,9 @@
 import { memo, useActionState, useState } from "react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ClinicSettings } from "@/types/generated/models";
 import { DAY_OF_WEEK_LABELS as WEEKDAY_LABELS } from "@/constants/day-of-week";
@@ -62,9 +64,6 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
   const weekdayRanges = computeClosingTimeRanges(amPmBoundary, weekdayEnd, settings.closing_am_start);
   const sundayRanges = computeClosingTimeRanges(amPmBoundary, sundayEnd, settings.closing_am_start);
 
-  const rangeCellClass = `px-3 py-1.5 text-sm tabular-nums whitespace-nowrap ${C.text}`;
-  const headCellClass = `px-3 py-1.5 text-sm font-medium ${C.textMuted}`;
-
   return (
     <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
       <h2 className={`text-base font-semibold ${C.text} mb-4`}>標準締め時間</h2>
@@ -80,7 +79,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={amPmBoundary}
               onChange={(event) => setAmPmBoundary(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
@@ -94,7 +93,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={weekdayEnd}
               onChange={(event) => setWeekdayEnd(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
@@ -108,40 +107,44 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={sundayEnd}
               onChange={(event) => setSundayEnd(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
         </div>
 
         {/* 時間帯プレビュー: 境界編集に即時追従する（Issue #151）。 */}
-        <div className={`overflow-x-auto rounded-[4px] border ${C.borderLight} ${C.bgSubtle} p-4`}>
+        <div className={`overflow-x-auto rounded-xs border ${C.borderLight} ${C.bgSubtle} p-4`}>
           <table className="w-full border-collapse text-left">
             <caption className={`mb-3 text-left text-sm font-medium ${C.textMuted}`}>
               時間帯プレビュー
             </caption>
             <thead>
               <tr>
-                <th scope="col" className={headCellClass}>
+                <TableHead scope="col" className={C.textMuted}>
                   区分
-                </th>
-                <th scope="col" className={headCellClass}>
+                </TableHead>
+                <TableHead scope="col" className={C.textMuted}>
                   平日
-                </th>
-                <th scope="col" className={headCellClass}>
+                </TableHead>
+                <TableHead scope="col" className={C.textMuted}>
                   日曜
-                </th>
+                </TableHead>
               </tr>
             </thead>
             <tbody>
               {PERIOD_ROWS.map((row) => (
                 <tr key={row.key}>
-                  <th scope="row" className={`px-3 py-1.5 ${C.text}`}>
+                  <TableHead scope="row" className={C.text}>
                     <span className="font-semibold">{row.label}</span>
                     <span className={`ml-2 text-sm ${C.textMuted}`}>{row.caption}</span>
-                  </th>
-                  <td className={rangeCellClass}>{formatRangeText(weekdayRanges[row.key])}</td>
-                  <td className={rangeCellClass}>{formatRangeText(sundayRanges[row.key])}</td>
+                  </TableHead>
+                  <TableCell className={`tabular-nums whitespace-nowrap ${C.text}`}>
+                    {formatRangeText(weekdayRanges[row.key])}
+                  </TableCell>
+                  <TableCell className={`tabular-nums whitespace-nowrap ${C.text}`}>
+                    {formatRangeText(sundayRanges[row.key])}
+                  </TableCell>
                 </tr>
               ))}
             </tbody>
@@ -152,13 +155,22 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
           <p className={`${STYLE.formLabel} mb-2`}>休診曜日</p>
           <div className="flex flex-wrap gap-3">
             {[0, 1, 2, 3, 4, 5, 6].map((day) => (
-              <label key={day} className="flex items-center gap-1.5 cursor-pointer">
+              <label
+                key={day}
+                className="relative flex min-h-11 min-w-11 items-center gap-1.5 cursor-pointer"
+              >
                 <input
                   type="checkbox"
                   name={`closed_weekday_${day}`}
                   defaultChecked={(settings.closed_weekdays ?? []).includes(day)}
-                  className="rounded"
+                  className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                 />
+                <span
+                  aria-hidden="true"
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} bg-white text-white transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
+                >
+                  <Check className="size-3.5" />
+                </span>
                 <span className={`text-base ${C.text}`}>{WEEKDAY_LABELS[day]}</span>
               </label>
             ))}

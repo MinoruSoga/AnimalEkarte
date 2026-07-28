@@ -113,7 +113,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <span className={`text-xs ${C.text50} truncate`}>{article.title}</span>
         {isDirty ? (
           <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-[3px] ${C.bgWarning50} ${C.textWarning}`}
+            className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}
           >
             未保存
           </span>
@@ -121,7 +121,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <div className="flex-1 min-w-2" />
 
         {/* モード切替 */}
-        <div className={`inline-flex rounded-[3px] border ${C.borderDivider}`}>
+        <div className={`inline-flex rounded-xxs border ${C.borderDivider}`}>
           <button
             type="button"
             onClick={() => setMode("edit")}
@@ -156,10 +156,10 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           type="button"
           onClick={handleSave}
           disabled={!isDirty || upsertMutation.isPending}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${
             !isDirty || upsertMutation.isPending
               ? `opacity-50 cursor-not-allowed ${C.text}`
-              : `${C.bgBrand} text-white hover:opacity-90`
+              : `${C.bgBrand} ${C.textOnBrand} hover:opacity-90`
           }`}
           title="DB に保存（管理者権限が必要）"
         >
@@ -176,7 +176,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <button
           type="button"
           onClick={handleCopy}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
+          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
           title="編集内容をクリップボードにコピー"
         >
           <Copy className="size-4" />
@@ -188,7 +188,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <button
           type="button"
           onClick={handleDownload}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
+          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
           title=".md ファイルとしてダウンロード"
         >
           <Download className="size-4" />
@@ -199,7 +199,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           type="button"
           onClick={handleCloseRequest}
           aria-label="編集を終了"
-          className={`size-9 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight}`}
+          className={`size-9 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.hoverBgLight}`}
         >
           <X className="size-4" />
         </button>

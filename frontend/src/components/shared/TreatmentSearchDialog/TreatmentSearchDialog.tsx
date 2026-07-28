@@ -103,15 +103,23 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
     return items;
   }, [consultations, procedures, vaccines, checkupTypes, medicines]);
 
+  const searchableItems = useMemo(
+    () => TREATMENT_MASTER.map((item) => ({
+      item,
+      normalizedName: normalizeKana(item.name).toLowerCase(),
+    })),
+    [TREATMENT_MASTER],
+  );
+
   // Filter items by search term and category（カタカナ・ひらがな非区別）
   const filteredItems = useMemo(() => {
     const normalizedTerm = deferredSearchTerm ? normalizeKana(deferredSearchTerm).toLowerCase() : "";
-    return TREATMENT_MASTER.filter((item) => {
-      const matchesSearch = !deferredSearchTerm || normalizeKana(item.name).toLowerCase().includes(normalizedTerm);
+    return searchableItems.flatMap(({ item, normalizedName }) => {
+      const matchesSearch = !deferredSearchTerm || normalizedName.includes(normalizedTerm);
       const matchesCategory = !activeCategory || item.category === activeCategory;
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory ? [item] : [];
     });
-  }, [TREATMENT_MASTER, deferredSearchTerm, activeCategory]);
+  }, [searchableItems, deferredSearchTerm, activeCategory]);
 
   // Group filtered items by category
   const groupedItems = useMemo(() => {
@@ -175,7 +183,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                 <Fragment key={category}>
                   {/* Category Header */}
                   {!activeCategory ? (
-                    <div className={`px-2 py-1.5 text-xs font-semibold ${C.text40} uppercase tracking-wider`}>
+                    <div className={`px-2 py-1.5 text-2xs font-semibold ${C.text40} uppercase`}>
                       {category}
                     </div>
                   ) : null}

@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -80,6 +80,7 @@ const HOSPITALIZATION_SORT_PROPERTIES: SortProperty[] = [
 
 export function HospitalizationList() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canCreate, canEdit } = usePermission("hospitalization");
   const {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
@@ -87,8 +88,7 @@ export function HospitalizationList() {
     cages,
     movePet,
     handleNavigateToForm
-  } = useHospitalizationList();
-  const { canCreate, canEdit } = usePermission("hospitalization");
+  } = useHospitalizationList(canEdit);
 
   const tabItems = [
     { value: HOSPITALIZATION_FILTER_STATUS.ACTIVE, label: "入院中" },
@@ -249,7 +249,7 @@ export function HospitalizationList() {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         {/* Status Tabs */}
@@ -276,12 +276,12 @@ export function HospitalizationList() {
                   onSortChange={handleSortChange}
                 />
             </div>
-            <div className={`${C.bgWhite} rounded-[6px] border ${C.borderMedium} p-1 h-11 flex items-center`}>
+            <div className={`${C.bgWhite} rounded-sm border ${C.borderMedium} p-1 h-11 flex items-center`}>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
-                    <ToggleGroupItem value="board" size="sm" aria-label="Board View">
+                    <ToggleGroupItem value="board" size="sm" aria-label="Board View" className="-my-1 h-11 min-w-11">
                         <LayoutGrid className={ICON.action} />
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="list" size="sm" aria-label="List View">
+                    <ToggleGroupItem value="list" size="sm" aria-label="List View" className="-my-1 h-11 min-w-11">
                         <List className={ICON.action} />
                     </ToggleGroupItem>
                 </ToggleGroup>

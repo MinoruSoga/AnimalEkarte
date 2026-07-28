@@ -2,7 +2,7 @@
 
 > **目的**: 飼い主が LIFF でアカウント連携（LINE アカウントと飼主レコードの紐付け）を完了でき、ペットヘルスページで自分のペットの健康情報のみが閲覧でき、他の飼主のデータが見えないことを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 薄い
-> **仕様正本**: [line/architecture.md §2 認証・紐付けロジック](../../../spec/line/architecture.md)・[screens/04-owners-form.md §1.3](../../../spec/screens/04-owners-form.md)。ペットヘルス表示自体の仕様文書は存在しないため、実装（`frontend/liff/src/pages/PetHealthPage.tsx`・`backend/internal/service/liff_service_health_card.go`）を参照実装とする。
+> **仕様正本**: [line/architecture.md §2 認証・紐付けロジック](../../../spec/line/architecture.md)・[screens/04-owners-form.md §1.3](../../../spec/screens/04-owners-form.md)・[screens/38-liff-pet-health.md](../../../spec/screens/38-liff-pet-health.md)。実装参照: `frontend/liff/src/pages/PetHealthPage.tsx`・`backend/internal/reservation/liff_service_health_card.go`。
 
 ## 前提条件
 
@@ -10,7 +10,7 @@
 - **モックの限界**: フロント `VITE_LIFF_MOCK=true` の連携ページは連携 API を呼ばず成功表示のみ返す（`frontend/liff/src/hooks/use-liff-link.ts` のモック分岐）。連携成立・409 の実機証明は、バックエンド `LIFF_MOCK` 経由での API 実行または STG 実 LINE で行う。
 - 対象飼主: LINE 未連携（LINE User ID 未設定 — 飼主編集画面の連携セクションが「未連携」）の飼主 1 名。生存ペットが 1 頭以上おり、うち 1 頭にワクチン接種記録があること。
 - 隔離確認用に、対象飼主とは別の飼主（ペットあり）をもう 1 名選んでおくこと（手順 7 で使用）。
-- 連携トークン: `POST /api/v1/owners/:id/line/link-token` で発行する（`line_link_tokens` — [architecture.md §2-3](../../../spec/line/architecture.md)）。【要実測】スタッフ UI 上の発行導線（現状 grep では未検出のため API 直接実行を想定）。
+- 連携トークン: 飼主編集画面の「LINE/Lステップ連携」セクションで、未連携時に表示される「連携用URLを発行」から `POST /api/v1/owners/:id/line/link-token` を実行する（`line_link_tokens` — [architecture.md §2-3](../../../spec/line/architecture.md)）。【要実測】発行後に token と clinic_id 付き LIFF URL が読み取り専用欄に表示され、コピーできること。
 - 病院側確認用ログイン: reception ロール（飼主編集画面の連携セクション閲覧に使用）。
 - 依存シナリオ: なし。
 

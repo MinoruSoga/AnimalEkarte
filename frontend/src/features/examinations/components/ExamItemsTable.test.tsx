@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ExamItemsTable, type ExamItemRow } from "./ExamItemsTable";
+import { C } from "@/lib/design-tokens";
 
 // テスト用 ExamItemRow ファクトリ。デフォルトは status 未設定（保存前の新規行）。
 const makeItem = (overrides: Partial<ExamItemRow> = {}): ExamItemRow => ({
@@ -75,6 +76,38 @@ describe("ExamItemsTable", () => {
       );
       const input = screen.getByLabelText("GLUの結果値") as HTMLInputElement;
       expect(input.value).toBe("95");
+    });
+
+    it("結果値inputは44px以上の操作領域を持つ", () => {
+      render(
+        <ExamItemsTable
+          items={[makeItem({ name: "GLU" })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByLabelText("GLUの結果値")).toHaveClass("h-11", "min-w-11");
+    });
+
+    it("項目名が空でも結果値inputに一意なaccessible nameとid/nameを付ける", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({ key: "empty-1", examTypeFieldId: 101, name: "" }),
+            makeItem({ key: "empty-2", examTypeFieldId: 102, name: "   " }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      const firstInput = screen.getByRole("textbox", { name: "検査項目1の結果値" });
+      const secondInput = screen.getByRole("textbox", { name: "検査項目2の結果値" });
+
+      expect(firstInput).toHaveAttribute("id");
+      expect(firstInput).toHaveAttribute("name", "examItems.0.inspectionValue");
+      expect(secondInput).toHaveAttribute("id");
+      expect(secondInput).toHaveAttribute("name", "examItems.1.inspectionValue");
+      expect(firstInput.id).not.toBe(secondInput.id);
     });
 
     it("referenceValue が空のとき normalValue にフォールバックする", () => {
@@ -157,7 +190,8 @@ describe("ExamItemsTable", () => {
           onChangeInspectionValue={vi.fn()}
         />,
       );
-      expect(screen.getByText("HIGH")).toBeInTheDocument();
+      expect(screen.getByText("HIGH")).toHaveClass(C.bgDanger);
+      expect(screen.getByTestId("exam-item-row")).toHaveClass(C.bgDanger8);
       expect(screen.queryByText("LOW")).not.toBeInTheDocument();
     });
 
@@ -168,7 +202,14 @@ describe("ExamItemsTable", () => {
           onChangeInspectionValue={vi.fn()}
         />,
       );
-      expect(screen.getByText("LOW")).toBeInTheDocument();
+      expect(screen.getByText("LOW")).toHaveClass(
+        C.textStatusBlue,
+        C.borderBlue400,
+        C.bgStatusBlueLight,
+      );
+      expect(screen.getByTestId("exam-item-row")).toHaveClass(
+        C.bgStatusBlueLight,
+      );
       expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
     });
 
@@ -185,6 +226,44 @@ describe("ExamItemsTable", () => {
       expect(screen.queryByText("-")).not.toBeInTheDocument();
     });
 
+    it("未評価の normal は評価済み normal と異なる表示になる", () => {
+      const { rerender } = render(
+        <ExamItemsTable
+          items={[makeItem({ status: "normal", isAssessed: false })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("未判定")).toBeInTheDocument();
+      expect(
+        screen.getByText("（基準値未設定のため判定していない）"),
+      ).toHaveClass("sr-only");
+
+      rerender(
+        <ExamItemsTable
+          items={[makeItem({ status: "normal", isAssessed: true })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+      expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "基準値内" })).toBeInTheDocument();
+    });
+
+    it.each([
+      { status: "high" as const, label: "HIGH" },
+      { status: "low" as const, label: "LOW" },
+    ])("未評価フラグがあっても異常 status=$status を隠さない", ({ status, label }) => {
+      render(
+        <ExamItemsTable
+          items={[makeItem({ status, isAssessed: false, isAbnormal: true })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+    });
+
     it("status=undefined（未判定）は判定列に '-' を表示する", () => {
       render(
         <ExamItemsTable
@@ -195,7 +274,7 @@ describe("ExamItemsTable", () => {
           onChangeInspectionValue={vi.fn()}
         />,
       );
-      expect(screen.getByText("-")).toBeInTheDocument();
+      expect(screen.getByText("-")).toHaveClass(C.text45);
       expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
       expect(screen.queryByText("LOW")).not.toBeInTheDocument();
     });

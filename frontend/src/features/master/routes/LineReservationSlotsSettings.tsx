@@ -111,10 +111,10 @@ export function LineReservationSlotsSettings() {
         ここで登録した開始時刻は、営業時間から自動生成される予約可能枠に追加されます（重複する時刻は追加されません）。枠を登録しても他の時刻が予約不可になることはなく、枠が未登録の日も営業時間から自動生成されます。
       </div>
 
-      <div className={`flex-1 min-h-0 flex flex-row gap-0 overflow-hidden mt-3`}>
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 overflow-hidden mt-3">
         {/* 左: ツリーパネル */}
         <div
-          className={`${LAYOUT.treeNavPanel.width} shrink-0 border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
+          className={`${LAYOUT.treeNavPanel.responsiveWidth} shrink-0 max-h-64 md:max-h-none border-b md:border-b-0 md:border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
         >
           {isLoading ? (
             <p className={`text-sm ${C.text40} p-4`}>読み込み中...</p>

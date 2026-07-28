@@ -5,7 +5,7 @@ import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 /**
  * API レスポンス型 — ownerResponse Go struct に準拠（json:"owner_name"）
  * models.ts の Owner（json:"name"）とは異なる。
- * @see backend/internal/handler/owner_response.go ownerResponse
+ * @see backend/internal/owner/http_response.go ownerResponse
  */
 export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana" | "dm_preference"> {
   owner_name: string;

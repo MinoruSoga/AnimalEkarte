@@ -185,7 +185,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
-            className={STYLE.searchInput}
+            className={`${STYLE.searchInput} pr-11`}
             autoFocus
           />
           {/* BUG-091: 検索クリアボタン - searchTerm が空でないときのみ表示 */}
@@ -193,7 +193,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
+              className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
               aria-label="検索をクリア"
             >
               <X className={ICON.smXs} />

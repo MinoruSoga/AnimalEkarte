@@ -90,6 +90,16 @@ beforeEach(() => {
   } as ReturnType<typeof useGetHospitalizations>);
 });
 
+describe("HospitalizationList — view切替の操作領域", () => {
+  it("Board/List view buttonを44x44px以上に保つ", () => {
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    for (const name of ["Board View", "List View"]) {
+      expect(screen.getByRole("radio", { name })).toHaveClass("h-11", "min-w-11");
+    }
+  });
+});
+
 // ─────────────────────────────────────────────────────────────
 // かな正規化テキスト検索 (list view で検証)
 // ─────────────────────────────────────────────────────────────

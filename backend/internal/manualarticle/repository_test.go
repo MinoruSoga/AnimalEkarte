@@ -22,14 +22,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupTestDB は manual_articles / manual_article_versions を用意する。
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ManualArticle{}, &model.ManualArticleVersion{}))
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ManualArticle{}, &model.ManualArticleVersion{}))
 	db.Exec("TRUNCATE TABLE manual_article_versions CASCADE")
 	db.Exec("TRUNCATE TABLE manual_articles CASCADE")
 	return db

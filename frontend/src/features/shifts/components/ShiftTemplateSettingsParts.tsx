@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -22,11 +23,13 @@ import { ShiftTemplateProperties } from "./ShiftTemplateSidePanelFields";
 
 interface ShiftTemplateRowProps {
   item: ShiftTemplate;
+  canEdit: boolean;
   onEdit: () => void;
 }
 
 export const ShiftTemplateRow = memo(function ShiftTemplateRow({
   item,
+  canEdit,
   onEdit,
 }: ShiftTemplateRowProps) {
   const isTimeHidden = isShiftTemplateTimeHidden(item.shift_type);
@@ -37,17 +40,33 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
       : "-";
 
   return (
-    <SortableDataTableRow id={item.id} onClick={onEdit}>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>{item.name}</TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5`}>
+    <SortableDataTableRow
+      id={item.id}
+      dragLabel={`並べ替え: シフトテンプレート ${item.name} (ID ${item.id})`}
+      dragDisabled={!canEdit}
+    >
+      <TableCell className={`font-medium text-sm ${C.text}`}>
+        <DataTableRowButton
+          aria-label={`詳細: シフトテンプレート ${item.name} (ID ${item.id})`}
+          onClick={onEdit}
+        >
+          {item.name}
+        </DataTableRowButton>
+      </TableCell>
+      <TableCell className={`text-sm ${C.text70}`}>
         {SHIFT_TYPE_LABELS[item.shift_type] ?? item.shift_type}
       </TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5`}>{timeLabel}</TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className={`text-sm ${C.text70}`}>{timeLabel}</TableCell>
+      <TableCell className="text-center">
         <StatusPill isActive={item.is_active} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
-        <RowActionButton onClick={onEdit} />
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: シフトテンプレート ${item.name} (ID ${item.id})`}
+            onClick={onEdit}
+          />
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );
@@ -55,21 +74,23 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
 
 interface ShiftTemplateToolbarProps {
   count: number;
-  onCreate: () => void;
+  onCreate?: () => void;
 }
 
 export function ShiftTemplateToolbar({ count, onCreate }: ShiftTemplateToolbarProps) {
   return (
     <div className="flex items-center justify-between mb-4">
       <span className={`text-sm ${C.text50}`}>{count} 件</span>
-      <button
-        type="button"
-        onClick={onCreate}
-        className={`inline-flex items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
-      >
-        <Plus className="size-4" />
-        新規登録
-      </button>
+      {onCreate !== undefined ? (
+        <button
+          type="button"
+          onClick={onCreate}
+          className={`inline-flex min-h-11 min-w-11 items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
+        >
+          <Plus className="size-4" />
+          新規登録
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -78,8 +99,9 @@ interface ShiftTemplateSidePanelProps {
   item: ShiftTemplate | null;
   onClose: () => void;
   onSave: (data: TemplateFormData) => void;
-  onDeleteRequest: () => void;
+  onDeleteRequest?: () => void;
   isSaving: boolean;
+  readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -89,6 +111,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   onSave,
   onDeleteRequest,
   isSaving,
+  readOnly = false,
   onDirtyChange,
 }: ShiftTemplateSidePanelProps) {
   const [formData, setFormData] = useState<TemplateFormData>(() =>
@@ -101,9 +124,10 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   }, [isDirty, onDirtyChange]);
 
   const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    if (readOnly) return;
     setFormData(updater);
     setIsDirty(true);
-  }, []);
+  }, [readOnly]);
 
   const isTimeHidden = isShiftTemplateTimeHidden(formData.shift_type);
 
@@ -142,28 +166,30 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   );
 
   const handleAction = useCallback(() => {
+    if (readOnly) return;
     if (!isTimeHidden && (!formData.start_time || !formData.end_time)) {
       toast.error("勤務種別では開始時刻と終了時刻を入力してください");
       return;
     }
     onSave(formData);
     setIsDirty(false);
-  }, [formData, isTimeHidden, onSave]);
+  }, [formData, isTimeHidden, onSave, readOnly]);
 
   return (
     <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
+          {item !== null ? (readOnly ? "詳細" : "編集") : "新規作成"}
         </span>
         <div className="flex items-center gap-1">
-          {item !== null ? (
+          {item !== null && onDeleteRequest !== undefined ? (
             <button
               type="button"
               onClick={onDeleteRequest}
               className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${STYLE.btnDangerGhost}`}
+              aria-label={`削除: シフトテンプレート ${item.name} (ID ${item.id})`}
             >
-              <Trash2 className="size-4" />
+              <Trash2 className="size-4" aria-hidden="true" />
             </button>
           ) : null}
           <button
@@ -171,9 +197,9 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             onClick={onClose}
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
             aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
         </div>
       </div>
 
@@ -194,11 +220,13 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
                 fontSize: LAYOUT.pageTitle.fontSize,
                 fontWeight: LAYOUT.pageTitle.fontWeight,
                 lineHeight: LAYOUT.pageTitle.lineHeight,
+                letterSpacing: LAYOUT.pageTitle.letterSpacing,
               }}
               value={formData.name}
               onChange={(e) => handleField("name", e.target.value)}
               placeholder="テンプレート名"
-              autoFocus
+              readOnly={readOnly}
+              autoFocus={!readOnly}
             />
           </div>
 
@@ -207,6 +235,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           <ShiftTemplateProperties
             formData={formData}
             isTimeHidden={isTimeHidden}
+            readOnly={readOnly}
             onField={handleField}
             onBreakChange={handleBreakChange}
             onAddBreak={handleAddBreak}
@@ -217,16 +246,18 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
 
       <div className={STYLE.sidePeekFooter}>
         <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
+          {readOnly ? "閉じる" : "キャンセル"}
         </button>
-        <button
-          type="button"
-          onClick={handleAction}
-          disabled={isSaving || !formData.name.trim()}
-          className={`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
-        >
-          {isSaving ? "保存中..." : "保存"}
-        </button>
+        {!readOnly ? (
+          <button
+            type="button"
+            onClick={handleAction}
+            disabled={isSaving || !formData.name.trim()}
+            className={`px-4 py-[7px] text-base ${C.textOnBrand} ${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
+          >
+            {isSaving ? "保存中..." : "保存"}
+          </button>
+        ) : null}
       </div>
     </div>
   );

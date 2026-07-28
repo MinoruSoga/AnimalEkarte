@@ -44,7 +44,7 @@ jobs:
       worker: ${{ steps.filter.outputs.worker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Path filter
         uses: dorny/paths-filter@v4
@@ -57,6 +57,8 @@ jobs:
               - 'frontend/**'
             codegen:
               - 'backend/internal/model/**'
+              - 'backend/internal/auth/http_response.go'
+              - 'backend/internal/trimming/trimming_response.go'
               - 'backend/tygo.yaml'
               - 'frontend/src/types/generated/**'
             migrations:
@@ -79,7 +81,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -117,7 +119,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Apply migrations
         env:
@@ -137,7 +139,7 @@ jobs:
         run: python3 scripts/verify_seed.py
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
@@ -162,7 +164,7 @@ jobs:
         # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
         # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
-        # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
+        # lstep-migrate/, seed-old-db/(archived), migrations/ 等のエントリポイント・
         # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
         # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
         # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
@@ -236,7 +238,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -319,7 +321,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -332,26 +334,29 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install root dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check worker
+        run: pnpm run typecheck:worker
 
       - name: Run worker tests
         run: pnpm run test:worker
 
   # ──────────────────────────────────────────────
-  # Codegen: Go model → TypeScript 型の同期チェック
+  # Codegen: Go model / HTTP DTO → TypeScript 型の同期チェック
   # ──────────────────────────────────────────────
   codegen-check:
     name: Codegen Sync
     needs: changes
-    if: needs.changes.outputs.codegen == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+    if: needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
@@ -360,17 +365,18 @@ jobs:
         working-directory: backend
         run: |
           mkdir -p "$GITHUB_WORKSPACE/tygo-output"
-          # FE6-5: handler-responses.ts（MeResponse 等）を追加生成するため sed を2置換に拡張。
-          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/handler-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/handler-responses.ts|' tygo.yaml > tygo-ci.yaml
+          # Domain-owned HTTP DTO を auth/trimming 別の生成物へ再現可能に出力する。
+          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/auth-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/auth-responses.ts|' -e 's|/output/trimming-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/trimming-responses.ts|' tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
-          cp "$GITHUB_WORKSPACE/tygo-output/handler-responses.ts" ../frontend/src/types/generated/handler-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/auth-responses.ts" ../frontend/src/types/generated/auth-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/trimming-responses.ts" ../frontend/src/types/generated/trimming-responses.ts
 
       - name: Check for drift
         run: |
           if ! git diff --exit-code frontend/src/types/generated/; then
-            echo "::error::models.ts is out of sync with Go models. Run 'make codegen' and commit the result."
+            echo "::error::Generated TypeScript types are out of sync with Go sources. Run 'make codegen' and commit the result."
             exit 1
           fi
 
@@ -402,7 +408,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Apply migrations
         env:

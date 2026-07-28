@@ -20,9 +20,10 @@ interface CalendarNavToolbarProps {
   nextDisabled?: boolean;
   variant?: "ghost" | "outline";
   /**
-   * lg: h-10 w-10 (今日ボタンありのクラスタ型で使用)
-   * sm: h-8 w-8 p-0 (簡易版・spread レイアウトで使用)
-   * auto: 明示的な高さ/幅指定なし。Button の size="icon" 既定サイズをそのまま使う
+   * sm: コンパクトなラベル（簡易版・spread レイアウトで使用）
+   * lg: 標準ラベル（今日ボタンありのクラスタ型で使用）
+   * auto: 標準ラベル + Button の既定スタイル
+   * ナビゲーションボタンはいずれも min 44x44px を保証する
    */
   size?: "sm" | "lg" | "auto";
   /**
@@ -54,8 +55,11 @@ export function CalendarNavToolbar({
   layout = "clustered",
   className,
 }: CalendarNavToolbarProps) {
-  const iconBtnClass = size === "lg" ? "h-10 w-10" : size === "sm" ? "h-8 w-8 p-0" : undefined;
-  const todayBtnClass = size === "sm" ? "h-8 px-3 text-sm" : "h-10 px-4 text-base font-medium";
+  const iconBtnClass = "size-11 min-h-11 min-w-11";
+  const todayBtnClass =
+    size === "sm"
+      ? "h-11 px-3 text-sm"
+      : "h-11 px-4 text-base font-medium";
 
   const prevBtn = (
     <Button
@@ -109,7 +113,7 @@ export function CalendarNavToolbar({
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
-      <div className={cn("flex items-center", C.bgWhite, "rounded-md border", C.borderMedium, "p-1 shadow-sm")}>
+      <div className={cn("flex items-center", C.bgWhite, "rounded-md border", C.borderMedium, "p-1")}>
         {prevBtn}
         {todayBtn}
         {nextBtn}

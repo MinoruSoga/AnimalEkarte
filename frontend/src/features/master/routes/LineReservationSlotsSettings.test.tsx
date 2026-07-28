@@ -56,6 +56,20 @@ afterEach(() => {
 });
 
 describe("LineReservationSlotsSettings", () => {
+  it("tree/calendar は mobile で縦積み・全幅、md 以上で横並びにする", () => {
+    server.use(
+      http.get("/api/v1/masters/reservation-types", () => HttpResponse.json([])),
+    );
+    const { container } = renderPage("/line-reservation/slots");
+
+    const pageShell = container.firstElementChild;
+    const splitLayout = pageShell?.children.item(2);
+    const treePanel = splitLayout?.firstElementChild;
+
+    expect(splitLayout).toHaveClass("flex-col", "md:flex-row");
+    expect(treePanel).toHaveClass("w-full", "md:w-[260px]");
+  });
+
   it("typeId 未指定なら最初の有効な leaf のカレンダーを表示する", async () => {
     let requestedTypeId: string | null = null;
     server.use(

@@ -44,7 +44,7 @@ export const DiagnosisHeader = memo(function DiagnosisHeader({
 }: DiagnosisHeaderProps) {
   const { canEdit } = usePermission("medical-records");
   return (
-    <div className="grid grid-cols-12 gap-3 shrink-0 h-[240px]">
+    <div className="grid grid-cols-12 grid-rows-[auto_auto_minmax(0,1fr)] gap-x-3 gap-y-2 shrink-0 h-[300px]">
       <DiagnosisHeaderChiefComplaint content={chiefComplaint} />
       <DiagnosisHeaderPhysicalExam policy={policy} setPolicy={setPolicy} canEdit={canEdit} />
       <DiagnosisHeaderDiagnosis

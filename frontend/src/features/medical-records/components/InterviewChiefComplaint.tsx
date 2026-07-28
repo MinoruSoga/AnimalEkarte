@@ -72,12 +72,12 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
       <div className="flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
+            <Label htmlFor="medical-record-chief-complaint-type" className={`text-sm ${C.text60}`}>主訴区分</Label>
             {canEdit ? (
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
-                className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors flex items-center gap-1`}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
               >
                 <Settings className={ICON.xs} />
                 マスタ編集
@@ -85,6 +85,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             ) : null}
           </div>
           <SearchableSelect
+            id="medical-record-chief-complaint-type"
             value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
             onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             options={categoryOptions}
@@ -97,12 +98,14 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
+            <span className={`mb-2 flex items-center gap-2 text-sm leading-none select-none ${C.text60}`}>
+              定型文挿入
+            </span>
             {canEdit ? (
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
-                className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors flex items-center gap-1`}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
               >
                 <Settings className={ICON.xs} />
                 マスタ編集
@@ -115,8 +118,10 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         </div>
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-          <Label className={`text-sm ${C.text60}`}>主訴詳細</Label>
+          <Label htmlFor="medical-record-chief-complaint" className={`text-sm ${C.text60}`}>主訴詳細</Label>
           <CharCountTextarea
+            id="medical-record-chief-complaint"
+            name="chiefComplaint"
             value={chiefComplaint}
             onChange={setChiefComplaint}
             className="flex-1 min-h-0"
