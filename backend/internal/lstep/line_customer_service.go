@@ -33,7 +33,8 @@ func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]mode
 }
 
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find line customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find line customer")
 	}
@@ -53,8 +54,14 @@ func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64
 	)
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation customer", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get reservation customer")
+		// G2A-01 / CODING_RULES.md:78 — write already committed; do not invert success into failure.
+		slog.ErrorContext(ctx, "reload after line customer owner link failed; returning preloaded row with updated owner_id",
+			"error", err, "clinic_id", clinicID, "line_customer_id", id)
+		existing.OwnerID = ownerID
+		if ownerID == nil {
+			existing.Owner = nil
+		}
+		return existing, nil
 	}
 	return result, nil
 }

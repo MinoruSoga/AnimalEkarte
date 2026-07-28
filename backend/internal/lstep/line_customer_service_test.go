@@ -164,11 +164,12 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 			wantUpdateOwnerLinkRun: true,
 		},
 		{
-			name:                   "returns error when refetch after link fails",
+			// G2A-01: committed link must not become an error when post-write reload fails.
+			name:                   "returns success when refetch after link fails",
 			id:                     1,
 			ownerID:                &ownerID,
 			findByIDSecondErr:      errors.New("db error on refetch"),
-			wantErr:                true,
+			wantErr:                false,
 			wantOwnerLookupCalled:  true,
 			wantUpdateOwnerLinkRun: true,
 		},
