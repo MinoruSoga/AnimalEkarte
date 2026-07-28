@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -73,10 +74,18 @@ func (s *lstepTriggerPriorityService) GetByClinicID(ctx context.Context, clinicI
 }
 
 func (s *lstepTriggerPriorityService) UpdatePriorities(ctx context.Context, clinicID uint64, input UpdateTriggerPrioritiesInput) error {
+	allowed := make(map[string]struct{}, len(model.AllTriggerTypes()))
+	for _, tt := range model.AllTriggerTypes() {
+		allowed[tt] = struct{}{}
+	}
 	items := make([]model.LstepTriggerPriority, 0, len(input.Items))
 	for _, it := range input.Items {
 		if it.Priority < 1 {
 			return apperrors.WrapInvalidInput("priority must be >= 1")
+		}
+		if _, ok := allowed[it.TriggerType]; !ok {
+			// LSA-13: unknown trigger_type would persist but never affect delivery.
+			return apperrors.WrapInvalidInput(fmt.Sprintf("unknown trigger_type: %s", it.TriggerType))
 		}
 		items = append(items, model.LstepTriggerPriority{
 			ClinicID:    clinicID,

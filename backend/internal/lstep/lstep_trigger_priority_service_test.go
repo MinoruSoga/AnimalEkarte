@@ -124,6 +124,18 @@ func TestGetByClinicID_ComplementsAllTypes(t *testing.T) {
 	}
 }
 
+func TestUpdatePriorities_UnknownTriggerType(t *testing.T) {
+	svc := NewLstepTriggerPriorityService(&mockTriggerPriorityRepo{})
+	err := svc.UpdatePriorities(context.Background(), 1, UpdateTriggerPrioritiesInput{
+		Items: []TriggerPriorityItem{
+			// typo vs vaccine_deadline_60d — must reject (LSA-13)
+			{TriggerType: "vaccine_deadline_60", Priority: 1},
+		},
+	})
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
 func TestUpdatePriorities_InvalidPriority(t *testing.T) {
 	svc := NewLstepTriggerPriorityService(&mockTriggerPriorityRepo{})
 	err := svc.UpdatePriorities(context.Background(), 1, UpdateTriggerPrioritiesInput{
