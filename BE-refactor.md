@@ -3191,7 +3191,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/csv-import-failure-rehearsal/`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: e3a704c60a27d77055bbdb830c48a5c4153566c4
 
 ##### SOLO-08
 
