@@ -257,6 +257,30 @@ func (s *medicalRecordService) validateMedicalRecordOwnerPetLinks(
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID)
 }
 
+func (s *medicalRecordService) validateMedicalRecordSnapshotOwnerPetClinicRelations(
+	ctx context.Context,
+	clinicID uint64,
+	ownerID, petID *uint64,
+) error {
+	if ownerID == nil && petID == nil {
+		return nil
+	}
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
+	}
+	if ownerID != nil {
+		if err := s.reservationRepo.AssertOwnerInClinic(ctx, clinicID, *ownerID); err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+		}
+	}
+	if petID != nil {
+		if _, err := s.reservationRepo.FindPetOwnerInClinic(ctx, clinicID, *petID); err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record pet ownership")
+		}
+	}
+	return nil
+}
+
 func (s *medicalRecordService) validateMedicalRecordDoctor(
 	ctx context.Context,
 	clinicID uint64,
@@ -360,8 +384,12 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if needsLinkValidation || isBecomingFinalized {
+		if needsLinkValidation {
 			if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
+				return err
+			}
+		} else if isBecomingFinalized {
+			if err := s.validateMedicalRecordSnapshotOwnerPetClinicRelations(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
 			}
 		}

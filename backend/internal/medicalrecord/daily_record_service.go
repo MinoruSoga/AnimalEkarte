@@ -499,14 +499,11 @@ func (s *dailyRecordService) validateHospitalizationOwnerPet(
 	}
 	ownerID := hospitalization.OwnerID
 	petID := hospitalization.PetID
-	if err := sharedkernel.ValidateReservationOwnerPetLinks(
-		ctx,
-		s.ownerPets,
-		clinicID,
-		&ownerID,
-		&petID,
-	); err != nil {
-		return apperrors.Wrap(err, "failed to verify hospitalization owner and pet")
+	if err := s.ownerPets.AssertOwnerInClinic(ctx, clinicID, ownerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify hospitalization owner")
+	}
+	if _, err := s.ownerPets.FindPetOwnerInClinic(ctx, clinicID, petID); err != nil {
+		return apperrors.Wrap(err, "failed to verify hospitalization pet")
 	}
 	return nil
 }

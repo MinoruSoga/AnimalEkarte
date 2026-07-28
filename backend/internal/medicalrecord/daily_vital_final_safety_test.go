@@ -126,7 +126,7 @@ func TestDailyRecordServiceRejectsPollutedHospitalizationOwnerPetBeforeChildWrit
 			service := NewDailyRecordServiceWithRelationValidation(
 				repo,
 				hospitalizations,
-				&dailyRecordOwnerPetVerifierStub{ownerID: ownerID + 1},
+				&dailyRecordOwnerPetVerifierStub{ownerID: ownerID + 1, err: errors.New("foreign pet relation")},
 				nil,
 				nil,
 				&finalSafetyTransactor{},

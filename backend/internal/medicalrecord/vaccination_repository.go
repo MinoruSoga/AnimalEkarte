@@ -210,7 +210,6 @@ func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
 							WHERE scoped_record_pet.id = scoped_record.pet_id
 							  AND scoped_record_pet.clinic_id = ?
 							  AND scoped_record_pet.deleted_at IS NULL
-							  AND scoped_record.owner_id = scoped_record_pet.owner_id
 						)
 					  )
 					  AND (vaccinations.pet_id IS NULL OR scoped_record.pet_id = vaccinations.pet_id)

@@ -64,9 +64,6 @@ func validateClinicalRelations(
 				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 			}
 			recordPetOwnerID = &ownerID
-			if record.OwnerID == nil || *record.OwnerID != ownerID {
-				return apperrors.WrapNotFound("medical_record", "relation")
-			}
 		}
 	}
 
