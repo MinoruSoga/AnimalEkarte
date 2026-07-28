@@ -28,19 +28,51 @@ var allowedMedicalRecordImageMIMETypes = map[string]bool{
 	"application/pdf": true,
 }
 
-// createMedicalRecordImageRequest は診療画像作成のバインド struct
+// createMedicalRecordImageRequest は診療画像 JSON 作成のバインド struct。
+// MRC-09: upload 経路と同程度の MIME/size/URL 境界検証を要求する。
 type createMedicalRecordImageRequest struct {
-	ImageURL     string     `json:"image_url"     binding:"required"`
-	ThumbnailURL string     `json:"thumbnail_url"`
-	FileName     string     `json:"file_name"`
-	FileSize     int64      `json:"file_size"`
-	MimeType     string     `json:"mime_type"`
+	ImageURL     string     `json:"image_url"     binding:"required,url,max=2048"`
+	ThumbnailURL string     `json:"thumbnail_url" binding:"omitempty,url,max=2048"`
+	FileName     string     `json:"file_name"     binding:"omitempty,max=255"`
+	FileSize     int64      `json:"file_size"     binding:"omitempty,min=0"`
+	MimeType     string     `json:"mime_type"     binding:"omitempty,max=127"`
 	ImageType    string     `json:"image_type"`
-	Description  string     `json:"description"`
+	Description  string     `json:"description"   binding:"omitempty,max=2000"`
 	TakenAt      *time.Time `json:"taken_at"`
 	ExamID       *uint64    `json:"exam_id"`
 	StaffID      *uint64    `json:"staff_id"`
 	SortOrder    int        `json:"sort_order"`
+}
+
+// validateJSONCreate applies upload-parity guards for JSON create (MIME allowlist, size cap).
+func (r *createMedicalRecordImageRequest) validateJSONCreate() error {
+	if r.FileSize > medicalRecordImageMaxUploadSize {
+		return apperrors.WrapInvalidInput(fmt.Sprintf(
+			"file size exceeds limit of %dMB",
+			medicalRecordImageMaxUploadSize/1024/1024,
+		))
+	}
+	if r.FileSize < 0 {
+		return apperrors.WrapInvalidInput("file_size must be non-negative")
+	}
+	mimeType := strings.TrimSpace(r.MimeType)
+	if mimeType == "" {
+		// MIME 未指定時は拡張子から推定（upload 経路と同型）。
+		ext := strings.ToLower(filepath.Ext(r.FileName))
+		if ext == "" {
+			ext = strings.ToLower(filepath.Ext(r.ImageURL))
+		}
+		detected, ok := medicalRecordImageMIMETypeFromExt(ext)
+		if !ok {
+			return apperrors.WrapInvalidInput("unsupported file type; allowed: jpeg, png, gif, pdf")
+		}
+		mimeType = detected
+	}
+	if !allowedMedicalRecordImageMIMETypes[mimeType] {
+		return apperrors.WrapInvalidInput("unsupported MIME type: " + mimeType)
+	}
+	r.MimeType = mimeType
+	return nil
 }
 
 func (r *createMedicalRecordImageRequest) toServiceInput() *CreateMedicalRecordImageInput {

@@ -54,6 +54,40 @@ func TestCreateMedicalRecordImageRequest_ToServiceInput_DefaultImageType(t *test
 	}
 }
 
+func TestCreateMedicalRecordImageRequest_ValidateJSONCreate(t *testing.T) {
+	// MRC-09
+	t.Run("rejects disallowed mime", func(t *testing.T) {
+		req := &createMedicalRecordImageRequest{
+			ImageURL: "https://example.test/x.html",
+			MimeType: "text/html",
+			FileSize: 10,
+		}
+		if err := req.validateJSONCreate(); err == nil {
+			t.Fatal("expected error for text/html")
+		}
+	})
+	t.Run("rejects oversized file", func(t *testing.T) {
+		req := &createMedicalRecordImageRequest{
+			ImageURL: "https://example.test/x.png",
+			MimeType: "image/png",
+			FileSize: medicalRecordImageMaxUploadSize + 1,
+		}
+		if err := req.validateJSONCreate(); err == nil {
+			t.Fatal("expected error for oversized file")
+		}
+	})
+	t.Run("accepts allowlisted mime", func(t *testing.T) {
+		req := &createMedicalRecordImageRequest{
+			ImageURL: "https://example.test/x.png",
+			MimeType: "image/png",
+			FileSize: 100,
+		}
+		if err := req.validateJSONCreate(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
 func TestUploadedMedicalRecordImageInput_ToServiceInput(t *testing.T) {
 	takenAt := time.Date(2026, 5, 28, 9, 0, 0, 0, time.UTC)
 

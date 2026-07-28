@@ -86,6 +86,11 @@ func (h *MedicalRecordImageHandler) CreateMedicalRecordImage(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	// MRC-09: JSON create must share MIME/size allowlist with upload path.
+	if err := req.validateJSONCreate(); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 
 	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
 	if err != nil {
