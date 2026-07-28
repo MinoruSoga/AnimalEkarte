@@ -3,11 +3,12 @@ package reservation
 import "testing"
 
 func TestCreateReservationTypeGroupRequest_ToServiceInput(t *testing.T) {
+	active := true
 	req := createReservationTypeGroupRequest{
 		Name:      "Grooming",
 		Color:     "#00AA88",
 		SortOrder: 4,
-		IsActive:  true,
+		IsActive:  &active,
 	}
 
 	input := req.toServiceInput()
@@ -21,8 +22,23 @@ func TestCreateReservationTypeGroupRequest_ToServiceInput(t *testing.T) {
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = false, want true")
+	}
+}
+
+func TestCreateReservationTypeGroupRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createReservationTypeGroupRequest{Name: "x", IsActive: &active}
+	if req.toServiceInput().IsActive {
+		t.Fatal("explicit false must resolve to false")
+	}
+}
+
+func TestCreateReservationTypeGroupRequest_IsActiveOmitted(t *testing.T) {
+	req := createReservationTypeGroupRequest{Name: "x"}
+	if !req.toServiceInput().IsActive {
+		t.Fatal("omitted is_active must resolve to true")
 	}
 }
 

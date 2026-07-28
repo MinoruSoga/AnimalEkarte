@@ -60,8 +60,17 @@ func (r *reservationTypeAvailableSlotRepository) FindByID(
 func (r *reservationTypeAvailableSlotRepository) Create(
 	ctx context.Context, slot *model.ReservationTypeAvailableSlot,
 ) error {
-	if err := r.db.WithContext(ctx).Create(slot).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := slot.IsActive
+	if err := db.Create(slot).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation_type_available_slot", "")
+	}
+	if !wantActive {
+		if err := db.Model(slot).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type_available_slot", fmt.Sprintf("%d", slot.ID))
+		}
+		slot.IsActive = false
 	}
 	return nil
 }

@@ -60,8 +60,18 @@ func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Cont
 }
 
 func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.ReservationType) error {
-	if err := r.db.WithContext(ctx).Create(st).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	// LIFF create hardcodes IsActive=true; only ReservationVisible needs compensation.
+	wantVisible := st.ReservationVisible
+	if err := db.Create(st).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation_type_liff", "")
+	}
+	if !wantVisible {
+		if err := db.Model(st).Update("reservation_visible", false).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", st.ID))
+		}
+		st.ReservationVisible = false
 	}
 	return nil
 }

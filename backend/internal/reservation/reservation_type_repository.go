@@ -95,8 +95,24 @@ func (r *reservationTypeRepository) FindByIDWithChildren(ctx context.Context, cl
 }
 
 func (r *reservationTypeRepository) Create(ctx context.Context, reservationType *model.ReservationType) error {
-	if err := persistence.DBOrTx(ctx, r.db).Create(reservationType).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := reservationType.IsActive
+	wantVisible := reservationType.ReservationVisible
+	if err := db.Create(reservationType).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation_type", "")
+	}
+	if !wantActive {
+		if err := db.Model(reservationType).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", reservationType.ID))
+		}
+		reservationType.IsActive = false
+	}
+	if !wantVisible {
+		if err := db.Model(reservationType).Update("reservation_visible", false).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", reservationType.ID))
+		}
+		reservationType.ReservationVisible = false
 	}
 	return nil
 }

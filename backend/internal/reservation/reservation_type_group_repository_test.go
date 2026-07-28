@@ -162,6 +162,29 @@ func TestReservationTypeGroupRepository_Create(t *testing.T) {
 	assert.Equal(t, "新規作成グループ", got.Name)
 }
 
+// BUG-455-S6: gorm default:true omits zero bools from INSERT.
+func TestReservationTypeGroupRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupGroupRepoTestDB(t)
+	repo := NewReservationTypeGroupRepository(db)
+	ctx := context.Background()
+
+	g := &model.ReservationTypeGroup{ClinicID: 1, Name: "inactive group", IsActive: false}
+	require.NoError(t, repo.Create(ctx, g))
+	assert.False(t, g.IsActive)
+
+	got, err := repo.FindByID(ctx, 1, g.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationTypeGroup{}).
+		Select("is_active").
+		Where("id = ?", g.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active must be false")
+}
+
 func TestReservationTypeGroupRepository_Update(t *testing.T) {
 	db := setupGroupRepoTestDB(t)
 	repo := NewReservationTypeGroupRepository(db)

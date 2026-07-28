@@ -121,6 +121,39 @@ func TestReservationTypeAvailableSlotRepository_Create(t *testing.T) {
 	assert.Equal(t, "13:30", got.StartTime)
 }
 
+// BUG-455-S6: gorm default:true omits zero bools from INSERT.
+func TestReservationTypeAvailableSlotRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupAvailableSlotRepoTestDB(t)
+	repo := NewReservationTypeAvailableSlotRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "枠inactive作成区分", nil, nil)
+	dow := int8(2)
+	slot := &model.ReservationTypeAvailableSlot{
+		ClinicID:          clinicA,
+		ReservationTypeID: rtA.ID,
+		AvailableType:     model.AvailableSlotTypeWeekly,
+		DayOfWeek:         &dow,
+		StartTime:         "10:00",
+		IsActive:          false,
+	}
+	require.NoError(t, repo.Create(ctx, slot))
+	assert.False(t, slot.IsActive)
+
+	got, err := repo.FindByID(ctx, clinicA, slot.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationTypeAvailableSlot{}).
+		Select("is_active").
+		Where("id = ?", slot.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active must be false")
+}
+
 func TestReservationTypeAvailableSlotRepository_Delete(t *testing.T) {
 	db := setupAvailableSlotRepoTestDB(t)
 	repo := NewReservationTypeAvailableSlotRepository(db)

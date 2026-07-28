@@ -5,12 +5,13 @@ import "testing"
 func TestCreateReservationTypeRequest_ToServiceInput(t *testing.T) {
 	duration := 30
 	visible := false
+	active := true
 	groupID := uint64(7)
 
 	req := createReservationTypeRequest{
 		Name:                   "Consultation",
 		Color:                  "#123456",
-		IsActive:               true,
+		IsActive:               &active,
 		Description:            "General consultation",
 		SortOrder:              3,
 		GroupID:                &groupID,
@@ -31,12 +32,30 @@ func TestCreateReservationTypeRequest_ToServiceInput(t *testing.T) {
 	if input.Name != req.Name || input.Color != req.Color || input.Category != req.Category {
 		t.Fatalf("basic fields = %+v, want request values", input)
 	}
+	if !input.IsActive {
+		t.Fatalf("IsActive = false, want true")
+	}
 	if input.GroupID != &groupID || input.DurationMinutes != &duration || input.ReservationVisible != &visible {
 		t.Fatalf("pointer fields were not preserved")
 	}
 	if input.ReservationDisplayName != req.ReservationDisplayName || input.ShortName != req.ShortName ||
 		input.ReservationDayOption != req.ReservationDayOption || input.IsInternal != req.IsInternal {
 		t.Fatalf("LINE fields = %+v, want request values", input)
+	}
+}
+
+func TestCreateReservationTypeRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createReservationTypeRequest{Name: "x", IsActive: &active}
+	if req.toServiceInput().IsActive {
+		t.Fatal("explicit false must resolve to false")
+	}
+}
+
+func TestCreateReservationTypeRequest_IsActiveOmitted(t *testing.T) {
+	req := createReservationTypeRequest{Name: "x"}
+	if !req.toServiceInput().IsActive {
+		t.Fatal("omitted is_active must resolve to true")
 	}
 }
 

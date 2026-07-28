@@ -27,7 +27,9 @@ type upsertLineReservationSettingRequest struct {
 	TimeSlotMode            string         `json:"time_slot_mode"`
 	TimeSlotIntervalMinutes int            `json:"time_slot_interval_minutes"`
 	NoStaffMode             string         `json:"no_staff_mode"`
-	ShowNoStaffOption       bool           `json:"show_no_staff_option"`
+	// ShowNoStaffOption is *bool so JSON binding can distinguish omitted / false / true.
+	// Omitted (nil) resolves to true in toServiceInput.
+	ShowNoStaffOption       *bool          `json:"show_no_staff_option"`
 	AdditionalFields        jsonRawOrEmpty `json:"additional_fields"`
 	LineChannelID           string         `json:"line_channel_id"`
 	LineChannelSecret       string         `json:"line_channel_secret"`
@@ -59,13 +61,21 @@ func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReserv
 		TimeSlotMode:            r.TimeSlotMode,
 		TimeSlotIntervalMinutes: r.TimeSlotIntervalMinutes,
 		NoStaffMode:             r.NoStaffMode,
-		ShowNoStaffOption:       r.ShowNoStaffOption,
+		ShowNoStaffOption:       resolveBoolDefaultTrue(r.ShowNoStaffOption),
 		AdditionalFields:        r.AdditionalFields,
 		LineChannelID:           r.LineChannelID,
 		LineChannelSecret:       r.LineChannelSecret,
 		LiffID:                  r.LiffID,
 		LineAccessToken:         r.LineAccessToken,
 	}
+}
+
+// resolveBoolDefaultTrue maps optional bool presence: nil → true, otherwise the pointed value.
+func resolveBoolDefaultTrue(v *bool) bool {
+	if v == nil {
+		return true
+	}
+	return *v
 }
 
 // jsonRawOrEmpty は JSON フィールドを生の JSON として保持するためのエイリアス。

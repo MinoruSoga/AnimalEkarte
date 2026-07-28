@@ -44,6 +44,36 @@ func makeLiffTypeWithSortOrder(t *testing.T, db *gorm.DB, clinicID uint64, name 
 	return rt
 }
 
+// BUG-455-S6: LIFF create path must persist explicit reservation_visible=false.
+func TestReservationTypeLiffRepository_Create_ReservationVisibleFalsePersists(t *testing.T) {
+	db := setupReservationTypeLiffTestDB(t)
+	repo := NewReservationTypeLiffRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	st := &model.ReservationType{
+		ClinicID:           clinicID,
+		Name:               "liff hidden course",
+		Category:           model.ReservationTypeCategoryGeneral,
+		IsActive:           true,
+		ReservationVisible: false,
+	}
+	require.NoError(t, repo.Create(ctx, st))
+	assert.False(t, st.ReservationVisible)
+
+	got, err := repo.FindByID(ctx, clinicID, st.ID)
+	require.NoError(t, err)
+	assert.False(t, got.ReservationVisible)
+
+	var rawVisible bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Select("reservation_visible").
+		Where("id = ?", st.ID).
+		Scan(&rawVisible).Error)
+	assert.False(t, rawVisible, "raw reservation_visible must be false")
+}
+
 func TestReservationTypeLiffRepository_FindAll(t *testing.T) {
 	db := setupReservationTypeLiffTestDB(t)
 	repo := NewReservationTypeLiffRepository(db)

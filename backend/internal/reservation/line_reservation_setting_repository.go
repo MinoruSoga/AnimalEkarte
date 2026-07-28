@@ -2,6 +2,7 @@ package reservation
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -43,7 +44,10 @@ func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, c
 }
 
 func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error {
-	err := r.db.WithContext(ctx).
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantShowNoStaff := setting.ShowNoStaffOption
+	err := db.
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
@@ -52,6 +56,15 @@ func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID ui
 		Create(setting).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "line_reservation_setting", "")
+	}
+	if !wantShowNoStaff {
+		if err := db.Scopes(persistence.ClinicScope(clinicID)).
+			Model(&model.LineReservationSetting{}).
+			Where("clinic_id = ?", clinicID).
+			Update("show_no_staff_option", false).Error; err != nil {
+			return apperrors.FromGORM(err, "line_reservation_setting", fmt.Sprintf("clinic:%d", clinicID))
+		}
+		setting.ShowNoStaffOption = false
 	}
 	return nil
 }

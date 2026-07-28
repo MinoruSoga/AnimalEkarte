@@ -2,6 +2,7 @@ package reservation
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -54,8 +55,17 @@ func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx 
 }
 
 func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.ReservationTypeGroup) error {
-	if err := r.db.WithContext(ctx).Create(g).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
+	wantActive := g.IsActive
+	if err := db.Create(g).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation_type_group", "")
+	}
+	if !wantActive {
+		if err := db.Model(g).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type_group", fmt.Sprintf("%d", g.ID))
+		}
+		g.IsActive = false
 	}
 	return nil
 }

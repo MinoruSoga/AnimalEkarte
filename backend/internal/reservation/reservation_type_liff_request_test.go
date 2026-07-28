@@ -3,6 +3,7 @@ package reservation
 import "testing"
 
 func TestCreateReservationTypeLiffRequest_ToServiceInput(t *testing.T) {
+	visible := true
 	req := createReservationTypeLiffRequest{
 		Name:                 "Online booking",
 		Color:                "#AA00AA",
@@ -11,7 +12,7 @@ func TestCreateReservationTypeLiffRequest_ToServiceInput(t *testing.T) {
 		DurationMinutes:      30,
 		ShortName:            "ONL",
 		ShowShortName:        true,
-		ReservationVisible:   true,
+		ReservationVisible:   &visible,
 		ReservationComment:   "Comment",
 		ReservationDayOption: "anyday",
 		IsInternal:           true,
@@ -26,11 +27,27 @@ func TestCreateReservationTypeLiffRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("numeric fields = %+v, want request values", input)
 	}
 	if input.ShortName != req.ShortName || input.ShowShortName != req.ShowShortName ||
-		input.ReservationVisible != req.ReservationVisible ||
+		!input.ReservationVisible ||
 		input.ReservationComment != req.ReservationComment ||
 		input.ReservationDayOption != req.ReservationDayOption ||
 		input.IsInternal != req.IsInternal {
 		t.Fatalf("LIFF fields = %+v, want request values", input)
+	}
+}
+
+func TestCreateReservationTypeLiffRequest_ReservationVisibleOmittedDefaultsTrue(t *testing.T) {
+	// LIFF omit contract: missing reservation_visible resolves to true (not false).
+	req := createReservationTypeLiffRequest{Name: "x"}
+	if !req.toServiceInput().ReservationVisible {
+		t.Fatal("omitted reservation_visible must resolve to true for LIFF create")
+	}
+}
+
+func TestCreateReservationTypeLiffRequest_ReservationVisibleFalse(t *testing.T) {
+	visible := false
+	req := createReservationTypeLiffRequest{Name: "x", ReservationVisible: &visible}
+	if req.toServiceInput().ReservationVisible {
+		t.Fatal("explicit false must resolve to false")
 	}
 }
 

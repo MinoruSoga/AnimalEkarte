@@ -126,6 +126,45 @@ func TestReservationTypeRepository_FindByIDWithChildren_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
+// BUG-455-S6: gorm default:true omits zero bools from INSERT.
+func TestReservationTypeRepository_Create_BoolDefaultsFalsePersist(t *testing.T) {
+	db := setupReservationTypeRepoTestDB(t)
+	repo := NewReservationTypeRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	rt := &model.ReservationType{
+		ClinicID:           clinicID,
+		Name:               "inactive invisible type",
+		Category:           model.ReservationTypeCategoryGeneral,
+		IsActive:           false,
+		ReservationVisible: false,
+	}
+	require.NoError(t, repo.Create(ctx, rt))
+	require.NotZero(t, rt.ID)
+	assert.False(t, rt.IsActive)
+	assert.False(t, rt.ReservationVisible)
+
+	got, err := repo.FindByID(ctx, clinicID, rt.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive)
+	assert.False(t, got.ReservationVisible)
+
+	var rawActive, rawVisible bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Select("is_active").
+		Where("id = ?", rt.ID).
+		Scan(&rawActive).Error)
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.ReservationType{}).
+		Select("reservation_visible").
+		Where("id = ?", rt.ID).
+		Scan(&rawVisible).Error)
+	assert.False(t, rawActive, "raw is_active must be false")
+	assert.False(t, rawVisible, "raw reservation_visible must be false")
+}
+
 func TestReservationTypeRepository_CountUsageByReservationTypeID(t *testing.T) {
 	db := setupReservationTypeRepoTestDB(t)
 	repo := NewReservationTypeRepository(db)

@@ -59,6 +59,34 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
+	t.Run("persists explicit show_no_staff_option false on create upsert", func(t *testing.T) {
+		const clinicC = uint64(3)
+		setting := &model.LineReservationSetting{
+			ClinicID:          clinicC,
+			Status:            "stopped",
+			ClosedWeekdays:    []byte(`[]`),
+			ClosedDates:       []byte(`[]`),
+			BusinessHours:     []byte(`{"start":"0900","end":"1900"}`),
+			BreakHours:        []byte(`[]`),
+			AdditionalFields:  []byte(`{}`),
+			ShowNoStaffOption: false,
+		}
+		require.NoError(t, repo.Save(ctx, clinicC, setting))
+		assert.False(t, setting.ShowNoStaffOption)
+
+		got, err := repo.FindByClinicID(ctx, clinicC)
+		require.NoError(t, err)
+		assert.False(t, got.ShowNoStaffOption)
+
+		var raw bool
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Select("show_no_staff_option").
+			Where("clinic_id = ?", clinicC).
+			Scan(&raw).Error)
+		assert.False(t, raw, "raw show_no_staff_option must be false")
+	})
+
 	t.Run("updates the existing row without duplication", func(t *testing.T) {
 		updated := &model.LineReservationSetting{
 			ClinicID:         clinicA,

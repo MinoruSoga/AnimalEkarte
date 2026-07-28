@@ -9,6 +9,7 @@ import (
 
 func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	dailyLimit := 0
+	showNoStaff := true
 	closedWeekdays := jsonRawOrEmpty(`[1,2]`)
 	req := upsertLineReservationSettingRequest{
 		Status:                  "active",
@@ -16,7 +17,7 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 		DailyLimit:              &dailyLimit,
 		BookingWindowMaxDays:    30,
 		TimeSlotIntervalMinutes: 15,
-		ShowNoStaffOption:       true,
+		ShowNoStaffOption:       &showNoStaff,
 		LineChannelSecret:       "secret",
 	}
 
@@ -36,5 +37,22 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.LineChannelSecret != req.LineChannelSecret {
 		t.Errorf("LineChannelSecret = %q, want %q", input.LineChannelSecret, req.LineChannelSecret)
+	}
+}
+
+func TestUpsertLineReservationSettingRequest_ShowNoStaffOptionFalse(t *testing.T) {
+	showNoStaff := false
+	req := upsertLineReservationSettingRequest{ShowNoStaffOption: &showNoStaff}
+	input := req.toServiceInput()
+	if input.ShowNoStaffOption {
+		t.Error("explicit false must resolve to false")
+	}
+}
+
+func TestUpsertLineReservationSettingRequest_ShowNoStaffOptionOmitted(t *testing.T) {
+	req := upsertLineReservationSettingRequest{}
+	input := req.toServiceInput()
+	if !input.ShowNoStaffOption {
+		t.Error("omitted show_no_staff_option must resolve to true")
 	}
 }

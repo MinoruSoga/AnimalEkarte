@@ -7,7 +7,9 @@ import (
 type createReservationTypeRequest struct {
 	Name        string  `json:"name"        binding:"required"`
 	Color       string  `json:"color"`
-	IsActive    bool    `json:"is_active"`
+	// IsActive is *bool so JSON binding can distinguish omitted / false / true.
+	// Omitted (nil) resolves to true in toServiceInput.
+	IsActive    *bool   `json:"is_active"`
 	Description string  `json:"description"`
 	SortOrder   int     `json:"sort_order"`
 	GroupID     *uint64 `json:"group_id"`
@@ -31,7 +33,7 @@ func (r *createReservationTypeRequest) toServiceInput() *CreateReservationTypeIn
 	return &CreateReservationTypeInput{
 		Name:                   r.Name,
 		Color:                  r.Color,
-		IsActive:               r.IsActive,
+		IsActive:               resolveBoolDefaultTrue(r.IsActive),
 		Description:            r.Description,
 		SortOrder:              r.SortOrder,
 		GroupID:                r.GroupID,
