@@ -42,3 +42,10 @@ backend を変更する前に次を読む。
 - docs-only change は runtime verification 不要。link、reference、format drift を確認する。
 
 P1–P18 は廃止された project 固有 checklist であり、レビュー基準に使わない。レビューは [Go/Gin Backend Review](../.claude/refs/go-gin-backend-review.md) を使う。
+
+## 却下済み提案 — 再提案しない (FE12 2026-07-28 に FE-refactor.md から移設)
+
+調査のうえ「やらない」と決めた項目。**再提案する場合は、下記の再開条件を満たす新しい証拠を添えること。**
+
+- **カルテ同日重複に DB unique 制約を採らない（2026-07-27）** — 同一 pet 同日に手で複数カルテを作ることは正当な業務（別々の来院）であり、制約は正当な操作まで禁止する。塞ぐべきは自動生成経路が同じ1回の来院に対して二重に作ることだけであり、これは `5e5868549` の try-advisory-lock で自動生成経路に限定して解決済み。**再開条件 = 手動作成経路で実害が出た事例が観測された場合のみ。**
+- **auto-create に clock seam を導入しない（2026-07-27）** — 重複チェック日は `reservation.StartTime` 由来であり現在時刻を参照しない。clock seam を入れると過去/未来予約の検索日が実行日へ変わり挙動を壊す。**予約日基準の現行 contract が正である。**
