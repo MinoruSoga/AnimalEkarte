@@ -35,7 +35,7 @@ func (q listInventoryQuery) toServiceFilters() listInventoryFilters {
 type createInventoryRequest struct {
 	Name          string  `json:"name"            binding:"required"`
 	Category      string  `json:"category"        binding:"required,oneof=medicine consumable food other"`
-	Quantity      int     `json:"quantity"`
+	Quantity      int     `json:"quantity"        binding:"min=0"` // BUG-466: 負数在庫の作成を拒否
 	Unit          string  `json:"unit"            binding:"required"`
 	MinStockLevel int     `json:"min_stock_level"`
 	Location      string  `json:"location"`
@@ -72,7 +72,7 @@ func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error)
 type updateInventoryRequest struct {
 	Name          *string `json:"name"`
 	Category      *string `json:"category"        binding:"omitempty,oneof=medicine consumable food other"`
-	Quantity      *int    `json:"quantity"`
+	Quantity      *int    `json:"quantity"        binding:"omitempty,min=0"` // BUG-466: 省略可・負数拒否
 	Unit          *string `json:"unit"`
 	MinStockLevel *int    `json:"min_stock_level"`
 	Location      *string `json:"location"`

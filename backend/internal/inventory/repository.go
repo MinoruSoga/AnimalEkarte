@@ -130,16 +130,24 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 // 保存値を信頼しないことになったため、ここでの再計算は行わない — 読み取り時に
 // model.DeriveInventoryStatus で quantity/min_stock_level から都度導出する
 // （internal/inventory/inventory_response.go の toInventoryResponse を参照）。
+//
+// BUG-466: quantity >= 減算量 を同一 UPDATE 述語に含め、負数在庫を作らない。
+// RowsAffected==0 のとき FindByID で存在確認し、存在すれば Conflict（在庫不足）、
+// なければ NotFound を返す。
 func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
+	qty := int(quantity)
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
-		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
-		UpdateColumn("quantity", gorm.Expr("quantity - ?", int(quantity)))
+		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL AND quantity >= ?", clinicID, id, qty).
+		UpdateColumn("quantity", gorm.Expr("quantity - ?", qty))
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return err
+		}
+		return apperrors.WrapConflict("在庫が不足しています")
 	}
 	return nil
 }

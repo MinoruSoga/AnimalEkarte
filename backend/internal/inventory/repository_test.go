@@ -294,6 +294,30 @@ func TestInventoryRepository_DecreaseStock(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	// BUG-466: 在庫不足時は減算せず Conflict。quantity は変化しない。
+	t.Run("在庫不足は Conflict となり数量は変わらない", func(t *testing.T) {
+		shortItem := makeInventoryItem(t, db, clinicA, "不足在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 2)
+
+		err := repo.DecreaseStock(ctx, clinicA, shortItem.ID, 5)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected conflict for insufficient stock, got: %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, shortItem.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, 2, got.Quantity)
+	})
+
+	// BUG-466: ちょうどゼロになる減算は成功する。
+	t.Run("ちょうどゼロになる減算は成功する", func(t *testing.T) {
+		exactItem := makeInventoryItem(t, db, clinicA, "ゼロ丁度在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 4)
+
+		require.NoError(t, repo.DecreaseStock(ctx, clinicA, exactItem.ID, 4))
+
+		got, err := repo.FindByID(ctx, clinicA, exactItem.ID)
+		require.NoError(t, err)
+		assert.Equal(t, 0, got.Quantity)
+	})
 }
 
 func TestInventoryRepository_DecreaseStock_AmbientTxRollback(t *testing.T) {

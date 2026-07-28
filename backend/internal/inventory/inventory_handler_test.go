@@ -267,6 +267,32 @@ func TestCreateInventory(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			// BUG-466: quantity は非負のみ許可（0 は在庫切れ作成として許容）
+			name: "returns 400 when quantity is negative",
+			body: map[string]any{
+				"name": "負数在庫", "category": "consumable", "unit": "本", "quantity": -1,
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			// BUG-466: quantity=0 は許容する（min=0）
+			name: "creates inventory item with zero quantity",
+			body: map[string]any{
+				"name": "ゼロ在庫", "category": "consumable", "unit": "本", "quantity": 0,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInventoryService{
+				createFn: func(_ context.Context, _ uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
+					assert.Equal(t, 0, input.Quantity)
+					return &model.InventoryItem{Name: input.Name, Category: model.InventoryCategory(input.Category), Quantity: 0}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"ゼロ在庫"`,
+		},
+		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -358,6 +384,15 @@ func TestUpdateInventory(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			// BUG-466: 更新時も quantity は非負のみ許可
+			name:       "returns 400 when quantity is negative",
+			paramID:    "1",
+			body:       map[string]any{"quantity": -1},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
+			wantStatus: http.StatusBadRequest,
 		},
 	}
 
