@@ -407,13 +407,17 @@ func (r *reservationRepository) FindClinicIDsByStaffID(
 	return result, nil
 }
 
-// CountMedicalRecordsByReservationID は予約を参照しているカルテの件数を返す（BUG-201）
-// BE-refactor.md R2-5 (D12): clinic_id 述語を追加（medical_records は clinic_id カラムを直接持つ）。
+// CountMedicalRecordsByReservationID は予約を参照している有効カルテの件数を返す（BUG-201 / SEC-SWEEP-02-RES-B1）。
+// 親 appointments の clinic 相関で cross-tenant 親を除外する一方、medical_records.clinic_id は
+// フィルタしない（参照が存在する限り削除・identity 変更ガードを fail-closed に保つ — BILL-B1b と同型）。
+// 親 appointments.deleted_at は入れない（MR-B1 / TRIM-B1 と同じく clinic 相関のみ）。
+// Delete / UpdateForTrimming / DeleteForTrimming の依存チェックと同じ ambient transaction へ参加する。
 func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, clinicID, reservationID uint64) (int64, error) {
 	var count int64
 	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
-		Where("appointment_id = ? AND clinic_id = ? AND deleted_at IS NULL", reservationID, clinicID).
+		Joins("JOIN appointments ON appointments.id = medical_records.appointment_id AND appointments.clinic_id = ?", clinicID).
+		Where("medical_records.appointment_id = ? AND medical_records.deleted_at IS NULL", reservationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}

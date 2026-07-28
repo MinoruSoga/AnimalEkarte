@@ -453,3 +453,109 @@ func TestReservationRepository_FindNoShowCandidatesAt_UsesSuppliedEvaluationTime
 	assert.Contains(t, ids, eligible.ID)
 	assert.NotContains(t, ids, tooRecent.ID)
 }
+
+// ---- SEC-SWEEP-02-RES-B1: CountMedicalRecords parent appointment correlation + fail-closed guards ----
+
+func setupCountMedicalRecordsRESB1DB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}, &model.MedicalRecord{}))
+	// Do not TRUNCATE appointments globally — concurrent suite shares the DB; only clean medical_records.
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	return db
+}
+
+// TestReservationRepository_CountMedicalRecordsByReservationID_ExcludesCrossTenantParent
+// 親 appointments の clinic と一致しない medical_records を件数に含めない。
+// 親 clinic が一致すれば medical_records.clinic_id が異なっても件数に含める（削除ガード fail-closed）。
+func TestReservationRepository_CountMedicalRecordsByReservationID_ExcludesCrossTenantParent(t *testing.T) {
+	db := setupCountMedicalRecordsRESB1DB(t)
+	repo := NewReservationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	apptA := makeReservation(t, db, clinicA)
+	apptB := makeReservation(t, db, clinicB)
+
+	// Corrupt: MR claims clinic B but points at clinic A appointment.
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
+		ClinicID: clinicB, RecordNo: "MR-RES-B1-FOREIGN-CHILD",
+		Date: time.Now(), AppointmentID: &apptA.ID, Status: model.MedicalRecordStatusDraft,
+	}).Error)
+
+	// Corrupt reverse: MR claims clinic A but points at clinic B appointment.
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-RES-B1-CROSS-PARENT",
+		Date: time.Now(), AppointmentID: &apptB.ID, Status: model.MedicalRecordStatusDraft,
+	}).Error)
+
+	// Healthy same-clinic edge on apptA.
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-RES-B1-SAME",
+		Date: time.Now(), AppointmentID: &apptA.ID, Status: model.MedicalRecordStatusDraft,
+	}).Error)
+
+	t.Run("cross-tenant parent is not counted for requester clinic", func(t *testing.T) {
+		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, apptB.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count,
+			"medical_record whose appointment parent belongs to another clinic must not be counted")
+	})
+
+	t.Run("parent clinic match counts even when medical_records.clinic_id differs", func(t *testing.T) {
+		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, apptA.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), count,
+			"any non-deleted medical_record referencing the clinic's appointment must count")
+	})
+
+	t.Run("owner clinic counts foreign-child-clinic MR for fail-closed delete", func(t *testing.T) {
+		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicB, apptB.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count,
+			"cross-clinic medical_record rows that still reference the appointment must block delete")
+	})
+}
+
+// TestReservationRepository_Delete_RejectsWhenMedicalRecordReferencesAppointment
+// 3呼び出し元はいずれも count>0 で Conflict。service.Delete の分岐と同じ条件を実 DB 件数で固定する。
+// （FindByID の nested relation scope は別 fixture を要求するため、ガード条件そのものを count で検証する。）
+func TestReservationRepository_Delete_RejectsWhenMedicalRecordReferencesAppointment(t *testing.T) {
+	db := setupCountMedicalRecordsRESB1DB(t)
+	repo := NewReservationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("same-clinic medical_record yields count>0 (delete/update guards fire)", func(t *testing.T) {
+		appt := makeReservation(t, db, clinicA)
+		require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-DEL-SAME",
+			Date: time.Now(), AppointmentID: &appt.ID, Status: model.MedicalRecordStatusDraft,
+		}).Error)
+
+		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, appt.ID)
+		require.NoError(t, err)
+		require.Greater(t, count, int64(0), "guard condition used by Delete/UpdateForTrimming/DeleteForTrimming")
+		// Callers: if count > 0 { return Conflict }
+		assert.True(t, count > 0)
+		var still model.Reservation
+		require.NoError(t, db.WithContext(ctx).First(&still, appt.ID).Error)
+		assert.False(t, still.DeletedAt.Valid, "count-only check does not delete the appointment")
+	})
+
+	t.Run("foreign-clinic medical_record still yields count>0 (fail-closed)", func(t *testing.T) {
+		appt := makeReservation(t, db, clinicA)
+		require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
+			ClinicID: clinicB, RecordNo: "MR-DEL-FOREIGN",
+			Date: time.Now(), AppointmentID: &appt.ID, Status: model.MedicalRecordStatusDraft,
+		}).Error)
+
+		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, appt.ID)
+		require.NoError(t, err)
+		require.Greater(t, count, int64(0),
+			"delete must be rejectable when any medical_record references the appointment")
+		var still model.Reservation
+		require.NoError(t, db.WithContext(ctx).First(&still, appt.ID).Error)
+		assert.False(t, still.DeletedAt.Valid)
+	})
+}
