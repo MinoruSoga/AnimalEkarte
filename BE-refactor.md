@@ -2846,7 +2846,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/auth/... ./internal/httpapi/... -run 'HasPermission|RequirePermission|CalculateEffectivePermissions|ExtractContext'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: f3758050b1edb01424d381d3ad4118cfd930cefa
 
 ##### SOLO-09
 
