@@ -2005,8 +2005,7 @@
 
 #### Wave 0 — 全レーン共通の前提（`U-SCHEMA-BARRIER`）
 
-- **Status: 未着手 ｜ 担当レーン: LANE-1 ｜ 完了 commit: —**
-  （barrier は表形式定義のため個別ユニット定義に `- Status:` 行を持たない。**この行が barrier の唯一の状態記録先**であり、LANE-1 が完了時にここを書き換える。他レーンは依存ユニット着手前にこの行を確認する。）
+- **状態の正本**: `### Unit-by-unit start order` の `##### U-SCHEMA-BARRIER` ブロック内の `- Status:` 行。**Wave 0 節に状態を二重に持たない**（2026-07-28 に本節へ重複行を新設して不整合を起こしたため撤去）。他レーンは依存ユニット着手前に当該ブロックの `- Status:` を確認する。確認コマンド: `grep -A1 '^- Size: S (1/8 files)' BE-refactor.md`、または `grep -n 'U-SCHEMA-BARRIER' BE-refactor.md` で unit ブロックを開く。
 - **前提ブロッカー（2026-07-28 検出）**: barrier の SchemaDrift 検証は `Payment.clinic_id` を要求するが live DB に未適用（migration 005）。**`make migrate` はユーザー専権であり、エージェントは自動適用しない。** ユーザーが実行するまで barrier は着手不能であり、依存 16 ユニットも進まない。
 - **lintscan allowlist の所有権例外**: `backend/internal/lintscan/dbortx_inventory_lint_test.go` はプラン上 `SOLO-36` の所有だが、`DBOrTx` の新規参加者を作る全ユニットが同ファイルの allowlist 登録を必要とする。**allowlist 行の追記に限り、どのレーンも同ファイルへ書いてよい**（登録行の追加のみ。テスト本体の改変は SOLO-36 の担当）。追記は path-scoped commit に含め、Deliverables に記録すること。
 
