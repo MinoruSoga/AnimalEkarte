@@ -183,7 +183,8 @@ func applyBillingItemOtherMetadata(input *CreateBillingItemInput, item *model.Bi
 type BillingItemService interface {
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
-	DeleteItem(ctx context.Context, clinicID, id uint64) error
+	// DeleteItem は明細を soft-delete する。staffID は vaccination claim 解放監査の actor（BUG-440）。
+	DeleteItem(ctx context.Context, clinicID, id uint64, staffID *uint64) error
 	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
@@ -542,12 +543,14 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	return updated, nil
 }
 
-func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64) error {
+func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64, staffID *uint64) error {
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get billing item")
 	}
 	billingID := item.BillingID
+	// Delete が vaccination_id を NULL 化する前に claim 解放対象を保持する（BUG-440）。
+	releasedVaccinationID := item.VaccinationID
 
 	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		billing, err := s.billingRepo.LockAndFindByID(txCtx, clinicID, billingID)
@@ -569,6 +572,14 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 				slog.String("error", err.Error()),
 			)
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
+		}
+
+		// BUG-440: vaccination claim 解放時のみ immutable actor 監査（同 tx fail-closed）。
+		// 非 vaccination 明細削除は監査しない（ledger 方針: claim 解放の追跡が目的）。
+		if releasedVaccinationID != nil {
+			if err := s.logVaccinationClaimRelease(txCtx, clinicID, billingID, id, *releasedVaccinationID, staffID); err != nil {
+				return err
+			}
 		}
 
 		slog.InfoContext(txCtx, "billing item deleted",
@@ -742,6 +753,38 @@ func (s *billingItemService) logBillingItemPostCloseEdit(
 		Metadata:   meta,
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to write post_close_edit audit log")
+	}
+	return nil
+}
+
+// logVaccinationClaimRelease は明細削除による予防接種 claim 解放を監査する（BUG-440 / DEC-28 A）。
+// ambient tx の LogEntryTx で fail-closed: 監査失敗時は delete + totals 再計算ごとロールバックする。
+// metadata は ID のみ（PII 非格納）。
+func (s *billingItemService) logVaccinationClaimRelease(
+	ctx context.Context,
+	clinicID, billingID, itemID, vaccinationID uint64,
+	staffID *uint64,
+) error {
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("billing audit dependency is required for vaccination claim release")
+	}
+	meta := map[string]any{
+		"billing_id":     billingID,
+		"item_id":        itemID,
+		"vaccination_id": vaccinationID,
+		"reason":         "billing_item_delete",
+	}
+	resourceID := itemID
+	if err := s.auditTx.LogEntryTx(ctx, &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    staffID,
+		ActorType:  sharedkernel.AuditActorTypeFor(staffID),
+		Action:     model.AuditActionBillingVaccinationClaimRelease,
+		Resource:   "billing_item",
+		ResourceID: &resourceID,
+		Metadata:   meta,
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to write vaccination claim release audit log")
 	}
 	return nil
 }

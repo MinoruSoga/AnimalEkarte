@@ -425,6 +425,7 @@ func TestBillingItemRepository_ValidateCreateReferences_HoldsBillingLockUntilAmb
 func newBillingItemReferenceService(
 	f billingItemReferenceFixture,
 	repo BillingItemRepository,
+	opts ...billingItemServiceOption,
 ) BillingItemService {
 	billingRepo := defaultMockBillingRepo()
 	billingRepo.findByIDFn = func(_ context.Context, clinicID, billingID uint64) (*model.Billing, error) {
@@ -433,6 +434,10 @@ func newBillingItemReferenceService(
 		}
 		return f.billing, nil
 	}
+	// BUG-440: vaccination claim 解放は auditTx 必須（fail-closed）。参照フィクスチャでも
+	// production 同様に監査依存を配線する（既定は noop、検証時は WithBillingItemAuditTx で上書き）。
+	defaultOpts := []billingItemServiceOption{WithBillingItemAuditTx(&noopAuditTxLogger{})}
+	defaultOpts = append(defaultOpts, opts...)
 	return NewBillingItemServiceWithCampaign(
 		repo,
 		billingRepo,
@@ -442,6 +447,7 @@ func newBillingItemReferenceService(
 		okTrimmingOptionRepo(),
 		nil,
 		nil,
+		defaultOpts...,
 	)
 }
 

@@ -499,7 +499,7 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 				return tt.deleteErr
 			}
 			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
-			err := svc.DeleteItem(context.Background(), 1, 1)
+			err := svc.DeleteItem(context.Background(), 1, 1, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -1164,7 +1164,7 @@ func TestBillingItemService_DeleteItem_TransactionErrors(t *testing.T) {
 			return nil, errors.New("find failed")
 		}
 		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
-		err := svc.DeleteItem(context.Background(), 1, 1)
+		err := svc.DeleteItem(context.Background(), 1, 1, nil)
 		assert.Error(t, err)
 	})
 
@@ -1174,7 +1174,7 @@ func TestBillingItemService_DeleteItem_TransactionErrors(t *testing.T) {
 			return existingItem, nil
 		}
 		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
-		err := svc.DeleteItem(context.Background(), 1, 1)
+		err := svc.DeleteItem(context.Background(), 1, 1, nil)
 		assert.Error(t, err)
 	})
 }

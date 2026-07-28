@@ -187,7 +187,9 @@ func (h *BillingItemHandler) DeleteBillingItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteItem(c.Request.Context(), clinicID, id); err != nil {
+	// BUG-440: vaccination claim 解放監査の actor。認証経路では通常設定済み。
+	staffID := httpapi.OptionalStaffID(c)
+	if err := h.svc.DeleteItem(c.Request.Context(), clinicID, id, staffID); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

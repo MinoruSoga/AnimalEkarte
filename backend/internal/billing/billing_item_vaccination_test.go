@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -699,7 +701,8 @@ func TestBillingItemVaccinationProvenance_DeleteReleasesClaim(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, items)
 
-	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID))
+	staffID := uint64(42)
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
 
 	var released struct {
 		VaccinationID *uint64
@@ -756,7 +759,7 @@ func TestBillingItemVaccinationProvenance_DeleteStatusGuard(t *testing.T) {
 				Update("status", tt.status).Error)
 			f.billing.Status = tt.status
 
-			err = svc.DeleteItem(context.Background(), f.clinicID, created.ID)
+			err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, nil)
 			if tt.wantConflict {
 				require.Error(t, err)
 				assert.True(t, apperrors.IsConflict(err), "finalized billing delete must return conflict: %v", err)
@@ -800,6 +803,108 @@ func TestBillingItemVaccinationProvenance_DeleteStatusGuard(t *testing.T) {
 			assert.Equal(t, vaccination.ID, *items[0].VaccinationID)
 		})
 	}
+}
+
+// BUG-440 / DEC-28 A: vaccination claim 解放は audit_logs へ同 tx fail-closed で actor 監査する。
+func TestBillingItemVaccinationClaimRelease_DeleteWritesAudit(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	price := int64(4400)
+	_, vaccination := makeBillingVaccination(t, f, "監査対象ワクチン", &price)
+	audit := &mockAuditService{}
+	svc := newBillingItemReferenceService(f, f.repo, WithBillingItemAuditTx(audit))
+	input := billingItemReferenceCreateInput(f)
+	input.VaccinationID = &vaccination.ID
+
+	created, err := svc.CreateItem(context.Background(), input)
+	require.NoError(t, err)
+
+	staffID := uint64(11)
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
+
+	require.True(t, audit.logEntryTxCalled, "vaccination claim release must write audit in same tx")
+	require.NotNil(t, audit.logEntryTxInput)
+	assert.Equal(t, model.AuditActionBillingVaccinationClaimRelease, audit.logEntryTxInput.Action)
+	assert.Equal(t, "billing_item", audit.logEntryTxInput.Resource)
+	require.NotNil(t, audit.logEntryTxInput.ResourceID)
+	assert.Equal(t, created.ID, *audit.logEntryTxInput.ResourceID)
+	require.NotNil(t, audit.logEntryTxInput.ClinicID)
+	assert.Equal(t, f.clinicID, *audit.logEntryTxInput.ClinicID)
+	require.NotNil(t, audit.logEntryTxInput.ActorID)
+	assert.Equal(t, staffID, *audit.logEntryTxInput.ActorID)
+	assert.Equal(t, sharedkernel.AuditActorTypeFor(&staffID), audit.logEntryTxInput.ActorType)
+
+	meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, f.billing.ID, meta["billing_id"])
+	assert.Equal(t, created.ID, meta["item_id"])
+	assert.Equal(t, vaccination.ID, meta["vaccination_id"])
+	assert.Equal(t, "billing_item_delete", meta["reason"])
+}
+
+func TestBillingItemVaccinationClaimRelease_AuditFailureRollsBack(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	price := int64(4400)
+	_, vaccination := makeBillingVaccination(t, f, "監査失敗ロールバックワクチン", &price)
+	baseSvc := newBillingItemReferenceService(f, f.repo)
+	input := billingItemReferenceCreateInput(f)
+	input.VaccinationID = &vaccination.ID
+
+	created, err := baseSvc.CreateItem(context.Background(), input)
+	require.NoError(t, err)
+
+	audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
+	svc := newBillingItemReferenceService(f, f.repo, WithBillingItemAuditTx(audit))
+	staffID := uint64(12)
+	err = svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID)
+	require.Error(t, err)
+	assert.True(t, audit.logEntryTxCalled, "audit must be attempted before commit")
+
+	var stored struct {
+		VaccinationID *uint64
+		ClinicID      *uint64
+		DeletedAt     *time.Time
+	}
+	require.NoError(t, f.db.Unscoped().
+		Table("billing_items").
+		Select("vaccination_id", "clinic_id", "deleted_at").
+		Where("id = ?", created.ID).
+		Take(&stored).Error)
+	require.NotNil(t, stored.VaccinationID, "audit failure must keep vaccination claim")
+	assert.Equal(t, vaccination.ID, *stored.VaccinationID)
+	require.NotNil(t, stored.ClinicID)
+	assert.Equal(t, f.clinicID, *stored.ClinicID)
+	assert.Nil(t, stored.DeletedAt, "audit failure must roll back soft-delete")
+
+	finder := f.repo.(unbilledVaccinationFinder)
+	items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+	require.NoError(t, err)
+	assert.Empty(t, items, "failed delete must not re-open vaccination candidacy")
+}
+
+func TestBillingItemDelete_NonVaccinationItemSkipsClaimReleaseAudit(t *testing.T) {
+	// Policy (BUG-440 ledger): audit only when vaccination_id is present.
+	// Non-vaccination soft-delete does not emit vaccination claim release audit.
+	f := setupBillingItemReferenceFixture(t)
+	audit := &mockAuditService{}
+	svc := newBillingItemReferenceService(f, f.repo, WithBillingItemAuditTx(audit))
+
+	created, err := svc.CreateItem(context.Background(), billingItemReferenceCreateInput(f))
+	require.NoError(t, err)
+	require.Nil(t, created.VaccinationID)
+
+	staffID := uint64(13)
+	require.NoError(t, svc.DeleteItem(context.Background(), f.clinicID, created.ID, &staffID))
+	assert.False(t, audit.logEntryTxCalled, "non-vaccination delete must not emit claim-release audit")
+
+	var stored struct {
+		DeletedAt *time.Time
+	}
+	require.NoError(t, f.db.Unscoped().
+		Table("billing_items").
+		Select("deleted_at").
+		Where("id = ?", created.ID).
+		Take(&stored).Error)
+	assert.NotNil(t, stored.DeletedAt, "non-vaccination delete still soft-deletes")
 }
 
 func TestBillingItemVaccinationProvenance_MigrationContract(t *testing.T) {

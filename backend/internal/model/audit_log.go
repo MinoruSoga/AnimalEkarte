@@ -72,6 +72,8 @@ const (
 	AuditActionBillingRefundCreate  = "billing_refund.create"
 	// #189: 確定済み会計のクレジット（カード）金額の確定後訂正
 	AuditActionBillingCreditCorrection = "billing.credit_correction"
+	// BUG-440: 明細削除による予防接種 claim 解放（再取込可能化）の actor 監査
+	AuditActionBillingVaccinationClaimRelease = "billing.vaccination_claim_release"
 
 	// #201 薬量自動計算 監査アクション
 	// dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
