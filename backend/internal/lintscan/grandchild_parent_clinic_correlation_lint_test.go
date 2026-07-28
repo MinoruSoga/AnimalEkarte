@@ -208,26 +208,14 @@ type grandchildParentResidualSite struct {
 // uncorrelated reads that remain until SEC-SWEEP-02-*-B1 repair units. Count
 // must match residual findings exactly; new sites fail closed and repaired
 // sites must be removed from this list (stale entries fail closed).
-// Measured after SEC-SWEEP-02-BILL-B1a: 2 residual findings remain
-// (GetCloseAggregate Billing + ValidateCreateReferences AppointmentTrimmingDetail repaired).
-var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{
-	{
-		file:       "medicalrecord/medical_record_repository.go",
-		function:   "medicalRecordRepository.CountEstimatesByMedicalRecordID",
-		modelName:  "Estimate",
-		childTable: "estimates",
-	},
-	{
-		file:       "reservation/reservation_repository.go",
-		function:   "reservationRepository.CountMedicalRecordsByReservationID",
-		modelName:  "MedicalRecord",
-		childTable: "medical_records",
-	},
-}
+// Measured after SEC-SWEEP-02-RES-B1: 0 residual findings remain.
+// Last residual (reservation CountMedicalRecordsByReservationID) repaired; Estimate restored.
+// Residual gate machinery (type/gate/bidirectional tests) is intentionally retained at count 0.
+var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{}
 
 // grandchildParentClinicCorrelationResidualSiteCount pins the allowlist size.
 // Mismatch with observed residual findings is a hard failure.
-const grandchildParentClinicCorrelationResidualSiteCount = 2
+const grandchildParentClinicCorrelationResidualSiteCount = 0
 
 func grandchildParentResidualSiteKey(file, function, modelName, childTable string) string {
 	return file + "\x00" + function + "\x00" + modelName + "\x00" + childTable
@@ -242,14 +230,21 @@ func grandchildParentResidualSiteKeyFromSite(s grandchildParentResidualSite) str
 }
 
 // grandchildParentResidualGateErrors returns human-readable gate failures for
-// residual allowlist evaluation. Empty means findings match the allowlist
-// exactly: no unlisted residual/non-residual violations, no stale allowlist
-// entries, and residual count equals the pinned allowlist size.
+// residual allowlist evaluation against the production pin. Empty means findings
+// match the allowlist exactly: no unlisted residual/non-residual violations, no
+// stale allowlist entries, and residual count equals the pinned allowlist size.
 func grandchildParentResidualGateErrors(findings []grandchildParentFinding, allowlist []grandchildParentResidualSite) []string {
-	if len(allowlist) != grandchildParentClinicCorrelationResidualSiteCount {
+	return grandchildParentResidualGateErrorsWithCount(findings, allowlist, grandchildParentClinicCorrelationResidualSiteCount)
+}
+
+// grandchildParentResidualGateErrorsWithCount is the pin-parameterized gate used by
+// bidirectional unit tests so stale/unlisted rejection remains exercisable when the
+// production residual allowlist is empty (count 0).
+func grandchildParentResidualGateErrorsWithCount(findings []grandchildParentFinding, allowlist []grandchildParentResidualSite, expectedCount int) []string {
+	if len(allowlist) != expectedCount {
 		return []string{
 			"residual allowlist size " + strconv.Itoa(len(allowlist)) +
-				" != pinned count " + strconv.Itoa(grandchildParentClinicCorrelationResidualSiteCount),
+				" != pinned count " + strconv.Itoa(expectedCount),
 		}
 	}
 	allow := make(map[string]grandchildParentResidualSite, len(allowlist))
@@ -279,9 +274,9 @@ func grandchildParentResidualGateErrors(findings []grandchildParentFinding, allo
 				formatResidualSite(site))
 		}
 	}
-	if len(observed) != grandchildParentClinicCorrelationResidualSiteCount {
+	if len(observed) != expectedCount {
 		errs = append(errs, "observed residual findings "+strconv.Itoa(len(observed))+
-			" != pinned count "+strconv.Itoa(grandchildParentClinicCorrelationResidualSiteCount))
+			" != pinned count "+strconv.Itoa(expectedCount))
 	}
 	return errs
 }
@@ -1105,20 +1100,26 @@ func TestGrandchildParentClinicCorrelation_ResidualAllowlistRejectsUnlistedSite(
 func TestGrandchildParentClinicCorrelation_ResidualAllowlistRejectsStaleEntry(t *testing.T) {
 	// Allowlist entry with no corresponding finding (site repaired) must FAIL the gate.
 	// This forces follow-up repair units to shrink the allowlist when they fix a site.
-	findings := make([]grandchildParentFinding, 0, len(grandchildParentClinicCorrelationResidualSites)-1)
-	for i, site := range grandchildParentClinicCorrelationResidualSites {
-		if i == 0 {
-			continue // drop first allowlisted site to simulate repair
-		}
-		findings = append(findings, grandchildParentFinding{
-			file:       site.file,
-			function:   site.function,
-			modelName:  site.modelName,
-			childTable: site.childTable,
-			detail:     "synthetic residual site",
-		})
+	// Uses a synthetic fixture allowlist, independent of the live (now-empty)
+	// grandchildParentClinicCorrelationResidualSites — this test proves gate
+	// behavior, not current production residual state, and must not panic or
+	// become a no-op once SEC-SWEEP-02's real residual count reaches 0.
+	syntheticAllowlist := []grandchildParentResidualSite{
+		{file: "billing/synthetic_repaired_site.go", function: "syntheticRepository.RepairedRead", modelName: "Billing", childTable: "billings"},
+		{file: "billing/synthetic_pending_site.go", function: "syntheticRepository.PendingRead", modelName: "Estimate", childTable: "estimates"},
 	}
-	errs := grandchildParentResidualGateErrors(findings, grandchildParentClinicCorrelationResidualSites)
+	findings := []grandchildParentFinding{
+		{
+			file:       syntheticAllowlist[1].file,
+			function:   syntheticAllowlist[1].function,
+			modelName:  syntheticAllowlist[1].modelName,
+			childTable: syntheticAllowlist[1].childTable,
+			detail:     "synthetic residual site",
+		},
+	}
+	// expectedCount must match the synthetic allowlist length (not the production pin),
+	// otherwise the size pin fails before stale-entry detection can run at residual count 0.
+	errs := grandchildParentResidualGateErrorsWithCount(findings, syntheticAllowlist, len(syntheticAllowlist))
 	if len(errs) == 0 {
 		t.Fatal("expected residual gate to reject stale allowlist entry; gate did not fail")
 	}
@@ -1126,9 +1127,9 @@ func TestGrandchildParentClinicCorrelation_ResidualAllowlistRejectsStaleEntry(t 
 	if !strings.Contains(joined, "stale residual allowlist entry") {
 		t.Fatalf("expected stale-entry rejection error, got: %v", errs)
 	}
-	if !strings.Contains(joined, grandchildParentClinicCorrelationResidualSites[0].file) {
+	if !strings.Contains(joined, syntheticAllowlist[0].file) {
 		t.Fatalf("expected stale entry to name repaired site %q, got: %v",
-			grandchildParentClinicCorrelationResidualSites[0].file, errs)
+			syntheticAllowlist[0].file, errs)
 	}
 }
 
