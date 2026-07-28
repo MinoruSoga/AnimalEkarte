@@ -38,6 +38,23 @@ func toCategoryAggregateRows(rows []closeCategoryRow) ([]CategoryAggregateRow, e
 	return result, nil
 }
 
+// completedBillingsPetClinicCTE selects completed billings in the close period.
+// Parent pets use clinic-correlated LEFT JOIN for lint parent correlation only;
+// rows are never filtered out by pet_id parent clinic (SEC-SWEEP-02-BILL-B1a-FIX).
+// Foreign pet/owner name blanking is done in the details query outer joins.
+// No pets.deleted_at / deceased_at on correlation (historical close totals must stay).
+// cols must be billings-qualified (JOIN pets would make bare id/clinic_id ambiguous).
+func completedBillingsPetClinicCTE(cols string) string {
+	return `WITH completed_billings AS (
+		SELECT ` + cols + `
+		FROM billings
+		LEFT JOIN pets ON pets.id = billings.pet_id AND pets.clinic_id = billings.clinic_id
+		WHERE billings.clinic_id = ? AND billings.deleted_at IS NULL AND billings.status = ?
+		  AND billings.completed_at >= ?
+		  AND billings.completed_at < ?
+	)`
+}
+
 // GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
 // payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
 // カテゴリ別集計: billing_items を CTE で per-billing 合算し、payment_splits と JOIN して按分なしで集計。
@@ -47,7 +64,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)}
-	completedCTE := completedBillingsCTE("id, clinic_id")
+	// SEC-SWEEP-02-BILL-B1a: use pet-correlated CTE for all close aggregates (not shared
+	// completedBillingsCTE, which has no pets parent join).
+	completedCTE := completedBillingsPetClinicCTE("billings.id, billings.clinic_id")
 
 	// Query 1: 支払方法別合計 (payment_splits のみ)
 	type pmRow struct {
@@ -88,9 +107,16 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		return nil, apperrors.Wrap(err, "failed to validate category aggregate for close")
 	}
 
-	// Query 3: 返金合計
-	totalRefund, err := r.sumRefundsForCompletedBillings(ctx, input.ClinicID, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local))
-	if err != nil {
+	// Query 3: 返金合計（pet-correlated completed set）
+	var totalRefund int64
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT COALESCE(SUM(br.amount), 0)
+		FROM billing_refunds br
+		JOIN completed_billings cb
+		  ON cb.id = br.billing_id
+		 AND cb.clinic_id = br.clinic_id
+		`, cArgs...).Scan(&totalRefund).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate refunds for close")
 	}
 
@@ -107,16 +133,12 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		RefundAmount      int64
 	}
 	var detailRows []detailRow
-	if err := r.db.WithContext(ctx).Raw(`
-		WITH completed_billings AS (
-			SELECT id, clinic_id, completed_at, owner_id, pet_id, hospitalization_id
-			FROM billings
-			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-			  -- G7-3: sargable な直接比較に統一(CTE本体と同型)。DSN TimeZone=Asia/Tokyo 固定(config.go)のため
-			  -- timestamptz 直接比較と AT TIME ZONE 'Asia/Tokyo' 経由比較は同一瞬間を指し、結果は不変。
-			  AND completed_at >= ?
-			  AND completed_at < ?
-		),
+	// Parent pets clinic correlation (SEC-SWEEP-02-BILL-B1a-FIX): CTE keeps display
+	// LEFT JOIN for name blanking without row exclusion; outer LEFT JOIN uses table
+	// alias `billings` so lint sees pets.id=billings.pet_id + pets.clinic_id=
+	// billings.clinic_id. No pets.deleted_at / deceased_at on the parent correlation.
+	if err := r.db.WithContext(ctx).Raw(
+		completedBillingsPetClinicCTE("billings.id, billings.clinic_id, billings.completed_at, billings.owner_id, billings.pet_id, billings.hospitalization_id")+`,
 		refund_totals AS (
 			SELECT br.billing_id, COALESCE(SUM(br.amount), 0) AS refund_amount
 			FROM billing_refunds br
@@ -132,31 +154,29 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 			GROUP BY billing_id
 		)
 		SELECT
-			cb.id AS billing_id,
-			cb.completed_at AS paid_at,
+			billings.id AS billing_id,
+			billings.completed_at AS paid_at,
 			COALESCE(o.name, '') AS owner_name,
 			COALESCE(p.name, '') AS pet_name,
-			cb.hospitalization_id,
+			billings.hospitalization_id,
 			bc.category,
 			ps.payment_method_id,
 			ps.amount AS billing_amount,
 			COALESCE(rt.refund_amount, 0) AS refund_amount
-		FROM completed_billings cb
+		FROM completed_billings AS billings
 		JOIN payment_splits ps
-		  ON ps.billing_id = cb.id
-		 AND ps.clinic_id = cb.clinic_id
-		JOIN billing_categories bc ON bc.billing_id = cb.id
+		  ON ps.billing_id = billings.id
+		 AND ps.clinic_id = billings.clinic_id
+		JOIN billing_categories bc ON bc.billing_id = billings.id
 		LEFT JOIN owners o
-		  ON o.id = cb.owner_id
-		 AND o.clinic_id = cb.clinic_id
+		  ON o.id = billings.owner_id
+		 AND o.clinic_id = billings.clinic_id
 		 AND o.deleted_at IS NULL
 		LEFT JOIN pets p
-		  ON p.id = cb.pet_id
-		 AND p.clinic_id = cb.clinic_id
-		 AND p.owner_id = cb.owner_id
-		 AND p.deleted_at IS NULL
-		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
-		ORDER BY cb.completed_at ASC
+		  ON p.id = billings.pet_id
+		 AND p.clinic_id = billings.clinic_id
+		LEFT JOIN refund_totals rt ON rt.billing_id = billings.id
+		ORDER BY billings.completed_at ASC
 	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)).
 		Scan(&detailRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing details for close")
@@ -178,9 +198,19 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		})
 	}
 
-	// 税率別集計（billing_items ベース — Cartesian 積なし: payments JOIN 除去済み）
-	taxBreakdown, err := r.aggregateTaxBreakdown(ctx, input.ClinicID, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local))
-	if err != nil {
+	// 税率別集計（pet-correlated completed set — Cartesian 積なし）
+	var taxBreakdown []TaxBreakdownRow
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT
+			ROUND(bi.tax_rate * 100)::bigint AS tax_rate,
+			COALESCE(SUM(ROUND(bi.unit_price * bi.quantity::numeric)), 0) AS taxable_amount,
+			COALESCE(SUM(ROUND(bi.unit_price * bi.quantity::numeric * bi.tax_rate)), 0) AS tax_amount
+		FROM billing_items bi
+		JOIN completed_billings cb ON cb.id = bi.billing_id
+		WHERE bi.deleted_at IS NULL
+		GROUP BY bi.tax_rate
+		`, cArgs...).Scan(&taxBreakdown).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for close")
 	}
 

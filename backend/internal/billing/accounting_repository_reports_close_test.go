@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupCloseAggregateTestDB は GetCloseAggregate 系テスト用の DB を用意する。
@@ -224,4 +225,59 @@ func TestAccountingRepository_GetCloseAggregate_EmptyPeriodReturnsZeroValues(t *
 	assert.Equal(t, int64(0), result.TotalRefund)
 	assert.Empty(t, result.BillingDetails)
 	assert.Empty(t, result.TaxBreakdown)
+}
+
+// TestAccountingRepository_GetCloseAggregate_BlanksForeignPetParentNames
+// SEC-SWEEP-02-BILL-B1a-FIX: billings.pet_id が他院 pets を指す行は締め集計に残し、
+// pet 名のみ clinic 相関 LEFT JOIN で空にする。金額: 1000+2000+5000=8000。
+func TestAccountingRepository_GetCloseAggregate_BlanksForeignPetParentNames(t *testing.T) {
+	db := setupCloseAggregateTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	periodStart := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	periodEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	// 正常系: pet_id 無しの完了会計 1000
+	makeCloseBilling(t, db, clinicA, midJune(10), model.ItemCategoryExamination, 1000, 0.10, model.PaymentMethodCash, 1000)
+
+	// 同一 clinic の pet を持つ完了会計 2000
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "飼主A")
+	species := &model.AnimalSpecies{Name: "犬-close"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	petA := &model.Pet{ClinicID: clinicA, OwnerID: ownerA.ID, AnimalSpeciesID: species.ID, Name: "同一院"}
+	require.NoError(t, db.WithContext(ctx).Create(petA).Error)
+	legit := makeCloseBilling(t, db, clinicA, midJune(12), model.ItemCategoryMedicine, 2000, 0.08, model.PaymentMethodCash, 2000)
+	require.NoError(t, db.WithContext(ctx).Model(legit).Update("pet_id", petA.ID).Error)
+
+	// clinicA の billing が clinicB の pet を pet_id に持つ（金額は残し、名前は空）
+	ownerB := testdb.MakeTestOwner(t, db, clinicB, "飼主B")
+	petB := &model.Pet{ClinicID: clinicB, OwnerID: ownerB.ID, AnimalSpeciesID: species.ID, Name: "他院pet"}
+	require.NoError(t, db.WithContext(ctx).Create(petB).Error)
+	crossClinicPet := makeCloseBilling(t, db, clinicA, midJune(15), model.ItemCategoryProcedure, 5000, 0.10, model.PaymentMethodCash, 5000)
+	require.NoError(t, db.WithContext(ctx).Model(crossClinicPet).Update("pet_id", petB.ID).Error)
+
+	result, err := repo.GetCloseAggregate(ctx, GetCloseAggregateInput{
+		ClinicID: clinicA, PeriodStart: periodStart, PeriodEnd: periodEnd,
+	})
+	require.NoError(t, err)
+
+	var paymentTotal int64
+	for _, p := range result.PaymentRows {
+		paymentTotal += p.Amount
+	}
+	// 1000 (no pet) + 2000 (same-clinic pet) + 5000 (foreign pet_id) = 8000
+	assert.Equal(t, int64(8000), paymentTotal, "own-clinic billing with foreign pet_id remains in payment totals")
+
+	byID := make(map[uint64]CloseBillingDetailRow, len(result.BillingDetails))
+	for _, d := range result.BillingDetails {
+		byID[d.BillingID] = d
+	}
+	require.Contains(t, byID, legit.ID, "same-clinic pet billing must remain in close details")
+	assert.Equal(t, petA.Name, byID[legit.ID].PetName)
+
+	require.Contains(t, byID, crossClinicPet.ID, "own-clinic billing with foreign pet_id must remain in close details")
+	assert.Empty(t, byID[crossClinicPet.ID].PetName, "foreign-clinic pet name must be blanked")
 }

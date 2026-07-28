@@ -266,6 +266,9 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	if err := validateCutoverSeedFacts(seeds, facts); err != nil {
 		return err
 	}
+	if err := validateRequiredAnimalSpecies(ctx, q); err != nil {
+		return err
+	}
 	if err := validateCutoverColumnTypes(ctx, q); err != nil {
 		return err
 	}
@@ -390,6 +393,110 @@ SELECT
 		return cutoverSeedFacts{}, fmt.Errorf("inspect target seed bindings: %w", err)
 	}
 	return facts, nil
+}
+
+// requiredAnimalSpeciesRow is the fixed producer crosswalk / 002_master contract.
+// Labels are master-data values (not PHI). Errors must not echo live DB names.
+type requiredAnimalSpeciesRow struct {
+	ID   int64
+	Name string
+}
+
+func requiredAnimalSpeciesRows() []requiredAnimalSpeciesRow {
+	return []requiredAnimalSpeciesRow{
+		{1, "犬"},
+		{2, "猫"},
+		{3, "鳥"},
+		{4, "うさぎ"},
+		{5, "ハムスター"},
+		{6, "その他"},
+	}
+}
+
+type requiredAnimalSpeciesFacts struct {
+	MissingCount          int64
+	InactiveCount         int64
+	RenamedCount          int64
+	ExactActiveMatchCount int64
+}
+
+const requiredAnimalSpeciesQuery = `
+-- required animal_species master
+WITH expected(id, name) AS (
+  VALUES
+    ($1::bigint, $2::text),
+    ($3::bigint, $4::text),
+    ($5::bigint, $6::text),
+    ($7::bigint, $8::text),
+    ($9::bigint, $10::text),
+    ($11::bigint, $12::text)
+),
+locked AS MATERIALIZED (
+  SELECT s.id, s.name, s.is_active
+  FROM animal_species s
+  WHERE s.id IN (SELECT e.id FROM expected e)
+  FOR SHARE
+)
+SELECT
+  (SELECT COALESCE(SUM(1), 0)::bigint
+     FROM expected e
+    WHERE NOT EXISTS (SELECT 1 FROM locked l WHERE l.id = e.id)),
+  (SELECT COALESCE(SUM(1), 0)::bigint
+     FROM expected e
+     JOIN locked l ON l.id = e.id
+    WHERE COALESCE(l.is_active, false) = false),
+  (SELECT COALESCE(SUM(1), 0)::bigint
+     FROM expected e
+     JOIN locked l ON l.id = e.id
+    WHERE COALESCE(l.is_active, false) = true
+      AND l.name IS DISTINCT FROM e.name),
+  (SELECT COALESCE(SUM(1), 0)::bigint
+     FROM expected e
+     JOIN locked l ON l.id = e.id
+    WHERE COALESCE(l.is_active, false) = true
+      AND l.name = e.name)`
+
+func queryRequiredAnimalSpeciesFacts(ctx context.Context, q cutoverQuerier) (requiredAnimalSpeciesFacts, error) {
+	rows := requiredAnimalSpeciesRows()
+	args := make([]any, 0, len(rows)*2)
+	for _, row := range rows {
+		args = append(args, row.ID, row.Name)
+	}
+	var facts requiredAnimalSpeciesFacts
+	if err := q.QueryRow(ctx, requiredAnimalSpeciesQuery, args...).Scan(
+		&facts.MissingCount,
+		&facts.InactiveCount,
+		&facts.RenamedCount,
+		&facts.ExactActiveMatchCount,
+	); err != nil {
+		return requiredAnimalSpeciesFacts{}, fmt.Errorf("inspect required animal_species master rows: %w", err)
+	}
+	return facts, nil
+}
+
+func validateRequiredAnimalSpeciesFacts(facts requiredAnimalSpeciesFacts) error {
+	const want = int64(6)
+	if facts.MissingCount > 0 {
+		return fmt.Errorf("required animal_species master rows are missing (expected exactly 6 fixed id/name pairs)")
+	}
+	if facts.InactiveCount > 0 {
+		return fmt.Errorf("required animal_species master rows are inactive")
+	}
+	if facts.RenamedCount > 0 {
+		return fmt.Errorf("required animal_species master rows have unexpected names")
+	}
+	if facts.ExactActiveMatchCount != want {
+		return fmt.Errorf("required animal_species master rows are incomplete or inconsistent")
+	}
+	return nil
+}
+
+func validateRequiredAnimalSpecies(ctx context.Context, q cutoverQuerier) error {
+	facts, err := queryRequiredAnimalSpeciesFacts(ctx, q)
+	if err != nil {
+		return err
+	}
+	return validateRequiredAnimalSpeciesFacts(facts)
 }
 
 func validateCutoverSeedFacts(seeds CutoverSeedIDs, facts cutoverSeedFacts) error {

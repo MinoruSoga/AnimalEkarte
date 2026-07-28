@@ -208,21 +208,9 @@ type grandchildParentResidualSite struct {
 // uncorrelated reads that remain until SEC-SWEEP-02-*-B1 repair units. Count
 // must match residual findings exactly; new sites fail closed and repaired
 // sites must be removed from this list (stale entries fail closed).
-// Measured after SEC-SWEEP-02-TRIM-B1: 4 residual findings remain
-// (trimming FindByAppointmentID + SetOptions repaired; MR-B1 sites already gone).
+// Measured after SEC-SWEEP-02-BILL-B1a: 2 residual findings remain
+// (GetCloseAggregate Billing + ValidateCreateReferences AppointmentTrimmingDetail repaired).
 var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{
-	{
-		file:       "billing/accounting_repository_reports_close.go",
-		function:   "accountingRepository.GetCloseAggregate",
-		modelName:  "Billing",
-		childTable: "billings",
-	},
-	{
-		file:       "billing/billing_item_repository.go",
-		function:   "billingItemRepository.ValidateCreateReferences",
-		modelName:  "AppointmentTrimmingDetail",
-		childTable: "appointment_trimming_details",
-	},
 	{
 		file:       "medicalrecord/medical_record_repository.go",
 		function:   "medicalRecordRepository.CountEstimatesByMedicalRecordID",
@@ -239,7 +227,7 @@ var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualS
 
 // grandchildParentClinicCorrelationResidualSiteCount pins the allowlist size.
 // Mismatch with observed residual findings is a hard failure.
-const grandchildParentClinicCorrelationResidualSiteCount = 4
+const grandchildParentClinicCorrelationResidualSiteCount = 2
 
 func grandchildParentResidualSiteKey(file, function, modelName, childTable string) string {
 	return file + "\x00" + function + "\x00" + modelName + "\x00" + childTable

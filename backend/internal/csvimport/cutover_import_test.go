@@ -190,6 +190,8 @@ type fakeCutoverTransaction struct {
 
 func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	switch {
+	case strings.Contains(query, "required animal_species master"):
+		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
 	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
 		return validTargetQuerier{}.QueryRow(ctx, query, args...)
 	case strings.Contains(query, "FROM payment_splits split") && tx.paymentGraphMismatch:
@@ -373,6 +375,145 @@ func TestValidateCutoverSeedFacts(t *testing.T) {
 	invalid.CreditCardMethodClinicID = 9
 	if err := validateCutoverSeedFacts(seeds, invalid); err == nil || !strings.Contains(err.Error(), "credit-card payment method") {
 		t.Fatalf("cross-clinic credit-card payment method error = %v", err)
+	}
+
+	invalid = valid
+	invalid.SpeciesActive = false
+	if err := validateCutoverSeedFacts(seeds, invalid); err == nil || !strings.Contains(err.Error(), "fallback animal species") {
+		t.Fatalf("fallback animal species error = %v", err)
+	}
+}
+
+func TestRequiredAnimalSpeciesRowsMatchSeedContract(t *testing.T) {
+	want := []requiredAnimalSpeciesRow{
+		{1, "犬"}, {2, "猫"}, {3, "鳥"}, {4, "うさぎ"}, {5, "ハムスター"}, {6, "その他"},
+	}
+	got := requiredAnimalSpeciesRows()
+	if len(got) != len(want) {
+		t.Fatalf("requiredAnimalSpeciesRows() len = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("requiredAnimalSpeciesRows()[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestValidateRequiredAnimalSpeciesFacts(t *testing.T) {
+	tests := []struct {
+		name  string
+		facts requiredAnimalSpeciesFacts
+		want  string
+	}{
+		{name: "all six exact active", facts: requiredAnimalSpeciesFacts{ExactActiveMatchCount: 6}},
+		{name: "missing", facts: requiredAnimalSpeciesFacts{MissingCount: 1, ExactActiveMatchCount: 5}, want: "missing"},
+		{name: "inactive", facts: requiredAnimalSpeciesFacts{InactiveCount: 1, ExactActiveMatchCount: 5}, want: "inactive"},
+		{name: "renamed", facts: requiredAnimalSpeciesFacts{RenamedCount: 1, ExactActiveMatchCount: 5}, want: "unexpected names"},
+		{name: "inconsistent match count", facts: requiredAnimalSpeciesFacts{ExactActiveMatchCount: 5}, want: "incomplete or inconsistent"},
+		{name: "zero matches", facts: requiredAnimalSpeciesFacts{}, want: "incomplete or inconsistent"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRequiredAnimalSpeciesFacts(tt.facts)
+			if tt.want == "" {
+				if err != nil {
+					t.Fatalf("validateRequiredAnimalSpeciesFacts() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("validateRequiredAnimalSpeciesFacts() error = %v, want %q", err, tt.want)
+			}
+			if strings.Contains(err.Error(), "private-owner-name") {
+				t.Fatalf("sensitive payload leaked: %v", err)
+			}
+		})
+	}
+}
+
+func TestRequiredAnimalSpeciesQueryIsParameterizedAndShareLocked(t *testing.T) {
+	for _, fragment := range []string{
+		"required animal_species master",
+		"FOR SHARE",
+		"AS MATERIALIZED",
+		"animal_species",
+		"IS DISTINCT FROM",
+		"$1::bigint",
+		"$12::text",
+	} {
+		if !strings.Contains(requiredAnimalSpeciesQuery, fragment) {
+			t.Fatalf("required animal species query missing %q", fragment)
+		}
+	}
+	for _, forbidden := range []string{"private-owner-name", "password", "postgres://"} {
+		if strings.Contains(requiredAnimalSpeciesQuery, forbidden) {
+			t.Fatalf("required animal species query contains forbidden fragment %q", forbidden)
+		}
+	}
+}
+
+func TestPreflightRejectsMissingRequiredAnimalSpecies(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingRequiredAnimalSpeciesTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want missing species rejection", err)
+	}
+}
+
+func TestPreflightRejectsInactiveRequiredAnimalSpecies(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		inactiveRequiredAnimalSpeciesTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "inactive") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want inactive species rejection", err)
+	}
+}
+
+func TestPreflightRejectsRenamedRequiredAnimalSpecies(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		renamedRequiredAnimalSpeciesTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "unexpected names") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want renamed species rejection", err)
+	}
+}
+
+func TestRequiredAnimalSpeciesRejectionErrorsDoNotLeakPrivatePayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		querier cutoverQuerier
+		want    string
+	}{
+		{name: "missing", querier: missingRequiredAnimalSpeciesTargetQuerier{}, want: "missing"},
+		{name: "inactive", querier: inactiveRequiredAnimalSpeciesTargetQuerier{}, want: "inactive"},
+		{name: "renamed", querier: renamedRequiredAnimalSpeciesTargetQuerier{}, want: "unexpected names"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := PreflightCutoverTarget(
+				context.Background(),
+				tc.querier,
+				cutoverManifestForTargetTests(),
+				validCutoverSeeds(),
+			)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("PreflightCutoverTarget() error = %v, want %q", err, tc.want)
+			}
+			if strings.Contains(err.Error(), "private-owner-name") ||
+				strings.Contains(err.Error(), "password") ||
+				strings.Contains(err.Error(), "postgres://") {
+				t.Fatalf("rejection error leaked sensitive payload: %v", err)
+			}
+		})
 	}
 }
 
@@ -648,6 +789,8 @@ type validTargetQuerier struct{}
 
 func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pgx.Row {
 	switch {
+	case strings.Contains(query, "required animal_species master"):
+		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
 	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
 		return staticRow{values: []any{
 			true, true, int64(1), "検査", true, int64(1), "trimming", true,
@@ -675,6 +818,33 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 	default:
 		return staticRow{err: errUnexpectedQuery}
 	}
+}
+
+type missingRequiredAnimalSpeciesTargetQuerier struct{}
+
+func (missingRequiredAnimalSpeciesTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "required animal_species master") {
+		return staticRow{values: []any{int64(1), int64(0), int64(0), int64(5)}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type inactiveRequiredAnimalSpeciesTargetQuerier struct{}
+
+func (inactiveRequiredAnimalSpeciesTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "required animal_species master") {
+		return staticRow{values: []any{int64(0), int64(1), int64(0), int64(5)}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type renamedRequiredAnimalSpeciesTargetQuerier struct{}
+
+func (renamedRequiredAnimalSpeciesTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "required animal_species master") {
+		return staticRow{values: []any{int64(0), int64(0), int64(1), int64(5)}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
 }
 
 type errorTargetQuerier struct {

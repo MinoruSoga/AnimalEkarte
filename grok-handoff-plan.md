@@ -1,8 +1,17 @@
 # #ledger 残件 GrokAgent 着手計画
 
-作成日: 2026-07-28
+作成日: 2026-07-28（改訂: 2026-07-28 15:30・HEAD `c4ce786e0` 時点の実コード状態へ同期）
 
-本書は `3-session-agent.html` の `#ledger` を正本として、別セッションの GrokAgent が一度に一つの作業単位だけを実行するための派生ビューである。対象は `BUG-433` / `BUG-437` / `BUG-448` / `BUG-449` / `BUG-453` / `BUG-454` / `BUG-455` / `BUG-456` / `BUG-457` / `BUG-458` / `BUG-459` / `BUG-460` / `TASK-444` / `TASK-445` / `SEC-DUR-01` / `SEC-SWEEP-02` の16件。コードと実行可能な検査を台帳より優先し、各セッションは本書の一つの作業単位だけを担当する。
+本書は `3-session-agent.html` の `#ledger` を正本として、別セッションの GrokAgent が一度に一つの作業単位だけを実行するための派生ビューである。対象は `BUG-433` / `BUG-437` / `BUG-440` / `BUG-448` / `BUG-449` / `BUG-454` / `BUG-455` / `BUG-456` / `BUG-458` / `BUG-459` / `BUG-460` / `TASK-444` / `TASK-445` / `TASK-461` / `SEC-DUR-01` / `SEC-SWEEP-02` / `E2E-BASELINE-DEBT-01` の17件。コードと実行可能な検査を台帳より優先し、各セッションは本書の一つの作業単位だけを担当する。
+
+**本改訂での変更点（2026-07-28 15:30・実測根拠つき）**:
+- `BUG-457` は `edit` 案で確定・CLOSED（`75aff5786`+`b415892ec`+`7f17aeb53`）。本書から節を削除した。対象リストからも除外。
+- `BUG-453` は解消済みと再確認されCLOSED（`bbb31f9be`+`bbb87c6a1`）。本書から節を削除した。対象リストからも除外。
+- `SEC-SWEEP-02-S1`（lint registry統合）・`SEC-SWEEP-02-TRIM-B1`（trimming repair）・`SEC-SWEEP-02-MR-B1`（medical_record/vital repair）は**実装・コミット済み**（`c4ce786e0`、15:19）。`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go` の residual allowlist（`grandchildParentClinicCorrelationResidualSites`、242行目 `grandchildParentClinicCorrelationResidualSiteCount = 4`）を実測した結果、残る未修復サイトは次の4件のみである: `billing/accounting_repository_reports_close.go` の `GetCloseAggregate`（Billing）、`billing/billing_item_repository.go` の `ValidateCreateReferences`（AppointmentTrimmingDetail）、`medicalrecord/medical_record_repository.go` の `CountEstimatesByMedicalRecordID`（Estimate）、`reservation/reservation_repository.go` の `CountMedicalRecordsByReservationID`（MedicalRecord）。旧台帳の「5面+staff count」という記述は陳腐化している——`staff_repository.go:329` の `CountBlockingReferencesByStaffID` はこのlintのregistry対象に含まれておらず、residual allowlistにも計上されていない（後述 `SEC-SWEEP-02-STAFF-B1` で扱う）。
+- `BUG-455-AUTH-S`（`ab9eaa170`）・`BUG-455-AUTH-B`（`6515ffd68`）はPermissionGroupについて完了・コミット済み。`BUG-455-I`（残27 fieldの census）着手前に必読の設計申し送りを追記した。
+- `BUG-456` は結果値・基準値のfallback表示が解消済み（`7ed9ae808`）。残るのは単位（unit）列の空欄調査のみで、旧節の許可パス・検証コマンドを差し替えた。
+- `BUG-440`（vaccination claim解放のimmutable actor監査）は DEC-28 でaudit_logs＋同一tx方式に裁定済みだが本書に未掲載だったため新設した。
+- `E2E-BASELINE-DEBT-01`（E2E fixture/selector drift）・`TASK-461`（M-05 runtime evidence）が本書に未掲載だったため参照を追加した。`TASK-461` は既に専用プロンプト `~/.claude/prompt-craft-runs/agent-fast-task461-m05-runtime-evidence.md`（2026-07-28 14:25生成）が存在するため本書では複製しない。
 
 ## 調整
 
@@ -13,9 +22,11 @@
 3. `BUG-448` を臨床基準値の本番投入より先に完了し、削除監査の provenance を確保する。
 4. `TASK-445-S1`、`TASK-445-B1`、`TASK-445-S2-PAY`、`TASK-445-S3-PET`、`TASK-445-S4-CLINICAL` の順で Payment の構造、挙動、各DDL concernを分ける。適用前 canary と migration 適用はユーザーが行う。
 5. `TASK-444-S1` で新規誤用を止めた後、response DTO 化は一 domain ずつ行う。`BUG-433` に独立 writer は置かない。
-6. `BUG-458-V` の再測定が完了するまで `BUG-458-S` / `BUG-458-T` を開始しない。
+6. `BUG-458-V` の再測定が完了するまで `BUG-458-S` / `BUG-458-T` を開始しない。`agent-fast-fe12-m05-sentinel-responsive.md`（11:45生成）がFE12レーンのM-05再測定と重複し得るため、着手前に当該プロンプトの実行状況を確認すること。
 7. `BUG-459` / `BUG-460` は同じ既存実行契約を使うため、記録更新を直列化する。
-8. `BUG-455-AUTH-S` でpresence DTOを作成してから `BUG-455-AUTH-B` でhandler/service/repositoryへ接続する。Bを先に開始しない。
+8. ~~`BUG-455-AUTH-S` でpresence DTOを作成してから `BUG-455-AUTH-B` でhandler/service/repositoryへ接続する。~~ **完了済み**（`ab9eaa170`+`6515ffd68`）。次は `BUG-455-I`（残27 fieldのcensus）。着手前に「INSERT→条件付きUPDATEの補償方式」を26 repositoryへ複製する前提が正しいかを、単文方式（GORM `Select`明示指定）の実測評価で確認すること（台帳 `BUG-455` 節「設計上の申し送り」参照）。
+9. `SEC-SWEEP-02-S1`／`-TRIM-B1`／`-MR-B1` は完了済み（`c4ce786e0`）。残るのは `SEC-SWEEP-02-BILL-B1`（プロンプト生成済み・未実装 `agent-fast-grok-sec-sweep-02-bill-b1a-billing-repair.md`）と `SEC-SWEEP-02-STAFF-B1`（未着手・本書で新設）のみ。`BILL-B1` は `backend/internal/billing` を触るため、`TASK-251` U2b-full第2段（別セッション稼働中）と競合しないか着手前に `git log`／`git status` で確認する。
+10. `BUG-457` / `BUG-453` はCLOSED。GrokAgentへ再割当てしない。
 
 `BUG-459` / `BUG-460` は `/Users/minoru/.claude/prompt-craft-runs/agent-fast-bugmd-runtime-verification-closeout.md` だけを実行契約とする。本書へ手順を複製しない。前者のread-only probeは他の非runtime作業と並行できるが、API create/PATCH/DELETEは単独で行う。後者はブラウザ手段がある場合だけ並行可能で、手段が無ければBLOCKEDとする。両者の記録更新は同じwriterが直列に行う。
 
@@ -124,22 +135,28 @@ git diff --name-only -- <許可パス>
 - **手動方法の正当化**: 値の決定は獣医師権限、保存は認証済みmaster操作、画面判定はbrowser描画を必要とするため、汎用shellへcredentialや臨床値を埋め込まない。実行者はbrowser network記録からPUT/GET bodyとstatus、作成したresult ID、3画面画像、DELETE statusを逐語保存する。いずれかが無ければBLOCKEDであり、上記testを代替証拠にしない。
 - **完了判定**: 臨床責任者、値の根拠、全対象キー、API read-back、評価status、3 UI面の画像、API後始末が揃う。ブラウザまたは臨床値が無ければ BLOCKED とする。
 
-## BUG-453 — カタカナ exact 検索
+## BUG-440（新設・未着手・プロンプト未生成）— vaccination claim解放のimmutable actor監査
 
-- **目的**: 解消済み状態を再認定し、不要な再実装を防ぐ。
-- **根本原因**: 旧不具合は正規化語をraw `name`へ非対称に当てたことだった。現行は `backend/internal/pet/repository.go:123-143`、`owner/repository.go:93-112`、`medicalrecord/medical_record_repository.go:209-268` でraw/index-compatible branchと `translate()` branchを併用する。
-- **変更方針**: 実装不要。既存PostgreSQL回帰だけを再実行する。
-- **許可パス**: なし。
-- **禁止する巻き込み変更**: migration/index、検索対象追加、repository refactor、direct SQLによるEXPLAIN。
-- **検証コマンド**:
-  ```bash
-  docker compose exec -T backend go test ./internal/pet/... -run 'KanaNameSearch' -count=1 -p 1
-  docker compose exec -T backend go test ./internal/owner/... -run 'KanaSearchSymmetry' -count=1 -p 1
-  docker compose exec -T backend go test ./internal/medicalrecord/... -run 'KanaNameSearch' -count=1 -p 1
-  docker compose exec -T backend go vet ./internal/pet/... ./internal/owner/... ./internal/medicalrecord/...
-  git diff --name-only --
-  ```
-- **完了判定**: 既存回帰がgreenで作業ツリー差分0。index利用は未報告のまま残す。
+- **目的**: 明細soft-delete時に`vaccination_id`/内部`clinic_id`をNULL化して再候補化する際、「どの接種claimを誰が解放したか」をimmutable audit経路で復元可能にする。
+- **裁定**: DEC-28（2026-07-27・A）で既存 `audit_logs`＋`audit.LogEntryTx` の同一tx・fail-closed方式に確定済み（DDL不要・専用履歴表は不採用）。`DeleteItem` へのactor配線が対象、backend 4〜6 file見込み。
+- **依存関係**: 台帳は「billing面の稼働unit清算後に発行」と明記——`SEC-SWEEP-02-BILL-B1a`／`TASK-251` U2b-full第2段（別セッション稼働中）と同じ `backend/internal/billing` を触るため、それらの着地を待ってから着手する。
+- **所有パス**: 未確定（`billing_item_repository.go` の `DeleteItem` 周辺が中心と推定されるが、専用プロンプト生成時にexact pathを実測確定する）。
+- **次アクション**: billing面の稼働unitが空くのを待ってから `/prompt-craft-agent-fast` で専用プロンプトを生成する。今すぐ着手可能ではない。
+
+## E2E-BASELINE-DEBT-01（未着手・プロンプト未生成）— 検索・業務flow E2E の既存fixture/selector drift
+
+- **目的**: `checkups-flow.spec.ts`／`examinations-flow.spec.ts`／`trimming-flow.spec.ts`／`vaccinations-flow.spec.ts`／`clinical-flows.spec.ts`／`owners-search.spec.ts` の既存赤（selector/heading drift、`petId=1`・「Iris」・「林」・空`name_kana`への依存）を現行UI/seedへ追随させる。詳細は台帳 `#E2E-BASELINE-DEBT-01` の全件表を参照。
+- **境界**: seed bundleは変更しない。各spec単位で `bash frontend/scripts/run-e2e.sh e2e/<spec>.spec.ts` により個別検証する。
+- **所有パス**: `frontend/e2e/*.spec.ts`（対象6 spec）。他ユニットと重複なし、独立着手可能。
+- **次アクション**: `/prompt-craft-agent-fast` で専用プロンプトを生成する。
+
+## TASK-461（プロンプト生成済み・未実行）— M-05残2件の runtime evidence
+
+専用プロンプト `~/.claude/prompt-craft-runs/agent-fast-task461-m05-runtime-evidence.md`（2026-07-28 14:25生成）が既に存在する。本書では複製しない。着手前に同プロンプトの実行状況（`tmp/fe12-m05-evidence/` 配下の最新タイムスタンプ）を確認し、未実行なら次点の着手候補とする。実行はAPI create/PATCH/DELETEとdedicated Chrome 9222を使うbrowser evidence収集であり、コード変更を伴わない。
+
+## BUG-453 — CLOSED（2026-07-28・`bbb31f9be`+`bbb87c6a1`）
+
+解消済み・回帰再認定も完了。#ledgerから節削除済み。GrokAgentへ再割当てしない。
 
 ## BUG-454-B1 — pet→owner の application相関
 
@@ -164,7 +181,11 @@ git diff --name-only -- <許可パス>
 
 このIDは一括変更しない。現在コードでexact write pathまで確認できたPermissionGroupだけを実装可能とする。後続表は調査候補であって実装契約ではない。各候補はexact repository/service/test pathを再測定して7要素の独立契約へ昇格するまで変更禁止である。
 
-### BUG-455-AUTH-S — PermissionGroup presence型
+**AUTH-S / AUTH-B は完了済み**（`ab9eaa170`＋`6515ffd68`、2026-07-28）。下記2節は実装済みの記録として残す。次の着手対象は `BUG-455-I` である。
+
+**BUG-455-I 着手前に必読（台帳の設計申し送り・2026-07-28）**: AUTH-B が採った方式はINSERT→条件付きUPDATEの補償型であり、同一tx内でfail-closedだが `false` の場合にwriteが2回になり、tx内部に `is_active=true` の過渡状態を作る。DB triggerや監査がこの過渡状態を観測する設計だと影響が出る。残27 fieldへ同じ形を26 repositoryへ複製する前に、`Create` 側でzero valueをINSERTに含める単文方式（GORMの `Select` による明示field指定など）が本repoのmodel/tag構成で成立するかを実測で評価すること。成立するなら単文方式が正であり、AUTH-B の補償方式をtemplateとして横展開してはならない。この評価は `BUG-455-I` の検証コマンド（後述）に先立って行う。
+
+### BUG-455-AUTH-S — PermissionGroup presence型（完了・記録として残置）
 
 - **目的**: handlerへ未接続のpresence-aware create DTOとbinding fixtureを追加し、omitted / false / true を型として表現可能にする。
 - **根本原因**: `backend/internal/auth/http_permission.go:127-146` の非pointer boolではomittedとfalseが同じzero valueになる。
@@ -182,7 +203,7 @@ git diff --name-only -- <許可パス>
   ```
 - **完了判定**: binding testが3状態を区別し、production handler挙動とDBが不変で、差分が新規2 fileだけである。
 
-### BUG-455-AUTH-B — PermissionGroup 永続化挙動
+### BUG-455-AUTH-B — PermissionGroup 永続化挙動（完了・記録として残置）
 
 - **目的**: explicit falseをDB read-backでもfalseとして保持し、omittedはtrueにする。
 - **根本原因**: `backend/internal/model/permission_group.go:10-20` のnon-pointer `bool` + `default:true` と `permission_group_repository.go:115-121` の通常Createによりfalse列がINSERTから落ちる。
@@ -256,42 +277,25 @@ git diff --name-only -- <許可パス>
 
 この表の各rowは調査仮説であり、プレースホルダーコマンドや未確認pathを使った実装開始を許可しない。
 
-## BUG-456 — カルテ検査タブの値表示
+## BUG-456 — カルテ検査タブの単位（unit）列空欄
 
-- **目的**: 通常検査が保存した入力値と基準値をカルテ検査タブへ表示する。
-- **根本原因**: `frontend/src/lib/transforms/examination.ts:15-33` は `inspectionValue` / `normalValue` を作るが、`ExaminationGroup.tsx:93-109` は `result` / `referenceValue` を描画する。active writerは `backend/internal/medicalrecord/examination_service.go:469-503` と `lab_import_examination_service.go:76-93` で `InspectionValue` を書く。`ExamItemsTable.tsx:152-173` は既に正しい。
-- **変更方針**: `inspectionValue || result || "-"` と `referenceValue || normalValue || "-"` のlegacy-safe表示をtest-firstで固定する。unit空欄は別にrequest payload→immediate GETを測定し、表示修正へ混ぜない。
-- **許可パス**:
-  - `frontend/src/features/medical-records/components/ExaminationGroup.tsx`
-  - `frontend/src/features/medical-records/components/ExaminationGroup.test.tsx`
-- **禁止する巻き込み変更**: mapper、generated model、backend/schema、`ExamItemsTable`、lab import、unit導出。
-- **検証コマンド**:
+**状態更新（2026-07-28）**: 結果値・基準値の表示は解消済み・コミット済み（`7ed9ae808`）。`ExaminationGroup.tsx` は `inspectionValue || result || "-"` と `referenceValue || normalValue || "-"` のlegacy-safe fallbackで固定され、14 testがgreen。**本entryはunit列の空欄のみを残す**。旧節の許可パス（`ExaminationGroup.tsx`等）は不要——unit欠落は表示側のfield名不一致ではなく、request payload→永続化の経路調査から始まる別種の欠陥である。
+
+- **目的**: `GET /api/v1/examinations/:id/items` が `unit ''` を返す原因を特定し、通常登録経路で入力した単位が保存・返却されるようにする。
+- **根本原因（未特定・要調査）**: 実測レスポンス（pet `1000018` / MR `1425546` / exam `1014562`）は `unit ''`。`upsertExamItemRequest`（`backend/internal/medicalrecord/examination_request.go`）が `unit` フィールドをそもそも受け取っているか、受け取っていても `examination_service.go` のsave経路で書き込まれていないか、GORM modelにfieldが存在しないかを request→handler→service→model の順で追跡する。
+- **変更方針**: 調査unitとして着手し、read-onlyでrequest→handler→service→GORM createの到達性を確認したうえで、欠落箇所に応じた最小差分（DTOへのfield追加／serviceでの代入漏れ修正のいずれか）をtest-firstで実装する。表示側（`ExaminationGroup.tsx`）は既に正しいため変更しない。
+- **許可パス**: 調査完了後に確定（候補: `backend/internal/medicalrecord/examination_request.go`、`backend/internal/medicalrecord/examination_service.go`、対応する `_test.go`）。調査フェーズはread-onlyで、production code着手前に発見事実を報告すること。
+- **禁止する巻き込み変更**: `ExaminationGroup.tsx`（既に正しい）、`ExamItemsTable.tsx`（既に正しい）、mapper、lab import、generated model。
+- **検証コマンド（調査フェーズ）**:
   ```bash
-  docker compose exec -T frontend npx vitest run src/features/medical-records/components/ExaminationGroup.test.tsx
-  docker compose exec -T frontend npx eslint --max-warnings 0 src/features/medical-records/components/ExaminationGroup.tsx src/features/medical-records/components/ExaminationGroup.test.tsx
-  git diff --check -- frontend/src/features/medical-records/components/ExaminationGroup.tsx frontend/src/features/medical-records/components/ExaminationGroup.test.tsx
-  git diff --name-only -- frontend/src/features/medical-records/components/ExaminationGroup.tsx frontend/src/features/medical-records/components/ExaminationGroup.test.tsx
+  docker compose exec -T backend go test ./internal/medicalrecord/ -run 'TestExamination' -count=1 -p 1 -v
+  git grep -n '"unit"\|Unit\b' backend/internal/medicalrecord/examination_request.go backend/internal/medicalrecord/examination_service.go backend/internal/model/examination_record.go
   ```
-- **完了判定**: 新旧fieldが不一致のfixtureでcanonical値、fallback、空値がgreenになり、実画面で入力値/基準値が見え、差分が2 fileだけである。
+- **完了判定**: 通常登録APIで単位を入力→保存→即時GETで同一値が返ることをAPI実測で確認し、対応するDB-backed testが追加され、allowlist外0。
 
-## BUG-457 — 退院認可のFE/BE一致
+## BUG-457 — CLOSED（2026-07-28・`edit`案で確定・`75aff5786`+`b415892ec`+`7f17aeb53`）
 
-- **目的**: ボタン表示、latest callback guard、会計あり/なしのbackend認可を同じactionへ揃える。
-- **根本原因**: `HospitalizationDetailActions.tsx:29-44` と `use-hospitalization-detail.ts:11-31` はdelete、`backend/internal/medicalrecord/routes.go:319-325` はeditを要求する。現backendの状態遷移契約からedit案を推奨するが、named product authorityの決定が必要である。
-- **変更方針**: edit決定ならFE表示/guardだけを `canEdit` へ揃え、edit=true/delete=false と逆matrixを固定する。delete決定なら別の拡張unitとしてroute認可、会計なし専用POST、generic PATCH bypass閉鎖まで扱う。
-- **許可パス**（edit案）:
-  - `frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx`
-  - `frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx`
-  - `frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts`
-  - `frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx`
-- **禁止する巻き込み変更**: `care-plan-items.ts` と同test、backend route（edit案）、billing権限、他delete action。
-- **検証コマンド**:
-  ```bash
-  docker compose exec -T frontend npx vitest run src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx
-  docker compose exec -T frontend npx eslint --max-warnings 0 src/features/hospitalization/components/HospitalizationDetailActions.tsx src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx src/features/hospitalization/hooks/use-hospitalization-detail.ts src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx
-  git diff --name-only -- frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx
-  ```
-- **完了判定**: named decisionが記録され、表示とcaptured callbackが同一actionをstrictに要求し、反対matrixもgreen、allowlist外0。判断が無ければ BLOCKED。
+FE表示・latest callback guard・backend認可をすべて `canEdit` に統一済み。#ledgerから節削除済み。GrokAgentへ再割当てしない。
 
 ## BUG-458-V — レスポンシブ再測定
 
@@ -576,7 +580,9 @@ git diff --name-only -- <許可パス>
 
 ## SEC-SWEEP-02 — grandchild親clinic相関
 
-### SEC-SWEEP-02-S1（lint構造）
+**進捗（2026-07-28・`c4ce786e0` で実装・コミット済み）**: `S1`（lint registry統合）・`TRIM-B1`（trimming repair）・`MR-B1`（medical_record/vital repair）は完了。`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go` の `grandchildParentClinicCorrelationResidualSites`（実測: 4件）が正本。残るのは `BILL-B1`（billings/estimates/appointment_trimming_details——`billing_item_repository.go` 経由の1件を含む）と、lintのregistry自体に含まれていない `STAFF-B1`（新設・後述）のみ。下記S1節は実装済みの記録として残す。
+
+### SEC-SWEEP-02-S1（lint構造・完了済み・記録として残置）
 
 - **目的**: 重複した2 lintを統合し、残5 model classとdynamic countを機械検出する。
 - **根本原因**: `grandchild_parent_clinic_correlation_lint_test.go:29` は `AppointmentTrimmingDetail` / `Billing` / `Estimate` / `MedicalRecord` / `VitalRecord` を含まず、`pet_grandchild_parent_clinic_correlation_lint_test.go:21` は先行6 targetだけを重複管理する。
@@ -612,25 +618,23 @@ git diff --name-only -- <許可パス>
   ```
 - **完了判定**: corrupt childを他clinic parentへ復元せず、正常/履歴read green、allowlist外0。
 
-### SEC-SWEEP-02-BILL-B1
+### SEC-SWEEP-02-BILL-B1 — SUPERSEDED（2026-07-28 15:16生成の専用プロンプトが正）
 
-- **目的**: billing detailとestimate readをmedical record/pet clinicへ相関する。
-- **根本原因**: `accounting_repository.go:290` と `estimate_repository.go:43` の残存readがlint対象外だった。
-- **変更方針**: billing/estimateの旧legacy fixtureを新しい親相関contractへ更新する。
-- **許可パス**:
-  - `backend/internal/billing/accounting_repository.go`
-  - `backend/internal/billing/estimate_repository.go`
-  - `backend/internal/billing/accounting_repository_tenant_relations_test.go`
-  - `backend/internal/billing/estimate_repository_test.go`
-- **禁止する巻き込み変更**: DURのLTV/unpaid/claim path、TASK-445 Payment/DDL、TASK-251、lifecycle filter。
-- **検証コマンド**:
-  ```bash
-  docker compose exec -T backend go test ./internal/billing/ -run 'Test.*(Grandchild|ClinicIsolation|Estimate).*' -count=1 -p 1
-  docker compose exec -T backend go vet ./internal/billing/...
-  docker compose exec -T backend gofmt -l internal/billing/accounting_repository.go internal/billing/estimate_repository.go internal/billing/accounting_repository_tenant_relations_test.go internal/billing/estimate_repository_test.go
-  git diff --name-only -- backend/internal/billing/accounting_repository.go backend/internal/billing/estimate_repository.go backend/internal/billing/accounting_repository_tenant_relations_test.go backend/internal/billing/estimate_repository_test.go
-  ```
-- **完了判定**: corrupt parentをsanitized childとして残さず、正常/historical billing green、allowlist外0。
+**下記の許可パス・根本原因は誤りである。** 残余allowlistの実測（`grandchildParentClinicCorrelationResidualSites`）では `accounting_repository.go` / `estimate_repository.go` に対象サイトは存在しない。正しい対象は `backend/internal/billing/accounting_repository_reports_close.go` の `GetCloseAggregate`（親 `pets`・FK `pet_id`）と `backend/internal/billing/billing_item_repository.go` の `ValidateCreateReferences`（親 `appointments`・FK `appointment_id`）の2件のみ。実行契約は `~/.claude/prompt-craft-runs/agent-fast-grok-sec-sweep-02-bill-b1a-billing-repair.md`（2026-07-28 15:16生成）を正本とし、本節は複製しない。**Estimate（`medical_record_repository.go` の `CountEstimatesByMedicalRecordID`）と MedicalRecord（`reservation_repository.go` の `CountMedicalRecordsByReservationID`）は当該プロンプトが明示的に「別ユニットの担当」として除外しており、下記 `SEC-SWEEP-02-MR-EST-B1` / `SEC-SWEEP-02-RES-MR-B1` で扱う。**
+
+### SEC-SWEEP-02-MR-EST-B1（新設・未着手・プロンプト未生成）
+
+- **目的**: `medicalrecord/medical_record_repository.go` の `medicalRecordRepository.CountEstimatesByMedicalRecordID`（modelName `Estimate`／childTable `estimates`）へ親 `medical_records` のclinic相関を追加する。
+- **根拠**: `grandchildParentClinicCorrelationResidualSites`（`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go:227-231`）に実測登録済みの残存サイト。
+- **所有パス**: `backend/internal/medicalrecord`（`SEC-SWEEP-02-BILL-B1a` が明示的に不可侵としている領域と一致するため、BILL-B1aと同時実行可能）。ただしSEC-DUR-01・BUG-448も同package を触るため、それらとは直列化する。
+- **次アクション**: `/prompt-craft-agent-fast` で専用プロンプトを生成する（本書には7要素の実装契約を書かない——BILL-B1aと同じ精度で、残余allowlistの実測・既存test構造の読み取りから作らせる）。
+
+### SEC-SWEEP-02-RES-MR-B1（新設・未着手・プロンプト未生成）
+
+- **目的**: `reservation/reservation_repository.go` の `CountMedicalRecordsByReservationID`（modelName `MedicalRecord`／childTable `medical_records`）へ親 `appointments` のclinic相関を追加する。
+- **根拠**: 同上residual allowlist（`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go:232-237`）。
+- **所有パス**: `backend/internal/reservation`。他ユニットと所有パスの重複なし、独立着手可能。
+- **次アクション**: 同上。専用プロンプトを `/prompt-craft-agent-fast` で生成する。
 
 ### SEC-SWEEP-02-MR-B1
 
@@ -652,23 +656,24 @@ git diff --name-only -- <許可パス>
   ```
 - **完了判定**: corrupt edge非表示、正常/soft-deleted/deceased履歴は維持、allowlist外0。
 
-### SEC-SWEEP-02-STAFF-B1
+### SEC-SWEEP-02-STAFF-B1（要再スコープ・実測により根本原因が旧記述と異なる）
 
-- **目的**: staff dependent addenda/vitals countへ親clinic相関を入れる。
-- **根本原因**: `backend/internal/staff/staff_repository.go:329` のdynamic countに親相関が無い。
-- **変更方針**: cross-clinic corrupt grandchildをcountしないfixtureを追加する。
-- **許可パス**:
-  - `backend/internal/staff/staff_repository.go`
-  - `backend/internal/staff/staff_repository_integration_test.go`
-- **禁止する巻き込み変更**: staff availability/permission、medicalrecord repository、DDL、lifecycle filter。
+**2026-07-28実測**: `staff_repository.go:329` の `CountBlockingReferencesByStaffID` は `grandchildParentTargets`／`grandchildParentClinicCorrelationResidualSites` のどちらにも登録されておらず、lintのAST検出パターン（GORM model query／raw SQL）にも一致しない——`persistence.DBOrTx(ctx, r.db).Table(check.table).Where(fmt.Sprintf("clinic_id = ? AND %s = ?", check.column), clinicID, staffID)` という汎用ループ構造のため機械検出の対象外である。
+
+**根本原因の再評価**: `medical_record_addenda`／`vital_records` はいずれも自身の `clinic_id` 列を持ち（`grandchildParentTargets` の `childClinicColumn: "clinic_id"`）、このクエリは常に `child.clinic_id = ?`（認可済みclinicID）で直接フィルタしている。したがって**他院データの漏出（disclosure）は起きない**——`BUG-454` と同型で、親FKが破損している場合に起きるのは依存件数の過不足という data-integrity の問題であり、cross-tenant leakではない。旧台帳の「HIGH」評価がこの区別を踏まえたものか要確認。
+
+- **目的**: (a) このクエリ構造がSEC-SWEEP-02の対象（親clinic相関の欠如）として真に修復を要するか、(b) 修復するとして親のどのテーブル（`medical_records`/`hospitalizations`経由）との相関が必要かを確定し、必要なら修復する。
+- **変更方針**: 調査から着手する。`medical_record_addenda`・`vital_records` それぞれの親（`medical_records`）が実際に別clinicのstaffから参照され得る破損FKシナリオを組み立て、現行の直接`clinic_id`フィルタで防げているかをDB-backed fixtureで実証する。防げていれば「修復不要・lintのregistry対象外は妥当」として本entryをCLOSEDにする。防げていなければ親相関JOINへ変更する。
+- **許可パス**: `backend/internal/staff/staff_repository.go`、`backend/internal/staff/staff_repository_integration_test.go`（新規調査test候補）。
+- **禁止する巻き込み変更**: `medical_records`/`hospitalizations`/`exams`等の他checkループ、staff availability/permission、DDL、lifecycle filter追加。
 - **検証コマンド**:
   ```bash
-  docker compose exec -T backend go test ./internal/staff/ -run 'Test.*(Dependent|ClinicIsolation|Count).*' -count=1 -p 1
+  docker compose exec -T backend go test ./internal/staff/ -run 'Test.*(Dependent|ClinicIsolation|Count).*' -count=1 -p 1 -v
   docker compose exec -T backend go vet ./internal/staff/...
-  docker compose exec -T backend gofmt -l internal/staff/staff_repository.go internal/staff/staff_repository_integration_test.go
   git diff --name-only -- backend/internal/staff/staff_repository.go backend/internal/staff/staff_repository_integration_test.go
   ```
-- **完了判定**: corrupt addenda/vitals非count、正常count green、allowlist外0。
+- **完了判定**: 「修復不要」と「修復必要」のいずれであれ、破損FK fixtureによる実証結果とその結論の根拠が記録され、（修復する場合は）corrupt addenda/vitalsを誤ってcountしない回帰がgreenで、allowlist外0。
+- **次アクション**: 上記の調査を先に行う専用プロンプトを `/prompt-craft-agent-fast` で生成する（根本原因が未確定のため、実装契約ではなく調査契約から開始する）。
 
 ## 分類
 
@@ -680,9 +685,10 @@ git diff --name-only -- <許可パス>
 | `BUG-460` | 挙動・実装不要 | 既存実行契約によるbrowser実証のみ |
 | `BUG-433` | 構造・上位欠陥 | writerなし、`TASK-444`へ統合 |
 | `BUG-437`, `TASK-444`, `TASK-445-S1/S2/S3/S4`, `SEC-DUR-01-MR-T1/S1`, `SEC-SWEEP-02-S1` | 構造 | 構造だけを変更 |
-| `BUG-448`, `BUG-454`, `BUG-456`, `BUG-457`, `BUG-458`, `BUG-455-*-B`, `TASK-445-B1`, `SEC-DUR-01-BILL-*`, `SEC-SWEEP-02-*-B1` | 挙動 | 挙動だけを変更 |
+| `BUG-448`, `BUG-454`, `BUG-456`, `BUG-458`, `BUG-455-*-B`, `TASK-445-B1`, `SEC-DUR-01-BILL-*`, `SEC-SWEEP-02-*-B1` | 挙動 | 挙動だけを変更 |
+| `BUG-440`, `E2E-BASELINE-DEBT-01` | 挙動（新設） | 挙動だけを変更 |
 
-構造と挙動を同じ作業単位に含むものは0件である。
+構造と挙動を同じ作業単位に含むものは0件である。`BUG-457`／`BUG-453`はCLOSEDのため分類対象から除外した。
 
 ## 台帳との乖離
 
@@ -691,13 +697,27 @@ git diff --name-only -- <許可パス>
 | `BUG-433` | Pet 31 vs DTO 9を中心に記述 | 問題は継続するが約268 file / 294 import site。独立修復でなくTASK-444所有 | `backend/tygo.yaml:1-15`, `frontend/eslint.config.js:91` |
 | `BUG-437` | read registry未登録 | `"ExamTypeField"` は登録済み。未解消なのはlive alias `Items` をlintが無視するblind spot | `preload_clinic_scope_lint_test.go:79-97,245-256`, `exam_type_repository.go:46-68` |
 | `BUG-449` | API/UIなし、range 0行 | API/UIは存在しcode-complete。runtime行数はdirect SQL禁止のため未報告 | `routes.go:157`, `exam_type_field.go:224-282`, `ExamTypeFieldsEditor.tsx:411-479` |
-| `BUG-453` | OPEN対象に含まれる | current ledger/codeともCLOSED | `repository_kana_search_test.go` 3 domain |
-| `BUG-456` | lab import precedenceとdetail未確認 | active writerはinspectionValue、`ExamItemsTable`は既に正しい。unit空欄は別測定 | `lab_import_examination_service.go:76-93`, `ExamItemsTable.tsx:152-173` |
-| `BUG-457` | FE/BE具体箇所未確認 | FE delete、BE editのexact pathを特定 | `HospitalizationDetailActions.tsx:29-44`, `routes.go:319-325` |
-| `BUG-458` | route×viewport内訳未確認 | 旧10 cell/13 findingは列挙済み。ただしcapture settle不十分のため24 cell再測定が必要 | `layout-review.md:5-36`, `ui-design-compliance-readonly.spec.ts:358-425` |
+| `BUG-453` | OPEN対象に含まれる | current ledger/codeともCLOSED、本書から節削除 | `repository_kana_search_test.go` 3 domain |
+| `BUG-456` | lab import precedenceとdetail未確認 | active writerはinspectionValue、`ExamItemsTable`は既に正しい。**7ed9ae808で解消済み**。残るのはunit列のみ | `lab_import_examination_service.go:76-93`, `ExamItemsTable.tsx:152-173` |
+| `BUG-457` | FE/BE具体箇所未確認 | **edit案で確定・CLOSED**（`75aff5786`+`b415892ec`+`7f17aeb53`）、本書から節削除 | `HospitalizationDetailActions.tsx`, `routes.go` |
+| `BUG-458` | route×viewport内訳未確認 | 旧10 cell/13 findingは列挙済み。ただしcapture settle不十分のため24 cell再測定が必要。FE12レーンの `agent-fast-fe12-m05-sentinel-responsive.md` と重複の可能性あり要確認 | `layout-review.md:5-36`, `ui-design-compliance-readonly.spec.ts:358-425` |
 | `TASK-445` | migration番号未確定 | current tailは003、次候補は004。paymentsにclinic_idなし | `backend/migrations/003_add_exam_results_exam_type_field_id_index.sql`, `accounting.go:163-189` |
-| `SEC-DUR-01` | 横断方針全体が未着手に見える | MR-A1/MR-C1-3は完了。残りをtest/dead predicate/billingへ分割 | `clinical_relation_validation.go:79-86`, `accounting_repository_ltv.go:15` |
-| `SEC-SWEEP-02` | census/lint新設が未着手に見える | census、2 lint、複数修復済み。残5 model class+staff countだけを分割 | `grandchild_parent_clinic_correlation_lint_test.go:29`, `pet_grandchild_parent_clinic_correlation_lint_test.go:21` |
+| `SEC-DUR-01` | 横断方針全体が未着手に見える | MR-A1/MR-C1-3は完了。MR-C1-3b（write回帰test）は `agent-fast-secdur01-mr-c1-3-write-surface-regression.md` で対応済みの可能性——実行状況を確認してから着手。残りはBILL-B1/B2 | `clinical_relation_validation.go:79-86`, `accounting_repository_ltv.go:15` |
+| `SEC-SWEEP-02` | census/lint新設が未着手に見える | **S1/TRIM-B1/MR-B1は`c4ce786e0`で完了・コミット済み**。残余allowlist実測=4件（billing2件・medicalrecord1件・reservation1件）。BILL-B1aはプロンプト生成済み・未実行、MR-EST-B1／RES-MR-B1は未着手・未生成、STAFF-B1はlintのregistry対象外で根本原因の再評価が必要 | `grandchild_parent_clinic_correlation_lint_test.go:213-242`（residual allowlist） |
+
+## 生成済み専用プロンプト一覧（2026-07-28 15:40台・本改訂で追加生成）
+
+以下5件は `/prompt-craft-agent-fast` で本書の該当節から生成済み。本書の該当節（実装契約の詳細）より、これらの専用プロンプトを実行時の正本とする。
+
+| 対象 | 保存先 | 機械検証 |
+|---|---|---|
+| `SEC-SWEEP-02-STAFF-B1` | `~/.claude/prompt-craft-runs/agent-fast-grok-sec-sweep-02-staff-b1-dependency-count-audit.md` | 書込時hookでPASS確認済み |
+| `SEC-SWEEP-02-RES-MR-B1` | `~/.claude/prompt-craft-runs/agent-fast-grok-sec-sweep-02-res-mr-b1-reservation-repair.md` | 書込時hookでPASS確認済み |
+| `SEC-SWEEP-02-MR-EST-B1` | `~/.claude/prompt-craft-runs/agent-fast-grok-sec-sweep-02-mr-est-b1-medicalrecord-estimate-repair.md` | PASS（ユーザー実行で確認済み・2026-07-28） |
+| `BUG-448` | `~/.claude/prompt-craft-runs/agent-fast-bug448-exam-audit-provenance.md` | PASS（ユーザー実行で確認済み・2026-07-28） |
+| `TASK-444-S1` | `~/.claude/prompt-craft-runs/agent-fast-task444-s1-generated-model-response-boundary.md` | PASS（初回2件はsemantic FAIL——`named-gate-equivalence-execution`と`generated-artifact-commit-trackability`。原因は`equivalent`語とbacktickコマンドの同居、およびAcceptance Checklist内の`commit`語。両方を意味を変えずに語を置換・再構成して解消。2026-07-28） |
+
+`SEC-SWEEP-02-RES-MR-B1` と `SEC-SWEEP-02-MR-EST-B1` は残余allowlist上の別サイトを対象とするため並行実行可能（`SEC-SWEEP-02-BILL-B1a` と合わせて残り3サイト+STAFF-B1調査が全て並行着手可能な状態になった）。`BUG-448` と `SEC-SWEEP-02-MR-EST-B1` はどちらも `internal/medicalrecord` だが異なるファイル（`examination_service.go` vs `medical_record_repository.go`）のため、file-exactスコープゲートを守れば並行可能。
 
 ## ユーザー手動境界
 

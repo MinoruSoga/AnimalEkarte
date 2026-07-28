@@ -226,11 +226,16 @@ func (r *billingItemRepository) ValidateCreateReferences(
 	}
 	if trimmingCourseID != nil {
 		var id uint64
+		// Parent appointments clinic correlation (SEC-SWEEP-02-BILL-B1a): child clinic
+		// alone is insufficient when appointment_id is a corrupt cross-tenant FK.
+		// No appointments.deleted_at — matches TRIM-B1 / MR-B1 appointments-parent pattern.
+		// Use unaliased table names so AST lint sees appointments.id=appointment_trimming_details.appointment_id.
 		if err := tx.
-			Table("appointment_trimming_details AS atd").
-			Select("tc.id").
-			Joins("JOIN trimming_courses AS tc ON tc.id = atd.course_id AND tc.clinic_id = atd.clinic_id AND tc.deleted_at IS NULL").
-			Where("atd.appointment_id = ? AND atd.clinic_id = ? AND atd.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
+			Table("appointment_trimming_details").
+			Select("trimming_courses.id").
+			Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
+			Joins("JOIN trimming_courses ON trimming_courses.id = appointment_trimming_details.course_id AND trimming_courses.clinic_id = appointment_trimming_details.clinic_id AND trimming_courses.deleted_at IS NULL").
+			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&id).Error; err != nil {
 			return "", apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
