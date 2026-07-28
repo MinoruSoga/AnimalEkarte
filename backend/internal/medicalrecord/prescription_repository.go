@@ -48,7 +48,6 @@ func prescriptionParentClinicScope(db *gorm.DB) *gorm.DB {
 			FROM pets
 			WHERE pets.id = prescriptions.pet_id
 			  AND pets.clinic_id = prescriptions.clinic_id
-			  AND pets.owner_id = prescriptions.owner_id
 		))
 		AND
 		(prescriptions.medical_record_id IS NULL OR EXISTS (
@@ -92,7 +91,20 @@ func (r *prescriptionRepository) FindActiveByOwner(ctx context.Context, clinicID
 	prescriptions := make([]model.Prescription, 0)
 	err := r.db.WithContext(ctx).
 		Scopes(prescriptionParentClinicScope).
-		Where("prescriptions.clinic_id = ? AND prescriptions.owner_id = ? AND prescriptions.deleted_at IS NULL", clinicID, ownerID).
+		Where(`
+			prescriptions.clinic_id = ?
+			AND prescriptions.deleted_at IS NULL
+			AND EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = prescriptions.pet_id
+				  AND current_owner_pet.clinic_id = prescriptions.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, clinicID, ownerID).
 		Find(&prescriptions).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "prescription", "")

@@ -5,8 +5,8 @@ package medicalrecord
 // 保護する不変条件:
 //   - FindByMedicalRecordID / FindByID / Update / Delete は clinic_id でテナント隔離される。
 //   - FindByMedicalRecordID は prescribed_at DESC で返す。
-//   - FindActiveByOwner は clinic_id + owner_id スコープでソフトデリート済みを除外する
-//     （deleted_at IS NULL を明示条件に持つ、LSTEP-BE-009）。
+//   - FindActiveByOwner は clinic_id + pet の現在飼主スコープでソフトデリート済みを除外する
+//     （pet_id が無い処方は除外し、deleted_at IS NULL を明示条件に持つ、LSTEP-BE-009）。
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - Delete はソフトデリートであり、以後 FindByID / FindActiveByOwner から除外される。
 //
@@ -153,16 +153,17 @@ func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 
 	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	otherOwner := makeTestOwner(t, db, clinicA, "飼主B")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "処方ポチA")
+	otherPet := makeSpeciesAndPet(t, db, clinicA, otherOwner.ID, "処方ポチB")
 
 	active := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 	toBeDeleted := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
-	makePrescription(t, db, clinicA, otherOwner.ID, nil, time.Now())
-	// NOTE: intentionally NOT creating a clinicB prescription with owner_id=ownerA.ID here.
-	// FindActiveByOwner filters on "clinic_id = ? AND owner_id = ?" — a row with
-	// (clinic_id=clinicB, owner_id=ownerA.ID) would legitimately satisfy the isolation subtest's
-	// own query below and make it fail for the RIGHT reason (the fixture matches what it's
-	// querying for), not because isolation is actually broken. Omitting it lets the isolation
-	// subtest correctly prove that clinicB has zero prescriptions for ownerA.ID.
+	other := makePrescription(t, db, clinicA, otherOwner.ID, nil, time.Now())
+	require.NoError(t, db.Model(active).Update("pet_id", petA.ID).Error)
+	require.NoError(t, db.Model(toBeDeleted).Update("pet_id", petA.ID).Error)
+	require.NoError(t, db.Model(other).Update("pet_id", otherPet.ID).Error)
+	// NOTE: clinicB の prescription は作らない。FindActiveByOwner は対象 clinic 内の pet と
+	// その現在飼主を相関するため、下の clinicB 問い合わせは pet 経由でも空になることを確認する。
 
 	require.NoError(t, repo.Delete(ctx, clinicA, toBeDeleted.ID))
 
@@ -185,6 +186,48 @@ func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+}
+
+func TestPrescriptionRepository_FindActiveByOwner_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupPrescriptionTestDB(t)
+	repo := NewPrescriptionRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70104)
+
+	fixture := makeCurrentOwnerTransferFixture(
+		t,
+		db,
+		clinicID,
+		"MR-PRESCRIPTION-CURRENT-OWNER",
+		time.Now(),
+	)
+	prescription := &model.Prescription{
+		ClinicID:        clinicID,
+		OwnerID:         fixture.PreviousOwner.ID,
+		PetID:           &fixture.Pet.ID,
+		MedicalRecordID: &fixture.Record.ID,
+		PrescribedAt:    time.Now(),
+		DurationDays:    7,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(prescription).Error)
+	nullPet := &model.Prescription{
+		ClinicID:     clinicID,
+		OwnerID:      fixture.CurrentOwner.ID,
+		PrescribedAt: time.Now(),
+		DurationDays: 7,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(nullPet).Error)
+
+	got, err := repo.FindActiveByOwner(ctx, clinicID, fixture.CurrentOwner.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, prescription.ID, got[0].ID)
+	assert.Equal(t, fixture.PreviousOwner.ID, got[0].OwnerID, "returned owner_id remains the historical snapshot")
+	require.NotNil(t, got[0].PetID)
+
+	previous, err := repo.FindActiveByOwner(ctx, clinicID, fixture.PreviousOwner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, previous)
 }
 
 func TestPrescriptionRepository_Create(t *testing.T) {

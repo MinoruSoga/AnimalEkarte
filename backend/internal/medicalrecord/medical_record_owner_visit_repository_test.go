@@ -7,6 +7,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -32,14 +33,29 @@ func seedDormantOwners(t *testing.T, db *gorm.DB, clinicID uint64, count int, ol
 	}
 	require.NoError(t, db.WithContext(ctx).CreateInBatches(&owners, 200).Error)
 
+	species := &model.AnimalSpecies{Name: fmt.Sprintf("休眠動物種-%d-%d", clinicID, oldDate.UnixNano())}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	pets := make([]model.Pet, count)
+	for i := range owners {
+		pets[i] = model.Pet{
+			ClinicID:        clinicID,
+			OwnerID:         owners[i].ID,
+			AnimalSpeciesID: species.ID,
+			Name:            fmt.Sprintf("休眠ペット%d", i),
+		}
+	}
+	require.NoError(t, db.WithContext(ctx).CreateInBatches(&pets, 200).Error)
+
 	records := make([]model.MedicalRecord, count)
 	for i := range owners {
 		oid := owners[i].ID
+		pid := pets[i].ID
 		records[i] = model.MedicalRecord{
 			ClinicID: clinicID,
 			RecordNo: fmt.Sprintf("R-%d-%d", clinicID, i),
 			Date:     oldDate,
 			OwnerID:  &oid,
+			PetID:    &pid,
 		}
 	}
 	require.NoError(t, db.WithContext(ctx).CreateInBatches(&records, 200).Error)
@@ -79,6 +95,43 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ExactlyOnePage(t 
 		assert.Greater(t, e.OwnerID, prev, "owner_id は昇順でなければならない")
 		prev = e.OwnerID
 	}
+}
+
+func TestMedicalRecordRepository_OwnerVisitReads_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70105)
+
+	visitDate := time.Now().In(time.Local).AddDate(0, 0, -200)
+	fixture := makeCurrentOwnerTransferFixture(
+		t,
+		db,
+		clinicID,
+		"MR-VISIT-CURRENT-OWNER",
+		visitDate,
+	)
+
+	latest, err := repo.FindLatestByOwner(ctx, clinicID, fixture.CurrentOwner.ID)
+	require.NoError(t, err)
+	require.NotNil(t, latest)
+	require.NotNil(t, latest.OwnerID)
+	assert.Equal(t, fixture.PreviousOwner.ID, *latest.OwnerID, "returned owner_id remains the historical snapshot")
+
+	summary, err := repo.FindOwnerVisitSummary(ctx, clinicID, fixture.CurrentOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), summary.TotalCount)
+	previousSummary, err := repo.FindOwnerVisitSummary(ctx, clinicID, fixture.PreviousOwner.ID)
+	require.NoError(t, err)
+	assert.Zero(t, previousSummary.TotalCount)
+
+	cursorRepo, ok := repo.(DormantOwnerEntriesAtRepository)
+	require.True(t, ok)
+	entries, err := cursorRepo.FindDormantOwnerEntriesCursorAt(ctx, clinicID, 180, 0, 1, time.Now())
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, fixture.CurrentOwner.ID, entries[0].OwnerID)
 }
 
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_TwoPages(t *testing.T) {
@@ -222,10 +275,31 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSa
 var ownerVisitRecordSeq int64
 
 // makeVisitRecordForOwnerVisitTest は本ファイル専用のミニマル model.MedicalRecord 作成ヘルパー。
-// rec に ClinicID / OwnerID / Date 等を設定して渡す。RecordNo が空なら自動採番する
+// rec に ClinicID / OwnerID / Date 等を設定して渡す。PetID が空で、同一医院の有効な
+// OwnerID が存在する正常系 fixture では current-owner read 用のペットを明示的に補う。
+// 別医院 owner・削除 owner・nil owner の corrupt fixture には補わず、負例を維持する。
+// RecordNo が空なら自動採番する
 // （medical_records は clinic_id + record_no の複合 UNIQUE INDEX を持つ）。
 func makeVisitRecordForOwnerVisitTest(t *testing.T, db *gorm.DB, rec *model.MedicalRecord) *model.MedicalRecord {
 	t.Helper()
+	if rec.PetID == nil && rec.OwnerID != nil {
+		var owner model.Owner
+		err := db.WithContext(context.Background()).
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *rec.OwnerID, rec.ClinicID).
+			First(&owner).Error
+		if err == nil {
+			pet := makeSpeciesAndPet(
+				t,
+				db,
+				rec.ClinicID,
+				owner.ID,
+				fmt.Sprintf("来院ペット-%d", atomic.AddInt64(&ownerVisitRecordSeq, 1)),
+			)
+			rec.PetID = &pet.ID
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			require.NoError(t, err)
+		}
+	}
 	if rec.RecordNo == "" {
 		seq := atomic.AddInt64(&ownerVisitRecordSeq, 1)
 		rec.RecordNo = fmt.Sprintf("R-OVT-%d-%d", rec.ClinicID, seq)

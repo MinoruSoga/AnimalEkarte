@@ -13,7 +13,7 @@ import (
 
 func TestFindOwnerLTV_ExcludesBillingOwnedByAnotherOwner(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -53,7 +53,7 @@ func TestFindOwnerLTV_ExcludesBillingOwnedByAnotherOwner(t *testing.T) {
 // ISSUE-001: status != completed の会計は集計に含まれない
 func TestFindOwnerLTV_OnlyCompletedBillings(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -112,7 +112,7 @@ func TestFindOwnerLTV_OnlyCompletedBillings(t *testing.T) {
 // タグ同期側 AccountingRepository.MaxSingleVisitAmountByOwner と同じ集計範囲（owner_id 直接 + status='completed' + deleted_at IS NULL）を返す。
 func TestFindOwnerLTV_MaxSingleVisitAmount(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -176,7 +176,7 @@ func TestFindOwnerLTV_MaxSingleVisitAmount(t *testing.T) {
 // （タグ同期側と集計範囲を一致させるため）。
 func TestFindOwnerLTV_MaxSingleVisitAmountWithoutMedicalRecord(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -213,7 +213,7 @@ func TestFindOwnerLTV_MaxSingleVisitAmountWithoutMedicalRecord(t *testing.T) {
 
 func TestFindOwnerLTV_IncludesCompletedBillingWithoutMedicalRecordInRevenueButNotVisitCount(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 	const (
 		clinicA = uint64(1)
@@ -346,7 +346,7 @@ func TestFindOwnerLTV_IncludesCompletedBillingWithoutMedicalRecordInRevenueButNo
 // clinic_id による分離を検証
 func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID1 := uint64(1)
@@ -410,7 +410,7 @@ func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 // 同日複数カルテは1回扱いになるべき。
 func TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -474,7 +474,7 @@ func TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne(t *testing.T) {
 // SQL は `mr.date >= from AND mr.date <= to` で両端を含む。
 func TestFindOwnerLTV_FromToBoundaryInclusive(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -544,7 +544,7 @@ func TestFindOwnerLTV_FromToBoundaryInclusive(t *testing.T) {
 // SQL は ILIKE '%search%' で大文字小文字を区別しない。
 func TestFindOwnerLTV_SearchByName(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -684,7 +684,7 @@ func TestLtvRepository_CalculateDateRange_InvalidFormats(t *testing.T) {
 // calculateDateRange のエラーが公開 API である FindOwnerLTV から呼び出し元へ伝播することを検証する。
 func TestFindOwnerLTV_InvalidFromDateFormatPropagatesError(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	badFrom := "20260101"
@@ -702,7 +702,7 @@ func TestFindOwnerLTV_InvalidFromDateFormatPropagatesError(t *testing.T) {
 // AGG-BE-002: min_visit_count / max_visit_count による HAVING 絞り込みを検証する。
 func TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -751,7 +751,7 @@ func TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter(t *testing.T) {
 // AGG-BE-003: last_visit_bucket 指定時、他バケットのオーナーは除外されることを検証する。
 func TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -779,7 +779,7 @@ func TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets(t *testing.T) {
 // sort/order パラメータの組み合わせで total_amount の昇順・降順が反転することを検証する。
 func TestFindOwnerLTV_SortOrdering(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)

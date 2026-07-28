@@ -163,7 +163,7 @@ func TestPetGrandchildReadClinicIsolation(t *testing.T) {
 		assertGrandchildNotFound(t, got == nil, err)
 	})
 
-	t.Run("prescriptions reject foreign and inconsistent parents", func(t *testing.T) {
+	t.Run("prescriptions reject foreign parents and allow historical owner snapshots", func(t *testing.T) {
 		repo := NewPrescriptionRepository(db)
 
 		byMR, err := repo.FindByMedicalRecordID(ctx, clinicA, mrB.ID)
@@ -179,7 +179,9 @@ func TestPetGrandchildReadClinicIsolation(t *testing.T) {
 		got, err = repo.FindByID(ctx, clinicA, prescriptionByPet.ID)
 		assertGrandchildNotFound(t, got == nil, err)
 		got, err = repo.FindByID(ctx, clinicA, prescriptionOwnerPetMismatch.ID)
-		assertGrandchildNotFound(t, got == nil, err)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, prescriptionOwnerPetMismatch.ID, got.ID, "snapshot owner may differ from the pet's current owner")
 	})
 
 }

@@ -124,6 +124,40 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_NilParamsReturnsInvalidInp
 	require.Error(t, err)
 }
 
+func TestCheckupSyncRepository_FindCheckupSyncPreview_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupCheckupSyncTestDB(t)
+	repo := NewCheckupSyncRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70107)
+
+	previousOwner := testdb.MakeTestOwner(t, db, clinicID, "同期譲渡前飼主")
+	currentOwner := testdb.MakeTestOwner(t, db, clinicID, "同期譲渡後飼主")
+	species := makeSyncSpecies(t, db, "同期譲渡動物種")
+	pet := makeSyncPet(t, db, clinicID, previousOwner.ID, species.ID, "同期譲渡ペット", nil, nil)
+	visitDate := time.Now().AddDate(0, 0, -10)
+	checkupDate := time.Now().AddDate(0, 0, -5)
+	record := makeSyncMedicalRecord(t, db, clinicID, previousOwner.ID, pet.ID, visitDate)
+	checkupType := makeCheckupTypeMaster(t, db, clinicID, "同期譲渡健診")
+	makeSyncCheckup(t, db, clinicID, record.ID, pet.ID, checkupType.ID, checkupDate)
+	require.NoError(t, db.WithContext(ctx).Model(pet).Update("owner_id", currentOwner.ID).Error)
+
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicID})
+	require.NoError(t, err)
+	byOwner := make(map[uint64]CheckupSyncPreviewRow, len(rows))
+	for _, row := range rows {
+		byOwner[row.OwnerID] = row
+	}
+
+	current := byOwner[currentOwner.ID]
+	assert.Equal(t, int64(1), current.TotalVisitCount)
+	require.NotNil(t, current.LastVisitDate)
+	require.NotNil(t, current.LastCheckupDate)
+	previous := byOwner[previousOwner.ID]
+	assert.Equal(t, int64(0), previous.TotalVisitCount)
+	assert.Nil(t, previous.LastVisitDate)
+	assert.Nil(t, previous.LastCheckupDate)
+}
+
 func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolationAndSpecies(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
 	repo := NewCheckupSyncRepository(db)

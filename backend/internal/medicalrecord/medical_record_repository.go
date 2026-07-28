@@ -178,7 +178,18 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 			q = q.Where("medical_records.pet_id = ?", *filters.PetID)
 		}
 		if filters.OwnerID != nil {
-			q = q.Where("medical_records.owner_id = ?", *filters.OwnerID)
+			q = q.Where(`
+				EXISTS (
+					SELECT 1
+					FROM pets current_owner_pet
+					JOIN owners current_owner
+					  ON current_owner.id = current_owner_pet.owner_id
+					 AND current_owner.clinic_id = current_owner_pet.clinic_id
+					WHERE current_owner_pet.id = medical_records.pet_id
+					  AND current_owner_pet.clinic_id = medical_records.clinic_id
+					  AND current_owner.id = ?
+				)
+			`, *filters.OwnerID)
 		}
 		if filters.StartDate != nil {
 			q = q.Where("medical_records.date >= ?", *filters.StartDate)
@@ -301,10 +312,6 @@ func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
 					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
 					WHERE scoped_pet.id = medical_records.pet_id
 					  AND scoped_pet.clinic_id = medical_records.clinic_id
-					  AND (
-						medical_records.owner_id IS NULL OR
-						scoped_pet.owner_id = medical_records.owner_id
-					  )
 				)
 			)
 			AND (
@@ -574,7 +581,19 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
+		Where(`
+			deleted_at IS NULL
+			AND EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = medical_records.pet_id
+				  AND current_owner_pet.clinic_id = medical_records.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, ownerID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

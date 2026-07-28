@@ -189,7 +189,16 @@ SELECT
       )
   ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
-LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
+LEFT JOIN medical_records mr
+  ON mr.clinic_id = o.clinic_id
+ AND mr.deleted_at IS NULL
+ AND EXISTS (
+   SELECT 1
+   FROM pets current_owner_pet
+   WHERE current_owner_pet.id = mr.pet_id
+     AND current_owner_pet.clinic_id = mr.clinic_id
+     AND current_owner_pet.owner_id = o.id
+ )
 LEFT JOIN (
   SELECT
     b.clinic_id,

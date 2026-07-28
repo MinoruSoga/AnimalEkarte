@@ -52,7 +52,18 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 		q = q.Where("pet_id = ?", *petID)
 	}
 	if ownerID != nil {
-		q = q.Where("owner_id = ?", *ownerID)
+		q = q.Where(`
+			EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = hospitalizations.pet_id
+				  AND current_owner_pet.clinic_id = hospitalizations.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, *ownerID)
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)

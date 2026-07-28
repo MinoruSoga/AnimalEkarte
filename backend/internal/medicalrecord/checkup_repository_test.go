@@ -283,7 +283,7 @@ func TestCheckupRepository_FindByMedicalRecordID(t *testing.T) {
 	})
 }
 
-// FindByOwnerID は ISSUE-004 タグ再同期用: medical_records 経由で owner_id を解決する。
+// FindByOwnerID は ISSUE-004 タグ再同期用: medical_records.pet_id から現在の pets.owner_id を解決する。
 func TestCheckupRepository_FindByOwnerID(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
 	repo := NewCheckupRepository(db)
@@ -305,11 +305,41 @@ func TestCheckupRepository_FindByOwnerID(t *testing.T) {
 
 	got, err := repo.FindByOwnerID(ctx, clinicA, owner.ID)
 	require.NoError(t, err)
-	require.Len(t, got, 1, "指定飼主に紐づく健診のみ返る")
-	assert.Equal(t, own.ID, got[0].ID)
-	for _, c := range got {
-		assert.NotEqual(t, other.ID, c.ID)
-	}
+	require.Len(t, got, 2, "現在飼主のペットに紐づく健診は snapshot owner に関係なく返る")
+	assert.ElementsMatch(t, []uint64{own.ID, other.ID}, []uint64{got[0].ID, got[1].ID})
+	otherOwnerRows, err := repo.FindByOwnerID(ctx, clinicA, otherOwner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, otherOwnerRows)
+}
+
+func TestCheckupRepository_FindByOwnerID_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupCheckupRepoTestDB(t)
+	repo := NewCheckupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70102)
+
+	fixture := makeCurrentOwnerTransferFixture(
+		t,
+		db,
+		clinicID,
+		"MR-CHECKUP-CURRENT-OWNER",
+		time.Now(),
+	)
+	checkupType := makeCheckupTypeMaster(t, db, clinicID, "譲渡健診")
+	checkup := makeCheckupWithDates(t, db, clinicID, fixture.Record.ID, fixture.Pet.ID, checkupType.ID, time.Now(), nil)
+
+	got, err := repo.FindByOwnerID(ctx, clinicID, fixture.CurrentOwner.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, checkup.ID, got[0].ID)
+	var storedRecord model.MedicalRecord
+	require.NoError(t, db.WithContext(ctx).First(&storedRecord, fixture.Record.ID).Error)
+	require.NotNil(t, storedRecord.OwnerID)
+	assert.Equal(t, fixture.PreviousOwner.ID, *storedRecord.OwnerID, "medical record keeps the historical owner snapshot")
+
+	previous, err := repo.FindByOwnerID(ctx, clinicID, fixture.PreviousOwner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, previous)
 }
 
 func TestCheckupRepository_FindByID(t *testing.T) {
