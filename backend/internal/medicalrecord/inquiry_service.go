@@ -27,7 +27,9 @@ type inquiryService struct {
 	chiefComplaintTypeRepo ChiefComplaintTypeRepository
 }
 
-// NewInquiryService は InquiryService を生成する
+// NewInquiryService は InquiryService を生成する。
+// 親カルテ FOR UPDATE + FirstOrCreate + Updates の原子性は repository.SaveByMedicalRecordID 内の
+// 単一 Transaction で保証する（BE-refactor.md MRC-12 / phase2.html:195 / X-06）。
 func NewInquiryService(repo InquiryRepository, chiefComplaintTypeRepo ChiefComplaintTypeRepository) InquiryService {
 	return &inquiryService{repo: repo, chiefComplaintTypeRepo: chiefComplaintTypeRepo}
 }

@@ -144,6 +144,7 @@ func newMedicalRecordLabServices(
 				r.examinationTypes,
 				d.Pets,
 				r.medicalRecords,
+				d.Transactor,
 			),
 		),
 		jobs:    jobs,

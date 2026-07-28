@@ -88,7 +88,7 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, int64(1), count, "重複作成されない")
 	})
 
-	t.Run("medical_record が確定済みの場合 Conflict", func(t *testing.T) {
+	t.Run("medical_record が確定済みの場合 Conflict（MRC-12: 空 inquiry 行を残さない）", func(t *testing.T) {
 		mrFinalized := &model.MedicalRecord{
 			ClinicID: clinicA,
 			RecordNo: "MR-A-FINALIZED",
@@ -106,3 +106,4 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		assert.Zero(t, count, "確定済みカルテには問診データが残ってはならない")
 	})
 }
+

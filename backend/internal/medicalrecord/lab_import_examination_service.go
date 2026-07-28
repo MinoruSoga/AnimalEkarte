@@ -118,15 +118,18 @@ type labImportExaminationService struct {
 	examTypeRepo      ExamTypeRepository
 	petRepo           petFinder
 	medicalRecordRepo medicalRecordFinder
+	transactor        Transactor
 }
 
 // NewLabImportExaminationService は LabImportExaminationService を初期化して返す。
+// transactor は exam Create と exam_results 置換を同一 transaction に収める（BE-refactor.md MRC-05 / X-06）。
 func NewLabImportExaminationService(
 	examRepo examinationImportRepo,
 	dupChecker LabImportDuplicateChecker,
 	examTypeRepo ExamTypeRepository,
 	petRepo petFinder,
 	medicalRecordRepo medicalRecordFinder,
+	transactor Transactor,
 ) LabImportExaminationService {
 	return &labImportExaminationService{
 		examRepo:          examRepo,
@@ -134,6 +137,7 @@ func NewLabImportExaminationService(
 		examTypeRepo:      examTypeRepo,
 		petRepo:           petRepo,
 		medicalRecordRepo: medicalRecordRepo,
+		transactor:        transactor,
 	}
 }
 
@@ -204,6 +208,10 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		}, nil
 	}
 
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("lab import examination transaction dependency is required")
+	}
+
 	jobID := input.JobID
 	exam := &model.Examination{
 		ClinicID:        input.ClinicID,
@@ -216,51 +224,51 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		// result_entered: lab 結果は到着時点で値が確定しているため pending/in_progress をスキップ
 		Status: model.ExaminationStatusResultEntered,
 	}
-	if err := s.examRepo.Create(ctx, exam); err != nil {
-		// DB unique 制約違反（TOCTOU 安全ネット）: 重複として扱う
-		if apperrors.IsAlreadyExists(err) {
-			slog.InfoContext(ctx, "lab import exam skipped (db duplicate on create)",
-				slog.Uint64("clinic_id", input.ClinicID),
-				slog.Uint64("exam_type_id", input.ExamTypeID),
-				slog.String("job_id", input.JobID.String()),
-			)
-			return &LabExamPersistResult{
-				Duplicate: true,
-				JobID:     input.JobID,
-			}, nil
-		}
-		slog.ErrorContext(ctx, "lab import exam create failed",
-			"error", err,
-			"clinic_id", input.ClinicID,
-			"job_id", input.JobID.String(),
-		)
-		return nil, apperrors.Wrap(err, "failed to create exam from lab import")
-	}
 
-	if len(input.Items) > 0 {
-		items := buildExamResults(exam.ID, input.Items)
-		if _, _, err := s.examRepo.ReplaceItemsByExamID(ctx, input.ClinicID, exam.ID, items); err != nil {
-			slog.ErrorContext(ctx, "lab import exam items save failed",
+	// exam 本体と exam_results は 1 つの検査結果 business graph なので同一 transaction で原子的に書く
+	// （BE-refactor.md MRC-05 / X-06）。Replace 失敗時は rollback により孤児 exam を残さない。
+	var duplicateOnCreate bool
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.examRepo.Create(txCtx, exam); err != nil {
+			// DB unique 制約違反（TOCTOU 安全ネット）: 重複として扱う
+			if apperrors.IsAlreadyExists(err) {
+				duplicateOnCreate = true
+				return nil
+			}
+			slog.ErrorContext(txCtx, "lab import exam create failed",
 				"error", err,
 				"clinic_id", input.ClinicID,
-				"exam_id", exam.ID,
 				"job_id", input.JobID.String(),
 			)
-			// P2-7 (PR #186 review, id 3572087707): item 保存失敗のまま exam を残すと、
-			// 結果なしの孤児 exam が (clinic_id, exam_type_id, date, pet_id) を占有し、
-			// retry が dupChecker.IsDuplicate に誤ってスキップされ自己修復できなくなる。
-			// 孤児 exam を削除して retry が同一キーで再試行できるようにする
-			// （IsDuplicate は GORM soft-delete スコープで deleted_at IS NULL のみ対象）。
-			if delErr := s.examRepo.Delete(ctx, input.ClinicID, exam.ID); delErr != nil {
-				slog.ErrorContext(ctx, "lab import orphan exam cleanup failed",
-					"error", delErr,
+			return apperrors.Wrap(err, "failed to create exam from lab import")
+		}
+
+		if len(input.Items) > 0 {
+			items := buildExamResults(exam.ID, input.Items)
+			if _, _, err := s.examRepo.ReplaceItemsByExamID(txCtx, input.ClinicID, exam.ID, items); err != nil {
+				slog.ErrorContext(txCtx, "lab import exam items save failed",
+					"error", err,
 					"clinic_id", input.ClinicID,
 					"exam_id", exam.ID,
 					"job_id", input.JobID.String(),
 				)
+				return apperrors.Wrap(err, fmt.Sprintf("failed to save exam items for exam %d", exam.ID))
 			}
-			return nil, apperrors.Wrap(err, fmt.Sprintf("failed to save exam items for exam %d", exam.ID))
 		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if duplicateOnCreate {
+		slog.InfoContext(ctx, "lab import exam skipped (db duplicate on create)",
+			slog.Uint64("clinic_id", input.ClinicID),
+			slog.Uint64("exam_type_id", input.ExamTypeID),
+			slog.String("job_id", input.JobID.String()),
+		)
+		return &LabExamPersistResult{
+			Duplicate: true,
+			JobID:     input.JobID,
+		}, nil
 	}
 
 	slog.InfoContext(ctx, "lab import exam persisted",

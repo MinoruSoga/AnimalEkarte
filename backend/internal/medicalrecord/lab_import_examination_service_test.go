@@ -176,6 +176,42 @@ func (c *stubDupChecker) IsDuplicate(_ context.Context, _, _ uint64, _ time.Time
 	return c.isDup, c.checkErr
 }
 
+
+// passthroughLabImportTransactor は unit test 用の WithTx 素通し（ambient tx 不要な stub repo 経路）。
+type passthroughLabImportTransactor struct{}
+
+func (passthroughLabImportTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+// stubRollbackLabImportTransactor は stubExamRepo の in-memory 状態を snapshot/restore して
+// WithTx 失敗時の rollback を模擬する（MRC-05: Create+Replace 原子性の unit 近似）。
+type stubRollbackLabImportTransactor struct {
+	repo *stubExamRepo
+}
+
+func (t *stubRollbackLabImportTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	examsSnap := make(map[uint64]*model.Examination, len(t.repo.exams))
+	for id, exam := range t.repo.exams {
+		cp := *exam
+		examsSnap[id] = &cp
+	}
+	resultsSnap := make(map[uint64][]model.ExamResult, len(t.repo.results))
+	for id, items := range t.repo.results {
+		cp := make([]model.ExamResult, len(items))
+		copy(cp, items)
+		resultsSnap[id] = cp
+	}
+	nextID := t.repo.nextID
+	err := fn(ctx)
+	if err != nil {
+		t.repo.exams = examsSnap
+		t.repo.results = resultsSnap
+		t.repo.nextID = nextID
+	}
+	return err
+}
+
 // ------------------------------------
 // Contract tests
 // ------------------------------------
@@ -185,7 +221,7 @@ func (c *stubDupChecker) IsDuplicate(_ context.Context, _, _ uint64, _ time.Time
 func TestLabImportExaminationService_PersistExam_Happy(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{isDup: false}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	jobID := uuid.New()
 	petID := uint64(42)
@@ -305,7 +341,7 @@ func TestLabImportExaminationService_PersistExam_Happy(t *testing.T) {
 func TestLabImportExaminationService_PersistExam_NoItems(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	input := LabExamPersistInput{
 		ClinicID:   1,
@@ -335,7 +371,7 @@ func TestLabImportExaminationService_PersistExam_NoItems(t *testing.T) {
 func TestLabImportExaminationService_PersistExam_Duplicate(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{isDup: true}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	input := LabExamPersistInput{
 		ClinicID:   1,
@@ -367,7 +403,7 @@ func TestLabImportExaminationService_PersistExam_Duplicate(t *testing.T) {
 func TestLabImportExaminationService_PersistExam_ClinicScopeEnforced(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	input := LabExamPersistInput{
 		ClinicID:   1,
@@ -393,7 +429,7 @@ func TestLabImportExaminationService_PersistExam_ClinicScopeEnforced(t *testing.
 // TestLabImportExaminationService_PersistExam_MissingClinicID は
 // clinic_id=0 が InvalidInput を返すことを確認する（ガード）。
 func TestLabImportExaminationService_PersistExam_MissingClinicID(t *testing.T) {
-	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   0,
@@ -411,7 +447,7 @@ func TestLabImportExaminationService_PersistExam_MissingClinicID(t *testing.T) {
 // TestLabImportExaminationService_PersistExam_MissingExamTypeID は
 // exam_type_id=0 が InvalidInput を返すことを確認する。
 func TestLabImportExaminationService_PersistExam_MissingExamTypeID(t *testing.T) {
-	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -429,7 +465,7 @@ func TestLabImportExaminationService_PersistExam_MissingExamTypeID(t *testing.T)
 // TestLabImportExaminationService_PersistExam_MissingDate は
 // ゼロ日付が InvalidInput を返すことを確認する。
 func TestLabImportExaminationService_PersistExam_MissingDate(t *testing.T) {
-	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -448,7 +484,7 @@ func TestLabImportExaminationService_PersistExam_MissingDate(t *testing.T) {
 // 重複チェックがエラーを返した場合にエラーが伝播することを確認する。
 func TestLabImportExaminationService_PersistExam_DupCheckError(t *testing.T) {
 	dupChecker := &stubDupChecker{checkErr: errors.New("db error")}
-	svc := NewLabImportExaminationService(newStubExamRepo(), dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(newStubExamRepo(), dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -466,7 +502,7 @@ func TestLabImportExaminationService_PersistExam_DupCheckError(t *testing.T) {
 func TestLabImportExaminationService_PersistExam_CreateRepoError(t *testing.T) {
 	examRepo := newStubExamRepo()
 	examRepo.createErr = errors.New("db error")
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -484,7 +520,7 @@ func TestLabImportExaminationService_PersistExam_CreateRepoError(t *testing.T) {
 func TestLabImportExaminationService_PersistExam_ReplaceItemsError(t *testing.T) {
 	examRepo := newStubExamRepo()
 	examRepo.replaceErr = errors.New("db error")
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -503,7 +539,7 @@ func TestLabImportExaminationService_PersistExam_ReplaceItemsError(t *testing.T)
 func TestLabImportExaminationService_PersistBatch_Happy(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	jobID := uuid.New()
 	petA := uint64(10)
@@ -548,7 +584,7 @@ func TestLabImportExaminationService_PersistBatch_WithDuplicate(t *testing.T) {
 		// 2 行目だけ重複
 		return callCount == 2, nil
 	}}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	jobID := uuid.New()
 	inputs := []LabExamPersistInput{
@@ -577,7 +613,7 @@ func TestLabImportExaminationService_PersistBatch_WithDuplicate(t *testing.T) {
 // TestLabImportExaminationService_JobID_Propagated は
 // JobID フィールドが lab_import_jobs との接続点として全結果に保持されることを確認する。
 func TestLabImportExaminationService_JobID_Propagated(t *testing.T) {
-	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(newStubExamRepo(), &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 	jobID := uuid.New()
 
 	res, err := svc.persistExam(context.Background(), LabExamPersistInput{
@@ -622,7 +658,7 @@ func TestLabImportExaminationService_PersistBatch_RowErrorContinues(t *testing.T
 		examRepo.exams[exam.ID] = &cp
 		return nil
 	}
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	jobID := uuid.New()
 	inputs := []LabExamPersistInput{
@@ -655,7 +691,7 @@ func TestLabImportExaminationService_PersistBatch_RowErrorContinues(t *testing.T
 func TestLabImportExaminationService_PersistExam_DBDuplicateTreatedAsDuplicate(t *testing.T) {
 	examRepo := newStubExamRepo()
 	examRepo.createErr = apperrors.WrapAlreadyExists("exam", "")
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{isDup: false}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{isDup: false}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
 
 	res, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -700,15 +736,14 @@ func (c *examRepoBackedDupChecker) IsDuplicate(_ context.Context, clinicID, exam
 	return false, nil
 }
 
-// TestLabImportExaminationService_PersistExam_OrphanExamCleanedUpOnReplaceItemsError は
-// P2-7 (PR #186 review, id 3572087707) の回帰テスト。
-// exam 作成が成功した後に ReplaceItemsByExamID が失敗した場合、
-// (a) 結果なしの孤児 exam が残らないこと、(b) 同一 clinic/type/date/pet の retry が
-// duplicate checker に誤ってスキップされず再試行できることを検証する。
-func TestLabImportExaminationService_PersistExam_OrphanExamCleanedUpOnReplaceItemsError(t *testing.T) {
+// TestLabImportExaminationService_PersistExam_OrphanExamRolledBackOnReplaceItemsError は
+// MRC-05 / X-06: exam Create と ReplaceItems を同一 WithTx に収めた結果、
+// Replace 失敗時に exam が rollback され（孤児が残らない）、同一キーでの retry が可能であることを検証する。
+func TestLabImportExaminationService_PersistExam_OrphanExamRolledBackOnReplaceItemsError(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &examRepoBackedDupChecker{repo: examRepo}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	tx := &stubRollbackLabImportTransactor{repo: examRepo}
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), tx).(*labImportExaminationService)
 
 	petID := uint64(42)
 	date := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
@@ -720,7 +755,7 @@ func TestLabImportExaminationService_PersistExam_OrphanExamCleanedUpOnReplaceIte
 		Items:      []LabExamItemInput{{Name: "BUN", InspectionValue: "10"}},
 	}
 
-	// 1 回目: exam 作成成功 → item 保存失敗
+	// 1 回目: exam 作成成功 → item 保存失敗 → tx rollback
 	examRepo.replaceErr = errors.New("db error on item insert")
 	firstInput := baseInput
 	firstInput.JobID = uuid.New()
@@ -728,9 +763,9 @@ func TestLabImportExaminationService_PersistExam_OrphanExamCleanedUpOnReplaceIte
 		t.Fatal("expected error when replace items fails")
 	}
 
-	// (a) 失敗した job の孤児 exam が残らない
+	// (a) rollback により孤児 exam が残らない
 	if len(examRepo.exams) != 0 {
-		t.Fatalf("expected orphan exam to be cleaned up after item save failure, got %d exams", len(examRepo.exams))
+		t.Fatalf("expected orphan exam to be rolled back after item save failure, got %d exams", len(examRepo.exams))
 	}
 
 	// (b) 同一 clinic/type/date/pet の retry は duplicate として誤スキップされない
@@ -742,21 +777,20 @@ func TestLabImportExaminationService_PersistExam_OrphanExamCleanedUpOnReplaceIte
 		t.Fatalf("retry: unexpected error: %v", err)
 	}
 	if res.Duplicate {
-		t.Error("retry: expected Duplicate=false — orphan exam cleanup must allow retry to proceed")
+		t.Error("retry: expected Duplicate=false — transaction rollback must allow retry to proceed")
 	}
 	if res.ExamID == 0 {
 		t.Error("retry: expected exam to be created on retry")
 	}
 }
 
-// TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagatesEvenIfCleanupFails は
-// 孤児 exam の削除自体が失敗しても、本来の item 保存失敗エラーが黙って握りつぶされず
-// 呼び出し元へ伝播することを確認する（P2-7 のクリーンアップ失敗ログはエラー握りつぶし禁止）。
-func TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagatesEvenIfCleanupFails(t *testing.T) {
+// TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagates は
+// item 保存失敗が呼び出し元へ伝播し、補償 Delete 経路に依存しないことを確認する。
+func TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagates(t *testing.T) {
 	examRepo := newStubExamRepo()
 	examRepo.replaceErr = errors.New("db error on item insert")
-	examRepo.deleteErr = errors.New("cleanup db error")
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+	tx := &stubRollbackLabImportTransactor{repo: examRepo}
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), tx).(*labImportExaminationService)
 
 	_, err := svc.persistExam(context.Background(), LabExamPersistInput{
 		ClinicID:   1,
@@ -769,7 +803,10 @@ func TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagatesEven
 		t.Fatal("expected error when replace items fails")
 	}
 	if !strings.Contains(err.Error(), "failed to save exam items") {
-		t.Errorf("expected original item-save error to propagate even if cleanup fails, got: %v", err)
+		t.Errorf("expected item-save error to propagate, got: %v", err)
+	}
+	if len(examRepo.exams) != 0 {
+		t.Fatalf("expected no orphan exam after replace failure, got %d", len(examRepo.exams))
 	}
 }
 

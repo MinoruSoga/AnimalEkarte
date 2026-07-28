@@ -76,6 +76,21 @@ func rejectChiefComplaintTypeRepo(ownedID uint64) ChiefComplaintTypeRepository {
 
 // ── vaccination (CRITICAL #125): vaccine_id ──
 
+
+// passthroughTxForCrossTenant is WithTx passthrough for constructor-updated services under test.
+type passthroughTxForCrossTenant struct{}
+
+func (passthroughTxForCrossTenant) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+type draftMedicalRecordLocker struct{}
+
+func (draftMedicalRecordLocker) LockByIDForUpdate(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+}
+
+
 func TestVaccinationService_Create_RejectsCrossClinicVaccine(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedVaccineID = uint64(10)
@@ -475,7 +490,7 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *t
 	const foreignExamTypeID = uint64(999)
 
 	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
-		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo(), passthroughTxForCrossTenant{}).(*labImportExaminationService)
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
@@ -521,7 +536,7 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicPet(t *testin
 	const foreignPetID = uint64(999)
 
 	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
-		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), rejectPetRepo(ownedPetID), okMedicalRecordRepo()).(*labImportExaminationService)
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), rejectPetRepo(ownedPetID), okMedicalRecordRepo(), passthroughTxForCrossTenant{}).(*labImportExaminationService)
 	}
 
 	t.Run("rejects cross-clinic pet_id and does not persist", func(t *testing.T) {
@@ -563,7 +578,7 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicMedicalRecord
 	const foreignRecordID = uint64(999)
 
 	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
-		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), rejectMedicalRecordRepo(ownedRecordID)).(*labImportExaminationService)
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), rejectMedicalRecordRepo(ownedRecordID), passthroughTxForCrossTenant{}).(*labImportExaminationService)
 	}
 
 	t.Run("rejects cross-clinic medical_record_id and does not persist", func(t *testing.T) {
@@ -605,7 +620,7 @@ func TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType(t *
 	const foreignExamTypeID = uint64(999)
 
 	examRepo := newStubExamRepo()
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo())
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo(), passthroughTxForCrossTenant{})
 
 	jobID := uuid.New()
 	inputs := []LabExamPersistInput{
@@ -629,7 +644,7 @@ func TestLabResultImportService_Commit_RejectsCrossClinicExamType(t *testing.T) 
 
 	jobSvc := newStubLabJobService()
 	examRepo := newStubExamRepo()
-	examSvc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo())
+	examSvc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo(), passthroughTxForCrossTenant{})
 	svc := NewLabResultImportService(jobSvc, examSvc)
 
 	batch := syntheticFixtureBatch(1)
