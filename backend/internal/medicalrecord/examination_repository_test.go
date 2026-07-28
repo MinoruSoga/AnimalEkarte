@@ -280,6 +280,34 @@ func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
 	assert.Equal(t, valid.ID, byJob[0].ID)
 }
 
+func TestExaminationRepository_FindByID_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	repo := NewExaminationRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	typeA := makeExamTypeMaster(t, db, clinicID, "譲渡後検査")
+	previousOwner := makeTestOwner(t, db, clinicID, "譲渡前飼主")
+	currentOwner := makeTestOwner(t, db, clinicID, "譲渡後飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, previousOwner.ID, "譲渡ペット")
+	record := makeHistoryMedicalRecord(t, db, clinicID, pet.ID, "MR-EXAM-TRANSFER", time.Now())
+	record.OwnerID = &previousOwner.ID
+	require.NoError(t, db.Model(record).Update("owner_id", previousOwner.ID).Error)
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicID, ExamTypeID: typeA.ID, PetID: &pet.ID,
+		MedicalRecordID: &record.ID, Date: time.Now(),
+	})
+	require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pet.ID).Update("owner_id", currentOwner.ID).Error)
+
+	got, err := repo.FindByID(ctx, clinicID, exam.ID)
+	require.NoError(t, err)
+	assert.Equal(t, exam.ID, got.ID)
+	var persisted model.MedicalRecord
+	require.NoError(t, db.First(&persisted, record.ID).Error)
+	require.NotNil(t, persisted.OwnerID)
+	assert.Equal(t, previousOwner.ID, *persisted.OwnerID)
+}
+
 func TestExaminationRepository_FindByJobID(t *testing.T) {
 	db := setupExaminationTestDB(t)
 	repo := NewExaminationRepository(db)

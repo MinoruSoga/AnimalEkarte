@@ -20,7 +20,7 @@ export function SelectedPetContext({ pet }: SelectedPetContextProps) {
     >
       <div
         aria-hidden="true"
-        className={`flex size-9 shrink-0 items-center justify-center rounded-sm ${C.bgBrand} text-white`}
+        className={`flex size-9 shrink-0 items-center justify-center rounded-sm ${C.bgBrand} ${C.textOnBrand}`}
       >
         <span className="text-xl font-semibold">{pet.name?.slice(0, 1) || "-"}</span>
       </div>

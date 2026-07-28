@@ -96,4 +96,64 @@ describe("OwnerInfoSection", () => {
     await user.click(screen.getByRole("option", { name: "未設定" }));
     expect(onChange).toHaveBeenCalledWith("dmPreference", null);
   });
+
+  it("飼主生年月日をEnterで確定するとサイグラムをリアルタイム表示する", async () => {
+    const user = userEvent.setup();
+    renderOwnerInfo();
+
+    await user.type(screen.getByLabelText("飼主生年月日"), "1962/04/10");
+    await user.keyboard("{Enter}");
+
+    const status = screen.getByRole("status");
+    const birthDateInput = screen.getByLabelText("飼主生年月日");
+    expect(status).toHaveTextContent("サイグラム: 8（A8）★慎重派");
+    expect(status).not.toHaveTextContent("1962");
+    expect(status.parentElement).toBe(birthDateInput.parentElement?.parentElement);
+    expect(status.parentElement).toHaveClass("flex", "flex-wrap", "items-center", "gap-2");
+  });
+
+  it("飼主生年月日を変更するとサイグラム表示も更新する", async () => {
+    const user = userEvent.setup();
+    renderOwnerInfo();
+    const birthDateInput = screen.getByLabelText("飼主生年月日");
+
+    await user.type(birthDateInput, "1962/04/10");
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "サイグラム: 8（A8）★慎重派",
+    );
+
+    await user.clear(birthDateInput);
+    await user.type(birthDateInput, "2002/10/04");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "サイグラム: 5（A5）☆楽観派",
+    );
+  });
+
+  it("飼主生年月日が空、不正、またはクリア済みならサイグラムを表示しない", async () => {
+    const user = userEvent.setup();
+    renderOwnerInfo();
+    const birthDateInput = screen.getByLabelText("飼主生年月日");
+    const status = screen.getByRole("status");
+
+    expect(screen.queryByText(/^サイグラム:/)).not.toBeInTheDocument();
+    expect(status).toHaveTextContent("サイグラム分類なし");
+
+    await user.type(birthDateInput, "2001/02/29");
+    await user.keyboard("{Enter}");
+    expect(screen.queryByText(/^サイグラム:/)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("サイグラム分類なし");
+
+    await user.clear(birthDateInput);
+    await user.type(birthDateInput, "1962/04/10");
+    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
+
+    expect(screen.queryByText(/^サイグラム:/)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("サイグラム分類なし");
+  });
 });

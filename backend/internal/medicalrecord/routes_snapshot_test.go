@@ -2,6 +2,8 @@ package medicalrecord
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"testing"
@@ -87,6 +89,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/diagnosis-names/:id DeleteDiagnosisName\n" +
 		"DELETE /api/v1/masters/diagnosis-types/:id DeleteDiagnosisType\n" +
 		"DELETE /api/v1/masters/examination-types/:id DeleteExaminationType\n" +
+		"DELETE /api/v1/masters/examination-types/:id/fields/:fieldId DeleteExaminationTypeField\n" +
 		"DELETE /api/v1/masters/hospitalization-plans/:id DeleteHospitalizationPlan\n" +
 		"DELETE /api/v1/masters/inquiry-templates/:id DeleteInquiryTemplate\n" +
 		"DELETE /api/v1/masters/medicines/:id DeleteMedicine\n" +
@@ -175,6 +178,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/diagnosis-types/:id UpdateDiagnosisType\n" +
 		"PATCH /api/v1/masters/diagnosis-types/reorder ReorderDiagnosisTypes\n" +
 		"PATCH /api/v1/masters/examination-types/:id UpdateExaminationType\n" +
+		"PATCH /api/v1/masters/examination-types/:id/fields/:fieldId UpdateExaminationTypeField\n" +
+		"PATCH /api/v1/masters/examination-types/:id/fields/reorder ReorderExaminationTypeFields\n" +
 		"PATCH /api/v1/masters/examination-types/reorder ReorderExaminationTypes\n" +
 		"PATCH /api/v1/masters/hospitalization-plans/:id UpdateHospitalizationPlan\n" +
 		"PATCH /api/v1/masters/hospitalization-plans/reorder ReorderHospitalizationPlans\n" +
@@ -214,6 +219,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/diagnosis-names CreateDiagnosisName\n" +
 		"POST /api/v1/masters/diagnosis-types CreateDiagnosisType\n" +
 		"POST /api/v1/masters/examination-types CreateExaminationType\n" +
+		"POST /api/v1/masters/examination-types/:id/fields CreateExaminationTypeField\n" +
 		"POST /api/v1/masters/hospitalization-plans CreateHospitalizationPlan\n" +
 		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
 		"POST /api/v1/masters/medicines CreateMedicine\n" +
@@ -230,12 +236,89 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
+		"PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges ReplaceExaminationTypeFieldReferenceRanges\n" +
 		"PUT /api/v1/masters/medicines/:id/dose-params/:species UpsertMedicineDoseParam\n" +
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n" +
 		"PUT /api/v1/medical-records/:id/treatments BulkUpdateTreatments\n"
 
 	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
 		"(internal/handler/testdata/route_snapshot.golden, before these 157 lines were removed)")
+}
+
+// TestRegisterRoutes_HospitalizationDischargePermissions locks BUG-457 product decision:
+// accounting-bearing discharge (POST discharge-with-billing) and no-accounting discharge via
+// generic update (PATCH /:id) both require hospitalization:edit — not delete.
+// Permission middleware aborts before nil-backed terminal handlers so ServeHTTP never panics.
+// Snapshot TestRegisterRoutes_Snapshot cannot observe middleware; this HTTP-driven spy does.
+func TestRegisterRoutes_HospitalizationDischargePermissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var observed []string
+	permSpy := func(resource, action string) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			observed = append(observed, resource+":"+action)
+			c.AbortWithStatus(http.StatusOK)
+		}
+	}
+
+	h := NewHandler(
+		NewDiagnosisHandler(nil, nil),
+		NewExamTypeHandler(nil),
+		NewChiefComplaintHandler(nil),
+		NewCheckupHandler(nil, nil),
+		NewCheckupTypeHandler(nil),
+		NewVaccineHandler(nil),
+		NewVaccinationHandler(nil),
+		NewPrescriptionHandler(nil),
+		NewInquiryHandler(nil),
+		NewInquiryTemplateHandler(nil),
+		NewLabImportHandler(nil, nil, nil),
+		NewLabReportHandler(nil),
+		NewVitalHandler(nil, nil),
+		NewClinicalPlanHandler(nil),
+		NewMedicalRecordImageHandler(nil, nil, nil),
+		NewTreatmentHandler(nil, nil),
+		NewHospitalizationHandler(nil),
+		NewHospitalizationPlanHandler(nil),
+		NewDailyRecordHandler(nil),
+		NewCarePlanItemHandler(nil),
+		NewConsultationHandler(nil),
+		NewProcedureHandler(nil),
+		NewMedicineHandler(nil),
+		NewMedicineDoseParamHandler(nil),
+		NewCageHandler(nil),
+		NewTreatmentPlanHandler(nil, nil, nil, nil),
+		NewMedicalRecordHandler(nil),
+		NewMedicalRecordAddendumHandler(nil),
+		NewExaminationHandler(nil),
+		permSpy,
+	)
+
+	r := gin.New()
+	api := r.Group("/api/v1")
+	h.RegisterRoutes(api)
+
+	// FE accounting-yes branch → POST discharge-with-billing
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/hospitalizations/1/discharge-with-billing", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	// FE accounting-no branch → generic PATCH (status discharged)
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/hospitalizations/1", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	// Assert resource AND action — action-only would pass if another resource's edit were swapped in.
+	assert.Equal(t, []string{
+		"hospitalization:edit",
+		"hospitalization:edit",
+	}, observed)
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

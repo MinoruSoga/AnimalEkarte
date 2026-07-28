@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -62,49 +63,94 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 		return
 	}
 
-	// 同日同ペットのカルテ存在チェック（重複防止）
-	dateStr := reservation.StartTime.Format(time.DateOnly)
-	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{
-		PetID:     reservation.PetID,
-		StartDate: &dateStr,
-		EndDate:   &dateStr,
-	}, 1, 1)
+	dateStr := reservation.StartTime.In(config.JST).Format(time.DateOnly)
+	var createResult medicalRecordCreateTxResult
+	err := s.withTx(ctx, func(txCtx context.Context) error {
+		acquired, err := s.repo.AcquireAutoCreateLock(txCtx, clinicID, *reservation.PetID, dateStr)
+		if err != nil {
+			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to acquire auto-create lock",
+				slog.Uint64("reservation_id", reservation.ID),
+				slog.String("error", err.Error()))
+			return err
+		}
+		if !acquired {
+			slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — auto-create lock is busy",
+				slog.Uint64("reservation_id", reservation.ID),
+				slog.Uint64("pet_id", *reservation.PetID),
+				slog.String("date", dateStr))
+			return nil
+		}
+
+		// advisory lock の保持中に同日同ペットの存在確認から Create 完了までを直列化する。
+		total, err := s.repo.CountByPetAndDate(txCtx, clinicID, *reservation.PetID, dateStr)
+		if err != nil {
+			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to check existing records",
+				slog.Uint64("reservation_id", reservation.ID),
+				slog.String("error", err.Error()))
+			return err
+		}
+		if total > 0 {
+			slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — same-day record already exists",
+				slog.Uint64("pet_id", *reservation.PetID),
+				slog.String("date", dateStr))
+			return nil
+		}
+
+		statusDraft := model.MedicalRecordStatusDraft
+		input := CreateMedicalRecordInput{
+			Date:          reservation.StartTime,
+			OwnerID:       reservation.OwnerID,
+			PetID:         reservation.PetID,
+			AppointmentID: &reservation.ID,
+			Status:        &statusDraft,
+			VisitType:     model.VisitTypeRevisit,
+		}
+		if reservation.DoctorID != nil {
+			input.DoctorID = reservation.DoctorID
+		}
+
+		created, err := s.createMedicalRecordInTx(txCtx, clinicID, &input)
+		if err != nil {
+			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to create medical record",
+				slog.Uint64("reservation_id", reservation.ID),
+				slog.String("error", err.Error()))
+			return err
+		}
+		resolvedRecord := created.record
+		if created.existingHit != nil {
+			resolvedRecord = created.existingHit
+		}
+		if resolvedRecord != nil &&
+			resolvedRecord.Date.In(config.JST).Format(time.DateOnly) != dateStr {
+			// The advisory key comes from the caller snapshot, while the create core locks and
+			// rereads the authoritative appointment. If a concurrent reschedule changes the JST
+			// day, roll this transaction back instead of inserting under a different day/key.
+			return apperrors.WrapConflict("appointment date changed during medical record auto-create")
+		}
+		createResult = created
+		return nil
+	})
 	if err != nil {
-		slog.WarnContext(ctx, "autoCreateFromReservation: failed to check existing records",
+		slog.WarnContext(ctx, "autoCreateFromReservation: auto-create transaction failed",
 			slog.Uint64("reservation_id", reservation.ID),
 			slog.String("error", err.Error()))
 		return
 	}
-	if total > 0 {
-		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — same-day record already exists",
-			slog.Uint64("pet_id", *reservation.PetID),
-			slog.String("date", dateStr))
+	if createResult.existingHit != nil {
+		// Public Create returned this appointment-linked record before the extraction and
+		// AutoCreate still ran the best-effort subrecord GetOrCreate path. Preserve that repair
+		// without repeating create audit, welcome, or tag side effects.
+		s.CreateSubRecords(ctx, clinicID, createResult.existingHit.ID, CreateSubRecordsInput{})
+		return
+	}
+	if createResult.record == nil {
 		return
 	}
 
-	statusDraft := model.MedicalRecordStatusDraft
-	input := CreateMedicalRecordInput{
-		Date:          reservation.StartTime,
-		OwnerID:       reservation.OwnerID,
-		PetID:         reservation.PetID,
-		AppointmentID: &reservation.ID,
-		Status:        &statusDraft,
-		VisitType:     model.VisitTypeRevisit,
-	}
-	if reservation.DoctorID != nil {
-		input.DoctorID = reservation.DoctorID
-	}
-
-	record, err := s.Create(ctx, clinicID, &input)
-	if err != nil {
-		slog.WarnContext(ctx, "autoCreateFromReservation: failed to create medical record",
-			slog.Uint64("reservation_id", reservation.ID),
-			slog.String("error", err.Error()))
-		return
-	}
+	s.runMedicalRecordCreatePostCommit(ctx, createResult)
 
 	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
-	s.CreateSubRecords(ctx, clinicID, record.ID, CreateSubRecordsInput{})
+	s.CreateSubRecords(ctx, clinicID, createResult.record.ID, CreateSubRecordsInput{})
 }
 
 // DeleteDraftFromReservation は予約キャンセル時に、その予約に紐づく draft カルテを論理削除する (#83 Q10、best-effort)。

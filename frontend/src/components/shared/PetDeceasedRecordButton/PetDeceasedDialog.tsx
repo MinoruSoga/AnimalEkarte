@@ -1,4 +1,4 @@
-import { useActionState } from "react";
+import { useActionState, useLayoutEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ interface PetDeceasedDialogProps {
   petBreed?: string;
   petGender?: string;
   petAge?: string;
+  canEdit?: boolean;
   /**
    * BUG-407: 保存成功時に呼ばれる。バックエンドへの即時保存はこのダイアログが
    * 既に完結させているが、この通知が無いと外側 PetEditModal のローカル
@@ -47,9 +48,14 @@ export function PetDeceasedDialog({
   petBreed,
   petGender,
   petAge,
+  canEdit = false,
   onRecorded,
 }: PetDeceasedDialogProps) {
   const mutation = useRecordPetDeath();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const [state, formAction, isPending] = useActionState(
     async (
@@ -78,6 +84,9 @@ export function PetDeceasedDialog({
 
       try {
         const normalizedReason = deceasedReason || undefined;
+        if (canEditRef.current !== true) {
+          return { success: false, timestamp: Date.now() };
+        }
         await mutation.mutateAsync({
           petId,
           deceasedAt,

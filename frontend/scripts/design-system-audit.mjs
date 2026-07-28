@@ -2,9 +2,9 @@
  * design-system-audit — docs/spec/ui-design-compliance.md §1 の機械判定。
  *
  * 判定内容:
- *   C1 — legacy 構造色（`C.accent` / 旧 teal `#038B94`/`#027078` / 旧 accent `#2383E2`）禁止。FE10 リブランドで brand=#0075DE 解禁・teal を legacy 化。
+ *   C1 — legacy 構造色（`C.accent` / 旧 accent `#2383E2`）禁止。brand/primary teal と臨床 semantic 色を許可。
  *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。
- *   C5 — Primary CTA の `colorVariant` は `"brand"` のみ。
+ *   C5 — CTA の `colorVariant` は semantic primary、brand、互換 default のみ。
  *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
  *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
  *   C8 — `src/features/<feat>/routes/<file>.tsx` が PageLayout / Master*Page / allowlist のいずれか。
@@ -45,10 +45,10 @@ const DESIGN_TOKENS_REL_PATH = path.join("src", "lib", "design-tokens.ts");
 // 実行時に動的生成する rgba() のみ扱う（JSDoc で根拠を記載済み）ため C6 の allowlist。
 const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color-map.ts");
 
-const C1_RE = /C\.accent\b|#038B94|#027078|#2383E2/i;
+const C1_RE = /C\.accent\b|#2383E2/i;
 const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]|(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration)-\[#[0-9A-Fa-f]{3,8}\](?:\/[0-9]+)?/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
-const C5_BRAND_VALUE = "brand";
+const C5_ALLOWED_VALUES = new Set(["default", "primary", "brand"]);
 const C6_RE = /rgba?\(|hsla?\(/;
 const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
@@ -211,7 +211,7 @@ export function checkC3(text) {
 }
 
 /**
- * checkC5 はテキストから `colorVariant="..."` の値が "brand" 以外の箇所を検出する。
+ * checkC5 はテキストから許可されていない `colorVariant="..."` を検出する。
  */
 export function checkC5(text) {
   const violations = [];
@@ -219,7 +219,7 @@ export function checkC5(text) {
     const re = new RegExp(C5_RE.source, "g");
     let match;
     while ((match = re.exec(line)) !== null) {
-      if (match[1] !== C5_BRAND_VALUE) {
+      if (!C5_ALLOWED_VALUES.has(match[1])) {
         violations.push({ lineNumber: i + 1, text: line.trim(), value: match[1] });
       }
     }
@@ -771,10 +771,8 @@ export async function collectViolations(cwd) {
       const isTest = isTestFile(path.basename(file));
       const text = readFileSync(file, "utf-8");
 
-      if (!isDesignTokensFile(relPath)) {
-        for (const v of checkC1(text)) {
-          result.c1.push({ file: relPath, ...v });
-        }
+      for (const v of checkC1(text)) {
+        result.c1.push({ file: relPath, ...v });
       }
       if (!isTest && !isDesignTokensFile(relPath)) {
         for (const v of checkC3(text)) {
@@ -847,6 +845,9 @@ export async function collectViolations(cwd) {
     for (const file of cssFiles) {
       const relPath = path.relative(cwd, file);
       const text = readFileSync(file, "utf-8");
+      for (const v of checkC1(text)) {
+        result.c1.push({ file: relPath, ...v });
+      }
       for (const v of checkC17(text, relPath)) {
         result.c17.push({ file: relPath, ...v });
       }
@@ -876,7 +877,7 @@ async function main() {
 
   printGroup("C1 legacy accent", result.c1);
   printGroup("C3 hex 直書き", result.c3);
-  printGroup("C5 非 brand colorVariant", result.c5);
+  printGroup("C5 不正な colorVariant", result.c5);
   printGroup("C6 rgba/hsla 直値", result.c6);
   printGroup("C7 maxWidth 生値", result.c7);
   printGroup("C8 PageLayout 未使用 routes", result.c8);

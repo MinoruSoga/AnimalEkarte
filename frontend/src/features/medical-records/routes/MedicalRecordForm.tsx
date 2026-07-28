@@ -3,6 +3,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useTransition,
@@ -21,6 +22,7 @@ import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
+import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
   MedicalRecordFinalizeDialog,
@@ -66,6 +68,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     isSaving,
     isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems: _treatmentPlanItems,
     setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
@@ -143,6 +147,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = isNewRecord ? canCreate : canEdit;
+  const canDeleteRef = useRef(canDelete);
+  const selectedPetStatusRef = useRef(selectedPet?.status);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
+  useLayoutEffect(() => {
+    selectedPetStatusRef.current = selectedPet?.status;
+  }, [selectedPet?.status]);
 
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
@@ -185,7 +197,11 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [handleFinalize, setIsFinalizeConfirmOpen]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!recordId || canDelete !== true) return;
+    if (
+      !recordId
+      || canDeleteRef.current !== true
+      || selectedPetStatusRef.current === "死亡"
+    ) return;
     deleteRecord(recordId, {
       onSuccess: () => {
         toast.success("カルテを削除しました");
@@ -196,7 +212,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         handleApiError(error, "カルテ削除");
       },
     });
-  }, [recordId, canDelete, deleteRecord, navigate, setIsDeleteConfirmOpen]);
+  }, [recordId, deleteRecord, navigate, setIsDeleteConfirmOpen]);
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
@@ -282,6 +298,13 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
+      {autoCreateFailurePhase !== null ? (
+        <MedicalRecordAutoCreateFailure
+          failurePhase={autoCreateFailurePhase}
+          isRetrying={isCreating}
+          onRetry={retryAutoCreate}
+        />
+      ) : null}
       <UnifiedTabsRoot
         value={activeTab}
         onValueChange={handleTabChange}

@@ -149,9 +149,6 @@ func TestListExaminationItems(t *testing.T) {
 func TestReplaceExaminationItems(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	min1 := 1.0
-	max10 := 10.0
-
 	tests := []struct {
 		name       string
 		paramID    string
@@ -167,8 +164,8 @@ func TestReplaceExaminationItems(t *testing.T) {
 			paramID: "10",
 			body: map[string]any{
 				"items": []map[string]any{
-					{"name": "WBC", "inspection_value": "5.0", "ref_min": min1, "ref_max": max10},
-					{"name": "RBC", "inspection_value": "11", "ref_min": min1, "ref_max": max10},
+					{"name": "WBC", "inspection_value": "5.0"},
+					{"name": "RBC", "inspection_value": "11"},
 				},
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -187,6 +184,30 @@ func TestReplaceExaminationItems(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"status":"high"`,
+		},
+		{
+			name:    "ignores client supplied assessed state",
+			paramID: "10",
+			body: map[string]any{
+				"items": []map[string]any{{
+					"name":        "WBC",
+					"is_assessed": true,
+				}},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				replaceItemsFn: func(_ context.Context, _, _ uint64, _ *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
+					assert.Len(t, inputs, 1)
+					return []model.ExamResult{{
+						ID:     1,
+						ExamID: 10,
+						Name:   "WBC",
+						Status: model.ExaminationResultStatusNormal,
+					}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"is_assessed":false`,
 		},
 		{
 			name:     "accepts empty items list",

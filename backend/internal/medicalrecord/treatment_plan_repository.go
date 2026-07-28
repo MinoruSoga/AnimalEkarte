@@ -35,9 +35,28 @@ func (r *treatmentPlanRepository) clinicScopeQuery(ctx context.Context, clinicID
 		Scopes(persistence.ClinicScope(clinicID))
 }
 
+func treatmentPlanParentClinicScope(db *gorm.DB) *gorm.DB {
+	return db.Where(`
+		(treatment_plans.medical_record_id IS NULL OR EXISTS (
+			SELECT 1
+			FROM medical_records
+			WHERE medical_records.id = treatment_plans.medical_record_id
+			  AND medical_records.clinic_id = treatment_plans.clinic_id
+		))
+		AND
+		(treatment_plans.hospitalization_id IS NULL OR EXISTS (
+			SELECT 1
+			FROM hospitalizations
+			WHERE hospitalizations.id = treatment_plans.hospitalization_id
+			  AND hospitalizations.clinic_id = treatment_plans.clinic_id
+		))
+	`)
+}
+
 func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
 	plans := make([]model.TreatmentPlan, 0)
 	if err := r.clinicScopeQuery(ctx, clinicID).
+		Scopes(treatmentPlanParentClinicScope).
 		Where("treatment_plans.medical_record_id = ?", medicalRecordID).
 		Order("treatment_plans.sort_order ASC").
 		Find(&plans).Error; err != nil {
@@ -49,6 +68,7 @@ func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, cli
 func (r *treatmentPlanRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
 	plans := make([]model.TreatmentPlan, 0)
 	if err := r.clinicScopeQuery(ctx, clinicID).
+		Scopes(treatmentPlanParentClinicScope).
 		Where("treatment_plans.hospitalization_id = ?", hospitalizationID).
 		Order("treatment_plans.sort_order ASC").
 		Find(&plans).Error; err != nil {
@@ -60,6 +80,7 @@ func (r *treatmentPlanRepository) FindByHospitalizationID(ctx context.Context, c
 func (r *treatmentPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
 	var plan model.TreatmentPlan
 	err := r.clinicScopeQuery(ctx, clinicID).
+		Scopes(treatmentPlanParentClinicScope).
 		Where("treatment_plans.id = ?", id).
 		First(&plan).Error
 	if err != nil {

@@ -49,7 +49,7 @@ func newMedicalRecordComposition(
 ) medicalRecordComposition {
 	auditTx := medicalRecordAuditTxBridge{logger: dependencies.Audit}
 	services := medicalRecordServices{
-		reference:  newMedicalRecordReferenceServices(repositories),
+		reference:  newMedicalRecordReferenceServices(repositories, dependencies),
 		masters:    newMedicalRecordMasterServices(repositories, dependencies, auditTx),
 		preventive: newMedicalRecordPreventiveServices(repositories, dependencies, auditTx),
 		lab:        newMedicalRecordLabServices(repositories, dependencies),

@@ -108,7 +108,7 @@ export function MonthGrid({
           className={cn(
             "min-h-11 min-w-11 rounded px-2 py-2 text-sm transition-colors",
             i === currentMonth
-              ? `${C.bgBrand} ${C.textWhite} font-medium`
+              ? `${C.bgBrand} ${C.textOnBrand} font-medium`
               : `${C.text} ${C.hoverBgPage}`,
           )}
         >

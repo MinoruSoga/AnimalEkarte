@@ -33,10 +33,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
+	course, err := s.findActiveLiffCourse(ctx, clinicID, typeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get course", "error", err)
-		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get course")
+		return nil, BookingWindow{}, err
 	}
 
 	// スタッフを事前取得（クロージャで再利用）
@@ -202,10 +201,9 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
+	course, err := s.findActiveLiffCourse(ctx, clinicID, typeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get course", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get course")
+		return nil, err
 	}
 
 	// 定休日チェック（GetAvailableDates で除外済みのはずだが多重防御）

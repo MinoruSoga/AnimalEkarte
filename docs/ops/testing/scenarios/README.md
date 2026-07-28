@@ -47,7 +47,7 @@
 
 - **実行環境**: ローカル（seed 003_demo）または STG（004_staging）。前提データはシナリオ内に検索条件で指定（ID 直書き禁止 — seed 変更に耐えるため）。
 - **実行記録はシナリオファイルに書かない**（時点情報の混入で腐る — 旧 FUNCTIONAL_TEST_REPORT の教訓）。実行ごとに `reports/YYYY-MM-DD-<env>.md` を作成し、シナリオ ID × PASS/FAIL/BLOCKED + 逸脱内容を記録する。
-- **AI 実行**: browser-test スキルで実行可能な粒度で書かれている。NG 項目はリポジトリ直下 `todo.md` の「バグ台帳」節へ BUG-XXX として起票する（バグではない対応事項は todo.md の他節または q&a.html（USER 操作・決裁））。
+- **AI 実行**: browser-test スキルで実行可能な粒度で書かれている。NG 項目はリポジトリ直下 [`3-session-agent.html` の実装タスク台帳（正本）](../../../../3-session-agent.html#ledger) の `<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="BUG-XXX">` として起票する（バグではない対応事項も同形式、USER 操作・決裁は q&a.html）。
 - **【要実測】マーク**: 仕様文書に期待値が明記されていない挙動。初回実行で実測値を確認し、正しければシナリオの期待結果へ昇格させる（マークを外す）。
 - **クレデンシャル禁止**: 実パスワード・トークンを本ディレクトリに書かない（[../../deploy/README.md](../../deploy/README.md) §4.4 準拠）。アカウントはロール名で指定する。
 

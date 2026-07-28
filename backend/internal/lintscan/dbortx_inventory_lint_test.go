@@ -99,6 +99,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHashForUpdate":       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.CountUsageByGroupID":                   {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Create":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.CreateWithRules":                       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Delete":                                {},
 	"auth/permission_group_repository.go|permissionGroupRepository.DeleteSoftDeletedByClinicID":           {},
 	"auth/permission_group_repository.go|permissionGroupRepository.FindAll":                               {},
@@ -108,8 +109,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"auth/permission_group_repository.go|permissionGroupRepository.LockByIDForUpdate":                     {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                               {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Update":                                {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateWithRules":                       {},
 	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                           {},
 	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                     {},
+	"auth/permission_group_repository.go|permissionGroupRepository.replaceRules":                          {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                  {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                           {},
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                             {},
@@ -146,7 +149,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
-	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -210,9 +214,20 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.FindByJobID":          {},
 	// Required ambient tx lock serializes status/move/delete/result replacement.
 	// Runtime: TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpdate.
-	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":    {},
-	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
-	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":        {},
+	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID":     {},
+	"medicalrecord/examination_repository.go|examinationRepository.Update":                   {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.AnimalSpeciesExists":           {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountExamResultsByFieldID":     {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountReferenceRangesByFieldID": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CreateField":                   {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.DeleteField":                   {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.FindReferenceRangesByFieldIDs": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.LockFieldByID":                 {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.ReorderFields":                 {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.ReplaceReferenceRanges":        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.UpdateField":                   {},
 	// medical_record_addendum
 	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
 	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
@@ -225,7 +240,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
 
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
+	// Auto-create holds one ambient transaction from the non-blocking advisory lock through the
+	// clinic/pet/JST-day duplicate count and INSERT. Runtime proofs:
+	// TestMedicalRecordRepository_AcquireAutoCreateLock_IsNonBlockingWhenContended and
+	// TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction.
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock":           {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions
@@ -266,6 +287,25 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.Update": {},
+	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
+	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
+	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
+	// TestPetRepository_ClearDeath_ConcurrentRevivalRequests
+	// (internal/pet/repository_tx_atomicity_test.go)
+	"pet/repository.go|repository.RecordDeath": {},
+	"pet/repository.go|repository.ClearDeath":  {},
+	// pet_owners の clinic 相関 read/count と全置換は、後続 service の置換 + audit と同じ
+	// ambient transaction に参加する。Runtime:
+	// TestPetOwnerRepository_FindByPetID_AmbientTransaction /
+	// TestPetOwnerRepository_ReplaceForPet_AmbientTransaction /
+	// TestPetOwnerRepository_CountByOwnerID_AmbientTransaction
+	// (internal/pet/pet_owner_repository_tx_atomicity_test.go) /
+	// TestPetOwnerRepository_FindSharedPetsByOwnerID_AmbientTransaction
+	// (internal/pet/pet_owner_repository_clinic_isolation_test.go)
+	"pet/pet_owner_repository.go|petOwnerRepository.FindByPetID":             {},
+	"pet/pet_owner_repository.go|petOwnerRepository.FindSharedPetsByOwnerID": {},
+	"pet/pet_owner_repository.go|petOwnerRepository.ReplaceForPet":           {},
+	"pet/pet_owner_repository.go|petOwnerRepository.CountByOwnerID":          {},
 	// BE9 pet create write owner: direct create, owner lock, number allocation, and reload
 	// remain in the caller's ambient transaction. Runtime:
 	// TestPetRepository_Create_AmbientTransactionNeverEscapesBaseDB; rollback-on-reload:
@@ -279,6 +319,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// roll back with the caller's transaction. Runtime:
 	// TestOwnerRepository_LineWebhookCASUpdates_RollBackWithAmbientTransaction.
 	"owner/repository.go|ownerRepository.findOwnerByID":        {},
+	"owner/repository.go|ownerRepository.CountPetsByOwnerID":   {},
+	"owner/repository.go|ownerRepository.Delete":               {},
+	"owner/repository.go|ownerRepository.LockForDelete":        {},
 	"owner/repository.go|ownerRepository.LockLineLinkOwner":    {},
 	"owner/repository.go|ownerRepository.UpdateLineBlockedAt":  {},
 	"owner/repository.go|ownerRepository.UpdateLineFollowedAt": {},
@@ -484,6 +527,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                   {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
 	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
+
+	// Runtime: TestExamReferenceRangeRepository_FindAnimalSpeciesID_HoldsExamShareLockUntilAmbientTransactionCommits.
+	"medicalrecord/exam_reference_range_repository.go|examinationRepository.FindAnimalSpeciesID": {},
+
+	// Runtime: TestExamReferenceRangeRepository_ResolveByFieldIDs_HoldsReferenceRangeShareLockUntilAmbientTransactionCommits.
+	"medicalrecord/exam_reference_range_repository.go|examinationRepository.ResolveByFieldIDs": {},
 }
 
 type ambientTxParticipationShape uint8
@@ -547,6 +596,9 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {
 		shape: ambientTxRequired,
 	},
 	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {

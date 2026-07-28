@@ -30,16 +30,23 @@ const COLUMNS = [
 ];
 
 export function InsuranceSettings() {
-  usePermission(ResourceMasterInsurance);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterInsurance);
   const { data } = useGetAllInsurances();
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();
   const deleteMutation = useDeleteInsurance();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Insurance>({ data, deleteMutation, entityLabel: "保険", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Insurance>({
+    data,
+    deleteMutation,
+    entityLabel: "保険",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<Insurance, InsuranceFormData, CreateInsuranceRequest, UpdateInsuranceRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildInsuranceCreateRequest,
     toUpdateRequest: buildInsuranceUpdateRequest,

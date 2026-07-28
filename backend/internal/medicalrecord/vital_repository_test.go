@@ -130,9 +130,8 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, deleted))
 	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
 
-	// 別クリニックの vital が同じ medical_record_id 値を偽装しても混入しないことを検証する
-	// （persistence.ClinicScope は vital_records.clinic_id で直接フィルタするため、他クリニックの行は
-	//  同一 MedicalRecordID を指していても除外される想定）。
+	// 別クリニックの vital が同じ medical_record_id を偽装しても、親 medical_records.clinic と
+	// 相関しない行は返らない（SEC-SWEEP-02-MR-B1）。
 	crossClinicVital := &model.VitalRecord{ClinicID: clinicB, PetID: petA.ID, MedicalRecordID: &mrA.ID, RecordedAt: time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC), Notes: "越境"}
 	require.NoError(t, repo.Create(ctx, crossClinicVital))
 
@@ -144,11 +143,11 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, "12時", got[1].Notes)
 	})
 
-	t.Run("別クリニックで問い合わせると空を返す（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別クリニックで問い合わせると空を返す（clinic_id 隔離 + 親相関）", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicB, mrA.ID)
 		require.NoError(t, err)
-		assert.Len(t, got, 1, "clinicB 自身が作成した越境行のみ返る")
-		assert.Equal(t, "越境", got[0].Notes)
+		// clinicB の vital は親 medical_records(clinicA) と clinic が不一致のため除外される。
+		assert.Empty(t, got, "cross-clinic vital linked to foreign parent medical record must be excluded")
 	})
 
 	t.Run("該当する medical_record_id が無ければ空スライスを返す", func(t *testing.T) {
@@ -229,5 +228,67 @@ func TestVitalRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, 9999999)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+// TestVitalRepository_FindByMedicalRecordID_CorrelatesMedicalRecordClinic
+// SEC-SWEEP-02-MR-B1: vital_records.medical_record_id 読みは medical_records.clinic_id と相関必須。
+// 子 vital の clinic だけ一致して親カルテが他院でも返ってしまう旧 failure mode を固定する。
+func TestVitalRepository_FindByMedicalRecordID_CorrelatesMedicalRecordClinic(t *testing.T) {
+	db := setupVitalTestDB(t)
+	repo := NewVitalRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
+	species := makeVitalSpecies(t, db, "犬")
+	petA := makeVitalPet(t, db, clinicA, ownerA.ID, species.ID, "ペットA")
+
+	mrA := makeVitalMedicalRecord(t, db, clinicA, "MR-VITAL-PARENT-A", time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC))
+	mrB := makeVitalMedicalRecord(t, db, clinicB, "MR-VITAL-PARENT-B", time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC))
+
+	// 正常: 同一 clinic の親カルテに紐づく vital
+	legit := &model.VitalRecord{
+		ClinicID:        clinicA,
+		PetID:           petA.ID,
+		MedicalRecordID: &mrA.ID,
+		RecordedAt:      time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
+		Notes:           "正常",
+	}
+	require.NoError(t, repo.Create(ctx, legit))
+
+	// 汚染: 子は clinicA だが親カルテは clinicB — 旧実装は ClinicScope + medical_record_id だけで返す。
+	polluted := &model.VitalRecord{
+		ClinicID:        clinicA,
+		PetID:           petA.ID,
+		MedicalRecordID: &mrB.ID,
+		RecordedAt:      time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC),
+		Notes:           "親他院",
+	}
+	require.NoError(t, repo.Create(ctx, polluted))
+
+	// ソフトデリート済み（同一 clinic・正常親）— 既存 lifecycle 維持
+	deleted := &model.VitalRecord{
+		ClinicID:        clinicA,
+		PetID:           petA.ID,
+		MedicalRecordID: &mrA.ID,
+		RecordedAt:      time.Date(2026, 7, 28, 8, 0, 0, 0, time.UTC),
+		Notes:           "削除済",
+	}
+	require.NoError(t, repo.Create(ctx, deleted))
+	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
+
+	t.Run("excludes vital whose parent medical record is foreign-clinic", func(t *testing.T) {
+		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrB.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got, "vital with foreign-clinic medical_record parent must not be returned")
+	})
+
+	t.Run("returns same-clinic vitals ordered and excludes soft-deleted", func(t *testing.T) {
+		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "正常", got[0].Notes)
+		assert.Equal(t, legit.ID, got[0].ID)
 	})
 }

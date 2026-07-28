@@ -167,7 +167,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 />
                 <span
                   aria-hidden="true"
-                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} bg-white text-white transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50`}
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} bg-white text-white transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
                 >
                   <Check className="size-3.5" />
                 </span>

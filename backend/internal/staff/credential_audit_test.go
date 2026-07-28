@@ -80,7 +80,10 @@ func TestHandler_UpdateStaffPasswordPassesExplicitCredentialAuditMetadata(
 			Name:      "Updated Staff",
 		},
 	}
-	handler := NewHandler(service, nil, nil, nil, nil, nil)
+	handler := NewHandlerWithPermissionChecker(
+		service, nil, nil, nil, nil, nil,
+		func(_ *gin.Context, _, _ string) bool { return true },
+	)
 
 	response := executeCredentialUpdate(
 		t,

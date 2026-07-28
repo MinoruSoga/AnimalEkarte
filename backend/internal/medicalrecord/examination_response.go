@@ -27,10 +27,10 @@ type examinationResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/検査種別/担当医を表示するため。Preload 時のみ埋まる。
-	// items は検査項目明細用の別 API (GET /examinations/:id/items) で取得するため、ここには含めない。
 	Pet      *petSummaryResponse      `json:"pet,omitempty"`
 	Doctor   *staffSummaryResponse    `json:"doctor,omitempty"`
 	ExamType *examTypeSummaryResponse `json:"exam_type,omitempty"`
+	Items    *[]examResultResponse    `json:"items,omitempty"`
 }
 
 func toExaminationResponse(exam *model.Examination) examinationResponse {
@@ -59,6 +59,13 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 	return resp
 }
 
+func toExaminationResponseWithItems(exam *model.Examination) examinationResponse {
+	resp := toExaminationResponse(exam)
+	items := httpapi.MapSlice(exam.Items, toExamResultResponse)
+	resp.Items = &items
+	return resp
+}
+
 // examResultResponse は exam_results 1 行分のレスポンス。
 type examResultResponse struct {
 	ID              uint64    `json:"id"`
@@ -72,6 +79,9 @@ type examResultResponse struct {
 	ReferenceValue  string    `json:"reference_value"`
 	RefMin          *float64  `json:"ref_min,omitempty"`
 	RefMax          *float64  `json:"ref_max,omitempty"`
+	QualitativeMin  *string   `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string   `json:"qualitative_max,omitempty"`
+	IsAssessed      bool      `json:"is_assessed"`
 	IsAbnormal      bool      `json:"is_abnormal"`
 	Status          string    `json:"status"`
 	SortOrder       int       `json:"sort_order"`
@@ -92,12 +102,35 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 		ReferenceValue:  item.ReferenceValue,
 		RefMin:          item.RefMin,
 		RefMax:          item.RefMax,
-		IsAbnormal:      item.IsAbnormal,
-		Status:          string(item.Status),
-		SortOrder:       item.SortOrder,
-		CreatedAt:       httpapi.LocalTime(item.CreatedAt),
-		UpdatedAt:       httpapi.LocalTime(item.UpdatedAt),
+		QualitativeMin:  item.QualitativeMin,
+		QualitativeMax:  item.QualitativeMax,
+		IsAssessed: isExamResultAssessed(
+			item.InspectionValue,
+			item.RefMin,
+			item.RefMax,
+			item.QualitativeMin,
+			item.QualitativeMax,
+		),
+		IsAbnormal: item.IsAbnormal,
+		Status:     string(item.Status),
+		SortOrder:  item.SortOrder,
+		CreatedAt:  httpapi.LocalTime(item.CreatedAt),
+		UpdatedAt:  httpapi.LocalTime(item.UpdatedAt),
 	}
+}
+
+func isExamResultAssessed(
+	inspectionValue string,
+	refMin, refMax *float64,
+	qualitativeMin, qualitativeMax *string,
+) bool {
+	return assessExamResult(
+		inspectionValue,
+		refMin,
+		refMax,
+		qualitativeMin,
+		qualitativeMax,
+	).isAssessed
 }
 
 // examItemsResponse は items 一括 GET / PUT のレスポンスエンベロープ。

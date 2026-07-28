@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -133,8 +134,16 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
-		return nil, err
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Vaccination{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -201,7 +210,6 @@ func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
 							WHERE scoped_record_pet.id = scoped_record.pet_id
 							  AND scoped_record_pet.clinic_id = ?
 							  AND scoped_record_pet.deleted_at IS NULL
-							  AND scoped_record.owner_id = scoped_record_pet.owner_id
 						)
 					  )
 					  AND (vaccinations.pet_id IS NULL OR scoped_record.pet_id = vaccinations.pet_id)
@@ -214,7 +222,7 @@ func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 // pets/owners を clinic_id 一致で JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format(time.DateOnly)
+	target := targetDate.In(config.JST).Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := persistence.DBOrTx(ctx, r.db).

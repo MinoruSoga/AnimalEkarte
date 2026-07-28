@@ -365,8 +365,16 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 // BE-refactor.md R1-2: Cancel が本メソッドを ambient tx（監査と原子化）から呼ぶため dbOrTx で参加する。
 // ambient tx が無ければ従来どおり db.WithContext(ctx) と等価（挙動保存）。
 func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
-	if err := updateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Billing{}, "billing", clinicID, billingID, fields); err != nil {
-		return nil, err
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Billing{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", billingID).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
 	var billing model.Billing
 	if err := persistence.DBOrTx(ctx, r.db).

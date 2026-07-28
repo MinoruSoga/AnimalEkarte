@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo, useState, useCallback, useEffect, useRef, useTransition } from "react";
+import { memo, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -28,6 +28,7 @@ interface DailyRecordsTabProps {
     hospitalizationId: string;
     admissionDate: string; // YYYY-MM-DD
     dischargeDate: string; // YYYY-MM-DD (today if not discharged)
+    petIsDeceased: boolean;
 }
 
 function getTodayStr(): string {
@@ -44,13 +45,19 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     hospitalizationId,
     admissionDate,
     dischargeDate,
+    petIsDeceased,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
     const canCreateRef = useRef(canCreate);
-    useEffect(() => {
+    const petIsDeceasedRef = useRef(petIsDeceased);
+    useLayoutEffect(() => {
         canCreateRef.current = canCreate;
-    }, [canCreate]);
-    const isMutationAllowed = useCallback(() => canCreateRef.current === true, []);
+        petIsDeceasedRef.current = petIsDeceased;
+    }, [canCreate, petIsDeceased]);
+    const isMutationAllowed = useCallback(
+        () => canCreateRef.current === true && petIsDeceasedRef.current !== true,
+        [],
+    );
     const { user } = useAuth();
     const currentUserId = Number(user?.id ?? 0);
     // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要

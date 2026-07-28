@@ -39,7 +39,7 @@ const COLUMNS = [
 
 // ─── Page ───
 export function TrimmingCourseTypeSettings() {
-  usePermission(ResourceMasterTrimming);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const { data } = useGetTrimmingCourseTypes();
   const createMutation = useCreateTrimmingCourseType();
   const updateMutation = useUpdateTrimmingCourseType();
@@ -51,6 +51,7 @@ export function TrimmingCourseTypeSettings() {
     deleteMutation,
     entityLabel: "コース種別",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => {
     if (d) dirty.markDirty();
@@ -69,6 +70,7 @@ export function TrimmingCourseTypeSettings() {
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildTrimmingCourseTypeCreateRequest,
     toUpdateRequest: buildTrimmingCourseTypeUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

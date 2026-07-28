@@ -12,6 +12,10 @@ import {
   type Reservation as BackendReservation,
 } from "@/types/generated/models";
 
+type BackendPetWithDangerReason = NonNullable<BackendReservation["pet"]> & {
+  danger_reason?: string;
+};
+
 const minimal: BackendReservation = {
   id: 1,
   clinic_id: 1,
@@ -124,6 +128,37 @@ describe("transformReservationToReceptionAppointment", () => {
 
     expect(result.petStatus).toBe(PetStatusDeceased);
     expect(result.petDangerLevel).toBe(DangerLevelHigh);
+  });
+
+  it("pet.danger_reason を petDangerReason にマップする", () => {
+    const pet = {
+      id: 10,
+      clinic_id: 1,
+      owner_id: 20,
+      animal_species_id: 1,
+      pet_number: "P00010",
+      name: "ポチ",
+      name_kana: "ポチ",
+      gender: PetGenderMale,
+      status: PetStatusDeceased,
+      breed: "",
+      color: "",
+      danger_level: DangerLevelHigh,
+      danger_reason: "保定時に噛む",
+      food: "",
+      environment: "",
+      phone: "",
+      remarks: "",
+      created_at: "2026-03-25T00:00:00Z",
+      updated_at: "2026-03-25T00:00:00Z",
+    } satisfies BackendPetWithDangerReason;
+
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet,
+    });
+
+    expect(result.petDangerReason).toBe("保定時に噛む");
   });
 
   it("pet が未紐付けの場合 reception sentinel は undefined", () => {

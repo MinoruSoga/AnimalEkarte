@@ -20,12 +20,14 @@ import (
 // ---- mock ExamTypeService ----
 
 type mockExamTypeService struct {
-	listFn    func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
-	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error)
-	deleteFn  func(ctx context.Context, clinicID, id uint64) error
-	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+	listFn                   func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
+	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
+	createFn                 func(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error)
+	updateFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
+	updateFieldFn            func(ctx context.Context, clinicID, examTypeID, fieldID uint64, input *UpdateExamTypeFieldInput) (*ExamTypeFieldResult, error)
+	replaceReferenceRangesFn func(ctx context.Context, clinicID, examTypeID uint64, command *ReplaceReferenceRangesCommand) (*ExamTypeFieldResult, error)
 }
 
 func (m *mockExamTypeService) List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
@@ -45,6 +47,30 @@ func (m *mockExamTypeService) Delete(ctx context.Context, clinicID, id uint64) e
 }
 func (m *mockExamTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return m.reorderFn(ctx, clinicID, ids)
+}
+func (m *mockExamTypeService) CreateField(context.Context, uint64, *CreateExamTypeFieldCommand) (*model.ExamTypeField, error) {
+	return &model.ExamTypeField{}, nil
+}
+func (m *mockExamTypeService) UpdateField(ctx context.Context, clinicID, examTypeID, fieldID uint64, input *UpdateExamTypeFieldInput) (*ExamTypeFieldResult, error) {
+	if m.updateFieldFn != nil {
+		return m.updateFieldFn(ctx, clinicID, examTypeID, fieldID, input)
+	}
+	return &ExamTypeFieldResult{}, nil
+}
+func (m *mockExamTypeService) DeleteField(context.Context, uint64, uint64, uint64) error {
+	return nil
+}
+func (m *mockExamTypeService) ReorderFields(context.Context, uint64, uint64, []uint64) error {
+	return nil
+}
+func (m *mockExamTypeService) ReplaceReferenceRanges(ctx context.Context, clinicID, examTypeID uint64, command *ReplaceReferenceRangesCommand) (*ExamTypeFieldResult, error) {
+	if m.replaceReferenceRangesFn != nil {
+		return m.replaceReferenceRangesFn(ctx, clinicID, examTypeID, command)
+	}
+	return &ExamTypeFieldResult{}, nil
+}
+func (m *mockExamTypeService) ListReferenceRanges(context.Context, uint64, []uint64) (map[uint64][]model.ExamReferenceRange, error) {
+	return map[uint64][]model.ExamReferenceRange{}, nil
 }
 
 // ---- helper ----

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -788,7 +789,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTreatmentAuditTxLogger{}, &mockTransactor{})
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -986,7 +987,7 @@ func TestMedicalRecordService_Update_FinalizationUsesAppointmentLifecycleGuard(t
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTreatmentAuditTxLogger{}, medicalRecordTxMarker{})
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{Status: &finalized})
 
@@ -1053,7 +1054,7 @@ func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{}, tagSync)
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTreatmentAuditTxLogger{}, &mockTransactor{}, tagSync)
 
 	record, err := svc.Update(context.Background(), 1, 30, UpdateMedicalRecordInput{Status: &statusFinalized})
 
@@ -2067,6 +2068,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 // TestMedicalRecordService_Update_FinalizeAuditLog はカルテ確定時に "finalize" 監査ログが追加記録されることを確認する。
 func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 	auditSvc := &mockAuditService{}
+	auditTx := &mockTreatmentAuditTxLogger{}
 	finalizedStatus := model.MedicalRecordStatusFinalized
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -2084,7 +2086,7 @@ func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, auditTx, &mockTransactor{})
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
@@ -2092,7 +2094,20 @@ func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 		ActorID: &staffID,
 	})
 	assert.NoError(t, err)
-	assert.Contains(t, auditSvc.calls, "finalize", "draft→finalized 遷移で finalize audit が記録されること")
+	require.Len(t, auditTx.entries, 1)
+	entry := auditTx.entries[0]
+	require.NotNil(t, entry.ClinicID)
+	require.NotNil(t, entry.ActorID)
+	require.NotNil(t, entry.ResourceID)
+	assert.Equal(t, uint64(1), *entry.ClinicID)
+	assert.Equal(t, staffID, *entry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
+	assert.Equal(t, "finalize", entry.Action)
+	assert.Equal(t, "medical_record", entry.Resource)
+	assert.Equal(t, uint64(10), *entry.ResourceID)
+	assert.Nil(t, entry.OldValue)
+	assert.Equal(t, "finalized", entry.NewValue.(map[string]any)["status"])
+	assert.Nil(t, entry.Metadata)
 }
 
 // TestMedicalRecordService_Delete_AuditLog はカルテ削除時に audit "delete" が記録されることを確認する。

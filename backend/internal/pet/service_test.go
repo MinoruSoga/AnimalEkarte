@@ -10,7 +10,24 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
+
+type postUpdatePetOwnerReader struct {
+	delegate PetOwnerReader
+	calls    int
+}
+
+func (r *postUpdatePetOwnerReader) FindByPetID(
+	ctx context.Context,
+	clinicID, petID uint64,
+) ([]model.PetOwner, error) {
+	r.calls++
+	if r.calls == 1 {
+		return []model.PetOwner{}, nil
+	}
+	return r.delegate.FindByPetID(ctx, clinicID, petID)
+}
 
 func TestPetService_List(t *testing.T) {
 	tests := []struct {
@@ -129,6 +146,64 @@ func TestPetService_List(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPetService_Update_RejectsSubOwnerPromotion(t *testing.T) {
+	db := setupPetOwnerRepositoryTestDB(t)
+	const clinicID = uint64(1)
+	originalOwner := makeTestOwner(t, db, clinicID, "昇格前主飼主")
+	promotedOwner := makeTestOwner(t, db, clinicID, "昇格対象副飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, originalOwner.ID, "昇格拒否ペット")
+	makePetOwnerLink(t, db, clinicID, pet.ID, promotedOwner.ID, "家族")
+	svc := NewServiceWithPetOwnerReader(
+		NewRepository(db),
+		petOwnerServiceDBOwnerFinder{db: db},
+		nil,
+		defaultMedicalRecordRepo(),
+		nil,
+		NewPetOwnerRepository(db),
+		persistence.NewTransactor(db),
+	)
+
+	_, err := svc.Update(context.Background(), clinicID, pet.ID, &UpdatePetInput{
+		OwnerID: &promotedOwner.ID,
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	var persisted model.Pet
+	require.NoError(t, db.Where("clinic_id = ? AND id = ?", clinicID, pet.ID).First(&persisted).Error)
+	assert.Equal(t, originalOwner.ID, persisted.OwnerID)
+}
+
+func TestPetService_Update_RollsBackWhenSubOwnerAppearsAfterPrecheck(t *testing.T) {
+	db := setupPetOwnerRepositoryTestDB(t)
+	const clinicID = uint64(1)
+	originalOwner := makeTestOwner(t, db, clinicID, "競合前主飼主")
+	promotedOwner := makeTestOwner(t, db, clinicID, "競合副飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, originalOwner.ID, "競合rollbackペット")
+	makePetOwnerLink(t, db, clinicID, pet.ID, promotedOwner.ID, "家族")
+	petOwners := &postUpdatePetOwnerReader{delegate: NewPetOwnerRepository(db)}
+	svc := NewServiceWithPetOwnerReader(
+		NewRepository(db),
+		petOwnerServiceDBOwnerFinder{db: db},
+		nil,
+		defaultMedicalRecordRepo(),
+		nil,
+		petOwners,
+		persistence.NewTransactor(db),
+	)
+
+	_, err := svc.Update(context.Background(), clinicID, pet.ID, &UpdatePetInput{
+		OwnerID: &promotedOwner.ID,
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Equal(t, 2, petOwners.calls)
+	var persisted model.Pet
+	require.NoError(t, db.Where("clinic_id = ? AND id = ?", clinicID, pet.ID).First(&persisted).Error)
+	assert.Equal(t, originalOwner.ID, persisted.OwnerID)
 }
 
 func TestPetService_GetByID(t *testing.T) {

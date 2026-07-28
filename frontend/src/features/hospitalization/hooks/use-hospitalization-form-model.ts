@@ -148,6 +148,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
     gender: hospitalization.pet.gender,
+    status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
   } as Pet;
 }
 

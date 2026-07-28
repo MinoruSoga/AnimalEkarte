@@ -244,6 +244,172 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 	})
 }
 
+func TestPermissionGroupRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	group := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     "create inactive",
+		Color:    "#112233",
+		IsActive: false,
+	}
+	require.NoError(t, repo.Create(ctx, group))
+	require.NotZero(t, group.ID)
+	assert.False(t, group.IsActive, "in-memory struct must keep false after Create")
+
+	got, err := repo.FindByID(ctx, clinicID, group.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.PermissionGroup{}).
+		Select("is_active").
+		Where("id = ?", group.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+func TestPermissionGroupRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	active := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     "create active true",
+		Color:    "#112233",
+		IsActive: true,
+	}
+	require.NoError(t, repo.Create(ctx, active))
+	assert.True(t, active.IsActive)
+
+	gotActive, err := repo.FindByID(ctx, clinicID, active.ID)
+	require.NoError(t, err)
+	assert.True(t, gotActive.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.PermissionGroup{}).
+		Select("is_active").
+		Where("id = ?", active.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive)
+}
+
+func TestPermissionGroupRepository_CreateWithRules_RollsBackParentWhenRulesInsertFails(
+	t *testing.T,
+) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	group := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     "atomic create rollback",
+		Color:    "#112233",
+		IsActive: true,
+	}
+	invalidRules := []model.PermissionGroupRule{
+		{Resource: strings.Repeat("x", 51), CanView: true},
+	}
+
+	_, err := atomicRepo.CreateWithRules(ctx, group, invalidRules)
+
+	require.Error(t, err)
+	var groupCount int64
+	require.NoError(t, db.Model(&model.PermissionGroup{}).
+		Where("clinic_id = ? AND name = ?", clinicID, group.Name).
+		Count(&groupCount).Error)
+	assert.Zero(t, groupCount, "failed child insert must roll back parent creation")
+}
+
+func TestPermissionGroupRepository_UpdateWithRules_RollsBackParentAndPriorRules(
+	t *testing.T,
+) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	group := makePermissionGroup(t, db, clinicID, "atomic update original")
+	originalRule := makeEffPermRule(
+		t,
+		db,
+		group.ID,
+		"medical_record",
+		true,
+		false,
+		false,
+		false,
+	)
+	invalidRules := []model.PermissionGroupRule{
+		{Resource: strings.Repeat("x", 51), CanView: true},
+	}
+
+	_, err := atomicRepo.UpdateWithRules(
+		ctx,
+		clinicID,
+		group.ID,
+		map[string]any{"name": "atomic update changed"},
+		invalidRules,
+	)
+
+	require.Error(t, err)
+	got, findErr := repo.FindByID(ctx, clinicID, group.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, "atomic update original", got.Name)
+	require.Len(t, got.Rules, 1)
+	assert.Equal(t, originalRule.ID, got.Rules[0].ID)
+	assert.Equal(t, "medical_record", got.Rules[0].Resource)
+}
+
+func TestPermissionGroupRepository_UpdateWithRules_RejectsOtherClinicWithoutChildChanges(
+	t *testing.T,
+) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	group := makePermissionGroup(t, db, clinicA, "atomic cross-clinic original")
+	originalRule := makeEffPermRule(
+		t,
+		db,
+		group.ID,
+		"medical_record",
+		true,
+		false,
+		false,
+		false,
+	)
+
+	_, err := atomicRepo.UpdateWithRules(
+		ctx,
+		clinicB,
+		group.ID,
+		map[string]any{"name": "atomic cross-clinic changed"},
+		[]model.PermissionGroupRule{{Resource: "owners", CanView: true}},
+	)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	got, findErr := repo.FindByID(ctx, clinicA, group.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, "atomic cross-clinic original", got.Name)
+	require.Len(t, got.Rules, 1)
+	assert.Equal(t, originalRule.ID, got.Rules[0].ID)
+	assert.Equal(t, "medical_record", got.Rules[0].Resource)
+}
+
 // TestPermissionGroupRepository_UpdateRules_SerializesParentDeletion は、
 // 親グループの削除とルール全置換を同じ親行ロックで直列化することを検証する。
 func TestPermissionGroupRepository_UpdateRules_SerializesParentDeletion(t *testing.T) {

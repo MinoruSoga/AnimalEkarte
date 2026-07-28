@@ -153,7 +153,7 @@ func runReservationStaffWriteGuardOperation(
 	ctx context.Context,
 	db *gorm.DB,
 	operation reservationStaffWriteOperation,
-	fixture reservationStaffWriteGuardFixture,
+	fixture *reservationStaffWriteGuardFixture,
 	guard ReservationStaffWriteGuard,
 ) (*model.Reservation, error) {
 	reservationRepo := NewReservationRepository(db)
@@ -222,7 +222,7 @@ func runReservationStaffWriteGuardOperation(
 func attemptReservationStaffCompetingMutation(
 	db *gorm.DB,
 	mutation reservationStaffCompetingMutation,
-	fixture reservationStaffWriteGuardFixture,
+	fixture *reservationStaffWriteGuardFixture,
 ) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// The lock holder is paused until this statement returns. PostgreSQL's
@@ -311,7 +311,7 @@ func TestReservationWrites_SerializeStaffDeleteAndAssignmentRemoval(t *testing.T
 					context.Background(),
 					db,
 					tt.operation,
-					fixture,
+					&fixture,
 					guard,
 				)
 				writeDone <- reservationStaffWriteResult{
@@ -327,7 +327,7 @@ func TestReservationWrites_SerializeStaffDeleteAndAssignmentRemoval(t *testing.T
 				require.Fail(t, "reservation write completed before the guard acquired its locks")
 			}
 
-			mutationErr := attemptReservationStaffCompetingMutation(db, tt.mutation, fixture)
+			mutationErr := attemptReservationStaffCompetingMutation(db, tt.mutation, &fixture)
 			close(release)
 			writeResult := <-writeDone
 

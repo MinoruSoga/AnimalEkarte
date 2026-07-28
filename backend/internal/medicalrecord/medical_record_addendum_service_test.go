@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -139,7 +140,7 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
+			svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, &mockTreatmentAuditTxLogger{}, &mockTransactor{})
 
 			addendum, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -179,7 +180,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 				return expected, nil
 			},
 		}
-		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
+		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil, nil)
 
 		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 1)
 
@@ -193,7 +194,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 				return nil, apperrors.WrapNotFound("medical_record", "999")
 			},
 		}
-		svc := NewMedicalRecordAddendumService(&mockMedicalRecordAddendumRepository{}, mrRepo, nil)
+		svc := NewMedicalRecordAddendumService(&mockMedicalRecordAddendumRepository{}, mrRepo, nil, nil)
 
 		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 999)
 
@@ -212,7 +213,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 				return nil, errors.New("addendum db error")
 			},
 		}
-		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
+		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil, nil)
 
 		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 1)
 
@@ -235,12 +236,13 @@ func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
 		},
 	}
 	addendumRepo := &mockMedicalRecordAddendumRepository{
-		createFn: func(_ context.Context, _ *model.MedicalRecordAddendum) error {
+		createFn: func(_ context.Context, addendum *model.MedicalRecordAddendum) error {
+			addendum.ID = 55
 			return nil
 		},
 	}
-	auditSvc := &mockAuditService{}
-	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
+	auditTx := &mockTreatmentAuditTxLogger{}
+	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditTx, &mockTransactor{})
 
 	input := CreateMedicalRecordAddendumInput{
 		MedicalRecordID: 10,
@@ -252,42 +254,23 @@ func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, addendum)
-	assert.Contains(t, auditSvc.calls, "create", "LogAddendumCreate が呼ばれること")
-}
-
-// TestMedicalRecordAddendumService_AuditFailure_NonFatal は audit ログが失敗しても
-// Create の主処理が正常完了することを確認する（best-effort）。
-func TestMedicalRecordAddendumService_AuditFailure_NonFatal(t *testing.T) {
-	finalizedRecord := &model.MedicalRecord{
-		ID:       20,
-		ClinicID: 1,
-		Status:   model.MedicalRecordStatusFinalized,
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return finalizedRecord, nil
-		},
-	}
-	addendumRepo := &mockMedicalRecordAddendumRepository{
-		createFn: func(_ context.Context, _ *model.MedicalRecordAddendum) error {
-			return nil
-		},
-	}
-	auditSvc := &mockAuditService{
-		logAddendumCreateFn: func(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-			return errors.New("audit db down")
-		},
-	}
-	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
-
-	input := CreateMedicalRecordAddendumInput{
-		MedicalRecordID: 20,
-		AuthorUserID:    7,
-		AfterText:       "updated note",
-		Reason:          "clarification",
-	}
-	addendum, err := svc.Create(context.Background(), 1, input)
-
-	assert.NoError(t, err, "audit エラーは主処理に影響しない")
-	assert.NotNil(t, addendum)
+	require.Len(t, auditTx.entries, 1)
+	entry := auditTx.entries[0]
+	require.NotNil(t, entry.ClinicID)
+	require.NotNil(t, entry.ActorID)
+	require.NotNil(t, entry.ResourceID)
+	assert.Equal(t, uint64(1), *entry.ClinicID)
+	assert.Equal(t, uint64(42), *entry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
+	assert.Equal(t, "create", entry.Action)
+	assert.Equal(t, "medical_record_addendum", entry.Resource)
+	assert.Equal(t, uint64(55), *entry.ResourceID)
+	assert.Nil(t, entry.OldValue)
+	assert.Equal(t, map[string]any{
+		"before_text":    "",
+		"after_text":     "corrected text",
+		"reason":         "typo fix",
+		"author_user_id": uint64(42),
+	}, entry.NewValue)
+	assert.Equal(t, map[string]any{"medical_record_id": uint64(10)}, entry.Metadata)
 }

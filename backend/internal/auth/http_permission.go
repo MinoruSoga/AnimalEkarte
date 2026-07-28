@@ -124,33 +124,18 @@ func FloatEquals(left, right float64) bool {
 	return httpapi.FloatEquals(left, right)
 }
 
-// CreatePermissionGroupRequest is the permission-group creation body.
-type CreatePermissionGroupRequest struct {
-	Name        string `json:"name"        binding:"required,min=1,max=255"`
-	Description string `json:"description" binding:"max=2000"`
-	Color       string `json:"color"       binding:"required,hexcolor,max=7"`
-	IsActive    bool   `json:"is_active"`
-	SortOrder   int    `json:"sort_order"`
-}
-
-// ToInput maps the request to the auth use-case input.
-func (r CreatePermissionGroupRequest) ToInput() *CreatePermissionGroupInput {
-	return &CreatePermissionGroupInput{
-		Name:        r.Name,
-		Description: r.Description,
-		Color:       r.Color,
-		IsActive:    r.IsActive,
-		SortOrder:   r.SortOrder,
-	}
-}
+// CreatePermissionGroupRequest is the live create-body alias for the
+// presence-aware PermissionGroupCreateRequest (omitted / false / true).
+type CreatePermissionGroupRequest = PermissionGroupCreateRequest
 
 // UpdatePermissionGroupRequest is the permission-group PATCH body.
 type UpdatePermissionGroupRequest struct {
-	Name        *string `json:"name"        binding:"omitempty,min=1,max=255"`
-	Description *string `json:"description" binding:"omitempty,max=2000"`
-	Color       *string `json:"color"       binding:"omitempty,hexcolor,max=7"`
-	IsActive    *bool   `json:"is_active"`
-	SortOrder   *int    `json:"sort_order"`
+	Name        *string                    `json:"name"        binding:"omitempty,min=1,max=255"`
+	Description *string                    `json:"description" binding:"omitempty,max=2000"`
+	Color       *string                    `json:"color"       binding:"omitempty,hexcolor,max=7"`
+	IsActive    *bool                      `json:"is_active"`
+	SortOrder   *int                       `json:"sort_order"`
+	Rules       []PermissionGroupRuleInput `json:"rules" binding:"omitempty,max=100,dive"`
 }
 
 // ToInput maps the request to the auth use-case input.
@@ -161,6 +146,7 @@ func (r UpdatePermissionGroupRequest) ToInput() *UpdatePermissionGroupInput {
 		Color:       r.Color,
 		SortOrder:   r.SortOrder,
 		IsActive:    r.IsActive,
+		Rules:       permissionGroupRuleInputs(r.Rules),
 	}
 }
 
@@ -185,8 +171,17 @@ type ReorderPermissionGroupsRequest struct {
 
 // ToInput maps the request to auth use-case rule inputs.
 func (r SetPermissionGroupRulesRequest) ToInput() []SetPermissionGroupRulesInput {
-	inputs := make([]SetPermissionGroupRulesInput, 0, len(r.Rules))
-	for _, rule := range r.Rules {
+	return permissionGroupRuleInputs(r.Rules)
+}
+
+func permissionGroupRuleInputs(
+	rules []PermissionGroupRuleInput,
+) []SetPermissionGroupRulesInput {
+	if rules == nil {
+		return nil
+	}
+	inputs := make([]SetPermissionGroupRulesInput, 0, len(rules))
+	for _, rule := range rules {
 		inputs = append(inputs, SetPermissionGroupRulesInput{
 			Resource:  rule.Resource,
 			CanView:   rule.CanView,
@@ -343,6 +338,15 @@ func (h *HTTPHandler) CreatePermissionGroup(c *gin.Context) {
 	var request CreatePermissionGroupRequest
 	if err := bindAuthJSON(c, &request); err != nil {
 		httpapi.RespondError(c, err)
+		return
+	}
+	if request.Rules != nil &&
+		!h.HasPermission(
+			c,
+			string(model.ResourceMasterPermission),
+			"edit",
+		) {
+		httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
 		return
 	}
 	audit, ok := permissionMutationAuditFromContext(

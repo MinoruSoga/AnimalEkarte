@@ -132,11 +132,25 @@ SELECT
     SELECT MAX(c.date) FROM checkups c
     INNER JOIN medical_records mrc ON mrc.id = c.medical_record_id AND mrc.deleted_at IS NULL
     WHERE c.clinic_id = o.clinic_id AND c.deleted_at IS NULL
-      AND mrc.clinic_id = o.clinic_id AND mrc.owner_id = o.id
+      AND mrc.clinic_id = o.clinic_id
+      AND EXISTS (
+        SELECT 1 FROM pets current_checkup_owner_pet
+        WHERE current_checkup_owner_pet.id = mrc.pet_id
+          AND current_checkup_owner_pet.clinic_id = mrc.clinic_id
+          AND current_checkup_owner_pet.owner_id = o.id
+      )
   ) AS last_checkup_date
 FROM owners o
 LEFT JOIN pets p ON p.owner_id = o.id AND p.clinic_id = o.clinic_id AND p.deleted_at IS NULL
-LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
+LEFT JOIN medical_records mr
+  ON mr.clinic_id = o.clinic_id
+ AND mr.deleted_at IS NULL
+ AND EXISTS (
+   SELECT 1 FROM pets current_visit_owner_pet
+   WHERE current_visit_owner_pet.id = mr.pet_id
+     AND current_visit_owner_pet.clinic_id = mr.clinic_id
+     AND current_visit_owner_pet.owner_id = o.id
+ )
 WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
@@ -206,11 +220,11 @@ func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) (having []stri
 	}
 	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
 	if params.LastCheckupBefore != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND mrf.owner_id = o.id) <= ?")
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND EXISTS (SELECT 1 FROM pets current_checkup_owner_pet WHERE current_checkup_owner_pet.id = mrf.pet_id AND current_checkup_owner_pet.clinic_id = mrf.clinic_id AND current_checkup_owner_pet.owner_id = o.id)) <= ?")
 		args = append(args, params.LastCheckupBefore.Format(time.DateOnly))
 	}
 	if params.LastCheckupAfter != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND mrf.owner_id = o.id) >= ?")
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.clinic_id = o.clinic_id AND EXISTS (SELECT 1 FROM pets current_checkup_owner_pet WHERE current_checkup_owner_pet.id = mrf.pet_id AND current_checkup_owner_pet.clinic_id = mrf.clinic_id AND current_checkup_owner_pet.owner_id = o.id)) >= ?")
 		args = append(args, params.LastCheckupAfter.Format(time.DateOnly))
 	}
 	return having, args

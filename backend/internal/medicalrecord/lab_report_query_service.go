@@ -114,6 +114,8 @@ func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
 			ReferenceValue:  r.ReferenceValue,
 			RefMin:          r.RefMin,
 			RefMax:          r.RefMax,
+			QualitativeMin:  r.QualitativeMin,
+			QualitativeMax:  r.QualitativeMax,
 			IsAbnormal:      r.IsAbnormal,
 			Status:          string(r.Status),
 			SortOrder:       r.SortOrder,

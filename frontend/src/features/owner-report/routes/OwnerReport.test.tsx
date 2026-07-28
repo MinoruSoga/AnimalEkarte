@@ -20,7 +20,7 @@ import { OwnerReport } from "./OwnerReport";
 // ---- data hooks をモックしてセクションデータを決定的に注入する ----
 const hooks = vi.hoisted(() => ({
   useGetOwner: vi.fn(),
-  useGetPets: vi.fn(),
+  useGetOwnerReportPets: vi.fn(),
   useGetPetVaccinations: vi.fn(),
   useGetPetExaminations: vi.fn(),
   useGetPetTreatmentHistory: vi.fn(),
@@ -32,7 +32,9 @@ const hooks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: hooks.useGetOwner }));
-vi.mock("@/hooks/use-pet", () => ({ useGetPets: hooks.useGetPets }));
+vi.mock("../api/get-owner-report-pets", () => ({
+  useGetOwnerReportPets: hooks.useGetOwnerReportPets,
+}));
 vi.mock("@/hooks/use-pet-vaccinations", () => ({
   useGetPetVaccinations: hooks.useGetPetVaccinations,
 }));
@@ -156,7 +158,7 @@ function renderReport(
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.useGetOwner.mockReturnValue(ok(owner));
-  hooks.useGetPets.mockReturnValue(ok(pets));
+  hooks.useGetOwnerReportPets.mockReturnValue(ok(pets));
   hooks.useGetPetVaccinations.mockReturnValue(
     ok([
       {
@@ -320,9 +322,7 @@ describe("OwnerReport", () => {
   it("飼主パネルを常時表示し、タブを使わず6パネルを同時表示する", () => {
     renderReport(makeAuth(allowAll));
 
-    expect(hooks.useGetPets).toHaveBeenCalledWith("42", {
-      includeDeceased: true,
-    });
+    expect(hooks.useGetOwnerReportPets).toHaveBeenCalledWith("42");
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
     const main = screen.getByRole("main");
     const panelNames = [
@@ -412,7 +412,7 @@ describe("OwnerReport", () => {
     expect(within(basicInfo).getByText("DEA1.1陽性")).toBeInTheDocument();
     expect(within(basicInfo).getByText("マイクロチップ")).toBeInTheDocument();
     expect(within(basicInfo).getByText("392140000123456")).toBeInTheDocument();
-    // ペット詳細: useGetPets list response 由来の既存詳細項目。list response で落とさない。
+    // ペット詳細: owner-report 専用 response 由来の既存詳細項目。curated response で落とさない。
     expect(within(basicInfo).getByText(/柴犬/)).toBeInTheDocument();
     expect(within(basicInfo).getByText("赤")).toBeInTheDocument();
     expect(within(basicInfo).getByText("購入")).toBeInTheDocument();
@@ -444,7 +444,7 @@ describe("OwnerReport", () => {
         dmPreference: null,
       }),
     );
-    hooks.useGetPets.mockReturnValue(
+    hooks.useGetOwnerReportPets.mockReturnValue(
       ok([{ id: "7", name: "ポチ", species: "犬", ownerId: "42" }]),
     );
     // 受診歴なし: 初診日は null（捏造せず "-" 表示）。
@@ -520,7 +520,7 @@ describe("OwnerReport", () => {
 
   it("選択中ペットが死亡なら非色依存で表示し、生存ペットへの切替後は表示しない", async () => {
     const user = userEvent.setup();
-    hooks.useGetPets.mockReturnValue(
+    hooks.useGetOwnerReportPets.mockReturnValue(
       ok([
         { ...pets[0], status: "死亡" },
         { ...pets[1], status: "生存" },
@@ -721,7 +721,7 @@ describe("OwnerReport", () => {
   });
 
   it("ペット一覧取得失敗を登録ペットなしとして表示しない", () => {
-    hooks.useGetPets.mockReturnValue({
+    hooks.useGetOwnerReportPets.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
@@ -766,7 +766,7 @@ describe("OwnerReport", () => {
     expect(screen.getByText("アクセス権限がありません")).toBeInTheDocument();
     expect(screen.queryByText("山田太郎")).not.toBeInTheDocument();
     expect(hooks.useGetOwner).not.toHaveBeenCalled();
-    expect(hooks.useGetPets).not.toHaveBeenCalled();
+    expect(hooks.useGetOwnerReportPets).not.toHaveBeenCalled();
   });
 
   it("未認証ならログインへリダイレクトする", () => {

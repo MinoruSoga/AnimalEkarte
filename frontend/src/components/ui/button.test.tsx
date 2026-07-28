@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { C } from "@/lib/design-tokens";
 import { Button } from "./button";
 
 const BUTTON_VARIANTS = [
@@ -30,6 +31,28 @@ describe("Button", () => {
     render(<Button type="submit">保存</Button>);
 
     expect(screen.getByRole("button", { name: "保存" })).toHaveAttribute("type", "submit");
+  });
+
+  it.each(["default", "primary"] as const)(
+    "%s variant は brand と同じ primary teal と pressed 色を使う",
+    (variant) => {
+      render(<Button variant={variant}>保存</Button>);
+
+      const button = screen.getByRole("button", { name: "保存" });
+      expect(button).toHaveClass(
+        C.bgActionPrimary,
+        C.hoverBgActionPrimary,
+        C.textOnActionPrimary,
+        C.hoverTextOnActionPrimary,
+        C.activeTextOnActionPrimary,
+      );
+    },
+  );
+
+  it("link variant は通常文字向けの accessible primary text を使う", () => {
+    render(<Button variant="link">詳細</Button>);
+
+    expect(screen.getByRole("button", { name: "詳細" })).toHaveClass(C.textActionPrimary);
   });
 
   it("does not inject type when rendering as child", () => {

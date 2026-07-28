@@ -92,7 +92,7 @@ const DemoAccount = memo(function DemoAccount({
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
 
@@ -165,7 +165,7 @@ export const LoginForm = memo(function LoginForm() {
     <div className="w-full max-w-[380px] mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
+        <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}>
           <Stethoscope className={`size-[26px] ${C.textWhite}`} />
         </div>
         <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
@@ -231,7 +231,8 @@ export const LoginForm = memo(function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className="w-full h-[52px] text-base font-medium"
+          colorVariant="brand"
+          className="w-full h-[52px]"
           loadingText="ログイン中..."
         >
           ログイン

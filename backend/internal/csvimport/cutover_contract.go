@@ -27,11 +27,15 @@ const (
 	applicationIDFloor         = int64(1_000_000_000)
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
+	cutoverManifestSchema      = "animalekarte-cutover-v1"
+	cutoverStageMappingSHA256  = "06f26a0ffefb9892d8c6c271bb1441439be377b25bb8b34a044db89ab76afc8c"
+	cutoverCSVContractSHA256   = "b86af8a2c55e36187c96e596c137652871156c3591c2180c76fe6814ba949aed"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 var clinicCodePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$`)
 var runIDPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$`)
+var stageBuildIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 // ExpectedCutoverSource binds an operator-selected manifest digest to one
 // clinic/run. The digest must come from the trusted producer run report rather
@@ -58,6 +62,31 @@ type CutoverManifestTable struct {
 	SHA256   string `json:"sha256"`
 }
 
+type CutoverSourceIdentity struct {
+	SourceBackupSHA256    *string `json:"sourceBackupSha256"`
+	SourceBackupSizeBytes *int64  `json:"sourceBackupSizeBytes"`
+	BaseArchiveSHA256     *string `json:"baseArchiveSha256"`
+	KNJOArchiveSHA256     *string `json:"knjoArchiveSha256"`
+	Verified              bool    `json:"verified"`
+}
+
+type CutoverLayerDigests struct {
+	Raw          string `json:"raw"`
+	Intermediate string `json:"intermediate"`
+	Stage        string `json:"stage"`
+}
+
+type CutoverLayerTimestamps struct {
+	Raw          string `json:"raw"`
+	Intermediate string `json:"intermediate"`
+	Stage        string `json:"stage"`
+}
+
+type CutoverEvidenceDigests struct {
+	BaseLoad     string `json:"baseLoad"`
+	KNJORecovery string `json:"knjoRecovery"`
+}
+
 type CutoverManifest struct {
 	GeneratedAt               string                 `json:"generatedAt"`
 	Status                    string                 `json:"status"`
@@ -74,6 +103,19 @@ type CutoverManifest struct {
 	ImportablePredicate       string                 `json:"importablePredicate"`
 	PlaceholderColumns        map[string]string      `json:"placeholderColumns"`
 	PlaceholderResolutionNote string                 `json:"placeholderResolutionNote"`
+	ManifestSchemaVersion     string                 `json:"manifestSchemaVersion"`
+	StageMappingSHA256        string                 `json:"stageMappingSha256"`
+	CSVContractSHA256         string                 `json:"csvContractSha256"`
+	SourceCompletenessStatus  string                 `json:"sourceCompletenessStatus"`
+	SourceComplete            bool                   `json:"sourceComplete"`
+	SourceProvenanceVerified  bool                   `json:"sourceProvenanceVerified"`
+	SourceIdentity            CutoverSourceIdentity  `json:"sourceIdentity"`
+	StageBuildID              string                 `json:"stageBuildId"`
+	IncompleteSourceTables    *[]string              `json:"incompleteSourceTables"`
+	HandoffEligibility        string                 `json:"handoffEligibility"`
+	SourceSummarySHA256       CutoverLayerDigests    `json:"sourceSummarySha256"`
+	SourceSummaryGeneratedAt  CutoverLayerTimestamps `json:"sourceSummaryGeneratedAt"`
+	SourceEvidenceSHA256      CutoverEvidenceDigests `json:"sourceEvidenceSha256"`
 	Tables                    []CutoverManifestTable `json:"tables"`
 }
 
@@ -262,6 +304,9 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	if manifest.Status != "PASS" {
 		return fmt.Errorf("manifest status must be PASS")
 	}
+	if err := validateCutoverProducerProvenance(manifest); err != nil {
+		return err
+	}
 	if manifest.SourceLayer != "animalekarte_stage" {
 		return fmt.Errorf("manifest source layer must be animalekarte_stage")
 	}
@@ -314,11 +359,85 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 		if table.RowCount < 0 {
 			return fmt.Errorf("manifest row count must not be negative for table %s", spec.Name)
 		}
+		if (spec.Name == "payments" || spec.Name == "payment_splits") && table.RowCount == 0 {
+			return fmt.Errorf("manifest table %s must contain formal rows", spec.Name)
+		}
 		if !validSHA256(table.SHA256) {
 			return fmt.Errorf("manifest sha256 is invalid for table %s", spec.Name)
 		}
 	}
 	return nil
+}
+
+func validateCutoverProducerProvenance(manifest CutoverManifest) error {
+	if manifest.ManifestSchemaVersion != cutoverManifestSchema ||
+		manifest.StageMappingSHA256 != cutoverStageMappingSHA256 ||
+		manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
+		return fmt.Errorf("manifest mapping contract binding is invalid")
+	}
+	if manifest.HandoffEligibility != "TRUSTED_CANDIDATE" {
+		return fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE")
+	}
+	if manifest.SourceCompletenessStatus != "PASS" ||
+		!manifest.SourceComplete ||
+		!manifest.SourceProvenanceVerified {
+		return fmt.Errorf("manifest source completeness must be fully verified")
+	}
+	if manifest.IncompleteSourceTables == nil || len(*manifest.IncompleteSourceTables) != 0 {
+		return fmt.Errorf("manifest incomplete source table list must be empty")
+	}
+	if !stageBuildIDPattern.MatchString(manifest.StageBuildID) {
+		return fmt.Errorf("manifest stage build ID is invalid")
+	}
+	if !validVerifiedSourceIdentity(manifest.SourceIdentity) {
+		return fmt.Errorf("manifest source identity must be complete and verified")
+	}
+	if !validLayerDigests(manifest.SourceSummarySHA256) {
+		return fmt.Errorf("manifest summary digest set is invalid")
+	}
+	if !validEvidenceDigests(manifest.SourceEvidenceSHA256) {
+		return fmt.Errorf("manifest evidence digest set is invalid")
+	}
+	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
+		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
+	}
+	return nil
+}
+
+func validVerifiedSourceIdentity(identity CutoverSourceIdentity) bool {
+	return identity.Verified &&
+		identity.SourceBackupSHA256 != nil &&
+		validSHA256(*identity.SourceBackupSHA256) &&
+		identity.SourceBackupSizeBytes != nil &&
+		*identity.SourceBackupSizeBytes > 0 &&
+		identity.BaseArchiveSHA256 != nil &&
+		validSHA256(*identity.BaseArchiveSHA256) &&
+		identity.KNJOArchiveSHA256 != nil &&
+		validSHA256(*identity.KNJOArchiveSHA256)
+}
+
+func validLayerDigests(digests CutoverLayerDigests) bool {
+	return validSHA256(digests.Raw) &&
+		validSHA256(digests.Intermediate) &&
+		validSHA256(digests.Stage)
+}
+
+func validEvidenceDigests(digests CutoverEvidenceDigests) bool {
+	return validSHA256(digests.BaseLoad) && validSHA256(digests.KNJORecovery)
+}
+
+func validOrderedLayerTimestamps(timestamps CutoverLayerTimestamps, manifestGeneratedAt string) bool {
+	raw, rawErr := time.Parse(time.RFC3339Nano, timestamps.Raw)
+	intermediate, intermediateErr := time.Parse(time.RFC3339Nano, timestamps.Intermediate)
+	stage, stageErr := time.Parse(time.RFC3339Nano, timestamps.Stage)
+	manifest, manifestErr := time.Parse(time.RFC3339Nano, manifestGeneratedAt)
+	return rawErr == nil &&
+		intermediateErr == nil &&
+		stageErr == nil &&
+		manifestErr == nil &&
+		!raw.After(intermediate) &&
+		!intermediate.After(stage) &&
+		!stage.After(manifest)
 }
 
 func validateCutoverFiles(sourceDir string, manifest CutoverManifest) error {

@@ -1,4 +1,9 @@
-import type { ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -156,13 +161,70 @@ vi.mock("./DailyStaffNotesSection", () => ({
 function renderChildMutationBoundaries() {
   return render(
     <>
-      <CarePlanTab hospitalizationId="hospitalization-1" />
+      <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased={false} />
       <DailyRecordsTab
         hospitalizationId="hospitalization-1"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
+        petIsDeceased={false}
       />
     </>,
+  );
+}
+
+function SameCommitRevocationHarness() {
+  const [revoked, setRevoked] = useState(false);
+  const capturedCreateRef = useRef<
+    ((input: CreateCarePlanItemInput) => void) | undefined
+  >(undefined);
+  const capturedVitalRef = useRef<
+    ((payload: CreateVitalRecordRequest) => void) | undefined
+  >(undefined);
+
+  useLayoutEffect(() => {
+    if (revoked) {
+      capturedCreateRef.current?.({
+        type: "instruction",
+        name: "追加",
+        timing: ["morning"],
+      });
+      capturedVitalRef.current?.({
+        time: "10:00:00",
+        temperature: 38.5,
+      });
+      return;
+    }
+
+    capturedCreateRef.current = mocks.carePlanCreateCallback;
+    capturedVitalRef.current = mocks.vitalCallback;
+  }, [revoked]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          mocks.canCreate = false;
+          setRevoked(true);
+        }}
+      >
+        作成権限を失効
+      </button>
+      <CarePlanTab
+        hospitalizationId={
+          revoked ? "hospitalization-2" : "hospitalization-1"
+        }
+        petIsDeceased={false}
+      />
+      <DailyRecordsTab
+        hospitalizationId={
+          revoked ? "hospitalization-2" : "hospitalization-1"
+        }
+        admissionDate="2026-07-01"
+        dischargeDate="2026-07-14"
+        petIsDeceased={false}
+      />
+    </>
   );
 }
 
@@ -189,6 +251,50 @@ beforeEach(() => {
 });
 
 describe("hospitalization child mutation permission boundaries", () => {
+  it("petが死亡している場合はcare-planとdaily-recordの全mutationを拒否する", () => {
+    mocks.dailyRecordIsError = true;
+    render(
+      <>
+        <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased />
+        <DailyRecordsTab
+          hospitalizationId="hospitalization-1"
+          admissionDate="2026-07-01"
+          dischargeDate="2026-07-14"
+          petIsDeceased
+        />
+      </>,
+    );
+
+    act(() => {
+      mocks.carePlanCreateCallback?.({
+        type: "instruction",
+        name: "追加",
+        timing: ["morning"],
+      });
+      mocks.carePlanEditCallback?.("item-1");
+      mocks.carePlanDeleteCallback?.("item-1");
+      mocks.vitalCallback?.({ time: "10:00:00", temperature: 38.5 });
+      mocks.careLogCallback?.({ time: "10:01:00", type: "food" });
+      mocks.staffNoteCallback?.({ time: "10:02:00", content: "メモ" });
+      mocks.dailyRecordCallback?.();
+    });
+    act(() => {
+      mocks.carePlanUpdateCallback?.({
+        type: "instruction",
+        name: "更新",
+        timing: ["morning"],
+      });
+    });
+
+    expect(mocks.createCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.updateCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.deleteCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.createDailyRecord).not.toHaveBeenCalled();
+    expect(mocks.createVital).not.toHaveBeenCalled();
+    expect(mocks.createCareLog).not.toHaveBeenCalled();
+    expect(mocks.createStaffNote).not.toHaveBeenCalled();
+  });
+
   it("permission revocation blocks captured care-plan callbacks", () => {
     const view = renderChildMutationBoundaries();
     const createCallback = mocks.carePlanCreateCallback;
@@ -205,11 +311,12 @@ describe("hospitalization child mutation permission boundaries", () => {
     mocks.canDelete = false;
     view.rerender(
       <>
-        <CarePlanTab hospitalizationId="hospitalization-2" />
+        <CarePlanTab hospitalizationId="hospitalization-2" petIsDeceased={false} />
         <DailyRecordsTab
           hospitalizationId="hospitalization-2"
           admissionDate="2026-07-01"
           dischargeDate="2026-07-14"
+          petIsDeceased={false}
         />
       </>,
     );
@@ -268,6 +375,7 @@ describe("hospitalization child mutation permission boundaries", () => {
         hospitalizationId="hospitalization-1"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
+        petIsDeceased={false}
       />,
     );
 
@@ -286,6 +394,7 @@ describe("hospitalization child mutation permission boundaries", () => {
         hospitalizationId="hospitalization-1"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
+        petIsDeceased={false}
       />,
     );
     const dailyRecordCallback = mocks.dailyRecordCallback;
@@ -296,10 +405,23 @@ describe("hospitalization child mutation permission boundaries", () => {
         hospitalizationId="hospitalization-2"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
+        petIsDeceased={false}
       />,
     );
     act(() => dailyRecordCallback?.());
 
     expect(mocks.createDailyRecord).not.toHaveBeenCalled();
+  });
+
+  it("same-commit permission revocation blocks captured care-plan and daily callbacks", () => {
+    const view = render(<SameCommitRevocationHarness />);
+
+    act(() => {
+      screen.getByRole("button", { name: "作成権限を失効" }).click();
+    });
+
+    expect(mocks.createCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.createVital).not.toHaveBeenCalled();
+    view.unmount();
   });
 });

@@ -9,9 +9,14 @@ import type { TaxType } from "@/types/generated/models";
 import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 
 import { createBillingItem } from "../api/create-billing-item";
+import type { CreateBillingItemRequest } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
 import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
+
+type CreateManualBillingItemRequest = CreateBillingItemRequest & {
+  other_reason?: string;
+};
 
 interface UseAccountingItemActionsParams {
   accountingId: string | undefined;
@@ -35,11 +40,12 @@ export function useAccountingItemActions({
   startItemUpdateTransition,
 }: UseAccountingItemActionsParams) {
   const handleAddItem = useCallback(
-    ({ name, price, category, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
+    ({ name, price, category, otherReason, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
       const unitPrice = parseInt(price, 10);
       const qty = 1;
       const rate = taxRate ?? DEFAULT_STANDARD_TAX_RATE;
       const tempId = `manual_${crypto.randomUUID()}`;
+      const manualOtherReason = category === "other" ? otherReason : undefined;
       const newItem: AccountingItem = {
         id: tempId,
         category: category as ItemCategory,
@@ -54,6 +60,7 @@ export function useAccountingItemActions({
         subtotal: unitPrice * qty,
         isInsuranceApplicable: false,
         source: "manual",
+        ...(manualOtherReason !== undefined ? { otherReason: manualOtherReason } : {}),
         merchandiseItemId,
       };
 
@@ -63,7 +70,7 @@ export function useAccountingItemActions({
       if (accountingId) {
         startAddItemTransition(async () => {
           try {
-            await createBillingItem({
+            const request: CreateManualBillingItemRequest = {
               billing_id: Number(accountingId),
               category,
               name,
@@ -73,8 +80,10 @@ export function useAccountingItemActions({
               tax_rate: rate,
               is_insurance_applicable: false,
               source: "manual",
+              ...(manualOtherReason !== undefined ? { other_reason: manualOtherReason } : {}),
               merchandise_item_id: merchandiseItemId ? Number(merchandiseItemId) : undefined,
-            });
+            };
+            await createBillingItem(request);
             await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
             setLocalItems(null);
             toast.success("明細を追加しました");

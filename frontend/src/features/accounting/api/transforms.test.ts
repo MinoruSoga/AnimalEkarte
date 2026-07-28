@@ -81,12 +81,14 @@ describe("transformToAccounting", () => {
       ...minimal,
       items: [{
         ...item,
+        vaccination_id: 5,
         treatment_id: 10,
         appointment_id: 20,
         trimming_course_id: 30,
         trimming_option_id: 40,
       }],
     });
+    expect(result.items[0].vaccinationId).toBe("5");
     expect(result.items[0].treatmentId).toBe("10");
     expect(result.items[0].appointmentId).toBe("20");
     expect(result.items[0].trimmingCourseId).toBe("30");

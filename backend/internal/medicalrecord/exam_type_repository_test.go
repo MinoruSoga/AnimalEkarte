@@ -36,10 +36,20 @@ import (
 func setupExamTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{}))
-	db.Exec("TRUNCATE TABLE exams CASCADE")
-	db.Exec("TRUNCATE TABLE exam_type_fields CASCADE")
-	db.Exec("TRUNCATE TABLE exam_types CASCADE")
+	require.NoError(t, testdb.EnsureAutoMigrated(
+		db,
+		&model.AnimalSpecies{},
+		&model.ExaminationType{},
+		&model.ExamTypeField{},
+		&model.Examination{},
+		&model.ExamResult{},
+		&model.ExamReferenceRange{},
+	))
+	require.NoError(t, db.Exec("TRUNCATE TABLE exam_reference_ranges CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE exam_results CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE exams CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE exam_type_fields CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE exam_types CASCADE").Error)
 	return db
 }
 

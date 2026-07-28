@@ -1,17 +1,17 @@
 ---
 name: task-create
-description: 抽象的なタスク依頼から repo 直下 todo.md の「個別タスク詳細」節に、AIが実装可能な粒度のタスクセクション（`### <タスクID>: <タイトル>`）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成先は todo.md のみ（旧 docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み）。
+description: "抽象的なタスク依頼から repo 直下 3-session-agent.html の #ledger 節に、AIが実装可能な粒度のタスクセクション（`<section class=\"task\" id=\"<タスクID>\">`）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成先は 3-session-agent.html のみ（旧 docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み）。"
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. repo 直下 `todo.md` の「個別タスク詳細」節に `### TASK-XXX: <タイトル>` セクションを追記する（1タスク = 1セクション）
-2. BE/FE 分割が必要な場合は `### TASK-XXX-BE: <タイトル>` / `### TASK-XXX-FE: <タイトル>` の2セクションに分ける
+1. repo 直下 `3-session-agent.html` の `#ledger` 節で、`<!-- LEDGER:APPEND -->` の直前に `<section class="task" id="TASK-XXX">` セクションを追記する（1タスク = 1セクション）
+2. BE/FE 分割が必要な場合は `id="TASK-XXX-BE"` / `id="TASK-XXX-FE"` の2セクションに分ける
 
 > **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
-> 現行のタスク台帳は repo 直下 `todo.md` のみ。todo.md は git 追跡ファイルであり、追記はコミット対象。
-> GitHub Issues（FEAT 系）は gh が正本 — todo.md と二重掲出しない。
+> 現行のタスク台帳は repo 直下 `3-session-agent.html` の `#ledger` 節のみ。`3-session-agent.html` は git 追跡ファイルであり、追記はコミット対象。
+> GitHub Issues（FEAT 系）は gh が正本 — `#ledger` と二重掲出しない。
 
 ## 起動トリガー
 
@@ -40,11 +40,11 @@ description: 抽象的なタスク依頼から repo 直下 todo.md の「個別�
 ### 1.1 タスク番号の決定
 
 ```bash
-# todo.md 内の最大番号 + 1
-grep -oE '(TASK|BUG|FEAT|PERF)-[0-9]+' todo.md | sort -V | tail -1
+# HTML台帳のタスクID一覧から最大の数値識別子を取得し、その値 + 1
+grep -oE 'id="(TASK|BUG|FEAT|PERF|SEC)[A-Za-z0-9-]*"' 3-session-agent.html | grep -oE '[0-9]+' | sort -n | tail -1
 ```
 
-形式: `TASK-XXX`（3桁ゼロ埋め）。todo.md 内の最大番号 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは todo.md から削除されているが、番号の再利用より単純さを優先する）。
+形式: `TASK-XXX`（3桁ゼロ埋め）。`3-session-agent.html` のHTML IDにある最大の数値識別子 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは `#ledger` から削除されているが、番号の再利用より単純さを優先する）。
 
 ### 1.2 BE/FE 分割時のID
 
@@ -164,27 +164,30 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 3: タスクセクション生成
 
-### 出力先: repo 直下 `todo.md` の「個別タスク詳細」節の末尾に `###` セクションを追記
+### 出力先: repo 直下 `3-session-agent.html` の `#ledger` 節で `<!-- LEDGER:APPEND -->` の直前に `<section>` を追記
 
 旧テンプレート（概要/仕様確認ログ/サブタスク分解/受入条件/技術的判断/影響範囲/参照実装/リスク/未解決事項/実装順序）の構造を、以下の5項目に**圧縮**して記載する。**1タスク15行程度を上限の目安**とし、長くなる場合は BE/FE 分割するか、詳細を根拠ファイルパスへのポインタに落とす。
 
 ### テンプレート
 
-```markdown
-### TASK-XXX: タスクタイトル（優先度）
-
-- **問題**: 何が問題か・業務上の目的（依頼原文の要旨。1-2行）
-- **根拠**: 対象ファイル・行番号・現状コードの実測（Phase 2 の調査結果。影響範囲: DB / BE / FE を明記）
-- **修正方針**: 採用案とその理由（複数案あれば案A/案B）。参照実装（例: `features/owners/` の対応パターン）。実装順序（DB → BE → codegen → FE）
-- **受け入れ条件**: ① 検証可能な条件（「〜が動く」ではなく「〜の画面で〜を入力し〜が表示される」。Given/When/Then 推奨）② エッジケース（空データ・エラー時・上限値）③ スコープ限定テストコマンド
-- **状態**: 優先度（P1/High/Medium/Low）・依存タスク・仕様確認ログの要旨（Phase 2.5 の回答。確認事項なしならその旨）・未解決事項/リスク（なければ省略）
+```html
+<section class="task" id="TASK-XXX">
+  <h3>TASK-XXX: タスクタイトル（優先度）</h3>
+  <ul>
+    <li><b>問題</b>: 何が問題か・業務上の目的（依頼原文の要旨。1-2行）</li>
+    <li><b>根拠</b>: 対象ファイル・行番号・現状コードの実測（Phase 2 の調査結果。影響範囲: DB / BE / FE を明記）</li>
+    <li><b>修正方針</b>: 採用案とその理由（複数案あれば案A/案B）。参照実装（例: <code>features/owners/</code> の対応パターン）。実装順序（DB → BE → codegen → FE）</li>
+    <li><b>受け入れ条件</b>: ① 検証可能な条件（「〜が動く」ではなく「〜の画面で〜を入力し〜が表示される」。Given/When/Then 推奨）② エッジケース（空データ・エラー時・上限値）③ スコープ限定テストコマンド</li>
+    <li><b>状態</b>: 優先度（P1/High/Medium/Low）・依存タスク・仕様確認ログの要旨（Phase 2.5 の回答。確認事項なしならその旨）・未解決事項/リスク（なければ省略）</li>
+  </ul>
+</section>
 ```
 
 ---
 
 ## Phase 4: Backend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-BE: <タイトル>` を追記
+### 出力先: `3-session-agent.html` の `<!-- LEDGER:APPEND -->` 直前に `<section class="task" id="TASK-XXX-BE">` を追記
 
 上記テンプレートと同構造。観点の抜け確認に `templates/be-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。
 
@@ -192,7 +195,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 5: Frontend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-FE: <タイトル>` を追記
+### 出力先: `3-session-agent.html` の `<!-- LEDGER:APPEND -->` 直前に `<section class="task" id="TASK-XXX-FE">` を追記
 
 上記テンプレートと同構造。観点の抜け確認に `templates/fe-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。FE セクションの「状態」に BE 依存（`TASK-XXX-BE` 完了後に着手可能）を明記する。
 
@@ -200,12 +203,12 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 6: ユーザーへの報告
 
-todo.md への追記後、以下のサマリーを出力:
+`3-session-agent.html` への追記後、以下のサマリーを出力:
 
 ```
 ## タスク分解完了
 
-### todo.md「個別タスク詳細」節に追記（N件）
+### 3-session-agent.html `#ledger` 節に追記（N件）
 - TASK-XXX: タイトル — 概要
 - TASK-XXX-BE: タイトル — 概要
 - TASK-XXX-FE: タイトル — 概要
@@ -214,7 +217,7 @@ todo.md への追記後、以下のサマリーを出力:
 1. TASK-XXX-BE（DB + API）
 2. TASK-XXX-FE（UI）— TASK-XXX-BE 完了後に着手可能
 
-todo.md は git 追跡ファイルのため、追記分はコミット対象。
+3-session-agent.html は git 追跡ファイルのため、追記分はコミット対象。
 ```
 
 ---

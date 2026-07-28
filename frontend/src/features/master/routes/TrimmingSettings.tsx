@@ -36,7 +36,7 @@ import {
 } from "./trimming-settings-model";
 
 export function TrimmingSettings() {
-  const { canEdit, canDelete } = usePermission(ResourceMasterTrimming);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTrimmingTabValue(searchParams.get("tab"));
 
@@ -58,6 +58,7 @@ export function TrimmingSettings() {
     deleteMutation: deleteCourseMutation,
     entityLabel: "トリミングコース",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
 
   const optionCrud = useMasterCRUD<TrimmingOption>({
@@ -65,6 +66,7 @@ export function TrimmingSettings() {
     deleteMutation: deleteOptionMutation,
     entityLabel: "トリミングオプション",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
 
   const courseSetEditTarget = courseCrud.setEditTarget;
@@ -93,6 +95,7 @@ export function TrimmingSettings() {
     validate: (data: CourseFormData) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildTrimmingCourseCreateRequest,
     toUpdateRequest: buildTrimmingCourseUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   const optionSave = useMasterSave({
@@ -102,6 +105,7 @@ export function TrimmingSettings() {
     validate: (data: OptionFormData) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildTrimmingOptionCreateRequest,
     toUpdateRequest: buildTrimmingOptionUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

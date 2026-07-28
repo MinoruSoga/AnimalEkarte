@@ -3,8 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -21,6 +19,8 @@ type CreateExaminationInput struct {
 	ResultSummary   string
 	Machine         string
 	Status          model.ExaminationStatus
+	Items           *[]UpsertExamItemInput
+	ActorID         *uint64
 }
 
 // UpdateExaminationInput は検査更新のサービス入力 DTO
@@ -33,6 +33,8 @@ type UpdateExaminationInput struct {
 	ResultSummary   *string
 	Machine         *string
 	Status          *model.ExaminationStatus
+	Items           *[]UpsertExamItemInput
+	ActorID         *uint64
 }
 
 // UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
@@ -44,8 +46,6 @@ type UpsertExamItemInput struct {
 	NormalValue     string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
 	SortOrder       int
 }
 
@@ -59,21 +59,8 @@ type UpsertExamItemInput struct {
 //   - 範囲内 → (normal, false)
 //   - ref_min == ref_max == nil → (normal, false)（比較できない）
 func computeExamResultStatus(inspectionValue string, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
-	trimmed := strings.TrimSpace(inspectionValue)
-	if trimmed == "" {
-		return model.ExaminationResultStatusNormal, false
-	}
-	v, err := strconv.ParseFloat(trimmed, 64)
-	if err != nil {
-		return model.ExaminationResultStatusNormal, false
-	}
-	if refMin != nil && v < *refMin {
-		return model.ExaminationResultStatusLow, true
-	}
-	if refMax != nil && v > *refMax {
-		return model.ExaminationResultStatusHigh, true
-	}
-	return model.ExaminationResultStatusNormal, false
+	assessment := assessExamResult(inspectionValue, refMin, refMax, nil, nil)
+	return assessment.status, assessment.isAbnormal
 }
 
 func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
@@ -134,12 +121,13 @@ type ExaminationService interface {
 }
 
 type examinationService struct {
-	repo         ExaminationRepository
-	medRec       medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
-	examTypeRepo ExamTypeRepository
-	auditTx      AuditTxLogger
-	transactor   Transactor
-	relations    ClinicalRelationVerifier
+	repo            ExaminationRepository
+	medRec          medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
+	examTypeRepo    ExamTypeRepository
+	referenceRanges ExamReferenceRangeResolver
+	auditTx         AuditTxLogger
+	transactor      Transactor
+	relations       ClinicalRelationVerifier
 }
 
 func NewExaminationService(
@@ -161,8 +149,9 @@ func NewExaminationService(
 	if transactor == nil {
 		transactor, _ = medRec.(Transactor)
 	}
+	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
 	return &examinationService{
-		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo,
+		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
 		auditTx: auditTx, transactor: transactor, relations: relations,
 	}
 }
@@ -233,6 +222,11 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 			slog.ErrorContext(txCtx, "failed to create examination", "error", err)
 			return apperrors.Wrap(err, "failed to create examination")
 		}
+		if input.Items != nil {
+			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *input.Items); err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -247,7 +241,7 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
 	fields := buildExaminationUpdate(input)
-	if len(fields) == 0 {
+	if len(fields) == 0 && input.Items == nil {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
@@ -285,12 +279,20 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return err
 		}
 
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
-			return apperrors.Wrap(err, "failed to update examination")
+		exam = locked
+		if len(fields) > 0 {
+			updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to update examination", "error", err)
+				return apperrors.Wrap(err, "failed to update examination")
+			}
+			exam = updated
 		}
-		exam = updated
+		if input.Items != nil {
+			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *input.Items); err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -351,40 +353,13 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 // 仕様:
 //  1. 親 exam の存在を FindByID で確認（P1）
 //  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
-//  3. 各 input の inspection_value と ref_min / ref_max から status / is_abnormal を導出（FE 送信値は無視）
+//  3. 各 input の inspection_value とサーバで解決した基準値から status / is_abnormal を導出
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
 //  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
 //     tx を rollback する（best-effort ではなく fail-closed。BE-refactor.md R1-2・#211 と同方針）。
 func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
-	}
-
-	hasFieldRef := false
-	for _, in := range inputs {
-		if in.ExamTypeFieldID != nil {
-			hasFieldRef = true
-			break
-		}
-	}
-
-	items := make([]model.ExamResult, 0, len(inputs))
-	for _, in := range inputs {
-		status, isAbnormal := computeExamResultStatus(in.InspectionValue, in.RefMin, in.RefMax)
-		items = append(items, model.ExamResult{
-			ExamID:          examID,
-			ExamTypeItemID:  in.ExamTypeFieldID,
-			Name:            in.Name,
-			InspectionValue: in.InspectionValue,
-			NormalValue:     in.NormalValue,
-			Unit:            in.Unit,
-			ReferenceValue:  in.ReferenceValue,
-			RefMin:          in.RefMin,
-			RefMax:          in.RefMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
-			SortOrder:       in.SortOrder,
-		})
 	}
 
 	// #211/R1-2 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
@@ -414,52 +389,12 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 			}
 		}
 
-		// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
-		// 検査種別フィールドであることを同じ transaction 内で検証する。
-		if hasFieldRef {
-			examType, err := s.examTypeRepo.FindByID(txCtx, clinicID, locked.ExamTypeID)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to verify exam type ownership")
-			}
-			validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
-			for i := range examType.Items {
-				validFieldIDs[examType.Items[i].ID] = struct{}{}
-			}
-			for _, in := range inputs {
-				if in.ExamTypeFieldID != nil {
-					if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
-						return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
-					}
-				}
-			}
-		}
-
-		before, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, examID)
+		replaced, err := s.replaceItemsTx(txCtx, clinicID, locked, actorID, inputs)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", examID, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to load existing examination items")
-		}
-
-		replaced, deletedCount, err := s.repo.ReplaceItemsByExamID(txCtx, clinicID, examID, items)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to replace examination items")
+			return err
 		}
 		saved = replaced
-
-		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
-		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
-		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
-		return logReplaceDeletionTx(txCtx, s.auditTx, clinicID, actorID, deletedCount,
-			model.AuditActionExamResultReplace, model.AuditResourceExamResult, examID,
-			extractExamResultsAudit(before), extractExamResultsAudit(saved),
-			map[string]any{
-				"exam_id":       examID,
-				"deleted_count": deletedCount,
-				"new_count":     len(saved),
-			},
-			"audit log failed for examination items replace; rolling back deletion",
-			"failed to write examination items deletion audit", "exam_id")
+		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}
@@ -470,6 +405,148 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		slog.Int("item_count", len(saved)),
 	)
 	return saved, nil
+}
+
+// replaceItemsTx validates and replaces examination results inside the caller-owned transaction.
+// Create, Update, and the split PUT endpoint all share this tail so result persistence and
+// deletion audit use the same transaction as the parent mutation.
+func (s *examinationService) replaceItemsTx(
+	ctx context.Context,
+	clinicID uint64,
+	exam *model.Examination,
+	actorID *uint64,
+	inputs []UpsertExamItemInput,
+) ([]model.ExamResult, error) {
+	fieldIDs := make([]uint64, 0, len(inputs))
+	fieldIDSet := make(map[uint64]struct{}, len(inputs))
+	for _, in := range inputs {
+		if in.ExamTypeFieldID != nil {
+			if _, exists := fieldIDSet[*in.ExamTypeFieldID]; !exists {
+				fieldIDSet[*in.ExamTypeFieldID] = struct{}{}
+				fieldIDs = append(fieldIDs, *in.ExamTypeFieldID)
+			}
+		}
+	}
+
+	// #124 防止: request の exam_type_field が caller の clinic に属する、ロック済み検査の
+	// 検査種別フィールドであることを同じ transaction 内で検証する。
+	if len(fieldIDs) > 0 {
+		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, exam.ExamTypeID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
+		}
+		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
+		for i := range examType.Items {
+			validFieldIDs[examType.Items[i].ID] = struct{}{}
+		}
+		for _, in := range inputs {
+			if in.ExamTypeFieldID != nil {
+				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+				}
+			}
+		}
+	}
+
+	resolvedRanges := make(map[uint64]model.ExamReferenceRange, len(fieldIDs))
+	if len(fieldIDs) > 0 {
+		if exam.PetID == nil {
+			return nil, apperrors.WrapInvalidInput("基準値を解決するには検査対象のペットが必要です")
+		}
+		if s.referenceRanges == nil {
+			return nil, apperrors.WrapInternalServerError("examination reference range resolver is required")
+		}
+		animalSpeciesID, err := s.referenceRanges.FindAnimalSpeciesID(ctx, clinicID, exam.ID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve examination animal species")
+		}
+		resolvedRanges, err = s.referenceRanges.ResolveByFieldIDs(ctx, clinicID, animalSpeciesID, fieldIDs)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve examination reference ranges")
+		}
+	}
+
+	items := make([]model.ExamResult, 0, len(inputs))
+	for _, in := range inputs {
+		var refMin, refMax *float64
+		var qualitativeMin, qualitativeMax *string
+		if in.ExamTypeFieldID != nil {
+			if referenceRange, ok := resolvedRanges[*in.ExamTypeFieldID]; ok {
+				refMin = cloneOptionalFloat64(referenceRange.RefMin)
+				refMax = cloneOptionalFloat64(referenceRange.RefMax)
+				qualitativeMin = cloneOptionalString(referenceRange.QualitativeMin)
+				qualitativeMax = cloneOptionalString(referenceRange.QualitativeMax)
+			}
+		}
+		assessment := assessExamResult(
+			in.InspectionValue,
+			refMin,
+			refMax,
+			qualitativeMin,
+			qualitativeMax,
+		)
+		items = append(items, model.ExamResult{
+			ExamID:          exam.ID,
+			ExamTypeItemID:  in.ExamTypeFieldID,
+			Name:            in.Name,
+			InspectionValue: in.InspectionValue,
+			NormalValue:     in.NormalValue,
+			Unit:            in.Unit,
+			ReferenceValue:  in.ReferenceValue,
+			RefMin:          refMin,
+			RefMax:          refMax,
+			QualitativeMin:  qualitativeMin,
+			QualitativeMax:  qualitativeMax,
+			IsAbnormal:      assessment.isAbnormal,
+			Status:          assessment.status,
+			SortOrder:       in.SortOrder,
+		})
+	}
+
+	before, err := s.repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to load existing examination items")
+	}
+
+	saved, deletedCount, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, exam.ID, items)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to replace examination items")
+	}
+
+	// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
+	// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
+	// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
+	if err := logReplaceDeletionTx(ctx, s.auditTx, clinicID, actorID, deletedCount,
+		model.AuditActionExamResultReplace, model.AuditResourceExamResult, exam.ID,
+		extractExamResultsAudit(before), extractExamResultsAudit(saved),
+		map[string]any{
+			"exam_id":       exam.ID,
+			"deleted_count": deletedCount,
+			"new_count":     len(saved),
+		},
+		"audit log failed for examination items replace; rolling back deletion",
+		"failed to write examination items deletion audit", "exam_id"); err != nil {
+		return nil, err
+	}
+	return saved, nil
+}
+
+func cloneOptionalFloat64(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func cloneOptionalString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }
 
 // extractExamResultsAudit は監査ログの old_value/new_value に格納する検査結果値のスナップショットを構築する。

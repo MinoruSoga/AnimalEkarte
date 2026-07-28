@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,43 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func TestBuildExamResults_InvalidNumericBoundsRemainUnassessed(t *testing.T) {
+	numericNaN := math.NaN()
+	invertedMinimum, invertedMaximum := 10.0, 1.0
+	tests := []struct {
+		name   string
+		refMin *float64
+		refMax *float64
+	}{
+		{name: "NaN minimum", refMin: &numericNaN},
+		{name: "inverted bounds", refMin: &invertedMinimum, refMax: &invertedMaximum},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := buildExamResults(1, []LabExamItemInput{{
+				Name:            "BUN",
+				InspectionValue: "5",
+				RefMin:          tt.refMin,
+				RefMax:          tt.refMax,
+			}})
+
+			if len(results) != 1 {
+				t.Fatalf("buildExamResults() length = %d, want 1", len(results))
+			}
+			if results[0].Status != model.ExaminationResultStatusNormal {
+				t.Errorf("Status = %q, want %q", results[0].Status, model.ExaminationResultStatusNormal)
+			}
+			if results[0].IsAbnormal {
+				t.Error("IsAbnormal = true, want false")
+			}
+			if toExamResultResponse(&results[0]).IsAssessed {
+				t.Error("IsAssessed = true, want false")
+			}
+		})
+	}
+}
 
 // ------------------------------------
 // Stubs — no DB required

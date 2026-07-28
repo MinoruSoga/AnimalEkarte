@@ -46,6 +46,8 @@
 
 - **Docker Required**: npm/go commands prohibited locally. Use `docker compose exec frontend/backend` only
 - **Branches**: Daily work on `main`. `main` → `staging` via PR. No direct `production` push
+- **Post-Pull Migrations**: After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
+- **Agent Migration Authority**: Agents must not auto-apply migrations. Surface `make migrate` for the user to run manually when the post-pull rule applies.
 
 ## 🚫 Auto-Execution Prohibited Commands
 
@@ -78,7 +80,7 @@ If one of these exact full commands is needed, inform the user with the command 
 
 ### Scoped Verification Exception
 
-- Scoped checks are allowed when they are narrow and directly tied to the change, such as `docker compose exec backend go test ./internal/service/...` or `docker compose exec frontend pnpm test:run -- src/features/manual`.
+- Scoped checks are allowed when they are narrow and directly tied to the change, such as `docker compose exec backend go test ./internal/billing/...` or `docker compose exec frontend pnpm test:run -- src/features/manual`.
 - Do not auto-run full-repository build, lint, type-check, test, DB reset, migration apply, dependency install, or streaming log commands.
 - For documentation-only or instruction-only changes, verification may be skipped; report that no runtime verification was needed.
 - If only a prohibited full command can provide meaningful verification, report the exact command for the user to run manually.
@@ -87,7 +89,7 @@ If one of these exact full commands is needed, inform the user with the command 
 
 ```
 Changes complete. Run this manually to verify:
-$ docker compose exec backend go test ./internal/service/...
+$ docker compose exec backend go test ./internal/billing/...
 ```
 
 ---
@@ -145,9 +147,6 @@ Layer-specific rules are documented close to the code:
 | Directory | Rules |
 |-----------|-------|
 | `backend/` | Go/Gin公式ベースライン、security invariant、Docker verification |
-| `backend/internal/handler/` | 現行Gin HTTP boundaryの局所レビュー観点（mandatory layerではない） |
-| `backend/internal/service/` | 現行application logic packageの局所レビュー観点（mandatory layerではない） |
-| `backend/internal/repository/` | 現行persistence packageの局所レビュー観点（repository patternはmandatoryではない） |
 | `backend/migrations/` | Migration naming, clinic_id, CASCADE DELETE禁止 |
 | `frontend/` | React 19 patterns, design tokens, build commands |
 | `frontend/src/features/` | Feature Indexing, index.ts structure |

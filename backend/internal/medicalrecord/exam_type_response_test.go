@@ -4,6 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -190,4 +193,23 @@ func TestToExaminationTypeResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestToExaminationTypeResponseWithRanges_AttachesRangesToMatchingField(t *testing.T) {
+	min := 1.5
+	examType := &model.ExaminationType{
+		ID: 10,
+		Items: []model.ExamTypeField{
+			{ID: 20, ExamTypeID: 10, Name: "WBC"},
+			{ID: 21, ExamTypeID: 10, Name: "RBC"},
+		},
+	}
+	response := toExaminationTypeResponseWithRanges(examType, map[uint64][]model.ExamReferenceRange{
+		20: {{ID: 30, ExamTypeFieldID: 20, AnimalSpeciesID: 40, RefMin: &min}},
+	})
+
+	require.Len(t, response.Items, 2)
+	require.Len(t, response.Items[0].ReferenceRanges, 1)
+	assert.Equal(t, uint64(40), response.Items[0].ReferenceRanges[0].AnimalSpeciesID)
+	assert.Empty(t, response.Items[1].ReferenceRanges)
 }

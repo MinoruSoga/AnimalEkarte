@@ -7,6 +7,7 @@ import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
 import { PetPhysicalSection } from "./PetPhysicalSection";
 import { PetCareSection, type InsuranceOption } from "./PetCareSection";
+import { PetSubOwnersSection } from "./PetSubOwnersSection";
 import type { PetFormData } from "../types";
 
 interface PetEditModalFieldsProps {
@@ -16,6 +17,7 @@ interface PetEditModalFieldsProps {
   clearFieldError: (field: string) => void;
   animalSpeciesList: AnimalSpeciesOption[];
   isLoadingSpecies: boolean;
+  speciesPlaceholder?: string;
   insuranceList: InsuranceOption[];
   isLoadingInsurances: boolean;
   canEdit: boolean;
@@ -29,6 +31,7 @@ export function PetEditModalFields({
   clearFieldError,
   animalSpeciesList,
   isLoadingSpecies,
+  speciesPlaceholder = "選択してください",
   insuranceList,
   isLoadingInsurances,
   canEdit,
@@ -90,6 +93,7 @@ export function PetEditModalFields({
         clearFieldError={clearFieldError}
         animalSpeciesOptions={animalSpeciesOptions}
         isLoadingSpecies={isLoadingSpecies}
+        speciesPlaceholder={speciesPlaceholder}
         isEdit={isEdit}
         onAnimalSpeciesChange={handleAnimalSpeciesChange}
       />
@@ -107,6 +111,9 @@ export function PetEditModalFields({
         canEdit={canEdit}
         onInsuranceChange={handleInsuranceChange}
       />
+      {isEdit && formData.id ? (
+        <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />
+      ) : null}
     </div>
   );
 }

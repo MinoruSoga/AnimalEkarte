@@ -190,8 +190,6 @@ func TestUpdateExaminationRequest_ToServiceInput_EmptyExamTypeID(t *testing.T) {
 
 func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 	fieldID := uint64(7)
-	refMin := 1.2
-	refMax := 3.4
 	req := replaceExamItemsRequest{
 		Items: []upsertExamItemRequest{
 			{
@@ -201,8 +199,6 @@ func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 				NormalValue:     "1.2-3.4",
 				Unit:            "K/uL",
 				ReferenceValue:  "ref",
-				RefMin:          &refMin,
-				RefMax:          &refMax,
 				SortOrder:       2,
 			},
 		},
@@ -219,9 +215,6 @@ func TestReplaceExamItemsRequest_ToServiceInput(t *testing.T) {
 	if input[0].Name != "WBC" {
 		t.Errorf("Name = %q, want WBC", input[0].Name)
 	}
-	if input[0].RefMin == nil || *input[0].RefMin != refMin {
-		t.Errorf("RefMin = %v, want %v", input[0].RefMin, refMin)
-	}
 	if input[0].SortOrder != 2 {
 		t.Errorf("SortOrder = %d, want 2", input[0].SortOrder)
 	}
@@ -237,5 +230,31 @@ func TestReplaceExamItemsRequest_ToServiceInput_NilItems(t *testing.T) {
 	}
 	if input == nil {
 		t.Error("input = nil, want empty slice")
+	}
+}
+
+// BUG-450: include_items は明細同梱の opt-in である。既定（未指定）で明細を返さない
+// 後方互換が、この2 case で固定される。
+func TestListExaminationQuery_ToServiceFilters_IncludeItems(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "true opts into item delivery", value: "true", want: true},
+		{name: "unset keeps the default lean response", value: "", want: false},
+		{name: "false keeps the default lean response", value: "false", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filters, err := (&listExaminationQuery{IncludeItems: tt.value}).toServiceFilters()
+			if err != nil {
+				t.Fatalf("toServiceFilters returned error: %v", err)
+			}
+			if filters.IncludeItems != tt.want {
+				t.Errorf("IncludeItems = %t, want %t", filters.IncludeItems, tt.want)
+			}
+		})
 	}
 }

@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -15,6 +17,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
+
+const dangerReasonMaxRunes = 500
 
 // CreatePetDraft is the pet-owned immutable input for every pet create path.
 // Identity, tenant, owner and pet number are deliberately absent: the pet write
@@ -34,6 +38,7 @@ type CreatePetDraft struct {
 	NeuteredDate    *time.Time
 	AcquisitionType *model.AcquisitionType
 	DangerLevel     model.DangerLevel
+	DangerReason    *string
 	Food            string
 	Environment     string
 	Phone           string
@@ -108,6 +113,7 @@ func CreatePetDraftFromModel(pet model.Pet) CreatePetDraft {
 		NeuteredDate:    pet.NeuteredDate,
 		AcquisitionType: pet.AcquisitionType,
 		DangerLevel:     pet.DangerLevel,
+		DangerReason:    pet.DangerReason,
 		Food:            pet.Food,
 		Environment:     pet.Environment,
 		Phone:           pet.Phone,
@@ -164,6 +170,12 @@ func createPetsInTransaction(
 		return []model.Pet{}, nil
 	}
 
+	normalizedPets, err := normalizeCreatePetDraftDangerReasons(intent.Pets)
+	if err != nil {
+		return nil, err
+	}
+	intent.Pets = normalizedPets
+
 	db := tx.WithContext(ctx)
 	if err := lockOwnerForRegistration(db, intent.ClinicID, intent.OwnerID); err != nil {
 		return nil, err
@@ -191,6 +203,40 @@ func createPetsInTransaction(
 	return created, nil
 }
 
+func normalizeCreatePetDraftDangerReasons(pets []CreatePetDraft) ([]CreatePetDraft, error) {
+	normalized := make([]CreatePetDraft, len(pets))
+	for i := range pets {
+		normalized[i] = pets[i]
+		reason, err := normalizeDangerReason(pets[i].DangerLevel, pets[i].DangerReason)
+		if err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
+		}
+		normalized[i].DangerReason = reason
+	}
+	return normalized, nil
+}
+
+func normalizeDangerReason(level model.DangerLevel, reason *string) (*string, error) {
+	if reason == nil {
+		if level == model.DangerLevelHigh {
+			return nil, apperrors.WrapInvalidInput("危険度がhighの場合は危険理由を入力してください")
+		}
+		return nil, nil
+	}
+
+	trimmed := strings.TrimSpace(*reason)
+	if utf8.RuneCountInString(trimmed) > dangerReasonMaxRunes {
+		return nil, apperrors.WrapInvalidInput("危険理由は500文字以内で入力してください")
+	}
+	if trimmed == "" {
+		if level == model.DangerLevelHigh {
+			return nil, apperrors.WrapInvalidInput("危険度がhighの場合は危険理由を入力してください")
+		}
+		return nil, nil
+	}
+	return &trimmed, nil
+}
+
 func (p CreatePetDraft) model(clinicID, ownerID uint64, petNumber string) model.Pet {
 	return model.Pet{
 		ClinicID:        clinicID,
@@ -210,6 +256,7 @@ func (p CreatePetDraft) model(clinicID, ownerID uint64, petNumber string) model.
 		NeuteredDate:    p.NeuteredDate,
 		AcquisitionType: p.AcquisitionType,
 		DangerLevel:     p.DangerLevel,
+		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
 		Phone:           p.Phone,

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useState, useDeferredValue, useCallback, useEffect, useMemo, useTransition } from "react";
+import { useState, useDeferredValue, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
@@ -24,6 +24,7 @@ import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActi
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { usePagination } from "@/hooks/use-pagination";
+import { useGetPet } from "@/hooks/use-pet";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -64,6 +65,44 @@ const VACCINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "nextDate", label: "次回予定" },
 ];
 
+interface VaccinationRowActionsProps {
+  record: VaccinationRecord;
+  canEdit: boolean;
+  canDelete: boolean;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function VaccinationRowActions({
+  record,
+  canEdit,
+  canDelete,
+  onEdit,
+  onDelete,
+}: VaccinationRowActionsProps) {
+  const { data: pet } = useGetPet(record.petId ?? "");
+  const actions = [
+    ...(canEdit && pet?.status === "生存" ? [{
+      label: "編集",
+      icon: Pencil,
+      onClick: () => onEdit(record.id),
+    }] : []),
+    ...(canDelete ? [{
+      label: "削除",
+      icon: Trash2,
+      onClick: () => onDelete(record.id),
+      variant: "destructive" as const,
+    }] : []),
+  ];
+
+  return actions.length > 0 ? (
+    <RowActionDropdown
+      actions={actions}
+      ariaLabel={`予防接種操作: ${record.petName} ${record.date} ID ${record.id}`}
+    />
+  ) : null;
+}
+
 export function VaccinationList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +111,10 @@ export function VaccinationList() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const { mutate: deleteVaccinationFn } = useDeleteVaccination();
   const [isDeletePending, startDeleteTransition] = useTransition();
+  const canDeleteRef = useRef(canDelete);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -88,6 +131,10 @@ export function VaccinationList() {
   }, [activeFilters]);
 
   const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
+  const pendingDeletePetId = allVaccinations.find(
+    (record) => record.id === pendingDeleteId,
+  )?.petId ?? "";
+  const { data: pendingDeletePet } = useGetPet(pendingDeletePetId);
 
   // js-cache-function-results: ロード済みデータから担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -144,7 +191,13 @@ export function VaccinationList() {
   }, [navigate]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDeleteId) return;
+    if (
+      canDeleteRef.current !== true ||
+      !pendingDeleteId ||
+      pendingDeletePet?.status !== "生存"
+    ) {
+      return;
+    }
     startDeleteTransition(() => {
       deleteVaccinationFn(pendingDeleteId, {
         onSuccess: () => {
@@ -156,7 +209,7 @@ export function VaccinationList() {
         },
       });
     });
-  }, [pendingDeleteId, deleteVaccinationFn]);
+  }, [pendingDeleteId, pendingDeletePet?.status, deleteVaccinationFn]);
 
   const columns = useMemo(() => [
     {
@@ -212,10 +265,6 @@ export function VaccinationList() {
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: VaccinationRecord) => {
     const overdue = isPastJSTDate(r.nextDate);
-    const actions = [
-      ...(canEdit ? [{ label: "編集", icon: Pencil, onClick: () => handleEdit(r.id) }] : []),
-      ...(canDelete ? [{ label: "削除", icon: Trash2, onClick: () => setPendingDeleteId(r.id), variant: "destructive" as const }] : []),
-    ];
     return (
       <DataTableRow key={r.id}>
         <TableCell className={`font-mono ${C.text}`}>{r.date}</TableCell>
@@ -242,10 +291,13 @@ export function VaccinationList() {
         </TableCell>
         <TableCell className="text-right">
           {/* BUG-089: 行操作ドロップダウン（編集・削除） */}
-          {actions.length > 0 ? (
-            <RowActionDropdown
-              actions={actions}
-              ariaLabel={`予防接種操作: ${r.petName} ${r.date} ID ${r.id}`}
+          {canEdit || canDelete ? (
+            <VaccinationRowActions
+              record={r}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onEdit={handleEdit}
+              onDelete={setPendingDeleteId}
             />
           ) : null}
         </TableCell>
@@ -265,7 +317,7 @@ export function VaccinationList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+            <PrimaryButton colorVariant="primary" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>

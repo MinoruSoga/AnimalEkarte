@@ -108,6 +108,9 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                       <div className={`${H_STYLES.text.xs} ${C.text40} font-mono`}>
                          {occupant.species}
                       </div>
+                      {isDeceased ? (
+                        <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
+                      ) : null}
                     </>
                   ) : (
                     <div className={`flex flex-col items-center justify-center h-full ${C.text20}`}>

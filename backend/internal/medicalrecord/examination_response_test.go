@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -111,5 +112,125 @@ func TestToExaminationResponse(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExamResultResponsesComputeIsAssessedFromComparableInput(t *testing.T) {
+	minimum := 1.0
+	maximum := 10.0
+	qualitativeMinimum := "(-)"
+	qualitativeMaximum := "(+)"
+	numericNaN := math.NaN()
+	invertedMinimum, invertedMaximum := 10.0, 1.0
+	tests := []struct {
+		name               string
+		inspectionValue    string
+		refMin             *float64
+		refMax             *float64
+		qualitativeMinimum *string
+		qualitativeMaximum *string
+		wantAssessed       bool
+	}{
+		{name: "numeric input compared with numeric bounds", inspectionValue: "5", refMin: &minimum, refMax: &maximum, wantAssessed: true},
+		{name: "BUG-447 nonnumeric input cannot be compared with numeric bounds", inspectionValue: "陰性", refMin: &minimum, refMax: &maximum},
+		{name: "qualitative input compared with qualitative bounds", inspectionValue: "(++)", qualitativeMinimum: &qualitativeMinimum, qualitativeMaximum: &qualitativeMaximum, wantAssessed: true},
+		{name: "unknown input cannot be compared with qualitative bounds", inspectionValue: "陰性", qualitativeMinimum: &qualitativeMinimum, qualitativeMaximum: &qualitativeMaximum},
+		{name: "empty input is not assessed", inspectionValue: "", refMin: &minimum, refMax: &maximum},
+		{name: "input without bounds is not assessed", inspectionValue: "5"},
+		{name: "NaN numeric boundary is not assessed", inspectionValue: "5", refMin: &numericNaN, refMax: &maximum},
+		{name: "inverted numeric boundaries are not assessed", inspectionValue: "5", refMin: &invertedMinimum, refMax: &invertedMaximum},
+		{
+			name:               "coexisting numeric and qualitative bounds fail closed",
+			inspectionValue:    "5",
+			refMin:             &minimum,
+			refMax:             &maximum,
+			qualitativeMinimum: &qualitativeMinimum,
+			qualitativeMaximum: &qualitativeMaximum,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			examResponse := toExamResultResponse(&model.ExamResult{
+				InspectionValue: tt.inspectionValue,
+				RefMin:          tt.refMin,
+				RefMax:          tt.refMax,
+				QualitativeMin:  tt.qualitativeMinimum,
+				QualitativeMax:  tt.qualitativeMaximum,
+			})
+			if examResponse.IsAssessed != tt.wantAssessed {
+				t.Errorf("exam response IsAssessed = %t, want %t", examResponse.IsAssessed, tt.wantAssessed)
+			}
+			assertOptionalString(t, "exam response QualitativeMin", examResponse.QualitativeMin, tt.qualitativeMinimum)
+			assertOptionalString(t, "exam response QualitativeMax", examResponse.QualitativeMax, tt.qualitativeMaximum)
+
+			labResponse := toLabExamResultItemResponse(&model.LabExamResultItem{
+				InspectionValue: tt.inspectionValue,
+				RefMin:          tt.refMin,
+				RefMax:          tt.refMax,
+				QualitativeMin:  tt.qualitativeMinimum,
+				QualitativeMax:  tt.qualitativeMaximum,
+			})
+			if labResponse.IsAssessed != tt.wantAssessed {
+				t.Errorf("lab response IsAssessed = %t, want %t", labResponse.IsAssessed, tt.wantAssessed)
+			}
+			assertOptionalString(t, "lab response QualitativeMin", labResponse.QualitativeMin, tt.qualitativeMinimum)
+			assertOptionalString(t, "lab response QualitativeMax", labResponse.QualitativeMax, tt.qualitativeMaximum)
+		})
+	}
+}
+
+func assertOptionalString(t *testing.T, label string, got, want *string) {
+	t.Helper()
+	if want == nil {
+		if got != nil {
+			t.Errorf("%s = %q, want nil", label, *got)
+		}
+		return
+	}
+	if got == nil {
+		t.Errorf("%s = nil, want %q", label, *want)
+		return
+	}
+	if *got != *want {
+		t.Errorf("%s = %q, want %q", label, *got, *want)
+	}
+}
+
+// BUG-450: 一覧レスポンスが明細を落としていたため、カルテの検査結果一覧が常に空・
+// 飼主レポートの異常件数が常に0になっていた。opt-in 時に明細が載ること、既定では
+// 載らないこと、明細が is_assessed を持つことを、この3 assertion で固定する。
+func TestToExaminationResponseWithItems_CarriesAssessedItems(t *testing.T) {
+	refMin := 5.5
+	refMax := 8.5
+	exam := &model.Examination{
+		ID:       1,
+		ClinicID: 1,
+		Items: []model.ExamResult{
+			{ID: 11, ExamID: 1, Name: "RBC", InspectionValue: "9.0", RefMin: &refMin, RefMax: &refMax},
+			{ID: 12, ExamID: 1, Name: "WBC", InspectionValue: "10.0"},
+		},
+	}
+
+	withItems := toExaminationResponseWithItems(exam)
+	if withItems.Items == nil {
+		t.Fatal("Items = nil, want the exam's item details")
+	}
+	if got := len(*withItems.Items); got != 2 {
+		t.Fatalf("len(Items) = %d, want 2", got)
+	}
+
+	// 基準値が解決できた項目は評価済み、無い項目は未評価。FE はこの差で
+	// 「基準値内」と「未判定」を描き分けるため、両方が同じ経路で運ばれる必要がある。
+	if !(*withItems.Items)[0].IsAssessed {
+		t.Error("bounded item IsAssessed = false, want true")
+	}
+	if (*withItems.Items)[1].IsAssessed {
+		t.Error("unbounded item IsAssessed = true, want false (unassessed is not normal)")
+	}
+
+	// 既定の一覧応答は従来どおり明細を持たない（後方互換）。
+	if lean := toExaminationResponse(exam); lean.Items != nil {
+		t.Errorf("default response Items = %v, want nil", lean.Items)
 	}
 }

@@ -182,7 +182,7 @@ export function TreatmentAddControls({
         />
         <Button
           size="sm"
-          className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
           disabled={isPending || !addContent.trim()}
         >

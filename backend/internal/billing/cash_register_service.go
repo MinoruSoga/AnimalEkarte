@@ -109,6 +109,31 @@ func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAgg
 	}
 }
 
+func buildPreviewCategories(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, names map[uint64]string) (map[string]map[string]int64, error) {
+	for _, cat := range catRows {
+		if err := validateCloseAggregateCategory(cat.Category); err != nil {
+			return nil, err
+		}
+	}
+
+	var totalPayment int64
+	for _, pm := range payRows {
+		totalPayment += pm.Amount
+	}
+
+	categories := make(map[string]map[string]int64)
+	for _, cat := range catRows {
+		categories[cat.Category] = make(map[string]int64)
+		for _, pm := range payRows {
+			pmName := paymentMethodNameForClose(pm.PaymentMethodID, names)
+			if totalPayment > 0 {
+				categories[cat.Category][pmName] += cat.Amount * pm.Amount / totalPayment
+			}
+		}
+	}
+	return categories, nil
+}
+
 // CashRegisterService はレジ締めのビジネスロジックインターフェース
 type CashRegisterService interface {
 	GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
@@ -263,19 +288,9 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	payMethodNames := buildPayMethodNameMap(payMethods)
 
 	// カテゴリ別×支払方法名別集計マップを構築（混在支払いは比率按分）
-	var totalPayment int64
-	for _, pm := range agg.PaymentRows {
-		totalPayment += pm.Amount
-	}
-	categories := make(map[string]map[string]int64)
-	for _, cat := range agg.CategoryRows {
-		categories[cat.Category] = make(map[string]int64)
-		for _, pm := range agg.PaymentRows {
-			pmName := paymentMethodNameForClose(pm.PaymentMethodID, payMethodNames)
-			if totalPayment > 0 {
-				categories[cat.Category][pmName] += cat.Amount * pm.Amount / totalPayment
-			}
-		}
+	categories, err := buildPreviewCategories(agg.PaymentRows, agg.CategoryRows, payMethodNames)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to build preview categories")
 	}
 
 	// 個別会計一覧を変換

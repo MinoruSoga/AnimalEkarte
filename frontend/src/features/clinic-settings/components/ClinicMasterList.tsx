@@ -52,7 +52,7 @@ export function ClinicMasterList({
       onBack={onBack}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={onCreate}>
+          <PrimaryButton colorVariant="primary" onClick={onCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>

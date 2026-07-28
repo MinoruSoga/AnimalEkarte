@@ -36,7 +36,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 両欄空・不正メール形式（`a@`）でそれぞれ送信 | エラーが表示されログインされない |
-| 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: FE input は minLength=6 のため通過するが、BE が 8 文字未満を拒否する（`LoginForm.tsx` vs `auth_request.go`） |
+| 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: FE input は minLength=6 のため通過するが、BE が 8 文字未満を拒否する（`LoginForm.tsx` vs `backend/internal/auth/http_response.go`） |
 | 3 | 正しい資格情報で送信 → ページ再読込 → `/login` を直アクセス | ダッシュボードへ遷移。再読込後もセッション維持（httpOnly Cookie — [21-login.md §3.1](../../../spec/screens/21-login.md)）。ログイン済みの `/login` 直アクセスは即リダイレクト（`LoginForm.tsx` の認証済み Navigate） |
 | 4 | 誤パスワードで 1 分内に 6 回連続送信 | レート制限（5 回/分）で拒否される（[21-login.md §1.2](../../../spec/screens/21-login.md)） |
 
@@ -88,13 +88,13 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | コース選択肢を確認。院内の予約区分マスタで新規区分を公開 → 再表示 | マスタで公開設定された区分のみ表示され、追加分が反映される（[reservation-spec.md §2](../../../spec/line/reservation-spec.md)・C3(a)） |
-| 2 | 【代表・削除済みマスタ】予約作成後にそのコース区分を無効化 → 飼い主側と院内を再確認 | 無効化区分は飼い主側の選択肢から消える（同 §2「公開設定されたもののみ」）。【要実測】無効化区分で作成済みの既存予約がマイ予約・院内 `/reservations` で壊れず表示継続すること |
+| 2 | 【代表・無効化マスタ】予約作成後にそのコース区分を無効化 → 飼い主側と院内を再確認 | 【要実測】現行のコース一覧 API は `is_active=false` を除外していないため、無効化区分が飼い主側の選択肢に残る可能性がある。一方、確定 POST は inactive 区分を拒否する（`backend/internal/reservation/reservation_validators.go`）。作成済みの既存予約がマイ予約・院内 `/reservations` で壊れず表示継続することも確認する |
 | 3 | お名前・電話番号をスペースのみにして次へ | エラーが表示され進めない（FE: trim 後の非空必須） |
 | 4 | 電話番号に数字以外（`abc`）を入力して進める | 【要実測】FE の形式チェックは非空のみの模様。確定まで通過する場合、保存された予約の電話値を院内側で確認し起票判断 |
 | 5 | 新規ペット追加でペット名を空のまま追加 | エラーが表示され追加できない（名前非空必須）。既存紐付けペットが 1 頭なら自動選択される（`CustomerInfoPage.tsx`）。既存ペット選択肢は飼い主の実データ由来（C3(a)） |
-| 6 | ご要望メモに 1001 文字を入力して確定（境界: 1000 文字は成功） | 拒否され保存されない（BE: request_text ≤1000 文字 — `handler/liff_validation.go`） |
+| 6 | ご要望メモに 1001 文字を入力して確定（境界: 1000 文字は成功） | 拒否され保存されない（BE: request_text ≤1000 文字 — `backend/internal/reservation/liff_validation.go`） |
 | 7 | 正常フローで確定 | 完了表示。院内 `/reservations` に source=line で自動反映（[reservation-spec.md §1](../../../spec/line/reservation-spec.md)・C2 相当）。マイ予約一覧にも表示される。LINE 完了通知の実配信はローカルでは観測対象外（同 §5） |
-| 8 | 選択した時間枠へ院内側で先に予約を入れてから確定 | 409「選択された時間枠は既に予約が入っています」が表示され保存されず、再選択に誘導される（枠競合 — `service/reservation_validators.go`。C3(b) 相当） |
+| 8 | 選択した時間枠へ院内側で先に予約を入れてから確定 | 409「選択された時間枠は既に予約が入っています」が表示され保存されず、再選択に誘導される（枠競合 — `backend/internal/reservation/reservation_validators.go`。C3(b) 相当） |
 
 ### V05-7 LINE予約 マイ予約キャンセル（`line-reserve-cancel` / line-reserve アプリ マイ予約一覧）
 
@@ -115,8 +115,8 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 |:--|:--|:--|
 | 1 | LINE予約受付を「停止中」で保存 → 飼い主側予約アプリを起動 | 保存され永続する（C2）。【要実測】停止中の飼い主側表示は仕様未明記 — 予約が進められないことを確認し表示を記録する |
 | 2 | 受付期間・表示月数・スロット間隔へ 0/負値/範囲外を入力して保存 | 【要実測】BE の数値境界検証は未確認。保存できた場合は飼い主側カレンダーの挙動まで確認し起票判断 |
-| 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: break_hours は `[{start,end}]` HHMM 形式必須 — `service/line_reservation_setting_service.go`）。曜日別営業時間の有効/無効切替も再オープンで保持される |
-| 4 | LINE クレデンシャル（channel_id/secret・liff_id・access_token）を入力して保存 → 再読込 | 保存され永続する。【要実測】再表示時のマスク/平文の挙動を記録する（クレデンシャルのため平文再表示なら起票） |
+| 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: break_hours は `[{start,end}]` HHMM 形式必須 — `backend/internal/reservation/line_reservation_setting_service.go`）。曜日別営業時間の有効/無効切替も再オープンで保持される |
+| 4 | チャネル ID・LIFF ID を入力して保存 → 再読込 | 保存され永続する。チャネルシークレット・アクセストークンはこの画面では入力・再表示しない設計のため対象外。【要実測】実ブラウザで secret/access token 入力欄が存在しないことも確認する |
 
 ### V05-9 表示ページ編集（`line-reservation-page-editor` / `/line-reservation/page-editor`）
 
@@ -134,9 +134,9 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 予約区分ツリーを確認 | 予約区分マスタの実データ由来（C3(a)）。無効区分は「（無効）」表記で選択可能（[28-line-reservation.md §4](../../../spec/screens/28-line-reservation.md)） |
-| 2 | 日付セルをクリックし特定日枠（開始時刻）を追加 → 再読込 | 15 分刻みで追加でき、永続する（C2）。ホワイトリスト警告が画面上部に常時表示されている（同 §4） |
-| 3 | 枠 1 件登録済みの区分を飼い主側で予約 | 登録した開始時刻のみ選択可・**枠のない日は終日予約不可**（**ホワイトリスト仕様の重点確認** — 同 §4） |
-| 4 | 枠をすべて削除して飼い主側を再確認 | 営業時間設定からの空き枠自動生成に戻る（同 §4） |
+| 2 | 日付セルをクリックし特定日枠（開始時刻）を追加 → 再読込 | 15 分刻みで追加でき、永続する（C2）。営業時間から自動生成される枠への「加算方式」の案内が画面上部に常時表示されている（同 §4） |
+| 3 | 枠 1 件登録済みの区分を飼い主側で予約 | 登録した開始時刻が営業時間由来の枠へ追加される。営業時間内の他の時刻も予約可能なままで、枠のない日も営業時間から自動生成される（加算方式 — 同 §4） |
+| 4 | 枠をすべて削除して飼い主側を再確認 | 追加分だけが消え、営業時間設定からの空き枠自動生成は継続する（同 §4） |
 | 5 | 同一日×同一開始時刻を重複追加 | 【要実測】重複可否は未確認（C3(b)）。登録できた場合は飼い主側表示も確認し起票判断 |
 | 6 | 毎週枠の表示・不正 typeId/親区分 ID で URL 直叩き | 毎週枠は読み取り専用（リピートアイコン付き。登録・削除は予約区分マスタ側 — 同 §4）。不正 typeId は有効な末端区分へ自動フォールバックし白画面にならない（`LineReservationSlotsSettings.tsx` の typeId 正規化・C3(c) 相当） |
 
@@ -160,7 +160,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 |:--|:--|:--|
 | 1 | 閾値数値・LIFF ID・ベース URL を変更して C2 一式 | 永続し、再オープンで保存値が初期表示される |
 | 2 | CPM バージョンを切り替えて保存 | V1/V2 の選択式（[31-lstep-integration.md §1.2](../../../spec/screens/31-lstep-integration.md)）。保存後に自動管理タグ体系が選択バージョンに対応する（同 §2.1） |
-| 3 | 閾値へ 0 または負値を入力して保存 | 【要実測】更新時の範囲検証は BE に確認できず、判定読み出し側は 0 以下をデフォルト値で補完する実装（`service/lstep_settings_thresholds.go`）。保存可否・再表示値を実測し起票判断 |
+| 3 | 閾値へ 0 または負値を入力して保存 | 【要実測】更新時の範囲検証は BE に確認できず、判定読み出し側は 0 以下をデフォルト値で補完する実装（`backend/internal/lstep/lstep_settings_thresholds.go`）。保存可否・再表示値を実測し起票判断 |
 | 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`lstep-settings-form-request.ts` の空値スキップ） |
 | 5 | Lステップ/LINE の接続テストボタンを実行 | 結果（成功/失敗）が表示される。ローカルの疑似クレデンシャルでは失敗表示で可（導線と表示の確認が目的） |
 
@@ -192,6 +192,6 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 ## 確認観点
 
 - 既存の機械テストが覆う範囲: FE component test（`ChangePasswordDialog` / `ForgotPasswordPage` / `use-liff-link` / `CustomerInfoPage` / `ConfirmPage` / `MyReservationsPage` / `LstepSettingsForm` / `TriggerPrioritySection` / `LstepTagCodeMappingsSection` / `LstepTagConfigSection` 等）が FE 単体のバリデーション分岐を、BE テスト（auth/password_reset・liff_validation・line_reservation_setting・lstep_settings/tag/csv/checkup_sync 各 service/handler test）がサーバ側検証・部分更新非破壊・テナント隔離を網羅する。E2E（auth-flows / line-reservation-flow / lstep-flow）は表示と主要導線のみ。
-- 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ + 実 DB の統合点（FE→BE→永続化→再表示）で通す受け入れ時の実機検証**であり、FE/BE バリデーション乖離（ログイン最小長 6 vs 8・パスワード英数字混在は BE のみ）・E2E 対象外の独立 SPA（liff / line-reserve）・予約可能枠のホワイトリスト仕様を重点とする。
+- 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ + 実 DB の統合点（FE→BE→永続化→再表示）で通す受け入れ時の実機検証**であり、FE/BE バリデーション乖離（ログイン最小長 6 vs 8・パスワード英数字混在は BE のみ）・E2E 対象外の独立 SPA（liff / line-reserve）・予約可能枠の加算方式を重点とする。
 - ログインのレート制限・リセットトークンのワンタイム性・リセット申請の列挙防止はセキュリティ境界（[21-login.md](../../../spec/screens/21-login.md) §1.2/§2）— 「拒否される/漏れない」ことを必ず確認する。
-- NG 項目は todo.md「バグ台帳」節へ BUG-XXX として起票する（[README.md](README.md) のルールに従う）。
+- NG 項目は [`3-session-agent.html` の実装タスク台帳（正本）](../../../../3-session-agent.html#ledger) の `<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="BUG-XXX">` として起票する（[README.md](README.md) のルールに従う）。

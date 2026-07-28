@@ -10,7 +10,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { resetPassword } from "../api/reset-password";
 
-const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
 
 type ResetPasswordState = { error: string | null };
 
@@ -81,7 +81,10 @@ export function ResetPasswordPage() {
     return (
       <div className={`min-h-screen flex items-center justify-center ${C.bgPage} p-4`}>
         <div className="w-full max-w-[380px] mx-auto text-center space-y-4">
-          <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
+          <div
+            data-testid="reset-password-invalid-brand-mark"
+            className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}
+          >
             <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
           <h1 className={`text-heading-3 font-bold ${C.text}`}>無効なリンクです</h1>
@@ -104,7 +107,10 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-[380px] mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
+          <div
+            data-testid="reset-password-brand-mark"
+            className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}
+          >
             <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
           <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
@@ -171,7 +177,8 @@ export function ResetPasswordPage() {
           <FormFieldError id="reset-error" message={state.error} />
 
           <SubmitButton
-            className="w-full h-[52px] text-base font-medium"
+            colorVariant="brand"
+            className="w-full h-[52px]"
             loadingText="設定中..."
           >
             パスワードを設定する

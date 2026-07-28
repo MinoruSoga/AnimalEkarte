@@ -19,9 +19,56 @@ func (s *staffService) GetPermissionGroupIDs(ctx context.Context, clinicID, staf
 
 // SetPermissionGroupIDs はスタッフの権限グループを全置換する
 func (s *staffService) SetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
-	if err := s.permissionGroupRepo.UpdateStaffGroups(ctx, clinicID, staffID, groupIDs); err != nil {
+	if s.repo == nil || s.permissionGroupRepo == nil || s.tx == nil || s.permissionAudit == nil {
+		return apperrors.WrapInternalServerError(
+			"staff permission assignment dependencies are not configured",
+		)
+	}
+	audit, err := permissionAssignmentAuditFromContext(ctx, clinicID, staffID)
+	if err != nil {
+		return err
+	}
+	requestedGroupIDs := append([]uint64(nil), groupIDs...)
+
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		lockedStaff, lockErr := s.repo.LockActiveByIDForUpdateInClinic(
+			txCtx,
+			clinicID,
+			staffID,
+		)
+		if lockErr != nil {
+			return apperrors.Wrap(lockErr, "failed to lock staff for permission assignment")
+		}
+		if lockedStaff == nil || lockedStaff.ID != staffID {
+			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+		}
+
+		oldGroupIDs, findErr := s.permissionGroupRepo.FindAllGroupIDsByStaffID(
+			txCtx,
+			clinicID,
+			staffID,
+		)
+		if findErr != nil {
+			return apperrors.Wrap(findErr, "failed to get permission group ids")
+		}
+		if updateErr := s.permissionGroupRepo.UpdateStaffGroups(
+			txCtx,
+			clinicID,
+			staffID,
+			requestedGroupIDs,
+		); updateErr != nil {
+			return apperrors.Wrap(updateErr, "failed to set permission group ids")
+		}
+		if auditErr := s.permissionAudit.LogEntryTx(
+			txCtx,
+			permissionAssignmentAuditEntry(*audit, oldGroupIDs, requestedGroupIDs),
+		); auditErr != nil {
+			return apperrors.Wrap(auditErr, "failed to write staff permission assignment audit")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group ids", "error", err, "id", staffID)
-		return apperrors.Wrap(err, "failed to set permission group ids")
+		return err
 	}
 	return nil
 }

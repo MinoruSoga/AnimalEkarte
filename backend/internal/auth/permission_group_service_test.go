@@ -6,10 +6,44 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type atomicPermissionGroupRepositoryStub struct {
+	*mockPermissionGroupRepository
+	createWithRulesFn func(
+		context.Context,
+		*model.PermissionGroup,
+		[]model.PermissionGroupRule,
+	) (*model.PermissionGroup, error)
+	updateWithRulesFn func(
+		context.Context,
+		uint64,
+		uint64,
+		map[string]any,
+		[]model.PermissionGroupRule,
+	) (*model.PermissionGroup, error)
+}
+
+func (s *atomicPermissionGroupRepositoryStub) CreateWithRules(
+	ctx context.Context,
+	group *model.PermissionGroup,
+	rules []model.PermissionGroupRule,
+) (*model.PermissionGroup, error) {
+	return s.createWithRulesFn(ctx, group, rules)
+}
+
+func (s *atomicPermissionGroupRepositoryStub) UpdateWithRules(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+	rules []model.PermissionGroupRule,
+) (*model.PermissionGroup, error) {
+	return s.updateWithRulesFn(ctx, clinicID, id, fields, rules)
+}
 
 // ---- Tests ----
 
@@ -120,6 +154,130 @@ func TestPermissionGroupService_Create(t *testing.T) {
 	}
 }
 
+func TestPermissionGroupService_Create_IsActiveFalsePropagates(t *testing.T) {
+	var created *model.PermissionGroup
+	repo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, group *model.PermissionGroup) error {
+			created = group
+			group.ID = 11
+			return nil
+		},
+	}
+	svc := newPermissionGroupServiceImpl(repo)
+
+	group, err := svc.Create(
+		context.Background(),
+		1,
+		&CreatePermissionGroupInput{
+			Name:     "inactive group",
+			Color:    "#112233",
+			IsActive: false,
+		},
+		testPermissionMutationAudit(
+			1,
+			10,
+			model.AuditActionPermissionGroupCreate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.False(t, created.IsActive, "service must pass resolved false to repository")
+	assert.False(t, group.IsActive)
+}
+
+func TestPermissionGroupService_Create_IsActiveTruePropagates(t *testing.T) {
+	var created *model.PermissionGroup
+	repo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, group *model.PermissionGroup) error {
+			created = group
+			group.ID = 12
+			return nil
+		},
+	}
+	svc := newPermissionGroupServiceImpl(repo)
+
+	group, err := svc.Create(
+		context.Background(),
+		1,
+		&CreatePermissionGroupInput{
+			Name:     "active group",
+			Color:    "#112233",
+			IsActive: true,
+		},
+		testPermissionMutationAudit(
+			1,
+			10,
+			model.AuditActionPermissionGroupCreate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.True(t, created.IsActive)
+	assert.True(t, group.IsActive)
+}
+
+func TestPermissionGroupService_CreateWithRules_AuditsFinalAggregateInTransaction(
+	t *testing.T,
+) {
+	transactor := &permissionAuditTransactor{}
+	auditLogger := &permissionAuditTxLogger{}
+	baseRepo := &mockPermissionGroupRepository{}
+	repo := &atomicPermissionGroupRepositoryStub{
+		mockPermissionGroupRepository: baseRepo,
+		createWithRulesFn: func(
+			ctx context.Context,
+			group *model.PermissionGroup,
+			rules []model.PermissionGroupRule,
+		) (*model.PermissionGroup, error) {
+			assert.True(t, ctx.Value(permissionAuditTxContextKey{}) == true)
+			require.Len(t, rules, 1)
+			group.ID = 7
+			group.Rules = []model.PermissionGroupRule{{
+				ID:       9,
+				GroupID:  group.ID,
+				Resource: rules[0].Resource,
+				CanView:  rules[0].CanView,
+			}}
+			return group, nil
+		},
+	}
+	svc := NewPermissionGroupService(repo, transactor, auditLogger)
+
+	group, err := svc.Create(
+		context.Background(),
+		23,
+		&CreatePermissionGroupInput{
+			Name:  "created with rules",
+			Color: "#123456",
+			Rules: []SetPermissionGroupRulesInput{{
+				Resource: string(model.ResourceOwners),
+				CanView:  true,
+			}},
+		},
+		permissionAuditInput(
+			model.AuditActionPermissionGroupCreate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.Len(t, group.Rules, 1)
+	require.Len(t, auditLogger.entries, 1)
+	assert.True(t, auditLogger.txSeen[0])
+	newValue := auditLogger.entries[0].NewValue.(map[string]any)
+	assert.Equal(t, []map[string]any{{
+		"resource":   "owners",
+		"can_view":   true,
+		"can_create": false,
+		"can_edit":   false,
+		"can_delete": false,
+	}}, newValue["rules"])
+}
+
 func TestPermissionGroupService_Update(t *testing.T) {
 	existing := &model.PermissionGroup{ID: 1, ClinicID: 1, Name: "既存グループ"}
 
@@ -206,6 +364,96 @@ func TestPermissionGroupService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPermissionGroupService_UpdateWithRules_AuditsFinalAggregateInTransaction(
+	t *testing.T,
+) {
+	transactor := &permissionAuditTransactor{}
+	auditLogger := &permissionAuditTxLogger{}
+	oldGroup := &model.PermissionGroup{
+		ID:       7,
+		ClinicID: 23,
+		Name:     "before",
+		Rules: []model.PermissionGroupRule{{
+			Resource: "medical_record",
+			CanView:  true,
+		}},
+	}
+	baseRepo := &mockPermissionGroupRepository{
+		findByIDFn: func(
+			context.Context,
+			uint64,
+			uint64,
+		) (*model.PermissionGroup, error) {
+			return oldGroup, nil
+		},
+		lockByIDFn: func(
+			context.Context,
+			uint64,
+			uint64,
+		) (*model.PermissionGroup, error) {
+			return oldGroup, nil
+		},
+	}
+	repo := &atomicPermissionGroupRepositoryStub{
+		mockPermissionGroupRepository: baseRepo,
+		updateWithRulesFn: func(
+			ctx context.Context,
+			clinicID, id uint64,
+			fields map[string]any,
+			rules []model.PermissionGroupRule,
+		) (*model.PermissionGroup, error) {
+			assert.True(t, ctx.Value(permissionAuditTxContextKey{}) == true)
+			assert.Equal(t, uint64(23), clinicID)
+			assert.Equal(t, uint64(7), id)
+			assert.Equal(t, "after", fields["name"])
+			require.Len(t, rules, 1)
+			return &model.PermissionGroup{
+				ID:       id,
+				ClinicID: clinicID,
+				Name:     "after",
+				Rules: []model.PermissionGroupRule{{
+					ID:       10,
+					GroupID:  id,
+					Resource: rules[0].Resource,
+					CanEdit:  rules[0].CanEdit,
+				}},
+			}, nil
+		},
+	}
+	svc := NewPermissionGroupService(repo, transactor, auditLogger)
+	name := "after"
+
+	group, err := svc.Update(
+		context.Background(),
+		23,
+		7,
+		&UpdatePermissionGroupInput{
+			Name: &name,
+			Rules: []SetPermissionGroupRulesInput{{
+				Resource: string(model.ResourceOwners),
+				CanEdit:  true,
+			}},
+		},
+		permissionAuditInput(
+			model.AuditActionPermissionGroupUpdate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.Len(t, group.Rules, 1)
+	require.Len(t, auditLogger.entries, 1)
+	assert.True(t, auditLogger.txSeen[0])
+	newValue := auditLogger.entries[0].NewValue.(map[string]any)
+	assert.Equal(t, []map[string]any{{
+		"resource":   "owners",
+		"can_view":   false,
+		"can_create": false,
+		"can_edit":   true,
+		"can_delete": false,
+	}}, newValue["rules"])
 }
 
 func TestPermissionGroupService_Update_NilInput(t *testing.T) {

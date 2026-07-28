@@ -47,7 +47,7 @@ export function CheckupForm() {
     setNextDate,
     setDoctorId,
     setResult,
-  } = useCheckupForm();
+  } = useCheckupForm({ canCreate, canEdit });
 
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();

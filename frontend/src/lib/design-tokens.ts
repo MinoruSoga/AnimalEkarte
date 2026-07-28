@@ -31,14 +31,20 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — DESIGN.md {colors.primary} 字義値（Notion blue）。FE10 リブランド（2026-07-21）で teal #038B94 から反転 */
-  brand: "#0075DE",
-  /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.primary-active} */
-  brandHover: "#005BAB",
+  /** Brand primary — docs/spec/design-system.md の製品採用値 */
+  brand: "#038B94",
+  /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.brand-active} */
+  brandHover: "#027078",
   /** Brand light background */
-  brandLight: "#E5F1FC",
+  brandLight: "#E1F3F4",
   /** Brand dark text (on light bg) */
-  brandDark: "#004C8F",
+  brandDark: "#025F66",
+
+  /* ── Semantic primary action (same product teal as brand) ── */
+  actionPrimary: "#038B94",
+  actionPrimaryActive: "#027078",
+  actionPrimaryLight: "#E1F3F4",
+  actionPrimaryDark: "#025F66",
 
   /** Border – light (table cell, card) */
   borderLight: "#E6E6E6",
@@ -46,8 +52,8 @@ export const PALETTE = {
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
   whiteAlpha80: "rgba(255,255,255,0.8)",
 
-  /** = brand（FE10 リブランドで一致）。チャート系列色など raw 用途のみ。構造用途は brand を使うこと */
-  accent: "#0075DE",
+  /** Legacy accent compatibility. New generic controls use actionPrimary. */
+  accent: "#038B94",
 
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
   danger: "#C0392B",
@@ -92,14 +98,15 @@ export const PALETTE = {
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /**
-   * Input/select/textarea focus border — brand primary の半透明表記。
-   * FE10: DESIGN.md「focus signal は primary」字義に従い legacy #2383E2 → brand #0075DE へ反転（トークン名は互換のため維持）。
+   * Input/select/textarea focus border — brand/primary teal の半透明表記。
+   * トークン名は互換のため維持。
    */
-  focusBorderLegacyAccent: "focus:border-[rgba(0,117,222,0.57)]",
+  focusBorderLegacyAccent: "focus:border-[rgba(3,139,148,0.57)]",
   /**
-   * Input/select/textarea focus ring — brand（#0075DE）。
-   * DESIGN.md「focus signal は primary」原則。
+   * Input/select/textarea focus ring — semantic primary（#038B94）。
    */
+  focusRingActionPrimary: "focus:shadow-focus-primary",
+  /** Explicit brand-surface focus shadow. Generic inputs must use focusRingActionPrimary. */
   focusRingBrand: "focus:shadow-focus-brand",
 } as const;
 
@@ -169,36 +176,68 @@ export const C = {
   /** Lightest bg — matching borderLight opacity; use for hr-style dividers */
   bgLight:       "bg-[#E6E6E6]",
 
-  /* ── Brand (Hospital teal) ── */
-  textBrand:     "text-[#0075DE]",
-  bgBrand:       "bg-[#0075DE]",
-  bgBrand10:     "bg-[#0075DE]/10",
-  bgBrand8:      "bg-[#0075DE]/8",
-  bgBrand5:      "bg-[#0075DE]/5",
-  bgBrandDot:    "bg-[#0075DE]",
-  hoverBgBrand:  "hover:bg-[#005BAB]",
-  hoverBgBrand5: "hover:bg-[#0075DE]/5",
-  /** Hover text — matches PALETTE.brandHover */
-  hoverTextBrand: "hover:text-[#005BAB]",
-  focusRingBrand:"focus:ring-[#0075DE]",
-  /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
-  focusRingBrand40: "focus:ring-[#0075DE]/40",
-  borderBrand:   "border-[#0075DE]",
-  borderLBrand:  "border-l-[#0075DE]",
-  /** Light brand border for outline/badge use — matches legacy borderAccentLight/borderAccentBadge weight */
-  borderBrandLight: "border-[#0075DE]/30",
-  /** Tailwind accent-color utility (checkbox/radio) — brand teal */
-  accentBrand:   "accent-[#0075DE]",
-  /* Brand light background — matches PALETTE.brandLight (#E5F1FC), replaces legacy bgAccentLight family */
-  bgBrandLight:   "bg-[#E5F1FC]",
-  bgBrandLight8:  "bg-[#E5F1FC]/8",
-  bgBrandLight30: "bg-[#E5F1FC]/30",
-  bgBrandLight40: "bg-[#E5F1FC]/40",
-  bgBrandLight50: "bg-[#E5F1FC]/50",
-  hoverBgBrandLight:   "hover:bg-[#E5F1FC]",
-  hoverBgBrandLight60: "hover:bg-[#E5F1FC]/60",
-  /** Darker brand text for contrast on bgBrandLight — matches PALETTE.brandDark (#004C8F), replaces legacy textAccentDark on brand-light surfaces */
-  textBrandDark: "text-[#004C8F]",
+  /* ── Legacy `Brand` names (semantic primary compatibility) ──
+   * FE10 以前から汎用 CTA / selection / focus に広く使われている。
+   * brand と primary は同じ teal 値を使う。新規実装は下の ActionPrimary 系を使うこと。
+   */
+  textBrand:     "text-[#025F66] dark:text-[#079BA5]",
+  bgBrand:       "bg-[#038B94]",
+  bgBrand10:     "bg-[#038B94]/10",
+  bgBrand8:      "bg-[#038B94]/8",
+  bgBrand5:      "bg-[#038B94]/5",
+  bgBrandDot:    "bg-[#038B94]",
+  hoverBgBrand:  "hover:bg-[#027078]",
+  hoverBgBrand5: "hover:bg-[#038B94]/5",
+  hoverTextBrand: "hover:text-[#025F66] dark:hover:text-[#079BA5]",
+  textOnBrand: "text-white",
+  hoverTextOnBrand: "hover:text-white",
+  activeBgBrand: "active:bg-[#027078]",
+  activeTextOnBrand: "active:text-white",
+  focusRingBrand:"focus:ring-[#038B94]",
+  focusRingBrand40: "focus:ring-[#038B94]",
+  borderBrand:   "border-[#038B94]",
+  borderLBrand:  "border-l-[#038B94]",
+  borderBrandLight: "border-[#038B94]/30",
+  accentBrand:   "accent-[#038B94]",
+  bgBrandLight:   "bg-[#E1F3F4]",
+  bgBrandLight8:  "bg-[#E1F3F4]/8",
+  bgBrandLight30: "bg-[#E1F3F4]/30",
+  bgBrandLight40: "bg-[#E1F3F4]/40",
+  bgBrandLight50: "bg-[#E1F3F4]/50",
+  hoverBgBrandLight:   "hover:bg-[#E1F3F4]",
+  hoverBgBrandLight60: "hover:bg-[#E1F3F4]/60",
+  textBrandDark: "text-[#025F66]",
+
+  /* ── Brand identity (authentication / logo / explicit brand surfaces) ── */
+  textBrandIdentity: "text-[#025F66] dark:text-[#079BA5]",
+  bgBrandIdentity: "bg-[#038B94]",
+  hoverBgBrandIdentity: "hover:bg-[#027078]",
+  activeBgBrandIdentity: "active:bg-[#027078]",
+  textOnBrandIdentity: "text-white",
+  hoverTextOnBrandIdentity: "hover:text-white",
+  activeTextOnBrandIdentity: "active:text-white",
+  focusRingBrandIdentity: "focus:ring-[#038B94]",
+  borderBrandIdentity: "border-[#038B94]",
+  bgBrandIdentityLight: "bg-[#E1F3F4]",
+
+  /* ── Semantic primary action (generic CTA / active / focus; brand teal) ── */
+  textActionPrimary: "text-[#025F66] dark:text-[#079BA5]",
+  bgActionPrimary: "bg-[#038B94]",
+  bgActionPrimary10: "bg-[#038B94]/10",
+  bgActionPrimary8: "bg-[#038B94]/8",
+  bgActionPrimary5: "bg-[#038B94]/5",
+  hoverBgActionPrimary: "hover:bg-[#027078]",
+  hoverTextOnActionPrimary: "hover:text-white",
+  hoverBgActionPrimary5: "hover:bg-[#038B94]/5",
+  activeBgActionPrimary: "active:bg-[#027078]",
+  activeTextOnActionPrimary: "active:text-white",
+  textOnActionPrimary: "text-white",
+  borderActionPrimary: "border-[#038B94]",
+  borderLActionPrimary: "border-l-[#038B94]",
+  focusRingActionPrimary: "focus:ring-[#038B94]",
+  focusVisibleRingActionPrimary: "focus-visible:ring-[#038B94]",
+  bgActionPrimaryLight: "bg-[#E1F3F4]",
+  textActionPrimaryDark: "text-[#025F66]",
 
   /* ── Border ── */
   borderLight:   "border-[#E6E6E6]",
@@ -214,24 +253,27 @@ export const C = {
   divideDividerFaint: "divide-[rgba(0,0,0,0.06)]",
 
   /* ── Accent ── */
-  bgAccent:      "bg-[#0075DE]",
-  bgAccentHover: "hover:bg-[#005BAB]",
+  bgAccent:      "bg-[#038B94]",
+  bgAccentHover: "hover:bg-[#027078]",
   bgAccentLight: "bg-[#D3E5EF]",
   bgAccentLight60: "bg-[#D3E5EF]/60",
   textAccentDark:"text-[#183B56]",
   textAccentDark90:"text-[#183B56]/90",
   /** Light accent border for outline accent buttons */
-  borderAccentLight: "border-[#0075DE]/30",
-  focusBorderAccent: "focus:border-[#0075DE]",
-  focusRingAccent: "focus-visible:ring-[#0075DE]",
-  focusRingAccent40: "focus-visible:ring-[#0075DE]/40",
-  /** Focus ring (30% opacity, `focus:` not `focus-visible:`) — plain form inputs (date/number fields) */
-  focusRingAccent30: "focus:ring-[#0075DE]/30",
+  borderAccentLight: "border-[#038B94]/30",
+  focusBorderAccent: "focus:border-[#038B94]",
+  focusRingAccent: "focus-visible:ring-[#038B94]",
+  /** Compatibility alias: focus indicators stay opaque to preserve 3:1 non-text contrast. */
+  focusRingAccent40: "focus-visible:ring-[#038B94]",
+  /** Compatibility alias (`focus:` variant): focus indicators stay opaque for non-text contrast. */
+  focusRingAccent30: "focus:ring-[#038B94]",
   /** data-state checked (Radix Checkbox) */
-  dataCheckedBgAccent: "data-[state=checked]:bg-[#0075DE]",
-  dataCheckedBorderAccent: "data-[state=checked]:border-[#0075DE]",
-  dataCheckedBgBrand: "data-[state=checked]:bg-[#0075DE]",
-  dataCheckedBorderBrand: "data-[state=checked]:border-[#0075DE]",
+  dataCheckedBgAccent: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderAccent: "data-[state=checked]:border-[#038B94]",
+  dataCheckedBgActionPrimary: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderActionPrimary: "data-[state=checked]:border-[#038B94]",
+  dataCheckedBgBrand: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderBrand: "data-[state=checked]:border-[#038B94]",
 
   /* ── Destructive — BUG-084: updated to #C0392B (7.1:1 contrast on white, WCAG AA) ── */
   danger:        "text-[#C0392B]",
@@ -438,23 +480,22 @@ export const C = {
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
   hoverTextStatusGreen:  "hover:text-[#0F7B6C]",
 
-  /* ── Medical accent blue — FE10: 第二構造アクセント禁止により brand #0075DE へ値統合（トークン名は互換残存） ── */
+  /* ── Medical accent — 臨床文脈に限定した semantic blue（primary とは独立） ── */
   bgMedicalBlue:          "bg-[#0075DE]",
   bgMedicalBlue5:         "bg-[#0075DE]/5",
   textMedicalBlue:        "text-[#0075DE]",
   borderLMedicalBlue:     "border-l-[#0075DE]",
   hoverBgMedicalBlue90:   "hover:bg-[#0075DE]/90",
   ringMedicalBlue:        "ring-[#0075DE]",
-  focusRingMedicalBlue:   "focus-visible:ring-[#0075DE]",
 
   /* ── 健診「期限間近」バッジ ── */
   bgCheckupDueSoon:   "bg-[#F0D070]",
   textCheckupDueSoon: "text-[#7A5C00]",
 
   /* ── Data-state active (Radix Tabs) ── */
-  /** FE10: DESIGN.md「active-tab signal は primary」字義に従い ink → brand 化 */
-  dataActiveBorderB: "data-[state=active]:border-b-[#0075DE]",
-  dataActiveText:    "data-[state=active]:text-[#0075DE]",
+  /** Active tab は semantic primary（brand と同じ teal）を使う。 */
+  dataActiveBorderB: "data-[state=active]:border-b-[#038B94]",
+  dataActiveText:    "data-[state=active]:text-[#025F66] dark:data-[state=active]:text-[#079BA5]",
 } as const;
 
 /* ================================================================== */
@@ -721,7 +762,7 @@ export const STYLE = {
   paginationBtn:
     `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-xs`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgBrand} text-white ${C.hoverBgBrand} text-base rounded-xs`,
+    `h-8 w-8 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} text-base rounded-xs`,
   paginationInfo:
     `text-base ${C.text50}`,
 
@@ -784,7 +825,7 @@ export const STYLE = {
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
+    `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:
@@ -822,8 +863,10 @@ export const STYLE = {
   dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
   /** ピルボタンの影（ShiftTemplateSettingsParts.tsx で使用）。 */
   pillShadow: PILL_SHADOW,
-  /** Layout のナビゲーション進捗バー brand グロー（#0075DE）。FE9-2: shadow-brand-glow トークンへ移行。値は既存直値のまま。 */
+  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。 */
   brandGlow: "shadow-brand-glow",
+  /** Layout のナビゲーション進捗バー primary グロー（#038B94）。 */
+  primaryGlow: "shadow-primary-glow",
 
   /* ── Table Row Hover (FG1 compliance) ── */
   /** Standard table row hover — use instead of hardcoded hover:bg-gray-50 */

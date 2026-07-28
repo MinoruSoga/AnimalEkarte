@@ -32,7 +32,7 @@ export const DiagnosisHeaderPhysicalExam = memo(function DiagnosisHeaderPhysical
         value={policy}
         onChange={(e) => setPolicy(e.target.value)}
         aria-label="診察所見・方針"
-        className={`h-full min-h-0 resize-none rounded-md border ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
+        className={`h-full min-h-0 resize-none rounded-md border ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusVisibleRingActionPrimary}`}
         disabled={!canEdit}
       />
     </DiagnosisHeaderSection>

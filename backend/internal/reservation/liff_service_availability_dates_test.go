@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -232,7 +233,13 @@ func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 	}
 	typeRepo := &mockLiffTypeRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
-			return &model.ReservationType{ID: 1, DurationMinutes: 60, ReservationDayOption: model.DayOptionAnyday}, nil
+			return &model.ReservationType{
+				ID:                   1,
+				IsActive:             true,
+				ReservationVisible:   true,
+				DurationMinutes:      60,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
 		},
 	}
 	staffRepo := &mockLiffStaffRepository{
@@ -275,4 +282,115 @@ func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 		assert.False(t, r.Available, "全日 staff_off として除外される(count=0)")
 		assert.Equal(t, "staff_off", r.Reason)
 	}
+}
+
+func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	ctx := context.Background()
+	date := time.Date(2026, 8, 3, 0, 0, 0, 0, config.JST)
+	downstreamErr := errors.New("downstream reached")
+
+	typeRepo := func(isActive bool) *mockLiffTypeRepository {
+		return &mockLiffTypeRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, typeID, gotTypeID)
+				return &model.ReservationType{
+					ID:                   gotTypeID,
+					ClinicID:             gotClinicID,
+					IsActive:             isActive,
+					ReservationVisible:   true,
+					DurationMinutes:      30,
+					ReservationDayOption: model.DayOptionAnyday,
+				}, nil
+			},
+		}
+	}
+	settingRepo := func() *mockLiffSettingRepository {
+		return &mockLiffSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return liffDefaultSetting(), nil
+			},
+		}
+	}
+
+	t.Run("GetStaffs", func(t *testing.T) {
+		downstreamCalls := 0
+		staffRepo := &mockLiffStaffRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				downstreamCalls++
+				return nil, downstreamErr
+			},
+		}
+
+		inactiveSvc := &liffService{typeLiffRepo: typeRepo(false), staffRepo: staffRepo}
+		_, err := inactiveSvc.GetStaffs(ctx, clinicID, typeID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Zero(t, downstreamCalls, "inactive type must short-circuit staff lookup")
+
+		activeSvc := &liffService{typeLiffRepo: typeRepo(true), staffRepo: staffRepo}
+		_, err = activeSvc.GetStaffs(ctx, clinicID, typeID)
+		require.ErrorIs(t, err, downstreamErr)
+		assert.Equal(t, 1, downstreamCalls, "active public type must reach staff lookup")
+	})
+
+	t.Run("GetAvailableDates", func(t *testing.T) {
+		downstreamCalls := 0
+		staffRepo := &mockLiffStaffRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				downstreamCalls++
+				return nil, downstreamErr
+			},
+		}
+
+		inactiveSvc := &liffService{
+			settingRepo:  settingRepo(),
+			typeLiffRepo: typeRepo(false),
+			staffRepo:    staffRepo,
+		}
+		_, _, err := inactiveSvc.GetAvailableDates(ctx, clinicID, typeID, 0)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Zero(t, downstreamCalls, "inactive type must short-circuit date availability dependencies")
+
+		activeSvc := &liffService{
+			settingRepo:  settingRepo(),
+			typeLiffRepo: typeRepo(true),
+			staffRepo:    staffRepo,
+		}
+		_, _, err = activeSvc.GetAvailableDates(ctx, clinicID, typeID, 0)
+		require.ErrorIs(t, err, downstreamErr)
+		assert.Equal(t, 1, downstreamCalls, "active public type must reach date availability dependencies")
+	})
+
+	t.Run("GetAvailableTimes", func(t *testing.T) {
+		downstreamCalls := 0
+		staffRepo := &mockLiffStaffRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				downstreamCalls++
+				return nil, downstreamErr
+			},
+		}
+
+		inactiveSvc := &liffService{
+			settingRepo:  settingRepo(),
+			typeLiffRepo: typeRepo(false),
+			staffRepo:    staffRepo,
+		}
+		_, err := inactiveSvc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Zero(t, downstreamCalls, "inactive type must short-circuit time availability dependencies")
+
+		activeSvc := &liffService{
+			settingRepo:  settingRepo(),
+			typeLiffRepo: typeRepo(true),
+			staffRepo:    staffRepo,
+		}
+		_, err = activeSvc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.ErrorIs(t, err, downstreamErr)
+		assert.Equal(t, 1, downstreamCalls, "active public type must reach time availability dependencies")
+	})
 }

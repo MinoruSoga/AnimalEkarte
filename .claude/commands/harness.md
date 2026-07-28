@@ -26,7 +26,7 @@ argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- `FEAT-XXX` / `BUG-XXX` / `PERF-XXX` / `SEED-XXX` 等のタスクID → repo 直下 `todo.md` の「個別タスク詳細」節の該当タスク（`### <タスクID>` 見出し）を実装モードで対象化
+- `TASK-XXX` / `FEAT-XXX` / `BUG-XXX` / `PERF-XXX` / `SEC-XXX` のタスクID → repo 直下 `3-session-agent.html` の `#ledger` 節にある該当タスクを `grep -n 'id="<タスクID>"' 3-session-agent.html` で検索し、実装モードで対象化
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 

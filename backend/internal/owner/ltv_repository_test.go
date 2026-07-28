@@ -2,6 +2,8 @@ package owner
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,12 +17,128 @@ import (
 
 func setupLTVTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	return testdb.SetupTestDB(t)
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	return db
+}
+
+type ltvTestRepository struct {
+	t    *testing.T
+	db   *gorm.DB
+	repo LtvRepository
+}
+
+func newLTVTestRepository(t *testing.T, db *gorm.DB) LtvRepository {
+	t.Helper()
+	return &ltvTestRepository{t: t, db: db, repo: NewLtvRepository(db)}
+}
+
+func (r *ltvTestRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+	r.t.Helper()
+	var records []model.MedicalRecord
+	require.NoError(r.t, r.db.WithContext(ctx).
+		Where("pet_id IS NULL AND owner_id IS NOT NULL").
+		Find(&records).Error)
+	if len(records) > 0 {
+		species := &model.AnimalSpecies{Name: "LTV fixture species"}
+		require.NoError(r.t, r.db.WithContext(ctx).Create(species).Error)
+		for i := range records {
+			var owner model.Owner
+			err := r.db.WithContext(ctx).
+				Where("id = ? AND clinic_id = ?", *records[i].OwnerID, records[i].ClinicID).
+				First(&owner).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				continue
+			}
+			require.NoError(r.t, err)
+			pet := &model.Pet{
+				ClinicID:        records[i].ClinicID,
+				OwnerID:         owner.ID,
+				AnimalSpeciesID: species.ID,
+				Name:            fmt.Sprintf("LTV fixture pet %d", records[i].ID),
+			}
+			require.NoError(r.t, r.db.WithContext(ctx).Create(pet).Error)
+			require.NoError(r.t, r.db.WithContext(ctx).
+				Model(&records[i]).
+				Update("pet_id", pet.ID).Error)
+		}
+	}
+	return r.repo.FindOwnerLTV(ctx, params)
+}
+
+func TestFindOwnerLTV_NilPetRecordIsNotCurrentOwnerVisit(t *testing.T) {
+	db := setupLTVTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70108)
+
+	owner := testdb.MakeTestOwner(t, db, clinicID, "pet未設定LTV飼主")
+	record := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: "MR-LTV-NIL-PET",
+		Date:     time.Now(),
+		OwnerID:  &owner.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(record).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, owner.ID, rows[0].OwnerID)
+	assert.Zero(t, rows[0].TotalVisitCount)
+	assert.Nil(t, rows[0].LastVisitDate)
+}
+
+func TestFindOwnerLTV_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupLTVTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
+	repo := newLTVTestRepository(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(70106)
+
+	previousOwner := testdb.MakeTestOwner(t, db, clinicID, "LTV譲渡前飼主")
+	currentOwner := testdb.MakeTestOwner(t, db, clinicID, "LTV譲渡後飼主")
+	species := &model.AnimalSpecies{Name: "LTV譲渡動物種"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         previousOwner.ID,
+		AnimalSpeciesID: species.ID,
+		Name:            "LTV譲渡ペット",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(pet).Error)
+	record := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: "MR-LTV-CURRENT-OWNER",
+		Date:     time.Now(),
+		OwnerID:  &previousOwner.ID,
+		PetID:    &pet.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(record).Error)
+	require.NoError(t, db.WithContext(ctx).Model(pet).Update("owner_id", currentOwner.ID).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:       clinicID,
+		IncludeZero:    true,
+		IncludeNoVisit: true,
+	})
+	require.NoError(t, err)
+
+	byOwner := make(map[uint64]OwnerLTVRow, len(rows))
+	for _, row := range rows {
+		byOwner[row.OwnerID] = row
+	}
+	assert.Equal(t, int64(1), byOwner[currentOwner.ID].TotalVisitCount)
+	assert.Equal(t, int64(0), byOwner[previousOwner.ID].TotalVisitCount)
 }
 
 func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 	clinicID := uint64(1)
 
@@ -49,7 +167,7 @@ func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
 
 func TestFindOwnerLTV_SearchNormalizesKana(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 	clinicID := uint64(1)
 
@@ -87,7 +205,7 @@ func TestFindOwnerLTV_SearchNormalizesKana(t *testing.T) {
 // ISSUE-002: period_visit_count の絞り込みが total_visit_count に波及しないこと
 func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -229,7 +347,7 @@ func TestFindOwnerLTV_PeriodVisitCountDoesNotAffectTotalVisitCount(t *testing.T)
 // ISSUE-001: from/to > year > period_preset > default の優先順位を検証
 func TestFindOwnerLTV_PeriodPriority(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -332,7 +450,7 @@ func TestFindOwnerLTV_PeriodPriority(t *testing.T) {
 // ISSUE-003: last_visit_bucket の境界値 90 / 180 / 365 日を検証
 func TestFindOwnerLTV_LastVisitBucketBoundaries(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -398,7 +516,7 @@ func TestFindOwnerLTV_LastVisitBucketBoundaries(t *testing.T) {
 // ISSUE-003: no_visit 分類を検証
 func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -437,7 +555,7 @@ func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 // ISSUE-001: include_zero フラグを検証
 func TestFindOwnerLTV_IncludeZero(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)
@@ -483,7 +601,7 @@ func TestFindOwnerLTV_IncludeZero(t *testing.T) {
 // ISSUE-001: amount_basis 切り替え（gross_total_amount / paid_amount / net_paid_amount）
 func TestFindOwnerLTV_AmountBasisSwitching(t *testing.T) {
 	db := setupLTVTestDB(t)
-	repo := NewLtvRepository(db)
+	repo := newLTVTestRepository(t, db)
 	ctx := context.Background()
 
 	clinicID := uint64(1)

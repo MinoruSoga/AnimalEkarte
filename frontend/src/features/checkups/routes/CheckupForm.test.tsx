@@ -34,7 +34,7 @@ function renderForm() {
 const formActionMock = vi.fn();
 
 beforeEach(() => {
-  formActionMock.mockReset();
+  vi.clearAllMocks();
   vi.mocked(useCheckupForm).mockReturnValue({
     pet: {
       id: "pet-1",
@@ -79,6 +79,10 @@ describe("CheckupForm permissions", () => {
     renderForm();
 
     expect(usePermission).toHaveBeenCalledWith(ResourceMedicalRecords);
+    expect(useCheckupForm).toHaveBeenCalledWith({
+      canCreate: false,
+      canEdit: false,
+    });
     expect(screen.getByText("閲覧のみ")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "定期健診入力" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
@@ -106,6 +110,10 @@ describe("CheckupForm permissions", () => {
 
       renderForm();
 
+      expect(useCheckupForm).toHaveBeenCalledWith({
+        canCreate,
+        canEdit,
+      });
       expect(screen.getByRole("group", { name: "定期健診入力" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
 
@@ -124,6 +132,10 @@ describe("CheckupForm permissions", () => {
 
     renderForm();
 
+    expect(useCheckupForm).toHaveBeenCalledWith({
+      canCreate: true,
+      canEdit: true,
+    });
     expect(screen.getByRole("group", { name: "定期健診入力" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     expect(screen.getByRole("textbox", { name: "結果・所見" })).toBeEnabled();

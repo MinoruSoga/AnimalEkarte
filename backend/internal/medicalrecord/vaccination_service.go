@@ -352,9 +352,6 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 			}
 			recordPetOwnerID = &ownerID
-			if record.OwnerID == nil || *record.OwnerID != ownerID {
-				return apperrors.WrapNotFound("medical_record", "relation")
-			}
 		}
 		if petID != nil {
 			if record.PetID == nil || *record.PetID != *petID || recordPetOwnerID == nil || petOwnerID == nil || *recordPetOwnerID != *petOwnerID {

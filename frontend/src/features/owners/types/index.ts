@@ -42,6 +42,7 @@ export interface PetFormData {
   neuteredDate?: string;
   acquisitionType?: AcquisitionType;
   dangerLevel?: DangerLevel;
+  dangerReason?: string;
   food?: string;
   environment: string;
   remarks: string;

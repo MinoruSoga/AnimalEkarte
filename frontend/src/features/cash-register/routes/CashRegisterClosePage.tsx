@@ -112,7 +112,7 @@ export function CashRegisterClosePage() {
                     onClick={() => handlePeriodChange(p)}
                     className={`px-4 h-11 text-base rounded-xs border transition-colors ${
                       period === p
-                        ? `${C.bgBrand} ${C.textWhite} border-transparent`
+                        ? `${C.bgBrand} ${C.textOnBrand} border-transparent`
                         : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                     }`}
                   >
@@ -124,7 +124,7 @@ export function CashRegisterClosePage() {
             <button
               type="button"
               onClick={enablePreview}
-              className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
+              className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} transition-colors`}
             >
               プレビュー
             </button>
@@ -276,7 +276,7 @@ export function CashRegisterClosePage() {
                       />
                     </div>
                     <div className="flex justify-end">
-                      <SubmitButton colorVariant="brand" loadingText="締め中...">締める</SubmitButton>
+                      <SubmitButton colorVariant="primary" loadingText="締め中...">締める</SubmitButton>
                     </div>
                   </form>
                 </section>
@@ -305,7 +305,7 @@ export function CashRegisterClosePage() {
               <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmClose}
-                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full`}
+                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
               >
                 締める
               </AlertDialogAction>

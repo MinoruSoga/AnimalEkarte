@@ -88,7 +88,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -143,7 +143,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           </Button>
           <Button
             type="button"
-            className={`h-10 ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} hover:text-white border-transparent text-sm shadow-none rounded-full px-3`}
+            className={`h-10 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} border-transparent text-sm shadow-none rounded-full px-3`}
           >
             検索
           </Button>

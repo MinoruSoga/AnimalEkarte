@@ -39,6 +39,6 @@ func TestNewOwnerPetCompositionBuildsRepositoriesServicesAndHandlers(t *testing.
 	handlers.Owner.RegisterRoutes(protected)
 	handlers.Pet.RegisterRoutes(protected)
 
-	require.Len(t, router.Routes(), 32)
-	require.Equal(t, 32, permissionCalls)
+	require.Len(t, router.Routes(), 36)
+	require.Equal(t, 36, permissionCalls)
 }

@@ -87,6 +87,67 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("70-110")).toBeInTheDocument();
   });
 
+  // BUG-456: active writer は inspectionValue / normalValue を主に書く一方、
+  // 表示が result / referenceValue のみだと通常検査の保存値が空になる。
+  // 新field優先・旧field fallback・両方空の3系統を固定する。
+  it("新fieldがあるとき inspectionValue / referenceValue を結果値・基準値に表示する", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "GLU",
+            // 新旧不一致: 旧fieldは stale でも新fieldが canonical
+            inspectionValue: "120",
+            result: "99",
+            referenceValue: "70-110",
+            normalValue: "0-999",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("120")).toBeInTheDocument();
+    expect(screen.getByText("70-110")).toBeInTheDocument();
+    expect(screen.queryByText("99")).not.toBeInTheDocument();
+    expect(screen.queryByText("0-999")).not.toBeInTheDocument();
+  });
+
+  it("新fieldが空のとき result / normalValue にフォールバックする", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "BUN",
+            inspectionValue: "",
+            result: "18",
+            referenceValue: "",
+            normalValue: "6-25",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("18")).toBeInTheDocument();
+    expect(screen.getByText("6-25")).toBeInTheDocument();
+  });
+
+  it("結果値・基準値の新旧fieldが両方空なら '-' を表示する", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "EMPTY",
+            inspectionValue: "",
+            result: "",
+            referenceValue: "",
+            normalValue: "",
+          }),
+        ],
+      }),
+    );
+    // 結果値列・基準値列それぞれに placeholder "-"
+    const dashes = screen.getAllByText("-");
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("status=high のとき HIGH バッジを表示する", () => {
     renderGroup(
       makeGroup({
@@ -96,6 +157,45 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("HIGH")).toHaveClass(C.bgDanger, C.hoverBgDanger90);
     expect(screen.getByText("95")).toHaveClass(C.danger, "font-bold");
     expect(screen.queryByText("LOW")).not.toBeInTheDocument();
+  });
+
+  // BUG-450: 基準値マスタが空の間、未評価の項目が「基準値内」と同じ緑チェックで
+  // 描画されると、獣医師が未評価を正常と読む。この3 case がその誤読を塞ぐ。
+  it("isAssessed=false のとき未判定バッジを表示し基準値内アイコンを出さない", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "normal", isAssessed: false })],
+      }),
+    );
+    expect(screen.getByText("未判定")).toHaveClass(
+      C.textWarning,
+      C.borderWarning20,
+      C.bgWarning50,
+    );
+    expect(
+      screen.getByText("（基準値未設定のため判定していない）"),
+    ).toHaveClass("sr-only");
+    expect(screen.queryByLabelText("基準値内")).not.toBeInTheDocument();
+  });
+
+  it("isAssessed=true かつ status=normal のとき基準値内の accessible name を持つ", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "normal", isAssessed: true })],
+      }),
+    );
+    expect(screen.getByLabelText("基準値内")).toBeInTheDocument();
+    expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+  });
+
+  it("isAssessed=false でも status=high なら異常警告を優先する", () => {
+    renderGroup(
+      makeGroup({
+        items: [makeItem({ status: "high", isAssessed: false, isAbnormal: true })],
+      }),
+    );
+    expect(screen.getByText("HIGH")).toBeInTheDocument();
+    expect(screen.queryByText("未判定")).not.toBeInTheDocument();
   });
 
   it("status=low のとき LOW バッジを表示する", () => {

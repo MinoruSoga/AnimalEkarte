@@ -97,6 +97,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           lot3: lot3 || undefined,
           lot4: lot4 || undefined,
           next_date: nextDate || null,
+          supplemental: supplemental || undefined,
+          next_schedule_type: nextScheduleType || undefined,
           remarks: remarks || undefined,
         });
         // フォームをリセット
@@ -114,7 +116,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         handleApiError(err, "予防接種の登録");
       }
     });
-  }, [petId, vaccineName, date, lot1, lot2, lot3, lot4, nextDate, remarks, createVaccination]);
+  }, [petId, vaccineName, date, supplemental, lot1, lot2, lot3, lot4, nextScheduleType, nextDate, remarks, createVaccination]);
 
   return (
     <>

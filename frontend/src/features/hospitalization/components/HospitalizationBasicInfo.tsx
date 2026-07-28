@@ -176,7 +176,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusRingMedicalBlue}`}
+          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
         />
       </div>
     </div>

@@ -59,6 +59,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                                 hospitalizationId={String(hospitalization.id)}
                                 admissionDate={hospitalization.startDate}
                                 dischargeDate={dischargeDate}
+                                petIsDeceased={hospitalization.petIsDeceased}
                             />
                         </div>
                     </div>
@@ -73,6 +74,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                         <Separator className="mb-4" />
                         <CarePlanTab
                             hospitalizationId={String(hospitalization.id)}
+                            petIsDeceased={hospitalization.petIsDeceased}
                         />
                     </div>
                 </UnifiedTabsContent>

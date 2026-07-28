@@ -47,6 +47,12 @@ func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID
 	return count, nil
 }
 
+type medicalRecordCreateTxResult struct {
+	record       *model.MedicalRecord
+	existingHit  *model.MedicalRecord
+	isFirstVisit bool
+}
+
 func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
 	// FEAT-382-2 supplement: whitelist validation for recommendation_reason（tx 外）
 	if input != nil && input.RecommendationReason != nil {
@@ -57,68 +63,85 @@ func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, inpu
 		}
 	}
 
-	var (
-		record       *model.MedicalRecord
-		isFirstVisit bool
-		existingHit  *model.MedicalRecord
-	)
+	var result medicalRecordCreateTxResult
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		// Validate request-derived context before appointment preparation can persist a backfill.
-		if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, input.OwnerID, input.PetID); err != nil {
-			return err
-		}
-		if err := s.validateMedicalRecordDoctor(txCtx, clinicID, input.DoctorID); err != nil {
-			return err
-		}
-		if err := s.applyAppointmentContextForCreate(txCtx, clinicID, input); err != nil {
-			return apperrors.Wrap(err, "failed to apply appointment context for medical record")
-		}
-		// AUD-008: Appointment 有無を問わず最終 Owner/Pet を clinic 所有・整合検証する。
-		if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, input.OwnerID, input.PetID); err != nil {
-			return err
-		}
-		if err := s.validateMedicalRecordDoctor(txCtx, clinicID, input.DoctorID); err != nil {
-			return err
-		}
-
-		built := buildMedicalRecordForCreate(clinicID, input)
-		existing, err := s.findExistingRecordByAppointment(txCtx, clinicID, built)
-		if err != nil {
-			return err
-		}
-		if existing != nil {
-			existingHit = existing
-			return nil
-		}
-
-		if built.RecordNo == "" {
-			built.RecordNo = generateRecordNo(built.Date, built.ClinicID)
-		}
-
-		// 初診判定: Reservation.VisitType 優先、AppointmentID なし or VisitType 空時は COUNT フォールバック（FEAT-383）
-		if s.lstepDeliveryTrigger != nil && built.OwnerID != nil {
-			visitType := s.resolveVisitTypeFromAppointment(txCtx, built)
-			switch {
-			case visitType == string(model.VisitTypeFirst):
-				isFirstVisit = true
-			case visitType != "":
-				isFirstVisit = false
-			default:
-				isFirstVisit = s.fallbackFirstVisitCheck(txCtx, built.ClinicID, *built.OwnerID)
-			}
-		}
-
-		if err := s.repo.Create(txCtx, built); err != nil {
-			slog.ErrorContext(txCtx, "failed to create medical record", "error", err, "clinic_id", built.ClinicID)
-			return apperrors.Wrap(err, "failed to create medical record")
-		}
-		record = built
-		return nil
+		var err error
+		result, err = s.createMedicalRecordInTx(txCtx, clinicID, input)
+		return err
 	}); err != nil {
 		return nil, err
 	}
-	if existingHit != nil {
-		return existingHit, nil
+	if result.existingHit != nil {
+		return result.existingHit, nil
+	}
+
+	s.runMedicalRecordCreatePostCommit(ctx, result)
+
+	return result.record, nil
+}
+
+func (s *medicalRecordService) createMedicalRecordInTx(
+	ctx context.Context,
+	clinicID uint64,
+	input *CreateMedicalRecordInput,
+) (medicalRecordCreateTxResult, error) {
+	// Validate request-derived context before appointment preparation can persist a backfill.
+	if err := s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, input.OwnerID, input.PetID); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
+	if err := s.validateMedicalRecordDoctor(ctx, clinicID, input.DoctorID); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
+	if err := s.applyAppointmentContextForCreate(ctx, clinicID, input); err != nil {
+		return medicalRecordCreateTxResult{}, apperrors.Wrap(err, "failed to apply appointment context for medical record")
+	}
+	// AUD-008: Appointment 有無を問わず最終 Owner/Pet を clinic 所有・整合検証する。
+	if err := s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, input.OwnerID, input.PetID); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
+	if err := s.validateMedicalRecordDoctor(ctx, clinicID, input.DoctorID); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
+
+	built := buildMedicalRecordForCreate(clinicID, input)
+	existing, err := s.findExistingRecordByAppointment(ctx, clinicID, built)
+	if err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
+	if existing != nil {
+		return medicalRecordCreateTxResult{existingHit: existing}, nil
+	}
+
+	if built.RecordNo == "" {
+		built.RecordNo = generateRecordNo(built.Date, built.ClinicID)
+	}
+
+	isFirstVisit := false
+	// 初診判定: Reservation.VisitType 優先、AppointmentID なし or VisitType 空時は COUNT フォールバック（FEAT-383）
+	if s.lstepDeliveryTrigger != nil && built.OwnerID != nil {
+		visitType := s.resolveVisitTypeFromAppointment(ctx, built)
+		switch {
+		case visitType == string(model.VisitTypeFirst):
+			isFirstVisit = true
+		case visitType != "":
+			isFirstVisit = false
+		default:
+			isFirstVisit = s.fallbackFirstVisitCheck(ctx, built.ClinicID, *built.OwnerID)
+		}
+	}
+
+	if err := s.repo.Create(ctx, built); err != nil {
+		slog.ErrorContext(ctx, "failed to create medical record", "error", err, "clinic_id", built.ClinicID)
+		return medicalRecordCreateTxResult{}, apperrors.Wrap(err, "failed to create medical record")
+	}
+
+	return medicalRecordCreateTxResult{record: built, isFirstVisit: isFirstVisit}, nil
+}
+
+func (s *medicalRecordService) runMedicalRecordCreatePostCommit(ctx context.Context, result medicalRecordCreateTxResult) {
+	record := result.record
+	if record == nil {
+		return
 	}
 
 	slog.InfoContext(ctx, "medical record created",
@@ -134,15 +157,13 @@ func (s *medicalRecordService) Create(ctx context.Context, clinicID uint64, inpu
 	}
 
 	// 初診ウェルカムトリガー（イベント駆動・非致命的）
-	if isFirstVisit && record.OwnerID != nil {
+	if result.isFirstVisit && record.OwnerID != nil {
 		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID); err != nil {
 			slog.WarnContext(ctx, "first visit welcome trigger failed (non-fatal)", "owner_id", *record.OwnerID, "error", err)
 		}
 	}
 
 	s.syncNextVisitTag(ctx, record.ClinicID, record)
-
-	return record, nil
 }
 
 func (s *medicalRecordService) applyAppointmentContextForCreate(
@@ -234,6 +255,30 @@ func (s *medicalRecordService) validateMedicalRecordOwnerPetLinks(
 		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
 	}
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID)
+}
+
+func (s *medicalRecordService) validateMedicalRecordSnapshotOwnerPetClinicRelations(
+	ctx context.Context,
+	clinicID uint64,
+	ownerID, petID *uint64,
+) error {
+	if ownerID == nil && petID == nil {
+		return nil
+	}
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
+	}
+	if ownerID != nil {
+		if err := s.reservationRepo.AssertOwnerInClinic(ctx, clinicID, *ownerID); err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+		}
+	}
+	if petID != nil {
+		if _, err := s.reservationRepo.FindPetOwnerInClinic(ctx, clinicID, *petID); err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record pet ownership")
+		}
+	}
+	return nil
 }
 
 func (s *medicalRecordService) validateMedicalRecordDoctor(
@@ -339,8 +384,12 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if needsLinkValidation || isBecomingFinalized {
+		if needsLinkValidation {
 			if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
+				return err
+			}
+		} else if isBecomingFinalized {
+			if err := s.validateMedicalRecordSnapshotOwnerPetClinicRelations(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
 			}
 		}
@@ -372,12 +421,29 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 				return apperrors.Wrap(err, "failed to lock and validate appointment for medical record update")
 			}
 		}
+		if isBecomingFinalized && s.auditTx == nil {
+			return apperrors.WrapInternalServerError("medical record finalize audit dependency is required")
+		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, fields, input.Version)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to update medical record", "error", err)
 			return apperrors.Wrap(err, "failed to update medical record")
 		}
 		record = updated
+		if isBecomingFinalized {
+			resourceID := id
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+				ClinicID:   &clinicID,
+				ActorID:    input.ActorID,
+				ActorType:  sharedkernel.AuditActorTypeFor(input.ActorID),
+				Action:     "finalize",
+				Resource:   "medical_record",
+				ResourceID: &resourceID,
+				NewValue:   extractMedicalRecordImportantFields(record),
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to audit medical record finalize")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -386,18 +452,12 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	// 監査ログ: update / finalize（best-effort）
+	// 監査ログ: update（best-effort）。finalize は上の transaction 内で fail-closed に記録する。
 	if s.auditService != nil {
 		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
 		if oldDiff != nil {
 			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
 				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
-			}
-		}
-		if isBecomingFinalized {
-			newValue := extractMedicalRecordImportantFields(record)
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "finalize", id, nil, newValue); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for medical record finalize", "error", err, "record_id", id)
 			}
 		}
 	}

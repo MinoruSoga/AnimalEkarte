@@ -75,6 +75,7 @@ func staffAssocCtx(w *httptest.ResponseRecorder, method string, body []byte) *gi
 		c.Request = httptest.NewRequest(method, "/", http.NoBody)
 	}
 	setClinicID(c)
+	c.Set("user_id", "7")
 	c.Set("is_system_admin", false)
 	c.Set("clinic_ids", []uint64{1, 3})
 	c.Params = gin.Params{{Key: "id", Value: "10"}}
@@ -84,6 +85,78 @@ func staffAssocCtx(w *httptest.ResponseRecorder, method string, body []byte) *gi
 // notMemberErr is what the real staffService.VerifyClinicMembership returns for
 // a staff not assigned to the requesting clinic.
 func notMemberErr() error { return apperrors.WrapNotFound("staff", "10") }
+
+func TestSetStaffPermissionGroups_RoutedCompositeAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, tt := range []struct {
+		name        string
+		permissions map[string]bool
+		wantStatus  int
+		wantCalls   int
+	}{
+		{
+			name: "403 with master staff edit only and no mutation",
+			permissions: map[string]bool{
+				string(model.ResourceMasterStaff) + ":edit": true,
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "200 with both required edit permissions",
+			permissions: map[string]bool{
+				string(model.ResourceMasterStaff) + ":edit":      true,
+				string(model.ResourceMasterPermission) + ":edit": true,
+			},
+			wantStatus: http.StatusOK,
+			wantCalls:  1,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			mutationCalls := 0
+			svc := &mockStaffService{
+				setPermissionGroupIDsFn: func(_ context.Context, staffID uint64, ids []uint64) error {
+					mutationCalls++
+					assert.Equal(t, uint64(10), staffID)
+					assert.Equal(t, []uint64{2, 5}, ids)
+					return nil
+				},
+			}
+			requirePermission := func(resource, action string) gin.HandlerFunc {
+				return func(c *gin.Context) {
+					if !tt.permissions[resource+":"+action] {
+						staffdomain.RespondError(c, apperrors.WrapForbidden("forbidden"))
+						c.Abort()
+						return
+					}
+					c.Next()
+				}
+			}
+			handler := staffdomain.NewHandler(svc, nil, nil, nil, nil, requirePermission)
+			router := gin.New()
+			protected := router.Group("/api/v1")
+			protected.Use(func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+				c.Set("user_id", "7")
+				c.Next()
+			})
+			handler.RegisterRoutes(protected)
+
+			request := httptest.NewRequest(
+				http.MethodPut,
+				"/api/v1/masters/staffs/10/permission-groups",
+				bytes.NewBufferString(`{"group_ids":[2,5]}`),
+			)
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, tt.wantStatus, response.Code)
+			assert.Equal(t, tt.wantCalls, mutationCalls)
+		})
+	}
+}
 
 // ---- GET PermissionGroups ----
 

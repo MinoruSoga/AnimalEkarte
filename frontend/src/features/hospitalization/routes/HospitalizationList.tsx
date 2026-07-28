@@ -80,6 +80,7 @@ const HOSPITALIZATION_SORT_PROPERTIES: SortProperty[] = [
 
 export function HospitalizationList() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canCreate, canEdit } = usePermission("hospitalization");
   const {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
@@ -87,8 +88,7 @@ export function HospitalizationList() {
     cages,
     movePet,
     handleNavigateToForm
-  } = useHospitalizationList();
-  const { canCreate, canEdit } = usePermission("hospitalization");
+  } = useHospitalizationList(canEdit);
 
   const tabItems = [
     { value: HOSPITALIZATION_FILTER_STATUS.ACTIVE, label: "入院中" },

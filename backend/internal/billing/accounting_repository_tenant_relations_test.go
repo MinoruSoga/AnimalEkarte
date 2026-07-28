@@ -696,6 +696,9 @@ func TestAccountingRepository_CloseDetailsDoNotExposeForeignOwnerPetNames(
 	assert.Equal(t, ownerA.Name, byBillingID[valid.ID].OwnerName)
 	assert.Equal(t, petA.Name, byBillingID[valid.ID].PetName)
 
+	// SEC-SWEEP-02-BILL-B1a-FIX: own-clinic billings stay in close aggregates;
+	// foreign-clinic owner/pet names are blanked via clinic-correlated LEFT JOIN.
+	// Amounts: valid 1000 + foreignOwnerPet 2000 + foreignPet 3000 = 6000.
 	require.Contains(t, byBillingID, foreignOwnerPet.ID)
 	assert.Empty(t, byBillingID[foreignOwnerPet.ID].OwnerName)
 	assert.Empty(t, byBillingID[foreignOwnerPet.ID].PetName)
@@ -703,6 +706,12 @@ func TestAccountingRepository_CloseDetailsDoNotExposeForeignOwnerPetNames(
 	require.Contains(t, byBillingID, foreignPet.ID)
 	assert.Equal(t, ownerA.Name, byBillingID[foreignPet.ID].OwnerName)
 	assert.Empty(t, byBillingID[foreignPet.ID].PetName)
+
+	var paymentTotal int64
+	for _, p := range got.PaymentRows {
+		paymentTotal += p.Amount
+	}
+	assert.Equal(t, int64(6000), paymentTotal, "own-clinic billings with foreign pet_id remain in payment totals")
 }
 
 func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
@@ -1101,4 +1110,60 @@ func TestRefundRepository_WriteActorRequiresActiveSameClinicStaff(
 		RefundedBy: &validStaff.ID,
 		RefundedAt: time.Now(),
 	}))
+}
+
+// TestBillingItemRepository_ValidateCreateReferences_CorrelatesAppointmentClinic
+// SEC-SWEEP-02-BILL-B1a: trimming course 参照は appointments 親 clinic 相関付きで解決する。
+func TestBillingItemRepository_ValidateCreateReferences_CorrelatesAppointmentClinic(t *testing.T) {
+	db := setupBillingItemTrimmingTestDB(t)
+	repo := NewBillingItemRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := testdb.MakeTestOwner(t, db, clinicA, "validate-course-owner-a")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "validate-course-pet-a")
+	rtA := makeTrimmingReservationType(t, db, clinicA)
+	apptA := makeTrimmingAppointment(t, db, clinicA, petA.ID, rtA.ID, model.ReservationStatusAccounting)
+	require.NoError(t, db.Model(&model.Reservation{}).Where("id = ?", apptA.ID).Update("owner_id", ownerA.ID).Error)
+	billingA := &model.Billing{
+		ClinicID: clinicA, OwnerID: &ownerA.ID, PetID: &petA.ID,
+		Status: model.BillingStatusWaiting, ScheduledDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, db.Create(billingA).Error)
+	courseA := makeTrimmingCourse(t, db, clinicA, "course-a", priceOf(1000))
+	attachTrimmingCourse(t, db, clinicA, apptA.ID, courseA.ID)
+
+	t.Run("accepts same-clinic course with parent appointment correlation", func(t *testing.T) {
+		err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+			_, err := repo.ValidateCreateReferences(
+				txCtx, clinicA, billingA.ID, nil, nil, &apptA.ID, &courseA.ID, nil,
+			)
+			return err
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects cross-tenant trimming course detail", func(t *testing.T) {
+		ownerB := testdb.MakeTestOwner(t, db, clinicB, "validate-course-owner-b")
+		petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "validate-course-pet-b")
+		rtB := makeTrimmingReservationType(t, db, clinicB)
+		apptB := makeTrimmingAppointment(t, db, clinicB, petB.ID, rtB.ID, model.ReservationStatusAccounting)
+		require.NoError(t, db.Where("appointment_id = ?", apptA.ID).Delete(&model.AppointmentTrimmingDetail{}).Error)
+		corrupt := &model.AppointmentTrimmingDetail{
+			ClinicID: clinicA, AppointmentID: apptB.ID, CourseID: &courseA.ID,
+		}
+		require.NoError(t, db.Create(corrupt).Error)
+		billingB := &model.Billing{
+			ClinicID: clinicB, OwnerID: &ownerB.ID, PetID: &petB.ID,
+			Status: model.BillingStatusWaiting, ScheduledDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		}
+		require.NoError(t, db.Create(billingB).Error)
+		err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+			_, err := repo.ValidateCreateReferences(
+				txCtx, clinicB, billingB.ID, nil, nil, &apptB.ID, &courseA.ID, nil,
+			)
+			return err
+		})
+		require.Error(t, err, "cross-tenant trimming course detail must not validate")
+	})
 }

@@ -460,8 +460,11 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 1. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004 Q2-A）。
-		if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
-			return err
+		if err := s.reservationRepo.AssertOwnerInClinic(txCtx, clinicID, locked.OwnerID); err != nil {
+			return apperrors.Wrap(err, "failed to verify hospitalization owner ownership")
+		}
+		if _, err := s.reservationRepo.FindPetOwnerInClinic(txCtx, clinicID, locked.PetID); err != nil {
+			return apperrors.Wrap(err, "failed to verify hospitalization pet ownership")
 		}
 		if input.CreateAccounting {
 			if input.ActorID == nil || *input.ActorID == 0 {

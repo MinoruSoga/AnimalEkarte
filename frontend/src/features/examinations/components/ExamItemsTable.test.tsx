@@ -226,6 +226,44 @@ describe("ExamItemsTable", () => {
       expect(screen.queryByText("-")).not.toBeInTheDocument();
     });
 
+    it("未評価の normal は評価済み normal と異なる表示になる", () => {
+      const { rerender } = render(
+        <ExamItemsTable
+          items={[makeItem({ status: "normal", isAssessed: false })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("未判定")).toBeInTheDocument();
+      expect(
+        screen.getByText("（基準値未設定のため判定していない）"),
+      ).toHaveClass("sr-only");
+
+      rerender(
+        <ExamItemsTable
+          items={[makeItem({ status: "normal", isAssessed: true })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+      expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "基準値内" })).toBeInTheDocument();
+    });
+
+    it.each([
+      { status: "high" as const, label: "HIGH" },
+      { status: "low" as const, label: "LOW" },
+    ])("未評価フラグがあっても異常 status=$status を隠さない", ({ status, label }) => {
+      render(
+        <ExamItemsTable
+          items={[makeItem({ status, isAssessed: false, isAbnormal: true })]}
+          onChangeInspectionValue={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+    });
+
     it("status=undefined（未判定）は判定列に '-' を表示する", () => {
       render(
         <ExamItemsTable

@@ -26,7 +26,7 @@
 
 ## 確認観点
 
-- 退院と会計生成は同一トランザクションで原子的に行われる（片方だけ成立しない）— `backend/internal/service/hospitalization_service.go` の `DischargeWithBilling`。
+- 退院と会計生成は同一トランザクションで原子的に行われる（片方だけ成立しない）— `backend/internal/medicalrecord/hospitalization_service.go` の `DischargeWithBilling`。
 - 退院前の最終確認は `DischargeAlertDialog` が担う（[08 技術仕様](../../../spec/screens/08-hospitalization-detail.md)）。
 - 二重退院はバックエンドが行ロック（FOR UPDATE）で直列化し「already discharged」で拒否する（同上・直近修正）。
 - 入院登録・ケア記録・退院が `audit_logs` に記録されること（[specification.md §2.1](../../../spec/specification.md)）— DB 参照は USER 実施。

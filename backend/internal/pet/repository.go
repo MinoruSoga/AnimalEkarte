@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -41,9 +42,24 @@ type Repository interface {
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateAndFind(ctx context.Context, clinicID, id uint64, update PetUpdate) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
+}
+
+// OwnerReportPetRepository is the narrow persistence capability used by the Owner Report route.
+type OwnerReportPetRepository interface {
+	// FindOwnerReportPets は認可済み医院内の対象飼主について、Owner Report 用のペット一覧を返す。
+	// 飼主とペットの clinic_id を相関させ、破損した cross-clinic owner FK を除外する。
+	FindOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error)
+}
+
+// ServiceRepository is the complete persistence capability required when
+// constructing the pet application service.
+type ServiceRepository interface {
+	Repository
+	OwnerReportPetRepository
 }
 
 // LifecycleWriter is the typed pet lifecycle capability consumed by LSTEP.
@@ -57,7 +73,7 @@ type LifecycleWriter interface {
 // The legacy repository facade intentionally narrows this to Repository until central
 // composition cuts over to the typed lifecycle capability.
 type CompleteRepository interface {
-	Repository
+	ServiceRepository
 	LifecycleWriter
 }
 
@@ -105,20 +121,25 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 			q = q.Where("pets.deceased_at IS NULL")
 		}
 		if filters.Search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化。
-			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
+			// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
+			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.phone ILIKE ? ESCAPE '\')`,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
 			)
 		}
 		return q
@@ -139,6 +160,33 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil
+}
+
+func (r *repository) FindOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", ownerID))
+	}
+
+	var owner model.Owner
+	if err := r.db.WithContext(ctx).
+		Select("id", "clinic_id").
+		Where("id = ? AND clinic_id IN ? AND deleted_at IS NULL", ownerID, clinicIDs).
+		First(&owner).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
+	}
+
+	pets := make([]model.Pet, 0)
+	if err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Joins("INNER JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.deleted_at IS NULL").
+		Where("pets.owner_id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", ownerID, owner.ClinicID).
+		Preload("AnimalSpecies").
+		Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", owner.ClinicID).
+		Order("pets.created_at ASC, pets.id ASC").
+		Find(&pets).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	return pets, nil
 }
 
 func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
@@ -264,7 +312,84 @@ func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
 // status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
 // ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
 func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	for key := range fields {
+		if isDangerFieldKey(key) || isStructuralPetFieldKey(key) {
+			return apperrors.WrapInvalidInput("protected pet fields require the typed pet update capability")
+		}
+	}
 	db := persistence.DBOrTx(ctx, r.db)
+	if expectedStatus, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
+		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, expectedStatus, fields, conflictMessage)
+	}
+	return updatePetFieldsWithDB(db, clinicID, id, fields)
+}
+
+func legacyLifecycleTransition(fields map[string]any) (model.PetStatus, string, bool) {
+	if len(fields) != 3 {
+		return "", "", false
+	}
+	if _, ok := fields["deceased_at"]; !ok {
+		return "", "", false
+	}
+	if _, ok := fields["deceased_reason"]; !ok {
+		return "", "", false
+	}
+	status, ok := fields["status"]
+	if !ok {
+		return "", "", false
+	}
+
+	switch status {
+	case model.PetStatusDeceased:
+		return model.PetStatusAlive, "死亡記録は既に登録されています", true
+	case model.PetStatusAlive:
+		return model.PetStatusDeceased, "死亡記録が登録されていないため解除できません", true
+	default:
+		return "", "", false
+	}
+}
+
+func updateLegacyLifecycleFieldsWithDB(
+	db *gorm.DB,
+	clinicID, petID uint64,
+	expectedStatus model.PetStatus,
+	fields map[string]any,
+	conflictMessage string,
+) error {
+	result := db.
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, expectedStatus).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict(conflictMessage)
+	}
+	return nil
+}
+
+func isDangerFieldKey(key string) bool {
+	switch key {
+	case "danger_level", "DangerLevel", "danger_reason", "DangerReason":
+		return true
+	default:
+		return false
+	}
+}
+
+func isStructuralPetFieldKey(key string) bool {
+	switch key {
+	case "clinic_id", "ClinicID", "owner_id", "OwnerID", "insurance_id", "InsuranceID":
+		return true
+	default:
+		return false
+	}
+}
+
+func updatePetFieldsWithDB(db *gorm.DB, clinicID, id uint64, fields map[string]any) error {
 	result := db.
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
@@ -288,20 +413,110 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 	return nil
 }
 
-func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
-	return r.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at":     deceasedAt,
-		"deceased_reason": reason,
-		"status":          model.PetStatusDeceased,
+func (r *repository) UpdateAndFind(
+	ctx context.Context,
+	clinicID, id uint64,
+	update PetUpdate,
+) (*model.Pet, error) {
+	var loaded *model.Pet
+	err := withPetUpdateTransaction(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		var locked model.Pet
+		if err := tx.WithContext(txCtx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+			First(&locked).Error; err != nil {
+			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+		}
+
+		effectiveLevel := locked.DangerLevel
+		if update.dangerLevel != nil {
+			effectiveLevel = *update.dangerLevel
+		}
+		effectiveReason := locked.DangerReason
+		if update.dangerReason != nil {
+			effectiveReason = *update.dangerReason
+		}
+		normalizedReason, err := normalizeDangerReason(effectiveLevel, effectiveReason)
+		if err != nil {
+			return err
+		}
+
+		fields := make(map[string]any, len(update.fields))
+		for key, value := range update.fields {
+			if isDangerFieldKey(key) {
+				continue
+			}
+			fields[key] = value
+		}
+		if update.dangerLevel != nil {
+			fields["danger_level"] = effectiveLevel
+		}
+		if update.dangerReason != nil {
+			fields["danger_reason"] = normalizedReason
+		}
+
+		if err := updatePetFieldsWithDB(tx.WithContext(txCtx), clinicID, id, fields); err != nil {
+			return err
+		}
+		loaded, err = loadPetGraph(txCtx, tx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload pet after update")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(
+			apperrors.Wrap(err, "transaction failed"),
+			"failed to update and reload pet",
+		)
+	}
+	return loaded, nil
+}
+
+func withPetUpdateTransaction(
+	ctx context.Context,
+	db *gorm.DB,
+	fn func(context.Context, *gorm.DB) error,
+) error {
+	return persistence.DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
+		return fn(persistence.WithTxValue(ctx, tx), tx)
 	})
 }
 
+func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, model.PetStatusAlive).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(&model.Pet{
+			DeceasedAt:     &deceasedAt,
+			DeceasedReason: &reason,
+			Status:         model.PetStatusDeceased,
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict("死亡記録は既に登録されています")
+	}
+	return nil
+}
+
 func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) error {
-	return r.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at":     nil,
-		"deceased_reason": nil,
-		"status":          model.PetStatusAlive,
-	})
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Pet{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND status = ?", petID, model.PetStatusDeceased).
+		Select("deceased_at", "deceased_reason", "status").
+		Updates(&model.Pet{Status: model.PetStatusAlive})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
+	}
+	return nil
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {

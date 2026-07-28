@@ -31,7 +31,7 @@ export function ClinicScopeFilter({ clinics, selectedIds, onToggle }: ClinicScop
             aria-pressed={selected}
             className={
               selected
-                ? `${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full transition-colors shadow-none border-transparent text-sm px-3`
+                ? `${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full transition-colors shadow-none border-transparent text-sm px-3`
                 : `text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
             }
             onClick={() => onToggle(membership.clinicId)}

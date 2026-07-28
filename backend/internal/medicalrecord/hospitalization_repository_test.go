@@ -231,6 +231,41 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	})
 }
 
+func TestHospitalizationRepository_FindAll_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	repo := NewHospitalizationRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70103)
+
+	fixture := makeCurrentOwnerTransferFixture(
+		t,
+		db,
+		clinicID,
+		"MR-HOSPITALIZATION-CURRENT-OWNER",
+		time.Now(),
+	)
+	hospitalization := makeHospitalizationFixture(
+		t,
+		db,
+		clinicID,
+		fixture.PreviousOwner.ID,
+		fixture.Pet.ID,
+		nil,
+	)
+
+	got, total, err := repo.FindAll(ctx, clinicID, nil, &fixture.CurrentOwner.ID, nil, nil, nil, 1, 20)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, got, 1)
+	assert.Equal(t, hospitalization.ID, got[0].ID)
+	assert.Equal(t, fixture.PreviousOwner.ID, got[0].OwnerID, "returned owner_id remains the historical snapshot")
+
+	previous, previousTotal, err := repo.FindAll(ctx, clinicID, nil, &fixture.PreviousOwner.ID, nil, nil, nil, 1, 20)
+	require.NoError(t, err)
+	assert.Zero(t, previousTotal)
+	assert.Empty(t, previous)
+}
+
 func TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)

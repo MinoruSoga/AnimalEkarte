@@ -258,7 +258,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             {onCreateRecord ? (
               <Button
                 size="sm"
-                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
+                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
                 onClick={() => onCreateRecord(reservation)}
               >
                 <actionConfig.Icon className={ICON.action} />

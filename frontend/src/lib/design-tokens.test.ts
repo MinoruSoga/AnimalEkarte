@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { C, LAYOUT, STYLE } from "./design-tokens";
+import { C, LAYOUT, PALETTE, STYLE } from "./design-tokens";
 
 function classesOf(value: string): Set<string> {
   return new Set(value.split(/\s+/));
@@ -21,6 +21,42 @@ function expectNoClasses(value: string, forbidden: readonly string[]): void {
     expect(classes.has(forbiddenClass), `conflicting class: ${forbiddenClass}`).toBe(false);
   }
 }
+
+describe("brand and primary color tokens", () => {
+  it("design-system.md の brand と semantic primary を同じ teal に統一する", () => {
+    expect(PALETTE.brand).toBe("#038B94");
+    expect(PALETTE.brandHover).toBe("#027078");
+    expect(PALETTE.actionPrimary).toBe(PALETTE.brand);
+    expect(PALETTE.actionPrimaryActive).toBe(PALETTE.brandHover);
+    expect(PALETTE.brandLight).toBe("#E1F3F4");
+    expect(PALETTE.brandDark).toBe("#025F66");
+    expect(PALETTE.actionPrimaryLight).toBe(PALETTE.brandLight);
+    expect(PALETTE.actionPrimaryDark).toBe(PALETTE.brandDark);
+    expect(C.bgBrandIdentity).toBe("bg-[#038B94]");
+    expect(C.textOnBrand).toBe("text-white");
+    expect(C.textBrandIdentity).toBe("text-[#025F66] dark:text-[#079BA5]");
+    expect(C.hoverBgBrandIdentity).toBe("hover:bg-[#027078]");
+    expect(C.bgBrandIdentityLight).toBe("bg-[#E1F3F4]");
+    expect(C.textOnBrandIdentity).toBe("text-white");
+    expect(C.hoverTextOnBrandIdentity).toBe("hover:text-white");
+    expect(C.bgActionPrimary).toBe("bg-[#038B94]");
+    expect(C.hoverBgActionPrimary).toBe("hover:bg-[#027078]");
+    expect(C.textOnActionPrimary).toBe("text-white");
+    expect(C.hoverTextOnActionPrimary).toBe("hover:text-white");
+    expect(C.activeTextOnActionPrimary).toBe("active:text-white");
+    expect(C.focusRingActionPrimary).toBe("focus:ring-[#038B94]");
+    expect(C.dataCheckedBgActionPrimary).toBe("data-[state=checked]:bg-[#038B94]");
+    expect(C.dataActiveBorderB).toBe("data-[state=active]:border-b-[#038B94]");
+    expect(PALETTE.focusRingActionPrimary).toBe("focus:shadow-focus-primary");
+    expect(C.dataActiveText).toBe(
+      "data-[state=active]:text-[#025F66] dark:data-[state=active]:text-[#079BA5]",
+    );
+    expect(C.focusRingBrandIdentity).toBe("focus:ring-[#038B94]");
+    expect(C.focusRingBrand40).toBe("focus:ring-[#038B94]");
+    expect(C.focusRingAccent40).toBe("focus-visible:ring-[#038B94]");
+    expect(C.focusRingAccent30).toBe("focus:ring-[#038B94]");
+  });
+});
 
 describe("LAYOUT typography tokens", () => {
   it("pageTitle が DESIGN.md の heading-2 数値に一致する", () => {

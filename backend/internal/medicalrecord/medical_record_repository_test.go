@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -119,6 +120,42 @@ func makeFullMedicalRecord(t *testing.T, db *gorm.DB, mr *model.MedicalRecord) *
 	return mr
 }
 
+type currentOwnerTransferFixture struct {
+	PreviousOwner *model.Owner
+	CurrentOwner  *model.Owner
+	Pet           *model.Pet
+	Record        *model.MedicalRecord
+}
+
+func makeCurrentOwnerTransferFixture(
+	t *testing.T,
+	db *gorm.DB,
+	clinicID uint64,
+	recordNo string,
+	recordDate time.Time,
+) currentOwnerTransferFixture {
+	t.Helper()
+	ctx := context.Background()
+	previousOwner := makeTestOwner(t, db, clinicID, recordNo+" 譲渡前飼主")
+	currentOwner := makeTestOwner(t, db, clinicID, recordNo+" 譲渡後飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, previousOwner.ID, recordNo+" 譲渡ペット")
+	record := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     recordDate,
+		OwnerID:  &previousOwner.ID,
+		PetID:    &pet.ID,
+		Status:   model.MedicalRecordStatusFinalized,
+	})
+	require.NoError(t, db.WithContext(ctx).Model(pet).Update("owner_id", currentOwner.ID).Error)
+	return currentOwnerTransferFixture{
+		PreviousOwner: previousOwner,
+		CurrentOwner:  currentOwner,
+		Pet:           pet,
+		Record:        record,
+	}
+}
+
 // makeInquiryForRecord は指定カルテに主訴（chief_complaint）付きの問診を1件作成する。
 func makeInquiryForRecord(t *testing.T, db *gorm.DB, medicalRecordID uint64, chiefComplaint string) {
 	t.Helper()
@@ -163,6 +200,57 @@ func TestMedicalRecordRepository_FindAll_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, int64(0), total)
 		assert.Empty(t, got)
 	})
+}
+
+func TestMedicalRecordRepository_FindAllAndCount_CurrentOwnerAfterTransfer(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(70101)
+
+	fixture := makeCurrentOwnerTransferFixture(
+		t,
+		db,
+		clinicID,
+		"MR-CURRENT-OWNER-TRANSFER",
+		time.Now(),
+	)
+
+	got, total, err := repo.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{OwnerID: &fixture.CurrentOwner.ID}, 1, 20)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, got, 1)
+	assert.Equal(t, fixture.Record.ID, got[0].ID)
+	require.NotNil(t, got[0].OwnerID)
+	assert.Equal(t, fixture.PreviousOwner.ID, *got[0].OwnerID, "returned owner_id remains the historical snapshot")
+
+	oldRows, oldTotal, err := repo.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{OwnerID: &fixture.PreviousOwner.ID}, 1, 20)
+	require.NoError(t, err)
+	assert.Zero(t, oldTotal)
+	assert.Empty(t, oldRows)
+
+	currentCount, err := repo.CountByOwnerID(ctx, clinicID, fixture.CurrentOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), currentCount)
+	previousCount, err := repo.CountByOwnerID(ctx, clinicID, fixture.PreviousOwner.ID)
+	require.NoError(t, err)
+	assert.Zero(t, previousCount)
+
+	foreignOwner := makeTestOwner(t, db, clinicID+1, "別医院飼主")
+	require.NoError(t, db.WithContext(ctx).Model(fixture.Pet).Update("owner_id", foreignOwner.ID).Error)
+	foreignRows, foreignTotal, err := repo.FindAll(
+		ctx,
+		[]uint64{clinicID},
+		MedicalRecordListFilters{OwnerID: &foreignOwner.ID},
+		1,
+		20,
+	)
+	require.NoError(t, err)
+	assert.Zero(t, foreignTotal, "current owner must belong to the record clinic")
+	assert.Empty(t, foreignRows)
+	foreignCount, err := repo.CountByOwnerID(ctx, clinicID, foreignOwner.ID)
+	require.NoError(t, err)
+	assert.Zero(t, foreignCount)
 }
 
 func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(t *testing.T) {
@@ -815,4 +903,65 @@ func TestMedicalRecordRepository_CountByPetID_CountByOwnerID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
+}
+
+func TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	date := time.Date(2026, time.August, 1, 0, 0, 0, 0, config.JST)
+
+	ownerA := makeTestOwner(t, db, clinicA, "日付集計A飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日付集計Aペット")
+	otherPetA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日付集計A別ペット")
+	ownerB := makeTestOwner(t, db, clinicB, "日付集計B飼主")
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "日付集計Bペット")
+
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-MATCH", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-OTHER-PET", Date: date,
+		OwnerID: &ownerA.ID, PetID: &otherPetA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-OTHER-DAY", Date: date.AddDate(0, 0, 1),
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicB, RecordNo: "DATE-B-MATCH", Date: date,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
+	})
+	deleted := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-DELETED", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
+	})
+	require.NoError(t, db.Delete(deleted).Error)
+
+	count, err := repo.CountByPetAndDate(ctx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	foreignCount, err := repo.CountByPetAndDate(ctx, clinicB, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), foreignCount)
+
+	tx := db.Begin()
+	require.NoError(t, tx.Error)
+	defer tx.Rollback()
+	txCtx := persistence.WithTxValue(ctx, tx)
+	require.NoError(t, repo.Create(txCtx, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "DATE-A-UNCOMMITTED", Date: date,
+		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+	}))
+	inTxCount, err := repo.CountByPetAndDate(txCtx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), inTxCount)
+	require.NoError(t, tx.Rollback().Error)
+
+	afterRollback, err := repo.CountByPetAndDate(ctx, clinicA, petA.ID, "2026-08-01")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), afterRollback)
 }

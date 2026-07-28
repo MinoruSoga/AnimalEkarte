@@ -96,6 +96,15 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		if !ok {
 			return
 		}
+		if h.hasPermission == nil ||
+			!h.hasPermission(
+				c,
+				string(model.ResourceMasterPermission),
+				"edit",
+			) {
+			RespondError(c, apperrors.WrapForbidden("forbidden"))
+			return
+		}
 	}
 
 	isSystemAdmin, ok := extractIsSystemAdmin(c)

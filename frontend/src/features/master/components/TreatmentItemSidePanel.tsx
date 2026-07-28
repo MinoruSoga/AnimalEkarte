@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { MasterSidePanel, MoneyInput, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -33,6 +33,7 @@ interface TreatmentItemSidePanelProps {
   onDeleteRequest?: () => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  details?: ReactNode;
 }
 
 export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -44,6 +45,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onDeleteRequest,
   readOnly,
   onDirtyChange,
+  details,
 }: TreatmentItemSidePanelProps) {
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
     name: item?.name ?? "",
@@ -169,6 +171,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           placeholder="補足情報など"
         />
       </PropertyRow>
+      {details}
     </MasterSidePanel>
   );
 });
