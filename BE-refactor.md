@@ -1966,6 +1966,26 @@
 - MRB-08 correction: `U-X05-MR-EXAMTYPE` owns five exact files and includes the mandatory DBOrTx lintscan gate.
 - LSA-02 is mapped once and folded into the same implementation unit as canonical LSB-01; both live IDs remain independently accounted.
 
+### 決裁結果（2026-07-28・USER 裁定）
+
+`DEC-29`〜`DEC-39` の 11 論点は **全件「推奨どおり（選択肢 A）」で裁定済み**。裁定日 2026-07-28、裁定者 = USER（「推奨があるのであれば推奨通りでいい」）。**これらを依存に持つユニットの blocked 状態は解除される。**
+
+| 決裁 ID | 裁定 | 影響所見 | 採用した方針（推奨 A の要旨） |
+|---|---|---|---|
+| DEC-29 | A | `MDL-06` | 二重保持を増やさず、機械 gate を省略条件にして tenant isolation を fail-closed にする |
+| DEC-30 | A | `LSA-04` | 現行の hospital-settings 操作モデルに整合させ、ある clinic の操作が他 clinic の自動化を変える経路を除去する |
+| DEC-31 | A | `POC-07` | clinic-scoped 権限で global fact を変更できる境界をなくす |
+| DEC-32 | A | `MRC-04` | 主訴・診断等の臨床記録は caller が保存成功を誤認しない原子 contract を優先する |
+| DEC-33 | A | `BIL-01` | 締め snapshot と日次・月次再集計の不一致を、同じ post-close 権限・理由・監査で防止する |
+| DEC-34 | A | `INF-04` | 既存の client-correctable 分類を保ちつつ例外面を限定し、upstream 文言 drift を test で検知する |
+| DEC-35 | A | `LSA-03` `LSA-10` `LSA-11` `LSA-12` `LSB-02` `LSB-04` `MRC-04` `RSV-09` `INF-06` ほか | silent success と再試行不能を機械的に除外する。単なる slog を成功根拠にしない |
+| DEC-36 | A | `CMD-02` | 全 clinic batch のような高影響 route は deployment topology に依存しない defense-in-depth とする |
+| DEC-37 | A | `INF-02` `POC-12` `TRM-03` | 未設定 handler と middleware 順序 drift を一つの gate で防ぐ |
+| DEC-38 | A | `LSA-02` `LSB-01` | opt-out の business evidence を外部タグ同期の成否に依存させず fail-closed に評価する |
+| DEC-39 | A | `TRM-09` | 将来 caller が `WithTx` 化されたとき write が黙って transaction 外へ逃げる contract drift を防ぐ |
+
+**着手時の扱い**: 各ユニットの `決裁:` 欄が上記 ID を指している場合、選択肢 A の方針で実装する。A の具体的な選択肢本文は `q&a.html` の当該パケットを参照（本書へ全文転記しない — 二重管理を避ける）。
+
 ### Execution waves and parallel groups
 
 | Wave | Parallel group | Units | Reason |
