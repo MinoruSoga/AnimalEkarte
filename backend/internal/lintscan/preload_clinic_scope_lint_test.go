@@ -90,8 +90,10 @@ var clinicScopedMasterAssoc = map[string]string{
 	"Cage":            "Cage",
 	"Insurance":       "Insurance",
 	"ExaminationType": "ExaminationType",
-	"ExamTypeField":   "ExamTypeField",
-	"CheckupType":     "CheckupType",
+	// ExamTypeField is preloaded as association name "Items" on ExaminationType (see
+	// clinicScopedMasterAssocByRootModel). Direct Preload("ExamTypeField") is also gated.
+	"ExamTypeField": "ExamTypeField",
+	"CheckupType":   "CheckupType",
 	// #211: 健診パッケージのフィールド定義マスタ（checkup_type_fields, clinic_id 列あり）。
 	// checkup_field_results.CheckupTypeField として clinic_id 述語付きで Preload される。
 	"CheckupTypeField": "CheckupTypeField",
@@ -124,6 +126,17 @@ var clinicScopedMasterAssoc = map[string]string{
 // same query chain (for example TrimmingDetail before TrimmingDetail.Course).
 var clinicScopedIntermediateAssoc = map[string]string{
 	"TrimmingDetail": "AppointmentTrimmingDetail",
+}
+
+// clinicScopedMasterAssocByRootModel resolves association names that are reused across models
+// (e.g. "Items") using the query root model (ExaminationType.Items → ExamTypeField, while
+// Examination.Items / Billing.Items stay non-master). Keyed as last-segment → root model → master.
+// This is the BUG-437 context-aware gate: end-name-only matching cannot distinguish same-name
+// associations on different parents.
+var clinicScopedMasterAssocByRootModel = map[string]map[string]string{
+	"Items": {
+		"ExaminationType": "ExamTypeField",
+	},
 }
 
 // staffExemptAssoc: the clinic-scope Preload rule's Staff exception. Staff belongs to multiple clinics via
@@ -218,6 +231,29 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 		base = filename
 	}
 
+	// Preload Pos → root model inferred from the Find/First chain that contains that Preload.
+	// Used for ambiguous last-segment names (Items) where clinicScopedMasterAssoc alone is wrong.
+	preloadRootModel := map[token.Pos]string{}
+	localTypes := collectLocalVarTypes(f)
+	ast.Inspect(f, func(n ast.Node) bool {
+		ce, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := ce.Fun.(*ast.SelectorExpr)
+		if !ok || !isGormTerminalQuery(sel.Sel.Name) || len(ce.Args) == 0 {
+			return true
+		}
+		root := rootModelTypeName(ce.Args[0], localTypes)
+		if root == "" {
+			return true
+		}
+		for _, preloadCE := range preloadCallsInReceiverChain(ce) {
+			preloadRootModel[preloadCE.Pos()] = root
+		}
+		return true
+	})
+
 	ast.Inspect(f, func(n ast.Node) bool {
 		ce, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -252,8 +288,38 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 			stats.globalExempt++
 			return true
 		}
-		if _, isMaster := clinicScopedMasterAssoc[key]; !isMaster {
-			return true // OTHER (Owner/Pet/Items/Payments/...) — outside the clinic-scope Preload rule's master scope
+
+		// For ambiguous last segments (Items), prefer the association parent on a nested
+		// path (ExaminationType.Items → ExaminationType) over the query-root model
+		// (Examination). Query root is used only for bare Preload("Items") chains.
+		// Using query root alone would miss nested masters under non-parent Find destinations
+		// (e.g. Preload("ExaminationType.Items").Find(&exams) with root Examination).
+		parentForAmbiguous := ""
+		if i := strings.LastIndex(assoc, "."); i > 0 {
+			parentForAmbiguous = lastAssocSegment(assoc[:i])
+		}
+		if parentForAmbiguous == "" {
+			parentForAmbiguous = preloadRootModel[ce.Pos()]
+		}
+		isMaster := false
+		if _, ok := clinicScopedMasterAssoc[key]; ok {
+			// Unambiguous end-name masters (Vaccine, Medicine, ...).
+			// Ambiguous end-names registered only under ByRootModel must not match here.
+			// Invariant: ByRootModel keys should not also be full end-name masters in
+			// clinicScopedMasterAssoc (would accidentally weaken end-name gating).
+			if _, ambiguous := clinicScopedMasterAssocByRootModel[key]; !ambiguous {
+				isMaster = true
+			}
+		}
+		if parents, ok := clinicScopedMasterAssocByRootModel[key]; ok {
+			if parentForAmbiguous != "" {
+				if _, ok := parents[parentForAmbiguous]; ok {
+					isMaster = true
+				}
+			}
+		}
+		if !isMaster {
+			return true // OTHER (Owner/Pet/non-master Items/Payments/...) — outside master scope
 		}
 
 		stats.masterPreloads++
@@ -279,6 +345,130 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 	})
 
 	return findings, stats, nil
+}
+
+func isGormTerminalQuery(name string) bool {
+	switch name {
+	case "Find", "First", "Take", "Last", "FindInBatches", "Scan":
+		return true
+	default:
+		return false
+	}
+}
+
+// preloadCallsInReceiverChain walks left from a terminal query call and returns every Preload
+// CallExpr in that receiver chain (e.g. db.Preload(...).Order(...).Find(...)).
+func preloadCallsInReceiverChain(ce *ast.CallExpr) []*ast.CallExpr {
+	var out []*ast.CallExpr
+	cur := ce
+	for cur != nil {
+		sel, ok := cur.Fun.(*ast.SelectorExpr)
+		if !ok {
+			break
+		}
+		if sel.Sel.Name == "Preload" {
+			out = append(out, cur)
+		}
+		next, ok := sel.X.(*ast.CallExpr)
+		if !ok {
+			break
+		}
+		cur = next
+	}
+	return out
+}
+
+// collectLocalVarTypes maps local identifiers to their declared type expression string.
+func collectLocalVarTypes(f *ast.File) map[string]string {
+	out := make(map[string]string)
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch d := n.(type) {
+		case *ast.ValueSpec:
+			if d.Type == nil {
+				return true
+			}
+			typeStr := exprTypeString(d.Type)
+			for _, name := range d.Names {
+				if name != nil && name.Name != "_" {
+					out[name.Name] = typeStr
+				}
+			}
+		case *ast.AssignStmt:
+			if d.Tok != token.DEFINE {
+				return true
+			}
+			for i, lhs := range d.Lhs {
+				id, ok := lhs.(*ast.Ident)
+				if !ok || id.Name == "_" || i >= len(d.Rhs) {
+					continue
+				}
+				if typeStr := exprTypeString(d.Rhs[i]); typeStr != "" {
+					out[id.Name] = typeStr
+				}
+				// make([]model.T, 0) style
+				if call, ok := d.Rhs[i].(*ast.CallExpr); ok {
+					if fun, ok := call.Fun.(*ast.Ident); ok && fun.Name == "make" && len(call.Args) > 0 {
+						out[id.Name] = exprTypeString(call.Args[0])
+					}
+				}
+			}
+		}
+		return true
+	})
+	return out
+}
+
+func exprTypeString(e ast.Expr) string {
+	if e == nil {
+		return ""
+	}
+	switch t := e.(type) {
+	case *ast.Ident:
+		return t.Name
+	case *ast.SelectorExpr:
+		if x, ok := t.X.(*ast.Ident); ok {
+			return x.Name + "." + t.Sel.Name
+		}
+	case *ast.StarExpr:
+		return "*" + exprTypeString(t.X)
+	case *ast.ArrayType:
+		return "[]" + exprTypeString(t.Elt)
+	case *ast.CompositeLit:
+		return exprTypeString(t.Type)
+	case *ast.CallExpr:
+		// make([]T, n) handled by caller; New-style not needed
+		return ""
+	}
+	return ""
+}
+
+// rootModelTypeName extracts the GORM root model type name from a Find/First destination arg.
+func rootModelTypeName(arg ast.Expr, localTypes map[string]string) string {
+	switch a := arg.(type) {
+	case *ast.UnaryExpr:
+		if a.Op == token.AND {
+			return rootModelTypeName(a.X, localTypes)
+		}
+	case *ast.Ident:
+		if t, ok := localTypes[a.Name]; ok {
+			return baseModelTypeName(t)
+		}
+	case *ast.CompositeLit:
+		return baseModelTypeName(exprTypeString(a.Type))
+	}
+	return ""
+}
+
+func baseModelTypeName(typeStr string) string {
+	typeStr = strings.TrimSpace(typeStr)
+	for strings.HasPrefix(typeStr, "*") || strings.HasPrefix(typeStr, "[]") {
+		typeStr = strings.TrimPrefix(typeStr, "*")
+		typeStr = strings.TrimPrefix(typeStr, "[]")
+	}
+	if i := strings.LastIndex(typeStr, "."); i >= 0 {
+		return typeStr[i+1:]
+	}
+	return typeStr
 }
 
 // preloadHasClinicScope reports whether a Preload call carries a clinic_id scope and returns
@@ -608,7 +798,8 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 		{"closure with clinicScope helper", `db.Preload("Children", func(db *gorm.DB) *gorm.DB { return db.Scopes(clinicScope(clinicID)) })`, 0},
 		{"staff alias exempt", `db.Preload("Doctor", "deleted_at IS NULL")`, 0},
 		{"global master exempt", `db.Preload("AnimalSpecies")`, 0},
-		{"non-master ignored", `db.Preload("Items", "deleted_at IS NULL")`, 0},
+		// Bare Items without root model context is not master-scoped (Billing/Examination Items).
+		{"non-master Items ignored without root model", `db.Preload("Items", "deleted_at IS NULL")`, 0},
 		{"non-literal predicate fails closed", `db.Preload("Vaccine", cond)`, 1},
 		// BE-refactor.md R3-2 (D9・pre-registration follow-up): 事前登録した「未点火の地雷」3件が実際に効くことの証明。
 		{"pre-registered ChiefComplaintType missing clinic_id", `db.Preload("ChiefComplaintType", "deleted_at IS NULL")`, 1},
@@ -622,6 +813,105 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			src := "package p\nfunc f() { _ = " + tc.body + " }\n"
 			findings, _, err := analyzeFilePreloads("fixture.go", []byte(src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if len(findings) != tc.want {
+				t.Fatalf("got %d findings, want %d: %+v", len(findings), tc.want, findings)
+			}
+		})
+	}
+}
+
+// BUG-437: Preload("Items") is context-aware — ExaminationType.Items (ExamTypeField) is gated;
+// Examination.Items / bare Items without root model are not.
+func TestPreloadClinicScope_ItemsContextAware(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want int
+	}{
+		{
+			name: "ExaminationType Items missing clinic_id is RED",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ Find(interface{}, ...interface{}) error } }, clinicID uint64) {
+	exTypes := make([]model.ExaminationType, 0)
+	_ = db.Preload("Items", "deleted_at IS NULL").Find(&exTypes)
+}
+`,
+			want: 1,
+		},
+		{
+			name: "ExaminationType Items string-scoped is GREEN",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ Find(interface{}, ...interface{}) error } }, clinicID uint64) {
+	exTypes := make([]model.ExaminationType, 0)
+	_ = db.Preload("Items", "clinic_id = ?", clinicID).Find(&exTypes)
+}
+`,
+			want: 0,
+		},
+		{
+			name: "ExaminationType Items closure-scoped is GREEN",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ First(interface{}, ...interface{}) error } }, clinicID uint64) {
+	var exType model.ExaminationType
+	_ = db.Preload("Items", func(itemsDB interface{ Where(string, ...interface{}) interface{} }) interface{} {
+		return itemsDB.Where("clinic_id = ?", clinicID)
+	}).First(&exType)
+}
+`,
+			want: 0,
+		},
+		{
+			name: "Examination Items (non-master) is GREEN even unscoped",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ Find(interface{}, ...interface{}) error } }) {
+	var exams []*model.Examination
+	_ = db.Preload("Items").Find(&exams)
+}
+`,
+			want: 0,
+		},
+		{
+			name: "nested ExaminationType.Items unscoped is RED",
+			src: `package p
+func f(db interface{ Preload(string, ...interface{}) error }) {
+	_ = db.Preload("ExaminationType.Items", "deleted_at IS NULL")
+}
+`,
+			want: 1,
+		},
+		{
+			name: "nested ExaminationType.Items on Examination Find root is still RED",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ Find(interface{}, ...interface{}) error } }) {
+	var exams []*model.Examination
+	_ = db.Preload("ExaminationType.Items", "deleted_at IS NULL").Find(&exams)
+}
+`,
+			want: 1,
+		},
+		{
+			name: "nested ExaminationType.Items scoped on Examination Find is GREEN",
+			src: `package p
+import "model"
+func f(db interface{ Preload(string, ...interface{}) interface{ Find(interface{}, ...interface{}) error } }, clinicID uint64) {
+	var exams []*model.Examination
+	_ = db.Preload("ExaminationType.Items", "clinic_id = ?", clinicID).Find(&exams)
+}
+`,
+			want: 0,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			findings, _, err := analyzeFilePreloads("fixture.go", []byte(tc.src))
 			if err != nil {
 				t.Fatalf("parse fixture: %v", err)
 			}
