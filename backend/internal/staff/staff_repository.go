@@ -329,6 +329,8 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error) {
 	// clinic_id カラムを直接持つテーブルのみ汎用ループで処理。
 	// payments は clinic_id を持たないため後述の特殊クエリで対応。
+	// medical_record_addenda / vital_records は子 clinic_id を持つが親業務行と
+	// 食い違いうるため、親 clinic 相関を別クエリで行う（SEC-SWEEP-02-STAFF-B1）。
 	// exams.entered_by カラムは存在しないため除外。
 	checks := []struct {
 		table   string
@@ -338,16 +340,14 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 	}{
 		{table: "medical_records", column: "doctor_id", label: "カルテ", softDel: true},
 		{table: "medical_records", column: "entered_by", label: "カルテ入力履歴", softDel: true},
-		{table: "medical_record_addenda", column: "author_user_id", label: "カルテ追記", softDel: false},
 		{table: "hospitalizations", column: "doctor_id", label: "入院記録", softDel: true},
 		{table: "exams", column: "doctor_id", label: "検査", softDel: true},
 		{table: "shift_entries", column: "staff_id", label: "シフト", softDel: false},
 		{table: "billing_refunds", column: "refunded_by", label: "返金", softDel: false},
 		{table: "cash_register_closes", column: "closed_by", label: "レジ締め", softDel: false},
-		{table: "vital_records", column: "staff_id", label: "バイタル記録", softDel: true},
 	}
 
-	dependencies := make([]StaffDependencyCount, 0, len(checks)+2)
+	dependencies := make([]StaffDependencyCount, 0, len(checks)+4)
 	for _, check := range checks {
 		query := fmt.Sprintf("clinic_id = ? AND %s = ?", check.column)
 		if check.softDel {
@@ -364,6 +364,47 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 		if count > 0 {
 			dependencies = append(dependencies, StaffDependencyCount{Label: check.label, Count: count})
 		}
+	}
+
+	// medical_record_addenda: 親 medical_records の clinic 相関のみ（deleted_at は付けない）。
+	// 修飾列を使い JOIN 時の SQLSTATE 42702（ambiguous clinic_id）を避ける。
+	var addendaCount int64
+	if err := persistence.DBOrTx(ctx, r.db).
+		Table("medical_record_addenda").
+		Joins("JOIN medical_records ON medical_records.id = medical_record_addenda.medical_record_id AND medical_records.clinic_id = medical_record_addenda.clinic_id").
+		Where("medical_record_addenda.clinic_id = ? AND medical_record_addenda.author_user_id = ?", clinicID, staffID).
+		Count(&addendaCount).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record_addenda", fmt.Sprintf("staff_id=%d", staffID))
+	}
+	if addendaCount > 0 {
+		dependencies = append(dependencies, StaffDependencyCount{Label: "カルテ追記", Count: addendaCount})
+	}
+
+	// vital_records: 親 medical_records または daily_records の clinic 相関のみ。
+	// 外来/入院のどちらか一方でも clinic が一致すれば有効な依存として数える。
+	// parent deleted_at / pets.deceased_at は付けない（MR-B1/TRIM-B1 規約）。
+	var vitalCount int64
+	if err := persistence.DBOrTx(ctx, r.db).
+		Table("vital_records").
+		Where("vital_records.clinic_id = ? AND vital_records.staff_id = ? AND vital_records.deleted_at IS NULL", clinicID, staffID).
+		Where(`(
+			(vital_records.medical_record_id IS NOT NULL AND EXISTS (
+				SELECT 1 FROM medical_records
+				WHERE medical_records.id = vital_records.medical_record_id
+				  AND medical_records.clinic_id = vital_records.clinic_id
+			))
+			OR
+			(vital_records.daily_record_id IS NOT NULL AND EXISTS (
+				SELECT 1 FROM daily_records
+				WHERE daily_records.id = vital_records.daily_record_id
+				  AND daily_records.clinic_id = vital_records.clinic_id
+			))
+		)`).
+		Count(&vitalCount).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vital_records", fmt.Sprintf("staff_id=%d", staffID))
+	}
+	if vitalCount > 0 {
+		dependencies = append(dependencies, StaffDependencyCount{Label: "バイタル記録", Count: vitalCount})
 	}
 
 	// payments は clinic_id を持たない。billings 経由で clinic_id をフィルタする。

@@ -30,6 +30,9 @@ func setupStaffRepositoryTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Account{}, &model.Occupation{},
 		&model.Staff{}, &model.StaffClinicAssignment{}, &model.ShiftEntry{},
+		// SEC-SWEEP-02-STAFF-B1: CountBlocking が vital EXISTS(daily_records) / addenda JOIN を
+		// 常に実行するため、共有 setup でも関係テーブルを AutoMigrate しておく。
+		&model.MedicalRecordAddendum{}, &model.VitalRecord{}, &model.DailyRecord{},
 	))
 	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries CASCADE").Error)
 	return db
