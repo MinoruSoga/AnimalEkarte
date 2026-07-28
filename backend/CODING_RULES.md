@@ -40,6 +40,7 @@ Handler → Service → Repository、Clean Architecture、layer-first/domain-fir
 - compatibility facadeは薄いdelegate/type aliasだけを許可し、business ruleやpersistence実装を複製しない。consumer移行後の削除条件を持たせる。
 - 自動処理には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。
 - 自動status transitionは、対象条件をwrite時にcompare-and-setで再評価する。臨床記録など遷移を否定するbusiness evidenceも同じ判定へ含め、resource単位の監査が必須なら状態変更と同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。
+- masterの「使用中は削除不可」は、Find→CountUsage→Deleteの非原子シーケンスを正しさの根拠にしてはならない。正しさの境界は`clinic_id + id`とusage不在（または許可されたstatus等）を同一SQLに束ねた条件付き原子DELETE（または同等のcompare-and-set soft delete）とし、`RowsAffected == 0`をConflict/NotFoundに正規化する（正例: `billing.estimateRepository.DeleteIfNotLocked`）。早期CountはUX用に残してよいが、防御本体にしてはならない。usage attachが並行し判定を無効化し得るpathでは、上のFK再検証条項に従いrequest由来FKを同txで再検証し、必要なら親masterをcommitまで共有ロックする（`FOR UPDATE`/`FOR SHARE`を正しさの根拠にするならambient tx必須）。新規productionと当該Deleteを変更する実装はこの規則に従う。既存の非原子Count→Delete（例: inventory / merchandise 他多数master）は既知のresidual race debtとし、一括retrofitは別作業とする（本規則の文書化だけではproductionを変えない）。
 - folder移動だけでclinic isolation、authorization、clinical safetyが成立したと判断しない。既存のruntime testとapplication invariantで検証する。
 
 ## HTTP with Gin
@@ -114,6 +115,7 @@ coverage threshold や TDD workflow は project quality policy であり、Go/Gi
 - [ ] 旧`internal/handler|service|repository`へ新規production実装を追加しておらず、残すfacade/adapterにconsumerと削除phaseがある
 - [ ] business factのsource of truth/write ownerが一意で、owner外の直接writeや重複実装がない
 - [ ] vertical slice、cross-domain transaction、自動化の停止/監査/fallbackが変更範囲に応じて検証されている
+- [ ] master「使用中は削除不可」のDeleteを新規/変更した場合、条件付き原子DELETE（または明示した親ロック+原子DELETE）になっており、非原子Count→Deleteを正しさの根拠にしていない
 - [ ] Context、error chain、resource cleanup が維持されている
 - [ ] input validation、authentication、authorization、ownership が独立している
 - [ ] response/log に内部情報や個人情報がない
