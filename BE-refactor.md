@@ -1,6 +1,6 @@
 # BE-refactor — backend 規約適合監査と改善計画
 
-> 更新: 2026-07-28（round 2 / 抜け漏れ監査・再実測）／初版: 2026-07-27
+> 更新: 2026-07-28（round 2 是正: false positive 除去・規約適用性・畳み込み表反映）／round 2 初回: 2026-07-28 `72fec9d1d`／初版: 2026-07-27
 >
 > **測定基準リビジョン (round 2)**: `c4ce786e0a52968a4fcdeaaffe07a409501ca80b`（`git rev-parse HEAD`）
 > **working tree dirty (backend/)**: `billing/accounting_repository_reports_close.go` ほか billing 4、`lintscan/grandchild_parent_clinic_correlation_lint_test.go` 1（並行セッション編集中）。判定は on-disk 実コードを優先。
@@ -44,7 +44,7 @@
 
 1. **[BIL-01] 締め後の会計編集ゲートが `billing-items` 経路で完全に迂回される**（CRITICAL）。`POST/PATCH /billing-items` は billing の status もレジ締め状態も検査せず、監査も残さずに billing 総額を書き換える。**coordinator 独立実測済み**。
 2. **[X-01 パターン] commit 済みの成功を tx 外の再取得エラーで 5xx へ反転させる実装が 7 ドメイン 15 箇所以上**（HIGH）。臨床側には「失敗」と表示されるが DB は更新済みで、再送すると 409 か二重適用になる。
-3. **[X-04 パターン] error 握り潰しによる fail-open が lstep バッチ群に集中**（HIGH）。DB エラーで `return 0, nil` を返すため、クリニック全体のタグ同期が全滅しても失敗件数に計上されず監査にも残らない。**オプトアウト済みの飼主へ配信が発火する経路（LSA-02 / LSB-01）を含む**。
+3. **[X-04 パターン] error 握り潰しによる fail-open が lstep バッチ群に集中**（HIGH）。DB エラーで `return 0, nil` を返すため、クリニック全体のタグ同期が全滅しても失敗件数に計上されず監査にも残らない。（注: LSA-02/LSB-01 の opt-out 欠落は **X-04 ではなく** business-evidence fail-open。error 握り潰しではない）。
 
 ---
 
@@ -55,14 +55,14 @@
 | パターン | 規約 | 構成員 ID | 推奨アプローチ |
 |---|---|---|---|
 | **X-01** commit 済み write を tx 外の再取得 error で失敗へ反転 | `CODING_RULES.md:78` | MRA-02, MRC-01, MRD-02, POC-02, RSV-03, TRM-01, LSB-03 | 再取得を `WithTx` 内へ移す。先例 = `vital_service.go:294-298` / `owner/repository.go:288` / `pet/repository.go:417` / `trimming_service.go:330` |
-| **X-02** 入力境界検証の欠落（列挙値・範囲・長さ） | `guidelines:151` | AUS-03, LSA-13, LSA-14, LSB-06, TRM-05, MRA-03, MRD-04, RSV-04, MRC-08, POC-13, POC-14, POC-17, MDL-04, MRB-06 | enum は model 定数から `oneof=` を導出し、追随を test で固定。長さは `001_init.sql` の列定義から導出 |
+| **X-02** 入力境界検証の欠落（列挙値・範囲・長さ） | `guidelines:151` | AUS-03, LSA-13, LSA-14, LSB-06, TRM-05, MRA-03, MRD-04, RSV-04, MRC-08, POC-13, POC-17, MRB-06, TRM-03（兼 X-07） | enum は model 定数から `oneof=` を導出し、追随を test で固定。長さは `001_init.sql` の列定義から導出。MDL-04 は LSA-13 と同一 trigger_type のため除外（正本 LSA-13）。POC-14 は X-09 へ移動 |
 | **X-03** destructive / irreversible 操作の監査・recovery 欠落 | `invariants.md:31` | AUS-01, LSA-05, MRA-01, MRB-05, POC-07, TRM-02, TRM-07 | 既存の fail-closed 監査（`audit.LogEntryTx`）へ寄せる。5 領域に確立済みパターンあり・新テーブル不要 |
-| **X-04** error 握り潰しによる fail-open | `error-handling.md:9` | LSA-03, LSA-10, LSA-11, LSA-12, LSA-16, LSB-04, MRC-04, MDL-02, INF-06, CMD-03, CMD-07, RSV-09 | 「握り潰す」と「意図的 best-effort」を分離。後者は `CODING_RULES.md:36` が要求する補償・再試行・監査・部分失敗 contract を実際に持たせる |
-| **X-05** 検証と write が同一 tx にない（TOCTOU） | `CODING_RULES.md:38` | POC-03, MRB-02, MRB-08, MRC-03, MRC-07, POC-05, RSV-02, RSV-07 | 検証と write を単一 `WithTx` へ収め、判定根拠の行を `FOR UPDATE`/`FOR SHARE` で固定。先例 = `reservation_intent_repository.go:591-625` |
+| **X-04** error 握り潰しによる fail-open | `error-handling.md:9` | LSA-03, LSA-10, LSA-11, LSA-12, LSA-16, LSB-04, MRC-04, MDL-02, INF-06, CMD-03, CMD-07, RSV-09, LSB-02 | 「握り潰す」と「意図的 best-effort」を分離。後者は `CODING_RULES.md:36` が要求する補償・再試行・監査・部分失敗 contract を実際に持たせる。**LSA-02/LSB-01 は X-04 ではない**（business evidence 欠落） |
+| **X-05** 検証と write が同一 tx にない（TOCTOU） | `CODING_RULES.md:38` | POC-03, MRB-02, MRB-08, MRC-03, MRC-07, POC-05, RSV-02, RSV-07, POC-06, LSA-15 | 検証と write を単一 `WithTx` へ収め、判定根拠の行を `FOR UPDATE`/`FOR SHARE` で固定。先例 = `reservation_intent_repository.go:591-625` |
 | **X-06** business graph を構成する write の非原子化 | `CLAUDE.md:33` | BIL-03, LSA-06, MRC-05, RSV-06, MRC-12（既知） | `Transactor` を注入し repository を `persistence.DBOrTx` 経由へ揃える |
-| **X-07** request body サイズ上限の非対称・middleware による無効化 | `guidelines:179` | INF-02, POC-12, TRM-03 | `protected` グループ全体へ body size middleware を 1 本入れて統一する（handler 個別対応は非対称を再生産する） |
-| **X-08** 外部 API の raw error を応答・DB へ露出 | `CLAUDE.md:34` | LSA-08, LSA-09, LSB-05 | 応答は安定した分類コードのみ。生エラーは slog に限定 |
-| **X-09** copy-paste drift（複製と乖離） | `coding-style.md:26` | MDL-01, POC-11, POC-16, MRC-14 | `sharedkernel` へ 1 本化。**税計算の乖離（MDL-01）は金額に直結するため先行** |
+| **X-07** request body サイズ上限の非対称・middleware による無効化 | `guidelines:179` | INF-02, POC-12, TRM-03（兼 X-02） | `protected` グループ全体へ body size middleware を 1 本入れて統一する（handler 個別対応は非対称を再生産する）。TRM-03 の string max 面は X-02 |
+| **X-08** 外部 API の raw error を応答・DB へ露出 | `CLAUDE.md:34` | LSA-08, LSA-09 | 応答は安定した分類コードのみ。生エラーは slog に限定。LSB-05 は LSA-08 と同一疎通 raw error のため除外（正本 LSA-08） |
+| **X-09** copy-paste drift（複製と乖離） | `coding-style.md:26` | MDL-01, POC-11, POC-16, MRC-14, POC-14 | `sharedkernel` へ 1 本化。**税計算の乖離（MDL-01）は金額に直結するため先行**。POC-14 は空 PATCH ガードの兄弟欠落 |
 | **X-10** 同一 error の重複ログ / 二重レスポンス | `CODING_RULES.md:67`, `error-handling.md:29` | POC-15, TRM-06, AUS-09 | 文脈の揃う境界 1 箇所へ集約 |
 
 ---
@@ -1344,6 +1344,7 @@
 - 内容: `UpdateOwnerLink` 成功後に tx 外 `FindByID` が失敗すると error 応答になるが DB はリンク済み。
 - 修正: WithTx 内 reload、または更新成功後は構築 DTO を返す。
 
+- round2-review(2026-07-28): **DOWNGRADED** (HIGH→LOW) — 反証: write 後 Find 失敗は稀でリンク状態は正しい・再送は冪等（`line_customer_service.go:46-58`）。CODING_RULES:78 は適用可だが HIGH 過大。
 #### G2A-02: line_customer の owner FK 検証が write と同一 tx にない — MEDIUM
 - 区分: 新規 ／ 横断: X-05
 - 規約: `backend/CODING_RULES.md:38` 「request由来のclinic-scoped FKは永続化と同じtransactionで再検証し、並行master変更で判定が無効になる場合は対象行をcommitまで共有ロックする。」
@@ -1351,6 +1352,7 @@
 - 内容: owner 所属確認と UpdateOwnerLink が別 transaction。
 - 修正: 同一 WithTx 内で owner FOR SHARE → UpdateOwnerLink。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: CODING_RULES:38 は「並行master変更で判定が無効になる場合」の条件付き。owner の clinic 所属は実質固定で pre-write clinic-scoped Find 済み（`line_customer_service.go:40-48`）。tenant hole として過適用。
 #### G2A-03: LINE顧客↔飼主リンク変更に監査が無い — MEDIUM
 - 区分: 新規 ／ 横断: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -1358,6 +1360,7 @@
 - 内容: 患者識別境界の変更なのに audit 呼び出しが無い。
 - 修正: write と同一 tx で fail-closed 監査。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: invariants:31 は destructive/irreversible 対象。Link/unlink は可逆（`ownerID==nil` で解除）で slog.Info 済み。fail-closed 監査必須の clinical/financial ではない。
 #### G2A-04: UpdateAdditionalFields が RowsAffected 0 を成功扱いする — MEDIUM
 - 区分: 新規
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1365,6 +1368,7 @@
 - 内容: clinic 不一致でも nil 成功。同 file の UpdateOwnerLink は RowsAffected 検査あり。
 - 修正: RowsAffected==0 → NotFound。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: result.Error は処理済み。RowsAffected 0 は意図的 best-effort（`line_customer_repository_test.go:229`「0件更新でもエラーにはならない」）。error-handling.md:9 の error 無視ではない。
 #### G2A-05: aggregation クエリの enum/日付が境界未検証 — MEDIUM
 - 区分: 新規 ／ 横断: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1372,6 +1376,7 @@
 - 内容: from/to・period_preset・amount_basis 等が未検証のまま 200 誤集計または 500 になり得る。
 - 修正: allowlist + 日付 parse を 400 化。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: 未知 enum は safe default/空結果（`ltv_repository.go:280,378-401`）。SQL injection なし。from/to の 4xx 化のみ残課題。
 #### G2A-06: checkup sync プレビューがタグキャッシュ DB エラーを空 tags に置換する — MEDIUM
 - 区分: 新規 ／ 横断: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1379,6 +1384,7 @@
 - 内容: FindByOwners 失敗を空 map に置換し 200 継続。「タグ無し」と障害が区別不能。
 - 修正: fail-closed または `tags_degraded` 明示 flag。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: `checkup_sync_service_preview.go:49-54` が G7-2 固定の non-fatal と slog.Error を明示。preview 専用の意図的 degraded であり error 無視ではない。
 #### G2A-07: line send の purpose が列挙未検証 — LOW
 - 区分: 新規 ／ 横断: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1386,6 +1392,7 @@
 - 内容: 未知 purpose は silent no-op（タグ非付与）。
 - 修正: allowlist + 400。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: purpose は動的 master（`lstep_send_purpose_tag_prefixes`）照合。未一致はタグ非付与の正しい contract（`line_send_service.go:116-129`）。固定 oneof は設定破壊。
 #### G2B-01: 健診・予防タグの Remove 失敗を nil で握り潰し成功件数に入れる — HIGH
 - 区分: 新規 ／ 横断: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1393,6 +1400,7 @@
 - 内容: desired=true の付与失敗は return err、desired=false の解除失敗は apiFailed に落として return nil。Lステップ上に PREV_* 残タグ → 配信トリガー誤発火し得る。バッチ成功件数にも入る。
 - 修正: 解除失敗も err 伝播し BatchRunResult.Failed / audit に計上。
 
+- round2-review(2026-07-28): **DOWNGRADED** (HIGH→MEDIUM) — 反証: Remove 失敗は notifyAPIFailure 経由で計上・テスト固定（`lstep_health_tag_sync_prevention_test.go:85-94`）。外部 API best-effort の意図的非対称。残リスクは PREV_* 残留→配信候補で MEDIUM 相当。
 #### G2B-02: lstep_settings Upsert が commit 後 Find で成功を反転し得る — MEDIUM
 - 区分: 新規 ／ 横断: X-01
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -1400,13 +1408,15 @@
 - 内容: Upsert 成功後の別 query Find 失敗で 5xx。flag は永続化済み。
 - 修正: 同一 tx 内 reload または構築済み struct 返却。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: Upsert 済み flags は durable。post-Find は hydration のみ（`lstep_sync_settings_repository.go:40-51`）。CODING_RULES:78 は成立するが運用リスクは LOW。
 #### G2B-03: 優先度 demote がログ上書きのみで既付与タグを取り消さない — MEDIUM
 - 区分: 新規
-- 規約: `backend/CLAUDE.md:25` 「自動化には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。」
+- 規約: `backend/CODING_RULES.md:36` 「best-effortを選ぶ場合は部分成功contract、再試行、補償、監査を明示する。」（旧 CLAUDE.md:25 は主題不一致のため差し替え）
 - 対象: `backend/internal/lstep/lstep_delivery_trigger_suppression.go:55`、`backend/internal/lstep/lstep_delivery_trigger_suppression.go:68`、`backend/internal/lstep/lstep_batch_delivery.go:28`
 - 内容: suppressed_by_priority=true にしても Lステップ上の低優先タグは残る。固定実行順と priority 設定の不一致で多重配信。
 - 修正: demote 時 Remove+cache 削除、または実行順を priority 昇順固定、または多重タグ許容を contract 明示。
 
+- round2-review(2026-07-28): **REFRAMED** — 反証: demote はログ `suppressed_by_priority` 仕様（`docs/spec/screens/34-lstep-delivery-monitor.md:48`）。CLAUDE.md:25 の自動化停止リスト違反ではなく、固定実行順 vs priority 排他の製品設計ギャップ。
 #### G2B-04: delivery-monitor の trigger_type/status が列挙未検証 — MEDIUM
 - 区分: 新規 ／ 横断: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1414,6 +1424,7 @@
 - 内容: typo で 200+空集計。
 - 修正: AllTriggerTypes / status allowlist。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: 任意 query filter の typo→空結果は REST 標準。injection/auth なし。列挙必須は write 経路の話。
 #### G2B-05: lifecycle request の reason に長さ上限が無い — LOW
 - 区分: 新規 ／ 横断: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1421,6 +1432,7 @@
 - 内容: reason が無 max。DB は text のため破壊はしにくいが境界未制限。
 - 修正: binding max（例 100–500）。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: reason は optional text（`001_init.sql:318`）。破壊リスク実質なし。スタイル一貫性のみ。
 #### G2C-01: tag summary の owner 名 LIKE が EscapeLike 無し — MEDIUM
 - 区分: 新規
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1428,6 +1440,7 @@
 - 内容: `%`/`_` が wildcard 化。clinic scope 内だが意図より広い一覧。owner/pet は EscapeLike 使用。
 - 修正: textsearch.EscapeLike + ESCAPE。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: parameterized LIKE で injection ではない。clinic 内検索意味論の EscapeLike 不整合。guidelines:151 適用は PARTIAL。
 #### G2C-02: tag code mapping の code_type/species/age が境界未検証 — MEDIUM
 - 区分: 新規 ／ 横断: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1435,6 +1448,7 @@
 - 内容: required 以外の enum/range/length 無し。
 - 修正: oneof/min/max/dive。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: 未知 code_type は automation no-op。staff 設定 CRUD。境界検証ギャップは残るが MEDIUM 過大。
 #### G2C-03: care/pet/visit タグ同期が remove 失敗後も add して nil 成功 — MEDIUM
 - 区分: 新規 ／ 横断: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」／ `backend/CLAUDE.md:25` 「自動化には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。」
@@ -1442,13 +1456,15 @@
 - 内容: remove fail → apiFailed=true continue → 新規 add → return nil。旧+新タグ併存。LTV 同期は fail-closed 先例あり。
 - 修正: remove 失敗時は return err、または add 前に補償。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: remove fail は notifyAPIFailure + apiFailed、成功カウンタ非リセット。テストが「apiFailed のまま nil」を固定。外部 LSTEP の意図的 best-effort。error-handling.md:9 を「batch 必須 fail-closed」へ過適用。
 #### G2C-04: tag owners CSV が 5000 件で無信号 truncate し、stream 後に JSON error し得る — MEDIUM
 - 区分: 新規
-- 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」（集合サイズの契約）／ response は一度だけ書く（Gin 運用）
+- 規約: `.claude/rules/go-gin-backend-guidelines.md:154` 「response は一度だけ書き、return して handler を終了する。」／ `.claude/refs/error-handling.md:29` 「response を書いた後に別の error response を重ねない。」（旧 guidelines:151「集合サイズ」は入力検証条項のため差し替え）
 - 対象: `backend/internal/lstep/lstep_tag_summary_service.go:131`、`backend/internal/lstep/lstep_tag_summary_handler.go:43`
 - 内容: total 破棄で truncate 無信号。headers 後の RespondError で body 混在。
 - 修正: total>5000 は fail-closed または paginate。stream 後は JSON error しない。
 
+- round2-review(2026-07-28): **UPHELD** — 反証失敗: headers 後の RespondError は `guidelines:154` / `error-handling.md:29` 違反がコード上明確（`lstep_tag_summary_handler.go:43-59`）。truncate 無信号は副次。
 #### G2C-05: owner tags API が line_user_id 全文を返し masked フィールドが未配線 — LOW
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:24` 「response、export、event、audit log は最小限の field だけを含める。」
@@ -1456,6 +1472,7 @@
 - 内容: 全文 line_user_id 露出。masked は DTO のみで未セット。
 - 修正: mask または削除。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: staff owners:view の owner 詳細に line_user_id は運用上意図的。masked 未配線は別 DTO の死んだ optional field。
 #### G2C-06: SharedFileRepository.Create が clinic 引数を取らない — LOW
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:11` 「clinic-scoped data のすべての read/write/delete は、認証済み clinic_id で制約する」
@@ -1463,6 +1480,7 @@
 - 内容: Create は f.ClinicID 信頼のみ。service は正しい clinic をセットするが defense-in-depth 欠落。
 - 修正: clinicID 引数 + assert。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: 唯一の production writer `sharedFileService.Upload` が認証 clinicID を常に設定（`shared_file_service.go:94-104`）。repo 署名は defense-in-depth のみ。
 #### G2C-07: tag code mapping replace に監査が無い — LOW
 - 区分: 新規 ／ 横断: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -1470,6 +1488,7 @@
 - 内容: automation 設定の soft-delete+insert に audit 無し。
 - 修正: 成功後に actor+tag_name を監査。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: soft-delete+insert は再設定可能で irreversible ではない。invariants:31 の destructive 監査必須に該当しない。
 #### G2C-08: tag sync が nil/空 config で破壊的クリーンアップまたはクリーンアップ不能 — LOW
 - 区分: 新規
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1477,6 +1496,7 @@
 - 内容: nil config → 全 chronic strip、空 prefix → stale 非削除。composition では通常注入される。
 - 修正: 必須依存欠落は fail-closed。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: composition が `repos.tagConfig` を常時注入（`composition_services.go:33-37`）。nil 分岐は test 耐性。error 無視ではない。
 #### G2P-01: inventory/merchandise の使用中カウント→削除が tx 外 TOCTOU — LOW
 - 区分: 新規 ／ 横断: X-05
 - 規約: `backend/CODING_RULES.md:38` 「`FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。…」の運用解釈（依存チェック後 delete の直列化。規約疑義 #27 も参照）
@@ -1484,6 +1504,7 @@
 - 内容: count→delete が独立 statement。merchandise repo は DBOrTx 非参加。
 - 修正: WithTx + FOR UPDATE + 条件付き delete。merchandise を DBOrTx 化。
 
+- round2-review(2026-07-28): **WITHDRAWN** — 反証: CODING_RULES:38 字面は FOR UPDATE/SHARE/advisory を正しさ根拠にする operation の ambient 拒否。count→delete は lock 非依存。「運用解釈」は規約拡張のため cite 失格。TOCTOU 残存は New Work として分離。
 #### G2P-02: inventory/merchandise Update 後 re-fetch が tx 外 — MEDIUM
 - 区分: 新規 ／ 横断: X-01
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -1491,6 +1512,7 @@
 - 内容: UpdateScopedByID 後の別 Find が 5xx 反転し得る。
 - 修正: 同一 tx 内 UpdateAndFind。
 
+- round2-review(2026-07-28): **UPHELD** — 反証: 稀有だが CODING_RULES:78 字面どおり（`inventory/repository.go:117-121` Update 後別 Find）。成功の 5xx 反転 contract 違反。
 #### G2P-03: inventory quantity が非負未検証で DecreaseStock が負在庫を作れる — MEDIUM
 - 区分: 新規 ／ 横断: X-02
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -1498,93 +1520,106 @@
 - 内容: quantity に min=0 / CHECK 無し。DecreaseStock は quantity-N 無条件。
 - 修正: binding min=0、WHERE quantity>=? 条件付き減算、CHECK。
 
+- round2-review(2026-07-28): **UPHELD** — 反証: DecreaseStock の無条件 `quantity - N` と min/CHECK 欠落は CODING_RULES:79 に直撃。負在庫は status で隠れるだけで数値が壊れる。
 #### G2T-02: inquiry_template CountUsage が常に 0 を返す AUS-04 同型 — MEDIUM
-- 区分: 新規（AUS-04 の twin。AUS-04 自体は既知所見）
-- 規約: `.claude/refs/error-handling.md:9` および go interface 最小化（死んだ facade を恒真 test で固定しない）
+- 区分: **決裁済み**（PO 2026-05-25: inquiry_answers 当面実装しない）／ 旧「新規」は撤回
+- 規約: `backend/internal/medicalrecord/inquiry_template_repository.go:71` 「PO判断（2026-05-25）: inquiry_answers は当面実装しない。」（旧 error-handling.md:9 および出典なし interface 規則は本事象に不適用のため差し替え）
 - 対象: `backend/internal/medicalrecord/inquiry_template_repository.go:70`、`backend/internal/medicalrecord/inquiry_template_repository_test.go:196`、`backend/internal/medicalrecord/inquiry_template_service.go:143`
 - 内容: CountUsage が常に 0。Delete の使用中ガードは本番到達不能。repo test は count==0 の恒真。
-- 修正: 実装するか interface/Delete ガードから除去。恒真 test を削除。
+- 修正: （決裁優先）stub は inquiry_answers 実装 PR 内で COUNT に置換。それまでは実装/除去を強制しない。恒真 test は任意 cleanup。
 
+- round2-review(2026-07-28): **WITHDRAWN**（区分: **決裁済み**） — `inquiry_template_repository.go:70-74`「PO判断（2026-05-25）: inquiry_answers は当面実装しない。」常時 0 は意図的スタブ。error-handling.md:9 は error 無視ではない。恒真 test はドキュメント的 residual のみ。**修正: 実装するか除去** は決裁と矛盾するため無効。
 #### G2T-03: daily_record_vital_tx_atomicity_test の assert.True(t, true) — LOW
 - 区分: 新規
-- 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。…」の test 側対偶（常に真な条件は振る舞いを検証しない）— 製品 assert のみを残す
+- 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」— **本事象（恒真 assert）には不適用**と判定し所見 WITHDRAWN。代替条項なし（製品規則外の test noise）。
 - 対象: `backend/internal/medicalrecord/daily_record_vital_tx_atomicity_test.go:54`
 - 内容: 有意味 assert の後に恒真 1 行。
 - 修正: 行削除。
 
+- round2-review(2026-07-28): **WITHDRAWN** — `assert.True(t, true)` は有意味 assert 後のノイズ1行（`daily_record_vital_tx_atomicity_test.go:48-54`）。error-handling.md:9 の「test 側対偶」は創作ルールで MUST_FIX。製品リスクなし。
 #### G2F-01: 配信トリガー batch が owner ごと多段 query（N+1） — HIGH
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/lstep_delivery_trigger_batch.go:34`、`backend/internal/lstep/lstep_delivery_trigger_state.go:11`、`backend/internal/lstep/lstep_tag_cache_repository.go:233`
 - 内容: owner ごとに FindByID / ExistsToday / tag cache 等。候補 ID 集合も Limit 無し。
 - 修正: IN 一括取得 + cursor chunk。
 
+- round2-review(2026-07-28): **REFRAMED**（構造 N+1 は維持・HIGH） — 反証: `runBatch`→`processSingleOwner` 内で owner ごと Find/Exists/tag（`lstep_delivery_trigger_batch.go:34-55` 等）。測定なしで :67 を充足した扱いは不可。
 #### G2F-02: health prevention batch が owner ごと無制限 history Find — HIGH
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/lstep_health_tag_sync_batch.go:56`、`backend/internal/lstep/lstep_health_tag_sync_checkup.go:43`、`backend/internal/lstep/lstep_health_tag_sync_vaccine.go:26`
 - 内容: page は cursor でも child Find が owner 全件無 Limit。
 - 修正: page 単位 bulk SQL。
 
+- round2-review(2026-07-28): **REFRAMED**（構造 multi-query 維持・HIGH） — 反証: outer cursor はあるが child `FindByOwnerID`/`FindByOwner` は無 LIMIT（checkup/vaccine）。:67 実測要件は未充足。
 #### G2F-03: LTV 同期が clinic 全 owner を unbounded materialize — HIGH
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/lstep_tag_sync_visit_ltv.go:20`、`backend/internal/billing/accounting_repository_ltv.go:67`、`backend/internal/owner/repository.go:381`
 - 内容: コメントで全件ロード自認。FindAllWithLineUserID も Limit 無し。
 - 修正: cursor / DB 側 top-N。
 
+- round2-review(2026-07-28): **DOWNGRADED** (HIGH→MEDIUM) + **REFRAMED** — 反証: tag cache は FindByOwners で N+1 解消済み。残は `FindAllWithLineUserID` 等の unbounded materialize（`owner/repository.go:381`）。N+1 表記は不正確。
 #### G2F-04: visit-dormant タグ同期が非 cursor dormant list を使用 — HIGH
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/lstep_batch_segmentation.go:20`、`backend/internal/medicalrecord/medical_record_owner_visit_repository.go:192`
 - 内容: 検出側は Cursor 済みだがタグ同期は旧 unbounded API。
 - 修正: Cursor ループへ置換。
 
+- round2-review(2026-07-28): **REFRAMED**（構造 unbounded 維持・HIGH） — 反証: 検出は Cursor、タグ同期のみ旧 API（`lstep_batch_segmentation.go:22`）。:67 は要実測注記必須。
 #### G2F-05: LINE customers list が Preload 付き unbounded — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/line_customer_repository.go:30`、`backend/internal/lstep/line_customer_handler.go:30`
 - 内容: ページネーション無し全件 + Owner Preload。
 - 修正: ParsePaginationWithMax。
 
+- round2-review(2026-07-28): **REFRAMED** — 反証: 単一 Find+Preload で N+1 ではない（`line_customer_repository.go:30-39`）。ページネーション欠落の API 契約問題。
 #### G2F-06: shared files list/cleanup が unbounded + per-row delete — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/lstep/shared_file_repository.go:50`、`backend/internal/lstep/shared_file_service.go:162`
 - 内容: FindAll/FindExpired 無 Limit。cleanup 1 件ずつ。
 - 修正: list limit、cleanup batch。
 
+- round2-review(2026-07-28): **REFRAMED** — 反証: FindAll 無 Limit は成立。per-row delete は storage+DB 対の意図的逐次処理でもある。N+1 SELECT ではない。
 #### G2F-07: 管理画面予約月次/顧客履歴が hard cap 無し — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/reservation/appointment_admin_repository.go:37`、`backend/internal/reservation/appointment_admin_repository.go:106`
 - 内容: 月次は日付範囲のみ、顧客履歴は生涯件数。
 - 修正: 履歴 page、月次 safety cap。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: 月次は calendar bound（`FindAllByMonth`）。生涯履歴のみ soft unbounded。:67「unbounded」は月次に過大。
 #### G2F-08: no-show 候補 unbounded + per-row WithTx — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/reservation/reservation_repository.go:689`、`backend/internal/lstep/lstep_batch_noshow.go:88`
 - 内容: 候補 Limit 無し。各候補で tx+audit。
 - 修正: LIMIT/cursor + batch size。
 
+- round2-review(2026-07-28): **REFRAMED** — 反証: per-row WithTx は audit fail-closed の正しさ要件。N+1 欠陥ではない。候補 LIMIT 欠落のみ残す。
 #### G2F-09: レジ締め詳細が completed billings 全行 Scan — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/billing/accounting_repository_reports_close.go:135`、`backend/internal/billing/accounting_repository_reports_close.go:183`
 - 内容: 日次 detail dump が unbounded（busy day リスク）。※当該 file は dirty 並行編集中。
 - 修正: optional/paginated detail。
 
+- round2-review(2026-07-28): **DOWNGRADED** (MEDIUM→LOW) — 反証: 締め期間で bound された単一 Raw SQL。ループは in-memory map のみ（`accounting_repository_reports_close.go:140-186`）。lifetime unbounded ではない。
 #### G2F-10: shift_entry list が year_month 未指定で全件 — MEDIUM
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/staff/shift_entry_repository.go:70`、`backend/internal/staff/shift_entry_service.go:114`
 - 内容: year_month 省略で全 shift_entries + Preload。
 - 修正: required または当月 default。
 
+- round2-review(2026-07-28): **REFRAMED** — 反証: year_month 空で date filter 省略は構造的（`shift_entry_repository.go:70-87`）。:67 実測なし。API 契約（必須 or 当月 default）問題。
 #### G2F-11: 一部 master FindAll に MaxMasterListRows 未適用 — LOW
 - 区分: 新規
-- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」
+- 規約: `.claude/refs/go-gin-backend-review.md:67` 「N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。」— **本所見は EXPLAIN 未実施の構造導出**であり、:67 の「実測に基づく改善」完了判定には使えない。改善優先度確定には要実測。
 - 対象: `backend/internal/medicalrecord/consultation_repository.go:37`、`backend/internal/medicalrecord/exam_type_repository.go:46`、`backend/internal/inventory/merchandise_item_repository.go:32`
 - 内容: vaccine/procedure のみ cap。他 master は safety Limit 不整合。
 - 修正: master list 一律 Limit。
@@ -1606,4 +1641,68 @@
 | 新規所見 | **40**（G2A 7 + G2B 5 + G2C 8 + G2P 3 + G2T 2 + G2F 11 + 調整）※G2T-01 は既知扱いのため未採番新規から除外 |
 | 新規 CRITICAL | 0 |
 | 新規 HIGH | 9（G2A-01, G2B-01, G2F-01..04 ほか） |
+
+- round2-review(2026-07-28): **DOWNGRADED** (LOW→nit) — 反証: master は小 cardinality。MaxMasterListRows 不整合は一貫性の話で measured unbounded ではない。
+
+---
+
+## round 2 是正（2026-07-28）— false positive 除去・規約適用性・畳み込み
+
+### 測定基準
+- HEAD at write: 実行セッションの `git rev-parse HEAD`（Phase 0 スナップショット相対）
+- 対象: round 2 新規 36 所見（G2*）+ 横断パターン表 + 決裁コメント突合
+- 方針: **却下バイアス**。迷ったら UPHELD ではなく WITHDRAWN/DOWNGRADED/REFRAMED
+
+### 36 所見 判定サマリー
+
+| 判定 | 件数 | IDs |
+|---|---:|---|
+| UPHELD | 3 | G2C-04, G2P-02, G2P-03 |
+| WITHDRAWN | 15 | G2A-02, G2A-03, G2A-04, G2A-06, G2A-07, G2B-04, G2B-05, G2C-03, G2C-05, G2C-06, G2C-07, G2C-08, G2P-01, G2T-02, G2T-03 |
+| DOWNGRADED | 10 | G2A-01, G2A-05, G2B-01, G2B-02, G2C-01, G2C-02, G2F-03, G2F-07, G2F-09, G2F-11 |
+| REFRAMED | 8 | G2B-03, G2F-01, G2F-02, G2F-04, G2F-05, G2F-06, G2F-08, G2F-10 |
+
+※ G2F 11 件はすべて `:67` の「実測と query plan」を**未充足**と判定し、構造導出・要実測を明示（REFRAMED または DOWNGRADED）。測定済み :67 充足として UPHELD した G2F は **0**。
+
+### 規約引用の適用性（母数 36 / 実施 36）
+
+| 結果 | 件数 | 処理 |
+|---|---:|---|
+| 適用可のまま | 多数 | 変更なし |
+| 差し替え | 数件 | G2B-03→CODING_RULES:36; G2C-04→guidelines:154 + error-handling:29; G2T-02/03 撤回; G2F-* に要実測 caveat |
+| 出典なしルール除去 | 3 | G2T-02「interface 最小化」; G2T-03「test 側対偶」; G2C-04「Gin運用」無 path |
+
+`grep '^- 規約:' BE-refactor.md | grep -vc ':[0-9]'` 目標: 0（撤回表記の括弧書きを除く）。
+
+### error-handling.md:9 過剰適用
+- **差し替え/撤回**: G2A-04（RowsAffected→非適用）, G2T-02, G2T-03, G2C-08 系は依存欠落, G2C-03 は意図的 best-effort で WITHDRAWN
+- **正当利用として残る例**: G2A-06 は WITHDRAWN（意図的 recovery）, G2B-01 は DOWNGRADED（best-effort と両立）
+
+### 決裁済み設計判断の走査
+- コマンド: `rg -n 'PO判断|ADR-|当面実装しない|意図的に' backend/internal --glob '*.go' --glob '!*_test.go'`
+- ヒット: **52**
+- 所見 `対象:` と同一ファイル±30〜40行で重なった件数: **9 近傍ヒット**（実質的に決裁が欠陥主張を覆すのは **G2T-02 のみ**）
+- **G2T-02**: 区分 **決裁済み** + WITHDRAWN（production 欠陥 framing 取消）
+- 他近傍（MRA-01, MRA-04, RSV-08, AUS-05, MDL-01/02/06 等）: **決裁と無関係**（ADR package 境界や別フィールドの PO）
+
+### 横断パターン表の更新（fold 実反映）
+- X-02: 除去 MDL-04, POC-14; 追加 TRM-03（兼 X-07）
+- X-04: 追加 LSB-02; 注記 LSA-02/LSB-01 は非 X-04
+- X-05: 追加 POC-06, LSA-15
+- X-07: TRM-03 兼 X-02
+- X-08: 除去 LSB-05（正本 LSA-08）
+- X-09: 追加 POC-14
+- サマリー L43 の X-04 誤配置文言を修正
+
+### G2F 11 件の根拠条項処理
+| 処理 | IDs |
+|---|---|
+| REFRAMED（構造維持+要実測） | G2F-01,02,04,05,06,08,10 |
+| DOWNGRADED | G2F-03 (HIGH→MED), G2F-07 (→LOW), G2F-09 (→LOW), G2F-11 (→nit) |
+| :67 を測定済み根拠として UPHELD | **0** |
+
+### New Work Surfaced（scope 外・文書に新規 G2 として追加しない）
+1. G2P-01 の count→delete TOCTOU は工学的に妥当だが CODING_RULES:38 字面外。規約疑義 #27 の成文化後に再起票可。
+2. G2C-03 / G2B-01 系 best-effort を CODING_RULES:36 の「補償必須」に照らした製品契約の明文化。
+3. AUS-04（shift_template CountUsage）は PO ではない compatibility stub — 既存 AUS-04 のまま。
 
