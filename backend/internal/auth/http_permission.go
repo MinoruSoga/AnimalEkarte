@@ -13,11 +13,12 @@ import (
 )
 
 // HasPermission evaluates one resource/action pair against authenticated context.
+// Context peeks never write a response (AUS-09); RequirePermission owns the single write.
 func (h *HTTPHandler) HasPermission(
 	c *gin.Context,
 	resource, action string,
 ) bool {
-	isSystemAdmin, ok := httpapi.ExtractIsSystemAdmin(c)
+	isSystemAdmin, ok := httpapi.PeekIsSystemAdmin(c)
 	if !ok {
 		return false
 	}
@@ -25,11 +26,11 @@ func (h *HTTPHandler) HasPermission(
 		return true
 	}
 
-	staffID, ok := httpapi.ExtractStaffID(c)
+	staffID, ok := httpapi.PeekStaffID(c)
 	if !ok {
 		return false
 	}
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := httpapi.PeekClinicID(c)
 	if !ok || h.deps.EffectivePermissions == nil {
 		return false
 	}

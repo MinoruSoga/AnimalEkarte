@@ -58,19 +58,52 @@ func ExtractStaffID(c *gin.Context) (uint64, bool) {
 // OptionalStaffID はJWT認証済みコンテキストから user_id を取得する。
 // 存在しない場合はエラーを書かずに nil を返す。監査ログ等のオプショナルな actor 取得に使用する。
 func OptionalStaffID(c *gin.Context) *uint64 {
-	val, exists := c.Get("user_id")
-	if !exists {
-		return nil
-	}
-	s, ok := val.(string)
+	id, ok := PeekStaffID(c)
 	if !ok {
 		return nil
 	}
+	return &id
+}
+
+// peekContextUint64 はコンテキスト値を読むだけで HTTP レスポンスを書かない。
+// 権限判定など「後続が1回だけ RespondError する」経路で Extract* の二重書き込みを防ぐ (AUS-09 / X-10)。
+func peekContextUint64(c *gin.Context, key string) (uint64, bool) {
+	val, exists := c.Get(key)
+	if !exists {
+		return 0, false
+	}
+	s, ok := val.(string)
+	if !ok {
+		return 0, false
+	}
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return nil
+		return 0, false
 	}
-	return &id
+	return id, true
+}
+
+// PeekStaffID は user_id を読むだけでレスポンスを書かない。
+func PeekStaffID(c *gin.Context) (uint64, bool) {
+	return peekContextUint64(c, "user_id")
+}
+
+// PeekClinicID は clinic_id を読むだけでレスポンスを書かない。
+func PeekClinicID(c *gin.Context) (uint64, bool) {
+	return peekContextUint64(c, "clinic_id")
+}
+
+// PeekIsSystemAdmin は is_system_admin を読むだけでレスポンスを書かない。
+func PeekIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
+	val, exists := c.Get("is_system_admin")
+	if !exists {
+		return false, false
+	}
+	isAdmin, ok := val.(bool)
+	if !ok {
+		return false, false
+	}
+	return isAdmin, true
 }
 
 // ExtractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。

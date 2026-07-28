@@ -207,7 +207,8 @@ func (h *HTTPHandler) CalculateEffectivePermissions(
 		)
 	}
 
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	// Peek only: caller (GetMe/Login) owns the success response; do not write an error body here (AUS-09).
+	clinicID, ok := httpapi.PeekClinicID(c)
 	if !ok {
 		slog.ErrorContext(
 			c.Request.Context(),

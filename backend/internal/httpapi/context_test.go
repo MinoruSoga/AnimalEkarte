@@ -99,6 +99,37 @@ func TestExtractClinicID(t *testing.T) {
 	}
 }
 
+func TestPeekContextHelpersDoNotWriteResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+
+	_, ok := PeekStaffID(c)
+	assert.False(t, ok)
+	_, ok = PeekClinicID(c)
+	assert.False(t, ok)
+	_, ok = PeekIsSystemAdmin(c)
+	assert.False(t, ok)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, w.Body.String())
+	assert.False(t, c.Writer.Written())
+
+	c.Set("user_id", "9")
+	c.Set("clinic_id", "11")
+	c.Set("is_system_admin", true)
+	staffID, ok := PeekStaffID(c)
+	assert.True(t, ok)
+	assert.Equal(t, uint64(9), staffID)
+	clinicID, ok := PeekClinicID(c)
+	assert.True(t, ok)
+	assert.Equal(t, uint64(11), clinicID)
+	isAdmin, ok := PeekIsSystemAdmin(c)
+	assert.True(t, ok)
+	assert.True(t, isAdmin)
+	assert.False(t, c.Writer.Written())
+}
+
 func TestAuthorizeClinicIDs_SystemAdminUsesTrustedActiveClinicScope(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

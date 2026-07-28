@@ -51,3 +51,25 @@ func TestHTTPHandler_HasPermission_SystemAdminBypassesRepository(t *testing.T) {
 
 	assert.True(t, handler.HasPermission(c, "any-resource", "any-action"))
 }
+
+// TestHTTPHandler_HasPermission_MissingContextDoesNotWriteResponse は AUS-09:
+// Extract* 相当の欠落時に HasPermission がレスポンスを書かず、RequirePermission が1回だけ 403 を書く。
+func TestHTTPHandler_HasPermission_MissingContextDoesNotWriteResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{}, CookieConfigForProduction(false))
+
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	// intentionally no is_system_admin / user_id / clinic_id
+
+	assert.False(t, handler.HasPermission(c, "owners", "view"))
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.Empty(t, response.Body.String())
+	assert.False(t, c.Writer.Written())
+
+	handler.RequirePermission("owners", "view")(c)
+	assert.Equal(t, http.StatusForbidden, response.Code)
+	assert.Contains(t, response.Body.String(), "forbidden")
+	assert.True(t, c.IsAborted())
+}
