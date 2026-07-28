@@ -854,11 +854,14 @@ func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing
 
 // Q7: キャンセル(status=cancelled)への更新時は repo.Delete でソフトデリートし、
 // 予約管理(FindAll の deleted_at IS NULL)から除外されることを保証する。
+// RSV-06: status 更新と soft delete は同一 WithTx 内で原子的に行う。
 func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
 	statusCancelled := model.ReservationStatusCancelled
 	deleteCalled := false
+	updateCalled := false
 	repo := &mockReservationRepository{
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
 			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCancelled}, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -866,13 +869,39 @@ func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
 
 	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCancelled})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, reservation)
+	assert.True(t, updateCalled, "キャンセル時は status 更新が行われるべき")
 	assert.True(t, deleteCalled, "キャンセル時は repo.Delete でソフトデリートされるべき")
+}
+
+// RSV-06: soft-delete 失敗時に status=cancelled だけの部分成功を残さない（同一 tx で rollback）。
+func TestReservationService_Update_CancelRollsBackWhenDeleteFails(t *testing.T) {
+	statusCancelled := model.ReservationStatusCancelled
+	updateCalled := false
+	repo := &mockReservationRepository{
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCancelled}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("forced soft-delete failure")
+		},
+	}
+	// mockTransactor runs fn without DB; service still requires non-nil tx and sequences update+delete.
+	// Real atomicity is covered by repo DBOrTx + service WithTx structure; this asserts delete error propagates.
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCancelled})
+
+	assert.Error(t, err)
+	assert.Nil(t, reservation)
+	assert.True(t, updateCalled, "update is attempted before delete in the same tx callback")
+	assert.Contains(t, err.Error(), "soft-delete")
 }
 
 // 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in への遷移時に checked_in_at が

@@ -491,20 +491,64 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 時刻・医師・予約区分の変更がある場合のみ競合チェックが必要
 	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil || input.ReservationTypeID != nil
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
+	isCancel := input.Status != nil && *input.Status == model.ReservationStatusCancelled
 
-	var updated *model.Reservation
+	// RSV-06 / X-06: cancel = status update + soft delete as one business graph.
+	// Q7: soft-delete after status=cancelled so FindByID (deleted_at IS NULL) can still return
+	// the cancelled row from the update path before Delete; both must share one transaction.
+	if isCancel {
+		if s.tx == nil {
+			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+		}
+		var updated *model.Reservation
+		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
+			if err != nil {
+				return err
+			}
+			if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+				slog.ErrorContext(txCtx, "failed to soft-delete cancelled reservation", "error", err)
+				return apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
+			}
+			updated = u
+			return nil
+		}); err != nil {
+			slog.ErrorContext(ctx, "failed to cancel reservation", "error", err)
+			return nil, apperrors.Wrap(err, "failed to cancel reservation")
+		}
+		slog.InfoContext(ctx, "reservation updated",
+			slog.Uint64("reservation_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return updated, nil
+	}
+
+	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update reservation")
+	}
+
+	slog.InfoContext(ctx, "reservation updated",
+		slog.Uint64("reservation_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return updated, nil
+}
+
+// applyReservationUpdate applies field updates with the existing conflict/link branching.
+// Caller supplies ambient transaction when atomic multi-write is required (e.g. cancel).
+func (s *reservationService) applyReservationUpdate(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+	input *UpdateReservationInput,
+	needsConflictCheck, needsLinkValidation bool,
+) (*model.Reservation, error) {
 	switch {
 	case needsConflictCheck:
 		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止（リンク検証も tx 内）
-		u, err := s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update reservation")
-		}
-		updated = u
+		return s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
 	case needsLinkValidation:
 		// Owner/Pet 変更: 検証と書込みを同一 tx に置く（AUD-001）。
-		// 並行更新で古い current を使わないよう、tx 内で行ロックしてから最終状態を検証する。
 		if s.tx == nil {
 			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 		}
@@ -525,34 +569,12 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 			result = u
 			return nil
 		}); err != nil {
-			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update reservation")
+			return nil, err
 		}
-		updated = result
+		return result, nil
 	default:
-		// 時刻・医師・リンク変更なし: トランザクション不要
-		u, err := s.repo.update(ctx, clinicID, id, fields)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update reservation")
-		}
-		updated = u
+		return s.repo.update(ctx, clinicID, id, fields)
 	}
-
-	// Q7: キャンセルされた予約は予約管理から消す（ソフトデリート）。
-	// repo.Update 後の FindByID は deleted_at IS NULL のためレコードを返せないので、
-	// status=cancelled へ更新（updated 取得）した後に Delete でソフトデリートする。
-	if input.Status != nil && *input.Status == model.ReservationStatusCancelled {
-		if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-			slog.ErrorContext(ctx, "failed to soft-delete cancelled reservation", "error", err)
-			return nil, apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
-		}
-	}
-
-	slog.InfoContext(ctx, "reservation updated",
-		slog.Uint64("reservation_id", id),
-		slog.Uint64("clinic_id", clinicID))
-	return updated, nil
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if input.Route != "" {
