@@ -33,7 +33,7 @@ func TestHandler_RegisterRoutesPinsAllLegacyRoutesAndPermissions(t *testing.T) {
 
 	handler.RegisterRoutes(protected)
 
-	expected := []routePermissionTuple{
+	expectedPermissions := []routePermissionTuple{
 		{Method: "GET", Path: "/api/v1/masters/staffs", Resource: string(model.ResourceMasterStaff), Action: "view"},
 		{Method: "POST", Path: "/api/v1/masters/staffs", Resource: string(model.ResourceMasterStaff), Action: "create"},
 		{Method: "PATCH", Path: "/api/v1/masters/staffs/reorder", Resource: string(model.ResourceMasterStaff), Action: "edit"},
@@ -42,6 +42,7 @@ func TestHandler_RegisterRoutesPinsAllLegacyRoutesAndPermissions(t *testing.T) {
 		{Method: "DELETE", Path: "/api/v1/masters/staffs/:id", Resource: string(model.ResourceMasterStaff), Action: "delete"},
 		{Method: "GET", Path: "/api/v1/masters/staffs/:id/permission-groups", Resource: string(model.ResourceMasterStaff), Action: "view"},
 		{Method: "PUT", Path: "/api/v1/masters/staffs/:id/permission-groups", Resource: string(model.ResourceMasterStaff), Action: "edit"},
+		{Method: "PUT", Path: "/api/v1/masters/staffs/:id/permission-groups", Resource: string(model.ResourceMasterPermission), Action: "edit"},
 		{Method: "GET", Path: "/api/v1/masters/staffs/:id/clinics", Resource: string(model.ResourceMasterStaff), Action: "view"},
 		{Method: "PUT", Path: "/api/v1/masters/staffs/:id/clinics", Resource: string(model.ResourceMasterStaff), Action: "edit"},
 		{Method: "GET", Path: "/api/v1/masters/staffs/:id/excluded-reservation-types", Resource: string(model.ResourceMasterStaff), Action: "view"},
@@ -67,19 +68,23 @@ func TestHandler_RegisterRoutesPinsAllLegacyRoutesAndPermissions(t *testing.T) {
 		{Method: "DELETE", Path: "/api/v1/shift-templates/:id", Resource: string(model.ResourceShifts), Action: "delete"},
 	}
 
-	require.Len(t, permissionCalls, len(expected))
-	for index := range expected {
-		assert.Equal(t, expected[index].Resource, permissionCalls[index].Resource)
-		assert.Equal(t, expected[index].Action, permissionCalls[index].Action)
+	require.Len(t, permissionCalls, len(expectedPermissions))
+	for index := range expectedPermissions {
+		assert.Equal(t, expectedPermissions[index].Resource, permissionCalls[index].Resource)
+		assert.Equal(t, expectedPermissions[index].Action, permissionCalls[index].Action)
 	}
 
 	gotRoutes := make([]string, 0, len(router.Routes()))
 	for _, route := range router.Routes() {
 		gotRoutes = append(gotRoutes, route.Method+" "+route.Path)
 	}
-	wantRoutes := make([]string, 0, len(expected))
-	for _, tuple := range expected {
-		wantRoutes = append(wantRoutes, tuple.Method+" "+tuple.Path)
+	wantRouteSet := make(map[string]struct{}, len(expectedPermissions))
+	for _, tuple := range expectedPermissions {
+		wantRouteSet[tuple.Method+" "+tuple.Path] = struct{}{}
+	}
+	wantRoutes := make([]string, 0, len(wantRouteSet))
+	for route := range wantRouteSet {
+		wantRoutes = append(wantRoutes, route)
 	}
 	sort.Strings(gotRoutes)
 	sort.Strings(wantRoutes)

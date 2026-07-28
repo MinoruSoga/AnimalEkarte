@@ -1439,7 +1439,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 						{Method: "電子マネー", Total: 2000},
 					},
 					CategoryTotals: []CategoryTotal{
-						{Category: "診察", Total: 10000},
+						{Category: string(model.ItemCategoryExamination), Total: 10000},
 					},
 					BillingCount: 3,
 					GrandTotal:   10000,
@@ -1454,7 +1454,7 @@ func TestAccountingService_GetDailySummary(t *testing.T) {
 				assert.Equal(t, "電子マネー", got.PaymentTotals[2].Method)
 				assert.Equal(t, int64(2000), got.PaymentTotals[2].Total)
 				assert.Len(t, got.CategoryTotals, 1)
-				assert.Equal(t, "診察", got.CategoryTotals[0].Category)
+				assert.Equal(t, string(model.ItemCategoryExamination), got.CategoryTotals[0].Category)
 				assert.Equal(t, int64(10000), got.CategoryTotals[0].Total)
 				assert.Equal(t, int64(3), got.BillingCount)
 				assert.Equal(t, int64(10000), got.GrandTotal)

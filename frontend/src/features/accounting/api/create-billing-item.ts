@@ -14,6 +14,7 @@ export interface CreateBillingItemRequest {
   is_insurance_applicable: boolean;
   source: string;
   merchandise_item_id?: number;
+  vaccination_id?: number;
   treatment_id?: number;
   appointment_id?: number;
   trimming_course_id?: number;

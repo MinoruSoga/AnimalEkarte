@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
@@ -21,7 +21,6 @@ import {
   useCreatePermissionGroup,
   useUpdatePermissionGroup,
   useDeletePermissionGroup,
-  useUpdatePermissionGroupRules,
   useReorderPermissionGroups,
   type PermissionGroup,
   type CreatePermissionGroupRequest,
@@ -29,7 +28,6 @@ import {
 } from "../api/permission-groups";
 import {
   buildPermissionGroupCreateRequest,
-  buildPermissionGroupRulesRequest,
   buildPermissionGroupUpdateRequest,
 } from "./permission-group-settings-model";
 import { ResourceMasterPermission } from "@/types/generated/models";
@@ -44,11 +42,21 @@ const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
 
 export function PermissionGroupSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterPermission);
+  const permissionsRef = useRef({
+    canCreate: canCreate === true,
+    canEdit: canEdit === true,
+  });
+  useLayoutEffect(() => {
+    permissionsRef.current = {
+      canCreate: canCreate === true,
+      canEdit: canEdit === true,
+    };
+  }, [canCreate, canEdit]);
+
   const { data } = useGetPermissionGroups();
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
   const deleteMutation = useDeletePermissionGroup();
-  const updateRulesMutation = useUpdatePermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
   const dirty = useSidePeekDirty();
@@ -77,11 +85,10 @@ export function PermissionGroupSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
-      if (!canEdit) return;
+      if (permissionsRef.current.canEdit !== true) return;
       reorderMutation.mutate(newIds);
     },
   });
-
   const { handleSave } = useMasterSave<
     PermissionGroup,
     PermissionGroupFormData,
@@ -99,14 +106,7 @@ export function PermissionGroupSettings() {
     },
     toCreateRequest: buildPermissionGroupCreateRequest,
     toUpdateRequest: buildPermissionGroupUpdateRequest,
-    onSuccess: async (saved, formData) => {
-      if (formData.rules.length > 0) {
-        await updateRulesMutation.mutateAsync({
-          id: saved.id,
-          req: buildPermissionGroupRulesRequest(formData),
-        });
-      }
-    },
+    closeOnSuccess: false,
   });
 
   return (
@@ -122,12 +122,13 @@ export function PermissionGroupSettings() {
       columns={PERMISSION_GROUP_COLUMNS}
       filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
       renderRow={() => null}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
+      renderSidePanel={({ item, onClose, onDeleteRequest, readOnly }) => (
         <PermissionGroupSidePanel
           key={item?.id ?? "new"}
           item={item}
           onClose={onClose}
-          onSave={onSave}
+          onSave={handleSave}
+          onSaveSuccess={() => crud.setEditTarget(null)}
           onDeleteRequest={onDeleteRequest}
           readOnly={readOnly}
           onDirtyChange={handleDirtyChange}

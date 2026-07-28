@@ -22,6 +22,7 @@ interface ExamItemFixture {
   reference_value: string;
   ref_min: number | null;
   ref_max: number | null;
+  is_assessed?: boolean;
   is_abnormal: boolean;
   status: "normal" | "high" | "low";
   sort_order: number;
@@ -105,6 +106,7 @@ describe("ExamPivotTable", () => {
             exam_id: 2,
             exam_type_field_id: 100,
             inspection_value: "120",
+            is_assessed: false,
             status: "high",
             is_abnormal: true,
           }),
@@ -123,6 +125,7 @@ describe("ExamPivotTable", () => {
             exam_id: 1,
             exam_type_field_id: 100,
             inspection_value: "60",
+            is_assessed: false,
             status: "low",
             is_abnormal: true,
           }),
@@ -146,9 +149,51 @@ describe("ExamPivotTable", () => {
     );
     expect(within(gluRow).getByText("HIGH")).toBeInTheDocument();
     expect(within(gluRow).getByText("LOW")).toBeInTheDocument();
+    expect(within(gluRow).queryByText("未判定")).not.toBeInTheDocument();
 
     const altRow = screen.getByRole("row", { name: /ALT.*40.*-/ });
     expect(within(altRow).getByText("-")).toBeInTheDocument();
+  });
+
+  it("未評価のnormal cellに「未判定」cueを表示する", async () => {
+    renderPivot(
+      [makeExamination("1", "2026-07-20")],
+      {
+        "1": [makeItem({ is_assessed: false })],
+      },
+    );
+
+    const row = await screen.findByRole("row", { name: /GLU.*95/ });
+    expect(within(row).getByText("未判定")).toBeInTheDocument();
+    expect(
+      within(row).getByText("（基準値未設定のため判定していない）"),
+    ).toHaveClass("sr-only");
+  });
+
+  it("評価済みnormal cellに「未判定」を表示しない", async () => {
+    renderPivot(
+      [makeExamination("1", "2026-07-20")],
+      {
+        "1": [makeItem({ is_assessed: true })],
+      },
+    );
+
+    const row = await screen.findByRole("row", { name: /GLU.*95/ });
+    expect(within(row).queryByText("未判定")).not.toBeInTheDocument();
+  });
+
+  it("評価情報未指定のnormal cellは現行どおりbadge無しで表示する", async () => {
+    renderPivot(
+      [makeExamination("1", "2026-07-20")],
+      {
+        "1": [makeItem()],
+      },
+    );
+
+    const row = await screen.findByRole("row", { name: /GLU.*95/ });
+    expect(within(row).queryByText("未判定")).not.toBeInTheDocument();
+    expect(within(row).queryByText("HIGH")).not.toBeInTheDocument();
+    expect(within(row).queryByText("LOW")).not.toBeInTheDocument();
   });
 
   it("同一検査内でlegacy表示キーが衝突しても行を失わない", async () => {

@@ -194,6 +194,56 @@ func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id ui
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if !s.deleteGuardEnabled {
+		return s.deleteWithoutPetOwnerGuard(ctx, clinicID, id)
+	}
+	if s.deleteLocker == nil || s.petOwnerCounter == nil || s.deleteTransactor == nil {
+		return apperrors.WrapInternalServerError("owner delete guard dependencies are not configured")
+	}
+
+	err := s.deleteTransactor.WithTx(ctx, func(txCtx context.Context) error {
+		lockedOwner, err := s.deleteLocker.LockForDelete(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to find owner")
+		}
+		if lockedOwner == nil {
+			return apperrors.WrapInternalServerError("owner delete lock returned no owner")
+		}
+
+		petCount, err := s.repo.CountPetsByOwnerID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check pet dependencies")
+		}
+		if petCount > 0 {
+			return apperrors.WrapConflict("ペットが紐付いているため削除できません。先にペットを削除してください")
+		}
+
+		petOwnerCount, err := s.petOwnerCounter.CountByOwnerID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check pet owner dependencies")
+		}
+		if petOwnerCount > 0 {
+			return apperrors.WrapConflict("副飼主として紐付いているため削除できません。先に紐付けを解除してください")
+		}
+
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete owner")
+		}
+		return nil
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to delete owner", "error", err, "id", id, "clinic_id", clinicID)
+		return err
+	}
+	slog.InfoContext(ctx, "owner deleted",
+		slog.Uint64("owner_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
+}
+
+// deleteWithoutPetOwnerGuard preserves the existing four-argument constructor
+// contract. Production composition uses NewServiceWithPetOwnerDeleteGuard.
+func (s *ownerService) deleteWithoutPetOwnerGuard(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
 	}

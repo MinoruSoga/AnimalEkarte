@@ -29,11 +29,16 @@ func NewAppointmentTrimmingDetailRepository(db *gorm.DB) AppointmentTrimmingDeta
 
 func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
 	var detail model.AppointmentTrimmingDetail
+	// Parent appointments clinic correlation (SEC-SWEEP-02-TRIM-B1): child clinic alone
+	// is insufficient when appointment_id is a corrupt cross-tenant FK.
+	// Qualify appointment_trimming_details.clinic_id (not ClinicScope) so JOIN appointments
+	// does not make the bare clinic_id predicate ambiguous. No appointments.deleted_at
+	// filter — matches MR-B1 appointments-parent pattern (clinic correlation only).
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
+		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
 		Preload("Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("appointment_id = ?", appointmentID).
+		Where("appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.appointment_id = ?", clinicID, appointmentID).
 		First(&detail).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
@@ -91,8 +96,11 @@ func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, cl
 		// 呼び出し元（trimming_service.go / liff_service_reservations.go）は appointmentID を
 		// 事前に clinic 検証済みだが、repository 層でも再検証し fail-closed にする。
 		var detail model.AppointmentTrimmingDetail
-		if err := tx.Select("id", "appointment_id").
-			Where("appointment_id = ? AND clinic_id = ?", appointmentID, clinicID).
+		// Parent appointments clinic correlation (SEC-SWEEP-02-TRIM-B1) on target-row
+		// lookup only — Clear/Replace write semantics are unchanged.
+		if err := tx.Select("appointment_trimming_details.id", "appointment_trimming_details.appointment_id").
+			Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
+			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ?", appointmentID, clinicID).
 			First(&detail).Error; err != nil {
 			return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}

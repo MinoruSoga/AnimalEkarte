@@ -4,7 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import { ExaminationFormFields } from "./ExaminationFormFields";
 
 describe("ExaminationFormFields", () => {
-  function renderFields({ isEdit = false }: { isEdit?: boolean } = {}) {
+  function renderFields({
+    isEdit = false,
+    canCreate = true,
+    canEdit = true,
+  }: {
+    isEdit?: boolean;
+    canCreate?: boolean;
+    canEdit?: boolean;
+  } = {}) {
     return render(
       <MemoryRouter>
         <ExaminationFormFields
@@ -15,8 +23,8 @@ describe("ExaminationFormFields", () => {
           isEdit={isEdit}
           isDeleting={false}
           isConfirmed={false}
-          canEdit
-          canCreate
+          canEdit={canEdit}
+          canCreate={canCreate}
           canDelete
           onSetFormData={vi.fn()}
           onBack={vi.fn()}
@@ -52,5 +60,17 @@ describe("ExaminationFormFields", () => {
       expect(button).toHaveClass("h-11", "min-h-11");
       expect(button).not.toHaveClass("h-10");
     }
+  });
+
+  it("新規作成は作成権限があっても編集権限なしなら保存buttonを表示しない", () => {
+    renderFields({ canCreate: true, canEdit: false });
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("編集は作成権限なしでも編集権限があれば保存buttonを表示する", () => {
+    renderFields({ isEdit: true, canCreate: false, canEdit: true });
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 });

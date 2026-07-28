@@ -89,7 +89,7 @@ const StepIndicator = memo(function StepIndicator({
     <div className={`flex items-center gap-1.5 text-xs ${active ? C.textBrand : C.text30}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold transition-colors ${
-          active ? `${C.bgBrand} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
+          active ? `${C.bgBrand} ${C.textOnBrand}` : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -135,7 +135,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("existing")}
             data-testid="mode-existing"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
             <Users size={12} className="inline mr-1" />既存飼主
           </button>
@@ -143,7 +143,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("new")}
             data-testid="mode-new"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
             <UserPlus size={12} className="inline mr-1" />新規飼主
           </button>
@@ -378,7 +378,7 @@ export function ReservationModalFooter({
         {canSave ? (
           <Button
             onClick={onSave}
-            className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-10 text-sm rounded-full min-w-[100px]`}
+            className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
           >
             {isEditMode ? "更新する" : "予約を確定"}
           </Button>

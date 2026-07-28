@@ -48,6 +48,9 @@ var medicalRecordSortColumns = map[string]string{
 type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
 	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
+	// AcquireAutoCreateLock は予約由来の同日同ペット自動生成を clinic/pet/JST日単位で直列化する。
+	// 呼び出し元の ambient transaction が終了するまで PostgreSQL advisory lock を保持する。
+	AcquireAutoCreateLock(ctx context.Context, clinicID, petID uint64, date string) (bool, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	// FindByAppointmentID returns the one active medical record linked to an appointment.
 	// Not found is represented as (nil, nil); other read errors fail closed.
@@ -62,6 +65,7 @@ type MedicalRecordRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
+	CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
 	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
@@ -118,6 +122,25 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
+func (r *medicalRecordRepository) AcquireAutoCreateLock(
+	ctx context.Context,
+	clinicID, petID uint64,
+	date string,
+) (bool, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return false, apperrors.WrapInternalServerError("medical record auto-create lock requires an ambient transaction")
+	}
+	lockKey := fmt.Sprintf("medical-record-auto-create:%d:%d:%s", clinicID, petID, date)
+	var acquired bool
+	if err := persistence.DBOrTx(ctx, r.db).
+		Raw("SELECT pg_try_advisory_xact_lock(hashtextextended(?, 0))", lockKey).
+		Scan(&acquired).
+		Error; err != nil {
+		return false, apperrors.Wrap(err, "failed to acquire medical record auto-create lock")
+	}
+	return acquired, nil
+}
+
 func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
@@ -155,7 +178,18 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 			q = q.Where("medical_records.pet_id = ?", *filters.PetID)
 		}
 		if filters.OwnerID != nil {
-			q = q.Where("medical_records.owner_id = ?", *filters.OwnerID)
+			q = q.Where(`
+				EXISTS (
+					SELECT 1
+					FROM pets current_owner_pet
+					JOIN owners current_owner
+					  ON current_owner.id = current_owner_pet.owner_id
+					 AND current_owner.clinic_id = current_owner_pet.clinic_id
+					WHERE current_owner_pet.id = medical_records.pet_id
+					  AND current_owner_pet.clinic_id = medical_records.clinic_id
+					  AND current_owner.id = ?
+				)
+			`, *filters.OwnerID)
 		}
 		if filters.StartDate != nil {
 			q = q.Where("medical_records.date >= ?", *filters.StartDate)
@@ -173,13 +207,17 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
 		}
 		if filters.Search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化し、DB 列の translate() 正規化値と統一比較する（owner_repository.go と同型）。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			// raw name の同一表記一致は既存の trgm index を利用できる形で残し、
+			// translate() 枝では検索語と name/name_kana をひらがなに揃えて表記差も吸収する。
+			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
 			q = q.Where(
 				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\'`+
 					` OR EXISTS (`+
@@ -213,18 +251,20 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 					` AND searched_inventory.clinic_id = medical_records.clinic_id`+
 					` AND searched_inventory.deleted_at IS NULL`+
 					` AND translate(searched_inventory.name, ?, ?) ILIKE ? ESCAPE '\'))))`,
-				pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
+				normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 			)
 		}
 		return q
@@ -272,10 +312,6 @@ func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
 					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
 					WHERE scoped_pet.id = medical_records.pet_id
 					  AND scoped_pet.clinic_id = medical_records.clinic_id
-					  AND (
-						medical_records.owner_id IS NULL OR
-						scoped_pet.owner_id = medical_records.owner_id
-					  )
 				)
 			)
 			AND (
@@ -378,8 +414,11 @@ func (r *medicalRecordRepository) FindByAppointmentID(ctx context.Context, clini
 	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
+	// Parent appointments clinic correlation (SEC-SWEEP-02-MR-B1): child clinic alone
+	// is insufficient when appointment_id is a corrupt cross-tenant FK.
 	err := db.
-		Where("clinic_id = ? AND appointment_id = ? AND deleted_at IS NULL", clinicID, appointmentID).
+		Joins("JOIN appointments ON appointments.id = medical_records.appointment_id AND appointments.clinic_id = medical_records.clinic_id").
+		Where("medical_records.clinic_id = ? AND medical_records.appointment_id = ? AND medical_records.deleted_at IS NULL", clinicID, appointmentID).
 		Take(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
@@ -507,6 +546,19 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	return count, nil
 }
 
+func (r *medicalRecordRepository) CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.MedicalRecord{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("pet_id = ? AND date = ? AND deleted_at IS NULL", petID, date).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	return count, nil
+}
+
 // FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 // clinic スコープ + 論理削除除外で集計し、捏造せず実データの MIN(date) のみ返す。
 // カルテが存在しない場合は MIN が NULL となり nil, nil を返す。
@@ -532,7 +584,19 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
+		Where(`
+			deleted_at IS NULL
+			AND EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = medical_records.pet_id
+				  AND current_owner_pet.clinic_id = medical_records.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, ownerID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

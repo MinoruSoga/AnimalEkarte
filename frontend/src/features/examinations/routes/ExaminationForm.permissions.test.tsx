@@ -75,7 +75,7 @@ vi.mock("../components/ExamItemsTable", () => ({
 }));
 
 vi.mock("../components/ExaminationFormFields", () => ({
-  ExaminationFormFields: () => null,
+  ExaminationFormFields: () => <button type="submit">保存</button>,
 }));
 
 vi.mock("../components/ExaminationHistoryPanel", () => ({
@@ -148,6 +148,25 @@ describe("ExaminationForm — mutation permission wiring", () => {
         canDelete: true,
       },
     );
+  });
+
+  it("新規作成は作成権限があっても編集権限なしならフォームをdisabledにする", () => {
+    mocks.canCreate = true;
+    mocks.canEdit = false;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  });
+
+  it("編集は作成権限なしでも編集権限があればフォームを有効にする", () => {
+    mocks.id = "examination-1";
+    mocks.canCreate = false;
+    mocks.canEdit = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   });
 });
 

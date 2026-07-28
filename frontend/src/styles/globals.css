@@ -8,7 +8,10 @@
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;
-  --primary: #0075de;
+  --brand: #038b94;
+  --brand-active: #027078;
+  --primary: #038b94;
+  --primary-active: #027078;
   --primary-foreground: #ffffff;
   --secondary: #F1F0EE;
   --secondary-foreground: #000000;
@@ -24,7 +27,7 @@
   --switch-background: #E3E2E0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(0, 117, 222, 0.32);
+  --ring: #038b94;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -35,12 +38,12 @@
   --radius: 0.75rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #000000;
-  --sidebar-primary: #0075de;
+  --sidebar-primary: #038b94;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f6f5f4;
   --sidebar-accent-foreground: #000000;
   --sidebar-border: #e6e6e6;
-  --sidebar-ring: rgba(0, 117, 222, 0.32);
+  --sidebar-ring: #038b94;
 }
 
 .dark {
@@ -50,8 +53,11 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --brand: #038b94;
+  --brand-active: #027078;
+  --primary: #038b94;
+  --primary-active: #027078;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -62,7 +68,7 @@
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --ring: #038b94;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: oklch(0.488 0.243 264.376);
@@ -72,12 +78,12 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #038b94;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar-ring: #038b94;
 }
 
 @theme inline {
@@ -109,9 +115,11 @@
   --shadow-level2: 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05);
   --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
   --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
-  --shadow-focus-brand: 0 0 0 1px rgba(0,117,222,0.35);
+  --shadow-focus-primary: 0 0 0 2px #038b94;
+  --shadow-focus-brand: 0 0 0 2px #038b94;
   /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
-  --shadow-brand-glow: 0 0 8px rgba(0,117,222,0.5);
+  --shadow-brand-glow: 0 0 8px rgba(3,139,148,0.5);
+  --shadow-primary-glow: 0 0 8px rgba(3,139,148,0.5);
   --text-2xs: 0.75rem;  /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
   --text-2xs--line-height: 1.33;  /* DESIGN.md eyebrow 1.33（FE11: 製品値 1.45 を撤回） */
   --text-2xs--letter-spacing: 0.125px;  /* DESIGN.md eyebrow +0.125px（FE11: tracking-wide=+0.3px 代用を撤回） */
@@ -121,7 +129,10 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-brand: var(--brand);
+  --color-brand-active: var(--brand-active);
   --color-primary: var(--primary);
+  --color-primary-active: var(--primary-active);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -162,7 +173,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   html {

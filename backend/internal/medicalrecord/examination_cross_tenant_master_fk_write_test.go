@@ -75,4 +75,89 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 	})
 }
 
+func TestExaminationService_Create_RejectsCrossClinicExamTypeField(t *testing.T) {
+	const clinicID = uint64(1)
+	const examTypeID = uint64(10)
+	foreignFieldID := uint64(999)
+	replaced := false
+	repo := &mockExaminationRepository{
+		createFn: func(_ context.Context, exam *model.Examination) error {
+			exam.ID = 1
+			return nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaced = true
+			return nil, 0, nil
+		},
+	}
+	examTypeRepo := &mockExamTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+			return &model.ExaminationType{
+				ID:    id,
+				Items: []model.ExamTypeField{{ID: 100, ClinicID: clinicID}},
+			}, nil
+		},
+	}
+	svc := NewExaminationService(
+		repo,
+		&mockMedicalRecordRepository{},
+		examTypeRepo,
+		nil,
+		&mockCheckupTransactor{},
+	)
+	items := []UpsertExamItemInput{{ExamTypeFieldID: &foreignFieldID, Name: "foreign field"}}
+
+	out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
+		ExamTypeID: examTypeID,
+		Items:      &items,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.False(t, replaced, "foreign exam_type_field must be rejected before item persistence")
+}
+
+func TestExaminationService_Update_RejectsCrossClinicExamTypeField(t *testing.T) {
+	const clinicID = uint64(1)
+	const examTypeID = uint64(10)
+	foreignFieldID := uint64(999)
+	replaced := false
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{
+				ID:         id,
+				ClinicID:   clinicID,
+				ExamTypeID: examTypeID,
+				Status:     model.ExaminationStatusPending,
+			}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaced = true
+			return nil, 0, nil
+		},
+	}
+	examTypeRepo := &mockExamTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+			return &model.ExaminationType{
+				ID:    id,
+				Items: []model.ExamTypeField{{ID: 100, ClinicID: clinicID}},
+			}, nil
+		},
+	}
+	svc := NewExaminationService(
+		repo,
+		&mockMedicalRecordRepository{},
+		examTypeRepo,
+		nil,
+		&mockCheckupTransactor{},
+	)
+	items := []UpsertExamItemInput{{ExamTypeFieldID: &foreignFieldID, Name: "foreign field"}}
+
+	out, err := svc.Update(context.Background(), clinicID, 1, UpdateExaminationInput{Items: &items})
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.False(t, replaced, "foreign exam_type_field must be rejected before item persistence")
+}
+
 // ── checkup (MEDIUM, clinical screening record): checkup_type_id ──

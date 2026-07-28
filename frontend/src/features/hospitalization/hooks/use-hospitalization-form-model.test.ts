@@ -200,6 +200,22 @@ describe("hospitalization form model", () => {
       species: "合成動物種",
       breed: "合成監査品種",
       gender: "male",
+      status: "生存",
+    });
+  });
+
+  it("編集recordの死亡statusを選択petへ明示的に保持する", () => {
+    const pet = buildSelectedPetFromHospitalization({
+      ...hospitalizationWithPet,
+      pet: {
+        ...hospitalizationWithPet.pet,
+        status: "deceased",
+      },
+    });
+
+    expect(pet).toMatchObject({
+      id: "990003",
+      status: "死亡",
     });
   });
 

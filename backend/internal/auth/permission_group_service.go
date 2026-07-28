@@ -17,6 +17,7 @@ type CreatePermissionGroupInput struct {
 	Color       string
 	IsActive    bool
 	SortOrder   int
+	Rules       []SetPermissionGroupRulesInput
 }
 
 // UpdatePermissionGroupInput contains optional PATCH fields.
@@ -26,6 +27,7 @@ type UpdatePermissionGroupInput struct {
 	Color       *string
 	SortOrder   *int
 	IsActive    *bool
+	Rules       []SetPermissionGroupRulesInput
 }
 
 // SetPermissionGroupRulesInput is one replacement permission rule.
@@ -357,9 +359,31 @@ func (s *permissionGroupService) create(
 		IsActive:    input.IsActive,
 		SortOrder:   input.SortOrder,
 	}
-	if err := s.repo.Create(ctx, group); err != nil {
-		slog.ErrorContext(ctx, "failed to create permission group", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to create permission group")
+	if input.Rules == nil {
+		if err := s.repo.Create(ctx, group); err != nil {
+			slog.ErrorContext(ctx, "failed to create permission group", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to create permission group")
+		}
+	} else {
+		rules := permissionRuleModels(input.Rules)
+		if err := validateNoDuplicateRules(rules); err != nil {
+			return nil, err
+		}
+		writer, ok := s.repo.(PermissionGroupRulesAtomicWriter)
+		if !ok {
+			return nil, apperrors.WrapInternalServerError(
+				"atomic permission group rule writer is not configured",
+			)
+		}
+		var err error
+		group, err = writer.CreateWithRules(ctx, group, rules)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to create permission group with rules", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(
+				err,
+				"failed to create permission group with rules",
+			)
+		}
 	}
 	slog.InfoContext(ctx, "permission group created",
 		slog.Uint64("clinic_id", clinicID),
@@ -389,7 +413,13 @@ func (s *permissionGroupService) Update(
 			return oldErr
 		}
 		var updateErr error
-		result, updateErr = s.update(txCtx, clinicID, id, input)
+		result, updateErr = s.update(
+			txCtx,
+			clinicID,
+			id,
+			input,
+			audit.ActorStaffID,
+		)
 		if updateErr != nil {
 			return updateErr
 		}
@@ -416,6 +446,7 @@ func (s *permissionGroupService) update(
 	ctx context.Context,
 	clinicID, id uint64,
 	input *UpdatePermissionGroupInput,
+	actorStaffID uint64,
 ) (*model.PermissionGroup, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
@@ -428,10 +459,50 @@ func (s *permissionGroupService) update(
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	fields := buildPermissionGroupUpdate(input)
-	if len(fields) == 0 {
+	if len(fields) == 0 && input.Rules == nil {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	var result *model.PermissionGroup
+	var err error
+	if input.Rules == nil {
+		result, err = s.repo.Update(ctx, clinicID, id, fields)
+	} else {
+		rules := permissionRuleModels(input.Rules)
+		if validationErr := validateNoDuplicateRules(rules); validationErr != nil {
+			return nil, validationErr
+		}
+		staffGroupIDs, groupIDsErr := s.repo.FindAllGroupIDsByStaffID(
+			ctx,
+			clinicID,
+			actorStaffID,
+		)
+		if groupIDsErr != nil {
+			return nil, apperrors.Wrap(
+				groupIDsErr,
+				"failed to find staff group IDs",
+			)
+		}
+		if validationErr := validateNotSelfReference(
+			id,
+			rules,
+			staffGroupIDs,
+		); validationErr != nil {
+			return nil, validationErr
+		}
+		writer, ok := s.repo.(PermissionGroupRulesAtomicWriter)
+		if !ok {
+			return nil, apperrors.WrapInternalServerError(
+				"atomic permission group rule writer is not configured",
+			)
+		}
+		result, err = writer.UpdateWithRules(
+			ctx,
+			clinicID,
+			id,
+			fields,
+			rules,
+		)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update permission group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update permission group")
@@ -582,16 +653,7 @@ func (s *permissionGroupService) updateRules(
 	inputs []SetPermissionGroupRulesInput,
 	actorStaffID uint64,
 ) error {
-	rules := make([]model.PermissionGroupRule, 0, len(inputs))
-	for _, input := range inputs {
-		rules = append(rules, model.PermissionGroupRule{
-			Resource:  input.Resource,
-			CanView:   input.CanView,
-			CanCreate: input.CanCreate,
-			CanEdit:   input.CanEdit,
-			CanDelete: input.CanDelete,
-		})
-	}
+	rules := permissionRuleModels(inputs)
 	if err := validateNoDuplicateRules(rules); err != nil {
 		return err
 	}
@@ -613,6 +675,22 @@ func (s *permissionGroupService) updateRules(
 		slog.Uint64("permission_group_id", groupID),
 		slog.Int("rule_count", len(rules)))
 	return nil
+}
+
+func permissionRuleModels(
+	inputs []SetPermissionGroupRulesInput,
+) []model.PermissionGroupRule {
+	rules := make([]model.PermissionGroupRule, 0, len(inputs))
+	for _, input := range inputs {
+		rules = append(rules, model.PermissionGroupRule{
+			Resource:  input.Resource,
+			CanView:   input.CanView,
+			CanCreate: input.CanCreate,
+			CanEdit:   input.CanEdit,
+			CanDelete: input.CanDelete,
+		})
+	}
+	return rules
 }
 
 func validateNoDuplicateRules(rules []model.PermissionGroupRule) error {

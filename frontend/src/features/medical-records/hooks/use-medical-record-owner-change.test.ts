@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MedicalRecord } from "../api/transforms";
@@ -9,7 +10,7 @@ vi.mock("@/hooks/use-permission", () => ({
 
 const existingRecord = { version: 4 } as MedicalRecord;
 
-function renderOwnerChange(canEdit: boolean) {
+function renderOwnerChange(canEdit: boolean, isSelectedPetDeceased = false) {
   const mutateAsync = vi.fn().mockResolvedValue(undefined);
   const hook = renderHook(() =>
     useMedicalRecordOwnerChange({
@@ -19,6 +20,7 @@ function renderOwnerChange(canEdit: boolean) {
       updateMutation: { mutateAsync },
       startSaveTransition: (callback) => callback(),
       canEdit,
+      isSelectedPetDeceased,
     }),
   );
 
@@ -37,6 +39,68 @@ describe("useMedicalRecordOwnerChange — mutation permission boundary", () => {
     const { result, mutateAsync } = renderOwnerChange(false);
 
     act(() => result.current.requestOwnerChange(sameOwnerValues));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("同一commitで権限を失ったlayout phaseでは取得済みowner変更callbackがmutationを発行しない", () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) => {
+        const ownerChange = useMedicalRecordOwnerChange({
+          owner: { discountRate: 0, membershipType: "regular" },
+          recordId: "record-1",
+          existingRecord,
+          updateMutation: { mutateAsync },
+          startSaveTransition: (callback) => callback(),
+          canEdit,
+          isSelectedPetDeceased: false,
+        });
+        const capturedRequestRef = useRef(ownerChange.requestOwnerChange);
+
+        useLayoutEffect(() => {
+          if (!canEdit) {
+            capturedRequestRef.current(sameOwnerValues);
+          }
+        }, [canEdit]);
+
+        return ownerChange;
+      },
+      { initialProps: { canEdit: true } },
+    );
+
+    act(() => rerender({ canEdit: false }));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("同一commitで選択ペットが死亡したlayout phaseでは取得済みowner変更callbackがmutationを発行しない", () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(
+      ({ isSelectedPetDeceased }: { isSelectedPetDeceased: boolean }) => {
+        const ownerChange = useMedicalRecordOwnerChange({
+          owner: { discountRate: 0, membershipType: "regular" },
+          recordId: "record-1",
+          existingRecord,
+          updateMutation: { mutateAsync },
+          startSaveTransition: (callback) => callback(),
+          canEdit: true,
+          isSelectedPetDeceased,
+        });
+        const capturedRequestRef = useRef(ownerChange.requestOwnerChange);
+
+        useLayoutEffect(() => {
+          if (isSelectedPetDeceased) {
+            capturedRequestRef.current(sameOwnerValues);
+          }
+        }, [isSelectedPetDeceased]);
+
+        return ownerChange;
+      },
+      { initialProps: { isSelectedPetDeceased: false } },
+    );
+
+    act(() => rerender({ isSelectedPetDeceased: true }));
 
     expect(mutateAsync).not.toHaveBeenCalled();
   });

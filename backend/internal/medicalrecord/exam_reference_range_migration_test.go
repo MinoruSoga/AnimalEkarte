@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,13 +21,26 @@ var errRollbackExamReferenceRangeTest = errors.New("rollback exam reference rang
 
 func readExamReferenceRangeMigration(t *testing.T) string {
 	t.Helper()
-	matches, err := filepath.Glob("../../migrations/*_exam_reference_ranges_and_clinic_fk.sql")
-	require.NoError(t, err)
-	require.Len(t, matches, 1, "exactly one exam reference range migration must exist")
 
-	raw, err := os.ReadFile(matches[0])
+	raw, err := os.ReadFile("../../migrations/001_init.sql")
 	require.NoError(t, err)
-	return string(raw)
+	initial := string(raw)
+
+	const sourceMarker = "-- Source file: 005_exam_reference_ranges_and_clinic_fk.sql"
+	const nextSourceMarker = "-- Source file: 006_payment_splits_payment_method_clinic_fk.sql"
+	start := strings.Index(initial, sourceMarker)
+	require.GreaterOrEqual(t, start, 0, "001_init.sql must contain the archived exam reference range migration")
+
+	endOffset := strings.Index(initial[start:], "\n"+nextSourceMarker)
+	require.Greater(t, endOffset, 0, "archived exam reference range migration must end at the 006 source marker")
+	block := initial[start : start+endOffset]
+
+	shaOffset := strings.Index(block, "-- Source SHA-256:")
+	require.GreaterOrEqual(t, shaOffset, 0, "archived exam reference range migration must contain its SHA-256 header")
+	bodyOffset := strings.Index(block[shaOffset:], "\n")
+	require.GreaterOrEqual(t, bodyOffset, 0, "archived exam reference range migration metadata must end before its SQL body")
+
+	return block[shaOffset+bodyOffset+1:]
 }
 
 func examReferenceRangeSchemaDDL(t *testing.T, migration string) string {

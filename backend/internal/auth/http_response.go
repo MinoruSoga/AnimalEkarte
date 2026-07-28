@@ -154,7 +154,7 @@ func ToMeResponse(
 			AccountingDocumentShowOwnerPetInfo:        clinic.AccountingDocumentShowOwnerPetInfo,
 			AccountingDocumentShowItemsTable:          clinic.AccountingDocumentShowItemsTable,
 			AccountingDocumentShowPaymentSummary:      clinic.AccountingDocumentShowPaymentSummary,
-			AccountingDocumentSectionOrder:            append([]string(nil), clinic.AccountingDocumentSectionOrder...),
+			AccountingDocumentSectionOrder:            append([]string{}, clinic.AccountingDocumentSectionOrder...),
 		}
 		break
 	}

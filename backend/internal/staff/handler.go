@@ -14,6 +14,9 @@ import (
 // PermissionMiddleware is staff's consumer-side view of RBAC middleware.
 type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
+// PermissionChecker is staff's consumer-side view of an RBAC permission check.
+type PermissionChecker func(c *gin.Context, resource, action string) bool
+
 type handlerServices struct {
 	Staff                 StaffService
 	StaffClinicAssignment StaffClinicAssignmentService
@@ -26,6 +29,7 @@ type handlerServices struct {
 type Handler struct {
 	svc               *handlerServices
 	requirePermission PermissionMiddleware
+	hasPermission     PermissionChecker
 }
 
 // NewHandler constructs the staff HTTP boundary.
@@ -37,6 +41,28 @@ func NewHandler(
 	shiftTemplateService ShiftTemplateService,
 	requirePermission PermissionMiddleware,
 ) *Handler {
+	return NewHandlerWithPermissionChecker(
+		staffService,
+		assignmentService,
+		occupationService,
+		shiftEntryService,
+		shiftTemplateService,
+		requirePermission,
+		nil,
+	)
+}
+
+// NewHandlerWithPermissionChecker constructs the staff HTTP boundary with
+// conditional permission checks.
+func NewHandlerWithPermissionChecker(
+	staffService StaffService,
+	assignmentService StaffClinicAssignmentService,
+	occupationService OccupationService,
+	shiftEntryService ShiftEntryService,
+	shiftTemplateService ShiftTemplateService,
+	requirePermission PermissionMiddleware,
+	hasPermission PermissionChecker,
+) *Handler {
 	return &Handler{
 		svc: &handlerServices{
 			Staff:                 staffService,
@@ -46,6 +72,7 @@ func NewHandler(
 			ShiftTemplate:         shiftTemplateService,
 		},
 		requirePermission: requirePermission,
+		hasPermission:     hasPermission,
 	}
 }
 
@@ -120,6 +147,33 @@ func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint
 	return clinicID, staffID, true
 }
 
+func attachPermissionAssignmentAudit(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		c.Abort()
+		return
+	}
+	targetStaffID, ok := parseIDParam(c, "id")
+	if !ok {
+		c.Abort()
+		return
+	}
+	actorStaffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		c.Abort()
+		return
+	}
+	ctx := withPermissionAssignmentAudit(c.Request.Context(), PermissionAssignmentAudit{
+		ClinicID:      clinicID,
+		ActorStaffID:  actorStaffID,
+		TargetStaffID: targetStaffID,
+		IPAddress:     c.ClientIP(),
+		UserAgent:     c.Request.Header.Get("User-Agent"),
+	})
+	c.Request = c.Request.WithContext(ctx)
+	c.Next()
+}
+
 // RegisterRoutes registers every staff-owned route on the protected API group.
 func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	h.registerMasterRoutes(protected)
@@ -138,7 +192,13 @@ func (h *Handler) registerMasterRoutes(protected *gin.RouterGroup) {
 	masters.PATCH("/staffs/:id", perm(string(model.ResourceMasterStaff), "edit"), h.UpdateStaff)
 	masters.DELETE("/staffs/:id", perm(string(model.ResourceMasterStaff), "delete"), h.DeleteStaff)
 	masters.GET("/staffs/:id/permission-groups", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffPermissionGroups)
-	masters.PUT("/staffs/:id/permission-groups", perm(string(model.ResourceMasterStaff), "edit"), h.SetStaffPermissionGroups)
+	masters.PUT(
+		"/staffs/:id/permission-groups",
+		perm(string(model.ResourceMasterStaff), "edit"),
+		perm(string(model.ResourceMasterPermission), "edit"),
+		attachPermissionAssignmentAudit,
+		h.SetStaffPermissionGroups,
+	)
 	masters.GET("/staffs/:id/clinics", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(string(model.ResourceMasterStaff), "edit"), h.SetStaffClinicAssignments)
 	masters.GET("/staffs/:id/excluded-reservation-types", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffExcludedReservationTypes)

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { QueryClient } from "@tanstack/react-query";
@@ -13,7 +14,11 @@ function makeQueryClient() {
   } as unknown as QueryClient;
 }
 
-function renderQuickPatchActions(canEdit: boolean, recordId: string | undefined = "record-1") {
+function renderQuickPatchActions(
+  canEdit: boolean,
+  recordId: string | undefined = "record-1",
+  isSelectedPetDeceased = false,
+) {
   const mutateAsync = vi.fn().mockResolvedValue(undefined);
   const queryClient = makeQueryClient();
   const setVisitType = vi.fn();
@@ -29,6 +34,7 @@ function renderQuickPatchActions(canEdit: boolean, recordId: string | undefined 
       queryClient,
       updateMutation: { mutateAsync },
       canEdit,
+      isSelectedPetDeceased,
     }),
   );
 
@@ -46,6 +52,84 @@ describe("useMedicalRecordQuickPatchActions — mutation permission boundary", (
       result.current.handleChangeDate("2026-08-15");
       result.current.handleFinalize();
     });
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("同一commitで権限を失ったlayout phaseでは取得済み5種callbackがmutationを発行しない", () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined);
+    const queryClient = makeQueryClient();
+    const { rerender } = renderHook(
+      ({ canEdit }: { canEdit: boolean }) => {
+        const actions = useMedicalRecordQuickPatchActions({
+          recordId: "record-1",
+          existingRecordVersion: 3,
+          visitType: "再診",
+          setVisitType: vi.fn(),
+          nextVisitDate: "2026-08-01",
+          setNextVisitDate: vi.fn(),
+          queryClient,
+          updateMutation: { mutateAsync },
+          canEdit,
+          isSelectedPetDeceased: false,
+        });
+        const capturedActionsRef = useRef(actions);
+
+        useLayoutEffect(() => {
+          if (!canEdit) {
+            capturedActionsRef.current.handleChangeDoctor("7", "担当医");
+            capturedActionsRef.current.handleVisitTypeChange("初診");
+            capturedActionsRef.current.handleNextVisitDatePatch("2026-09-01");
+            capturedActionsRef.current.handleChangeDate("2026-08-15");
+            capturedActionsRef.current.handleFinalize();
+          }
+        }, [canEdit]);
+
+        return actions;
+      },
+      { initialProps: { canEdit: true } },
+    );
+
+    act(() => rerender({ canEdit: false }));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("同一commitで選択ペットが死亡したlayout phaseでは取得済み5種callbackがmutationを発行しない", () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined);
+    const queryClient = makeQueryClient();
+    const { rerender } = renderHook(
+      ({ isSelectedPetDeceased }: { isSelectedPetDeceased: boolean }) => {
+        const actions = useMedicalRecordQuickPatchActions({
+          recordId: "record-1",
+          existingRecordVersion: 3,
+          visitType: "再診",
+          setVisitType: vi.fn(),
+          nextVisitDate: "2026-08-01",
+          setNextVisitDate: vi.fn(),
+          queryClient,
+          updateMutation: { mutateAsync },
+          canEdit: true,
+          isSelectedPetDeceased,
+        });
+        const capturedActionsRef = useRef(actions);
+
+        useLayoutEffect(() => {
+          if (isSelectedPetDeceased) {
+            capturedActionsRef.current.handleChangeDoctor("7", "担当医");
+            capturedActionsRef.current.handleVisitTypeChange("初診");
+            capturedActionsRef.current.handleNextVisitDatePatch("2026-09-01");
+            capturedActionsRef.current.handleChangeDate("2026-08-15");
+            capturedActionsRef.current.handleFinalize();
+          }
+        }, [isSelectedPetDeceased]);
+
+        return actions;
+      },
+      { initialProps: { isSelectedPetDeceased: false } },
+    );
+
+    act(() => rerender({ isSelectedPetDeceased: true }));
 
     expect(mutateAsync).not.toHaveBeenCalled();
   });

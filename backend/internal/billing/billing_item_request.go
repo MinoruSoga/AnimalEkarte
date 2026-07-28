@@ -45,7 +45,9 @@ type createBillingItemRequest struct {
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
+	OtherReason           *string `json:"other_reason"`
 	TreatmentID           *uint64 `json:"treatment_id"`
+	VaccinationID         *uint64 `json:"vaccination_id"`
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
@@ -78,7 +80,9 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillin
 		TaxRate:               r.TaxRate,
 		IsInsuranceApplicable: r.IsInsuranceApplicable,
 		Source:                r.Source,
+		OtherReason:           r.OtherReason,
 		TreatmentID:           r.TreatmentID,
+		VaccinationID:         r.VaccinationID,
 		AppointmentID:         r.AppointmentID,
 		TrimmingCourseID:      r.TrimmingCourseID,
 		TrimmingOptionID:      r.TrimmingOptionID,
@@ -123,7 +127,9 @@ type BillingItemResponse struct {
 	TaxAmount             int64     `json:"tax_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	Source                string    `json:"source"`
+	OtherReason           *string   `json:"other_reason,omitempty"`
 	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
+	VaccinationID         *uint64   `json:"vaccination_id,omitempty"`
 	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
 	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
@@ -151,7 +157,9 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		TaxAmount:             taxAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
 		Source:                string(item.Source),
+		OtherReason:           item.OtherReason,
 		TreatmentID:           item.TreatmentID,
+		VaccinationID:         item.VaccinationID,
 		AppointmentID:         item.AppointmentID,
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,

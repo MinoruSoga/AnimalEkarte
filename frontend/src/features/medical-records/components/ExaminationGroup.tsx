@@ -99,13 +99,13 @@ export const ExaminationGroup = memo(function ExaminationGroup({
                   : ""
               }`}
             >
-              {item.result}
+              {item.inspectionValue || item.result || "-"}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
               {item.unit}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
-              {item.referenceValue}
+              {item.referenceValue || item.normalValue || "-"}
             </div>
             <div className="p-2 flex justify-center items-center">
               {item.status === "high" ? (
@@ -115,17 +115,27 @@ export const ExaminationGroup = memo(function ExaminationGroup({
                 >
                   HIGH
                 </Badge>
-              ) : null}
-              {item.status === "low" ? (
+              ) : item.status === "low" ? (
                 <Badge
                   variant="outline"
                   className={`h-10 px-3 text-sm ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
                 >
                   LOW
                 </Badge>
-              ) : null}
-              {item.status === "normal" ? (
-                <CheckCircle className={`${ICON.page} ${C.textStatusGreen} opacity-50`} />
+              ) : item.isAssessed === false ? (
+                <Badge
+                  variant="outline"
+                  className={`h-10 px-3 text-sm ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
+                >
+                  未判定
+                  <span className="sr-only">（基準値未設定のため判定していない）</span>
+                </Badge>
+              ) : item.status === "normal" ? (
+                <CheckCircle
+                  role="img"
+                  aria-label="基準値内"
+                  className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
+                />
               ) : null}
             </div>
           </div>

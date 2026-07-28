@@ -52,6 +52,51 @@ describe("createAccountingItems", () => {
     );
   });
 
+  it("ワクチン接種由来の明細では vaccination_id を数値で送る", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [{ ...ITEMS[1], vaccinationId: "88" }],
+      createItem,
+    );
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ vaccination_id: 88 }),
+    );
+  });
+
+  it("手入力otherの理由を other_reason として送る", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [{ ...ITEMS[0], otherReason: "締め時に確認する分類" }],
+      createItem,
+    );
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ other_reason: "締め時に確認する分類" }),
+    );
+  });
+
+  it("other以外または手入力以外の明細では other_reason を送らない", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [
+        { ...ITEMS[0], category: "test", otherReason: "送信しない理由" },
+        { ...ITEMS[1], category: "other", otherReason: "送信しない理由" },
+      ],
+      createItem,
+    );
+
+    expect(createItem).toHaveBeenCalledTimes(2);
+    expect(createItem.mock.calls[0]?.[0]).not.toHaveProperty("other_reason");
+    expect(createItem.mock.calls[1]?.[0]).not.toHaveProperty("other_reason");
+  });
+
   it("明細作成が失敗した時点で後続POSTを止め、会計の部分失敗を限定する", async () => {
     const createItem = vi.fn()
       .mockResolvedValueOnce({})

@@ -36,6 +36,7 @@ type cutoverPaymentParent struct {
 type cutoverBillingFact struct {
 	totalAmount int64
 	status      string
+	completedAt [sha256.Size]byte
 }
 
 func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) error {
@@ -76,12 +77,24 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 			return fmt.Errorf("table billings column total_amount row %d: amount must not be negative", line)
 		}
 		status := row[indexes["status"]]
+		completedAt := row[indexes["completed_at"]]
+		switch status {
+		case "waiting", "completed", "cancelled", "pending":
+		default:
+			return fmt.Errorf("table billings column status row %d: billing status is invalid", line)
+		}
 		if status == "completed" {
-			if err := validatePaymentGraphTimestamp("billings", "completed_at", row[indexes["completed_at"]], line); err != nil {
+			if err := validatePaymentGraphTimestamp("billings", "completed_at", completedAt, line); err != nil {
 				return err
 			}
+		} else if completedAt != "" {
+			return fmt.Errorf("table billings column completed_at row %d: non-completed billing must not have a completion timestamp", line)
 		}
-		billings[billingID] = cutoverBillingFact{totalAmount: totalAmount, status: status}
+		billings[billingID] = cutoverBillingFact{
+			totalAmount: totalAmount,
+			status:      status,
+			completedAt: sha256.Sum256([]byte(completedAt)),
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -97,6 +110,9 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 		billing, ok := billings[billingID]
 		if !ok {
 			return fmt.Errorf("table payments column billing_id row %d: billing parent is missing", line)
+		}
+		if billing.status != "completed" {
+			return fmt.Errorf("table payments column billing_id row %d: billing status must be completed", line)
 		}
 		if _, duplicate := parents[billingID]; duplicate {
 			return fmt.Errorf("table payments column billing_id row %d: duplicate billing_id", line)
@@ -145,6 +161,9 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 		createdAt := row[indexes["created_at"]]
 		if err := validatePaymentGraphTimestamp("payments", "created_at", createdAt, line); err != nil {
 			return err
+		}
+		if billing.completedAt != sha256.Sum256([]byte(createdAt)) {
+			return fmt.Errorf("table payments column created_at row %d: completion timestamp does not match billing", line)
 		}
 		parents[billingID] = cutoverPaymentParent{
 			billingAmount:  billingAmount,

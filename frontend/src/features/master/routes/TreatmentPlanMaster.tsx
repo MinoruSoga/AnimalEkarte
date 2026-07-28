@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
@@ -52,16 +52,29 @@ import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
-import { ResourceMasterMedical } from "@/types/generated/models";
+import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // TreatmentPlanMaster (main page)
 // ─────────────────────────────────────────────────
 
 export function TreatmentPlanMaster() {
-  const { canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const {
+    canCreate: canCreateCheckup,
+    canEdit: canEditCheckup,
+    canDelete: canDeleteCheckup,
+  } = usePermission(ResourceCheckups);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
+  const activeResource = activeTab === "checkup" ? ResourceCheckups : ResourceMasterMedical;
+  const activeCanEdit = activeTab === "checkup" ? canEditCheckup : canEdit;
+  const activeCanCreate = activeTab === "checkup" ? canCreateCheckup : canCreate;
+  const activeCanDelete = activeTab === "checkup" ? canDeleteCheckup : canDelete;
+  const permissionsRef = useRef({ canDelete: activeCanDelete === true });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canDelete: activeCanDelete === true };
+  }, [activeCanDelete]);
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
@@ -141,11 +154,11 @@ export function TreatmentPlanMaster() {
       reorderVaccines.mutate({ ids });
     },
     onReorderCheckups: (ids) => {
-      if (!canEdit) return;
+      if (!canEditCheckup) return;
       reorderCheckups.mutate({ ids });
     },
   }), [
-    canEdit,
+    canEdit, canEditCheckup,
     consultationData, reorderConsultations,
     examinationData, reorderExaminations,
     procedureData, reorderProcedures,
@@ -154,6 +167,9 @@ export function TreatmentPlanMaster() {
   ]);
 
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const selectedExamination = activeTab === "examination" && selectedItem !== null
+    ? examinationData?.find((item) => item.id === selectedItem.id)
+    : undefined;
 
   // 現在タブの data (stable reference - undefined を [] に正規化)
   const activeTabData = useMemo(
@@ -207,6 +223,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createConsultation,
     updateMutation: updateConsultation,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildConsultationCreateRequest,
     toUpdateRequest: buildConsultationUpdateRequest,
@@ -216,6 +233,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createExamination,
     updateMutation: updateExamination,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildExaminationCreateRequest,
     toUpdateRequest: buildExaminationUpdateRequest,
@@ -225,6 +243,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createProcedure,
     updateMutation: updateProcedure,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildProcedureCreateRequest,
     toUpdateRequest: buildProcedureUpdateRequest,
@@ -234,6 +253,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createVaccine,
     updateMutation: updateVaccine,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildVaccineCreateRequest,
     toUpdateRequest: buildVaccineUpdateRequest,
@@ -243,6 +263,7 @@ export function TreatmentPlanMaster() {
     crud: minimalCrud,
     createMutation: createCheckup,
     updateMutation: updateCheckup,
+    permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildCheckupCreateRequest,
     toUpdateRequest: buildCheckupUpdateRequest,
@@ -280,6 +301,7 @@ export function TreatmentPlanMaster() {
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     const config = tabConfigs[activeTab];
+    if (permissionsRef.current.canDelete !== true) return;
     deleteMutationByTab[activeTab].mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
@@ -294,7 +316,7 @@ export function TreatmentPlanMaster() {
     <MasterTabPage
       title="治療プランマスタ"
       icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterMedical}
+      resource={activeResource}
       onNew={handleNew}
       sidePanel={
         <TreatmentPlanSidePanelHost
@@ -302,8 +324,10 @@ export function TreatmentPlanMaster() {
           selectedItem={selectedItem}
           parentCandidates={parentCandidates}
           hasChildren={hasChildren}
-          canDelete={canDelete}
-          canEdit={canEdit}
+          canDelete={activeCanDelete}
+          canCreate={activeCanCreate}
+          canEdit={activeCanEdit}
+          examinationType={selectedExamination}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={handleDeleteRequest}
@@ -332,7 +356,7 @@ export function TreatmentPlanMaster() {
               <TreatmentPlanTabContent
                 {...config}
                 onEditTargetChange={setEditTargetGuarded}
-                canEdit={canEdit}
+                canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
               />
             </UnifiedTabsContent>
           );

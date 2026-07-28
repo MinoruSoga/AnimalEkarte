@@ -75,6 +75,7 @@ export function PetDeceasedRecordButton({
             petBreed={petBreed}
             petGender={petGender}
             petAge={petAge}
+            canEdit={canEdit}
             onRecorded={onRecorded}
           />
         ) : null}

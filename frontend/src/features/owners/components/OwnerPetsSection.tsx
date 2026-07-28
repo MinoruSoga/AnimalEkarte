@@ -1,12 +1,18 @@
-import { memo } from "react";
+import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Bed, Calendar, CreditCard, Edit, FileText, MoreHorizontal, PawPrint, Plus, Scissors, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { PET_GENDER_MAP, PET_STATUS_MAP } from "@/lib/transforms/pet";
+import {
+  useGetOwnerSharedPets,
+  type OwnerSharedPetApiResponse,
+} from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 
 interface PetTableRowProps {
@@ -29,6 +35,20 @@ const PetTableRow = memo(function PetTableRow({
   onDeleteRequest,
 }: PetTableRowProps) {
   const navigate = useNavigate();
+  const actionBoundaryRef = useRef({
+    status: pet.status,
+    canEdit,
+    canCreate,
+    canDelete,
+  });
+  useLayoutEffect(() => {
+    actionBoundaryRef.current = {
+      status: pet.status,
+      canEdit,
+      canCreate,
+      canDelete,
+    };
+  }, [canCreate, canDelete, canEdit, pet.status]);
   const backFrom = ownerId
     ? paths.owners.detail.getHref(ownerId)
     : paths.owners.getHref();
@@ -40,7 +60,10 @@ const PetTableRow = memo(function PetTableRow({
         {canEdit ? (
           <DataTableRowButton
             aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
-            onClick={() => onEdit(pet)}
+            onClick={() => {
+              if (actionBoundaryRef.current.canEdit !== true) return;
+              onEdit(pet);
+            }}
           >
             {pet.petName}
           </DataTableRowButton>
@@ -72,48 +95,79 @@ const PetTableRow = memo(function PetTableRow({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
               {canEdit ? (
-                <DropdownMenuItem onClick={() => onEdit(pet)}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (actionBoundaryRef.current.canEdit !== true) return;
+                    onEdit(pet);
+                  }}
+                >
                   <Edit className={`mr-2 ${ICON.action}`} />
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              {canCreate ? (
+              {pet.status === "死亡" ? null : canCreate ? (
                 <>
-                  <DropdownMenuItem onClick={() => navigate(`${paths.reservations.getHref()}?petId=${pet.id}`)}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.reservations.getHref()}?petId=${pet.id}`);
+                    }}
+                  >
                     <Calendar className={`mr-2 ${ICON.action}`} />
                     予約作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <FileText className={`mr-2 ${ICON.action}`} />
                     カルテ作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <Scissors className={`mr-2 ${ICON.action}`} />
                     トリミング
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <Bed className={`mr-2 ${ICON.action}`} />
                     入院登録
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                    }}
                   >
                     <CreditCard className={`mr-2 ${ICON.action}`} />
                     会計登録
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {canDelete ? (
+              {pet.status === "死亡" ? null : canDelete ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onDeleteRequest(pet.id, pet.petName)}
+                    onClick={() => {
+                      const current = actionBoundaryRef.current;
+                      if (current.status === "死亡" || current.canDelete !== true) return;
+                      onDeleteRequest(pet.id, pet.petName);
+                    }}
                     className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
                   >
                     <Trash2 className={`mr-2 ${ICON.action}`} />
@@ -125,6 +179,44 @@ const PetTableRow = memo(function PetTableRow({
           </DropdownMenu>
         </div>
       </TableCell>
+    </TableRow>
+  );
+});
+
+const SharedPetTableRow = memo(function SharedPetTableRow({
+  pet,
+}: {
+  pet: OwnerSharedPetApiResponse;
+}) {
+  return (
+    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+      <TableCell className={STYLE.tableCell}>{pet.pet_number}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        <div className="flex items-center gap-2">
+          <span>{pet.name}</span>
+          <Badge variant="outline">副飼主</Badge>
+          {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
+        </div>
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {PET_STATUS_MAP[pet.status] ?? pet.status}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.animal_species.name}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {PET_GENDER_MAP[pet.gender] ?? pet.gender}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.birth_date ? pet.birth_date.slice(0, 10) : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.weight !== null ? `${pet.weight} kg` : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
+      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
+        {pet.remarks}
+      </TableCell>
+      <TableCell />
     </TableRow>
   );
 });
@@ -172,6 +264,18 @@ export function OwnerPetsSection({
   onEditPet,
   onDeleteRequest,
 }: OwnerPetsSectionProps) {
+  const {
+    data: sharedPetsResponse,
+    isError: isSharedPetsError,
+    isLoading: isSharedPetsLoading,
+  } = useGetOwnerSharedPets(ownerId);
+  const sharedPets = sharedPetsResponse?.shared_pets ?? [];
+  const showEmptyState =
+    pets.length === 0 &&
+    sharedPets.length === 0 &&
+    !isSharedPetsLoading &&
+    !isSharedPetsError;
+
   return (
     <div className="mb-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -179,13 +283,13 @@ export function OwnerPetsSection({
           <PawPrint className={`${ICON.action} ${C.text60}`} />
           ペット情報
         </h2>
-        {canEdit ? (
+        {canCreate ? (
           <Button
             type="button"
             size="sm"
             onClick={onAddPet}
-            // docs/spec/design-system.md button-primary: brand blue #0075DE + pill（FE10 字義リブランド）
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
+            // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
+            className={`${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
           >
             <Plus className={ICON.action} />
             ペット追加
@@ -193,11 +297,17 @@ export function OwnerPetsSection({
         ) : null}
       </div>
 
+      {isSharedPetsError ? (
+        <p role="alert" className={`text-sm ${C.danger}`}>
+          共有ペット情報の取得に失敗しました。
+        </p>
+      ) : null}
+
       <div className={`rounded-lg ${C.bgWhite} overflow-hidden border ${C.borderMedium}`}>
         <Table>
           {PET_TABLE_HEADER}
           <TableBody>
-            {pets.length === 0 ? (
+            {showEmptyState ? (
               <TableRow>
                 <TableCell
                   data-empty-state
@@ -208,18 +318,23 @@ export function OwnerPetsSection({
                 </TableCell>
               </TableRow>
             ) : (
-              pets.map((pet) => (
-                <PetTableRow
-                  key={pet.id}
-                  pet={pet}
-                  ownerId={ownerId}
-                  canEdit={canEdit}
-                  canCreate={canCreate}
-                  canDelete={canDelete}
-                  onEdit={onEditPet}
-                  onDeleteRequest={onDeleteRequest}
-                />
-              ))
+              <>
+                {pets.map((pet) => (
+                  <PetTableRow
+                    key={pet.id}
+                    pet={pet}
+                    ownerId={ownerId}
+                    canEdit={canEdit}
+                    canCreate={canCreate}
+                    canDelete={canDelete}
+                    onEdit={onEditPet}
+                    onDeleteRequest={onDeleteRequest}
+                  />
+                ))}
+                {sharedPets.map((pet) => (
+                  <SharedPetTableRow key={`shared-${pet.id}`} pet={pet} />
+                ))}
+              </>
             )}
           </TableBody>
         </Table>

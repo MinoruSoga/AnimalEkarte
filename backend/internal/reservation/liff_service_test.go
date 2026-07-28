@@ -126,13 +126,14 @@ func TestLiffService_GetCourses(t *testing.T) {
 	ctx := context.Background()
 
 	allCourses := []model.ReservationType{
-		{ID: 1, Name: "一般診察", IsInternal: false, ReservationVisible: true},
-		{ID: 2, Name: "休憩枠", IsInternal: true, ReservationVisible: false}, // 内部メニュー → 除外
-		{ID: 3, Name: "手術", IsInternal: false, ReservationVisible: true},
-		{ID: 4, Name: "非公開コース", IsInternal: false, ReservationVisible: false}, // 非公開 → 除外
+		{ID: 1, Name: "一般診察", IsActive: true, IsInternal: false, ReservationVisible: true},
+		{ID: 2, Name: "休憩枠", IsActive: true, IsInternal: true, ReservationVisible: false}, // 内部メニュー → 除外
+		{ID: 3, Name: "手術", IsActive: true, IsInternal: false, ReservationVisible: true},
+		{ID: 4, Name: "非公開コース", IsActive: true, IsInternal: false, ReservationVisible: false}, // 非公開 → 除外
+		{ID: 5, Name: "無効コース", IsActive: false, IsInternal: false, ReservationVisible: true},  // 無効 → 除外
 	}
 
-	t.Run("is_internal=false && reservation_visible=true のみを返す", func(t *testing.T) {
+	t.Run("is_active=true && is_internal=false && reservation_visible=true のみを返す", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{
@@ -162,8 +163,8 @@ func TestLiffService_GetCourses(t *testing.T) {
 			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 					return []model.ReservationType{
-						{ID: parentID, Name: "トリミング", IsInternal: false, ReservationVisible: true},
-						{ID: 11, ParentID: &parentID, Name: "シャンプー", IsInternal: false, ReservationVisible: true},
+						{ID: parentID, Name: "トリミング", IsActive: true, IsInternal: false, ReservationVisible: true},
+						{ID: 11, ParentID: &parentID, Name: "シャンプー", IsActive: true, IsInternal: false, ReservationVisible: true},
 					}, nil
 				},
 			},
@@ -188,8 +189,8 @@ func TestLiffService_GetCourses(t *testing.T) {
 			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 					return []model.ReservationType{
-						{ID: parentID, Name: "トリミング", IsInternal: false, ReservationVisible: true},
-						{ID: 21, ParentID: &parentID, Name: "非公開シャンプー", IsInternal: false, ReservationVisible: false},
+						{ID: parentID, Name: "トリミング", IsActive: true, IsInternal: false, ReservationVisible: true},
+						{ID: 21, ParentID: &parentID, Name: "非公開シャンプー", IsActive: true, IsInternal: false, ReservationVisible: false},
 					}, nil
 				},
 			},
@@ -211,7 +212,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
-					return []model.ReservationType{{ID: 1, IsInternal: true, ReservationVisible: false}}, nil
+					return []model.ReservationType{{ID: 1, IsActive: true, IsInternal: true, ReservationVisible: false}}, nil
 				},
 			},
 			&mockLiffStaffRepository{},
@@ -258,7 +259,11 @@ func TestLiffService_GetStaffs(t *testing.T) {
 	t.Run("reservation_visible=false のスタッフは除外", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffTypeRepository{},
+			&mockLiffTypeRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+					return &model.ReservationType{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
+				},
+			},
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -289,7 +294,11 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		const typeID = uint64(5) // 手術コース
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffTypeRepository{},
+			&mockLiffTypeRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+					return &model.ReservationType{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
+				},
+			},
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -321,7 +330,11 @@ func TestLiffService_GetStaffs(t *testing.T) {
 	t.Run("FindAllReservationCapabilitiesByStaffIDs がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffTypeRepository{},
+			&mockLiffTypeRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+					return &model.ReservationType{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
+				},
+			},
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil

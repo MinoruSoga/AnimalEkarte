@@ -50,6 +50,7 @@ func toPetOwnerNested(o *model.Owner) *petOwnerNested {
 
 type petResponse struct {
 	ID              uint64     `json:"id"`
+	Version         int        `json:"version"`
 	ClinicID        uint64     `json:"clinic_id"`
 	OwnerID         uint64     `json:"owner_id"`
 	AnimalSpeciesID uint64     `json:"animal_species_id"`
@@ -67,6 +68,7 @@ type petResponse struct {
 	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
 	AcquisitionType *string    `json:"acquisition_type,omitempty"`
 	DangerLevel     string     `json:"danger_level"`
+	DangerReason    *string    `json:"danger_reason,omitempty"`
 	Food            string     `json:"food"`
 	Environment     string     `json:"environment"`
 	Phone           string     `json:"phone"`
@@ -120,6 +122,7 @@ type petListResponse struct {
 	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
 	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
 	DangerLevel     string                  `json:"danger_level"`
+	DangerReason    *string                 `json:"danger_reason,omitempty"`
 	Food            string                  `json:"food"`
 	Environment     string                  `json:"environment"`
 	LastVisit       *time.Time              `json:"last_visit,omitempty"`
@@ -158,6 +161,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
+		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
 		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
@@ -213,6 +217,7 @@ func toPetResponse(p *model.Pet) petResponse {
 	}
 	resp := petResponse{
 		ID:              p.ID,
+		Version:         p.Version,
 		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
 		AnimalSpeciesID: p.AnimalSpeciesID,
@@ -232,6 +237,7 @@ func toPetResponse(p *model.Pet) petResponse {
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
+		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
 		Phone:           p.Phone,

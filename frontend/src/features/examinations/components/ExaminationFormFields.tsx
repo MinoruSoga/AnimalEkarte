@@ -53,7 +53,7 @@ function ExaminationFormFieldsBase({
   onBack,
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
-  const canSubmit = isEdit ? canEdit : canCreate;
+  const canSubmit = isEdit ? canEdit : canCreate && canEdit;
 
   const examTypeOptions = useMemo<SearchableSelectOption[]>(
     () => examTypes.map((item) => ({ value: String(item.id), label: item.name })),

@@ -7,6 +7,21 @@ import type {
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
+type BackendPetWithDangerReason = BackendPet & {
+  danger_reason?: string;
+};
+
+type CreatePetRequestWithDangerReason = CreatePetRequest & {
+  danger_reason?: string;
+};
+
+// UpdatePetRequest(生成基底)は danger_reason?: string を持つため、単純な交差では
+// (string|undefined) & (string|null|undefined) = string|undefined に狭まり null クリアが型落ちする。
+// Omit してから合成し、tri-state(絶対不在=変更なし / null=クリア / 値=更新)を型で保つ。
+type UpdatePetRequestWithDangerReason = Omit<UpdatePetRequest, "danger_reason"> & {
+  danger_reason?: string | null;
+};
+
 // #266: pets 一覧のペット行粒度化 (features/owners/loaders.ts) が同じ status マッピングを
 // 必要とするため export する（挙動変更なし）。
 export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
@@ -63,7 +78,7 @@ export const DANGER_LEVEL_MAP: Record<string, string> = {
  * バックエンドペットレスポンスをフロントエンド Pet 型に変換
  * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義
  */
-export const transformBackendPetToFrontend = (p: BackendPet) => ({
+export const transformBackendPetToFrontend = (p: BackendPetWithDangerReason) => ({
   id: String(p.id ?? 0),
   // #86: 拠点横断一覧での医院名表示用。飼主の所属医院を優先し、無ければペット自身の clinic_id
   clinicId:
@@ -97,6 +112,7 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   environment: p.environment,
   acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
   dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+  dangerReason: p.danger_reason,
   // last_visit は birth_date / neutered_date と同じ date 型。兄弟フィールドと同様に
   // 日付部分のみへ正規化し、変換層の非対称を解消する（全消費者は formatDate 経由で無回帰）。
   lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
@@ -142,6 +158,8 @@ type PetFormInput = {
   neuteredDate?: string;
   acquisitionType?: string;
   dangerLevel?: string;
+  dangerReason?: string;
+  originalDangerReason?: string;
   status?: "alive" | "deceased";
   insuranceId?: string;
   remarks?: string;
@@ -154,7 +172,7 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   ownerId: string;
   name: string;
   animalSpeciesId: string;
-}): CreatePetRequest => ({
+}): CreatePetRequestWithDangerReason => ({
   owner_id: Number(data.ownerId),
   name: data.name,
   animal_species_id: Number(data.animalSpeciesId),
@@ -172,10 +190,30 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
+  ...(data.dangerReason?.trim()
+    ? { danger_reason: data.dangerReason.trim() }
+    : {}),
   status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
 });
+
+function transformDangerReasonUpdate(
+  dangerReason: string | undefined,
+  originalDangerReason: string | undefined,
+  hasOriginalDangerReason: boolean,
+): Pick<UpdatePetRequestWithDangerReason, "danger_reason"> {
+  if (
+    dangerReason === undefined ||
+    (
+      hasOriginalDangerReason &&
+      dangerReason.trim() === (originalDangerReason ?? "").trim()
+    )
+  ) {
+    return {};
+  }
+  return { danger_reason: dangerReason.trim() || null };
+}
 
 /**
  * フロントエンドフォームデータからバックエンド UpdatePetRequest に変換
@@ -184,7 +222,7 @@ export const transformCreatePetRequest = (data: PetFormInput & {
  * 死亡登録/取消エンドポイント(PetDeceasedRecordButton → /:id/death)に一本化されており、
  * generic PATCH 経由での status 書込は backend 側でも除去済み(buildPetUpdate)。
  */
-export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest => ({
+export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequestWithDangerReason => ({
   owner_id: data.ownerId ? Number(data.ownerId) : undefined,
   name: data.name,
   animal_species_id: data.animalSpeciesId ? Number(data.animalSpeciesId) : undefined,
@@ -202,6 +240,11 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
+  ...transformDangerReasonUpdate(
+    data.dangerReason,
+    data.originalDangerReason,
+    "originalDangerReason" in data,
+  ),
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
 });

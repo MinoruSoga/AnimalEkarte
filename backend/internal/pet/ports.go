@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -39,6 +40,22 @@ type ChronicConditionTagSynchronizer interface {
 // PetFinder is the minimum pet read capability needed by chronic-condition use cases.
 type PetFinder interface {
 	FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+}
+
+// PetOwnerReader is the minimum secondary-owner capability needed to prevent
+// a secondary owner from being promoted without an explicit unlink.
+type PetOwnerReader interface {
+	FindByPetID(ctx context.Context, clinicID, petID uint64) ([]model.PetOwner, error)
+}
+
+// PetOwnerTransactor owns the transaction shared by replacement and audit.
+type PetOwnerTransactor interface {
+	WithTx(ctx context.Context, fn func(context.Context) error) error
+}
+
+// PetOwnerAuditLogger writes a fail-closed audit entry through the ambient tx.
+type PetOwnerAuditLogger interface {
+	LogEntryTx(ctx context.Context, input *audit.Entry) error
 }
 
 // AnimalSpeciesUsageCounter protects deletion of a species that is still referenced.

@@ -1,17 +1,25 @@
 package billing
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -44,6 +52,13 @@ type concurrentBillingItemRepository struct {
 type validationStartBillingItemRepository struct {
 	BillingItemRepository
 	started chan struct{}
+}
+
+func (m *mockBillingItemRepository) LockActiveStaffAssignment(
+	_ context.Context,
+	_, _ uint64,
+) error {
+	return nil
 }
 
 func (r *createTrackingBillingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
@@ -355,6 +370,58 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 	})
 }
 
+func TestBillingItemRepository_ValidateCreateReferences_HoldsBillingLockUntilAmbientTransactionCommits(
+	t *testing.T,
+) {
+	f := setupBillingItemReferenceFixture(t)
+	tx := f.db.Begin()
+	require.NoError(t, tx.Error)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback().Error
+		}
+	}()
+
+	txCtx := persistence.WithTxValue(context.Background(), tx)
+	_, err := f.repo.ValidateCreateReferences(
+		txCtx,
+		f.clinicID,
+		f.billing.ID,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	require.NoError(t, err)
+
+	competingTx := f.db.Begin()
+	require.NoError(t, competingTx.Error)
+	require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+	err = competingTx.
+		Model(&model.Billing{}).
+		Where("id = ?", f.billing.ID).
+		Update("status", model.BillingStatusCompleted).Error
+	require.ErrorContains(
+		t,
+		err,
+		"lock timeout",
+		"competing billing update must time out while the ambient transaction holds its lock",
+	)
+	require.NoError(t, competingTx.Rollback().Error)
+
+	require.NoError(t, tx.Commit().Error)
+	committed = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, f.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Where("id = ?", f.billing.ID).
+		Update("status", model.BillingStatusCompleted).Error)
+}
+
 func newBillingItemReferenceService(
 	f billingItemReferenceFixture,
 	repo BillingItemRepository,
@@ -382,7 +449,7 @@ func billingItemReferenceCreateInput(f billingItemReferenceFixture) *CreateBilli
 	return &CreateBillingItemInput{
 		ClinicID:  f.clinicID,
 		BillingID: f.billing.ID,
-		Category:  string(model.ItemCategoryOther),
+		Category:  string(model.ItemCategoryExamination),
 		Name:      "reference validation item",
 		UnitPrice: 1000,
 		Quantity:  1,
@@ -394,6 +461,267 @@ func countBillingItems(t *testing.T, db *gorm.DB) int64 {
 	var count int64
 	require.NoError(t, db.Model(&model.BillingItem{}).Count(&count).Error)
 	return count
+}
+
+func TestBillingItemService_CreateItem_OtherMetadata(t *testing.T) {
+	actorID := uint64(7)
+	merchandiseItemID := uint64(50)
+	tests := []struct {
+		name             string
+		input            *CreateBillingItemInput
+		resolvedCategory model.ItemCategory
+		wantErr          bool
+		check            func(t *testing.T, item *model.BillingItem)
+	}{
+		{
+			name: "rejects manual other without other_reason",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "その他調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), CreatedBy: &actorID,
+			},
+			wantErr: true,
+		},
+		{
+			name: "rejects manual other with blank other_reason",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "その他調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString("   "), CreatedBy: &actorID,
+			},
+			wantErr: true,
+		},
+		{
+			name: "rejects manual other with other_reason over 500 Unicode characters",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "その他調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString(strings.Repeat("界", 501)), CreatedBy: &actorID,
+			},
+			wantErr: true,
+		},
+		{
+			name: "rejects manual other without authenticated actor",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "その他調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString("レジ締め分類確認"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "persists trimmed other_reason and authenticated actor",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "その他調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString("  レジ締め分類確認  "), CreatedBy: &actorID,
+			},
+			check: func(t *testing.T, item *model.BillingItem) {
+				require.NotNil(t, item.OtherReason)
+				assert.Equal(t, "レジ締め分類確認", *item.OtherReason)
+				require.NotNil(t, item.CreatedBy)
+				assert.Equal(t, actorID, *item.CreatedBy)
+			},
+		},
+		{
+			name: "does not persist metadata for non-other manual category",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryTest),
+				Name: "検査調整", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString("保存しない"), CreatedBy: &actorID,
+			},
+			check: func(t *testing.T, item *model.BillingItem) {
+				assert.Nil(t, item.OtherReason)
+				assert.Nil(t, item.CreatedBy)
+			},
+		},
+		{
+			name: "does not require metadata for non-manual other source",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryOther),
+				Name: "カルテ由来その他", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceMedicalRecord), CreatedBy: &actorID,
+			},
+			check: func(t *testing.T, item *model.BillingItem) {
+				assert.Nil(t, item.OtherReason)
+				assert.Nil(t, item.CreatedBy)
+			},
+		},
+		{
+			name: "does not require metadata for merchandise-derived other",
+			input: &CreateBillingItemInput{
+				ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryTest),
+				Name: "物販その他", UnitPrice: 500, Quantity: 1,
+				Source: string(model.ItemSourceManual), OtherReason: ptrString("保存しない"),
+				CreatedBy: &actorID, MerchandiseItemID: &merchandiseItemID,
+			},
+			resolvedCategory: model.ItemCategoryOther,
+			check: func(t *testing.T, item *model.BillingItem) {
+				assert.Equal(t, model.ItemCategoryOther, item.Category)
+				assert.Nil(t, item.OtherReason)
+				assert.Nil(t, item.CreatedBy)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := defaultMockBillingItemRepo()
+			repo.validateCreateReferencesFn = func(_ context.Context, _, _ uint64, _, _, _, _, _ *uint64) (model.ItemCategory, error) {
+				return tt.resolvedCategory, nil
+			}
+			repo.createFn = func(_ context.Context, item *model.BillingItem) error {
+				item.ID = 1
+				return nil
+			}
+			svc := NewBillingItemServiceWithCampaign(
+				repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{},
+				okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil,
+			)
+
+			item, err := svc.CreateItem(context.Background(), tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, item)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, item)
+			if tt.check != nil {
+				tt.check(t, item)
+			}
+		})
+	}
+}
+
+func TestToBillingItemResponse_OtherReasonRoundTripsWithoutCreatedBy(t *testing.T) {
+	reason := "レジ締め分類確認"
+	createdBy := uint64(7)
+
+	got := ToBillingItemResponse(&model.BillingItem{
+		ID: 1, BillingID: 10, Category: model.ItemCategoryOther, Name: "手入力",
+		UnitPrice: 500, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+		Source: model.ItemSourceManual, OtherReason: &reason, CreatedBy: &createdBy,
+	})
+
+	require.NotNil(t, got.OtherReason)
+	assert.Equal(t, reason, *got.OtherReason)
+}
+
+func TestBillingItemService_CreateItem_RejectsInvalidOtherActors(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupActor func(t *testing.T, f billingItemReferenceFixture) uint64
+	}{
+		{
+			name: "cross-clinic actor",
+			setupActor: func(t *testing.T, f billingItemReferenceFixture) uint64 {
+				const foreignClinicID = uint64(2)
+				actor := makeDoctor(t, f.db, foreignClinicID, "cross-clinic billing actor")
+				assignBillingConfirmationStaff(t, f.db, actor.ID, foreignClinicID)
+				return actor.ID
+			},
+		},
+		{
+			name: "inactive assigned actor",
+			setupActor: func(t *testing.T, f billingItemReferenceFixture) uint64 {
+				actor := makeDoctor(t, f.db, f.clinicID, "inactive billing actor")
+				assignBillingConfirmationStaff(t, f.db, actor.ID, f.clinicID)
+				require.NoError(t, f.db.Model(&model.Staff{}).
+					Where("id = ?", actor.ID).
+					Update("is_active", false).Error)
+				return actor.ID
+			},
+		},
+		{
+			name: "revoked assignment actor",
+			setupActor: func(t *testing.T, f billingItemReferenceFixture) uint64 {
+				actor := makeDoctor(t, f.db, f.clinicID, "revoked billing actor")
+				assignment := assignBillingConfirmationStaff(t, f.db, actor.ID, f.clinicID)
+				require.NoError(t, f.db.Delete(assignment).Error)
+				return actor.ID
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := setupBillingItemReferenceFixture(t)
+			actorID := tt.setupActor(t, f)
+			before := countBillingItems(t, f.db)
+			svc := newBillingItemReferenceService(f, f.repo)
+
+			item, err := svc.CreateItem(context.Background(), &CreateBillingItemInput{
+				ClinicID:  f.clinicID,
+				BillingID: f.billing.ID,
+				Category:  string(model.ItemCategoryOther),
+				Name:      "actor-isolated other item",
+				UnitPrice: 500,
+				Quantity:  1,
+				Source:    string(model.ItemSourceManual),
+				OtherReason: ptrString(
+					"actor assignment verification",
+				),
+				CreatedBy: &actorID,
+			})
+
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, apperrors.ErrForbidden))
+			assert.Nil(t, item)
+			assert.Equal(t, before, countBillingItems(t, f.db), "rejected actor must not persist a billing item")
+		})
+	}
+}
+
+func TestCreateBillingItem_AuthenticatedActorAndPublicResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reason := "レジ締め分類確認"
+	svc := &mockBillingItemService{
+		createItemFn: func(_ context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
+			require.NotNil(t, input.CreatedBy)
+			assert.Equal(t, uint64(7), *input.CreatedBy)
+			return &model.BillingItem{
+				ID:          5,
+				BillingID:   input.BillingID,
+				Category:    model.ItemCategoryOther,
+				Name:        input.Name,
+				UnitPrice:   input.UnitPrice,
+				Quantity:    input.Quantity,
+				TaxType:     model.TaxTypeExcluded,
+				TaxRate:     0.10,
+				Source:      model.ItemSourceManual,
+				OtherReason: &reason,
+				CreatedBy:   input.CreatedBy,
+			}, nil
+		},
+	}
+	handler := newHandlerWithBillingItemSvc(svc)
+	body, err := json.Marshal(map[string]any{
+		"billing_id":   10,
+		"category":     string(model.ItemCategoryOther),
+		"name":         "その他調整",
+		"unit_price":   500,
+		"quantity":     1,
+		"source":       string(model.ItemSourceManual),
+		"other_reason": reason,
+	})
+	require.NoError(t, err)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "7")
+
+	handler.CreateBillingItem(c)
+
+	require.Equal(t, http.StatusCreated, recorder.Code)
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, reason, response["other_reason"])
+	_, exposesCreatedBy := response["created_by"]
+	assert.False(t, exposesCreatedBy, "created_by is internal audit metadata")
 }
 
 func TestBillingItemService_CreateItem_RuntimeReferenceIsolation(t *testing.T) {

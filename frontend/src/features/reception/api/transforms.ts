@@ -6,6 +6,11 @@ import type {
   Reservation as BackendReceptionReservation,
 } from "@/types/generated/models";
 
+type BackendReceptionPetWithDangerReason =
+  NonNullable<BackendReceptionReservation["pet"]> & {
+    danger_reason?: string;
+  };
+
 interface CustomerFieldsJSON {
   customer_name?: string;
   owner_name?: string;
@@ -79,19 +84,22 @@ export function transformReservationToReceptionAppointment(
 ) {
   const time = formatJSTTime(reservation.start_time);
   const cf = parseCustomerFields(reservation.customer_fields);
+  const pet = reservation.pet as BackendReceptionPetWithDangerReason | undefined;
 
-  const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
+  const petName = pet?.name ?? cf.pets?.[0]?.name ?? "";
   // animal_species ネストがないため、animal_species_id からマッピング
-  const petType = reservation.pet?.animal_species?.name
-    ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : undefined)
+  const petType = pet?.animal_species?.name
+    ?? (pet?.animal_species_id ? ANIMAL_SPECIES_MAP[pet.animal_species_id] : undefined)
     ?? cf.pets?.[0]?.type
     ?? "犬";
   const petSentinelFields: {
     petStatus?: PetStatus;
     petDangerLevel?: DangerLevel;
+    petDangerReason?: string;
   } = {
-    petStatus: reservation.pet?.status,
-    petDangerLevel: reservation.pet?.danger_level,
+    petStatus: pet?.status,
+    petDangerLevel: pet?.danger_level,
+    petDangerReason: pet?.danger_reason,
   };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
 

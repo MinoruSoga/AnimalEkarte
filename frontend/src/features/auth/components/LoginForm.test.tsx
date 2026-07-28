@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { C } from "@/lib/design-tokens";
 import { LoginForm } from "./LoginForm";
 
 const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }));
@@ -36,6 +37,20 @@ describe("LoginForm touch targets", () => {
     );
     expect(screen.getByRole("link", { name: "パスワードをお忘れですか？" })).toHaveClass("min-h-11");
     expect(screen.getByPlaceholderText("パスワードを入力")).toHaveClass("pr-12");
+  });
+
+  it("ログインCTAは brand teal と認証向け文字スタイルを明示する", () => {
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    const loginButton = screen.getByRole("button", { name: "ログイン" });
+    expect(loginButton).toHaveClass(C.bgBrandIdentity, C.hoverBgBrandIdentity);
+    expect(loginButton).toHaveClass("text-white", "text-xl", "font-bold");
+    expect(loginButton).not.toHaveClass("font-semibold");
+    expect(loginButton).not.toHaveClass("text-black", "text-base", "font-medium");
   });
 
   it("backslashを使うcross-origin fromをhomeへ縮退する", async () => {

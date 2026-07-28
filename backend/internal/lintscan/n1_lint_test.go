@@ -113,8 +113,9 @@ func n1AllowlistKey(fn, callee string) string {
 //  2. Tracked pre-existing debt (genuinely IS N+1, deliberately deferred): a real, data-bound
 //     N+1 outside the scope of the task that discovered it, filed as its own follow-up task
 //     and referenced by doc path so the waiver has a paper trail and an exit condition. Every
-//     entry in this category MUST reference a follow-up entry in root todo.md; an entry with no
-//     tracked follow-up is silent suppression, which this gate exists to prevent.
+//     entry in this category MUST reference a follow-up task section in
+//     3-session-agent.html#ledger; an entry with no tracked follow-up is silent suppression,
+//     which this gate exists to prevent.
 var n1Allowlist = map[string]bool{
 	// --- Category 1: request-bound, not real N+1 ---
 	// pets []CreatePetForOwnerInput is the request body of a single CreateWithPets call

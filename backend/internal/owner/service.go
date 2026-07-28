@@ -61,6 +61,7 @@ type CreatePetForOwnerInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType string
 	DangerLevel     string
+	DangerReason    *string
 	Food            string
 	Environment     string
 	InsuranceID     *uint64
@@ -186,13 +187,34 @@ type AuditLogger interface {
 	) error
 }
 
+// PetOwnerCounter is the consumer-side view used to reject deletion of an
+// owner who is referenced as a secondary pet owner.
+type PetOwnerCounter interface {
+	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+}
+
+// OwnerDeleteLocker serializes deletion with concurrent owner-dependent
+// writers while preserving the owner package's dependency direction.
+type OwnerDeleteLocker interface {
+	LockForDelete(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
+}
+
+// OwnerDeleteTransactor owns the owner deletion transaction boundary.
+type OwnerDeleteTransactor interface {
+	WithTx(ctx context.Context, fn func(context.Context) error) error
+}
+
 // --- Implementation ---
 
 type ownerService struct {
-	repo            ServiceRepository
-	insuranceFinder InsuranceFinder
-	tagNotifier     TagNotifier
-	auditLogger     AuditLogger
+	repo               ServiceRepository
+	insuranceFinder    InsuranceFinder
+	tagNotifier        TagNotifier
+	auditLogger        AuditLogger
+	deleteLocker       OwnerDeleteLocker
+	petOwnerCounter    PetOwnerCounter
+	deleteTransactor   OwnerDeleteTransactor
+	deleteGuardEnabled bool
 }
 
 // NewService constructs the owner use case.
@@ -203,9 +225,33 @@ func NewService(
 	auditLogger AuditLogger,
 ) Service {
 	return &ownerService{
-		repo:            repo,
-		insuranceFinder: insuranceFinder,
-		tagNotifier:     tagNotifier,
-		auditLogger:     auditLogger,
+		repo:               repo,
+		insuranceFinder:    insuranceFinder,
+		tagNotifier:        tagNotifier,
+		auditLogger:        auditLogger,
+		deleteGuardEnabled: false,
+	}
+}
+
+// NewServiceWithPetOwnerDeleteGuard constructs the production owner use case
+// with the transaction and dependency ports required for guarded deletion.
+func NewServiceWithPetOwnerDeleteGuard(
+	repo ServiceRepository,
+	insuranceFinder InsuranceFinder,
+	tagNotifier TagNotifier,
+	auditLogger AuditLogger,
+	deleteLocker OwnerDeleteLocker,
+	petOwnerCounter PetOwnerCounter,
+	deleteTransactor OwnerDeleteTransactor,
+) Service {
+	return &ownerService{
+		repo:               repo,
+		insuranceFinder:    insuranceFinder,
+		tagNotifier:        tagNotifier,
+		auditLogger:        auditLogger,
+		deleteLocker:       deleteLocker,
+		petOwnerCounter:    petOwnerCounter,
+		deleteTransactor:   deleteTransactor,
+		deleteGuardEnabled: true,
 	}
 }

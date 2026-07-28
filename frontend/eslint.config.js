@@ -93,7 +93,8 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["@/features/*/*", "@/features/*/*/**"],
+              regex: "^@/features/(?!auth/provider$)[^/]+/.+$",
+              caseSensitive: true,
               message:
                 "feature の外からは @/features/<name>（index.ts）経由で import する。feature 内部は相対 import を使うこと。deep import は禁止。",
             },

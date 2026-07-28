@@ -44,6 +44,7 @@ func buildOwnerPetModels(inputs []CreatePetForOwnerInput) []model.Pet {
 			BirthDate:       p.BirthDate,
 			Weight:          p.Weight,
 			NeuteredDate:    p.NeuteredDate,
+			DangerReason:    p.DangerReason,
 			Food:            p.Food,
 			Environment:     p.Environment,
 			InsuranceID:     p.InsuranceID,

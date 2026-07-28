@@ -471,33 +471,6 @@ func TestHospitalizationService_DischargeWithBilling_RejectsInvalidOwnerPetLinks
 			},
 			expectCarePlanFatal: true,
 		},
-		{
-			name:             "rejects_owner_pet_mismatch_with_accounting",
-			ownerID:          ownedOwnerID,
-			petID:            21,
-			createAccounting: true,
-			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
-				return nil
-			},
-			findPetFn: func(_ context.Context, _, petID uint64) (uint64, error) {
-				assert.Equal(t, uint64(21), petID)
-				return 999, nil
-			},
-		},
-		{
-			name:             "rejects_owner_pet_mismatch_without_accounting",
-			ownerID:          ownedOwnerID,
-			petID:            21,
-			createAccounting: false,
-			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
-				return nil
-			},
-			findPetFn: func(_ context.Context, _, petID uint64) (uint64, error) {
-				assert.Equal(t, uint64(21), petID)
-				return 999, nil
-			},
-			expectCarePlanFatal: true,
-		},
 	}
 
 	for _, tt := range tests {

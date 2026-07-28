@@ -4,6 +4,7 @@ import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios
 import { MemoryRouter, useLocation } from "react-router";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { C } from "@/lib/design-tokens";
 import { resetPassword } from "../api/reset-password";
 import { ResetPasswordPage } from "./ResetPasswordPage";
 
@@ -67,6 +68,18 @@ describe("ResetPasswordPage recovery behavior", () => {
     expect(screen.getByRole("link", { name: "ログインページに戻る" })).toHaveClass("min-h-11");
     expect(screen.getByPlaceholderText("8文字以上で入力")).toHaveClass("pr-12");
     expect(screen.getByPlaceholderText("同じパスワードを入力")).toHaveClass("pr-12");
+  });
+
+  it("有効なリンク画面のCTAとロゴは brand identity teal を明示する", () => {
+    render(
+      <MemoryRouter initialEntries={["/reset-password?token=test-token"]}>
+        <ResetPasswordPage />
+      </MemoryRouter>,
+    );
+
+    const submit = screen.getByRole("button", { name: "パスワードを設定する" });
+    expect(submit).toHaveClass(C.bgBrandIdentity, C.hoverBgBrandIdentity);
+    expect(screen.getByTestId("reset-password-brand-mark")).toHaveClass(C.bgBrandIdentity);
   });
 
   it("fragment tokenを取得後にbrowser URLから除去する", async () => {

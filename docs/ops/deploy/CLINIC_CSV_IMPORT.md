@@ -1,17 +1,17 @@
 # 医院 CSV カットオーバー投入（F6）
 
-更新日: 2026-07-24
+更新日: 2026-07-28
 
 `old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。
 
-現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、`status=completed` のbillingにpayment graphがないbundleはpreflightで拒否され、正式applyには使用できません。producerは正式bundleを再生成する前に、`billings.csv`へ`completed_at`を追加し、completed billingごとのpayment graphを出力する必要があります。
+現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、既知の未確定支払候補を持つbillingはproducer側で `needs_review` に隔離され、正式manifestは支払・分割支払がどちらも正件数でなければpreflightで拒否されます。producer契約は `billings.csv` の `completed_at` と completed billingごとのpayment graphに対応済みですが、完全かつ検証済みのKNJO sourceから新しいformal bundleを生成するまでapplyはBLOCKEDです。
 
 ## 安全境界
 
 - source は絶対パスを `/migration-input:ro` で read-only mount する。
 - one-shot containerへ渡すsecretはDB接続用環境変数だけに限定し、`.env.local` 全体をcontainerへ注入しない。
 - `clinic-migration-run-report.json` に記録された manifest SHA-256 を別経路で受領し、source directory 内から自己申告値を拾わない。
-- manifest は `PASS`、`animalekarte_stage`、医院 code/ordinal、run ID、10M ID band、21 テーブル固定順、各 CSV SHA-256 が完全一致する場合だけ受理する。
+- manifest は `PASS`、`animalekarte_stage`、医院 code/ordinal、run ID、10M ID band、21 テーブル固定順、各 CSV SHA-256 が完全一致する場合だけ受理する。さらに manifest schema version、承認済みstage mapping bundle（`020_canonical.sql` + `030_stage.sql`）/CSV contract SHA-256、`TRUSTED_CANDIDATE`、完全性 `PASS`、検証済み source identity、明示的な空の不完全table一覧、stage build UUID、DB1/DB2/DB3 summary digestと生成順、base-load/KNJO evidence digest、支払・分割支払の正件数を固定構造で検証し、未知fieldも拒否する。
 - source directory は 0700、manifest/CSV は 0600、symlink は不可。
 - parserのメモリ/時間上限としてmanifestは4MiB、各CSVは512MiB、payment親は100万件、splitは親あたり最大2件を上限とし、超過時はfail-closedする。
 - target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
@@ -22,7 +22,7 @@
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. `003_medical_records_appointment_id_index.sql` と `004_payment_splits_billing_id_index.sql` を通常の migration 経路で先に適用する。通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window 内で適用する。手書き SQL は使わない。
+2. 旧増分002〜009を統合した現行 `001_init.sql` で target DB を再構築済みであることを確認する。統合前001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
@@ -55,7 +55,7 @@ export PAYMENT_METHOD_CREDIT_CARD_ID=<id>
 make csv-import-preflight
 ```
 
-source 契約（completed billingの`completed_at`、payment親子、method placeholder、split算術、billing/payment total一致、保険比率0〜1、保険額の符号、割引額の非負を含む）に加えて、target の6 seed binding、全 migrated ID/FK 列の BIGINT、21 sequence、会計FK、`payments.billing_id` UNIQUE、`payment_methods(clinic_id, system_key)` partial UNIQUE、`payment_splits(billing_id)` index、対象 band が空であることを検証します。completed billingにpayment 1件とsplit 1〜2件が揃わない場合を含め、1件でも不一致なら apply へ進みません。
+source 契約（completed billingの`completed_at`、payment親子、billing completionとpayment/split timestampの完全一致、non-completed billingへのpayment禁止、method placeholder、split算術、billing/payment total一致、保険比率0〜1、保険額の符号、割引額の非負を含む）に加えて、target の6 seed binding、全 migrated ID/FK 列の BIGINT、21 sequence、会計FK、`payments.billing_id` UNIQUE、`payment_methods(clinic_id, system_key)` partial UNIQUE、`payment_splits(billing_id)` index、対象 band が空であることを検証します。completed billingにpayment 1件とsplit 1〜2件が揃わない場合を含め、1件でも不一致なら apply へ進みません。
 
 ## Apply
 
@@ -92,7 +92,7 @@ make csv-import-verify
 - commit応答が失われた場合は、commit済みかrollback済みかを断定せずreportを `COMMIT_OUTCOME_UNKNOWN` とします。再実行・backup restore・運用開始をすべて止め、同じmanifest/seedでread-onlyの `make csv-import-verify` を実行してDB管理者が結果を照合するまで状態変更を行いません。
 - process crashや強制終了後にapply reportがmissing、malformed、または `STARTED` のままの場合もcommit結果を証明できないため、`COMMIT_OUTCOME_UNKNOWN` と同じ未確定状態として扱います。reportを作り直す再実行やbackup restoreへ進まず、targetを隔離してread-only verifyとDB照合を先に行います。
 - commit 後の rollback は、後続 application row を cascade delete する危険があるため importer に削除コマンドを持たせません。メンテナンス状態を維持し、事前に検証した full backup を復元します。
-- band が既に占有されている場合、`make csv-import` は置換せず fail-closed します。手書き DELETE や旧 `make stage-import` へ迂回しません。
+- band が既に占有されている場合、`make csv-import` は置換せず fail-closed します。手書き DELETE や別経路への迂回はしません。
 
 ## Scoped verification
 
@@ -105,3 +105,6 @@ docker compose exec backend go test ./cmd/migrate -count=1
 実PostgreSQL上のcatalog/payment SQL構文と実行計画は、共有DBの排他leaseを取得した独立セッションで `CSVIMPORT_DB_INTEGRATION=1` を付け、`go test ./internal/csvimport -run TestCutoverPaymentTargetSQLAgainstPostgres -count=1 -p 1` を実行します。このテストはtransaction-localな一時テーブルに正常/敵対fixtureを作成し、必ずrollbackします。
 
 実 DB apply、DB reset、STG/PROD 操作はこのテスト手順に含みません。
+
+F8 の失敗側リハーサルは、通常 importer に fault injection を追加せず、専用の
+[F8 G4 synthetic failure rehearsal](F8_G4_FAILURE_REHEARSAL.md) を使用します。

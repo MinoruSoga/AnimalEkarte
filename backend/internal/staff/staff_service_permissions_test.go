@@ -166,9 +166,24 @@ func TestStaffService_SetPermissionGroupIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(permRepo, &mockResStaffRepoForStaffPermissions{})
+			svc := NewStaffServiceWithAudits(
+				&mockStaffRepository{},
+				&mockAccountForStaff{},
+				&mockAssignmentForStaff{},
+				&mockReservationForStaff{},
+				&mockShiftEntryForStaff{},
+				permRepo,
+				&mockResStaffRepoForStaffPermissions{},
+				nil,
+				nil,
+				noopTransactor{},
+				nil,
+				permissionAssignmentAuditLoggerFunc(func(context.Context, *PermissionAssignmentAuditEntry) error {
+					return nil
+				}),
+			)
 
-			err := svc.SetPermissionGroupIDs(context.Background(), 1, 10, []uint64{4, 5})
+			err := svc.SetPermissionGroupIDs(permissionAssignmentAuditContext(), 1, 10, []uint64{4, 5})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -180,6 +195,139 @@ func TestStaffService_SetPermissionGroupIDs(t *testing.T) {
 			assert.Equal(t, []uint64{4, 5}, gotGroupIDs)
 		})
 	}
+}
+
+type permissionAssignmentAuditLoggerFunc func(context.Context, *PermissionAssignmentAuditEntry) error
+
+func (f permissionAssignmentAuditLoggerFunc) LogEntryTx(
+	ctx context.Context,
+	entry *PermissionAssignmentAuditEntry,
+) error {
+	return f(ctx, entry)
+}
+
+type permissionAssignmentTxState struct {
+	groupIDs []uint64
+}
+
+type rollbackPermissionAssignmentTransactor struct {
+	state *permissionAssignmentTxState
+}
+
+func (t rollbackPermissionAssignmentTransactor) WithTx(
+	ctx context.Context,
+	fn func(context.Context) error,
+) error {
+	before := append([]uint64(nil), t.state.groupIDs...)
+	txCtx := context.WithValue(ctx, permissionAssignmentTxMarker{}, true)
+	if err := fn(txCtx); err != nil {
+		t.state.groupIDs = before
+		return err
+	}
+	return nil
+}
+
+type permissionAssignmentTxMarker struct{}
+
+func permissionAssignmentAuditContext() context.Context {
+	return withPermissionAssignmentAudit(context.Background(), PermissionAssignmentAudit{
+		ClinicID:      1,
+		ActorStaffID:  7,
+		TargetStaffID: 10,
+		IPAddress:     "192.0.2.7",
+		UserAgent:     "permission-assignment-test",
+	})
+}
+
+func TestStaffService_SetPermissionGroupIDs_AuditsInTransaction(t *testing.T) {
+	state := &permissionAssignmentTxState{groupIDs: []uint64{9, 3}}
+	permRepo := &mockPermissionGroupRepository{
+		findAllGroupIDsByStaffIDFn: func(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+			assert.Equal(t, true, ctx.Value(permissionAssignmentTxMarker{}))
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(10), staffID)
+			return append([]uint64(nil), state.groupIDs...), nil
+		},
+		updateStaffGroupsFn: func(ctx context.Context, clinicID, staffID uint64, ids []uint64) error {
+			assert.Equal(t, true, ctx.Value(permissionAssignmentTxMarker{}))
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(10), staffID)
+			state.groupIDs = append([]uint64(nil), ids...)
+			return nil
+		},
+	}
+	repo := &mockStaffRepository{
+		lockInClinicFn: func(ctx context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+			assert.Equal(t, true, ctx.Value(permissionAssignmentTxMarker{}))
+			return &model.Staff{ID: staffID, ClinicID: clinicID}, nil
+		},
+	}
+	var entries []*PermissionAssignmentAuditEntry
+	svc := NewStaffServiceWithAudits(
+		repo,
+		&mockAccountForStaff{},
+		&mockAssignmentForStaff{},
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		permRepo,
+		&mockResStaffRepoForStaffPermissions{},
+		nil,
+		nil,
+		rollbackPermissionAssignmentTransactor{state: state},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(ctx context.Context, entry *PermissionAssignmentAuditEntry) error {
+			assert.Equal(t, true, ctx.Value(permissionAssignmentTxMarker{}))
+			entries = append(entries, entry)
+			return nil
+		}),
+	)
+
+	err := svc.SetPermissionGroupIDs(permissionAssignmentAuditContext(), 1, 10, []uint64{8, 2})
+
+	require.NoError(t, err)
+	assert.Equal(t, []uint64{8, 2}, state.groupIDs)
+	require.Len(t, entries, 1)
+	entry := entries[0]
+	assert.Equal(t, model.AuditActionStaffPermissionGroupsReplace, entry.Action)
+	assert.Equal(t, model.AuditResourceStaff, entry.Resource)
+	assert.Equal(t, uint64(7), *entry.ActorID)
+	assert.Equal(t, uint64(10), *entry.ResourceID)
+	assert.Equal(t, map[string]any{"staff_id": uint64(10), "group_ids": []uint64{3, 9}}, entry.OldValue)
+	assert.Equal(t, map[string]any{"staff_id": uint64(10), "group_ids": []uint64{2, 8}}, entry.NewValue)
+}
+
+func TestStaffService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) {
+	state := &permissionAssignmentTxState{groupIDs: []uint64{3, 9}}
+	permRepo := &mockPermissionGroupRepository{
+		findAllGroupIDsByStaffIDFn: func(context.Context, uint64, uint64) ([]uint64, error) {
+			return append([]uint64(nil), state.groupIDs...), nil
+		},
+		updateStaffGroupsFn: func(_ context.Context, _, _ uint64, ids []uint64) error {
+			state.groupIDs = append([]uint64(nil), ids...)
+			return nil
+		},
+	}
+	svc := NewStaffServiceWithAudits(
+		&mockStaffRepository{},
+		&mockAccountForStaff{},
+		&mockAssignmentForStaff{},
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		permRepo,
+		&mockResStaffRepoForStaffPermissions{},
+		nil,
+		nil,
+		rollbackPermissionAssignmentTransactor{state: state},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(context.Context, *PermissionAssignmentAuditEntry) error {
+			return errors.New("audit failed")
+		}),
+	)
+
+	err := svc.SetPermissionGroupIDs(permissionAssignmentAuditContext(), 1, 10, []uint64{2, 8})
+
+	require.Error(t, err)
+	assert.Equal(t, []uint64{3, 9}, state.groupIDs)
 }
 
 func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {

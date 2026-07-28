@@ -33,16 +33,23 @@ const COLUMNS = [
 ];
 
 export function ChiefComplaintSettings() {
-  usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const { data } = useGetChiefComplaintTypes();
   const createMutation = useCreateChiefComplaintType();
   const updateMutation = useUpdateChiefComplaintType();
   const deleteMutation = useDeleteChiefComplaintType();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<ChiefComplaintType>({ data, deleteMutation, entityLabel: "主訴マスタ", dirtyGuard: dirty });
+  const crud = useMasterCRUD<ChiefComplaintType>({
+    data,
+    deleteMutation,
+    entityLabel: "主訴マスタ",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<ChiefComplaintType, ChiefComplaintFormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildChiefComplaintCreateRequest,
     toUpdateRequest: buildChiefComplaintUpdateRequest,

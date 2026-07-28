@@ -33,7 +33,18 @@ func (r *medicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicI
 	var record model.MedicalRecord
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ?", ownerID).
+		Where(`
+			EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = medical_records.pet_id
+				  AND current_owner_pet.clinic_id = medical_records.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, ownerID).
 		Order("created_at DESC").
 		First(&record).Error
 	if err != nil {
@@ -60,7 +71,19 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
+		Where(`
+			deleted_at IS NULL
+			AND EXISTS (
+				SELECT 1
+				FROM pets current_owner_pet
+				JOIN owners current_owner
+				  ON current_owner.id = current_owner_pet.owner_id
+				 AND current_owner.clinic_id = current_owner_pet.clinic_id
+				WHERE current_owner_pet.id = medical_records.pet_id
+				  AND current_owner_pet.clinic_id = medical_records.clinic_id
+				  AND current_owner.id = ?
+			)
+		`, ownerID).
 		Select(`MIN(date) AS first_visit_at,
 			MAX(date) AS last_visit_at,
 			COUNT(*) AS total_count,
@@ -84,10 +107,11 @@ func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("medical_records AS mr").
-		Joins("JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Joins("JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
 		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
-		Select("mr.owner_id").
-		Group("mr.owner_id").
+		Select("current_owner_pet.owner_id").
+		Group("current_owner_pet.owner_id").
 		Having("MIN(mr.date::date) = ?::date", target).
 		Scan(&rows).Error
 	if err != nil {
@@ -107,10 +131,11 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("medical_records AS mr").
-		Joins("JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Joins("JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
 		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
-		Select("mr.owner_id").
-		Group("mr.owner_id").
+		Select("current_owner_pet.owner_id").
+		Group("current_owner_pet.owner_id").
 		Having("MAX(mr.date::date) = ?::date", target).
 		Scan(&rows).Error
 	if err != nil {
@@ -132,18 +157,24 @@ func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.C
 	var rows []row
 	// 飼い主ごとに最新カルテ（MAX(id)）を取得し、その next_visit_recommended_date が targetDate のものを抽出。
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT mr.owner_id
+		SELECT current_owner_pet.owner_id
 		FROM medical_records AS mr
+		JOIN pets AS current_owner_pet
+		  ON current_owner_pet.id = mr.pet_id
+		 AND current_owner_pet.clinic_id = mr.clinic_id
 		JOIN owners AS o
-		  ON o.id = mr.owner_id
+		  ON o.id = current_owner_pet.owner_id
 		 AND o.clinic_id = mr.clinic_id
 		 AND o.deleted_at IS NULL
 		WHERE mr.clinic_id = ? AND mr.deleted_at IS NULL
 		  AND mr.id IN (
-		      SELECT MAX(id)
-		      FROM medical_records
-		      WHERE clinic_id = ? AND deleted_at IS NULL
-		      GROUP BY owner_id
+		      SELECT MAX(latest_mr.id)
+		      FROM medical_records AS latest_mr
+		      JOIN pets AS latest_owner_pet
+		        ON latest_owner_pet.id = latest_mr.pet_id
+		       AND latest_owner_pet.clinic_id = latest_mr.clinic_id
+		      WHERE latest_mr.clinic_id = ? AND latest_mr.deleted_at IS NULL
+		      GROUP BY latest_owner_pet.owner_id
 		  )
 		  AND mr.next_visit_recommended_date::date = ?::date
 	`, clinicID, clinicID, target).Scan(&rows).Error
@@ -167,10 +198,11 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("medical_records AS mr").
-		Joins("INNER JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Joins("INNER JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("INNER JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
 		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL", clinicID).
-		Select("mr.owner_id, MAX(mr.date) AS last_visit_at").
-		Group("mr.owner_id").
+		Select("current_owner_pet.owner_id, MAX(mr.date) AS last_visit_at").
+		Group("current_owner_pet.owner_id").
 		Having("MAX(mr.date) < ?", cutoff).
 		Scan(&rows).Error
 	if err != nil {
@@ -220,12 +252,13 @@ func (r *medicalRecordRepository) FindDormantOwnerEntriesCursorAt(
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("medical_records AS mr").
-		Joins("INNER JOIN owners AS o ON o.id = mr.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
-		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL AND mr.owner_id > ?", clinicID, afterOwnerID).
-		Select("mr.owner_id, MAX(mr.date) AS last_visit_at").
-		Group("mr.owner_id").
+		Joins("INNER JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("INNER JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL AND current_owner_pet.owner_id > ?", clinicID, afterOwnerID).
+		Select("current_owner_pet.owner_id, MAX(mr.date) AS last_visit_at").
+		Group("current_owner_pet.owner_id").
 		Having("MAX(mr.date) < ?", cutoff).
-		Order("mr.owner_id ASC").
+		Order("current_owner_pet.owner_id ASC").
 		Limit(limit).
 		Scan(&rows).Error
 	if err != nil {

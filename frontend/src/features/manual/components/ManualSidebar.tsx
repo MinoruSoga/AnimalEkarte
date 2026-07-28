@@ -115,7 +115,7 @@ export function ManualSidebar({
             onClick={() => onChangeViewMode("screens")}
             className={`min-h-11 min-w-11 px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "screens"
-                ? `${C.bgBrand} text-white font-medium`
+                ? `${C.bgBrand} ${C.textOnBrand} font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
             }`}
           >
@@ -128,7 +128,7 @@ export function ManualSidebar({
             onClick={() => onChangeViewMode("workflows")}
             className={`min-h-11 min-w-11 px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "workflows"
-                ? `${C.bgBrand} text-white font-medium`
+                ? `${C.bgBrand} ${C.textOnBrand} font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
             }`}
           >

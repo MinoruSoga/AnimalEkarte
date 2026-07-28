@@ -63,6 +63,10 @@ Go/Gin一般規約の根拠は[go-gin-backend-guidelines.md](../rules/go-gin-bac
 - transaction の commit/rollback と error path が明確か。
 - CORS、cookie、CSRF、trusted proxy、rate limit が deployment/auth 方式に合っているか。
 - [backend-application-invariants.md](backend-application-invariants.md) の clinic/owner/pet/staff 境界をすべての読み書きで維持しているか。
+- update/deleteのaffected rowsを確認し、存在しない対象やscope外対象を成功扱いしていないか。
+- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）。
+- soft-deleteやhistory semanticsをschema/ADRに合わせ、暗黙条件に依存していないか。
+- unit testだけでSQL semanticsを偽装せず、riskのあるquery/transaction/isolationを実DBのintegration testで確認しているか。
 
 ## 7. Server lifecycle
 

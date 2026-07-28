@@ -133,11 +133,10 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, second.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックIDでは0件になる（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別クリニックIDでは0件になる（親カルテclinic相関）", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicB, mr.ID)
 		require.NoError(t, err)
-		require.Len(t, got, 1)
-		assert.Equal(t, "別クリニックの修正", got[0].AfterText)
+		assert.Empty(t, got)
 	})
 
 	t.Run("追記が無いカルテIDは空スライスを返す", func(t *testing.T) {

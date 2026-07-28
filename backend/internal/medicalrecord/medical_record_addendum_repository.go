@@ -38,8 +38,8 @@ func (r *medicalRecordAddendumRepository) Create(ctx context.Context, addendum *
 func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordAddendum, error) {
 	var addendum model.MedicalRecordAddendum
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", id).
+		Joins("JOIN medical_records ON medical_records.id = medical_record_addenda.medical_record_id AND medical_records.clinic_id = medical_record_addenda.clinic_id AND medical_records.deleted_at IS NULL").
+		Where("medical_record_addenda.clinic_id = ? AND medical_record_addenda.id = ?", clinicID, id).
 		First(&addendum).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_addendum", fmt.Sprintf("%d", id))
@@ -50,9 +50,9 @@ func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID
 func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error) {
 	var addenda []*model.MedicalRecordAddendum
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("medical_record_id = ?", medicalRecordID).
-		Order("created_at ASC").
+		Joins("JOIN medical_records ON medical_records.id = medical_record_addenda.medical_record_id AND medical_records.clinic_id = medical_record_addenda.clinic_id AND medical_records.deleted_at IS NULL").
+		Where("medical_record_addenda.clinic_id = ? AND medical_record_addenda.medical_record_id = ?", clinicID, medicalRecordID).
+		Order("medical_record_addenda.created_at ASC").
 		Find(&addenda).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_addendum", fmt.Sprintf("medical_record_id=%d", medicalRecordID))

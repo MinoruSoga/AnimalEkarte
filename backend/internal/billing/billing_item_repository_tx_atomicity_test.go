@@ -17,6 +17,7 @@ package billing
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -191,4 +192,69 @@ func TestBillingItemRepository_Delete_RollsBackWhenAmbientTxFails(t *testing.T) 
 	var count int64
 	db.Model(&model.BillingItem{}).Unscoped().Where("id = ? AND deleted_at IS NULL", item.ID).Count(&count)
 	assert.EqualValues(t, 1, count, "ambient tx 失敗時、明細の削除（soft-delete）はロールバックされる")
+}
+
+func TestBillingItemRepository_ValidateVaccinationCreateReferenceLocksVaccinationInAmbientTransaction(t *testing.T) {
+	fixture := setupBillingItemReferenceFixture(t)
+	price := int64(3200)
+	_, vaccination := makeBillingVaccination(t, fixture, "ambient tx lock vaccine", &price)
+	repo := NewBillingItemRepository(fixture.db)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := testNewTransactor(fixture.db).WithTx(ctx, func(txCtx context.Context) error {
+		values, validateErr := repo.ValidateVaccinationCreateReference(
+			txCtx,
+			fixture.clinicID,
+			fixture.billing.ID,
+			vaccination.ID,
+		)
+		if validateErr != nil {
+			return validateErr
+		}
+		if values.Name != "ambient tx lock vaccine" || values.UnitPrice != price {
+			return errors.New("vaccination billing values do not match the locked master")
+		}
+
+		done := make(chan error, 1)
+		go func() {
+			competingTx := fixture.db.WithContext(ctx).Begin()
+			if competingTx.Error != nil {
+				done <- competingTx.Error
+				return
+			}
+			defer competingTx.Rollback()
+			if lockErr := competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error; lockErr != nil {
+				done <- lockErr
+				return
+			}
+			done <- competingTx.Exec(
+				"UPDATE vaccinations SET date = date WHERE id = ?",
+				vaccination.ID,
+			).Error
+		}()
+
+		select {
+		case competingErr := <-done:
+			if competingErr == nil {
+				return errors.New("concurrent vaccination mutation completed before ambient transaction commit")
+			}
+			if !strings.Contains(competingErr.Error(), "lock timeout") {
+				return competingErr
+			}
+			return nil
+		case <-ctx.Done():
+			return errors.New("timed out waiting for bounded concurrent vaccination mutation")
+		}
+	})
+	require.NoError(t, err)
+
+	afterCommitTx := fixture.db.WithContext(ctx).Begin()
+	require.NoError(t, afterCommitTx.Error)
+	defer afterCommitTx.Rollback()
+	require.NoError(t, afterCommitTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+	require.NoError(t, afterCommitTx.Exec(
+		"UPDATE vaccinations SET date = date WHERE id = ?",
+		vaccination.ID,
+	).Error)
 }

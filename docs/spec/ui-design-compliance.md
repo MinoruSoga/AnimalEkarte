@@ -6,11 +6,11 @@
 
 | ID | 観点 | 参照 | 判定方法 |
 |---|---|---|---|
-| C1 | 構造色は製品採用の brand `#0075DE` 系のみ。legacy（旧 teal `#038B94`/`#027078`・旧 accent `#2383E2`・`C.accent`）禁止 | DESIGN_SYSTEM §2.1, §9, §10 | **機械化**（C1） |
+| C1 | brand と semantic primary は同じ teal `#038B94` / active `#027078` を使う。意味役割はトークン名で分け、legacy accent `#2383E2`・`C.accent` は禁止 | DESIGN_SYSTEM §2.1, §9, §10 | **機械化**（C1）＋意味役割はレビュー |
 | C2 | ページ canvas は暖色 canvas-soft（`PageLayout` / `STYLE.page*` / `C.bgPage`）。純白ページ禁止 | DESIGN_SYSTEM §2.2, §9 | **C8 機械化**（`src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist）。§2 表は新規リーフ追加時に更新 |
 | C3 | コンポーネントでの hex 直書き禁止。`design-tokens.ts` 経由必須 | DESIGN_SYSTEM §9 Don't, §10 | **機械化**（C3。issue番号コメントは対象外） |
 | C4 | 一覧/詳細系ページは `PageLayout` または同等 shell を持つ | DESIGN_SYSTEM §4, §7.6 | **C8 機械化**（C2 と同一。shell 欠落 = C2/C4 同時フラグ） |
-| C5 | Primary CTA は `PrimaryButton`/`SubmitButton` の `colorVariant="brand"` | DESIGN_SYSTEM §7.2 | `rg 'colorVariant="[a-zA-Z]+"'` の値分布確認 |
+| C5 | 汎用 Primary CTA は `colorVariant="primary"`（既定）、認証・製品識別 CTA だけ `colorVariant="brand"` を明示する | DESIGN_SYSTEM §7.2 | **機械化**（C5 の許可値）＋意味役割はレビュー |
 | C6a | 臨床安全 UI（危険/死亡/RBAC 非活性表示）はデザイン変更で退行させない | DESIGN_SYSTEM §2.4, §9 | 静的 grep では網羅不可 — **コードレビュー要**。danger/warning の hex 直書き逸脱は C3 と合わせて確認 |
 | C6b | rgba/rgb/hsla/hsl 直値禁止 | design-system-audit.mjs C6 | **機械化**（`pnpm design-audit` / make ci） |
 | C7 | PageLayout `maxWidth` 生値禁止（`max-w-full` / `max-w-[Npx]`） | LAYOUT.pageContentMaxWidth | **機械化**（C7） |
@@ -27,7 +27,7 @@
 | C18 | `TableHead` / `TableCell` とraw `th` / `td` で header eyebrow・body-sm・12px vertical / 16px horizontal paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、空stateと`data-c18-structural-cell`付きself-closing構造セルは許可。既存raw debtは件数ratchet） |
 | C19 | `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の4種のrow opening tagをmultiline対応で検査） |
 
-**FE11 正本分割（2026-07-21）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand `#0075DE` は製品採用値であり、臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
+**FE11 正本分割（2026-07-21、色役割更新 2026-07-27）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand と primary は同じ teal 値を使い、製品識別と汎用操作・選択・focus の意味役割だけをトークン名で分ける。臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 
 **監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11の対象は本体84ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive とraw `th` / `td` opening tag、C19は4種のrow opening tagを対象にする。C18 rawの既存22ファイル204件はファイル別件数をratchetし、増加分と新規fileをstrict failする。ロール内での意味的誤選択、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
 
@@ -133,6 +133,6 @@ docker compose exec frontend pnpm design-audit
 - targeted coverage: 明示したproduct logic 18 source / 17 test file / 138 testで statements **84.58%**、lines **87.38%**、branches **75.89%**、functions **83.10%**。`.coverage-baseline` は変更していない。
 - リダイレクト専用route（`<Navigate replace />`）は表から除外: `/settings/job-title`, `/service-type`, `/diagnosis-type`, `/diagnosis-name`, `/trimming-course`, `/trimming-option`, `/examination`, `/vaccine`, `/consultation`, `/procedure`, `/inquiry-template`, `/shift-template` の **12件**。
 - C1（legacy accent）・C3（route表面hex直書き）は全84ルートで **0件**。生regex `#[0-9A-Fa-f]{3,8}` は issue番号コメント（`#158`等）を誤検知するため、文字列リテラル限定パターンで再検証済み。
-- C5（Primary CTA colorVariant）は route表面で確認できた9件全てが `brand`。legacy variant使用は0件。
+- C5（Primary CTA colorVariant）の現行分布は `primary` 16件、認証の明示的 `brand` 3件。`default` の明示使用と未定義 variant は0件。
 - C15（route named white/black）・C16（非仕様20px spacing）・C17（CSS shadow直書き）・C18 gating violation・C19（4種のrow全体click）は現行treeで **0件**。C18のTable primitive overrideは0件、raw cellは既存22ファイル204件をnon-gating ratchetとして可視化し、新規/増加を禁止する。C16は画面用26件を仕様内scaleへ移行し、印刷ビュー5件は対象外を明示した。C19では共有row 29箇所に加えraw `<TableRow onClick>` 7箇所・raw `<tr onClick>` 3箇所をcell内native controlへ移行し、同じ失敗modeの再導入をunit testで禁止した。
 - DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み（DESIGN_SYSTEM.md §10 側の旧baseline記述は本書のみ更新、DESIGN_SYSTEM.md本文は対象外のため未修正）。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。

@@ -4,8 +4,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/owner"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
 )
+
+type ownerPetAuditLogger interface {
+	owner.AuditLogger
+	pet.PetOwnerAuditLogger
+}
 
 type ownerPetCompositionDependencies struct {
 	Insurance            owner.InsuranceFinder
@@ -13,7 +19,7 @@ type ownerPetCompositionDependencies struct {
 	OwnerTags            owner.TagNotifier
 	PetTags              pet.PetTagSynchronizer
 	ChronicConditionTags pet.ChronicConditionTagSynchronizer
-	Audit                owner.AuditLogger
+	Audit                ownerPetAuditLogger
 }
 
 // ownerPetRepositories are created before LSTEP so its application can receive
@@ -22,6 +28,8 @@ type ownerPetCompositionDependencies struct {
 type ownerPetRepositories struct {
 	Owner             owner.Repository
 	Pet               pet.CompleteRepository
+	PetOwners         pet.PetOwnerRepository
+	Transactor        pet.PetOwnerTransactor
 	AnimalSpecies     pet.AnimalSpeciesRepository
 	ChronicConditions pet.ChronicConditionRepository
 }
@@ -31,6 +39,7 @@ type ownerPetComposition struct {
 	PetRepository     pet.CompleteRepository
 	OwnerService      owner.Service
 	PetService        pet.Service
+	PetOwnerService   pet.PetOwnerService
 	animalSpecies     pet.AnimalSpeciesService
 	chronicConditions pet.ChronicConditionService
 }
@@ -49,6 +58,8 @@ func newOwnerPetRepositories(db *gorm.DB) ownerPetRepositories {
 	return ownerPetRepositories{
 		Owner:             ownerRepository,
 		Pet:               pet.NewRepositoryWithWriter(db, petWriter),
+		PetOwners:         pet.NewPetOwnerRepository(db),
+		Transactor:        persistence.NewTransactor(db),
 		AnimalSpecies:     pet.NewAnimalSpeciesRepository(db),
 		ChronicConditions: pet.NewChronicConditionRepository(db),
 	}
@@ -58,18 +69,30 @@ func newOwnerPetComposition(
 	repositories ownerPetRepositories,
 	dependencies ownerPetCompositionDependencies,
 ) ownerPetComposition {
-	ownerService := owner.NewService(
+	ownerService := owner.NewServiceWithPetOwnerDeleteGuard(
 		repositories.Owner,
 		dependencies.Insurance,
 		dependencies.OwnerTags,
 		dependencies.Audit,
+		repositories.Owner,
+		repositories.PetOwners,
+		repositories.Transactor,
 	)
-	petService := pet.NewService(
+	petService := pet.NewServiceWithPetOwnerReader(
 		repositories.Pet,
 		repositories.Owner,
 		dependencies.Insurance,
 		dependencies.MedicalRecords,
 		dependencies.PetTags,
+		repositories.PetOwners,
+		repositories.Transactor,
+	)
+	petOwnerService := pet.NewPetOwnerService(
+		repositories.Pet,
+		repositories.Owner,
+		repositories.PetOwners,
+		repositories.Transactor,
+		dependencies.Audit,
 	)
 
 	return ownerPetComposition{
@@ -77,6 +100,7 @@ func newOwnerPetComposition(
 		PetRepository:   repositories.Pet,
 		OwnerService:    ownerService,
 		PetService:      petService,
+		PetOwnerService: petOwnerService,
 		animalSpecies: pet.NewAnimalSpeciesService(
 			repositories.AnimalSpecies,
 			repositories.Pet,
@@ -101,10 +125,12 @@ func (c ownerPetComposition) newHandlers(
 			requirePermission,
 			hasPermission,
 		),
-		Pet: pet.NewHandler(
+		Pet: pet.NewHandlerWithPetOwners(
 			c.PetService,
 			c.animalSpecies,
 			c.chronicConditions,
+			c.PetOwnerService,
+			c.OwnerRepository,
 			pet.PermissionMiddleware(requirePermission),
 		),
 	}

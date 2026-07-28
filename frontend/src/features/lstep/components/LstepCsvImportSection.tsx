@@ -81,7 +81,7 @@ function CsvUploadSection() {
           data-testid="csv-upload-controls"
         >
           <label
-            className={`relative inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-xs border ${C.borderLight} ${C.bgWhite} px-3 text-xs font-medium ${C.text60} focus-within:ring-2 focus-within:ring-ring/50`}
+            className={`relative inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-xs border ${C.borderLight} ${C.bgWhite} px-3 text-xs font-medium ${C.text60} focus-within:ring-2 focus-within:ring-ring`}
           >
             <input
               ref={fileInputRef}

@@ -42,7 +42,7 @@ const COLUMNS = [
 ];
 
 export function InterviewTemplateSettings() {
-  usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const { data } = useGetInquiryTemplates();
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();
@@ -52,10 +52,12 @@ export function InterviewTemplateSettings() {
     data, deleteMutation, entityLabel: "問診テンプレート",
     searchFilter: (item, lower) => normalizeKana(item.title).toLowerCase().includes(lower) || normalizeKana(item.category).toLowerCase().includes(lower),
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<InquiryTemplate, InterviewTemplateFormData, CreateInquiryTemplateRequest, UpdateInquiryTemplateRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => {
       if (!d.title.trim()) return "タイトルは必須です";
       if (!d.category.trim()) return "カテゴリは必須です";

@@ -289,6 +289,37 @@ func TestVaccinationRepository_RelationPreloadsAreClinicScoped(t *testing.T) {
 	}
 }
 
+func TestVaccinationRepository_FindByID_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	previousOwner := makeTestOwner(t, db, clinicID, "ワクチン譲渡前飼主")
+	currentOwner := makeTestOwner(t, db, clinicID, "ワクチン譲渡後飼主")
+	pet := makeVaccinationRepoTestPet(t, db, clinicID, previousOwner.ID, "ワクチン譲渡ペット")
+	vaccine := makeVaccineMaster(t, db, clinicID, "譲渡後ワクチン")
+	record := &model.MedicalRecord{
+		ClinicID: clinicID, RecordNo: "MR-VAC-TRANSFER", Date: time.Now(),
+		OwnerID: &previousOwner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+	}
+	require.NoError(t, db.Create(record).Error)
+	vaccination := &model.Vaccination{
+		ClinicID: clinicID, PetID: &pet.ID, MedicalRecordID: &record.ID,
+		VaccineID: vaccine.ID, Date: time.Now(),
+	}
+	require.NoError(t, db.Create(vaccination).Error)
+	require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pet.ID).Update("owner_id", currentOwner.ID).Error)
+
+	got, err := repo.FindByID(ctx, clinicID, vaccination.ID)
+	require.NoError(t, err)
+	assert.Equal(t, vaccination.ID, got.ID)
+	var persisted model.MedicalRecord
+	require.NoError(t, db.First(&persisted, record.ID).Error)
+	require.NotNil(t, persisted.OwnerID)
+	assert.Equal(t, previousOwner.ID, *persisted.OwnerID)
+}
+
 func TestVaccinationRepository_FindByOwnerIsClinicScoped(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
 	repo := NewVaccinationRepository(db)

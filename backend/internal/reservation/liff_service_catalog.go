@@ -60,7 +60,7 @@ func (s *liffService) GetTrimmingOptions(ctx context.Context, clinicID uint64) (
 	return result, nil
 }
 
-// GetCourses はLIFF向け公開コース一覧を返す（公開中の葉ノードのみ）。
+// GetCourses はLIFF向け公開コース一覧を返す（有効かつ公開中の葉ノードのみ）。
 func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	all, err := s.typeLiffRepo.FindAll(ctx, clinicID)
 	if err != nil {
@@ -75,7 +75,7 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 	}
 	result := make([]model.ReservationType, 0, len(all))
 	for i := range all {
-		if all[i].IsInternal || !all[i].ReservationVisible {
+		if !all[i].IsActive || all[i].IsInternal || !all[i].ReservationVisible {
 			continue
 		}
 		if _, isParent := hasChildren[all[i].ID]; isParent {
@@ -86,8 +86,23 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 	return result, nil
 }
 
-// GetStaffs は予約区分対応スタッフ一覧を返す（reservation_visible=true && typeIDに対応可能）。
+func (s *liffService) findActiveLiffCourse(ctx context.Context, clinicID, typeID uint64) (*model.ReservationType, error) {
+	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get course", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get course")
+	}
+	if !course.IsActive {
+		return nil, apperrors.WrapInvalidInput("reservation type is inactive")
+	}
+	return course, nil
+}
+
+// GetStaffs は有効な予約区分の対応スタッフ一覧を返す（reservation_visible=true && typeIDに対応可能）。
 func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error) {
+	if _, err := s.findActiveLiffCourse(ctx, clinicID, typeID); err != nil {
+		return nil, err
+	}
 	all, err := s.staffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get staffs", "error", err)

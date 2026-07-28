@@ -254,8 +254,16 @@ func TestLabReportQueryService_GetExamReport_Happy(t *testing.T) {
 	repo := newStubReportExamRepo()
 	jobID := uuid.New()
 	doctorID := uint64(7)
+	qualitativeMin, qualitativeMax := "(-)", "(+)"
 	exam := syntheticExam(10, 1, jobID, "血液化学", []model.ExamResult{
-		{Name: "BUN", InspectionValue: "12.3", IsAbnormal: false, Status: model.ExaminationResultStatusNormal, SortOrder: 1},
+		{
+			Name:            "尿蛋白",
+			InspectionValue: "(+)",
+			QualitativeMin:  &qualitativeMin,
+			QualitativeMax:  &qualitativeMax,
+			Status:          model.ExaminationResultStatusNormal,
+			SortOrder:       1,
+		},
 	})
 	exam.DoctorID = &doctorID
 	repo.byID[10] = exam
@@ -280,8 +288,14 @@ func TestLabReportQueryService_GetExamReport_Happy(t *testing.T) {
 	if len(detail.Items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(detail.Items))
 	}
-	if detail.Items[0].Name != "BUN" {
-		t.Errorf("expected item Name=BUN, got %q", detail.Items[0].Name)
+	if detail.Items[0].Name != "尿蛋白" {
+		t.Errorf("expected item Name=尿蛋白, got %q", detail.Items[0].Name)
+	}
+	if detail.Items[0].QualitativeMin == nil || *detail.Items[0].QualitativeMin != qualitativeMin {
+		t.Errorf("expected qualitative minimum %q, got %v", qualitativeMin, detail.Items[0].QualitativeMin)
+	}
+	if detail.Items[0].QualitativeMax == nil || *detail.Items[0].QualitativeMax != qualitativeMax {
+		t.Errorf("expected qualitative maximum %q, got %v", qualitativeMax, detail.Items[0].QualitativeMax)
 	}
 	if detail.Machine != "Fuji DRI-CHEM" {
 		t.Errorf("expected Machine=Fuji DRI-CHEM, got %q", detail.Machine)

@@ -1,4 +1,5 @@
 // React/Framework
+import { useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -27,15 +28,22 @@ interface HospitalizationDetailActionsProps {
 
 export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
-    const { canEdit, canDelete } = usePermission("hospitalization");
+    const { canEdit } = usePermission("hospitalization");
+    const canEditRef = useRef(canEdit);
+    const petIsDeceasedRef = useRef(hospitalization.petIsDeceased);
+    useLayoutEffect(() => {
+        canEditRef.current = canEdit;
+        petIsDeceasedRef.current = hospitalization.petIsDeceased;
+    }, [canEdit, hospitalization.petIsDeceased]);
     const { mutateAsync: updateHospitalization, isPending: isCheckingIn } = useUpdateHospitalization();
 
     const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
     const isAdmitted = hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE;
     const showCheckIn = canEdit && isReserved;
-    const showDischarge = canDelete && isAdmitted;
+    const showDischarge = canEdit && isAdmitted;
 
     const handleCheckIn = async () => {
+        if (canEditRef.current !== true || petIsDeceasedRef.current === true) return;
         try {
             await updateHospitalization({
                 id: hospitalization.id,
@@ -50,7 +58,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
         <div className={`flex ${H_STYLES.gap.default}`}>
             {showCheckIn ? (
                 <PrimaryButton
-                    colorVariant="brand"
+                    colorVariant="primary"
                     className={`gap-2 ${H_STYLES.button.action}`}
                     onClick={handleCheckIn}
                     disabled={isCheckingIn}

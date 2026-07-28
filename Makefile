@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -212,48 +212,29 @@ a4-rehearsal-down:
 	$(A4_REHEARSAL_DC) down --volumes --remove-orphans
 
 # ============================================================================
-# stage-import: legacy direct-DB compatibility path (not the F6 cutover route)
+# F8 G4 failure rehearsal: fixed synthetic rollback on a dedicated stack
 # ============================================================================
-# 検証済みの old_db 3層パイプライン (legacy_raw -> legacy_canonical ->
-# animalekarte_stage) の stage スキーマを唯一の投入元として本テーブルへ取り込む。
-# 旧 direct seeder (seed-old-db、backend/cmd/_archive/seed-old-db へアーカイブ済み) は
-# comparison-only として deprecated。
-#
-# 前提:
-#   - AnimalEkarte: make up でスタック起動済み (db healthy)。
-#   - old_db: 別 repo で make local-postgres-up + make migration-pipeline 実行済み
-#     (old-db-postgres コンテナと外部ネットワーク old_db_default が存在すること)。
-#   - OLD_DB_POSTGRES_PASSWORD: old_db Postgres の TCP 接続パスワード。stage への
-#     接続は read-only。未設定なら importer は SASL 認証で失敗する。
-#
-# Safety: importer は非ローカル TARGET DB_HOST を拒否し、stage 接続は read-only。
-# apply は --apply かつ --confirm-local-destroy の両方が必須 (本テーブルの old_db 行を
-# 削除して再投入する破壊的操作)。
-STAGE_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.stage-import.yml
+F8_G4_DC = COMPOSE_PROJECT_NAME="$${F8_G4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${F8_G4_ENV_FILE}" \
+	-p "$${F8_G4_COMPOSE_PROJECT}" \
+	-f docker-compose.f8-g4-rehearsal.yml
+export F8_G4_COMPOSE_PROJECT F8_G4_RUN_ID F8_G4_TARGET_RELEASE_COMMIT
+export F8_G4_ENV_FILE F8_G4_DB_PORT F8_G4_CLINIC_CODE F8_G4_CLINIC_ORDINAL
 
-# dry-run: 件数のみ表示。本テーブルへの書き込みは 0。
-stage-import-dry-run:
-	@echo "🔎 stage-import DRY-RUN (no writes) ..."
-	$(STAGE_IMPORT_DC) run --rm stage-import
+f8-g4-rehearsal-contract-test:
+	@node --test scripts/lib/f8-g4-evidence.test.mjs scripts/lib/f8-g4-host-safety.test.mjs
 
-# apply: 破壊的。old_db 由来行を削除し stage から再投入 (単一トランザクション)。
-# demo / master / config は保持。失敗時は全ロールバック。
-stage-import:
-	@echo "⚠️  stage-import APPLY (destructive: delete old_db rows + reinsert) ..."
-	$(STAGE_IMPORT_DC) run --rm stage-import --apply --confirm-local-destroy
+f8-g4-rehearsal-config-check:
+	@F8_G4_BUILD_CONTEXT="$(CURDIR)/backend" \
+		F8_G4_BACKEND_TREE_ID=config-check-unattested \
+		F8_G4_RUNNER_IMAGE=config-check-runner:unattested \
+		$(F8_G4_DC) config --quiet
 
-# 投入後検証: 空 clinic / branch leakage / owner collision / orphan / record_no /
-# blocked leakage / demo 混入 を全チェック。exit 0 で PASS。
-verify-stage-import:
-	@echo "🔍 Verifying stage-import results ..."
-	@bash scripts/verify-stage-import.sh
+f8-g4-rehearsal-run:
+	@node scripts/run-f8-g4-rehearsal.mjs
 
-# rollback / read-only 安全性の統合テスト (実 DB 必要・STAGE_IMPORT_INTEGRATION=1)。
-# 注入した失敗後に本テーブル件数が不変であること、stage 接続が read-only であることを検証。
-stage-import-rollback-test:
-	@echo "🧪 stage-import rollback + read-only integration test ..."
-	$(STAGE_IMPORT_DC) run --rm -e STAGE_IMPORT_INTEGRATION=1 --entrypoint go \
-		stage-import test ./cmd/stage-import/ -run 'RollsBack|ReadOnly' -count=1 -v -timeout 300s
+f8-g4-rehearsal-down:
+	@node scripts/check-f8-g4-resources.mjs
 
 # バックエンドのみ再起動
 restart-api:
@@ -312,9 +293,6 @@ test:
 test-cover:
 	$(DC) exec backend go test -race -cover -p 1 ./...
 
-# repository パッケージのみ（共有 DB・必ず serial）
-test-repository:
-	$(DC) exec backend go test ./internal/repository/ -count=1 -p 1 -timeout 900s
 
 # フロント静的チェック一式（ローカル必須・CI ゲート外）
 # ESLint + TypeScript type-check + knip（旧 CI Frontend の静的ステップ相当）
@@ -407,10 +385,8 @@ help:
 	@echo "  a4-csv-import-*          A4専用DBへのcanonical preflight/apply/verify"
 	@echo "  a4-rehearsal-runtime-report 稼働中A4 stackのowner-only証跡生成"
 	@echo "  a4-rehearsal-down        指定A4 projectと専用volumeを明示破棄"
-	@echo "  stage-import-dry-run      旧direct-DB互換経路のdry-run（F6では使用しない）"
-	@echo "  stage-import              旧direct-DB互換経路（F6では使用しない）"
-	@echo "  verify-stage-import       stage 投入後の検証（空clinic/orphan/collision等・exit 0でPASS）"
-	@echo "  stage-import-rollback-test rollback/read-only 安全性の統合テスト（要 実DB）"
+	@echo "  f8-g4-rehearsal-run      固定synthetic G4失敗を専用DBで実行しrollback証跡を生成"
+	@echo "  f8-g4-rehearsal-down     labels検証後にF8 G4専用stack/volumeを削除"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"

@@ -29,16 +29,23 @@ const COLUMNS = [
 ];
 
 export function HospitalizationSettings() {
-  usePermission(ResourceMasterHospitalization);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン", dirtyGuard: dirty });
+  const crud = useMasterCRUD<HospitalizationPlan>({
+    data,
+    deleteMutation,
+    entityLabel: "入院プラン",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<HospitalizationPlan, HospitalizationFormData, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildHospitalizationCreateRequest,
     toUpdateRequest: buildHospitalizationUpdateRequest,

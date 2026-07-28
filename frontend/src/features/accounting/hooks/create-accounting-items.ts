@@ -2,7 +2,11 @@ import { createBillingItem } from "../api/create-billing-item";
 import type { CreateBillingItemRequest } from "../api/create-billing-item";
 import type { AccountingItem } from "../types";
 
-type CreateItem = (request: CreateBillingItemRequest) => Promise<unknown>;
+type CreateAccountingItemRequest = CreateBillingItemRequest & {
+  other_reason?: string;
+};
+
+type CreateItem = (request: CreateAccountingItemRequest) => Promise<unknown>;
 
 export async function createAccountingItemsSequentially(
   accountingId: string | number,
@@ -21,7 +25,11 @@ export async function createAccountingItemsSequentially(
       tax_rate: item.taxRate,
       is_insurance_applicable: item.isInsuranceApplicable,
       source: item.source,
+      ...(item.source === "manual" && item.category === "other" && item.otherReason !== undefined
+        ? { other_reason: item.otherReason }
+        : {}),
       merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
+      vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
       treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
       appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
       trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,

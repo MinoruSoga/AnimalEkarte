@@ -223,10 +223,16 @@ describe("useMasterCRUD", () => {
     { id: "1", name: "さくら", isActive: true },
     { id: "2", name: "たろう", isActive: false },
   ];
+  const allowDeletePermissions = { canDelete: true };
 
   it("初期状態はeditTarget=null, isEditing=false", () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
     expect(result.current.editTarget).toBeNull();
     expect(result.current.isEditing).toBe(false);
@@ -235,7 +241,12 @@ describe("useMasterCRUD", () => {
 
   it("handleNewはeditTargetを'new'にする", () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
     act(() => result.current.handleNew());
     expect(result.current.editTarget).toBe("new");
@@ -244,7 +255,12 @@ describe("useMasterCRUD", () => {
 
   it("handleEditはeditTargetを対象アイテムにしpanelItemに反映する", () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
     act(() => result.current.handleEdit(data[0]));
     expect(result.current.editTarget).toEqual(data[0]);
@@ -253,7 +269,12 @@ describe("useMasterCRUD", () => {
 
   it("handleCloseはeditTargetをnullに戻す", () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
     act(() => result.current.handleEdit(data[0]));
     act(() => result.current.handleClose());
@@ -268,6 +289,7 @@ describe("useMasterCRUD", () => {
         deleteMutation: buildMockDeleteMutation(),
         entityLabel: "テスト",
         dirtyGuard: { confirmDiscard },
+        permissions: allowDeletePermissions,
       }),
     );
     act(() => result.current.handleNew());
@@ -283,6 +305,7 @@ describe("useMasterCRUD", () => {
         deleteMutation: buildMockDeleteMutation(),
         entityLabel: "テスト",
         dirtyGuard: { confirmDiscard },
+        permissions: allowDeletePermissions,
       }),
     );
     act(() => result.current.handleEdit(data[0]));
@@ -297,19 +320,25 @@ describe("useMasterCRUD", () => {
         deleteMutation: buildMockDeleteMutation(),
         entityLabel: "テスト",
         dirtyGuard: { confirmDiscard },
+        permissions: allowDeletePermissions,
       }),
     );
     act(() => result.current.handleEdit(data[0]));
     expect(result.current.editTarget).toEqual(data[0]);
   });
 
-  it("permissions absent: handleDeleteConfirmは従来どおり対象IDでmutateする", async () => {
+  it("canDeleteがtrueならhandleDeleteConfirmは対象IDでmutateする", async () => {
     const mutate = vi.fn(
       (_id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) => opts?.onSuccess?.(),
     );
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation, entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => result.current.handleDeleteRequest(data[0]));
@@ -326,7 +355,7 @@ describe("useMasterCRUD", () => {
     expect(toast.success).toHaveBeenCalledWith("テストを削除しました");
   });
 
-  it("permissions engaged: canDeleteがtrueでない場合はdelete mutationを発行しない", async () => {
+  it("canDeleteがtrueでない場合はdelete mutationを発行しない", async () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
@@ -346,7 +375,7 @@ describe("useMasterCRUD", () => {
     expect(result.current.pendingDelete).toEqual(data[0]);
   });
 
-  it("permissions engaged: canDeleteがtrueなら従来どおり対象IDでmutateする", async () => {
+  it("canDeleteがtrueなら対象IDとcallbackを渡してmutateする", async () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
@@ -368,7 +397,7 @@ describe("useMasterCRUD", () => {
     );
   });
 
-  it("permissions engaged: 権限剥奪後はcaptured済みhandleDeleteConfirmでも最新のdenyを使う", async () => {
+  it("権限剥奪後はcaptured済みhandleDeleteConfirmでも最新のdenyを使う", async () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result, rerender } = renderHook(
@@ -392,35 +421,16 @@ describe("useMasterCRUD", () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("permissions absentからengaged denyへ変わった後はcaptured済みhandleDeleteConfirmも拒否する", async () => {
-    const mutate = vi.fn();
-    const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
-    const { result, rerender } = renderHook(
-      ({ engage }: { engage: boolean }) =>
-        useMasterCRUD<TestEntity>({
-          data,
-          deleteMutation,
-          entityLabel: "テスト",
-          permissions: engage ? { canDelete: false } : undefined,
-        }),
-      { initialProps: { engage: false } },
-    );
-
-    act(() => result.current.handleDeleteRequest(data[0]));
-    await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
-    const capturedHandleDeleteConfirm = result.current.handleDeleteConfirm;
-
-    rerender({ engage: true });
-    act(() => capturedHandleDeleteConfirm());
-
-    expect(mutate).not.toHaveBeenCalled();
-  });
-
   it("pendingDeleteRefは常に最新のpendingDeleteを参照する(連続request後は最後の対象を削除する)", async () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation, entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => result.current.handleDeleteRequest(data[0]));
@@ -439,7 +449,12 @@ describe("useMasterCRUD", () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation, entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
     act(() => result.current.handleDeleteConfirm());
     expect(mutate).not.toHaveBeenCalled();
@@ -449,7 +464,12 @@ describe("useMasterCRUD", () => {
     const mutate = vi.fn();
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation, entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => result.current.handleDeleteRequest(data[0]));
@@ -470,7 +490,12 @@ describe("useMasterCRUD", () => {
     );
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation, entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation,
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => result.current.handleDeleteRequest(data[0]));
@@ -486,7 +511,12 @@ describe("useMasterCRUD", () => {
 
   it("検索語・フィルタ・ソートを組み合わせてfilteredItemsに反映する", async () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => {
@@ -499,7 +529,12 @@ describe("useMasterCRUD", () => {
 
   it("handleSortChangeはactiveSortsを更新しfilteredItemsをソートする", () => {
     const { result } = renderHook(() =>
-      useMasterCRUD<TestEntity>({ data, deleteMutation: buildMockDeleteMutation(), entityLabel: "テスト" }),
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
     );
 
     act(() => result.current.handleSortChange([{ key: "name", direction: "asc" }]));

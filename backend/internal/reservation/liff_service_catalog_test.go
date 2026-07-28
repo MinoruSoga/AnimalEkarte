@@ -11,11 +11,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// newLiffSvcForCatalog は liff_service_catalog.go のテスト用に trimmingCourseRepo /
-// trimmingOptionRepo / staffRepo のみを差し替えた liffService を直接構築する
+// newLiffSvcForCatalog は liff_service_catalog.go のテスト用に typeLiffRepo /
+// trimmingCourseRepo / trimmingOptionRepo / staffRepo を差し替えた liffService を直接構築する
 // （newLiffSvc ヘルパーはこれらのフィールドを配線しないため）。
 func newLiffSvcForCatalog(course *mockTrimmingCourseRepository, option *mockTrimmingOptionRepository, staff *mockLiffStaffRepository) *liffService {
 	return &liffService{
+		typeLiffRepo: &mockLiffTypeRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+				return &model.ReservationType{
+					ID:                 id,
+					ClinicID:           clinicID,
+					IsActive:           true,
+					ReservationVisible: true,
+				}, nil
+			},
+		},
 		trimmingCourseRepo:  course,
 		trimmingOptionRepo:  option,
 		staffRepo:           staff,

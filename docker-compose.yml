@@ -41,6 +41,7 @@ services:
       - "8080:8080"
     volumes:
       - ./backend:/app
+      - ./docs:/docs:ro
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     env_file:

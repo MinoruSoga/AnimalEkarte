@@ -261,6 +261,11 @@ export const queryKeys = {
   owners: {
     all: () => ["owners"] as const,
     detail: (id: string) => ["owners", id] as const,
+    subOwnerOptions: (search: string) =>
+      ["owners", { scope: "sub-owner-options", search }] as const,
+  },
+  ownerSharedPets: {
+    detail: (ownerId: string) => ["owner-shared-pets", ownerId] as const,
   },
   ownerLineTags: (ownerId: string) => ["owner-line-tags", ownerId] as const,
   lineSendHistory: (ownerId: string) => ["line-send-history", ownerId] as const,
@@ -280,8 +285,15 @@ export const queryKeys = {
     },
     detail: (id: string) => ["pet", id] as const,
   },
+  petSubOwners: {
+    detail: (petId: string) => ["pet-sub-owners", petId] as const,
+    metadata: (petId: string) =>
+      ["pet", petId, "sub-owner-metadata"] as const,
+  },
 
   // ── owner-report ──────────────────────────────────────────────────
+  ownerReportPets: (ownerId: string) =>
+    ["owner-report-pets", ownerId] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,

@@ -36,16 +36,17 @@ const (
 	AuditActorTypeStaff  = "staff"
 	AuditActorTypeSystem = "system"
 
-	AuditActionPermissionGroupCreate    = "permission_group.create"
-	AuditActionPermissionGroupUpdate    = "permission_group.update"
-	AuditActionPermissionGroupDelete    = "permission_group.delete"
-	AuditActionPermissionRulesUpdate    = "permission_rules.update"
-	AuditActionAuthLoginSuccess         = "auth.login.success"
-	AuditActionAuthLoginFailure         = "auth.login.failure"
-	AuditActionAuthLogout               = "auth.logout"
-	AuditActionAuthPasswordChange       = "auth.password.change"
-	AuditActionAuthPasswordReset        = "auth.password.reset"
-	AuditActionAuthPasswordAdminReplace = "auth.password.admin_replace"
+	AuditActionPermissionGroupCreate        = "permission_group.create"
+	AuditActionPermissionGroupUpdate        = "permission_group.update"
+	AuditActionPermissionGroupDelete        = "permission_group.delete"
+	AuditActionPermissionRulesUpdate        = "permission_rules.update"
+	AuditActionStaffPermissionGroupsReplace = "staff.permission_groups.replace"
+	AuditActionAuthLoginSuccess             = "auth.login.success"
+	AuditActionAuthLoginFailure             = "auth.login.failure"
+	AuditActionAuthLogout                   = "auth.logout"
+	AuditActionAuthPasswordChange           = "auth.password.change"
+	AuditActionAuthPasswordReset            = "auth.password.reset"
+	AuditActionAuthPasswordAdminReplace     = "auth.password.admin_replace"
 
 	// Lステップ / LINE連携 監査アクション
 	AuditActionLstepSettingsSave     = "lstep.settings.save"
@@ -92,12 +93,14 @@ const (
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
 	AuditActionExamResultReplace                   = "exam_result.replace"
+	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 )
 
 // audit_logs.resource 定数
 const (
 	AuditResourceAccount   = "account"
+	AuditResourceStaff     = "staff"
 	AuditResourceLabImport = "lab_import"
 	// #201 薬量自動計算
 	AuditResourceMedicineDoseParam = "medicine_dose_param"

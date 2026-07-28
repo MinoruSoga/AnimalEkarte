@@ -238,7 +238,7 @@ export function TrimmingForm() {
             <Button
               type="submit"
               form={TRIMMING_FORM_ID}
-              className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
               disabled={isSaving}
             >
               {isSaving ? "保存中..." : "保存"}

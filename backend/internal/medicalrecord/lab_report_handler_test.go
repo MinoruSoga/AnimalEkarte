@@ -446,6 +446,7 @@ var itemSafeKeys = map[string]struct{}{
 	"reference_value":  {},
 	"ref_min":          {},
 	"ref_max":          {},
+	"is_assessed":      {},
 	"is_abnormal":      {},
 	"status":           {},
 	"sort_order":       {},

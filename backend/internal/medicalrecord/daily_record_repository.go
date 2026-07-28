@@ -39,8 +39,9 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
-		Order("date DESC").
+		Joins("JOIN hospitalizations ON hospitalizations.id = daily_records.hospitalization_id AND hospitalizations.clinic_id = daily_records.clinic_id").
+		Where("daily_records.clinic_id = ? AND daily_records.hospitalization_id = ?", clinicID, hospitalizationID).
+		Order("daily_records.date DESC").
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
 		Preload("CareLogs", "clinic_id = ?", clinicID).
 		Preload("StaffNotes").
@@ -54,7 +55,8 @@ func (r *dailyRecordRepository) FindByHospitalizationID(ctx context.Context, cli
 func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
+		Joins("JOIN hospitalizations ON hospitalizations.id = daily_records.hospitalization_id AND hospitalizations.clinic_id = daily_records.clinic_id").
+		Where("daily_records.clinic_id = ? AND daily_records.hospitalization_id = ? AND daily_records.date = ?", clinicID, hospitalizationID, date).
 		Preload("VitalRecords", "clinic_id = ?", clinicID).
 		Preload("CareLogs", "clinic_id = ?", clinicID).
 		Preload("StaffNotes").

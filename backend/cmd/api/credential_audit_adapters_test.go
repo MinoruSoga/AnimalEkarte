@@ -300,6 +300,39 @@ func TestStaffCredentialAuditAdapterMapsEntryInCallerContext(t *testing.T) {
 	assert.Equal(t, "staff-adapter-test", logger.txEntry.UserAgent)
 }
 
+func TestStaffPermissionAssignmentAuditAdapterMapsOldAndNewValues(t *testing.T) {
+	type txMarker struct{}
+	ctx := context.WithValue(context.Background(), txMarker{}, true)
+	clinicID := uint64(23)
+	actorID := uint64(17)
+	targetStaffID := uint64(29)
+	logger := &credentialAuditServiceCapture{}
+	adapter := staffPermissionAssignmentAuditAdapter{logger: logger}
+	oldValue := map[string]any{"staff_id": targetStaffID, "group_ids": []uint64{2}}
+	newValue := map[string]any{"staff_id": targetStaffID, "group_ids": []uint64{3, 5}}
+
+	err := adapter.LogEntryTx(ctx, &staff.PermissionAssignmentAuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    &actorID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     model.AuditActionStaffPermissionGroupsReplace,
+		Resource:   model.AuditResourceStaff,
+		ResourceID: &targetStaffID,
+		OldValue:   oldValue,
+		NewValue:   newValue,
+		IPAddress:  "192.0.2.17",
+		UserAgent:  "staff-permission-adapter-test",
+	})
+
+	require.NoError(t, err)
+	assert.Same(t, ctx, logger.txContext)
+	require.NotNil(t, logger.txEntry)
+	assert.Equal(t, oldValue, logger.txEntry.OldValue)
+	assert.Equal(t, newValue, logger.txEntry.NewValue)
+	assert.Equal(t, model.AuditActionStaffPermissionGroupsReplace, logger.txEntry.Action)
+	assert.Equal(t, model.AuditResourceStaff, logger.txEntry.Resource)
+}
+
 func TestAuthCredentialAuditSubjectResolverUsesActiveExistingClinic(
 	t *testing.T,
 ) {

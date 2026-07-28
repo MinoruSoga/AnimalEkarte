@@ -74,9 +74,15 @@ func (r *checkupFieldResultRepository) FindByCheckupID(ctx context.Context, clin
 	// 置換前スナップショットを削除と同一 tx で一貫取得）。tx 外では base db（従来挙動）。
 	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
+		Where(`EXISTS (
+				SELECT 1
+				FROM checkups
+				WHERE checkups.id = checkup_field_results.checkup_id
+				  AND checkups.clinic_id = checkup_field_results.clinic_id
+			)`).
 		// P3.1: clinic-scoped マスタ Preload は clinic_id 述語必須。
 		Preload("CheckupTypeField", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("checkup_id = ?", checkupID).
+		Where("checkup_field_results.checkup_id = ?", checkupID).
 		Order("sort_order ASC, id ASC").
 		Find(&results).Error
 	if err != nil {

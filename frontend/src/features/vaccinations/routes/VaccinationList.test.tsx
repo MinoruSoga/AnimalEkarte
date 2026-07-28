@@ -1,18 +1,26 @@
+import { useLayoutEffect } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
+import { useGetPet } from "@/hooks/use-pet";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationList } from "./VaccinationList";
 
 const mockUseFilterVaccinations = vi.hoisted(() => vi.fn());
+const listMocks = vi.hoisted(() => ({
+  canDelete: true,
+  deleteVaccination: vi.fn(),
+  confirmDelete: undefined as (() => void) | undefined,
+}));
 
 vi.mock("../hooks/use-vaccinations", () => ({
   useFilterVaccinations: mockUseFilterVaccinations,
 }));
 
 vi.mock("../api/delete-vaccination", () => ({
-  useDeleteVaccination: vi.fn(() => ({ mutate: vi.fn() })),
+  useDeleteVaccination: vi.fn(() => ({ mutate: listMocks.deleteVaccination })),
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -20,8 +28,29 @@ vi.mock("@/hooks/use-permission", () => ({
     canView: true,
     canCreate: true,
     canEdit: true,
-    canDelete: true,
+    canDelete: listMocks.canDelete,
   })),
+}));
+
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: vi.fn(() => ({
+    data: { id: "pet-1", status: "生存" },
+    isLoading: false,
+    isError: false,
+  })),
+}));
+
+vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
+  ConfirmDialog: ({
+    open,
+    onConfirm,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+  }) => {
+    listMocks.confirmDelete = onConfirm;
+    return open ? <button onClick={onConfirm}>確認削除</button> : null;
+  },
 }));
 
 const vaccination: VaccinationRecord = {
@@ -48,21 +77,121 @@ function LocationProbe() {
   return <output data-testid="location">{pathname}</output>;
 }
 
-function renderPage() {
+function DeleteRevocationHarness({ confirmAfterRender }: { confirmAfterRender: boolean }) {
+  useLayoutEffect(() => {
+    if (confirmAfterRender) {
+      listMocks.confirmDelete?.();
+    }
+  }, [confirmAfterRender]);
+
+  return <VaccinationList />;
+}
+
+function renderPage(content = <VaccinationList />) {
   return render(
     <MemoryRouter initialEntries={["/vaccinations"]}>
-      <VaccinationList />
+      {content}
       <LocationProbe />
     </MemoryRouter>,
   );
 }
 
 beforeEach(() => {
+  listMocks.canDelete = true;
+  listMocks.deleteVaccination.mockReset();
+  listMocks.confirmDelete = undefined;
   mockUseFilterVaccinations.mockReturnValue({
     data: [vaccination],
     allVaccinations: [vaccination],
     isLoading: false,
     error: null,
+  });
+  vi.mocked(useGetPet).mockReturnValue({
+    data: { id: "pet-1", status: "生存" },
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof useGetPet>);
+});
+
+describe("VaccinationList mutation permission boundary", () => {
+  it("削除権限剥奪をcommitした直後のlayout phaseで確認してもdelete mutationを発行しない", async () => {
+    const user = userEvent.setup();
+    const view = renderPage(
+      <DeleteRevocationHarness confirmAfterRender={false} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "削除" }));
+    expect(screen.getByRole("button", { name: "確認削除" })).toBeInTheDocument();
+
+    listMocks.canDelete = false;
+    view.rerender(
+      <MemoryRouter initialEntries={["/vaccinations"]}>
+        <DeleteRevocationHarness confirmAfterRender />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(listMocks.deleteVaccination).not.toHaveBeenCalled();
+  });
+
+  it("削除対象が死亡petならdelete mutationを発行しない", async () => {
+    vi.mocked(useGetPet).mockReturnValue({
+      data: { id: "pet-1", status: "死亡" },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetPet>);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "削除" }));
+    await user.click(screen.getByRole("button", { name: "確認削除" }));
+
+    expect(listMocks.deleteVaccination).not.toHaveBeenCalled();
+  });
+
+  it("編集対象が死亡petならdetailへ遷移しない", async () => {
+    vi.mocked(useGetPet).mockReturnValue({
+      data: { id: "pet-1", status: "死亡" },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetPet>);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+
+    expect(screen.queryByRole("menuitem", { name: "編集" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+  });
+
+  it("編集対象が生存petなら従来どおりdetailへ遷移する", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      /^\/vaccinations\/vac-1$/,
+    );
+  });
+
+  it("削除対象petのlookup失敗時はdelete mutationを発行しない", async () => {
+    vi.mocked(useGetPet).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useGetPet>);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "削除" }));
+    await user.click(screen.getByRole("button", { name: "確認削除" }));
+
+    expect(listMocks.deleteVaccination).not.toHaveBeenCalled();
   });
 });
 

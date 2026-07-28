@@ -45,6 +45,7 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof PetDeceased
       petBreed={overrides.petBreed}
       petGender={overrides.petGender}
       petAge={overrides.petAge}
+      canEdit={overrides.canEdit ?? true}
       onRecorded={onRecorded}
     />,
   );
@@ -190,5 +191,22 @@ describe("PetDeceasedDialog", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("取得済みform actionは最新の編集権限がfalseなら死亡記録mutationを発行しない", async () => {
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      petId: "42",
+      petName: "ポチ",
+      canEdit: true,
+    };
+    const { rerender } = render(<PetDeceasedDialog {...props} />);
+    const form = document.getElementById("pet-deceased-form") as HTMLFormElement;
+
+    rerender(<PetDeceasedDialog {...props} canEdit={false} />);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(mockMutateAsync).not.toHaveBeenCalled());
   });
 });

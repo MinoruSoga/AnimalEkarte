@@ -3664,10 +3664,10 @@ ALTER TABLE clinic_settings
 -- 臨床結果テーブルの DB レベル複合 FK（clinic_id 込み）で越境 INSERT/UPDATE を物理拒否する
 -- （BE-refactor.md R3-7 / D13・defense-in-depth）。
 --
--- 対象は checkup_field_results のみ。exam_results は clinic_id 列を持たず、参照先の exam_type_fields も
--- clinic_id 列を持たない（clinic は exam_type_fields→exam_types→clinics と2段先）ため、(id, clinic_id) の
--- 複合 FK が構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という
--- 非 additive なスキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
+-- 対象は checkup_field_results のみ。exam_type_fields は旧005で clinic_id 列と複合FKを獲得済みだが、
+-- exam_results 自身は clinic_id 列を持たないため、(exam_type_field_id, clinic_id) の複合 FK は
+-- 構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という非 additive な
+-- スキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
 --
 -- 挙動保存: migration 010 の患者結果値保護（フィールド定義削除時に結果値を残す ON DELETE SET NULL）を
 -- 列指定 SET NULL（PostgreSQL 15+ 機能・本番は PG18）で維持する。親 checkup_type_fields を削除すると
@@ -3721,3 +3721,299 @@ ALTER TABLE checkup_type_fields
     FOREIGN KEY (checkup_type_id, clinic_id)
     REFERENCES checkup_types (id, clinic_id)
     ON DELETE CASCADE;
+
+-- =============================================================================
+-- 8. 増分マイグレーション統合アーカイブ (旧 002〜009 / 2026-07-27)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜009 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+
+-- Source file: 002_lstep_snapshot_import_clinic_fk.sql
+-- Purpose: LSTEP friend snapshot と CSV import の clinic 所有関係を複合 FK で保証する。
+-- Source commit: 4e8fb5b91
+-- Source SHA-256: 10222c570054a80a5d47cf4b66e4235e92ca35643c9c23ef00a9ce8bca0086b6
+-- Enforce tenant ownership across LSTEP friend snapshots and their CSV import.
+-- Existing mismatches abort the migration before either constraint is changed.
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM lstep_friend_attribute_snapshots AS snapshot
+        JOIN lstep_csv_imports AS csv_import
+          ON csv_import.id = snapshot.csv_import_id
+        WHERE snapshot.csv_import_id IS NOT NULL
+          AND snapshot.clinic_id <> csv_import.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            'cross-clinic lstep friend snapshot csv_import reference exists'
+            USING ERRCODE = '23514';
+    END IF;
+END
+$$;
+
+ALTER TABLE lstep_csv_imports
+    ADD CONSTRAINT uq_lstep_csv_imports_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+ALTER TABLE lstep_friend_attribute_snapshots
+    DROP CONSTRAINT IF EXISTS lstep_friend_attribute_snapshots_csv_import_id_fkey;
+
+ALTER TABLE lstep_friend_attribute_snapshots
+    ADD CONSTRAINT fk_lstep_snapshots_clinic_csv_import
+    FOREIGN KEY (clinic_id, csv_import_id)
+    REFERENCES lstep_csv_imports (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- Source file: 003_medical_records_appointment_id_index.sql
+-- Purpose: 予約紐付きカルテの参照と cutover rollback/maintenance 確認を支える。
+-- Source commit: e4e74d1fb
+-- Source SHA-256: ac7250c9101d0d1b3d55958f18be547a0a21c0c2ab83f32caac3739aa536d675
+-- Supports cutover rollback/maintenance checks and normal appointment-linked
+-- medical-record lookups without holding avoidable long FK scans.
+CREATE INDEX IF NOT EXISTS idx_medical_records_appointment_id
+    ON medical_records (appointment_id)
+    WHERE appointment_id IS NOT NULL;
+
+-- Source file: 004_payment_splits_billing_id_index.sql
+-- Purpose: payment graph 検証と billing 単位の集計を支える。
+-- Source commit: 20e014b36
+-- Source SHA-256: 647d8cf8c89377037c4a6fc07ac81d0ed3d47e5069ab4d3a5d418a56550f1886
+-- Supports payment-graph verification and billing-scoped reporting without
+-- scanning every clinic's payment splits. The existing
+-- (clinic_id, billing_id) index remains the tenant-scoped access path.
+CREATE INDEX IF NOT EXISTS idx_payment_splits_billing_id
+    ON payment_splits (billing_id);
+
+-- Source file: 005_exam_reference_ranges_and_clinic_fk.sql
+-- Purpose: 検査項目の clinic 整合性と種別別基準範囲を DB 制約で保証する。
+-- Source commit: b4d10e083
+-- Source SHA-256: 1841ac6be05199f2666ad78bcd50db45527dadf08e0cc63549b4bf3e4fa44381
+ALTER TABLE exam_types
+    ADD CONSTRAINT uq_exam_types_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE exam_type_fields
+    ADD COLUMN clinic_id bigint;
+
+UPDATE exam_type_fields AS field
+SET clinic_id = exam_type.clinic_id
+FROM exam_types AS exam_type
+WHERE exam_type.id = field.exam_type_id;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM exam_type_fields AS field
+        LEFT JOIN exam_types AS exam_type ON exam_type.id = field.exam_type_id
+        WHERE field.clinic_id IS NULL
+           OR field.clinic_id IS DISTINCT FROM exam_type.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            'exam_type_fields clinic backfill is incomplete or inconsistent'
+            USING ERRCODE = '23514';
+    END IF;
+END
+$$;
+
+ALTER TABLE exam_type_fields
+    ALTER COLUMN clinic_id SET NOT NULL,
+    ADD CONSTRAINT fk_exam_type_fields_clinic
+        FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT,
+    ADD CONSTRAINT uq_exam_type_fields_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE exam_type_fields
+    DROP CONSTRAINT exam_type_fields_exam_type_id_fkey;
+
+ALTER TABLE exam_type_fields
+    ADD CONSTRAINT fk_exam_type_fields_type_clinic
+    FOREIGN KEY (exam_type_id, clinic_id)
+    REFERENCES exam_types (id, clinic_id)
+    ON DELETE CASCADE;
+
+CREATE INDEX idx_exam_type_fields_clinic_type_sort
+    ON exam_type_fields (clinic_id, exam_type_id, sort_order);
+
+CREATE TABLE exam_reference_ranges (
+    id                    BIGSERIAL     PRIMARY KEY,
+    clinic_id             bigint        NOT NULL,
+    exam_type_field_id    bigint        NOT NULL,
+    animal_species_id     bigint        NOT NULL,
+    ref_min               decimal(10,4),
+    ref_max               decimal(10,4),
+    qualitative_min       text,
+    qualitative_max       text,
+    created_at            timestamptz   NOT NULL DEFAULT now(),
+    updated_at            timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT fk_exam_reference_ranges_clinic
+        FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_exam_reference_ranges_field_clinic
+        FOREIGN KEY (exam_type_field_id, clinic_id)
+        REFERENCES exam_type_fields (id, clinic_id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_exam_reference_ranges_animal_species
+        FOREIGN KEY (animal_species_id) REFERENCES animal_species(id) ON DELETE RESTRICT,
+    CONSTRAINT uq_exam_reference_ranges_clinic_field_species
+        UNIQUE (clinic_id, exam_type_field_id, animal_species_id),
+    CONSTRAINT chk_exam_reference_ranges_ref_order
+        CHECK (ref_min IS NULL OR ref_max IS NULL OR ref_min <= ref_max)
+);
+
+CREATE INDEX idx_exam_reference_ranges_animal_species
+    ON exam_reference_ranges (animal_species_id);
+
+-- RLS policies
+SELECT app_private.apply_rls_policy(
+    'exam_type_fields',
+    'tenant_exam_type_fields_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'exam_reference_ranges',
+    'tenant_exam_reference_ranges_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 006_payment_splits_payment_method_clinic_fk.sql
+-- Purpose: payment split と payment method の clinic 一致を複合 FK で保証する。
+-- Source commit: c434c4e66
+-- Source SHA-256: dfffc94e4e0f1990842a83840c7d759390291ad76679d1cc1c253433fe64e8e7
+ALTER TABLE payment_methods
+    ADD CONSTRAINT uq_payment_methods_id_clinic UNIQUE (id, clinic_id);
+
+-- Adding the composite foreign key validates all existing rows and fails if a
+-- non-NULL payment_method_id belongs to another clinic. Before applying this
+-- migration, use the following query to identify conflicting rows:
+--
+-- SELECT
+--     payment_split.id,
+--     payment_split.clinic_id,
+--     payment_split.payment_method_id,
+--     payment_method.clinic_id AS payment_method_clinic_id
+-- FROM payment_splits AS payment_split
+-- LEFT JOIN payment_methods AS payment_method
+--     ON payment_method.id = payment_split.payment_method_id
+-- WHERE payment_split.payment_method_id IS NOT NULL
+--   AND (
+--       payment_method.id IS NULL
+--       OR payment_method.clinic_id IS DISTINCT FROM payment_split.clinic_id
+--   );
+
+ALTER TABLE payment_splits
+    ADD CONSTRAINT fk_payment_splits_payment_method_clinic
+    FOREIGN KEY (payment_method_id, clinic_id)
+    REFERENCES payment_methods (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- Source file: 007_add_pets_danger_reason.sql
+-- Purpose: ペットの危険理由を記録する。
+-- Source commit: 49029973b
+-- Source SHA-256: 4d9afc0389285ca2b6ae9bb92ae4924e869a6e71f9051bbf774e9831dbf9047c
+ALTER TABLE pets
+    ADD COLUMN danger_reason text;
+
+-- Source file: 008_add_billing_item_vaccination_provenance.sql
+-- Purpose: 会計明細へ予防接種 provenance と clinic 制約を追加する。
+-- Source commit: 65a0dd08d
+-- Source SHA-256: daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79
+ALTER TABLE billing_items
+    ADD COLUMN vaccination_id bigint,
+    ADD COLUMN clinic_id bigint,
+    ADD CONSTRAINT chk_billing_items_vaccination_clinic_pair
+        CHECK (
+            (vaccination_id IS NULL AND clinic_id IS NULL)
+            OR (vaccination_id IS NOT NULL AND clinic_id IS NOT NULL)
+        );
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT uq_vaccinations_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billings
+    ADD CONSTRAINT uq_billings_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT fk_billing_items_billing_clinic
+        FOREIGN KEY (billing_id, clinic_id)
+        REFERENCES billings (id, clinic_id),
+    ADD CONSTRAINT fk_billing_items_vaccination_clinic
+        FOREIGN KEY (vaccination_id, clinic_id)
+        REFERENCES vaccinations (id, clinic_id)
+        ON DELETE RESTRICT;
+
+CREATE INDEX idx_vaccinations_clinic_pet_date_active
+    ON vaccinations(clinic_id, pet_id, date, id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_billing_items_vaccination_lifetime
+    ON billing_items(vaccination_id)
+    WHERE vaccination_id IS NOT NULL;
+
+COMMENT ON COLUMN billing_items.vaccination_id IS
+    '予防接種イベント由来の会計明細を識別するprovenance';
+
+COMMENT ON COLUMN billing_items.clinic_id IS
+    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+
+-- Source file: 009_add_billing_items_other_reason.sql
+-- Purpose: other 分類の理由と会計明細の作成者を記録する。
+-- Source commit: 7a64d9e63
+-- Source SHA-256: 0923a782f31e1f736b17e3bf1935e164ec56db0de032114d7849eb6637ff2809
+ALTER TABLE billing_items
+    ADD COLUMN other_reason text,
+    ADD COLUMN created_by bigint,
+    ADD CONSTRAINT fk_billing_items_created_by
+        FOREIGN KEY (created_by) REFERENCES staffs(id) ON DELETE RESTRICT;
+
+CREATE INDEX idx_billing_items_created_by
+    ON billing_items (created_by)
+    WHERE created_by IS NOT NULL;
+
+-- Source file: 002_pets_owners_clinic_composite_unique.sql
+-- Purpose: pets / owners へ (clinic_id, id) の複合 UNIQUE を追加し、clinic 相関の複合 FK 参照先を用意する。
+-- Source commit: a0165b1c5
+-- Source SHA-256: 374f105139de1aea24253bc7adb24430245922230d5d1077f65c81c320f2cbbd
+ALTER TABLE pets
+    ADD CONSTRAINT uq_pets_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+ALTER TABLE owners
+    ADD CONSTRAINT uq_owners_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+-- Source file: 003_add_pet_owners.sql
+-- Purpose: ペットと飼い主の多対多を pet_owners で表現し、clinic 相関の複合 FK と RLS を適用する。
+-- Source commit: b4933b50b
+-- Source SHA-256: ca059c6bcc625e9e7b0f9001292653774e5c265eec4b528a0fcf57ce91a9357a
+CREATE TABLE pet_owners (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id),
+    pet_id       BIGINT NOT NULL,
+    owner_id     BIGINT NOT NULL,
+    relationship TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (pet_id, owner_id),
+    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),
+    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)
+);
+
+CREATE INDEX idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id);
+CREATE INDEX idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id);
+
+SELECT app_private.apply_rls_policy(
+    'pet_owners',
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 004_add_exam_result_qualitative_bounds.sql
+-- Purpose: 定性判定の境界値スナップショットを exam_results へ保持する（#249 U3）。
+-- Source commit: cb3b1c448
+-- Source SHA-256: 6ce59f1051132353a377bed341a6d78f6b0562fcb705ad8949cc99b4a2066997
+ALTER TABLE exam_results
+    ADD COLUMN qualitative_min text,
+    ADD COLUMN qualitative_max text;

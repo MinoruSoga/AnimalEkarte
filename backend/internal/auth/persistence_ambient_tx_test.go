@@ -231,3 +231,92 @@ func TestPermissionGroupRepository_AmbientTransactionReadYourWritesAndRollback(t
 		assert.Empty(t, groupIDs)
 	})
 }
+
+func TestPermissionGroupRepository_CreateWithRules_RollsBackWithAmbientTransaction(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db).(*permissionGroupRepository)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	group := &model.PermissionGroup{ClinicID: clinicID, Name: "ambient create-with-rules"}
+	rules := []model.PermissionGroupRule{{Resource: "medical_record", CanView: true}}
+	forcedErr := errors.New("force create-with-rules rollback")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		created, createErr := repo.CreateWithRules(txCtx, group, rules)
+		require.NoError(t, createErr)
+		require.Len(t, created.Rules, 1)
+		assert.Equal(t, "medical_record", created.Rules[0].Resource)
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	var groupCount, ruleCount int64
+	require.NoError(t, db.Model(&model.PermissionGroup{}).Where("id = ?", group.ID).Count(&groupCount).Error)
+	require.NoError(t, db.Model(&model.PermissionGroupRule{}).Where("group_id = ?", group.ID).Count(&ruleCount).Error)
+	assert.Zero(t, groupCount)
+	assert.Zero(t, ruleCount)
+}
+
+func TestPermissionGroupRepository_UpdateWithRules_RollsBackWithAmbientTransaction(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db).(*permissionGroupRepository)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	group := makePermissionGroup(t, db, clinicID, "ambient update original")
+	originalRule := makeEffPermRule(t, db, group.ID, "medical_record", true, false, false, false)
+	forcedErr := errors.New("force update-with-rules rollback")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		updated, updateErr := repo.UpdateWithRules(
+			txCtx,
+			clinicID,
+			group.ID,
+			map[string]any{"name": "ambient update replacement"},
+			[]model.PermissionGroupRule{{Resource: "billing", CanView: true}},
+		)
+		require.NoError(t, updateErr)
+		assert.Equal(t, "ambient update replacement", updated.Name)
+		require.Len(t, updated.Rules, 1)
+		assert.Equal(t, "billing", updated.Rules[0].Resource)
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, findErr := repo.FindByID(ctx, clinicID, group.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, "ambient update original", got.Name)
+	require.Len(t, got.Rules, 1)
+	assert.Equal(t, originalRule.ID, got.Rules[0].ID)
+	assert.Equal(t, "medical_record", got.Rules[0].Resource)
+}
+
+func TestPermissionGroupRepository_replaceRules_RollsBackWithAmbientTransaction(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := &permissionGroupRepository{db: db}
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	group := makePermissionGroup(t, db, clinicID, "ambient private replace")
+	originalRule := makeEffPermRule(t, db, group.ID, "medical_record", true, false, false, false)
+	forcedErr := errors.New("force private replace-rules rollback")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		require.NoError(t, repo.replaceRules(txCtx, group.ID, []model.PermissionGroupRule{
+			{Resource: "billing", CanView: true},
+		}))
+		got, findErr := repo.FindByID(txCtx, clinicID, group.ID)
+		require.NoError(t, findErr)
+		require.Len(t, got.Rules, 1)
+		assert.Equal(t, "billing", got.Rules[0].Resource)
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, findErr := repo.FindByID(ctx, clinicID, group.ID)
+	require.NoError(t, findErr)
+	require.Len(t, got.Rules, 1)
+	assert.Equal(t, originalRule.ID, got.Rules[0].ID)
+	assert.Equal(t, "medical_record", got.Rules[0].Resource)
+}

@@ -47,6 +47,7 @@ type CreatePetInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType string
 	DangerLevel     string
+	DangerReason    *string
 	Food            string
 	Environment     string
 	Phone           string
@@ -76,12 +77,22 @@ type UpdatePetInput struct {
 	NeuteredDate    *time.Time
 	AcquisitionType *string
 	DangerLevel     *string
-	Food            *string
-	Environment     *string
-	Phone           *string
-	LastVisit       *time.Time
-	InsuranceID     **uint64
-	Remarks         *string
+	// DangerReason は nil=未指定 / &nil=NULLクリア / &&value=更新対象。
+	DangerReason **string
+	Food         *string
+	Environment  *string
+	Phone        *string
+	LastVisit    *time.Time
+	InsuranceID  **uint64
+	Remarks      *string
+}
+
+// PetUpdate is the typed atomic update command owned by the pet package.
+// The repository merges its danger fields over the locked row before writing.
+type PetUpdate struct {
+	fields       map[string]any
+	dangerLevel  *model.DangerLevel
+	dangerReason **string
 }
 
 // buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
@@ -132,6 +143,9 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	if input.DangerLevel != nil {
 		fields["danger_level"] = *input.DangerLevel
 	}
+	if input.DangerReason != nil {
+		fields["danger_reason"] = *input.DangerReason
+	}
 	if input.Food != nil {
 		fields["food"] = *input.Food
 	}
@@ -159,6 +173,8 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 type Service interface {
 	// List は指定した複数医院 (#86 拠点横断) のペット一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
 	List(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error)
+	// ListOwnerReportPets は認可済み医院内の対象飼主について、Owner Report 用のペット一覧を返す。
+	ListOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	// GetByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
@@ -173,20 +189,48 @@ type Service interface {
 // --- Implementation ---
 
 type petService struct {
-	repo              Repository
+	repo              ServiceRepository
 	ownerRepo         OwnerFinder
 	insuranceRepo     InsuranceFinder
 	medicalRecordRepo MedicalRecordReader
 	tagSyncSvc        PetTagSynchronizer
+	petOwnerRepo      PetOwnerReader
+	petOwnerTx        PetOwnerTransactor
 }
 
 // NewService constructs the pet use-case service.
 func NewService(
-	repo Repository,
+	repo ServiceRepository,
 	ownerRepo OwnerFinder,
 	insuranceRepo InsuranceFinder,
 	medicalRecordRepo MedicalRecordReader,
 	tagSyncSvc PetTagSynchronizer,
+) Service {
+	return newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, nil, nil)
+}
+
+// NewServiceWithPetOwnerReader constructs the pet service with the secondary-owner
+// guard required by production owner changes.
+func NewServiceWithPetOwnerReader(
+	repo ServiceRepository,
+	ownerRepo OwnerFinder,
+	insuranceRepo InsuranceFinder,
+	medicalRecordRepo MedicalRecordReader,
+	tagSyncSvc PetTagSynchronizer,
+	petOwnerRepo PetOwnerReader,
+	petOwnerTx PetOwnerTransactor,
+) Service {
+	return newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, petOwnerRepo, petOwnerTx)
+}
+
+func newService(
+	repo ServiceRepository,
+	ownerRepo OwnerFinder,
+	insuranceRepo InsuranceFinder,
+	medicalRecordRepo MedicalRecordReader,
+	tagSyncSvc PetTagSynchronizer,
+	petOwnerRepo PetOwnerReader,
+	petOwnerTx PetOwnerTransactor,
 ) Service {
 	return &petService{
 		repo:              repo,
@@ -194,6 +238,8 @@ func NewService(
 		insuranceRepo:     insuranceRepo,
 		medicalRecordRepo: medicalRecordRepo,
 		tagSyncSvc:        tagSyncSvc,
+		petOwnerRepo:      petOwnerRepo,
+		petOwnerTx:        petOwnerTx,
 	}
 }
 
@@ -204,6 +250,15 @@ func (s *petService) List(ctx context.Context, clinicIDs []uint64, filters PetLi
 		return nil, 0, apperrors.Wrap(err, "failed to list pets")
 	}
 	return pets, total, nil
+}
+
+func (s *petService) ListOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {
+	pets, err := s.repo.FindOwnerReportPets(ctx, clinicIDs, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list owner report pets", "error", err)
+		return nil, apperrors.Wrap(err, "failed to list owner report pets")
+	}
+	return pets, nil
 }
 
 func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
@@ -242,6 +297,14 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	if err := validateCreatePetInput(input); err != nil {
 		return nil, err
 	}
+	normalizedReason, err := normalizeDangerReason(
+		model.DangerLevel(input.DangerLevel),
+		input.DangerReason,
+	)
+	if err != nil {
+		return nil, err
+	}
+	input.DangerReason = normalizedReason
 
 	// owner_id の clinic 所属確認
 	if _, err := s.ownerRepo.FindByID(ctx, clinicID, input.OwnerID); err != nil {
@@ -274,7 +337,8 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	currentPet, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find pet")
 	}
@@ -284,9 +348,24 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 
 	// owner_id 変更時の clinic 所属確認
+	ownerUpdateRequested := false
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
 			return nil, apperrors.WrapInvalidInput("owner not found in this clinic")
+		}
+		if currentPet == nil {
+			return nil, apperrors.WrapInternalServerError("pet lookup returned no result")
+		}
+		if s.petOwnerRepo == nil || s.petOwnerTx == nil {
+			return nil, apperrors.WrapInternalServerError("pet owner transaction dependencies are unavailable")
+		}
+		ownerUpdateRequested = true
+		links, err := s.petOwnerRepo.FindByPetID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to find pet owners")
+		}
+		if containsPetOwner(links, *input.OwnerID) {
+			return nil, apperrors.WrapConflict("副飼主を主飼主へ変更する前に副飼主の紐付けを解除してください")
 		}
 	}
 
@@ -302,7 +381,41 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	var dangerLevel *model.DangerLevel
+	if input.DangerLevel != nil {
+		level := model.DangerLevel(*input.DangerLevel)
+		dangerLevel = &level
+	}
+	update := PetUpdate{
+		fields:       fields,
+		dangerLevel:  dangerLevel,
+		dangerReason: input.DangerReason,
+	}
+	var pet *model.Pet
+	updateAndVerify := func(updateCtx context.Context) error {
+		var updateErr error
+		pet, updateErr = s.repo.UpdateAndFind(updateCtx, clinicID, id, update)
+		if updateErr != nil {
+			return updateErr
+		}
+		if !ownerUpdateRequested {
+			return nil
+		}
+		links, readErr := s.petOwnerRepo.FindByPetID(updateCtx, clinicID, id)
+		if readErr != nil {
+			return apperrors.Wrap(readErr, "failed to verify pet owners")
+		}
+		if containsPetOwner(links, *input.OwnerID) {
+			return apperrors.WrapConflict("副飼主を主飼主へ変更する前に副飼主の紐付けを解除してください")
+		}
+		return nil
+	}
+	if ownerUpdateRequested {
+		err = s.petOwnerTx.WithTx(ctx, updateAndVerify)
+	} else {
+		err = updateAndVerify(ctx)
+	}
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to update pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
@@ -311,11 +424,6 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	pet, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated pet", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated pet")
-	}
 	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
 	return pet, nil
 }

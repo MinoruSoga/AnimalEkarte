@@ -41,7 +41,7 @@ const getRecordExaminations = async (
   petId: string,
 ): Promise<RecordExaminationsResult> => {
   const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
-    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT },
+    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT, include_items: true },
   });
   const rows = data.data ?? [];
   return {

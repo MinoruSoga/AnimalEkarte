@@ -129,6 +129,7 @@ func allModels() []any {
 		&model.MedicalRecordAddendum{},
 		&model.MedicineDoseParam{},
 		&model.PetChronicCondition{},
+		&model.PetOwner{},
 		&model.PasswordResetToken{},
 		&model.TokenBlacklist{},
 		&model.LineLinkToken{},

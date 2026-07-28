@@ -1,5 +1,6 @@
 import { FileText, Pencil, Trash2 } from "lucide-react";
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -125,6 +126,7 @@ export function OwnersListTable({
               <OwnersListRow
                 key={pet.id}
                 pet={pet}
+                canViewDetail={!isOtherClinic}
                 canEdit={!!canEdit && !isOtherClinic}
                 canDelete={!!canDelete && !isOtherClinic}
                 canReport={!!canReport && !isOtherClinic}
@@ -157,6 +159,7 @@ export function OwnersListTable({
 
 interface OwnersListRowProps {
   pet: Pet;
+  canViewDetail: boolean;
   canEdit: boolean;
   canDelete: boolean;
   canReport: boolean;
@@ -169,6 +172,7 @@ interface OwnersListRowProps {
 
 function OwnersListRow({
   pet,
+  canViewDetail,
   canEdit,
   canDelete,
   canReport,
@@ -185,7 +189,7 @@ function OwnersListRow({
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         <span className="flex items-center gap-1.5">
-          {canEdit ? (
+          {canViewDetail ? (
             <DataTableRowLink
               to={paths.owners.detail.getHref(pet.ownerId)}
               aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
@@ -194,9 +198,28 @@ function OwnersListRow({
             </DataTableRowLink>
           ) : pet.ownerName}
           {pet.dangerLevel === "高" ? (
-            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
-              ⚠ 危険
-            </span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${pet.name}の危険理由を表示`}
+                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+                >
+                  ⚠ 危険
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                aria-label={`${pet.name}の危険理由`}
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                className="w-64"
+              >
+                <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
+                <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
+                  {pet.dangerReason?.trim() || "理由未登録"}
+                </p>
+              </PopoverContent>
+            </Popover>
           ) : null}
         </span>
       </TableCell>

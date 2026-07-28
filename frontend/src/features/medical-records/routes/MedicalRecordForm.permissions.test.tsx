@@ -1,10 +1,19 @@
-import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MedicalRecordForm } from "./MedicalRecordForm";
 
 const mockDeleteRecord = vi.hoisted(() => vi.fn());
 const mockUsePermission = vi.hoisted(() => vi.fn());
+const mockBoundaryState = vi.hoisted(() => ({
+  selectedPetStatus: "生存" as "生存" | "死亡",
+  capturedDeleteConfirm: undefined as (() => void) | undefined,
+  setPermissions: undefined as ((permissions: {
+    canEdit: boolean;
+    canCreate: boolean;
+    canDelete: boolean;
+  }) => void) | undefined,
+}));
 
 vi.mock("react-router", () => ({
   useParams: () => ({ id: "record-1" }),
@@ -35,7 +44,7 @@ vi.mock("../hooks/use-medical-record-form", () => ({
       name: "ペット",
       petNumber: "P-1",
       species: "犬",
-      status: "生存",
+      status: mockBoundaryState.selectedPetStatus,
     },
     isPetLoading: false,
     shouldRedirectToSelectPet: false,
@@ -161,9 +170,12 @@ vi.mock("../components/MedicalRecordFormActions", () => ({
   MedicalRecordPrintArea: () => null,
 }));
 vi.mock("../components/MedicalRecordFormModals", () => ({
-  MedicalRecordFormModals: ({ onConfirmDelete }: { onConfirmDelete: () => void }) => (
-    <button type="button" onClick={onConfirmDelete}>confirm delete</button>
-  ),
+  MedicalRecordFormModals: ({ onConfirmDelete }: { onConfirmDelete: () => void }) => {
+    mockBoundaryState.capturedDeleteConfirm ??= onConfirmDelete;
+    return (
+      <button type="button" onClick={onConfirmDelete}>confirm delete</button>
+    );
+  },
 }));
 vi.mock("../components/MedicalRecordAddenda", () => ({ MedicalRecordAddenda: () => null }));
 vi.mock("@/components/shared/NavigationBlocker", () => ({ NavigationBlocker: () => null }));
@@ -174,10 +186,25 @@ vi.mock("@/components/shared/UnifiedTabs", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockBoundaryState.selectedPetStatus = "生存";
+  mockBoundaryState.capturedDeleteConfirm = undefined;
+  mockBoundaryState.setPermissions = undefined;
   mockUsePermission.mockReturnValue({ canEdit: false, canCreate: true, canDelete: false });
 });
 
 describe("MedicalRecordForm — mutation permission boundary", () => {
+  function installStatefulPermissionMock() {
+    mockUsePermission.mockImplementation(() => {
+      const [permissions, setPermissions] = useState({
+        canEdit: true,
+        canCreate: true,
+        canDelete: true,
+      });
+      mockBoundaryState.setPermissions = setPermissions;
+      return permissions;
+    });
+  }
+
   it("canDelete=falseではdelete mutationを発行せず、canEdit=falseではfieldsetを無効化する", () => {
     render(<MedicalRecordForm />);
 
@@ -185,6 +212,35 @@ describe("MedicalRecordForm — mutation permission boundary", () => {
     expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "confirm delete" }));
+
+    expect(mockDeleteRecord).not.toHaveBeenCalled();
+  });
+
+  it("delete権限を失ったcommit直後は取得済み削除callbackがmutationを発行しない", () => {
+    installStatefulPermissionMock();
+    render(<MedicalRecordForm />);
+
+    act(() => mockBoundaryState.setPermissions?.({
+      canEdit: true,
+      canCreate: true,
+      canDelete: false,
+    }));
+    act(() => mockBoundaryState.capturedDeleteConfirm?.());
+
+    expect(mockDeleteRecord).not.toHaveBeenCalled();
+  });
+
+  it("選択ペットが死亡したcommit直後は取得済み削除callbackがmutationを発行しない", () => {
+    installStatefulPermissionMock();
+    render(<MedicalRecordForm />);
+
+    mockBoundaryState.selectedPetStatus = "死亡";
+    act(() => mockBoundaryState.setPermissions?.({
+      canEdit: true,
+      canCreate: true,
+      canDelete: true,
+    }));
+    act(() => mockBoundaryState.capturedDeleteConfirm?.());
 
     expect(mockDeleteRecord).not.toHaveBeenCalled();
   });

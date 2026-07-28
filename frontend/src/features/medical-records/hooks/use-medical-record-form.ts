@@ -45,7 +45,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isNewRecord = !recordId;
-  const { canEdit } = usePermission("medical-records");
+  const { canCreate, canEdit } = usePermission("medical-records");
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
@@ -163,6 +163,7 @@ export function useMedicalRecordForm(recordId?: string) {
     recordId,
     activeTab,
     canEdit,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
     isFinalized,
     isNextVisitDateValid,
     diagnosis1CategoryId,
@@ -203,6 +204,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setNextVisitDate,
     queryClient,
     updateMutation,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   const handleBack = useCallback(() => {
@@ -229,11 +231,16 @@ export function useMedicalRecordForm(recordId?: string) {
     existingRecord,
     updateMutation,
     startSaveTransition,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
-  useMedicalRecordAutoCreate({
+  const {
+    failurePhase: autoCreateFailurePhase,
+    retry: retryAutoCreate,
+  } = useMedicalRecordAutoCreate({
     isNewRecord,
+    canCreate,
     selectedPet,
     hasAutoCreatedRef,
     appointmentIdFromState,
@@ -269,6 +276,8 @@ export function useMedicalRecordForm(recordId?: string) {
     isSaving: isSaving || isSavingTransition,
     isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,

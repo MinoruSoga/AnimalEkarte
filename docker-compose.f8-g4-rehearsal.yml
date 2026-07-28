@@ -1,0 +1,139 @@
+name: ${F8_G4_COMPOSE_PROJECT:?set F8_G4_COMPOSE_PROJECT}
+
+services:
+  db:
+    image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    restart: "no"
+    mem_limit: 1g
+    env_file:
+      - ${F8_G4_ENV_FILE:?set F8_G4_ENV_FILE}
+    environment:
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
+      POSTGRES_USER: ${DB_USER:?set DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME}
+    command: ["postgres", "-c", "timezone=Asia/Tokyo"]
+    ports:
+      - "127.0.0.1:${F8_G4_DB_PORT:-15435}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - f8-g4-network
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  migrate:
+    image: ${F8_G4_RUNNER_IMAGE:?set F8_G4_RUNNER_IMAGE}
+    build:
+      context: ${F8_G4_BUILD_CONTEXT:?set F8_G4_BUILD_CONTEXT}
+      dockerfile: Dockerfile.f8-g4
+      labels:
+        org.opencontainers.image.revision: ${F8_G4_TARGET_RELEASE_COMMIT:?set F8_G4_TARGET_RELEASE_COMMIT}
+        com.animalekarte.f8-g4.backend-tree: ${F8_G4_BACKEND_TREE_ID:-config-check-unattested}
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${F8_G4_ENV_FILE:?set F8_G4_ENV_FILE}
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_SSL_MODE: disable
+      MIGRATE_SQL_INTEGRATION: "1"
+      MIGRATE_SQL_INTEGRATION_DB_NAME: ${DB_NAME:?set DB_NAME}
+    networks:
+      - f8-g4-network
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}
+    entrypoint: ["go", "test"]
+    command:
+      - "./cmd/migrate"
+      - "-run"
+      - "^TestRunSQLMigrationsAgainstDisposablePostgres$"
+      - "-count=1"
+      - "-v"
+
+  seed:
+    image: ${F8_G4_RUNNER_IMAGE:?set F8_G4_RUNNER_IMAGE}
+    build:
+      context: ${F8_G4_BUILD_CONTEXT:?set F8_G4_BUILD_CONTEXT}
+      dockerfile: Dockerfile.f8-g4
+      labels:
+        org.opencontainers.image.revision: ${F8_G4_TARGET_RELEASE_COMMIT:?set F8_G4_TARGET_RELEASE_COMMIT}
+        com.animalekarte.f8-g4.backend-tree: ${F8_G4_BACKEND_TREE_ID:-config-check-unattested}
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${F8_G4_ENV_FILE:?set F8_G4_ENV_FILE}
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_SSL_MODE: disable
+      CSVIMPORT_REHEARSAL_SEEDS: "1"
+      CSVIMPORT_REHEARSAL_DB_NAME: ${DB_NAME:?set DB_NAME}
+    networks:
+      - f8-g4-network
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}
+    entrypoint: ["go", "test"]
+    command:
+      - "./cmd/migrate"
+      - "-run"
+      - "^TestSeedCutoverRehearsalAgainstDisposablePostgres$"
+      - "-count=1"
+      - "-v"
+
+  runner:
+    image: ${F8_G4_RUNNER_IMAGE:?set F8_G4_RUNNER_IMAGE}
+    build:
+      context: ${F8_G4_BUILD_CONTEXT:?set F8_G4_BUILD_CONTEXT}
+      dockerfile: Dockerfile.f8-g4
+      labels:
+        org.opencontainers.image.revision: ${F8_G4_TARGET_RELEASE_COMMIT:?set F8_G4_TARGET_RELEASE_COMMIT}
+        com.animalekarte.f8-g4.backend-tree: ${F8_G4_BACKEND_TREE_ID:-config-check-unattested}
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${F8_G4_ENV_FILE:?set F8_G4_ENV_FILE}
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_SSL_MODE: disable
+    networks:
+      - f8-g4-network
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}
+    entrypoint: ["go", "run", "./cmd/csv-import-failure-rehearsal"]
+
+volumes:
+  postgres_data:
+    name: ${F8_G4_COMPOSE_PROJECT:?set F8_G4_COMPOSE_PROJECT}_postgres_data
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}
+networks:
+  f8-g4-network:
+    name: ${F8_G4_COMPOSE_PROJECT:?set F8_G4_COMPOSE_PROJECT}_f8-g4-network
+    internal: true
+    attachable: false
+    labels:
+      com.animalekarte.f8-g4.disposable: "true"
+      com.animalekarte.f8-g4.run-id: ${F8_G4_RUN_ID:?set F8_G4_RUN_ID}

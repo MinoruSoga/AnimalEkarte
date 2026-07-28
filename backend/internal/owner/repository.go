@@ -67,6 +67,7 @@ type Repository interface {
 	ServiceRepository
 	LookupRepository
 	LstepRepository
+	OwnerDeleteLocker
 }
 
 type ownerRepository struct {
@@ -92,18 +93,22 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
 		if search != "" {
-			// NormalizeKana で検索語のカタカナをひらがなに正規化。
-			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+			// raw name の一致は既存の trgm index を利用可能な形で残し、
+			// name と name_kana の正規化枝でカナ表記を対称に検索する。
+			// phone と email は従来どおり正規化済み pattern で比較する。
+			rawPattern := "%" + textsearch.EscapeLike(search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
 			q = q.Where(
 				`(name ILIKE ? ESCAPE '\'`+
+					` OR translate(name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
 					` OR email ILIKE ? ESCAPE '\')`,
-				pattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, pattern,
-				pattern,
-				pattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				normalizedPattern,
+				normalizedPattern,
 			)
 		}
 		return q
@@ -267,6 +272,7 @@ func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
 			NeuteredDate:    pet.NeuteredDate,
 			AcquisitionType: pet.AcquisitionType,
 			DangerLevel:     pet.DangerLevel,
+			DangerReason:    pet.DangerReason,
 			Food:            pet.Food,
 			Environment:     pet.Environment,
 			Phone:           pet.Phone,
@@ -311,13 +317,20 @@ func (r *ownerRepository) UpdateAndFind(
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id)
+	return persistence.DeleteScopedByID(
+		ctx,
+		persistence.DBOrTx(ctx, r.db),
+		&model.Owner{},
+		"owner",
+		clinicID,
+		id,
+	)
 }
 
 // CountPetsByOwnerID は指定されたオーナーに紐付いているペット数を返す
 func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
@@ -326,6 +339,29 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
+}
+
+// LockForDelete serializes deletion with writers that take a row lock on an
+// active, clinic-scoped owner. It fails closed without the service-owned
+// ambient transaction.
+func (r *ownerRepository) LockForDelete(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Owner, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("owner delete lock requires an ambient transaction")
+	}
+	var owner model.Owner
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		First(&owner).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return &owner, nil
 }
 
 // FindByLineUserID は LINE User ID で飼主を検索する（Lステップ連携用）。

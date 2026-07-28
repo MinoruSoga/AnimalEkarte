@@ -111,8 +111,10 @@ export interface BillingItem {
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
+  other_reason?: string;
   merchandise_item_id?: number /* uint64 */;
   treatment_id?: number /* uint64 */;
+  vaccination_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
   trimming_option_id?: number /* uint64 */;
@@ -228,6 +230,7 @@ export const AuditActionPermissionGroupCreate = "permission_group.create";
 export const AuditActionPermissionGroupUpdate = "permission_group.update";
 export const AuditActionPermissionGroupDelete = "permission_group.delete";
 export const AuditActionPermissionRulesUpdate = "permission_rules.update";
+export const AuditActionStaffPermissionGroupsReplace = "staff.permission_groups.replace";
 export const AuditActionAuthLoginSuccess = "auth.login.success";
 export const AuditActionAuthLoginFailure = "auth.login.failure";
 export const AuditActionAuthLogout = "auth.logout";
@@ -290,12 +293,14 @@ export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replac
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
 export const AuditActionExamResultReplace = "exam_result.replace";
+export const AuditActionPetOwnerReplace = "pet_owner.replace";
 export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionHospitalizationDischargeWithBilling;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling;
 export const AuditResourceAccount = "account";
+export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
 /**
  * #201 薬量自動計算
@@ -317,7 +322,7 @@ export const AuditResourceTrimming = "trimming";
 /**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming;
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。
@@ -1099,6 +1104,24 @@ export interface EstimateItem {
 }
 
 //////////
+// source: exam_reference_range.go
+
+/**
+ * ExamReferenceRange is a clinic-owned reference range for an examination field and species.
+ */
+export interface ExamReferenceRange {
+  id: number /* uint64 */;
+  exam_type_field_id: number /* uint64 */;
+  animal_species_id: number /* uint64 */;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: examination_record.go
 
 export const ExaminationStatusPending = "pending";
@@ -1150,6 +1173,8 @@ export interface ExamResult {
   reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
   is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
@@ -2456,6 +2481,7 @@ export interface Pet {
   neutered_date?: string;
   acquisition_type?: AcquisitionType;
   danger_level: DangerLevel;
+  danger_reason?: string;
   food: string;
   environment: string;
   phone: string;
@@ -2464,6 +2490,7 @@ export interface Pet {
   remarks: string;
   deceased_at?: string;
   deceased_reason?: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -2495,6 +2522,26 @@ export interface PetChronicCondition {
    * Relations
    */
   pet?: Pet;
+}
+
+//////////
+// source: pet_owner.go
+
+/**
+ * PetOwner はペットと副飼主の追加紐付けを表す。
+ */
+export interface PetOwner {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  /**
+   * PetID / OwnerID: DDL の UNIQUE (pet_id, owner_id) を宣言する。
+   * index 名は PostgreSQL が UNIQUE 制約へ自動採番する名前に合わせる。
+   */
+  pet_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  relationship: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////

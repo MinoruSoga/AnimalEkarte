@@ -1,4 +1,4 @@
-import { useState, useEffect, useActionState, useCallback, useRef } from "react";
+import { useState, useEffect, useActionState, useCallback, useLayoutEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -49,19 +49,34 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+  const selectedPetRef = useRef(selectedPets[0]);
+  useLayoutEffect(() => {
+    selectedPetRef.current = selectedPets[0];
+  }, [selectedPets]);
   const canSubmitRef = useRef(canSubmit);
-  useEffect(() => {
+  useLayoutEffect(() => {
     canSubmitRef.current = canSubmit;
   }, [canSubmit]);
   const isMutationAllowed = useCallback(() => canSubmitRef.current === true, []);
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
-      if (!selectedPets.length) {
+      const pet = selectedPetRef.current;
+      if (!pet) {
         return { success: false, fieldErrors: { pet: "ペットを選択してください" }, timestamp: Date.now() };
       }
 
-      const pet = selectedPets[0];
+      if (pet.status === "死亡") {
+        return {
+          success: false,
+          fieldErrors: {
+            pet: isEdit
+              ? "死亡したペットは入院情報を更新できません"
+              : "死亡したペットは入院登録できません",
+          },
+          timestamp: Date.now(),
+        };
+      }
       try {
         if (isEdit && id) {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
@@ -96,7 +111,10 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, hospitalizationData));
     setTreatmentPlans(buildTreatmentPlansFromRecord(hospitalizationData));
     const selectedPet = buildSelectedPetFromHospitalization(hospitalizationData);
-    if (selectedPet) setSelectedPets([selectedPet]);
+    if (selectedPet) {
+      selectedPetRef.current = selectedPet;
+      setSelectedPets([selectedPet]);
+    }
   }, [hospitalizationData, setSelectedPets]);
 
   useEffect(() => {
@@ -109,6 +127,7 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     if (!petId || id) return;
     if (isPetLoading) return;
     if (petFromQuery) {
+      selectedPetRef.current = petFromQuery;
       setSelectedPets([petFromQuery]);
     } else {
       toast.error("ペット情報の取得に失敗しました");

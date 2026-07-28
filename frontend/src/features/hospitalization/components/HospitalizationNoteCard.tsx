@@ -36,7 +36,7 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({ i
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`min-h-[200px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusRingMedicalBlue}`}
+        className={`min-h-[200px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
       />
     </div>
   );

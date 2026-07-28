@@ -50,6 +50,9 @@ type labExamResultItemResponse struct {
 	ReferenceValue  string   `json:"reference_value"`
 	RefMin          *float64 `json:"ref_min,omitempty"`
 	RefMax          *float64 `json:"ref_max,omitempty"`
+	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
+	IsAssessed      bool     `json:"is_assessed"`
 	IsAbnormal      bool     `json:"is_abnormal"`
 	Status          string   `json:"status"`
 	SortOrder       int      `json:"sort_order"`
@@ -90,7 +93,7 @@ func toLabExamReportDetailResponse(d *model.LabExamReportDetail) labExamReportDe
 	}
 }
 
-// toLabExamResultItemResponse は model.LabExamResultItem を 1:1 でコピーする（変換ロジックなし）。
+// toLabExamResultItemResponse は保存済み基準値から評価状態を算出して wire 形状へ変換する。
 func toLabExamResultItemResponse(i *model.LabExamResultItem) labExamResultItemResponse {
 	return labExamResultItemResponse{
 		Name:            i.Name,
@@ -100,8 +103,17 @@ func toLabExamResultItemResponse(i *model.LabExamResultItem) labExamResultItemRe
 		ReferenceValue:  i.ReferenceValue,
 		RefMin:          i.RefMin,
 		RefMax:          i.RefMax,
-		IsAbnormal:      i.IsAbnormal,
-		Status:          i.Status,
-		SortOrder:       i.SortOrder,
+		QualitativeMin:  i.QualitativeMin,
+		QualitativeMax:  i.QualitativeMax,
+		IsAssessed: isExamResultAssessed(
+			i.InspectionValue,
+			i.RefMin,
+			i.RefMax,
+			i.QualitativeMin,
+			i.QualitativeMax,
+		),
+		IsAbnormal: i.IsAbnormal,
+		Status:     i.Status,
+		SortOrder:  i.SortOrder,
 	}
 }

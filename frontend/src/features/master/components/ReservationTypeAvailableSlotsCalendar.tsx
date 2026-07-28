@@ -210,7 +210,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                     <div className="min-w-0">
                       <span
                         className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                          isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite}` : C.text
+                          isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : C.text
                         }`}
                       >
                         {format(day, "d")}
@@ -314,7 +314,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 <p className={`text-xs ${C.text40}`}>この時刻は既に登録済みです</p>
               ) : null}
               <SubmitButton
-                colorVariant="brand"
+                colorVariant="primary"
                 disabled={isDuplicate}
                 loadingText="追加中..."
                 className="h-8 text-sm px-3"

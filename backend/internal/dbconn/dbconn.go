@@ -16,9 +16,7 @@ const JapanTimeZone = config.JapanTimeZone
 // ConnParams holds the connection parameters shared by every DB target this
 // tool set talks to. It intentionally excludes the database name: callers
 // pick the target database per-connection via DSN(dbname), since several
-// tools (migrate's advisory-lock DB vs seed-export's disposable DB,
-// stage-import's target vs stage source) reuse the same host/user/password
-// against multiple database names.
+// tools reuse the same host/user/password against multiple database names.
 type ConnParams struct {
 	Host        string
 	Port        string
@@ -31,9 +29,8 @@ type ConnParams struct {
 // FromEnv reads DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_SSL_MODE/DB_SSL_ROOT_CERT, applying the
 // same defaults (port 5432, sslmode disable) all 4 cmd tools already used.
 // DB_HOST/DB_USER/DB_PASSWORD are required; DB_NAME is deliberately NOT read
-// here — each tool has different requiredness/defaults for it (e.g.
-// stage-import needs a second STAGE_DB_NAME), so name selection stays with
-// the caller.
+// here — each tool has different requiredness/defaults for it, so name
+// selection stays with the caller.
 func FromEnv() (ConnParams, error) {
 	c := ConnParams{
 		Host:        os.Getenv("DB_HOST"),
@@ -63,10 +60,9 @@ func (c ConnParams) DSN(dbname string) string {
 }
 
 // localHosts is the superset guard (5 entries, including IPv6 loopback forms)
-// that cmd/stage-import already carried; the other 3 tools' 3-entry guards
-// were a strict subset with no observed case where the extra 2 entries
-// caused a false accept, so this is the single source of truth going
-// forward (BE-refactor.md G10-5).
+// shared by the one-shot DB tools. The 3-entry guards were a strict subset
+// with no observed case where the extra 2 entries caused a false accept, so
+// this is the single source of truth going forward (BE-refactor.md G10-5).
 var localHosts = map[string]bool{
 	"db":        true,
 	"localhost": true,

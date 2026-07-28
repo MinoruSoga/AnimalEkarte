@@ -1,20 +1,20 @@
 ---
 name: implement-issue
-description: repo 直下 todo.md「個別タスク詳細」節のタスクID（FEAT-XXX / PERF-XXX / BUG-XXX / SEED-XXX 等）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（todo.md からのセクション削除）までを自動化する。`/implement PERF-FOLLOWUP-01` のように使用。旧 BE-XXX / FE-XXX イシュー体系および旧 docs/tasks 体系は廃止済み（経緯は git 履歴参照）。
+description: "repo 直下 3-session-agent.html の #ledger 節にあるタスクID（TASK-XXX / FEAT-XXX / PERF-XXX / BUG-XXX / SEC-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（該当 section の削除）までを自動化する。`/implement PERF-FOLLOWUP-01` のように使用。旧 BE-XXX / FE-XXX イシュー体系および旧 docs/tasks 体系は廃止済み（経緯は git 履歴参照）。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
-todo.md の該当タスクセクションを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+`3-session-agent.html` の `#ledger` 節にある該当タスクセクションを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
 
 > **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
-> 現行のタスク台帳は repo 直下 `todo.md` のみ。open タスクは「個別タスク詳細」節に `### <タスクID>: <タイトル>` 形式で記載される。
-> todo.md は git 追跡ファイルであり、変更はコミット対象。
+> 現行のタスク台帳は repo 直下 `3-session-agent.html` の `#ledger` 節のみ。open タスクは `<section class="task" id="<タスクID>">` 形式で記載される。
+> `3-session-agent.html` は git 追跡ファイルであり、変更はコミット対象。
 
 ## 起動トリガー
 
-- `/implement <タスクID>`（例: `/implement PERF-FOLLOWUP-01`）— `todo.md` の「個別タスク詳細」節から `### <タスクID>` 見出しを grep で検索
-- 引数なしの場合: 「個別タスク詳細」節の見出し一覧を表示し、ユーザーに選択させる
+- `/implement <タスクID>`（例: `/implement PERF-FOLLOWUP-01`）— `3-session-agent.html` の `#ledger` 節から `id="<タスクID>"` を grep で検索
+- 引数なしの場合: `#ledger` 節のタスクID一覧を表示し、ユーザーに選択させる
 - 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: git 履歴（`git log --all -- docs/archive/` / `git show <rev>:<path>`）で経緯確認のみ行い、新規実装には使わない
 
 引数は `$ARGUMENTS` 変数で受け取る。
@@ -25,25 +25,25 @@ todo.md の該当タスクセクションを読み込み、コード規約に準
 
 ### 1.1 引数解析
 
-- タスクID（`FEAT-XXX`, `PERF-XXX`, `BUG-XXX`, `SEED-XXX` 等）→ `todo.md` 内の `### <タスクID>` 見出しを grep で検索:
+- タスクID（`TASK-XXX`, `FEAT-XXX`, `PERF-XXX`, `BUG-XXX`, `SEC-XXX`）→ `3-session-agent.html` 内のタスクanchorを grep で検索:
 
 ```bash
-grep -n "^### <タスクID>" todo.md
+grep -n 'id="<タスクID>"' 3-session-agent.html
 ```
 
-- 引数なし → 以下を実行して「個別タスク詳細」節の見出し一覧を表示:
+- 引数なし → 以下を実行して `#ledger` 節のタスクID一覧を表示:
 
 ```bash
-# 個別タスク詳細節のタスク見出し一覧（節外の見出しは無視する）
-grep -n '^### ' todo.md
+# 台帳のタスクID一覧
+grep -oE 'id="(TASK|BUG|FEAT|PERF|SEC)[A-Za-z0-9-]*"' 3-session-agent.html
 ```
 
-着手保留は todo.md の「見送り（再開条件付き・今期着手しない）」節が担う（旧 pending/ の概念は廃止）。
+着手保留は [`phase2.html`](../../../phase2.html) が担う（旧 pending/ の概念は廃止）。
 ユーザーに番号またはタスクIDを選択させる。
 
 ### 1.2 タスクセクション読み込み
 
-todo.md の該当 `###` セクションを Read で読み込み、以下を抽出:
+`3-session-agent.html` の該当 `<section class="task" id="<タスクID>">` を Read で読み込み、以下を抽出:
 - **問題**: 何が問題か・実装内容の概要
 - **根拠**: 対象ファイル・行番号・現状コードの実測情報
 - **修正方針**: 採用案・参照実装・具体的なコード変更指示
@@ -58,13 +58,14 @@ todo.md の該当 `###` セクションを Read で読み込み、以下を抽�
 
 ### 1.3 依存関係チェック
 
-- 「状態」等に記載された前提タスクが todo.md に**残っていなければ完了済み**とみなす（完了記録は git 履歴が正本。経緯は `git log --all --oneline -- todo.md` や `git show <rev>:todo.md` で確認可）
-- 前提タスクが todo.md に残存（「個別タスク詳細」または「見送り」節）する場合:
+- 「状態」等に記載された前提タスクが `3-session-agent.html` の `#ledger` 節にも `phase2.html` にも**残っていなければ完了済み**とみなす（現行台帳の完了記録は `git log --all -- 3-session-agent.html` が正本。旧台帳期の経緯は `git log --all -- todo.md` や `git show <rev>:todo.md` で確認可）
+- 前提タスクが `#ledger` 節または `phase2.html` に残存する場合:
   - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
 # 依存タスクの残存確認（ヒットしなければ完了済み）
-grep -n '<前提ID>' todo.md
+grep -n 'id="<前提ID>"' 3-session-agent.html
+grep -n '<前提ID>' phase2.html
 # 旧イシュー体系（BE-XXX / FE-XXX）の経緯は git 履歴で確認
 git log --all --oneline -- 'docs/archive/**' | head
 ```
@@ -214,22 +215,21 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 todo.md から該当セクションを削除
+### 5.1 `#ledger` から該当セクションを削除
 
-完了したタスクは todo.md の「個別タスク詳細」節から該当 `### <タスクID>` セクションを**丸ごと削除**する。
+完了したタスクは `3-session-agent.html` の `#ledger` 節から該当 `<section class="task" id="<タスクID>">` と、その対応する閉じ `</section>` までを**丸ごと削除**する。
 「closed への移動」という概念はもう無い — 完了記録は git 履歴が正本（コミットメッセージに実装内容を残す）。
 
-### 5.2 索引行の更新
+### 5.2 関連記述の更新
 
-P2 節等の索引行（例: 「PERF/FOLLOWUP 系 — 未消化（`PERF-FOLLOWUP-01/02/05`…）」）に該当 ID が列挙されている場合、そこからも ID を除去する。
-節内の最後のタスクだった場合は索引行自体の要否も整理する。
+同じ親タスクの関連記述に該当 ID が列挙されている場合、その記述も現状に合わせて更新する。
 
-todo.md は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める。
+`3-session-agent.html` は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める。
 
 ### 5.3 親 TASK セクション更新（存在する場合）
 
 タスクの「状態」等に親 `TASK-XXX` の記載がある場合:
-1. todo.md の `### TASK-XXX` セクションを読み込む
+1. `3-session-agent.html` の `<section class="task" id="TASK-XXX">` を読み込む
 2. サブタスク一覧の該当行にチェックを入れる（または該当サブタスク記述を削除）
 3. 全サブタスクが完了していれば、親セクション自体も削除（クローズ）候補としてユーザーに通知
 
@@ -250,7 +250,7 @@ todo.md は **git 追跡ファイル**なので、この変更は実装コミッ
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
 ### タスク
-- <タスクID> → todo.md から該当セクション削除済み（索引行も更新・コミット対象。完了記録は git 履歴）
+- <タスクID> → `3-session-agent.html` の `#ledger` 節から該当セクション削除済み（関連記述も更新・コミット対象。完了記録は同fileの git 履歴）
 ```
 
 ---
@@ -259,7 +259,7 @@ todo.md は **git 追跡ファイル**なので、この変更は実装コミッ
 
 | 状況 | 対応 |
 |------|------|
-| タスクIDが todo.md に見つからない | ユーザーにIDの確認を求める（完了済みで削除された可能性は git 履歴で確認） |
+| タスクIDが `3-session-agent.html` の `#ledger` 節に見つからない | `phase2.html` の着手保留項目と同fileの git 履歴を確認し、どちらにも無ければユーザーにIDの確認を求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |

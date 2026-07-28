@@ -433,3 +433,90 @@ func TestAppointmentTrimmingDetailRepository_SetOptions_ClinicIsolation(t *testi
 	require.NoError(t, err)
 	assert.Empty(t, got.Options, "clinicB からの SetOptions は clinicA の appointment に影響してはならない")
 }
+
+// TestAppointmentTrimmingDetailRepository_FindByAppointmentID_CorrelatesAppointmentClinic
+// SEC-SWEEP-02-TRIM-B1: appointment_trimming_details.appointment_id 読みは appointments.clinic_id と相関必須。
+// 子 detail の clinic だけ一致して親 appointment が他院でも返ってしまう旧 failure mode を固定する。
+func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_CorrelatesAppointmentClinic(t *testing.T) {
+	db := setupAppointmentTrimmingDetailTestDB(t)
+	repo := NewAppointmentTrimmingDetailRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("rejects detail linked to foreign-clinic appointment", func(t *testing.T) {
+		apptB := makeReservation(t, db, clinicB)
+		// 子は clinicA を名乗りつつ親 appointment は clinicB — 旧実装は ClinicScope だけで返す。
+		polluted := &model.AppointmentTrimmingDetail{
+			ClinicID: clinicA, AppointmentID: apptB.ID, StyleRequest: "polluted-fk",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(polluted).Error)
+
+		_, err := repo.FindByAppointmentID(ctx, clinicA, apptB.ID)
+		require.Error(t, err, "cross-tenant appointment parent must not yield a trimming detail")
+		assert.True(t, apperrors.IsNotFound(err), "expected NotFound, got: %v", err)
+	})
+
+	t.Run("returns same-clinic appointment-linked detail", func(t *testing.T) {
+		apptA := makeReservation(t, db, clinicA)
+		valid := &model.AppointmentTrimmingDetail{
+			ClinicID: clinicA, AppointmentID: apptA.ID, StyleRequest: "same-clinic",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(valid).Error)
+
+		got, err := repo.FindByAppointmentID(ctx, clinicA, apptA.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "same-clinic", got.StyleRequest)
+		assert.Equal(t, apptA.ID, got.AppointmentID)
+	})
+}
+
+// TestAppointmentTrimmingDetailRepository_SetOptions_CorrelatesAppointmentClinic
+// SEC-SWEEP-02-TRIM-B1: SetOptions の対象行 lookup も appointments.clinic_id と相関必須。
+// 書き込み列・置換意味は変えず、他院親に紐づく子行を読み出さず書き換えないことを固定する。
+func TestAppointmentTrimmingDetailRepository_SetOptions_CorrelatesAppointmentClinic(t *testing.T) {
+	db := setupAppointmentTrimmingDetailTestDB(t)
+	repo := NewAppointmentTrimmingDetailRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("does not read or rewrite detail linked to foreign-clinic appointment", func(t *testing.T) {
+		apptB := makeReservation(t, db, clinicB)
+		polluted := &model.AppointmentTrimmingDetail{
+			ClinicID: clinicA, AppointmentID: apptB.ID, StyleRequest: "must-not-change",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(polluted).Error)
+		pollutedID := polluted.ID
+
+		opt := &model.TrimmingOption{ClinicID: clinicA, Name: "opt-A"}
+		require.NoError(t, db.WithContext(ctx).Create(opt).Error)
+
+		err := repo.SetOptions(ctx, clinicA, apptB.ID, []uint64{opt.ID})
+		require.Error(t, err, "SetOptions must not target cross-tenant appointment parent edge")
+		assert.True(t, apperrors.IsNotFound(err), "expected NotFound, got: %v", err)
+
+		// 他院親に紐づく子行が書き換わっていないこと（StyleRequest 不変・Options 空）。
+		var after model.AppointmentTrimmingDetail
+		require.NoError(t, db.WithContext(ctx).First(&after, pollutedID).Error)
+		assert.Equal(t, "must-not-change", after.StyleRequest)
+
+		var optCount int64
+		require.NoError(t, db.WithContext(ctx).Model(&model.AppointmentTrimmingOption{}).
+			Where("appointment_id = ?", apptB.ID).Count(&optCount).Error)
+		assert.Zero(t, optCount, "foreign-parent detail must not receive options")
+	})
+
+	t.Run("same-clinic SetOptions still replaces options", func(t *testing.T) {
+		apptA := makeReservation(t, db, clinicA)
+		valid := &model.AppointmentTrimmingDetail{ClinicID: clinicA, AppointmentID: apptA.ID}
+		require.NoError(t, repo.Create(ctx, valid))
+		opt := &model.TrimmingOption{ClinicID: clinicA, Name: "opt-same"}
+		require.NoError(t, db.WithContext(ctx).Create(opt).Error)
+
+		require.NoError(t, repo.SetOptions(ctx, clinicA, apptA.ID, []uint64{opt.ID}))
+		got, err := repo.FindByAppointmentID(ctx, clinicA, apptA.ID)
+		require.NoError(t, err)
+		require.Len(t, got.Options, 1)
+		assert.Equal(t, opt.ID, got.Options[0].ID)
+	})
+}

@@ -167,6 +167,7 @@ type staffService struct {
 	clinicRepo          StaffAssignmentClinicLookup
 	tx                  Transactor
 	credentialAudit     CredentialAuditTxLogger
+	permissionAudit     PermissionAssignmentAuditTxLogger
 }
 
 func NewStaffService(
@@ -211,6 +212,38 @@ func NewStaffServiceWithCredentialAudit(
 	tx Transactor,
 	credentialAudit CredentialAuditTxLogger,
 ) StaffService {
+	return NewStaffServiceWithAudits(
+		repo,
+		accountRepo,
+		assignmentRepo,
+		reservationRepo,
+		shiftEntryRepo,
+		permissionGroupRepo,
+		resStaffRepo,
+		occupationRepo,
+		clinicRepo,
+		tx,
+		credentialAudit,
+		nil,
+	)
+}
+
+// NewStaffServiceWithAudits constructs staff use cases with both supported
+// transaction-bound audit writers.
+func NewStaffServiceWithAudits(
+	repo StaffRepository,
+	accountRepo StaffAccountStore,
+	assignmentRepo StaffClinicAssignmentRepository,
+	reservationRepo StaffAssignmentReservationUsage,
+	shiftEntryRepo ShiftEntryRepository,
+	permissionGroupRepo PermissionGroupRepository,
+	resStaffRepo ReservationStaffRepository,
+	occupationRepo OccupationRepository,
+	clinicRepo StaffAssignmentClinicLookup,
+	tx Transactor,
+	credentialAudit CredentialAuditTxLogger,
+	permissionAudit PermissionAssignmentAuditTxLogger,
+) StaffService {
 	return &staffService{
 		repo:                repo,
 		accountRepo:         accountRepo,
@@ -223,5 +256,6 @@ func NewStaffServiceWithCredentialAudit(
 		clinicRepo:          clinicRepo,
 		tx:                  tx,
 		credentialAudit:     credentialAudit,
+		permissionAudit:     permissionAudit,
 	}
 }
