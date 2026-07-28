@@ -3154,7 +3154,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "BillingItem|PostClose"`
 - 既知台帳: BIL-01=BUG-463
 - Size: L (7/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 対象消失（BIL-01/BUG-463 は post-close・status ガード実装済み） ｜ 担当レーン: LANE-4 ｜ 完了 commit: —
 
 ##### SOLO-03
 
