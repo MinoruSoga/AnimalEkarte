@@ -66,8 +66,17 @@ func (r *campaignRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 
 func (r *campaignRepository) Create(ctx context.Context, m *model.Campaign) (*model.Campaign, error) {
 	// GORM が TargetCategories / TargetItems も関連として同時作成する
+	// Capture intent before Create: gorm default:true omits zero bools from
+	// INSERT and may write the DB default back into the struct (BUG-455-S3).
+	wantActive := m.IsActive
 	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	if !wantActive {
+		if err := r.db.WithContext(ctx).Model(m).Update("is_active", false).Error; err != nil {
+			return nil, apperrors.FromGORM(err, "campaign", fmt.Sprintf("%d", m.ID))
+		}
+		m.IsActive = false
 	}
 	return r.FindByID(ctx, m.ClinicID, m.ID)
 }

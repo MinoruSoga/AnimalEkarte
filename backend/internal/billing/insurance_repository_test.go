@@ -55,6 +55,64 @@ func TestInsuranceRepository_Create_And_FindByID(t *testing.T) {
 	})
 }
 
+// TestInsuranceRepository_Create_IsActiveFalsePersists is BUG-455-S3:
+// gorm:"default:true" omits zero bools from INSERT; explicit false must survive Create.
+func TestInsuranceRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupInsuranceRepositoryTestDB(t)
+	repo := NewInsuranceRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	ins := &model.Insurance{
+		ClinicID: clinicID,
+		Name:     "create inactive insurance",
+		IsActive: false,
+	}
+	require.NoError(t, repo.Create(ctx, ins))
+	require.NotZero(t, ins.ID)
+	assert.False(t, ins.IsActive, "in-memory struct must keep false after Create")
+
+	got, err := repo.FindByID(ctx, clinicID, ins.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Insurance{}).
+		Select("is_active").
+		Where("id = ?", ins.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+// TestInsuranceRepository_Create_IsActiveTruePersists is true-path regression for BUG-455-S3.
+func TestInsuranceRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupInsuranceRepositoryTestDB(t)
+	repo := NewInsuranceRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	active := &model.Insurance{
+		ClinicID: clinicID,
+		Name:     "create active true insurance",
+		IsActive: true,
+	}
+	require.NoError(t, repo.Create(ctx, active))
+	assert.True(t, active.IsActive)
+
+	got, err := repo.FindByID(ctx, clinicID, active.ID)
+	require.NoError(t, err)
+	assert.True(t, got.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Insurance{}).
+		Select("is_active").
+		Where("id = ?", active.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive)
+}
+
 func TestInsuranceRepository_FindAll_ClinicIsolation(t *testing.T) {
 	db := setupInsuranceRepositoryTestDB(t)
 	repo := NewInsuranceRepository(db)

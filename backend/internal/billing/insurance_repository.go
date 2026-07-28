@@ -42,9 +42,17 @@ func (r *insuranceRepository) FindByID(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insurance) error {
-	err := r.db.WithContext(ctx).Create(insurance).Error
-	if err != nil {
+	// Capture intent before Create: gorm default:true omits zero bools from
+	// INSERT and may write the DB default back into the struct (BUG-455-S3).
+	wantActive := insurance.IsActive
+	if err := r.db.WithContext(ctx).Create(insurance).Error; err != nil {
 		return apperrors.FromGORM(err, "insurance", "")
+	}
+	if !wantActive {
+		if err := r.db.WithContext(ctx).Model(insurance).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "insurance", "")
+		}
+		insurance.IsActive = false
 	}
 	return nil
 }

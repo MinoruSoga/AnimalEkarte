@@ -131,6 +131,80 @@ func TestCampaignRepository_Create(t *testing.T) {
 	assert.Equal(t, uint64(555), got.TargetItems[0].MerchandiseItemID)
 }
 
+// TestCampaignRepository_Create_IsActiveFalsePersists is BUG-455-S3:
+// gorm:"default:true" omits zero bools from INSERT; explicit false must survive Create.
+func TestCampaignRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupCampaignTestDB(t)
+	repo := NewCampaignRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	jul := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+
+	inactive := &model.Campaign{
+		ClinicID:      clinicID,
+		Name:          "create inactive campaign",
+		StartDate:     jun,
+		EndDate:       jul,
+		DiscountType:  model.CampaignDiscountTypeRate,
+		DiscountValue: 10,
+		IsActive:      false,
+	}
+	created, err := repo.Create(ctx, inactive)
+	require.NoError(t, err)
+	require.NotZero(t, created.ID)
+	assert.False(t, inactive.IsActive, "in-memory input must keep false after Create")
+	assert.False(t, created.IsActive, "Create return value must keep explicit false")
+
+	got, err := repo.FindByID(ctx, clinicID, created.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Campaign{}).
+		Select("is_active").
+		Where("id = ?", created.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+// TestCampaignRepository_Create_IsActiveTruePersists is true-path regression for BUG-455-S3.
+func TestCampaignRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupCampaignTestDB(t)
+	repo := NewCampaignRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	jul := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+
+	active := &model.Campaign{
+		ClinicID:      clinicID,
+		Name:          "create active true campaign",
+		StartDate:     jun,
+		EndDate:       jul,
+		DiscountType:  model.CampaignDiscountTypeRate,
+		DiscountValue: 10,
+		IsActive:      true,
+	}
+	created, err := repo.Create(ctx, active)
+	require.NoError(t, err)
+	assert.True(t, active.IsActive)
+	assert.True(t, created.IsActive)
+
+	got, err := repo.FindByID(ctx, clinicID, created.ID)
+	require.NoError(t, err)
+	assert.True(t, got.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.Campaign{}).
+		Select("is_active").
+		Where("id = ?", created.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive)
+}
+
 func TestCampaignRepository_Update(t *testing.T) {
 	db := setupCampaignTestDB(t)
 	repo := NewCampaignRepository(db)
@@ -292,14 +366,11 @@ func TestCampaignRepository_FindApplicableForItem(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(high).Error)
 	require.NoError(t, repo.ReplaceTargets(ctx, high.ID, []model.ItemCategory{model.ItemCategoryVaccine}, nil))
 
-	// IsActive は gorm:"default:true" タグ付きのため、false（Goのゼロ値）を明示しても
-	// Create() 時点では INSERT 列から省略されDBのデフォルト(true)が適用され、GORM が
-	// after-create コールバックでその DB 側の値(true)を構造体に書き戻してしまう
-	// （Select("*") で INSERT 列を強制しても、この書き戻し自体は避けられない）。
-	// Create 後に明示的な Update で is_active=false を上書きし、意図通りの無効キャンペーンにする。
+	// BUG-455-S3: repository Create compensates gorm default:true so IsActive:false
+	// persists without a separate post-Create Update workaround.
 	inactive := &model.Campaign{ClinicID: clinicA, Name: "無効", StartDate: jun, EndDate: jul, IsActive: false, DiscountValue: 99}
-	require.NoError(t, db.WithContext(ctx).Create(inactive).Error)
-	require.NoError(t, db.WithContext(ctx).Model(&model.Campaign{}).Where("id = ?", inactive.ID).Update("is_active", false).Error)
+	_, err := repo.Create(ctx, inactive)
+	require.NoError(t, err)
 	require.NoError(t, repo.ReplaceTargets(ctx, inactive.ID, []model.ItemCategory{model.ItemCategoryVaccine}, nil))
 
 	outOfRange := &model.Campaign{ClinicID: clinicA, Name: "期間外", StartDate: future, EndDate: futureEnd, IsActive: true, DiscountValue: 50}
