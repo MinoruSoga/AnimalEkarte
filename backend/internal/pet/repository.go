@@ -107,10 +107,12 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
 		// JOIN 併用時の曖昧列エラーを避けて pets.clinic_id / owners.clinic_id を明示指定する
 		// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
+		// BUG-454: owners.clinic_id = pets.clinic_id 相関で、認可集合に両院が含まれても
+		// 破損した pet(A)->owner(B) FK を search/order の JOIN 経由で復元しない。
 		q := r.db.WithContext(ctx).Model(&model.Pet{}).
 			Where("pets.clinic_id IN ?", clinicIDs).
 			Where("pets.deleted_at IS NULL").
-			Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+			Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
 		if filters.OwnerID != nil {
 			q = q.Where("pets.owner_id = ?", *filters.OwnerID)
 		}
@@ -159,6 +161,11 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
+	// GORM の batched Preload は親 pets.clinic_id を参照できないため、
+	// 認可集合スコープ後に親 clinic 相関で Owner を post-sanitize する（billing と同型）。
+	for i := range pets {
+		sanitizePetOwnerRelation(&pets[i])
+	}
 	return pets, total, nil
 }
 
@@ -200,6 +207,7 @@ func (r *repository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64,
 // findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。
 // Preload する飼主と保険マスタも同じ集合で clinic 隔離する
 // （破損した owner_id / insurance_id から別クリニックのデータが混入するのを防止）。
+// BUG-454: 認可集合に両院が含まれても pet.clinic_id と一致しない Owner は復元しない。
 func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
 	if len(clinicIDs) == 0 {
 		return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
@@ -213,7 +221,19 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
+	// GORM batched Preload は親 pets.clinic_id を参照できないため post-sanitize で相関する。
+	sanitizePetOwnerRelation(&pet)
 	return &pet, nil
+}
+
+// sanitizePetOwnerRelation enforces exact pet→owner clinic correlation after GORM's
+// batched Owner preload. Multi-clinic authorization may safely query the authorized
+// clinic set, but a pet from clinic A must never attach an owner from clinic B
+// (BUG-454: multi-clinic viewers must not restore a broken cross-clinic FK graph).
+func sanitizePetOwnerRelation(pet *model.Pet) {
+	if pet.Owner != nil && pet.Owner.ClinicID != pet.ClinicID {
+		pet.Owner = nil
+	}
 }
 
 func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
