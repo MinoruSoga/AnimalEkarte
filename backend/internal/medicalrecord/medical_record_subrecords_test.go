@@ -186,7 +186,19 @@ func TestCreateSubRecords(t *testing.T) {
 			inquiryRepo:      &mockInquiryRepository{},
 			clinicalPlanRepo: clinicalPlanRepo,
 			diagTypeRepo:     okDiagnosisTypeRepo(),
-			diagNameRepo:     okDiagnosisNameRepo(),
+			// AUD-007: name.DiagnosisTypeID が対応 type と一致するよう返す
+			diagNameRepo: &mockDiagnosisNameRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+					typeID := id // default
+					switch id {
+					case 2:
+						typeID = 1
+					case 4:
+						typeID = 3
+					}
+					return &model.DiagnosisName{ID: id, DiagnosisTypeID: typeID}, nil
+				},
+			},
 		}
 
 		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
@@ -222,6 +234,42 @@ func TestCreateSubRecords(t *testing.T) {
 		assert.NotPanics(t, func() {
 			svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: strPtr("policy")})
 		})
+	})
+
+	// MRC-14: CreateSubRecords も clinical plan と同じ diagnosis_2 type↔name 整合を適用する。
+	t.Run("CreateSubRecords Diagnosis2 type/name mismatch skips update", func(t *testing.T) {
+		updateCalled := false
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 7}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateCalled = true
+				return nil
+			},
+		}
+		diagTypeRepo := &mockDiagnosisTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+				return &model.DiagnosisType{ID: id}, nil
+			},
+		}
+		diagNameRepo := &mockDiagnosisNameRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+				// name belongs to type 99, not the requested type 3
+				return &model.DiagnosisName{ID: id, DiagnosisTypeID: 99}, nil
+			},
+		}
+		svc := &medicalRecordService{
+			inquiryRepo:      &mockInquiryRepository{},
+			clinicalPlanRepo: clinicalPlanRepo,
+			diagTypeRepo:     diagTypeRepo,
+			diagNameRepo:     diagNameRepo,
+		}
+		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+			Diagnosis2TypeID: uint64Ptr(3),
+			Diagnosis2NameID: uint64Ptr(4),
+		})
+		assert.False(t, updateCalled, "diagnosis_2 mismatch must skip clinical plan update")
 	})
 }
 

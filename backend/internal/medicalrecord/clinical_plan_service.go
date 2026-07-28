@@ -81,26 +81,68 @@ func optionalDoubleUint64(v **uint64) *uint64 {
 	return *v
 }
 
-func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
+// validateDiagnosisMasterFKs は診断 type/name マスタの clinic 所有権を単一経路で検証する
+// （BE-refactor.md MRC-14 / X-09: clinical plan と CreateSubRecords の copy-paste drift 解消）。
+func validateDiagnosisMasterFKs(
+	ctx context.Context,
+	clinicID uint64,
+	typeIDs []*uint64,
+	nameIDs []*uint64,
+	diagTypeRepo DiagnosisTypeRepository,
+	diagNameRepo DiagnosisNameRepository,
+) error {
 	findDiagType := func(actx context.Context, cid, mid uint64) error {
-		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
+		_, err := diagTypeRepo.FindByID(actx, cid, mid)
 		return err
 	}
-	for _, typeID := range []*uint64{input.DiagnosisTypeID, optionalDoubleUint64(input.Diagnosis2TypeID)} {
+	for _, typeID := range typeIDs {
 		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
 			return err
 		}
 	}
 	findDiagName := func(actx context.Context, cid, mid uint64) error {
-		_, err := s.diagNameRepo.FindByID(actx, cid, mid)
+		_, err := diagNameRepo.FindByID(actx, cid, mid)
 		return err
 	}
-	for _, nameID := range []*uint64{input.DiagnosisNameID, optionalDoubleUint64(input.Diagnosis2NameID)} {
+	for _, nameID := range nameIDs {
 		if err := validateOwnedMasterFK(ctx, "diagnosis name", clinicID, nameID, findDiagName); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// assertDiagnosisNameBelongsToType は type↔name 整合を単一経路で検証する（AUD-007）。
+// 片方のみの部分更新は許可し、両方そろった最終状態でのみ type↔name を強制する。
+func assertDiagnosisNameBelongsToType(
+	ctx context.Context,
+	clinicID uint64,
+	typeID, nameID *uint64,
+	slot string,
+	diagNameRepo DiagnosisNameRepository,
+) error {
+	if nameID == nil || typeID == nil {
+		return nil
+	}
+	name, err := diagNameRepo.FindByID(ctx, clinicID, *nameID)
+	if err != nil {
+		return err
+	}
+	if name.DiagnosisTypeID != *typeID {
+		return apperrors.WrapInvalidInput(slot + " name does not belong to the selected diagnosis type")
+	}
+	return nil
+}
+
+func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
+	return validateDiagnosisMasterFKs(
+		ctx,
+		clinicID,
+		[]*uint64{input.DiagnosisTypeID, optionalDoubleUint64(input.Diagnosis2TypeID)},
+		[]*uint64{input.DiagnosisNameID, optionalDoubleUint64(input.Diagnosis2NameID)},
+		s.diagTypeRepo,
+		s.diagNameRepo,
+	)
 }
 
 func (s *clinicalPlanService) validateDiagnosisTypeNameConsistency(ctx context.Context, clinicID uint64, plan *model.ClinicalPlan, input *UpdateClinicalPlanInput) error {
@@ -113,22 +155,7 @@ func (s *clinicalPlanService) validateDiagnosisTypeNameConsistency(ctx context.C
 	if input.Diagnosis2NameID != nil {
 		name2 = *input.Diagnosis2NameID
 	}
-	return s.assertNameBelongsToType(ctx, clinicID, type2, name2, "diagnosis_2")
-}
-
-func (s *clinicalPlanService) assertNameBelongsToType(ctx context.Context, clinicID uint64, typeID, nameID *uint64, slot string) error {
-	// 片方のみの部分PATCHは従来どおり許可。両方そろった最終状態でのみ type↔name 整合を強制する。
-	if nameID == nil || typeID == nil {
-		return nil
-	}
-	name, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID)
-	if err != nil {
-		return err
-	}
-	if name.DiagnosisTypeID != *typeID {
-		return apperrors.WrapInvalidInput(slot + " name does not belong to the selected diagnosis type")
-	}
-	return nil
+	return assertDiagnosisNameBelongsToType(ctx, clinicID, type2, name2, "diagnosis_2", s.diagNameRepo)
 }
 
 func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {

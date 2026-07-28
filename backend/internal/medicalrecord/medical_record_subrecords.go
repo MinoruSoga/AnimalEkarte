@@ -60,9 +60,27 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			return
 		}
 	}
-	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
-		if err := s.validateCreateSubRecordDiagnosisFKs(ctx, clinicID, input); err != nil {
+	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil ||
+		input.Diagnosis2TypeID != nil || input.Diagnosis2NameID != nil {
+		// MRC-14: clinical plan と同じ validateDiagnosisMasterFKs / assertDiagnosisNameBelongsToType を使う。
+		if err := validateDiagnosisMasterFKs(
+			ctx,
+			clinicID,
+			[]*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID},
+			[]*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID},
+			s.diagTypeRepo,
+			s.diagNameRepo,
+		); err != nil {
 			slog.WarnContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership; skipping clinical plan update",
+				slog.Uint64("medical_record_id", recordID),
+				slog.String("error", err.Error()))
+			return
+		}
+		// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
+		if err := assertDiagnosisNameBelongsToType(
+			ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
+		); err != nil {
+			slog.WarnContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch; skipping clinical plan update",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
 			return
@@ -93,31 +111,6 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 				slog.String("error", err.Error()))
 		}
 	}
-}
-
-// validateCreateSubRecordDiagnosisFKs は clinicalPlanService.validateDiagnosisFKs と同型の
-// clinic-scoped 所有権検証を CreateSubRecords の best-effort パスに複製したもの（最小差分の
-// ため ClinicalPlanService は注入しない）。非 nil の診断 FK のみ検証する。
-func (s *medicalRecordService) validateCreateSubRecordDiagnosisFKs(ctx context.Context, clinicID uint64, input CreateSubRecordsInput) error {
-	findDiagType := func(actx context.Context, cid, mid uint64) error {
-		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
-		return err
-	}
-	for _, typeID := range []*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID} {
-		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
-			return err
-		}
-	}
-	findDiagName := func(actx context.Context, cid, mid uint64) error {
-		_, err := s.diagNameRepo.FindByID(actx, cid, mid)
-		return err
-	}
-	for _, nameID := range []*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID} {
-		if err := validateOwnedMasterFK(ctx, "diagnosis name", clinicID, nameID, findDiagName); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {

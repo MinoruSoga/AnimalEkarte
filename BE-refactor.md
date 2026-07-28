@@ -2984,7 +2984,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'CreateSubRecords.*Diagnosis|ClinicalPlan.*Diagnosis'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: f07bb18f8ef55925da730cbb78535ee159104cbc
 
 ##### BE-X09-PET-PATCH-01
 
