@@ -62,6 +62,8 @@ func makeConsultationTreatment(t *testing.T, db *gorm.DB, medicalRecordID, consu
 
 // makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。
 func TestConsultationRepository_FindAll(t *testing.T) {
+	// G2F-11: FindAll applies persistence.MaxMasterListRows (same as vaccine/procedure).
+
 	db := setupConsultationTestDB(t)
 	repo := NewConsultationRepository(db)
 	ctx := context.Background()

@@ -36,7 +36,12 @@ func NewConsultationRepository(db *gorm.DB) ConsultationRepository {
 
 func (r *consultationRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	consultations := make([]model.Consultation, 0)
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&consultations).Error
+	// G2F-11: vaccine/procedure と同型の master list safety Limit（unbounded Find 防止）。
+	err := r.db.WithContext(ctx).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Order("sort_order ASC, name ASC").
+		Limit(persistence.MaxMasterListRows).
+		Find(&consultations).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "consultation", "")
 	}
