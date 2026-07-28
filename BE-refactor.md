@@ -3182,7 +3182,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/api/ ./internal/pet/ ./internal/lstep/ -run "Lifecycle|PetDeath"`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: b2a4af75a08b045adb4d5a76645f589329df829c
 
 ##### SOLO-06
 
