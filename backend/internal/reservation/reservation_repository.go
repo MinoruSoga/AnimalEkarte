@@ -192,8 +192,10 @@ type ReservationSlotRepository interface {
 type ReservationQueryRepository interface {
 	ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error)
-	// CountMedicalRecordsByReservationID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
-	// （唯一の呼び出し元 reservationService.Delete が clinicID を既に保持・ownership 検証済み）。
+	// CountMedicalRecordsByReservationID は親 appointments.clinic_id でスコープした有効カルテ件数を返す
+	// （medical_records.clinic_id はフィルタしない — 参照が存在する限り削除/identity 変更ガードを fail-closed に保つ / SEC-SWEEP-02-RES-B1）。
+	// 呼び出し元は UpdateForTrimming・DeleteForTrimming・reservationService.Delete の3箇所。
+	// 依存チェックと同じ ambient transaction へ参加する。
 	CountMedicalRecordsByReservationID(ctx context.Context, clinicID, reservationID uint64) (int64, error)
 	// CountByCustomerAndDateRange は顧客・期間での予約件数を返す（日次・月次制限チェック用）。
 	CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error)

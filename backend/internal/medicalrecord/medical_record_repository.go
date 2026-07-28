@@ -69,8 +69,10 @@ type MedicalRecordRepository interface {
 	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
-	// CountEstimatesByMedicalRecordID はclinic-scopedな有効見積数を返す。Deleteの親カルテrow lockと
-	// 同じambient transactionへ参加し、並行する見積Createとの直列化を崩してはならない。
+	// CountEstimatesByMedicalRecordID は親 medical_records.clinic_id でスコープした有効見積数を返す
+	// （estimates.clinic_id はフィルタしない — 参照が存在する限り削除ガードを fail-closed に保つ / SEC-SWEEP-02-BILL-B1b）。
+	// 表示用途の「自院見積件数」には使わないこと（子 clinic 非フィルタのため他院見積行が混入し得る）。
+	// Delete の親カルテ row lock と同じ ambient transaction へ参加し、並行する見積 Create との直列化を崩してはならない。
 	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)

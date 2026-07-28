@@ -7,7 +7,7 @@
 **本改訂での変更点（2026-07-28 15:30・実測根拠つき）**:
 - `BUG-457` は `edit` 案で確定・CLOSED（`75aff5786`+`b415892ec`+`7f17aeb53`）。本書から節を削除した。対象リストからも除外。
 - `BUG-453` は解消済みと再確認されCLOSED（`bbb31f9be`+`bbb87c6a1`）。本書から節を削除した。対象リストからも除外。
-- `SEC-SWEEP-02-S1`（lint registry統合）・`SEC-SWEEP-02-TRIM-B1`（trimming repair）・`SEC-SWEEP-02-MR-B1`（medical_record/vital repair）は**実装・コミット済み**（`c4ce786e0`、15:19）。`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go` の residual allowlist（`grandchildParentClinicCorrelationResidualSites`、242行目 `grandchildParentClinicCorrelationResidualSiteCount = 4`）を実測した結果、残る未修復サイトは次の4件のみである: `billing/accounting_repository_reports_close.go` の `GetCloseAggregate`（Billing）、`billing/billing_item_repository.go` の `ValidateCreateReferences`（AppointmentTrimmingDetail）、`medicalrecord/medical_record_repository.go` の `CountEstimatesByMedicalRecordID`（Estimate）、`reservation/reservation_repository.go` の `CountMedicalRecordsByReservationID`（MedicalRecord）。旧台帳の「5面+staff count」という記述は陳腐化している——`staff_repository.go:329` の `CountBlockingReferencesByStaffID` はこのlintのregistry対象に含まれておらず、residual allowlistにも計上されていない（後述 `SEC-SWEEP-02-STAFF-B1` で扱う）。
+- `SEC-SWEEP-02` は**残余 allowlist 0・修復完了**（実測 `grandchildParentClinicCorrelationResidualSiteCount = 0`、`c68f7ff6b` で pin を 0 に閉じた）。残存サイトだった `GetCloseAggregate` / `ValidateCreateReferences` / `CountEstimatesByMedicalRecordID` / `CountMedicalRecordsByReservationID` は BILL-B1a・BILL-B1b（MR-EST-B1）・RES-B1（RES-MR-B1）で修復済み。**旧 `-BILL-B1` 節が名指しした `accounting_repository.go` / `estimate_repository.go` には対象サイトは存在せず**、実際の対象は `accounting_repository_reports_close.go`・`billing_item_repository.go`・`medicalrecord/medical_record_repository.go`・`reservation/reservation_repository.go` だった。各修復ユニットの許可パスには `lintscan` の残余 allowlist 更新が必要だった（ゲート維持のため空 allowlist も残置）。`STAFF-B1` は residual サイトではなく（disclosure は child `clinic_id` で既に遮断）、親 clinic 相関の integrity 修復として `2a7689080` で完了。
 - `BUG-455-AUTH-S`（`ab9eaa170`）・`BUG-455-AUTH-B`（`6515ffd68`）はPermissionGroupについて完了・コミット済み。`BUG-455-I`（残27 fieldの census）着手前に必読の設計申し送りを追記した。
 - `BUG-456` は結果値・基準値のfallback表示が解消済み（`7ed9ae808`）。残るのは単位（unit）列の空欄調査のみで、旧節の許可パス・検証コマンドを差し替えた。
 - `BUG-440`（vaccination claim解放のimmutable actor監査）は DEC-28 でaudit_logs＋同一tx方式に裁定済みだが本書に未掲載だったため新設した。
@@ -25,7 +25,7 @@
 6. `BUG-458-V` の再測定が完了するまで `BUG-458-S` / `BUG-458-T` を開始しない。`agent-fast-fe12-m05-sentinel-responsive.md`（11:45生成）がFE12レーンのM-05再測定と重複し得るため、着手前に当該プロンプトの実行状況を確認すること。
 7. `BUG-459` / `BUG-460` は同じ既存実行契約を使うため、記録更新を直列化する。
 8. ~~`BUG-455-AUTH-S` でpresence DTOを作成してから `BUG-455-AUTH-B` でhandler/service/repositoryへ接続する。~~ **完了済み**（`ab9eaa170`+`6515ffd68`）。次は `BUG-455-I`（残27 fieldのcensus）。着手前に「INSERT→条件付きUPDATEの補償方式」を26 repositoryへ複製する前提が正しいかを、単文方式（GORM `Select`明示指定）の実測評価で確認すること（台帳 `BUG-455` 節「設計上の申し送り」参照）。
-9. `SEC-SWEEP-02-S1`／`-TRIM-B1`／`-MR-B1` は完了済み（`c4ce786e0`）。残るのは `SEC-SWEEP-02-BILL-B1`（プロンプト生成済み・未実装 `agent-fast-grok-sec-sweep-02-bill-b1a-billing-repair.md`）と `SEC-SWEEP-02-STAFF-B1`（未着手・本書で新設）のみ。`BILL-B1` は `backend/internal/billing` を触るため、`TASK-251` U2b-full第2段（別セッション稼働中）と競合しないか着手前に `git log`／`git status` で確認する。
+9. `SEC-SWEEP-02` 全修復ユニットは完了（残余0）。S1/TRIM-B1/MR-B1（`c4ce786e0`）に続き BILL-B1a（`b2b577e15`）・RES-MR-B1（`e752a690a`）・MR-EST-B1/BILL-B1b（`35e22b057`）・residual pin 0（`c68f7ff6b`）・STAFF-B1（`2a7689080`）。記述整合は `SEC-SWEEP-02-DOC`（本ユニット・コメント+本書のみ）。
 10. `BUG-457` / `BUG-453` はCLOSED。GrokAgentへ再割当てしない。
 
 `BUG-459` / `BUG-460` は `/Users/minoru/.claude/prompt-craft-runs/agent-fast-bugmd-runtime-verification-closeout.md` だけを実行契約とする。本書へ手順を複製しない。前者のread-only probeは他の非runtime作業と並行できるが、API create/PATCH/DELETEは単独で行う。後者はブラウザ手段がある場合だけ並行可能で、手段が無ければBLOCKEDとする。両者の記録更新は同じwriterが直列に行う。
@@ -580,7 +580,7 @@ FE表示・latest callback guard・backend認可をすべて `canEdit` に統一
 
 ## SEC-SWEEP-02 — grandchild親clinic相関
 
-**進捗（2026-07-28・`c4ce786e0` で実装・コミット済み）**: `S1`（lint registry統合）・`TRIM-B1`（trimming repair）・`MR-B1`（medical_record/vital repair）は完了。`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go` の `grandchildParentClinicCorrelationResidualSites`（実測: 4件）が正本。残るのは `BILL-B1`（billings/estimates/appointment_trimming_details——`billing_item_repository.go` 経由の1件を含む）と、lintのregistry自体に含まれていない `STAFF-B1`（新設・後述）のみ。下記S1節は実装済みの記録として残す。
+**進捗（2026-07-28・残余0で完了）**: `S1` / `TRIM-B1` / `MR-B1` / `BILL-B1a` / `BILL-B1b`（`MR-EST-B1`）/ `RES-B1`（`RES-MR-B1`）/ residual pin close（`c68f7ff6b`）/ `STAFF-B1` まで実装・コミット済み。`grandchildParentClinicCorrelationResidualSites` は空・`ResidualSiteCount = 0`（ゲート機構は count 0 でも維持）。**計画書の旧 `-BILL-B1` 許可パス誤り**: `accounting_repository.go` / `estimate_repository.go` にサイトは無く、実在は `accounting_repository_reports_close.go`（GetCloseAggregate）・`billing_item_repository.go`（ValidateCreateReferences）・`medical_record_repository.go`（CountEstimates）・`reservation_repository.go`（CountMedicalRecords）。各 B1 の許可パスに `lintscan` 残余 allowlist 更新が必要だった。`STAFF-B1` は residual 計上外（child clinic_id で disclosure 遮断済み）で integrity 修復として別クローズ。下記各節は実装済みの記録として残す。
 
 ### SEC-SWEEP-02-S1（lint構造・完了済み・記録として残置）
 
@@ -622,19 +622,15 @@ FE表示・latest callback guard・backend認可をすべて `canEdit` に統一
 
 **下記の許可パス・根本原因は誤りである。** 残余allowlistの実測（`grandchildParentClinicCorrelationResidualSites`）では `accounting_repository.go` / `estimate_repository.go` に対象サイトは存在しない。正しい対象は `backend/internal/billing/accounting_repository_reports_close.go` の `GetCloseAggregate`（親 `pets`・FK `pet_id`）と `backend/internal/billing/billing_item_repository.go` の `ValidateCreateReferences`（親 `appointments`・FK `appointment_id`）の2件のみ。実行契約は `~/.claude/prompt-craft-runs/agent-fast-grok-sec-sweep-02-bill-b1a-billing-repair.md`（2026-07-28 15:16生成）を正本とし、本節は複製しない。**Estimate（`medical_record_repository.go` の `CountEstimatesByMedicalRecordID`）と MedicalRecord（`reservation_repository.go` の `CountMedicalRecordsByReservationID`）は当該プロンプトが明示的に「別ユニットの担当」として除外しており、下記 `SEC-SWEEP-02-MR-EST-B1` / `SEC-SWEEP-02-RES-MR-B1` で扱う。**
 
-### SEC-SWEEP-02-MR-EST-B1（新設・未着手・プロンプト未生成）
+### SEC-SWEEP-02-MR-EST-B1（完了・`35e22b057` / 別名 BILL-B1b）
 
-- **目的**: `medicalrecord/medical_record_repository.go` の `medicalRecordRepository.CountEstimatesByMedicalRecordID`（modelName `Estimate`／childTable `estimates`）へ親 `medical_records` のclinic相関を追加する。
-- **根拠**: `grandchildParentClinicCorrelationResidualSites`（`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go:227-231`）に実測登録済みの残存サイト。
-- **所有パス**: `backend/internal/medicalrecord`（`SEC-SWEEP-02-BILL-B1a` が明示的に不可侵としている領域と一致するため、BILL-B1aと同時実行可能）。ただしSEC-DUR-01・BUG-448も同package を触るため、それらとは直列化する。
-- **次アクション**: `/prompt-craft-agent-fast` で専用プロンプトを生成する（本書には7要素の実装契約を書かない——BILL-B1aと同じ精度で、残余allowlistの実測・既存test構造の読み取りから作らせる）。
+- **結果**: `CountEstimatesByMedicalRecordID` は親 `medical_records.clinic_id` JOIN でスコープ。**`estimates.clinic_id` はフィルタしない**（削除ガード fail-closed）。表示用途の「自院見積件数」には流用しない。
+- **所有パス実績**: `medical_record_repository.go` + 回帰 test + `lintscan` residual allowlist 更新。
 
-### SEC-SWEEP-02-RES-MR-B1（新設・未着手・プロンプト未生成）
+### SEC-SWEEP-02-RES-MR-B1（完了・`e752a690a` / 別名 RES-B1）
 
-- **目的**: `reservation/reservation_repository.go` の `CountMedicalRecordsByReservationID`（modelName `MedicalRecord`／childTable `medical_records`）へ親 `appointments` のclinic相関を追加する。
-- **根拠**: 同上residual allowlist（`backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go:232-237`）。
-- **所有パス**: `backend/internal/reservation`。他ユニットと所有パスの重複なし、独立着手可能。
-- **次アクション**: 同上。専用プロンプトを `/prompt-craft-agent-fast` で生成する。
+- **結果**: `CountMedicalRecordsByReservationID` は親 `appointments.clinic_id` JOIN でスコープ。**`medical_records.clinic_id` はフィルタしない**。呼び出し元は `UpdateForTrimming` / `DeleteForTrimming` / `reservationService.Delete` の3箇所（「唯一の呼び出し元 Delete」は誤りだった）。
+- **所有パス実績**: `reservation_repository.go` + 回帰 test + `lintscan` residual allowlist 更新。
 
 ### SEC-SWEEP-02-MR-B1
 
@@ -656,24 +652,9 @@ FE表示・latest callback guard・backend認可をすべて `canEdit` に統一
   ```
 - **完了判定**: corrupt edge非表示、正常/soft-deleted/deceased履歴は維持、allowlist外0。
 
-### SEC-SWEEP-02-STAFF-B1（要再スコープ・実測により根本原因が旧記述と異なる）
+### SEC-SWEEP-02-STAFF-B1（完了・`2a7689080` — residual サイトではない）
 
-**2026-07-28実測**: `staff_repository.go:329` の `CountBlockingReferencesByStaffID` は `grandchildParentTargets`／`grandchildParentClinicCorrelationResidualSites` のどちらにも登録されておらず、lintのAST検出パターン（GORM model query／raw SQL）にも一致しない——`persistence.DBOrTx(ctx, r.db).Table(check.table).Where(fmt.Sprintf("clinic_id = ? AND %s = ?", check.column), clinicID, staffID)` という汎用ループ構造のため機械検出の対象外である。
-
-**根本原因の再評価**: `medical_record_addenda`／`vital_records` はいずれも自身の `clinic_id` 列を持ち（`grandchildParentTargets` の `childClinicColumn: "clinic_id"`）、このクエリは常に `child.clinic_id = ?`（認可済みclinicID）で直接フィルタしている。したがって**他院データの漏出（disclosure）は起きない**——`BUG-454` と同型で、親FKが破損している場合に起きるのは依存件数の過不足という data-integrity の問題であり、cross-tenant leakではない。旧台帳の「HIGH」評価がこの区別を踏まえたものか要確認。
-
-- **目的**: (a) このクエリ構造がSEC-SWEEP-02の対象（親clinic相関の欠如）として真に修復を要するか、(b) 修復するとして親のどのテーブル（`medical_records`/`hospitalizations`経由）との相関が必要かを確定し、必要なら修復する。
-- **変更方針**: 調査から着手する。`medical_record_addenda`・`vital_records` それぞれの親（`medical_records`）が実際に別clinicのstaffから参照され得る破損FKシナリオを組み立て、現行の直接`clinic_id`フィルタで防げているかをDB-backed fixtureで実証する。防げていれば「修復不要・lintのregistry対象外は妥当」として本entryをCLOSEDにする。防げていなければ親相関JOINへ変更する。
-- **許可パス**: `backend/internal/staff/staff_repository.go`、`backend/internal/staff/staff_repository_integration_test.go`（新規調査test候補）。
-- **禁止する巻き込み変更**: `medical_records`/`hospitalizations`/`exams`等の他checkループ、staff availability/permission、DDL、lifecycle filter追加。
-- **検証コマンド**:
-  ```bash
-  docker compose exec -T backend go test ./internal/staff/ -run 'Test.*(Dependent|ClinicIsolation|Count).*' -count=1 -p 1 -v
-  docker compose exec -T backend go vet ./internal/staff/...
-  git diff --name-only -- backend/internal/staff/staff_repository.go backend/internal/staff/staff_repository_integration_test.go
-  ```
-- **完了判定**: 「修復不要」と「修復必要」のいずれであれ、破損FK fixtureによる実証結果とその結論の根拠が記録され、（修復する場合は）corrupt addenda/vitalsを誤ってcountしない回帰がgreenで、allowlist外0。
-- **次アクション**: 上記の調査を先に行う専用プロンプトを `/prompt-craft-agent-fast` で生成する（根本原因が未確定のため、実装契約ではなく調査契約から開始する）。
+**実測**: `CountBlockingReferencesByStaffID` は `grandchildParentClinicCorrelationResidualSites` に**一度も計上されていない**（disclosure は child `clinic_id` 直接フィルタで遮断済み）。親 FK 破損時の依存件数 integrity として addenda/vitals を親 clinic 相関へ修復してクローズ。**残余 allowlist の「未修復4件」には含めない。**
 
 ## 分類
 
@@ -703,7 +684,7 @@ FE表示・latest callback guard・backend認可をすべて `canEdit` に統一
 | `BUG-458` | route×viewport内訳未確認 | 旧10 cell/13 findingは列挙済み。ただしcapture settle不十分のため24 cell再測定が必要。FE12レーンの `agent-fast-fe12-m05-sentinel-responsive.md` と重複の可能性あり要確認 | `layout-review.md:5-36`, `ui-design-compliance-readonly.spec.ts:358-425` |
 | `TASK-445` | migration番号未確定 | current tailは003、次候補は004。paymentsにclinic_idなし | `backend/migrations/003_add_exam_results_exam_type_field_id_index.sql`, `accounting.go:163-189` |
 | `SEC-DUR-01` | 横断方針全体が未着手に見える | MR-A1/MR-C1-3は完了。MR-C1-3b（write回帰test）は `agent-fast-secdur01-mr-c1-3-write-surface-regression.md` で対応済みの可能性——実行状況を確認してから着手。残りはBILL-B1/B2 | `clinical_relation_validation.go:79-86`, `accounting_repository_ltv.go:15` |
-| `SEC-SWEEP-02` | census/lint新設が未着手に見える | **S1/TRIM-B1/MR-B1は`c4ce786e0`で完了・コミット済み**。残余allowlist実測=4件（billing2件・medicalrecord1件・reservation1件）。BILL-B1aはプロンプト生成済み・未実行、MR-EST-B1／RES-MR-B1は未着手・未生成、STAFF-B1はlintのregistry対象外で根本原因の再評価が必要 | `grandchild_parent_clinic_correlation_lint_test.go:213-242`（residual allowlist） |
+| `SEC-SWEEP-02` | census/lint新設が未着手に見える | **残余0で完了**（pin `ResidualSiteCount=0`、`c68f7ff6b`）。BILL-B1a/B1b・RES-B1・STAFF-B1（residual外）までコミット済み。旧計画の `accounting_repository.go`/`estimate_repository.go` は誤許可パス | `grandchild_parent_clinic_correlation_lint_test.go` residual empty + `2a7689080` |
 
 ## 生成済み専用プロンプト一覧（2026-07-28 15:40台・本改訂で追加生成）
 
@@ -717,7 +698,7 @@ FE表示・latest callback guard・backend認可をすべて `canEdit` に統一
 | `BUG-448` | `~/.claude/prompt-craft-runs/agent-fast-bug448-exam-audit-provenance.md` | PASS（ユーザー実行で確認済み・2026-07-28） |
 | `TASK-444-S1` | `~/.claude/prompt-craft-runs/agent-fast-task444-s1-generated-model-response-boundary.md` | PASS（初回2件はsemantic FAIL——`named-gate-equivalence-execution`と`generated-artifact-commit-trackability`。原因は`equivalent`語とbacktickコマンドの同居、およびAcceptance Checklist内の`commit`語。両方を意味を変えずに語を置換・再構成して解消。2026-07-28） |
 
-`SEC-SWEEP-02-RES-MR-B1` と `SEC-SWEEP-02-MR-EST-B1` は残余allowlist上の別サイトを対象とするため並行実行可能（`SEC-SWEEP-02-BILL-B1a` と合わせて残り3サイト+STAFF-B1調査が全て並行着手可能な状態になった）。`BUG-448` と `SEC-SWEEP-02-MR-EST-B1` はどちらも `internal/medicalrecord` だが異なるファイル（`examination_service.go` vs `medical_record_repository.go`）のため、file-exactスコープゲートを守れば並行可能。
+`SEC-SWEEP-02` の修復ユニット（BILL-B1a/B1b・RES-MR-B1・MR-EST-B1・STAFF-B1）はすべて完了。残作業は台帳（`3-session-agent.html`）への反映と、必要なら `SEC-SWEEP-02-DOC` のコメント/本書整合（本セッション）。
 
 ## ユーザー手動境界
 
