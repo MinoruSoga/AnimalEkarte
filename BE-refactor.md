@@ -1988,84 +1988,42 @@
 
 **着手時の扱い**: 各ユニットの `決裁:` 欄が上記 ID を指している場合、選択肢 A の方針で実装する。A の具体的な選択肢本文は `q&a.html` の当該パケットを参照（本書へ全文転記しない — 二重管理を避ける）。
 
-### セッション振り分け（2026-07-28）
+### セッション振り分け（2026-07-28・依存成分ベースへ再設計）
 
-全 84 ユニットを **6 レーン**へ配分する。配分軸は所有パスのパッケージ局所性であり、1 レーン = 1 セッションが担当する。
+全 84 ユニットを **4 レーン**へ配分する。1 レーン = 1 セッション。
 
-**所有パスの排他性**: 全ユニットの所有パスは相互に非重複であるため、**レーンをまたぐファイル書き込み衝突は起きない**（重複パス 0 件）。
+**分割軸 = ユニット依存グラフの連結成分**。依存エッジは 23 本しかなく、連結成分は 62 個（うち孤立 50 個・最大成分 5 ユニット）。依存で結ばれたユニットを同一レーンへ閉じ込めたため、**レーンをまたぐ先行依存は 0 件**。各レーンは他レーンの完了を待たずに独立して最後まで進める。
 
-| レーン | 担当パッケージ | ユニット数 |
-|---|---|---:|
-| LANE-1 | internal/medicalrecord | 15 |
-| LANE-2 | internal/lstep (A) / cmd/lstep | 14 |
-| LANE-3 | internal/lstep (B) / cmd/csv | 14 |
-| LANE-4 | internal/billing / internal/pet / internal/trimming / internal/auth / internal/infra | 14 |
-| LANE-5 | internal/reservation / cmd/api / internal/staff / internal/manualarticle / internal/audit / internal/apperrors | 14 |
-| LANE-6 | internal/clinic / internal/owner / internal/lintscan / internal/inventory / internal/csvimport / cmd/coverage | 13 |
+**所有パスの排他性**: 全ユニットの所有パスは相互に非重複であり、レーンをまたぐファイル書き込み衝突も起きない。
 
-#### レーン別ユニット一覧
+| レーン | ユニット数 | 主な担当パッケージ |
+|---|---:|---|
+| LANE-1 | 24 | `internal/lstep`(14), `internal/clinic`(3), `internal/billing`(2), `internal/reservation`(2), `internal/owner`(2) |
+| LANE-2 | 19 | `internal/pet`(3), `cmd/api`(3), `internal/reservation`(3), `internal/trimming`(2), `cmd/csv`(1) |
+| LANE-3 | 18 | `internal/medicalrecord`(15), `internal/lintscan`(2), `internal/inventory`(1) |
+| LANE-4 | 23 | `internal/lstep`(12), `internal/billing`(5), `internal/staff`(3), `internal/owner`(2), `internal/auth`(1) |
 
-**LANE-1**
+#### レーン別ユニット一覧（この順に着手する。レーン内の順序は依存を満たす）
 
-- `internal/medicalrecord`: `BE-X06-MEDICAL-ATOMIC-01`, `BE-X09-MEDICAL-DIAGNOSIS-01`, `SOLO-21`, `SOLO-25`, `SOLO-29`, `SOLO-30`, `U-MR-TREATMENT-PLAN`, `U-X01-MR-PRESCRIPTION`, `U-X01X03-MR-CARE`, `U-X02-MR-CONSULTATION`, `U-X02-MR-LAB-IMPORT`, `U-X02X03X05-MR-HOSPITALIZATION`, `U-X04-MR-SUBRECORDS`, `U-X05-MR-EXAMTYPE`, `U-X05-MR-MEDICINE-MASTERS`
+**LANE-1** (24 units)
 
-**LANE-2**
+`BE-X06-BIL-CAMPAIGN-01`, `BE-X06-LSTEP-SETTINGS-01`, `BE-X06-RSV-CANCEL-01`, `BE-X08-LSTEP-CONNECTION-01`, `BE-X08-LSTEP-SEND-01`, `BE-X09-CLOSING-01`, `U-X02-PET-OWNER-FREETEXT`, `SOLO-08`, `U-X02-LSTEP-TAG-CONFIG`, `SOLO-09`, `U-LSTEP-OPTOUT`, `SOLO-12`, `U-X04-LSTEP-HEALTH-REMOVE`, `SOLO-14`, `U-X04-LSTEP-BATCH`, `U-X05-OWNER-PHONE`, `SOLO-15`, `U-X01X05-RESERVATION`, `SOLO-19`, `SOLO-32`, `SOLO-34`, `U-X01X03X04-LSTEP-LIFECYCLE`, `U-X01X05-CLINIC`, `U-X04X05-LSTEP-DELIVERY`
 
-- `internal/lstep (A)`: `BE-X06-LSTEP-SETTINGS-01`, `BE-X08-LSTEP-CONNECTION-01`, `BE-X08-LSTEP-SEND-01`, `SOLO-09`, `SOLO-10`, `SOLO-11`, `SOLO-12`, `SOLO-13`, `SOLO-14`, `SOLO-15`, `SOLO-16`, `SOLO-17`, `SOLO-19`
-- `cmd/lstep`: `U-X04-LSTEP-MIGRATE`
+**LANE-2** (19 units)
 
-**LANE-3**
+`BE-X07-BODY-01`, `BE-X09-PET-PATCH-01`, `SOLO-04`, `U-X05-PET-UPDATE`, `SOLO-05`, `SOLO-06`, `SOLO-18`, `SOLO-22`, `SOLO-36`, `U-TRIMMING-SERVICE`, `U-X01X03-MANUALARTICLE`, `U-X02-CLINIC-CONTACT`, `U-X02-RESERVATION-SETTINGS`, `U-X03-CSVIMPORT-GUARD`, `U-X03-PET-SPECIES-AUDIT`, `U-X04-AUDIT-MARSHAL`, `U-X04-COVERAGE-RATCHET`, `U-X04-LSTEP-MIGRATE`, `U-X04-RESERVATION-AUTODELEGATE`
 
-- `internal/lstep (B)`: `U-LSTEP-OPTOUT`, `U-X01-LSTEP-LINE-CUSTOMER`, `U-X01X03X04-LSTEP-LIFECYCLE`, `U-X02-LSTEP-AGGREGATION`, `U-X02-LSTEP-SHARED-FILE`, `U-X02-LSTEP-TAG-CONFIG`, `U-X02-LSTEP-TAG-MAPPING`, `U-X02-LSTEP-TRIGGER-PRIORITY`, `U-X04-LSTEP-BATCH`, `U-X04-LSTEP-HEALTH-REMOVE`, `U-X04-LSTEP-OWNER-TAGS`, `U-X04-LSTEP-STALE-TAGS`, `U-X04X05-LSTEP-DELIVERY`
-- `cmd/csv`: `SOLO-06`
+**LANE-3** (18 units)
 
-**LANE-4**
+`BE-X06-MEDICAL-ATOMIC-01`, `BE-X09-MEDICAL-DIAGNOSIS-01`, `U-X05-MR-EXAMTYPE`, `U-X01X02-INVENTORY`, `SOLO-21`, `SOLO-23`, `SOLO-25`, `SOLO-26`, `SOLO-29`, `SOLO-30`, `U-MR-TREATMENT-PLAN`, `U-X01-MR-PRESCRIPTION`, `U-X01X03-MR-CARE`, `U-X02-MR-CONSULTATION`, `U-X02-MR-LAB-IMPORT`, `U-X02X03X05-MR-HOSPITALIZATION`, `U-X04-MR-SUBRECORDS`, `U-X05-MR-MEDICINE-MASTERS`
 
-- `internal/billing`: `BE-X06-BIL-CAMPAIGN-01`, `BE-X09-CLOSING-01`, `BE-X09-ESTIMATE-TAX-01`, `SOLO-02`, `SOLO-03`, `SOLO-20`, `SOLO-24`
-- `internal/pet`: `BE-X09-PET-PATCH-01`, `U-X03-PET-SPECIES-AUDIT`, `U-X05-PET-UPDATE`
-- `internal/trimming`: `SOLO-36`, `U-TRIMMING-SERVICE`
-- `internal/auth`: `BE-X10-AUTH-RESPONSE-01`
-- `internal/infra`: `SOLO-08`
+**LANE-4** (23 units)
 
-**LANE-5**
+`BE-X09-ESTIMATE-TAX-01`, `BE-X09-PET-ENUMS-01`, `BE-X10-AUTH-RESPONSE-01`, `SOLO-01`, `SOLO-02`, `SOLO-03`, `SOLO-10`, `SOLO-11`, `SOLO-13`, `SOLO-16`, `SOLO-17`, `SOLO-20`, `SOLO-24`, `SOLO-33`, `U-X01-LSTEP-LINE-CUSTOMER`, `U-X02-LSTEP-AGGREGATION`, `U-X02-LSTEP-SHARED-FILE`, `U-X02-LSTEP-TAG-MAPPING`, `U-X02-LSTEP-TRIGGER-PRIORITY`, `U-X02-STAFF-TYPE`, `U-X03-STAFF-ASSIGNMENT-AUDIT`, `U-X04-LSTEP-OWNER-TAGS`, `U-X04-LSTEP-STALE-TAGS`
 
-- `internal/reservation`: `BE-X06-RSV-CANCEL-01`, `SOLO-18`, `U-X01X05-RESERVATION`, `U-X02-RESERVATION-SETTINGS`, `U-X04-RESERVATION-AUTODELEGATE`
-- `cmd/api`: `BE-X07-BODY-01`, `SOLO-04`, `SOLO-05`
-- `internal/staff`: `SOLO-01`, `U-X02-STAFF-TYPE`, `U-X03-STAFF-ASSIGNMENT-AUDIT`
-- `internal/manualarticle`: `U-X01X03-MANUALARTICLE`
-- `internal/audit`: `U-X04-AUDIT-MARSHAL`
-- `internal/apperrors`: `SOLO-22`
+#### レーンをまたぐ先行依存
 
-**LANE-6**
-
-- `internal/clinic`: `SOLO-32`, `SOLO-34`, `U-X01X05-CLINIC`, `U-X02-CLINIC-CONTACT`
-- `internal/owner`: `BE-X09-PET-ENUMS-01`, `SOLO-33`, `U-X02-PET-OWNER-FREETEXT`, `U-X05-OWNER-PHONE`
-- `internal/lintscan`: `SOLO-23`, `SOLO-26`
-- `internal/inventory`: `U-X01X02-INVENTORY`
-- `internal/csvimport`: `U-X03-CSVIMPORT-GUARD`
-- `cmd/coverage`: `U-X04-COVERAGE-RATCHET`
-
-#### レーンをまたぐ先行依存（15 件）
-
-下記は先行ユニットが別レーンにある。**後続レーンは先行ユニットの完了（Status=完了）を確認してから着手する。**
-
-| 後続 unit | レーン | 先行 unit | 先行レーン |
-|---|---:|---|---:|
-| `SOLO-05` | 5 | `U-X05-PET-UPDATE` | 4 |
-| `SOLO-08` | 4 | `U-X02-PET-OWNER-FREETEXT` | 6 |
-| `SOLO-09` | 2 | `U-X02-LSTEP-TAG-CONFIG` | 3 |
-| `SOLO-12` | 2 | `U-LSTEP-OPTOUT` | 3 |
-| `SOLO-14` | 2 | `U-X04-LSTEP-HEALTH-REMOVE` | 3 |
-| `SOLO-15` | 2 | `U-X04-LSTEP-BATCH` | 3 |
-| `SOLO-15` | 2 | `U-X05-OWNER-PHONE` | 6 |
-| `SOLO-19` | 2 | `U-X01X05-RESERVATION` | 5 |
-| `SOLO-21` | 1 | `U-X01X02-INVENTORY` | 6 |
-| `SOLO-34` | 6 | `BE-X06-LSTEP-SETTINGS-01` | 2 |
-| `SOLO-34` | 6 | `BE-X09-CLOSING-01` | 4 |
-| `U-TRIMMING-SERVICE` | 4 | `BE-X07-BODY-01` | 5 |
-| `U-X01X03X04-LSTEP-LIFECYCLE` | 3 | `BE-X06-LSTEP-SETTINGS-01` | 2 |
-| `U-X01X03X04-LSTEP-LIFECYCLE` | 3 | `BE-X08-LSTEP-CONNECTION-01` | 2 |
-| `U-X05-MR-MEDICINE-MASTERS` | 1 | `U-X01X02-INVENTORY` | 6 |
+なし。**全 4 レーンが完全に独立して並行実行できる。**
 
 ### Execution waves and parallel groups
 
