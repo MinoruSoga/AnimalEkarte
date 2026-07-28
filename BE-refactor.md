@@ -2318,7 +2318,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - Barrier検証: `docker compose exec backend go test ./internal/model/... -run 'SchemaDrift' && docker compose exec backend go test ./internal/lintscan/... -run 'Migration|DBOrTx'`
 - 既知台帳: TASK-445 / DEC-28 supports MDL-06; BUG-466 supports G2P-03
 - Size: S (1/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: b1785b5bb53f5259cbb936364508ea1ec7fc32e7
 
 ##### U-X01-LSTEP-LINE-CUSTOMER
 
