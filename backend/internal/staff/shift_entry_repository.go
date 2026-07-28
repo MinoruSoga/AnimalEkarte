@@ -284,11 +284,16 @@ func lockShiftEntryByStaffDateForUpdate(
 
 func replaceScheduleBreaks(
 	tx *gorm.DB,
-	shiftEntryID uint64,
+	clinicID, shiftEntryID uint64,
 	breaks []model.ShiftEntryBreak,
 ) ([]model.ShiftEntryBreak, error) {
+	// RSV-08: parent clinic correlation for break writes/re-reads (string literals for grandchild lint).
 	if err := tx.
 		Where("shift_entry_id = ?", shiftEntryID).
+		Where(
+			"EXISTS (SELECT 1 FROM shift_entries WHERE shift_entries.id = shift_entry_breaks.shift_entry_id AND shift_entries.clinic_id = ?)",
+			clinicID,
+		).
 		Delete(&model.ShiftEntryBreak{}).Error; err != nil {
 		return nil, apperrors.FromGORM(
 			err,
@@ -312,8 +317,10 @@ func replaceScheduleBreaks(
 
 	persisted := make([]model.ShiftEntryBreak, 0, len(replacements))
 	if err := tx.
-		Where("shift_entry_id = ?", shiftEntryID).
-		Order("id ASC").
+		Model(&model.ShiftEntryBreak{}).
+		Joins("JOIN shift_entries ON shift_entries.id = shift_entry_breaks.shift_entry_id AND shift_entries.clinic_id = ?", clinicID).
+		Where("shift_entry_breaks.shift_entry_id = ?", shiftEntryID).
+		Order("shift_entry_breaks.id ASC").
 		Find(&persisted).Error; err != nil {
 		return nil, apperrors.FromGORM(
 			err,
@@ -411,7 +418,7 @@ func (r *shiftEntryRepository) SaveByStaffDate(
 				strconv.FormatUint(saved.ID, 10),
 			)
 		}
-		savedBreaks, err = replaceScheduleBreaks(tx, saved.ID, breaks)
+		savedBreaks, err = replaceScheduleBreaks(tx, clinicID, saved.ID, breaks)
 		if err != nil {
 			return err
 		}

@@ -85,14 +85,14 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryID(t *testing.T) {
 	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entry.ID, BreakStart: "12:00", BreakEnd: "13:00"}).Error)
 
 	t.Run("紐づく休憩を取得できる", func(t *testing.T) {
-		breaks, err := repo.FindAllBreaksByEntryID(ctx, entry.ID)
+		breaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, entry.ID)
 		require.NoError(t, err)
 		require.Len(t, breaks, 1)
 		assert.Equal(t, "12:00:00", breaks[0].BreakStart)
 	})
 
 	t.Run("紐づく休憩がない場合は空スライス", func(t *testing.T) {
-		breaks, err := repo.FindAllBreaksByEntryID(ctx, entry.ID+999999)
+		breaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, entry.ID+999999)
 		require.NoError(t, err)
 		assert.Empty(t, breaks)
 	})
@@ -118,7 +118,7 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entryB.ID, BreakStart: "10:00", BreakEnd: "10:15"}).Error)
 
 	t.Run("複数エントリの休憩をまとめて取得できる", func(t *testing.T) {
-		result, err := repo.FindAllBreaksByEntryIDs(ctx, []uint64{entryA.ID, entryB.ID})
+		result, err := repo.FindAllBreaksByEntryIDs(ctx, clinicA, []uint64{entryA.ID, entryB.ID})
 		require.NoError(t, err)
 		require.Len(t, result[entryA.ID], 1)
 		require.Len(t, result[entryB.ID], 1)
@@ -126,9 +126,17 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 	})
 
 	t.Run("空スライスは空マップを返す（クエリを発行しない）", func(t *testing.T) {
-		result, err := repo.FindAllBreaksByEntryIDs(ctx, []uint64{})
+		result, err := repo.FindAllBreaksByEntryIDs(ctx, clinicA, []uint64{})
 		require.NoError(t, err)
 		assert.Empty(t, result)
+	})
+
+	// RSV-08: parent clinic correlation — foreign clinic_id must not return breaks for entry IDs.
+	t.Run("他院 clinic_id では休憩を返さない", func(t *testing.T) {
+		result, err := repo.FindAllBreaksByEntryIDs(ctx, clinicA+1, []uint64{entryA.ID, entryB.ID})
+		require.NoError(t, err)
+		assert.Empty(t, result[entryA.ID])
+		assert.Empty(t, result[entryB.ID])
 	})
 }
 
@@ -218,7 +226,7 @@ func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "初回作成", got.Notes)
 
-	reloadedBreaks, err := repo.FindAllBreaksByEntryID(ctx, got.ID)
+	reloadedBreaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, got.ID)
 	require.NoError(t, err)
 	require.Len(t, reloadedBreaks, 1)
 }
@@ -278,7 +286,7 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 	assert.Equal(t, "新メモ", got.Notes)
 	assert.Equal(t, model.ShiftTypeMorning, got.ShiftType)
 
-	savedBreaks, err := repo.FindAllBreaksByEntryID(ctx, got.ID)
+	savedBreaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, got.ID)
 	require.NoError(t, err)
 	require.Len(t, savedBreaks, 1, "既存の休憩は削除され新しい休憩のみ残るべき")
 	assert.Equal(t, "09:00:00", savedBreaks[0].BreakStart)

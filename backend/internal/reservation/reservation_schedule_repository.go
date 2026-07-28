@@ -17,9 +17,10 @@ type ReservationScheduleRepository interface {
 	FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
 	// FindAllByStaffIDsAndDateRange は複数スタッフの指定期間内シフトエントリを一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用)。
 	FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
-	FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
+	// clinicID correlates breaks to parent shift_entries.clinic_id (RSV-08 / SEC-SWEEP-02).
+	FindAllBreaksByEntryIDs(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
-	FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
+	FindAllBreaksByEntryID(ctx context.Context, clinicID, entryID uint64) ([]model.ShiftEntryBreak, error)
 	Save(
 		ctx context.Context,
 		clinicID uint64,
@@ -92,12 +93,17 @@ func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx contex
 	return entries, nil
 }
 
-func (r *reservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+func (r *reservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 	if len(entryIDs) == 0 {
 		return map[uint64][]model.ShiftEntryBreak{}, nil
 	}
 	var breaks []model.ShiftEntryBreak
-	if err := r.db.WithContext(ctx).Where("shift_entry_id IN ?", entryIDs).Find(&breaks).Error; err != nil {
+	// RSV-08: JOIN string must be a string literal so grandchild lint can see parent clinic correlation.
+	if err := r.db.WithContext(ctx).
+		Model(&model.ShiftEntryBreak{}).
+		Joins("JOIN shift_entries ON shift_entries.id = shift_entry_breaks.shift_entry_id AND shift_entries.clinic_id = ?", clinicID).
+		Where("shift_entry_breaks.shift_entry_id IN ?", entryIDs).
+		Find(&breaks).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 	result := make(map[uint64][]model.ShiftEntryBreak, len(entryIDs))
@@ -107,9 +113,13 @@ func (r *reservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Cont
 	return result, nil
 }
 
-func (r *reservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error) {
+func (r *reservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Context, clinicID, entryID uint64) ([]model.ShiftEntryBreak, error) {
 	var breaks []model.ShiftEntryBreak
-	if err := r.db.WithContext(ctx).Where("shift_entry_id = ?", entryID).Find(&breaks).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Model(&model.ShiftEntryBreak{}).
+		Joins("JOIN shift_entries ON shift_entries.id = shift_entry_breaks.shift_entry_id AND shift_entries.clinic_id = ?", clinicID).
+		Where("shift_entry_breaks.shift_entry_id = ?", entryID).
+		Find(&breaks).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 	return breaks, nil

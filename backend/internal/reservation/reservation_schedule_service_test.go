@@ -16,9 +16,9 @@ import (
 type mockReservationScheduleRepository struct {
 	findAllByMonthFn                func(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
 	findAllByStaffIDsAndDateRangeFn func(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
-	findAllBreaksByEntryIDsFn       func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
+	findAllBreaksByEntryIDsFn       func(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	findAllByDateFn                 func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
-	findAllBreaksByEntryIDFn        func(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
+	findAllBreaksByEntryIDFn        func(ctx context.Context, clinicID, entryID uint64) ([]model.ShiftEntryBreak, error)
 	saveFn                          func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error)
 	deleteFn                        func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
@@ -37,9 +37,9 @@ func (m *mockReservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx co
 	return nil, nil
 }
 
-func (m *mockReservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+func (m *mockReservationScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 	if m.findAllBreaksByEntryIDsFn != nil {
-		return m.findAllBreaksByEntryIDsFn(ctx, entryIDs)
+		return m.findAllBreaksByEntryIDsFn(ctx, clinicID, entryIDs)
 	}
 	return map[uint64][]model.ShiftEntryBreak{}, nil
 }
@@ -51,9 +51,9 @@ func (m *mockReservationScheduleRepository) FindAllByDate(ctx context.Context, c
 	return nil, nil
 }
 
-func (m *mockReservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error) {
+func (m *mockReservationScheduleRepository) FindAllBreaksByEntryID(ctx context.Context, clinicID, entryID uint64) ([]model.ShiftEntryBreak, error) {
 	if m.findAllBreaksByEntryIDFn != nil {
-		return m.findAllBreaksByEntryIDFn(ctx, entryID)
+		return m.findAllBreaksByEntryIDFn(ctx, clinicID, entryID)
 	}
 	return nil, nil
 }
@@ -90,7 +90,7 @@ func TestReservationScheduleService_ListByMonth(t *testing.T) {
 			findAllByMonthFn: func(_ context.Context, _, _ uint64, _ string) ([]model.ShiftEntry, error) {
 				return []model.ShiftEntry{{ID: 1}, {ID: 2}}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return map[uint64][]model.ShiftEntryBreak{
 					1: {{ID: 10, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
 				}, nil
@@ -133,7 +133,7 @@ func TestReservationScheduleService_ListByMonth(t *testing.T) {
 			findAllByMonthFn: func(_ context.Context, _, _ uint64, _ string) ([]model.ShiftEntry, error) {
 				return []model.ShiftEntry{{ID: 1}}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return nil, errors.New("breaks db error")
 			},
 		}
@@ -253,7 +253,7 @@ func TestReservationScheduleService_Save(t *testing.T) {
 					readCalls++
 					return nil, errors.New("save must not pre-read")
 				},
-				findAllBreaksByEntryIDFn: func(_ context.Context, _ uint64) ([]model.ShiftEntryBreak, error) {
+				findAllBreaksByEntryIDFn: func(_ context.Context, _, _ uint64) ([]model.ShiftEntryBreak, error) {
 					readCalls++
 					return nil, errors.New("save must not post-read")
 				},

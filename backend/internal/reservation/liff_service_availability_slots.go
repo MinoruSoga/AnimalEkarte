@@ -49,7 +49,7 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 			entriesByDateStaff[dateStr][entries[i].StaffID] = &entries[i]
 			entryIDs = append(entryIDs, entries[i].ID)
 		}
-		breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryIDs(ctx, entryIDs)
+		breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryIDs(ctx, clinicID, entryIDs)
 		if brkErr != nil {
 			// LIFF-1 と同様: 取得失敗は観測性のため slog 記録。挙動は従来通り（breaks 空で続行）。
 			slog.ErrorContext(ctx, "failed to prefetch schedule breaks for available times", "error", brkErr)
@@ -113,7 +113,7 @@ func (s *liffService) buildAvailableDatesStaffInputsFn(
 			entriesByDateStaff[dateStr][entries[i].StaffID] = &entries[i]
 			entryIDs = append(entryIDs, entries[i].ID)
 		}
-		breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryIDs(ctx, entryIDs)
+		breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryIDs(ctx, clinicID, entryIDs)
 		if brkErr != nil {
 			// LIFF-1 と同様: 取得失敗は観測性のため slog 記録。挙動は従来通り（breaks 空で続行）。
 			slog.ErrorContext(ctx, "failed to prefetch schedule breaks for available dates", "error", brkErr)

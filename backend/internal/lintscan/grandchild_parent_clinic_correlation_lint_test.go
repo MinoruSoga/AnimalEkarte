@@ -127,6 +127,14 @@ var grandchildParentTargets = []grandchildParentTarget{
 			{name: "treatmentPlanParentClinicScope"},
 		},
 	},
+	{
+		modelName:          "ShiftEntryBreak",
+		childTable:         "shift_entry_breaks",
+		childFK:            "shift_entry_id",
+		parentTable:        "shift_entries",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+	},
 	// SEC-SWEEP-02 residual surfaces (detectable; production repair is follow-up units).
 	{
 		modelName:          "AppointmentTrimmingDetail",
@@ -1040,6 +1048,7 @@ func TestGrandchildParentClinicCorrelation_RegistryCoversMinimumSecSweep02Target
 		"MedicalRecord|appointments|appointment_id":               {},
 		"VitalRecord|medical_records|medical_record_id":           {},
 		"VitalRecord|daily_records|daily_record_id":               {},
+		"ShiftEntryBreak|shift_entries|shift_entry_id":               {},
 	}
 	gotRows := map[string]struct{}{}
 	gotModels := map[string]struct{}{}
@@ -1053,16 +1062,16 @@ func TestGrandchildParentClinicCorrelation_RegistryCoversMinimumSecSweep02Target
 			t.Errorf("grandchild parent correlation registry missing SEC-SWEEP-02 row %s", row)
 		}
 	}
-	if len(wantRows) != 17 {
-		t.Fatalf("wantRows pin size %d, want 17 registry rows", len(wantRows))
+	if len(wantRows) != 18 {
+		t.Fatalf("wantRows pin size %d, want 18 registry rows", len(wantRows))
 	}
 	if len(gotRows) < len(wantRows) {
 		t.Errorf("grandchild parent correlation registry has %d rows, want at least %d: %v",
 			len(gotRows), len(wantRows), sortedStringSet(gotRows))
 	}
 	// Unique model floor retained as a secondary pin (14 models after S1).
-	if len(gotModels) < 14 {
-		t.Errorf("grandchild parent correlation registry has %d unique models, want at least 14: %v",
+	if len(gotModels) < 15 {
+		t.Errorf("grandchild parent correlation registry has %d unique models, want at least 15: %v",
 			len(gotModels), sortedStringSet(gotModels))
 	}
 }

@@ -168,7 +168,7 @@ func (m *mockLiffStaffRepository) SupportsReservationType(ctx context.Context, c
 type mockLiffScheduleRepository struct {
 	findByDateFn                    func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	findAllByStaffIDsAndDateRangeFn func(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
-	findAllBreaksByEntryIDsFn       func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
+	findAllBreaksByEntryIDsFn       func(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 }
 
 func (m *mockLiffScheduleRepository) FindAllByMonth(_ context.Context, _, _ uint64, _ string) ([]model.ShiftEntry, error) {
@@ -182,9 +182,9 @@ func (m *mockLiffScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.C
 	return nil, nil
 }
 
-func (m *mockLiffScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+func (m *mockLiffScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 	if m.findAllBreaksByEntryIDsFn != nil {
-		return m.findAllBreaksByEntryIDsFn(ctx, entryIDs)
+		return m.findAllBreaksByEntryIDsFn(ctx, clinicID, entryIDs)
 	}
 	return nil, nil
 }
@@ -196,7 +196,7 @@ func (m *mockLiffScheduleRepository) FindAllByDate(ctx context.Context, clinicID
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffScheduleRepository) FindAllBreaksByEntryID(_ context.Context, _ uint64) ([]model.ShiftEntryBreak, error) {
+func (m *mockLiffScheduleRepository) FindAllBreaksByEntryID(_ context.Context, _, _ uint64) ([]model.ShiftEntryBreak, error) {
 	return nil, nil
 }
 

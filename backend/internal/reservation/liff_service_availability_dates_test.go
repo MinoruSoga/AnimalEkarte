@@ -115,7 +115,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 				capturedFrom, capturedTo = from, to
 				return []model.ShiftEntry{entry}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				require.Equal(t, []uint64{55}, entryIDs)
 				return map[uint64][]model.ShiftEntryBreak{55: {{BreakStart: "12:00:00", BreakEnd: "13:00:00"}}}, nil
 			},
@@ -181,7 +181,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 			findAllByStaffIDsAndDateRangeFn: func(_ context.Context, _ uint64, _ []uint64, _, _ time.Time) ([]model.ShiftEntry, error) {
 				return []model.ShiftEntry{entry}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return nil, errors.New("db error")
 			},
 		}

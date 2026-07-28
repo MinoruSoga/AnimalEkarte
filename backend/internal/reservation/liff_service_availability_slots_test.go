@@ -109,7 +109,7 @@ func TestBuildStaffSlotInputsForDate(t *testing.T) {
 					{ID: 7, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartTime: &start, EndTime: &end},
 				}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return nil, errors.New("breaks lookup failed")
 			},
 		}
@@ -132,7 +132,7 @@ func TestBuildStaffSlotInputsForDate(t *testing.T) {
 					{ID: 7, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartTime: &start, EndTime: &end},
 				}, nil
 			},
-			findAllBreaksByEntryIDsFn: func(_ context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return map[uint64][]model.ShiftEntryBreak{
 					7: {{BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
 				}, nil

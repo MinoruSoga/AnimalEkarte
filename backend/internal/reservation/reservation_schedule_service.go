@@ -58,7 +58,7 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	for i := range entries {
 		entryIDs[i] = entries[i].ID
 	}
-	breaksMap, err := s.repo.FindAllBreaksByEntryIDs(ctx, entryIDs)
+	breaksMap, err := s.repo.FindAllBreaksByEntryIDs(ctx, clinicID, entryIDs)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list schedule breaks", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list schedule breaks")
