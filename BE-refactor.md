@@ -2524,7 +2524,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... ./cmd/api/... -run 'LabImportExamination|Inquiry|CrossTenantMasterFK' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: MRC-12=phase2.html:195
 - Size: L (8/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 40691d90d569472a9020fdb97fc3e19d93cc9749
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 807ec2c9103cd8d72a88a4f51f4e8b837c532ae2
 
 ##### BE-X06-RSV-CANCEL-01
 
