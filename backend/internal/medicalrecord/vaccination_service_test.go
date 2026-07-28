@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -834,4 +835,97 @@ func TestVaccinationService_Delete_ResyncsOwnerVaccineTagsAfterDelete(t *testing
 
 	assert.NoError(t, err)
 	assert.True(t, syncedAfterDelete)
+}
+
+// SEC-DUR-01-MR-T1: 譲渡後もvaccination更新はsnapshot ownerとcurrent pet ownerの差を許容し、clinic外は拒否する。
+func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		vaccinationID   = uint64(5)
+		petID           = uint64(10)
+		previousOwnerID = uint64(20)
+		currentOwnerID  = uint64(21)
+		recordID        = uint64(30)
+	)
+
+	remarks := "post-transfer remarks"
+	updateCalls := 0
+	repo := &mockVaccinationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+			return &model.Vaccination{
+				ID: id, ClinicID: clinicID, PetID: ptrUint64(petID),
+				MedicalRecordID: ptrUint64(recordID), VaccineID: 1,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Vaccination, error) {
+			updateCalls++
+			return &model.Vaccination{
+				ID: id, ClinicID: clinicID, PetID: ptrUint64(petID),
+				MedicalRecordID: ptrUint64(recordID), VaccineID: 1,
+				Remarks: fields["remarks"].(string),
+			}, nil
+		},
+	}
+
+	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
+		updateCalls = 0
+		// previousOwner must be present as a map value so AssertOwnerInClinic accepts the snapshot owner.
+		verifier := &vaccinationRelationVerifierStub{
+			petOwners: map[uint64]uint64{petID: currentOwnerID, 999: previousOwnerID},
+		}
+		locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
+			recordID: {
+				ID: recordID, ClinicID: clinicID,
+				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
+				Status: model.MedicalRecordStatusDraft,
+			},
+		}}
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, 1, updateCalls)
+		assert.Equal(t, remarks, got.Remarks)
+	})
+
+	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
+		updateCalls = 0
+		verifier := &vaccinationRelationVerifierStub{
+			petOwners: map[uint64]uint64{petID: currentOwnerID},
+		}
+		locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
+			recordID: {
+				ID: recordID, ClinicID: clinicID,
+				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
+				Status: model.MedicalRecordStatusDraft,
+			},
+		}}
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+	})
+
+	t.Run("rejects_foreign_pet", func(t *testing.T) {
+		updateCalls = 0
+		verifier := &vaccinationRelationVerifierStub{
+			petOwners: map[uint64]uint64{999: previousOwnerID},
+		}
+		locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
+			recordID: {
+				ID: recordID, ClinicID: clinicID,
+				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
+				Status: model.MedicalRecordStatusDraft,
+			},
+		}}
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+	})
 }

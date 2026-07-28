@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -1199,4 +1200,145 @@ func TestHospitalizationService_DischargeWithBilling_ConcurrentDoubleDischarge_R
 	assert.True(t, apperrors.IsNotFound(err))
 	assert.Nil(t, result)
 	assert.False(t, accountingCreated)
+}
+
+// SEC-DUR-01-MR-T1: 譲渡後の会計なし退院は、snapshot owner と current pet owner の差を許容し clinic 外は拒否する。
+func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		hospID          = uint64(10)
+		previousOwnerID = uint64(20)
+		currentOwnerID  = uint64(21)
+		petID           = uint64(30)
+	)
+
+	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
+		updated := false
+		hospRepo := &mockHospitalizationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+				return &model.Hospitalization{
+					ID: id, ClinicID: clinicID,
+					OwnerID: previousOwnerID, PetID: petID,
+					Status: model.HospitalizationStatusAdmitted,
+				}, nil
+			},
+			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Hospitalization, error) {
+				updated = true
+				assert.Equal(t, model.HospitalizationStatusDischarged, fields["status"])
+				return &model.Hospitalization{ID: hospID, Status: model.HospitalizationStatusDischarged}, nil
+			},
+		}
+		carePlanRepo := &mockCarePlanItemRepository{
+			listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+				t.Fatal("care plan items must not be fetched when CreateAccounting is false")
+				return nil, nil
+			},
+		}
+		resRepo := &mockReservationRepository{
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		deps := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil)
+		deps.reservation = resRepo
+		svc := deps.svc()
+
+		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
+			DischargeDate:    time.Now(),
+			CreateAccounting: false,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, updated)
+	})
+
+	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
+		updated := false
+		hospRepo := &mockHospitalizationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+				return &model.Hospitalization{
+					ID: id, ClinicID: clinicID,
+					OwnerID: previousOwnerID, PetID: petID,
+					Status: model.HospitalizationStatusAdmitted,
+				}, nil
+			},
+			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				updated = true
+				return &model.Hospitalization{ID: hospID}, nil
+			},
+		}
+		resRepo := &mockReservationRepository{
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				assert.Equal(t, previousOwnerID, ownerID)
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		deps := newDischargeTestDeps(hospRepo, &mockCarePlanItemRepository{}, nil, nil)
+		deps.reservation = resRepo
+		svc := deps.svc()
+
+		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
+			DischargeDate:    time.Now(),
+			CreateAccounting: false,
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, result)
+		assert.False(t, updated)
+	})
+
+	t.Run("rejects_foreign_pet", func(t *testing.T) {
+		updated := false
+		hospRepo := &mockHospitalizationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+				return &model.Hospitalization{
+					ID: id, ClinicID: clinicID,
+					OwnerID: previousOwnerID, PetID: petID,
+					Status: model.HospitalizationStatusAdmitted,
+				}, nil
+			},
+			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				updated = true
+				return &model.Hospitalization{ID: hospID}, nil
+			},
+		}
+		resRepo := &mockReservationRepository{
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		deps := newDischargeTestDeps(hospRepo, &mockCarePlanItemRepository{}, nil, nil)
+		deps.reservation = resRepo
+		svc := deps.svc()
+
+		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
+			DischargeDate:    time.Now(),
+			CreateAccounting: false,
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, result)
+		assert.False(t, updated)
+	})
 }

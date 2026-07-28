@@ -1346,3 +1346,137 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 	assert.Nil(t, got)
 	assert.Zero(t, updateCalls)
 }
+
+// SEC-DUR-01-MR-T1: 同一clinic内のpet譲渡後も、visit-time snapshotのownerとcurrent pet ownerが異なっても
+// Examination更新はclinic/pet相関を守りながら成功する。cross-clinicは拒否する。
+func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		examID          = uint64(2)
+		medicalRecordID = uint64(10)
+		previousOwnerID = uint64(20)
+		currentOwnerID  = uint64(21)
+		petID           = uint64(30)
+		foreignOwnerID  = uint64(900)
+		foreignPetID    = uint64(901)
+	)
+
+	summary := "post-transfer update"
+	updateCalls := 0
+	baseExam := &model.Examination{
+		ID: examID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecordID),
+		PetID: ptrUint64(petID), ExamTypeID: 1, Status: model.ExaminationStatusPending,
+	}
+	repo := &mockExaminationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+			copy := *baseExam
+			return &copy, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Examination, error) {
+			updateCalls++
+			assert.Equal(t, summary, fields["result_summary"])
+			return &model.Examination{ID: examID, ClinicID: clinicID, ResultSummary: summary}, nil
+		},
+	}
+
+	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
+		updateCalls = 0
+		relations := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: medicalRecordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, 1, updateCalls)
+	})
+
+	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
+		updateCalls = 0
+		relations := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: medicalRecordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(foreignOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				assert.Equal(t, foreignOwnerID, ownerID)
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+	})
+
+	t.Run("rejects_foreign_pet", func(t *testing.T) {
+		updateCalls = 0
+		relations := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: medicalRecordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(foreignPetID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		// Exam still points at foreignPetID so effective pet validation fails.
+		foreignExam := *baseExam
+		foreignExam.PetID = ptrUint64(foreignPetID)
+		foreignRepo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				copy := foreignExam
+				return &copy, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+				updateCalls++
+				return &model.Examination{ID: examID}, nil
+			},
+		}
+		svc := NewExaminationService(foreignRepo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+	})
+}

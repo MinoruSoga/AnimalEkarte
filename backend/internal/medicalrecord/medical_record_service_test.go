@@ -2151,3 +2151,149 @@ func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
 	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
 	assert.NotNil(t, created)
 }
+
+// SEC-DUR-01-MR-T1: 譲渡後のカルテ確定は snapshot owner と current pet owner の差を許容し clinic 外は拒否する。
+func TestMedicalRecordService_Update_Finalize_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		recordID        = uint64(10)
+		previousOwnerID = uint64(20)
+		currentOwnerID  = uint64(21)
+		petID           = uint64(30)
+	)
+	finalizedStatus := model.MedicalRecordStatusFinalized
+	staffID := uint64(7)
+
+	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
+		updateCalls := 0
+		auditTx := &mockTreatmentAuditTxLogger{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: recordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft, Version: 1,
+				}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
+				updateCalls++
+				assert.Equal(t, model.MedicalRecordStatusFinalized, fields["status"])
+				return &model.MedicalRecord{
+					ID: recordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusFinalized, Version: 2,
+				}, nil
+			},
+		}
+		reservationRepo := &mockReservationRepoForMedicalRecord{
+			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		svc := NewMedicalRecordServiceWithTxAudit(
+			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
+		)
+
+		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
+			Status:  &finalizedStatus,
+			ActorID: &staffID,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, 1, updateCalls)
+		require.Len(t, auditTx.entries, 1)
+		assert.Equal(t, "finalize", auditTx.entries[0].Action)
+	})
+
+	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
+		updateCalls := 0
+		auditTx := &mockTreatmentAuditTxLogger{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: recordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft, Version: 1,
+				}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				updateCalls++
+				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
+			},
+		}
+		reservationRepo := &mockReservationRepoForMedicalRecord{
+			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
+				assert.Equal(t, previousOwnerID, ownerID)
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
+				if gotPetID == petID {
+					return currentOwnerID, nil
+				}
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		svc := NewMedicalRecordServiceWithTxAudit(
+			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
+		)
+
+		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
+			Status:  &finalizedStatus,
+			ActorID: &staffID,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+		assert.Empty(t, auditTx.entries)
+	})
+
+	t.Run("rejects_foreign_pet", func(t *testing.T) {
+		updateCalls := 0
+		auditTx := &mockTreatmentAuditTxLogger{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{
+					ID: recordID, ClinicID: clinicID,
+					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft, Version: 1,
+				}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				updateCalls++
+				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
+			},
+		}
+		reservationRepo := &mockReservationRepoForMedicalRecord{
+			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
+				if ownerID == previousOwnerID {
+					return nil
+				}
+				return apperrors.WrapNotFound("owner", "scoped")
+			},
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			},
+		}
+		svc := NewMedicalRecordServiceWithTxAudit(
+			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
+		)
+
+		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
+			Status:  &finalizedStatus,
+			ActorID: &staffID,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, updateCalls)
+		assert.Empty(t, auditTx.entries)
+	})
+}
