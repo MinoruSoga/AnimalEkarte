@@ -3169,7 +3169,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "CreditCorrection|Cancel"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: ddc3250b99b4b948c8fd66ea689036d06506d9e0
 
 ##### SOLO-05
 
