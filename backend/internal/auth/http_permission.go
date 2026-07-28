@@ -124,27 +124,9 @@ func FloatEquals(left, right float64) bool {
 	return httpapi.FloatEquals(left, right)
 }
 
-// CreatePermissionGroupRequest is the permission-group creation body.
-type CreatePermissionGroupRequest struct {
-	Name        string                     `json:"name"        binding:"required,min=1,max=255"`
-	Description string                     `json:"description" binding:"max=2000"`
-	Color       string                     `json:"color"       binding:"required,hexcolor,max=7"`
-	IsActive    bool                       `json:"is_active"`
-	SortOrder   int                        `json:"sort_order"`
-	Rules       []PermissionGroupRuleInput `json:"rules" binding:"omitempty,max=100,dive"`
-}
-
-// ToInput maps the request to the auth use-case input.
-func (r CreatePermissionGroupRequest) ToInput() *CreatePermissionGroupInput {
-	return &CreatePermissionGroupInput{
-		Name:        r.Name,
-		Description: r.Description,
-		Color:       r.Color,
-		IsActive:    r.IsActive,
-		SortOrder:   r.SortOrder,
-		Rules:       permissionGroupRuleInputs(r.Rules),
-	}
-}
+// CreatePermissionGroupRequest is the live create-body alias for the
+// presence-aware PermissionGroupCreateRequest (omitted / false / true).
+type CreatePermissionGroupRequest = PermissionGroupCreateRequest
 
 // UpdatePermissionGroupRequest is the permission-group PATCH body.
 type UpdatePermissionGroupRequest struct {

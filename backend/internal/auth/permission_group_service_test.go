@@ -154,6 +154,72 @@ func TestPermissionGroupService_Create(t *testing.T) {
 	}
 }
 
+func TestPermissionGroupService_Create_IsActiveFalsePropagates(t *testing.T) {
+	var created *model.PermissionGroup
+	repo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, group *model.PermissionGroup) error {
+			created = group
+			group.ID = 11
+			return nil
+		},
+	}
+	svc := newPermissionGroupServiceImpl(repo)
+
+	group, err := svc.Create(
+		context.Background(),
+		1,
+		&CreatePermissionGroupInput{
+			Name:     "inactive group",
+			Color:    "#112233",
+			IsActive: false,
+		},
+		testPermissionMutationAudit(
+			1,
+			10,
+			model.AuditActionPermissionGroupCreate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.False(t, created.IsActive, "service must pass resolved false to repository")
+	assert.False(t, group.IsActive)
+}
+
+func TestPermissionGroupService_Create_IsActiveTruePropagates(t *testing.T) {
+	var created *model.PermissionGroup
+	repo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, group *model.PermissionGroup) error {
+			created = group
+			group.ID = 12
+			return nil
+		},
+	}
+	svc := newPermissionGroupServiceImpl(repo)
+
+	group, err := svc.Create(
+		context.Background(),
+		1,
+		&CreatePermissionGroupInput{
+			Name:     "active group",
+			Color:    "#112233",
+			IsActive: true,
+		},
+		testPermissionMutationAudit(
+			1,
+			10,
+			model.AuditActionPermissionGroupCreate,
+			"permission_group",
+		),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.True(t, created.IsActive)
+	assert.True(t, group.IsActive)
+}
+
 func TestPermissionGroupService_CreateWithRules_AuditsFinalAggregateInTransaction(
 	t *testing.T,
 ) {

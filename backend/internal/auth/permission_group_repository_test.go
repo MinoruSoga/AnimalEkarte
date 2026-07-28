@@ -244,6 +244,63 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 	})
 }
 
+func TestPermissionGroupRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	group := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     "create inactive",
+		Color:    "#112233",
+		IsActive: false,
+	}
+	require.NoError(t, repo.Create(ctx, group))
+	require.NotZero(t, group.ID)
+	assert.False(t, group.IsActive, "in-memory struct must keep false after Create")
+
+	got, err := repo.FindByID(ctx, clinicID, group.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.PermissionGroup{}).
+		Select("is_active").
+		Where("id = ?", group.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+func TestPermissionGroupRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupPermissionGroupRepositoryTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	active := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     "create active true",
+		Color:    "#112233",
+		IsActive: true,
+	}
+	require.NoError(t, repo.Create(ctx, active))
+	assert.True(t, active.IsActive)
+
+	gotActive, err := repo.FindByID(ctx, clinicID, active.ID)
+	require.NoError(t, err)
+	assert.True(t, gotActive.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.PermissionGroup{}).
+		Select("is_active").
+		Where("id = ?", active.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive)
+}
+
 func TestPermissionGroupRepository_CreateWithRules_RollsBackParentWhenRulesInsertFails(
 	t *testing.T,
 ) {

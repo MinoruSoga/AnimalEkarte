@@ -114,9 +114,18 @@ func (r *permissionGroupRepository) LockByIDForUpdate(
 // オートコミット済みで WithTx のロールバックが効かず、デフォルト権限グループが片方だけの
 // 孤児クリニックが生成しうるバグがあった。
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	err := persistence.DBOrTx(ctx, r.db).Create(group).Error
-	if err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from
+	// INSERT and may write the DB default back into the struct.
+	wantActive := group.IsActive
+	if err := db.Create(group).Error; err != nil {
 		return apperrors.FromGORM(err, "permission_group", "")
+	}
+	if !wantActive {
+		if err := db.Model(group).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", group.ID))
+		}
+		group.IsActive = false
 	}
 	return nil
 }
