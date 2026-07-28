@@ -10,15 +10,14 @@
 
 **FE12 実測レーンは実質終結した。** M-01-E / M-02 / M-03 / M-04 / R-4 が COMPLETE、R-1 / R-3 / R-2測定 も完了。**fixture は R-4 で全て撤去済み**（例外: hospitalization `1` が日次記録制約で残存）。臨床状態は実測前の値へ復旧済み（pet `1001005`=alive、`1001004`=low、`1001002`/`1000018`=無傷）。
 
-**残件は5つである。**
+**M-05 は 2026-07-28（TASK-461）で COMPLETE となった。残件は4つである。**
 
 | # | 残件 | 誰が | 着手前提 |
 |---|---|---|---|
 | 1 | **M-01-D 裁定** — 死亡ペットの編集/削除をブロックするか | **曽我** | 材料完備。下記「M-01-D 裁定材料」を読めば答えられる |
-| 2 | **M-05 残1件** — danger高cueのruntime未証明（期限4区分の誤検出有無は実測済み・0件） | エージェント | **fixture再作成が前提**（R-4で撤去済み）。着手プラン: `3-session-agent.html#TASK-461` |
-| 3 | **R-2 実行** — `backend/tygo.yaml` の15行削除＋`make codegen`差分0確認 | **USER専権**（`make codegen`） | 削除は `fdbe77ef0` で完了済み。残るのは USER の codegen 検証3コマンドのみ。着手プラン: `3-session-agent.html#TASK-462` |
-| 4 | **line-reserve** — font実機確認 | QA/端末管理者 | 実機3台とQA環境の受け渡し |
-| 5 | **BUG-455〜458 の修正実装** | エージェント | 起票済み。`3-session-agent.html#ledger` が正本。本ledgerの所掌外 |
+| 2 | **R-2 実行** — `make codegen` 差分0確認 | **USER専権** | `backend/tygo.yaml` の15行削除は `fdbe77ef0` で完了済み。残るのは USER の codegen 検証3コマンドのみ。着手プラン: `3-session-agent.html#TASK-462` |
+| 3 | **line-reserve** — font実機確認 | QA/端末管理者 | 実機3台とQA環境の受け渡し |
+| 4 | **BUG-455〜458 の修正実装** | エージェント | 起票済み。`3-session-agent.html#ledger` が正本。本ledgerの所掌外 |
 
 **この実測が生んだ実装findings 4件は全て起票済みである**（`BUG-455` CRITICAL / `BUG-456` HIGH / `BUG-457` HIGH / `BUG-458` MEDIUM）。以降それらの追跡は `3-session-agent.html#ledger` を正本とする。
 
@@ -42,7 +41,9 @@
 
 ## Active scope and authority
 
-- 追跡対象は M-05 残1件、M-01-D 裁定、line-reserve font実機確認、R-2 の USER codegen 検証とする。M-01-E・M-02・M-03・M-04・R-1・R-3・R-4 は裁定・実測済みで追跡を終了した。
+- 追跡対象は M-01-D 裁定、line-reserve font実機確認、R-2 の USER codegen 検証とする。M-01-E・M-02・M-03・M-04・M-05・R-1・R-3・R-4 は裁定・実測済みで追跡を終了した。
+- **M-05 は `TASK-461`（2026-07-28）で COMPLETE。** 最後まで未証明だった danger 高 cue を runtime で確定させた: `/owners?search=クロ` の a11y に `button "クロの危険理由を表示"` / `dialog "クロの危険理由"` / `StaticText "FE12-M01 fixture"` を検出（pet `1001004`）。**先行走で0件だったのは絞り込み無しでページに載らなかっただけであり、実装欠陥ではない。** 期限4区分も再確認され today/future の誤検出は0件。臨床状態は cleanup 後に pet `1001004`=`alive/low/danger_reason 空` へ復旧済み（実測確認）。
+- **`TASK-461` が露呈させた計画側の欠陥1件**: exact-ID 契約（MR `1425547` / vaccination・checkup `1`-`4`）は **R-4 後に DB sequence が進んだため成立しない**（MR `1425548` が実在するため `1425547` は再取得できない）。executor は SQL による強制を避け、`M05-` label による identity-safe な同定へ切り替えて臨床目的を達成した。**今後 fixture 再作成を計画する際、連番 ID を完了条件にしてはならない。** label など内容ベースの同定を使う。
 - 色と臨床semanticは `docs/spec/design-system.md`、恒久route適合は `docs/spec/ui-design-compliance.md`、明示的なPO/USER裁定は `q&a.html` を正本とする。
 - authorityから項目が消えたことや判断待ち件数が0であることだけでは完了とみなさない。明示的な決裁または実測証跡が無い項目は保持する。
 - 本ledgerの更新は実装・runtime検証・製品決裁を代替しない。
@@ -56,7 +57,7 @@
 
 ## C6a 臨床安全レビュー
 
-- M-05 で残る danger 高 cue の runtime 証跡を取得する。
+- **runtime 実測は M-05（`TASK-461`）で完了した。** 臨床 sentinel の未確認項目は残っていない。以降の臨床安全の残件は `3-session-agent.html#ledger` の `BUG-455`〜`458` として追跡する。
 - 静的レビューで閉じず、残件が実装認可された場合は既存sentinel fixtureのscoped component testを先にRED化してから修正する。
 
 ## Active execution rules
@@ -68,24 +69,6 @@
 3. **臨床date-onlyはJSTの厳密過去で判定する。** `YYYY-MM-DD`契約をguardし、`todayJSTISO()`との文字列比較`<`を使う。現在時刻との`Date`比較で当日を期限超過にしない。
 
 ## 要実測項目
-
-### M-05 Clinical sentinel responsive — 残1件
-
-- 残件は **danger 高 pet `1001004` の非色 cue の runtime 証明**のみ。**着手プランは `3-session-agent.html#TASK-461` を正本とする**（copy-executable な fixture 再作成 → 観測 → cleanup スクリプトを含む）。
-- Route: `/owners`（pet名検索あり）・`/vaccinations`（pet filter）・`/checkups`（`M05-` 検索）の3routeで足りる。7 route×4 viewport の全再走は不要。
-- 実装根拠: `frontend/src/features/owners/components/OwnersListTable.tsx:200` が `pet.dangerLevel === "高"` で分岐し、`:205` に `aria-label={<ペット名>の危険理由を表示}`、`:213` に `aria-label={<ペット名>の危険理由}` を持つ。**権限ガードは無い。** 先行実測では絞り込みありで7件検出・絞り込み無しで0件だったため、原因は検索/ページングである可能性が高い。
-- **fixture は R-4 で撤去済み。再作成が着手前提**であり、期限4区分は実行日D基準（past=D-1 / today=D / future=D+1 / empty=NULL）で作り直す。日跨ぎ禁止。
-- Expected result: danger 高が非色cueとaccessible nameを保持する。
-
-**2026-07-28 実測で確定済み（再測不要）**
-
-- **期限4区分の誤検出は0件**。vaccination は `2026-07-27` のみ `（期限超過）`、today/future は日付のみ（`a11y-vaccinations.txt:61-86`）。checkup は `M05-past` のみ `期限切れ`、today/future は `期限間近`、empty は表示なし（`a11y-checkups.txt:65-97`）。**today/future を danger 扱いする誤検出は無い。**
-- **death の文字cueは PASS**。owner detail で `チロ`・`死亡` を確認（`detail-owner-300588.txt:157-163`）。ただし7一覧routeには表示されない。
-- **未評価3項目は detail で `未判定` を確認**（`detail-examination-1014562.txt:75-93`）。HIGH/LOW は基準値0行のため成立しない（既知・`BUG-449`）。
-- **view access は7 routeとも維持**（`アクセス権限がありません` 0件）。
-- **非 GET mutation は7ファイルとも0件。**
-- **layout は 28件中 PASS 20 / clip 8**。clip 8件は `/` 800×1024・500×900、`/medical-records` 800×1024・500×900、`/hospitalization` 800×1024、`/examinations` 800×1024・500×900、`/checkups` 500×900。**`BUG-458` へ統合済みであり本ledgerでは追跡しない。**
-- evidence: `tmp/fe12-m05-evidence/2026-07-28/`（a11y 7・PNG 28・network 7・`fixture-to-cue.md`・`layout-review.md`・`completion-report.md`）。
 
 ### line-reserve font実機確認
 
