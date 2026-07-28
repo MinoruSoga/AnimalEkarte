@@ -95,6 +95,64 @@ onReport:        (ownerId: string, petId: string) => void
 - Expected result: `frontend/line-reserve/index.html:7-12`からNoto Sans JPがloadされ、`frontend/line-reserve/src/index.css:17-23`の先頭fontとして全画面へ適用される。clip/FOITによる操作不能がなく、font失敗時もfallbackで操作可能。
 - Required evidence artifacts: 3実機の画面別screenshot、remote Network HAR、computed font-familyとRendered Fonts capture、端末/OS/browser/version、cold/warm/offline各結果。
 
+#### QAチケット文面（そのままコピーして起票する）
+
+```
+件名: line-reserve（LIFF予約）Noto Sans JP の実機フォント確認 — 3実機
+
+## 目的
+顧客向け予約画面で Noto Sans JP が実機に適用されることを確認する。
+webfont 宣言は実装済みのため、確認するのは「実機で本当に当たっているか」のみ。
+
+## 背景（source 側は確認済み・修正待ちは無い）
+- 宣言: frontend/line-reserve/index.html:7-12（Google Fonts stylesheet + preconnect 2本）
+- 適用: frontend/line-reserve/src/index.css:17-23（Noto Sans JP を先頭 font に指定）
+- 対象 route: /line-reserve/{clinicId} の 顧客情報 → 要望 → 確認 → 完了、およびマイ予約
+- clinicId の抽出契約: frontend/line-reserve/src/lib/liff-config.ts:6-14
+
+## 依頼1: QA環境管理者
+本チケットへ次を記入してください（credential そのものは書かないでください）。
+- [ ] 試験環境の URL
+- [ ] clinic ID
+- [ ] 予約確定を許可する試験範囲（どこまで実際に送信してよいか）
+- [ ] LINE連携済み試験用アカウントの credential を、既存の安全チャネルで受け取る手順
+
+## 依頼2: 端末管理者
+本チケットへ次を記入してください。
+- [ ] iPhone: 端末ID / iOS version / Safari version / remote inspection 可否
+- [ ] Android: 端末ID / OS version / Chrome version / remote inspection 可否
+- [ ] iPad: 端末ID / iPadOS version / Safari version / remote inspection 可否
+
+## 依頼3: 実機QA担当（上記2件が揃ってから着手）
+3実機それぞれで cold / warm / offline の3条件を実施し、次を記録してください。
+- [ ] Google Fonts の CSS と font file が HTTP 200（remote inspection の Network で確認）
+- [ ] 各画面の computed font-family
+- [ ] 実際にレンダリングされた font（DevTools の Rendered Fonts）
+- [ ] clip / FOIT による操作不能が無いこと
+- [ ] font 取得失敗時も fallback で操作可能なこと
+- [ ] 端末 / OS / browser の version
+
+対象 viewport: iPhone Safari 390×844、Android Chrome 412×915、iPad Safari 768×1024
+（比較用に desktop 500×900 も1回）
+
+## 期待結果
+Noto Sans JP が全画面に適用される。clip / FOIT で操作不能にならない。
+font 失敗時も fallback で操作できる。
+
+## 提出物
+- 3実機 × 画面別 screenshot
+- remote Network HAR
+- computed font-family と Rendered Fonts のキャプチャ
+- 端末 / OS / browser / version の一覧
+- cold / warm / offline それぞれの結果
+
+## 注意
+- credential を本チケットへ書かないこと。取得手順のみ記載する。
+- 送信・予約確定は上記「試験範囲」で許可された試験環境でのみ行う。
+- 参照 runbook: docs/ops/testing/scenarios/V05-auth-line-forms.md（V05-6 / V05-7）、
+  docs/ops/testing/scenarios/S04-liff-reservation-journey.md
+```
+
 ## 要起票（本ledgerの所掌外・未起票分）
 
 - **DBOrTx inventory gate が赤** — `exam_reference_range_repository.go` の `ResolveByFieldIDs` / `FindAnimalSpeciesID` が `persistence.DBOrTx` 参加者として未登録（`docker compose exec backend go test ./internal/lintscan/ -run DBOrTx` で再現）。pet側2件は `0eecddb11` で清算済みだが、この2件は #249 U3 を実装したセッションの所掌。ゲートの要求どおり ambient-tx 参加を実証する test を添えて登録する必要がある。**起票先は `3-session-agent.html#ledger`。**
