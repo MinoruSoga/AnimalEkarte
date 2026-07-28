@@ -3,9 +3,10 @@ package pet
 import "testing"
 
 func TestCreateAnimalSpeciesRequest_ToServiceInput(t *testing.T) {
+	active := true
 	req := createAnimalSpeciesRequest{
 		Name:      "dog",
-		IsActive:  true,
+		IsActive:  &active,
 		SortOrder: 2,
 	}
 
@@ -14,11 +15,31 @@ func TestCreateAnimalSpeciesRequest_ToServiceInput(t *testing.T) {
 	if input.Name != req.Name {
 		t.Fatalf("Name = %q, want %q", input.Name, req.Name)
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %t, want %t", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = %t, want true", input.IsActive)
 	}
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
+	}
+}
+
+func TestCreateAnimalSpeciesRequest_IsActiveOmitted(t *testing.T) {
+	req := createAnimalSpeciesRequest{Name: "dog", SortOrder: 1}
+	if req.IsActive != nil {
+		t.Fatalf("omitted is_active must remain nil (presence absent), got %v", req.IsActive)
+	}
+	input := req.toServiceInput()
+	if !input.IsActive {
+		t.Fatalf("omitted is_active must resolve to true, got false")
+	}
+}
+
+func TestCreateAnimalSpeciesRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createAnimalSpeciesRequest{Name: "dog", IsActive: &active}
+	input := req.toServiceInput()
+	if input.IsActive {
+		t.Fatalf("explicit false must resolve to false")
 	}
 }
 

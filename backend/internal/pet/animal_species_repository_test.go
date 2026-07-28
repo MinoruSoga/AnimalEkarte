@@ -92,6 +92,52 @@ func TestAnimalSpeciesRepository_Create(t *testing.T) {
 	assert.Equal(t, "ハムスター", got.Name)
 }
 
+// BUG-455-S2: gorm default:true omits zero bools from INSERT; explicit false must survive.
+func TestAnimalSpeciesRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupAnimalSpeciesTestDB(t)
+	repo := NewAnimalSpeciesRepository(db)
+	ctx := context.Background()
+
+	species := &model.AnimalSpecies{Name: "inactive species", IsActive: false}
+	require.NoError(t, repo.Create(ctx, species))
+	require.NotZero(t, species.ID)
+	assert.False(t, species.IsActive, "in-memory struct must keep false after Create")
+
+	got, err := repo.FindByID(ctx, species.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.AnimalSpecies{}).
+		Select("is_active").
+		Where("id = ?", species.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+func TestAnimalSpeciesRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupAnimalSpeciesTestDB(t)
+	repo := NewAnimalSpeciesRepository(db)
+	ctx := context.Background()
+
+	species := &model.AnimalSpecies{Name: "active species", IsActive: true}
+	require.NoError(t, repo.Create(ctx, species))
+	assert.True(t, species.IsActive)
+
+	got, err := repo.FindByID(ctx, species.ID)
+	require.NoError(t, err)
+	assert.True(t, got.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.AnimalSpecies{}).
+		Select("is_active").
+		Where("id = ?", species.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive, "raw is_active column must be true")
+}
+
 func TestAnimalSpeciesRepository_Update(t *testing.T) {
 	db := setupAnimalSpeciesTestDB(t)
 	repo := NewAnimalSpeciesRepository(db)

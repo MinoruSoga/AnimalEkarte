@@ -49,8 +49,18 @@ func (r *animalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*mod
 }
 
 func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.AnimalSpecies) error {
-	if err := r.db.WithContext(ctx).Create(species).Error; err != nil {
+	db := r.db.WithContext(ctx)
+	// Capture intent before Create: gorm default:true omits zero bools from
+	// INSERT and may write the DB default back into the struct.
+	wantActive := species.IsActive
+	if err := db.Create(species).Error; err != nil {
 		return apperrors.FromGORM(err, "animal_species", "")
+	}
+	if !wantActive {
+		if err := db.Model(species).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", species.ID))
+		}
+		species.IsActive = false
 	}
 	return nil
 }
