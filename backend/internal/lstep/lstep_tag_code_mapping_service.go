@@ -73,6 +73,11 @@ func (s *lstepTagCodeMappingService) PutMappingsForTag(ctx context.Context, clin
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("lstep tag code mapping transaction dependency is required")
 	}
+	for i := range entries {
+		if err := validatePutMappingEntry(&entries[i]); err != nil {
+			return nil, err
+		}
+	}
 
 	created := make([]*model.LstepTagCodeMapping, 0, len(entries))
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -116,4 +121,33 @@ func isConfigurableTag(tagName string) bool {
 		}
 	}
 	return false
+}
+
+// validatePutMappingEntry enforces code_type / species_scope / age_min / codes bounds (G2C-02).
+func validatePutMappingEntry(e *PutMappingEntry) error {
+	switch e.CodeType {
+	case model.CodeTypeCheckupType, model.CodeTypePrescription, model.CodeTypeMerchandiseItem:
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid code_type: %s", e.CodeType))
+	}
+	if len(e.Codes) == 0 {
+		return apperrors.WrapInvalidInput("codes must contain at least one entry")
+	}
+	for _, c := range e.Codes {
+		if c == "" {
+			return apperrors.WrapInvalidInput("codes must not contain empty values")
+		}
+		if len(c) > 64 {
+			return apperrors.WrapInvalidInput("code length must be <= 64")
+		}
+	}
+	switch e.SpeciesScope {
+	case "", "dog", "cat", "other", "all":
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid species_scope: %s", e.SpeciesScope))
+	}
+	if e.AgeMin != nil && *e.AgeMin < 0 {
+		return apperrors.WrapInvalidInput("age_min must be >= 0")
+	}
+	return nil
 }

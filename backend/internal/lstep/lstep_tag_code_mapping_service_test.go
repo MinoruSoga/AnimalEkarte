@@ -140,6 +140,24 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
+	t.Run("rejects invalid code_type", func(t *testing.T) {
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{})
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: "not_a_type", Codes: []string{"X"}},
+		})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("rejects invalid species_scope", func(t *testing.T) {
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{})
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: model.CodeTypeCheckupType, Codes: []string{"CHK_01"}, SpeciesScope: "bird"},
+		})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+
 	t.Run("returns wrapped error when soft delete fails", func(t *testing.T) {
 		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
 			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
