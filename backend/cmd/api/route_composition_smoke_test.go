@@ -18,6 +18,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
+	// Local storage + scheduler token so base routes match docker-compose shape.
+	t.Setenv("STORAGE_TYPE", "")
+	t.Setenv("SCHEDULER_INTERNAL_TOKEN", "test-scheduler-internal-token-32b!!")
+
 	composition := newRuntimeComposition(runtimeCompositionDependencies{
 		Config: &config.Config{
 			JWTSecret: "test-secret-for-route-registration",

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +13,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/scheduler"
 )
+
+// schedulerInternalTokenHeader is the application-level privilege header for
+// all-clinic scheduled batch routes (DEC-36 / CMD-02).
+const schedulerInternalTokenHeader = "X-Scheduler-Token"
 
 var errScheduledBatchUnavailable = errors.New("scheduled batch service is unavailable")
 
@@ -40,8 +46,38 @@ func newLstepScheduledJobExecutor(batch scheduledBatchService) *lstepScheduledJo
 	return &lstepScheduledJobExecutor{batch: batch}
 }
 
-func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService) {
-	scheduler.NewHandler(newLstepScheduledJobExecutor(batch)).RegisterRoutes(routes)
+func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService, internalToken string) {
+	// Always register the contract path; middleware fails closed when the shared
+	// secret is unset or the header does not match (DEC-36 / CMD-02).
+	var protected gin.IRoutes
+	switch r := routes.(type) {
+	case *gin.Engine:
+		protected = r.Group("", requireSchedulerInternalToken(internalToken))
+	case *gin.RouterGroup:
+		protected = r.Group("", requireSchedulerInternalToken(internalToken))
+	default:
+		// Production always passes *gin.Engine; refuse unknown IRoutes shapes.
+		return
+	}
+	scheduler.NewHandler(newLstepScheduledJobExecutor(batch)).RegisterRoutes(protected)
+}
+
+func requireSchedulerInternalToken(expected string) gin.HandlerFunc {
+	expectedBytes := []byte(expected)
+	return func(c *gin.Context) {
+		// Empty expected never authenticates (including empty provided header).
+		if len(expectedBytes) == 0 {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		provided := []byte(c.GetHeader(schedulerInternalTokenHeader))
+		if len(provided) != len(expectedBytes) ||
+			subtle.ConstantTimeCompare(provided, expectedBytes) != 1 {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.Next()
+	}
 }
 
 func (e *lstepScheduledJobExecutor) Execute(
