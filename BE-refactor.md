@@ -2330,7 +2330,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LineCustomer'`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: 5a1cef17488690719b3b36c7fa9eaca055e07826
 
 ##### U-X01-MR-PRESCRIPTION
 
