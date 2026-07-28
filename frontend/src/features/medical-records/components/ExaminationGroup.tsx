@@ -99,13 +99,13 @@ export const ExaminationGroup = memo(function ExaminationGroup({
                   : ""
               }`}
             >
-              {item.result}
+              {item.inspectionValue || item.result || "-"}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
               {item.unit}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
-              {item.referenceValue}
+              {item.referenceValue || item.normalValue || "-"}
             </div>
             <div className="p-2 flex justify-center items-center">
               {item.status === "high" ? (

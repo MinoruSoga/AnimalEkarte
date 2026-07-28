@@ -87,6 +87,67 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("70-110")).toBeInTheDocument();
   });
 
+  // BUG-456: active writer は inspectionValue / normalValue を主に書く一方、
+  // 表示が result / referenceValue のみだと通常検査の保存値が空になる。
+  // 新field優先・旧field fallback・両方空の3系統を固定する。
+  it("新fieldがあるとき inspectionValue / referenceValue を結果値・基準値に表示する", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "GLU",
+            // 新旧不一致: 旧fieldは stale でも新fieldが canonical
+            inspectionValue: "120",
+            result: "99",
+            referenceValue: "70-110",
+            normalValue: "0-999",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("120")).toBeInTheDocument();
+    expect(screen.getByText("70-110")).toBeInTheDocument();
+    expect(screen.queryByText("99")).not.toBeInTheDocument();
+    expect(screen.queryByText("0-999")).not.toBeInTheDocument();
+  });
+
+  it("新fieldが空のとき result / normalValue にフォールバックする", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "BUN",
+            inspectionValue: "",
+            result: "18",
+            referenceValue: "",
+            normalValue: "6-25",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("18")).toBeInTheDocument();
+    expect(screen.getByText("6-25")).toBeInTheDocument();
+  });
+
+  it("結果値・基準値の新旧fieldが両方空なら '-' を表示する", () => {
+    renderGroup(
+      makeGroup({
+        items: [
+          makeItem({
+            name: "EMPTY",
+            inspectionValue: "",
+            result: "",
+            referenceValue: "",
+            normalValue: "",
+          }),
+        ],
+      }),
+    );
+    // 結果値列・基準値列それぞれに placeholder "-"
+    const dashes = screen.getAllByText("-");
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("status=high のとき HIGH バッジを表示する", () => {
     renderGroup(
       makeGroup({
