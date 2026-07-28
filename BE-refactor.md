@@ -1,6 +1,6 @@
 # BE-refactor — backend 規約適合監査と改善計画
 
-> 更新: 2026-07-28（round 2 是正: false positive 除去・規約適用性・畳み込み表反映）／round 2 初回: 2026-07-28 `72fec9d1d`／初版: 2026-07-27
+> 更新: 2026-07-28（round 3: round 1 の 105 所見へ敵対的反証）／round 2 是正: false positive 除去／round 2 初回: 2026-07-28 `72fec9d1d`／初版: 2026-07-27
 >
 > **測定基準リビジョン (round 2)**: `c4ce786e0a52968a4fcdeaaffe07a409501ca80b`（`git rev-parse HEAD`）
 > **working tree dirty (backend/)**: `billing/accounting_repository_reports_close.go` ほか billing 4、`lintscan/grandchild_parent_clinic_correlation_lint_test.go` 1（並行セッション編集中）。判定は on-disk 実コードを優先。
@@ -32,7 +32,7 @@
 
 | severity | 件数 | 内訳の代表 |
 |---|---|---|
-| CRITICAL | 2（round1 検出）／ open 1 after round2 | 締め後会計編集ゲートの迂回（BIL-01・open）／ stage-import の clinic 非限定 DELETE（CMD-01・**ALREADY-FIXED** round2・既知 BUG-430） |
+| CRITICAL | 2（round1 検出）／ open 1 after round3 | 締め後会計編集ゲートの迂回（BIL-01・open・round3 REFRAMED 分割）／ stage-import DELETE（CMD-01・**WITHDRAWN** round3・BUG-430 退役） |
 | HIGH | 33 | commit 済み write の 5xx 反転、fail-open、監査欠落、TOCTOU、入力境界検証 |
 | MEDIUM | 56 | 非原子 write、raw error 露出、copy-paste drift、契約非対称 |
 | LOW | 14 | 重複ログ、命名 stutter、doc コメント |
@@ -55,13 +55,13 @@
 | パターン | 規約 | 構成員 ID | 推奨アプローチ |
 |---|---|---|---|
 | **X-01** commit 済み write を tx 外の再取得 error で失敗へ反転 | `CODING_RULES.md:78` | MRA-02, MRC-01, MRD-02, POC-02, RSV-03, TRM-01, LSB-03 | 再取得を `WithTx` 内へ移す。先例 = `vital_service.go:294-298` / `owner/repository.go:288` / `pet/repository.go:417` / `trimming_service.go:330` |
-| **X-02** 入力境界検証の欠落（列挙値・範囲・長さ） | `guidelines:151` | AUS-03, LSA-13, LSA-14, LSB-06, TRM-05, MRA-03, MRD-04, RSV-04, MRC-08, POC-13, POC-17, MRB-06, TRM-03（兼 X-07） | enum は model 定数から `oneof=` を導出し、追随を test で固定。長さは `001_init.sql` の列定義から導出。MDL-04 は LSA-13 と同一 trigger_type のため除外（正本 LSA-13）。POC-14 は X-09 へ移動 |
+| **X-02** 入力境界検証の欠落（列挙値・範囲・長さ） | `guidelines:151` | AUS-03, LSA-13, LSA-14, LSB-06, TRM-05, MRA-03, MRD-04, RSV-04, MRC-08, POC-13, POC-17, MRB-06, TRM-03（兼 X-07） | enum は model 定数から `oneof=` を導出し、追随を test で固定。長さは `001_init.sql` の列定義から導出。MDL-04 は LSA-13 と同一 trigger_type のため除外（正本 LSA-13）・round3 **WITHDRAWN**（重複）。POC-14 は X-09 へ移動 |
 | **X-03** destructive / irreversible 操作の監査・recovery 欠落 | `invariants.md:31` | AUS-01, LSA-05, MRA-01, MRB-05, POC-07, TRM-02, TRM-07 | 既存の fail-closed 監査（`audit.LogEntryTx`）へ寄せる。5 領域に確立済みパターンあり・新テーブル不要 |
 | **X-04** error 握り潰しによる fail-open | `error-handling.md:9` | LSA-03, LSA-10, LSA-11, LSA-12, LSA-16, LSB-04, MRC-04, MDL-02, INF-06, CMD-03, CMD-07, RSV-09, LSB-02 | 「握り潰す」と「意図的 best-effort」を分離。後者は `CODING_RULES.md:36` が要求する補償・再試行・監査・部分失敗 contract を実際に持たせる。**LSA-02/LSB-01 は X-04 ではない**（business evidence 欠落） |
 | **X-05** 検証と write が同一 tx にない（TOCTOU） | `CODING_RULES.md:38` | POC-03, MRB-02, MRB-08, MRC-03, MRC-07, POC-05, RSV-02, RSV-07, POC-06, LSA-15 | 検証と write を単一 `WithTx` へ収め、判定根拠の行を `FOR UPDATE`/`FOR SHARE` で固定。先例 = `reservation_intent_repository.go:591-625` |
 | **X-06** business graph を構成する write の非原子化 | `CLAUDE.md:33` | BIL-03, LSA-06, MRC-05, RSV-06, MRC-12（既知） | `Transactor` を注入し repository を `persistence.DBOrTx` 経由へ揃える |
-| **X-07** request body サイズ上限の非対称・middleware による無効化 | `guidelines:179` | INF-02, POC-12, TRM-03（兼 X-02） | `protected` グループ全体へ body size middleware を 1 本入れて統一する（handler 個別対応は非対称を再生産する）。TRM-03 の string max 面は X-02 |
-| **X-08** 外部 API の raw error を応答・DB へ露出 | `CLAUDE.md:34` | LSA-08, LSA-09 | 応答は安定した分類コードのみ。生エラーは slog に限定。LSB-05 は LSA-08 と同一疎通 raw error のため除外（正本 LSA-08） |
+| **X-07** request body サイズ上限の非対称・middleware による無効化 | `guidelines:180`（round3 LINE_DRIFT 是正・旧:179） | INF-02, POC-12, TRM-03（兼 X-02） | `protected` グループ全体へ body size middleware を 1 本入れて統一する（handler 個別対応は非対称を再生産する）。TRM-03 の string max 面は X-02 |
+| **X-08** 外部 API の raw error を応答・DB へ露出 | `CLAUDE.md:34` | LSA-08, LSA-09 | 応答は安定した分類コードのみ。生エラーは slog に限定。LSB-05 は LSA-08 と同一疎通 raw error のため除外（正本 LSA-08）・round3 **WITHDRAWN**（重複） |
 | **X-09** copy-paste drift（複製と乖離） | `coding-style.md:26` | MDL-01, POC-11, POC-16, MRC-14, POC-14 | `sharedkernel` へ 1 本化。**税計算の乖離（MDL-01）は金額に直結するため先行**。POC-14 は空 PATCH ガードの兄弟欠落 |
 | **X-10** 同一 error の重複ログ / 二重レスポンス | `CODING_RULES.md:67`, `error-handling.md:29` | POC-15, TRM-06, AUS-09 | 文脈の揃う境界 1 箇所へ集約 |
 
@@ -196,8 +196,7 @@
 
 - 再実測(2026-07-28): **LINE-DRIFT** — UpdateBillingTotals は billing_item_repository.go:568-576（旧:563）。IsDateClosed は cash_register_service.go:407（旧:359）。CreateItem/UpdateItem に status/post-close ゲート無し・DeleteItem のみ completed/cancelled 拒否は継続。dirty: billing_item_repository.go 作業ツリー変更中だが status 欠落構造は残存。
 - 起票先: `BUG-462`（`3-session-agent.html#BUG-462`）
-
-
+- round3-review(2026-07-28): **REFRAMED** — 内容は成立するが invariants:37 単独の CRITICAL 一本化は過剰。A) 締め後総額書換の post-close 権限・理由・同一tx監査欠落（CRITICAL・invariants:37 + cash-register #115）と B) Create/Update の completed/cancelled ガード欠落（DeleteItem 非対称・別 HIGH state-guard）に分割。`billing_item_service.go:404-429` UpdateItem に status/IsDateClosed 無し・DeleteItem のみ拒否を現 HEAD で確認。
 #### BIL-03: campaignService.Update が本体更新と対象（カテゴリ/商品）差し替えを別々のtransactionで実行し、部分成功で割引マッチング対象が不整合になる — HIGH
 - 区分: 新規 ／ 横断パターン: X-06
 - 規約: `backend/CLAUDE.md:33` 「1つのbusiness graphを構成する複数rowのwriteは同じtransactionで原子的に扱い、commit済みの成功を後段の再取得errorで失敗応答へ反転させない。」
@@ -207,13 +206,14 @@
 - 検証時の補正: evidence の行番号を1行精密化: 実際の write 呼び出し行は campaign_service.go:287（`if _, err := s.repo.Update(ctx, clinicID, id, fields)`）と :293（`if err := s.repo.ReplaceTargets(ctx, id, cats, itemIDs)`）であり、所見が挙げた :286 / :292 はそれぞれ直前の `if len(fields) > 0 {` / `if hasTargets {` ガード行。repository 側の該当も :76-80 ではなく関数定義 :75 起点の :76-80 チェーンで正しい。
 
 - 再実測(2026-07-28): **CONFIRMED** — campaignService に Transactor 無し（:177-180）。Update :287 と ReplaceTargets :293 が独立 commit。後段 FindByID :299 は X-01 併発。
+- round3-review(2026-07-28): **UPHELD** — campaignService に Transactor 無し（:177-180）。Update:287 と ReplaceTargets:293 が独立 commit。後段 FindByID:299 は X-01 併発。`backend/CLAUDE.md:33` 適用。
 #### BIL-02: accountingService の会計取消・クレジット訂正監査が「監査dependency欠落」を成功扱いにする（宣言済みの fail-closed 契約と逆） — MEDIUM
 - 区分: 新規 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:37` 「fail-closedと定めたclinical/financial監査はbusiness writeと同じtransactionへ参加させ、監査dependency欠落または監査write失敗時はbusiness writeもrollbackする。締め後の会計編集はこの対象とする。」
 - 対象: `backend/internal/billing/accounting_service_correction.go:178`、`backend/internal/billing/accounting_service_correction.go:179`、`backend/internal/billing/accounting_service_reports.go:93`、`backend/internal/billing/accounting_service_core.go:275`、`backend/internal/billing/accounting_service.go:146`
 - 内容: 規約は監査dependency欠落時も business write を rollback せよと定め、`NewAccountingService` の doc コメント（accounting_service.go:146-149）も「3経路とも fail-closed 化済み」と宣言している。しかし3経路のうち2経路が dependency 欠落を成功扱いにする: `logCreditCorrection` は `if s.auditTx == nil { return nil }`（accounting_service_correction.go:178-180）で監査ゼロのまま確定済み会計のカード金額訂正を commit させ、`Cancel` は `if s.auditTx != nil` で囲うため（accounting_service_reports.go:93-106）nil なら status=cancelled だけが監査なしで確定する。正しい形は同 package の `logPostCloseEdit` にあり、こちらは `return apperrors.WrapInternalServerError(...)` で拒否する（accounting_service_core.go:275-277）。現行の composition root は値型 `billingAuditTxBridge` を渡すため interface が nil になることは production では起きず、実害は潜在（契約の穴）に留まる — ただし規約が要求する挙動と実装が逆であり、別配線・別 composition では静かに監査が消える。
 - 修正: `logCreditCorrection` の nil 分岐を `logPostCloseEdit` と同じ `apperrors.WrapInternalServerError` 返却に置換し、`Cancel` の `if s.auditTx != nil` 条件を外して nil 時にエラー返却する（3経路の dependency 欠落挙動を1つのヘルパーへ寄せる）。
-
+- round3-review(2026-07-28): **UPHELD** — logCreditCorrection/Cancel が auditTx nil を成功扱い。invariants:37。production は bridge 注入で潜在。
 ### infra 横断（httpapi / middleware / apperrors / audit ほか）（5件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -225,15 +225,18 @@
 - 修正: classifyPgError を「クライアント起因と確定できるコードの allowlist」に限定し、isPgError 分岐を『allowlist に一致した場合のみ 400』へ変更する。一致しない PgError は default 分岐へ落として 500 とし、既存の未分類 error と同じく詳細非露出の汎用 500 にする。
 
 - 再実測(2026-07-28): **ALREADY-FIXED** — httpapi/response.go:90-107 が未知 PgError を 500 に落とし、classifyPgError は allowlist のみ known=true（response_pg.go:34-54）。BUG-2026-07-27-01 コメント付き。
+- round3-review(2026-07-28): **WITHDRAWN** — ALREADY-FIXED。`httpapi/response.go:90-107` が未知 PgError を 500 に落とし、`classifyPgError` は allowlist のみ known=true（BUG-2026-07-27-01）。欠陥パスは HEAD に存在しない。
 #### INF-02: SanitizeNullBytes の透過 Reader が http.MaxBytesReader の body 上限を無効化し、制御バイトのみの巨大 body が無制限に読まれる — HIGH
 - 区分: 新規 ／ 横断パターン: X-07
-- 規約: `.claude/rules/go-gin-backend-guidelines.md:179` 「- rate limit、request/body/upload size、content type、file path を制限する。」
+- 規約: `.claude/rules/go-gin-backend-guidelines.md:180` 「- rate limit、request/body/upload size、content type、file path を制限する。」
+
 - 対象: `backend/internal/middleware/sanitize_null_bytes.go:64`、`backend/internal/middleware/sanitize_null_bytes.go:65`、`backend/internal/middleware/sanitize_null_bytes.go:84`、`backend/internal/middleware/sanitize_null_bytes.go:95`、`backend/internal/middleware/sanitize_null_bytes.go:108`、`backend/internal/auth/http_binding.go:30`、`backend/internal/staff/http_binding.go:30`、`backend/internal/billing/billing_confirmation_handler.go:135`、`backend/internal/lstep/lstep_csv_import_handler.go:75`
 - 内容: middleware は POST/PATCH/PUT の非バイナリ body を `sanitizedBodyReader` で包み(:64)、同時に `c.Request.ContentLength = -1` を設定する(:65)。sanitizedBodyReader.Read は除去後のバイト数 writeIndex を返し、全バイトが除去対象なら writeIndex==0 のまま source を読み直すループに入る(:85-98)。下流ハンドラが後から重ねる `http.MaxBytesReader` は「ラップした Reader が返した n」でのみ残量を減算するため、除去されたバイトは一切カウントされず上限に達しない。ContentLength も -1 にされているため事前の長さ判定も効かない。
 - 修正: sanitizedBodyReader に呼び出し側から上限バイト数（読み捨て分を含む消費バイト総量）を渡し、超過時に error を返して打ち切る。あるいは SanitizeNullBytes をハンドラ側 MaxBytesReader より内側（下流）に適用する順序へ変更し、除去前の生バイト数が MaxBytesReader を通過するようにする。ContentLength の -1 上書きも、上限判定を持つ層より前で行わないようにする。
 - 検証時の補正: 影響を受けるのは JSON binder 3経路（backend/internal/auth/http_binding.go:26,30 / backend/internal/staff/http_binding.go:26,30 / backend/internal/billing/billing_confirmation_handler.go:131,135）に限る。evidence に挙げられた backend/internal/lstep/lstep_csv_import_handler.go:75 は multipart/form-data であり、sanitize_null_bytes.go:52-55 の isBinaryContentType 早期 return によって middleware を通過しない（ContentLength は保持され MaxBytesReader は正常動作する）。したがって同行は本欠陥の evidence から外すべきである。
 
 - 再実測(2026-07-28): **CONFIRMED** — sanitize_null_bytes.go:64-65 ContentLength=-1、:84-97 が sanitization 後バイトのみを計上。MaxBytesReader 無効化は継続。
+- round3-review(2026-07-28): **UPHELD** — sanitize_null_bytes.go:64-65 ContentLength=-1、:84-98 が sanitization 後 n のみ計上。MaxBytesReader 無効化継続。規約は guidelines:180（body size）が正（:179 は LINE_DRIFT）。
 #### INF-03: Lステップ API の URL パスに line_user_id を無エスケープで埋め込んでおり、リクエスト由来文字列でパス/クエリを改変できる — MEDIUM
 - 区分: 新規
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「- 外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -243,6 +246,7 @@
 - 検証時の補正: 現時点で実際に HTTP を発行する経路は tag.go:48（GetUserTags、呼び出し元 = backend/internal/lstep/lstep_tag_service.go:170 で `*owner.LineUserID` を渡す）のみである。user.go:33 の GetUser は infra/lstep/client.go:39 の interface 宣言以外に非 test の呼び出し元が無く、AddTag(tag.go:18)/RemoveTag(tag.go:31)/SetProperty(user.go:65) は「L-step write operations are paused by policy」の無通信スタブであるため現状では到達しない。fail-safe としての PathEscape 適用対象は 2 箇所のままでよいが、今日の実害面は tag.go:48 に限られる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — line_user_id PathEscape なし。guidelines:151。実害は tag.go:48。
 #### INF-04: apperrors.FromGORM が pgx ドライバエラーを err.Error() の部分文字列一致で分類している — MEDIUM
 - 区分: 新規
 - 規約: `.claude/refs/error-handling.md:18` 「- error の種類は `errors.Is` / `errors.As` で判定し、message 文字列比較をしない。」
@@ -251,13 +255,14 @@
 - 修正: pgx が公開する型（例 *pgconn.PgError 以外の driver エラー型）を errors.As で判定できるか upstream を確認し、可能なら型判定へ置換する。不可能な場合は、この 3 本を「規約 error-handling.md:18 の明示的例外」として ADR または application invariant に根拠・適用範囲・検知テストを記録し（guidelines:233 の要求形式）、文言変更を捕捉する回帰テストを付ける。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — message 文字列比較は error-handling.md:18 違反だがメンテ脆弱性中心。
 #### INF-06: audit.MarshalJSON が marshal 失敗を無記録で握り潰し、監査ログの old/new/metadata が欠落しても観測できない — LOW
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `~/.claude/rules/ecc/common/coding-style.md:49` 「- Never silently swallow errors」
 - 対象: `backend/internal/audit/repository.go:54`、`backend/internal/audit/repository.go:58`、`backend/internal/audit/repository.go:59`、`backend/internal/audit/repository.go:60`、`backend/internal/audit/service.go:128`、`backend/internal/audit/service.go:129`、`backend/internal/audit/service.go:130`
 - 内容: MarshalJSON は json.Marshal 失敗時に nil を返すだけで、log 出力も metrics も残さない(repository.go:58-61)。buildLog は OldValue/NewValue/Metadata の3フィールド全てをこの関数経由で埋める(service.go:128-130)ため、marshal に失敗した監査は「値が無かった監査」と外形上区別できないレコードとして commit される。error-handling.md:9 の `明示的に回復する` に該当する設計判断ではあるが、回復したこと自体が観測不能な点が問題である。根拠区分は project quality policy（Go/Gin 公式要件ではない）。
 - 修正: MarshalJSON 内で marshal 失敗時に slog.Warn を1行出す（値そのものは出さず、フィールド名と型名のみ）。監査本体を止めない現行契約は維持しつつ、欠落が事後に追跡可能な状態にする。
-
+- round3-review(2026-07-28): **REFRAMED** — MarshalJSON の omit は意図的 best-effort。残るのは observability のみ。project quality policy。
 ### lstep（LINE / Lステップ連携）（22件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -270,6 +275,7 @@
 - 検証時の補正: evidence の lstep_settings_update.go:17 は `{model.IntegrationKeyLstepAPIKey, input.LstepAPIKey},` であり、base URL の pair は :18。無検証 Upsert の実体は :25-:43 のループ。指摘の substance には影響しない off-by-one。
 
 - 再実測(2026-07-28): **CONFIRMED** — lstep_base_url 無検証保存 + testLstepAPI が任意 baseURL へ Bearer 送信は継続。
+- round3-review(2026-07-28): **UPHELD** — lstep_base_url 無検証保存 + 復号 API キーを任意 host へ。guidelines:151 + secret 境界。
 #### LSA-02: 自動配信トリガーの除外判定が owner.LstepOptOut を読まず、オプトアウト済み飼い主へ配信タグが付与され得る — HIGH
 - 区分: 新規
 - 規約: `backend/CODING_RULES.md:42` 「自動status transitionは、対象条件をwrite時にcompare-and-setで再評価する。臨床記録など遷移を否定するbusiness evidenceも同じ判定へ含め、resource単位の監査が必須なら状態変更と同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。」
@@ -279,6 +285,7 @@
 - 検証時の補正: detail の「opt-out の反映は SyncExclusionTags が付ける EXCL タグ経由の間接依存」は正しいが不足。HandleOwnerOptOut は SyncExclusionTags を呼ばず、逆に lstep_lifecycle_service.go:325 の DeleteAllByOwner で EXCL_配信停止 の cache 行ごと削除するため、間接依存は「best-effort で不確実」ではなく「opt-out 経路では確定的に無効化される」。なお規約適合は CODING_RULES.md:42 の中間節（遷移を否定する business evidence を同じ判定へ含める）に依拠しており、.claude/refs/backend-application-invariants.md:36「必須依存が欠ける場合はwrite前にfail-closed」も同等以上に妥当な根拠。
 
 - 再実測(2026-07-28): **CONFIRMED** — checkExclusion が LstepOptOut を未参照。LSB-01 と同一 root cause（修正は LSB-01 に一本化可）。
+- round3-review(2026-07-28): **REFRAMED** — 実害は成立するが CODING_RULES.md:42（status transition CAS）適用は拡張解釈。正本は LSB-01（business-evidence fail-open）。修正は LSB-01 に畳む。
 #### LSA-03: visit-dormant バッチが DB エラーを握り潰して (0, nil) を返し、durable scheduler と audit_logs の双方から失敗が消える — HIGH
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -287,6 +294,7 @@
 - 修正: `return 0, []error{apperrors.Wrap(findErr, "failed to find visit dormant entries")}` へ変更し、同型の「ログのみで握り潰す」分岐が他の perClinic 実装に無いことを併せて確認する。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — return 0,nil は lstep_batch_segmentation.go:22-25 で継続。result.add 呼び出しは lstep_batch_service.go:277（旧:276）。defect 自体は未修正。
+- round3-review(2026-07-28): **UPHELD** — visit-dormant が DB エラーで (0,nil)。error-handling.md:9 / X-04。
 #### LSA-04: lstep タグ設定3テーブルが clinic_id を持たない全院共有行なのに、clinic-scoped RBAC ルートから任意院が作成・削除できる — HIGH
 - 区分: 新規
 - 規約: `backend/migrations/CLAUDE.md:14` 「**clinic_id スコープ**: 新テーブルにクリニック間分離が必要な場合は `clinic_id NOT NULL` を付ける」
@@ -296,6 +304,7 @@
 - 検証時の補正: rule_citation の backend/migrations/CLAUDE.md:14「**clinic_id スコープ**: 新テーブルにクリニック間分離が必要な場合は `clinic_id NOT NULL` を付ける」は逐語で実在するが、対象は既存 DDL（001_init.sql、mig-010 由来）であり「新テーブル」条項の適用は弱い。主根拠は .claude/refs/backend-application-invariants.md:11「clinic-scoped data のすべての read/write/delete は、認証済み `clinic_id` で制約する。」および routes.go:154-164 の認可境界（全院共有マスタを院単位 RBAC で mutate 可能にしている点）に置き換えるべき。また evidence の 001_init.sql:619/635/649 は各テーブルの先頭列行で、CREATE TABLE 自体は 618/634/648。category を B/C1/C2/C3 と定義する :630 は逐語一致。
 
 - 再実測(2026-07-28): **CONFIRMED** — 3 テーブル無 clinic_id + clinic RBAC 経由 Create/Delete 継続。
+- round3-review(2026-07-28): **REFRAMED** — global master 無 clinic_id は設計判断（boundary-map）。欠陥は hospital-settings RBAC で全院共有 master を mutate できる認可境界不一致。
 #### LSA-05: 飼い主 opt-out / opt-in / 削除クリーンアップが監査ログを一切残さず、全タグキャッシュを無記録で破棄する — HIGH
 - 区分: 新規 ／ 横断パターン: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -305,6 +314,7 @@
 - 検証時の補正: detail の「同一 service 内の HandlePetDeath / HandlePetRevival は同一 tx の fail-closed 監査を持つ」は誤り。:174-177 / :230-233 はいずれもコメント「監査ログ（best-effort）」付きで、失敗時は slog.WarnContext のみで継続する best-effort 監査であり、同一 tx でも fail-closed でもない。対比は「fail-closed 監査あり vs なし」ではなく「best-effort 監査あり vs 監査呼び出しゼロ」。
 
 - 再実測(2026-07-28): **CONFIRMED** — opt-out/in/deletion に audit 無し。pet death 側は fail-closed 監査あり（検証時補正の best-effort 記述は陳腐化）。
+- round3-review(2026-07-28): **UPHELD** — opt-out/in/delete cleanup に監査ゼロ。invariants:31。
 #### LSA-06: PATCH /lstep-settings が clinic_integrations 6行 + lstep_settings + clinic_settings を非トランザクションで逐次 Upsert し、部分適用で 500 を返す — HIGH
 - 区分: 新規 ／ 横断パターン: X-06
 - 規約: `backend/CLAUDE.md:33` 「1つのbusiness graphを構成する複数rowのwriteは同じtransactionで原子的に扱い、commit済みの成功を後段の再取得errorで失敗応答へ反転させない。」
@@ -314,6 +324,7 @@
 - 検証時の補正: detail の不整合例「新 API キー + 旧 channel secret」は不正確。Lステップ API キーと LINE channel secret は別サービス向けの独立値であり組を成さない。実際に結合しているのは LINE の access token（IntegrationKeyLineChannelAccessToken）と channel secret（IntegrationKeyLineChannelSecret）の対で、前者のみ commit された場合に push は新トークン・Webhook 署名検証は旧 secret という不整合が生じる。また updateIntegrationCredentials は lstep_settings_update.go:26-28 で空文字を skip するため、実際に多重 row が書かれるのは複数フィールドを同時送信した場合に限られる。
 
 - 再実測(2026-07-28): **CONFIRMED** — lstep_settings_service.go:278-289 の逐次 Upsert 非原子は継続。
+- round3-review(2026-07-28): **UPHELD** — PATCH settings 多 row が非 tx。CLAUDE.md:33。
 #### LSA-07: LINE push 成功ログに LINE User ID（飼い主識別子）をそのまま出力している — HIGH
 - 区分: 新規
 - 規約: `backend/CODING_RULES.md:68` 「log は構造化し、secret、token、credential、owner/pet/staff/medical data を含めない。」
@@ -322,15 +333,18 @@
 - 修正: `"to", lineUserID` を削除し、呼び出し元から渡す `owner_id`（無い場合は識別子のハッシュ）へ置換する。
 
 - 再実測(2026-07-28): **CONFIRMED** — line_messaging_service.go:81 が to=lineUserID を Info ログ。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **MEDIUM** — LINE user id の Info ログは CODING_RULES.md:68 違反だが HIGH の秘密流出級ではない。
 #### LSB-01: 自動配信トリガーが owner.LstepOptOut を一切参照せず、オプトアウト済み飼主へLINE配信が発火する（fail-open） — HIGH
 - 区分: 新規
-- 規約: `backend/CLAUDE.md:25` 「- 自動化には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。」
+- 規約: `backend/migrations/001_init.sql:316` 「true = すべてのタグ付与をスキップ」+ `backend/CLAUDE.md:35` OpenAPI/migration contract（LstepOptOut は配信除外 business evidence）
+
 - 対象: `backend/internal/lstep/lstep_delivery_trigger_state.go:11`、`backend/internal/lstep/lstep_delivery_trigger_state.go:12`、`backend/internal/lstep/lstep_delivery_trigger_state.go:15`、`backend/internal/lstep/lstep_delivery_trigger_state.go:23`、`backend/internal/lstep/lstep_delivery_trigger_batch.go:94`、`backend/internal/lstep/lstep_delivery_trigger_batch.go:113`、`backend/internal/lstep/lstep_lifecycle_service.go:248`、`backend/internal/owner/repository.go:515`、`backend/internal/owner/repository.go:516`、`backend/internal/owner/repository.go:517`、`backend/internal/owner/repository.go:518`、`backend/migrations/001_init.sql:316`、`backend/internal/lstep/lstep_tag_sync_pet_exclusion.go:47`、`backend/internal/lstep/lstep_tag_sync_pet_exclusion.go:48`、`backend/internal/lstep/lstep_tag_sync_service.go:300`、`backend/internal/lstep/line_send_service.go:147`、`backend/internal/pet/repository.go:529`、`backend/internal/medicalrecord/vaccination_repository.go:225`
 - 内容: FEAT-383 自動配信バッチ（10:00 JST）の唯一の除外ゲート checkExclusion は owner.DeliveryExcluded・LineUserID空・EXCL_配信停止タグの3条件のみを見ており、owner.LstepOptOut を参照しない。一方 opt-out API（POST /owners/:id/lstep-opt-out、PATCH /owners/:id/lstep/opt-out）が呼ぶ RecordLstepOptOut は lstep_opt_out / _at / _reason の3列のみ更新し delivery_excluded を立てない。DDL の列コメント自体が「true = すべてのタグ付与をスキップ」と宣言しているのに、配信トリガーは applyTagAndLog でタグを付与する。同packageの他の全配信経路（lstep_tag_sync_pet_exclusion.go:47、lstep_tag_sync_service.go:300、line_send_service.go:147、checkup_sync系）は LstepOptOut を検査しており、この1経路だけが判定式のドリフトで欠落している。
 - 修正: checkExclusion の先頭に `if owner.LstepOptOut { return true, "lstep_opt_out", nil }` を追加する。恒久対策として lstep_tag_sync_pet_exclusion.go:47 の述語を共有ヘルパへ抽出し、両経路が同一の除外判定を参照するようにして再ドリフトを封じる。併せて opt-out 済み owner が配信対象にならないことの回帰testを lstep_delivery_trigger_service_test.go へ追加する（現状 LstepOptOut への言及ゼロ）。
 - 検証時の補正: 規約接地を差し替えるべき。backend/CLAUDE.md:25 は「停止手段を設けること」を要求する規定であり、本バッチには停止手段自体は存在する（owner.DeliveryExcluded / EXCL_配信停止タグ / IsSyncEnabled）。したがって :25 は適合の弱い引用である。より正確な接地は (a) migration宣言contract: backend/migrations/001_init.sql:316 および :352 の逐語「Lステップ配信オプトアウトフラグ。true = すべてのタグ付与をスキップ。」に対し applyTagAndLog がタグを付与している点、(b) backend/CLAUDE.md:35 逐語「- OpenAPI、migration、security ADR との contract を維持する。」— migration が宣言した列contractの不履行。さらに finding本文より強い機序を実測で追加する: HandleOwnerOptOut(lstep_lifecycle_service.go:258) が removeAllTagsFromLstep → tagCacheRepo.DeleteAllByOwner(:325) を呼ぶため、opt-out実行そのものが checkExclusion:23 の唯一の代替ゲートである EXCL_配信停止タグのcache行を消去する。すなわち opt-out した飼主は「LstepOptOut未参照」かつ「EXCL タグcacheも空」となり、配信除外ゲートを二重に素通りする。
 
 - 再実測(2026-07-28): **CONFIRMED** — checkExclusion 未参照 + RecordLstepOptOut が delivery_excluded を立てない + EXCL cache 全消去の複合 fail-open 継続。LSA-02 の canonical。
+- round3-review(2026-07-28): **UPHELD** — delivery trigger が LstepOptOut 未参照。business-evidence fail-open（X-04 ではない）。migration 契約と整合。
 #### LSB-02: removeAllTagsFromLstep がリモート解除失敗・client nil でもローカルtag cacheを全消去し、再照合の根拠を不可逆に失う — HIGH
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:35` 「- cross-domain writeはtransaction owner、全参加write、rollback範囲を明示し、部分成功でbusiness factを不整合にしない。意図的なsaga/best-effort処理は、補償、再試行、監査、部分失敗contractを持たせる。」
@@ -340,6 +354,7 @@
 - 検証時の補正: detail の「どのタグを解除すべきだったかを復元できず補償・再試行が不可能になる」「不可逆に失う」は過大。internal/infra/lstep/client.go:35 に `GetUserTags(ctx, lineUserID) ([]string, error)` が存在し、リモート側のタグ集合は列挙可能である。したがって欠陥は「復元不能」ではなく「規約が best-effort に要求する補償・再試行・監査・部分失敗contractがコード上ゼロである」点に限定して記述すべき。修正案の実装コストが低い（GetUserTags で再照合可能）ことも併記されるべきで、これは所見を弱めるものではなく規約違反の事実は変わらない。
 
 - 再実測(2026-07-28): **CONFIRMED** — removeAllTagsFromLstep :317-327 が remote 失敗でも DeleteAllByOwner 無条件実行。
+- round3-review(2026-07-28): **UPHELD** — remote 解除失敗でも local cache 全削除。invariants:35 best-effort contract 欠落。
 #### LSB-03: HandlePetDeath がcommit済みのペット死亡記録をcommit後のread errorで失敗応答へ反転させる — HIGH
 - 区分: 新規 ／ 横断パターン: X-01
 - 規約: `backend/CODING_RULES.md:78` 「- write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -348,6 +363,7 @@
 - 修正: transaction commit 後の FindLivingByOwner 以降（タグ再同期・cleanup）は既に best-effort として扱われている他の副作用（:156-177）と同様に、error をログのみに留めて nil を返す。あるいは commit 前に同一 tx 内で生存ペットを取得しておく。
 
 - 再実測(2026-07-28): **CONFIRMED** — HandlePetDeath WithTx commit 後 FindLivingByOwner 失敗で応答反転。
+- round3-review(2026-07-28): **UPHELD** — HandlePetDeath の commit 後 FindLiving 失敗で 5xx。CODING_RULES.md:78 / X-01。
 #### LSB-04: credential 復号失敗を空文字へ置換して握り潰す3箇所 — Lステップ連携がサイレントに停止し、設定画面は未設定と表示する — HIGH
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「- error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -356,6 +372,7 @@
 - 修正: 復号失敗は握り潰さず caller へ返す（少なくとも GetRawCredentials と GetSettings は error を伝播する）。運用継続が必要なら「復号不能」を空文字と区別できる明示的な状態として表現し、TestConnection は probe skip ではなく復号失敗を LstepError に区別可能な固定文言で示す。3箇所の重複した kvMap 構築ループは共通ヘルパへ集約する。
 
 - 再実測(2026-07-28): **CONFIRMED** — GetRawCredentials/GetSettings/TestConnection の3箇所で decrypt 失敗→空文字+nil error。
+- round3-review(2026-07-28): **UPHELD** — credential 復号失敗を空文字置換。error-handling.md:9 / X-04。
 #### LSA-08: 疎通確認 API が外部 HTTP エラーを err.Error() のまま JSON へ返し、到達先 URL・解決 IP・DNS エラーを露出する — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-08
 - 規約: `backend/CLAUDE.md:34` 「error response と log に secret、credential、個人情報、内部詳細を出さない。」
@@ -364,6 +381,7 @@
 - 修正: `LstepError` / `LineError` には安定した分類コード（`unauthorized` / `unreachable` / `timeout` など）だけを入れ、詳細は server-side ログのみに残す。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 疎通確認が raw err.Error を JSON へ。CLAUDE.md:34。
 #### LSA-09: LINE 送信失敗時に外部 API の生エラー文字列を 502 応答と送信履歴 API の双方へ露出している — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-08
 - 規約: `backend/CLAUDE.md:34` 「error response と log に secret、credential、個人情報、内部詳細を出さない。」
@@ -372,6 +390,7 @@
 - 修正: 応答は固定文言 + 安定コードに丸め、`ErrorMessage` へは正規化した分類値だけを保存する。生エラーは slog へ限定する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — LINE 送信失敗の raw error を 502 と履歴へ。CLAUDE.md:34。
 #### LSA-10: GetOwnerTags のキャッシュフォールバックが DB エラーを握り潰し、200 + tags:[] を返して「タグ無し」と区別できなくする — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -380,6 +399,7 @@
 - 修正: `return nil, apperrors.Wrap(cacheErr, "failed to load lstep tag cache")` に変更し、API 経路と同じ失敗契約へ揃える。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — GetOwnerTags キャッシュフォールバックが DB エラー握り潰し。error-handling.md:9。
 #### LSA-11: removeStaleTagsByPrefixes がタグキャッシュ読み取り失敗を「API失敗なし」として返し、同一カテゴリ1タグ保持ルールが黙って破れる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -389,6 +409,7 @@
 - 検証時の補正: detail が挙げる影響タグ名 `next_visit_*` / `checkup_done_*` は実際の呼び出し元の prefix と一致しない。実測の対象 prefix は lstep_tag_sync_vaccine.go:49/:123 の `vaccine_dog_` / `vaccine_cat_` / `vaccine_rabies_` と lstep_tag_sync_visit.go:50 の `ltv_amount_` / `visit_count_annual_` / `first_visit_` / `last_visit_` の計7種。加えて未指摘の副作用がある — 3呼び出し元とも末尾で `if !apiFailed { s.notifyAPISuccess(...) }` を実行するため（vaccine.go:56-58 / :130-132、visit.go 同型）、cache 読み取り失敗時には「API 復旧」通知タグまで誤って付与される。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — removeStaleTagsByPrefixes が cache 失敗を非 API 失敗扱い。error-handling.md:9。
 #### LSA-12: 配信トリガーログの excluded/failed への status 更新失敗が non-fatal 扱いで、ログが scheduled のまま残り監視集計が実態と乖離する — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -398,6 +419,7 @@
 - 検証時の補正: detail の2点を訂正。(1)「ExistsTodayByOwnerAndType は status を見ないため翌日以降の再送も抑止される」は誤り。lstep_delivery_trigger_log_repository.go:74-85 は dayStart..dayEnd（`scheduled_at >= ? AND scheduled_at < ?`）で当日のみに限定するため、翌日の再送は抑止されない。抑止されるのは同日中の再試行だけ。(2)「送信に失敗した配信が…Failed の内訳がゼロのまま」は監視画面についてのみ正しい。applyTagAndLog は lstep_delivery_trigger_client.go:21 で `apperrors.Wrap(err, "failed to add lstep tag")` を返し、batch.go:113-115 → runBatch:36-38 経由で errs に積まれるため、BatchRunResult.Failed と audit metadata には反映される。欠落するのは delivery-monitor の status 別内訳のみ。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — status 更新失敗は観測歪み。タグ失敗自体は batch Failed に載る。翌日抑止主張は過大。
 #### LSA-13: trigger_type が列挙値検証されず、存在しないトリガー種別の優先順位が 200 で保存されて永久に無視される — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -406,6 +428,7 @@
 - 修正: `binding:"required,oneof=..."` もしくは service 冒頭で `model.AllTriggerTypes()` に対する membership 検査を行い、未知の trigger_type は 400 で拒否する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — trigger_type 列挙未検証。guidelines:151。
 #### LSA-14: 自動管理プレフィックスの category が列挙値検証されず、C2 以外の綴りで登録するとペット死亡時のタグ掃除が静かに効かなくなる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -415,6 +438,7 @@
 - 検証時の補正: detail の帰結記述が不正確。`"c2"` 等で登録された行が無視されても、既存の正しい C2 行があれば loadPetDerivedPrefixes は DB 値を返すためフォールバックには落ちず、`vaccine_` / `checkup_done_` の掃除は従来どおり機能する。実際の失敗は「新規追加したプレフィックスが category 綴り違いのため死亡ペット時の掃除対象から静かに漏れる」ことであり、既存タグの掃除が壊れるわけではない。フォールバック（lstep_lifecycle_service.go:376-380、petDerivedPrefixFallback）が使われるのは C2 行が1件も無い場合に限られる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — category 列挙未検証で C2 cleanup から黙って外れる。guidelines:151。
 #### LSA-15: 配信トリガーの二重発火防止が check-then-Create のみで、DB 側に一意制約が無い — MEDIUM
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:30` 「foreign key、unique constraint、transaction を application check の代替ではなく、追加の防御として使う。」
@@ -423,6 +447,7 @@
 - 修正: `(clinic_id, owner_id, trigger_type, date(scheduled_at))` の部分一意 index を incremental migration で追加し、Create の一意制約違反を「既発火」として吸収する形へ変更する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 二重発火防止が check-then-create のみ・UNIQUE なし。invariants:30。
 #### LSB-06: shared-files アップロードの purpose が列挙値・長さとも未検証で、超長値がDB errorとして500になる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「- 外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -432,6 +457,7 @@
 - 検証時の補正: evidence の `backend/migrations/001_init.sql:316` は誤り。同行は owners テーブルの `lstep_opt_out boolean NOT NULL DEFAULT false` であり shared_files とは無関係（LS-B-01 の evidence と取り違えている）。正しい行は `backend/migrations/001_init.sql:1260` 逐語「    purpose     varchar(50)  NOT NULL,」（CREATE TABLE shared_files は :1251 から）。varchar(50) NOT NULL・CHECK制約なしという detail の主張自体は :1260 で実測確認済みで成立するため、行番号のみ :316 → :1260 へ訂正して台帳へ記録すること。あわせて cross_domain:true も誤り: 本件は internal/lstep 単一package内のrequest DTO binding tag欠落であり cross-domain ではない（false が正）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — purpose 未検証。guidelines:151。
 #### LSA-16: CSV インポートで json.Marshal のエラーを `_` で明示破棄している3箇所 — LOW
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -441,6 +467,7 @@
 - 検証時の補正: detail の「失敗時は空/不正な JSON が `error_log` / `tags` / `scenarios` カラムへ入り、原因が追えない」という failure scenario は到達不能。json.Marshal がエラーを返すのは unsupported type / 循環参照 / NaN・Inf の場合に限られるところ、:176 の引数は csvImportErrorEntry（int + string フィールドのみ）のスライス、:241/:245 の引数は splitMultiValue が返す []string であり、いずれも構造上 marshal 失敗し得ない。したがって本件は実害のある欠陥ではなく、「破棄理由を注記していない」という package 内慣行との一貫性のみを根拠とする LOW 指摘として扱うべき。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **WITHDRAWN** — json.Marshal 失敗は当該引数型では構造的に到達不能。
 #### LSB-05: 疎通確認APIが外部HTTPトランスポートのraw error文字列をそのままresponseへ載せる — LOW
 - 区分: 新規 ／ 横断パターン: X-08 ／ 検証で severity 引き下げ
 - 規約: `backend/CLAUDE.md:34` 「- error response と log に secret、credential、個人情報、内部詳細を出さない。」
@@ -448,7 +475,7 @@
 - 内容: testLstepAPI / testLineAPI は :72 :90 で http.DefaultClient.Do の error を `connection failed: %w` で包んで返す。Do が返すのは *url.Error であり、その Error() は要求URL全体と解決先アドレスを含む（例: `Get "https://internal-host:8443/api/v1/tags": dial tcp 10.0.0.5:8443: connect: connection refused`）。この文字列が :44 :55 で LstepError / LineError に代入され、:52 :54 の json tag 経由でAPI応答へそのまま出力される。内部ホスト名・ポート・解決IPという内部詳細が応答に露出する。
 - 修正: 応答へ載せる文字列は「接続失敗」「認証失敗」等の安定した分類コードに正規化し、raw error は slog 側にだけ記録する。:76-78 :94-96 の認証失敗判定は既に分類済みなので、トランスポート層 error も同様に分類する。
 - 検証時の補正: detail に以下2点を追記して過大表現を是正すべき: ①当該endpointは routes.go:103,110 で `ResourceHospitalSettings:view` 権限にゲートされた管理者向け診断APIであり、未認証・一般利用者には到達しない。②露出するbaseURLは lstep_settings_service.go:116 の LstepBaseURL として同一actorに既に平文で返却されているため、raw error による新規露出は解決IPと低レベルnetwork error文字列に限られる。「内部ホスト名・ポート・解決IPという内部詳細が応答に露出する」という記述は、管理者が内部URLを設定した場合の仮定であり、既定構成（lstep.DefaultBaseURL = https://api.lstep.jp / line.APIHost）では外部公開ホストの解決IPに留まる。
-
+- round3-review(2026-07-28): **WITHDRAWN** — LSA-08 と同一疎通 raw error 面の重複（X-08 も除外済み）。
 ### medicalrecord（診療記録）（24件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -460,6 +487,7 @@
 - 修正: carePlanItemService.Delete（および Update）を Transactor.WithTx の中へ移し、削除前スナップショットと actorID を新設 AuditResourceCarePlanItem として同一tx内に fail-closed で記録する（checkup_field_result_service.go:204-241 の logReplaceDeletionTx と同型）。代替として care_plan_items に deleted_at TIMESTAMPTZ を追加して soft delete 化し、復元経路を用意する。
 
 - 再実測(2026-07-28): **CONFIRMED** — care_plan_item hard Unscoped delete + audit resource 不在。
+- round3-review(2026-07-28): **UPHELD** — care_plan_items Unscoped hard-delete・audit/recovery 欠落は invariants:31 適用。権限/scope のみでは不十分。
 #### MRA-02: commit済みの care plan item write を後段 re-fetch の error で 5xx へ反転させている — HIGH
 - 区分: 新規 ／ 横断パターン: X-01
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -468,6 +496,7 @@
 - 修正: carePlanItemService に Transactor を注入し、Create/Update の「書込＋再取得」を単一 WithTx クロージャに包む（checkup_service.go:189-227 と同型）。repository 側の Create/Update/FindByID も r.db.WithContext から persistence.DBOrTx(ctx, r.db) へ揃えて ambient tx へ参加させる。
 
 - 再実測(2026-07-28): **CONFIRMED** — Create/Update 後 tx 外 FindByID で 5xx 反転。Transactor 無し。
+- round3-review(2026-07-28): **UPHELD** — Create/Update 後 FindByID が tx 外（care_plan_item_service.go:184-248）。CODING_RULES.md:78 / X-01 適用。
 #### MRB-02: hospitalizationRepository.LockByIDForUpdate が ambient transaction 不在を fail-closed にせず、ロックが無効なまま成功を返す — HIGH
 - 区分: WIP-adjacent（清算後に再検証） ／ 横断パターン: X-05
 - 規約: `.claude/refs/backend-application-invariants.md:38` 「`FOR UPDATE`、`FOR SHARE`、transaction-scoped advisory lockに依存するowner operationはambient transaction不在をfail-closedにする。request由来のclinic-scoped FKは同じtransactionで最終検証し、並行するmaster変更がinvariantを壊す場合は参照行をcommitまで固定する。」
@@ -477,6 +506,7 @@
 - 検証時の補正: (1) known_or_new は WIP-adjacent ではなく「新規」。検証時点の git status --porcelain 実測で backend/internal/lintscan/dbortx_inventory_lint_test.go は clean（afd8404a4 等で清算済み・保護リスト7件もいずれも dirty でない）であり、清算後再検証の deferral は不要で本所見は現時点で actionable。(2) detail の「DischargeWithBilling では検証と会計行生成の間に owner/pet が変わると古い owner/pet に紐いた会計行が黙って作られる」は現行コードでは発生しない（:451 で transactor.WithTx 内、:454 の lock は有効）。潜在影響の例示として留め、実害として記載しない。(3) :451 の s.transactor nil ガード欠落は fail-open ではなく nil interface の panic であり、:296/:340 との一貫性欠如として記述するのが正確。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — LockByIDForUpdate 本体は hospitalization_repository.go:113-122（旧:98/102/106 近傍）。TxFromContext 検査は依然無し。examination 側は fail-closed。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **MEDIUM** — LockByIDForUpdate が ambient-tx ガード欠落は実在（examination 対比）だが production 呼び出しは常に WithTx 内。潜在 API 契約穴。
 #### MRB-03: hospitalizationRepository.FindByID が clinic 所有の子テーブルを clinic 述語も親相関もなく Preload している — HIGH
 - 区分: **既知** → BUG-437
 - 規約: `.claude/refs/backend-application-invariants.md:15` 「bulk query、join、preload、count、export、background job にも同じ scope を適用する。」
@@ -486,6 +516,7 @@
 - 検証時の補正: reason に BUG-437（read側 clinic-scope registry が master 限定という再発防止の穴＝gate側の所有者）と SEC-SWEEP-02（残5面リストの所有者・hospitalization_repository.go は未収載）の両IDを併記して面追加として扱う。新規entry起票はしない。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — Preload CarePlanItems/DailyRecords は :97-98（旧:86-87）。grandchild lint read-terminal は :400-410（旧:234 引用）。clinic 述語欠落は継続。
+- round3-review(2026-07-28): **REFRAMED** — 未 scope Preload は isolation ギャップだが BUG-437 / SEC-SWEEP-02 既知面。新規 HIGH ではなく既知ポインタ。区分: 既知。
 #### MRC-01: 処方更新: commit済みの成功を tx 外の再取得 error で失敗応答へ反転させている — HIGH
 - 区分: 新規 ／ 横断パターン: X-01
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -495,6 +526,7 @@
 - 検証時の補正: 失敗時の帰結の記述を訂正する。buildPrescriptionUpdate は指定 field を map で置換する冪等更新のため、同一 payload の再送は「二重適用または誤った上書き」にはならない。実測される実害は2点: ①commit 済みの成功が 5xx として臨床側へ返る（規約 :78 が明示的に禁じた状態そのもの） ②:156 で early return するため :158 の `s.syncPrescriptionTag(ctx, clinicID, updated.OwnerID)` が実行されず、処方変更に対する LINE タグ同期だけが恒久的に欠落する（DB は更新済みのため再送でも差分が出ず自己修復しない）。
 
 - 再実測(2026-07-28): **CONFIRMED** — prescription Update: WithTx 後 post-commit FindByID。
+- round3-review(2026-07-28): **UPHELD** — prescription Update 後 tx 外 FindByID → 5xx 反転。CODING_RULES.md:78。
 #### MRC-02: 薬剤削除の連携在庫カスケードが FK ではなく可変の name をキーにし、affected rows も監査も持たない — HIGH
 - 区分: 新規
 - 規約: `.claude/refs/go-gin-backend-review.md:66` 「update/deleteのaffected rowsを確認し、存在しない対象やscope外対象を成功扱いしていないか。」
@@ -504,6 +536,7 @@
 - 検証時の補正: 補足2点。①「複数薬剤の同名衝突」経路は成立しない — 001_init.sql:2433 に `CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE deleted_at IS NULL` が存在するため、孤児化の再現経路は finding 記載どおり「自動生成在庫を改名してから薬剤を削除する」か「category=medicine の在庫を手動作成して薬剤名と一致させる」の2つに限られる。②audit_logs 欠落の指摘（:463-514 に監査書込なし）は実測どおりだが、根拠は本 finding が引く review.md:66 ではなく backend-application-invariants.md:31（destructive操作に監査を持たせる）である。affected rows の指摘とは根拠行が異なる点を明示すべき。
 
 - 再実測(2026-07-28): **CONFIRMED** — name キー inventory cascade + RowsAffected 未検査 + 監査無し。
+- round3-review(2026-07-28): **UPHELD** — name キー inventory カスケード・RowsAffected 未確認・inventory_id 未使用は整合性欠陥。
 #### MRC-04: カルテ作成の主訴・治療方針・診断がサイレントに消失し、API は 201 を返す — HIGH
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/backend-application-invariants.md:35` 「意図的なsaga/best-effort処理は、補償、再試行、監査、部分失敗contractを持たせる。」
@@ -512,6 +545,7 @@
 - 修正: 同期 HTTP 経路 (medical_record_handler.go:117) では CreateSubRecords に error を返させ、失敗時は 201 を返さないか部分失敗フィールドを応答に含める。best-effort を維持する AutoCreateFromReservation 経路には auditReservationDraftCleanupFailure と同型の失敗 audit action を追加する。
 
 - 再実測(2026-07-28): **CONFIRMED** — CreateSubRecords 失敗 slog.Warn のみ、handler は 201。
+- round3-review(2026-07-28): **UPHELD** — subrecord 失敗を Warn のみで 201。意図的 best-effort でも invariants:35 の補償・再試行・監査・部分失敗 contract 欠落。
 #### MRC-05: lab import: exams と exam_results が非原子的に書かれ、補償削除の失敗が握り潰されて再試行不能な孤児 exam を作る — HIGH
 - 区分: 新規 ／ 横断パターン: X-06
 - 規約: `backend/CLAUDE.md:33` 「1つのbusiness graphを構成する複数rowのwriteは同じtransactionで原子的に扱い、commit済みの成功を後段の再取得errorで失敗応答へ反転させない。」
@@ -521,6 +555,7 @@
 - 検証時の補正: exploitability の限定を追記する（severity 論拠ではなく現況の但し書き）。①補償削除が成功する通常の失敗では primary error が :262 で返り当該行は failed として集計されるため、恒久的な silent skip は「ReplaceItems 失敗」と「補償 Delete 失敗」の複合障害を要する。②commit 経路は lab_result_import_service.go:117-118 で `batch.SourceType != model.LabImportSourceTypeFixture` を拒否しており、現時点では fixture ソース限定（Phase 1 凍結・phase2.html:120 で FE 着手禁止）。ただし POST /api/v1/lab-imports 自体は routes.go:378 で perm(ResourceLabImport,"create") 付きの live route である。
 
 - 再実測(2026-07-28): **CONFIRMED** — exam Create と ReplaceItems 非原子 + 補償 Delete 失敗 swallow。
+- round3-review(2026-07-28): **UPHELD** — lab import exams と results が非原子。CLAUDE.md:33。
 #### MRD-01: 治療項目の並び順一括更新が affected rows を確認せず、かつ施錠した親カルテに束縛されていない — HIGH
 - 区分: 新規
 - 規約: `.claude/refs/go-gin-backend-review.md:66` 「- update/deleteのaffected rowsを確認し、存在しない対象やscope外対象を成功扱いしていないか。」
@@ -530,6 +565,7 @@
 - 検証時の補正: (a)(b) は別欠陥。(a)=repository.go:263-265 が result.Error のみ確認し RowsAffected を見ない。(b)=:261 の WHERE が service 施錠済み medicalRecordID に束縛されていない。fix は両方必須で、(a) のみの修正では (b) の同一 clinic 別カルテ越境は残る。
 
 - 再実測(2026-07-28): **CONFIRMED** — BulkUpdateSortOrder が RowsAffected 未確認 + medical_record_id 非束縛。
+- round3-review(2026-07-28): **UPHELD** — BulkUpdateSortOrder が RowsAffected 未確認・medical_record_id 未拘束。review.md:66 適用。
 #### MRD-02: commit 済みの更新を、後段の応答用再取得エラーで失敗応答へ反転させる — HIGH
 - 区分: 新規 ／ 横断パターン: X-01
 - 規約: `backend/CODING_RULES.md:78` 「- write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -539,6 +575,7 @@
 - 検証時の補正: 「client の再送は同一更新の二重適用になる」が literal に成立するのは treatment_plan_service.go:135 の Create 経路（重複行生成）。treatment_service.go の PATCH 経路での再送影響は同一 fields の再適用と dose 逸脱監査行の重複であり、在庫の二重減算ではない。
 
 - 再実測(2026-07-28): **CONFIRMED** — treatment/treatment_plan の post-commit re-fetch 反転。
+- round3-review(2026-07-28): **UPHELD** — treatment/plan の post-commit re-fetch → 失敗反転。CODING_RULES.md:78。
 #### MRD-03: treatment plan の write が親（カルテ/入院）所属を検証せず、resource 単位の権限境界を跨げる — HIGH
 - 区分: 新規
 - 規約: `.claude/refs/backend-application-invariants.md:22` 「- authentication、role/permission authorization、resource ownership をそれぞれ検証する。」
@@ -547,6 +584,7 @@
 - 修正: service の Update/Delete signature に親 ID（medicalRecordID または hospitalizationID）を追加し、`FindByID` で得た plan の `MedicalRecordID` / `HospitalizationID` が渡された親と一致することを write 前に検証して不一致は NotFound を返す。repo 側 WHERE にも同条件を足して RowsAffected で二重に閉じる。
 
 - 再実測(2026-07-28): **CONFIRMED** — Update/Delete が planID+clinic のみで親 MR/入院所属を未検証。
+- round3-review(2026-07-28): **UPHELD** — treatment plan write が parent ownership 未検証。invariants:22。
 #### MRD-04: treatment plan の金額系入力が binding tag でも service でも検証されず、client 提示の小計をそのまま採用する — HIGH
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「- 外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -556,6 +594,7 @@
 - 検証時の補正: detail の「sharedkernel の検証関数はすでに存在する(validators_accounting.go:11-17)」は所在が不正確。実体は backend/internal/medicalrecord/validators_accounting.go:11-17 で、sharedkernel.ValidateNonNegativePrice / ValidateDiscountRate への同 package delegate である（:3 の import と :5-6 のコメントに明記）。sharedkernel 直下の validators_accounting.go は存在しない。
 
 - 再実測(2026-07-28): **CONFIRMED** — 金額 field に min/max 無く client subtotal を採用し得る。
+- round3-review(2026-07-28): **UPHELD** — 金額系 binding 無し・クライアント subtotal 信頼。guidelines:151。
 #### MRA-03: consultation master の tax_rate に範囲検証が無い（同packageのpeer masterは min=0,max=1 を課す） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02 ／ 検証で severity 引き下げ
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -565,6 +604,7 @@
 - 検証時の補正: 【失敗シナリオを実測で確定した範囲に限定して再記述】PATCH /v1/masters/consultations/{id} または POST に {"tax_rate": 99} / {"tax_rate": -1} を送ると、createConsultationRequest.TaxRate（consultation_request.go:13）・updateConsultationRequest.TaxRate（:42）に binding tag が一切無いため 400 にならず、consultation_service.go:53（fields[colConsultationTaxRate] = *input.TaxRate）および :133-136（Create の taxRate = *input.TaxRate）経由で無検証のまま永続化され、consultation_response.go:39 の tax_rate として echo される。DB 側にも第二防御線は無い（001_init.sql:897 は `tax_rate numeric NOT NULL DEFAULT 0.10` で CHECK 制約なし）。同一 payload を medicine / procedure / merchandise_item の同種 endpoint へ送ると binding:"omitempty,min=0,max=1"（medicine_request.go:16 / procedure_request.go:13 / inventory/merchandise_item_request.go:19）により 400 になるため、同種マスタ間で入力契約が割れている。【元 detail から撤回する主張】「同一UI上の税率入力がマスタ種別で通ったり弾かれたりする」は実測で支持されない。frontend/src/features/master 配下で tax rate 入力を持つのは merchandise / medicine / hospitalization の side panel のみで（MerchandiseSidePanel.tsx:118, MedicineSidePanelSections.tsx:121, HospitalizationSidePanel.tsx:151）、consultation の tax rate 入力 UI は存在しない（features/master 全体を grep して consultation × taxRate のヒット 0 件）。したがって本欠陥は直接 API 呼び出しでのみ到達可能である。【到達範囲】server 側消費先は consultation_service.go:53（write）と consultation_response.go:39（read）のみで、金額計算経路は無い（grep 実測）。frontend 側でも master 由来 tax_rate を会計明細へ引き継ぐのは merchandise のみ（get-merchandise-items.ts:22）で、consultation からの伝播経路は無い。確定しているのは「税率マスタとして無検証で永続化・返却される」と「同種 endpoint 間で入力契約が割れている」の2点のみ。scope 外だが hospitalization_plan_request.go:13,40 も同じ欠落を持つ（実測確認済み）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — consultation tax_rate 範囲未検証（medicine は min/max あり）。guidelines:151。
 #### MRB-05: 入院の削除および PATCH による退院化が監査ログを残さない（同 service は監査依存を保持し退院会計でのみ使用） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -573,15 +613,18 @@
 - 修正: MR-B-01 で導入する削除 tx の中で auditTx.LogEntryTx を fail-closed に呼び、old_value に owner/pet/status/期間を残す。PATCH 経由の discharged 遷移も監査対象にするか、UpdateHospitalization では discharged を受け付けず discharge 専用エンドポイントへ寄せる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 入院削除/PATCH 退院に監査なし。invariants:31。
 #### MRB-07: 検査種別フィールドの transaction 依存欠落を 400 InvalidInput として返している — MEDIUM
 - 区分: WIP-adjacent（清算後に再検証）
-- 規約: `.claude/rules/go-gin-backend-guidelines.md:166` 「既知の application error を安定した HTTP status/code に変換し、未知の error は汎用的な 500 response にする。」
+- 規約: `.claude/rules/go-gin-backend-guidelines.md:167` 「- 既知の application error を安定した HTTP status/code に変換し、未知の error は汎用的な 500 response にする。」
+
 - 対象: `backend/internal/medicalrecord/exam_type_field.go:293`、`backend/internal/medicalrecord/exam_type_field.go:295`、`backend/internal/medicalrecord/exam_type_service.go:90`、`backend/internal/medicalrecord/examination_service.go:182`、`backend/internal/medicalrecord/daily_record_service.go:125`
 - 内容: examTypeService.withTx は s.transactor == nil のとき apperrors.WrapInvalidInput("transaction dependency is required") を返すが、これは composition の配線不備というサーバ側の内部状態でありクライアント入力に起因しないため、400 への写像は不適切であり、同 package の同種ガード（examination_service.go:182 / daily_record_service.go:125）がいずれも WrapInternalServerError を使うのと写像が割れている。NewExamTypeService(repo, transactors ...Transactor)（exam_type_service.go:90-96）が可変長で transactor 省略を許すためこの分岐は到達可能なままで、transactor を省いた構築で POST /v1/masters/examination-types/:id/fields を叩くとサーバ配線不備にもかかわらず 400 が返り、監視側も 4xx 扱いのため設定不備が 5xx アラートに乗らない（本番 composition は d.Transactor を渡しているため現時点は client-reachable ではない）。WIP-adjacent: exam_type_field.go は未追跡、exam_type_service.go は dirty（#249 U4 進行中）のため清算後に再検証すること。
 - 修正: apperrors.WrapInternalServerError へ変更し、併せて NewExamTypeService の可変長 Transactor を必須引数化して配線漏れをコンパイル時に排除する。
 - 検証時の補正: known_or_new は WIP-adjacent ではなく「新規」。検証時点の git status --porcelain 実測で exam_type_field.go / exam_type_service.go はいずれも clean（afd8404a4 feat(#249): add examination field master API で清算済み）であり、両ファイルは並行writer保護リストにも含まれない。清算後再検証の deferral は不要で本所見は現時点で actionable。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — transactor nil を InvalidInput 400。正は 500。規約は guidelines:167。
 #### MRB-08: 検査種別の request 由来 parent_id 検証が永続化と同じ transaction の外で行われている — MEDIUM
 - 区分: WIP-adjacent（清算後に再検証） ／ 横断パターン: X-05
 - 規約: `.claude/refs/backend-application-invariants.md:38` 「`FOR UPDATE`、`FOR SHARE`、transaction-scoped advisory lockに依存するowner operationはambient transaction不在をfail-closedにする。request由来のclinic-scoped FKは同じtransactionで最終検証し、並行するmaster変更がinvariantを壊す場合は参照行をcommitまで固定する。」
@@ -591,6 +634,7 @@
 - 検証時の補正: known_or_new は WIP-adjacent ではなく「新規」。検証時点の git status --porcelain 実測で exam_type_service.go は clean（afd8404a4 で清算済み）であり、清算後再検証の deferral は不要で本所見は現時点で actionable。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — parent_id 検証が write と同一 tx 外。invariants:38。
 #### MRC-03: #201 投与量パラメータ: per_weight 医療安全ガードが write transaction の外で評価され親 medicine 行が固定されない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-05 ／ 検証で severity 引き下げ
 - 規約: `backend/CODING_RULES.md:38` 「request由来のclinic-scoped FKは永続化と同じtransactionで再検証し、並行master変更で判定が無効になる場合は対象行をcommitまで共有ロックする。」
@@ -600,6 +644,7 @@
 - 検証時の補正: 「以後の自動計算が不整合な設定を参照する」を削除する。実測される残余は「calculation_type=none の薬剤に mg/kg の dose_params 行が残留する」データ整合性の瑕疵のみで、臨床計算経路は dose_calc.go:170 / treatment_dose_save.go:33 で live medicine 行に対し fail-closed であるため誤投与量は生じない。またこの残留状態は競合なしでも（dose param 設定後に PUT /masters/medicines/:id で calculation_type を none へ変更するだけで）到達可能であり、TOCTOU はその狭い部分集合にすぎない。是正の実質は「Upsert/Delete の tx 内再検証＋SHARE ロック」だけでなく「medicineService.Update 側で dose param 存在時の per_weight 解除を扱う契約」も要する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — per_weight ガードが write tx 外。設定整合性欠陥（投与量誤計算の直接根拠ではない）。
 #### MRC-08: lab import の検査項目 DTO が無検証で、異常判定を決める基準値をクライアントが自由に指定できる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -609,6 +654,7 @@
 - 検証時の補正: DB 側の帰結を訂正する。exam_results.name / inspection_value / unit / reference_value は 001_init.sql:1696-1701 でいずれも `text` 型（PostgreSQL の text に長さ上限は無い）であるため「name に数万文字を送ると varchar 制約違反が DB まで到達して 500 になる」は誤り。無制限入力はストレージ肥大の問題に留まる。一方 ref_min / ref_max は :1702-1703 が `decimal(10,4)` であり、桁溢れする数値を送った場合は numeric overflow が DB まで到達して 500 になる。また本経路は routes.go:378 の perm(ResourceLabImport,"create") 付き認証 route であり、外部検査機器の基準値をペイロードで運ぶ import の性質上「基準値を呼び出し元が指定する」こと自体は設計意図に含まれうる。確実に欠けているのは max 長・RefMin<=RefMax の相互検証・数値範囲検証という境界検証そのものである。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — DTO 無検証は guidelines:151 で成立。ただし「信頼境界敗北」ではなく境界 validation 不足（lab 参照値は import 設計上 client 由来）。
 #### MRC-09: 診療画像の JSON 作成経路が MIME allowlist と形式検証を一切通らない（upload 経路とのガード非対称） — MEDIUM
 - 区分: 新規
 - 規約: `backend/CODING_RULES.md:51` 「body/query/URI/header を型付き input に bind し、型・形式・範囲・長さを境界で検証する。」
@@ -618,6 +664,7 @@
 - 検証時の補正: 攻撃者モデルを明示すべき。routes.go:256 の JSON 作成経路は perm(model.ResourceMedicalRecords, "create") を要求し、handler の :80 verifyOwnership が clinic 所有も検証するため、投入できるのは同一 clinic の認証済みスタッフに限られる（未認証・越境の攻撃面ではない）。したがって帰結は外部ホストへの参照埋め込み（トラッキング／情報持ち出し）とカルテ表示の破損であり、権限昇格や越境ではない。確実な欠陥は、同一リソースの2経路で MIME allowlist・サイズ上限・URL 形式検証の適用が非対称であること、および FileSize に負値を含む任意値が通ることである。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — JSON 画像作成が MIME/size 検証なし（upload 経路はあり）。CODING_RULES.md:51。
 #### MRC-12: 問診 upsert が Conflict 応答時に FirstOrCreate で作った空行を残す（既知ガードの残余） — MEDIUM
 - 区分: **既知** → phase2.html:195 ／ 横断パターン: X-06
 - 規約: `backend/CLAUDE.md:33` 「1つのbusiness graphを構成する複数rowのwriteは同じtransactionで原子的に扱い、commit済みの成功を後段の再取得errorで失敗応答へ反転させない。」
@@ -626,6 +673,7 @@
 - 修正: phase2.html:195 の正規パターン（Transactor + LockByIDForUpdate）へ統一する際、FirstOrCreate と Updates を同一 tx に収めて Conflict 時に挿入行がロールバックされるようにする。cross_tenant_master_fk_write_test.go 側のコンストラクタ制約解消が前提。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — 既知 phase2.html:195 / X-06。新規 MEDIUM ではなく既知ポインタ。
 #### MRC-14: 診断FK の clinic 所有権検証が ClinicalPlanService から複製されている（自己申告済み） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-09
 - 規約: `~/.claude/rules/ecc/common/coding-style.md:26` 「- Avoid copy-paste implementation drift」
@@ -635,6 +683,7 @@
 - 検証時の補正: drift が既に発生している実測を追記できる（推測ではない）。clinicalPlanService は :189 の validateDiagnosisFKs に加えて clinical_plan_service.go:106 の validateDiagnosisTypeNameConsistency（第2診断スロットの type↔name 整合、AUD-007）を実行するが、CreateSubRecords 側の複製はこれを呼ばないため、POST /medical-records 経由の診断設定は既に弱い検証で通っている。一方で所有権判定そのものは両者とも共通ヘルパ validateOwnedMasterFK に集約済みであるため、drift 面は「どの field を・どの repo で・どの周辺検証と併せて検査するか」の配線に限られる。category は naming ではなく duplication/maintainability が適切。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 診断 FK clinic 所有権検証の copy-paste drift（ClinicalPlan 側のみ name consistency）。coding-style:26。
 #### MRA-04: 実在しない package 名を主語にする package comment が担当 7 ファイルに残存 — LOW
 - 区分: 新規
 - 規約: `.claude/refs/go-language.md:13` 「package comment と exported identifier の comment は GoDoc で意味が通る文にする。」
@@ -644,6 +693,7 @@
 - 検証時の補正: 並立数の実測値を訂正する。所見は「同一 package に矛盾する package comment が 8 本並立している」と記すが、実測では internal/medicalrecord 配下の非 test file で `// Package ` 始まりの先頭行を持つ file は 19 本あり、うち正しく `// Package medicalrecord` で始まるのは pagination.go の 1 本のみ、残り 18 本が実在しない package 名を主語にしている。担当範囲 [a-c] 外の 11 本は cage/consultation と同型で、daily_record_repository.go（Package dailyrecord）・hospitalization_plan_{handler,repository,service}.go（Package handler / repository / service）・medicine_{repository,handler,service}.go・medicine_dose_param_repository.go・procedure_{handler,service,repository}.go である。所見の 7 file の指摘と proposed_fix は担当範囲として正しく、範囲外 11 本は別 unit で同様に処理されるべき同型残存として記録する（本訂正は所見の severity を変えない）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — package comment の誤 package 名は GoDoc ノイズのみ。runtime 影響ゼロ。
 #### MRB-06: 入院の end_date >= start_date は DB CHECK のみで application validation がなく、クライアント入力起因の 500 になる — LOW
 - 区分: 新規 ／ 横断パターン: X-02 ／ 検証で severity 引き下げ
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -653,26 +703,30 @@
 - 検証時の補正: title/failure_scenario から 500 の記述を全削除する。正しい挙動: POST /hospitalizations に start_date > end_date を送ると binding も service 検証も通過して INSERT に到達し 23514 が発生するが、httpapi/response.go:87-89 の isPgError 分岐（response_pg.go:10-13）で 400 Bad Request へ写像され、response_pg.go の classifyPgError の case "23514" により checkConstraintMessages に chk_hospitalizations_dates が未登録のため汎用文言「入力値が制約条件を満たしていません」が返る。残余欠陥は「どのフィールドが不正か特定できない汎用メッセージ」であり、是正はapplication validation追加（dose_validators.go:126 の min<=max 検証が同package内の先例）または checkConstraintMessages への制約名登録のいずれかで足りる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — end>=start は DB CHECK のみ。23514 は 400（500 ではない）。CODING_RULES.md:79。
 #### MRC-07: マスタ削除の使用中ガードが write と同一 transaction・同一ロック下になく TOCTOU で貫通する — LOW
 - 区分: 新規 ／ 横断パターン: X-05 ／ 検証で severity 引き下げ
-- 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
+- 規約: `backend/CODING_RULES.md:38` 「request 由来 clinic-scoped FK は永続化と同じ transaction で再検証…」+ 使用中 COUNT と soft-delete の TOCTOU
+
 - 対象: `backend/internal/medicalrecord/procedure_service.go:213`、`backend/internal/medicalrecord/procedure_service.go:224`、`backend/internal/medicalrecord/procedure_service.go:232`、`backend/internal/medicalrecord/medicine_service.go:471`、`backend/internal/medicalrecord/medicine_service.go:483`、`backend/internal/medicalrecord/medicine_service.go:495`、`backend/internal/medicalrecord/procedure_repository.go:46`、`backend/internal/medicalrecord/procedure_repository.go:64`
 - 内容: procedureService.Delete は存在確認 (:213)、子処置数 (:216)、使用中数 (:224)、削除 (:232) を 4 つの独立 statement として実行し transaction も行ロックも持たない。medicineService.Delete も同型で CountChildren (:471) / CountUsage (:483) が WithTx (:495) の外にある。削除対象の scope は「参照が 0 件である」という直前の read だけに依存し commit まで固定されていない。スタッフA が DELETE /v1/masters/procedures/:id を実行し :224 が 0 を返した直後にスタッフB が同じ procedure_id で治療記録を作成すると（treatmentService の master FK 検証は論理削除前の行を読むので通過する）、A の :232 の削除が後から成立し、有効な treatments 行が論理削除済み procedure を参照した状態が残って「使用中のため削除できません」ガードの不変条件が壊れる。なお procedureRepository は :39,:46,:50,:57,:64,:71,:78,:95 がすべて `r.db.WithContext(ctx)` を使い persistence.DBOrTx を経由しないため、単に Delete を Transactor.WithTx で包んでも ambient transaction に参加せず修正にならない（medicine_repository.go:100,111 や prescription_repository.go:108 は DBOrTx 済みで非対称）。
 - 修正: Delete を Transactor.WithTx で括り、対象マスタ行を FOR UPDATE でロックしてから使用中カウントを再取得する。前提として procedureRepository の全メソッドを persistence.DBOrTx(ctx, r.db) へ揃える。
 - 検証時の補正: 引用根拠を invariants:31 から backend/CODING_RULES.md:38 へ差し替えるべき。invariants:31 の4要件（権限・対象scope・監査・recovery）のうち権限（routes.go:288 の perm(ResourceMasterMedical,"delete")）・対象scope（DeleteScopedByID の clinic_id+id）・recovery（soft delete）は実在し、欠けているのは「使用中カウントと削除が同一 transaction・同一ロック下にない」点に限られる。帰結も「有効な treatments 行が論理削除済み procedure を参照する」データ整合性の瑕疵であり、データ喪失や越境は生じない。
-
+- round3-review(2026-07-28): **UPHELD** — 使用中ガードが write と同一 tx 外。TOCTOU 整合性として維持。
 ### reservation（予約）（7件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
 #### RSV-02: 管理画面予約作成だけが AcquireBookingLock を取得せず、空き枠へのファントム二重予約とAB-BAデッドロックを許す — HIGH
 - 区分: 新規 ／ 横断パターン: X-05
-- 規約: `backend/CODING_RULES.md:38` 「`FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。」
+- 規約: `backend/CODING_RULES.md:42` 「同じ evidence を逆向きに変更する競合 workflow は同じ resource-scoped serialization へ参加させ…」+ `reservation_repository.go:164-176` AcquireBookingLock 不変条件
+
 - 対象: `backend/internal/reservation/appointment_admin_service.go:128`、`backend/internal/reservation/appointment_admin_service.go:140`、`backend/internal/reservation/appointment_admin_service.go:143`、`backend/internal/reservation/reservation_repository.go:164`、`backend/internal/reservation/reservation_repository.go:170`、`backend/internal/reservation/reservation_service.go:257`、`backend/internal/reservation/reservation_service.go:408`、`backend/internal/reservation/reservation_validators.go:128`
 - 内容: reservation_repository.go:164-176 は「CountConflicts/CountByTypeAndStartTime の SELECT FOR UPDATE は既存行0件の空き枠では何もロックしないためファントムで両方成功しうる」「appointments 行ロック取得前に必ず本メソッドを先頭で呼ぶこと」と不変条件を宣言し、遵守する呼び出し元を3箇所（Create/updateWithConflictCheck/ValidateAndCreate）と列挙している。しかし appointment_admin_service.Create は同じ WithTx 内で CheckSlotConflict/CheckReservationTypeCapacity（FOR UPDATE 依存）を実行しながら AcquireBookingLock を呼ばない4番目の経路である。POST /clinics/:id/reservations の同時2件で空き枠に定員超過の予約が両方成功し、さらに他3経路と行ロック取得順が逆になるためAB-BAデッドロックの成立条件も満たす。
 - 修正: appointment_admin_service.Create の WithTx 先頭で `s.resRepo.AcquireBookingLock(ctx, clinicID)` を呼ぶ。併せて reservation_repository.go:174-176 の呼び出し元列挙を4件へ更新し、AST/ランタイムgateで「FOR UPDATE系conflict checkの前に advisory lock」を機械検査する。
 - 検証時の補正: 規約引用のみ差し替えを要する。所見が引いた backend/CODING_RULES.md:38 逐語「`FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。」は本欠陥に適用されない — admin Create は :128 で s.tx.WithTx を開いており ambient transaction は存在するため、この条項の義務は満たしている。欠けているのは tx ではなく advisory lock である。正しい根拠は backend/CODING_RULES.md:42 末尾 逐語「同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。」— 同一 clinic の枠占有という同じ evidence を書き換える4つの予約作成/更新 workflow のうち3つ（reservation_service.Create/updateWithConflictCheck、reservation_validators.ValidateAndCreate）は clinic 単位 pg_advisory_xact_lock という resource-scoped serialization 機構へ参加しているのに、appointment_admin_service.Create だけが参加していない。加えて reservation_repository.go:164-176 のin-code不変条件宣言自体が live rule text として直接の根拠になる。
 
 - 再実測(2026-07-28): **CONFIRMED** — appointment_admin_service Create に AcquireBookingLock 無し。
+- round3-review(2026-07-28): **UPHELD** — admin Create が AcquireBookingLock 未取得。CODING_RULES.md:38 第一文は適用外だが :42（競合 workflow 直列化）と in-code 不変条件が適用。
 #### RSV-03: write成功後の再取得がtransaction外にあり、read失敗がcommit済み成功を500へ反転させる（予約コース作成では重複作成を誘発） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-01 ／ 検証で severity 引き下げ
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
@@ -682,6 +736,7 @@
 - 検証時の補正: detail から「クライアントが再送すると予約コースが重複作成される（一意制約なし）」を削除する。reservation_types には 001_init.sql:2437 に `CREATE UNIQUE INDEX idx_reservation_types_clinic_name ON reservation_types(clinic_id, name) WHERE deleted_at IS NULL` があり、同名再送は 409 AlreadyExists となって重複行は作られない。指摘の実害は「Save/Create は commit 済みなのに後段 FindByID の失敗で 500 が返り、クライアントが成功を知れない」という CODING_RULES.md:78 の contract 違反に限定される。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — write 後 re-fetch が tx 外。CODING_RULES.md:78。
 #### RSV-04: LINE予約設定の28フィールドrequest DTOにbinding tagが1件も無く、負の booking_window_max_days が make(cap<0) でプロセスをpanicさせる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02 ／ 検証で severity 引き下げ
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -691,6 +746,7 @@
 - 検証時の補正: title の「プロセスをpanicさせる」を「当該clinicのavailable-dates応答を確実に500へ落とす」に訂正する。backend/cmd/api/main.go:198 で `router.Use(gin.Recovery())` が配線されているため、available_dates.go:115 の makeslice panic は gin の recovery middleware が request 単位で回収し、プロセスは継続する。巨大値による OOM 主張も同様に「1 request 内の大容量確保」であり、プロセス即死は保証されない。指摘の本体である『upsertLineReservationSettingRequest の28フィールドに binding tag が0件で、列挙値・数値範囲・email形式が境界で検証されない』（guidelines:151 違反）はそのまま有効。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — LINE 予約設定 DTO に binding 無し。guidelines:151。
 #### RSV-06: 予約キャンセルが「status更新」と「soft delete」の2 writeに分かれ、後段失敗でcancelled状態のまま予約管理に残る — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-06 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:36` 「appointment、trimming detail、option等で1つのbusiness graphを構成するwriteは同じtransactionで全体を成功またはrollbackさせる。」
@@ -699,6 +755,7 @@
 - 修正: cancel 経路全体を単一 WithTx に入れ、status 更新と soft delete を同一transactionでcommit/rollbackする。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — cancel が status 更新と soft delete に分裂。invariants:36。
 #### RSV-07: 依存チェック→削除がtransaction外で行われ、予約側がFOR SHAREで守っている参照整合をmaster削除側が直列化しない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-05
 - 規約: `backend/CODING_RULES.md:42` 「同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。」
@@ -708,6 +765,7 @@
 - 検証時の補正: detail の第3例「reservationAdminService.Delete（SoftDelete→DeleteDraftFromReservation が非原子）」は削除すること。これは欠陥ではなく意図的な設計である：medical_record_auto_create.go:159-161 が逐語で「予約キャンセルは既に確定済みのため、request cancellation や呼出元の ambient tx に cleanup/audit を巻き込まない。一方で同期 best-effort 処理の上限は明示的に制限する。」と宣言し、:161 で `persistence.DetachTx(ctx)` により呼出元 tx から明示的に切り離した上で timeout を掛け、失敗時は :191-195 で構造化log + audit_logs 記録を行っている。同一tx化はこの宣言済み契約の回帰になる。確認対象は reservationTypeLiffService.Delete（:200,:203,:211,:219）と reservationService.Delete（:585,:588,:596）の2件に限定する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 依存チェック→削除が tx 外。CODING_RULES.md:42 は拡張気味だが TOCTOU は実在。
 #### RSV-09: LIFF予約のスタッフ自動割当で ToDateTime / delegateStaff の error が log すら残さず破棄される — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -716,6 +774,7 @@
 - 修正: 両 error を `slog.WarnContext(ctx, "...(best-effort)", "error", err)` で記録する（同ファイルの既存 best-effort と同形）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — ToDateTime/delegateStaff エラー握り潰し。error-handling.md:9。
 #### RSV-08: shift_entry_breaks の孫read が親 shift_entries の clinic 相関を持たず、grandchild lint の登録対象にも入っていない — LOW
 - 区分: 新規 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:15` 「bulk query、join、preload、count、export、background job にも同じ scope を適用する。」
@@ -723,7 +782,7 @@
 - 内容: `FindAllBreaksByEntryIDs` / `FindAllBreaksByEntryID` は `Where("shift_entry_id IN ?")` のみで、親 shift_entries.clinic_id との相関 EXISTS を持たない。現在の呼び出し元は clinic-scoped read から entryID を得ているため直接到達は無いが、これは SEC-SWEEP-02 が対象としている汚染FK経由の孫read露出と完全に同型である。grandchild_parent_clinic_correlation_lint_test.go の registry（:32-121）に shift_entry_breaks→shift_entries の target は存在せず、静的gateの死角になっている。
 - 修正: 両クエリに `EXISTS (SELECT 1 FROM shift_entries se WHERE se.id = shift_entry_breaks.shift_entry_id AND se.clinic_id = ?)` を追加し、clinicID を引数に取るシグネチャへ変更する。併せて grandchild lint registry に shift_entry_breaks→shift_entries を登録する。
 - 検証時の補正: known_or_new を "新規" から SEC-SWEEP-02 への追加evidence（既知entry内の未掃引面）へ変更し、detail に到達性の実測結果を明記する：production 呼出元3箇所（reservation_schedule_service.go:61、liff_service_availability_slots.go:52・:116）の entryID はすべて `Scopes(persistence.ClinicScope(clinicID))` 付きの親read（reservation_schedule_repository.go:63-68 / :83-88）由来であり、外部入力から entryID が直接到達する経路は無い。FindAllBreaksByEntryID（単数形）は production 呼出元0件。よって現時点で悪用可能な欠陥ではなく、SEC-SWEEP-02 の掃引対象面および grandchild lint registry の登録漏れとして扱う。なお backend/internal/lintscan は他セッションが編集中（WIP-adjacent）のため、registry 未登録の判定は清算後に再検証する。
-
+- round3-review(2026-07-28): **REFRAMED** — 既知 SEC-SWEEP-02 孫 correlation 面。独立 NEW ではない。
 ### auth / staff（認証・スタッフ）（6件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -735,6 +794,7 @@
 - 修正: SetPermissionGroupIDs と同型に揃える。attachPermissionAssignmentAudit 相当で actor/target/IP/UA を渡し、tx 内で old/new clinic_ids スナップショットを PermissionAssignmentAuditTxLogger（または新設の assignment audit port）へ fail-closed 書き込みする。
 
 - 再実測(2026-07-28): **CONFIRMED** — staff_clinic_assignment_service.go:263-281 の Delete+RestoreOrCreate 連鎖に audit.LogEntry 無し。permission 側 fail-closed 監査との非対称は継続。
+- round3-review(2026-07-28): **UPHELD** — staff clinic 全置換に監査ゼロ。invariants:31。permission 置換は fail-closed 監査あり。
 #### AUS-03: staff_type が application 層で一切検証されず DB enum だけが防壁になっている — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -743,6 +803,7 @@
 - 修正: createStaffRequest / updateStaffRequest の staff_type に binding:"omitempty,oneof=doctor nurse trimmer resource" を付け、shift_type と同様に service 側にも validateStaffType を置いて Create/CreateWithAccount/Update の3経路から呼ぶ。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — staff_type が app 層未検証。CODING_RULES.md:79。
 #### AUS-04: ShiftTemplateRepository.CountUsageByShiftTemplateID は consumer ゼロの死んだ method で、testも恒真 — MEDIUM
 - 区分: 新規
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:89` 「interface は一般に利用側で定義し、利用側が本当に必要とする最小メソッド集合にする。」
@@ -751,6 +812,7 @@
 - 修正: interface と実装から CountUsageByShiftTemplateID を削除し、対応する mock（shift_template_service_test.go:97）と恒真 test（:264-296）および誤った header コメント（:6, :9）を同時に除去する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — CountUsage スタブ + 恒真テストは死んだ API。YAGNI/dead-code として維持。
 #### AUS-05: toShiftResponse が *model.Staff を nil ガードなしで参照する（repository は意図的に nil にする） — MEDIUM
 - 区分: 新規
 - 規約: `~/.claude/rules/ecc/common/code-review.md:98` 「- Missing error handling - handle explicitly」
@@ -759,6 +821,7 @@
 - 修正: shift_response.go:63 を `if s.Staff != nil && s.Staff.ID != 0` に変更する（toStaffSummary と同じガード形）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — toShiftResponse が *Staff nil ガードなし。Preload で nil になり得る。
 #### AUS-06: auth/http_session.go が 820 行で上限 800 行を超過 — MEDIUM
 - 区分: 新規
 - 規約: `~/.claude/rules/ecc/common/coding-style.md:39` 「- 200-400 lines typical, 800 max」
@@ -767,13 +830,14 @@
 - 修正: cookie 発行・消去（IssueAuthCookies / issueAuthCookies / ClearCookie）を http_cookies.go へ、logout 監査 identity 解決（logoutAuditIdentity / parseRefreshTokenRevocations / auditLogoutBestEffort / logLogoutAudit）を http_logout_audit.go へ縦切りで分離する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **WITHDRAWN** — 800 行上限は ECC soft style。Go/Gin guidelines はファイルサイズを公式要件としない（:227）。強制 ADR なし。
 #### AUS-09: HasPermission / CalculateEffectivePermissions が既にレスポンスを書いた Extract* の後にもう一度書く経路がある — LOW
 - 区分: 新規 ／ 横断パターン: X-10 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/error-handling.md:29` 「response を書いた後に別の error response を重ねない。」
 - 対象: `backend/internal/auth/http_permission.go:20`、`backend/internal/auth/http_permission.go:28`、`backend/internal/auth/http_permission.go:32`、`backend/internal/auth/http_permission.go:66`、`backend/internal/auth/http_response.go:210`、`backend/internal/httpapi/context.go:37`、`backend/internal/httpapi/response.go:15`
 - 内容: httpapi.ExtractIsSystemAdmin / ExtractStaffID / ExtractClinicID は失敗時に RespondError で即レスポンスを書いて false を返す（httpapi/context.go:37,42,47 と :198,203）。RespondError は c.JSON のみで Abort も行わない（httpapi/response.go:15-18）。HasPermission はこれら3つを呼び（http_permission.go:20,28,32）、false 時に単に return false するため、呼び出し元 RequirePermission が更に RespondError(Forbidden)+Abort を実行する（:66-69）= 同一実行パスで2回書き込む。RequirePermissionAny（:79-88）は要件数だけ HasPermission を呼ぶため最大 N+1 回。CalculateEffectivePermissions（http_response.go:210-218）も ExtractClinicID 失敗時に空 permission を返すだけで、呼び出し元 GetMe が 200 JSON を重ねる。**到達性**: 前提状態は「認証済み扱いなのに gin context の user_id/clinic_id/is_system_admin が未設定または型不一致」。全 caller（composition_runtime.go:499-574 経由で medicalrecord 等へ method value として注入されるものを含む）は Authenticate middleware 配下の protected group に登録されており、HEAD では API のみで到達する経路を構成できなかった。防御的分岐の欠陥として報告する。
 - 修正: HasPermission 内では RespondError を書かない Extract 系（OptionalStaffID 相当の非書き込み版）を使い、レスポンス書き込みは RequirePermission / RequirePermissionAny の1箇所に集約する。
-
+- round3-review(2026-07-28): **REFRAMED** — 二重 response パターンは防御的だが Authenticate 後は実質到達不能。
 ### pet / owner / clinic（ペット・飼主・医院）（16件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -785,6 +849,7 @@
 - 修正: owner/pet と同じく update+reload を1つの Transaction / Transactor.WithTx へ収める。clinic 側は ports.go:11 の Transactor が既にあるので clinicService.UpdateClinic・companyService.Update から利用し、closing_special_period_repository は persistence.DBOrTx へ寄せる。
 
 - 再実測(2026-07-28): **CONFIRMED** — clinic/company/special-period/chronic の write→reload が tx 外。
+- round3-review(2026-07-28): **UPHELD** — clinic/company/special-period/chronic の write→reload が tx 外。CODING_RULES.md:78。
 #### POC-03: pet 更新の owner_id / insurance_id 再検証が write transaction の外にあり、write 時に再検証されない — HIGH
 - 区分: WIP-adjacent（清算後に再検証） ／ 横断パターン: X-05
 - 規約: `backend/CODING_RULES.md:38` 「`FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。request由来のclinic-scoped FKは永続化と同じtransactionで再検証し、並行master変更で判定が無効になる場合は対象行をcommitまで共有ロックする。」
@@ -793,6 +858,7 @@
 - 修正: UpdateAndFind の transaction 内で、fields に owner_id / insurance_id が含まれる場合に lockOwnerForRegistration / lockOwnerRegistrationMasters 相当の clinic 相関付き SHARE ロック検証を実行する。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — owner/insurance 事前検証 :352-376、UpdateAndFind :416-428（旧:417）。write tx 内再検証無しは継続。
+- round3-review(2026-07-28): **UPHELD** — owner_id/insurance_id 再検証が write tx 外。CODING_RULES.md:38 第二文適用。BUG-415 Status 省略とは無関係。
 #### POC-01: 休診日ミューテーションが2つのroute群で二重登録され、必要権限が分岐している — MEDIUM
 - 区分: 新規 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:22` 「authentication、role/permission authorization、resource ownership をそれぞれ検証する。」
@@ -802,6 +868,7 @@
 - 検証時の補正: 二重登録は未検出のdriftではない。backend/docs/api.yaml:12119-12124 が /closing-settings/holidays を宣言し逐語コメント「既存 /clinic-holidays と同一ハンドラに委譲（clinic_holiday_handler.go）」で意図を明示、backend/internal/clinic/routes_test.go:40-42,51-53 が両系統6本を route snapshot として固定済み。権限の union も広がらない（closing-settings:create が既定 false のため実効は shifts:create 単独と等価）。実在する欠陥は security ではなく機能不整合: defaultPermissionRuleTable（clinic_service.go:234）が ClosingSettings を exec/gen とも create=false/delete=false と定め、backend/migrations/seeds/003_demo/permission_group_rules.csv に closing-settings 行が0件（grep -c 実測=0）。一方 frontend/src/features/closing-settings/api/holidays.ts:26,31 は POST/DELETE /v1/closing-settings/holidays を実呼び出しするため、既存・新規いずれのクリニックでも非 system_admin スタッフは締め設定画面の休診日登録/削除で 403 になる。category は security ではなく api-contract（既定権限表と route 要求権限の不一致）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — 二重 route は意図的。問題は default 権限と FE が閉じる path の契約不一致であり、権限 OR 昇格ではない。
 #### POC-05: 特別期間の重複禁止が application 検証のみで、DB 制約も transaction も無い — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-05
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -811,6 +878,7 @@
 - 検証時の補正: 「ResolveSchedule（service:300 FindByDate の First）が非決定的に一方を返して締め時刻が不定になる」は不正確。closing_special_period_repository.go:42-56 の FindByDate は GORM の First を使っており、GORM First は主キー昇順の ORDER BY を自動付与するため、重複時は id 最小行が決定的に返る。正しい failure は『重複期間が確定した後、id の大きい側の設定が恒久的に無視され、UI 上は2件見えるのに適用されるのは常に1件だけになる』である。TOCTOU による重複作成そのものは指摘どおり成立する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 特別期間重複が app のみ・DB/tx なし。CODING_RULES.md:79。
 #### POC-06: 飼主 phone の一意性が application 検証のみで、email と異なり DB 制約が無い — MEDIUM
 - 区分: WIP-adjacent（清算後に再検証）
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -820,6 +888,7 @@
 - 検証時の補正: 「FindByPhone（repository.go:178 の First）は任意の1件を返し」は不正確。GORM の First は主キー昇順を自動付与するため id 最小行が決定的に返る。実害の中核は指摘どおり FindByNameAndPhone（repository.go:207 の len(owners) != 1 判定）が nil を返して LINE 自動紐付けが黙って不成立になる点。なお First の行は :178 ではなく :180（:178 は関数宣言行）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — phone 一意が app のみ。CODING_RULES.md:79。
 #### POC-07: 全クリニック共有マスタ animal_species の更新・削除に監査記録が一切残らない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -829,6 +898,7 @@
 - 検証時の補正: 補強事実として、model.AnimalSpecies（backend/internal/model/animal_species.go 全17行）には DeletedAt フィールドが無いため repository の Delete は soft delete ではなく物理削除である。したがって invariants:31 が求める4要素のうち『監査』だけでなく『recovery 方針』も欠けている。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — animal_species 更新削除に監査なし。invariants:31。
 #### POC-08: clinic スコープ付き飼主更新 route 5本が OpenAPI 未宣言で、:clinic_id も handler から読まれない — MEDIUM
 - 区分: 新規
 - 規約: `backend/CODING_RULES.md:53` 「OpenAPI contract と route、request、response、status code を同期する。」
@@ -837,6 +907,7 @@
 - 修正: 5本を撤去して /owners/:id 系に一本化するか、残すなら CreateOwner（http_owner.go:71-76）と同じく :clinic_id を httpapi.AuthorizeClinicIDs で検証して実際のスコープに使い、いずれの場合も api.yaml と routes_snapshot_test を同期させる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — clinic スコープ owner route 5 本が OpenAPI 未宣言。CODING_RULES.md:53。
 #### POC-10: 締め時刻の既定値 3 種が clinic_settings_repository に 6 重ハードコードされ、DDL DEFAULT と二重管理になっている — MEDIUM
 - 区分: 新規
 - 規約: `~/.claude/rules/ecc/common/coding-style.md:75` 「Use named constants for meaningful thresholds, delays, and limits.」
@@ -845,6 +916,7 @@
 - 修正: defaultClosingAmStart と同じ形で defaultClosingAmPmBoundary / defaultClosingWeekdayEnd / defaultClosingSundayEnd を定義して6箇所を置換し、DDL DEFAULT との一致を検証する lintscan テストを追加する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 締め時刻既定値 6 箇所ハードコード。coding-style:75。
 #### POC-11: ペット列挙値バリデータ4関数が owner / pet で完全複製され、既に構造ドリフトしている — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-09
 - 規約: `~/.claude/rules/ecc/common/coding-style.md:26` 「Avoid copy-paste implementation drift」
@@ -854,14 +926,17 @@
 - 検証時の補正: 「既に構造ドリフトしている」は構造レベルの記述としては正しいが、現時点の挙動は両者等価である（owner 版は switch の case に "" を含め、pet 版は先頭 early return するが、いずれも空文字を許容し同一列挙集合を受理する）。したがって現在の受理差は存在せず、リスクは将来の片側更新による分岐である。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — validator 複製は将来 drift リスク。現状 accept set は同等。
 #### POC-12: pet / owner / clinic の JSON エンドポイントに request body サイズ上限が無い — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-07
-- 規約: `.claude/rules/go-gin-backend-guidelines.md:179` 「rate limit、request/body/upload size、content type、file path を制限する。」
+- 規約: `.claude/rules/go-gin-backend-guidelines.md:180` 「- rate limit、request/body/upload size、content type、file path を制限する。」
+
 - 対象: `backend/internal/pet/pet_handler.go:183`、`backend/internal/owner/http_owner.go:62`、`backend/internal/clinic/clinic_handler.go:109`、`backend/internal/auth/http_binding.go:30`、`backend/internal/staff/http_binding.go:30`、`backend/internal/billing/billing_confirmation_handler.go:135`、`backend/cmd/api/main.go:203`
 - 内容: auth・staff・billing・lstep・medicalrecord・scheduler の6パッケージは http.MaxBytesReader で JSON body を明示的に上限化しているのに対し、pet / owner / clinic の全 ShouldBindJSON 呼び出しには上限が無い。cmd/api/main.go:198-203 のグローバル middleware にも body size 制限は含まれていない（Recovery / SecurityHeaders / RequestID / CORS / RequestLogging / SanitizeNullBytes のみ）。認証済みスタッフ1名が POST /pets や POST /owners に巨大 body を送るだけでプロセスメモリを消費でき、text 型カラム（remarks 等）はそのまま永続化される。
 - 修正: staff/http_binding.go と同型の bindJSON helper を pet / owner / clinic に置くか、protected グループ全体へ body size middleware を1本入れて全パッケージの扱いを統一する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — pet/owner/clinic JSON に MaxBytesReader なし。規約は guidelines:180。
 #### POC-13: pet / owner の自由記述フィールドに長さ検証が無い（同一 struct 内の他フィールドには存在する） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -870,14 +945,17 @@
 - 修正: 自由記述フィールドに binding:"omitempty,max=N" を付与する。列ごとの上限値は 001_init.sql の型定義（varchar(N) を持つ列はその値、text 列は運用上の妥当値）から導出し、pet と owner で同一フィールドは同一値に揃える。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 自由記述に max なし。guidelines:151。
 #### POC-14: 慢性疾患 PATCH に「更新対象フィールド0件」のガードが無い（兄弟実装3箇所には存在する） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
-- 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
+- 規約: `~/.claude/rules/ecc/common/coding-style.md:26` 「Avoid copy-paste implementation drift」（兄弟 Update の empty-fields ガード非対称）
+
 - 対象: `backend/internal/pet/chronic_condition_service.go:116`、`backend/internal/pet/chronic_condition_service.go:117`、`backend/internal/pet/chronic_condition_repository.go:78`、`backend/internal/pet/service.go:380`、`backend/internal/owner/service_core.go:125`、`backend/internal/clinic/company_service.go:109`
 - 内容: chronicConditionService.Update は buildChronicConditionUpdateFields の戻り値を長さ検査せずに repo.Update へ渡す。同一 repo 内の petService.Update（service.go:380-382）、ownerService.Update（service_core.go:125-127）、companyService.Update（company_service.go:109-111）はいずれも len(fields)==0 を WrapInvalidInput で弾いており、慢性疾患だけが逸脱している。全フィールド未指定の PATCH（例 `{}`）は境界で拒否されず repository まで到達し、RowsAffected==0 分岐（chronic_condition_repository.go:78-80）で WrapNotFound となって「存在しない」旨の 404 が返る見込みである（GORM が空 assignment set で SQL を発行しない挙動に依存するため、この観測結果は read-only 環境では実行検証していない）。
 - 修正: chronic_condition_service.go:116 の直後に len(fields)==0 → apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField) を追加し、兄弟実装と同じ contract に揃える。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 空 PATCH ガード欠落は実在。peer contract（X-09）が正。
 #### POC-15: 同一 error を同一関数内で2回 ErrorContext ログしている — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-10
 - 規約: `backend/CODING_RULES.md:67` 「同じ error を複数箇所で重複ログしない。十分な request 文脈を持つ境界で1回記録する。」
@@ -886,6 +964,7 @@
 - 修正: closing_settings_service.go:275 の重複行を削除し、clinic_id と id を含む :271-274 の1回に統合する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — 同一 error 二重 ErrorContext。CODING_RULES.md:67。
 #### POC-17: clinic / company の email・電話番号・郵便番号が未検証（owner の同名フィールドは検証済み） — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -894,6 +973,7 @@
 - 修正: owner/validators_contact.go の3関数を sharedkernel へ移して clinic / company の Update 入力でも呼ぶ（PO-11 の統合と同じ移設先に揃える）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — clinic/company email/phone 未検証。guidelines:151。
 #### POC-09: clinic_settings / clinic_holiday の書き込みで Scopes(ClinicScope) が INSERT に適用されず、テナントガードが不活性 — LOW
 - 区分: 新規 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:11` 「clinic-scoped data のすべての read/write/delete は、認証済み `clinic_id` で制約する。」
@@ -903,14 +983,16 @@
 - 検証時の補正: clinic-isolation の不変条件違反は成立しない。書き込み先を決める struct の ClinicID は、UpdateCPMVersion(:58)・UpdateDormantThresholds(:78)・UpdateCPMV2Thresholds(:108)・UpdateCPMV1Thresholds(:139)・UpdateHealthPreventionThresholds(:187) のいずれも引数 clinicID をそのまま代入しており、clinic_holiday_service.go:38-42 も ClinicID: clinicID を設定、Save の唯一の呼び出し元も FindByClinicID(clinicID) の戻り値を渡す。よって全経路で認証済み clinic_id により制約されており invariants:11 は充足している。正確な指摘内容は『INSERT ... ON CONFLICT に WHERE は出力されないため Scopes(persistence.ClinicScope(clinicID)) が7箇所で no-op であり、テナントガードが効いているように誤読させる死んだコードになっている』であり、分類は clinic-isolation ではなく可読性/誤解防止（LOW）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — ClinicScope on INSERT は no-op だが ClinicID は arg から設定され isolation は成立。dead scope。
 #### POC-16: parseHHMM が billing の同名 helper の自己申告済み複製として残り、削除条件が無い — LOW
 - 区分: 新規 ／ 横断パターン: X-09 ／ 検証で severity 引き下げ
-- 規約: `backend/CODING_RULES.md:40` 「compatibility facadeは薄いdelegate/type aliasだけを許可し、business ruleやpersistence実装を複製しない。consumer移行後の削除条件を持たせる。」
+- 規約: `~/.claude/rules/ecc/common/coding-style.md:26` 「Avoid copy-paste implementation drift」
+
 - 対象: `backend/internal/clinic/closing_settings_service.go:383`、`backend/internal/clinic/closing_settings_service.go:384`、`backend/internal/clinic/closing_settings_service.go:385`
 - 内容: 関数直上のコメントが「billing/cash_register_service.go の同名helperの複製。clinic domain 移行時に片側へ統合」と複製であることを自認しているが、移行完了の判定条件も削除期限も設定されていない。締め時刻の "HH:MM" / "HH:MM:SS" 正規化は締め集計の判定に直結する business rule であり、片側だけが修正された場合（例: 秒付き入力の扱い変更）に billing 側の締め判定と clinic 側の設定検証が食い違う。
 - 修正: sharedkernel へ1本化して billing / clinic 双方から参照するか、統合できないなら「どちらを正本とし、いつ削除するか」を条件付きでコメントに明記して台帳へ起票する。
 - 検証時の補正: 引用規約が対象を取り違えている。backend/CODING_RULES.md:40 の主語は「compatibility facade」であり、parseHHMM は facade でも delegate でもなく package 内 private の純粋パース関数である。また『締め時刻の HH:MM 正規化は business rule』という性格付けも過大で、実体は文字列長判定と Sscanf だけの15行（clinic/closing_settings_service.go:385-399 と billing/cash_register_service.go:462-476 はバイト等価）。指摘の実質は移行期の重複helper が削除条件を持たない点であり、適用すべき根拠は ~/.claude/rules/ecc/common/coding-style.md:26「Avoid copy-paste implementation drift」（根拠区分 project quality policy）、severity は LOW が妥当。
-
+- round3-review(2026-07-28): **REFRAMED** — parseHHMM 複製。CODING_RULES.md:40（facade）は適用外。coding-style:26 の DRY メモ。
 ### trimming / manualarticle / csvimport（10件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -923,6 +1005,7 @@
 - 検証時の補正: detail の「同一 package の trimming は同じ再取得を tx 内で行っており」は不正確。trimming は別 package(internal/trimming)であり、正しくは「同一 audit unit の internal/trimming が trimming_service.go:330 / :471 / :562 / :736 で同じ再取得を tx 内 closure で行い、結果を closure 外の変数へ引き渡している」。また title の「（監査も欠落）」は過大。監査自体は handler.go:103-118 に存在する。正確には「post-commit read が失敗すると service→handler が error 応答へ分岐するため、commit 済みの write が監査 LogEntry を一度も書かないまま終わる」。
 
 - 再実測(2026-07-28): **CONFIRMED** — manualarticle Upsert Transaction 後 FindByCategoryAndSlug。
+- round3-review(2026-07-28): **UPHELD** — manualarticle Upsert が commit 後 re-fetch。CODING_RULES.md:78。監査欠落は過大（成功時は best-effort 監査あり）。
 #### TRM-03: trimming/manualarticle の自由入力文字列に長さ上限が一切なく、request body上限も無い — HIGH
 - 区分: 新規 ／ 横断パターン: X-07
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:151` 「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -931,6 +1014,7 @@
 - 修正: remarks/style_request/used_shampoo/used_ribbon/style_image/completed_image/title/section/body_markdown に binding の max= を付与し、両 handler の JSON bind 前に auth/staff と同形の http.MaxBytesReader を適用する。
 
 - 再実測(2026-07-28): **CONFIRMED** — 自由文字列 max= 無し + body size middleware 無し。
+- round3-review(2026-07-28): **UPHELD** — free-text 長さ上限なし・global body size なし。guidelines:151。
 #### TRM-04: 既存detailを持つappointmentへのPOST /trimmingsが、何も書かずに201 Createdを返し送信値と監査を捨てる — HIGH
 - 区分: 新規
 - 規約: `backend/CODING_RULES.md:53` 「OpenAPI contract と route、request、response、status code を同期する。」
@@ -940,6 +1024,7 @@
 - 検証時の補正: proposed_fix の「409 Conflict を返して api.yaml に追記する」のうち追記部分は不要。api.yaml:12640-12641 に POST /trimmings の '409' が既に `$ref: '#/components/responses/Conflict'` として宣言済みであり、契約側の枠は存在してコード側が使っていないだけである（この事実は所見をむしろ補強する）。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — existing detail early return :470-472。handler は常に 201。api.yaml 201 は :12826 近傍（旧:12621）。
+- round3-review(2026-07-28): **UPHELD** — 既存 detail でも 201 Created。CODING_RULES.md:53 / OpenAPI 409 と不一致。
 #### TRM-02: マニュアル削除は物理削除で編集履歴がCASCADE消滅し、監査はbest-effortかつ条件付きでスキップされる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-03 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -949,6 +1034,7 @@
 - 検証時の補正: 残存する欠陥は次の2点に限定される。①001_init.sql:2873 の ON DELETE CASCADE により manual_article_versions の全編集履歴が消え、監査 old_value には記事の最終状態しか残らないため版履歴だけは復元不能（GET /manual/articles/:category/:slug/versions が提供する価値が失われる）。②handler.go:163-166 の監査は best-effort で、LogEntry が失敗しても slog.Warn のみで :169 が 204 を返すため、物理削除が成立したのに復元用 old_value が一切残らない状態になり得る。権限・対象 scope・記事本体の recovery 方針（audit old_value と bundled MD への回帰）は成立しているので「権限のみが成立」という記述は撤回する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — マニュアル物理削除 + history CASCADE + 監査 best-effort。invariants:31。
 #### TRM-05: bw_unit のみ境界で列挙値検証が無く、DB enum 到達まで不正値が進む — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
@@ -958,6 +1044,7 @@
 - 検証時の補正: detail の「同一ファイルの status・reservation_route・target_size はすべて oneof を持つ」は不正確。target_size は同一ファイルではなく trimming_course_request.go:8 と :32 にある（`binding:"omitempty,oneof=small medium large cat"`）。trimming_request.go 内で正確なのは「status(:66,:123) と reservation_route(:67) は oneof を持ち、bw_unit(:72,:128) だけが欠落している」。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — bw_unit 境界未検証。CODING_RULES.md:79。
 #### TRM-06: trimming detail 生成失敗が同一call chainで二重にERRORログされる — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-10
 - 規約: `.claude/refs/error-handling.md:12` 「同じ failure を複数層で重複ログしない。必要な文脈が揃う境界で1回記録する。」
@@ -967,6 +1054,7 @@
 - 検証時の補正: detail 後半の「:345 と :751 は…一律『failed to set options trimming』として記録しており…重複ログの片方すら失敗箇所を指さない」という付随主張は、引用した error-handling.md:12（重複ログ禁止）ではカバーされず、log message の正確性を要求する規約原文を提示できない。規約引用を伴わない指摘は提出しない方針に従い、この一文は所見から削除する（:345 と :751 に当該文言が実在すること自体は実測で真）。所見は :554/:577 の二重 ERROR ログのみに限定する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — detail 生成失敗の二重 ERROR。error-handling.md:12。
 #### TRM-07: csvimport.Import は35表を無条件DELETEするexported APIだが、対象DBの同定手段を持たない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-03
 - 規約: `.claude/refs/backend-application-invariants.md:31` 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる。」
@@ -976,6 +1064,7 @@
 - 検証時の補正: 表数が不正確。import.go:72-79 の削除リストを全数計上すると 35 表ではなく 37 表（:73=6, :74=7, :75=6, :76=5, :77=4, :78=9）。それ以外の記述は実測どおり。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — csvimport.Import の unconditional DELETE が exported API。invariants:31。
 #### TRM-08: [既知] Options preload の clinic predicate が末尾 trimming_options にしか掛からない — LOW
 - 区分: **既知** → SEC-SWEEP-02 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/backend-application-invariants.md:39` 「nested `Preload`のpredicateは末尾associationだけに適用される。clinic-ownedの中間associationも独立したclinic predicateでscopeし、破損FKから他院の詳細・個人情報を復元しない。」
@@ -985,6 +1074,7 @@
 - 検証時の補正: 本項は SEC-SWEEP-02（3-session-agent.html:254、DEC-23 裁定済み）への補足evidenceであり、独立した所見として再起票してはならない。新規に確定した事実は1点のみ: 中間 junction table appointment_trimming_options（001_init.sql:1380-1387）に clinic_id 列が存在しない。一方 trimming_repository.go:35 の末尾述語は trimming_options 側に clinic predicate を掛けるため、本 finding の範囲では他院 option の復元経路は実証できていない。是正方針は SEC-SWEEP-02 の既定（孫 read への親 clinic 相関の必須化）に従い、本 unit で独立に修正しない。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — 既知 SEC-SWEEP-02 / DEC-23。parent JOIN は部分修正済み。
 #### TRM-09: [WIP-adjacent] trimming の3 master repository で ambient transaction 参加可否が食い違う — LOW
 - 区分: WIP-adjacent（清算後に再検証）
 - 規約: `backend/CODING_RULES.md:77` 「transaction の開始、commit、rollback、resource ownership を明確にする。」
@@ -993,13 +1083,14 @@
 - 修正: 清算後、3 repository の tx 参加可否を DBOrTx へ統一する（または参加しない設計を doc comment で明示する）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — WIP-adjacent / dbortx inventory。現呼び出しに ambient tx 無し。
 #### TRM-10: package 名と export 名の stutter — LOW
 - 区分: 新規
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:50` 「export 名に package 名を繰り返さない。例: `http.HTTPServer` のような stutter を避ける。」
 - 対象: `backend/internal/trimming/trimming_service.go:96`、`backend/internal/trimming/trimming_course_service.go:76`、`backend/internal/manualarticle/service.go:26`、`backend/internal/manualarticle/response.go:11`
 - 内容: trimming.TrimmingService / trimming.TrimmingCourseService / manualarticle.ManualArticleService / manualarticle.ManualArticleResponse のように、呼び出し側で package 名が二重になる。BE9 の domain package 化で package 名が付いた後も、旧 layer package 時代の型名がそのまま残っていることによる。
 - 修正: 外部 consumer の移行コストと釣り合う範囲で trimming.Service / manualarticle.Service 等へ改名する。API wire 形状には影響しない。
-
+- round3-review(2026-07-28): **WITHDRAWN** — export stutter は style preference。欠陥扱いは過剰。
 ### model / lintscan / testdb（モデル・静的lint）（5件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -1012,6 +1103,7 @@
 - 検証時の補正: detail の2点を訂正する。(1)「第3の実装が internal/billing/billing_service.go:15 に存在しそこでも割引が反映されない」は誤導。同関数のシグネチャは CalculateTaxAmount(unitPrice, quantity, taxType, taxRate) で割引引数を持たず、production 呼び出し元はゼロ（実測: 参照は billing_service_test.go:79 のみ）。実質の重複は model 側2メソッドの2実装であり、billing_service.go:15 は未使用の第3コピーとして「削除候補」と書くのが正確。(2) 現時点の実害は潜在。estimate_items への production write path は存在せず（EstimateItem の Create は csvimport 経路以外に無い）、seed 003_demo/estimate_items.csv は discount_amount>0 の行が0件。よって現在の応答値は誤っていない。将来 csvimport cutover（cutover_contract.go の estimate_items spec に discount_amount を含む）や明細API追加で顕在化する latent drift である。また proposed_fix には前提が必要: 見積の subtotal/tax_total はクライアント供給値をそのまま保存する契約（estimate_request.go:52-56 → estimate_service.go:263-267 で再計算しない）ため、明細側だけを割引後へ揃えると既存行で「明細合計 ≠ 保存済み見積合計」が生じる。API contract 上 behavior-preserving ではないので、totals の扱いと同時に決める必要がある。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — EstimateItem 税が Discount 無視（BillingItem は考慮）。潜在・現状 discount write 無し。coding-style:26。
 #### MDL-02: testdb のテスト間データ分離 TRUNCATE が error を全件破棄し fail-open している — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.claude/refs/error-handling.md:9` 「- error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1021,6 +1113,7 @@
 - 検証時の補正: evidence の testdb.go:496 は fail-open の例として不成立なので detail から外すべき。実測: mainDSN(:491) と testDSN(:516) は dbname 以外（host/port/user/password）が同一。したがって :494 の main DB open が失敗する状況では :520 の test DB open も同じ理由で失敗し、:521-522 が wrap した error を返して fail-closed になる。唯一 :496 の警告続行が効くのは「ekarte_db は不在だが ekarte_db_test は存在する」ケースで、その場合 CREATE DATABASE をスキップして進むのは無害。よって本所見の成立範囲は :141-145 / :232-236 の10箇所の TRUNCATE error 破棄のみ。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **WITHDRAWN** — testdb TRUNCATE の error 破棄は test harness 品質。product MEDIUM として不成立。
 #### MDL-04: 配信トリガー優先順位の trigger_type が列挙値検証を受けず、任意文字列が永続化される — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-02
 - 規約: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.claude/rules/go-gin-backend-guidelines.md:151` 「- 外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」
@@ -1030,6 +1123,7 @@
 - 検証時の補正: proposed_fix の後段（`type TriggerType string` への defined type 格上げ）は本 fix と同一単位で実施できない点を明記すべき。model.TriggerType は tygo 生成対象で frontend/src/types/generated/models.ts へ波及し、`make codegen` は .claude/CLAUDE.md の自動実行禁止コマンドかつ台帳上 USER 専権のため、codegen ゲート付きの別タスクになる。本所見で今すぐ閉じられるのは境界での membership 検証（request DTO の binding oneof、または service UpdatePriorities 内で model.AllTriggerTypes() 集合に対する照合を行い未知値を 400 で拒否）までである。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **WITHDRAWN** — LSA-13 と同一 trigger_type 欠陥の重複（X-02 も MDL-04 除外済み）。
 #### MDL-05: CASCADE lint が完全一致リテラル検索のため、表記ゆれした ON DELETE CASCADE を見逃す（偽陰性） — MEDIUM
 - 区分: 新規
 - 規約: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/backend/migrations/CLAUDE.md:18` 「**禁止（絶対）**: `owners` / `pets` / `medical_records` 等の PHI・業務データが親となるCASCADEで、削除により診療履歴・会計・バイタル等が連鎖消去されうる設計は禁止。」
@@ -1038,13 +1132,14 @@
 - 修正: countCascadeOccurrences を `regexp.MustCompile(`(?is)ON\s+DELETE\s+CASCADE`)` の FindAllStringIndex 件数へ置換する。既存 allowlist 値（001_init.sql: 54）は正規化後の実測で再ピンし、TestReconcileMigrationCascade_Analyzer に小文字・複数空白・改行分割の fixture を追加する。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — CASCADE lint が完全一致のみで false-negative。lint 品質欠陥。
 #### MDL-06: model.Payment に ClinicID が無く、同一 business fact の sibling である PaymentSplit だけが clinic_id を持つ — LOW
 - 区分: **既知** → TASK-445 ／ 検証で severity 引き下げ
 - 規約: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.claude/refs/backend-application-invariants.md:11` 「- clinic-scoped data のすべての read/write/delete は、認証済み `clinic_id` で制約する。」
 - 対象: `backend/internal/model/accounting.go:163`、`backend/internal/model/accounting.go:191`、`backend/internal/model/accounting.go:196`、`backend/internal/model/accounting.go:198`、`backend/migrations/001_init.sql:1946`、`backend/migrations/001_init.sql:1970`
 - 内容: model.Payment（accounting.go:163-191）は clinic_id フィールドを持たず、DDL の payments（001_init.sql:1946-1966）にも clinic_id 列が無い。一方、同じ会計の支払内訳を表す PaymentSplit（accounting.go:196-212 / DDL :1970-1990）は `ClinicID uint64 gorm:"not null"` + FK + 複合 index を持つ。結果として payments に対する全 read/write は billings 経由の相関でしか clinic 制約を表現できず、model 型の上では clinic 述語を書く手段が存在しない。既に TASK-445（DEC-28）が「payments.clinic_id」を対象として起票済み。
 - 修正: TASK-445 の宣言的複合FK掃引で payments.clinic_id を追加し、同時に model.Payment へ `ClinicID uint64 gorm:"not null"` を追加して PaymentSplit と表現を揃える。それまでは payments を触る repository が必ず billings への clinic 相関 join を持つことを既存 grandchild lint の対象へ含めるか確認する。
-
+- round3-review(2026-07-28): **REFRAMED** — 既知 TASK-445 / DEC-28。新規ではなく既知ポインタ。
 ### cmd（コマンド）（7件）
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
@@ -1056,6 +1151,7 @@
 - 修正: BUG-430 の裁定どおり cmd/stage-import 一式（Makefile 5 target・docker-compose.stage-import.yml・scripts/verify-stage-import.sh 含む）を退役させる。退役までの暫定措置を採る場合は resolveTargetRefs が解決した clinicID を全 deleteScope 述語へ AND 結合する。
 
 - 再実測(2026-07-28): **ALREADY-FIXED** — backend/cmd/stage-import ディレクトリが HEAD から消失（ls backend/cmd に stage-import 無し）。BUG-430 退役済み。破壊的 unscoped DELETE の live path は存在しない。
+- round3-review(2026-07-28): **WITHDRAWN** — ALREADY-FIXED。`backend/cmd/stage-import` は HEAD から消失（BUG-430 退役）。破壊的 unscoped DELETE の live path 無し。
 #### CMD-02: 全院バッチを起動する /_internal/scheduled-jobs が未認証の root engine に登録されている — MEDIUM
 - 区分: 新規 ／ 検証で severity 引き下げ
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:134` 「- public route と authenticated/authorized route の境界を route 登録時に明示する。」
@@ -1065,6 +1161,7 @@
 - 検証時の補正: 「防御は worker/index.ts:236 の edge path filter 一枚だけ」は事実だが、その filter は encoding/traversal bypass まで封じた文書化済み・単体test済みの設計上の境界（scheduler-ops.ts:83-119 / scheduler-ops.test.ts:578-596）であり、production/staging に非-Worker ingress は存在しない（infra/ 実測）。したがって failure scenario は「ローカル docker-compose で 8080 を直接叩ける開発環境」に限定して記述すべき。残る指摘は「特権 route であることが route 登録側に表明されていない／Go 側に二重防御が無い」に絞られる。行番号の微差: handler.go の :118/:122/:220 は実測 :119-121/:124/:221、docker-compose.yml:40 は :41（ports mapping）。いずれも指示された構造の内側に着地しており evidence 実在性は満たす。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — Go router は未認証だが production は Worker edge 隔離前提。defense-in-depth/文書化ギャップ。
 #### CMD-03: coverage-ratchet の失敗が二重に無音化され gate が構造的に機能しない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04 ／ 検証で severity 引き下げ
 - 規約: `.claude/refs/error-handling.md:9` 「- error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1074,6 +1171,7 @@
 - 検証時の補正: ①「ファイルが存在するのに読めない場合でも事実と異なる文言で exit 0」は正しいが、この 0 返却は main.go:89-90 のコメントで宣言された仕様であり、「無音化」ではなく粒度の粗い明示的回復として記述すべき。②gate を構造的に無効化している決定的要因は ci.yml:201 の tee による exit code 吸収であり、これは error-handling.md:9 の適用対象外。同一欠陥は frontend ratchet（ci.yml:297 `node scripts/coverage-ratchet.mjs ... | tee -a`）にも存在するため、是正は backend cmd 単体ではなく workflow 横断で行う必要がある。③evidence の ci.yml:200 は実測 :201（:200 は `if [ -f coverage-summary.txt ]; then`）。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — coverage-ratchet は CI tooling。runtime safety ではない。workflow exit-code 契約。
 #### CMD-04: pet 死亡/復活の cross-domain write が composition root で map[string]any 経由に降格している — MEDIUM
 - 区分: WIP-adjacent（清算後に再検証）
 - 規約: `backend/CODING_RULES.md:35` 「- cross-domain呼び出しはbusiness intentを表すconsumer側の最小interfaceと型安全なDIを基本とする。owner外へ`map[string]any`等の任意field更新APIを公開せず、複数domainにまたがるwriteはownerとtransaction境界を明示する。」
@@ -1083,6 +1181,7 @@
 - 検証時の補正: evidence の :387 は updatePetFieldsWithDB であり、本文が指す updateLegacyLifecycleFieldsWithDB は :347。また map[string]any 汎用 API が渡っているのは composition root（cmd/api）に対してのみで、lstep 本体には型付き PetLifecycleWriter しか渡っていない。したがって規約 :35 のうち抵触するのは「owner外へ map[string]any 等の任意field更新APIを公開せず」の中核ではなく、前段の「型安全なDIを基本とする」からの逸脱＋業務ルール複製（DRY）として記述するのが正確。backend/internal/pet/repository.go は並行 writer 保護対象のため**清算後に再検証**すること。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **REFRAMED** — typed LifecycleWriter 自体は意図的 narrowing。欠陥は cutover 未完の dual map path 債務。
 #### CMD-05: /uploads の StaticFS が無条件・未認証で登録され非 release mode では PHI を配信する — MEDIUM
 - 区分: 新規
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:134` 「- public route と authenticated/authorized route の境界を route 登録時に明示する。」
@@ -1091,6 +1190,7 @@
 - 修正: StaticFS の登録を cfg.StorageType != "s3" のときだけに限定し、公開 route であることを base_routes.go に明記する。恒久策としては署名付き URL または認証済み配信 handler 経由に寄せる。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **DOWNGRADED** → severity **LOW** — release は STORAGE_TYPE=s3 強制。local StaticFS は dev 露出。prod PHI StaticFS ではない。
 #### CMD-06: csv-import-failure-rehearsal が error chain を破棄し原因を復元不能にしている — MEDIUM
 - 区分: 新規
 - 規約: `.claude/refs/error-handling.md:17` 「- 文脈を追加する場合は `fmt.Errorf("...: %w", err)` を使う。」
@@ -1100,6 +1200,7 @@
 - 検証時の補正: ①「rehearsal だけが逆になっている」は不正確。同ファイル :176 は `fmt.Errorf("synthetic G4 rehearsal failed: %w", err)` で domain error を正しく wrap している。実際のパターンは「domain error は wrap、infra error（timezone / openTarget / Ping / encode / pgxpool.ParseConfig）は chain 破棄」であり、この記述の方が欠陥として正確かつ強い。②「DB 到達不能なのか TLS 設定不正なのか receipt 書込失敗なのかが stderr の 1 行から判別できず」は誤り。固定文字列は段階ごとに異なる（"open disposable target database" / "ping disposable target database" / "write aggregate execution receipt"）ため**どの段階で落ちたかは判別可能**であり、失われるのは根本原因（driver error・OS error・DNS/認証失敗の別）のみ。③proposed_fix の「receipt に機微値が乗らないことは validateDisposableTarget(:276-293) で担保済み」は非論理。同関数は host=="db"・sslmode=="disable"・DB名の disposable パターン・確認文字列を検証するだけで error chain の内容には一切関与しない。%w 化の妥当性自体はこの誤った根拠に依存しない。
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — csv-import-failure-rehearsal が %w 欠落。error-handling.md:17。
 #### CMD-07: lstep-migrate の進捗台帳書込失敗が warn ログのみで呼び出し元へ返らない — MEDIUM
 - 区分: 新規 ／ 横断パターン: X-04
 - 規約: `.claude/refs/error-handling.md:9` 「- error を無視しない。処理できる境界まで返すか、明示的に回復する。」
@@ -1111,6 +1212,7 @@
 ---
 
 - 再実測(2026-07-28): **位置照合OK** — 対象 `file:line` は現 HEAD で全件現存（機械照合）。内容の再審査は未実施（Tier 3 契約）。
+- round3-review(2026-07-28): **UPHELD** — lstep-migrate 進捗台帳失敗が warn のみ。error-handling.md:9。
 ## 既知として扱う項目（本書では詳細を再記述しない）
 
 上記一覧のうち「区分: 既知」の 6 件は、正本が別文書にある。本書の記述は**面の追加証跡**であり、新規起票してはならない。
@@ -1717,4 +1819,92 @@
 1. G2P-01 の count→delete TOCTOU は工学的に妥当だが CODING_RULES:38 字面外。規約疑義 #27 の成文化後に再起票可。
 2. G2C-03 / G2B-01 系 best-effort を CODING_RULES:36 の「補償必須」に照らした製品契約の明文化。
 3. AUS-04（shift_template CountUsage）は PO ではない compatibility stub — 既存 AUS-04 のまま。
+
+---
+
+## round 3（2026-07-28）— round 1 の 105 所見へ敵対的反証
+
+### 測定基準
+- **HEAD**: `2a76890801a44e3e99bcc8f6362c8cbf741e73ab`（Phase 0 `git rev-parse HEAD`）
+- **working tree (backend/)**: clean at Phase 0（`git status --porcelain -- backend/` empty）
+- **対象**: round 1 由来 105 件のみ（G2* 36 件は `552550403` 反証済み・再判定しない）
+- **方法**: 並列 subagent 10 本（R1-crit / R1-mr / R1-lstep / R1-poc-rsv / R1-med-a/b/c / R1-low / R1-rule / R1-decision）→ 主エージェント join → 単独 writer
+
+### 判定サマリー（母数 105 / 実施 105）
+
+| 判定 | 全体 | Tier A (CRIT+HIGH 35) | Tier B (MED+LOW 70) |
+|---|---:|---:|---:|
+| UPHELD | 72 | 27 | 45 |
+| WITHDRAWN | 8 | 2 | 6 |
+| DOWNGRADED | 8 | 2 | 6 |
+| REFRAMED | 17 | 4 | 13 |
+
+### WITHDRAWN（8）
+| ID | 一行理由 |
+|---|---|
+| AUS-06 | 800 行上限は ECC soft style。Go/Gin guidelines はファイルサイズを公式要件としない（:227）。強制 ADR なし。 |
+| CMD-01 | ALREADY-FIXED。`backend/cmd/stage-import` は HEAD から消失（BUG-430 退役）。破壊的 unscoped DELETE の live path 無し。 |
+| INF-01 | ALREADY-FIXED。`httpapi/response.go:90-107` が未知 PgError を 500 に落とし、`classifyPgError` は allowlist のみ known=true（BUG-2026-07-27-01）。欠陥パスは HEAD  |
+| LSA-16 | json.Marshal 失敗は当該引数型では構造的に到達不能。 |
+| LSB-05 | LSA-08 と同一疎通 raw error 面の重複（X-08 も除外済み）。 |
+| MDL-02 | testdb TRUNCATE の error 破棄は test harness 品質。product MEDIUM として不成立。 |
+| MDL-04 | LSA-13 と同一 trigger_type 欠陥の重複（X-02 も MDL-04 除外済み）。 |
+| TRM-10 | export stutter は style preference。欠陥扱いは過剰。 |
+
+### DOWNGRADED（8）
+| ID | 新 severity | 一行理由 |
+|---|---|---|
+| CMD-02 | LOW | Go router は未認証だが production は Worker edge 隔離前提。defense-in-depth/文書化ギャップ。 |
+| CMD-03 | LOW | coverage-ratchet は CI tooling。runtime safety ではない。workflow exit-code 契約。 |
+| CMD-05 | LOW | release は STORAGE_TYPE=s3 強制。local StaticFS は dev 露出。prod PHI StaticFS ではない。 |
+| INF-04 | LOW | message 文字列比較は error-handling.md:18 違反だがメンテ脆弱性中心。 |
+| LSA-07 | MEDIUM | LINE user id の Info ログは CODING_RULES.md:68 違反だが HIGH の秘密流出級ではない。 |
+| LSA-12 | LOW | status 更新失敗は観測歪み。タグ失敗自体は batch Failed に載る。翌日抑止主張は過大。 |
+| MRB-02 | MEDIUM | LockByIDForUpdate が ambient-tx ガード欠落は実在（examination 対比）だが production 呼び出しは常に WithTx 内。潜在 API 契約穴。 |
+| POC-11 | LOW | validator 複製は将来 drift リスク。現状 accept set は同等。 |
+
+### REFRAMED（17）
+| ID | 一行理由 |
+|---|---|
+| AUS-09 | 二重 response パターンは防御的だが Authenticate 後は実質到達不能。 |
+| BIL-01 | 内容は成立するが invariants:37 単独の CRITICAL 一本化は過剰。A) 締め後総額書換の post-close 権限・理由・同一tx監査欠落（CRITICAL・invariants:37 + cash-register #115）と B) Create/Upd |
+| CMD-04 | typed LifecycleWriter 自体は意図的 narrowing。欠陥は cutover 未完の dual map path 債務。 |
+| INF-06 | MarshalJSON の omit は意図的 best-effort。残るのは observability のみ。project quality policy。 |
+| LSA-02 | 実害は成立するが CODING_RULES.md:42（status transition CAS）適用は拡張解釈。正本は LSB-01（business-evidence fail-open）。修正は LSB-01 に畳む。 |
+| LSA-04 | global master 無 clinic_id は設計判断（boundary-map）。欠陥は hospital-settings RBAC で全院共有 master を mutate できる認可境界不一致。 |
+| MDL-06 | 既知 TASK-445 / DEC-28。新規ではなく既知ポインタ。 |
+| MRA-04 | package comment の誤 package 名は GoDoc ノイズのみ。runtime 影響ゼロ。 |
+| MRB-03 | 未 scope Preload は isolation ギャップだが BUG-437 / SEC-SWEEP-02 既知面。新規 HIGH ではなく既知ポインタ。区分: 既知。 |
+| MRC-08 | DTO 無検証は guidelines:151 で成立。ただし「信頼境界敗北」ではなく境界 validation 不足（lab 参照値は import 設計上 client 由来）。 |
+| MRC-12 | 既知 phase2.html:195 / X-06。新規 MEDIUM ではなく既知ポインタ。 |
+| POC-01 | 二重 route は意図的。問題は default 権限と FE が閉じる path の契約不一致であり、権限 OR 昇格ではない。 |
+| POC-09 | ClinicScope on INSERT は no-op だが ClinicID は arg から設定され isolation は成立。dead scope。 |
+| POC-16 | parseHHMM 複製。CODING_RULES.md:40（facade）は適用外。coding-style:26 の DRY メモ。 |
+| RSV-08 | 既知 SEC-SWEEP-02 孫 correlation 面。独立 NEW ではない。 |
+| TRM-08 | 既知 SEC-SWEEP-02 / DEC-23。parent JOIN は部分修正済み。 |
+| TRM-09 | WIP-adjacent / dbortx inventory。現呼び出しに ambient tx 無し。 |
+
+### 規約引用の適用性（母数 105 / 実施 105）
+- APPLIES 81 / PARTIAL 15 / DOES_NOT_APPLY 9 / MISSING_CITE 0
+- **LINE_DRIFT 是正**: `go-gin-backend-guidelines.md:179`→`:180`（INF-02, POC-12）; `:166`→`:167`（MRB-07; INF-01 は WITHDRAWN）
+- **適用差し替え**: LSB-01（CLAUDE.md:25 → migration opt-out 契約）; RSV-02（CODING_RULES:38 → :42）; POC-14（guidelines:151 → coding-style:26）; POC-16（CODING_RULES:40 → coding-style:26）; MRC-07（invariants:31 → CODING_RULES:38）
+
+### 決裁済み設計判断の走査
+- grep non-test ヒット: **42**（`PO判断|当面実装しない|意図的に|BUG-415|BUG-430|intentionally|Intentional`）
+- 所見 対象 との file 重なり: **11** findings / **9** decision files
+- **決裁を欠陥扱いして WITHDRAWN にした件数: 0**
+- 特記: inquiry_answers PO判断 / BUG-415 Status 省略 / inventory SD-4 / Method PO判断B は所見と衝突せず維持
+- CMD-04 のみ REFRAMED（意図的 temporary dual path の cutover 債務）
+
+### サマリー表・横断パターン表への反映
+- CRITICAL open: CMD-01 **WITHDRAWN** → open CRITICAL は BIL-01（REFRAMED 分割後も post-close 迂回は open）の **1**
+- HIGH: INF-01 WITHDRAWN; MRB-02/LSA-07 DOWNGRADED; LSA-02→LSB-01 畳み込み; MRB-03 既知 REFRAME
+- MEDIUM: AUS-06/MDL-02/MDL-04 WITHDRAWN; INF-04/LSA-12/POC-11/CMD-02/03/05 DOWNGRADED
+- LOW: LSA-16/LSB-05/TRM-10 WITHDRAWN; 複数 REFRAME を既知/WIP ポインタ化
+- X-08 から LSB-05 除去（WITHDRAWN 重複）; X-02 から MDL-04 除去（WITHDRAWN 重複 LSA-13）
+
+### New Work Surfaced（scope 外・新規所見として追加しない）
+- billing-items の status guard と post-close audit は別命題（BIL-01 REFRAME 分割）
+- L-step write ops が policy stub の間、LSA-11/LSA-15 の外部影響はミュート（制御フロー欠陥は残る）
+- AUS-06 800 行ルールを backend に ADR で強制するかの規約側議論
 
