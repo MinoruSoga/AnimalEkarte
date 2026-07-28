@@ -3,6 +3,7 @@ package lstep
 import (
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -66,6 +67,24 @@ func newOwnerAggregationQuery(values url.Values) (ownerAggregationQuery, error) 
 	if err != nil {
 		return ownerAggregationQuery{}, err
 	}
+	from, err := parseOwnerAggregationDate(values.Get("from"), "from")
+	if err != nil {
+		return ownerAggregationQuery{}, err
+	}
+	to, err := parseOwnerAggregationDate(values.Get("to"), "to")
+	if err != nil {
+		return ownerAggregationQuery{}, err
+	}
+	amountBasis, err := parseOwnerAggregationAmountBasis(
+		ownerAggregationQueryDefault(values, "amount_basis", "gross_total_amount"),
+	)
+	if err != nil {
+		return ownerAggregationQuery{}, err
+	}
+	periodPreset, err := parseOwnerAggregationPeriodPreset(values.Get("period_preset"))
+	if err != nil {
+		return ownerAggregationQuery{}, err
+	}
 
 	return ownerAggregationQuery{
 		Sort:            resolveAggregationSort(values.Get("sort")),
@@ -76,12 +95,12 @@ func newOwnerAggregationQuery(values url.Values) (ownerAggregationQuery, error) 
 		Page:            page,
 		PerPage:         perPage,
 		Year:            year,
-		From:            optionalStringQueryFilter(values.Get("from")),
-		To:              optionalStringQueryFilter(values.Get("to")),
-		AmountBasis:     ownerAggregationQueryDefault(values, "amount_basis", "gross_total_amount"),
+		From:            from,
+		To:              to,
+		AmountBasis:     amountBasis,
 		IncludeZero:     values.Get("include_zero") == "true",
 		Search:          values.Get("search"),
-		PeriodPreset:    values.Get("period_preset"),
+		PeriodPreset:    periodPreset,
 		MaxVisitCount:   maxVisitCount,
 		LastVisitBucket: values.Get("last_visit_bucket"),
 		IncludeNoVisit:  values.Get("include_no_visit") == "true",
@@ -181,4 +200,33 @@ func optionalStringQueryFilter(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+// parseOwnerAggregationDate accepts empty or YYYY-MM-DD (G2A-05). Invalid → 400.
+func parseOwnerAggregationDate(value, field string) (*string, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if _, err := time.ParseInLocation(time.DateOnly, value, time.Local); err != nil {
+		return nil, apperrors.WrapInvalidInput(field + " はYYYY-MM-DD形式で指定してください")
+	}
+	return &value, nil
+}
+
+func parseOwnerAggregationAmountBasis(value string) (string, error) {
+	switch value {
+	case "gross_total_amount", "paid_amount", "net_paid_amount":
+		return value, nil
+	default:
+		return "", apperrors.WrapInvalidInput("amount_basis の値が不正です")
+	}
+}
+
+func parseOwnerAggregationPeriodPreset(value string) (string, error) {
+	switch value {
+	case "", "last_3_months", "last_6_months", "last_12_months", "calendar_year":
+		return value, nil
+	default:
+		return "", apperrors.WrapInvalidInput("period_preset の値が不正です")
+	}
 }

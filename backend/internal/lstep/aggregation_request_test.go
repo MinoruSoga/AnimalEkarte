@@ -216,6 +216,17 @@ func TestNewOwnerAggregationQuery_Aliases(t *testing.T) {
 }
 
 func TestNewOwnerAggregationQuery_Invalid(t *testing.T) {
+	testAggregationRequestInvalidCases(t)
+}
+
+// TestAggregationRequest_InvalidBoundaryValues is the unit-verify entrypoint for G2A-05
+// (`go test -run AggregationRequest`).
+func TestAggregationRequest_InvalidBoundaryValues(t *testing.T) {
+	testAggregationRequestInvalidCases(t)
+}
+
+func testAggregationRequestInvalidCases(t *testing.T) {
+	t.Helper()
 	cases := []struct {
 		name   string
 		values url.Values
@@ -231,6 +242,10 @@ func TestNewOwnerAggregationQuery_Invalid(t *testing.T) {
 		{"year=1899", url.Values{"year": {"1899"}}},
 		{"year=2101", url.Values{"year": {"2101"}}},
 		{"year=abc", url.Values{"year": {"abc"}}},
+		{"from=bad", url.Values{"from": {"2026/01/01"}}},
+		{"to=bad", url.Values{"to": {"not-a-date"}}},
+		{"amount_basis=bad", url.Values{"amount_basis": {"unknown"}}},
+		{"period_preset=bad", url.Values{"period_preset": {"last_year"}}},
 	}
 
 	for _, tc := range cases {
