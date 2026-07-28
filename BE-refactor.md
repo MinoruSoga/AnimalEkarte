@@ -2829,7 +2829,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/... ./internal/pet/... ./internal/sharedkernel/... -run 'Valid|Enum|Pet'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: b60138112f5b22e63cecb1a3ae76152d67873acc
 
 ##### BE-X10-AUTH-RESPONSE-01
 
