@@ -33,6 +33,7 @@ package lintscan
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -58,9 +59,14 @@ var migrationCascadeAllowlist = map[string]int{
 	"001_init.sql": 54,
 }
 
-// countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
+// onDeleteCascadeRE matches PostgreSQL-equivalent ON DELETE CASCADE spellings:
+// case folding, flexible whitespace (incl. newlines), without requiring exact
+// "ON DELETE CASCADE" literal. MDL-05: exact Count was false-negative for variants.
+var onDeleteCascadeRE = regexp.MustCompile(`(?is)\bon\s+delete\s+cascade\b`)
+
+// countCascadeOccurrences は SQL テキスト中の ON DELETE CASCADE 出現数を数える純粋関数。
 func countCascadeOccurrences(sql string) int {
-	return strings.Count(sql, "ON DELETE CASCADE")
+	return len(onDeleteCascadeRE.FindAllStringIndex(sql, -1))
 }
 
 // reconcileMigrationCascade は found（実測 ファイル名→出現数）と allowlist を突合する純粋関数。
@@ -151,6 +157,20 @@ func TestReconcileMigrationCascade_Analyzer(t *testing.T) {
 		sql := "a REFERENCES x(id) ON DELETE CASCADE,\nb REFERENCES y(id) ON DELETE CASCADE,\nc REFERENCES z(id) ON DELETE SET NULL"
 		if got := countCascadeOccurrences(sql); got != 2 {
 			t.Fatalf("got %d, want 2", got)
+		}
+	})
+
+	t.Run("detects case and whitespace variants (MDL-05)", func(t *testing.T) {
+		variants := []string{
+			"on delete cascade",
+			"ON DELETE  CASCADE",
+			"ON DELETE\n    CASCADE",
+			"On Delete Cascade",
+		}
+		for _, sql := range variants {
+			if got := countCascadeOccurrences(sql); got != 1 {
+				t.Fatalf("sql %q: got %d, want 1", sql, got)
+			}
 		}
 	})
 
