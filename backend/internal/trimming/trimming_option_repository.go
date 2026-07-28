@@ -33,7 +33,7 @@ func NewTrimmingOptionRepository(db *gorm.DB) TrimmingOptionRepository {
 
 func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	options := make([]model.TrimmingOption, 0)
-	if err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_option", "")
 	}
 	return options, nil
@@ -52,7 +52,7 @@ func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id ui
 }
 
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
 	wantActive := option.IsActive
 	wantCombinable := option.IsCombinable
@@ -75,7 +75,7 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 }
 
 func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)

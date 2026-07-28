@@ -33,7 +33,7 @@ func NewTrimmingCourseRepository(db *gorm.DB) TrimmingCourseRepository {
 
 func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	courses := make([]model.TrimmingCourse, 0)
-	if err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return courses, nil

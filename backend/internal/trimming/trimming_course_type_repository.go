@@ -33,7 +33,7 @@ func NewTrimmingCourseTypeRepository(db *gorm.DB) TrimmingCourseTypeRepository {
 
 func (r *trimmingCourseTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error) {
 	var ms []model.TrimmingCourseType
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&ms).Error
@@ -59,14 +59,14 @@ func (r *trimmingCourseTypeRepository) FindByID(ctx context.Context, clinicID, i
 }
 
 func (r *trimmingCourseTypeRepository) Create(ctx context.Context, m *model.TrimmingCourseType) (*model.TrimmingCourseType, error) {
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(m).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_course_type", "")
 	}
 	return m, nil
 }
 
 func (r *trimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
