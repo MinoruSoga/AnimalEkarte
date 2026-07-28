@@ -19,9 +19,10 @@ import (
 
 // TreatmentSortUpdate は並び順一括更新に使う軽量DTO
 type TreatmentSortUpdate struct {
-	ID        uint64
-	ClinicID  uint64
-	SortOrder int
+	ID              uint64
+	ClinicID        uint64
+	MedicalRecordID uint64 // service が施錠した親カルテに束縛する（MRD-01）
+	SortOrder       int
 }
 
 // TreatmentRepository は治療項目の永続化インターフェース
@@ -257,11 +258,18 @@ func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) e
 func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error {
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
+			// MRD-01: RowsAffected 確認 + medical_record_id を service 施錠済み親に束縛。
 			result := tx.Model(&model.Treatment{}).
-				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", u.ID, u.ClinicID).
+				Where(
+					"treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id = ? AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)",
+					u.ID, u.MedicalRecordID, u.ClinicID,
+				).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", u.ID))
 			}
 		}
 		return nil

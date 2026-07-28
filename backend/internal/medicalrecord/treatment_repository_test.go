@@ -412,8 +412,8 @@ func TestTreatmentRepository_BulkUpdateSortOrder(t *testing.T) {
 
 	t.Run("updates sort_order for matching clinic", func(t *testing.T) {
 		updates := []TreatmentSortUpdate{
-			{ID: treatments[0].ID, ClinicID: clinicA, SortOrder: 9},
-			{ID: treatments[1].ID, ClinicID: clinicA, SortOrder: 8},
+			{ID: treatments[0].ID, ClinicID: clinicA, MedicalRecordID: mr.ID, SortOrder: 9},
+			{ID: treatments[1].ID, ClinicID: clinicA, MedicalRecordID: mr.ID, SortOrder: 8},
 		}
 		require.NoError(t, repo.BulkUpdateSortOrder(ctx, updates))
 
@@ -426,15 +426,27 @@ func TestTreatmentRepository_BulkUpdateSortOrder(t *testing.T) {
 		assert.Equal(t, 8, got1.SortOrder)
 	})
 
-	t.Run("wrong clinic_id silently skips the update without error", func(t *testing.T) {
+	// MRD-01: 別 clinic / 存在しない ID は NotFound（silent skip 禁止）
+	t.Run("wrong clinic_id returns NotFound", func(t *testing.T) {
 		updates := []TreatmentSortUpdate{
-			{ID: treatments[0].ID, ClinicID: clinicB, SortOrder: 100},
+			{ID: treatments[0].ID, ClinicID: clinicB, MedicalRecordID: mr.ID, SortOrder: 100},
 		}
-		require.NoError(t, repo.BulkUpdateSortOrder(ctx, updates))
+		err := repo.BulkUpdateSortOrder(ctx, updates)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "got %v", err)
 
 		got, err := repo.FindByID(ctx, clinicA, treatments[0].ID)
 		require.NoError(t, err)
 		assert.Equal(t, 9, got.SortOrder, "別クリニックからの更新は反映されない")
+	})
+
+	t.Run("wrong medical_record_id returns NotFound", func(t *testing.T) {
+		updates := []TreatmentSortUpdate{
+			{ID: treatments[0].ID, ClinicID: clinicA, MedicalRecordID: mr.ID + 999999, SortOrder: 50},
+		}
+		err := repo.BulkUpdateSortOrder(ctx, updates)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "got %v", err)
 	})
 }
 

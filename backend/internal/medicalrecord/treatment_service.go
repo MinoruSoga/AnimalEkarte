@@ -516,9 +516,10 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	updates := make([]TreatmentSortUpdate, 0, len(input.Treatments))
 	for _, item := range input.Treatments {
 		updates = append(updates, TreatmentSortUpdate{
-			ID:        item.ID,
-			ClinicID:  clinicID,
-			SortOrder: item.SortOrder,
+			ID:              item.ID,
+			ClinicID:        clinicID,
+			MedicalRecordID: medicalRecordID,
+			SortOrder:       item.SortOrder,
 		})
 	}
 
