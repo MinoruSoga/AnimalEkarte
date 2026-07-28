@@ -2003,6 +2003,14 @@
 | LANE-3 | 18 | `internal/medicalrecord`(15), `internal/lintscan`(2), `internal/inventory`(1) |
 | LANE-4 | 23 | `internal/lstep`(12), `internal/billing`(5), `internal/staff`(3), `internal/owner`(2), `internal/auth`(1) |
 
+#### Wave 0 — 全レーン共通の前提（`U-SCHEMA-BARRIER`）
+
+`U-SCHEMA-BARRIER` は共有 schema を所有する barrier unit であり、**どのレーンにも属さない**。**16 ユニット**（4 レーンに分散）がこれを先行依存に持つ。
+
+- **実行者: LANE-1**。LANE-1 は自レーンのユニットに着手する前に、まずこれを完了させる。
+- **他の 3 レーンは、`U-SCHEMA-BARRIER` を先行に持たないユニットから先に着手してよい。** 依存を持つユニットに到達したら、本書の `- Status:` が `完了` になっていることを確認してから進む。
+- 二重実行を避けるため、LANE-1 以外はこの unit を実行しない。
+
 #### レーン別ユニット一覧（この順に着手する。レーン内の順序は依存を満たす）
 
 **LANE-1** (24 units)
@@ -2023,7 +2031,9 @@
 
 #### レーンをまたぐ先行依存
 
-なし。**全 4 レーンが完全に独立して並行実行できる。**
+なし（84 ユニット間）。**4 レーンは互いの完了を待たずに独立して進行できる。**
+
+ただし上記 Wave 0 の `U-SCHEMA-BARRIER` のみ全レーン共通の前提であり、これに依存する 16 ユニットは LANE-1 による barrier 完了後に着手する。依存を持たないユニットは barrier を待たずに着手してよい。
 
 ### Execution waves and parallel groups
 
