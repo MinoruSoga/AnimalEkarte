@@ -49,7 +49,8 @@ type estimateResponse struct {
 }
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
-	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	// MDL-01: item subtotal is post-discount, matching BillingItem / CalculateTaxAmount base.
+	subtotal := max(int64(float64(item.UnitPrice)*item.Quantity)-item.DiscountAmount, 0)
 	taxAmount := item.CalculateTaxAmount()
 	return estimateItemResponse{
 		ID:                    item.ID,

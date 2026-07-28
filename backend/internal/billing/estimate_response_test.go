@@ -55,6 +55,23 @@ func TestToEstimateItemResponse(t *testing.T) {
 			wantSubtotal:  1100,
 			wantTaxAmount: 100,
 		},
+		{
+			name: "discount reduces item subtotal and tax amount (MDL-01)",
+			item: &model.EstimateItem{
+				ID:             3,
+				EstimateID:     10,
+				Name:           "処置",
+				UnitPrice:      1000,
+				Quantity:       2,
+				TaxType:        model.TaxTypeExcluded,
+				TaxRate:        0.10,
+				DiscountAmount: 500,
+				SortOrder:      3,
+				CreatedAt:      createdAt,
+			},
+			wantSubtotal:  1500,
+			wantTaxAmount: 150,
+		},
 	}
 
 	for _, tt := range tests {

@@ -79,8 +79,9 @@ type EstimateItem struct {
 func (EstimateItem) TableName() string { return "estimate_items" }
 
 // CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+// 課税ベースは BillingItem と同じく max(単価×数量−割引額, 0)（#85 / MDL-01）。
 func (item *EstimateItem) CalculateTaxAmount() int64 {
-	subtotal := float64(item.UnitPrice) * item.Quantity
+	subtotal := max(float64(item.UnitPrice)*item.Quantity-float64(item.DiscountAmount), 0)
 	switch item.TaxType {
 	case TaxTypeExcluded:
 		return int64(math.Round(subtotal * item.TaxRate))
