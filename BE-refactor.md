@@ -2510,7 +2510,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... ./internal/clinic/... -run 'LstepSettings|ClinicSettings' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (8/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 33f4ee2ee0d70add01fee30fd138ab0bc397c4bb
 
 ##### BE-X06-MEDICAL-ATOMIC-01
 
