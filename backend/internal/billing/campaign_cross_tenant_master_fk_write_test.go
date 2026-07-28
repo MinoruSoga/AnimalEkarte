@@ -27,7 +27,7 @@ func TestCampaignService_Create_RejectsCrossClinicTargetItemFK(t *testing.T) {
 				return m, nil
 			},
 		}
-		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID))
+		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID), noopTransactor{})
 	}
 
 	baseInput := func(itemID uint64) *CreateCampaignInput {
@@ -76,7 +76,7 @@ func TestCampaignService_Update_RejectsCrossClinicTargetItemFK(t *testing.T) {
 				return nil
 			},
 		}
-		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID))
+		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID), noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic target_item_id on update and does not persist", func(t *testing.T) {

@@ -102,6 +102,7 @@ func newBillingReferenceServices(
 		campaigns: billing.NewCampaignService(
 			r.campaigns,
 			d.MerchandiseItems,
+			d.Transactor,
 		),
 		paymentMethods: billing.NewPaymentMethodMasterService(r.paymentMethods),
 		accountingReports: billing.NewAccountingReportService(

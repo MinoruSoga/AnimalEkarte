@@ -155,6 +155,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
+	// BE-X06-BIL-CAMPAIGN-01 / BIL-03: Update+ReplaceTargets+FindByID share ambient tx.
+	// Runtime: campaign_repository_tx_atomicity_test.go
+	"billing/campaign_repository.go|campaignRepository.Create":  {},
+	"billing/campaign_repository.go|campaignRepository.Delete":  {},
+	"billing/campaign_repository.go|campaignRepository.FindAll": {},
+	"billing/campaign_repository.go|campaignRepository.FindByID": {},
+	"billing/campaign_repository.go|campaignRepository.Update":  {},
 	// daily_record: parent/clinic relation validation and audit-coupled writes must
 	// remain on the service-owned ambient transaction.
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateCareLog":                  {},
@@ -501,6 +508,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.CountUsageByInventoryID":                      {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.UpdateNameByMedicineCategory":                 {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
+	// BUG-465 landed DBOrTx on merchandise Create/Update without allowlist (main red).
+	// Runtime: merchandise_item_repository_test.go AmbientTxRollback cases.
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Create": {},
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Update": {},
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic repository tx conversion.
 	// Permission-group ownership moved to internal/auth in BE9 auth Phase 1.
 	"clinic/clinic_repository.go|clinicRepository.Create":                            {},

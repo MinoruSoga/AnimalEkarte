@@ -39,7 +39,7 @@ func NewCampaignRepository(db *gorm.DB) CampaignRepository {
 
 func (r *campaignRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
 	var ms []model.Campaign
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("TargetCategories").
 		Preload("TargetItems").
@@ -53,7 +53,7 @@ func (r *campaignRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 
 func (r *campaignRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error) {
 	var m model.Campaign
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("TargetCategories").
 		Preload("TargetItems").
@@ -69,11 +69,12 @@ func (r *campaignRepository) Create(ctx context.Context, m *model.Campaign) (*mo
 	// Capture intent before Create: gorm default:true omits zero bools from
 	// INSERT and may write the DB default back into the struct (BUG-455-S3).
 	wantActive := m.IsActive
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	if err := db.Create(m).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "campaign", "")
 	}
 	if !wantActive {
-		if err := r.db.WithContext(ctx).Model(m).Update("is_active", false).Error; err != nil {
+		if err := db.Model(m).Update("is_active", false).Error; err != nil {
 			return nil, apperrors.FromGORM(err, "campaign", fmt.Sprintf("%d", m.ID))
 		}
 		m.IsActive = false
@@ -82,7 +83,7 @@ func (r *campaignRepository) Create(ctx context.Context, m *model.Campaign) (*mo
 }
 
 func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Campaign{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
@@ -124,7 +125,7 @@ func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint
 }
 
 func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.Campaign{})

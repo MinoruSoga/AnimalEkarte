@@ -177,11 +177,13 @@ type CampaignService interface {
 type campaignService struct {
 	repo                CampaignRepository
 	merchandiseItemRepo merchandiseItemFinder
+	transactor          Transactor
 }
 
-// NewCampaignService は CampaignService を初期化して返す
-func NewCampaignService(repo CampaignRepository, merchandiseItemRepo merchandiseItemFinder) CampaignService {
-	return &campaignService{repo: repo, merchandiseItemRepo: merchandiseItemRepo}
+// NewCampaignService は CampaignService を初期化して返す。
+// transactor は Update の本体更新と対象差し替えを同一 transaction に載せるために必須（BIL-03 / X-06）。
+func NewCampaignService(repo CampaignRepository, merchandiseItemRepo merchandiseItemFinder, transactor Transactor) CampaignService {
+	return &campaignService{repo: repo, merchandiseItemRepo: merchandiseItemRepo, transactor: transactor}
 }
 
 // validateOwnedMerchandiseItemIDs は request 由来の TargetItemIDs (clinic-scoped マスタFK) の
@@ -283,23 +285,32 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 			return nil, err
 		}
 	}
-	if len(fields) > 0 {
-		if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-			slog.ErrorContext(ctx, "failed to update campaign", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, apperrors.Wrap(err, "failed to update campaign")
+
+	var updated *model.Campaign
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if len(fields) > 0 {
+			if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+				slog.ErrorContext(txCtx, "failed to update campaign", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to update campaign")
+			}
 		}
-	}
-	if hasTargets {
-		if err := s.repo.ReplaceTargets(ctx, id, cats, itemIDs); err != nil {
-			slog.ErrorContext(ctx, "failed to replace campaign targets", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, apperrors.Wrap(err, "failed to replace campaign targets")
+		if hasTargets {
+			if err := s.repo.ReplaceTargets(txCtx, id, cats, itemIDs); err != nil {
+				slog.ErrorContext(txCtx, "failed to replace campaign targets", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to replace campaign targets")
+			}
 		}
-	}
-	slog.InfoContext(ctx, "campaign updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated campaign", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to get updated campaign")
+		// Reload inside the same tx so a post-commit Find failure cannot invert durable success (X-01).
+		var err error
+		updated, err = s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get updated campaign", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to get updated campaign")
+		}
+		slog.InfoContext(txCtx, "campaign updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update campaign in transaction")
 	}
 	return updated, nil
 }
