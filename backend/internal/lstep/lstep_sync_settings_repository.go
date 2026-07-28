@@ -28,7 +28,7 @@ func NewLstepSyncSettingsRepository(db *gorm.DB) LstepSyncSettingsRepository {
 
 func (r *lstepSyncSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LstepSettings, error) {
 	var s model.LstepSettings
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ?", clinicID).
 		First(&s).Error
 	if err != nil {
@@ -38,7 +38,7 @@ func (r *lstepSyncSettingsRepository) FindByClinicID(ctx context.Context, clinic
 }
 
 func (r *lstepSyncSettingsRepository) Upsert(ctx context.Context, settings *model.LstepSettings) (*model.LstepSettings, error) {
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(settings.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
@@ -48,5 +48,6 @@ func (r *lstepSyncSettingsRepository) Upsert(ctx context.Context, settings *mode
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lstep_settings", fmt.Sprintf("clinic_id=%d", settings.ClinicID))
 	}
-	return r.FindByClinicID(ctx, settings.ClinicID)
+	// G2B-02 / X-01: do not invert durable Create success with a separate Find failure.
+	return settings, nil
 }

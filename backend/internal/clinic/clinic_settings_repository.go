@@ -17,7 +17,7 @@ type clinicSettingsRepository struct{ db *gorm.DB }
 
 func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&s).Error
+	err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).First(&s).Error
 	if err != nil {
 		wrapped := apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 		if errors.Is(wrapped, apperrors.ErrNotFound) {
@@ -35,7 +35,7 @@ func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID 
 }
 
 func (r *clinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
@@ -62,7 +62,7 @@ func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicI
 		ClosingSundayEnd:    "17:30",
 		CPMVersion:          version,
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
@@ -86,7 +86,7 @@ func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, 
 		DormantPrevention240Days: thresholds.Stage240,
 		DormantPrevention365Days: thresholds.Stage365,
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
@@ -116,7 +116,7 @@ func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, cl
 		CPMV2FamilyThreshold: thresholds.Family,
 		CPMV2NoahThreshold:   thresholds.Noah,
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
@@ -156,7 +156,7 @@ func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, cl
 		CPMV1GrowingMaxVisits: thresholds.GrowingMaxVisits,
 		CPMV1LTVBreakLow:      thresholds.LTVBreakLow,
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
@@ -193,7 +193,7 @@ func (r *clinicSettingsRepository) UpdateHealthPreventionThresholds(ctx context.
 		HealthPreventionLookbackDays: thresholds.LookbackDays,
 		VaccineDeadlineDays:          thresholds.VaccineDeadline,
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},

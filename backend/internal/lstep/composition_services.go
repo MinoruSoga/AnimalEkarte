@@ -28,7 +28,7 @@ type applicationGraph struct {
 
 func newApplicationCore(deps *Dependencies, repos *applicationRepositories) applicationCore {
 	settings := NewLstepSettingsService(
-		repos.settings, repos.syncSettings, deps.Cipher, deps.Audit, deps.ClinicSettings,
+		repos.settings, repos.syncSettings, deps.Cipher, deps.Audit, deps.ClinicSettings, deps.Transactor,
 	)
 	tagSync := NewLstepTagSyncService(
 		settings, deps.Owners, deps.Vaccinations, deps.MedicalRecords, deps.Accounting,

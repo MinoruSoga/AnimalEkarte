@@ -31,7 +31,7 @@ func NewLstepSettingsRepository(db *gorm.DB) LstepSettingsRepository {
 
 func (r *lstepSettingsRepository) FindByClinicAndService(ctx context.Context, clinicID uint64, service string) ([]*model.ClinicIntegration, error) {
 	var records []*model.ClinicIntegration
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("service = ?", service).
 		Find(&records).Error
@@ -42,7 +42,7 @@ func (r *lstepSettingsRepository) FindByClinicAndService(ctx context.Context, cl
 }
 
 func (r *lstepSettingsRepository) Upsert(ctx context.Context, integration *model.ClinicIntegration) error {
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(integration.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "service"}, {Name: "key_name"}},
@@ -56,7 +56,7 @@ func (r *lstepSettingsRepository) Upsert(ctx context.Context, integration *model
 }
 
 func (r *lstepSettingsRepository) DeleteByClinicAndService(ctx context.Context, clinicID uint64, service string) error {
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("service = ?", service).
 		Delete(&model.ClinicIntegration{}).Error

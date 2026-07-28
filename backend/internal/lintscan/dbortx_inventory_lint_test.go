@@ -162,6 +162,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.FindAll": {},
 	"billing/campaign_repository.go|campaignRepository.FindByID": {},
 	"billing/campaign_repository.go|campaignRepository.Update":  {},
+	// BE-X06-LSTEP-SETTINGS-01 / LSA-06: settings write graph joins ambient tx.
+	// Runtime: lstep_settings_tx_atomicity_test.go
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService": {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                   {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService": {},
+	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID": {},
+	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.Upsert":         {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.FindByClinicID":                    {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.Save":                              {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMVersion":                  {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateDormantThresholds":           {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV2Thresholds":             {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV1Thresholds":             {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateHealthPreventionThresholds":  {},
+
 	// daily_record: parent/clinic relation validation and audit-coupled writes must
 	// remain on the service-owned ambient transaction.
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateCareLog":                  {},
@@ -225,6 +240,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID":     {},
 	"medicalrecord/examination_repository.go|examinationRepository.Update":                   {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Create": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Update": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Reorder": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountUsageByExamTypeID": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountChildrenByParentID": {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.AnimalSpeciesExists":           {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountExamResultsByFieldID":     {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountReferenceRangesByFieldID": {},

@@ -153,14 +153,30 @@ type lstepSettingsService struct {
 	clinicSettingsRepo lstepClinicSettingsRepo
 	cipher             *crypto.AESGCMCipher
 	auditSvc           lstepAuditLogger
+	transactor         Transactor
 }
 
 // NewLstepSettingsService は LstepSettingsService を初期化して返す。
 // cipher が nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // auditSvc が nil の場合は監査ログをスキップする（CLI ツール等での使用を想定）。
 // clinicSettingsRepo が nil の場合は clinic_settings の読み書きをスキップする。
-func NewLstepSettingsService(repo LstepSettingsRepository, syncSettingsRepo LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc lstepAuditLogger, clinicSettingsRepo lstepClinicSettingsRepo) LstepSettingsService {
-	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, clinicSettingsRepo: clinicSettingsRepo, cipher: cipher, auditSvc: auditSvc}
+// optional transactor: production must pass Transactor so UpdateSettings is atomic (LSA-06 / X-06).
+// When omitted, a passthrough is used (test helpers); writes then do not share an ambient tx.
+func NewLstepSettingsService(repo LstepSettingsRepository, syncSettingsRepo LstepSyncSettingsRepository, cipher *crypto.AESGCMCipher, auditSvc lstepAuditLogger, clinicSettingsRepo lstepClinicSettingsRepo, transactor ...Transactor) LstepSettingsService {
+	var tx Transactor
+	if len(transactor) > 0 && transactor[0] != nil {
+		tx = transactor[0]
+	} else {
+		tx = passthroughSettingsTransactor{}
+	}
+	return &lstepSettingsService{repo: repo, syncSettingsRepo: syncSettingsRepo, clinicSettingsRepo: clinicSettingsRepo, cipher: cipher, auditSvc: auditSvc, transactor: tx}
+}
+
+// passthroughSettingsTransactor runs fn without opening a DB transaction (test fallback only).
+type passthroughSettingsTransactor struct{}
+
+func (passthroughSettingsTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
 }
 
 func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
@@ -276,25 +292,39 @@ func applyClinicSettingsToLstepResponse(resp *LstepSettingsResponse, cs *model.C
 }
 
 func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
-	if err := s.updateIntegrationCredentials(ctx, clinicID, input); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update integration credentials")
-	}
-	if input.IsSyncEnabled != nil && s.syncSettingsRepo != nil {
-		if err := s.updateSyncEnabled(ctx, clinicID, *input.IsSyncEnabled); err != nil {
-			return nil, apperrors.Wrap(err, "failed to update sync enabled")
+	// Pure validation before opening a transaction (cpm_version enum etc. live in updateClinicSyncConfig helpers).
+	// Business graph writes (credentials + sync flag + clinic_settings) share one ambient tx (LSA-06 / X-06).
+	var resp *LstepSettingsResponse
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.updateIntegrationCredentials(txCtx, clinicID, input); err != nil {
+			return apperrors.Wrap(err, "failed to update integration credentials")
 		}
-	}
-	if err := s.updateClinicSyncConfig(ctx, clinicID, input); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update clinic sync config")
+		if input.IsSyncEnabled != nil && s.syncSettingsRepo != nil {
+			if err := s.updateSyncEnabled(txCtx, clinicID, *input.IsSyncEnabled); err != nil {
+				return apperrors.Wrap(err, "failed to update sync enabled")
+			}
+		}
+		if err := s.updateClinicSyncConfig(txCtx, clinicID, input); err != nil {
+			return apperrors.Wrap(err, "failed to update clinic sync config")
+		}
+		// Reload inside the same tx so post-commit GetSettings failure cannot invert durable success (X-01).
+		got, err := s.GetSettings(txCtx, clinicID)
+		if err != nil {
+			return err
+		}
+		resp = got
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update lstep settings in transaction")
 	}
 
-	resp, err := s.GetSettings(ctx, clinicID)
-	if err == nil && s.auditSvc != nil {
+	// Audit remains best-effort after durable success (existing contract / tests).
+	if s.auditSvc != nil {
 		if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "update_settings", "clinic", &clinicID); auditErr != nil {
 			slog.WarnContext(ctx, "audit log failed for update lstep settings", "error", auditErr, "clinic_id", clinicID)
 		}
 	}
-	return resp, err
+	return resp, nil
 }
 
 func (s *lstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error {
