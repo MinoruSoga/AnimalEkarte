@@ -46,8 +46,18 @@ func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id u
 }
 
 func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {
-	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+	db := persistence.DBOrTx(ctx, r.db)
+	// Capture intent before Create: gorm default:true omits zero bools from
+	// INSERT and may write the DB default back into the struct (BUG-455-S4).
+	wantActive := item.IsActive
+	if err := db.Create(item).Error; err != nil {
 		return apperrors.FromGORM(err, "merchandise_item", "")
+	}
+	if !wantActive {
+		if err := db.Model(item).Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "merchandise_item", "")
+		}
+		item.IsActive = false
 	}
 	return nil
 }

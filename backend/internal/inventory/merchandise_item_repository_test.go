@@ -106,6 +106,103 @@ func TestMerchandiseItemRepository_Create_FindByID(t *testing.T) {
 	})
 }
 
+// TestMerchandiseItemRepository_Create_IsActiveFalsePersists は BUG-455-S4:
+// gorm:"default:true" 付き bool は Create 時に zero value(false) が INSERT から
+// 省略され DB default true が書き戻されるため、明示 false を補償 UPDATE で永続化する。
+func TestMerchandiseItemRepository_Create_IsActiveFalsePersists(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	item := &model.MerchandiseItem{
+		ClinicID:  clinicID,
+		Name:      "create inactive merchandise",
+		Category:  model.ItemCategoryGoods,
+		UnitPrice: 1000,
+		IsActive:  false,
+	}
+	require.NoError(t, repo.Create(ctx, item))
+	require.NotZero(t, item.ID)
+	assert.False(t, item.IsActive, "in-memory struct must keep false after Create")
+
+	got, err := repo.FindByID(ctx, clinicID, item.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "DB read-back must keep explicit false")
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.MerchandiseItem{}).
+		Select("is_active").
+		Where("id = ?", item.ID).
+		Scan(&rawActive).Error)
+	assert.False(t, rawActive, "raw is_active column must be false")
+}
+
+// TestMerchandiseItemRepository_Create_IsActiveTruePersists は true 指定の回帰防止。
+func TestMerchandiseItemRepository_Create_IsActiveTruePersists(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	active := &model.MerchandiseItem{
+		ClinicID:  clinicID,
+		Name:      "create active true merchandise",
+		Category:  model.ItemCategoryGoods,
+		UnitPrice: 1000,
+		IsActive:  true,
+	}
+	require.NoError(t, repo.Create(ctx, active))
+	assert.True(t, active.IsActive)
+
+	gotActive, err := repo.FindByID(ctx, clinicID, active.ID)
+	require.NoError(t, err)
+	assert.True(t, gotActive.IsActive)
+
+	var rawActive bool
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.MerchandiseItem{}).
+		Select("is_active").
+		Where("id = ?", active.ID).
+		Scan(&rawActive).Error)
+	assert.True(t, rawActive)
+}
+
+// TestMerchandiseItemRepository_Create_IsActiveFalse_AmbientTxRollback は
+// ambient tx 内で IsActive:false 作成後に rollback すると行が残らないことを検証する。
+func TestMerchandiseItemRepository_Create_IsActiveFalse_AmbientTxRollback(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	forcedErr := errors.New("force rollback after inactive merchandise create")
+
+	var createdID uint64
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		item := &model.MerchandiseItem{
+			ClinicID:  clinicID,
+			Name:      "inactive create rollback",
+			Category:  model.ItemCategoryGoods,
+			UnitPrice: 1000,
+			IsActive:  false,
+		}
+		if err := repo.Create(txCtx, item); err != nil {
+			return err
+		}
+		createdID = item.ID
+		assert.False(t, item.IsActive, "same tx must keep false after Create")
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+	require.NotZero(t, createdID)
+
+	_, err = repo.FindByID(ctx, clinicID, createdID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "rolled-back create must not leave a row")
+}
+
 func TestMerchandiseItemRepository_FindAll(t *testing.T) {
 	db := setupMerchandiseItemRepoTestDB(t)
 	repo := NewMerchandiseItemRepository(db)
