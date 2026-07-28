@@ -3409,7 +3409,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "Treatment.*Sort|BulkUpdate"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: e88b28369263e3d57c19b1518f3ad143c7d0038d
 
 ##### SOLO-34
 
