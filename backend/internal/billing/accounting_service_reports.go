@@ -89,20 +89,21 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 			slog.Uint64("billing_id", id),
 			slog.Uint64("clinic_id", clinicID))
 
-		// #118: 監査ログ
-		if s.auditTx != nil {
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-				ClinicID:   &clinicID,
-				ActorID:    actorID,
-				ActorType:  aType,
-				Action:     model.AuditActionBillingCancel,
-				Resource:   "billing",
-				ResourceID: &billingID,
-				OldValue:   map[string]any{"status": string(existing.Status)},
-				NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
-			}); err != nil {
-				return apperrors.Wrap(err, "failed to write billing cancel audit log")
-			}
+		// #118 / BIL-02: cancel audit is fail-closed (missing dependency rejects the write).
+		if s.auditTx == nil {
+			return apperrors.WrapInternalServerError("billing audit dependency is required for billing cancel")
+		}
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  aType,
+			Action:     model.AuditActionBillingCancel,
+			Resource:   "billing",
+			ResourceID: &billingID,
+			OldValue:   map[string]any{"status": string(existing.Status)},
+			NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to write billing cancel audit log")
 		}
 		return nil
 	}); err != nil {

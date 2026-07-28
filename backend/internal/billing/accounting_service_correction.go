@@ -175,8 +175,9 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 // BE-refactor.md R1-2: CorrectCreditPayment の ambient tx に参加する LogEntryTx を使う（fail-closed）。
 // 呼び出し元は返されたエラーで tx をロールバックし、監査失敗時に訂正自体も無効にする。
 func (s *accountingService) logCreditCorrection(ctx context.Context, input *CorrectCreditPaymentInput, before *model.PaymentSplit, oldBillingAmount, newBillingAmount int64, scheduledDate time.Time) error {
+	// BIL-02: missing audit dependency must fail closed (mirror logPostCloseEdit).
 	if s.auditTx == nil {
-		return nil
+		return apperrors.WrapInternalServerError("billing audit dependency is required for credit correction")
 	}
 	actorType := sharedkernel.AuditActorTypeFor(input.StaffID)
 	billingID := input.BillingID

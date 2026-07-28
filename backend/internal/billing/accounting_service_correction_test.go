@@ -45,6 +45,23 @@ func completedCardBilling() *model.Billing {
 	}
 }
 
+// TestAccountingService_Cancel_NilAuditFailsClosed pins BIL-02 for Cancel (owned test file).
+func TestAccountingService_Cancel_NilAuditFailsClosed(t *testing.T) {
+	actorID := uint64(42)
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCancelled}, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, nil /* auditTx */, &mockPaymentMethodMasterRepository{})
+	err := svc.Cancel(context.Background(), 1, 10, &actorID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "billing audit dependency is required")
+}
+
 func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 	staffID := uint64(7)
 
@@ -141,6 +158,27 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 		assert.True(t, ok, "Metadata は map")
 		assert.Equal(t, true, meta["post_close"], "締め済み期間の訂正は post_close=true を記録")
 		assert.Equal(t, "2026-06-30", meta["post_close_date"], "対象締めの識別子として予定日を記録")
+	})
+
+	// BIL-02: auditTx 欠落は成功扱いしない（logPostCloseEdit と同型 fail-closed）。
+	t.Run("監査dependency欠落時は訂正を拒否する（fail-closed）", func(t *testing.T) {
+		billing := completedCardBilling()
+		saveCalled := false
+		repo := &mockAccountingRepository{
+			findByIDFn:          func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+			savePaymentFn:       func(_ context.Context, _ *model.Payment) error { saveCalled = true; return nil },
+			savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error { return nil },
+		}
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, nil /* auditTx */, &mockPaymentMethodMasterRepository{})
+
+		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
+			ClinicID: 1, BillingID: 10, StaffID: &staffID,
+			Method: model.PaymentMethodCreditCard, Amount: 12000, Reason: "監査依存欠落",
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "billing audit dependency is required")
+		// save may run before audit in the same tx; fail-closed means the method still errors.
+		_ = saveCalled
 	})
 
 	// BE-refactor.md R1-2 手順3（go-reviewer HIGH-2 指摘の是正）: money-critical なクレジット訂正でも
