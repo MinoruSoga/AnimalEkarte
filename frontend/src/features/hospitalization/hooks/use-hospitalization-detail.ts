@@ -14,19 +14,19 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const { data: hospitalization, isLoading, isError, error } = useGetHospitalization(id);
   const isNotFound = isAxiosError(error) && error.response?.status === 404;
   const { mutateAsync: updateHosp } = useUpdateHospitalization();
-  const { canDelete } = usePermission("hospitalization");
-  const canDeleteRef = useRef(canDelete);
+  const { canEdit } = usePermission("hospitalization");
+  const canEditRef = useRef(canEdit);
   const petIsDeceasedRef = useRef(hospitalization?.petIsDeceased);
   useLayoutEffect(() => {
-    canDeleteRef.current = canDelete;
+    canEditRef.current = canEdit;
     petIsDeceasedRef.current = hospitalization?.petIsDeceased;
-  }, [canDelete, hospitalization?.petIsDeceased]);
+  }, [canEdit, hospitalization?.petIsDeceased]);
 
   const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
     if (!hospitalizationId || !hospitalization) {
       return { success: false };
     }
-    if (canDeleteRef.current !== true || petIsDeceasedRef.current === true) {
+    if (canEditRef.current !== true || petIsDeceasedRef.current === true) {
       return { success: false };
     }
     try {

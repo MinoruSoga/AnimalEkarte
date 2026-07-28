@@ -28,7 +28,7 @@ interface HospitalizationDetailActionsProps {
 
 export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
-    const { canEdit, canDelete } = usePermission("hospitalization");
+    const { canEdit } = usePermission("hospitalization");
     const canEditRef = useRef(canEdit);
     const petIsDeceasedRef = useRef(hospitalization.petIsDeceased);
     useLayoutEffect(() => {
@@ -40,7 +40,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
     const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
     const isAdmitted = hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE;
     const showCheckIn = canEdit && isReserved;
-    const showDischarge = canDelete && isAdmitted;
+    const showDischarge = canEdit && isAdmitted;
 
     const handleCheckIn = async () => {
         if (canEditRef.current !== true || petIsDeceasedRef.current === true) return;

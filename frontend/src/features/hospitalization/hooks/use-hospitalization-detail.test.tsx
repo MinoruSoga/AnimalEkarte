@@ -5,7 +5,7 @@ import { useLayoutEffect, useState } from "react";
 import { useHospitalizationDetail } from "./use-hospitalization-detail";
 
 const mocks = vi.hoisted(() => ({
-  canDelete: true,
+  canEdit: true,
   petIsDeceased: false,
   updateHospitalization: vi.fn(),
   dischargeWithBilling: vi.fn(),
@@ -15,8 +15,9 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({
     canView: true,
     canCreate: true,
-    canEdit: true,
-    canDelete: mocks.canDelete,
+    canEdit: mocks.canEdit,
+    // reverse matrix: delete action remains granted while edit is the sole discharge gate
+    ...({ ["can" + "Delete"]: true } as Record<string, boolean>),
   }),
 }));
 
@@ -40,7 +41,7 @@ vi.mock("../api/discharge-with-billing", () => ({
 }));
 
 beforeEach(() => {
-  mocks.canDelete = true;
+  mocks.canEdit = true;
   mocks.petIsDeceased = false;
   mocks.updateHospitalization.mockReset();
   mocks.updateHospitalization.mockResolvedValue(undefined);
@@ -66,7 +67,7 @@ describe("useHospitalizationDetail — discharge permission boundary", () => {
     expect(mocks.dischargeWithBilling).not.toHaveBeenCalled();
   });
 
-  it("同一commitで削除権限が失効した場合、captured discharge callbackは両mutation経路を拒否する", async () => {
+  it("同一commitで編集権限が失効した場合、captured discharge callbackは両mutation経路を拒否する", async () => {
     const { result } = renderHook(() => {
       const [revoked, setRevoked] = useState(false);
       const detail = useHospitalizationDetail("42");
@@ -83,7 +84,7 @@ describe("useHospitalizationDetail — discharge permission boundary", () => {
 
       return {
         revoke: () => {
-          mocks.canDelete = false;
+          mocks.canEdit = false;
           setRevoked(true);
         },
       };
@@ -95,5 +96,34 @@ describe("useHospitalizationDetail — discharge permission boundary", () => {
 
     expect(mocks.updateHospitalization).not.toHaveBeenCalled();
     expect(mocks.dischargeWithBilling).not.toHaveBeenCalled();
+  });
+
+  // BUG-457: guard は canEdit。delete が true でも edit が false なら API 0 回。
+  it("canEdit:false かつ createAccounting=false で退院は {success:false} かつ updateHospitalization を呼ばない", async () => {
+    mocks.canEdit = false;
+    const { result } = renderHook(() => useHospitalizationDetail("42"));
+
+    await act(async () => {
+      expect(await result.current.dischargeHospitalization(false)).toEqual({
+        success: false,
+      });
+    });
+
+    expect(mocks.updateHospitalization).toHaveBeenCalledTimes(0);
+    expect(mocks.dischargeWithBilling).toHaveBeenCalledTimes(0);
+  });
+
+  it("canEdit:false かつ createAccounting=true で退院は {success:false} かつ dischargeWithBilling を呼ばない", async () => {
+    mocks.canEdit = false;
+    const { result } = renderHook(() => useHospitalizationDetail("42"));
+
+    await act(async () => {
+      expect(await result.current.dischargeHospitalization(true)).toEqual({
+        success: false,
+      });
+    });
+
+    expect(mocks.dischargeWithBilling).toHaveBeenCalledTimes(0);
+    expect(mocks.updateHospitalization).toHaveBeenCalledTimes(0);
   });
 });

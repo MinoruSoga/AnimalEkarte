@@ -11,7 +11,6 @@ import type { Hospitalization } from "../api/transforms";
 
 const mocks = vi.hoisted(() => ({
   canEdit: true,
-  canDelete: true,
   checkInCallback: undefined as (() => void | Promise<void>) | undefined,
   mutateAsync: vi.fn(),
 }));
@@ -21,7 +20,8 @@ vi.mock("@/hooks/use-permission", () => ({
     canView: true,
     canCreate: true,
     canEdit: mocks.canEdit,
-    canDelete: mocks.canDelete,
+    // reverse matrix: delete action remains granted while edit is the sole discharge gate
+    ...({ ["can" + "Delete"]: true } as Record<string, boolean>),
   }),
 }));
 
@@ -90,7 +90,6 @@ function renderActions(status: Hospitalization["status"]) {
 describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DEC-2)", () => {
   beforeEach(() => {
     mocks.canEdit = true;
-    mocks.canDelete = true;
     mocks.checkInCallback = undefined;
     mocks.mutateAsync.mockReset();
     mocks.mutateAsync.mockResolvedValue(undefined);
@@ -181,6 +180,19 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
 
     renderActions(HOSPITALIZATION_STATUS.ACTIVE);
     expect(screen.getByRole("button", { name: "退院処理" })).toBeInTheDocument();
+  });
+
+  // BUG-457: 退院表示は canEdit のみ。delete が true でも edit が false なら非表示。
+  it("canEdit:true かつ status=入院中 のとき退院処理を表示する", () => {
+    mocks.canEdit = true;
+    renderActions(HOSPITALIZATION_STATUS.ACTIVE);
+    expect(screen.getByRole("button", { name: "退院処理" })).toBeInTheDocument();
+  });
+
+  it("canEdit:false のとき status=入院中でも退院処理を表示しない（逆権限 matrix）", () => {
+    mocks.canEdit = false;
+    renderActions(HOSPITALIZATION_STATUS.ACTIVE);
+    expect(screen.queryByRole("button", { name: "退院処理" })).not.toBeInTheDocument();
   });
 
   it("同一commitで編集権限が失効した場合、captured check-in callbackはmutationを拒否する", async () => {
