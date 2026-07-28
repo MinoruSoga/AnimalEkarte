@@ -3104,7 +3104,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'GetOwnerTags'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: 6b67a81c2e9fd5fa8bb6c7b8445dd881ed38beb7
 
 ##### U-X04-LSTEP-STALE-TAGS
 
