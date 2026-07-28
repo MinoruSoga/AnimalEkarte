@@ -8,8 +8,13 @@
  *
  * `VERCEL_ENV` は Vercel がビルド時に自動注入する値（"production" | "preview" |
  * "development"）で、Vercel Dashboard の環境変数設定ミスの影響を受けない。これを
- * vite.config.ts の `define` でビルド時定数として埋め込み、Vercel Production
- * デプロイでは他の設定に関わらず常に false にする一次ガードとして使う。
+ * vite.config.ts の `define` でビルド時定数として埋め込む。
+ *
+ * DEC-7 / SEC-DEMO-FAILCLOSED: deny-by-default の allowlist 形を使う。
+ * - ローカル dev（isDev）→ 表示
+ * - Vercel preview + VITE_SHOW_DEMO_ACCOUNTS=true → 表示
+ * - それ以外（production / 未定義 "" / development 等）→ 非表示
+ * 旧式 `vercelEnv !== "production"` は未定義時に fail-open するため禁止。
  *
  * 注意: `LoginForm.tsx` の `SHOW_DEMO` は本関数を呼ばず同じロジックをリテラル式で
  * インライン化している（関数呼び出しにすると Vite/esbuild が定数畳み込みできず、
@@ -23,7 +28,5 @@ export function computeShowDemoAccounts(params: {
   showDemoAccountsFlag: string | undefined;
 }): boolean {
   const { vercelEnv, isDev, showDemoAccountsFlag } = params;
-  const isVercelProduction = vercelEnv === "production";
-  if (isVercelProduction) return false;
-  return isDev || showDemoAccountsFlag === "true";
+  return isDev || (vercelEnv === "preview" && showDemoAccountsFlag === "true");
 }

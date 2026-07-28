@@ -5,7 +5,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { CPMStage } from "@/lib/cpm-stage";
 import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
@@ -192,7 +192,7 @@ export function AggregationDashboardPage() {
   return (
     <PageLayout
       title="顧客集計ダッシュボード"
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <Button
           variant="outline"

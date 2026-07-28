@@ -57,6 +57,7 @@ type Pet struct {
 	NeuteredDate    *time.Time       `gorm:"type:date"                                      json:"neutered_date,omitempty"`
 	AcquisitionType *AcquisitionType `gorm:"type:acquisition_type"                          json:"acquisition_type,omitempty"`
 	DangerLevel     DangerLevel      `gorm:"type:danger_level;default:'low'"                 json:"danger_level"`
+	DangerReason    *string          `gorm:"column:danger_reason"                           json:"danger_reason,omitempty"`
 	Food            string           `gorm:"default:''"                                     json:"food"`
 	Environment     string           `gorm:"default:''"                                     json:"environment"`
 	Phone           string           `gorm:"default:''"                                     json:"phone"`
@@ -65,6 +66,7 @@ type Pet struct {
 	Remarks         string           `gorm:"default:''"                                     json:"remarks"`
 	DeceasedAt      *time.Time       `gorm:"column:deceased_at"                             json:"deceased_at,omitempty"`
 	DeceasedReason  *string          `gorm:"column:deceased_reason"                         json:"deceased_reason,omitempty"`
+	Version         int              `gorm:"default:1"                                      json:"version"`
 	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt       gorm.DeletedAt   `                                                      json:"-"`

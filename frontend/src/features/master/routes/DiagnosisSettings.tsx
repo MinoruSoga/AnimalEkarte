@@ -38,7 +38,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 
 export function DiagnosisSettings() {
-  const { canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toDiagnosisTabValue(searchParams.get("tab"));
 
@@ -62,6 +62,7 @@ export function DiagnosisSettings() {
     deleteMutation: deleteCategoryMutation,
     entityLabel: "診断カテゴリ",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
 
   const nameCrud = useMasterCRUD<DiagnosisName>({
@@ -69,6 +70,7 @@ export function DiagnosisSettings() {
     deleteMutation: deleteNameMutation,
     entityLabel: "診断病名",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
 
   const catSetEditTarget = catCrud.setEditTarget;
@@ -93,6 +95,7 @@ export function DiagnosisSettings() {
     validate: (data: DiagnosisTypeFormData) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: buildDiagnosisTypeCreateRequest,
     toUpdateRequest: buildDiagnosisTypeUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   const nameSave = useMasterSave({
@@ -106,6 +109,7 @@ export function DiagnosisSettings() {
     },
     toCreateRequest: buildDiagnosisNameCreateRequest,
     toUpdateRequest: buildDiagnosisNameUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

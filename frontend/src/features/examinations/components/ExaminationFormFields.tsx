@@ -53,7 +53,7 @@ function ExaminationFormFieldsBase({
   onBack,
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
-  const canSubmit = isEdit ? canEdit : canCreate;
+  const canSubmit = isEdit ? canEdit : canCreate && canEdit;
 
   const examTypeOptions = useMemo<SearchableSelectOption[]>(
     () => examTypes.map((item) => ({ value: String(item.id), label: item.name })),
@@ -66,15 +66,15 @@ function ExaminationFormFieldsBase({
   );
 
   return (
-    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
+    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4`}>
       {isConfirmed ? (
         <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
       ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-            <MasterLink category="examination" label="編集" className="text-[11px]" />
+            <Label htmlFor="testTypeId" className={`text-sm ${C.text60}`}>検査種別</Label>
+            <MasterLink category="examination" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
@@ -95,8 +95,8 @@ function ExaminationFormFieldsBase({
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className={`text-sm ${C.text60}`}>担当医</Label>
-            <MasterLink category="staff" label="編集" className="text-[11px]" />
+            <Label htmlFor="doctorId" className={`text-sm ${C.text60}`}>担当医</Label>
+            <MasterLink category="staff" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
@@ -118,8 +118,9 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>検査日</Label>
+        <Label htmlFor="examination-date" className={`text-sm ${C.text60}`}>検査日</Label>
         <DatePicker
+          id="examination-date"
           value={formData.date ? formData.date.split("T")[0] : ""}
           onChange={(value) => onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) })}
           disabledDays={{ after: toJSTWallDate(new Date()) }}
@@ -127,13 +128,13 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>ステータス</Label>
+        <Label htmlFor="examination-status" className={`text-sm ${C.text60}`}>ステータス</Label>
         <Select
           value={formData.status}
           disabled={isConfirmed}
           onValueChange={(value: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") => onSetFormData({ status: value })}
         >
-          <SelectTrigger className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+          <SelectTrigger id="examination-status" className={`h-11 min-w-11 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
@@ -143,8 +144,9 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
+        <Label htmlFor="examination-notes" className={`text-sm ${C.text60}`}>備考・所見</Label>
         <Textarea
+          id="examination-notes"
           className={`h-24 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium} resize-none`}
           placeholder="検査結果や備考を入力"
           value={formData.resultSummary || ""}
@@ -159,7 +161,7 @@ function ExaminationFormFieldsBase({
             <Button
               variant="ghost"
               type="button"
-              className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
+              className={`text-sm ${STYLE.btnDangerGhost} mr-auto`}
               onClick={onDeleteClick}
               disabled={isDeleting}
             >
@@ -167,9 +169,9 @@ function ExaminationFormFieldsBase({
               {isDeleting ? "削除中..." : "削除"}
             </Button>
           ) : null}
-          <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
+          <Button variant="outline" type="button" onClick={onBack} className="text-sm">キャンセル</Button>
           {canSubmit ? (
-            <SubmitButton className="h-10 text-sm">
+            <SubmitButton className="text-sm">
               保存
             </SubmitButton>
           ) : null}

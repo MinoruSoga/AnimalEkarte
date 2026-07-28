@@ -22,6 +22,7 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     neuteredDate: petData?.neuteredDate || "",
     acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
     dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+    dangerReason: petData?.dangerReason || "",
     food: petData?.food || "",
     environment: petData?.environment || "",
     status: petData?.status || "生存",

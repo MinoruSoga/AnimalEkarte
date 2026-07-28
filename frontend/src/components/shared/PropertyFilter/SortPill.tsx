@@ -50,7 +50,7 @@ export const SortPill = memo(function SortPill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-[3px] ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
+          className={`inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-xxs ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
         >
           <DirectionIcon className={`${ICON.page} shrink-0`} />
           <span className="truncate max-w-[140px]">

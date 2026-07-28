@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 
 import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
 import type { BackendTrimming } from "@/types/trimming";
+import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
-import { selectCompletedTrimmingHistory } from "./get-pet-trimming-history";
+import {
+  selectCompletedTrimmingHistory,
+  useGetPetTrimmingHistory,
+} from "./get-pet-trimming-history";
 
 // transformTrimming が要求する必須フィールドを埋める最小ファクトリ。
 // status / start_time のみテストごとに上書きする。
@@ -63,5 +70,23 @@ describe("selectCompletedTrimmingHistory", () => {
   it("完了が無ければ空配列を返す", () => {
     const items: TrimmingUI[] = [transformTrimming(bt({ id: 1, status: "cancelled" }))];
     expect(selectCompletedTrimmingHistory(items)).toEqual([]);
+  });
+
+  it("BIGINT の petId を数値変換せずクエリへ渡す", async () => {
+    const largePetId = "9007199254740993";
+    let receivedPetId = "";
+    server.use(
+      http.get("/api/v1/trimmings", ({ request }) => {
+        receivedPetId = new URL(request.url).searchParams.get("pet_id") ?? "";
+        return HttpResponse.json({ data: [], total: 0 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetTrimmingHistory(largePetId), {
+      wrapper: createTestWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(receivedPetId).toBe(largePetId);
   });
 });

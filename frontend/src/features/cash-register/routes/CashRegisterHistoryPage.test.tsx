@@ -246,7 +246,7 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     server.resetHandlers();
   });
 
-  it("opens a detail dialog with memo and category subtotals when a row is clicked", async () => {
+  it("opens a detail dialog only from the named 44px native button", async () => {
     const user = userEvent.setup();
     stubCloses([
       makeClose(1, "2026-06-15", "am", {
@@ -266,9 +266,15 @@ describe("CashRegisterHistoryPage detail dialog", () => {
       expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
     });
 
-    await user.click(
-      screen.getByRole("button", { name: "2026-06-15 午前 の締め詳細を表示" }),
-    );
+    const detailButton = screen.getByRole("button", {
+      name: "締め詳細: 2026-06-15 午前 (ID 1)",
+    });
+    expect(detailButton.tagName).toBe("BUTTON");
+    expect(detailButton).toHaveClass("min-h-11", "min-w-11");
+    expect(detailButton.closest("tr")).not.toHaveAttribute("role");
+    expect(detailButton.closest("tr")).not.toHaveAttribute("tabindex");
+
+    await user.click(detailButton);
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("2026-06-15 午前 の締め詳細")).toBeInTheDocument();
@@ -291,10 +297,33 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: "2026-06-15 午前 の締め詳細を表示" }),
+      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
     );
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("内訳データなし")).toBeInTheDocument();
+  });
+});
+
+describe("CashRegisterHistoryPage DESIGN.md table contract", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("header/body の typography と cell padding が DESIGN.md に一致する", async () => {
+    stubCloses([makeClose(1, "2026-06-15", "am")]);
+    renderPage("/accounting/close/history");
+
+    const table = await screen.findByRole("table");
+    const headers = within(table).getAllByRole("columnheader");
+    const cells = within(table).getAllByRole("cell");
+
+    for (const header of headers) {
+      expect(header).toHaveClass("px-4", "py-3", "text-2xs", "font-semibold");
+    }
+    expect(table).toHaveClass("text-sm");
+    for (const cell of cells) {
+      expect(cell).toHaveClass("px-4", "py-3");
+    }
   });
 });

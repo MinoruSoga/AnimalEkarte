@@ -5,16 +5,14 @@
 > **タイミング**: 日次/週次/月次の定期運用時。
 
 > **Animal Ekarte**: STG 環境の日常・定期運用のための検査・監視・メンテナンスチェックリスト
-> **最新更新**: 2026-07-10 | **目的**: 本番リリース間の STG 環境安定稼働確保
+> **最新更新**: 2026-07-23 | **目的**: 本番リリース間の STG 環境安定稼働確保
 
 ---
 
-> **注記(2026-07-10)**: バックエンドの正系統は Cloudflare Workers + Containers + PlanetScale Postgres
-> （`backend-deploy.yml`）へ移行済み。本ドキュメントの ECS/CloudWatch/RDS ベースの手順（§2.2, §2.3,
-> §4.1〜4.3, §6 のトラブルシューティング診断コマンド）は、旧 AWS ECS ロールバック経路
-> （`backend-deploy-ecs.yml`、`workflow_dispatch` のみ）にのみ適用される。Cloudflare 正系統向けの
-> 同等の日次/週次/月次運用手順（Workers Logs 監視等）は未文書化 — 現状のギャップとして
-> `migration-cloudflare.md` Phase 6 の記録を参照すること。§1・§2.1・§3・§5 は経路に依存せず有効。
+> **現行構成**: Cloudflare Workers + Containers + PlanetScale Postgres（`backend-deploy.yml`）。
+> AWS ECS/RDS は廃止済みで、切り戻し先・ホットスタンバイではない。
+> 構成と障害初動の正本は [`../infra/architecture.md`](../infra/architecture.md) と
+> [`../infra/staging/runbook.md`](../infra/staging/runbook.md)。
 
 ## 1. 目的と対象読者
 
@@ -46,54 +44,37 @@ curl -s ${API_HEALTH} | jq '.'
 ```
 
 **失敗時アクション**:
-- HTTP 200 が返らない場合、`docs/ops/deploy/README.md` §4.2 ロールバック判定へ
+- HTTP 200 が返らない場合、[`../infra/staging/runbook.md`](../infra/staging/runbook.md) の障害初動へ
 
 ---
 
-### 2.2 ECS サービス稼働確認
+### 2.2 Cloudflare 経路の稼働確認
 
 ```bash
-export AWS_PROFILE=AnimalEkarte
-
-aws ecs describe-services \
-  --cluster animalekarte-stg-cluster \
-  --services animalekarte-stg-service \
-  --region us-east-1 \
-  --query 'services[0].{desiredCount,runningCount,status}'
+curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 ```
 
-**期待結果**:
-```
-{
-  "desiredCount": 2,
-  "runningCount": 2,
-  "status": "ACTIVE"
-}
-```
+**期待結果**: HTTP `200`
 
-**確認ポイント**: 
-- `desiredCount` == `runningCount`（不一致時は `§4.2` ロールバック判定へ）
-- `status` が `ACTIVE`
+**確認ポイント**:
+
+- 実 URL が失敗した場合は workers.dev の `/health` も確認し、DNS / route と Worker / Container を切り分ける
+- イメージ更新を伴うデプロイ後は旧イメージが残りうるため、15 分静置後にも再確認する
+- GitHub Actions `backend-deploy.yml` の deploy / migrate / post-migrate health がすべて成功していること
 
 ---
 
-### 2.3 CloudWatch エラーログ監視
+### 2.3 Workers / Containers エラーログ監視
 
-```bash
-# 過去 5 分間のエラーログをフォロー
-aws logs tail /ecs/animalekarte-stg \
-  --region us-east-1 \
-  --follow \
-  --since 5m | grep -i "error\|fatal"
-```
+Cloudflare Dashboard の Workers Logs / Containers で、デプロイ時刻以降の ERROR/FATAL と
+request error を確認する。Workers Logs はインフラ障害調査用で、診療記録の変更監査は
+DB の `audit_logs` が正本。
 
-**期待結果**: 
-- ERROR/FATAL ログが 5 分間で 3 件以下
+**異常時**:
 
-**異常基準**:
-- ERROR/FATAL が 3 件以上（即座にロールバック）
-
-**参考**: [README.md §4.1](./README.md#41-ヘルスチェック手順)
+- 全断 + DB 接続エラーなら、`DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` と PlanetScale 接続枯渇を確認
+- Cloudflare 側の障害情報は https://www.cloudflarestatus.com/ で確認
+- 切り分けと復旧は [STG 運用 Runbook](../infra/staging/runbook.md) に従う
 
 ---
 
@@ -104,24 +85,12 @@ aws logs tail /ecs/animalekarte-stg \
 > 全 best-effort 監査書込経路を中央 1 箇所で捕捉する）。P2 outbox は見送り決定済みのため、現状はこのログ
 > 検索が監査欠落検知の唯一の手段。
 
-**CloudWatch Logs Insights（旧 AWS ECS ロールバック経路のみ）**:
-
-```
-fields @timestamp, @message
-| filter @message like /audit_write_failed/
-| sort @timestamp desc
-| limit 50
-```
-
-**Workers Logs（Cloudflare 正系統。§2.2/§2.3 と異なりこちらが現行経路 — 運用手順未文書化ギャップの第一歩として本行から追記）**:
-
-```bash
-npx wrangler tail --format pretty --search "audit_write_failed"
-```
+Cloudflare Dashboard の Workers Logs / Containers で `audit_write_failed` を検索する。
+Container stdout は Worker の request log と別の表示面になる場合があるため、両方を確認する。
 
 **期待結果**: 通常時は 0 件。
 
-**異常基準**: `audit_write_failed` が観測された場合、再開条件（リポジトリ直下 `todo.md`「見送り」節の PERF-AUDIT-TX P2 参照）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
+**異常基準**: `audit_write_failed` が観測された場合、再開条件（[`phase2.html`](../../../phase2.html)「BE — 見送り・次期タスク」の PERF-AUDIT-TX P2 参照）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
 
 ---
 
@@ -201,60 +170,41 @@ npx wrangler tail --format pretty --search "audit_write_failed"
 
 ## 4. 月次検査（毎月第 1 金曜 10:00）
 
-### 4.1 CloudWatch ログ監査
+### 4.1 Cloudflare ログ・通知監査
 
-```bash
-# 過去 30 日間のエラー統計
-aws logs start-query \
-  --log-group-name /ecs/animalekarte-stg \
-  --region us-east-1 \
-  --start-time $(($(date +%s) - 2592000)) \
-  --end-time $(date +%s) \
-  --query-string 'fields @timestamp, @message | filter @message like /ERROR|FATAL/ | stats count()'
-```
-
-**期待結果**: 
-- 過去 30 日間の ERROR/FATAL が 20 件以下
-- 明らかなパターンがない場合は正常動作
+Cloudflare Observability で Workers / Containers の ERROR/FATAL、5xx 傾向、通知履歴を確認する。
+Workers Logs の保持期間を超える比較が必要な場合は、実施記録側に月次集計を残す。
 
 **異常基準**:
 - エラー急増（突然 10x 増加など）
 - 繰り返しパターン（同じエラーが毎日）
-
-**参考**: AWS CloudWatch Logs Insights
+- 通知先未検証、または通知が期待どおり届かない
 
 ---
 
-### 4.2 ECS タスク履歴確認
+### 4.2 デプロイ履歴確認
 
-```bash
-aws ecs describe-services \
-  --cluster animalekarte-stg-cluster \
-  --services animalekarte-stg-service \
-  --region us-east-1 \
-  --query 'services[0].deployments'
-```
+GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 
 **確認ポイント**:
 - 過去 30 日間のデプロイ回数
-- 各デプロイで running count に落ち込みがないか
-- rollback 発生の有無
+- deploy / migrate / post-migrate health の失敗・再実行の有無
+- paths 条件や skipped job を成功証跡と誤認していないか
+- 障害復旧の再デプロイが記録されているか
 
 ---
 
-### 4.3 DB ディスク容量確認
-
-```bash
-# RDS DB インスタンス容量確認（AWS Console 経由）
-```
+### 4.3 PlanetScale DB 健全性確認
 
 **確認内容**:
-- allocated storage の使用率（80% 未満が目標）
-- free storage space（下限 20 GB 以上推奨）
+- 容量・接続数・バックアップ状態
+- Worker/Container の `DB_MAX_OPEN_CONNS=10` / `DB_MAX_IDLE_CONNS=5` が維持されていること
+- 既存テーブルへの ALTER 系 migration 前に、失効ロール所有問題が解消済みであること
 
 **異常時アクション**:
 - Team Lead に報告
-- 必要に応じて storage scale up 検討
+- 接続枯渇時は新規デプロイを重ねず、滞留接続のドレインと設定値を確認
+- 所有権問題は PlanetScale サポートへの REASSIGN 依頼を先に完了
 
 ---
 
@@ -287,8 +237,8 @@ curl -X GET "https://api.stg.noah-karte.com/api/v1/clinics" \
 - **実施者**: MinoruSoga
 - **実施時刻**: 2026-05-27 09:00 JST
 - **ヘルスチェック**: ✅ PASS
-- **ECS 稼働確認**: ✅ PASS (desired=2, running=2)
-- **CloudWatch**: ✅ 2 ERROR ログのみ（正常）
+- **Cloudflare 経路**: ✅ PASS（実 URL / workers.dev）
+- **Workers / Containers Logs**: ✅ 異常なし
 - **Vercel フロントエンド**: ✅ PASS
 - **Demo アカウントログイン**: ✅ PASS
 - **CRUD スモークテスト**: ✅ PASS（全 11 項目）
@@ -310,37 +260,33 @@ curl -X GET "https://api.stg.noah-karte.com/api/v1/clinics" \
 **症状**: `curl: (7) Failed to connect to...` または HTTP 503
 
 **診断**:
-```bash
-# ECS サービス確認
-aws ecs describe-services \
-  --cluster animalekarte-stg-cluster \
-  --services animalekarte-stg-service \
-  --region us-east-1
 
-# CloudWatch ログ確認
-aws logs tail /ecs/animalekarte-stg --follow --since 10m
-```
+1. 実 URL と workers.dev の `/health` を比較する
+2. GitHub Actions `backend-deploy.yml` の直近 run を step 単位で確認する
+3. Cloudflare Dashboard の Workers Logs / Containers を確認する
+4. Cloudflare status と PlanetScale 接続枯渇を確認する
 
 **対処**:
-- running count < desired count の場合: ロールバック検討（[README.md §4.2](./README.md#42-ロールバック-要否判定基準)）
-- ERROR ログが多発している場合: デプロイ版の問題の可能性 → ロールバック
+- デプロイ直後なら 15 分静置して旧イメージ残留を除外する
+- Cloudflare 側の修正・再デプロイを行う
+- 基盤喪失時はスナップショットと現行 IaC から再建する（AWS への切り戻し先はない）
 
 ---
 
-### Issue 2: CloudWatch エラーログ多発
+### Issue 2: Workers / Containers エラーログ多発
 
-**症状**: `grep -i error | wc -l` で 5 分間に 5 件以上
+**症状**: Cloudflare Observability で ERROR/FATAL または 5xx が急増
 
 **診断**:
-```bash
-# エラー内容を詳細確認
-aws logs tail /ecs/animalekarte-stg --follow | grep -i error | head -20
-```
+
+- Worker request log と Container log を分けて確認する
+- DB 接続エラー、Container の起動/OOM、権限・secret 不足を分類する
+- `backend-deploy.yml` の migrate / health step と発生時刻を突合する
 
 **対処**:
-- DB 接続エラー: RDS インスタンス状態確認（reboot 検討）
-- Memory エラー: ECS task memory 不足 → task 定義変更検討
-- Permission エラー: IAM role 権限確認（SSM Parameter Store へのアクセスなど）
+- DB 接続エラー: PlanetScale 状態と接続スロット、10/5 の接続プール設定を確認
+- Container 起動エラー: 直近デプロイ差分と Cloudflare Containers の観測結果を確認
+- Permission / secret エラー: Cloudflare Worker secrets と GitHub Secrets の同期を確認
 
 ---
 
@@ -359,14 +305,15 @@ curl -X POST "https://api.stg.noah-karte.com/api/v1/auth/login" \
 **対処**:
 - Token 期限切れ: 新しい token 取得（browser DevTools → Network で確認）
 - Demo account disabled: DB で staff.is_deleted = true を確認、false に修正
-- Backend API 接続エラー: ECS task 再起動
+- Backend API 接続エラー: Issue 1 の Cloudflare / PlanetScale 切り分けを実施
 
 ---
 
 ## 7. 参考資料
 
-- [README.md](./README.md) - デプロイメント・運用ドキュメント（ロールバック判定、コマンド集）
-- [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー・ロールバック手順
+- [STG 運用 Runbook](../infra/staging/runbook.md) - 現行インフラの障害初動・復旧方針
+- [README.md](./README.md) - デプロイメント・運用ドキュメント（障害判定、コマンド集）
+- [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー
 - [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) - CRUD 操作テスト詳細
 - [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証
 - [STG-DEMO-DATA-LIFECYCLE.md](./STG-DEMO-DATA-LIFECYCLE.md) - データ分類とライフサイクル

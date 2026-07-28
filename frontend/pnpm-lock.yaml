@@ -7,6 +7,8 @@ settings:
 overrides:
   '@opentelemetry/core': 2.8.0
   undici: ^7.28.0
+  minimatch@10.2.5>brace-expansion: 5.0.7
+  minimatch@9.0.9>brace-expansion: 2.1.2
 
 importers:
 
@@ -2505,11 +2507,11 @@ packages:
   brace-expansion@1.1.16:
     resolution: {integrity: sha512-IDw48K2/2kRkg9LdJxurvq3lV3aBgq0REY89duEqFRthjlPdXHKMj7EnQOXVckxzgisinf3nHfrcE2FufFLXMw==}
 
-  brace-expansion@2.1.1:
-    resolution: {integrity: sha512-WR1cURNjuvBLMZBMbqM0UoE+WAfdUcEV1ccD8PVBVOI+Z3ND4+SZbN8RsfT2bMuG1qwz5RFvPukSZm5fF2D5eA==}
+  brace-expansion@2.1.2:
+    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
 
-  brace-expansion@5.0.6:
-    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
+  brace-expansion@5.0.7:
+    resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
     engines: {node: 18 || 20 || >=22}
 
   browserslist@4.28.2:
@@ -7337,11 +7339,11 @@ snapshots:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.1.1:
+  brace-expansion@2.1.2:
     dependencies:
       balanced-match: 1.0.2
 
-  brace-expansion@5.0.6:
+  brace-expansion@5.0.7:
     dependencies:
       balanced-match: 4.0.4
 
@@ -8843,7 +8845,7 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.6
+      brace-expansion: 5.0.7
 
   minimatch@3.1.5:
     dependencies:
@@ -8851,7 +8853,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.1
+      brace-expansion: 2.1.2
 
   mitt@3.0.1: {}
 

@@ -1,11 +1,16 @@
 ---
 version: alpha
 name: Notion Analysis
-description: An analysis of Notion's design language — a warm, paper-calm productivity system built on an off-white canvas, near-black Inter type, and a single confident blue, punctuated by a playful multi-color sticker palette that does all the personality work while the chrome stays quiet.
+description: An analysis of Notion's design language, adapted to Animal Ekarte's unified teal brand and primary action color.
 
 colors:
-  primary: "#0075de"
-  primary-active: "#005bab"
+  brand: "#038b94"
+  brand-active: "#027078"
+  on-brand: "#ffffff"
+  on-brand-active: "#ffffff"
+  primary: "#038b94"
+  primary-active: "#027078"
+  on-primary-active: "#ffffff"
   secondary: "#213183"
   on-primary: "#ffffff"
   canvas: "#ffffff"
@@ -124,7 +129,7 @@ components:
     rounded: "{rounded.full}"
   button-primary-pressed:
     backgroundColor: "{colors.primary-active}"
-    textColor: "{colors.on-primary}"
+    textColor: "{colors.on-primary-active}"
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -211,7 +216,7 @@ components:
     padding: "{spacing.lg}"
     item-divider: "{colors.hairline}"
   ex-app-shell-row:
-    description: "Sidebar nav row inside the App Shell example. Active state uses brand primary as the indicator."
+    description: "Sidebar nav row inside the App Shell example. Active state uses semantic primary as the indicator."
     backgroundColor: "{colors.canvas}"
     activeIndicator: "{colors.primary}"
     rounded: "{rounded.sm}"
@@ -251,7 +256,9 @@ components:
 
 ## Overview
 
-Notion looks like a well-organized desk in good daylight. The dominant surface is not pure white but a warm, paper-soft off-white — `{colors.canvas-soft}` (#f6f5f4) — that takes the clinical edge off the screen and makes long pages feel like a document rather than an app. Type is set in `NotionInter` (a tuned Inter) in near-black `{colors.ink}` at large, tightly-tracked weights, so headlines read as confident statements with very little letter-spacing slack at display sizes (`{typography.display-1}` pulls −2.125px of tracking at 64px). The whole system whispers in greys and blacks, then says exactly one thing in colour: a single, dependable blue, `{colors.primary}` (#0075de), reserved almost entirely for the primary call-to-action and inline links.
+> **Animal Ekarte product mapping:** `{colors.brand}` and `{colors.primary}` share the same teal (`#038b94`), with the same active color (`#027078`). Their semantic token names remain distinct so product identity and generic action roles stay readable in code. The product color SSOT is [docs/spec/design-system.md](docs/spec/design-system.md).
+
+Notion looks like a well-organized desk in good daylight. The dominant surface is not pure white but a warm, paper-soft off-white — `{colors.canvas-soft}` (#f6f5f4) — that takes the clinical edge off the screen and makes long pages feel like a document rather than an app. Type is set in `NotionInter` (a tuned Inter) in near-black `{colors.ink}` at large, tightly-tracked weights, so headlines read as confident statements with very little letter-spacing slack at display sizes (`{typography.display-1}` pulls −2.125px of tracking at 64px). Animal Ekarte uses one dependable teal, `{colors.primary}` / `{colors.brand}` (#038b94), for primary actions, links, selection, focus, and product identity.
 
 Against that quiet chrome, Notion lets a **playful multi-colour sticker palette** carry all of the brand's personality — purple, pink, orange, teal, green and sky-blue appear as small illustrated blocks, app-icon stickers, and category dots scattered through the marketing pages. These colours never structure the layout or paint a CTA; they decorate. The discipline is deliberate: the interface stays monochrome-plus-blue so the content (and the cheerful illustrations) can breathe. The one exception to the bright daylight is the homepage hero, which inverts into a deep indigo "night" band (`{colors.secondary}`) with white type and glowing sticker constellations — a single dark island in an otherwise light document.
 
@@ -260,7 +267,7 @@ Surfaces are defined by hairlines and the faintest layered shadows rather than h
 **Key Characteristics:**
 - Warm paper-soft canvas `{colors.canvas-soft}` over pure white, never clinical
 - Near-black `{colors.ink}` `NotionInter` type with tight negative tracking at display sizes (`{typography.display-1}`)
-- Exactly one structural accent — Notion blue `{colors.primary}` — reserved for CTAs and links
+- Exactly one structural action accent — `{colors.primary}` / `{colors.brand}` (`#038b94`) — used for CTAs, links, selection, focus, and product identity
 - A decorative-only multi-colour sticker palette (`{colors.accent-purple}`, `{colors.accent-pink}`, `{colors.accent-orange}`, `{colors.accent-teal}`, `{colors.accent-green}`, `{colors.accent-sky}`) that adds personality without ever painting structure
 - Pill-shaped marketing CTAs (`{rounded.full}`) contrasted with 8px utility buttons (`{rounded.md}`)
 - Elevation by hairline + barely-there layered shadow, not heavy drop-shadows
@@ -271,8 +278,10 @@ Surfaces are defined by hairlines and the faintest layered shadows rather than h
 > Source pages analysed: the Notion home page plus Pricing, Enterprise, Product (AI), Product (Agents), and Startups. Every secondary page resolved to the same core palette — Notion runs one tightly-scoped system across the marketing site.
 
 ### Brand & Accent
-- **Notion Blue** (`{colors.primary}` — #0075de): the single structural accent. Primary CTA fill ("Get Notion free"), inline link colour, active-tab and focus signal. This is the only colour that ever paints an action.
-- **Pressed Blue** (`{colors.primary-active}` — #005bab): the darker press state of the primary CTA.
+- **Animal Ekarte Brand** (`{colors.brand}` — #038b94): product identity used by authentication and explicit brand surfaces.
+- **Animal Ekarte Brand Hover / Pressed** (`{colors.brand-active}` — #027078): interaction state for brand surfaces.
+- **Primary Teal** (`{colors.primary}` — #038b94): the semantic action color for generic primary CTA, inline links, active-tab, selection, and focus; identical to the brand color.
+- **Primary Teal Pressed** (`{colors.primary-active}` — #027078): the darker primary action state; identical to brand-active.
 - **Deep Indigo** (`{colors.secondary}` — #213183): the dark hero "night" band background and its sticker-constellation field; a deep brand-blue used for full-bleed inverted sections.
 
 The remaining colours form Notion's **decorative sticker palette** — they appear only as illustrated blocks, app stickers and category dots, never as CTAs or structural fills:
@@ -398,11 +407,11 @@ Product screenshots are framed in rounded `{rounded.lg}` / `{rounded.xl}` wells,
 ### Buttons
 
 **`button-primary`** — Primary CTA ("Get Notion free")
-- Background `{colors.primary}`, text `{colors.on-primary}`, type `{typography.button}`, fully pill-shaped `{rounded.full}`. The single blue action on any page.
+- Background `{colors.primary}`, text `{colors.on-primary}`, type `{typography.button}`, fully pill-shaped `{rounded.full}`. The generic primary action.
 - Pressed state lives in `button-primary-pressed` (background `{colors.primary-active}`); marketing buttons also apply a brief `scale(0.9)` press transform.
 
 **`button-primary-pressed`**
-- Background `{colors.primary-active}`, text `{colors.on-primary}` — the depressed state of the primary CTA.
+- Background `{colors.primary-active}`, text `{colors.on-primary-active}` — the depressed state of the primary CTA.
 
 **`button-secondary`** — Secondary CTA ("Request a demo")
 - White surface `{colors.surface}`, text `{colors.ink}`, type `{typography.button}`, pill `{rounded.full}`, carried by the soft Level-1 shadow. Pairs beside `button-primary` in the hero.
@@ -459,7 +468,7 @@ Product screenshots are framed in rounded `{rounded.lg}` / `{rounded.xl}` wells,
 **`ex-cart-drawer`** — Subscription summary — re-purposed for SaaS / B2B (line items per add-on, not literal cart).
 - Properties: `backgroundColor`, `rounded`, `padding`, `item-divider`
 
-**`ex-app-shell-row`** — Sidebar nav row inside the App Shell example. Active state uses brand primary as the indicator.
+**`ex-app-shell-row`** — Sidebar nav row inside the App Shell example. Active state uses semantic primary as the indicator.
 - Properties: `backgroundColor`, `activeIndicator`, `rounded`, `padding`
 
 **`ex-data-table-cell`** — Default data-table th + td chrome. Header uses mono-caps eyebrow typography; body uses body-sm.

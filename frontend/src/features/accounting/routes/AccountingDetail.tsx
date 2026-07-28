@@ -22,7 +22,12 @@ import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
 import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
-import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
+import {
+  ResourceAccounting,
+  ResourceAccountingCancel,
+  ResourceAccountingPostCloseEdit,
+  ResourceCashRegisterClose,
+} from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 
 const CreditCorrectionDialog = lazy(() =>
@@ -109,14 +114,17 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   // #115: 締め後編集専用権限
   const { canEdit: canPostCloseEdit } = usePermission(ResourceAccountingPostCloseEdit);
-  const canSubmit = id ? canEdit : canCreate;
+  const { canView: canViewCashRegisterClose } = usePermission(ResourceCashRegisterClose);
+  const hasAccountingMutationPermission = id ? canEdit : canCreate;
+  // レジ締め状態を検証できない場合は、締め後編集を誤って許可しないよう fail closed にする。
+  const canSubmit = hasAccountingMutationPermission && canViewCashRegisterClose;
 
   // #115: billing の scheduled_date が締め済みか確認
   const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
   // #115: scheduled_date が締め済みか、その 1 日分（AM/PM/EMG）を BE 契約（start_date/end_date）で問い合わせる
   const { data: closesData } = useGetCashRegisterCloses(
     scheduledDateStr ? { start_date: scheduledDateStr, end_date: scheduledDateStr } : undefined,
-    Boolean(scheduledDateStr),
+    Boolean(scheduledDateStr && hasAccountingMutationPermission && canViewCashRegisterClose),
   );
   const isScheduledDateClosed = Boolean(
     scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
@@ -155,6 +163,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
+  const readOnlyMessage = !hasAccountingMutationPermission
+    ? "閲覧専用 — 編集権限がないため変更できません"
+    : !canViewCashRegisterClose
+      ? "閲覧専用 — レジ締め状態を確認する権限がないため変更できません"
+      : undefined;
+
   return (
     <>
       <form ref={formRef} action={formAction}>
@@ -174,7 +188,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             />
           }
         >
-          <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
+          <ReadOnlyAccountingBanner
+            show={readOnlyMessage !== undefined}
+            message={readOnlyMessage}
+          />
           <UngroupedItemsWarningBanner
             show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
             medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
@@ -190,9 +207,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               paymentSplits={paymentSplits}
               newItemOpen={newItemOpen}
               isRefunding={isRefunding}
-              canEdit={canEdit}
-              canCreate={canCreate}
-              canDelete={canDelete}
+              canEdit={Boolean(canEdit && canViewCashRegisterClose)}
+              canCreate={Boolean(canCreate && canViewCashRegisterClose)}
+              canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
@@ -207,7 +224,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
           {/* #189: 確定済みカード金額の確定後訂正（専用フロー・監査付き）。確定済み + 訂正権限がある場合のみ導線を表示。
               CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
-          {id && canPostCloseEdit ? (
+          {id && canPostCloseEdit && canSubmit ? (
             <div className="px-4 pb-4">
               <Suspense fallback={null}>
                 <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />

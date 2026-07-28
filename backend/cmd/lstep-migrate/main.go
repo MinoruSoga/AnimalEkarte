@@ -11,11 +11,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/lstep"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
+	"github.com/animal-ekarte/backend/internal/owner"
+	"github.com/animal-ekarte/backend/internal/pet"
 )
 
 func main() {
@@ -69,14 +73,16 @@ func run() int {
 		return 1
 	}
 
-	db, err := repository.NewDB(cfg)
+	db, err := dbconn.OpenGORM(cfg)
 	if err != nil {
 		log.Error("failed to connect to database", slog.String("error", err.Error()))
 		return 1
 	}
 	log.Info("database connected")
 
-	repos := repository.NewRepositories(db)
+	petWriter := pet.NewWriter(db)
+	ownerRepo := owner.NewRepository(db, pet.NewOwnerRegistrationAdapter(petWriter))
+	petRepo := pet.NewRepositoryWithWriter(db, petWriter)
 
 	var cipher *appCrypto.AESGCMCipher
 	if cfg.IntegrationEncryptionKey != "" {
@@ -87,8 +93,28 @@ func run() int {
 		}
 	}
 
-	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
-	tagSyncSvc := service.NewLstepTagSyncFromRepos(repos, settingsSvc)
+	settingsSvc := lstep.NewLstepSettingsService(
+		lstep.NewLstepSettingsRepository(db),
+		lstep.NewLstepSyncSettingsRepository(db),
+		cipher,
+		nil,
+		nil,
+	)
+	tagSyncSvc := lstep.NewLstepTagSyncService(
+		settingsSvc,
+		ownerRepo,
+		medicalrecord.NewVaccinationRepository(db),
+		medicalrecord.NewMedicalRecordRepository(db),
+		billing.NewAccountingRepository(db),
+		lstep.NewLstepTagCacheRepository(db),
+		petRepo,
+		medicalrecord.NewPrescriptionRepository(db),
+		medicalrecord.NewCheckupRepository(db),
+		lstep.NewLstepSyncErrorCounterRepository(db),
+		lstep.NewLstepTagCodeMappingRepository(db),
+		billing.NewBillingItemRepository(db),
+		lstep.NewLstepTagConfigRepository(db),
+	)
 
 	migCfg := Config{
 		ClinicID:        *clinicID,
@@ -100,7 +126,7 @@ func run() int {
 		ResumeFrom:      *resumeFrom,
 	}
 
-	m := NewMigrator(migCfg, db, repos.Owner, tagSyncSvc, log)
+	m := NewMigrator(migCfg, db, ownerRepo, tagSyncSvc, log)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

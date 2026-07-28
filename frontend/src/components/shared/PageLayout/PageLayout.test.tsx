@@ -25,4 +25,42 @@ describe("PageLayout", () => {
     expect(contentWrapper?.className).toContain(LAYOUT.pageContentMaxWidth.full);
     expect(contentWrapper?.className).not.toContain(LAYOUT.pageContentMaxWidth.default);
   });
+
+  it("コンテンツの縦余白は DESIGN.md spacing.lg（24px）を使い、仕様外の20pxを使わない", () => {
+    render(
+      <PageLayout title="Test">
+        <div data-testid="content">content</div>
+      </PageLayout>,
+    );
+
+    const contentWrapper = screen.getByTestId("content").parentElement;
+    expect(contentWrapper).toHaveClass("py-6");
+    expect(contentWrapper).not.toHaveClass("py-5");
+  });
+
+  it("ページ説明を FormHeader の補助本文として表示する", () => {
+    render(
+      <PageLayout title="Test" description="ページの説明">
+        content
+      </PageLayout>,
+    );
+
+    expect(screen.getByText("ページの説明")).toBeInTheDocument();
+  });
+
+  it("狭い画面で子要素のmin-content幅に押し広げられないflex境界を持つ", () => {
+    render(
+      <PageLayout title="Test">
+        <div data-testid="wide-content">content</div>
+      </PageLayout>,
+    );
+
+    const contentWrapper = screen.getByTestId("wide-content").parentElement;
+    const scrollContainer = contentWrapper?.parentElement;
+    const pageRoot = scrollContainer?.parentElement;
+
+    expect(contentWrapper).toHaveClass("min-w-0");
+    expect(scrollContainer).toHaveClass("min-w-0");
+    expect(pageRoot).toHaveClass("min-w-0");
+  });
 });

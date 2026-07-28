@@ -1,28 +1,14 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
+import {
+  isAuthPublicPath,
+  isPasswordRecoveryPublicPath,
+} from "@/lib/auth-route-policy";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import { sanitizeNullBytes } from "@/lib/sanitize";
 import { paths } from "@/config/paths";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-
-function safeFromPath(path: string): string {
-  if (path === "") {
-    return "/";
-  }
-
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-
-  if (normalized.startsWith("//")) {
-    return "/";
-  }
-
-  const lowered = normalized.toLowerCase();
-  if (lowered.startsWith("javascript:") || lowered.startsWith("data:")) {
-    return "/";
-  }
-
-  return normalized;
-}
 
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
@@ -120,6 +106,15 @@ axios.interceptors.response.use(
       }
     }
 
+    // Public auth pages intentionally work without a session. Expected login/recovery
+    // 401s belong to the page and must not trigger a refresh request.
+    if (
+      error.response?.status === 401 &&
+      isAuthPublicPath(window.location.pathname)
+    ) {
+      return Promise.reject(error);
+    }
+
     // --- 2. 401 認証リフレッシュロジック (既存) ---
     const originalRequest = config;
     if (
@@ -133,7 +128,10 @@ axios.interceptors.response.use(
         error.response?.status === 401 &&
         window.location.pathname !== "/login"
       ) {
-        const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
+        const safePath =
+          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
+          paths.home.getHref();
+        const from = encodeURIComponent(safePath);
         window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(error);
@@ -158,8 +156,14 @@ axios.interceptors.response.use(
       return axios(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError as AxiosError);
-      if (window.location.pathname !== "/login") {
-        const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
+      if (
+        window.location.pathname !== "/login" &&
+        !isPasswordRecoveryPublicPath(window.location.pathname)
+      ) {
+        const safePath =
+          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
+          paths.home.getHref();
+        const from = encodeURIComponent(safePath);
         window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(refreshError);

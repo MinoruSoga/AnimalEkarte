@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
-import type { Accounting, PaymentMethod } from "../types";
+import type { Accounting, AddAccountingItemInput, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
@@ -52,9 +52,13 @@ export function AccountingHeaderActions({
 
 interface ReadOnlyAccountingBannerProps {
   show: boolean;
+  message?: string;
 }
 
-export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps) {
+export function ReadOnlyAccountingBanner({
+  show,
+  message = "閲覧専用 — 編集権限がないため変更できません",
+}: ReadOnlyAccountingBannerProps) {
   if (!show) return null;
 
   return (
@@ -64,7 +68,7 @@ export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps
       aria-label="閲覧専用モード"
     >
       <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
-      <span className="text-sm font-medium">閲覧専用 — 編集権限がないため変更できません</span>
+      <span className="text-sm font-medium">{message}</span>
     </div>
   );
 }
@@ -125,7 +129,7 @@ interface AccountingDetailColumnsProps {
   canCreate: boolean;
   canDelete: boolean;
   onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
+  onAddItem: (input: AddAccountingItemInput) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
   onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;
@@ -236,7 +240,7 @@ export function AccountingDocumentPreviewDialog({
           <DialogDescription>印刷イメージを確認できます。</DialogDescription>
         </DialogHeader>
         <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
-          <div className="shadow-lg transform scale-100 origin-top">
+          <div className="shadow-level1 transform scale-100 origin-top">
             {accounting.payment ? (
               <AccountingDocument
                 accounting={accounting}

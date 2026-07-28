@@ -7,13 +7,13 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { ChevronRight } from "lucide-react";
 
 // Internal
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 // Relative
 import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../api/get-diagnosis-options";
+import { DiagnosisHeaderSection } from "./DiagnosisHeaderSection";
 
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;
@@ -62,89 +62,84 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
     [names2]
   );
 
-  return (
-    <div className="col-span-5 flex flex-col min-h-0">
-      <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
-        <CardHeader className="p-0 pb-2">
-          <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-            <ChevronRight className={ICON.action} />
-            診断
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
-          <div className="space-y-2">
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
-                  診断1
-                </Label>
-                <SearchableSelect
-                  value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
-                  onValueChange={(value) => {
-                    setDiagnosis1CategoryId?.(value ? Number(value) : null);
-                    setDiagnosis1NameId?.(null);
-                  }}
-                  options={categoryOptions}
-                  disabled={isTypesLoading || !canEdit}
-                  placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
-                  searchPlaceholder="カテゴリを検索..."
-                  className="flex-1"
-                />
-                <SearchableSelect
-                  value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
-                  onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
-                  options={names1Options}
-                  disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
-                  placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"}
-                  searchPlaceholder="病名を検索..."
-                  className="flex-1"
-                  ariaInvalid={Boolean(diagnosis1NameIdError)}
-                />
-              </div>
-              <FormFieldError message={diagnosis1NameIdError} />
-            </div>
+  const controls = (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2">
+          <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
+            診断1
+          </Label>
+          <SearchableSelect
+            value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
+            onValueChange={(value) => {
+              setDiagnosis1CategoryId?.(value ? Number(value) : null);
+              setDiagnosis1NameId?.(null);
+            }}
+            options={categoryOptions}
+            disabled={isTypesLoading || !canEdit}
+            placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
+            searchPlaceholder="カテゴリを検索..."
+            className="flex-1"
+          />
+          <SearchableSelect
+            value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
+            onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
+            options={names1Options}
+            disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
+            placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"}
+            searchPlaceholder="病名を検索..."
+            className="flex-1"
+            ariaInvalid={Boolean(diagnosis1NameIdError)}
+          />
+        </div>
+        <div className="h-5 [&>p]:mt-0">
+          <FormFieldError message={diagnosis1NameIdError} />
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
-                診断2
-              </Label>
-              <SearchableSelect
-                value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
-                onValueChange={(value) => {
-                  setDiagnosis2CategoryId?.(value ? Number(value) : null);
-                  setDiagnosis2NameId?.(null);
-                }}
-                options={categoryOptions}
-                disabled={isTypesLoading || !canEdit}
-                placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
-                searchPlaceholder="カテゴリを検索..."
-                className="flex-1"
-              />
-              <SearchableSelect
-                value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
-                onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
-                options={names2Options}
-                disabled={isNames2Loading || !diagnosis2CategoryId || !canEdit}
-                placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"}
-                searchPlaceholder="病名を検索..."
-                className="flex-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0">
-            <Label className={`text-sm ${C.text60} mb-1.5`}>
-              診断詳細
-            </Label>
-            <Textarea
-              value={diagnosisDetails}
-              onChange={(e) => setDiagnosisDetails(e.target.value)}
-              className={`flex-1 resize-none ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
-              disabled={!canEdit}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2">
+        <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
+          診断2
+        </Label>
+        <SearchableSelect
+          value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
+          onValueChange={(value) => {
+            setDiagnosis2CategoryId?.(value ? Number(value) : null);
+            setDiagnosis2NameId?.(null);
+          }}
+          options={categoryOptions}
+          disabled={isTypesLoading || !canEdit}
+          placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"}
+          searchPlaceholder="カテゴリを検索..."
+          className="flex-1"
+        />
+        <SearchableSelect
+          value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
+          onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
+          options={names2Options}
+          disabled={isNames2Loading || !diagnosis2CategoryId || !canEdit}
+          placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"}
+          searchPlaceholder="病名を検索..."
+          className="flex-1"
+        />
+      </div>
     </div>
+  );
+
+  return (
+    <DiagnosisHeaderSection
+      className="col-span-5"
+      icon={<ChevronRight className={ICON.action} />}
+      title="診断"
+      controls={controls}
+    >
+      <Textarea
+        value={diagnosisDetails}
+        onChange={(e) => setDiagnosisDetails(e.target.value)}
+        aria-label="診断詳細"
+        className={`h-full min-h-0 resize-none rounded-md border ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusVisibleRingActionPrimary}`}
+        disabled={!canEdit}
+      />
+    </DiagnosisHeaderSection>
   );
 });

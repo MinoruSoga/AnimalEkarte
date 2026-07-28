@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
@@ -44,6 +45,7 @@ export function AggregationSearchFilter({ params, onParamsChange }: AggregationS
     <div className="relative min-w-[220px] flex-1 max-w-sm">
       <Search className={STYLE.searchIcon} />
       <Input
+        aria-label="飼主名検索"
         className={STYLE.searchInput}
         placeholder="飼主名を検索..."
         value={params.search ?? ""}
@@ -64,6 +66,7 @@ export function RevenueFilters({
       <div className="flex flex-col gap-1 min-w-[110px]">
         <label className={labelClass}>年度</label>
         <Input
+          aria-label="年度"
           type="number"
           className={inputClass}
           placeholder="年度"
@@ -79,7 +82,7 @@ export function RevenueFilters({
           value={params.amount_basis ?? "gross_total_amount"}
           onValueChange={(value) => onParamsChange({ amount_basis: value as AmountBasis, page: 1 })}
         >
-          <SelectTrigger className={inputClass}>
+          <SelectTrigger className={inputClass} aria-label="売上基準">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -96,6 +99,7 @@ export function RevenueFilters({
         <label className={labelClass}>売上額</label>
         <div className="flex items-center gap-2">
           <Input
+            aria-label="売上額下限"
             type="number"
             className={`${inputClass} w-28`}
             placeholder="下限"
@@ -105,6 +109,7 @@ export function RevenueFilters({
           />
           <span className={`text-sm ${C.text50}`}>〜</span>
           <Input
+            aria-label="売上額上限"
             type="number"
             className={`${inputClass} w-28`}
             placeholder="上限"
@@ -115,13 +120,15 @@ export function RevenueFilters({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 h-9">
-        <input
-          type="checkbox"
+      <div className="flex min-h-11 items-center gap-2">
+        <Checkbox
           id="revenue-include-zero"
-          className="size-4 cursor-pointer"
+          aria-label="0円を含む"
+          touchTarget
           checked={params.include_zero === true}
-          onChange={(e) => onParamsChange({ include_zero: e.target.checked ? true : undefined, page: 1 })}
+          onCheckedChange={(checked) =>
+            onParamsChange({ include_zero: checked === true ? true : undefined, page: 1 })
+          }
         />
         <label htmlFor="revenue-include-zero" className={`text-sm ${C.text} cursor-pointer select-none`}>
           0円を含む
@@ -145,7 +152,7 @@ export function VisitFilters({
           value={params.period_preset ?? "last_12_months"}
           onValueChange={(value) => onParamsChange({ period_preset: value as PeriodPreset, page: 1 })}
         >
-          <SelectTrigger className={inputClass}>
+          <SelectTrigger className={inputClass} aria-label="期間">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -173,6 +180,7 @@ export function VisitFilters({
         <label className={labelClass}>来院回数</label>
         <div className="flex items-center gap-2">
           <Input
+            aria-label="来院回数下限"
             type="number"
             className={`${inputClass} w-24`}
             placeholder="下限"
@@ -182,6 +190,7 @@ export function VisitFilters({
           />
           <span className={`text-sm ${C.text50}`}>〜</span>
           <Input
+            aria-label="来院回数上限"
             type="number"
             className={`${inputClass} w-24`}
             placeholder="上限"
@@ -209,7 +218,7 @@ export function LastVisitFilters({
           value={params.last_visit_bucket ?? "over_3m"}
           onValueChange={(value) => onParamsChange({ last_visit_bucket: value === "all" ? undefined : value, page: 1 })}
         >
-          <SelectTrigger className={inputClass}>
+          <SelectTrigger className={inputClass} aria-label="最終来院">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -222,13 +231,14 @@ export function LastVisitFilters({
         </Select>
       </div>
 
-      <div className="flex items-center gap-2 h-9">
-        <input
-          type="checkbox"
+      <div className="flex min-h-11 items-center gap-2">
+        <Checkbox
           id="last-visit-include-no-visit"
-          className="size-4 cursor-pointer"
+          touchTarget
           checked={params.include_no_visit === true}
-          onChange={(e) => onParamsChange({ include_no_visit: e.target.checked ? true : undefined, page: 1 })}
+          onCheckedChange={(checked) =>
+            onParamsChange({ include_no_visit: checked === true ? true : undefined, page: 1 })
+          }
         />
         <label htmlFor="last-visit-include-no-visit" className={`text-sm ${C.text} cursor-pointer select-none`}>
           来院なしを含む

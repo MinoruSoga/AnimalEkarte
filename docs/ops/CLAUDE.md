@@ -1,8 +1,14 @@
 # インフラ・運用ディレクトリ (Infrastructure & Operations)
 
-> **目的**: クラウド基盤（Cloudflare Workers + Containers / Vercel。AWS ECS は Phase 8 完了までのロールバック専用）、デプロイフロー、およびシステムの安定稼働に関する情報の管理。
+> **目的**: クラウド基盤（Cloudflare Workers + Containers / PlanetScale / Vercel）、デプロイフロー、およびシステムの安定稼働に関する情報の管理。
 > **読者**: AI エージェント(Claude Code)。
 > **タイミング**: docs/ops/ 配下編集時。
+>
+> **インフラ SSOT**: [`infra/architecture.md`](infra/architecture.md) /
+> [`infra/staging/runbook.md`](infra/staging/runbook.md) /
+> [`infra/production/runbook.md`](infra/production/runbook.md)。
+> AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先・ホットスタンバイとして使用できない。
+> AWS 時代の文書は [`infra/_archive/aws-legacy/`](infra/_archive/aws-legacy/) の凍結履歴であり、実行手順として使用しない。
 
 ---
 
@@ -14,8 +20,8 @@
 
 ## 🛠 運用の原則
 
-1.  **疎結合の維持**: Cloudflare（バックエンド）と Vercel（フロントエンド）のエッジ配信を独立させ、障害時の影響範囲を最小化する。AWS ECS/RDS はロールバック経路として分離済み。
-2.  **機密情報の保護**: 秘密鍵やパスワードはソースコードに含めず、必ず `wrangler secret put`（Cloudflare Secrets）または Vercel Secrets を使用する。AWS ECS ロールバック経路のみ SSM Parameter Store を使用する。
+1.  **疎結合の維持**: Cloudflare（バックエンド）と Vercel（フロントエンド）のエッジ配信を独立させ、障害時の影響範囲を最小化する。
+2.  **機密情報の保護**: 秘密鍵やパスワードはソースコードに含めず、必ず `wrangler secret put`（Cloudflare Secrets）または Vercel Secrets を使用する。
 3.  **証跡の記録**: 全てのデプロイと大規模な構成変更は、ランブックに基づき実行ログを残す。
 
 ---

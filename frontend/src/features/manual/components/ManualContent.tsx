@@ -8,6 +8,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { memo } from "react";
 import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -88,7 +89,7 @@ function resolveImageSrc(src: string | undefined): string | undefined {
   return imageUrls[key] ?? src;
 }
 
-export function ManualContent({ article }: ManualContentProps) {
+export const ManualContent = memo(function ManualContent({ article }: ManualContentProps) {
   if (!article) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -105,12 +106,12 @@ export function ManualContent({ article }: ManualContentProps) {
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className={`text-3xl font-bold mb-6 pb-3 border-b ${C.borderDivider} ${C.text}`}>
+            <h1 className={`text-heading-2 font-bold mb-6 pb-3 border-b ${C.borderDivider} ${C.text}`}>
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className={`text-2xl font-bold mt-8 mb-3 ${C.text}`}>{children}</h2>
+            <h2 className={`text-heading-3 font-bold mt-8 mb-3 ${C.text}`}>{children}</h2>
           ),
           h3: ({ children }) => (
             <h3 className={`text-xl font-semibold mt-6 mb-2 ${C.text}`}>{children}</h3>
@@ -174,7 +175,7 @@ export function ManualContent({ article }: ManualContentProps) {
             if (isInline) {
               return (
                 <code
-                  className={`px-1.5 py-0.5 rounded-[3px] text-[0.875em] ${C.text} ${C.bgHoverMd}`}
+                  className={`px-1.5 py-0.5 rounded-xxs text-[0.875em] ${C.text} ${C.bgHoverMd}`}
                 >
                   {children}
                 </code>
@@ -186,7 +187,7 @@ export function ManualContent({ article }: ManualContentProps) {
           },
           pre: ({ children }) => (
             <pre
-              className={`my-4 p-4 rounded-[3px] overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
+              className={`my-4 p-4 rounded-xxs overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
             >
               {children}
             </pre>
@@ -195,7 +196,7 @@ export function ManualContent({ article }: ManualContentProps) {
             <img
               src={resolveImageSrc(typeof src === "string" ? src : undefined)}
               alt={alt ?? ""}
-              className={`my-4 rounded-[3px] border ${C.borderDivider} max-w-full`}
+              className={`my-4 rounded-xxs border ${C.borderDivider} max-w-full`}
               loading="lazy"
             />
           ),
@@ -217,11 +218,11 @@ export function ManualContent({ article }: ManualContentProps) {
             {prev ? (
               <Link
                 to={paths.manual.article.getHref(prev.category, prev.slug)}
-                className={`flex items-center gap-2 p-3 rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} transition-colors`}
+                className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors`}
               >
                 <ChevronLeft className={`size-5 shrink-0 ${C.text50}`} />
                 <div className="min-w-0">
-                  <div className={`text-[11px] ${C.text40} uppercase tracking-wider`}>前の項目</div>
+                  <div className={`text-2xs ${C.text40} uppercase`}>前の項目</div>
                   <div className={`truncate ${C.text}`}>{prev.title}</div>
                 </div>
               </Link>
@@ -231,10 +232,10 @@ export function ManualContent({ article }: ManualContentProps) {
             {next ? (
               <Link
                 to={paths.manual.article.getHref(next.category, next.slug)}
-                className={`flex items-center gap-2 p-3 rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
+                className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
               >
                 <div className="min-w-0 flex-1">
-                  <div className={`text-[11px] ${C.text40} uppercase tracking-wider`}>次の項目</div>
+                  <div className={`text-2xs ${C.text40} uppercase`}>次の項目</div>
                   <div className={`truncate ${C.text}`}>{next.title}</div>
                 </div>
                 <ChevronRight className={`size-5 shrink-0 ${C.text50}`} />
@@ -247,4 +248,4 @@ export function ManualContent({ article }: ManualContentProps) {
       })()}
     </article>
   );
-}
+});

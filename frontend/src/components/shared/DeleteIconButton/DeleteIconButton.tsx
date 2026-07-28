@@ -29,7 +29,7 @@ export const DeleteIconButton = memo(function DeleteIconButton({
       disabled={disabled}
       title={title}
       className={cn(
-        `size-8 ${C.text40} ${C.hoverTextDanger} ${C.hoverBgDanger5}`,
+        `size-11 min-h-11 min-w-11 ${C.text40} ${C.hoverTextDanger} ${C.hoverBgDanger5}`,
         className
       )}
     >

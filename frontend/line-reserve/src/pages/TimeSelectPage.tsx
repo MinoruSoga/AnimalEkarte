@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
+import { formatTimeHHMM } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { getStepProgress } from '../lib/step-progress';
 
@@ -14,11 +15,6 @@ interface TimeSelectPageProps {
   isTrimming: boolean;
   onSelect: (startTime: string, endTime: string) => void;
   onBack: () => void;
-}
-
-function formatTime(hhmm: string): string {
-  if (!hhmm || hhmm.length < 4) return hhmm;
-  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
 }
 
 export function TimeSelectPage({
@@ -82,9 +78,9 @@ export function TimeSelectPage({
                   className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
                 >
                   <span className="text-noah-text font-medium">
-                    {time.display_time || formatTime(time.start_time)}
+                    {time.display_time || formatTimeHHMM(time.start_time)}
                     {' 〜 '}
-                    {formatTime(time.end_time)}
+                    {formatTimeHHMM(time.end_time)}
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

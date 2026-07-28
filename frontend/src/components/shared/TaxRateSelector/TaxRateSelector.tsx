@@ -14,12 +14,16 @@ interface TaxRateSelectorProps {
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  ariaLabel?: string;
+  className?: string;
 }
 
 export const TaxRateSelector = memo(function TaxRateSelector({
   value,
   onChange,
   disabled,
+  ariaLabel,
+  className,
 }: TaxRateSelectorProps) {
   return (
     <Select
@@ -27,7 +31,10 @@ export const TaxRateSelector = memo(function TaxRateSelector({
       onValueChange={(v) => onChange(Number(v))}
       disabled={disabled}
     >
-      <SelectTrigger className={STYLE.selectCompact}>
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className={`${STYLE.selectCompact} ${className ?? ""}`.trimEnd()}
+      >
         <SelectValue placeholder="選択" />
       </SelectTrigger>
       <SelectContent>{TAX_RATE_SELECT_ITEMS_STANDARD}</SelectContent>

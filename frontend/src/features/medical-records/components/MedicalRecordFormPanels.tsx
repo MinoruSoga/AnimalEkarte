@@ -1,10 +1,13 @@
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
+import { Link } from "react-router";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
+import { cn } from "@/lib/utils";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
 import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
@@ -29,6 +32,7 @@ import type { InterviewHistoryItem } from "../types";
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
+  cohabitingPets: Pet[];
   staffName: string;
   visitType: string;
   visitCount: number;
@@ -47,8 +51,47 @@ interface MedicalRecordStickyHeaderProps {
   hasLineIntegration?: boolean;
 }
 
+const CohabitingPetChips = memo(function CohabitingPetChips({
+  pets,
+}: {
+  pets: Pet[];
+}) {
+  return (
+    <section
+      aria-label="同居ペット"
+      className={cn(
+        "flex items-center gap-1.5 overflow-x-auto rounded-md p-2 [&::-webkit-scrollbar]:hidden",
+        C.bgPage30,
+      )}
+      style={{ scrollbarWidth: "none" }}
+    >
+      <span className={`shrink-0 text-xs ${C.text50}`}>同居ペット</span>
+      <div className="flex min-w-max gap-1.5">
+        {pets.map((pet) => {
+          const label = pet.species ? `${pet.name}（${pet.species}）` : pet.name;
+          return (
+            <Link
+              key={pet.id}
+              to={`${paths.medicalRecords.getHref()}?pet_id=${encodeURIComponent(pet.id)}`}
+              className={cn(
+                "h-8 shrink-0 rounded-md border bg-white px-2.5 text-sm leading-8 whitespace-nowrap transition-colors",
+                C.text,
+                C.borderMedium,
+                C.hoverBgLight,
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+});
+
 export function MedicalRecordStickyHeader({
   selectedPet,
+  cohabitingPets,
   staffName,
   visitType,
   visitCount,
@@ -106,7 +149,7 @@ export function MedicalRecordStickyHeader({
             onChange={(e) => {
               if (e.target.value) onDateChange!(e.target.value);
             }}
-            className={`h-8 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
+            className={`h-11 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
           />
         ) : (
           <span className={`h-8 flex items-center text-sm ${C.text}`}>
@@ -174,12 +217,18 @@ export function MedicalRecordStickyHeader({
         status={selectedPet.status === "死亡" ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         species={selectedPet.species}
+        gender={selectedPet.gender}
+        neuteredDate={selectedPet.neuteredDate}
+        breed={selectedPet.breed}
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        onOwnerClick={!isNewRecord && !isFinalized ? onOwnerClick : undefined}
+        onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
+      {!isNewRecord && cohabitingPets.length > 0 ? (
+        <CohabitingPetChips pets={cohabitingPets} />
+      ) : null}
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
         <UnifiedTabsList items={tabs} />
       </div>
@@ -270,7 +319,7 @@ export function MedicalRecordTabsArea({
   return (
     <div className={`mt-4 ${LAYOUT.fullHeight}`}>
       {mountedTabs.has("問診") ? (
-        <UnifiedTabsContent value="問診">
+        <UnifiedTabsContent value="問診" className="min-h-0 flex flex-col">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}

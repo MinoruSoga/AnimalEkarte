@@ -1,6 +1,6 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> **対象 Issue**: #258 ／ **納品日**: 2026-07-18 ／ **状態**: ドラフト
+> **対象 Issue**: #258 ／ **納品日**: 2026-07-27 ／ **状態**: ドラフト
 > **読者**: 先方の管理者（院長・システム担当者）
 > **目的**: 納品後に先方側で日常の運用・管理（スタッフ追加・権限変更・マスタ更新・障害時の一次対応）が自走できる状態にする。
 
@@ -19,11 +19,9 @@ flowchart TB
     CFDNS --> Worker["Worker<br/>(ルーティング)"]
     Worker --> Container["Containers<br/>Go API (Gin)"]
     Container -->|"S3 互換 API"| R2[("R2<br/>画像・帳票ファイル")]
-    Container -->|Hyperdrive 接続プール| HD["Hyperdrive"]
   end
 
-  HD --> PS[("PlanetScale<br/>PostgreSQL<br/>(東京リージョン)")]
-
+  Container -->|"TLS 直結<br/>(sslmode=require)"| PS[("PlanetScale<br/>PostgreSQL<br/>(東京リージョン)")]
   Container -->|API| LINE["LINE Messaging API<br/>/ Lステップ API"]
 ```
 
@@ -32,9 +30,11 @@ flowchart TB
 - **データベース**: PlanetScale PostgreSQL。DB の実体は Cloudflare 外（PlanetScale がホスト）。
 - **ファイルストレージ**: Cloudflare R2（ペット写真・検査結果 PDF 等。参照は有効期限付き署名 URL 経由）。
 - **外部連携**: LINE Messaging API / Lステップ API（予約・リマインド配信・タグ管理）。
-- 詳細: [docs/architecture/overview.md](../architecture/overview.md)（アプリ構造）／[docs/ops/infra-architecture.md](../ops/infra-architecture.md)（旧 AWS 構成の記述を含む。Cloudflare 移行の正本は [migration-cloudflare.md](../../migration-cloudflare.md)）
+- 詳細: [docs/architecture/overview.md](../architecture/overview.md)（アプリ構造）／[インフラ構成](../ops/infra/architecture.md)（現行インフラ SSOT）
 
-> **移行経過に伴う注記**: 旧 AWS 構成（ECS/RDS/CloudFront）は切替後の安定確認期間中、切り戻し先として温存されます（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §4）。安定確認後に廃止（migration-cloudflare.md Phase 8）。
+> **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはありません。
+> 障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、
+> またはスナップショットと現行 IaC からの再建で復旧します。
 
 ### 1.2 利用サービスと契約の一覧
 
@@ -55,7 +55,7 @@ flowchart TB
 
 | 環境 | フロントエンド URL | API ベース URL | 用途 |
 |---|---|---|---|
-| **本番 (Production)** | https://noah-karte.com | https://api.noah-karte.com/api | 実診療データの運用環境 |
+| **本番 (Production、未構築)** | https://noah-karte.com（予定） | https://api.noah-karte.com/api（予定） | #253 に従って構築予定 |
 | **ステージング (Staging)** | https://stg.noah-karte.com | https://api.stg.noah-karte.com/api | 更新の事前検証・デモ環境 |
 
 ---
@@ -153,7 +153,7 @@ flowchart TB
 
 - ヘルスチェック: `https://api.noah-karte.com/health`（HTTP 200 / `{"status":"ok"}` が正常）。
 - 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。（確定待ち: 送信先メールアドレスの供給・検証と apply — #253）
-- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が存在しないため、使用量 API の定期確認で代替（migration-cloudflare.md P6-4 の記録参照）。
+- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が存在しないため、使用量 API の定期確認で代替（../ops/infra/_archive/migration-cloudflare.md P6-4 の記録参照）。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。
 
 ---
@@ -164,9 +164,9 @@ flowchart TB
 |---|---|---|
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | 現場スタッフ向け操作マニュアル（ナビゲーション） | 現場スタッフ |
 | システム内マニュアル（`/manual`） | 全画面・全業務フローの詳細手順（検索可能） | 現場スタッフ・管理者 |
-| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 7/18 本番切替手順・切り戻し基準 | 開発側・先方管理者 |
+| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 本番切替準備・障害時判断 | 開発側・先方管理者 |
 | 本書（DELIVERY_PACKAGE.md） | システム構成・管理者設定・運用手順 | 先方管理者 |
 | [docs/spec/screens/](../spec/screens/README.md) | 画面別 詳細仕様書 | 管理者・開発側 |
-| [docs/ops/deploy/README.md](../ops/deploy/README.md) | デプロイ・運用ハブ（環境一覧・ロールバック判定） | 開発側 |
+| [docs/ops/deploy/README.md](../ops/deploy/README.md) | デプロイ・運用ハブ（環境一覧・障害時判断） | 開発側 |
 | [docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md](../ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) | ブラウザ手動検証シナリオ | 開発側・QA |
-| [migration-cloudflare.md](../../migration-cloudflare.md) | Cloudflare 移行計画・実施記録（正本） | 開発側 |
+| [../ops/infra/_archive/migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) | Cloudflare 移行の凍結実施記録（現行手順として実行しない） | 開発側 |

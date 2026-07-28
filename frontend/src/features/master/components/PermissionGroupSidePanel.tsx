@@ -8,6 +8,7 @@ import {
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 
 import type { PermissionGroup } from "../api/permission-groups";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
@@ -22,7 +23,8 @@ import {
 interface PermissionGroupSidePanelProps {
   item: PermissionGroup | null;
   onClose: () => void;
-  onSave: (data: PermissionGroupFormData) => void;
+  onSave: (data: PermissionGroupFormData) => Promise<boolean>;
+  onSaveSuccess: () => void;
   onDeleteRequest?: (item: PermissionGroup) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -32,6 +34,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   item,
   onClose,
   onSave,
+  onSaveSuccess,
   onDeleteRequest,
   readOnly,
   onDirtyChange,
@@ -53,20 +56,29 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("グループ名を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    try {
+      const saved = await onSave(formData);
+      if (saved) {
+        setIsDirty(false);
+        onDirtyChange?.(false);
+        onSaveSuccess();
+      }
+    } catch (error) {
+      handleApiError(error, "保存");
+    }
+  }, [formData, onDirtyChange, onSave, onSaveSuccess]);
 
   const handleNameChange = useCallback((value: string) => {
+    if (readOnly) return;
     setFormDataDirty((prev) => ({ ...prev, name: value }));
     if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  }, [readOnly, setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setFormDataDirty((prev) => ({ ...prev, description: event.target.value }));
@@ -110,6 +122,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
+      <fieldset disabled={readOnly} className="contents">
       <StatusToggleButton
         isActive={formData.isActive}
         onToggle={handleToggleActive}
@@ -143,6 +156,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         onRuleChange={handleRuleChange}
         disabled={readOnly}
       />
+      </fieldset>
     </MasterSidePanel>
   );
 });

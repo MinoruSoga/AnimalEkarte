@@ -2,14 +2,14 @@
  * トリミング API 型定義（BE-119: appointments ベース）
  *
  * FE7-3: BackendTrimming は tygo 生成の TrimmingResponse
- * （handler/trimming_response.go の TrimmingResponse に対応・FE7-1/FE7-2 で export/codegen 化）
+ * （internal/trimming/trimming_response.go の TrimmingResponse に対応）
  * を継承する。pet/staff の2フィールドのみ手書き — 生成型はこの2フィールドが参照する
  * petSummaryResponse/staffSummaryResponse（11+18箇所で共有される非公開型）を
  * tygo が解決できないため tstype:"-" で生成対象から除外されている（BE の json タグ・
  * wire 形状自体は不変。フィールドは実際のレスポンスに引き続き含まれる）。
  */
 import type { ReservationRoute } from "@/features/reservations";
-import type { TrimmingResponse } from "@/types/generated/handler-responses";
+import type { TrimmingResponse } from "@/types/generated/trimming-responses";
 
 // -------------------------------------------------------
 // Backend Response DTO (trimming_response.go に対応)
@@ -35,7 +35,7 @@ interface StaffSummary {
 
 /**
  * トリミング予約 API レスポンス DTO
- * handler/trimming_response.go の TrimmingResponse に対応。
+ * internal/trimming/trimming_response.go の TrimmingResponse に対応。
  * id/clinic_id/status/course/options 等のフラットフィールドは生成型を継承するため
  * BE 側の形状変更（フィールド追加・optional 化等）は type-check で検知できる。
  */
@@ -50,7 +50,7 @@ export interface BackendTrimming extends TrimmingResponse {
 
 /**
  * トリミング作成リクエスト（POST /v1/trimmings）
- * handler/trimming_request.go の createTrimmingRequest に対応
+ * internal/trimming/trimming_request.go の createTrimmingRequest に対応
  */
 export interface CreateTrimmingRequest {
   appointment_id?: number;
@@ -78,7 +78,7 @@ export interface CreateTrimmingRequest {
  * トリミング更新リクエスト（PATCH /v1/trimmings/:id — 全フィールドoptional）
  * FE3-6: CreateTrimmingRequest からフィールド集合が完全一致（3 フィールド除く）だったため
  * 手書き二重定義を廃し派生型化。値・フィールド集合は変更していない。
- * handler/trimming_request.go の updateTrimmingRequest に対応
+ * internal/trimming/trimming_request.go の updateTrimmingRequest に対応
  */
 export type UpdateTrimmingRequest = Omit<CreateTrimmingRequest, "appointment_id" | "reservation_type_id" | "reservation_route">;
 

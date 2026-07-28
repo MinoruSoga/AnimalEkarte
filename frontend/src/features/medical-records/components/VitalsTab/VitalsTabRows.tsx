@@ -2,6 +2,7 @@ import { memo, useCallback, useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -36,16 +37,16 @@ export function VitalsDisplayRow({
 }: VitalsDisplayRowProps) {
   return (
     <tr className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}>
-      <td className={`px-3 text-sm ${C.text}`}>{formatRecordedAt(vital.recorded_at)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.temperature)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.heart_rate)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>
+      <TableCell className={C.text}>{formatRecordedAt(vital.recorded_at)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.temperature)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.heart_rate)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>
         {displayNum(vital.weight)}
-        <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>{vital.note ? vital.note : "-"}</td>
-      <td className="px-2">
+        <span className={`ml-0.5 text-2xs ${C.text40}`}>{vital.weight_unit}</span>
+      </TableCell>
+      <TableCell className={C.text60}>{vital.note ? vital.note : "-"}</TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           {canEdit ? (
             <button
@@ -64,7 +65,7 @@ export function VitalsDisplayRow({
             />
           ) : null}
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 }
@@ -139,7 +140,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
 
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
-      <td className="px-3 py-2">
+      <TableCell>
         <input
           type="datetime-local"
           value={form.recorded_at}
@@ -148,8 +149,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.recorded_at} />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           step="0.1"
@@ -160,8 +161,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.temperature} />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           value={form.heart_rate}
@@ -170,8 +171,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`心拍数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           value={form.respiration_rate}
@@ -180,8 +181,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`呼吸数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -195,13 +196,13 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           <button
             type="button"
             onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
-            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+            className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
           >
             {form.weight_unit}
           </button>
         </div>
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="text"
           value={form.note}
@@ -210,8 +211,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`メモ (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-2 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
@@ -232,7 +233,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
             <X className={ICON.xs} />
           </button>
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 });
@@ -308,7 +309,7 @@ export function VitalsAddRow({
         <button
           type="button"
           onClick={() => onChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
-          className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+          className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}
         </button>
@@ -327,7 +328,7 @@ export function VitalsAddRow({
       />
       <Button
         size="sm"
-        className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+        className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
         onClick={onSubmit}
         disabled={isPending || !addForm.recorded_at}
       >

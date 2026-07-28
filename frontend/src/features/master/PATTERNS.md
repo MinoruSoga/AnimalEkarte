@@ -176,7 +176,12 @@ const filteredItems = useMemo(() => ..., [orderedItems, searchTerm]);
       columns={COLUMNS}
       data={filteredItems}
       renderRow={(item) => (
-        <SortableRow key={item.id} item={item} onEdit={() => handleEdit(item)} />
+        <SortableRow
+          key={item.id}
+          item={item}
+          canEdit={canEdit}
+          onEdit={() => handleEdit(item)}
+        />
       )}
     />
   </SortableContext>
@@ -186,41 +191,36 @@ const filteredItems = useMemo(() => ..., [orderedItems, searchTerm]);
 ### SortableRow コンポーネント
 
 ```tsx
-function SortableXxxRow({ item, onEdit }: { item: Xxx; onEdit: () => void }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,   // ドラッグ中は半透明
-  };
-
+function SortableXxxRow({ item, canEdit, onEdit }: {
+  item: Xxx;
+  canEdit: boolean;
+  onEdit: () => void;
+}) {
   return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
-      {/* ハンドル: listeners をここに渡す。attributes は DataTableRow に渡す */}
-      <TableCell
-        className={`w-[32px] py-2.5 ${C.text20} cursor-grab`}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
+    <SortableDataTableRow
+      id={item.id}
+      dragLabel={`並べ替え: 項目 ${item.name} (ID ${item.id})`}
+      dragDisabled={!canEdit}
+    >
+      <TableCell>
+        <DataTableRowButton
+          aria-label={`詳細: 項目 ${item.name} (ID ${item.id})`}
+          onClick={onEdit}
+        >
+          {item.name}
+        </DataTableRowButton>
       </TableCell>
       {/* 残りのセル */}
-    </DataTableRow>
+    </SortableDataTableRow>
   );
 }
 ```
 
 **注意点:**
-- `{...attributes}` は `DataTableRow`（`<tr>`）に渡す（スクリーンリーダー対応）
-- `{...listeners}` はハンドルセル（`<td>`）に渡す（ドラッグ起点を限定）
-- `setNodeRef` は `DataTableRow` の `ref` に渡す
+- 行全体へ `onClick` を付けない。表示・編集はセル内の native link / button から行う
+- `SortableDataTableRow` は native 44px drag buttonへ `attributes` / `listeners` / `setActivatorNodeRef` を集約し、`setNodeRef` は測定対象の `<tr>` に保持する
+- 並べ替えはwrite操作なので、edit権限がない場合は必ず `dragDisabled` にする
+- `dragLabel` と表示・編集buttonのaccessible nameには、表示名とstable IDを含める
 
 ### DragOverlay（高度なパターン）
 
@@ -439,7 +439,7 @@ function PropInput({ value, onChange, placeholder }: {
 
 | トークン | 定義（`design-tokens.ts` の合成元） |
 |---------|------------|
-| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]` |
+| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一） |
 | `STYLE.sidePeekToolbar` | `flex items-center justify-between h-[48px] px-3 shrink-0` |
 | `STYLE.sidePeekToolbarBtn` | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors` |
 | `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |

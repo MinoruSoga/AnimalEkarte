@@ -54,6 +54,29 @@ function renderCalendar() {
 }
 
 describe("ReservationTypeAvailableSlotsCalendar", () => {
+  it("狭幅でも7日の日付buttonを44px以上に保ちcalendar内だけ横scrollできる", async () => {
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
+        HttpResponse.json([]),
+      ),
+    );
+
+    const { container } = renderCalendar();
+
+    await screen.findByText("2026/06/01 - 2026/06/07");
+    const dayButtons = screen.getAllByRole("button", { name: /^2026\/06\/0[1-7]$/ });
+    expect(dayButtons).toHaveLength(7);
+    for (const button of dayButtons) {
+      expect(button).toHaveClass("min-w-11");
+    }
+
+    const calendarCanvas = dayButtons[0]?.parentElement?.parentElement;
+    const scrollViewport = calendarCanvas?.parentElement;
+    expect(calendarCanvas).toHaveClass("min-w-[308px]", "w-full");
+    expect(scrollViewport).toHaveClass("min-w-0", "max-w-full", "overflow-x-auto");
+    expect(container.firstElementChild).not.toHaveClass("overflow-x-auto");
+  });
+
   it("週グリッドに特定日枠と毎週枠を表示する", async () => {
     server.use(
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>

@@ -1,8 +1,8 @@
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useState, useRef, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetPet } from "@/hooks/use-pet";
+import { useGetPet, useGetPets } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
@@ -29,6 +29,15 @@ import {
   normalizeAppointmentId,
   normalizeVisitDate,
 } from "./use-medical-record-form-model";
+import type { Pet } from "@/types";
+
+export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
+  return pets.filter((pet) =>
+    pet.ownerId === selectedPet.ownerId
+    && pet.id !== selectedPet.id
+    && pet.status !== "死亡"
+  );
+}
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -36,7 +45,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isNewRecord = !recordId;
-  const { canEdit } = usePermission("medical-records");
+  const { canCreate, canEdit } = usePermission("medical-records");
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
@@ -77,6 +86,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
+  const isFinalized = existingRecord?.status === "確定済";
 
   useApplyMedicalRecord({
     existingRecord,
@@ -98,6 +108,18 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // Petデータを取得
   const { data: selectedPet, isLoading: isPetLoading } = useGetPet(resolvedPetId);
+  const cohabitingOwnerId = !isNewRecord ? selectedPet?.ownerId : undefined;
+  const { data: ownerPets = [] } = useGetPets(
+    cohabitingOwnerId,
+    { includeDeceased: true },
+    { enabled: Boolean(cohabitingOwnerId) },
+  );
+  const cohabitingPets = useMemo(
+    () => !isNewRecord && selectedPet
+      ? selectCohabitingPets(ownerPets, selectedPet)
+      : [],
+    [isNewRecord, ownerPets, selectedPet],
+  );
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
@@ -141,6 +163,8 @@ export function useMedicalRecordForm(recordId?: string) {
     recordId,
     activeTab,
     canEdit,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
+    isFinalized,
     isNextVisitDateValid,
     diagnosis1CategoryId,
     diagnosis1NameId,
@@ -180,6 +204,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setNextVisitDate,
     queryClient,
     updateMutation,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   const handleBack = useCallback(() => {
@@ -206,11 +231,16 @@ export function useMedicalRecordForm(recordId?: string) {
     existingRecord,
     updateMutation,
     startSaveTransition,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
-  useMedicalRecordAutoCreate({
+  const {
+    failurePhase: autoCreateFailurePhase,
+    retry: retryAutoCreate,
+  } = useMedicalRecordAutoCreate({
     isNewRecord,
+    canCreate,
     selectedPet,
     hasAutoCreatedRef,
     appointmentIdFromState,
@@ -236,6 +266,7 @@ export function useMedicalRecordForm(recordId?: string) {
     visitType,
     setVisitType,
     selectedPet: selectedPet ?? null,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
@@ -243,7 +274,10 @@ export function useMedicalRecordForm(recordId?: string) {
     formAction,
     formState,
     isSaving: isSaving || isSavingTransition,
+    isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,

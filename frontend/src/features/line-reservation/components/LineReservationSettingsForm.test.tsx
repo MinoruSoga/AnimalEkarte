@@ -55,6 +55,19 @@ function setupPutHandler() {
 // 平文 UI に置かない。この画面はそもそも credential を扱わないため、
 // 対応する input・formData 読み取り・payload キーのいずれも存在してはならない。
 describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決裁A)", () => {
+  it("定休曜日checkboxのfocusable hit areaを44px以上に保つ", () => {
+    render(<LineReservationSettingsForm setting={baseSetting} clinicId={CLINIC_ID} />);
+
+    const weekdayCheckboxes = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="checkbox"][id^="closed-weekday-"]'),
+    );
+
+    expect(weekdayCheckboxes).toHaveLength(7);
+    weekdayCheckboxes.forEach((checkbox) => {
+      expect(checkbox).toHaveClass("size-11");
+    });
+  });
+
   it("チャネルシークレット・アクセストークンの input は画面に存在しない", () => {
     render(<LineReservationSettingsForm setting={baseSetting} clinicId={CLINIC_ID} />);
 

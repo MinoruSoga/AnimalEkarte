@@ -79,11 +79,17 @@ describe("PetCareSection (PR#186 P2-2 Bug#1)", () => {
     expect(screen.queryByText(/永眠/)).not.toBeInTheDocument();
   });
 
-  it("死亡ステータスだが deceasedAt が未取得のとき、誤って生存扱いの記録ボタンにフォールバックする", () => {
+  it("死亡ステータスだが deceasedAt が未取得のとき、不整合を表示して再登録導線を閉じる", () => {
     renderPetCareSection({ ...basePet, status: "死亡", deceasedAt: undefined });
 
-    expect(screen.getByRole("button", { name: "死亡を記録" })).toBeInTheDocument();
-    expect(screen.queryByText(/永眠/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "生死データに不整合があります（死亡ステータス・死亡日時未登録）。修復は管理者に依頼してください",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "死亡を記録" }),
+    ).not.toBeInTheDocument();
   });
 });
 

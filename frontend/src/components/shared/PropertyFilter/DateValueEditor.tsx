@@ -84,7 +84,7 @@ export const DateValueEditor = memo(function DateValueEditor({
 
       <div className="p-3">
         <div
-          className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-[4px]`}
+          className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
         >
           <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
             {fromDisplay}

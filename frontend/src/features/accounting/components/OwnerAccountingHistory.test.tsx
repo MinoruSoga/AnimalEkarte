@@ -178,6 +178,18 @@ describe("OwnerAccountingHistory", () => {
     expect(alert).toHaveTextContent("未払いの会計が");
     expect(alert).toHaveTextContent("2");
     expect(alert).toHaveTextContent("件");
+    expect(within(alert).getByRole("button")).toHaveClass("min-h-11");
+  });
+
+  it("会計詳細リンクの操作領域を44px以上に保つ", async () => {
+    render(<OwnerAccountingHistory ownerId={mockOwnerId} />, {
+      wrapper: createWrapper(),
+    });
+
+    const detailLink = await screen.findByRole("link", {
+      name: /受付No 102 の会計詳細を開く/,
+    });
+    expect(detailLink).toHaveClass("min-h-11", "min-w-11");
   });
 
   it("cancelled のみのときは未払い警告を出さない", async () => {

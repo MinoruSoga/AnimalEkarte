@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/format/number";
 import type { Cage, CageSize, CageType } from "../api/cages";
 
 export const CAGE_TYPE_LABELS: Record<CageType, string> = {
@@ -47,5 +48,5 @@ export function cageToFormData(item: Cage | null): CageFormData {
 }
 
 export function formatCagePrice(price: number | null | undefined) {
-  return price != null ? `¥${price.toLocaleString()}` : "-";
+  return formatCurrency(price);
 }

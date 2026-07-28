@@ -186,9 +186,22 @@
 | 1 | 【要実測】28-line-reservation.md §2 と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | 必須項目・保存動線は文書正本に従う（本棚卸しでは必須項目・一意制約とも未確認） |
 | 2 | (C3-1) 表示対象の予約区分選択肢を確認 | 予約区分マスタ実データ由来（§4 の「V04」区分が反映される） |
 
+## 10. 法人情報（インボイス登録番号）(company-invoice-section)
+
+- ルート: `/settings/clinic` の医院一覧上部。実装: `CompanyInvoiceSection`。正本: [19-clinic-settings.md §1.3](../../../spec/screens/19-clinic-settings.md)。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | (C1-1/C1-2/C1-3) 現在値を控え、空欄・`T` 形式外・長い文字列をそれぞれ保存する | 【要実測】必須・形式・長さ・空欄クリアの仕様は正本に明記されていない。保存可否、エラー表示、再読込後の値を記録し、次の手順で有効な値へ戻す |
+| 2 | (C2) `T9999999999999` へ変更して保存 → F5 → 入力欄を再確認 | 「インボイス登録番号を更新しました」が表示され、C2-1〜C2-3 のとおり同じ値が永続・初期表示される |
+| 3 | 完了済み会計の明細兼領収書を開く | 登録番号欄へ手順 2 の法人インボイス登録番号が表示される |
+| 4 | 控えておいた元の値へ戻して保存 → F5 | 元の値が永続し、入力欄と会計帳票へ反映される |
+
+- 法人はシングルトンで、この項目には FK・一意制約・個別 ID ルートがないため C3-1〜C3-3 は該当なし。
+
 ## 確認観点
 
 - 既存の機械テストとの分担: 共通フック単体（use-master-save / use-master-crud）、E2E settings-crud.spec.ts（動物種 CRUD+検索・薬剤新規保存・診断病名パネル表示）、master-crud.spec.ts（主訴ナビ・診療項目の親子階層と 5 タブ — arm64 では skip）、settings-smoke.spec.ts（全設定ページの表示）、component test（予約区分パネル・予約可能枠 3 本・締め 3 セクション・Lステップ 4 セクション・ケージ・薬剤 model 2 本）、BE validators_test.go（RequiredName/TaxType/NonNegativePrice/CageType/CageSize/CoverageRate）+ dose / availability / staff capability 各 validator テストが単体レベルを網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**であり、特に機械テスト未カバーの「一意制約違反時のエラー表示」「更新の永続化」「FK 選択肢のマスタ由来」を対象とする。
 - 重複登録は FE 事前チェックなしで BE の UNIQUE 違反頼み — 全マスタ共通で「無音失敗・白画面にならない」ことが最重点の確認事項。
 - animal_species と Lステップタグ 3 テーブルは clinic 無関係のグローバル一意 — 変更が他クリニックにも見える点に注意（それ以外の clinic_id 隔離検証はスコープ外 — BE isolation テスト正本）。
-- NG 項目は bug.md へ BUG-XXX として起票する（[README.md](README.md) のルールに従う）。
+- NG 項目は [`3-session-agent.html` の実装タスク台帳（正本）](../../../../3-session-agent.html#ledger) の `<!-- LEDGER:APPEND -->` 直前へ `<section class="task" id="BUG-XXX">` として起票する（[README.md](README.md) のルールに従う）。

@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format/date";
+import { PetStatusDeceased } from "@/types/generated/models";
 import { fromVisitTypeValue } from "../routes/medical-record-form-model";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
@@ -31,6 +32,7 @@ export const transformMedicalRecord = (
     ownerName: record.owner?.name ?? "",
     petId: record.pet_id ? String(record.pet_id) : undefined,
     petName: record.pet?.name ?? "",
+    petIsDeceased: record.pet?.status === PetStatusDeceased,
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,

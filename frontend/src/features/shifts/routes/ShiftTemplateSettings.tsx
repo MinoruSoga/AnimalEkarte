@@ -7,11 +7,12 @@ import { toast } from "sonner";
 
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import { C } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
+import { ResourceShifts, ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
 import { useCreateShiftTemplate } from "../api/create-shift-template";
 import { useDeleteShiftTemplate } from "../api/delete-shift-template";
 import { useGetShiftTemplates } from "../api/get-shift-templates";
@@ -29,6 +30,7 @@ import type { ShiftTemplate } from "../types";
 
 export function ShiftTemplateSettings() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceShifts);
   const { data: templates = [], isLoading } = useGetShiftTemplates();
   const createMutation = useCreateShiftTemplate();
   const updateMutation = useUpdateShiftTemplate();
@@ -50,14 +52,18 @@ export function ShiftTemplateSettings() {
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: templates,
-    onReorder: (newIds) => reorderMutation.mutate(newIds.map(Number)),
+    onReorder: (newIds) => {
+      if (!canEdit) return;
+      reorderMutation.mutate(newIds.map(Number));
+    },
   });
 
   const handleCreate = useCallback(() => {
+    if (!canCreate) return;
     if (!dirty.confirmDiscard()) return;
     setSelectedItem(null);
     setIsEditing(true);
-  }, [dirty]);
+  }, [canCreate, dirty]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
     if (!dirty.confirmDiscard()) return;
@@ -72,6 +78,12 @@ export function ShiftTemplateSettings() {
   }, [dirty]);
 
   const handleSave = useCallback((formData: TemplateFormData) => {
+    const canSave = selectedItem !== null ? canEdit : canCreate;
+    if (!canSave) {
+      toast.error("シフトテンプレートを保存する権限がありません");
+      return;
+    }
+
     const breaks = formData.breaks.filter((b) => b.break_start && b.break_end);
     const isTimeHidden =
       formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
@@ -118,10 +130,10 @@ export function ShiftTemplateSettings() {
         },
       );
     }
-  }, [selectedItem, createMutation, updateMutation, handleClose, dirty]);
+  }, [selectedItem, canEdit, canCreate, createMutation, updateMutation, handleClose, dirty]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
+    if (!canDelete || !pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         toast.success("テンプレートを削除しました");
@@ -132,9 +144,10 @@ export function ShiftTemplateSettings() {
         }
       },
     });
-  }, [pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
+  }, [canDelete, pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isPanelReadOnly = selectedItem !== null ? !canEdit : !canCreate;
 
   const emptyContent = useMemo(
     () =>
@@ -152,10 +165,14 @@ export function ShiftTemplateSettings() {
         <PageLayout
           title="シフトテンプレートマスタ"
           icon={<Calendar className="size-5" />}
+          resource={ResourceShifts}
           onBack={() => navigate(paths.settings.getHref())}
-          maxWidth="max-w-full"
+          maxWidth={LAYOUT.pageContentMaxWidth.full}
         >
-          <ShiftTemplateToolbar count={orderedItems.length} onCreate={handleCreate} />
+          <ShiftTemplateToolbar
+            count={orderedItems.length}
+            onCreate={canCreate ? handleCreate : undefined}
+          />
 
           <DndContext
             sensors={sensors}
@@ -172,7 +189,12 @@ export function ShiftTemplateSettings() {
                 columns={SHIFT_TEMPLATE_COLUMNS}
                 data={orderedItems}
                 renderRow={(item) => (
-                  <ShiftTemplateRow key={item.id} item={item} onEdit={() => handleEdit(item)} />
+                  <ShiftTemplateRow
+                    key={item.id}
+                    item={item}
+                    canEdit={canEdit}
+                    onEdit={() => handleEdit(item)}
+                  />
                 )}
               />
             </SortableContext>
@@ -188,10 +210,11 @@ export function ShiftTemplateSettings() {
           item={selectedItem}
           onClose={handleClose}
           onSave={handleSave}
-          onDeleteRequest={() => {
+          onDeleteRequest={canDelete ? () => {
             if (selectedItem) setPendingDelete(selectedItem);
-          }}
+          } : undefined}
           isSaving={isSaving}
+          readOnly={isPanelReadOnly}
           onDirtyChange={handleDirtyChange}
         />
       ) : null}

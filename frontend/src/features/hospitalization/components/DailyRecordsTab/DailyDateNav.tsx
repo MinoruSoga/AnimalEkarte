@@ -26,14 +26,8 @@ export function DailyDateNav({
     dischargeDate,
     onDateChange,
 }: DailyDateNavProps) {
-    const canGoPrev = useMemo(
-        () => selectedDate > admissionDate,
-        [selectedDate, admissionDate]
-    );
-    const canGoNext = useMemo(
-        () => selectedDate < dischargeDate,
-        [selectedDate, dischargeDate]
-    );
+    const canGoPrev = selectedDate > admissionDate;
+    const canGoNext = selectedDate < dischargeDate;
 
     const handlePrev = useCallback(() => {
         if (canGoPrev) {

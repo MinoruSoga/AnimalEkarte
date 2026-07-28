@@ -56,6 +56,32 @@ describe("transformMedicalRecord", () => {
     expect(result.petName).toBe("ポチ");
   });
 
+  it("pet.status=deceased は明示的な死亡状態へ正規化する", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      pet: {
+        id: 10,
+        clinic_id: 1,
+        name: "ポチ",
+        status: "deceased",
+      } as BackendMedicalRecord["pet"],
+    });
+    expect(result.petIsDeceased).toBe(true);
+  });
+
+  it("pet.status がaliveまたは未取得なら死亡扱いにしない", () => {
+    expect(transformMedicalRecord({
+      ...minimal,
+      pet: {
+        id: 10,
+        clinic_id: 1,
+        name: "ポチ",
+        status: "alive",
+      } as BackendMedicalRecord["pet"],
+    }).petIsDeceased).toBe(false);
+    expect(transformMedicalRecord({ ...minimal, pet: undefined }).petIsDeceased).toBe(false);
+  });
+
   it("doctor.name を doctor にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,

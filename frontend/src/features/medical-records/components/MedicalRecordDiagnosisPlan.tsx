@@ -156,24 +156,22 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   return (
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
-      <div className="shrink-0">
-        <DiagnosisHeader
-          chiefComplaint={chiefComplaint}
-          policy={plan}
-          setPolicy={setPlan}
-          diagnosisDetails={assessment}
-          setDiagnosisDetails={setAssessment}
-          diagnosis1CategoryId={diagnosis1CategoryId}
-          setDiagnosis1CategoryId={setDiagnosis1CategoryId}
-          diagnosis1NameId={diagnosis1NameId}
-          setDiagnosis1NameId={setDiagnosis1NameId}
-          diagnosis2CategoryId={diagnosis2CategoryId}
-          setDiagnosis2CategoryId={setDiagnosis2CategoryId}
-          diagnosis2NameId={diagnosis2NameId}
-          setDiagnosis2NameId={setDiagnosis2NameId}
-          diagnosis1NameIdError={diagnosis1NameIdError}
-        />
-      </div>
+      <DiagnosisHeader
+        chiefComplaint={chiefComplaint}
+        policy={plan}
+        setPolicy={setPlan}
+        diagnosisDetails={assessment}
+        setDiagnosisDetails={setAssessment}
+        diagnosis1CategoryId={diagnosis1CategoryId}
+        setDiagnosis1CategoryId={setDiagnosis1CategoryId}
+        diagnosis1NameId={diagnosis1NameId}
+        setDiagnosis1NameId={setDiagnosis1NameId}
+        diagnosis2CategoryId={diagnosis2CategoryId}
+        setDiagnosis2CategoryId={setDiagnosis2CategoryId}
+        diagnosis2NameId={diagnosis2NameId}
+        setDiagnosis2NameId={setDiagnosis2NameId}
+        diagnosis1NameIdError={diagnosis1NameIdError}
+      />
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
@@ -183,7 +181,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {/* Bottom Section: Treatment Plan */}
       <div className="flex-1 min-h-0 flex flex-col">
-        <h2 className={`text-sm font-bold ${C.text} mb-1.5`}>治療プラン</h2>
+        <h2 className={`text-sm font-bold ${C.text} mb-2`}>治療プラン</h2>
 
         <div className={`flex-1 min-h-0 flex flex-col ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden`}>
           {isNewRecord ? (

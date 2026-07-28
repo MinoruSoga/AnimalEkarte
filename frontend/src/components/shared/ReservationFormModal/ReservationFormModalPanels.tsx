@@ -88,8 +88,8 @@ const StepIndicator = memo(function StepIndicator({
   return (
     <div className={`flex items-center gap-1.5 text-xs ${active ? C.textBrand : C.text30}`}>
       <span
-        className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? `${C.bgBrand} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold transition-colors ${
+          active ? `${C.bgBrand} ${C.textOnBrand}` : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -135,7 +135,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("existing")}
             data-testid="mode-existing"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
             <Users size={12} className="inline mr-1" />既存飼主
           </button>
@@ -143,7 +143,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("new")}
             data-testid="mode-new"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
             <UserPlus size={12} className="inline mr-1" />新規飼主
           </button>
@@ -255,7 +255,7 @@ function SelectedPatientSummary({
 }) {
   return (
     <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
-      <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
+      <Label className={`text-2xs ${C.text40} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
         <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
       </Label>
@@ -275,7 +275,7 @@ function SelectedPatientSummary({
       ) : (
         <div className="flex flex-col items-center justify-center h-20 text-center">
           <PawPrint className={`${ICON.lg} ${C.text15} mb-2`} />
-          <div className={`text-[12px] ${C.text40}`}>左側から患者を選択してください</div>
+          <div className={`text-xs ${C.text40}`}>左側から患者を選択してください</div>
         </div>
       )}
       {selectedPets.length === 0 ? <FormFieldError message={validationError} /> : null}
@@ -291,13 +291,13 @@ const SelectedPetChip = memo(function SelectedPetChip({
   onRemove: () => void;
 }) {
   return (
-    <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight} shadow-sm`}>
+    <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight}`}>
       <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
       <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
-      <Badge variant="outline" className={`text-[11px] font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}>
+      <Badge variant="outline" className={`text-2xs font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}>
         {pet.species}
       </Badge>
-      <span className={`text-[11px] ${C.text60} ml-auto`}>
+      <span className={`text-2xs ${C.text60} ml-auto`}>
         No. {pet.ownerId} {pet.ownerName}
       </span>
       <button
@@ -314,14 +314,14 @@ const SelectedPetChip = memo(function SelectedPetChip({
 function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
-      <div className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
+      <div className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
         この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
       </div>
     );
   }
   if (status === "opt-out") {
     return (
-      <div className={`rounded-[4px] border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
+      <div className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
         この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
       </div>
     );
@@ -329,7 +329,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "synced") {
     return (
       <div
-        className="rounded-[4px] border px-3 py-2 text-xs text-white flex items-center gap-1.5"
+        className="rounded-xs border px-3 py-2 text-xs text-white flex items-center gap-1.5"
         style={{ backgroundColor: PALETTE.lineGreen, borderColor: PALETTE.lineGreen }}
       >
         LINE連携済み — 予約確定後に自動通知が送信されます。
@@ -378,7 +378,7 @@ export function ReservationModalFooter({
         {canSave ? (
           <Button
             onClick={onSave}
-            className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-10 text-sm rounded-full min-w-[100px]`}
+            className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
           >
             {isEditMode ? "更新する" : "予約を確定"}
           </Button>

@@ -158,6 +158,19 @@ describe("LstepTagCodeMappingsSection — B: 編集フォーム開閉", () => {
     const codesInputs = screen.getAllByPlaceholderText("例: CHK_A, CHK_B");
     expect((codesInputs[0] as HTMLInputElement).value).toBe("CHK_A, CHK_B");
   });
+
+  it("行削除ボタンは44px以上の操作領域を保ち、行を削除できる", async () => {
+    await renderAndWait([]);
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole("button", { name: "編集" })[0]);
+
+    const deleteButton = screen.getByRole("button", { name: "行を削除" });
+    expect(deleteButton).toHaveClass("min-h-11", "min-w-11");
+
+    await user.click(deleteButton);
+    expect(screen.queryByRole("button", { name: "行を削除" })).not.toBeInTheDocument();
+  });
 });
 
 // ─────────────────────────────────────────────────

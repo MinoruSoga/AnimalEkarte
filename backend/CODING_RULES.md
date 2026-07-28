@@ -23,6 +23,25 @@ Go/Gin公式が規定しない package layout や layer pattern を、公式要�
 
 Handler → Service → Repository、Clean Architecture、layer-first/domain-first は Go/Gin 公式規約ではない。採用・変更する場合は、依存関係と変更単位を根拠に ADR で決める。
 
+## AnimalEkarte domain/capability architecture
+
+これはGo/Gin公式要件ではなく、[Product Philosophy](../docs/product-philosophy.md)を実装へ落とすためのproject decisionである。境界の正本は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)とする。
+
+- `internal/<domain>`を基本とするdomain/capability-firstのmodular monolithとし、route、use case、transaction、persistence、testをvertical sliceで変更する。
+- BE9-2B以降、既存未移行codeの保守・安全修正と移動に必要なcompatibility変更を除き、新規production実装を`internal/handler`、`internal/service`、`internal/repository`へ追加しない。新規実装はADR-006のtarget domain packageへ置く。BE9移行は2026-07-24にcode complete（release pending）となり、境界の正本は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)と[boundary map](../docs/architecture/be9-2a-boundary-map.md)とする。
+- domain内の`handler`、`service`、`repository` subpackageは必須ではない。実際のconsumer、依存方向、変更周期が分かれる場合だけ分割する。
+- business factごとにsource of truthとwrite ownerを1つにする。`appointments`とそのlifecycleは`reservation`がwrite ownerであり、他domainから独立した直接writeを行わない。owner外はbusiness intentを表すconsumer-side interfaceだけを宣言し、generic field-update APIを受け取らない。この境界は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)を正本とし、[`appointment_write_owner_lint_test.go`](internal/reservation/appointment_write_owner_lint_test.go)で回帰を検出する。
+- appointmentに紐づく通常カルテは一般診療予約だけを対象とし、appointmentごとにactive recordを最大1件とする。日付は予約日時のJST日付から導出し、紐づいている間は独立変更させない。削除は対象行をlockしたtransaction内で見積依存を再確認してから`clinic_id + id + status=draft`の原子的条件付きsoft deleteを行う。見積Createも同じ親行を先にlockし、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定との競合でも確定済みカルテを削除しない。検証・重複確認・transaction依存の欠落や失敗はfail-closedにする。
+- cross-domain呼び出しはbusiness intentを表すconsumer側の最小interfaceと型安全なDIを基本とする。owner外へ`map[string]any`等の任意field更新APIを公開せず、複数domainにまたがるwriteはownerとtransaction境界を明示する。
+- appointment、trimming detail、option等で1つのbusiness graphを構成するwriteは同じtransactionで全体を成功またはrollbackさせる。既存trimming appointmentのowner欠損はappointment fieldを変更しないdetail-only writeでも補完する。参照master・担当者・LINE顧客を検証する必須依存が欠ける場合はwrite前にfail-closedとし、LIFFで明示指定されたstaffにはclinic所属・対応可能種別に加えて`is_active=true`かつ`reservation_visible=true`を要求する。best-effortを選ぶ場合は部分成功contract、再試行、補償、監査を明示する。
+- fail-closedと定めたclinical/financial監査はbusiness writeと同じtransactionへ参加させ、監査dependency欠落または監査write失敗時はbusiness writeもrollbackする。締め後の会計編集はこの対象とする。
+- `FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。request由来のclinic-scoped FKは永続化と同じtransactionで再検証し、並行master変更で判定が無効になる場合は対象行をcommitまで共有ロックする。
+- nested GORM `Preload`は末尾associationの条件だけでは中間associationをscopeできない。clinic-ownedの中間関連も明示的に`Preload(..., "clinic_id = ?", clinicID)`し、runtime clinic-isolation testとAST gateを併用する。
+- compatibility facadeは薄いdelegate/type aliasだけを許可し、business ruleやpersistence実装を複製しない。consumer移行後の削除条件を持たせる。
+- 自動処理には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。
+- 自動status transitionは、対象条件をwrite時にcompare-and-setで再評価する。臨床記録など遷移を否定するbusiness evidenceも同じ判定へ含め、resource単位の監査が必須なら状態変更と同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。
+- folder移動だけでclinic isolation、authorization、clinical safetyが成立したと判断しない。既存のruntime testとapplication invariantで検証する。
+
 ## HTTP with Gin
 
 - route group で prefix と middleware scope を表現する。
@@ -56,6 +75,7 @@ Handler → Service → Repository、Clean Architecture、layer-first/domain-fir
 
 - query は parameterized し、DB call へ Context を渡す。
 - transaction の開始、commit、rollback、resource ownership を明確にする。
+- write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。
 - schema constraint と application validation の両方を使う。
 - migration は versioned SQL で管理し、application startup の暗黙 migration に依存しない。
 - clinic-scoped data は、ORM、raw SQL、join、preload、count、bulk operation、background job のすべてで認証済み clinic に制約する。
@@ -78,6 +98,9 @@ ORM や repository pattern の採否は Go/Gin公式未規定である。GORM �
 - HTTP handler/middleware は `net/http/httptest` と最小 router で検証する。
 - binding、validation、authentication、authorization、not-found、conflict、internal-error を含める。
 - tenant/ownership boundary の変更には unauthorized/cross-tenant test を含める。
+- write ownerまたは状態遷移の変更には、owner外の直接writeがないこと、intent-specific operation、cross-domain transactionのrollbackを確認するtestを含める。
+- write-ownerのAST gateは`FirstOrCreate`を含むmutation、typed parameter、free function/receiver method戻り値とcross-file/package-qualified factory、query変数、local/package constant、table alias・schema-qualified table、直接または変数代入した`TableName()`、静的string helper、schema-qualified raw SQL、generic appointment map mutatorを検出する。
+- 自動処理の変更には、停止、失敗通知、監査、手動fallback、重複実行またはretry時の安全性を変更riskに応じて検証する。
 - cancellation、concurrency、transaction、shutdown は変更 risk に応じて検証する。
 - `gofmt`、`go test`、`go vet`、project lint を適用する。
 - この repository では Go command を host で直接実行せず、Docker の scoped command を使う。
@@ -88,6 +111,9 @@ coverage threshold や TDD workflow は project quality policy であり、Go/Gi
 ## Before review
 
 - [ ] package boundary と名前が利用者・凝集性を反映している
+- [ ] 旧`internal/handler|service|repository`へ新規production実装を追加しておらず、残すfacade/adapterにconsumerと削除phaseがある
+- [ ] business factのsource of truth/write ownerが一意で、owner外の直接writeや重複実装がない
+- [ ] vertical slice、cross-domain transaction、自動化の停止/監査/fallbackが変更範囲に応じて検証されている
 - [ ] Context、error chain、resource cleanup が維持されている
 - [ ] input validation、authentication、authorization、ownership が独立している
 - [ ] response/log に内部情報や個人情報がない

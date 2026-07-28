@@ -63,7 +63,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
           {state.error ? (
             <div
               role="alert"
-              className={`text-sm ${C.textNotionRed} ${C.bgDanger8} border ${C.borderDanger20} rounded-[4px] px-3 py-2`}
+              className={`text-sm ${C.textNotionRed} ${C.bgDanger8} border ${C.borderDanger20} rounded-xs px-3 py-2`}
             >
               {state.error}
             </div>
@@ -82,7 +82,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               name="after_text"
               aria-required="true"
               rows={5}
-              className={`w-full border ${C.borderMedium} rounded-[4px] px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
+              className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
           </div>
 
@@ -100,7 +100,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               aria-required="true"
               rows={3}
               onChange={(e) => setReasonLength(e.target.value.length)}
-              className={`w-full border ${C.borderMedium} rounded-[4px] px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
+              className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
             <p
               className={`text-sm mt-1 text-right ${reasonLength > MAX_REASON_LENGTH ? C.textNotionRed : C.text60}`}
@@ -114,7 +114,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <SubmitButton colorVariant="brand" loadingText="保存中...">追記を保存</SubmitButton>
+            <SubmitButton colorVariant="primary" loadingText="保存中...">追記を保存</SubmitButton>
           </div>
         </form>
       </DialogContent>

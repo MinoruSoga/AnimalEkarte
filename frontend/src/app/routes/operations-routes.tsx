@@ -28,10 +28,18 @@ export const operationsRoutes: RouteObject[] = [
       },
       {
         path: "delivery-monitor",
-        lazy: async () => {
-          const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
-          return { Component: LstepDeliveryMonitorPage };
-        },
+        element: (
+          <RequirePermission resource={ResourceLstepAnalytics}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [{
+          index: true,
+          lazy: async () => {
+            const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
+            return { Component: LstepDeliveryMonitorPage };
+          },
+        }],
       },
       {
         path: "analytics",
