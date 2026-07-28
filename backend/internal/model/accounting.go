@@ -163,6 +163,7 @@ func (item *BillingItem) CalculateTaxAmount() int64 {
 type Payment struct {
 	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID       uint64  `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	ClinicID        uint64  `gorm:"not null"                                       json:"-"` // internal tenant key; not on FE wire
 	Subtotal        int64   `gorm:"not null;default:0"                             json:"subtotal"`
 	TaxTotal        int64   `gorm:"not null;default:0"                             json:"tax_total"`
 	TotalAmount     int64   `gorm:"not null;default:0"                             json:"total_amount"`

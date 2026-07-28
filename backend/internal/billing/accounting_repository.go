@@ -418,6 +418,11 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 		if err != nil {
 			return err
 		}
+		// TASK-445: payments.clinic_id is an internal tenant key derived from the
+		// locked billing row (never from request body). Set always so create and
+		// update stay consistent with the billing tenant.
+		payment.ClinicID = clinicID
+		fields["clinic_id"] = payment.ClinicID
 		if payment.PaidBy != nil {
 			if err := lockActiveBillingStaffs(
 				tx,

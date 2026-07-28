@@ -237,6 +237,49 @@ func TestAccountingRepository_SavePayment_CommitsWithinAmbientTx(t *testing.T) {
 	assert.EqualValues(t, 1, count, "commit 後は payments に行が永続化される")
 }
 
+// TestAccountingRepository_SavePayment_PersistsClinicIDFromBilling は TASK-445:
+// SavePayment が lockBillingClinic で得た billing.clinic_id を payments.clinic_id に
+// 永続化することを raw 列読取で証明する（モデル json:"-" のため FE wire には出ない）。
+func TestAccountingRepository_SavePayment_PersistsClinicIDFromBilling(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	billing := makeBillingForAccountingTx(t, db, clinicA)
+	require.Equal(t, clinicA, billing.ClinicID)
+
+	repo := NewAccountingRepository(db)
+	payment := &model.Payment{
+		BillingID:     billing.ID,
+		TotalAmount:   8000,
+		BillingAmount: 8000,
+		Method:        model.PaymentMethodCash,
+		// ClinicID intentionally omitted: SavePayment must derive it from billing.
+	}
+	require.NoError(t, repo.SavePayment(ctx, payment))
+	assert.Equal(t, clinicA, payment.ClinicID, "SavePayment は in-memory payment.ClinicID も billing 由来にセットする")
+
+	var rawClinicID uint64
+	require.NoError(t, db.WithContext(ctx).
+		Raw("SELECT clinic_id FROM payments WHERE billing_id = ?", billing.ID).
+		Scan(&rawClinicID).Error)
+	assert.Equal(t, clinicA, rawClinicID, "payments.clinic_id は billing.clinic_id と一致して永続化される")
+
+	// Update path also refreshes clinic_id (fields map includes clinic_id).
+	paymentUpdate := &model.Payment{
+		BillingID:     billing.ID,
+		TotalAmount:   9000,
+		BillingAmount: 9000,
+		Method:        model.PaymentMethodCash,
+	}
+	require.NoError(t, repo.SavePayment(ctx, paymentUpdate))
+	require.NoError(t, db.WithContext(ctx).
+		Raw("SELECT clinic_id FROM payments WHERE billing_id = ?", billing.ID).
+		Scan(&rawClinicID).Error)
+	assert.Equal(t, clinicA, rawClinicID, "update 後も payments.clinic_id は billing.clinic_id のまま")
+	assert.Equal(t, clinicA, paymentUpdate.ClinicID)
+}
+
 // ─── SavePaymentSplits（部分コミットの実証: r.db.Transaction が独立 tx を開始する誤り） ──
 
 func TestAccountingRepository_SavePaymentSplits_RollsBackWhenAmbientTxFails(t *testing.T) {
