@@ -41,6 +41,7 @@ Handler → Service → Repository、Clean Architecture、layer-first/domain-fir
 - 自動処理には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。
 - 自動status transitionは、対象条件をwrite時にcompare-and-setで再評価する。臨床記録など遷移を否定するbusiness evidenceも同じ判定へ含め、resource単位の監査が必須なら状態変更と同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。
 - masterの「使用中は削除不可」は、Find→CountUsage→Deleteの非原子シーケンスを正しさの根拠にしてはならない。正しさの境界は`clinic_id + id`とusage不在（または許可されたstatus等）を同一SQLに束ねた条件付き原子DELETE（または同等のcompare-and-set soft delete）とし、`RowsAffected == 0`をConflict/NotFoundに正規化する（正例: `billing.estimateRepository.DeleteIfNotLocked`）。早期CountはUX用に残してよいが、防御本体にしてはならない。usage attachが並行し判定を無効化し得るpathでは、上のFK再検証条項に従いrequest由来FKを同txで再検証し、必要なら親masterをcommitまで共有ロックする（`FOR UPDATE`/`FOR SHARE`を正しさの根拠にするならambient tx必須）。新規productionと当該Deleteを変更する実装はこの規則に従う。既存の非原子Count→Delete（例: inventory / merchandise 他多数master）は既知のresidual race debtとし、一括retrofitは別作業とする（本規則の文書化だけではproductionを変えない）。
+- LSTEP等のscheduled/cronバッチに、上のbest-effort条項（部分成功contract・再試行・補償・監査）と自動処理条項（停止・失敗通知・監査・手動fallback・idempotency/retry）を次のように適用する。(1) バッチ成立条件の欠落（必須dependency未構成、clinic一覧取得失敗、必須設定サービス不在）と、clinical status遷移のようにresource単位の監査が必須なwriteはfail-closedとする（正例: no-showのMark+audit同一transaction）。(2) multi-clinic / multi-owner / multi-triggerで1件失敗後も続行するintentional best-effortを選ぶ場合は、部分成功contract（`(processed, errs)`およびdurable向け`BatchRunResult`で`Processed = Succeeded + Failed`）、失敗のerrorログとFailed計上、`processed_count`/`error_count`を含む監査、再実行時のidempotencyまたは再評価、外部API失敗時の補償または次回runでの収束方針、sync無効化等の停止手段とPartial/Failedを契機とする手動fallbackを明示する。(3) 失敗をログのみで飲み込み成功扱いにするsilent swallow（例: 取得失敗で`return 0, nil`としerror_countに載せない）は新規禁止。既存のsilent pathはknown debtとし、触る変更でintentional best-effortまたはfail-closedへ寄せる。(4) 副次的side-effect（tag cache削除、API失敗カウンタ更新など）をbest-effortにする場合もログ必須とし、本処理の成功契約を反転させないことと失敗時の収束/補償を短く明示する。
 - folder移動だけでclinic isolation、authorization、clinical safetyが成立したと判断しない。既存のruntime testとapplication invariantで検証する。
 
 ## HTTP with Gin
@@ -116,6 +117,7 @@ coverage threshold や TDD workflow は project quality policy であり、Go/Gi
 - [ ] business factのsource of truth/write ownerが一意で、owner外の直接writeや重複実装がない
 - [ ] vertical slice、cross-domain transaction、自動化の停止/監査/fallbackが変更範囲に応じて検証されている
 - [ ] master「使用中は削除不可」のDeleteを新規/変更した場合、条件付き原子DELETE（または明示した親ロック+原子DELETE）になっており、非原子Count→Deleteを正しさの根拠にしていない
+- [ ] LSTEP/自動バッチのintentional best-effortに部分成功contract・Failed計上・監査・再実行/補償が明示され、silent swallowを新規に増やしていない
 - [ ] Context、error chain、resource cleanup が維持されている
 - [ ] input validation、authentication、authorization、ownership が独立している
 - [ ] response/log に内部情報や個人情報がない
