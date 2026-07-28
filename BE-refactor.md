@@ -1241,99 +1241,131 @@
 
 1. **`.claude/CLAUDE.md:7`** — 「Type Safety First: Prohibit `any` in both Go and TypeScript」は無条件禁止として書かれているが、本unitの41ファイル中13ファイル・計39箇所で `map[string]any` が GORM Updates の列名→値マップとして使われている（hospitalization_service.go:90, examination_service.go:69, diagnosis_service.go:65,83, hospitalization_plan_service.go:25, exam_type_service.go:21, および各 repository の Update(fields map[string]any) シグネチャ）。.claude/refs/go-language.md:47「`any` や reflection は型で表現できない境界に限定する。」は境界での使用を許容しており、両者の強度が食い違う（台帳の疑義-3）。結果、この規約は systematically violated か systematically waived のどちらかだが、waive を記録した ADR が repo 内に存在しないため、レビュー時に指摘すべきか否かを規約から決定できない。
    - 提案: .claude/CLAUDE.md:7 に「ORM の部分更新マップ等、型で表現できない persistence 境界を除く」旨の例外句を入れて go-language.md:47 と整合させるか、逆に許容境界を列挙した ADR を起こして参照させる。どちらも採らないなら、`map[string]any` を型付き update struct へ寄せる移行計画を記録し、それまでは指摘対象外と明記する。
+   - 影響所見: `CMD-04`。着手ブロック: **いいえ**（着手後でも可）。
 
 2. **`.claude/refs/backend-application-invariants.md:11 + backend/migrations/CLAUDE.md:14`** — invariants:11 は「clinic-scoped data のすべての read/write/delete は、認証済み clinic_id で制約する」と要求し、migrations/CLAUDE.md:14 は「新テーブルにクリニック間分離が必要な場合は clinic_id NOT NULL を付ける」と述べるが、どちらも『必要な場合』の判定基準を定義していない。実装は同じ深さの子テーブルで二分している: clinic_id を非正規化保持する側（payment_splits / treatment_plans / daily_records / care_logs / medicine_dose_params / checkup_field_results）と、親 join で相関する側（payments / care_plan_items / staff_notes / estimate_items / treatments / clinical_plans / inquiries / exam_results / medical_record_images）。レビュー時に、ある model が clinic_id を持たないことを欠陥として起票すべきか、意図的な相関設計として不問にすべきかが規約から導けない（本監査でも Payment を既知 TASK-445 として扱う一方、care_plan_items/staff_notes を不問にする判断根拠が規約に無かった）。
    - 提案: backend-application-invariants.md に判定基準を1条追加する。例:『親が単一 clinic に属することが FK で保証され、かつ当該テーブルへの全 read/write が親への clinic 相関を伴う lint（grandchild_parent_clinic_correlation_lint_test.go）の対象に登録されている場合に限り、clinic_id の非正規化を省略してよい。それ以外は clinic_id NOT NULL + 複合FK を必須とする』。併せて migrations/CLAUDE.md:14 からこの条文へポインタを張る。
+   - 影響所見: `MDL-06`。着手ブロック: **はい**（`DEC-29`）。
 
 3. **`.claude/refs/backend-application-invariants.md:11 / backend/migrations/CLAUDE.md:14`** — 「clinic-scoped data」と「クリニック間分離が必要な場合」のいずれにも判定基準が無い。clinic_id 列を持たないが院単位 RBAC ルート（ResourceHospitalSettings 等）から mutate されるテーブル（lstep_auto_managed_prefixes 等）が clinic-scoped に該当するかを規約から導けず、LS-A-04 の severity と是正方向が規約だけでは決まらない。
    - 提案: invariants に「clinic-scoped data の定義: clinic 単位 permission で mutate 可能な行、または clinic 固有の業務判断に影響する行」を明示し、それに該当するなら (a) clinic_id を持つ (b) platform-admin 専権にする のいずれかを取れ、という選択肢付きの判定基準を書く。
+   - 影響所見: `LSA-04`。着手ブロック: **はい**（`DEC-30`）。
 
 4. **`.claude/refs/backend-application-invariants.md:15`** — 「preload にも同じ scope を適用する」と無条件に書かれているが、実装側の機械gate backend/internal/lintscan/preload_clinic_scope_lint_test.go:129-146 は `staffExemptAssoc`（Doctor / CreatedByStaff 等8association）を「leak は staff NAME only, low severity」として恒久免除している。この免除は規約正本にも ADR にも記載がなく、go-gin-backend-guidelines.md:233 が要求する「ADR または application invariant として根拠・適用範囲・検証方法を記録する」を満たしていない。結果として監査者は appointment_admin_repository.go:44 の `Preload("Doctor", "deleted_at IS NULL")` を違反と読むか免除と読むかを規約から決定できない（reservation_repository.go:17-21 は同じ association に対し assignment-EXISTS の厳格述語を課しており、同一package内でも扱いが割れている）。
    - 提案: staff系 association の clinic-scope 免除を invariants 側へ明記し、免除の範囲（staffs は staff_clinic_assignments が正本のため単純 clinic_id scope が誤りになる旨）と、reservation_repository.go が採る assignment-EXISTS 述語を推奨形として記録する。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 5. **`.claude/refs/backend-application-invariants.md:31`** — 「destructive または irreversible な操作には、権限、対象 scope、監査、recovery 方針を持たせる」の「対象 scope」が、clinic_id を持たないグローバル共有マスタ（animal_species 等）に対して何を意味するかを定義していない。個々のクリニックの権限グループで全クリニック共有行を破壊・改名できる構造が規約違反か否かを、この文からは判定できない。同ファイル :11-16 の tenant isolation 節はグローバルマスタを明示的に対象外にも対象にもしていない。
    - 提案: グローバル共有マスタを1カテゴリとして節を起こし、(a) 誰が write owner か (b) 変更に監査を必須とするか (c) 使用中チェックの範囲は全テナントか、を明記する。少なくとも「clinic_id を持たないマスタへの write は必ず audit_logs へ記録する」を追加すれば PO-07 の判定は機械化できる。
+   - 影響所見: `POC-07`。着手ブロック: **はい**（`DEC-31`）。
 
 6. **`.claude/refs/backend-application-invariants.md:32`** — 「`appointments`とそのlifecycleは`reservation`、`staffs`と`shift_entries`は`staff`がwrite ownerであり、BE9-2E-0で収束済みの境界を`appointment_write_owner_lint_test.go`の自動gateで維持する」と書かれているが、当該gateは appointments しか検出面に持たない（CODING_RULES.md:102 の検出面列挙もすべて appointment 前提）。実装は reservation_staff_repository.go:46-50 の staffsWriter / reservation_schedule_repository.go:40-48 の shiftWriter という手作りの delegate で staffs / shift_entries の write owner を守っており、機械gateは存在しない。規約が実際より強い保証を主張している。
    - 提案: 「appointments は自動gateで維持、staffs/shift_entries は consumer-side writer port による設計上の分離のみ（gate未整備）」と現状を書き分けるか、write-owner gate を staffs / shift_entries にも拡張して記述を実態に合わせる。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 7. **`.claude/refs/backend-application-invariants.md:35`** — 「意図的なsaga/best-effort処理は、補償、再試行、監査、部分失敗contractを持たせる。」は best-effort 部分が失敗したときに同期 HTTP 応答が何を返してよいかを規定していない。「部分失敗contract」がレスポンス上の表現を含むのか、コード内コメントで宣言すれば足りるのかが決定不能である。実装は両極に割れている: medical_record_subrecords.go は主訴消失時も medical_record_handler.go:119 で無条件 201 を返し監査も残さない一方、medical_record_auto_create.go:198-235 は同種の best-effort 失敗に専用 audit action を必ず記録する。lab_result_import_service.go:184-189 は終端遷移失敗をログのみにしてジョブを非終端のまま 201 を返す。
    - 提案: 「宣言した best-effort 構成要素が失敗した場合、同期 HTTP 応答で無条件の成功を返してはならない。応答に部分失敗を示す field を含めるか、失敗を専用 audit action として記録するかのいずれかを必須とする」を明文で追加する。auditReservationDraftCleanupFailure を参照実装として名指しし、best-effort 経路の一覧を invariant 側で管理する。
+   - 影響所見: `MRC-04`。着手ブロック: **はい**（`DEC-32`）。
 
 8. **`.claude/refs/backend-application-invariants.md:35（意図的 best-effort の要件）`** — 「意図的なsaga/best-effort処理は、補償、再試行、監査、部分失敗contractを持たせる」は4要素を列挙するが、これらが全て必須なのか、いずれか1つで足りるのかを規定していない。lstep には slog によるログのみの best-effort 経路が多数あり（lstep_lifecycle_service.go:149,157,160,163,259,298 等）、ログが「監査」に該当するかも不明。判定が査読者の裁量に委ねられ、LS-B-02 のような不可逆な記録喪失と、単なる再試行可能なタグ同期失敗が同じ扱いになる。
    - 提案: 4要素の必須/選択を明示し、最低ラインとして「後から失敗を検出し再実行できる持続的な記録（slog 以外）」を必須と定める。加えて『best-effort の副作用が、再試行に必要な状態自体を破壊してはならない』という不可逆性の禁止条項を追加する。
+   - 影響所見: `LSB-02`。着手ブロック: **いいえ**（着手後でも可）。
 
 9. **`.claude/refs/backend-application-invariants.md:37`** — 「締め後の会計編集はこの対象とする」の『会計編集』が定義されていない。billings 行の直接 UPDATE だけを指すのか、billing_items の変更（結果として billings.subtotal/tax_total/total_amount を書き換える）も含むのかが規約から決定できない。実装はこの曖昧さのまま分岐しており、accounting PATCH には post-close ゲートがあるのに billing-items PATCH/POST には無い（BL-01）。cash_register_closes は締め時点のスナップショットを永続化する（backend/internal/billing/cash_register_service.go:359-377、backend/migrations/001_init.sql:3659「既存の締め記録（cash_register_closes のスナップショット）は再計算しない」）一方、月次・日次レポートは status=completed 行から都度再集計する（backend/internal/billing/accounting_repository_reports_monthly.go:146, accounting_repository_reports_daily.go:29）ため、対象範囲の曖昧さは実際に「締めスナップショットと再集計値の乖離」という具体的損害へ直結する。
    - 提案: 『会計編集』を「billings 行または billings の金額列を導出する子行（billing_items / payments / payment_splits / billing_refunds）に対する write」と列挙で定義し、対象テーブル一覧を invariant 本文に明記する。合わせて lintscan に「これらのテーブルへ write する service は IsDateClosed 判定と post-close 監査を経ているか」の inventory gate を新設できる形にする。
+   - 影響所見: `BIL-01`。着手ブロック: **はい**（`DEC-33`）。
 
 10. **`.claude/refs/error-handling.md:18`** — 「error の種類は errors.Is / errors.As で判定し、message 文字列比較をしない」に例外規定が無いが、pgx ドライバの encode 失敗は型付き error も sentinel も公開しておらず、errors.Is/As では判定できない。backend/internal/apperrors/errors.go:172-179 はこの制約により BUG-138 対応として意図的に文字列一致を使っている。規約どおりに書くと分類自体が不可能になるため、現行実装は「規約違反」ではなく「規約が到達不能」の状態にある。
    - 提案: 「upstream が型/sentinel を公開しない外部ドライバ境界に限り文字列一致を許容する。その場合は ADR または application invariant に対象・根拠・文言変更を検知する回帰テストを記録する」旨の例外条項を追記する（guidelines:233 が求める記録形式に合わせる）。
+   - 影響所見: `INF-04`。着手ブロック: **はい**（`DEC-34`）。
 
 11. **`.claude/refs/error-handling.md:9 と backend/CODING_RULES.md:36`** — error-handling.md:9 は error の無視を無条件に禁じるが、CODING_RULES.md:36 は「best-effortを選ぶ場合は部分成功contract、再試行、補償、監査を明示する」として best-effort を許容する。lstep には slog.Warn + continue の best-effort が数十箇所あり、そのどれが :9 違反でどれが :36 の許容範囲かを分ける基準が無い（実際 tag cache upsert / audit warn / status 更新 warn が同じ書式で混在している）。
    - 提案: 「best-effort と宣言してよい条件」を列挙する（例: 失敗しても business fact が不整合にならない、次回同期で必ず収束する、失敗が集計値に載る、の3点すべてを満たす場合のみ）。満たさない箇所は :9 の対象として扱う、と明記する。
+   - 影響所見: `LSA-03`, `LSA-10`, `LSA-11`, `LSA-12`, `LSB-02`, `LSB-04`, `MRC-04`, `RSV-09`, `INF-06`, `CMD-03`, `CMD-07`, `G2B-01`。着手ブロック: **はい**（`DEC-35`）。
 
 12. **`.claude/refs/go-gin-backend-review.md:68`** — 「soft-deleteやhistory semanticsをschema/ADRに合わせ、暗黙条件に依存していないか。」は GORM の gorm.DeletedAt を持つ model に対して字義どおりには充足不能である。GORM は Query/Update/Delete に deleted_at IS NULL を常に暗黙適用するため、明示条件を書いても暗黙条件は消えない。本 unit 内でも扱いが割れている: staff_clinic_assignment_repository.go:40-41 と :71 は「GORM SoftDelete スコープにより deleted_at IS NULL フィルタは自動適用される。明示的な条件追加は不要。」と暗黙依存を明文で肯定する一方、staff_repository.go:243 / :155 / occupation_repository.go:98 は同じ状況で明示的に deleted_at IS NULL を書いている。同一 package 内で規約解釈が2通り並存している。
    - 提案: :68 に判定基準を1文追加する。例:「ORM が暗黙適用する soft-delete scope に依存する場合は、依存していることを当該 method の doc comment に明記すれば充足とみなす。raw SQL・JOIN・EXISTS サブクエリなど ORM scope が届かない箇所は明示必須。」これで staff_clinic_assignment_repository.go の形が適合、EXISTS 内の未記述が違反、と機械的に切り分けられる。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 13. **`.claude/refs/go-gin-backend-review.md:69`** — 「riskのあるquery/transaction/isolationを実DBのintegration testで確認しているか」の『実DB』が、(a) 本物の PostgreSQL インスタンスであること、(b) 本番と同一の schema（migrations/*.sql 適用結果）であること、のどちらを指すのか規定していない。本プロジェクトの実DBハーネス internal/testdb は (a) は満たすが (b) は満たさない — schema は GORM AutoMigrate（testdb.go:99, :446）と手書き DDL リテラル2箇所（SharedTestSchemaEnumTypes :269-334 / EnsureClinicSettingsTable :156-195）から構築され、migrations/001_init.sql は一切適用されない。(a) の解釈なら現行ハーネスは適合、(b) の解釈なら構造上永久に不適合となり、同じコードに対する監査結論が読み手によって反転する。3-session-agent.html:169 はこれを「既知の落とし穴・是正task未起票」として記録済みで、規約側が解釈を確定していないことが未起票の一因になっている。
    - 提案: go-gin-backend-review.md:69（または backend/CLAUDE.md の Required safety 節）に、どちらの解釈が支配するかを明記する。(a) を採るなら『schema 生成経路が本番 migration と異なる場合は、両者の差分を機械的に突合する gate を持つこと』を条件として併記し、ENUM parity gate と同型の突合を clinic_settings 等の手書き DDL にも義務付ける。(b) を採るなら是正 task を起票し、それまでの猶予条件を明示する。
+   - 影響所見: `MDL-05`, `MRA-01`, `POC-06`, `G2P-03`。着手ブロック: **いいえ**（着手後でも可）。
 
 14. **`.claude/rules/go-gin-backend-guidelines.md:134`** — 「public route と authenticated/authorized route の境界を route 登録時に明示する」は Go の route 登録面に閉じた要求だが、本 system の /_internal 境界は Go 側ではなく backend/worker/index.ts:236-238（Cloudflare Worker が 404 で遮断）で強制されている。edge で閉じられた route を Go 側で「明示」する手段が規約に定義されていないため、設計として正しい構成が規約上は非適合に読める。逆に「Worker が守るから Go 側は不要」という運用も、規約からは正当化も禁止もできない。
    - 提案: 「境界の強制が application 外（edge/WAF/private network）にある場合は、route 登録直上に強制主体のファイルパスを明記し、当該経路を列挙した inventory と、迂回時の挙動を検証する test を持たせる」条項を追加する。あるいは『edge 依存を認めず Go 側でも必ず fail-closed にする』と明記して曖昧さを消す。
+   - 影響所見: `CMD-02`。着手ブロック: **はい**（`DEC-36`）。
 
 15. **`.claude/rules/go-gin-backend-guidelines.md:151`** — 規約本文（「外部入力は境界で型・形式・長さ・範囲・列挙値を検証する。」）は妥当だが、台帳が付した検査法「string で `max=` 指定が無いものを抽出」がこの package では運用不能な偽陽性量を生む。担当範囲だけでも vaccination_request.go:67-72 の Supplemental / Lot1 / Lot2 / Lot3 / Lot4 / Remarks、vital_request.go:18 の Notes、treatment_request.go:17-19 の Content / Memo / AdminRoute、treatment_plan_request.go:5 の Memo が全て無条件ヒットする。これらは自由記述の臨床テキストで、DB 側も length 制約を持たないため、max= の欠如自体は欠陥ではない。この検査法をそのまま適用すると、真に危険な列挙値の未検証（本 unit の MR-D-05）が偽陽性の中に埋もれる。
    - 提案: 検査法から一律の string max= 走査を外し、(a) DB 側に length 制約または enum 型がある列に bind される field、(b) 外部システムへ転送される field に限定する。列挙値は独立の検査軸として切り出し「DB enum 型に bind されるのに binding oneof も service validator も無い field」を機械判定条件にする。
+   - 影響所見: `AUS-03`, `LSA-13`, `LSA-14`, `LSB-06`, `MRA-03`, `MRB-06`, `MRC-08`, `MRD-04`, `POC-13`, `POC-17`, `RSV-04`, `TRM-03`, `TRM-05`, `G2A-05`, `G2C-02`, `G2P-03`。着手ブロック: **いいえ**（着手後でも可）。
 
 16. **`.claude/rules/go-gin-backend-guidelines.md:166`** — PostgreSQL エラーコード → HTTP status のマッピングを『どの層が所有するか』を定める規約が無く、実装が二重管理になっている。backend/internal/apperrors/errors.go:183-192 は 23503/23505/22003/22P02 の4コードを sentinel へ写像し、backend/internal/httpapi/response_pg.go:28-42 は 23514 を加えた5コードを HTTP メッセージへ写像したうえで default を 400 に落とす。両者は集合が食い違い（FromGORM に 23514 が無い／classifyPgError に 23505→409 の概念が無い）、同じ制約違反が経路により 400 と 409 に分かれ得る。RULE-063(guidelines:166) と RULE-054(CODING_RULES.md:53) はいずれも status の安定性を要求するが、所有層を指定していない。
    - 提案: 「DB ドライバ固有コードの分類は単一の層（例: apperrors）が所有し、HTTP 境界はその結果のみを写像する。境界側に第二の分類表を置かない」を規約へ追加し、既存2表の統合を移行タスクとして起票する。
+   - 影響所見: `INF-04`, `MRB-06`, `TRM-05`, `G2P-03`。着手ブロック: **いいえ**（着手後でも可）。
 
 17. **`.claude/rules/go-gin-backend-guidelines.md:179`** — 「request/body/upload size ... を制限する」の適用単位（グローバル middleware か handler ごとか）が未定義であり、実装は6パッケージが handler ごとの http.MaxBytesReader、3パッケージ（pet/owner/clinic）が無制限という分裂状態にある。どちらの形も条文を満たすと読めるため、未適用パッケージの存在を機械的に欠陥と判定できない。
    - 提案: 「JSON body の上限はグローバル middleware で一律に設定し、より小さい上限が必要な endpoint だけ handler で上書きする」のように既定の適用単位を規定する。そのうえで lintscan に「ShouldBind* を呼ぶ handler が上限 middleware 配下にあること」の gate を置ける。
+   - 影響所見: `INF-02`, `POC-12`, `TRM-03`。着手ブロック: **はい**（`DEC-37`）。
 
 18. **`.claude/rules/go-gin-backend-guidelines.md:194`** — §11 は表題どおり「Production server lifecycle」だけを対象にしており、:196-201 の 6 則は全て HTTP server 前提である。しかし backend/cmd 配下には破壊的 DB 権限を持つ 7 本の one-shot CLI（migrate / stage-import / csv-import / csv-import-failure-rehearsal / seed-export / lstep-migrate / coverage-ratchet）が存在し、これらの終了コード契約・signal 処理・resource close・error chain 方針・確認フラグ設計を規定する条文が台帳のどこにも無い。結果として同種 binary 間の方針差（cmd/migrate/main.go:73 は DB を close するが cmd/lstep-migrate/main.go:76-80 は close しない、cmd/csv-import は %w で wrap するが cmd/csv-import-failure-rehearsal は chain を捨てる）が規約違反として判定できず、CM-06 のような drift が野放しになる。
    - 提案: 「operational CLI / batch binary」の節を新設し、(a) 失敗は必ず非ゼロ終了かつ呼び出し元がそれを観測できること、(b) error は %w で chain 保持、(c) 破壊的操作は明示フラグ + host guard、(d) 保有 resource の close 順序、の 4 則を Go/Gin 公式とは別区分（project decision）として明記する。
+   - 影響所見: `CMD-03`, `CMD-06`, `CMD-07`, `TRM-07`。着手ブロック: **いいえ**（着手後でも可）。
 
 19. **`.claude/rules/go-gin-backend-guidelines.md:227 / :233 vs ~/.claude/rules/ecc/common/coding-style.md:39`** — guidelines:227 は「- package/file/directory の固定サイズ」を Go/Gin 公式要件から明示除外し、:233 は「これらが必要なら、公式由来の規約と混ぜず、ADR または application invariant として根拠・適用範囲・検証方法を記録する。」と条件を付す。一方 ecc/common/coding-style.md:39「- 200-400 lines typical, 800 max」は無条件に課され、.claude/CLAUDE.md:129 はこれを「正本」と呼ぶ。しかし :233 が要求する ADR / invariant 記録は repo 内に存在しない（backend-application-invariants.md 全46行にサイズ規定なし）。本監査では MR-A-06（http_session.go 820行）がこれに直撃し、違反として発行してよいか、発行する場合の severity を規約から導出できなかった。
    - 提案: backend 側で明示的に決める。(A) 800行閾値を backend にも適用するなら ADR を1本起こし適用範囲（production .go のみか test も含むか）と検証方法（lintscan gate の有無）を書く。(B) 適用しないなら .claude/CLAUDE.md:129 の「正本」記述に「サイズ/immutability/coverage 閾値は backend には適用しない」旨の除外を明記する。どちらでも監査側の判断は決定可能になる。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 20. **`.claude/rules/go-gin-backend-guidelines.md:92`** — 「export は最小限にし、公開識別子には GoDoc で読めるコメントを付ける。」は識別子の GoDoc のみを扱い、package 宣言コメントの正しさを規定していない。このため backend/internal/trimming/trimming_service.go:1 の「// Package service provides business logic implementations for Trimming entity.」が `package trimming` に付いている（同 package 内の trimming_course_repository.go:1 には正しい package doc が別途あり、1 package に2つの package コメントが存在し片方が誤り）状態を、規約違反として指摘する根拠が無い。BE9 の layer package → domain package 移設で同型の残存が他 package にも生じうる。
    - 提案: 「package コメントは 1 package につき1つとし、`Package <実際のpackage名>` で始める」を命名節に追記する（go vet / revive の package-comments で機械検出可能）。
+   - 影響所見: `MRA-04`。着手ブロック: **いいえ**（着手後でも可）。
 
 21. **`backend/CLAUDE.md:25`** — 「自動化には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける」の「自動化」の外延が未定義であり、本unitの ①予約確定/キャンセル通知の fire-and-forget goroutine（appointment_notification_service.go:106,157）②予約確定に伴うカルテ自動作成（reservation_handler.go:164）③LINE顧客のowner自動紐付け（liff_service_reservations.go:182）が対象かどうかを規約から決定できない。いずれも停止手段・失敗通知・監査を持たずlogのみで完結している。
    - 提案: 「自動化」を「人間の明示操作を起点としない処理、および起点はあるが結果が呼び出し元へ返らない副作用（fire-and-forget / best-effort）」と定義し、後者に最低限「失敗の構造化log＋観測可能なメトリクスまたはaudit記録」を必須とする、と範囲を明文化する。
+   - 影響所見: `MRC-04`, `POC-06`, `RSV-09`。着手ブロック: **いいえ**（着手後でも可）。
 
 22. **`backend/CLAUDE.md:25 / backend/CODING_RULES.md:41`** — 「自動化には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける」の「失敗通知」に受理条件が無い。lstep バッチ群は slog.ErrorContext のみで満たしていると読めるが、DEC-25 で「CI失敗通知は実装せず運用でカバー」と裁定された経緯から、slog が十分なのか人間に届く経路が必須なのかがレビュー時に判定不能。LS-A-03 も「失敗通知が無い」ではなく「error を握り潰した」でしか指摘できなかった。
    - 提案: 「失敗通知」の最低受理条件を明記する（例: 失敗が audit_logs に行として残り、かつ BatchRunResult.Failed に計上されること。人間への push 通知は必須としない）。満たさない実装を検出する gate の所在も併記する。
+   - 影響所見: `LSA-03`, `LSA-11`, `LSA-12`, `RSV-09`, `CMD-03`, `CMD-07`, `G2B-01`。着手ブロック: **いいえ**（着手後でも可）。
 
 23. **`backend/CLAUDE.md:25（RULE-037 自動化要件）`** — 「停止」の粒度が定義されていない。lstep 配信バッチには clinic 単位の停止スイッチ（IsSyncEnabled）が存在し規約を満たしているように見えるが、飼主単位の停止（lstep_opt_out）は data model と DDL コメント（001_init.sql:316「true = すべてのタグ付与をスキップ」）で宣言されているにもかかわらず、規約が要求する「停止」に含まれるかが読み取れない。結果として LS-B-01 のような per-subject 停止の取りこぼしが規約適合レビューをすり抜ける。
    - 提案: 「停止」を clinic 単位（システム停止）と data subject 単位（個別オプトアウト）に分け、後者については「停止フラグを持つ列は、その列の contract を消費する全経路を列挙し gate を持つこと」を要求する。lstep_opt_out / delivery_excluded のように意味が重なる二列については、どちらがどの経路の正本かを ADR で確定する（現状 owner ドメインの service_delivery.go:31-35 は両方を同時に立てるが、lstep 側の RecordLstepOptOut は片方しか立てない非対称がある）。
+   - 影響所見: `LSA-02`, `LSB-01`。着手ブロック: **はい**（`DEC-38`）。
 
 24. **`backend/CLAUDE.md:44`** — 「P1–P18 は廃止された project 固有 checklist であり、レビュー基準に使わない。」と宣言している一方、production code のコメントには退役番号が live 参照として残っている（backend/internal/manualarticle/repository.go:19「P4 例外」、service.go:114「P1: Delete 前の存在確認」、handler.go:179「SEC-602: P5 RequirePermission(view) 付与」）。番号の定義が退役済みのため、これらのコメントは読み手が根拠を辿れない。規約とコードの乖離である。
    - 提案: 退役番号の掃引対象を doc だけでなく production code コメントにも広げ、各コメントを現行正本（例: P4 → backend-application-invariants.md:11 の clinic-scope 例外）への参照へ置換する。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 25. **`backend/CLAUDE.md:44 と .claude/refs/go-gin-backend-review.md:89`** — 「P1–P18 を判定基準に使わない」という規約は、レビュー側の判定基準としての使用を禁じるだけで、production code 内のコメントが退役番号を規範的根拠（MANDATORY 等）として引用し続けている状態を欠陥と見なすか否かを定めていない。さらに実コードには CPM 閾値の見出しラベルとしての「P1」「P2」「P9」（lstep_settings_service.go:30,35,49 / lstep_tag_sync_service.go:108）が同じ字句で共存しており、機械的な grep 検査では両者を判別できない。RULE-133 の検査法が `--include='*.md'` に限定されている点も .go コメントの扱いを未定義のまま残している。
    - 提案: 退役番号の扱いを (a) 検査対象は live doc と production code コメントの双方、(b) 例外として業務ドメイン由来の P 記号（CPM フェーズ等）は対象外、と明文化する。判別可能にするため、退役 checklist 参照は `P<n>:` 形式、ドメインラベルは別記法（例: `CPM-P<n>`）へ正規化する規約を追加する。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 26. **`backend/CODING_RULES.md:35 / backend/CODING_RULES.md:40`** — CODING_RULES.md:40 は逐語「compatibility facadeは薄いdelegate/type aliasだけを許可し、business ruleやpersistence実装を複製しない。consumer移行後の削除条件を持たせる。」と定めるが、削除条件の記述形式・所有者・失効検知手段を規定していない。実装側の carve-out（internal/lstep/lstep_lifecycle_deps.go:30-31「generic field maps stay at the composition adapter until the owner/pet domains migrate in BE9-2E」/ internal/pet/repository.go:73-74「until central composition cuts over to the typed lifecycle capability」）は条件をコメントで宣言しているだけで、BE9 移行が 2026-07-24 に code complete となった後も誰も失効を検知できず CM-04 が残置された。
    - 提案: 削除条件を「コメント」ではなく機械検査可能な形（内部 package の deprecated 宣言 + internal/lintscan の allowlist entry + 撤去 issue ID）で持たせることを CODING_RULES.md:40 に追記し、allowlist に載った facade が consumer 0 になったら gate が赤くなる規定にする。
+   - 影響所見: `CMD-04`。着手ブロック: **いいえ**（着手後でも可）。
 
 27. **`backend/CODING_RULES.md:38`** — ロック要件が『FOR UPDATE / FOR SHARE / pg_advisory_xact_lock を正しさの根拠にする operation』と『request由来のclinic-scoped FK の再検証』の2方向しか規定しておらず、逆方向すなわち『依存件数を数えてから親を削除する』read-then-write を直列化せよという要件がどこにも無い。このため internal/inventory/inventory_service.go:176-186 と internal/inventory/merchandise_item_service.go:214-226 が、依存件数 0 の判定と soft delete を transaction にも行ロックにも入れずに実行していても、規約上どの条項にも接地できない（同一 review unit 内の internal/billing/estimate_service.go:403-425 は tx + CountItems + DeleteIfNotLocked の原子述語で正しく実装しており、実装側には既に正解パターンが存在する）。
    - 提案: :38 に「依存存在チェックを根拠に親行を削除・無効化する operation は、チェックと write を同一 transaction に入れ、削除述語自体へ依存不在条件を含める（条件付き原子削除）」の1文を追加し、正解実装例として estimate_service.go の DeleteIfNotLocked を参照させる。
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 28. **`backend/CODING_RULES.md:77`** — repository method が ambient transaction に参加すべき条件を定めた規約が存在しない。`backend/CODING_RULES.md:38` と `.claude/refs/backend-application-invariants.md:38` は FOR UPDATE / FOR SHARE / advisory lock に依存する operation しか扱わず、通常の Update/Create は対象外である。結果として persistence.UpdateScopedByID の呼び出し28箇所が `r.db` 版と `persistence.DBOrTx(ctx, r.db)` 版に分裂し（例: trimming_course_repository.go:62 は DBOrTx、trimming_option_repository.go:62 と trimming_course_type_repository.go:69 は r.db）、どちらが正しいか規約から判定できない。
    - 提案: 「clinic-scoped write を行う repository method は既定で ambient transaction に参加する（DBOrTx を通す）。参加させない場合は doc comment で理由を明示する」を規約化し、lintscan の DBOrTx inventory の判定基準として参照させる。
+   - 影響所見: `TRM-09`。着手ブロック: **はい**（`DEC-39`）。
 
 29. **`backend/CODING_RULES.md:78`** — 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか」は、その責務を repository と service のどちらが負うかを定めていない。実装は owner/pet が repository（UpdateAndFind 内の Transaction）、clinic が service（Transactor.WithTx）と分かれており、どちらを正本とすべきかを規約から導けないため、PO-02 の修正方針が実装者ごとに割れる。
    - 提案: 「update+reload を1つの操作として提供する repository method を write owner 側に置く」等の配置基準を1文追加するか、少なくとも「同一 business graph の write と reload の transaction 境界は write owner package が所有する」と明記する。
+   - 影響所見: `BIL-03`, `MRA-02`, `MRC-01`, `MRD-02`, `POC-02`, `RSV-03`, `TRM-01`, `LSB-03`, `G2A-01`, `G2B-02`, `G2P-02`。着手ブロック: **いいえ**（着手後でも可）。
 
 30. **`backend/CODING_RULES.md:79`** — 「schema constraint と application validation の両方を使う。」は、DB 側が既に制約を持つ場合に application validation の欠落を違反とみなすのか、defense-in-depth として許容するのかを定めていない。本 unit の bw_unit（PostgreSQL enum body_weight_unit が実効的に拒否するが binding tag が無い）はこの空白に落ちるため、TR-A-05 の severity が規約から一意に導けない。
    - 提案: 「DB 制約のみで application validation が無い場合も違反とする（理由: 境界で 4xx を返せず、深部での失敗に退化するため）」のように、片側のみの場合の扱いを明記する。
+   - 影響所見: `MRB-06`, `TRM-05`, `G2P-03`。着手ブロック: **いいえ**（着手後でも可）。
 
 31. **`backend/migrations/CLAUDE.md:15`** — 規約本文は「業務データは `deleted_at TIMESTAMPTZ` を追加する」と現在形の設計不変条件として書かれているが、台帳側の検査法は「新規 `CREATE TABLE` を migration diff から抽出」という diff 前提で定義されている。2026-07-27 の migration 完全統合（0efcca770 / edbb162f7、backend/migrations/CLAUDE.md:44 ・ :51 に記録）で直下 DDL が 001_init.sql 単一ファイルになった結果、新規テーブルを含む diff が存在せず、既存 schema に対して本ルールを機械適用する経路が消えた。実例として care_plan_items（001_init.sql:1757-1779）は業務データでありながら deleted_at を持たないが（MR-A-01）、diff 起点の検査法では検出不能のため本ルールを根拠にできなかった。同型の diff 依存が RULE-091（schema constraint と application validation の併用）・RULE-121（clinic_id NOT NULL）・RULE-124（clinic_id 複合 index）にもある。
    - 提案: これらの検査法を「migration diff に対する検査」から「001_init.sql の現行 CREATE TABLE 全数に対する不変条件」へ書き換える。統合後は差分が存在しないため、既に起票済みの TASK-447（CREATE TABLE 実数 ⇔ ERD 宣言値の照合 gate）と同じ走査基盤の上で、業務データテーブルの deleted_at 有無・clinic_id NOT NULL・clinic_id 先頭複合 index を現行 schema 全数に対して判定する形へ移す。適用除外（中間テーブル・lookup・意図的 hard-delete）は allowlist として明示登録する。
+   - 影響所見: `LSA-04`, `MRA-01`, `MDL-06`, `POC-06`, `G2P-03`。着手ブロック: **いいえ**（着手後でも可）。
 
 32. **`~/.claude/rules/ecc/common/coding-style.md:64 (Constants: `UPPER_SNAKE_CASE`)`** — 言語スコープ宣言のないグローバル規約が Go の慣用（MixedCaps）と正面から衝突する。本 unit の const は全て camelCase / PascalCase（例 auth/http_types.go:15 AccessTokenCookieName、auth/token_service.go:21 accessTokenTTL、staff/staff_service_builders.go:4 colStaffName、staff/http_binding.go:17 staffJSONBodyMaxBytes）。字義適用すると担当2 package の全定数が違反になるが、.claude/refs/naming-conventions.md:7-16 の Go 命名節には定数命名規定が無く、意図した結果とは考えられない。台帳側でも疑義-2 として RULE 化が見送られており、実装との乖離が固定化している。
    - 提案: coding-style.md の Naming Conventions 節冒頭に適用言語を明記する（当該節は camelCase / PascalCase / use prefix hooks を並置しており TypeScript/React 前提と読める）。例:「本節は TypeScript/JavaScript に適用する。Go の命名は .claude/refs/naming-conventions.md および Go 公式（MixedCaps）に従う。」
+   - 影響所見: なし。着手ブロック: **いいえ**（着手後でも可）。
 
 ---
 
@@ -1912,3 +1944,1928 @@
 - L-step write ops が policy stub の間、LSA-11/LSA-15 の外部影響はミュート（制御フロー欠陥は残る）
 - AUS-06 800 行ルールを backend に ADR で強制するかの規約側議論
 
+## 着手プラン
+
+- 基準 HEAD: `09ea4716455fc013b8ad99c5d7e8f1383a92cf40`
+- 対象導出: 総所見 141、見出しスコープの `WITHDRAWN` 23、live 118。既知は減算しない。
+- 導出コマンド: `grep -c '^#### ' BE-refactor.md` → `141`
+- 撤回コマンド: `awk '/^#### /{id=$2; sub(/:$/,"",id)} /^- round[23]-review/ && /WITHDRAWN/{print id}' BE-refactor.md | sort -u | wc -l` → `23`
+- 既知の扱い: 本文 marker 9件、表のみの `RSV-08` を含む。`CMD-01` は既知かつ WITHDRAWN のため live から1回だけ除外し、live 中の既知は9件。
+- 実装 unit 数: 84。別に finding を所有しない shared schema barrier 1 を置き、`backend/migrations/001_init.sql` の単一 writer を固定する。全実装 unit と barrier は所有パス8本以内。
+- 統合検証: live 118/118、撤回混入0、所見重複0、所有パス重複0、missing path 0、所有パス382/382、最大8本。
+- 着手時注意: 承認済み再開 baseline には `grok-handoff-plan.md` と `3-session-agent.html` の別セッション変更が存在する。各 unit は自身の所有パスを着手直前に再実測し、他者の変更を revert しない。
+
+### Contract summary
+
+- Live findings: 118.
+- Finding-owning units: 84.
+- Shared-owner barrier units: 1.
+- Concrete owned paths: 382.
+- Maximum unit size: 8 concrete existing files.
+- `backend/` is planning evidence only; no repository file was edited by this probe.
+- MRB-08 correction: `U-X05-MR-EXAMTYPE` owns five exact files and includes the mandatory DBOrTx lintscan gate.
+- LSA-02 is mapped once and folded into the same implementation unit as canonical LSB-01; both live IDs remain independently accounted.
+
+### Execution waves and parallel groups
+
+| Wave | Parallel group | Units | Reason |
+|---:|---|---|---|
+| 0 | 0.1 | SOLO-04, SOLO-11, SOLO-16, SOLO-18, SOLO-26, SOLO-32, SOLO-33, U-LSTEP-OPTOUT, U-MR-TREATMENT-PLAN, U-SCHEMA-BARRIER, U-X01-LSTEP-LINE-CUSTOMER, U-X01-MR-PRESCRIPTION, U-X02-LSTEP-TAG-MAPPING, U-X02-LSTEP-TRIGGER-PRIORITY, U-X02-PET-OWNER-FREETEXT, U-X02-RESERVATION-SETTINGS, U-X03-PET-SPECIES-AUDIT, U-X03-STAFF-ASSIGNMENT-AUDIT, U-X05-MR-EXAMTYPE, U-X05-PET-UPDATE | Decision-gated roots and the sole schema owner; execute a unit only after its named packet is decided. |
+| 1 | 1.1 | BE-X09-ESTIMATE-TAX-01, BE-X06-BIL-CAMPAIGN-01, BE-X06-LSTEP-SETTINGS-01, BE-X06-MEDICAL-ATOMIC-01, BE-X06-RSV-CANCEL-01, BE-X07-BODY-01, SOLO-24, U-X01X02-INVENTORY, U-X01X03-MANUALARTICLE, U-X01X03-MR-CARE, U-X01X05-CLINIC, U-X02-LSTEP-SHARED-FILE, U-X02-LSTEP-TAG-CONFIG, U-X02-MR-CONSULTATION, U-X02-STAFF-TYPE, U-X02X03X05-MR-HOSPITALIZATION, U-X03-CSVIMPORT-GUARD, U-X04-RESERVATION-AUTODELEGATE, U-X04X05-LSTEP-DELIVERY, U-X05-OWNER-PHONE | First dependency-free atomicity, isolation, audit, and contract units. |
+| 2 | 2.1 | BE-X08-LSTEP-CONNECTION-01, BE-X08-LSTEP-SEND-01, BE-X09-PET-ENUMS-01, BE-X10-AUTH-RESPONSE-01, SOLO-09, U-TRIMMING-SERVICE, U-X01X05-RESERVATION, U-X02-CLINIC-CONTACT, U-X02-LSTEP-AGGREGATION, U-X02-MR-LAB-IMPORT, U-X05-MR-MEDICINE-MASTERS | Second layer after shared schema/repository owners. |
+| 3 | 3.1 | BE-X09-CLOSING-01, BE-X09-MEDICAL-DIAGNOSIS-01, BE-X09-PET-PATCH-01, U-X01X03X04-LSTEP-LIFECYCLE, U-X04-AUDIT-MARSHAL, U-X04-COVERAGE-RATCHET, U-X04-LSTEP-BATCH, U-X04-LSTEP-HEALTH-REMOVE, U-X04-LSTEP-MIGRATE, U-X04-LSTEP-OWNER-TAGS, U-X04-LSTEP-STALE-TAGS | Third layer after public-boundary and shared-service owners. |
+| 4 | 4.1 | SOLO-01, SOLO-02, SOLO-03, SOLO-05, SOLO-06, SOLO-08, SOLO-10, SOLO-12, SOLO-13, SOLO-14, SOLO-15, SOLO-17, SOLO-19, SOLO-20, SOLO-21, SOLO-22, SOLO-23, SOLO-25, SOLO-29, SOLO-30, SOLO-34, SOLO-36, U-X04-MR-SUBRECORDS | Fourth layer for dependent behavior/performance continuations. |
+
+A unit with a decision ID remains blocked until that packet is decided. Within each displayed group, the ownership ledger is path-disjoint; explicit dependencies still take precedence over group membership.
+
+### Unit-by-unit start order
+
+| 順序 | 種別 | unit / barrier | 先行ユニット | 決裁 | この順である理由 |
+|---:|---|---|---|---|---|
+| 1 | 共有所有 barrier | `U-SCHEMA-BARRIER` | なし | なし | 所見 `none (shared-owner barrier; no live-ID ownership)`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 2 | 実装 unit | `BE-X09-ESTIMATE-TAX-01` | `U-SCHEMA-BARRIER` | なし | 所見 `MDL-01`。共有schema barrier完了後に会計total/tax contractを固定し、後続のfinancial integrity変更を安定させるため。 |
+| 3 | 実装 unit | `SOLO-04` | なし | `DEC-36` | 所見 `CMD-02`, `CMD-05`。決裁境界または共有schema所有を先に固定するため。 |
+| 4 | 実装 unit | `SOLO-11` | なし | なし | 所見 `G2B-03`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 5 | 実装 unit | `SOLO-16` | なし | なし | 所見 `G2F-05`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 6 | 実装 unit | `SOLO-18` | なし | なし | 所見 `G2F-07`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 7 | 実装 unit | `SOLO-26` | なし | なし | 所見 `RSV-08`, `TRM-08`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 8 | 実装 unit | `SOLO-32` | なし | なし | 所見 `POC-01`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 9 | 実装 unit | `SOLO-33` | なし | なし | 所見 `POC-08`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 10 | 実装 unit | `U-LSTEP-OPTOUT` | なし | `DEC-38` | 所見 `LSA-02`, `LSB-01`。決裁境界または共有schema所有を先に固定するため。 |
+| 11 | 実装 unit | `U-MR-TREATMENT-PLAN` | なし | なし | 所見 `MRD-02`, `MRD-03`, `MRD-04`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 12 | 実装 unit | `U-X01-LSTEP-LINE-CUSTOMER` | なし | なし | 所見 `G2A-01`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 13 | 実装 unit | `U-X01-MR-PRESCRIPTION` | なし | なし | 所見 `MRC-01`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 14 | 実装 unit | `U-X02-LSTEP-TAG-MAPPING` | なし | なし | 所見 `G2C-02`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 15 | 実装 unit | `U-X02-LSTEP-TRIGGER-PRIORITY` | なし | なし | 所見 `LSA-13`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 16 | 実装 unit | `U-X02-PET-OWNER-FREETEXT` | なし | なし | 所見 `POC-13`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 17 | 実装 unit | `U-X02-RESERVATION-SETTINGS` | なし | なし | 所見 `RSV-04`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 18 | 実装 unit | `U-X03-PET-SPECIES-AUDIT` | なし | `DEC-31` | 所見 `POC-07`。決裁境界または共有schema所有を先に固定するため。 |
+| 19 | 実装 unit | `U-X03-STAFF-ASSIGNMENT-AUDIT` | なし | なし | 所見 `AUS-01`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 20 | 実装 unit | `U-X05-MR-EXAMTYPE` | なし | なし | 所見 `MRB-07`, `MRB-08`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 21 | 実装 unit | `U-X05-PET-UPDATE` | なし | なし | 所見 `POC-03`。外部依存のないroot unitとして、後続の業務境界を早期に固定するため。 |
+| 22 | 実装 unit | `BE-X06-BIL-CAMPAIGN-01` | なし | なし | 所見 `BIL-03`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 23 | 実装 unit | `BE-X06-LSTEP-SETTINGS-01` | なし | なし | 所見 `LSA-06`, `G2B-02`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 24 | 実装 unit | `BE-X06-MEDICAL-ATOMIC-01` | なし | なし | 所見 `MRC-05`, `MRC-12`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 25 | 実装 unit | `BE-X06-RSV-CANCEL-01` | なし | なし | 所見 `RSV-06`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 26 | 実装 unit | `BE-X07-BODY-01` | `U-SCHEMA-BARRIER` | `DEC-37` | 所見 `INF-02`, `POC-12`, `TRM-03`, `TRM-05`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 27 | 実装 unit | `SOLO-24` | `U-SCHEMA-BARRIER` | `DEC-29` | 所見 `MDL-06`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 28 | 実装 unit | `U-X01X02-INVENTORY` | `U-SCHEMA-BARRIER` | なし | 所見 `G2P-02`, `G2P-03`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 29 | 実装 unit | `U-X01X03-MANUALARTICLE` | `U-SCHEMA-BARRIER` | なし | 所見 `TRM-01`, `TRM-02`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 30 | 実装 unit | `U-X01X03-MR-CARE` | `U-SCHEMA-BARRIER` | なし | 所見 `MRA-01`, `MRA-02`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 31 | 実装 unit | `U-X01X05-CLINIC` | `SOLO-32`, `U-SCHEMA-BARRIER` | なし | 所見 `POC-02`, `POC-05`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 32 | 実装 unit | `U-X02-LSTEP-SHARED-FILE` | `U-SCHEMA-BARRIER` | なし | 所見 `LSB-06`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 33 | 実装 unit | `U-X02-LSTEP-TAG-CONFIG` | `U-SCHEMA-BARRIER` | なし | 所見 `LSA-14`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 34 | 実装 unit | `U-X02-MR-CONSULTATION` | `U-SCHEMA-BARRIER` | なし | 所見 `MRA-03`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 35 | 実装 unit | `U-X02-STAFF-TYPE` | `U-SCHEMA-BARRIER` | なし | 所見 `AUS-03`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 36 | 実装 unit | `U-X02X03X05-MR-HOSPITALIZATION` | `U-SCHEMA-BARRIER` | なし | 所見 `MRB-02`, `MRB-03`, `MRB-05`, `MRB-06`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 37 | 実装 unit | `U-X03-CSVIMPORT-GUARD` | `U-SCHEMA-BARRIER` | なし | 所見 `TRM-07`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 38 | 実装 unit | `U-X04-RESERVATION-AUTODELEGATE` | なし | `DEC-35` | 所見 `RSV-09`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 39 | 実装 unit | `U-X04X05-LSTEP-DELIVERY` | `U-LSTEP-OPTOUT`, `U-SCHEMA-BARRIER` | `DEC-35` | 所見 `LSA-12`, `LSA-15`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 40 | 実装 unit | `U-X05-OWNER-PHONE` | `U-SCHEMA-BARRIER` | なし | 所見 `POC-06`。atomicity・tenant isolation・監査境界を先に確立するため。 |
+| 41 | 実装 unit | `BE-X08-LSTEP-CONNECTION-01` | `BE-X06-LSTEP-SETTINGS-01` | なし | 所見 `LSA-01`, `LSA-08`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 42 | 実装 unit | `BE-X08-LSTEP-SEND-01` | なし | なし | 所見 `LSA-09`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 43 | 実装 unit | `BE-X09-PET-ENUMS-01` | なし | なし | 所見 `POC-11`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 44 | 実装 unit | `BE-X10-AUTH-RESPONSE-01` | なし | なし | 所見 `AUS-09`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 45 | 実装 unit | `SOLO-09` | `U-X02-LSTEP-TAG-CONFIG` | `DEC-30` | 所見 `LSA-04`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 46 | 実装 unit | `U-TRIMMING-SERVICE` | `BE-X07-BODY-01` | なし | 所見 `TRM-04`, `TRM-06`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 47 | 実装 unit | `U-X01X05-RESERVATION` | `BE-X06-RSV-CANCEL-01`, `U-SCHEMA-BARRIER` | なし | 所見 `RSV-02`, `RSV-03`, `RSV-07`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 48 | 実装 unit | `U-X02-CLINIC-CONTACT` | なし | なし | 所見 `POC-17`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 49 | 実装 unit | `U-X02-LSTEP-AGGREGATION` | なし | なし | 所見 `G2A-05`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 50 | 実装 unit | `U-X02-MR-LAB-IMPORT` | `BE-X06-MEDICAL-ATOMIC-01` | なし | 所見 `MRC-08`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 51 | 実装 unit | `U-X05-MR-MEDICINE-MASTERS` | `U-X01X02-INVENTORY` | なし | 所見 `MRC-02`, `MRC-03`, `MRC-07`。shared schema/repository owner確定後に公開contractを収束させるため。 |
+| 52 | 実装 unit | `BE-X09-CLOSING-01` | なし | なし | 所見 `POC-15`, `POC-16`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 53 | 実装 unit | `BE-X09-MEDICAL-DIAGNOSIS-01` | なし | なし | 所見 `MRC-14`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 54 | 実装 unit | `BE-X09-PET-PATCH-01` | なし | なし | 所見 `POC-14`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 55 | 実装 unit | `U-X01X03X04-LSTEP-LIFECYCLE` | `BE-X08-LSTEP-CONNECTION-01`, `BE-X06-LSTEP-SETTINGS-01` | `DEC-35` | 所見 `LSA-05`, `LSB-02`, `LSB-03`, `LSB-04`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 56 | 実装 unit | `U-X04-AUDIT-MARSHAL` | なし | `DEC-35` | 所見 `INF-06`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 57 | 実装 unit | `U-X04-COVERAGE-RATCHET` | なし | `DEC-35` | 所見 `CMD-03`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 58 | 実装 unit | `U-X04-LSTEP-BATCH` | なし | `DEC-35` | 所見 `LSA-03`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 59 | 実装 unit | `U-X04-LSTEP-HEALTH-REMOVE` | なし | `DEC-35` | 所見 `G2B-01`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 60 | 実装 unit | `U-X04-LSTEP-MIGRATE` | なし | `DEC-35` | 所見 `CMD-07`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 61 | 実装 unit | `U-X04-LSTEP-OWNER-TAGS` | なし | `DEC-35` | 所見 `LSA-10`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 62 | 実装 unit | `U-X04-LSTEP-STALE-TAGS` | なし | `DEC-35` | 所見 `LSA-11`。public boundary/shared service確定後にerror contractを統一するため。 |
+| 63 | 実装 unit | `SOLO-01` | なし | なし | 所見 `AUS-04`, `AUS-05`, `G2F-10`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 64 | 実装 unit | `SOLO-02` | なし | `DEC-33` | 所見 `BIL-01`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 65 | 実装 unit | `SOLO-03` | なし | なし | 所見 `BIL-02`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 66 | 実装 unit | `SOLO-05` | `U-X05-PET-UPDATE`, `BE-X07-BODY-01` | なし | 所見 `CMD-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 67 | 実装 unit | `SOLO-06` | なし | なし | 所見 `CMD-06`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 68 | 実装 unit | `SOLO-08` | `U-X02-PET-OWNER-FREETEXT` | なし | 所見 `INF-03`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 69 | 実装 unit | `SOLO-10` | なし | なし | 所見 `LSA-07`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 70 | 実装 unit | `SOLO-12` | `U-LSTEP-OPTOUT` | なし | 所見 `G2C-01`, `G2F-01`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 71 | 実装 unit | `SOLO-13` | なし | なし | 所見 `G2C-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 72 | 実装 unit | `SOLO-14` | `U-X04-LSTEP-HEALTH-REMOVE` | なし | 所見 `G2F-02`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 73 | 実装 unit | `SOLO-15` | `U-X04-LSTEP-BATCH`, `U-X05-OWNER-PHONE` | なし | 所見 `G2F-03`, `G2F-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 74 | 実装 unit | `SOLO-17` | なし | なし | 所見 `G2F-06`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 75 | 実装 unit | `SOLO-19` | `U-X01X05-RESERVATION` | なし | 所見 `G2F-08`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 76 | 実装 unit | `SOLO-20` | なし | なし | 所見 `G2F-09`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 77 | 実装 unit | `SOLO-21` | `U-X05-MR-EXAMTYPE`, `U-X01X02-INVENTORY` | なし | 所見 `G2F-11`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 78 | 実装 unit | `SOLO-22` | なし | `DEC-34` | 所見 `INF-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 79 | 実装 unit | `SOLO-23` | なし | なし | 所見 `MDL-05`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 80 | 実装 unit | `SOLO-25` | なし | なし | 所見 `MRA-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 81 | 実装 unit | `SOLO-29` | なし | なし | 所見 `MRC-09`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 82 | 実装 unit | `SOLO-30` | なし | なし | 所見 `MRD-01`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 83 | 実装 unit | `SOLO-34` | `BE-X06-LSTEP-SETTINGS-01`, `BE-X09-CLOSING-01` | なし | 所見 `POC-09`, `POC-10`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 84 | 実装 unit | `SOLO-36` | なし | `DEC-39` | 所見 `TRM-09`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+| 85 | 実装 unit | `U-X04-MR-SUBRECORDS` | `BE-X09-MEDICAL-DIAGNOSIS-01` | `DEC-32`, `DEC-35` | 所見 `MRC-04`。先行境界に依存する低結合の継続作業として最後に行うため。 |
+
+### Implementation-unit ledger
+
+##### BE-X09-ESTIMATE-TAX-01
+
+- 含む所見 ID: MDL-01
+- 所有パス (8):
+  - `backend/internal/model/estimate.go`
+  - `backend/internal/model/estimate_test.go`
+  - `backend/internal/billing/estimate_response.go`
+  - `backend/internal/billing/estimate_response_test.go`
+  - `backend/internal/billing/estimate_service.go`
+  - `backend/internal/billing/estimate_service_test.go`
+  - `backend/internal/billing/estimate_request.go`
+  - `backend/internal/billing/estimate_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '/Users/minoru/.claude/rules/ecc/common/coding-style.md:26' -e 'subtotal := max(UnitPrice*Quantity - DiscountAmount, 0)' -e 'subtotal := UnitPrice*Quantity' -e 'Users' -e 'Avoid' -e 'BillingItem' HEAD -- backend/internal/model/estimate.go backend/internal/model/estimate_test.go backend/internal/billing/estimate_response.go backend/internal/billing/estimate_response_test.go backend/internal/billing/estimate_service.go backend/internal/billing/estimate_service_test.go backend/internal/billing/estimate_request.go backend/internal/billing/estimate_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/model/... ./internal/billing/... -run 'Estimate|CalculateTaxAmount'`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### SOLO-04
+
+- 含む所見 ID: CMD-02, CMD-05
+- 所有パス (7):
+  - `backend/cmd/api/base_routes.go`
+  - `backend/cmd/api/main.go`
+  - `backend/cmd/api/batch_scheduler.go`
+  - `backend/internal/scheduler/handler.go`
+  - `backend/internal/config/config.go`
+  - `backend/cmd/api/batch_scheduler_test.go`
+  - `backend/cmd/api/route_composition_smoke_test.go`
+- 依存 / 決裁: 決裁=DEC-36。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:134' -e 'docker-compose.yml:40' -e 'handler.run' -e 'RunRequest.validate' -e 'Engine' -e 'Recovery' HEAD -- backend/cmd/api/base_routes.go backend/cmd/api/main.go backend/cmd/api/batch_scheduler.go backend/internal/scheduler/handler.go backend/internal/config/config.go backend/cmd/api/batch_scheduler_test.go backend/cmd/api/route_composition_smoke_test.go`
+- 検証: `docker compose exec backend go test ./cmd/api/ ./internal/scheduler/ -run "Scheduler|Route|Upload"`
+- 既知台帳: none
+- Size: L (7/8 files)
+
+##### SOLO-11
+
+- 含む所見 ID: G2B-03
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_delivery_trigger_suppression.go`
+  - `backend/internal/lstep/lstep_batch_delivery.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_suppression_test.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'CLAUDE' -e 'Remove' -e 'lstep_delivery_trigger_suppression' -e 'lstep_batch_delivery' -e 'suppressed_by_priority' HEAD -- backend/internal/lstep/lstep_delivery_trigger_suppression.go backend/internal/lstep/lstep_batch_delivery.go backend/internal/lstep/lstep_delivery_trigger_suppression_test.go backend/internal/lstep/lstep_delivery_trigger_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "Suppression|Priority|DeliveryTrigger"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-16
+
+- 含む所見 ID: G2F-05
+- 所有パス (4):
+  - `backend/internal/lstep/line_customer_repository.go`
+  - `backend/internal/lstep/line_customer_handler.go`
+  - `backend/internal/lstep/line_customer_repository_test.go`
+  - `backend/internal/lstep/line_customer_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'Owner' -e 'Preload' -e 'ParsePaginationWithMax' -e 'line_customer_repository' HEAD -- backend/internal/lstep/line_customer_repository.go backend/internal/lstep/line_customer_handler.go backend/internal/lstep/line_customer_repository_test.go backend/internal/lstep/line_customer_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "LineCustomer"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-18
+
+- 含む所見 ID: G2F-07
+- 所有パス (2):
+  - `backend/internal/reservation/appointment_admin_repository.go`
+  - `backend/internal/reservation/appointment_admin_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'appointment_admin_repository' HEAD -- backend/internal/reservation/appointment_admin_repository.go backend/internal/reservation/appointment_admin_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/reservation/ -run "AppointmentAdminRepository"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-26
+
+- 含む所見 ID: RSV-08, TRM-08
+- 所有パス (6):
+  - `backend/internal/reservation/reservation_schedule_repository.go`
+  - `backend/internal/trimming/trimming_repository.go`
+  - `backend/internal/lintscan/preload_clinic_scope_lint_test.go`
+  - `backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go`
+  - `backend/internal/reservation/reservation_schedule_repository_test.go`
+  - `backend/internal/trimming/trimming_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:15' -e 'FindAllBreaksByEntryIDs' -e 'FindAllBreaksByEntryID' -e 'Where("shift_entry_id IN ?")' -e 'Where' -e 'EXISTS' HEAD -- backend/internal/reservation/reservation_schedule_repository.go backend/internal/trimming/trimming_repository.go backend/internal/lintscan/preload_clinic_scope_lint_test.go backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go backend/internal/reservation/reservation_schedule_repository_test.go backend/internal/trimming/trimming_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/ ./internal/reservation/ ./internal/trimming/ ./internal/lintscan/ -run "Hospitalization|Schedule|Trimming|Preload|Grandchild"`
+- 既知台帳: RSV-08=SEC-SWEEP-02 (table-only known pointer); TRM-08=SEC-SWEEP-02 / DEC-23
+- Size: M (6/8 files)
+
+##### SOLO-32
+
+- 含む所見 ID: POC-01
+- 所有パス (5):
+  - `backend/internal/clinic/clinic_holiday_handler.go`
+  - `backend/internal/clinic/closing_settings_handler.go`
+  - `backend/internal/clinic/clinic_service.go`
+  - `backend/internal/clinic/clinic_holiday_handler_test.go`
+  - `backend/internal/clinic/closing_settings_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:22' -e 'shifts:create OR closing-settings:create' -e 'SetClinicHoliday' -e 'DeleteClinicHoliday' -e 'POST' -e 'ResourceShifts' HEAD -- backend/internal/clinic/clinic_holiday_handler.go backend/internal/clinic/closing_settings_handler.go backend/internal/clinic/clinic_service.go backend/internal/clinic/clinic_holiday_handler_test.go backend/internal/clinic/closing_settings_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/clinic/ -run "Holiday|ClosingSettings"`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### SOLO-33
+
+- 含む所見 ID: POC-08
+- 所有パス (4):
+  - `backend/internal/owner/http_routes.go`
+  - `backend/internal/owner/http_owner.go`
+  - `backend/internal/owner/http_routes_test.go`
+  - `backend/docs/api.yaml`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'protected.Group' -e 'httpapi.ExtractClinicID' -e '/clinics/:clinic_id/owners' -e 'CODING_RULES' -e 'Group' -e 'PATCH' HEAD -- backend/internal/owner/http_routes.go backend/internal/owner/http_owner.go backend/internal/owner/http_routes_test.go backend/docs/api.yaml`
+- 検証: `docker compose exec backend go test ./internal/owner/ ./internal/apicontract/ -run "Routes|OpenAPI"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-LSTEP-OPTOUT
+
+- 含む所見 ID: LSA-02, LSB-01
+- 所有パス (6):
+  - `backend/internal/lstep/lstep_delivery_trigger_state.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_batch.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_state_test.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_batch_test.go`
+  - `backend/internal/lstep/lstep_tag_sync_pet_exclusion.go`
+  - `backend/internal/lstep/lstep_tag_sync_pet_exclusion_test.go`
+- 依存 / 決裁: 決裁=DEC-38。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'checkExclusion' -e 'owner.DeliveryExcluded' -e 'LineUserID' -e 'EXCL_配信停止' -e 'owner.LstepOptOut' -e 'SyncExclusionTags' HEAD -- backend/internal/lstep/lstep_delivery_trigger_state.go backend/internal/lstep/lstep_delivery_trigger_batch.go backend/internal/lstep/lstep_delivery_trigger_state_test.go backend/internal/lstep/lstep_delivery_trigger_batch_test.go backend/internal/lstep/lstep_tag_sync_pet_exclusion.go backend/internal/lstep/lstep_tag_sync_pet_exclusion_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|PetExclusion|OptOut'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### U-MR-TREATMENT-PLAN
+
+- 含む所見 ID: MRD-02, MRD-03, MRD-04
+- 所有パス (8):
+  - `backend/internal/medicalrecord/treatment_plan_request.go`
+  - `backend/internal/medicalrecord/treatment_plan_service.go`
+  - `backend/internal/medicalrecord/treatment_plan_repository.go`
+  - `backend/internal/medicalrecord/treatment_plan_handler.go`
+  - `backend/internal/medicalrecord/treatment_plan_request_test.go`
+  - `backend/internal/medicalrecord/treatment_plan_service_test.go`
+  - `backend/internal/medicalrecord/treatment_plan_repository_test.go`
+  - `backend/internal/medicalrecord/treatment_plan_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'treatmentService.Update' -e 'WithTx' -e 'FindByID' -e 'treatmentPlanService' -e 'vitalService.Update' -e 'vital_repository.go:52-53' HEAD -- backend/internal/medicalrecord/treatment_plan_request.go backend/internal/medicalrecord/treatment_plan_service.go backend/internal/medicalrecord/treatment_plan_repository.go backend/internal/medicalrecord/treatment_plan_handler.go backend/internal/medicalrecord/treatment_plan_request_test.go backend/internal/medicalrecord/treatment_plan_service_test.go backend/internal/medicalrecord/treatment_plan_repository_test.go backend/internal/medicalrecord/treatment_plan_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'TreatmentPlan'`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### 共有所有 barrier U-SCHEMA-BARRIER
+
+- 含む所見 ID: none (shared-owner barrier; no live-ID ownership)
+- 所有パス (1):
+  - `backend/migrations/001_init.sql`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- Barrier再実測: `git grep -n -E 'CHECK|FOREIGN KEY|UNIQUE|clinic_id|CONSTRAINT' HEAD -- backend/migrations/001_init.sql`
+- Barrier検証: `docker compose exec backend go test ./internal/model/... -run 'SchemaDrift' && docker compose exec backend go test ./internal/lintscan/... -run 'Migration|DBOrTx'`
+- 既知台帳: TASK-445 / DEC-28 supports MDL-06; BUG-466 supports G2P-03
+- Size: S (1/8 files)
+
+##### U-X01-LSTEP-LINE-CUSTOMER
+
+- 含む所見 ID: G2A-01
+- 所有パス (2):
+  - `backend/internal/lstep/line_customer_service.go`
+  - `backend/internal/lstep/line_customer_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'UpdateOwnerLink' -e 'FindByID' -e 'CODING_RULES' -e 'WithTx' -e 'line_customer_service' HEAD -- backend/internal/lstep/line_customer_service.go backend/internal/lstep/line_customer_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LineCustomer'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X01-MR-PRESCRIPTION
+
+- 含む所見 ID: MRC-01
+- 所有パス (4):
+  - `backend/internal/medicalrecord/prescription_repository.go`
+  - `backend/internal/medicalrecord/prescription_service.go`
+  - `backend/internal/medicalrecord/prescription_repository_test.go`
+  - `backend/internal/medicalrecord/prescription_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 's.repo.FindByID(ctx, ...)' -e 'r.db.WithContext(ctx)' -e 'repo.FindByID' -e 'prescriptionRepository.FindByID' -e 'db.WithContext' -e 'handler' HEAD -- backend/internal/medicalrecord/prescription_repository.go backend/internal/medicalrecord/prescription_service.go backend/internal/medicalrecord/prescription_repository_test.go backend/internal/medicalrecord/prescription_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Prescription'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X02-LSTEP-TAG-MAPPING
+
+- 含む所見 ID: G2C-02
+- 所有パス (3):
+  - `backend/internal/lstep/lstep_tag_code_mapping_request.go`
+  - `backend/internal/lstep/lstep_tag_code_mapping_service.go`
+  - `backend/internal/lstep/lstep_tag_code_mapping_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'lstep_tag_code_mapping_request' -e 'lstep_tag_code_mapping_service' HEAD -- backend/internal/lstep/lstep_tag_code_mapping_request.go backend/internal/lstep/lstep_tag_code_mapping_service.go backend/internal/lstep/lstep_tag_code_mapping_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TagCodeMapping'`
+- 既知台帳: none
+- Size: M (3/8 files)
+
+##### U-X02-LSTEP-TRIGGER-PRIORITY
+
+- 含む所見 ID: LSA-13
+- 所有パス (5):
+  - `backend/internal/lstep/lstep_trigger_priority_handler.go`
+  - `backend/internal/lstep/lstep_trigger_priority_request.go`
+  - `backend/internal/lstep/lstep_trigger_priority_service.go`
+  - `backend/internal/lstep/lstep_trigger_priority_handler_test.go`
+  - `backend/internal/lstep/lstep_trigger_priority_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'updateTriggerPriorityItemRequest.TriggerType' -e 'binding:"required"' -e 'oneof' -e 'priority < 1' -e 'UpsertBatch' HEAD -- backend/internal/lstep/lstep_trigger_priority_handler.go backend/internal/lstep/lstep_trigger_priority_request.go backend/internal/lstep/lstep_trigger_priority_service.go backend/internal/lstep/lstep_trigger_priority_handler_test.go backend/internal/lstep/lstep_trigger_priority_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TriggerPriority'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X02-PET-OWNER-FREETEXT
+
+- 含む所見 ID: POC-13
+- 所有パス (4):
+  - `backend/internal/owner/http_request.go`
+  - `backend/internal/pet/pet_request.go`
+  - `backend/internal/owner/http_request_test.go`
+  - `backend/internal/pet/pet_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'varchar' -e 'NameKana' -e 'Breed' -e 'Color' -e 'Food' HEAD -- backend/internal/owner/http_request.go backend/internal/pet/pet_request.go backend/internal/owner/http_request_test.go backend/internal/pet/pet_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/owner/... ./internal/pet/... -run 'Request|Validation'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X02-RESERVATION-SETTINGS
+
+- 含む所見 ID: RSV-04
+- 所有パス (5):
+  - `backend/internal/reservation/available_dates.go`
+  - `backend/internal/reservation/liff_service_availability.go`
+  - `backend/internal/reservation/line_reservation_setting_request.go`
+  - `backend/internal/reservation/available_dates_test.go`
+  - `backend/internal/reservation/line_reservation_setting_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'upsertLineReservationSettingRequest' -e 'booking_window_max_days' -e 'make([]AvailableDateResult, 0, input.Settings.BookingWindowMaxDays)' -e 'status' -e 'time_slot_mode' HEAD -- backend/internal/reservation/available_dates.go backend/internal/reservation/liff_service_availability.go backend/internal/reservation/line_reservation_setting_request.go backend/internal/reservation/available_dates_test.go backend/internal/reservation/line_reservation_setting_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/reservation/... -run 'LineReservationSettingRequest|AvailableDates'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X03-PET-SPECIES-AUDIT
+
+- 含む所見 ID: POC-07
+- 所有パス (7):
+  - `backend/internal/pet/animal_species_handler.go`
+  - `backend/internal/pet/animal_species_repository.go`
+  - `backend/internal/pet/animal_species_service.go`
+  - `backend/internal/pet/ports.go`
+  - `backend/internal/pet/animal_species_handler_test.go`
+  - `backend/internal/pet/animal_species_repository_test.go`
+  - `backend/internal/pet/animal_species_service_test.go`
+- 依存 / 決裁: 決裁=DEC-31。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:31' -e 'ClinicID' -e 'PetOwnerAuditLogger' -e 'DELETE' -e 'RESTRICT' -e 'CountUsageByAnimalSpeciesID' HEAD -- backend/internal/pet/animal_species_handler.go backend/internal/pet/animal_species_repository.go backend/internal/pet/animal_species_service.go backend/internal/pet/ports.go backend/internal/pet/animal_species_handler_test.go backend/internal/pet/animal_species_repository_test.go backend/internal/pet/animal_species_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/pet/... -run 'AnimalSpecies.*Audit|AnimalSpecies'`
+- 既知台帳: none
+- Size: L (7/8 files)
+
+##### U-X03-STAFF-ASSIGNMENT-AUDIT
+
+- 含む所見 ID: AUS-01
+- 所有パス (6):
+  - `backend/internal/staff/staff_clinic_assignment_service.go`
+  - `backend/internal/staff/handler.go`
+  - `backend/internal/staff/staff_handler.go`
+  - `backend/internal/staff/staff_service_permissions.go`
+  - `backend/internal/staff/staff_clinic_assignment_service_test.go`
+  - `backend/internal/staff/staff_service_permissions_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:31' -e 'assignmentRepo.Delete' -e 'perm' -e 'SetClinicAssignments' -e 'RestoreOrCreate' -e 'AuthorizedClinicIDs' HEAD -- backend/internal/staff/staff_clinic_assignment_service.go backend/internal/staff/handler.go backend/internal/staff/staff_handler.go backend/internal/staff/staff_service_permissions.go backend/internal/staff/staff_clinic_assignment_service_test.go backend/internal/staff/staff_service_permissions_test.go`
+- 検証: `docker compose exec backend go test ./internal/staff/... -run 'ClinicAssignment|PermissionAssignment|Audit'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### U-X05-MR-EXAMTYPE
+
+- 含む所見 ID: MRB-07, MRB-08
+- 所有パス (5):
+  - `backend/internal/medicalrecord/exam_type_field.go`
+  - `backend/internal/medicalrecord/exam_type_service.go`
+  - `backend/internal/medicalrecord/exam_type_repository.go`
+  - `backend/internal/medicalrecord/exam_type_service_test.go`
+  - `backend/internal/medicalrecord/exam_type_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:167' -e 'apperrors.WrapInvalidInput' -e 'NewExamTypeService' -e 'WrapInvalidInput' -e 'WrapInternalServerError' -e 'Transactor' HEAD -- backend/internal/medicalrecord/exam_type_field.go backend/internal/medicalrecord/exam_type_service.go backend/internal/medicalrecord/exam_type_repository.go backend/internal/medicalrecord/exam_type_service_test.go backend/internal/medicalrecord/exam_type_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ExamType' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X05-PET-UPDATE
+
+- 含む所見 ID: POC-03
+- 所有パス (6):
+  - `backend/internal/pet/owner_registration.go`
+  - `backend/internal/pet/repository.go`
+  - `backend/internal/pet/service.go`
+  - `backend/internal/pet/owner_registration_test.go`
+  - `backend/internal/pet/repository_test.go`
+  - `backend/internal/pet/service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'FOR UPDATE' -e 'FOR SHARE' -e 'pg_advisory_xact_lock' -e 'CODING_RULES' -e 'UPDATE' -e 'SHARE' HEAD -- backend/internal/pet/owner_registration.go backend/internal/pet/repository.go backend/internal/pet/service.go backend/internal/pet/owner_registration_test.go backend/internal/pet/repository_test.go backend/internal/pet/service_test.go`
+- 検証: `docker compose exec backend go test ./internal/pet/... -run 'Update.*Owner|Update.*Insurance|UpdateAndFind'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### BE-X06-BIL-CAMPAIGN-01
+
+- 含む所見 ID: BIL-03
+- 所有パス (5):
+  - `backend/internal/billing/campaign_service.go`
+  - `backend/internal/billing/campaign_repository.go`
+  - `backend/internal/billing/campaign_service_test.go`
+  - `backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go`
+  - `backend/cmd/api/composition_billing_services.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'campaignService' -e 's.repo.Update' -e 'r.db.WithContext(ctx)' -e 's.repo.ReplaceTargets' -e 'persistence.DBOrTx(ctx, r.db)' -e 'FindApplicableForItem' HEAD -- backend/internal/billing/campaign_service.go backend/internal/billing/campaign_repository.go backend/internal/billing/campaign_service_test.go backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go backend/cmd/api/composition_billing_services.go`
+- 検証: `docker compose exec backend go test ./internal/billing/... ./cmd/api/... -run 'Campaign|BillingComposition' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### BE-X06-LSTEP-SETTINGS-01
+
+- 含む所見 ID: LSA-06, G2B-02
+- 所有パス (8):
+  - `backend/internal/lstep/lstep_settings_service.go`
+  - `backend/internal/lstep/lstep_settings_update.go`
+  - `backend/internal/lstep/lstep_settings_repository.go`
+  - `backend/internal/lstep/lstep_sync_settings_repository.go`
+  - `backend/internal/clinic/clinic_settings_repository.go`
+  - `backend/internal/lstep/composition_services.go`
+  - `backend/internal/lstep/lstep_settings_service_test.go`
+  - `backend/internal/lstep/lstep_settings_update_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'UpdateSettings' -e 'updateIntegrationCredentials' -e 'updateSyncEnabled' -e 'updateClinicSyncConfig' -e 'Transactor.WithTx' -e 'persistence.DBOrTx' HEAD -- backend/internal/lstep/lstep_settings_service.go backend/internal/lstep/lstep_settings_update.go backend/internal/lstep/lstep_settings_repository.go backend/internal/lstep/lstep_sync_settings_repository.go backend/internal/clinic/clinic_settings_repository.go backend/internal/lstep/composition_services.go backend/internal/lstep/lstep_settings_service_test.go backend/internal/lstep/lstep_settings_update_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... ./internal/clinic/... -run 'LstepSettings|ClinicSettings' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### BE-X06-MEDICAL-ATOMIC-01
+
+- 含む所見 ID: MRC-05, MRC-12
+- 所有パス (8):
+  - `backend/cmd/api/composition_medicalrecord_services.go`
+  - `backend/internal/medicalrecord/lab_import_examination_service.go`
+  - `backend/internal/medicalrecord/lab_import_examination_service_test.go`
+  - `backend/internal/medicalrecord/inquiry_repository.go`
+  - `backend/internal/medicalrecord/inquiry_repository_test.go`
+  - `backend/internal/medicalrecord/inquiry_service.go`
+  - `backend/internal/medicalrecord/inquiry_service_test.go`
+  - `backend/internal/medicalrecord/cross_tenant_master_fk_write_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'LabImportDuplicateCheckerDB.IsDuplicate' -e 'CLAUDE' -e 'Transactor' -e 'ReplaceItemsByExamID' -e 'LabImportDuplicateCheckerDB' -e 'IsDuplicate' HEAD -- backend/cmd/api/composition_medicalrecord_services.go backend/internal/medicalrecord/lab_import_examination_service.go backend/internal/medicalrecord/lab_import_examination_service_test.go backend/internal/medicalrecord/inquiry_repository.go backend/internal/medicalrecord/inquiry_repository_test.go backend/internal/medicalrecord/inquiry_service.go backend/internal/medicalrecord/inquiry_service_test.go backend/internal/medicalrecord/cross_tenant_master_fk_write_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... ./cmd/api/... -run 'LabImportExamination|Inquiry|CrossTenantMasterFK' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: MRC-12=phase2.html:195
+- Size: L (8/8 files)
+
+##### BE-X06-RSV-CANCEL-01
+
+- 含む所見 ID: RSV-06
+- 所有パス (2):
+  - `backend/internal/reservation/reservation_service.go`
+  - `backend/internal/reservation/appointment_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:36' -e 's.repo.Delete' -e 'WithTx' -e 'NULL' -e 'reservation_service' HEAD -- backend/internal/reservation/reservation_service.go backend/internal/reservation/appointment_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/reservation/... -run 'ReservationService.*Update|Cancel' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### BE-X07-BODY-01
+
+- 含む所見 ID: INF-02, POC-12, TRM-03, TRM-05
+- 所有パス (8):
+  - `backend/cmd/api/composition_runtime.go`
+  - `backend/cmd/api/composition_core_test.go`
+  - `backend/internal/middleware/sanitize_null_bytes.go`
+  - `backend/internal/middleware/sanitize_null_bytes_test.go`
+  - `backend/internal/trimming/trimming_request.go`
+  - `backend/internal/trimming/trimming_request_test.go`
+  - `backend/internal/manualarticle/request.go`
+  - `backend/internal/manualarticle/request_test.go`
+- 依存 / 決裁: 決裁=DEC-37。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:180' -e 'sanitizedBodyReader' -e 'c.Request.ContentLength = -1' -e 'http.MaxBytesReader' -e 'POST' -e 'PATCH' HEAD -- backend/cmd/api/composition_runtime.go backend/cmd/api/composition_core_test.go backend/internal/middleware/sanitize_null_bytes.go backend/internal/middleware/sanitize_null_bytes_test.go backend/internal/trimming/trimming_request.go backend/internal/trimming/trimming_request_test.go backend/internal/manualarticle/request.go backend/internal/manualarticle/request_test.go`
+- 検証: `docker compose exec backend go test ./internal/middleware/... ./internal/trimming/... ./internal/manualarticle/... ./cmd/api/... -run 'Body|Sanitize|Request|Composition'`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### SOLO-24
+
+- 含む所見 ID: MDL-06
+- 所有パス (3):
+  - `backend/internal/model/accounting.go`
+  - `backend/internal/billing/accounting_repository.go`
+  - `backend/internal/billing/accounting_repository_tx_atomicity_test.go`
+- 依存 / 決裁: 決裁=DEC-29。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'ClinicID uint64 gorm:"not null"' -e 'Users' -e 'Case' -e 'AnimalHospital' -e 'AnimalEkarte' -e 'Payment' HEAD -- backend/internal/model/accounting.go backend/internal/billing/accounting_repository.go backend/internal/billing/accounting_repository_tx_atomicity_test.go`
+- 検証: `docker compose exec backend go test ./internal/billing/ -run "Payment|TxAtomicity"`
+- 既知台帳: MDL-06=TASK-445 / DEC-28
+- Size: M (3/8 files)
+
+##### U-X01X02-INVENTORY
+
+- 含む所見 ID: G2P-02, G2P-03
+- 所有パス (6):
+  - `backend/internal/inventory/inventory_request.go`
+  - `backend/internal/inventory/repository.go`
+  - `backend/internal/inventory/merchandise_item_repository.go`
+  - `backend/internal/inventory/inventory_request_test.go`
+  - `backend/internal/inventory/medicine_inventory_tx_atomicity_test.go`
+  - `backend/internal/inventory/merchandise_item_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'UpdateScopedByID' -e 'UpdateAndFind' -e 'merchandise_item_repository' -e 'CHECK' -e 'DecreaseStock' HEAD -- backend/internal/inventory/inventory_request.go backend/internal/inventory/repository.go backend/internal/inventory/merchandise_item_repository.go backend/internal/inventory/inventory_request_test.go backend/internal/inventory/medicine_inventory_tx_atomicity_test.go backend/internal/inventory/merchandise_item_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/inventory/... -run 'Update|Decrease|Quantity' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: G2P-02=BUG-465; G2P-03=BUG-466
+- Size: M (6/8 files)
+
+##### U-X01X03-MANUALARTICLE
+
+- 含む所見 ID: TRM-01, TRM-02
+- 所有パス (6):
+  - `backend/internal/manualarticle/handler.go`
+  - `backend/internal/manualarticle/repository.go`
+  - `backend/internal/manualarticle/service.go`
+  - `backend/internal/manualarticle/handler_test.go`
+  - `backend/internal/manualarticle/repository_test.go`
+  - `backend/internal/manualarticle/service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'Transaction' -e 'FindByCategoryAndSlug' -e 'RespondError' -e 'UPDATE' -e 'INSERT' HEAD -- backend/internal/manualarticle/handler.go backend/internal/manualarticle/repository.go backend/internal/manualarticle/service.go backend/internal/manualarticle/handler_test.go backend/internal/manualarticle/repository_test.go backend/internal/manualarticle/service_test.go`
+- 検証: `docker compose exec backend go test ./internal/manualarticle/...`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### U-X01X03-MR-CARE
+
+- 含む所見 ID: MRA-01, MRA-02
+- 所有パス (6):
+  - `backend/internal/medicalrecord/care_plan_item_repository.go`
+  - `backend/internal/medicalrecord/care_plan_item_service.go`
+  - `backend/internal/medicalrecord/care_plan_item_repository_test.go`
+  - `backend/internal/medicalrecord/care_plan_item_service_test.go`
+  - `backend/internal/model/audit_log.go`
+  - `backend/internal/model/audit_log_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:31' -e 'perm' -e 'Unscoped' -e 'ResourceHospitalization' -e 'AuditResource' -e 'DELETE' HEAD -- backend/internal/medicalrecord/care_plan_item_repository.go backend/internal/medicalrecord/care_plan_item_service.go backend/internal/medicalrecord/care_plan_item_repository_test.go backend/internal/medicalrecord/care_plan_item_service_test.go backend/internal/model/audit_log.go backend/internal/model/audit_log_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'CarePlanItem' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### U-X01X05-CLINIC
+
+- 含む所見 ID: POC-02, POC-05
+- 所有パス (4):
+  - `backend/internal/clinic/company_service.go`
+  - `backend/internal/clinic/closing_special_period_repository.go`
+  - `backend/internal/clinic/clinic_service_test.go`
+  - `backend/internal/clinic/closing_special_period_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=SOLO-32, U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'UPDATE' -e 'UpdateAndFind' -e 'Transaction' -e 'Transactor' -e 'WithTx' HEAD -- backend/internal/clinic/company_service.go backend/internal/clinic/closing_special_period_repository.go backend/internal/clinic/clinic_service_test.go backend/internal/clinic/closing_special_period_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/pet/... -run 'Clinic|Company|SpecialPeriod|Chronic' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X02-LSTEP-SHARED-FILE
+
+- 含む所見 ID: LSB-06
+- 所有パス (5):
+  - `backend/internal/lstep/shared_file_handler.go`
+  - `backend/internal/lstep/shared_file_request.go`
+  - `backend/internal/model/shared_file.go`
+  - `backend/internal/lstep/shared_file_handler_test.go`
+  - `backend/internal/lstep/shared_file_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'Purpose string \' -e 'varchar' -e 'Purpose' -e 'shared_file_request' -e 'shared_file_handler' HEAD -- backend/internal/lstep/shared_file_handler.go backend/internal/lstep/shared_file_request.go backend/internal/model/shared_file.go backend/internal/lstep/shared_file_handler_test.go backend/internal/lstep/shared_file_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'SharedFile'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X02-LSTEP-TAG-CONFIG
+
+- 含む所見 ID: LSA-14
+- 所有パス (6):
+  - `backend/internal/lstep/lstep_tag_config_handler.go`
+  - `backend/internal/lstep/lstep_tag_config_request.go`
+  - `backend/internal/lstep/lstep_tag_config_service.go`
+  - `backend/internal/lstep/lstep_tag_config_handler_test.go`
+  - `backend/internal/lstep/lstep_tag_config_request_test.go`
+  - `backend/internal/lstep/lstep_tag_config_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'loadPetDerivedPrefixes' -e 'p.Category == "C2"' -e 'binding:"required"' -e '"c2"' -e '"C2 "' HEAD -- backend/internal/lstep/lstep_tag_config_handler.go backend/internal/lstep/lstep_tag_config_request.go backend/internal/lstep/lstep_tag_config_service.go backend/internal/lstep/lstep_tag_config_handler_test.go backend/internal/lstep/lstep_tag_config_request_test.go backend/internal/lstep/lstep_tag_config_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TagConfig|Lifecycle'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### U-X02-MR-CONSULTATION
+
+- 含む所見 ID: MRA-03
+- 所有パス (2):
+  - `backend/internal/medicalrecord/consultation_request.go`
+  - `backend/internal/medicalrecord/consultation_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'TaxRate' -e 'TimeCondition' -e 'TaxType' -e 'PATCH' -e 'NULL' HEAD -- backend/internal/medicalrecord/consultation_request.go backend/internal/medicalrecord/consultation_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ConsultationRequest'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X02-STAFF-TYPE
+
+- 含む所見 ID: AUS-03
+- 所有パス (8):
+  - `backend/internal/staff/staff_request.go`
+  - `backend/internal/staff/staff_service_builders.go`
+  - `backend/internal/staff/staff_service_core.go`
+  - `backend/internal/staff/staff_service_account.go`
+  - `backend/internal/staff/staff_request_test.go`
+  - `backend/internal/staff/staff_service_builders_test.go`
+  - `backend/internal/staff/staff_service_core_test.go`
+  - `backend/internal/staff/staff_service_account_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'StaffType' -e 'PostgreSQL' -e 'FromGORM' -e 'WrapInvalidInput' -e 'CreateWithAccount' HEAD -- backend/internal/staff/staff_request.go backend/internal/staff/staff_service_builders.go backend/internal/staff/staff_service_core.go backend/internal/staff/staff_service_account.go backend/internal/staff/staff_request_test.go backend/internal/staff/staff_service_builders_test.go backend/internal/staff/staff_service_core_test.go backend/internal/staff/staff_service_account_test.go`
+- 検証: `docker compose exec backend go test ./internal/staff/... -run 'StaffType|Create|Update'`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### U-X02X03X05-MR-HOSPITALIZATION
+
+- 含む所見 ID: MRB-02, MRB-03, MRB-05, MRB-06
+- 所有パス (6):
+  - `backend/internal/medicalrecord/hospitalization_repository.go`
+  - `backend/internal/medicalrecord/hospitalization_request.go`
+  - `backend/internal/medicalrecord/hospitalization_service.go`
+  - `backend/internal/medicalrecord/hospitalization_repository_test.go`
+  - `backend/internal/medicalrecord/hospitalization_request_test.go`
+  - `backend/internal/medicalrecord/hospitalization_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:38' -e 'FOR UPDATE' -e 'FOR SHARE' -e 'persistence.TxFromContext' -e 'apperrors.WrapInternalServerError' -e 'UPDATE' HEAD -- backend/internal/medicalrecord/hospitalization_repository.go backend/internal/medicalrecord/hospitalization_request.go backend/internal/medicalrecord/hospitalization_service.go backend/internal/medicalrecord/hospitalization_repository_test.go backend/internal/medicalrecord/hospitalization_request_test.go backend/internal/medicalrecord/hospitalization_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Hospitalization'`
+- 既知台帳: MRB-03=BUG-437 / SEC-SWEEP-02
+- Size: M (6/8 files)
+
+##### U-X03-CSVIMPORT-GUARD
+
+- 含む所見 ID: TRM-07
+- 所有パス (7):
+  - `backend/internal/csvimport/import.go`
+  - `backend/internal/csvimport/cutover_import.go`
+  - `backend/internal/csvimport/failure_rehearsal.go`
+  - `backend/cmd/seed-export/main.go`
+  - `backend/internal/csvimport/import_test.go`
+  - `backend/internal/csvimport/cutover_import_test.go`
+  - `backend/internal/csvimport/failure_rehearsal_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:31' -e 'current_database' -e 'DELETE' -e 'FROM' -e 'TargetDatabaseIdentitySHA256' -e 'Import' HEAD -- backend/internal/csvimport/import.go backend/internal/csvimport/cutover_import.go backend/internal/csvimport/failure_rehearsal.go backend/cmd/seed-export/main.go backend/internal/csvimport/import_test.go backend/internal/csvimport/cutover_import_test.go backend/internal/csvimport/failure_rehearsal_test.go`
+- 検証: `docker compose exec backend go test ./internal/csvimport/... ./cmd/seed-export/...`
+- 既知台帳: none
+- Size: L (7/8 files)
+
+##### U-X04-RESERVATION-AUTODELEGATE
+
+- 含む所見 ID: RSV-09
+- 所有パス (2):
+  - `backend/internal/reservation/liff_service_reservations.go`
+  - `backend/internal/reservation/liff_service_reservations_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'if err == nil' -e 'slog.WarnContext(ctx, "...(best-effort)", "error", err)' -e 'slog.WarnContext' -e 'ToDateTime' -e 'StaffID' HEAD -- backend/internal/reservation/liff_service_reservations.go backend/internal/reservation/liff_service_reservations_test.go`
+- 検証: `docker compose exec backend go test ./internal/reservation/... -run 'Liff.*Reservation|Delegate'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X04X05-LSTEP-DELIVERY
+
+- 含む所見 ID: LSA-12, LSA-15
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_delivery_trigger_client.go`
+  - `backend/internal/lstep/lstep_delivery_monitor_service.go`
+  - `backend/internal/lstep/lstep_delivery_trigger_client_test.go`
+  - `backend/internal/lstep/lstep_delivery_monitor_service_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=U-LSTEP-OPTOUT, U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'recordTrigger' -e 'ExistsTodayByOwnerAndType' -e 'WarnContext' -e 'Scheduled' -e 'Excluded' HEAD -- backend/internal/lstep/lstep_delivery_trigger_client.go backend/internal/lstep/lstep_delivery_monitor_service.go backend/internal/lstep/lstep_delivery_trigger_client_test.go backend/internal/lstep/lstep_delivery_monitor_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|DeliveryMonitor'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X05-OWNER-PHONE
+
+- 含む所見 ID: POC-06
+- 所有パス (4):
+  - `backend/internal/owner/repository.go`
+  - `backend/internal/owner/service_core.go`
+  - `backend/internal/owner/repository_test.go`
+  - `backend/internal/owner/service_core_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'len(owners) != 1' -e 'CODING_RULES' -e 'FindByPhone' -e 'CreateWithPets' -e 'POST' -e 'First' HEAD -- backend/internal/owner/repository.go backend/internal/owner/service_core.go backend/internal/owner/repository_test.go backend/internal/owner/service_core_test.go`
+- 検証: `docker compose exec backend go test ./internal/owner/... -run 'Phone|Unique'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### BE-X08-LSTEP-CONNECTION-01
+
+- 含む所見 ID: LSA-01, LSA-08
+- 所有パス (6):
+  - `backend/internal/lstep/lstep_settings_request.go`
+  - `backend/internal/lstep/lstep_settings_connection.go`
+  - `backend/internal/lstep/lstep_settings_credentials.go`
+  - `backend/internal/lstep/lstep_settings_connection_test.go`
+  - `backend/internal/lstep/lstep_settings_response.go`
+  - `backend/internal/lstep/lstep_settings_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=BE-X06-LSTEP-SETTINGS-01。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'lstep_base_url' -e 'ClinicIntegration' -e 'testLstepAPI' -e 'Authorization: Bearer <復号済み lstep API key>' -e 'crypto.MaskValue' HEAD -- backend/internal/lstep/lstep_settings_request.go backend/internal/lstep/lstep_settings_connection.go backend/internal/lstep/lstep_settings_credentials.go backend/internal/lstep/lstep_settings_connection_test.go backend/internal/lstep/lstep_settings_response.go backend/internal/lstep/lstep_settings_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LstepSettings|Connection'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### BE-X08-LSTEP-SEND-01
+
+- 含む所見 ID: LSA-09
+- 所有パス (5):
+  - `backend/internal/lstep/line_send_service.go`
+  - `backend/internal/lstep/line_send_response.go`
+  - `backend/internal/lstep/line_send_handler.go`
+  - `backend/internal/lstep/line_send_service_test.go`
+  - `backend/internal/lstep/line_send_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'sendErr.Error' -e 'WrapBadGateway(fmt.Sprintf("LINE送信に失敗しました: %s", ...))' -e 'LineSendLog.ErrorMessage' -e 'GET /owners/:id/line/send-logs' -e 'error_message' -e 'ErrorMessage' HEAD -- backend/internal/lstep/line_send_service.go backend/internal/lstep/line_send_response.go backend/internal/lstep/line_send_handler.go backend/internal/lstep/line_send_service_test.go backend/internal/lstep/line_send_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'LineSend'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### BE-X09-PET-ENUMS-01
+
+- 含む所見 ID: POC-11
+- 所有パス (6):
+  - `backend/internal/owner/validators.go`
+  - `backend/internal/owner/validators_test.go`
+  - `backend/internal/pet/validators.go`
+  - `backend/internal/pet/validators_test.go`
+  - `backend/internal/sharedkernel/enum_validators.go`
+  - `backend/internal/sharedkernel/sharedkernel_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '~/.claude/rules/ecc/common/coding-style.md:26' -e 'Avoid' -e 'POST' -e 'ValidateRequiredName' HEAD -- backend/internal/owner/validators.go backend/internal/owner/validators_test.go backend/internal/pet/validators.go backend/internal/pet/validators_test.go backend/internal/sharedkernel/enum_validators.go backend/internal/sharedkernel/sharedkernel_test.go`
+- 検証: `docker compose exec backend go test ./internal/owner/... ./internal/pet/... ./internal/sharedkernel/... -run 'Valid|Enum|Pet'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### BE-X10-AUTH-RESPONSE-01
+
+- 含む所見 ID: AUS-09
+- 所有パス (6):
+  - `backend/internal/auth/http_permission.go`
+  - `backend/internal/auth/http_permission_test.go`
+  - `backend/internal/auth/http_response.go`
+  - `backend/internal/auth/http_session_handlers_test.go`
+  - `backend/internal/httpapi/context.go`
+  - `backend/internal/httpapi/context_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:29' -e 'RespondError' -e 'ExtractIsSystemAdmin' -e 'ExtractStaffID' -e 'ExtractClinicID' -e 'Abort' HEAD -- backend/internal/auth/http_permission.go backend/internal/auth/http_permission_test.go backend/internal/auth/http_response.go backend/internal/auth/http_session_handlers_test.go backend/internal/httpapi/context.go backend/internal/httpapi/context_test.go`
+- 検証: `docker compose exec backend go test ./internal/auth/... ./internal/httpapi/... -run 'HasPermission|RequirePermission|CalculateEffectivePermissions|ExtractContext'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### SOLO-09
+
+- 含む所見 ID: LSA-04
+- 所有パス (3):
+  - `backend/internal/lstep/lstep_tag_config_repository.go`
+  - `backend/internal/lstep/routes.go`
+  - `backend/internal/lstep/lstep_tag_config_repository_test.go`
+- 依存 / 決裁: 決裁=DEC-30。先行 unit=U-X02-LSTEP-TAG-CONFIG。
+- 再実測: `git grep -n -F -e 'clinic_id NOT NULL' -e 'lstep_auto_managed_prefixes' -e 'lstep_condition_tag_mappings' -e 'lstep_send_purpose_tag_prefixes' -e 'ResourceHospitalSettings' -e 'Delete(&model.LstepAutoManagedPrefix{}, id)' HEAD -- backend/internal/lstep/lstep_tag_config_repository.go backend/internal/lstep/routes.go backend/internal/lstep/lstep_tag_config_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagConfig|AutoManaged|PurposeTag"`
+- 既知台帳: none
+- Size: M (3/8 files)
+
+##### U-TRIMMING-SERVICE
+
+- 含む所見 ID: TRM-04, TRM-06
+- 所有パス (4):
+  - `backend/internal/trimming/trimming_service.go`
+  - `backend/internal/trimming/trimming_service_test.go`
+  - `backend/internal/trimming/trimming_handler.go`
+  - `backend/internal/trimming/trimming_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=BE-X07-BODY-01。
+- 再実測: `git grep -n -F -e 'CODING_RULES' -e 'SetOptions' -e 'Location' -e 'Conflict' -e 'PATCH' -e 'trimming_service' HEAD -- backend/internal/trimming/trimming_service.go backend/internal/trimming/trimming_service_test.go backend/internal/trimming/trimming_handler.go backend/internal/trimming/trimming_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/trimming/... -run 'ExistingAppointment|Create|Conflict|Detail|Log'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X01X05-RESERVATION
+
+- 含む所見 ID: RSV-02, RSV-03, RSV-07
+- 所有パス (7):
+  - `backend/internal/reservation/appointment_admin_service.go`
+  - `backend/internal/reservation/line_reservation_setting_service.go`
+  - `backend/internal/reservation/reservation_type_liff_service.go`
+  - `backend/internal/reservation/reservation_type_repository.go`
+  - `backend/internal/reservation/reservation_repository.go`
+  - `backend/internal/reservation/appointment_admin_service_test.go`
+  - `backend/internal/reservation/reservation_type_liff_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=BE-X06-RSV-CANCEL-01, U-SCHEMA-BARRIER。
+- 再実測: `git grep -n -F -e 'reservation_repository.go:164-176' -e 's.resRepo.AcquireBookingLock(ctx, clinicID)' -e 'resRepo.AcquireBookingLock' -e 'CODING_RULES' -e 'AcquireBookingLock' -e 'CountConflicts' HEAD -- backend/internal/reservation/appointment_admin_service.go backend/internal/reservation/line_reservation_setting_service.go backend/internal/reservation/reservation_type_liff_service.go backend/internal/reservation/reservation_type_repository.go backend/internal/reservation/reservation_repository.go backend/internal/reservation/appointment_admin_service_test.go backend/internal/reservation/reservation_type_liff_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/reservation/... -run 'Admin|LineReservationSetting|ReservationType|Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: L (7/8 files)
+
+##### U-X02-CLINIC-CONTACT
+
+- 含む所見 ID: POC-17
+- 所有パス (5):
+  - `backend/internal/clinic/clinic_request.go`
+  - `backend/internal/clinic/company_request.go`
+  - `backend/internal/owner/validators_contact.go`
+  - `backend/internal/clinic/clinic_request_test.go`
+  - `backend/internal/clinic/company_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'CreateClinicRequest' -e 'UpdateClinicRequest' -e 'UpdateCompanyRequest' -e 'Email' -e 'PhoneNumber' HEAD -- backend/internal/clinic/clinic_request.go backend/internal/clinic/company_request.go backend/internal/owner/validators_contact.go backend/internal/clinic/clinic_request_test.go backend/internal/clinic/company_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/owner/... -run 'Request|Email|Phone|Postal'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X02-LSTEP-AGGREGATION
+
+- 含む所見 ID: G2A-05
+- 所有パス (2):
+  - `backend/internal/lstep/aggregation_request.go`
+  - `backend/internal/lstep/aggregation_request_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'aggregation_request' -e 'period_preset' -e 'amount_basis' HEAD -- backend/internal/lstep/aggregation_request.go backend/internal/lstep/aggregation_request_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'AggregationRequest'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X02-MR-LAB-IMPORT
+
+- 含む所見 ID: MRC-08
+- 所有パス (1):
+  - `backend/internal/medicalrecord/lab_import_request.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=BE-X06-MEDICAL-ATOMIC-01。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'labExamItemReq' -e 'labImportResultRowReq' -e 'toExamInputs' -e 'Name' -e 'InspectionValue' HEAD -- backend/internal/medicalrecord/lab_import_request.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'LabImport'`
+- 既知台帳: none
+- Size: S (1/8 files)
+
+##### U-X05-MR-MEDICINE-MASTERS
+
+- 含む所見 ID: MRC-02, MRC-03, MRC-07
+- 所有パス (8):
+  - `backend/internal/medicalrecord/medicine_dose_param_service.go`
+  - `backend/internal/medicalrecord/medicine_service.go`
+  - `backend/internal/medicalrecord/procedure_repository.go`
+  - `backend/internal/medicalrecord/procedure_service.go`
+  - `backend/internal/medicalrecord/medicine_dose_param_service_test.go`
+  - `backend/internal/medicalrecord/medicine_service_test.go`
+  - `backend/internal/medicalrecord/procedure_repository_test.go`
+  - `backend/internal/medicalrecord/procedure_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X01X02-INVENTORY。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:66' -e 'medicines.inventory_id' -e 'Name' -e 'RowsAffected' -e 'DeleteByNameAndMedicineCategory' -e 'AuditTxLogger' HEAD -- backend/internal/medicalrecord/medicine_dose_param_service.go backend/internal/medicalrecord/medicine_service.go backend/internal/medicalrecord/procedure_repository.go backend/internal/medicalrecord/procedure_service.go backend/internal/medicalrecord/medicine_dose_param_service_test.go backend/internal/medicalrecord/medicine_service_test.go backend/internal/medicalrecord/procedure_repository_test.go backend/internal/medicalrecord/procedure_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'MedicineDoseParam|Medicine.*Delete|Procedure.*Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### BE-X09-CLOSING-01
+
+- 含む所見 ID: POC-15, POC-16
+- 所有パス (5):
+  - `backend/internal/clinic/closing_settings_service.go`
+  - `backend/internal/clinic/closing_settings_service_test.go`
+  - `backend/internal/billing/cash_register_service.go`
+  - `backend/internal/billing/cash_register_service_test.go`
+  - `backend/internal/sharedkernel/shift_times.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'slog.ErrorContext' -e 'slog.Any' -e 'CODING_RULES' -e 'UpdateSpecialPeriod' -e 'ErrorContext' -e 'closing_settings_service' HEAD -- backend/internal/clinic/closing_settings_service.go backend/internal/clinic/closing_settings_service_test.go backend/internal/billing/cash_register_service.go backend/internal/billing/cash_register_service_test.go backend/internal/sharedkernel/shift_times.go`
+- 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/billing/... ./internal/sharedkernel/... -run 'Closing|CashRegister|HHMM'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### BE-X09-MEDICAL-DIAGNOSIS-01
+
+- 含む所見 ID: MRC-14
+- 所有パス (4):
+  - `backend/internal/medicalrecord/medical_record_subrecords.go`
+  - `backend/internal/medicalrecord/medical_record_subrecords_test.go`
+  - `backend/internal/medicalrecord/clinical_plan_service.go`
+  - `backend/internal/medicalrecord/clinical_plan_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '~/.claude/rules/ecc/common/coding-style.md:26' -e 'Avoid' -e 'CreateSubRecords' -e 'ClinicalPlanService' -e 'POST' -e 'medical_record_subrecords' HEAD -- backend/internal/medicalrecord/medical_record_subrecords.go backend/internal/medicalrecord/medical_record_subrecords_test.go backend/internal/medicalrecord/clinical_plan_service.go backend/internal/medicalrecord/clinical_plan_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'CreateSubRecords.*Diagnosis|ClinicalPlan.*Diagnosis'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### BE-X09-PET-PATCH-01
+
+- 含む所見 ID: POC-14
+- 所有パス (2):
+  - `backend/internal/pet/chronic_condition_service.go`
+  - `backend/internal/pet/chronic_condition_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '~/.claude/rules/ecc/common/coding-style.md:26' -e 'apperrors.WrapInvalidInput' -e 'Avoid' -e 'WrapInvalidInput' -e 'PATCH' -e 'RowsAffected' HEAD -- backend/internal/pet/chronic_condition_service.go backend/internal/pet/chronic_condition_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/pet/... -run 'ChronicCondition.*Update'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X01X03X04-LSTEP-LIFECYCLE
+
+- 含む所見 ID: LSA-05, LSB-02, LSB-03, LSB-04
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_lifecycle_handler.go`
+  - `backend/internal/lstep/lstep_lifecycle_service.go`
+  - `backend/internal/lstep/lstep_lifecycle_service_test.go`
+  - `backend/internal/lstep/lstep_settings_credentials_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=BE-X08-LSTEP-CONNECTION-01, BE-X06-LSTEP-SETTINGS-01。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:31' -e 'HandlePetDeath' -e 'HandlePetRevival' -e 'HandleOwnerOptOut' -e 'HandleOwnerOptIn' -e 'HandleOwnerDeletion' HEAD -- backend/internal/lstep/lstep_lifecycle_handler.go backend/internal/lstep/lstep_lifecycle_service.go backend/internal/lstep/lstep_lifecycle_service_test.go backend/internal/lstep/lstep_settings_credentials_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'Lifecycle|Settings|Credentials'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X04-AUDIT-MARSHAL
+
+- 含む所見 ID: INF-06
+- 所有パス (4):
+  - `backend/internal/audit/repository.go`
+  - `backend/internal/audit/service.go`
+  - `backend/internal/audit/repository_test.go`
+  - `backend/internal/audit/service_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '~/.claude/rules/ecc/common/coding-style.md:49' -e '明示的に回復する' -e 'Never' -e 'MarshalJSON' -e 'Marshal' -e 'OldValue' HEAD -- backend/internal/audit/repository.go backend/internal/audit/service.go backend/internal/audit/repository_test.go backend/internal/audit/service_test.go`
+- 検証: `docker compose exec backend go test ./internal/audit/... -run 'Marshal|BuildLog'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X04-COVERAGE-RATCHET
+
+- 含む所見 ID: CMD-03
+- 所有パス (3):
+  - `backend/cmd/coverage-ratchet/main.go`
+  - `backend/cmd/coverage-ratchet/main_test.go`
+  - `.github/workflows/ci.yml`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e '.github/workflows/ci.yml:200' -e 'bash -e {0}' -e 'os.Exit' -e 'ReadFile' -e 'GitHub' HEAD -- backend/cmd/coverage-ratchet/main.go backend/cmd/coverage-ratchet/main_test.go .github/workflows/ci.yml`
+- 検証: `docker compose exec backend go test ./cmd/coverage-ratchet/...`
+- 既知台帳: none
+- Size: M (3/8 files)
+
+##### U-X04-LSTEP-BATCH
+
+- 含む所見 ID: LSA-03
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_batch_segmentation.go`
+  - `backend/internal/lstep/lstep_batch_service.go`
+  - `backend/internal/lstep/lstep_batch_segmentation_test.go`
+  - `backend/internal/lstep/lstep_batch_service_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'syncVisitDormantForClinic' -e 'FindDormantOwnerEntries' -e 'return 0, nil' -e 'runBatchAllClinicsWithResult' -e 'count>0 || len(errs)>0' HEAD -- backend/internal/lstep/lstep_batch_segmentation.go backend/internal/lstep/lstep_batch_service.go backend/internal/lstep/lstep_batch_segmentation_test.go backend/internal/lstep/lstep_batch_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'VisitDormant|Batch'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X04-LSTEP-HEALTH-REMOVE
+
+- 含む所見 ID: G2B-01
+- 所有パス (5):
+  - `backend/internal/lstep/lstep_health_tag_sync_batch.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_food.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_prevention.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_batch_test.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_prevention_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'PREV_' -e 'BatchRunResult' -e 'Failed' -e 'lstep_health_tag_sync_prevention' -e 'lstep_health_tag_sync_food' HEAD -- backend/internal/lstep/lstep_health_tag_sync_batch.go backend/internal/lstep/lstep_health_tag_sync_food.go backend/internal/lstep/lstep_health_tag_sync_prevention.go backend/internal/lstep/lstep_health_tag_sync_batch_test.go backend/internal/lstep/lstep_health_tag_sync_prevention_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'Health.*Tag|Prevention|Vaccine'`
+- 既知台帳: none
+- Size: M (5/8 files)
+
+##### U-X04-LSTEP-MIGRATE
+
+- 含む所見 ID: CMD-07
+- 所有パス (2):
+  - `backend/cmd/lstep-migrate/main.go`
+  - `backend/cmd/lstep-migrate/migrator.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'processOwner' -e 'FirstOrCreate' -e 'Warn' -e 'ProgressRecord' -e 'Status' HEAD -- backend/cmd/lstep-migrate/main.go backend/cmd/lstep-migrate/migrator.go`
+- 検証: `docker compose exec backend go test ./cmd/lstep-migrate/...`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### U-X04-LSTEP-OWNER-TAGS
+
+- 含む所見 ID: LSA-10
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_tag_handler.go`
+  - `backend/internal/lstep/lstep_tag_service.go`
+  - `backend/internal/lstep/lstep_tag_handler_test.go`
+  - `backend/internal/lstep/lstep_tag_service_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'tagCacheRepo.FindByOwner' -e 'return result, nil' -e 'return nil, apperrors.Wrap(cacheErr, "failed to load lstep tag cache")' -e 'apperrors.Wrap' -e 'FindByOwner' HEAD -- backend/internal/lstep/lstep_tag_handler.go backend/internal/lstep/lstep_tag_service.go backend/internal/lstep/lstep_tag_handler_test.go backend/internal/lstep/lstep_tag_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'GetOwnerTags'`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### U-X04-LSTEP-STALE-TAGS
+
+- 含む所見 ID: LSA-11
+- 所有パス (2):
+  - `backend/internal/lstep/lstep_tag_sync_api.go`
+  - `backend/internal/lstep/lstep_tag_sync_api_test.go`
+- 依存 / 決裁: 決裁=DEC-35。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:9' -e 'apiFailed bool' -e 'false' -e 'next_visit_*' -e 'checkup_done_*' -e '(apiFailed bool, err error)' HEAD -- backend/internal/lstep/lstep_tag_sync_api.go backend/internal/lstep/lstep_tag_sync_api_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/... -run 'RemoveStaleTags'`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-01
+
+- 含む所見 ID: AUS-04, AUS-05, G2F-10
+- 所有パス (8):
+  - `backend/internal/staff/shift_template_repository.go`
+  - `backend/internal/staff/shift_template_service.go`
+  - `backend/internal/staff/shift_template_repository_integration_test.go`
+  - `backend/internal/staff/shift_template_service_test.go`
+  - `backend/internal/staff/shift_response.go`
+  - `backend/internal/staff/shift_response_test.go`
+  - `backend/internal/staff/shift_entry_repository.go`
+  - `backend/internal/staff/shift_entry_service.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:89' -e '_ = ctx; _ = clinicID; _ = id; return 0, nil' -e 'assert.Equal(int64(0), count)' -e 'assert.Equal' -e 'int64' -e 'CountUsageByShiftTemplateID' HEAD -- backend/internal/staff/shift_template_repository.go backend/internal/staff/shift_template_service.go backend/internal/staff/shift_template_repository_integration_test.go backend/internal/staff/shift_template_service_test.go backend/internal/staff/shift_response.go backend/internal/staff/shift_response_test.go backend/internal/staff/shift_entry_repository.go backend/internal/staff/shift_entry_service.go`
+- 検証: `docker compose exec backend go test ./internal/staff/ -run "ShiftTemplate|ShiftResponse|ShiftEntry"`
+- 既知台帳: none
+- Size: L (8/8 files)
+
+##### SOLO-02
+
+- 含む所見 ID: BIL-01
+- 所有パス (7):
+  - `backend/internal/billing/routes.go`
+  - `backend/internal/billing/billing_item_service.go`
+  - `backend/internal/billing/billing_item_repository.go`
+  - `backend/internal/billing/accounting_service_core.go`
+  - `backend/internal/billing/billing_item_service_test.go`
+  - `backend/internal/billing/billing_item_repository_tx_atomicity_test.go`
+  - `backend/internal/billing/billing_item_handler_test.go`
+- 依存 / 決裁: 決裁=DEC-33。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:37' -e 'PATCH /billing-items/:id' -e 'POST /billing-items' -e 'accounting:edit' -e 'accounting:create' -e 'input.VaccinationID != nil' HEAD -- backend/internal/billing/routes.go backend/internal/billing/billing_item_service.go backend/internal/billing/billing_item_repository.go backend/internal/billing/accounting_service_core.go backend/internal/billing/billing_item_service_test.go backend/internal/billing/billing_item_repository_tx_atomicity_test.go backend/internal/billing/billing_item_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/billing/ -run "BillingItem|PostClose"`
+- 既知台帳: BIL-01=BUG-463
+- Size: L (7/8 files)
+
+##### SOLO-03
+
+- 含む所見 ID: BIL-02
+- 所有パス (4):
+  - `backend/internal/billing/accounting_service_correction.go`
+  - `backend/internal/billing/accounting_service_reports.go`
+  - `backend/internal/billing/accounting_service.go`
+  - `backend/internal/billing/accounting_service_correction_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:37' -e 'NewAccountingService' -e 'logCreditCorrection' -e 'if s.auditTx == nil { return nil }' -e 'Cancel' -e 'if s.auditTx != nil' HEAD -- backend/internal/billing/accounting_service_correction.go backend/internal/billing/accounting_service_reports.go backend/internal/billing/accounting_service.go backend/internal/billing/accounting_service_correction_test.go`
+- 検証: `docker compose exec backend go test ./internal/billing/ -run "CreditCorrection|Cancel"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-05
+
+- 含む所見 ID: CMD-04
+- 所有パス (2):
+  - `backend/cmd/api/lstep_adapters.go`
+  - `backend/internal/lstep/lstep_lifecycle_deps.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X05-PET-UPDATE, BE-X07-BODY-01。
+- 再実測: `git grep -n -F -e 'map[string]any' -e 'pet.CompleteRepository' -e 'ClearDeath' -e 'petLifecycleWriterAdapter' -e 'legacyLifecycleTransition' -e 'CODING_RULES' HEAD -- backend/cmd/api/lstep_adapters.go backend/internal/lstep/lstep_lifecycle_deps.go`
+- 検証: `docker compose exec backend go test ./cmd/api/ ./internal/pet/ ./internal/lstep/ -run "Lifecycle|PetDeath"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-06
+
+- 含む所見 ID: CMD-06
+- 所有パス (2):
+  - `backend/cmd/csv-import-failure-rehearsal/main.go`
+  - `backend/cmd/csv-import-failure-rehearsal/main_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:17' -e 'fmt.Errorf("...: %w", err)' -e 'fmt.Errorf' -e 'validateDisposableTarget' -e 'Errorf' HEAD -- backend/cmd/csv-import-failure-rehearsal/main.go backend/cmd/csv-import-failure-rehearsal/main_test.go`
+- 検証: `docker compose exec backend go test ./cmd/csv-import-failure-rehearsal/`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-08
+
+- 含む所見 ID: INF-03
+- 所有パス (4):
+  - `backend/internal/infra/lstep/user.go`
+  - `backend/internal/infra/lstep/tag.go`
+  - `backend/internal/infra/lstep/client.go`
+  - `backend/internal/owner/service_line.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X02-PET-OWNER-FREETEXT。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'fmt.Sprintf("/contacts/%s", lineUserID)' -e 'fmt.Sprintf("/contacts/%s/tags", lineUserID)' -e 'c.baseURL+path' -e 'patchOwnerLineUserIDRequest.LineUserID' -e 'url.PathEscape(lineUserID)' HEAD -- backend/internal/infra/lstep/user.go backend/internal/infra/lstep/tag.go backend/internal/infra/lstep/client.go backend/internal/owner/service_line.go`
+- 検証: `docker compose exec backend go test ./internal/infra/lstep/ ./internal/owner/ -run "Line|Lstep"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-10
+
+- 含む所見 ID: LSA-07
+- 所有パス (2):
+  - `backend/internal/lstep/line_messaging_service.go`
+  - `backend/internal/lstep/line_messaging_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'slog.InfoContext(ctx, "LINE push sent", "to", lineUserID)' -e 'owner_id' -e '"to", lineUserID' -e 'slog.InfoContext' -e 'CODING_RULES' -e 'InfoContext' HEAD -- backend/internal/lstep/line_messaging_service.go backend/internal/lstep/line_messaging_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "LineMessaging"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-12
+
+- 含む所見 ID: G2C-01, G2F-01
+- 所有パス (1):
+  - `backend/internal/lstep/lstep_tag_cache_repository.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-LSTEP-OPTOUT。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:151' -e 'EscapeLike' -e 'ESCAPE' -e 'lstep_tag_cache_repository' -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' HEAD -- backend/internal/lstep/lstep_tag_cache_repository.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagCache|DeliveryTriggerBatch|DeliveryTriggerState"`
+- 既知台帳: none
+- Size: S (1/8 files)
+
+##### SOLO-13
+
+- 含む所見 ID: G2C-04
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_tag_summary_service.go`
+  - `backend/internal/lstep/lstep_tag_summary_handler.go`
+  - `backend/internal/lstep/lstep_tag_summary_service_test.go`
+  - `backend/internal/lstep/lstep_tag_summary_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/rules/go-gin-backend-guidelines.md:154' -e '.claude/refs/error-handling.md:29' -e 'RespondError' -e 'lstep_tag_summary_service' -e 'lstep_tag_summary_handler' HEAD -- backend/internal/lstep/lstep_tag_summary_service.go backend/internal/lstep/lstep_tag_summary_handler.go backend/internal/lstep/lstep_tag_summary_service_test.go backend/internal/lstep/lstep_tag_summary_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagSummary"`
+- 既知台帳: G2C-04=BUG-464
+- Size: M (4/8 files)
+
+##### SOLO-14
+
+- 含む所見 ID: G2F-02
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_health_tag_sync_checkup.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_vaccine.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_checkup_test.go`
+  - `backend/internal/lstep/lstep_health_tag_sync_vaccine_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X04-LSTEP-HEALTH-REMOVE。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'Limit' -e 'lstep_health_tag_sync_batch' -e 'lstep_health_tag_sync_checkup' -e 'lstep_health_tag_sync_vaccine' HEAD -- backend/internal/lstep/lstep_health_tag_sync_checkup.go backend/internal/lstep/lstep_health_tag_sync_vaccine.go backend/internal/lstep/lstep_health_tag_sync_checkup_test.go backend/internal/lstep/lstep_health_tag_sync_vaccine_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "HealthTagSync"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-15
+
+- 含む所見 ID: G2F-03, G2F-04
+- 所有パス (4):
+  - `backend/internal/lstep/lstep_tag_sync_visit_ltv.go`
+  - `backend/internal/lstep/lstep_tag_sync_visit_ltv_test.go`
+  - `backend/internal/billing/accounting_repository_ltv.go`
+  - `backend/internal/medicalrecord/medical_record_owner_visit_repository.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X04-LSTEP-BATCH, U-X05-OWNER-PHONE。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'FindAllWithLineUserID' -e 'Limit' -e 'lstep_tag_sync_visit_ltv' -e 'accounting_repository_ltv' HEAD -- backend/internal/lstep/lstep_tag_sync_visit_ltv.go backend/internal/lstep/lstep_tag_sync_visit_ltv_test.go backend/internal/billing/accounting_repository_ltv.go backend/internal/medicalrecord/medical_record_owner_visit_repository.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/owner/ ./internal/medicalrecord/ ./internal/billing/ -run "LTV|Dormant|Segmentation"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-17
+
+- 含む所見 ID: G2F-06
+- 所有パス (4):
+  - `backend/internal/lstep/shared_file_repository.go`
+  - `backend/internal/lstep/shared_file_service.go`
+  - `backend/internal/lstep/shared_file_repository_test.go`
+  - `backend/internal/lstep/shared_file_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'FindAll' -e 'FindExpired' -e 'Limit' -e 'shared_file_repository' HEAD -- backend/internal/lstep/shared_file_repository.go backend/internal/lstep/shared_file_service.go backend/internal/lstep/shared_file_repository_test.go backend/internal/lstep/shared_file_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ -run "SharedFile"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-19
+
+- 含む所見 ID: G2F-08
+- 所有パス (3):
+  - `backend/internal/lstep/lstep_batch_noshow.go`
+  - `backend/internal/lstep/lstep_batch_noshow_test.go`
+  - `backend/internal/reservation/reservation_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X01X05-RESERVATION。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'Limit' -e 'LIMIT' -e 'reservation_repository' -e 'lstep_batch_noshow' HEAD -- backend/internal/lstep/lstep_batch_noshow.go backend/internal/lstep/lstep_batch_noshow_test.go backend/internal/reservation/reservation_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/reservation/ -run "NoShow"`
+- 既知台帳: none
+- Size: M (3/8 files)
+
+##### SOLO-20
+
+- 含む所見 ID: G2F-09
+- 所有パス (2):
+  - `backend/internal/billing/accounting_repository_reports_close.go`
+  - `backend/internal/billing/accounting_repository_reports_close_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:67' -e 'EXPLAIN' -e 'accounting_repository_reports_close' HEAD -- backend/internal/billing/accounting_repository_reports_close.go backend/internal/billing/accounting_repository_reports_close_test.go`
+- 検証: `docker compose exec backend go test ./internal/billing/ -run "Close"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-21
+
+- 含む所見 ID: G2F-11
+- 所有パス (2):
+  - `backend/internal/medicalrecord/consultation_repository.go`
+  - `backend/internal/medicalrecord/consultation_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=U-X05-MR-EXAMTYPE, U-X01X02-INVENTORY。
+- 再実測: `git grep -n -F -e 'ConsultationRepository' -e 'consultationRepositoryImpl' -e 'NewConsultationRepository' -e 'FindAll' -e 'FindByID' -e 'Reorder' HEAD -- backend/internal/medicalrecord/consultation_repository.go backend/internal/medicalrecord/consultation_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/ ./internal/inventory/ -run "Consultation|ExamType|Merchandise"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-22
+
+- 含む所見 ID: INF-04
+- 所有パス (2):
+  - `backend/internal/apperrors/errors.go`
+  - `backend/internal/apperrors/errors_test.go`
+- 依存 / 決裁: 決裁=DEC-34。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/error-handling.md:18' -e 'errors.Is' -e 'errors.As' -e 'strings.Contains(errMsg, "unable to encode")' -e 'strings.Contains' -e 'FromGORM' HEAD -- backend/internal/apperrors/errors.go backend/internal/apperrors/errors_test.go`
+- 検証: `docker compose exec backend go test ./internal/apperrors/ -run "FromGORM"`
+- 既知台帳: none
+- Size: S (2/8 files)
+
+##### SOLO-23
+
+- 含む所見 ID: MDL-05
+- 所有パス (1):
+  - `backend/internal/lintscan/migration_cascade_lint_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'owners' -e 'pets' -e 'medical_records' -e 'strings.Count(sql, "ON DELETE CASCADE")' -e 'on delete cascade' -e 'ON DELETE  CASCADE' HEAD -- backend/internal/lintscan/migration_cascade_lint_test.go`
+- 検証: `docker compose exec backend go test ./internal/lintscan/ -run "MigrationCascade"`
+- 既知台帳: none
+- Size: S (1/8 files)
+
+##### SOLO-25
+
+- 含む所見 ID: MRA-04
+- 所有パス (6):
+  - `backend/internal/medicalrecord/cage_handler.go`
+  - `backend/internal/medicalrecord/cage_request.go`
+  - `backend/internal/medicalrecord/cage_repository.go`
+  - `backend/internal/medicalrecord/cage_service.go`
+  - `backend/internal/medicalrecord/consultation_handler.go`
+  - `backend/internal/medicalrecord/consultation_service.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-language.md:13' -e 'package medicalrecord' -e 'GoDoc' -e 'Package' -e 'Cage' -e 'cage_handler' HEAD -- backend/internal/medicalrecord/cage_handler.go backend/internal/medicalrecord/cage_request.go backend/internal/medicalrecord/cage_repository.go backend/internal/medicalrecord/cage_service.go backend/internal/medicalrecord/consultation_handler.go backend/internal/medicalrecord/consultation_service.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "Cage|Consultation"`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### SOLO-29
+
+- 含む所見 ID: MRC-09
+- 所有パス (6):
+  - `backend/internal/medicalrecord/medical_record_image_request.go`
+  - `backend/internal/medicalrecord/medical_record_image_service.go`
+  - `backend/internal/medicalrecord/medical_record_image_handler.go`
+  - `backend/internal/medicalrecord/medical_record_image_request_test.go`
+  - `backend/internal/medicalrecord/medical_record_image_service_test.go`
+  - `backend/internal/medicalrecord/medical_record_image_handler_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'binding:"required"' -e 'MimeType' -e 'FileName' -e 'FileSize' -e 'allowedMedicalRecordImageMIMETypes' -e 'medicalRecordImageService.Create' HEAD -- backend/internal/medicalrecord/medical_record_image_request.go backend/internal/medicalrecord/medical_record_image_service.go backend/internal/medicalrecord/medical_record_image_handler.go backend/internal/medicalrecord/medical_record_image_request_test.go backend/internal/medicalrecord/medical_record_image_service_test.go backend/internal/medicalrecord/medical_record_image_handler_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "MedicalRecordImage"`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+##### SOLO-30
+
+- 含む所見 ID: MRD-01
+- 所有パス (4):
+  - `backend/internal/medicalrecord/treatment_repository.go`
+  - `backend/internal/medicalrecord/treatment_service.go`
+  - `backend/internal/medicalrecord/treatment_repository_test.go`
+  - `backend/internal/medicalrecord/treatment_service_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=なし。
+- 再実測: `git grep -n -F -e '.claude/refs/go-gin-backend-review.md:66' -e 'BulkUpdateSortOrder' -e 'Update("sort_order", ...)' -e 'result.RowsAffected' -e 'result.Error' -e 'RowsAffected == 0' HEAD -- backend/internal/medicalrecord/treatment_repository.go backend/internal/medicalrecord/treatment_service.go backend/internal/medicalrecord/treatment_repository_test.go backend/internal/medicalrecord/treatment_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/ -run "Treatment.*Sort|BulkUpdate"`
+- 既知台帳: none
+- Size: M (4/8 files)
+
+##### SOLO-34
+
+- 含む所見 ID: POC-09, POC-10
+- 所有パス (3):
+  - `backend/internal/clinic/clinic_holiday_repository.go`
+  - `backend/internal/clinic/clinic_settings_repository_test.go`
+  - `backend/internal/clinic/clinic_holiday_repository_test.go`
+- 依存 / 決裁: 決裁=なし。先行 unit=BE-X06-LSTEP-SETTINGS-01, BE-X09-CLOSING-01。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:11' -e 'Scopes' -e 'persistence.ClinicScope' -e 'db.Where' -e 'Save' -e 'ClinicScope' HEAD -- backend/internal/clinic/clinic_holiday_repository.go backend/internal/clinic/clinic_settings_repository_test.go backend/internal/clinic/clinic_holiday_repository_test.go`
+- 検証: `docker compose exec backend go test ./internal/clinic/ -run "ClinicSettings|HolidayRepository|ClosingSettingsService"`
+- 既知台帳: none
+- Size: M (3/8 files)
+
+##### SOLO-36
+
+- 含む所見 ID: TRM-09
+- 所有パス (7):
+  - `backend/internal/trimming/trimming_course_repository.go`
+  - `backend/internal/trimming/trimming_option_repository.go`
+  - `backend/internal/trimming/trimming_course_type_repository.go`
+  - `backend/internal/trimming/trimming_course_repository_test.go`
+  - `backend/internal/trimming/trimming_option_repository_test.go`
+  - `backend/internal/trimming/trimming_course_type_repository_test.go`
+  - `backend/internal/lintscan/dbortx_inventory_lint_test.go`
+- 依存 / 決裁: 決裁=DEC-39。先行 unit=なし。
+- 再実測: `git grep -n -F -e 'db.WithContext' -e 'CODING_RULES' -e 'DBOrTx' -e 'UpdateScopedByID' -e 'WithContext' -e 'ReorderByClinicID' HEAD -- backend/internal/trimming/trimming_course_repository.go backend/internal/trimming/trimming_option_repository.go backend/internal/trimming/trimming_course_type_repository.go backend/internal/trimming/trimming_course_repository_test.go backend/internal/trimming/trimming_option_repository_test.go backend/internal/trimming/trimming_course_type_repository_test.go backend/internal/lintscan/dbortx_inventory_lint_test.go`
+- 検証: `docker compose exec backend go test ./internal/trimming/ && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+- 既知台帳: none
+- Size: L (7/8 files)
+
+##### U-X04-MR-SUBRECORDS
+
+- 含む所見 ID: MRC-04
+- 所有パス (6):
+  - `backend/internal/medicalrecord/medical_record_auto_create.go`
+  - `backend/internal/medicalrecord/medical_record_handler.go`
+  - `backend/internal/medicalrecord/medical_record_service.go`
+  - `backend/internal/medicalrecord/medical_record_auto_create_test.go`
+  - `backend/internal/medicalrecord/medical_record_handler_test.go`
+  - `backend/internal/medicalrecord/medical_record_service_test.go`
+- 依存 / 決裁: 決裁=DEC-32, DEC-35。先行 unit=BE-X09-MEDICAL-DIAGNOSIS-01。
+- 再実測: `git grep -n -F -e '.claude/refs/backend-application-invariants.md:35' -e 'auditReservationDraftCleanupFailure' -e 'CreateSubRecords' -e 'Warn' -e 'Created' -e 'POST' HEAD -- backend/internal/medicalrecord/medical_record_auto_create.go backend/internal/medicalrecord/medical_record_handler.go backend/internal/medicalrecord/medical_record_service.go backend/internal/medicalrecord/medical_record_auto_create_test.go backend/internal/medicalrecord/medical_record_handler_test.go backend/internal/medicalrecord/medical_record_service_test.go`
+- 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'SubRecord|MedicalRecord.*Create|AutoCreate'`
+- 既知台帳: none
+- Size: M (6/8 files)
+
+### Ownership TSV
+
+本節の所有パス台帳は統合時に機械検証済み。
+
+```tsv
+unit_id	path
+U-X04-COVERAGE-RATCHET	.github/workflows/ci.yml
+SOLO-04	backend/cmd/api/base_routes.go
+SOLO-04	backend/cmd/api/batch_scheduler_test.go
+SOLO-04	backend/cmd/api/batch_scheduler.go
+BE-X06-BIL-CAMPAIGN-01	backend/cmd/api/composition_billing_services.go
+BE-X07-BODY-01	backend/cmd/api/composition_core_test.go
+BE-X06-MEDICAL-ATOMIC-01	backend/cmd/api/composition_medicalrecord_services.go
+BE-X07-BODY-01	backend/cmd/api/composition_runtime.go
+SOLO-05	backend/cmd/api/lstep_adapters.go
+SOLO-04	backend/cmd/api/main.go
+SOLO-04	backend/cmd/api/route_composition_smoke_test.go
+U-X04-COVERAGE-RATCHET	backend/cmd/coverage-ratchet/main_test.go
+U-X04-COVERAGE-RATCHET	backend/cmd/coverage-ratchet/main.go
+SOLO-06	backend/cmd/csv-import-failure-rehearsal/main_test.go
+SOLO-06	backend/cmd/csv-import-failure-rehearsal/main.go
+U-X04-LSTEP-MIGRATE	backend/cmd/lstep-migrate/main.go
+U-X04-LSTEP-MIGRATE	backend/cmd/lstep-migrate/migrator.go
+U-X03-CSVIMPORT-GUARD	backend/cmd/seed-export/main.go
+SOLO-33	backend/docs/api.yaml
+SOLO-22	backend/internal/apperrors/errors_test.go
+SOLO-22	backend/internal/apperrors/errors.go
+U-X04-AUDIT-MARSHAL	backend/internal/audit/repository_test.go
+U-X04-AUDIT-MARSHAL	backend/internal/audit/repository.go
+U-X04-AUDIT-MARSHAL	backend/internal/audit/service_test.go
+U-X04-AUDIT-MARSHAL	backend/internal/audit/service.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/auth/http_permission_test.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/auth/http_permission.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/auth/http_response.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/auth/http_session_handlers_test.go
+SOLO-15	backend/internal/billing/accounting_repository_ltv.go
+SOLO-20	backend/internal/billing/accounting_repository_reports_close_test.go
+SOLO-20	backend/internal/billing/accounting_repository_reports_close.go
+SOLO-24	backend/internal/billing/accounting_repository_tx_atomicity_test.go
+SOLO-24	backend/internal/billing/accounting_repository.go
+SOLO-02	backend/internal/billing/accounting_service_core.go
+SOLO-03	backend/internal/billing/accounting_service_correction_test.go
+SOLO-03	backend/internal/billing/accounting_service_correction.go
+SOLO-03	backend/internal/billing/accounting_service_reports.go
+SOLO-03	backend/internal/billing/accounting_service.go
+SOLO-02	backend/internal/billing/billing_item_handler_test.go
+SOLO-02	backend/internal/billing/billing_item_repository_tx_atomicity_test.go
+SOLO-02	backend/internal/billing/billing_item_repository.go
+SOLO-02	backend/internal/billing/billing_item_service_test.go
+SOLO-02	backend/internal/billing/billing_item_service.go
+BE-X06-BIL-CAMPAIGN-01	backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go
+BE-X06-BIL-CAMPAIGN-01	backend/internal/billing/campaign_repository.go
+BE-X06-BIL-CAMPAIGN-01	backend/internal/billing/campaign_service_test.go
+BE-X06-BIL-CAMPAIGN-01	backend/internal/billing/campaign_service.go
+BE-X09-CLOSING-01	backend/internal/billing/cash_register_service_test.go
+BE-X09-CLOSING-01	backend/internal/billing/cash_register_service.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_request_test.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_request.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_response_test.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_response.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_service_test.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/billing/estimate_service.go
+SOLO-02	backend/internal/billing/routes.go
+SOLO-32	backend/internal/clinic/clinic_holiday_handler_test.go
+SOLO-32	backend/internal/clinic/clinic_holiday_handler.go
+SOLO-34	backend/internal/clinic/clinic_holiday_repository_test.go
+SOLO-34	backend/internal/clinic/clinic_holiday_repository.go
+U-X02-CLINIC-CONTACT	backend/internal/clinic/clinic_request_test.go
+U-X02-CLINIC-CONTACT	backend/internal/clinic/clinic_request.go
+U-X01X05-CLINIC	backend/internal/clinic/clinic_service_test.go
+SOLO-32	backend/internal/clinic/clinic_service.go
+SOLO-34	backend/internal/clinic/clinic_settings_repository_test.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/clinic/clinic_settings_repository.go
+SOLO-32	backend/internal/clinic/closing_settings_handler_test.go
+SOLO-32	backend/internal/clinic/closing_settings_handler.go
+BE-X09-CLOSING-01	backend/internal/clinic/closing_settings_service_test.go
+BE-X09-CLOSING-01	backend/internal/clinic/closing_settings_service.go
+U-X01X05-CLINIC	backend/internal/clinic/closing_special_period_repository_test.go
+U-X01X05-CLINIC	backend/internal/clinic/closing_special_period_repository.go
+U-X02-CLINIC-CONTACT	backend/internal/clinic/company_request_test.go
+U-X02-CLINIC-CONTACT	backend/internal/clinic/company_request.go
+U-X01X05-CLINIC	backend/internal/clinic/company_service.go
+SOLO-04	backend/internal/config/config.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/cutover_import_test.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/cutover_import.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/failure_rehearsal_test.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/failure_rehearsal.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/import_test.go
+U-X03-CSVIMPORT-GUARD	backend/internal/csvimport/import.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/httpapi/context_test.go
+BE-X10-AUTH-RESPONSE-01	backend/internal/httpapi/context.go
+SOLO-08	backend/internal/infra/lstep/client.go
+SOLO-08	backend/internal/infra/lstep/tag.go
+SOLO-08	backend/internal/infra/lstep/user.go
+U-X01X02-INVENTORY	backend/internal/inventory/inventory_request_test.go
+U-X01X02-INVENTORY	backend/internal/inventory/inventory_request.go
+U-X01X02-INVENTORY	backend/internal/inventory/medicine_inventory_tx_atomicity_test.go
+U-X01X02-INVENTORY	backend/internal/inventory/merchandise_item_repository_test.go
+U-X01X02-INVENTORY	backend/internal/inventory/merchandise_item_repository.go
+U-X01X02-INVENTORY	backend/internal/inventory/repository.go
+SOLO-36	backend/internal/lintscan/dbortx_inventory_lint_test.go
+SOLO-26	backend/internal/lintscan/grandchild_parent_clinic_correlation_lint_test.go
+SOLO-23	backend/internal/lintscan/migration_cascade_lint_test.go
+SOLO-26	backend/internal/lintscan/preload_clinic_scope_lint_test.go
+U-X02-LSTEP-AGGREGATION	backend/internal/lstep/aggregation_request_test.go
+U-X02-LSTEP-AGGREGATION	backend/internal/lstep/aggregation_request.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/composition_services.go
+SOLO-16	backend/internal/lstep/line_customer_handler_test.go
+SOLO-16	backend/internal/lstep/line_customer_handler.go
+SOLO-16	backend/internal/lstep/line_customer_repository_test.go
+SOLO-16	backend/internal/lstep/line_customer_repository.go
+U-X01-LSTEP-LINE-CUSTOMER	backend/internal/lstep/line_customer_service_test.go
+U-X01-LSTEP-LINE-CUSTOMER	backend/internal/lstep/line_customer_service.go
+SOLO-10	backend/internal/lstep/line_messaging_service_test.go
+SOLO-10	backend/internal/lstep/line_messaging_service.go
+BE-X08-LSTEP-SEND-01	backend/internal/lstep/line_send_handler_test.go
+BE-X08-LSTEP-SEND-01	backend/internal/lstep/line_send_handler.go
+BE-X08-LSTEP-SEND-01	backend/internal/lstep/line_send_response.go
+BE-X08-LSTEP-SEND-01	backend/internal/lstep/line_send_service_test.go
+BE-X08-LSTEP-SEND-01	backend/internal/lstep/line_send_service.go
+SOLO-11	backend/internal/lstep/lstep_batch_delivery.go
+SOLO-19	backend/internal/lstep/lstep_batch_noshow_test.go
+SOLO-19	backend/internal/lstep/lstep_batch_noshow.go
+U-X04-LSTEP-BATCH	backend/internal/lstep/lstep_batch_segmentation_test.go
+U-X04-LSTEP-BATCH	backend/internal/lstep/lstep_batch_segmentation.go
+U-X04-LSTEP-BATCH	backend/internal/lstep/lstep_batch_service_test.go
+U-X04-LSTEP-BATCH	backend/internal/lstep/lstep_batch_service.go
+U-X04X05-LSTEP-DELIVERY	backend/internal/lstep/lstep_delivery_monitor_service_test.go
+U-X04X05-LSTEP-DELIVERY	backend/internal/lstep/lstep_delivery_monitor_service.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_delivery_trigger_batch_test.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_delivery_trigger_batch.go
+U-X04X05-LSTEP-DELIVERY	backend/internal/lstep/lstep_delivery_trigger_client_test.go
+U-X04X05-LSTEP-DELIVERY	backend/internal/lstep/lstep_delivery_trigger_client.go
+SOLO-11	backend/internal/lstep/lstep_delivery_trigger_service_test.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_delivery_trigger_state_test.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_delivery_trigger_state.go
+SOLO-11	backend/internal/lstep/lstep_delivery_trigger_suppression_test.go
+SOLO-11	backend/internal/lstep/lstep_delivery_trigger_suppression.go
+U-X04-LSTEP-HEALTH-REMOVE	backend/internal/lstep/lstep_health_tag_sync_batch_test.go
+U-X04-LSTEP-HEALTH-REMOVE	backend/internal/lstep/lstep_health_tag_sync_batch.go
+SOLO-14	backend/internal/lstep/lstep_health_tag_sync_checkup_test.go
+SOLO-14	backend/internal/lstep/lstep_health_tag_sync_checkup.go
+U-X04-LSTEP-HEALTH-REMOVE	backend/internal/lstep/lstep_health_tag_sync_food.go
+U-X04-LSTEP-HEALTH-REMOVE	backend/internal/lstep/lstep_health_tag_sync_prevention_test.go
+U-X04-LSTEP-HEALTH-REMOVE	backend/internal/lstep/lstep_health_tag_sync_prevention.go
+SOLO-14	backend/internal/lstep/lstep_health_tag_sync_vaccine_test.go
+SOLO-14	backend/internal/lstep/lstep_health_tag_sync_vaccine.go
+SOLO-05	backend/internal/lstep/lstep_lifecycle_deps.go
+U-X01X03X04-LSTEP-LIFECYCLE	backend/internal/lstep/lstep_lifecycle_handler.go
+U-X01X03X04-LSTEP-LIFECYCLE	backend/internal/lstep/lstep_lifecycle_service_test.go
+U-X01X03X04-LSTEP-LIFECYCLE	backend/internal/lstep/lstep_lifecycle_service.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_connection_test.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_connection.go
+U-X01X03X04-LSTEP-LIFECYCLE	backend/internal/lstep/lstep_settings_credentials_test.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_credentials.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_handler_test.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_settings_repository.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_request.go
+BE-X08-LSTEP-CONNECTION-01	backend/internal/lstep/lstep_settings_response.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_settings_service_test.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_settings_service.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_settings_update_test.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_settings_update.go
+BE-X06-LSTEP-SETTINGS-01	backend/internal/lstep/lstep_sync_settings_repository.go
+SOLO-12	backend/internal/lstep/lstep_tag_cache_repository.go
+U-X02-LSTEP-TAG-MAPPING	backend/internal/lstep/lstep_tag_code_mapping_request.go
+U-X02-LSTEP-TAG-MAPPING	backend/internal/lstep/lstep_tag_code_mapping_service_test.go
+U-X02-LSTEP-TAG-MAPPING	backend/internal/lstep/lstep_tag_code_mapping_service.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_handler_test.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_handler.go
+SOLO-09	backend/internal/lstep/lstep_tag_config_repository_test.go
+SOLO-09	backend/internal/lstep/lstep_tag_config_repository.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_request_test.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_request.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_service_test.go
+U-X02-LSTEP-TAG-CONFIG	backend/internal/lstep/lstep_tag_config_service.go
+U-X04-LSTEP-OWNER-TAGS	backend/internal/lstep/lstep_tag_handler_test.go
+U-X04-LSTEP-OWNER-TAGS	backend/internal/lstep/lstep_tag_handler.go
+U-X04-LSTEP-OWNER-TAGS	backend/internal/lstep/lstep_tag_service_test.go
+U-X04-LSTEP-OWNER-TAGS	backend/internal/lstep/lstep_tag_service.go
+SOLO-13	backend/internal/lstep/lstep_tag_summary_handler_test.go
+SOLO-13	backend/internal/lstep/lstep_tag_summary_handler.go
+SOLO-13	backend/internal/lstep/lstep_tag_summary_service_test.go
+SOLO-13	backend/internal/lstep/lstep_tag_summary_service.go
+U-X04-LSTEP-STALE-TAGS	backend/internal/lstep/lstep_tag_sync_api_test.go
+U-X04-LSTEP-STALE-TAGS	backend/internal/lstep/lstep_tag_sync_api.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_tag_sync_pet_exclusion_test.go
+U-LSTEP-OPTOUT	backend/internal/lstep/lstep_tag_sync_pet_exclusion.go
+SOLO-15	backend/internal/lstep/lstep_tag_sync_visit_ltv_test.go
+SOLO-15	backend/internal/lstep/lstep_tag_sync_visit_ltv.go
+U-X02-LSTEP-TRIGGER-PRIORITY	backend/internal/lstep/lstep_trigger_priority_handler_test.go
+U-X02-LSTEP-TRIGGER-PRIORITY	backend/internal/lstep/lstep_trigger_priority_handler.go
+U-X02-LSTEP-TRIGGER-PRIORITY	backend/internal/lstep/lstep_trigger_priority_request.go
+U-X02-LSTEP-TRIGGER-PRIORITY	backend/internal/lstep/lstep_trigger_priority_service_test.go
+U-X02-LSTEP-TRIGGER-PRIORITY	backend/internal/lstep/lstep_trigger_priority_service.go
+SOLO-09	backend/internal/lstep/routes.go
+U-X02-LSTEP-SHARED-FILE	backend/internal/lstep/shared_file_handler_test.go
+U-X02-LSTEP-SHARED-FILE	backend/internal/lstep/shared_file_handler.go
+SOLO-17	backend/internal/lstep/shared_file_repository_test.go
+SOLO-17	backend/internal/lstep/shared_file_repository.go
+U-X02-LSTEP-SHARED-FILE	backend/internal/lstep/shared_file_request_test.go
+U-X02-LSTEP-SHARED-FILE	backend/internal/lstep/shared_file_request.go
+SOLO-17	backend/internal/lstep/shared_file_service_test.go
+SOLO-17	backend/internal/lstep/shared_file_service.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/handler_test.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/handler.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/repository_test.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/repository.go
+BE-X07-BODY-01	backend/internal/manualarticle/request_test.go
+BE-X07-BODY-01	backend/internal/manualarticle/request.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/service_test.go
+U-X01X03-MANUALARTICLE	backend/internal/manualarticle/service.go
+SOLO-25	backend/internal/medicalrecord/cage_handler.go
+SOLO-25	backend/internal/medicalrecord/cage_repository.go
+SOLO-25	backend/internal/medicalrecord/cage_request.go
+SOLO-25	backend/internal/medicalrecord/cage_service.go
+U-X01X03-MR-CARE	backend/internal/medicalrecord/care_plan_item_repository_test.go
+U-X01X03-MR-CARE	backend/internal/medicalrecord/care_plan_item_repository.go
+U-X01X03-MR-CARE	backend/internal/medicalrecord/care_plan_item_service_test.go
+U-X01X03-MR-CARE	backend/internal/medicalrecord/care_plan_item_service.go
+BE-X09-MEDICAL-DIAGNOSIS-01	backend/internal/medicalrecord/clinical_plan_service_test.go
+BE-X09-MEDICAL-DIAGNOSIS-01	backend/internal/medicalrecord/clinical_plan_service.go
+SOLO-25	backend/internal/medicalrecord/consultation_handler.go
+SOLO-21	backend/internal/medicalrecord/consultation_repository_test.go
+SOLO-21	backend/internal/medicalrecord/consultation_repository.go
+U-X02-MR-CONSULTATION	backend/internal/medicalrecord/consultation_request_test.go
+U-X02-MR-CONSULTATION	backend/internal/medicalrecord/consultation_request.go
+SOLO-25	backend/internal/medicalrecord/consultation_service.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/cross_tenant_master_fk_write_test.go
+U-X05-MR-EXAMTYPE	backend/internal/medicalrecord/exam_type_field.go
+U-X05-MR-EXAMTYPE	backend/internal/medicalrecord/exam_type_repository_test.go
+U-X05-MR-EXAMTYPE	backend/internal/medicalrecord/exam_type_repository.go
+U-X05-MR-EXAMTYPE	backend/internal/medicalrecord/exam_type_service_test.go
+U-X05-MR-EXAMTYPE	backend/internal/medicalrecord/exam_type_service.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_repository_test.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_repository.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_request_test.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_request.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_service_test.go
+U-X02X03X05-MR-HOSPITALIZATION	backend/internal/medicalrecord/hospitalization_service.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/inquiry_repository_test.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/inquiry_repository.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/inquiry_service_test.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/inquiry_service.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/lab_import_examination_service_test.go
+BE-X06-MEDICAL-ATOMIC-01	backend/internal/medicalrecord/lab_import_examination_service.go
+U-X02-MR-LAB-IMPORT	backend/internal/medicalrecord/lab_import_request.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_auto_create_test.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_auto_create.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_handler_test.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_handler.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_handler_test.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_handler.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_request_test.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_request.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_service_test.go
+SOLO-29	backend/internal/medicalrecord/medical_record_image_service.go
+SOLO-15	backend/internal/medicalrecord/medical_record_owner_visit_repository.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_service_test.go
+U-X04-MR-SUBRECORDS	backend/internal/medicalrecord/medical_record_service.go
+BE-X09-MEDICAL-DIAGNOSIS-01	backend/internal/medicalrecord/medical_record_subrecords_test.go
+BE-X09-MEDICAL-DIAGNOSIS-01	backend/internal/medicalrecord/medical_record_subrecords.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/medicine_dose_param_service_test.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/medicine_dose_param_service.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/medicine_service_test.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/medicine_service.go
+U-X01-MR-PRESCRIPTION	backend/internal/medicalrecord/prescription_repository_test.go
+U-X01-MR-PRESCRIPTION	backend/internal/medicalrecord/prescription_repository.go
+U-X01-MR-PRESCRIPTION	backend/internal/medicalrecord/prescription_service_test.go
+U-X01-MR-PRESCRIPTION	backend/internal/medicalrecord/prescription_service.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/procedure_repository_test.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/procedure_repository.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/procedure_service_test.go
+U-X05-MR-MEDICINE-MASTERS	backend/internal/medicalrecord/procedure_service.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_handler_test.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_handler.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_repository_test.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_repository.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_request_test.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_request.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_service_test.go
+U-MR-TREATMENT-PLAN	backend/internal/medicalrecord/treatment_plan_service.go
+SOLO-30	backend/internal/medicalrecord/treatment_repository_test.go
+SOLO-30	backend/internal/medicalrecord/treatment_repository.go
+SOLO-30	backend/internal/medicalrecord/treatment_service_test.go
+SOLO-30	backend/internal/medicalrecord/treatment_service.go
+BE-X07-BODY-01	backend/internal/middleware/sanitize_null_bytes_test.go
+BE-X07-BODY-01	backend/internal/middleware/sanitize_null_bytes.go
+SOLO-24	backend/internal/model/accounting.go
+U-X01X03-MR-CARE	backend/internal/model/audit_log_test.go
+U-X01X03-MR-CARE	backend/internal/model/audit_log.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/model/estimate_test.go
+BE-X09-ESTIMATE-TAX-01	backend/internal/model/estimate.go
+U-X02-LSTEP-SHARED-FILE	backend/internal/model/shared_file.go
+SOLO-33	backend/internal/owner/http_owner.go
+U-X02-PET-OWNER-FREETEXT	backend/internal/owner/http_request_test.go
+U-X02-PET-OWNER-FREETEXT	backend/internal/owner/http_request.go
+SOLO-33	backend/internal/owner/http_routes_test.go
+SOLO-33	backend/internal/owner/http_routes.go
+U-X05-OWNER-PHONE	backend/internal/owner/repository_test.go
+U-X05-OWNER-PHONE	backend/internal/owner/repository.go
+U-X05-OWNER-PHONE	backend/internal/owner/service_core_test.go
+U-X05-OWNER-PHONE	backend/internal/owner/service_core.go
+SOLO-08	backend/internal/owner/service_line.go
+U-X02-CLINIC-CONTACT	backend/internal/owner/validators_contact.go
+BE-X09-PET-ENUMS-01	backend/internal/owner/validators_test.go
+BE-X09-PET-ENUMS-01	backend/internal/owner/validators.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_handler_test.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_handler.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_repository_test.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_repository.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_service_test.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/animal_species_service.go
+BE-X09-PET-PATCH-01	backend/internal/pet/chronic_condition_service_test.go
+BE-X09-PET-PATCH-01	backend/internal/pet/chronic_condition_service.go
+U-X05-PET-UPDATE	backend/internal/pet/owner_registration_test.go
+U-X05-PET-UPDATE	backend/internal/pet/owner_registration.go
+U-X02-PET-OWNER-FREETEXT	backend/internal/pet/pet_request_test.go
+U-X02-PET-OWNER-FREETEXT	backend/internal/pet/pet_request.go
+U-X03-PET-SPECIES-AUDIT	backend/internal/pet/ports.go
+U-X05-PET-UPDATE	backend/internal/pet/repository_test.go
+U-X05-PET-UPDATE	backend/internal/pet/repository.go
+U-X05-PET-UPDATE	backend/internal/pet/service_test.go
+U-X05-PET-UPDATE	backend/internal/pet/service.go
+BE-X09-PET-ENUMS-01	backend/internal/pet/validators_test.go
+BE-X09-PET-ENUMS-01	backend/internal/pet/validators.go
+SOLO-18	backend/internal/reservation/appointment_admin_repository_test.go
+SOLO-18	backend/internal/reservation/appointment_admin_repository.go
+U-X01X05-RESERVATION	backend/internal/reservation/appointment_admin_service_test.go
+U-X01X05-RESERVATION	backend/internal/reservation/appointment_admin_service.go
+BE-X06-RSV-CANCEL-01	backend/internal/reservation/appointment_service_test.go
+U-X02-RESERVATION-SETTINGS	backend/internal/reservation/available_dates_test.go
+U-X02-RESERVATION-SETTINGS	backend/internal/reservation/available_dates.go
+U-X02-RESERVATION-SETTINGS	backend/internal/reservation/liff_service_availability.go
+U-X04-RESERVATION-AUTODELEGATE	backend/internal/reservation/liff_service_reservations_test.go
+U-X04-RESERVATION-AUTODELEGATE	backend/internal/reservation/liff_service_reservations.go
+U-X02-RESERVATION-SETTINGS	backend/internal/reservation/line_reservation_setting_request_test.go
+U-X02-RESERVATION-SETTINGS	backend/internal/reservation/line_reservation_setting_request.go
+U-X01X05-RESERVATION	backend/internal/reservation/line_reservation_setting_service.go
+SOLO-19	backend/internal/reservation/reservation_repository_test.go
+U-X01X05-RESERVATION	backend/internal/reservation/reservation_repository.go
+SOLO-26	backend/internal/reservation/reservation_schedule_repository_test.go
+SOLO-26	backend/internal/reservation/reservation_schedule_repository.go
+BE-X06-RSV-CANCEL-01	backend/internal/reservation/reservation_service.go
+U-X01X05-RESERVATION	backend/internal/reservation/reservation_type_liff_service_test.go
+U-X01X05-RESERVATION	backend/internal/reservation/reservation_type_liff_service.go
+U-X01X05-RESERVATION	backend/internal/reservation/reservation_type_repository.go
+SOLO-04	backend/internal/scheduler/handler.go
+BE-X09-PET-ENUMS-01	backend/internal/sharedkernel/enum_validators.go
+BE-X09-PET-ENUMS-01	backend/internal/sharedkernel/sharedkernel_test.go
+BE-X09-CLOSING-01	backend/internal/sharedkernel/shift_times.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/handler.go
+SOLO-01	backend/internal/staff/shift_entry_repository.go
+SOLO-01	backend/internal/staff/shift_entry_service.go
+SOLO-01	backend/internal/staff/shift_response_test.go
+SOLO-01	backend/internal/staff/shift_response.go
+SOLO-01	backend/internal/staff/shift_template_repository_integration_test.go
+SOLO-01	backend/internal/staff/shift_template_repository.go
+SOLO-01	backend/internal/staff/shift_template_service_test.go
+SOLO-01	backend/internal/staff/shift_template_service.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/staff_clinic_assignment_service_test.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/staff_clinic_assignment_service.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/staff_handler.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_request_test.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_request.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_account_test.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_account.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_builders_test.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_builders.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_core_test.go
+U-X02-STAFF-TYPE	backend/internal/staff/staff_service_core.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/staff_service_permissions_test.go
+U-X03-STAFF-ASSIGNMENT-AUDIT	backend/internal/staff/staff_service_permissions.go
+SOLO-36	backend/internal/trimming/trimming_course_repository_test.go
+SOLO-36	backend/internal/trimming/trimming_course_repository.go
+SOLO-36	backend/internal/trimming/trimming_course_type_repository_test.go
+SOLO-36	backend/internal/trimming/trimming_course_type_repository.go
+U-TRIMMING-SERVICE	backend/internal/trimming/trimming_handler_test.go
+U-TRIMMING-SERVICE	backend/internal/trimming/trimming_handler.go
+SOLO-36	backend/internal/trimming/trimming_option_repository_test.go
+SOLO-36	backend/internal/trimming/trimming_option_repository.go
+SOLO-26	backend/internal/trimming/trimming_repository_test.go
+SOLO-26	backend/internal/trimming/trimming_repository.go
+BE-X07-BODY-01	backend/internal/trimming/trimming_request_test.go
+BE-X07-BODY-01	backend/internal/trimming/trimming_request.go
+U-TRIMMING-SERVICE	backend/internal/trimming/trimming_service_test.go
+U-TRIMMING-SERVICE	backend/internal/trimming/trimming_service.go
+U-SCHEMA-BARRIER	backend/migrations/001_init.sql
+```
+
+### Finding TSV
+
+本節の所見割当台帳は統合時に機械検証済み。
+
+```tsv
+finding_id	unit_id
+AUS-01	U-X03-STAFF-ASSIGNMENT-AUDIT
+AUS-03	U-X02-STAFF-TYPE
+AUS-04	SOLO-01
+AUS-05	SOLO-01
+AUS-09	BE-X10-AUTH-RESPONSE-01
+BIL-01	SOLO-02
+BIL-02	SOLO-03
+BIL-03	BE-X06-BIL-CAMPAIGN-01
+CMD-02	SOLO-04
+CMD-03	U-X04-COVERAGE-RATCHET
+CMD-04	SOLO-05
+CMD-05	SOLO-04
+CMD-06	SOLO-06
+CMD-07	U-X04-LSTEP-MIGRATE
+G2A-01	U-X01-LSTEP-LINE-CUSTOMER
+G2A-05	U-X02-LSTEP-AGGREGATION
+G2B-01	U-X04-LSTEP-HEALTH-REMOVE
+G2B-02	BE-X06-LSTEP-SETTINGS-01
+G2B-03	SOLO-11
+G2C-01	SOLO-12
+G2C-02	U-X02-LSTEP-TAG-MAPPING
+G2C-04	SOLO-13
+G2F-01	SOLO-12
+G2F-02	SOLO-14
+G2F-03	SOLO-15
+G2F-04	SOLO-15
+G2F-05	SOLO-16
+G2F-06	SOLO-17
+G2F-07	SOLO-18
+G2F-08	SOLO-19
+G2F-09	SOLO-20
+G2F-10	SOLO-01
+G2F-11	SOLO-21
+G2P-02	U-X01X02-INVENTORY
+G2P-03	U-X01X02-INVENTORY
+INF-02	BE-X07-BODY-01
+INF-03	SOLO-08
+INF-04	SOLO-22
+INF-06	U-X04-AUDIT-MARSHAL
+LSA-01	BE-X08-LSTEP-CONNECTION-01
+LSA-02	U-LSTEP-OPTOUT
+LSA-03	U-X04-LSTEP-BATCH
+LSA-04	SOLO-09
+LSA-05	U-X01X03X04-LSTEP-LIFECYCLE
+LSA-06	BE-X06-LSTEP-SETTINGS-01
+LSA-07	SOLO-10
+LSA-08	BE-X08-LSTEP-CONNECTION-01
+LSA-09	BE-X08-LSTEP-SEND-01
+LSA-10	U-X04-LSTEP-OWNER-TAGS
+LSA-11	U-X04-LSTEP-STALE-TAGS
+LSA-12	U-X04X05-LSTEP-DELIVERY
+LSA-13	U-X02-LSTEP-TRIGGER-PRIORITY
+LSA-14	U-X02-LSTEP-TAG-CONFIG
+LSA-15	U-X04X05-LSTEP-DELIVERY
+LSB-01	U-LSTEP-OPTOUT
+LSB-02	U-X01X03X04-LSTEP-LIFECYCLE
+LSB-03	U-X01X03X04-LSTEP-LIFECYCLE
+LSB-04	U-X01X03X04-LSTEP-LIFECYCLE
+LSB-06	U-X02-LSTEP-SHARED-FILE
+MDL-01	BE-X09-ESTIMATE-TAX-01
+MDL-05	SOLO-23
+MDL-06	SOLO-24
+MRA-01	U-X01X03-MR-CARE
+MRA-02	U-X01X03-MR-CARE
+MRA-03	U-X02-MR-CONSULTATION
+MRA-04	SOLO-25
+MRB-02	U-X02X03X05-MR-HOSPITALIZATION
+MRB-03	U-X02X03X05-MR-HOSPITALIZATION
+MRB-05	U-X02X03X05-MR-HOSPITALIZATION
+MRB-06	U-X02X03X05-MR-HOSPITALIZATION
+MRB-07	U-X05-MR-EXAMTYPE
+MRB-08	U-X05-MR-EXAMTYPE
+MRC-01	U-X01-MR-PRESCRIPTION
+MRC-02	U-X05-MR-MEDICINE-MASTERS
+MRC-03	U-X05-MR-MEDICINE-MASTERS
+MRC-04	U-X04-MR-SUBRECORDS
+MRC-05	BE-X06-MEDICAL-ATOMIC-01
+MRC-07	U-X05-MR-MEDICINE-MASTERS
+MRC-08	U-X02-MR-LAB-IMPORT
+MRC-09	SOLO-29
+MRC-12	BE-X06-MEDICAL-ATOMIC-01
+MRC-14	BE-X09-MEDICAL-DIAGNOSIS-01
+MRD-01	SOLO-30
+MRD-02	U-MR-TREATMENT-PLAN
+MRD-03	U-MR-TREATMENT-PLAN
+MRD-04	U-MR-TREATMENT-PLAN
+POC-01	SOLO-32
+POC-02	U-X01X05-CLINIC
+POC-03	U-X05-PET-UPDATE
+POC-05	U-X01X05-CLINIC
+POC-06	U-X05-OWNER-PHONE
+POC-07	U-X03-PET-SPECIES-AUDIT
+POC-08	SOLO-33
+POC-09	SOLO-34
+POC-10	SOLO-34
+POC-11	BE-X09-PET-ENUMS-01
+POC-12	BE-X07-BODY-01
+POC-13	U-X02-PET-OWNER-FREETEXT
+POC-14	BE-X09-PET-PATCH-01
+POC-15	BE-X09-CLOSING-01
+POC-16	BE-X09-CLOSING-01
+POC-17	U-X02-CLINIC-CONTACT
+RSV-02	U-X01X05-RESERVATION
+RSV-03	U-X01X05-RESERVATION
+RSV-04	U-X02-RESERVATION-SETTINGS
+RSV-06	BE-X06-RSV-CANCEL-01
+RSV-07	U-X01X05-RESERVATION
+RSV-08	SOLO-26
+RSV-09	U-X04-RESERVATION-AUTODELEGATE
+TRM-01	U-X01X03-MANUALARTICLE
+TRM-02	U-X01X03-MANUALARTICLE
+TRM-03	BE-X07-BODY-01
+TRM-04	U-TRIMMING-SERVICE
+TRM-05	BE-X07-BODY-01
+TRM-06	U-TRIMMING-SERVICE
+TRM-07	U-X03-CSVIMPORT-GUARD
+TRM-08	SOLO-26
+TRM-09	SOLO-36
+```
+
+### Withdrawn exclusion ledger
+
+Exactly 23 withdrawn IDs are excluded: AUS-06, CMD-01, G2A-02, G2A-03, G2A-04, G2A-06, G2A-07, G2B-04, G2B-05, G2C-03, G2C-05, G2C-06, G2C-07, G2C-08, G2P-01, G2T-02, G2T-03, INF-01, LSA-16, LSB-05, MDL-02, MDL-04, TRM-10.
+
+### Machine checks
+
+Run from repository root:
+
+```bash
+tail -n +2 /tmp/integrated-findings.tsv | cut -f1 | sort > /tmp/integrated-found-ids.txt
+diff -u /tmp/agent-fast-be-live-ids.txt /tmp/integrated-found-ids.txt
+tail -n +2 /tmp/integrated-findings.tsv | cut -f1 | sort | uniq -d
+tail -n +2 /tmp/integrated-ownership.tsv | cut -f2 | sort | uniq -d
+tail -n +2 /tmp/integrated-ownership.tsv | cut -f2 | while IFS= read -r owned_path; do git cat-file -e "HEAD:$owned_path" || printf '%s\n' "$owned_path"; done
+awk -F '\t' 'NR>1 { count[$1]++ } END { for (unit in count) if (count[unit] > 8) print unit, count[unit] }' /tmp/integrated-ownership.tsv
+awk '/^### U-X05-MR-EXAMTYPE$/{inside=1; next} /^### /{inside=0} inside' /tmp/integrated-plan.md | grep -F 'docker compose exec backend go test ./internal/lintscan/ -run DBOrTx'
+```
+
+Expected output for the first six structural checks is empty; the DBOrTx assertion must print the MRB-08 verification line.
+
+##### Executed exact outputs
+
+```text
+CHECK_LIVE_DIFF
+<empty>
+CHECK_DUP_FINDINGS
+<empty>
+CHECK_DUP_PATHS
+<empty>
+CHECK_MISSING_PATHS
+<empty>
+CHECK_OVER_8
+<empty>
+CHECK_WITHDRAWN_INTERSECTION
+<empty>
+CHECK_COUNTS
+live=118 assigned=118 unique_assigned=118 withdrawn=23 ownership_rows=382 unique_paths=382 max_unit_paths=8
+CHECK_MRB08_DBORTX
+- Scoped Docker verification: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ExamType' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
+CHECK_REPO_STATUS (BE-refactor.md, q&a.html, backend)
+<empty>
+```
+
+### Boundary reconciliation notes
+
+- `backend/cmd/api/composition_runtime.go` and `composition_core_test.go` are owned only by `BE-X07-BODY-01`; `SOLO-05` depends on that composition owner.
+- The delivery-trigger batch/state implementation and tests are owned only by `U-LSTEP-OPTOUT`; delivery error/performance units depend on it.
+- The examination-type field/service/repository paths are owned only by `U-X05-MR-EXAMTYPE`; MRB-07 is merged there and G2F-11 remains a sequential continuation.
+- The trimming service implementation and test are owned only by `U-TRIMMING-SERVICE`; body/request work is isolated in `BE-X07-BODY-01`.
+- `backend/migrations/001_init.sql` is owned only by `U-SCHEMA-BARRIER`; no implementation unit invents an unallocated incremental migration filename.
+- Every new repository participant named in an atomic unit carries `docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`.
