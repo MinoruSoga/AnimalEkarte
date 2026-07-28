@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	lineinfra "github.com/animal-ekarte/backend/internal/infra/line"
@@ -343,9 +344,12 @@ func TestSend_TextPushError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperrors.ErrBadGateway)
+	assert.NotContains(t, err.Error(), "line api error", "LSA-09: raw upstream error must not appear in client response")
+	assert.Contains(t, err.Error(), "LINE送信に失敗しました")
 	assert.Nil(t, result)
 	assert.Equal(t, "failed", loggedStatus)
-	assert.NotNil(t, loggedErrMsg)
+	require.NotNil(t, loggedErrMsg)
+	assert.Equal(t, "line_api_error", *loggedErrMsg, "LSA-09: persist classification code only")
 }
 
 func TestSend_ImageURLSuccess(t *testing.T) {

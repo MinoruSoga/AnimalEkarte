@@ -2,8 +2,9 @@ package lstep
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -166,8 +167,15 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	var errMsg *string
 	if sendErr != nil {
 		logStatus = "failed"
-		msg := sendErr.Error()
-		errMsg = &msg
+		// LSA-09: persist only a stable classification code; raw provider errors stay in slog.
+		code := classifyLineSendError(sendErr)
+		errMsg = &code
+		slog.ErrorContext(ctx, "LINE messaging API send failed",
+			"error", sendErr,
+			"clinic_id", clinicID,
+			"owner_id", input.OwnerID,
+			"error_class", code,
+		)
 	}
 
 	logRecord := &model.LineSendLog{
@@ -192,7 +200,8 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	}
 
 	if sendErr != nil {
-		return nil, apperrors.WrapBadGateway(fmt.Sprintf("LINE送信に失敗しました: %s", sendErr.Error()))
+		// LSA-09: fixed client-facing message; do not embed raw upstream Error().
+		return nil, apperrors.WrapBadGateway("LINE送信に失敗しました")
 	}
 
 	result := &SendLineMessageResult{SentAt: sentAt}
@@ -216,4 +225,26 @@ func lineSendTruncate(s string, maxLen int) string {
 		return s
 	}
 	return string(runes[:maxLen])
+}
+
+// classifyLineSendError maps provider/transport failures to stable codes for API/DB (LSA-09).
+// Raw details must not leave slog.
+func classifyLineSendError(err error) string {
+	if err == nil {
+		return "line_api_error"
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return "timeout"
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline"):
+		return "timeout"
+	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "401") || strings.Contains(msg, "403"):
+		return "unauthorized"
+	case strings.Contains(msg, "connection") || strings.Contains(msg, "network") || strings.Contains(msg, "dial "):
+		return "unreachable"
+	default:
+		return "line_api_error"
+	}
 }
