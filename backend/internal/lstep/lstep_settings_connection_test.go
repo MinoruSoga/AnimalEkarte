@@ -44,8 +44,8 @@ func TestTestLstepAPI(t *testing.T) {
 		defer srv.Close()
 
 		err := testLstepAPI(context.Background(), srv.URL, "bad-key")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "authentication failed")
+		assert.ErrorIs(t, err, errConnectionUnauthorized)
+		assert.Equal(t, "unauthorized", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns authentication failed error on 403", func(t *testing.T) {
@@ -55,20 +55,20 @@ func TestTestLstepAPI(t *testing.T) {
 		defer srv.Close()
 
 		err := testLstepAPI(context.Background(), srv.URL, "bad-key")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "authentication failed")
+		assert.ErrorIs(t, err, errConnectionUnauthorized)
+		assert.Equal(t, "unauthorized", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns error when request build fails", func(t *testing.T) {
 		err := testLstepAPI(context.Background(), "://bad-url", "key")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to build request")
+		assert.Equal(t, "unreachable", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns error when connection fails", func(t *testing.T) {
 		err := testLstepAPI(context.Background(), "http://127.0.0.1:1", "key")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "connection failed")
+		assert.Equal(t, "unreachable", classifyConnectionProbeError(err))
 	})
 }
 
@@ -104,8 +104,8 @@ func TestTestLineAPI(t *testing.T) {
 		defer srv.Close()
 
 		err := testLineAPI(context.Background(), srv.URL, "bad-token")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "authentication failed")
+		assert.ErrorIs(t, err, errConnectionUnauthorized)
+		assert.Equal(t, "unauthorized", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns authentication failed error on 403", func(t *testing.T) {
@@ -115,20 +115,46 @@ func TestTestLineAPI(t *testing.T) {
 		defer srv.Close()
 
 		err := testLineAPI(context.Background(), srv.URL, "bad-token")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "authentication failed")
+		assert.ErrorIs(t, err, errConnectionUnauthorized)
+		assert.Equal(t, "unauthorized", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns error when request build fails", func(t *testing.T) {
 		err := testLineAPI(context.Background(), "://bad-url", "token")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to build request")
+		assert.Equal(t, "unreachable", classifyConnectionProbeError(err))
 	})
 
 	t.Run("returns error when connection fails", func(t *testing.T) {
 		err := testLineAPI(context.Background(), "http://127.0.0.1:1", "token")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "connection failed")
+		assert.Equal(t, "unreachable", classifyConnectionProbeError(err))
+	})
+}
+
+func TestValidateLstepBaseURL(t *testing.T) {
+	t.Run("empty uses default", func(t *testing.T) {
+		got, err := ValidateLstepBaseURL("")
+		assert.NoError(t, err)
+		assert.Contains(t, got, "https://")
+	})
+	t.Run("rejects http scheme for public hosts", func(t *testing.T) {
+		_, err := ValidateLstepBaseURL("http://api.lstep.jp")
+		assert.Error(t, err)
+	})
+	t.Run("rejects non-allowlisted host", func(t *testing.T) {
+		_, err := ValidateLstepBaseURL("https://evil.example.com")
+		assert.Error(t, err)
+	})
+	t.Run("accepts api.lstep.jp", func(t *testing.T) {
+		got, err := ValidateLstepBaseURL("https://api.lstep.jp")
+		assert.NoError(t, err)
+		assert.Equal(t, "https://api.lstep.jp", got)
+	})
+	t.Run("allows http loopback for local probes", func(t *testing.T) {
+		got, err := ValidateLstepBaseURL("http://127.0.0.1:1234")
+		assert.NoError(t, err)
+		assert.Equal(t, "http://127.0.0.1:1234", got)
 	})
 }
 

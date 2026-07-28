@@ -2,8 +2,9 @@ package lstep
 
 // updateLstepSettingsRequest はLステップ設定更新リクエスト。空文字=変更なし。
 type updateLstepSettingsRequest struct {
-	LstepAPIKey              string  `json:"lstep_api_key"`
-	LstepBaseURL             string  `json:"lstep_base_url"`
+	LstepAPIKey string `json:"lstep_api_key"`
+	// LstepBaseURL: https + allowlisted host only when non-empty (LSA-01). max bounds request size.
+	LstepBaseURL string `json:"lstep_base_url" binding:"omitempty,max=512"`
 	LineChannelAccessToken   string  `json:"line_channel_access_token"`
 	LineChannelSecret        string  `json:"line_channel_secret"`
 	LiffID                   string  `json:"liff_id"`

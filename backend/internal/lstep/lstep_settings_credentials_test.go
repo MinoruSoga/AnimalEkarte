@@ -124,7 +124,7 @@ func TestLstepSettingsService_GetRawCredentials(t *testing.T) {
 			findByClinicAndServiceFn: func(_ context.Context, _ uint64, _ string) ([]*model.ClinicIntegration, error) {
 				return []*model.ClinicIntegration{
 					{KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "plain-api-key"},
-					{KeyName: model.IntegrationKeyLstepBaseURL, KeyValue: "https://custom.lstep.jp"},
+					{KeyName: model.IntegrationKeyLstepBaseURL, KeyValue: "https://api.lstep.jp"},
 					{KeyName: model.IntegrationKeyLineChannelAccessToken, KeyValue: "plain-line-token"},
 				}, nil
 			},
@@ -133,7 +133,7 @@ func TestLstepSettingsService_GetRawCredentials(t *testing.T) {
 		apiKey, baseURL, lineToken, err := svc.GetRawCredentials(context.Background(), 1)
 		require.NoError(t, err)
 		assert.Equal(t, "plain-api-key", apiKey)
-		assert.Equal(t, "https://custom.lstep.jp", baseURL)
+		assert.Equal(t, "https://api.lstep.jp", baseURL)
 		assert.Equal(t, "plain-line-token", lineToken)
 	})
 

@@ -292,6 +292,14 @@ func applyClinicSettingsToLstepResponse(resp *LstepSettingsResponse, cs *model.C
 }
 
 func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
+	// LSA-01: reject non-allowlisted lstep_base_url before any write (fail closed at service boundary).
+	if input != nil && input.LstepBaseURL != "" {
+		normalized, err := ValidateLstepBaseURL(input.LstepBaseURL)
+		if err != nil {
+			return nil, err
+		}
+		input.LstepBaseURL = normalized
+	}
 	// Pure validation before opening a transaction (cpm_version enum etc. live in updateClinicSyncConfig helpers).
 	// Business graph writes (credentials + sync flag + clinic_settings) share one ambient tx (LSA-06 / X-06).
 	var resp *LstepSettingsResponse
