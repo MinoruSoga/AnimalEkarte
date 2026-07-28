@@ -78,6 +78,7 @@ func (s *LineMessagingService) PushText(ctx context.Context, lineUserID, text st
 		return apperrors.WrapInternalServerError(fmt.Sprintf("line push returned status %d", resp.StatusCode))
 	}
 
-	slog.InfoContext(ctx, "LINE push sent", "to", lineUserID)
+	// Do not log LINE user IDs (owner identifiers). CODING_RULES.md:68 / LSA-07.
+	slog.InfoContext(ctx, "LINE push sent")
 	return nil
 }
