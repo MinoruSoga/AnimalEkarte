@@ -2221,7 +2221,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/ -run "AppointmentAdminRepository"`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: 0a52c5509e9916447e7dc020df11e585ec062f0d
 
 ##### SOLO-26
 
