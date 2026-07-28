@@ -51,7 +51,6 @@ func validateClinicalRelations(
 		return apperrors.WrapInternalServerError("clinical relation verifier is required")
 	}
 
-	var recordPetOwnerID *uint64
 	if record != nil {
 		if record.OwnerID != nil {
 			if err := relations.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
@@ -59,29 +58,22 @@ func validateClinicalRelations(
 			}
 		}
 		if record.PetID != nil {
-			ownerID, err := relations.FindPetOwnerInClinic(ctx, clinicID, *record.PetID)
-			if err != nil {
+			// Clinic-scoped pet existence (and any ambient FOR SHARE) stays required.
+			// Owner equality with the request pet is unreachable after pet ID match.
+			if _, err := relations.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
 				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 			}
-			recordPetOwnerID = &ownerID
 		}
 	}
 
-	var requestedPetOwnerID *uint64
 	if petID != nil {
-		ownerID, err := relations.FindPetOwnerInClinic(ctx, clinicID, *petID)
-		if err != nil {
+		if _, err := relations.FindPetOwnerInClinic(ctx, clinicID, *petID); err != nil {
 			return apperrors.Wrap(err, "failed to verify patient ownership")
 		}
-		requestedPetOwnerID = &ownerID
 	}
 
 	if record != nil && petID != nil {
-		if record.PetID == nil ||
-			*record.PetID != *petID ||
-			recordPetOwnerID == nil ||
-			requestedPetOwnerID == nil ||
-			*recordPetOwnerID != *requestedPetOwnerID {
+		if record.PetID == nil || *record.PetID != *petID {
 			return apperrors.WrapNotFound("medical_record", "relation")
 		}
 	}

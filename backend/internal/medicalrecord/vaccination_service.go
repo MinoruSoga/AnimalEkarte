@@ -326,13 +326,11 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		return apperrors.Wrap(err, "failed to verify vaccine ownership")
 	}
 
-	var petOwnerID *uint64
 	if petID != nil {
-		ownerID, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *petID)
-		if err != nil {
+		// Clinic-scoped pet existence stays required; owner equality after pet ID match is unreachable.
+		if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *petID); err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination pet ownership")
 		}
-		petOwnerID = &ownerID
 	}
 
 	if medicalRecordID != nil {
@@ -340,21 +338,18 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		if err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination medical record ownership")
 		}
-		var recordPetOwnerID *uint64
 		if record.OwnerID != nil {
 			if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
 				return apperrors.Wrap(err, "failed to verify medical record owner ownership")
 			}
 		}
 		if record.PetID != nil {
-			ownerID, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID)
-			if err != nil {
+			if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
 				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 			}
-			recordPetOwnerID = &ownerID
 		}
 		if petID != nil {
-			if record.PetID == nil || *record.PetID != *petID || recordPetOwnerID == nil || petOwnerID == nil || *recordPetOwnerID != *petOwnerID {
+			if record.PetID == nil || *record.PetID != *petID {
 				return apperrors.WrapNotFound("medical_record", "relation")
 			}
 		}
