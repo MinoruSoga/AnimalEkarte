@@ -621,14 +621,18 @@ func (r *medicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicI
 	return &record, nil
 }
 
-// CountEstimatesByMedicalRecordID はカルテに紐付く見積書の件数を返す（BUG-201）
+// CountEstimatesByMedicalRecordID はカルテに紐付く有効見積書の件数を返す（BUG-201 / SEC-SWEEP-02-BILL-B1b）。
 // estimates.medical_record_id は ON DELETE RESTRICT のため削除前チェックが必要。
-// clinic_idでscopeし、Deleteの親カルテrow lockと同じambient transactionへ参加する。
+// 親 medical_records の clinic 相関で cross-tenant 親を除外する一方、estimate.clinic_id は
+// フィルタしない（参照が存在する限り削除ガードを fail-closed に保つ）。
+// 親 deleted_at は条件に入れない（削除ガード件数を減らしてガードが緩むのを防ぐ）。
+// Delete の親カルテ row lock と同じ ambient transaction へ参加する。
 func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error) {
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Estimate{}).
-		Where("medical_record_id = ? AND clinic_id = ? AND deleted_at IS NULL", medicalRecordID, clinicID).
+		Joins("JOIN medical_records ON medical_records.id = estimates.medical_record_id AND medical_records.clinic_id = ?", clinicID).
+		Where("estimates.medical_record_id = ? AND estimates.deleted_at IS NULL", medicalRecordID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "estimate", "")
