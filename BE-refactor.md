@@ -9,7 +9,7 @@
 > **本書の位置づけ**: `backend/` 全域の規約適合監査で検出した改善項目の正本。`FE-refactor.md` の backend 版であり、readiness view（`3-session-agent.html`）とは役割が異なる。
 >
 > **本書に書かないもの**:
-> - **規約テキストそのもの**（2026-07-26 `ddc609a79` で旧 BE-refactor.md の 4 規定を `.claude/refs/go-gin-backend-review.md:67` 「- N+1、unbounded query、missing indexを実測とquery planに基づいて改善しているか（推測のみで最適化・放置していないか）」 へ移設して退役済み。ルールを本書へ書き戻すと移設が無言で巻き戻る）。本書は規約を **引用するだけ** で、正本は常に規約側にある。
+> - **規約テキストそのもの**（2026-07-26 `ddc609a79` で旧 BE-refactor.md の 4 規定を `.claude/refs/go-gin-backend-review.md` §6 へ移設して退役済み。ルールを本書へ書き戻すと移設が無言で巻き戻る）。本書は規約を **引用するだけ** で、正本は常に規約側にある。
 > - **既に起票済みの課題の詳細**（`3-session-agent.html#ledger` / `BE-pending.md` / `phase2.html` が正本。該当項目は「区分: 既知」として台帳 ID を示す）。
 >
 > **writer 規則**: 本書の writer は監査を実行するセッション単独とする。レーン A/B の実行セッションは本書を読むのみで書かない（4 セッション並行のため）。
@@ -75,7 +75,7 @@
 
 | ID | severity | 対象ドメイン | 概要 | 横断 | 区分 |
 |---|---|---|---|---|---|
-| BIL-01 | CRITICAL | billing / inventory | billing-items の POST/PATCH がレジ締め後の会計編集ゲート（po… | — | 新規 |
+| BIL-01 | CRITICAL | billing / inventory | billing-items の POST/PATCH がレジ締め後の会計編集ゲート（po… | — | 既知 → BUG-463 |
 | CMD-01 | CRITICAL | cmd | stage-import の破壊的 DELETE が clinic_id で制約されてい… | — | 既知・**WITHDRAWN(round3)** |
 | AUS-01 | HIGH | auth / staff | スタッフの所属医院全置換（destructive replace）に監査エントリが一切残… | X-03 | 新規 |
 | BIL-03 | HIGH | billing / inventory | campaignService.Update が本体更新と対象（カテゴリ/商品）差し替え… | X-06 | 新規 |
@@ -190,7 +190,7 @@
 ### billing / inventory（会計・在庫）（3件）
 
 #### BIL-01: billing-items の POST/PATCH がレジ締め後の会計編集ゲート（post-close権限・理由・fail-closed監査）を完全に迂回して billing 総額を書き換える — CRITICAL
-- 区分: 新規
+- 区分: **既知** → BUG-463
 - 規約: `.claude/refs/backend-application-invariants.md:37` 「fail-closedと定めたclinical/financial監査はbusiness writeと同じtransactionへ参加させ、監査dependency欠落または監査write失敗時はbusiness writeもrollbackする。締め後の会計編集はこの対象とする。」
 - 対象: `backend/internal/billing/routes.go:111`、`backend/internal/billing/routes.go:112`、`backend/internal/billing/billing_item_service.go:404`、`backend/internal/billing/billing_item_service.go:282`、`backend/internal/billing/billing_item_repository.go:146`、`backend/internal/billing/billing_item_repository.go:280`、`backend/internal/billing/billing_item_service.go:471`、`backend/internal/billing/billing_item_repository.go:563`、`backend/internal/billing/accounting_handler.go:173`、`backend/internal/billing/accounting_service_core.go:234`、`backend/internal/billing/accounting_service_core.go:274`、`backend/internal/billing/cash_register_service.go:359`、`backend/internal/billing/cash_register_close_repository.go:33`
 - 内容: `PATCH /billing-items/:id` と `POST /billing-items` は `accounting:edit` / `accounting:create` だけで通り、billing の status も レジ締め状態も検査しない。UpdateItem(billing_item_service.go:404-454) には status 検査が一切なく、CreateItem(:282-402) の完了/取消拒否は `input.VaccinationID != nil` の枝でしか到達しない（billing_item_repository.go:280-281）。非ワクチン経路の `ValidateCreateReferences` は billing を FOR UPDATE でロックしながら `medical_record_id, owner_id, pet_id` しか SELECT せず status を読まない（:146-153）。どちらの経路も末尾で `recalculateTotals` → `UpdateBillingTotals` を呼び、billings.subtotal/tax_total/total_amount を status 述語なしで上書きする（:563-571）。一方 DeleteItem は同一 billing をロックして completed/cancelled を 409 で拒否しており（billing_item_service.go:471-472）、この不変条件が意図されたものであることを自ら証明している。`IsDateClosed` の呼び出しは accounting_handler.go:173,232 の2箇所のみで、billing-items 経路からは一度も呼ばれない。結果として、accounting 側 PATCH では必須の `accounting-post-close-edit:edit` 権限・`post_close_reason`・同一tx fail-closed 監査（accounting_service_core.go:234-239, 274-296）が、明細経由なら全て回避される。既知台帳との弁別: BUG-440 は DeleteItem のワクチン provenance 解放 actor 監査、phase2.html:216 は accounting_handler.go:161 の権限チェックの「置き場所」であり、いずれも billing-items 経路に post-close ゲートが無いことを扱っていない。
@@ -199,7 +199,6 @@
 - **coordinator 独立実測済み（2026-07-27）**: `UpdateItem`（`billing_item_service.go:404-425`）は `FindByID` → 単価/数量検証 → `WithTx` → `repo.Update` で `LockAndFindByID` も status 検査も持たない。`DeleteItem`（`:456-475`）は `LockAndFindByID` で行を固定し completed/cancelled を `WrapConflict` で拒否する。`routes.go:112` の PATCH は `accounting:edit` のみを要求する。**本項はエージェント報告ではなく直接確認に基づく**（他 104 件は未実測 — 「監査の限界」5 を参照）。
 
 - 再実測(2026-07-28): **LINE-DRIFT** — UpdateBillingTotals は billing_item_repository.go:568-576（旧:563）。IsDateClosed は cash_register_service.go:407（旧:359）。CreateItem/UpdateItem に status/post-close ゲート無し・DeleteItem のみ completed/cancelled 拒否は継続。dirty: billing_item_repository.go 作業ツリー変更中だが status 欠落構造は残存。
-- 起票先: `BUG-463`（`3-session-agent.html#BUG-463`）
 - round3-review(2026-07-28): **REFRAMED** — 内容は成立するが invariants:37 単独の CRITICAL 一本化は過剰。A) 締め後総額書換の post-close 権限・理由・同一tx監査欠落（CRITICAL・invariants:37 + cash-register #115）と B) Create/Update の completed/cancelled ガード欠落（DeleteItem 非対称・別 HIGH state-guard）に分割。`billing_item_service.go:404-429` UpdateItem に status/IsDateClosed 無し・DeleteItem のみ拒否を現 HEAD で確認。
 #### BIL-03: campaignService.Update が本体更新と対象（カテゴリ/商品）差し替えを別々のtransactionで実行し、部分成功で割引マッチング対象が不整合になる — HIGH
 - 区分: 新規 ／ 横断パターン: X-06
@@ -1219,7 +1218,7 @@
 - round3-review(2026-07-28): **UPHELD** — lstep-migrate 進捗台帳失敗が warn のみ。error-handling.md:9。
 ## 既知として扱う項目（本書では詳細を再記述しない）
 
-上記一覧のうち「区分: 既知」の 6 件は、正本が別文書にある。本書の記述は**面の追加証跡**であり、新規起票してはならない。
+上記一覧のうち「区分: 既知」の項目は、正本が別文書にある。本書の記述は**面の追加証跡**であり、新規起票してはならない。round 1 起票分 6 件に加え、2026-07-28 に反証を通過した 4 件を台帳へ起票済み（下表の後半）。
 
 | 所見 ID | 正本 | 本書が追加した事実 |
 |---|---|---|
@@ -1229,6 +1228,10 @@
 | TRM-08 | [`#SEC-SWEEP-02`](3-session-agent.html#SEC-SWEEP-02) | 中間 junction `appointment_trimming_options`（`001_init.sql:1380-1387`）に clinic_id 列がない |
 | MDL-06 | [`#TASK-445`](3-session-agent.html#TASK-445)（DEC-28 で案 b を裁定済み） | model 側（`model/accounting.go:163`）の ClinicID 追加も同 unit に含める必要がある |
 | MRC-12 | `phase2.html:195`（Transactor + LockByIDForUpdate の正規パターン統一） | `inquiry_repository.go:42-46` のコメントが Transactor 不在を設計上の制約として自認している |
+| BIL-01 | [`#BUG-463`](3-session-agent.html#BUG-463)（2026-07-28 起票・CRITICAL） | 105 件中唯一の coordinator 独立実測。round3 で REFRAMED（締め後監査と status ガードの2命題へ分割） |
+| G2C-04 | [`#BUG-464`](3-session-agent.html#BUG-464)（2026-07-28 起票） | round2 の敵対的却下パスを UPHELD で通過した 3 件のひとつ |
+| G2P-02 | [`#BUG-465`](3-session-agent.html#BUG-465)（2026-07-28 起票） | 同上。X-01（commit 済み write の tx 外 re-fetch）の構成員 |
+| G2P-03 | [`#BUG-466`](3-session-agent.html#BUG-466)（2026-07-28 起票） | 同上。`001_init.sql` に quantity の CHECK 制約が無いことを追加確認 |
 
 ---
 
@@ -1567,14 +1570,13 @@
 
 - round2-review(2026-07-28): **WITHDRAWN** — 反証: remove fail は notifyAPIFailure + apiFailed、成功カウンタ非リセット。テストが「apiFailed のまま nil」を固定。外部 LSTEP の意図的 best-effort。error-handling.md:9 を「batch 必須 fail-closed」へ過適用。
 #### G2C-04: tag owners CSV が 5000 件で無信号 truncate し、stream 後に JSON error し得る — MEDIUM
-- 区分: 新規
+- 区分: **既知** → BUG-464
 - 規約: `.claude/rules/go-gin-backend-guidelines.md:154` 「response は一度だけ書き、return して handler を終了する。」／ `.claude/refs/error-handling.md:29` 「response を書いた後に別の error response を重ねない。」（旧 guidelines:151「集合サイズ」は入力検証条項のため差し替え）
 - 対象: `backend/internal/lstep/lstep_tag_summary_service.go:131`、`backend/internal/lstep/lstep_tag_summary_handler.go:43`
 - 内容: total 破棄で truncate 無信号。headers 後の RespondError で body 混在。
 - 修正: total>5000 は fail-closed または paginate。stream 後は JSON error しない。
 
 - round2-review(2026-07-28): **UPHELD** — 反証失敗: headers 後の RespondError は `guidelines:154` / `error-handling.md:29` 違反がコード上明確（`lstep_tag_summary_handler.go:43-59`）。truncate 無信号は副次。
-- 起票先: `BUG-464`（`3-session-agent.html#BUG-464`）
 
 
 #### G2C-05: owner tags API が line_user_id 全文を返し masked フィールドが未配線 — LOW
@@ -1618,25 +1620,23 @@
 
 - round2-review(2026-07-28): **WITHDRAWN** — 反証: CODING_RULES:38 字面は FOR UPDATE/SHARE/advisory を正しさ根拠にする operation の ambient 拒否。count→delete は lock 非依存。「運用解釈」は規約拡張のため cite 失格。TOCTOU 残存は New Work として分離。
 #### G2P-02: inventory/merchandise Update 後 re-fetch が tx 外 — MEDIUM
-- 区分: 新規 ／ 横断: X-01
+- 区分: **既知** → BUG-465 ／ 横断: X-01
 - 規約: `backend/CODING_RULES.md:78` 「write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。」
 - 対象: `backend/internal/inventory/repository.go:117`、`backend/internal/inventory/merchandise_item_repository.go:55`
 - 内容: UpdateScopedByID 後の別 Find が 5xx 反転し得る。
 - 修正: 同一 tx 内 UpdateAndFind。
 
 - round2-review(2026-07-28): **UPHELD** — 反証: 稀有だが CODING_RULES:78 字面どおり（`inventory/repository.go:117-121` Update 後別 Find）。成功の 5xx 反転 contract 違反。
-- 起票先: `BUG-465`（`3-session-agent.html#BUG-465`）
 
 
 #### G2P-03: inventory quantity が非負未検証で DecreaseStock が負在庫を作れる — MEDIUM
-- 区分: 新規 ／ 横断: X-02
+- 区分: **既知** → BUG-466 ／ 横断: X-02
 - 規約: `backend/CODING_RULES.md:79` 「schema constraint と application validation の両方を使う。」
 - 対象: `backend/internal/inventory/inventory_request.go:38`、`backend/internal/inventory/repository.go:133`、`backend/migrations/001_init.sql:668`
 - 内容: quantity に min=0 / CHECK 無し。DecreaseStock は quantity-N 無条件。
 - 修正: binding min=0、WHERE quantity>=? 条件付き減算、CHECK。
 
 - round2-review(2026-07-28): **UPHELD** — 反証: DecreaseStock の無条件 `quantity - N` と min/CHECK 欠落は CODING_RULES:79 に直撃。負在庫は status で隠れるだけで数値が壊れる。
-- 起票先: `BUG-466`（`3-session-agent.html#BUG-466`）
 
 
 #### G2T-02: inquiry_template CountUsage が常に 0 を返す AUS-04 同型 — MEDIUM
