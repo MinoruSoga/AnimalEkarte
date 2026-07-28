@@ -1,86 +1,12 @@
 package lintscan
 
 import (
-	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"sort"
-	"strings"
 	"testing"
 )
 
-type petGrandchildTarget struct {
-	model        string
-	table        string
-	parentTable  string
-	fkColumn     string
-	requiredJoin []string
-}
-
-var petGrandchildTargets = []petGrandchildTarget{
-	{
-		model:       "DailyRecord",
-		table:       "daily_records",
-		parentTable: "hospitalizations",
-		fkColumn:    "hospitalization_id",
-		requiredJoin: []string{
-			"hospitalizations.id = daily_records.hospitalization_id",
-			"hospitalizations.clinic_id = daily_records.clinic_id",
-		},
-	},
-	{
-		model:       "CareLog",
-		table:       "care_logs",
-		parentTable: "daily_records",
-		fkColumn:    "daily_record_id",
-		requiredJoin: []string{
-			"daily_records.id = care_logs.daily_record_id",
-			"daily_records.clinic_id = care_logs.clinic_id",
-		},
-	},
-	{
-		model:       "ExamResult",
-		table:       "exam_results",
-		parentTable: "exams",
-		fkColumn:    "exam_id",
-		requiredJoin: []string{
-			"exam_results.exam_id = exams.id",
-			"exams.clinic_id = ?",
-		},
-	},
-	{
-		model:       "BillingItem",
-		table:       "billing_items",
-		parentTable: "billings",
-		fkColumn:    "billing_id",
-		requiredJoin: []string{
-			"billings.id = billing_items.billing_id",
-			"billings.clinic_id",
-		},
-	},
-	{
-		model:       "MedicalRecordImage",
-		table:       "medical_record_images",
-		parentTable: "medical_records",
-		fkColumn:    "medical_record_id",
-		requiredJoin: []string{
-			"medical_records.id = medical_record_images.medical_record_id",
-			"medical_records.clinic_id",
-		},
-	},
-	{
-		model:       "MedicalRecordAddendum",
-		table:       "medical_record_addenda",
-		parentTable: "medical_records",
-		fkColumn:    "medical_record_id",
-		requiredJoin: []string{
-			"medical_records.id = medical_record_addenda.medical_record_id",
-			"medical_records.clinic_id = medical_record_addenda.clinic_id",
-		},
-	},
-}
-
+// petGrandchildFinding is the pet-facing finding shape kept for existing test
+// contracts. Detection is owned by the single registry in
+// grandchild_parent_clinic_correlation_lint_test.go (grandchildParentTargets).
 type petGrandchildFinding struct {
 	file     string
 	line     int
@@ -95,199 +21,33 @@ type petGrandchildStats struct {
 	readsByKey  map[string]int
 }
 
+// analyzeFilePetGrandchildParentClinicCorrelation delegates to the unified
+// grandchild parent-clinic correlation analyzer. The duplicate petGrandchildTargets
+// registry was removed in SEC-SWEEP-02-S1; targets live only in grandchildParentTargets.
 func analyzeFilePetGrandchildParentClinicCorrelation(filename string, src []byte) ([]petGrandchildFinding, petGrandchildStats, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, src, 0)
+	mainFindings, mainStats, err := analyzeFileGrandchildParentClinicCorrelation(filename, src)
 	if err != nil {
 		return nil, petGrandchildStats{}, err
 	}
-
-	base := baseFileName(filename)
-	if strings.Contains(filename, "/") {
-		base = filename
-	}
-	stats := petGrandchildStats{filesParsed: 1, readsByKey: make(map[string]int)}
-	var findings []petGrandchildFinding
-
-	for _, decl := range f.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok || fd.Body == nil {
-			continue
-		}
-		varTypes := collectLocalModelVars(fd.Body)
-		funcKey := receiverMethodKey(fd)
-		ast.Inspect(fd.Body, func(n ast.Node) bool {
-			ce, ok := n.(*ast.CallExpr)
-			if !ok || !isReadTerminal(ce) {
-				return true
-			}
-			literals := normalizedCallChainLiterals(ce)
-			models := readModelsFromCall(ce, varTypes)
-			for _, target := range petGrandchildTargets {
-				if !readTargetsModel(target, models) || !containsAny(literals, target.fkColumn) {
-					continue
-				}
-				stats.readsByKey[funcKey+"|"+target.model]++
-				if hasRequiredJoin(literals, target.requiredJoin) {
-					continue
-				}
-				findings = append(findings, petGrandchildFinding{
-					file:     base,
-					line:     fset.Position(ce.Pos()).Line,
-					function: funcKey,
-					model:    target.model,
-					table:    target.table,
-					detail:   fmt.Sprintf("read filters by %s but lacks parent clinic correlation through %s", target.fkColumn, target.parentTable),
-				})
-			}
-			return true
+	findings := make([]petGrandchildFinding, 0, len(mainFindings))
+	for _, f := range mainFindings {
+		findings = append(findings, petGrandchildFinding{
+			file:     f.file,
+			line:     f.line,
+			function: f.function,
+			model:    f.modelName,
+			table:    f.childTable,
+			detail:   f.detail,
 		})
 	}
-	return findings, stats, nil
-}
-
-func collectLocalModelVars(body *ast.BlockStmt) map[string]string {
-	vars := make(map[string]string)
-	ast.Inspect(body, func(n ast.Node) bool {
-		switch node := n.(type) {
-		case *ast.ValueSpec:
-			modelName := modelNameFromExpr(node.Type)
-			if modelName == "" {
-				return true
-			}
-			for _, name := range node.Names {
-				vars[name.Name] = modelName
-			}
-		case *ast.AssignStmt:
-			for i, lhs := range node.Lhs {
-				ident, ok := lhs.(*ast.Ident)
-				if !ok || i >= len(node.Rhs) {
-					continue
-				}
-				if modelName := modelNameFromExpr(node.Rhs[i]); modelName != "" {
-					vars[ident.Name] = modelName
-				}
-			}
-		}
-		return true
-	})
-	return vars
-}
-
-func modelNameFromExpr(expr ast.Expr) string {
-	switch e := expr.(type) {
-	case *ast.ArrayType:
-		return modelNameFromExpr(e.Elt)
-	case *ast.StarExpr:
-		return modelNameFromExpr(e.X)
-	case *ast.CompositeLit:
-		return modelNameFromExpr(e.Type)
-	case *ast.CallExpr:
-		if fn, ok := e.Fun.(*ast.Ident); ok && fn.Name == "make" && len(e.Args) > 0 {
-			return modelNameFromExpr(e.Args[0])
-		}
-	case *ast.SelectorExpr:
-		if pkg, ok := e.X.(*ast.Ident); ok && pkg.Name == "model" {
-			return e.Sel.Name
-		}
+	readsByKey := mainStats.readsByKey
+	if readsByKey == nil {
+		readsByKey = make(map[string]int)
 	}
-	return ""
-}
-
-func isReadTerminal(ce *ast.CallExpr) bool {
-	sel, ok := ce.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	switch sel.Sel.Name {
-	case "Find", "First", "Count", "Scan":
-		return true
-	default:
-		return false
-	}
-}
-
-func normalizedCallChainLiterals(ce *ast.CallExpr) []string {
-	var literals []string
-	ast.Inspect(ce, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		for _, arg := range call.Args {
-			if lit, ok := stringLitValue(arg); ok {
-				literals = append(literals, normalizeSQLFragment(lit))
-			}
-		}
-		return true
-	})
-	return literals
-}
-
-func readModelsFromCall(ce *ast.CallExpr, varTypes map[string]string) map[string]struct{} {
-	models := make(map[string]struct{})
-	ast.Inspect(ce, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Model" && len(call.Args) > 0 {
-			if modelName := modelNameFromExpr(call.Args[0]); modelName != "" {
-				models[modelName] = struct{}{}
-			}
-		}
-		for _, arg := range call.Args {
-			if ident := identFromPossiblyAddressed(arg); ident != "" {
-				if modelName := varTypes[ident]; modelName != "" {
-					models[modelName] = struct{}{}
-				}
-			}
-		}
-		return true
-	})
-	return models
-}
-
-func identFromPossiblyAddressed(expr ast.Expr) string {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		return e.Name
-	case *ast.UnaryExpr:
-		if e.Op == token.AND {
-			return identFromPossiblyAddressed(e.X)
-		}
-	}
-	return ""
-}
-
-func readTargetsModel(target petGrandchildTarget, models map[string]struct{}) bool {
-	if _, ok := models[target.model]; ok {
-		return true
-	}
-	return false
-}
-
-func hasRequiredJoin(literals, required []string) bool {
-	for _, req := range required {
-		if !containsAny(literals, req) {
-			return false
-		}
-	}
-	return true
-}
-
-func containsAny(literals []string, needle string) bool {
-	normalizedNeedle := normalizeSQLFragment(needle)
-	for _, lit := range literals {
-		if strings.Contains(lit, normalizedNeedle) {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizeSQLFragment(s string) string {
-	return strings.Join(strings.Fields(strings.ToLower(s)), " ")
+	return findings, petGrandchildStats{
+		filesParsed: mainStats.filesParsed,
+		readsByKey:  readsByKey,
+	}, nil
 }
 
 func TestPetGrandchildParentClinicCorrelation_AnalyzerFixtures(t *testing.T) {
@@ -425,16 +185,27 @@ func TestPetGrandchildParentClinicCorrelation_RealSourceHasNoUncorrelatedReads(t
 		}
 	}
 
-	if len(findings) == 0 {
-		return
-	}
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].file != findings[j].file {
-			return findings[i].file < findings[j].file
-		}
-		return findings[i].line < findings[j].line
-	})
+	// Shared site-level residual allowlist (same as main RealSource gate).
+	mainFindings := make([]grandchildParentFinding, 0, len(findings))
 	for _, finding := range findings {
-		t.Errorf("%s:%d %s %s(%s): %s", finding.file, finding.line, finding.function, finding.model, finding.table, finding.detail)
+		mainFindings = append(mainFindings, grandchildParentFinding{
+			file:       finding.file,
+			line:       finding.line,
+			function:   finding.function,
+			modelName:  finding.model,
+			childTable: finding.table,
+			detail:     finding.detail,
+		})
+		key := grandchildParentResidualSiteKey(finding.file, finding.function, finding.model, finding.table)
+		for _, site := range grandchildParentClinicCorrelationResidualSites {
+			if grandchildParentResidualSiteKeyFromSite(site) == key {
+				t.Logf("residual pet-facing finding (follow-up repair unit): %s:%d %s %s(%s): %s",
+					finding.file, finding.line, finding.function, finding.model, finding.table, finding.detail)
+				break
+			}
+		}
+	}
+	for _, errMsg := range grandchildParentResidualGateErrors(mainFindings, grandchildParentClinicCorrelationResidualSites) {
+		t.Error(errMsg)
 	}
 }

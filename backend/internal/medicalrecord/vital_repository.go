@@ -39,9 +39,13 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 // 並行 vital 変更による dose スナップショット TOCTOU を作らない（#201 B-2 security review MEDIUM-1）。
 func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
+	// Parent medical_records clinic correlation (SEC-SWEEP-02-MR-B1): child clinic alone
+	// is insufficient when medical_record_id is a corrupt cross-tenant FK.
+	// Qualify vital_records.clinic_id (not ClinicScope) so JOIN medical_records does not
+	// make the bare clinic_id predicate ambiguous.
 	if err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", medicalRecordID).
+		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = vital_records.clinic_id AND medical_records.deleted_at IS NULL").
+		Where("vital_records.clinic_id = ? AND vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", clinicID, medicalRecordID).
 		Order("vital_records.recorded_at ASC").
 		Find(&vitals).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vital", "")

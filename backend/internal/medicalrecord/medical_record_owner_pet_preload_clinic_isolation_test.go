@@ -385,3 +385,93 @@ func TestMedicalRecordRepository_Create_ParticipatesInAmbientTransaction(t *test
 		Where("record_no = ?", "AUD008-TX-CREATE").Count(&count).Error)
 	assert.Zero(t, count, "medical record create must roll back with the ambient transaction")
 }
+
+// TestMedicalRecordRepository_FindByAppointmentID_CorrelatesAppointmentClinic
+// SEC-SWEEP-02-MR-B1: medical_records.appointment_id 読みは appointments.clinic_id と相関必須。
+// 子行 clinic のみ一致して親 appointment が他院でも返ってしまう旧 failure mode を固定する。
+func TestMedicalRecordRepository_FindByAppointmentID_CorrelatesAppointmentClinic(t *testing.T) {
+	db := setupMedicalRecordOwnerPetPreloadDB(t)
+	require.NoError(t, db.Exec("TRUNCATE TABLE medical_records, appointments, reservation_types CASCADE").Error)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	makeAppt := func(clinicID uint64, name string) *model.Reservation {
+		t.Helper()
+		rt := &model.ReservationType{
+			ClinicID: clinicID,
+			Name:     name,
+			Category: model.ReservationTypeCategoryGeneral,
+			IsActive: true,
+		}
+		require.NoError(t, db.Create(rt).Error)
+		start := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
+		appt := &model.Reservation{
+			ClinicID:          clinicID,
+			StartTime:         start,
+			EndTime:           start.Add(30 * time.Minute),
+			VisitType:         model.VisitTypeRevisit,
+			ReservationTypeID: rt.ID,
+			Status:            model.ReservationStatusConfirmed,
+			Source:            model.ReservationSourceManual,
+			CustomerFields:    []byte(`{}`),
+		}
+		require.NoError(t, db.Create(appt).Error)
+		return appt
+	}
+
+	t.Run("rejects medical record linked to foreign-clinic appointment", func(t *testing.T) {
+		apptB := makeAppt(clinicB, "B院予約")
+		apptID := apptB.ID
+		// 子は clinicA を名乗りつつ、親 appointment は clinicB — 旧実装は子 clinic だけで返す。
+		polluted := &model.MedicalRecord{
+			ClinicID:      clinicA,
+			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
+			AppointmentID: &apptID,
+			Status:        model.MedicalRecordStatusDraft,
+			RecordNo:      "MR-B1-APPT-POLLUTED",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(polluted).Error)
+
+		got, err := repo.FindByAppointmentID(ctx, clinicA, apptB.ID)
+		require.NoError(t, err)
+		assert.Nil(t, got, "cross-tenant appointment parent must not yield a medical record")
+	})
+
+	t.Run("returns same-clinic appointment-linked medical record", func(t *testing.T) {
+		apptA := makeAppt(clinicA, "A院予約")
+		apptID := apptA.ID
+		valid := &model.MedicalRecord{
+			ClinicID:      clinicA,
+			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
+			AppointmentID: &apptID,
+			Status:        model.MedicalRecordStatusDraft,
+			RecordNo:      "MR-B1-APPT-VALID",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(valid).Error)
+
+		got, err := repo.FindByAppointmentID(ctx, clinicA, apptA.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, valid.ID, got.ID)
+		assert.Equal(t, "MR-B1-APPT-VALID", got.RecordNo)
+	})
+
+	t.Run("soft-deleted same-clinic medical record stays excluded", func(t *testing.T) {
+		apptA := makeAppt(clinicA, "A院予約削除")
+		apptID := apptA.ID
+		rec := &model.MedicalRecord{
+			ClinicID:      clinicA,
+			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
+			AppointmentID: &apptID,
+			Status:        model.MedicalRecordStatusDraft,
+			RecordNo:      "MR-B1-APPT-DELETED",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(rec).Error)
+		require.NoError(t, db.WithContext(ctx).Delete(rec).Error)
+
+		got, err := repo.FindByAppointmentID(ctx, clinicA, apptA.ID)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+}

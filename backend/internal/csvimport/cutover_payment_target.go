@@ -115,7 +115,8 @@ payment_violations AS (
     OR payment.billing_deleted_at IS NOT NULL
     OR payment.billing_clinic_id IS DISTINCT FROM $3
     OR payment.billing_total_amount IS DISTINCT FROM payment.total_amount
-    OR (payment.billing_status = 'completed' AND payment.billing_completed_at IS NULL)
+    OR payment.billing_status IS DISTINCT FROM 'completed'
+    OR payment.billing_completed_at IS DISTINCT FROM payment.created_at
     OR payment.subtotal IS NULL
     OR payment.subtotal < 0
     OR payment.tax_total IS NULL
@@ -166,6 +167,8 @@ completed_billing_violations AS (
     AND billing.id < $2
     AND (
       billing.deleted_at IS NOT NULL
+      OR billing.status IS NULL
+      OR billing.status NOT IN ('waiting', 'completed', 'cancelled', 'pending')
       OR (
         billing.status = 'completed'
         AND (billing.completed_at IS NULL OR payment.id IS NULL)

@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -126,6 +127,179 @@ var grandchildParentTargets = []grandchildParentTarget{
 			{name: "treatmentPlanParentClinicScope"},
 		},
 	},
+	// SEC-SWEEP-02 residual surfaces (detectable; production repair is follow-up units).
+	{
+		modelName:          "AppointmentTrimmingDetail",
+		childTable:         "appointment_trimming_details",
+		childFK:            "appointment_id",
+		parentTable:        "appointments",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "Billing",
+		childTable:         "billings",
+		childFK:            "medical_record_id",
+		parentTable:        "medical_records",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "Billing",
+		childTable:         "billings",
+		childFK:            "pet_id",
+		parentTable:        "pets",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "Estimate",
+		childTable:         "estimates",
+		childFK:            "medical_record_id",
+		parentTable:        "medical_records",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "MedicalRecord",
+		childTable:         "medical_records",
+		childFK:            "appointment_id",
+		parentTable:        "appointments",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "VitalRecord",
+		childTable:         "vital_records",
+		childFK:            "medical_record_id",
+		parentTable:        "medical_records",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+	{
+		modelName:          "VitalRecord",
+		childTable:         "vital_records",
+		childFK:            "daily_record_id",
+		parentTable:        "daily_records",
+		parentPK:           "id",
+		parentClinicColumn: "clinic_id",
+		childClinicColumn:  "clinic_id",
+	},
+}
+
+// grandchildParentResidualSite is a site-level residual allowlist key.
+// Line numbers are intentionally excluded — they churn on unrelated edits.
+// Keys are (file, function, modelName, childTable); same model at a different
+// site is never auto-exempted.
+type grandchildParentResidualSite struct {
+	file       string
+	function   string
+	modelName  string
+	childTable string
+}
+
+// grandchildParentClinicCorrelationResidualSites pins the exact production
+// uncorrelated reads that remain until SEC-SWEEP-02-*-B1 repair units. Count
+// must match residual findings exactly; new sites fail closed and repaired
+// sites must be removed from this list (stale entries fail closed).
+// Measured after SEC-SWEEP-02-TRIM-B1: 4 residual findings remain
+// (trimming FindByAppointmentID + SetOptions repaired; MR-B1 sites already gone).
+var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{
+	{
+		file:       "billing/accounting_repository_reports_close.go",
+		function:   "accountingRepository.GetCloseAggregate",
+		modelName:  "Billing",
+		childTable: "billings",
+	},
+	{
+		file:       "billing/billing_item_repository.go",
+		function:   "billingItemRepository.ValidateCreateReferences",
+		modelName:  "AppointmentTrimmingDetail",
+		childTable: "appointment_trimming_details",
+	},
+	{
+		file:       "medicalrecord/medical_record_repository.go",
+		function:   "medicalRecordRepository.CountEstimatesByMedicalRecordID",
+		modelName:  "Estimate",
+		childTable: "estimates",
+	},
+	{
+		file:       "reservation/reservation_repository.go",
+		function:   "reservationRepository.CountMedicalRecordsByReservationID",
+		modelName:  "MedicalRecord",
+		childTable: "medical_records",
+	},
+}
+
+// grandchildParentClinicCorrelationResidualSiteCount pins the allowlist size.
+// Mismatch with observed residual findings is a hard failure.
+const grandchildParentClinicCorrelationResidualSiteCount = 4
+
+func grandchildParentResidualSiteKey(file, function, modelName, childTable string) string {
+	return file + "\x00" + function + "\x00" + modelName + "\x00" + childTable
+}
+
+func grandchildParentResidualSiteKeyFromFinding(f grandchildParentFinding) string {
+	return grandchildParentResidualSiteKey(f.file, f.function, f.modelName, f.childTable)
+}
+
+func grandchildParentResidualSiteKeyFromSite(s grandchildParentResidualSite) string {
+	return grandchildParentResidualSiteKey(s.file, s.function, s.modelName, s.childTable)
+}
+
+// grandchildParentResidualGateErrors returns human-readable gate failures for
+// residual allowlist evaluation. Empty means findings match the allowlist
+// exactly: no unlisted residual/non-residual violations, no stale allowlist
+// entries, and residual count equals the pinned allowlist size.
+func grandchildParentResidualGateErrors(findings []grandchildParentFinding, allowlist []grandchildParentResidualSite) []string {
+	if len(allowlist) != grandchildParentClinicCorrelationResidualSiteCount {
+		return []string{
+			"residual allowlist size " + strconv.Itoa(len(allowlist)) +
+				" != pinned count " + strconv.Itoa(grandchildParentClinicCorrelationResidualSiteCount),
+		}
+	}
+	allow := make(map[string]grandchildParentResidualSite, len(allowlist))
+	for _, site := range allowlist {
+		key := grandchildParentResidualSiteKeyFromSite(site)
+		if _, dup := allow[key]; dup {
+			return []string{"duplicate residual allowlist site: " + formatResidualSite(site)}
+		}
+		allow[key] = site
+	}
+
+	observed := make(map[string]struct{}, len(findings))
+	var errs []string
+	for _, f := range findings {
+		key := grandchildParentResidualSiteKeyFromFinding(f)
+		if _, ok := allow[key]; ok {
+			observed[key] = struct{}{}
+			continue
+		}
+		errs = append(errs, "unlisted grandchild parent-clinic correlation violation: "+
+			f.file+" func "+f.function+"() "+f.modelName+"/"+f.childTable+": "+f.detail)
+	}
+	for _, site := range allowlist {
+		key := grandchildParentResidualSiteKeyFromSite(site)
+		if _, ok := observed[key]; !ok {
+			errs = append(errs, "stale residual allowlist entry (site repaired or moved; remove from allowlist): "+
+				formatResidualSite(site))
+		}
+	}
+	if len(observed) != grandchildParentClinicCorrelationResidualSiteCount {
+		errs = append(errs, "observed residual findings "+strconv.Itoa(len(observed))+
+			" != pinned count "+strconv.Itoa(grandchildParentClinicCorrelationResidualSiteCount))
+	}
+	return errs
+}
+
+func formatResidualSite(s grandchildParentResidualSite) string {
+	return s.file + " func " + s.function + "() " + s.modelName + "/" + s.childTable
 }
 
 type grandchildParentFinding struct {
@@ -140,6 +314,9 @@ type grandchildParentFinding struct {
 type grandchildParentStats struct {
 	filesParsed int
 	targetReads int
+	// readsByKey tracks function|modelName for production canaries (shared with the
+	// pet-facing RealSource gate after registry unification).
+	readsByKey map[string]int
 }
 
 func analyzeFileGrandchildParentClinicCorrelation(filename string, src []byte) ([]grandchildParentFinding, grandchildParentStats, error) {
@@ -155,7 +332,7 @@ func analyzeFileGrandchildParentClinicCorrelation(filename string, src []byte) (
 	}
 
 	var findings []grandchildParentFinding
-	stats := grandchildParentStats{filesParsed: 1}
+	stats := grandchildParentStats{filesParsed: 1, readsByKey: make(map[string]int)}
 
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
@@ -185,6 +362,7 @@ func analyzeFileGrandchildParentClinicCorrelation(filename string, src []byte) (
 			}
 
 			stats.targetReads++
+			stats.readsByKey[funcKey+"|"+target.modelName]++
 			if grandchildHasAcceptedScopeHelper(query, target) || grandchildHasParentClinicCorrelation(query, target) {
 				return true
 			}
@@ -643,6 +821,32 @@ func TestGrandchildParentClinicCorrelation_Analyzer(t *testing.T) {
 			body: `db.Model(&model.TreatmentPlan{}).Scopes(persistence.ClinicScope(clinicID)).Where("treatment_plans.hospitalization_id = ?", hospitalizationID).Find(&plans)`,
 			want: 1,
 		},
+		// SEC-SWEEP-02 residual model classes: uncorrelated reads must be detected.
+		{
+			name: "appointment_trimming_details gorm read by appointment_id missing parent appointment correlation",
+			body: `db.Model(&model.AppointmentTrimmingDetail{}).Scopes(persistence.ClinicScope(clinicID)).Where("appointment_id = ?", appointmentID).First(&detail)`,
+			want: 1,
+		},
+		{
+			name: "billings gorm read by medical_record_id missing parent medical_record correlation",
+			body: `db.Model(&model.Billing{}).Scopes(persistence.ClinicScope(clinicID)).Where("medical_record_id = ?", medicalRecordID).Find(&billings)`,
+			want: 1,
+		},
+		{
+			name: "estimates gorm read by medical_record_id missing parent medical_record correlation",
+			body: `db.Model(&model.Estimate{}).Scopes(persistence.ClinicScope(clinicID)).Where("medical_record_id = ?", medicalRecordID).Find(&estimates)`,
+			want: 1,
+		},
+		{
+			name: "medical_records gorm read by appointment_id missing parent appointment correlation",
+			body: `db.Model(&model.MedicalRecord{}).Where("clinic_id = ? AND appointment_id = ?", clinicID, appointmentID).First(&record)`,
+			want: 1,
+		},
+		{
+			name: "vital_records gorm read by medical_record_id missing parent medical_record correlation",
+			body: `db.Model(&model.VitalRecord{}).Scopes(persistence.ClinicScope(clinicID)).Where("vital_records.medical_record_id = ?", medicalRecordID).Find(&vitals)`,
+			want: 1,
+		},
 		{
 			name: "exam_results raw SQL missing parent exam correlation",
 			body: "db.Raw(`SELECT * FROM exam_results WHERE exam_id = ?`, examID).Scan(&items)",
@@ -661,6 +865,32 @@ func TestGrandchildParentClinicCorrelation_Analyzer(t *testing.T) {
 		{
 			name: "prescriptions raw SQL select id alias missing parent medical_record correlation",
 			body: "db.Raw(`SELECT p.id FROM prescriptions p WHERE p.medical_record_id = ?`, medicalRecordID).Scan(&ids)",
+			want: 1,
+		},
+		// Pattern coverage for residual classes: raw SQL, alias, qualified identifier, stale join.
+		{
+			name: "appointment_trimming_details raw SQL alias missing parent appointment correlation",
+			body: "db.Raw(`SELECT * FROM appointment_trimming_details atd WHERE atd.appointment_id = ?`, appointmentID).Scan(&details)",
+			want: 1,
+		},
+		{
+			name: "estimates raw SQL qualified identifier missing parent medical_record correlation",
+			body: "db.Raw(`SELECT * FROM estimates WHERE estimates.medical_record_id = ?`, medicalRecordID).Scan(&estimates)",
+			want: 1,
+		},
+		{
+			name: "vital_records raw SQL stale parent id join without clinic correlation",
+			body: "db.Raw(`SELECT * FROM vital_records vr JOIN medical_records mr ON mr.id = vr.medical_record_id WHERE vr.medical_record_id = ?`, medicalRecordID).Scan(&vitals)",
+			want: 1,
+		},
+		{
+			name: "billings raw SQL select id alias missing parent medical_record correlation",
+			body: "db.Raw(`SELECT b.id FROM billings b WHERE b.medical_record_id = ?`, medicalRecordID).Scan(&ids)",
+			want: 1,
+		},
+		{
+			name: "medical_records raw SQL missing parent appointment correlation",
+			body: "db.Raw(`SELECT * FROM medical_records WHERE appointment_id = ?`, appointmentID).Scan(&records)",
 			want: 1,
 		},
 		{
@@ -711,6 +941,31 @@ func TestGrandchildParentClinicCorrelation_Analyzer(t *testing.T) {
 		{
 			name: "treatment_plans raw SQL with parent hospitalization clinic correlation",
 			body: "db.Raw(`SELECT * FROM treatment_plans tp JOIN hospitalizations h ON h.id = tp.hospitalization_id AND h.clinic_id = tp.clinic_id WHERE tp.hospitalization_id = ?`, hospitalizationID).Scan(&plans)",
+			want: 0,
+		},
+		{
+			name: "appointment_trimming_details gorm read with parent appointment clinic correlation",
+			body: `db.Model(&model.AppointmentTrimmingDetail{}).Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").Where("appointment_trimming_details.appointment_id = ?", appointmentID).First(&detail)`,
+			want: 0,
+		},
+		{
+			name: "billings gorm read with parent medical_record clinic correlation",
+			body: `db.Model(&model.Billing{}).Joins("JOIN medical_records ON medical_records.id = billings.medical_record_id AND medical_records.clinic_id = billings.clinic_id").Where("billings.medical_record_id = ?", medicalRecordID).Find(&billings)`,
+			want: 0,
+		},
+		{
+			name: "estimates gorm read with parent medical_record clinic correlation",
+			body: `db.Model(&model.Estimate{}).Joins("JOIN medical_records ON medical_records.id = estimates.medical_record_id AND medical_records.clinic_id = estimates.clinic_id").Where("estimates.medical_record_id = ?", medicalRecordID).Find(&estimates)`,
+			want: 0,
+		},
+		{
+			name: "medical_records gorm read with parent appointment clinic correlation",
+			body: `db.Model(&model.MedicalRecord{}).Joins("JOIN appointments ON appointments.id = medical_records.appointment_id AND appointments.clinic_id = medical_records.clinic_id").Where("medical_records.appointment_id = ?", appointmentID).First(&record)`,
+			want: 0,
+		},
+		{
+			name: "vital_records gorm read with parent medical_record clinic correlation",
+			body: `db.Model(&model.VitalRecord{}).Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = vital_records.clinic_id").Where("vital_records.medical_record_id = ?", medicalRecordID).Find(&vitals)`,
 			want: 0,
 		},
 		{
@@ -782,28 +1037,127 @@ func f() {
 }
 
 func TestGrandchildParentClinicCorrelation_RegistryCoversMinimumSecSweep02Targets(t *testing.T) {
-	want := map[string]struct{}{
-		"DailyRecord":           {},
-		"CareLog":               {},
-		"ExamResult":            {},
-		"BillingItem":           {},
-		"MedicalRecordImage":    {},
-		"MedicalRecordAddendum": {},
-		"CheckupFieldResult":    {},
-		"Prescription":          {},
-		"TreatmentPlan":         {},
+	// Pin registry *rows* (modelName/parentTable/childFK), not just unique model
+	// names, so dual-FK rows cannot be deleted silently.
+	wantRows := map[string]struct{}{
+		"DailyRecord|hospitalizations|hospitalization_id":         {},
+		"CareLog|daily_records|daily_record_id":                   {},
+		"ExamResult|exams|exam_id":                                {},
+		"BillingItem|billings|billing_id":                         {},
+		"MedicalRecordImage|medical_records|medical_record_id":    {},
+		"MedicalRecordAddendum|medical_records|medical_record_id": {},
+		"CheckupFieldResult|checkups|checkup_id":                  {},
+		"Prescription|medical_records|medical_record_id":          {},
+		"TreatmentPlan|medical_records|medical_record_id":         {},
+		"TreatmentPlan|hospitalizations|hospitalization_id":       {},
+		"AppointmentTrimmingDetail|appointments|appointment_id":   {},
+		"Billing|medical_records|medical_record_id":               {},
+		"Billing|pets|pet_id":                                     {},
+		"Estimate|medical_records|medical_record_id":              {},
+		"MedicalRecord|appointments|appointment_id":               {},
+		"VitalRecord|medical_records|medical_record_id":           {},
+		"VitalRecord|daily_records|daily_record_id":               {},
 	}
-	got := map[string]struct{}{}
+	gotRows := map[string]struct{}{}
+	gotModels := map[string]struct{}{}
 	for _, target := range grandchildParentTargets {
-		got[target.modelName] = struct{}{}
+		row := target.modelName + "|" + target.parentTable + "|" + target.childFK
+		gotRows[row] = struct{}{}
+		gotModels[target.modelName] = struct{}{}
 	}
-	for name := range want {
-		if _, ok := got[name]; !ok {
-			t.Errorf("grandchild parent correlation registry missing SEC-SWEEP-02 target %s", name)
+	for row := range wantRows {
+		if _, ok := gotRows[row]; !ok {
+			t.Errorf("grandchild parent correlation registry missing SEC-SWEEP-02 row %s", row)
 		}
 	}
-	if len(got) < len(want) {
-		t.Errorf("grandchild parent correlation registry has %d unique model targets, want at least %d: %v", len(got), len(want), sortedStringSet(got))
+	if len(wantRows) != 17 {
+		t.Fatalf("wantRows pin size %d, want 17 registry rows", len(wantRows))
+	}
+	if len(gotRows) < len(wantRows) {
+		t.Errorf("grandchild parent correlation registry has %d rows, want at least %d: %v",
+			len(gotRows), len(wantRows), sortedStringSet(gotRows))
+	}
+	// Unique model floor retained as a secondary pin (14 models after S1).
+	if len(gotModels) < 14 {
+		t.Errorf("grandchild parent correlation registry has %d unique models, want at least 14: %v",
+			len(gotModels), sortedStringSet(gotModels))
+	}
+}
+
+func TestGrandchildParentClinicCorrelation_ResidualAllowlistRejectsUnlistedSite(t *testing.T) {
+	// Synthetic residual-model finding at a site not on the allowlist must FAIL the gate.
+	// This proves new uncorrelated reads on residual models are no longer silently logged.
+	base := make([]grandchildParentFinding, 0, len(grandchildParentClinicCorrelationResidualSites)+1)
+	for _, site := range grandchildParentClinicCorrelationResidualSites {
+		base = append(base, grandchildParentFinding{
+			file:       site.file,
+			function:   site.function,
+			modelName:  site.modelName,
+			childTable: site.childTable,
+			detail:     "synthetic residual site",
+		})
+	}
+	unlisted := grandchildParentFinding{
+		file:       "billing/unlisted_residual_site.go",
+		function:   "unlistedRepository.FindByMedicalRecordID",
+		modelName:  "Billing",
+		childTable: "billings",
+		detail:     "direct grandchild read by billings.medical_record_id requires parent medical_records clinic correlation",
+	}
+	errs := grandchildParentResidualGateErrors(append(base, unlisted), grandchildParentClinicCorrelationResidualSites)
+	if len(errs) == 0 {
+		t.Fatal("expected residual gate to reject unlisted residual-model site; gate did not fail")
+	}
+	joined := strings.Join(errs, "\n")
+	if !strings.Contains(joined, "unlisted") || !strings.Contains(joined, "billing/unlisted_residual_site.go") {
+		t.Fatalf("expected unlisted-site rejection error, got: %v", errs)
+	}
+}
+
+func TestGrandchildParentClinicCorrelation_ResidualAllowlistRejectsStaleEntry(t *testing.T) {
+	// Allowlist entry with no corresponding finding (site repaired) must FAIL the gate.
+	// This forces follow-up repair units to shrink the allowlist when they fix a site.
+	findings := make([]grandchildParentFinding, 0, len(grandchildParentClinicCorrelationResidualSites)-1)
+	for i, site := range grandchildParentClinicCorrelationResidualSites {
+		if i == 0 {
+			continue // drop first allowlisted site to simulate repair
+		}
+		findings = append(findings, grandchildParentFinding{
+			file:       site.file,
+			function:   site.function,
+			modelName:  site.modelName,
+			childTable: site.childTable,
+			detail:     "synthetic residual site",
+		})
+	}
+	errs := grandchildParentResidualGateErrors(findings, grandchildParentClinicCorrelationResidualSites)
+	if len(errs) == 0 {
+		t.Fatal("expected residual gate to reject stale allowlist entry; gate did not fail")
+	}
+	joined := strings.Join(errs, "\n")
+	if !strings.Contains(joined, "stale residual allowlist entry") {
+		t.Fatalf("expected stale-entry rejection error, got: %v", errs)
+	}
+	if !strings.Contains(joined, grandchildParentClinicCorrelationResidualSites[0].file) {
+		t.Fatalf("expected stale entry to name repaired site %q, got: %v",
+			grandchildParentClinicCorrelationResidualSites[0].file, errs)
+	}
+}
+
+func TestGrandchildParentClinicCorrelation_ResidualAllowlistExactMatchPasses(t *testing.T) {
+	findings := make([]grandchildParentFinding, 0, len(grandchildParentClinicCorrelationResidualSites))
+	for _, site := range grandchildParentClinicCorrelationResidualSites {
+		findings = append(findings, grandchildParentFinding{
+			file:       site.file,
+			function:   site.function,
+			modelName:  site.modelName,
+			childTable: site.childTable,
+			detail:     "synthetic residual site",
+		})
+	}
+	errs := grandchildParentResidualGateErrors(findings, grandchildParentClinicCorrelationResidualSites)
+	if len(errs) != 0 {
+		t.Fatalf("exact allowlist match should pass, got: %v", errs)
 	}
 }
 
@@ -840,9 +1194,28 @@ func TestGrandchildParentClinicCorrelation_RealSourceHasNoUncorrelatedGrandchild
 	if stats.targetReads < 9 {
 		t.Fatalf("only %d grandchild target reads detected; AST matching likely broken", stats.targetReads)
 	}
+	// Site-level residual allowlist with exact count pin. New residual-model
+	// violations and stale (repaired) allowlist entries both fail closed.
+	if len(grandchildParentClinicCorrelationResidualSites) != grandchildParentClinicCorrelationResidualSiteCount {
+		t.Fatalf("residual allowlist has %d sites, want pinned count %d",
+			len(grandchildParentClinicCorrelationResidualSites), grandchildParentClinicCorrelationResidualSiteCount)
+	}
 	for _, finding := range findings {
-		t.Errorf("grandchild parent-clinic correlation violation: %s:%d func %s() %s/%s: %s",
-			finding.file, finding.line, finding.function, finding.modelName, finding.childTable, finding.detail)
+		key := grandchildParentResidualSiteKeyFromFinding(finding)
+		matched := false
+		for _, site := range grandchildParentClinicCorrelationResidualSites {
+			if grandchildParentResidualSiteKeyFromSite(site) == key {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			t.Logf("residual grandchild parent-clinic finding (follow-up repair unit): %s:%d func %s() %s/%s: %s",
+				finding.file, finding.line, finding.function, finding.modelName, finding.childTable, finding.detail)
+		}
+	}
+	for _, errMsg := range grandchildParentResidualGateErrors(findings, grandchildParentClinicCorrelationResidualSites) {
+		t.Error(errMsg)
 	}
 }
 
@@ -857,7 +1230,7 @@ func walkGrandchildParentClinicCorrelation(t *testing.T) ([]grandchildParentFind
 	sort.Strings(names)
 
 	var all []grandchildParentFinding
-	agg := grandchildParentStats{}
+	agg := grandchildParentStats{readsByKey: make(map[string]int)}
 	for _, rawKey := range names {
 		key := legacyLintKey(rawKey)
 		findings, stats, err := analyzeFileGrandchildParentClinicCorrelation(key, tree[rawKey])
@@ -867,6 +1240,9 @@ func walkGrandchildParentClinicCorrelation(t *testing.T) ([]grandchildParentFind
 		all = append(all, findings...)
 		agg.filesParsed += stats.filesParsed
 		agg.targetReads += stats.targetReads
+		for statKey, count := range stats.readsByKey {
+			agg.readsByKey[statKey] += count
+		}
 	}
 	return all, agg
 }

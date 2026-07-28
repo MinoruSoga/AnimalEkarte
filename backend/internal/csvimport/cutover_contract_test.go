@@ -31,6 +31,132 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	if bundle.Manifest.IDBand.ApplicationIDFloor != 1_000_000_000 {
 		t.Fatalf("application floor = %d", bundle.Manifest.IDBand.ApplicationIDFloor)
 	}
+	if bundle.Manifest.HandoffEligibility != "TRUSTED_CANDIDATE" {
+		t.Fatalf("handoff eligibility = %q, want TRUSTED_CANDIDATE", bundle.Manifest.HandoffEligibility)
+	}
+}
+
+func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*fixtureBundle)
+		wantErr string
+	}{
+		{
+			name: "non-trusted handoff",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+			},
+			wantErr: "handoff eligibility",
+		},
+		{
+			name: "unsupported manifest schema",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.ManifestSchemaVersion = "animalekarte-cutover-v2"
+			},
+			wantErr: "mapping contract",
+		},
+		{
+			name: "untrusted stage mapping",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.StageMappingSHA256 = strings.Repeat("0", 64)
+			},
+			wantErr: "mapping contract",
+		},
+		{
+			name: "untrusted CSV contract",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.CSVContractSHA256 = strings.Repeat("0", 64)
+			},
+			wantErr: "mapping contract",
+		},
+		{
+			name: "partial source",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceCompletenessStatus = "PARTIAL"
+				f.manifest.SourceComplete = false
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "unverified source identity",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceIdentity.Verified = false
+			},
+			wantErr: "source identity",
+		},
+		{
+			name: "missing source backup digest",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceIdentity.SourceBackupSHA256 = nil
+			},
+			wantErr: "source identity",
+		},
+		{
+			name: "invalid stage build ID",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.StageBuildID = "not-a-uuid"
+			},
+			wantErr: "stage build",
+		},
+		{
+			name: "incomplete source table",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.IncompleteSourceTables = stringSlicePointer([]string{"TBL_KNJO_DATA"})
+			},
+			wantErr: "incomplete source",
+		},
+		{
+			name: "missing incomplete source table inventory",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.IncompleteSourceTables = nil
+			},
+			wantErr: "incomplete source",
+		},
+		{
+			name: "invalid summary digest",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceSummarySHA256.Raw = "invalid"
+			},
+			wantErr: "summary digest",
+		},
+		{
+			name: "out-of-order summary timestamps",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceSummaryGeneratedAt.Raw = "2026-07-22T00:00:03Z"
+			},
+			wantErr: "summary generation",
+		},
+		{
+			name: "stage summary is newer than manifest",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceSummaryGeneratedAt.Stage = "2026-07-22T00:00:04Z"
+			},
+			wantErr: "summary generation",
+		},
+		{
+			name: "invalid evidence digest",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceEvidenceSHA256.BaseLoad = "invalid"
+			},
+			wantErr: "evidence digest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, tt.mutate)
+			_, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+				ManifestSHA256: digest,
+				ClinicCode:     "hachioji",
+				ClinicOrdinal:  1,
+				RunID:          "run-1",
+			})
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), tt.wantErr) {
+				t.Fatalf("error = %v, want text %q", err, tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
@@ -351,7 +477,51 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 				f.manifest.Tables[13].RowCount = 0
 				f.manifest.Tables[14].RowCount = 0
 			},
-			wantErr: "completed billing",
+			wantErr: "must contain formal rows",
+		},
+		{
+			name: "formal handoff cannot omit the entire payment graph",
+			mutate: func(f *fixtureBundle) {
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "waiting"
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["payments"] = nil
+				f.rows["payment_splits"] = nil
+				f.manifest.Tables[13].RowCount = 0
+				f.manifest.Tables[14].RowCount = 0
+			},
+			wantErr: "must contain formal rows",
+		},
+		{
+			name: "payment parent billing is not completed",
+			mutate: func(f *fixtureBundle) {
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "waiting"
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+			},
+			wantErr: "billing status",
+		},
+		{
+			name: "empty billing status cannot bypass payment graph",
+			mutate: func(f *fixtureBundle) {
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = ""
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+			},
+			wantErr: "billing status",
+		},
+		{
+			name: "unknown billing status cannot bypass payment graph",
+			mutate: func(f *fixtureBundle) {
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "unknown"
+				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+			},
+			wantErr: "billing status",
+		},
+		{
+			name: "payment timestamp disagrees with billing completion",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "created_at")] = "2026-07-22T00:00:01Z"
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "created_at")] = "2026-07-22T00:00:01Z"
+			},
+			wantErr: "completion timestamp",
 		},
 	}
 
@@ -497,7 +667,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 	}
 	f := fixtureBundle{
 		manifest: CutoverManifest{
-			GeneratedAt:               "2026-07-22T00:00:00Z",
+			GeneratedAt:               "2026-07-22T00:00:03Z",
 			Status:                    "PASS",
 			SourceLayer:               "animalekarte_stage",
 			SourceRunID:               "run-1",
@@ -512,6 +682,31 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			ImportablePredicate:       "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/lib/stage-csv-columns.mjs)",
 			PlaceholderColumns:        CutoverPlaceholderColumns(),
 			PlaceholderResolutionNote: "source placeholders",
+			ManifestSchemaVersion:     cutoverManifestSchema,
+			StageMappingSHA256:        cutoverStageMappingSHA256,
+			CSVContractSHA256:         cutoverCSVContractSHA256,
+			SourceCompletenessStatus:  "PASS",
+			SourceComplete:            true,
+			SourceProvenanceVerified:  true,
+			SourceIdentity: CutoverSourceIdentity{
+				SourceBackupSHA256:    stringPointer(strings.Repeat("a", 64)),
+				SourceBackupSizeBytes: int64Pointer(7_475_357_184),
+				BaseArchiveSHA256:     stringPointer(strings.Repeat("b", 64)),
+				KNJOArchiveSHA256:     stringPointer(strings.Repeat("c", 64)),
+				Verified:              true,
+			},
+			StageBuildID:           "3ed169df-441b-4515-b128-3b182e53f84a",
+			IncompleteSourceTables: stringSlicePointer([]string{}),
+			HandoffEligibility:     "TRUSTED_CANDIDATE",
+			SourceSummarySHA256: CutoverLayerDigests{
+				Raw: strings.Repeat("d", 64), Intermediate: strings.Repeat("e", 64), Stage: strings.Repeat("f", 64),
+			},
+			SourceSummaryGeneratedAt: CutoverLayerTimestamps{
+				Raw: "2026-07-22T00:00:00Z", Intermediate: "2026-07-22T00:00:01Z", Stage: "2026-07-22T00:00:02Z",
+			},
+			SourceEvidenceSHA256: CutoverEvidenceDigests{
+				BaseLoad: strings.Repeat("1", 64), KNJORecovery: strings.Repeat("2", 64),
+			},
 		},
 		rows: map[string][][]string{},
 	}
@@ -558,11 +753,11 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				}
 			case "created_at":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
-					row[i] = "2026-07-22T00:00:00Z"
+					row[i] = "2026-07-22T00:00:00.000000Z"
 				}
 			case "completed_at":
 				if spec.Name == "billings" {
-					row[i] = "2026-07-22T00:00:00Z"
+					row[i] = "2026-07-22T00:00:00.000000Z"
 				}
 			}
 		}
@@ -630,6 +825,18 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 	}
 	sum := sha256.Sum256(manifestBytes)
 	return dir, hex.EncodeToString(sum[:])
+}
+
+func stringPointer(value string) *string {
+	return &value
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
+}
+
+func stringSlicePointer(value []string) *[]string {
+	return &value
 }
 
 func columnIndex(columns []string, name string) int {

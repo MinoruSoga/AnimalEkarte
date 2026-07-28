@@ -414,8 +414,11 @@ func (r *medicalRecordRepository) FindByAppointmentID(ctx context.Context, clini
 	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
+	// Parent appointments clinic correlation (SEC-SWEEP-02-MR-B1): child clinic alone
+	// is insufficient when appointment_id is a corrupt cross-tenant FK.
 	err := db.
-		Where("clinic_id = ? AND appointment_id = ? AND deleted_at IS NULL", clinicID, appointmentID).
+		Joins("JOIN appointments ON appointments.id = medical_records.appointment_id AND appointments.clinic_id = medical_records.clinic_id").
+		Where("medical_records.clinic_id = ? AND medical_records.appointment_id = ? AND medical_records.deleted_at IS NULL", clinicID, appointmentID).
 		Take(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil

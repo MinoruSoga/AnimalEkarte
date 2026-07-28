@@ -547,6 +547,10 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"payment.method IS DISTINCT FROM",
 		"completed_billing_violations AS",
 		"billing.status = 'completed'",
+		"billing.status IS NULL",
+		"billing.status NOT IN ('waiting', 'completed', 'cancelled', 'pending')",
+		"payment.billing_status IS DISTINCT FROM 'completed'",
+		"payment.billing_completed_at IS DISTINCT FROM payment.created_at",
 		"billing.completed_at IS NULL OR payment.id IS NULL",
 	}
 	for _, fragment := range required {
