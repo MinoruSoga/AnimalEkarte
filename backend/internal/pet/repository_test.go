@@ -495,3 +495,42 @@ func makeSyncSpeciesID(t *testing.T, db *gorm.DB) uint64 {
 	require.NoError(t, db.WithContext(context.Background()).Create(sp).Error)
 	return sp.ID
 }
+
+func TestUpdateAndFind_RejectsMissingOwnerOrInsuranceInWriteTx(t *testing.T) {
+	// POC-03: owner_id / insurance_id must be revalidated under FOR SHARE in the write tx.
+	db := setupPetRepositoryTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(91)
+	owner := makeTestOwner(t, db, clinicID, "fk revalidate owner")
+	petModel := makeSpeciesAndPet(t, db, clinicID, owner.ID, "fk revalidate pet")
+	repo := NewRepository(db)
+
+	t.Run("missing owner", func(t *testing.T) {
+		_, err := repo.UpdateAndFind(ctx, clinicID, petModel.ID, PetUpdate{
+			fields: map[string]any{colPetOwnerID: uint64(9_999_991)},
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "missing owner must be invalid input: %v", err)
+		var loaded model.Pet
+		require.NoError(t, db.First(&loaded, petModel.ID).Error)
+		assert.Equal(t, owner.ID, loaded.OwnerID)
+	})
+
+	t.Run("missing insurance", func(t *testing.T) {
+		missing := uint64(9_999_992)
+		_, err := repo.UpdateAndFind(ctx, clinicID, petModel.ID, PetUpdate{
+			fields: map[string]any{colPetInsuranceID: &missing},
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "missing insurance must be invalid input: %v", err)
+	})
+
+	t.Run("clear insurance still allowed", func(t *testing.T) {
+		var nilID *uint64
+		updated, err := repo.UpdateAndFind(ctx, clinicID, petModel.ID, PetUpdate{
+			fields: map[string]any{colPetInsuranceID: nilID},
+		})
+		require.NoError(t, err)
+		assert.Nil(t, updated.InsuranceID)
+	})
+}

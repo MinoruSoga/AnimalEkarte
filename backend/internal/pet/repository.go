@@ -2,6 +2,7 @@ package pet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -475,6 +476,13 @@ func (r *repository) UpdateAndFind(
 			fields["danger_reason"] = normalizedReason
 		}
 
+		// POC-03 / X-05: re-validate request-derived clinic FKs inside the same
+		// write transaction with SHARE locks so concurrent soft-delete cannot
+		// race past the pre-tx service checks.
+		if err := revalidatePetUpdateForeignKeys(tx.WithContext(txCtx), clinicID, fields); err != nil {
+			return err
+		}
+
 		if err := updatePetFieldsWithDB(tx.WithContext(txCtx), clinicID, id, fields); err != nil {
 			return err
 		}
@@ -501,6 +509,72 @@ func withPetUpdateTransaction(
 	return persistence.DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
 		return fn(persistence.WithTxValue(ctx, tx), tx)
 	})
+}
+
+func revalidatePetUpdateForeignKeys(db *gorm.DB, clinicID uint64, fields map[string]any) error {
+	if rawOwner, ok := fields[colPetOwnerID]; ok {
+		ownerID, err := uint64FromField(rawOwner)
+		if err != nil {
+			return apperrors.WrapInvalidInput("owner not found in this clinic")
+		}
+		if err := lockOwnerForRegistration(db, clinicID, ownerID); err != nil {
+			return err
+		}
+	}
+	if rawInsurance, ok := fields[colPetInsuranceID]; ok {
+		if rawInsurance == nil {
+			return nil
+		}
+		switch v := rawInsurance.(type) {
+		case *uint64:
+			if v == nil {
+				return nil
+			}
+			return lockInsuranceForPetUpdate(db, clinicID, *v)
+		default:
+			insuranceID, err := uint64FromField(rawInsurance)
+			if err != nil {
+				return apperrors.WrapInvalidInput("insurance not found in this clinic")
+			}
+			return lockInsuranceForPetUpdate(db, clinicID, insuranceID)
+		}
+	}
+	return nil
+}
+
+func uint64FromField(raw any) (uint64, error) {
+	switch v := raw.(type) {
+	case uint64:
+		return v, nil
+	case int64:
+		if v < 0 {
+			return 0, fmt.Errorf("negative id")
+		}
+		return uint64(v), nil
+	case int:
+		if v < 0 {
+			return 0, fmt.Errorf("negative id")
+		}
+		return uint64(v), nil
+	default:
+		return 0, fmt.Errorf("unsupported id type %T", raw)
+	}
+}
+
+func lockInsuranceForPetUpdate(db *gorm.DB, clinicID, insuranceID uint64) error {
+	var insurance model.Insurance
+	err := db.
+		Select("id", "clinic_id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", insuranceID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		First(&insurance).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperrors.WrapInvalidInput("insurance not found in this clinic")
+	}
+	if err != nil {
+		return apperrors.FromGORM(err, "insurance", "")
+	}
+	return nil
 }
 
 func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
