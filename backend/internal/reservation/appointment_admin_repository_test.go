@@ -19,6 +19,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -378,4 +379,14 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestReservationAdminRepository_ListSafetyCaps(t *testing.T) {
+	// G2F-07: hard ceilings exist even when calendar/customer filters would otherwise grow unbounded.
+	if maxAdminMonthRows <= 0 || maxAdminMonthRows > persistence.MaxMasterListRows {
+		t.Fatalf("maxAdminMonthRows = %d, want positive and <= MaxMasterListRows", maxAdminMonthRows)
+	}
+	if maxCustomerHistoryRows <= 0 || maxCustomerHistoryRows > 500 {
+		t.Fatalf("maxCustomerHistoryRows = %d, want a modest positive history cap", maxCustomerHistoryRows)
+	}
 }

@@ -30,6 +30,15 @@ type ReservationAdminRepository interface {
 
 type reservationAdminRepository struct{ db *gorm.DB }
 
+// Safety caps for admin list queries (G2F-07). Calendar month remains the
+// primary bound; these hard ceilings prevent pathological Preload growth.
+// Customer history returns the most recent rows only (full paging is a
+// follow-up outside this repository unit).
+const (
+	maxAdminMonthRows         = persistence.MaxMasterListRows
+	maxCustomerHistoryRows    = 100
+)
+
 func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {
 	return &reservationAdminRepository{db: db}
 }
@@ -46,6 +55,7 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
+		Limit(maxAdminMonthRows).
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", "")
@@ -111,6 +121,7 @@ func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, cl
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
+		Limit(maxCustomerHistoryRows).
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", "")
