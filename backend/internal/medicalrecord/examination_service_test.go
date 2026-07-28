@@ -1480,3 +1480,74 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 		assert.Zero(t, updateCalls)
 	})
 }
+
+// BUG-448: 検査明細削除監査の old/new に解決済み境界と派生 is_assessed を含める。
+func TestExtractExamResultsAudit(t *testing.T) {
+	refMin, refMax := 1.0, 10.0
+	qualMin, qualMax := "(-)", "(+)"
+
+	t.Run("numeric_bounds_include_provenance_and_assessed", func(t *testing.T) {
+		results := []model.ExamResult{{
+			ID: 1, ExamTypeItemID: ptrUint64(11), Name: "WBC",
+			InspectionValue: "0.5", RefMin: &refMin, RefMax: &refMax,
+			IsAbnormal: true, Status: model.ExaminationResultStatusLow,
+		}}
+		got := extractExamResultsAudit(results)
+		require.Len(t, got, 1)
+		assert.Equal(t, uint64(1), got[0]["id"])
+		assert.Equal(t, &refMin, got[0]["ref_min"])
+		assert.Equal(t, &refMax, got[0]["ref_max"])
+		assert.Nil(t, got[0]["qualitative_min"])
+		assert.Nil(t, got[0]["qualitative_max"])
+		assert.Equal(t, true, got[0]["is_assessed"])
+		assert.Equal(t, true, got[0]["is_abnormal"])
+		assert.Equal(t, string(model.ExaminationResultStatusLow), got[0]["status"])
+	})
+
+	t.Run("qualitative_bounds_include_provenance_and_assessed", func(t *testing.T) {
+		results := []model.ExamResult{{
+			ID: 2, ExamTypeItemID: ptrUint64(12), Name: "Dipstick",
+			InspectionValue: "(++)", QualitativeMin: &qualMin, QualitativeMax: &qualMax,
+			IsAbnormal: true, Status: model.ExaminationResultStatusHigh,
+		}}
+		got := extractExamResultsAudit(results)
+		require.Len(t, got, 1)
+		assert.Nil(t, got[0]["ref_min"])
+		assert.Nil(t, got[0]["ref_max"])
+		assert.Equal(t, &qualMin, got[0]["qualitative_min"])
+		assert.Equal(t, &qualMax, got[0]["qualitative_max"])
+		assert.Equal(t, true, got[0]["is_assessed"])
+	})
+
+	t.Run("unassessed_without_bounds", func(t *testing.T) {
+		results := []model.ExamResult{{
+			ID: 3, Name: "Note", InspectionValue: "free text",
+			Status: model.ExaminationResultStatusNormal,
+		}}
+		got := extractExamResultsAudit(results)
+		require.Len(t, got, 1)
+		assert.Nil(t, got[0]["ref_min"])
+		assert.Nil(t, got[0]["ref_max"])
+		assert.Nil(t, got[0]["qualitative_min"])
+		assert.Nil(t, got[0]["qualitative_max"])
+		assert.Equal(t, false, got[0]["is_assessed"])
+	})
+
+	t.Run("unassessed_nonnumeric_with_numeric_bounds_still_records_bounds", func(t *testing.T) {
+		results := []model.ExamResult{{
+			ID: 4, Name: "ALT", InspectionValue: "陰性",
+			RefMin: &refMin, RefMax: &refMax,
+			Status: model.ExaminationResultStatusNormal,
+		}}
+		got := extractExamResultsAudit(results)
+		require.Len(t, got, 1)
+		assert.Equal(t, &refMin, got[0]["ref_min"])
+		assert.Equal(t, &refMax, got[0]["ref_max"])
+		assert.Equal(t, false, got[0]["is_assessed"])
+	})
+
+	t.Run("empty_returns_nil", func(t *testing.T) {
+		assert.Nil(t, extractExamResultsAudit(nil))
+		assert.Nil(t, extractExamResultsAudit([]model.ExamResult{}))
+	})
+}

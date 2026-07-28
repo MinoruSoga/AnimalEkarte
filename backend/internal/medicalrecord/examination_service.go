@@ -559,11 +559,25 @@ func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
 	out := make([]map[string]any, 0, len(results))
 	for i := range results {
 		r := results[i]
+		// is_assessed is derived, not stored — reuse assessExamResult so audit
+		// provenance matches API assessment rules (bounds, fail-closed cases).
+		assessment := assessExamResult(
+			r.InspectionValue,
+			r.RefMin,
+			r.RefMax,
+			r.QualitativeMin,
+			r.QualitativeMax,
+		)
 		out = append(out, map[string]any{
 			"id":                 r.ID,
 			"exam_type_field_id": r.ExamTypeItemID,
 			"name":               r.Name,
 			"inspection_value":   r.InspectionValue,
+			"ref_min":            r.RefMin,
+			"ref_max":            r.RefMax,
+			"qualitative_min":    r.QualitativeMin,
+			"qualitative_max":    r.QualitativeMax,
+			"is_assessed":        assessment.isAssessed,
 			"is_abnormal":        r.IsAbnormal,
 			"status":             string(r.Status),
 		})
