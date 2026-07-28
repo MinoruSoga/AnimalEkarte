@@ -2238,7 +2238,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/ ./internal/reservation/ ./internal/trimming/ ./internal/lintscan/ -run "Hospitalization|Schedule|Trimming|Preload|Grandchild"`
 - 既知台帳: RSV-08=SEC-SWEEP-02 (table-only known pointer); TRM-08=SEC-SWEEP-02 / DEC-23
 - Size: M (6/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 0c44f49fdfe5764206e456b30372a70e651006ff
 
 ##### SOLO-32
 
