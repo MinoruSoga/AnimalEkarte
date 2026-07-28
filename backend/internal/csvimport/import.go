@@ -12,20 +12,41 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var tables = []string{"owners", "pets", "medical_records", "exams", "exam_results", "billings", "billing_items"}
 
+type legacyImportTransaction interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error)
+	Commit(context.Context) error
+	Rollback(context.Context) error
+}
+
 // Import replaces the old demo's owner/clinical/accounting graph in a disposable
 // target database. The source directory is expected to be a read-only mount.
 func Import(ctx context.Context, pool *pgxpool.Pool, sourceDir string, clinicID, speciesID, examTypeID int64) (map[string]int64, error) {
+	return importWithBegin(ctx, func(ctx context.Context) (legacyImportTransaction, error) {
+		return pool.Begin(ctx)
+	}, sourceDir, clinicID, speciesID, examTypeID)
+}
+
+func importWithBegin(
+	ctx context.Context,
+	begin func(context.Context) (legacyImportTransaction, error),
+	sourceDir string,
+	clinicID int64,
+	speciesID int64,
+	examTypeID int64,
+) (map[string]int64, error) {
 	if sourceDir == "" || !filepath.IsAbs(sourceDir) {
 		return nil, fmt.Errorf("source directory must be an absolute path")
 	}
-	tx, err := pool.Begin(ctx)
+	tx, err := begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("begin import tx: %w", err)
+		return nil, fmt.Errorf("begin import tx: target database unavailable")
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if err := deleteDemoGraph(ctx, tx); err != nil {
@@ -40,12 +61,12 @@ func Import(ctx context.Context, pool *pgxpool.Pool, sourceDir string, clinicID,
 		counts[table] = count
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit import tx: %w", err)
+		return nil, fmt.Errorf("commit import tx: target database rejected transaction")
 	}
 	return counts, nil
 }
 
-func deleteDemoGraph(ctx context.Context, tx pgx.Tx) error {
+func deleteDemoGraph(ctx context.Context, tx legacyImportTransaction) error {
 	// Reverse FK order for all non-master rows owned by 003_demo. This keeps
 	// clinics, accounts, staffs, and master catalog rows available for imports.
 	for _, table := range []string{
@@ -57,7 +78,7 @@ func deleteDemoGraph(ctx context.Context, tx pgx.Tx) error {
 		"pet_chronic_conditions", "lstep_delivery_trigger_log", "lstep_tag_cache", "shared_files", "line_send_logs", "line_customers", "medical_records", "pets", "owners",
 	} {
 		if _, err := tx.Exec(ctx, `DELETE FROM "`+table+`"`); err != nil {
-			return fmt.Errorf("delete %s: %w", table, err)
+			return fmt.Errorf("delete %s: target database rejected operation", table)
 		}
 	}
 	return nil
@@ -68,7 +89,7 @@ type spec struct {
 	values  func([]string, int64, int64, int64) ([]any, error)
 }
 
-func importTable(ctx context.Context, tx pgx.Tx, path, table string, clinicID, speciesID, examTypeID int64) (int64, error) {
+func importTable(ctx context.Context, tx legacyImportTransaction, path, table string, clinicID, speciesID, examTypeID int64) (int64, error) {
 	f, err := os.Open(path) //nolint:gosec // operator-controlled absolute CSV mount; validated IsAbs above
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -102,7 +123,7 @@ func importTable(ctx context.Context, tx pgx.Tx, path, table string, clinicID, s
 		_, e := tx.CopyFrom(ctx, pgx.Identifier{table}, s.columns, pgx.CopyFromRows(copyRows))
 		copyRows = nil
 		if e != nil {
-			return fmt.Errorf("copy %s: %w", table, e)
+			return fmt.Errorf("copy %s: target database rejected row batch", table)
 		}
 		return nil
 	}
@@ -199,7 +220,7 @@ func typedValue(col, v string) (any, error) {
 		if col == c {
 			n, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("parse %s: %w", col, err)
+				return nil, fmt.Errorf("parse %s as integer", col)
 			}
 			return n, nil
 		}
@@ -208,7 +229,7 @@ func typedValue(col, v string) (any, error) {
 		if col == c {
 			n, err := strconv.ParseFloat(v, 64)
 			if err != nil {
-				return nil, fmt.Errorf("parse %s: %w", col, err)
+				return nil, fmt.Errorf("parse %s as decimal", col)
 			}
 			return n, nil
 		}
@@ -217,7 +238,7 @@ func typedValue(col, v string) (any, error) {
 		if col == c {
 			b, err := strconv.ParseBool(v)
 			if err != nil {
-				return nil, fmt.Errorf("parse %s: %w", col, err)
+				return nil, fmt.Errorf("parse %s as boolean", col)
 			}
 			return b, nil
 		}

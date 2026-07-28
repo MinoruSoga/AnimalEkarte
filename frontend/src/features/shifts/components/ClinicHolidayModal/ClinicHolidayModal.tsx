@@ -35,7 +35,7 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
     if (open) {
       setReason(existing?.reason ?? "");
     }
-  }, [open, existing]);
+  }, [open, date, existing?.reason]);
 
   const handleSave = useCallback(() => {
     startSaveTransition(async () => {

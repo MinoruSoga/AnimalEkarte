@@ -52,7 +52,12 @@ export const InterviewHistory = memo(function InterviewHistory({
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`} />
+            <label htmlFor="medical-record-history-search" className="sr-only">
+              過去のカルテを検索
+            </label>
             <Input
+              id="medical-record-history-search"
+              name="medicalRecordHistorySearch"
               placeholder="検索..."
               className={`${LAYOUT.touch.md} w-48 pl-9 text-sm ${C.bgWhite} ${C.borderMedium}`}
               value={searchTerm}
@@ -62,7 +67,7 @@ export const InterviewHistory = memo(function InterviewHistory({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className={`divide-y ${C.borderDivider}`}>
           {filteredItems.map((item) => {
             const isExpanded = expandedId === item.id;

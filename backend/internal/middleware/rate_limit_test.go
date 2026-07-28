@@ -19,11 +19,13 @@ func TestRateLimitStore_Evict(t *testing.T) {
 	store := NewRateLimitStore(ctx)
 
 	store.mu.Lock()
-	store.limiters["192.168.1.1"] = &limiterEntry{
+	oldKey := rateLimitKey{bucketID: 1, ip: "192.168.1.1"}
+	newKey := rateLimitKey{bucketID: 1, ip: "192.168.1.2"}
+	store.limiters[oldKey] = &limiterEntry{
 		limiter:  rate.NewLimiter(1, 1),
 		lastSeen: time.Now().Add(-15 * time.Minute),
 	}
-	store.limiters["192.168.1.2"] = &limiterEntry{
+	store.limiters[newKey] = &limiterEntry{
 		limiter:  rate.NewLimiter(1, 1),
 		lastSeen: time.Now(),
 	}
@@ -33,8 +35,8 @@ func TestRateLimitStore_Evict(t *testing.T) {
 
 	store.mu.RLock()
 	defer store.mu.RUnlock()
-	assert.Nil(t, store.limiters["192.168.1.1"], "old entry should be evict-ed")
-	assert.NotNil(t, store.limiters["192.168.1.2"], "new entry should remain")
+	assert.Nil(t, store.limiters[oldKey], "old entry should be evict-ed")
+	assert.NotNil(t, store.limiters[newKey], "new entry should remain")
 }
 
 func TestRateLimit_Middleware(t *testing.T) {
@@ -94,4 +96,38 @@ func TestLiffRateLimit(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "liff ok", w.Body.String())
+}
+
+func TestRateLimit_MiddlewareInstancesUseIndependentBuckets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := NewRateLimitStore(ctx)
+	router := gin.New()
+	router.GET("/loose", RateLimit(store, 1, 60), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	router.GET("/strict", RateLimit(store, 1, 10), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	for range 11 {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/loose", http.NoBody)
+		router.ServeHTTP(recorder, request)
+		assert.Equal(t, http.StatusNoContent, recorder.Code)
+	}
+
+	for range 10 {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/strict", http.NoBody)
+		router.ServeHTTP(recorder, request)
+		assert.Equal(t, http.StatusNoContent, recorder.Code)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/strict", http.NoBody)
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
 }

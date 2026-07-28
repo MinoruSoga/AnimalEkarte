@@ -14,6 +14,8 @@ interface DateRangeInputsProps {
   className?: string;
   fromTestId?: string;
   toTestId?: string;
+  fromAriaLabel?: string;
+  toAriaLabel?: string;
   separator?: ReactNode;
   separatorClassName?: string;
 }
@@ -32,6 +34,8 @@ export function DateRangeInputs({
   className,
   fromTestId,
   toTestId,
+  fromAriaLabel = "開始日",
+  toAriaLabel = "終了日",
   separator = "〜",
   separatorClassName = `text-sm ${C.text50}`,
 }: DateRangeInputsProps) {
@@ -41,6 +45,7 @@ export function DateRangeInputs({
         type="date"
         value={fromValue}
         onChange={onFromChange}
+        aria-label={fromAriaLabel}
         className={inputClassName}
         data-testid={fromTestId}
       />
@@ -49,6 +54,7 @@ export function DateRangeInputs({
         type="date"
         value={toValue}
         onChange={onToChange}
+        aria-label={toAriaLabel}
         className={inputClassName}
         data-testid={toTestId}
       />

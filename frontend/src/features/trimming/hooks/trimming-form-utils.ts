@@ -35,7 +35,7 @@ export function findDefaultTrimmingReservationTypeId(
   return groups
     ?.flatMap((group) => group.types)
     .filter((type) => type.category === "trimming" && !type.is_internal)
-    .sort((a, b) => a.sort_order - b.sort_order)[0]?.id;
+    .toSorted((a, b) => a.sort_order - b.sort_order)[0]?.id;
 }
 
 interface FilterableMasterItem {
@@ -54,10 +54,11 @@ export function filterActiveOrSelectedMasterItems<T extends FilterableMasterItem
 ): T[] {
   const active = items.filter((item) => item.status === "active");
   const activeIds = new Set(active.map((item) => item.id));
+  const itemsById = new Map(items.map((item) => [item.id, item]));
   const uniqueSelectedIds = [...new Set(selectedIds)];
   const retainedInactive = uniqueSelectedIds
     .filter((id) => id !== "" && !activeIds.has(id))
-    .map((id) => items.find((item) => item.id === id))
+    .map((id) => itemsById.get(id))
     .filter((item): item is T => item != null)
     .map((item) => ({ ...item, name: `${item.name}（無効）` }));
   return [...active, ...retainedInactive];

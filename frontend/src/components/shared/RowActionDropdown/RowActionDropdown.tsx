@@ -13,9 +13,13 @@ interface RowActionDropdownAction {
 
 export interface RowActionDropdownProps {
   actions: RowActionDropdownAction[];
+  ariaLabel: string;
 }
 
-export const RowActionDropdown = memo(function RowActionDropdown({ actions }: RowActionDropdownProps) {
+export const RowActionDropdown = memo(function RowActionDropdown({
+  actions,
+  ariaLabel,
+}: RowActionDropdownProps) {
   return (
     <div
       className="flex items-center justify-end gap-1"
@@ -26,7 +30,7 @@ export const RowActionDropdown = memo(function RowActionDropdown({ actions }: Ro
           <Button
             variant="ghost"
             size="icon"
-            aria-label="操作"
+            aria-label={ariaLabel}
             className={`h-11 w-11 ${C.text60} ${C.hoverText}`}
             onClick={(e) => e.stopPropagation()}
           >

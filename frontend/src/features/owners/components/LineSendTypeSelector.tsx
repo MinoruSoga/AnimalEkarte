@@ -32,7 +32,7 @@ export function LineSendTypeSelector({
             checked={value === opt.value}
             onChange={() => onChange(opt.value)}
             disabled={disabled}
-            style={{ accentColor: PALETTE.brand }}
+            style={{ accentColor: PALETTE.actionPrimary }}
           />
           {opt.label}
         </label>

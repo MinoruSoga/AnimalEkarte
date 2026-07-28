@@ -31,23 +31,29 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — docs/spec/design-system.md §2.1 {colors.primary} (teal, AE product override of DESIGN.md's Notion blue) */
+  /** Brand primary — docs/spec/design-system.md の製品採用値 */
   brand: "#038B94",
-  /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.primary-active} */
+  /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.brand-active} */
   brandHover: "#027078",
   /** Brand light background */
   brandLight: "#E1F3F4",
   /** Brand dark text (on light bg) */
   brandDark: "#025F66",
 
+  /* ── Semantic primary action (same product teal as brand) ── */
+  actionPrimary: "#038B94",
+  actionPrimaryActive: "#027078",
+  actionPrimaryLight: "#E1F3F4",
+  actionPrimaryDark: "#025F66",
+
   /** Border – light (table cell, card) */
-  borderLight: "rgba(0,0,0,0.09)",
+  borderLight: "#E6E6E6",
 
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
   whiteAlpha80: "rgba(255,255,255,0.8)",
 
-  /** DESIGN.md primary blue accent */
-  accent: "#0075DE",
+  /** Legacy accent compatibility. New generic controls use actionPrimary. */
+  accent: "#038B94",
 
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
   danger: "#C0392B",
@@ -92,15 +98,16 @@ export const PALETTE = {
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /**
-   * Input/select/textarea focus border — legacy accent (#2383E2) rgb 表記。
-   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   * Input/select/textarea focus border — brand/primary teal の半透明表記。
+   * トークン名は互換のため維持。
    */
-  focusBorderLegacyAccent: "focus:border-[rgba(35,131,226,0.57)]",
+  focusBorderLegacyAccent: "focus:border-[rgba(3,139,148,0.57)]",
   /**
-   * Input/select/textarea focus ring — legacy accent (#2383E2) rgb 表記。
-   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   * Input/select/textarea focus ring — semantic primary（#038B94）。
    */
-  focusRingLegacyAccent: "focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
+  focusRingActionPrimary: "focus:shadow-focus-primary",
+  /** Explicit brand-surface focus shadow. Generic inputs must use focusRingActionPrimary. */
+  focusRingBrand: "focus:shadow-focus-brand",
 } as const;
 
 /* ================================================================== */
@@ -110,24 +117,44 @@ export const PALETTE = {
 /* ================================================================== */
 
 export const C = {
-  /* ── Text ── */
+  /* ── Text: DESIGN.md ink ランプ4段（FE11-F2 字義化）──────────────────────────
+   * DESIGN.md は ink 系を4段のみ規定する:
+   *   ink #000000 / ink-secondary #31302E / ink-muted #615D59 / ink-faint #A39E98
+   * 従来の黒アルファ14段（/90〜/15）は DESIGN.md に無い値だったため、
+   * **役割（DESIGN.md の用途記述）で4段へ写像**した。トークン名は呼び出し側 1664 箇所の
+   * 互換のため据え置き、値のみ字義化している。新規実装は textInk / textInkSecondary /
+   * textInkMuted / textInkFaint の4エイリアスを使うこと。
+   *   ink          = 見出し・本文               → text
+   *   ink-secondary= 二次本文・ラベル           → text90 / text80 / text70
+   *   ink-muted    = 補助・muted コピー         → text65 / text60 / text55 / text50
+   *   ink-faint    = キャプション・メタ・placeholder → text45 以下
+   */
   text:          "text-[#000000]",
-  text90:        "text-[#000000]/90",
-  text80:        "text-[#000000]/80",
-  text70:        "text-[#000000]/70",
-  text65:        "text-[#000000]/65",
-  text60:        "text-[#000000]/60",
-  text55:        "text-[#000000]/55",
-  text50:        "text-[#000000]/50",
-  text45:        "text-[#000000]/45",
-  text40:        "text-[#000000]/40",
-  text35:        "text-[#000000]/35",
-  text30:        "text-[#000000]/30",
-  text25:        "text-[#000000]/25",
-  text20:        "text-[#000000]/20",
-  text15:        "text-[#000000]/15",
-  textPlaceholder: "placeholder:text-[rgba(0,0,0,0.30)]",
-  textPlaceholderFaint: "placeholder:text-[rgba(0,0,0,0.15)]",
+  /** DESIGN.md {colors.ink} — 見出し・本文 */
+  textInk:          "text-[#000000]",
+  /** DESIGN.md {colors.ink-secondary} — 二次本文 */
+  textInkSecondary: "text-[#31302E]",
+  /** DESIGN.md {colors.ink-muted} — 補助・muted */
+  textInkMuted:     "text-[#615D59]",
+  /** DESIGN.md {colors.ink-faint} — キャプション・メタ・placeholder */
+  textInkFaint:     "text-[#A39E98]",
+
+  text90:        "text-[#31302E]",
+  text80:        "text-[#31302E]",
+  text70:        "text-[#31302E]",
+  text65:        "text-[#615D59]",
+  text60:        "text-[#615D59]",
+  text55:        "text-[#615D59]",
+  text50:        "text-[#615D59]",
+  text45:        "text-[#A39E98]",
+  text40:        "text-[#A39E98]",
+  text35:        "text-[#A39E98]",
+  text30:        "text-[#A39E98]",
+  text25:        "text-[#A39E98]",
+  text20:        "text-[#A39E98]",
+  text15:        "text-[#A39E98]",
+  textPlaceholder: "placeholder:text-[#A39E98]",
+  textPlaceholderFaint: "placeholder:text-[#A39E98]",
 
   /* ── Background ── */
   bgPage:        "bg-[#F6F5F4]",
@@ -142,13 +169,18 @@ export const C = {
   bgPrimary:     "bg-[#000000]",
   bgPrimary10:   "bg-[#000000]/10",
   bgPrimary5:    "bg-[#000000]/5",
+  /** Modal / mobile drawer scrim. */
+  bgOverlay:     "bg-[#000000]/30",
   /** Faint tinted background — skeleton shimmer base */
   bgSkeleton:    "bg-[rgba(0,0,0,0.06)]",
   /** Lightest bg — matching borderLight opacity; use for hr-style dividers */
-  bgLight:       "bg-[rgba(0,0,0,0.09)]",
+  bgLight:       "bg-[#E6E6E6]",
 
-  /* ── Brand (Hospital teal) ── */
-  textBrand:     "text-[#038B94]",
+  /* ── Legacy `Brand` names (semantic primary compatibility) ──
+   * FE10 以前から汎用 CTA / selection / focus に広く使われている。
+   * brand と primary は同じ teal 値を使う。新規実装は下の ActionPrimary 系を使うこと。
+   */
+  textBrand:     "text-[#025F66] dark:text-[#079BA5]",
   bgBrand:       "bg-[#038B94]",
   bgBrand10:     "bg-[#038B94]/10",
   bgBrand8:      "bg-[#038B94]/8",
@@ -156,18 +188,17 @@ export const C = {
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027078]",
   hoverBgBrand5: "hover:bg-[#038B94]/5",
-  /** Hover text — matches PALETTE.brandHover */
-  hoverTextBrand: "hover:text-[#027078]",
+  hoverTextBrand: "hover:text-[#025F66] dark:hover:text-[#079BA5]",
+  textOnBrand: "text-white",
+  hoverTextOnBrand: "hover:text-white",
+  activeBgBrand: "active:bg-[#027078]",
+  activeTextOnBrand: "active:text-white",
   focusRingBrand:"focus:ring-[#038B94]",
-  /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
-  focusRingBrand40: "focus:ring-[#038B94]/40",
+  focusRingBrand40: "focus:ring-[#038B94]",
   borderBrand:   "border-[#038B94]",
   borderLBrand:  "border-l-[#038B94]",
-  /** Light brand border for outline/badge use — matches legacy borderAccentLight/borderAccentBadge weight */
   borderBrandLight: "border-[#038B94]/30",
-  /** Tailwind accent-color utility (checkbox/radio) — brand teal */
   accentBrand:   "accent-[#038B94]",
-  /* Brand light background — matches PALETTE.brandLight (#E1F3F4), replaces legacy bgAccentLight family */
   bgBrandLight:   "bg-[#E1F3F4]",
   bgBrandLight8:  "bg-[#E1F3F4]/8",
   bgBrandLight30: "bg-[#E1F3F4]/30",
@@ -175,38 +206,72 @@ export const C = {
   bgBrandLight50: "bg-[#E1F3F4]/50",
   hoverBgBrandLight:   "hover:bg-[#E1F3F4]",
   hoverBgBrandLight60: "hover:bg-[#E1F3F4]/60",
-  /** Darker brand text for contrast on bgBrandLight — matches PALETTE.brandDark (#025F66), replaces legacy textAccentDark on brand-light surfaces */
   textBrandDark: "text-[#025F66]",
 
+  /* ── Brand identity (authentication / logo / explicit brand surfaces) ── */
+  textBrandIdentity: "text-[#025F66] dark:text-[#079BA5]",
+  bgBrandIdentity: "bg-[#038B94]",
+  hoverBgBrandIdentity: "hover:bg-[#027078]",
+  activeBgBrandIdentity: "active:bg-[#027078]",
+  textOnBrandIdentity: "text-white",
+  hoverTextOnBrandIdentity: "hover:text-white",
+  activeTextOnBrandIdentity: "active:text-white",
+  focusRingBrandIdentity: "focus:ring-[#038B94]",
+  borderBrandIdentity: "border-[#038B94]",
+  bgBrandIdentityLight: "bg-[#E1F3F4]",
+
+  /* ── Semantic primary action (generic CTA / active / focus; brand teal) ── */
+  textActionPrimary: "text-[#025F66] dark:text-[#079BA5]",
+  bgActionPrimary: "bg-[#038B94]",
+  bgActionPrimary10: "bg-[#038B94]/10",
+  bgActionPrimary8: "bg-[#038B94]/8",
+  bgActionPrimary5: "bg-[#038B94]/5",
+  hoverBgActionPrimary: "hover:bg-[#027078]",
+  hoverTextOnActionPrimary: "hover:text-white",
+  hoverBgActionPrimary5: "hover:bg-[#038B94]/5",
+  activeBgActionPrimary: "active:bg-[#027078]",
+  activeTextOnActionPrimary: "active:text-white",
+  textOnActionPrimary: "text-white",
+  borderActionPrimary: "border-[#038B94]",
+  borderLActionPrimary: "border-l-[#038B94]",
+  focusRingActionPrimary: "focus:ring-[#038B94]",
+  focusVisibleRingActionPrimary: "focus-visible:ring-[#038B94]",
+  bgActionPrimaryLight: "bg-[#E1F3F4]",
+  textActionPrimaryDark: "text-[#025F66]",
+
   /* ── Border ── */
-  borderLight:   "border-[rgba(0,0,0,0.09)]",
-  borderLight50: "border-[rgba(0,0,0,0.09)]/50",
+  borderLight:   "border-[#E6E6E6]",
+  borderLight50: "border-[#E6E6E6]/50",
   borderMediumLight: "border-[rgba(0,0,0,0.12)]",
-  borderMedium:  "border-[rgba(0,0,0,0.16)]",
+  /** DESIGN.md text-input border 1px rgb(221,221,221)（FE11-F3 字義化。design-system.md §2.6 と一致） */
+  borderMedium:  "border-[#DDDDDD]",
   borderDivider: "border-[rgba(0,0,0,0.06)]",
   borderPrimary: "border-[#000000]",
   borderPrimary20: "border-[#000000]/20",
   borderPrimary10: "border-[#000000]/10",
-  divideDivider: "divide-[rgba(0,0,0,0.09)]",
+  divideDivider: "divide-[#E6E6E6]",
   divideDividerFaint: "divide-[rgba(0,0,0,0.06)]",
 
   /* ── Accent ── */
-  bgAccent:      "bg-[#2383E2]",
-  bgAccentHover: "hover:bg-[#1B6EC2]",
+  bgAccent:      "bg-[#038B94]",
+  bgAccentHover: "hover:bg-[#027078]",
   bgAccentLight: "bg-[#D3E5EF]",
   bgAccentLight60: "bg-[#D3E5EF]/60",
   textAccentDark:"text-[#183B56]",
   textAccentDark90:"text-[#183B56]/90",
   /** Light accent border for outline accent buttons */
-  borderAccentLight: "border-[#2383E2]/30",
-  focusBorderAccent: "focus:border-[#2383E2]",
-  focusRingAccent: "focus-visible:ring-[#2383E2]",
-  focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
-  /** Focus ring (30% opacity, `focus:` not `focus-visible:`) — plain form inputs (date/number fields) */
-  focusRingAccent30: "focus:ring-[#2383E2]/30",
+  borderAccentLight: "border-[#038B94]/30",
+  focusBorderAccent: "focus:border-[#038B94]",
+  focusRingAccent: "focus-visible:ring-[#038B94]",
+  /** Compatibility alias: focus indicators stay opaque to preserve 3:1 non-text contrast. */
+  focusRingAccent40: "focus-visible:ring-[#038B94]",
+  /** Compatibility alias (`focus:` variant): focus indicators stay opaque for non-text contrast. */
+  focusRingAccent30: "focus:ring-[#038B94]",
   /** data-state checked (Radix Checkbox) */
-  dataCheckedBgAccent: "data-[state=checked]:bg-[#2383E2]",
-  dataCheckedBorderAccent: "data-[state=checked]:border-[#2383E2]",
+  dataCheckedBgAccent: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderAccent: "data-[state=checked]:border-[#038B94]",
+  dataCheckedBgActionPrimary: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderActionPrimary: "data-[state=checked]:border-[#038B94]",
   dataCheckedBgBrand: "data-[state=checked]:bg-[#038B94]",
   dataCheckedBorderBrand: "data-[state=checked]:border-[#038B94]",
 
@@ -346,7 +411,7 @@ export const C = {
   hoverBgPrimary10: "hover:bg-[#000000]/10",
   hoverBgPrimaryDark: "hover:bg-[#000000]/90",
   hoverText:     "hover:text-[#000000]",
-  hoverText60:   "hover:text-[#000000]/60",
+  hoverText60:   "hover:text-[#615D59]",
   hoverBorderPrimary30: "hover:border-[#000000]/30",
   hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
   hoverBgSubtle: "hover:bg-[#F6F5F4]",
@@ -360,7 +425,7 @@ export const C = {
 
   /* ── Focus utilities ── */
   focusBgLight:  "focus:bg-[rgba(0,0,0,0.04)]",
-  focusBorderLight: "focus:border-[rgba(0,0,0,0.09)]",
+  focusBorderLight: "focus:border-[#E6E6E6]",
   focusRingMedium: "focus-visible:ring-[rgba(0,0,0,0.16)]",
 
   /* ─ Ring ── */
@@ -415,22 +480,22 @@ export const C = {
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
   hoverTextStatusGreen:  "hover:text-[#0F7B6C]",
 
-  /* ── Medical accent blue (karte / hospitalization) ── */
-  bgMedicalBlue:          "bg-[#2EAADC]",
-  bgMedicalBlue5:         "bg-[#2EAADC]/5",
-  textMedicalBlue:        "text-[#2EAADC]",
-  borderLMedicalBlue:     "border-l-[#2EAADC]",
-  hoverBgMedicalBlue90:   "hover:bg-[#2EAADC]/90",
-  ringMedicalBlue:        "ring-[#2EAADC]",
-  focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
+  /* ── Medical accent — 臨床文脈に限定した semantic blue（primary とは独立） ── */
+  bgMedicalBlue:          "bg-[#0075DE]",
+  bgMedicalBlue5:         "bg-[#0075DE]/5",
+  textMedicalBlue:        "text-[#0075DE]",
+  borderLMedicalBlue:     "border-l-[#0075DE]",
+  hoverBgMedicalBlue90:   "hover:bg-[#0075DE]/90",
+  ringMedicalBlue:        "ring-[#0075DE]",
 
   /* ── 健診「期限間近」バッジ ── */
   bgCheckupDueSoon:   "bg-[#F0D070]",
   textCheckupDueSoon: "text-[#7A5C00]",
 
   /* ── Data-state active (Radix Tabs) ── */
-  dataActiveBorderB: "data-[state=active]:border-b-[#000000]",
-  dataActiveText:    "data-[state=active]:text-[#000000]",
+  /** Active tab は semantic primary（brand と同じ teal）を使う。 */
+  dataActiveBorderB: "data-[state=active]:border-b-[#038B94]",
+  dataActiveText:    "data-[state=active]:text-[#025F66] dark:data-[state=active]:text-[#079BA5]",
 } as const;
 
 /* ================================================================== */
@@ -538,8 +603,8 @@ export const LAYOUT = {
   sidebar: {
     expanded:      "w-[220px]",
     collapsed:     "w-[56px]",
-    /** 折りたたみ時の正方形ボタン高さ (30px) — トグル/ログアウトボタン共通 */
-    collapsedItemH: "h-[30px]",
+    /** 折りたたみ時の操作領域高 (44px) — トグル/ログアウトボタン共通 */
+    collapsedItemH: "h-11",
   },
 
   /* ── Side Peek (master edit, etc.) ── */
@@ -551,6 +616,7 @@ export const LAYOUT = {
   /** Master-detail nav panel width (tree/list side panel, e.g. LINE予約枠) */
   treeNavPanel: {
     width: "w-[260px]",
+    responsiveWidth: "w-full md:w-[260px]",
   },
 
   /* ── Property Row (Notion-style key-value) ── */
@@ -565,8 +631,16 @@ export const LAYOUT = {
    * `default` 設定・単票フォーム系ページ（PageLayout の暗黙デフォルト）
    */
   pageContentMaxWidth: {
-    full:    "max-w-full",
-    default: "max-w-[1440px]",
+    full:       "max-w-full",
+    default:    "max-w-[1440px]",
+    /** 広い編集フォーム（飼主・入院・トリミング等） */
+    form:       "max-w-[1400px]",
+    /** 中規模編集フォーム（検査・ワクチン等） */
+    formMid:    "max-w-[1200px]",
+    /** 狭い単票フォーム（健診等） */
+    formNarrow: "max-w-[900px]",
+    /** 詳細ワークスペース（入院詳細等） */
+    detailWide: "max-w-[1600px]",
   },
 
   /**
@@ -598,11 +672,12 @@ export const LAYOUT = {
     full: "w-[98%] sm:max-w-[1400px] h-[90vh]",
   },
 
-  /** Notion page title style */
+  /** DESIGN.md heading-2 — large page title used by side panels and settings index. */
   pageTitle: {
-    fontSize:      "30px",
+    fontSize:      "26px",
     fontWeight:    700,
-    lineHeight:    "1.2",
+    lineHeight:    "1.23",
+    letterSpacing: "-0.625px",
   },
 
   /** Notion page icon */
@@ -612,9 +687,9 @@ export const LAYOUT = {
 
   /* ── Input / Color Picker compact patterns ── */
   /** Compact padding + rounded for small inline inputs and buttons */
-  inputCompact:     "px-1.5 py-0.5 rounded-[3px]",
+  inputCompact:     "px-1.5 py-0.5 rounded-xxs",
   /** Standard padding + rounded for number/text inputs in side panels */
-  inputStandard:    "px-2 py-1 rounded-[3px]",
+  inputStandard:    "px-2 py-1 rounded-xxs",
   /** Small color-picker input (w-7 h-7) */
   colorInputSmall:  "w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0",
   /** Medium color-picker input (w-12 h-12) */
@@ -630,42 +705,44 @@ export const LAYOUT = {
  * FE3-1: ShiftTemplateSettingsParts.tsx の保存ボタンで使うピルボタンの影。
  * STYLE オブジェクト内は自己参照できないため、
  * 定義前のモジュールスコープ定数として保持し STYLE.pillShadow から再輸出する。
+ * FE9-2: design-system.md §5.1 の shadow-btn トークンへ移行。
  */
-const PILL_SHADOW = "shadow-[0_1px_2px_rgba(0,0,0,0.1)]";
+const PILL_SHADOW = "shadow-btn";
 
 export const STYLE = {
   /* ── Page / Section ─ */
   page:            `${C.bgPage} overflow-hidden`,
-  pageContent:     "flex-1 overflow-y-auto flex flex-col w-full px-3 py-5",
+  pageContent:     "flex-1 overflow-y-auto flex flex-col w-full px-3 py-6",
   sectionDivider:  `border-t ${C.borderLight}`,
 
   /* ── Form Header ── */
   formHeader:
-    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between gap-2 h-[53px]`,
+    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 py-1 flex items-center justify-between gap-2 min-h-[53px]`,
 
   /* ── Primary Button ── */
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnDanger:
-    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-md shadow-btn transition-colors`,
 
   /* ── Table ── */
   tableContainer:
-    `bg-white border ${C.borderLight} rounded-[4px] flex flex-col flex-1 min-h-0`,
+    `bg-white border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`,
+  /* FE10: DESIGN.md ex-data-table-cell 字義化 — header は canvas-soft 帯 + eyebrow 型（house 様式裁定を撤回・全テーブル一括） */
   tableHeaderRow:
-    `border-b ${C.borderLight} ${C.bgPage30} h-11`,
+    `border-b ${C.borderLight} ${C.bgPage} h-11`,
   tableHeaderCell:
-    `text-base font-medium ${C.text70} h-11`,
+    `text-2xs font-semibold ${C.text55} px-4 py-3`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
-    `text-base ${C.text} py-2.5`,
+    `text-sm font-normal ${C.text} px-4 py-3`,
   tableCellMono:
-    `font-mono text-base ${C.text} py-2.5`,
+    `font-mono text-sm font-normal ${C.text} px-4 py-3`,
   tableCellMuted:
-    `text-base ${C.text70} py-2.5`,
+    `text-sm font-normal ${C.text70} px-4 py-3`,
   tableEmpty:
     `text-center py-12 ${C.text70} text-base`,
   tableEmptySm:
@@ -675,7 +752,7 @@ export const STYLE = {
 
   /* ── Search Filter Bar ── */
   searchInput:
-    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
+    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-xs outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
@@ -683,9 +760,9 @@ export const STYLE = {
 
   /* ── Pagination ── */
   paginationBtn:
-    `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-[4px]`,
+    `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-xs`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-base rounded-[4px]`,
+    `h-8 w-8 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} text-base rounded-xs`,
   paginationInfo:
     `text-base ${C.text50}`,
 
@@ -699,47 +776,48 @@ export const STYLE = {
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
-    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`,
+    `size-7 min-h-11 min-w-11 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-xxs transition-colors`,
 
   /* ── Notion Property Row ── */
   propertyRow:
-    `flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`,
+    `flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`,
   propertyInput:
-    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
+    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
 
   /* ── Side Peek ── */
   sidePeekPanel:
-    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`,
+    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`,
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
-    `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`,
+    `size-9 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
-  iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn32: `size-8 min-h-11 min-w-11 flex items-center justify-center rounded-md transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
-  iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn28: `size-7 min-h-11 min-w-11 flex items-center justify-center rounded-md transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
-  iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn20: `size-5 min-h-11 min-w-11 flex items-center justify-center rounded-xxs transition-colors`,
   sidePeekBody:
     "flex-1 overflow-y-auto",
   sidePeekFooter:
     `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`,
   sidePeekCancelBtn:
-    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
+    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-xxs transition-colors cursor-pointer`,
 
   /* ── Notion Page Icon ── */
   pageIcon:
-    `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}`,
+    `size-[38px] flex items-center justify-center rounded-xxs ${C.bgPage} ${C.text45}`,
 
   /* ── Select Trigger (compact, side peek) ── */
   selectCompact:
-    `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-auto max-w-full`,
+    `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-auto max-w-full`,
 
-  /* ── Section heading (uppercase label) ── */
+  /* ── Section heading / table header eyebrow (uppercase label) ── */
+  /** FE10: DESIGN.md eyebrow 字義化（12px/600）。テーブルヘッダの de-facto トークン（ex-data-table-cell headerTypography）。旧 text-base(16px) は house 様式で撤回済み */
   sectionLabel:
-    `text-base ${C.text55} uppercase tracking-wide select-none`,
+    `text-2xs font-semibold ${C.text55} uppercase select-none`,
 
   /* ── Ghost Danger (delete buttons in form headers) ── */
   btnDangerGhost:
@@ -747,13 +825,13 @@ export const STYLE = {
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:
     `w-full flex items-center gap-3 px-4 py-3 ${C.hoverBgPage} transition-colors cursor-pointer group text-left`,
   settingsRowIcon:
-    `size-[32px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45} ${C.groupHoverBgPrimary} ${C.groupHoverTextWhite} transition-colors shrink-0`,
+    `size-[32px] flex items-center justify-center rounded-xxs ${C.bgPage} ${C.text45} ${C.groupHoverBgPrimary} ${C.groupHoverTextWhite} transition-colors shrink-0`,
 
   /* ── Inline Add Row ── */
   inlineAddBtn:
@@ -768,26 +846,27 @@ export const STYLE = {
   formInputError:
     `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
   formCard:
-    `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
+    `bg-white p-6 rounded-lg border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
-  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
+  textarea:     `w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
 
   /* ── Drag Overlay ── */
-  dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
+  /** FE9-2: ドラッグ中の浮遊オーバーレイ = design-system.md §5.1 shadow-level1（浮動要素）へ移行。 */
+  dragOverlayShadow: "shadow-level1",
   /**
    * Week view ドラッグ中プレビューの box-shadow 生値（framer motion の
    * whileDrag style prop 用。className ではなく inline style として使うため
-   * `shadow-[...]` の Tailwind ラッパーは付けない）。dragOverlayShadow とは値が
+   * Tailwind の任意値クラス表記は使わない）。dragOverlayShadow とは値が
    * 異なるため統合しない。FE3-1: 値は既存直値のまま。
    */
   dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
-  /** 予約カード（AppointmentCard）の二重影。FE3-1: 値は既存直値のまま。 */
-  cardShadow: "shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]",
   /** ピルボタンの影（ShiftTemplateSettingsParts.tsx で使用）。 */
   pillShadow: PILL_SHADOW,
-  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE3-1: 値は既存直値のまま。 */
-  brandGlow: "shadow-[0_0_8px_rgba(3,139,148,0.5)]",
+  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。 */
+  brandGlow: "shadow-brand-glow",
+  /** Layout のナビゲーション進捗バー primary グロー（#038B94）。 */
+  primaryGlow: "shadow-primary-glow",
 
   /* ── Table Row Hover (FG1 compliance) ── */
   /** Standard table row hover — use instead of hardcoded hover:bg-gray-50 */

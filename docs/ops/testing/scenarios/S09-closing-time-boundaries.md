@@ -28,7 +28,7 @@
 ## 確認観点
 
 - **帰属の判定軸**: 区分・営業日の帰属は完了時刻（`completed_at`）と締め時間設定の照合で決まる（仕様正本 締め時間設定 §主要な機能）。会計の予定日（scheduled_date）ではない。AM/PM/EMG は連続・非重複で 24 時間を被覆する。
-- **越日 EMG（#215）**: 深夜 0:00〜AM 開始の会計は前日の EMG に帰属する（`backend/internal/service/cash_register_service.go` の `resolvePeriodRange`。集計は completed_at の終端排他レンジ）。境界設定を後から変更しても締め済みレコードは再計算されない（仕様正本 29 §1）。
+- **越日 EMG（#215）**: 深夜 0:00〜AM 開始の会計は前日の EMG に帰属する（`backend/internal/billing/cash_register_service.go` の `resolvePeriodRange`。集計は completed_at の終端排他レンジ）。境界設定を後から変更しても締め済みレコードは再計算されない（仕様正本 29 §1）。
 - **締め済み警告の判定粒度**: FE の締め済み判定は会計の予定日単位で、その日のいずれかの区分が締め済みなら警告される（区分単位ではない）。#8 の観察時に留意する。
 - **不変性**: 締めレコードに更新・削除 API は存在せず append-only。不変性は `(clinic_id, close_date, period)` の UNIQUE 制約（二重締め防止）で担保される（仕様正本 §5）。
 - **#10 のフィルタ粒度**: 締め履歴の区分フィルタはクライアント側フィルタで、現在ページ内の行だけに作用する（`frontend/src/features/cash-register/routes/CashRegisterHistoryPage.tsx`）。ページを跨ぐ絞り込み漏れを不具合と誤認しない。

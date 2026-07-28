@@ -108,4 +108,11 @@ describe("Reception — テレメトリ配線（Phase 2 常時有効）", () => 
     expect(screen.getByText("32分")).toBeInTheDocument();
     expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
   });
+
+  it("受付カンバンは mobile で単一列、sm 以上で複数列にする", () => {
+    renderReception();
+
+    const kanbanGrid = screen.getByRole("region", { name: "受付予約 — 1件" }).parentElement;
+    expect(kanbanGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+  });
 });

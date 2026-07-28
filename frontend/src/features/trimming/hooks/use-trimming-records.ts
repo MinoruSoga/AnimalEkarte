@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from "react";
 import type { MutateOptions } from "@tanstack/react-query";
-import { useGetTrimmings } from "../api/get-trimmings";
+import { useGetTrimmingsPage } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
@@ -11,7 +11,12 @@ export function useFilterTrimmingRecords(
   filters?: TrimmingFilters,
   activeFilters?: ActiveFilter[],
 ) {
-  const { data: trimmingRecords = [], isLoading, error } = useGetTrimmings(filters);
+  const { data: trimmingPage, isLoading, error } = useGetTrimmingsPage(filters);
+  const trimmingRecords = useMemo(
+    () => trimmingPage?.items ?? [],
+    [trimmingPage?.items],
+  );
+  const isTruncated = trimmingPage?.isTruncated ?? false;
   const { mutate: deleteTrimmingFn } = useDeleteTrimming();
 
   const filteredRecords = useMemo(() => {
@@ -76,5 +81,12 @@ export function useFilterTrimmingRecords(
     [deleteTrimmingFn],
   );
 
-  return { data: filteredRecords, allTrimmings: trimmingRecords, isLoading, error, deleteRecord };
+  return {
+    data: filteredRecords,
+    allTrimmings: trimmingRecords,
+    isTruncated,
+    isLoading,
+    error,
+    deleteRecord,
+  };
 }

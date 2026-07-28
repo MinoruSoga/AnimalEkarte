@@ -81,16 +81,33 @@ describe("transformToAccounting", () => {
       ...minimal,
       items: [{
         ...item,
+        vaccination_id: 5,
         treatment_id: 10,
         appointment_id: 20,
         trimming_course_id: 30,
         trimming_option_id: 40,
       }],
     });
+    expect(result.items[0].vaccinationId).toBe("5");
     expect(result.items[0].treatmentId).toBe("10");
     expect(result.items[0].appointmentId).toBe("20");
     expect(result.items[0].trimmingCourseId).toBe("30");
     expect(result.items[0].trimmingOptionId).toBe("40");
+  });
+
+  it("merchandise_item_id を merchandiseItemId に変換する", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      items: [{ ...item, merchandise_item_id: 50 }],
+    });
+
+    expect(result.items[0].merchandiseItemId).toBe("50");
+  });
+
+  it("merchandise_item_id が無い明細では merchandiseItemId は undefined", () => {
+    const result = transformToAccounting({ ...minimal, items: [item] });
+
+    expect(result.items[0].merchandiseItemId).toBeUndefined();
   });
 
   it("tax_rate 0.08 は 0.08 として保持する", () => {

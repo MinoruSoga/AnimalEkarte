@@ -1,12 +1,17 @@
 import { useState, useCallback, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
+import { isAxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ErrorFallback } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { queryKeys } from "@/lib/query-keys";
-import { usePermission } from "@/hooks/use-permission";
-import { ResourceOwners } from "@/types/generated/models";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ResourceLstepAnalytics,
+  ResourceOwners,
+} from "@/types/generated/models";
 import { useGetLstepTagSummary } from "../api/get-lstep-tag-summary";
 import { TagSummaryTable } from "../components/TagSummaryTable";
 import { TagOwnerListDrawer } from "../components/TagOwnerListDrawer";
@@ -26,9 +31,11 @@ function formatRelativeMinutes(asOf: string): string {
 
 export function LstepTagManagementPage() {
   const queryClient = useQueryClient();
-  const { canView, canEdit } = usePermission(ResourceOwners);
+  const { hasPermission } = useAuth();
+  const canViewAnalytics = hasPermission(ResourceLstepAnalytics, "view");
+  const canDeleteOwnerTags = hasPermission(ResourceOwners, "delete");
 
-  const { data, isLoading } = useGetLstepTagSummary();
+  const { data, isLoading, isError, error } = useGetLstepTagSummary();
 
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
@@ -55,11 +62,12 @@ export function LstepTagManagementPage() {
   }, []);
 
   const relativeTime = data?.as_of ? formatRelativeMinutes(data.as_of) : null;
+  const isForbidden = isAxiosError(error) && error.response?.status === 403;
 
   return (
     <PageLayout
       title="Lステップタグ管理"
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <div className="flex items-center gap-3">
           {relativeTime !== null ? (
@@ -81,13 +89,23 @@ export function LstepTagManagementPage() {
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* タグサマリーテーブル */}
-        <TagSummaryTable
-          tags={tags}
-          isLoading={isLoading}
-          onViewOwners={handleViewOwners}
-          onBulkRemove={handleBulkRemove}
-          canDelete={canEdit}
-        />
+        {isError ? (
+          <ErrorFallback
+            message={
+              isForbidden
+                ? "アクセス権限がありません。Lステップ分析の閲覧権限を確認してください。"
+                : "Lステップタグの取得に失敗しました"
+            }
+          />
+        ) : (
+          <TagSummaryTable
+            tags={tags}
+            isLoading={isLoading}
+            onViewOwners={handleViewOwners}
+            onBulkRemove={handleBulkRemove}
+            canDelete={canDeleteOwnerTags}
+          />
+        )}
       </div>
 
       {/* 対象者一覧ドロワー */}
@@ -96,8 +114,8 @@ export function LstepTagManagementPage() {
         onOpenChange={handleDrawerOpenChange}
         tagName={drawerState.tagName}
         ownerCount={drawerState.ownerCount}
-        canDelete={canEdit}
-        canExportCsv={canView || canEdit}
+        canDelete={canDeleteOwnerTags}
+        canExportCsv={canViewAnalytics}
       />
     </PageLayout>
   );

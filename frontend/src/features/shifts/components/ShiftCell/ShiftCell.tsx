@@ -12,6 +12,11 @@ const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   paid_leave: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
 };
 
+function getShiftTimeRangeLabel(shift: Shift): string {
+  if (!shift.start_time && !shift.end_time) return "時刻なし";
+  return `${shift.start_time || "開始時刻未設定"}〜${shift.end_time || "終了時刻未設定"}`;
+}
+
 interface ShiftCellProps {
   shift: Shift | undefined;
   // rerender-dependencies: primitive props + stable handlers の分離パターン
@@ -46,9 +51,9 @@ export const ShiftCell = memo(function ShiftCell({
     return canCreate ? (
       <button
         onClick={handleAdd}
-        className={`w-full h-full min-h-[36px] flex items-center justify-center ${C.text20} ${C.hoverText60} ${C.hoverBgPage} rounded transition-colors text-xs`}
+        className={`w-full h-full min-h-11 flex items-center justify-center ${C.text20} ${C.hoverText60} ${C.hoverBgPage} rounded transition-colors text-xs`}
         type="button"
-        aria-label="シフトを追加"
+        aria-label={`${staffName} ${dateStr} シフトを追加`}
       >
         +
       </button>
@@ -59,16 +64,18 @@ export const ShiftCell = memo(function ShiftCell({
 
   const colorClass = SHIFT_TYPE_COLORS[shift.shift_type];
   const label = SHIFT_TYPE_LABELS[shift.shift_type];
+  const timeRangeLabel = getShiftTimeRangeLabel(shift);
 
   return canEdit ? (
     <button
       onClick={handleEdit}
-      className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium transition-opacity hover:opacity-80 ${colorClass}`}
+      className={`w-full min-h-11 px-1 py-1 rounded border text-xs font-medium transition-opacity hover:opacity-80 ${colorClass}`}
       type="button"
+      aria-label={`${staffName} ${dateStr} ${label}シフト（${timeRangeLabel}）を編集`}
     >
       <span className="block leading-tight">{label}</span>
       {shift.start_time ? (
-        <span className="block leading-tight text-[10px] opacity-70">
+        <span className="block leading-tight text-2xs opacity-70">
           {shift.start_time}
           {shift.end_time ? `〜${shift.end_time}` : ""}
         </span>
@@ -78,7 +85,7 @@ export const ShiftCell = memo(function ShiftCell({
     <div className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium ${colorClass}`}>
       <span className="block leading-tight">{label}</span>
       {shift.start_time ? (
-        <span className="block leading-tight text-[10px] opacity-70">
+        <span className="block leading-tight text-2xs opacity-70">
           {shift.start_time}
           {shift.end_time ? `〜${shift.end_time}` : ""}
         </span>

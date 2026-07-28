@@ -1,14 +1,19 @@
 package middleware
 
 import (
-	"errors"
+	"bytes"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 func TestRequestID(t *testing.T) {
@@ -81,8 +86,10 @@ func TestRequestLoggingMiddleware(t *testing.T) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "client error"})
 	})
 	router.GET("/500", func(c *gin.Context) {
-		c.Error(errors.New("db error"))
-		c.AbortWithStatus(http.StatusInternalServerError)
+		httpapi.RespondError(c, fmt.Errorf("database error: %w", &pgconn.PgError{
+			Code:    "42703",
+			Message: "undefined column",
+		}))
 	})
 
 	t.Run("logs status 200", func(t *testing.T) {
@@ -90,6 +97,24 @@ func TestRequestLoggingMiddleware(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/200?query=1", http.NoBody)
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("does not log query values", func(t *testing.T) {
+		var logBuffer bytes.Buffer
+		previousLogger := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuffer, nil)))
+		t.Cleanup(func() {
+			slog.SetDefault(previousLogger)
+		})
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/200?access_token=secret-value", http.NoBody)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, logBuffer.String(), `"path":"/200"`)
+		assert.NotContains(t, logBuffer.String(), "access_token")
+		assert.NotContains(t, logBuffer.String(), "secret-value")
 	})
 
 	t.Run("logs status 400", func(t *testing.T) {
@@ -100,9 +125,21 @@ func TestRequestLoggingMiddleware(t *testing.T) {
 	})
 
 	t.Run("logs status 500 with error", func(t *testing.T) {
+		var logBuffer bytes.Buffer
+		previousLogger := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuffer, nil)))
+		t.Cleanup(func() {
+			slog.SetDefault(previousLogger)
+		})
+
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet, "/500", http.NoBody)
 		router.ServeHTTP(w, req)
+
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, logBuffer.String(), `"msg":"server error"`)
+		assert.Contains(t, logBuffer.String(), `"status":500`)
+		assert.Contains(t, logBuffer.String(), `"error":`)
+		assert.Contains(t, logBuffer.String(), "SQLSTATE 42703")
 	})
 }

@@ -2,6 +2,7 @@ import { memo, useCallback, useState, type ChangeEvent } from "react";
 import { Check, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
@@ -55,48 +56,48 @@ export const CheckupEditRow = memo(function CheckupEditRow({
 
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
-      <td className="px-3 py-2">
+      <TableCell>
         <DatePicker
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
           className="h-8 w-full"
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <CheckupTypeSelect
           value={form.checkup_type_id ?? ""}
           checkupTypes={checkupTypes}
           onChange={(value) => handleChange("checkup_type_id", value ? Number(value) : null)}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <DatePicker
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
           className="h-8 w-full"
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <StaffSelect
           value={form.doctor_id ?? ""}
           staffs={staffs}
           emptyLabel="-"
           onChange={(value) => handleChange("doctor_id", value ? Number(value) : null)}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="text"
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
           aria-label={`結果 (${checkup.date})`}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
-      </td>
-      <td className="px-2 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
@@ -117,7 +118,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
             <X className={ICON.xs} />
           </button>
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 });
@@ -143,11 +144,11 @@ export function CheckupDisplayRow({
 }: CheckupDisplayRowProps) {
   return (
     <tr className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}>
-      <td className={`px-3 text-sm ${C.text}`}>{checkup.date}</td>
-      <td className={`px-3 text-sm ${C.text}`}>
+      <TableCell className={C.text}>{checkup.date}</TableCell>
+      <TableCell className={C.text}>
         {checkup.checkup_type?.name ?? checkup.checkup_type_id}
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>
+      </TableCell>
+      <TableCell className={C.text60}>
         {checkup.next_date ? (
           <div className="flex items-center gap-1.5">
             <span>{checkup.next_date}</span>
@@ -156,12 +157,12 @@ export function CheckupDisplayRow({
         ) : (
           "-"
         )}
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>
+      </TableCell>
+      <TableCell className={C.text60}>
         {checkup.doctor?.name ?? (checkup.doctor_id ? checkup.doctor_id : "-")}
-      </td>
-      <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
-      <td className="px-2">
+      </TableCell>
+      <TableCell className={C.text}>{checkup.result}</TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           {canEdit && !isFinalized ? (
             <button
@@ -180,7 +181,7 @@ export function CheckupDisplayRow({
             />
           ) : null}
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 }
@@ -249,11 +250,11 @@ export function CheckupAddRow({
           if (e.key === "Escape") onCancel();
         }}
         aria-label="結果"
-        className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+        className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
       />
       <Button
         size="sm"
-        className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+        className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
         onClick={onSubmit}
         disabled={isPending || !addForm.date || !addForm.checkup_type_id}
       >
@@ -286,7 +287,7 @@ function CheckupTypeSelect({
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {checkupTypes.map((type) => (
@@ -313,7 +314,7 @@ function StaffSelect({
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {staffs.map((staff) => (

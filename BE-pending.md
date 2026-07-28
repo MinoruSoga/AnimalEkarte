@@ -1,8 +1,8 @@
 # BE-pending.md — バックエンド 着手保留・次期送り
 
 - **更新日**: 2026-07-15
-- **本書の規約**: 今期は着手しない（次期送り確定 / PO 判断待ち / サイクル外 / reset 後の任意検証）項目の正本。再検討トリガが立つか判断が出たら、実装単位として `todo.md`（BE 残タスク / BE リファクタ引き継ぎ）に戻す。
-- **別台帳**: 今期着手可能な残・リファクタ次期引き継ぎ（第7期完了）は `todo.md`。本書と重複させない。
+- **本書の規約**: 今期は着手しない（次期送り確定 / PO 判断待ち / サイクル外 / reset 後の任意検証）項目の正本。再検討トリガが立つか判断が出たら、実装単位として [`3-session-agent.html` の実装タスク台帳（正本）](3-session-agent.html#ledger) に戻す。
+- **別台帳**: 今期着手可能な残・リファクタ次期引き継ぎ（第7期完了）は [`3-session-agent.html` の実装タスク台帳（正本）](3-session-agent.html#ledger)。本書と重複させない。
 
 ### 検証コマンド規約（再開時・Docker 必須・スコープ限定）
 
@@ -22,16 +22,16 @@
 
 ### STG クロステナント監査 SQL — reset 後の任意検証（2026-07-12）
 
-- **扱い**: 必須ではない。STG デプロイで `DB_RESET=true` により DB 初期化→再投入する予定のため、ガード導入前の残存越境データを探す本来目的は不要。
-- **残す理由**: reset + seed 直後に、シード自体が clinic 越境を含まないことの任意スモークとして使える。
-- **移管元**: `BE-refactor.md`（2026-07-12）。
-- **実行条件**: 人間実行のみ・自動実行禁止。接続経路が判明しているとき、reset/seed 完了後に任意で 1 回。
+- **扱い**: 必須ではない。ガード導入前の残存越境データを、承認済みのSTG診断時に読み取り専用で確認する任意監査。
+- **残す理由**: migration/seed適用後に、既存データがclinic越境を含まないことの任意スモークとして使える。
+- **移管元**: `BE-refactor.md`（2026-07-12）。同fileはBE10 round close 2026-07-26で削除済み・正本=git履歴。
+- **実行条件**: 人間実行のみ・自動実行禁止。接続経路と対象DBを確認し、migration/seed完了後に任意で1回。
 - **期待値**: 全クエリ 0 行。ヒット時はシード不整合として個別是正（是正 DML は件数確認後に別途起案）。
 - SQL は 001_init.sql の DDL と突合済み（2026-07-12）。読み取り専用 SELECT のみ。
 
 **実行先と接続経路**:
-- STG は移行過渡期（`docs/ops/infra-architecture.md:14-15`）: 実トラフィックは **AWS ECS/ALB/RDS** を経由（Phase 7 の NS 切替まで）、Cloudflare 正系統は **PlanetScale Postgres** に直結。**監査の正はユーザー書込が到達している側**（現状 RDS。reset 適用先と一致させること）。
-- RDS は private subnet のため直接 psql 不可。**ad-hoc SQL の接続経路（踏み台 / ECS exec 等）は runbook 未整備** — 実行前にインフラオーナーへ接続手段を確認し、確認結果をこの節に追記すること。
+- STGの正系統はCloudflare Workers + ContainersとPlanetScale Postgres。旧AWS ECS/RDSは廃止済みで、監査対象や接続経路にしない。
+- 接続は `docs/ops/infra/staging/runbook.md` のTTL付き診断ロール手順に従う。credential値は保存・ログ出力せず、対象DBとclinic境界を実行前に確認する。
 - 各クエリは `deleted_at IS NULL` で**能動データに絞ってある**（junction 4 テーブル spg/sre/atd/ato には deleted_at 列なし — DDL 実測）。
 
 ```sql

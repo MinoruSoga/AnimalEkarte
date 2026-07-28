@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -14,6 +14,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -29,7 +30,7 @@ import { todayISODate, addDaysISO } from "@/lib/iso-date";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/PropertyFilter/types";
-import { ResourceCheckups } from "@/types/generated/models";
+import { ResourceCheckups, ResourceMedicalRecords } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -64,7 +65,8 @@ const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
 
 export function CheckupsList() {
   const navigate = useNavigate();
-  const { canCreate, canEdit } = usePermission(ResourceCheckups);
+  const { canView, canCreate, canEdit } = usePermission(ResourceMedicalRecords);
+  const canCreateCheckup = canCreate && canEdit;
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -244,10 +246,10 @@ export function CheckupsList() {
       title="定期健診"
       resource={ResourceCheckups}
       icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+        canCreateCheckup ? (
+          <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
@@ -276,25 +278,39 @@ export function CheckupsList() {
             data={sortedData}
             emptyMessage="定期健診の記録がありません"
             renderRow={(c) => (
-              <DataTableRow key={c.id} onClick={canEdit ? () => handleEdit(c.medicalRecordId) : undefined}>
-                <TableCell className={`font-mono text-base ${C.text} py-2`}>
+              <DataTableRow key={c.id}>
+                <TableCell className={`font-mono ${C.text}`}>
                   {c.date ? formatDate(c.date) : "-"}
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.ownerName || "-"}</TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.petName || "-"}</TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
+                <TableCell className={C.text}>{c.ownerName || "-"}</TableCell>
+                <TableCell className={C.text}>
+                  {canView && c.medicalRecordId ? (
+                    <DataTableRowLink
+                      to={paths.medicalRecords.detail.getHref(c.medicalRecordId)}
+                      aria-label={`カルテ詳細: ${c.petName || "-"} ${c.date || "-"} 健診ID ${c.id}`}
+                    >
+                      {c.petName || "-"}
+                    </DataTableRowLink>
+                  ) : (c.petName || "-")}
+                </TableCell>
+                <TableCell className={C.text}>{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className={`font-mono ${C.text} hidden lg:table-cell`}>
                   <div className="flex items-center gap-1.5">
                     {c.nextDate ? formatDate(c.nextDate) : "-"}
                     <CheckupAlertBadge nextDate={c.nextDate} />
                   </div>
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>
+                <TableCell className={`${C.text} max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.doctorName || "-"}</TableCell>
-                <TableCell className="text-right py-2">
-                  {canEdit ? <RowActionButton onClick={() => handleEdit(c.medicalRecordId)} /> : null}
+                <TableCell className={C.text}>{c.doctorName || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {canView && canEdit ? (
+                    <RowActionButton
+                      onClick={() => handleEdit(c.medicalRecordId)}
+                      aria-label={`健診操作: ${c.petName || "-"} ${c.date || "-"} ID ${c.id}`}
+                    />
+                  ) : null}
                 </TableCell>
               </DataTableRow>
             )}

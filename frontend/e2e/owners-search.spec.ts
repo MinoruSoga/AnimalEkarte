@@ -13,7 +13,7 @@ test.describe('飼主一覧 かな検索', () => {
   test('未ログイン時は /owners にアクセスすると /login にリダイレクトされる', async ({ browser }) => {
     // Use a fresh context with no auth state.
     // domcontentloaded avoids waiting for all Vite ES-module requests; the
-    // client-side redirect (/login) fires after JS loads so we poll via waitForURL.
+    // Browser redirect (/login) fires after JS loads, so poll via waitForURL.
     const freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();
     await new OwnersPage(freshPage).gotoList();

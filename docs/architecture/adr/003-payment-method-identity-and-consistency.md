@@ -17,10 +17,10 @@
 
 ### マイグレーション安全性（全論点共通の前提）
 
-適用済み migration（`001`〜`004`）の **in-place 編集は checksum mismatch を起こし STG db_reset 必須**になる。
+適用済み migration の **in-place 編集は checksum mismatch を起こす**。2026-07-27に当時のincremental 002〜009は `001_init.sql` 末尾へ統合され、現行DDLは001の単一ファイルになった。この統合前の001が記録済みのDBは `DB_RESET=true` 相当の手動再構築が必要であり、共有環境の復旧・再構築には明示承認が必要、現行workflowに自動reset経路はない。
 一方、かつて `007_add_bank_transfer_payment_method.sql`（#127）が実証した通り（同ファイルは 2026-06-26 の統合で `001_init.sql` に取り込み済み）、
 **新規ファイルで additive に変更すれば適用済みファイルの checksum は破壊されず、通常デプロイで適用される（db_reset 不要）**。
-本 ADR の全案は新規ファイル（`005+`、現行ベースラインは `001`〜`004`）で実現可能であり、**技術リスクは低い**。
+本 ADR 作成時点では全案を新規ファイル（当時の `004+`）で実現可能と評価していた。現行ベースラインは統合済み `001` のみであり、今後の追加方式はmigration運用規約とchecksum影響を再評価する。
 よって各論点を退ける/保留する根拠は「技術的危険」ではなく「設計の意味論を PO が確定すべき」というガバナンス事由である。
 
 ---
@@ -182,3 +182,9 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 - `backend/internal/service/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`）
 - `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
 - [ADR-002: マルチテナント設計](002-multitenancy-clinic-id-isolation.md)
+
+## 実装メモ（2026-07-25・TASK-ADR003）
+
+Decision Point 1 のうち、`payment_splits.payment_method_id` の clinic 一致は、ADR 作成後に導入された既存の複合 FK パターンを使って宣言的に実装した。旧 `backend/migrations/006_payment_splits_payment_method_clinic_fk.sql`（`c434c4e66`、2026-07-27に001へ統合。現行所在は `001_init.sql` 末尾の旧006アーカイブブロック）は `payment_methods` に述語なしの `UNIQUE (id, clinic_id)` を追加し、`payment_splits (payment_method_id, clinic_id)` から `payment_methods (id, clinic_id)` への複合 FK を追加する。既定の `MATCH SIMPLE` により legacy の `payment_method_id IS NULL` 行は許容し、削除動作は `ON DELETE RESTRICT` とした。soft-delete 済み master への既存参照を許す挙動は変えない。
+
+これは PO-006 の案1B全体を実装するものではない。`method` ⇔ `system_key` の値一致は未実施であり、`clinic_id` を持たない `payments` の参照も DB レベルでは未防御のまま残る。通常の会計作成・更新経路は `backend/internal/billing/accounting_service_builders.go` の `resolvePaymentMethodMasterID` が不一致を拒否する。確定後訂正経路は `method` / `payment_method_id` 自体を変更しないが、保存済みの組合せは再検証しない。migration は既存行を検証するため、他院 master を指す行があれば適用時に fail-closed で失敗する。適用前の診断 SQL は migration 内のコメントに残し、DB 適用自体は本 unit では実行していない。

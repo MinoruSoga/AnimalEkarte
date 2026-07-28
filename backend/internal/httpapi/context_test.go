@@ -98,3 +98,64 @@ func TestExtractClinicID(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorizeClinicIDs_SystemAdminUsesTrustedActiveClinicScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name            string
+		setupContext    func(c *gin.Context)
+		requested       []uint64
+		wantAuthorized  bool
+		wantStatus      int
+		wantBodyContain string
+	}{
+		{
+			name: "allows an active clinic from the trusted context",
+			setupContext: func(c *gin.Context) {
+				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			requested:      []uint64{2},
+			wantAuthorized: true,
+		},
+		{
+			name: "rejects a clinic outside the trusted active set",
+			setupContext: func(c *gin.Context) {
+				c.Set("is_system_admin", true)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			requested:       []uint64{99},
+			wantAuthorized:  false,
+			wantStatus:      http.StatusForbidden,
+			wantBodyContain: "not assigned to this clinic",
+		},
+		{
+			name: "fails closed when the trusted clinic set is missing",
+			setupContext: func(c *gin.Context) {
+				c.Set("is_system_admin", true)
+			},
+			requested:       []uint64{1},
+			wantAuthorized:  false,
+			wantStatus:      http.StatusUnauthorized,
+			wantBodyContain: "missing clinic context",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupContext(c)
+
+			authorized := AuthorizeClinicIDs(c, tt.requested)
+
+			assert.Equal(t, tt.wantAuthorized, authorized)
+			if !tt.wantAuthorized {
+				assert.Equal(t, tt.wantStatus, w.Code)
+				assert.Contains(t, w.Body.String(), tt.wantBodyContain)
+			}
+		})
+	}
+}

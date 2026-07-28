@@ -53,7 +53,9 @@ describe("HolidaySection", () => {
 
   it("削除ボタンで deleteMutation.mutateAsync が date で呼ばれる", async () => {
     render(<HolidaySection holidays={[makeHoliday({ date: "2026-08-15" })]} />);
-    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "2026-08-15の休診日を削除" }),
+    );
 
     await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith("2026-08-15"));
   });
@@ -65,6 +67,29 @@ describe("HolidaySection", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(screen.queryByText("新しい休診日")).not.toBeInTheDocument();
+  });
+
+  it("追加・キャンセル・削除を44px以上とし、削除対象を名前で識別できる", () => {
+    render(<HolidaySection holidays={[makeHoliday({ date: "2026-08-15" })]} />);
+
+    const addButton = screen.getByRole("button", { name: "追加" });
+    expect(addButton).toHaveClass("min-h-11");
+    const deleteButton = screen.getByRole("button", {
+      name: "2026-08-15の休診日を削除",
+    });
+    expect(deleteButton).toHaveClass("size-11");
+
+    fireEvent.click(addButton);
+    expect(screen.getByRole("button", { name: "キャンセル" })).toHaveClass("min-h-11");
+  });
+
+  it("追加フォームはmobileで1列、sm以上で2列になる", () => {
+    render(<HolidaySection holidays={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+
+    const grid = screen.getByLabelText("日付").parentElement?.parentElement;
+    expect(grid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+    expect(grid).not.toHaveClass("grid-cols-2");
   });
 
   it("日付と理由を入力して送信すると createMutation が呼ばれ、送信後フォームが閉じる", async () => {

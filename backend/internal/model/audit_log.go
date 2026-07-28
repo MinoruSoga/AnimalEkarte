@@ -36,13 +36,17 @@ const (
 	AuditActorTypeStaff  = "staff"
 	AuditActorTypeSystem = "system"
 
-	AuditActionPermissionGroupCreate = "permission_group.create"
-	AuditActionPermissionGroupUpdate = "permission_group.update"
-	AuditActionPermissionGroupDelete = "permission_group.delete"
-	AuditActionPermissionRulesUpdate = "permission_rules.update"
-	AuditActionAuthLoginSuccess      = "auth.login.success"
-	AuditActionAuthLoginFailure      = "auth.login.failure"
-	AuditActionAuthLogout            = "auth.logout"
+	AuditActionPermissionGroupCreate        = "permission_group.create"
+	AuditActionPermissionGroupUpdate        = "permission_group.update"
+	AuditActionPermissionGroupDelete        = "permission_group.delete"
+	AuditActionPermissionRulesUpdate        = "permission_rules.update"
+	AuditActionStaffPermissionGroupsReplace = "staff.permission_groups.replace"
+	AuditActionAuthLoginSuccess             = "auth.login.success"
+	AuditActionAuthLoginFailure             = "auth.login.failure"
+	AuditActionAuthLogout                   = "auth.logout"
+	AuditActionAuthPasswordChange           = "auth.password.change"
+	AuditActionAuthPasswordReset            = "auth.password.reset"
+	AuditActionAuthPasswordAdminReplace     = "auth.password.admin_replace"
 
 	// Lステップ / LINE連携 監査アクション
 	AuditActionLstepSettingsSave     = "lstep.settings.save"
@@ -51,10 +55,16 @@ const (
 	AuditActionLineNotificationSend  = "line.notification.send"
 	AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update"
 	AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink"
+	AuditActionReservationNoShow     = "reservation.no_show.auto"
 
 	// 取扱説明書（マニュアル）編集 監査アクション
 	AuditActionManualArticleUpsert = "manual_article.upsert"
 	AuditActionManualArticleDelete = "manual_article.delete"
+
+	// トリミング予約の臨床変更監査（BUG-422）
+	AuditActionTrimmingCreate = "trimming.create"
+	AuditActionTrimmingUpdate = "trimming.update"
+	AuditActionTrimmingDelete = "trimming.delete"
 
 	// 会計・返金 監査アクション（#122）
 	AuditActionBillingCancel        = "billing.cancel"
@@ -82,11 +92,15 @@ const (
 
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
-	AuditActionExamResultReplace = "exam_result.replace"
+	AuditActionExamResultReplace                   = "exam_result.replace"
+	AuditActionPetOwnerReplace                     = "pet_owner.replace"
+	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 )
 
 // audit_logs.resource 定数
 const (
+	AuditResourceAccount   = "account"
+	AuditResourceStaff     = "staff"
 	AuditResourceLabImport = "lab_import"
 	// #201 薬量自動計算
 	AuditResourceMedicineDoseParam = "medicine_dose_param"
@@ -95,7 +109,10 @@ const (
 	// #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
 	AuditResourceCheckupFieldResult = "checkup_field_result"
 	// BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
-	AuditResourceExamResult = "exam_result"
+	AuditResourceExamResult      = "exam_result"
+	AuditResourceReservation     = "reservation"
+	AuditResourceHospitalization = "hospitalization"
+	AuditResourceTrimming        = "trimming"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる

@@ -46,6 +46,8 @@ interface SearchableSelectProps {
   triggerTestId?: string;
   /** トリガー要素の id。Label の htmlFor 連携用。 */
   id?: string;
+  /** id/htmlFor を使わないfilter toolbar等でのトリガー名。 */
+  ariaLabel?: string;
   ariaInvalid?: boolean;
 }
 
@@ -78,6 +80,7 @@ export function SearchableSelect({
   contentClassName,
   triggerTestId,
   id,
+  ariaLabel,
   ariaInvalid = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
@@ -115,14 +118,15 @@ export function SearchableSelect({
         type="button"
         role="combobox"
         id={id}
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-invalid={ariaInvalid}
         disabled={disabled}
         data-testid={triggerTestId}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
+          "flex h-11 min-w-11 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
           C.borderMedium,
-          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
+          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingActionPrimary}`,
           "disabled:cursor-not-allowed disabled:opacity-50",
           ariaInvalid && C.borderDanger,
           className,

@@ -23,6 +23,11 @@ export interface ExamGroup {
   items: ExamResult[];
 }
 
+export interface RecordExaminationsResult {
+  items: ExamGroup[];
+  isTruncated: boolean;
+}
+
 function transformExamGroup(exam: Examination): ExamGroup {
   return {
     id: exam.id,
@@ -34,11 +39,15 @@ function transformExamGroup(exam: Examination): ExamGroup {
 
 const getRecordExaminations = async (
   petId: string,
-): Promise<ExamGroup[]> => {
-  const { data } = await axios.get<{ data: Examination[] }>("/v1/examinations", {
-    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT },
+): Promise<RecordExaminationsResult> => {
+  const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
+    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT, include_items: true },
   });
-  return (data.data ?? []).map(transformExamGroup);
+  const rows = data.data ?? [];
+  return {
+    items: rows.map(transformExamGroup),
+    isTruncated: typeof data.total === "number" && data.total > rows.length,
+  };
 };
 
 export const useGetRecordExaminations = (petId?: string) => {

@@ -70,7 +70,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
     historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 flex-1 min-h-0 h-full">
       {/* Left Column: 主訴情報 (Chief Complaint) */}
       <InterviewChiefComplaint
         className="col-span-1 lg:col-span-3 h-full"

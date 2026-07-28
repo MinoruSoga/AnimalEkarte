@@ -67,7 +67,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
             className={
               variant === "destructive"
                 ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90}`
-                : `${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark}`
+                : `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
             }
           >
             {confirmLabel}

@@ -17,6 +17,13 @@ function calcAge(birthDateStr: string): string {
   return `${months}ヶ月`;
 }
 
+function formatNeuteredStatus(gender: string | undefined, neuteredDate: string | undefined): string {
+  if (!neuteredDate) return "—";
+  if (gender === "雄") return "去勢済";
+  if (gender === "雌") return "避妊済";
+  return "避妊・去勢済";
+}
+
 // ──────────────────────────────────────────────────────────
 // Props
 // ──────────────────────────────────────────────────────────
@@ -31,6 +38,9 @@ export interface PatientContextHeaderProps {
   petDetails?: string;
   birthDate?: string;
   species?: string;
+  gender?: string;
+  neuteredDate?: string;
+  breed?: string;
   insuranceName?: string;
   insuranceDetails?: string;
   visitCount?: number;
@@ -51,6 +61,9 @@ export function PatientContextHeader({
   petDetails: _petDetails,
   birthDate,
   species,
+  gender,
+  neuteredDate,
+  breed,
   insuranceName,
   insuranceDetails,
   visitCount,
@@ -72,6 +85,11 @@ export function PatientContextHeader({
     return parts.join(" / ");
   })();
 
+  const hasPetAttributes =
+    gender !== undefined || neuteredDate !== undefined || breed !== undefined;
+  const genderText = gender || "—";
+  const neuteredStatus = formatNeuteredStatus(gender, neuteredDate);
+  const breedText = breed || "—";
   const hasInsurance = !!(insuranceName || insuranceDetails);
   const insuranceTooltip = hasInsurance
     ? "ペット情報に登録された保険情報です"
@@ -98,7 +116,7 @@ export function PatientContextHeader({
               <button
                 type="button"
                 onClick={onOwnerClick}
-                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
               >
                 {ownerName}
               </button>
@@ -115,7 +133,7 @@ export function PatientContextHeader({
           </Tooltip>
           {isDeceased ? (
             <span
-              className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}
+              className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}
             >
               【死亡】
             </span>
@@ -124,7 +142,7 @@ export function PatientContextHeader({
         <div className={`flex items-center flex-wrap gap-x-3 gap-y-0.5 text-sm ${C.text60}`}>
           {petNumber ? (
             <span
-              className={`font-mono text-[11px] px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 tracking-wide`}
+              className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
             >
               #{petNumber}
             </span>
@@ -136,6 +154,24 @@ export function PatientContextHeader({
                 <span className="truncate">{petInfoText}</span>
               </span>
             </Tooltip>
+          ) : null}
+          {hasPetAttributes ? (
+            <>
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <span className={`text-2xs ${C.text40}`}>性別</span>
+                <span className={`font-medium ${C.text}`}>{genderText}</span>
+              </span>
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <span className={`text-2xs ${C.text40}`}>避妊去勢</span>
+                <span className={`font-medium ${C.text}`}>{neuteredStatus}</span>
+              </span>
+              <Tooltip content={`品種: ${breedText}`} className="min-w-0 max-w-[180px]">
+                <span className="flex items-center gap-1 min-w-0">
+                  <span className={`text-2xs ${C.text40} shrink-0`}>品種</span>
+                  <span className={`font-medium ${C.text} truncate`}>{breedText}</span>
+                </span>
+              </Tooltip>
+            </>
           ) : null}
           {weight ? (
             <Tooltip content="体重">

@@ -17,7 +17,7 @@ export type TreatmentVirtualRow =
   | { type: "child"; item: TreatmentItem };
 
 export const TREATMENT_COLUMNS = [
-  { header: "", className: "w-[32px]" },
+  { header: "", className: "w-11 px-0" },
   { header: "名称" },
   { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
   { header: "ステータス", className: "w-[100px]", align: "center" as const },

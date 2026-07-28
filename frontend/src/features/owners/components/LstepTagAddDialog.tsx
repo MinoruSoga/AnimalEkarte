@@ -101,7 +101,7 @@ export function LstepTagAddDialog({
             >
               キャンセル
             </button>
-            <SubmitButton loadingText="付与中..." colorVariant="brand">付与する</SubmitButton>
+            <SubmitButton loadingText="付与中..." colorVariant="primary">付与する</SubmitButton>
           </div>
         </form>
       </DialogContent>
