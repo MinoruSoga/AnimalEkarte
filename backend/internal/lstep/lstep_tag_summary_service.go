@@ -128,12 +128,22 @@ func (s *lstepTagSummaryService) ListOwnersByTag(ctx context.Context, clinicID u
 	return TagOwnerListResponse{Owners: items, Total: total, Page: page, PerPage: perPage}, nil
 }
 
+// exportOwnersByTagCSVMaxRows is the hard cap for tag-owner CSV export.
+// Exceeding this limit is fail-closed (Conflict) rather than silent truncate.
+const exportOwnersByTagCSVMaxRows = 5000
+
 func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clinicID uint64, tagName, nameQuery string, w io.Writer) error {
-	// ページネーションなし全件取得（最大5000件で安全上限）
-	rows, _, err := s.tagCache.FindOwnersByTag(ctx, clinicID, tagName, nameQuery, 0, 5000)
+	// Fetch one page at the hard cap and require total to fit — never drop rows silently.
+	rows, total, err := s.tagCache.FindOwnersByTag(ctx, clinicID, tagName, nameQuery, 0, exportOwnersByTagCSVMaxRows)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to export owners by tag csv", "clinic_id", clinicID, "tag", tagName, "error", err)
 		return apperrors.Wrap(err, "failed to export owners by tag csv")
+	}
+	if total > int64(exportOwnersByTagCSVMaxRows) {
+		return apperrors.WrapConflict(fmt.Sprintf(
+			"tag owner export exceeds the %d-row limit (total=%d); narrow the tag or name filter",
+			exportOwnersByTagCSVMaxRows, total,
+		))
 	}
 
 	// UTF-8 BOM（Excel が Shift-JIS と誤認して日本語が文字化けするのを防ぐ）。

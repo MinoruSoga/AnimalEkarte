@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -156,6 +157,29 @@ func TestExportOwnersByTagCSV(t *testing.T) {
 	assert.Contains(t, buf.String(), "田中 太郎")
 	// ヘッダ行が含まれる
 	assert.Contains(t, buf.String(), "owner_id")
+}
+
+// BUG-464: total above hard cap must fail closed before any CSV body is written.
+func TestExportOwnersByTagCSV_FailsClosedWhenTotalExceedsCap(t *testing.T) {
+	repo := &mockTagCacheSummaryRepo{
+		findOwnersByTagFn: func(_ context.Context, _ uint64, _, _ string, offset, limit int) ([]TagOwnerRow, int64, error) {
+			assert.Equal(t, 0, offset)
+			assert.Equal(t, exportOwnersByTagCSVMaxRows, limit)
+			// Simulate 5001 total while returning only the capped page.
+			rows := make([]TagOwnerRow, exportOwnersByTagCSVMaxRows)
+			for i := range rows {
+				rows[i] = TagOwnerRow{OwnerID: uint64(i + 1), OwnerName: "x"}
+			}
+			return rows, int64(exportOwnersByTagCSVMaxRows) + 1, nil
+		},
+	}
+	svc := NewLstepTagSummaryService(repo)
+
+	var buf bytes.Buffer
+	err := svc.ExportOwnersByTagCSV(context.Background(), 1, "my_tag", "", &buf)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "over-cap export must be Conflict, got %v", err)
+	assert.Empty(t, buf.Bytes(), "must not write CSV body when fail-closed")
 }
 
 // ---- sanitizeCSVCell / extractLastVisitDate / extractCPMStage 直接テスト ----

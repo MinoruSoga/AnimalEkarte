@@ -176,6 +176,43 @@ func TestSearchLstepOwnersByTag(t *testing.T) {
 	}
 }
 
+// BUG-464: pre-stream export error must return JSON (headers not committed to CSV body).
+func TestSearchLstepOwnersByTag_CSVPreStreamErrorUsesJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := newSearchLstepOwnersByTagRouter(&mockLstepTagSummaryService{
+		exportOwnersByTagFn: func(_ context.Context, _ uint64, _, _ string, _ io.Writer) error {
+			return errors.New("export blocked")
+		},
+	}, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep/owners?tag=my_tag&format=csv", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
+	assert.NotContains(t, w.Body.String(), "owner_id")
+}
+
+// BUG-464: after stream starts, do not stack JSON error on CSV body.
+func TestSearchLstepOwnersByTag_CSVPostStreamErrorDoesNotStackJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := newSearchLstepOwnersByTagRouter(&mockLstepTagSummaryService{
+		exportOwnersByTagFn: func(_ context.Context, _ uint64, _, _ string, w io.Writer) error {
+			_, _ = w.Write([]byte("\xEF\xBB\xBFowner_id,owner_name\n"))
+			return errors.New("mid-stream failure")
+		},
+	}, true)
+	req := httptest.NewRequest(http.MethodGet, "/lstep/owners?tag=my_tag&format=csv", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	body := w.Body.String()
+	assert.Contains(t, body, "owner_id")
+	assert.NotContains(t, body, `"error"`)
+	assert.NotContains(t, body, "mid-stream failure")
+	assert.Contains(t, w.Header().Get("Content-Type"), "text/csv")
+}
+
 // #179 ③: 日本語タグ名を含む CSV のファイル名が RFC 5987 でエンコードされ、
 // Content-Disposition で文字化けしないことを検証する。
 func TestSearchLstepOwnersByTag_CSVFilenameRFC5987(t *testing.T) {
