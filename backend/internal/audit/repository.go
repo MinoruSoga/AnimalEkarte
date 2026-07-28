@@ -4,6 +4,8 @@ package audit
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -51,12 +53,18 @@ func (r *repository) CreateTx(ctx context.Context, log *model.AuditLog) error {
 
 // MarshalJSON serializes audit values best-effort. Invalid values are omitted
 // so metadata serialization cannot suppress the core audit event.
+// INF-06: marshal failures are logged (type only; never the value) so omission
+// is observable without failing the audit write.
 func MarshalJSON(value any) []byte {
 	if value == nil {
 		return nil
 	}
 	encoded, err := json.Marshal(value)
 	if err != nil {
+		slog.Warn("audit value marshal failed; field omitted",
+			"value_type", fmt.Sprintf("%T", value),
+			"error", err,
+		)
 		return nil
 	}
 	return encoded
