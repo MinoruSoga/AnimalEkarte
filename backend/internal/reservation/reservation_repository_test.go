@@ -38,6 +38,8 @@ func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.Staff{}, &model.ShiftEntry{}, &model.LineCustomer{},
+		// Validators that assert no partial side-effects also count audit_logs.
+		&model.AuditLog{},
 	))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
 	db.Exec("TRUNCATE TABLE staffs CASCADE")            // shift_entries/staff_clinic_assignments も連鎖クリア
