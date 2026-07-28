@@ -114,9 +114,9 @@ func newListOwnersQuery(values url.Values) listOwnersQuery {
 type createPetForOwnerRequest struct {
 	Name            string    `json:"name"              binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
-	NameKana        string    `json:"name_kana"`
-	Breed           string    `json:"breed"`
-	Color           string    `json:"color"`
+	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
+	Breed           string    `json:"breed"            binding:"omitempty,max=100"`
+	Color           string    `json:"color"            binding:"omitempty,max=100"`
 	BloodType       string    `json:"blood_type"       binding:"omitempty,max=32"`
 	MicrochipNumber string    `json:"microchip_number" binding:"omitempty,max=64"`
 	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
@@ -127,10 +127,10 @@ type createPetForOwnerRequest struct {
 	AcquisitionType string    `json:"acquisition_type"`
 	DangerLevel     string    `json:"danger_level"`
 	DangerReason    *string   `json:"danger_reason"`
-	Food            string    `json:"food"`
-	Environment     string    `json:"environment"`
+	Food            string    `json:"food"             binding:"omitempty,max=500"`
+	Environment     string    `json:"environment"      binding:"omitempty,max=500"`
 	InsuranceID     *uint64   `json:"insurance_id"`
-	Remarks         string    `json:"remarks"`
+	Remarks         string    `json:"remarks"          binding:"omitempty,max=2000"`
 }
 
 func (r *createPetForOwnerRequest) toServiceInput() CreatePetForOwnerInput {
@@ -164,19 +164,19 @@ type createOwnerRequest struct {
 	// 指定時はハンドラで所属医院 (clinic_ids) との一致を必ず検証すること。
 	ClinicID       *uint64                    `json:"clinic_id"`
 	OwnerName      string                     `json:"owner_name"       binding:"required"`
-	OwnerNameKana  string                     `json:"owner_name_kana"`
+	OwnerNameKana  string                     `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      *jsonDate                  `json:"birth_date"`
-	Company        string                     `json:"company"`
+	Company        string                     `json:"company"          binding:"omitempty,max=200"`
 	PostalCode     string                     `json:"postal_code"`
-	Address1       string                     `json:"address1"`
-	Address2       string                     `json:"address2"`
+	Address1       string                     `json:"address1"         binding:"omitempty,max=200"`
+	Address2       string                     `json:"address2"         binding:"omitempty,max=200"`
 	HomePostalCode string                     `json:"home_postal_code"`
-	HomeAddress1   string                     `json:"home_address1"`
-	HomeAddress2   string                     `json:"home_address2"`
-	Phone          string                     `json:"phone"`
-	CompanyPhone   string                     `json:"company_phone"`
-	Email          string                     `json:"email"`
-	Remarks        string                     `json:"remarks"`
+	HomeAddress1   string                     `json:"home_address1"    binding:"omitempty,max=200"`
+	HomeAddress2   string                     `json:"home_address2"    binding:"omitempty,max=200"`
+	Phone          string                     `json:"phone"            binding:"omitempty,max=30"`
+	CompanyPhone   string                     `json:"company_phone"    binding:"omitempty,max=30"`
+	Email          string                     `json:"email"            binding:"omitempty,max=254"`
+	Remarks        string                     `json:"remarks"          binding:"omitempty,max=2000"`
 	IsDangerous    bool                       `json:"is_dangerous"`
 	DiscountRate   float64                    `json:"discount_rate"`
 	MembershipType string                     `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
@@ -216,19 +216,19 @@ func (r *createOwnerRequest) toServiceInput() CreateOwnerInput {
 // updateOwnerRequest は飼主更新のバインド struct（全フィールドポインタ型）
 type updateOwnerRequest struct {
 	OwnerName      *string                  `json:"owner_name"`
-	OwnerNameKana  *string                  `json:"owner_name_kana"`
+	OwnerNameKana  *string                  `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      nullableDateRequestField `json:"birth_date"`
-	Company        *string                  `json:"company"`
+	Company        *string                  `json:"company"          binding:"omitempty,max=200"`
 	PostalCode     *string                  `json:"postal_code"`
-	Address1       *string                  `json:"address1"`
-	Address2       *string                  `json:"address2"`
+	Address1       *string                  `json:"address1"         binding:"omitempty,max=200"`
+	Address2       *string                  `json:"address2"         binding:"omitempty,max=200"`
 	HomePostalCode *string                  `json:"home_postal_code"`
-	HomeAddress1   *string                  `json:"home_address1"`
-	HomeAddress2   *string                  `json:"home_address2"`
-	Phone          *string                  `json:"phone"`
-	CompanyPhone   *string                  `json:"company_phone"`
-	Email          *string                  `json:"email"`
-	Remarks        *string                  `json:"remarks"`
+	HomeAddress1   *string                  `json:"home_address1"    binding:"omitempty,max=200"`
+	HomeAddress2   *string                  `json:"home_address2"    binding:"omitempty,max=200"`
+	Phone          *string                  `json:"phone"            binding:"omitempty,max=30"`
+	CompanyPhone   *string                  `json:"company_phone"    binding:"omitempty,max=30"`
+	Email          *string                  `json:"email"            binding:"omitempty,max=254"`
+	Remarks        *string                  `json:"remarks"          binding:"omitempty,max=2000"`
 	IsDangerous    *bool                    `json:"is_dangerous"`
 	DiscountRate   *float64                 `json:"discount_rate"`
 	MembershipType *string                  `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`

@@ -103,24 +103,24 @@ type createPetRequest struct {
 	OwnerID         uint64    `json:"owner_id"          binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
 	Name            string    `json:"name"              binding:"required"`
-	NameKana        string    `json:"name_kana"`
+	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
 	BirthDate       *jsonDate `json:"birth_date"`
-	Breed           string    `json:"breed"`
-	Color           string    `json:"color"`
+	Breed           string    `json:"breed"            binding:"omitempty,max=100"`
+	Color           string    `json:"color"            binding:"omitempty,max=100"`
 	BloodType       string    `json:"blood_type"       binding:"omitempty,max=32"`
 	MicrochipNumber string    `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
 	AcquisitionType string    `json:"acquisition_type"`
 	DangerLevel     string    `json:"danger_level"`
-	DangerReason    *string   `json:"danger_reason"`
-	Food            string    `json:"food"`
-	Environment     string    `json:"environment"`
-	Phone           string    `json:"phone"`
+	DangerReason    *string   `json:"danger_reason"    binding:"omitempty,max=500"`
+	Food            string    `json:"food"             binding:"omitempty,max=500"`
+	Environment     string    `json:"environment"      binding:"omitempty,max=500"`
+	Phone           string    `json:"phone"            binding:"omitempty,max=30"`
 	InsuranceID     *uint64   `json:"insurance_id"`
-	Remarks         string    `json:"remarks"`
+	Remarks         string    `json:"remarks"          binding:"omitempty,max=2000"`
 }
 
 func (r *createPetRequest) toServiceInput() *CreatePetInput {
@@ -156,14 +156,14 @@ type updatePetRequest struct {
 	AnimalSpeciesID *uint64 `json:"animal_species_id"`
 	PetNumber       *string `json:"pet_number"` // 自動採番後も手動変更可
 	Name            *string `json:"name"`
-	NameKana        *string `json:"name_kana"`
+	NameKana        *string `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          *string `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	// Status は意図的に持たない(BUG-415)。status の書込は Create と /:id/death
 	// (HandlePetDeath/HandlePetRevival、監査ログ+deceased_at 同一tx・fail-closed) に
 	// 一本化済み。ここに "status" を JSON で送っても未知フィールドとして無視される。
 	BirthDate       *jsonDate                  `json:"birth_date"`
-	Breed           *string                    `json:"breed"`
-	Color           *string                    `json:"color"`
+	Breed           *string                    `json:"breed"            binding:"omitempty,max=100"`
+	Color           *string                    `json:"color"            binding:"omitempty,max=100"`
 	BloodType       *string                    `json:"blood_type"       binding:"omitempty,max=32"`
 	MicrochipNumber *string                    `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64                   `json:"weight"`
@@ -171,12 +171,12 @@ type updatePetRequest struct {
 	AcquisitionType *string                    `json:"acquisition_type"`
 	DangerLevel     *string                    `json:"danger_level"`
 	DangerReason    nullableStringRequestField `json:"danger_reason"`
-	Food            *string                    `json:"food"`
-	Environment     *string                    `json:"environment"`
-	Phone           *string                    `json:"phone"`
+	Food            *string                    `json:"food"             binding:"omitempty,max=500"`
+	Environment     *string                    `json:"environment"      binding:"omitempty,max=500"`
+	Phone           *string                    `json:"phone"            binding:"omitempty,max=30"`
 	LastVisit       *jsonDate                  `json:"last_visit"`
 	InsuranceID     **uint64                   `json:"insurance_id"`
-	Remarks         *string                    `json:"remarks"`
+	Remarks         *string                    `json:"remarks"          binding:"omitempty,max=2000"`
 }
 
 func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
