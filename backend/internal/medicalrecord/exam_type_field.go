@@ -291,8 +291,9 @@ func (s *examTypeService) ListReferenceRanges(
 }
 
 func (s *examTypeService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	// MRB-07: nil transactor is composition/wiring failure (server internal), not client input → 500.
 	if s.transactor == nil {
-		return apperrors.WrapInvalidInput("transaction dependency is required")
+		return apperrors.WrapInternalServerError("exam type transaction dependency is required")
 	}
 	return s.transactor.WithTx(ctx, fn)
 }

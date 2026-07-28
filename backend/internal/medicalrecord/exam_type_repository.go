@@ -73,7 +73,8 @@ func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 }
 
 func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
-	db := r.db.WithContext(ctx)
+	// MRB-08: ambient tx 参加（examTypeService.Create の WithTx 内 parent 検証と同一コネクション）。
+	db := persistence.DBOrTx(ctx, r.db)
 	wantActive := exType.IsActive
 	if err := db.Create(exType).Error; err != nil {
 		return apperrors.FromGORM(err, "examination_type", "")
@@ -88,24 +89,24 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 }
 
 func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ExaminationType{}, "examination_type", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.ExaminationType{}, "examination_type", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, id)
 }
 
 func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return persistence.ReorderByClinicID(ctx, r.db, &model.ExaminationType{}, "examination_type", clinicID, ids, "sort_order")
+	return persistence.ReorderByClinicID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, ids, "sort_order")
 }
 
 // CountUsageByExamTypeID returns exam references (BUG-107).
 func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Examination{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("exam_type_id = ? AND deleted_at IS NULL", examTypeID).
@@ -118,7 +119,7 @@ func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicI
 // CountChildrenByParentID returns child examination-type count before parent delete.
 func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ExaminationType{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).

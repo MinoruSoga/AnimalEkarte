@@ -42,7 +42,7 @@ func TestExamTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.ExaminationType) error { *created = true; return nil },
 		}
-		return NewExamTypeService(repo)
+		return NewExamTypeService(repo, passthroughExamTypeTransactor{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestExamTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.ExaminationType{ID: id}, nil
 			},
 		}
-		return NewExamTypeService(repo)
+		return NewExamTypeService(repo, passthroughExamTypeTransactor{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {

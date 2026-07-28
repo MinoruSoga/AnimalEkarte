@@ -11,6 +11,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// passthroughExamTypeTransactor は unit test 用 WithTx 素通し。
+type passthroughExamTypeTransactor struct{}
+
+func (passthroughExamTypeTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
@@ -138,7 +146,7 @@ func TestExamTypeService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			examTypes, err := svc.List(context.Background(), 1)
 
@@ -201,7 +209,7 @@ func TestExamTypeService_GetByID(t *testing.T) {
 					return tt.repoExamType, tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			examType, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -290,7 +298,7 @@ func TestExamTypeService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -373,7 +381,7 @@ func TestExamTypeService_Update(t *testing.T) {
 					return &model.ExaminationType{ID: 1}, nil
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			exType, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -392,7 +400,7 @@ func TestExamTypeService_Update(t *testing.T) {
 
 	t.Run("nil input はエラー", func(t *testing.T) {
 		repo := &mockExamTypeRepository{}
-		svc := NewExamTypeService(repo)
+		svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 		result, err := svc.Update(context.Background(), 1, 1, nil)
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -410,7 +418,7 @@ func TestExamTypeService_Update(t *testing.T) {
 				return &model.ExaminationType{ID: 1, IsNonInsurance: true}, nil
 			},
 		}
-		svc := NewExamTypeService(repo)
+		svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 		input := &UpdateExamTypeInput{IsNonInsurance: &nonIns}
 		result, err := svc.Update(context.Background(), 1, 1, input)
 		assert.NoError(t, err)
@@ -507,7 +515,7 @@ func TestExamTypeService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -559,7 +567,7 @@ func TestExamTypeService_Reorder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo)
+			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -619,4 +627,40 @@ func TestBuildExamTypeUpdate(t *testing.T) {
 		fields := buildExamTypeUpdate(input)
 		assert.NotContains(t, fields, colExamTypeParentID)
 	})
+}
+
+
+func TestExamTypeService_WithTx_NilTransactorIsInternalError(t *testing.T) {
+	// MRB-07: nil transactor must map to 500 Internal, not 400 InvalidInput.
+	svc := NewExamTypeService(&mockExamTypeRepository{}, nil).(*examTypeService)
+	err := svc.withTx(context.Background(), func(context.Context) error { return nil })
+	assert.Error(t, err)
+	var appErr *apperrors.AppError
+	assert.True(t, errors.As(err, &appErr), "got %T %v", err, err)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+	assert.False(t, apperrors.IsInvalidInput(err))
+}
+
+func TestExamTypeService_Create_ValidatesParentInsideTx(t *testing.T) {
+	// MRB-08: parent validation and Create share one WithTx; parent FindByID sees ambient tx.
+	var sawTx bool
+	repo := &mockExamTypeRepository{
+		findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+			// ambient marker not available without real tx; ensure called before create
+			return &model.ExaminationType{ID: id, ClinicID: clinicID}, nil
+		},
+		createFn: func(ctx context.Context, exType *model.ExaminationType) error {
+			sawTx = true
+			exType.ID = 42
+			return nil
+		},
+	}
+	svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
+	parentID := uint64(9)
+	got, err := svc.Create(context.Background(), 1, &CreateExamTypeInput{
+		Name: "blood", ParentID: &parentID, IsActive: true,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.True(t, sawTx)
 }

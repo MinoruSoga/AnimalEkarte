@@ -2458,7 +2458,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'ExamType' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (5/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: PENDING
 
 ##### U-X05-PET-UPDATE
 

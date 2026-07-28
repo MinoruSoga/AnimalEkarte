@@ -87,11 +87,10 @@ type examTypeService struct {
 	transactor Transactor
 }
 
-func NewExamTypeService(repo ExamTypeRepository, transactors ...Transactor) ExaminationTypeService {
-	var transactor Transactor
-	if len(transactors) > 0 {
-		transactor = transactors[0]
-	}
+// NewExamTypeService constructs ExaminationTypeService.
+// transactor is required so Create/Update/Delete and field writes share ambient transactions
+// (MRB-07: compile-time wiring; nil is fail-closed as 500 via withTx).
+func NewExamTypeService(repo ExamTypeRepository, transactor Transactor) ExaminationTypeService {
 	return &examTypeService{repo: repo, transactor: transactor}
 }
 
@@ -115,9 +114,7 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
-	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
-		return nil, err
-	}
+	// MRB-08 / X-05: parent_id 検証と Create を同一 WithTx に収め、FindByID の FOR SHARE を発火させる。
 	exType := &model.ExaminationType{
 		ClinicID:       clinicID,
 		Name:           input.Name,
@@ -128,9 +125,17 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		SortOrder:      input.SortOrder,
 		IsNonInsurance: input.IsNonInsurance,
 	}
-	if err := s.repo.Create(ctx, exType); err != nil {
-		slog.ErrorContext(ctx, "failed to create exam type", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to create exam type")
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
+			return err
+		}
+		if err := s.repo.Create(txCtx, exType); err != nil {
+			slog.ErrorContext(txCtx, "failed to create exam type", "error", err, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to create exam type")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "exam type created",
 		slog.Uint64("clinic_id", clinicID),
@@ -141,13 +146,6 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get exam type", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get exam type")
-	}
-	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
-		return nil, err
-	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
@@ -155,37 +153,58 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	exType, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update exam type", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update exam type")
+	// MRB-08: 存在確認・parent 検証・Update を同一 tx に収める。
+	var exType *model.ExaminationType
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to get exam type", "error", err)
+			return apperrors.Wrap(err, "failed to get exam type")
+		}
+		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
+			return err
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to update exam type", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to update exam type")
+		}
+		exType = updated
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "exam type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("exam_type_id", id))
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find exam type")
-	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check exam type children", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check exam type children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この検査種別にはサブ種別が登録されているため削除できません")
-	}
-	count, err := s.repo.CountUsageByExamTypeID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check exam type dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check exam type dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この検査種別は検査記録で使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete exam type", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete exam type")
+	// MRB-08: 依存 count と Delete を同一 tx に収め、並行使用中の silent 削除を防ぐ。
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to find exam type")
+		}
+		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check exam type children", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check exam type children")
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この検査種別にはサブ種別が登録されているため削除できません")
+		}
+		count, err := s.repo.CountUsageByExamTypeID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check exam type dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check exam type dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この検査種別は検査記録で使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete exam type", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete exam type")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "exam type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("exam_type_id", id))
 	return nil
