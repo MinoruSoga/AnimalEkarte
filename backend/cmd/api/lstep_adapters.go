@@ -107,18 +107,18 @@ func (a ownerLifecycleWriterAdapter) ClearLstepOptOut(ctx context.Context, clini
 	return a.inner.ClearLstepOptOut(ctx, clinicID, ownerID)
 }
 
-type petLifecycleWriterAdapter struct{ inner pet.CompleteRepository }
+// petLifecycleWriterAdapter bridges pet.CompleteRepository to lstep.PetLifecycleWriter.
+// CMD-04: call the typed LifecycleWriter surface only — never map[string]any Update.
+// pet.CompleteRepository already implements the same methods; this adapter remains a
+// thin composition-side type assertion until composition can pass PetLifecycle directly.
+type petLifecycleWriterAdapter struct{ inner pet.LifecycleWriter }
 
 func (a petLifecycleWriterAdapter) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
-	return a.inner.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at": deceasedAt, "deceased_reason": reason, "status": model.PetStatusDeceased,
-	})
+	return a.inner.RecordDeath(ctx, clinicID, petID, deceasedAt, reason)
 }
 
 func (a petLifecycleWriterAdapter) ClearDeath(ctx context.Context, clinicID, petID uint64) error {
-	return a.inner.Update(ctx, clinicID, petID, map[string]any{
-		"deceased_at": nil, "deceased_reason": nil, "status": model.PetStatusAlive,
-	})
+	return a.inner.ClearDeath(ctx, clinicID, petID)
 }
 
 func adaptPermissionAny(

@@ -27,8 +27,9 @@ type lifecyclePetRepository interface {
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 }
 
-// PetLifecycleWriter exposes only death/revival intents; generic field maps stay at the
-// composition adapter until the owner/pet domains migrate in BE9-2E.
+// PetLifecycleWriter exposes only death/revival intents (CMD-04 / CODING_RULES:35).
+// Composition must inject a typed pet lifecycle writer (RecordDeath/ClearDeath), not a
+// generic map[string]any field-update API.
 type PetLifecycleWriter interface {
 	RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error
 	ClearDeath(ctx context.Context, clinicID, petID uint64) error
