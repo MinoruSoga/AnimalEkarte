@@ -38,6 +38,10 @@
 | LOW | 14 | 重複ログ、命名 stutter、doc コメント |
 | **計** | **105** | うち既知起票済み 6・WIP-adjacent 5 |
 
+**round 3（2026-07-28）反証後の現況**: round 1 の 105 件に敵対的却下パスを通した結果、**WITHDRAWN 8 / DOWNGRADED 8 / REFRAMED 17 / UPHELD 72**。上表の件数は round 1 検出時点のものであり、**現在の着手可否は各所見の `- round3-review(2026-07-28):` 行が正本**である。severity 別索引の `WITHDRAWN(round3)` 印が付いた 8 件は着手対象外。判定の全件一覧と理由は「## round 3（2026-07-28）— round 1 の 105 所見へ敵対的反証」節を参照。
+
+**着手の運用（2026-07-28 決定）**: 本書の所見は台帳へ一括起票しない。**本書を正本として直接着手する。** 起票済みは反証を通過した確定 7 件のみ（BUG-463〜466 / TASK-467〜469）。着手前に evidence を再実測する規則は継続する（round 3 で 8 件が LINE-DRIFT・2 件が ALREADY-FIXED と判明している）。
+
 **規約側の疑義**: 32 論点（実装を直す前に確定すべきもの。末尾に全件掲載）
 
 **最も重い 3 点**:
@@ -72,10 +76,10 @@
 | ID | severity | 対象ドメイン | 概要 | 横断 | 区分 |
 |---|---|---|---|---|---|
 | BIL-01 | CRITICAL | billing / inventory | billing-items の POST/PATCH がレジ締め後の会計編集ゲート（po… | — | 新規 |
-| CMD-01 | CRITICAL | cmd | stage-import の破壊的 DELETE が clinic_id で制約されてい… | — | 既知 |
+| CMD-01 | CRITICAL | cmd | stage-import の破壊的 DELETE が clinic_id で制約されてい… | — | 既知・**WITHDRAWN(round3)** |
 | AUS-01 | HIGH | auth / staff | スタッフの所属医院全置換（destructive replace）に監査エントリが一切残… | X-03 | 新規 |
 | BIL-03 | HIGH | billing / inventory | campaignService.Update が本体更新と対象（カテゴリ/商品）差し替え… | X-06 | 新規 |
-| INF-01 | HIGH | infra 横断 | 未分類のPostgreSQLサーバエラーが全て HTTP 400「入力値が正しくありませ… | — | 新規 |
+| INF-01 | HIGH | infra 横断 | 未分類のPostgreSQLサーバエラーが全て HTTP 400「入力値が正しくありませ… | — | 新規・**WITHDRAWN(round3)** |
 | INF-02 | HIGH | infra 横断 | SanitizeNullBytes の透過 Reader が http.MaxBytes… | X-07 | 新規 |
 | LSA-01 | HIGH | lstep | lstep_base_url が無検証で保存され、復号済み Lステップ API キーが任… | — | 新規 |
 | LSA-02 | HIGH | lstep | 自動配信トリガーの除外判定が owner.LstepOptOut を読まず、オプトアウト… | — | 新規 |
@@ -109,7 +113,7 @@
 | AUS-03 | MEDIUM | auth / staff | staff_type が application 層で一切検証されず DB enum だ… | X-02 | 新規 |
 | AUS-04 | MEDIUM | auth / staff | ShiftTemplateRepository.CountUsageByShiftTem… | — | 新規 |
 | AUS-05 | MEDIUM | auth / staff | toShiftResponse が *model.Staff を nil ガードなしで参… | — | 新規 |
-| AUS-06 | MEDIUM | auth / staff | auth/http_session.go が 820 行で上限 800 行を超過 | — | 新規 |
+| AUS-06 | MEDIUM | auth / staff | auth/http_session.go が 820 行で上限 800 行を超過 | — | 新規・**WITHDRAWN(round3)** |
 | BIL-02 | MEDIUM | billing / inventory | accountingService の会計取消・クレジット訂正監査が「監査depende… | — | 新規 |
 | CMD-02 | MEDIUM | cmd | 全院バッチを起動する /_internal/scheduled-jobs が未認証の r… | — | 新規 |
 | CMD-03 | MEDIUM | cmd | coverage-ratchet の失敗が二重に無音化され gate が構造的に機能しない | X-04 | 新規 |
@@ -129,8 +133,8 @@
 | LSA-15 | MEDIUM | lstep | 配信トリガーの二重発火防止が check-then-Create のみで、DB 側に一意… | — | 新規 |
 | LSB-06 | MEDIUM | lstep | shared-files アップロードの purpose が列挙値・長さとも未検証で、超… | X-02 | 新規 |
 | MDL-01 | MEDIUM | model / lintscan / testdb | EstimateItem.CalculateTaxAmount が DiscountAm… | X-09 | 新規 |
-| MDL-02 | MEDIUM | model / lintscan / testdb | testdb のテスト間データ分離 TRUNCATE が error を全件破棄し fa… | X-04 | 新規 |
-| MDL-04 | MEDIUM | model / lintscan / testdb | 配信トリガー優先順位の trigger_type が列挙値検証を受けず、任意文字列が永続… | X-02 | 新規 |
+| MDL-02 | MEDIUM | model / lintscan / testdb | testdb のテスト間データ分離 TRUNCATE が error を全件破棄し fa… | X-04 | 新規・**WITHDRAWN(round3)** |
+| MDL-04 | MEDIUM | model / lintscan / testdb | 配信トリガー優先順位の trigger_type が列挙値検証を受けず、任意文字列が永続… | X-02 | 新規・**WITHDRAWN(round3)** |
 | MDL-05 | MEDIUM | model / lintscan / testdb | CASCADE lint が完全一致リテラル検索のため、表記ゆれした ON DELETE… | — | 新規 |
 | MRA-03 | MEDIUM | medicalrecord | consultation master の tax_rate に範囲検証が無い（同pac… | X-02 | 新規 |
 | MRB-05 | MEDIUM | medicalrecord | 入院の削除および PATCH による退院化が監査ログを残さない（同 service は監… | X-03 | 新規 |
@@ -164,8 +168,8 @@
 | TRM-07 | MEDIUM | trimming / manualarticle / csvimport | csvimport.Import は35表を無条件DELETEするexported AP… | X-03 | 新規 |
 | AUS-09 | LOW | auth / staff | HasPermission / CalculateEffectivePermission… | X-10 | 新規 |
 | INF-06 | LOW | infra 横断 | audit.MarshalJSON が marshal 失敗を無記録で握り潰し、監査ログ… | X-04 | 新規 |
-| LSA-16 | LOW | lstep | CSV インポートで json.Marshal のエラーを `_` で明示破棄している3箇所 | X-04 | 新規 |
-| LSB-05 | LOW | lstep | 疎通確認APIが外部HTTPトランスポートのraw error文字列をそのままrespo… | X-08 | 新規 |
+| LSA-16 | LOW | lstep | CSV インポートで json.Marshal のエラーを `_` で明示破棄している3箇所 | X-04 | 新規・**WITHDRAWN(round3)** |
+| LSB-05 | LOW | lstep | 疎通確認APIが外部HTTPトランスポートのraw error文字列をそのままrespo… | X-08 | 新規・**WITHDRAWN(round3)** |
 | MDL-06 | LOW | model / lintscan / testdb | model.Payment に ClinicID が無く、同一 business fac… | — | 既知 |
 | MRA-04 | LOW | medicalrecord | 実在しない package 名を主語にする package comment が担当 7 … | — | 新規 |
 | MRB-06 | LOW | medicalrecord | 入院の end_date >= start_date は DB CHECK のみで ap… | X-02 | 新規 |
@@ -175,7 +179,7 @@
 | RSV-08 | LOW | reservation | shift_entry_breaks の孫read が親 shift_entries の… | — | 新規 |
 | TRM-08 | LOW | trimming / manualarticle / csvimport | [既知] Options preload の clinic predicate が末尾 … | — | 既知 |
 | TRM-09 | LOW | trimming / manualarticle / csvimport | [WIP-adjacent] trimming の3 master repository… | — | WIP |
-| TRM-10 | LOW | trimming / manualarticle / csvimport | package 名と export 名の stutter | — | 新規 |
+| TRM-10 | LOW | trimming / manualarticle / csvimport | package 名と export 名の stutter | — | 新規・**WITHDRAWN(round3)** |
 
 ---
 
