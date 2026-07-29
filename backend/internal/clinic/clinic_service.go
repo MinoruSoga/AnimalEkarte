@@ -402,15 +402,23 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 		}
 		return clinic, nil
 	}
-	if err := s.repo.Update(ctx, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update clinic", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update clinic")
-	}
-	// 更新後の完全なレコードを DB から取得して返す（created_at 等のサーバー管理フィールドを正しく反映）
-	updated, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated clinic", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated clinic")
+// POC-02 / X-01: update+reload を同一 tx に収め、commit 済み成功を後段 read error で 5xx へ反転させない。
+	// reload 失敗時は tx がロールバックするため、write は永続化されない。
+	var updated *model.Clinic
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Update(txCtx, id, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update clinic", "error", err)
+			return apperrors.Wrap(err, "failed to update clinic")
+		}
+		c, err := s.repo.FindByID(txCtx, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get updated clinic", "error", err)
+			return apperrors.Wrap(err, "failed to get updated clinic")
+		}
+		updated = c
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "clinic updated",
 		slog.Uint64("clinic_id", id))

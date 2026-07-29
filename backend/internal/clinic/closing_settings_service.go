@@ -180,14 +180,6 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 	if startDate.After(endDate) {
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
 	}
-	overlap, err := s.periodRepo.CheckOverlap(ctx, clinicID, startDate, endDate, nil)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check period overlap", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to check period overlap")
-	}
-	if overlap {
-		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
-	}
 	slog.InfoContext(ctx, "creating closing special period",
 		slog.Uint64("clinic_id", clinicID),
 		slog.String("start_date", input.StartDate),
@@ -200,7 +192,8 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 		PmEnd:        input.PmEnd,
 		Note:         input.Note,
 	}
-	created, err := s.periodRepo.Create(ctx, p)
+	// POC-05 / X-05: CheckOverlap + Create を同一 tx（clinic advisory lock）で直列化する。
+	created, err := s.periodRepo.CreateCheckingOverlap(ctx, p)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create closing special period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create special period")
@@ -252,21 +245,12 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
 	}
 
-	// 重複チェック（自分自身を除外）
-	overlap, err := s.periodRepo.CheckOverlap(ctx, clinicID, startDate, endDate, &id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check period overlap", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to check period overlap")
-	}
-	if overlap {
-		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
-	}
-
 	fields := buildSpecialPeriodUpdate(input, parsedStart, parsedEnd)
 	if len(fields) == 0 {
 		return current, nil
 	}
-	result, err := s.periodRepo.Update(ctx, clinicID, id, fields)
+	// POC-05 / X-05: CheckOverlap + Update を同一 tx（clinic advisory lock）で直列化する。
+	result, err := s.periodRepo.UpdateCheckingOverlap(ctx, clinicID, id, startDate, endDate, fields)
 	if err != nil {
 		// POC-15: log once at the request boundary with clinic_id/id context.
 		slog.ErrorContext(ctx, "failed to update closing special period",

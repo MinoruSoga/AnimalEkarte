@@ -82,7 +82,11 @@ type ClosingSpecialPeriodRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
 	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
 	Create(ctx context.Context, period *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
+	// CreateCheckingOverlap serializes overlap check + insert under a clinic advisory lock (POC-05 / X-05).
+	CreateCheckingOverlap(ctx context.Context, period *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	// UpdateCheckingOverlap serializes overlap check + update+reload under a clinic advisory lock (POC-05 / X-05).
+	UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, fields map[string]any) (*model.ClosingSpecialPeriod, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
 }

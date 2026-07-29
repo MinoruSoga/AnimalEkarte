@@ -206,6 +206,41 @@ func TestClosingSpecialPeriodRepository_Delete(t *testing.T) {
 	})
 }
 
+func TestClosingSpecialPeriodRepository_CreateCheckingOverlap(t *testing.T) {
+	db := setupClosingSpecialPeriodRepositoryTestDB(t)
+	repo := NewClosingSpecialPeriodRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	first := &model.ClosingSpecialPeriod{
+		ClinicID:     clinicID,
+		StartDate:    time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:      time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC),
+		AmPmBoundary: "12:00",
+		PmEnd:        "19:00",
+		Note:         "first",
+	}
+	created, err := repo.CreateCheckingOverlap(ctx, first)
+	require.NoError(t, err)
+	require.NotZero(t, created.ID)
+
+	overlap := &model.ClosingSpecialPeriod{
+		ClinicID:     clinicID,
+		StartDate:    time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC),
+		EndDate:      time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC),
+		AmPmBoundary: "12:00",
+		PmEnd:        "19:00",
+		Note:         "overlap",
+	}
+	_, err = repo.CreateCheckingOverlap(ctx, overlap)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "overlapping create must conflict: %v", err)
+
+	var count int64
+	require.NoError(t, db.Model(&model.ClosingSpecialPeriod{}).Where("clinic_id = ?", clinicID).Count(&count).Error)
+	assert.Equal(t, int64(1), count)
+}
+
 func TestClosingSpecialPeriodRepository_CheckOverlap(t *testing.T) {
 	db := setupClosingSpecialPeriodRepositoryTestDB(t)
 	repo := NewClosingSpecialPeriodRepository(db)

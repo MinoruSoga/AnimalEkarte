@@ -611,7 +611,12 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 }
 
 func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
+	// POC-02 / X-01: update+reload share one WithTx callback. With a real Transactor the
+	// failed reload rolls the update back; with the passthrough double we still must not
+	// return a success envelope after reload error.
 	findCalls := 0
+	updateCalls := 0
+	withTxCalls := 0
 	repo := &mockClinicRepository{
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			findCalls++
@@ -621,17 +626,26 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+			updateCalls++
 			return nil
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	tx := &clinicServiceTransactorDouble{
+		withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			withTxCalls++
+			return fn(ctx)
+		},
+	}
+	svc := NewClinicService(repo, pgRepo, tx)
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: clinicStringPtr("新院名")})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Equal(t, 2, findCalls, "更新後のリフレッシュ取得も呼ばれる")
+	assert.Equal(t, 1, withTxCalls, "update+reload must run inside a single WithTx")
+	assert.Equal(t, 1, updateCalls)
+	assert.Equal(t, 2, findCalls, "pre-check find + in-tx reload")
 }
 
 // TestBuildClinicUpdate_AccountingDocumentSettings は #179 follow-up ①（#190）の

@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -71,11 +72,37 @@ func (m *mockClosingSpecialPeriodRepository) Create(ctx context.Context, p *mode
 	return p, nil
 }
 
+func (m *mockClosingSpecialPeriodRepository) CreateCheckingOverlap(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
+	if p == nil {
+		return nil, errors.New("period required")
+	}
+	overlap, err := m.CheckOverlap(ctx, p.ClinicID, p.StartDate, p.EndDate, nil)
+	if err != nil {
+		return nil, err
+	}
+	if overlap {
+		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
+	}
+	return m.Create(ctx, p)
+}
+
 func (m *mockClosingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
 	return &model.ClosingSpecialPeriod{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockClosingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+	excludeID := id
+	overlap, err := m.CheckOverlap(ctx, clinicID, startDate, endDate, &excludeID)
+	if err != nil {
+		return nil, err
+	}
+	if overlap {
+		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
+	}
+	return m.Update(ctx, clinicID, id, fields)
 }
 
 func (m *mockClosingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -506,7 +533,8 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 			},
 		}
 		svc := NewClosingSettingsService(nil, periodRepo, nil)
-		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		note := "changed"
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{Note: &note})
 		assert.Error(t, err)
 	})
 
@@ -528,7 +556,8 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 			},
 		}
 		svc := NewClosingSettingsService(nil, periodRepo, nil)
-		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
+		note := "changed"
+		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{Note: &note})
 		assert.Error(t, err)
 	})
 
