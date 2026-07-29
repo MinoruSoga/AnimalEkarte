@@ -2897,7 +2897,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'Admin|LineReservationSetting|ReservationType|Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (7/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: dcf34207bc20af72e5cd5731f671c5f0fdf1a977
 
 ##### U-X02-CLINIC-CONTACT
 
