@@ -174,6 +174,7 @@ func (s *sharedFileService) CleanupExpired(ctx context.Context) error {
 		if len(records) == 0 {
 			break
 		}
+		progress := 0
 		for _, r := range records {
 			if err := s.storage.Delete(ctx, r.FileKey); err != nil {
 				slog.ErrorContext(ctx, "failed to delete expired file from storage", "error", err, "key", r.FileKey, "id", r.ID)
@@ -187,10 +188,13 @@ func (s *sharedFileService) CleanupExpired(ctx context.Context) error {
 				if firstErr == nil {
 					firstErr = err
 				}
+				continue
 			}
+			progress++
 		}
-		// Full batch may mean more remain; short batch ends the drain.
-		if len(records) < sharedFileExpiredMax {
+		// Full batch may mean more remain; stop on short page or zero progress
+		// (failed deletes would otherwise re-fetch the same rows forever).
+		if len(records) < sharedFileExpiredMax || progress == 0 {
 			break
 		}
 	}
