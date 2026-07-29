@@ -2424,7 +2424,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/pet/... -run 'AnimalSpecies.*Audit|AnimalSpecies'`
 - 既知台帳: none
 - Size: L (7/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: 0918f45685b7b1eb2ac70d04babc0e4e00e745a4
 
 ##### U-X03-STAFF-ASSIGNMENT-AUDIT
 
