@@ -58,8 +58,9 @@ func (r *repository) FindByCategoryAndSlug(ctx context.Context, category model.M
 }
 
 // Upsert は category+slug で UNIQUE 制約を利用した upsert を実行する。
-// 履歴テーブルへの記録も同一トランザクション内で行う。
+// 履歴テーブルへの記録と最新行の再取得も同一トランザクション内で行う (TRM-01 / X-01)。
 func (r *repository) Upsert(ctx context.Context, article *model.ManualArticle, editorStaffID *uint64) (*model.ManualArticle, error) {
+	var saved model.ManualArticle
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存レコード取得
 		var existing model.ManualArticle
@@ -105,13 +106,17 @@ func (r *repository) Upsert(ctx context.Context, article *model.ManualArticle, e
 			return apperrors.FromGORM(err, "manual_article_version", "")
 		}
 
+		// TRM-01: re-load before commit so post-commit read cannot flip success to failure.
+		if err := tx.Where("category = ? AND slug = ?", article.Category, article.Slug).
+			First(&saved).Error; err != nil {
+			return apperrors.FromGORM(err, "manual_article", fmt.Sprintf("%s/%s", article.Category, article.Slug))
+		}
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to upsert manual article")
 	}
 
-	// 最新レコードを返す
-	return r.FindByCategoryAndSlug(ctx, article.Category, article.Slug)
+	return &saved, nil
 }
 
 func (r *repository) Delete(ctx context.Context, category model.ManualCategory, slug string) error {

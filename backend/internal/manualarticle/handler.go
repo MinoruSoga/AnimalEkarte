@@ -136,6 +136,12 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 		return
 	}
 
+	// TRM-02: destructive delete requires an authenticated staff actor and fail-closed audit.
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+
 	// 削除前に対象を取得しておく（監査ログ用）
 	target, findErr := h.service.FindByCategoryAndSlug(c.Request.Context(), category, slug)
 	if findErr != nil {
@@ -148,22 +154,22 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 		return
 	}
 
-	// 監査ログ: マニュアル削除（ベストエフォート、失敗はログ記録）
-	if staffID, ok := httpapi.ExtractStaffID(c); ok {
-		if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
-			ClinicID:   &clinicID,
-			ActorID:    &staffID,
-			ActorType:  "staff",
-			Action:     model.AuditActionManualArticleDelete,
-			Resource:   "manual_article",
-			ResourceID: &target.ID,
-			OldValue:   target,
-			IPAddress:  c.ClientIP(),
-			UserAgent:  c.Request.Header.Get("User-Agent"),
-		}); err != nil {
-			slog.WarnContext(c.Request.Context(), "failed to write audit log for manual article delete",
-				"error", err, "resource_id", target.ID, "actor_id", staffID)
-		}
+	// Fail-closed: do not report 204 when recovery snapshot audit cannot be written.
+	if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    &staffID,
+		ActorType:  "staff",
+		Action:     model.AuditActionManualArticleDelete,
+		Resource:   "manual_article",
+		ResourceID: &target.ID,
+		OldValue:   target,
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.Request.Header.Get("User-Agent"),
+	}); err != nil {
+		slog.ErrorContext(c.Request.Context(), "failed to write audit log for manual article delete",
+			"error", err, "resource_id", target.ID, "actor_id", staffID)
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to write audit log for manual article delete"))
+		return
 	}
 
 	c.Status(http.StatusNoContent)

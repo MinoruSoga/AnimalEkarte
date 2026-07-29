@@ -368,8 +368,8 @@ func TestUpsertManualArticle_AuditLogged(t *testing.T) {
 	assert.Equal(t, uint64(42), *audit.lastLogEntry.ResourceID)
 }
 
-// TestDeleteManualArticle_AuditLogged verifies the audit log entry is written with expected fields,
-// exercising the best-effort audit-write-failure branch (logged via slog.WarnContext, not surfaced to the caller).
+// TestDeleteManualArticle_AuditLogged verifies the audit log entry is written with expected fields.
+// TRM-02: audit failure is fail-closed (delete already applied, but 204 must not be returned).
 func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -396,6 +396,7 @@ func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 
 	h.DeleteManualArticle(c)
 
+	assert.NotEqual(t, http.StatusNoContent, w.Code, "audit failure must not return 204")
 	require.NotNil(t, audit.lastLogEntry)
 	assert.Equal(t, model.AuditActionManualArticleDelete, audit.lastLogEntry.Action)
 	assert.Equal(t, "manual_article", audit.lastLogEntry.Resource)
