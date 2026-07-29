@@ -2045,19 +2045,23 @@
 
 #### 残タスクのレーン分割（2026-07-29）
 
-所有パスが相互に非重複になるよう5レーンへ割る。**レーンをまたぐファイル書き込みは発生しない。**
+残作業は所見 8 件 + 調査 1 件で、前回の 1 レーン分より小さい。**細分化しても並列化の利得が無い**ため 2 レーンに留める。境界は backend / frontend（言語・テストランナー・レビュー観点が異なる唯一の実質的な分割線）。
 
-| レーン | 所有パス | 担当する残余 | 規模 |
+| レーン | 所有パス | 担当する残余 | 着手順 |
 |---|---|---|---|
-| **R1-audit** | `backend/cmd/api/composition_owner_pet.go` | `POC-07`/`DEC-31` の本番 audit 配線（`:104` の `pet.NewAnimalSpeciesService` を `NewAnimalSpeciesServiceWithAudit` へ差し替え） | 極小・**最優先** |
-| **R2-lstep** | `backend/internal/lstep/**` | `LSB-04`（`lstep_settings_service.go` / `lstep_settings_connection.go` の復号ループ）／ `G2F-05`（line customer 一覧のページング）／ `LSA-15` の Go 側（`lstep_delivery_trigger_log_repository.go`） | 中 |
-| **R3-clinic** | `backend/internal/clinic/**` | `POC-02`/`POC-05` の Go 側（`clinic_service.go` の write→reload 反転、`CheckOverlap`+`Create` の同一 tx 化） | 中 |
-| **R4-schema** | `backend/migrations/**`、`backend/seeds/**` | `LSA-15` の日次 UNIQUE ／ `POC-05` の EXCLUDE index ／ `POC-01` の権限データ ／ **`007` の既存 DB 重複の決着** | 中・**単独 writer** |
-| **R5-frontend** | `frontend/**` | カルテ Create が 201 を返さなくなった件（`U-X04-MR-SUBRECORDS`）と退院 PATCH の `end_date >= start_date` 検証追加（`U-X02X03X05-MR-HOSPITALIZATION`）への追随 | 要調査 |
+| **LANE-BE** | `backend/cmd/api/composition_owner_pet.go`、`backend/internal/lstep/**`、`backend/internal/clinic/**`、`backend/migrations/**`、`backend/seeds/**` | 下記 ①〜④ を**この順に逐次実行** | 単独セッション |
+| **LANE-FE** | `frontend/**` | ⑤ | LANE-BE と並行可 |
 
-**R4 が唯一の schema writer である。** R2 の `LSA-15` と R3 の `POC-05` は index を防御の最終手段として扱い、Go 側の検証を先に入れる。index 自体は R4 が入れるため、R2 / R3 は migrations に触らない。
+**LANE-BE の実行順序**（所有パスは互いに衝突しないため、順序は優先度で決める）:
 
-**R1 を最初に片付けること。** 本番で fail-closed 監査が動いていない状態であり、影響が最も重い。差し替え1箇所で閉じる。
+1. **`POC-07` / `DEC-31` の本番 audit 配線** — `backend/cmd/api/composition_owner_pet.go:104` の `pet.NewAnimalSpeciesService` を `NewAnimalSpeciesServiceWithAudit` へ差し替える。**差し替え1箇所で閉じる。本番で fail-closed 監査が動いていない状態であり、影響が最も重いので最初に片付ける。**
+2. **`LSB-04` / `G2F-05` / `LSA-15` の Go 側** — `backend/internal/lstep/`。復号ループの握り潰し（`lstep_settings_service.go` / `lstep_settings_connection.go`）、line customer 一覧のページング、`lstep_delivery_trigger_log_repository.go` の二重発火防止。
+3. **`POC-02` / `POC-05` の Go 側** — `backend/internal/clinic/clinic_service.go` の write→reload 反転、`CheckOverlap`+`Create` の同一 tx 化。
+4. **schema とデータ** — `LSA-15` の日次 UNIQUE、`POC-05` の EXCLUDE index、`POC-01` の権限データ、**`007` の既存 DB 重複の決着**。調査を要するため最後に置く。
+
+**`001_init.sql` を触るのは 4 のみ。** 1〜3 は migrations に触らない。schema を単独 writer に閉じ込める点は前回の `U-SCHEMA-BARRIER` の教訓を引き継ぐ。
+
+**LANE-FE（⑤）**: `U-X04-MR-SUBRECORDS` でカルテ Create がサブレコード保存失敗時に 201 を返さなくなり、`U-X02X03X05-MR-HOSPITALIZATION` で退院 PATCH に `end_date >= start_date` 検証が入った。**どのフロントコードが 201 前提・無検証前提かの調査から始まる。**
 
 **ユーザー専権（レーン化しない）**:
 - Worker の cutover デプロイ — `secret put` を先、デプロイを最後（Go は expected 空で全リクエスト 401）
