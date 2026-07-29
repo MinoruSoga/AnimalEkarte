@@ -2722,7 +2722,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Hospitalization'`
 - 既知台帳: MRB-03=BUG-437 / SEC-SWEEP-02
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 3cea46b55421b3809f9be4b1250bb17ccd2db310
 
 ##### U-X03-CSVIMPORT-GUARD
 
