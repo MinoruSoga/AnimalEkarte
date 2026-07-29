@@ -1,8 +1,9 @@
 package lstep
 
 type createAutoManagedPrefixRequest struct {
-	Prefix      string  `json:"prefix"       binding:"required"`
-	Category    string  `json:"category"     binding:"required"`
+	Prefix string `json:"prefix" binding:"required"`
+	// Category is constrained to DDL-documented values (LSA-14); C2 drives pet-death tag cleanup.
+	Category    string  `json:"category" binding:"required,oneof=B C1 C2 C3"`
 	Description *string `json:"description"`
 }
 

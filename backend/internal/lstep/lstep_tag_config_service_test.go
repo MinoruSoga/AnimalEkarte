@@ -70,6 +70,19 @@ func TestCreateAutoManagedPrefix_Error(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCreateAutoManagedPrefix_RejectsInvalidCategory(t *testing.T) {
+	created := false
+	repo := &mockLstepTagConfigRepository{
+		createAutoManagedPrefixFn: func(_ context.Context, _ *model.LstepAutoManagedPrefix) error {
+			created = true
+			return nil
+		},
+	}
+	_, err := newTagConfigSvc(repo).CreateAutoManagedPrefix(context.Background(), CreateAutoManagedPrefixInput{Prefix: "x", Category: "c2"})
+	assert.Error(t, err, "LSA-14: lowercase category must be rejected")
+	assert.False(t, created, "invalid category must not reach repository")
+}
+
 func TestDeleteAutoManagedPrefix_OK(t *testing.T) {
 	var deletedID uint64
 	repo := &mockLstepTagConfigRepository{

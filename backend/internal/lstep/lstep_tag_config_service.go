@@ -69,6 +69,12 @@ func (s *lstepTagConfigService) ListAutoManagedPrefixes(ctx context.Context) ([]
 }
 
 func (s *lstepTagConfigService) CreateAutoManagedPrefix(ctx context.Context, input CreateAutoManagedPrefixInput) (*model.LstepAutoManagedPrefix, error) {
+	// LSA-14: service boundary mirrors binding oneof so non-HTTP callers cannot skip enum checks.
+	switch input.Category {
+	case "B", "C1", "C2", "C3":
+	default:
+		return nil, apperrors.WrapInvalidInput("category must be one of B, C1, C2, C3")
+	}
 	m := &model.LstepAutoManagedPrefix{
 		Prefix:      input.Prefix,
 		Category:    input.Category,
