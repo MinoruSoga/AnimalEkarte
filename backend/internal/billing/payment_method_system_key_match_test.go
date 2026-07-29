@@ -10,7 +10,6 @@ package billing
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +23,34 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
+// 006 は 2026-07-29 に 001_init.sql §9 へ原文アーカイブされた。独立ファイルは存在しない。
 const paymentMethodSystemKeyMatchMigration = "006_payment_method_system_key_match.sql"
+
+// readPaymentMethodSystemKeyMatchMigration は 001_init.sql §9 に統合された
+// 006_payment_method_system_key_match.sql の SQL 本文を返す。
+func readPaymentMethodSystemKeyMatchMigration(t *testing.T) string {
+	t.Helper()
+
+	raw, err := os.ReadFile("../../migrations/001_init.sql") //nolint:gocritic // B5b requires this relative path.
+	require.NoError(t, err, "read 001_init.sql")
+	initial := string(raw)
+
+	sourceMarker := "-- Source file: " + paymentMethodSystemKeyMatchMigration
+	const nextSourceMarker = "-- Source file: 007_owners_clinic_phone_unique.sql"
+	start := strings.Index(initial, sourceMarker)
+	require.GreaterOrEqual(t, start, 0, "001_init.sql must contain the archived %s", paymentMethodSystemKeyMatchMigration)
+
+	endOffset := strings.Index(initial[start:], "\n"+nextSourceMarker)
+	require.Greater(t, endOffset, 0, "archived %s must end at the 007 source marker", paymentMethodSystemKeyMatchMigration)
+	block := initial[start : start+endOffset]
+
+	shaOffset := strings.Index(block, "-- Source SHA-256:")
+	require.GreaterOrEqual(t, shaOffset, 0, "archived %s must contain its SHA-256 header", paymentMethodSystemKeyMatchMigration)
+	bodyOffset := strings.Index(block[shaOffset:], "\n")
+	require.GreaterOrEqual(t, bodyOffset, 0, "archived migration metadata must end before its SQL body")
+
+	return block[shaOffset+bodyOffset+1:]
+}
 
 var applyPaymentMethodSystemKeyMatchOnce sync.Once
 
@@ -50,10 +76,9 @@ func setupPaymentMethodSystemKeyMatchTestDB(t *testing.T) *gorm.DB {
 
 func applyPaymentMethodSystemKeyMatchMigration(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("../../migrations", paymentMethodSystemKeyMatchMigration)) //nolint:gocritic // B5b requires this relative path.
-	require.NoError(t, err, "read %s", paymentMethodSystemKeyMatchMigration)
+	raw := readPaymentMethodSystemKeyMatchMigration(t)
 
-	for _, stmt := range splitPaymentMethodSystemKeyMatchSQL(string(raw)) {
+	for _, stmt := range splitPaymentMethodSystemKeyMatchSQL(raw) {
 		require.NoError(t, db.Exec(stmt).Error, "apply migration stmt: %s", stmt)
 	}
 }
@@ -297,9 +322,7 @@ func TestPaymentMethodSystemKeyMatch_Payments_UpdateMismatchRejected(t *testing.
 }
 
 func TestPaymentMethodSystemKeyMatchMigration_StaticContents(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("../../migrations", paymentMethodSystemKeyMatchMigration)) //nolint:gocritic // B5b requires this relative path.
-	require.NoError(t, err)
-	ddl := string(raw)
+	ddl := readPaymentMethodSystemKeyMatchMigration(t)
 	normalized := strings.Join(strings.Fields(ddl), " ")
 
 	assert.Contains(t, normalized, "app_private.enforce_payment_method_system_key_match")
