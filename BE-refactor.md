@@ -4,11 +4,11 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-29 at commit `0903c2763fed6afeab078ab95745caf9c126618a` (initial READY wave integrated on local main). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-30 at commit `fbc0906d68fc9b213bfcd4b6ab86081bb076e321`. This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 116 live findings are `CLOSED_VERIFIED`, and 2 remain `ACTIVE`. There are 8 remaining specification-ready packets: 4 newly unblocked packets are filed in the execution ledger as `READY_AGENT`, and 4 dependency-gated packets remain `READY_TO_FILE`. The initial 10 dependency-free wave packets are integrated and removed from the active frontier; completion SHAs are recorded in the resolution index.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 116 live findings are `CLOSED_VERIFIED`, and 2 remain `ACTIVE`. There are 8 remaining specification-ready packets: 4 are filed in the execution ledger as `READY_AGENT`, and 4 dependency-gated packets remain `READY_TO_FILE`.
 
 ## Active frontier
 
@@ -107,24 +107,23 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 ### BE-ACT-DOC-SESSION-LEDGER
 - State: READY_TO_FILE
 - Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
-- Actor: sole documentation integrator using a protected copy of current shared-main WIP
+- Actor: sole documentation integrator using a protected copy of current shared-main state
 - Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
-- Current evidence: `3-session-agent.html#ledger`; `DOC-LEDGER-TASK469` cleanup and the first dependency-free wave filing are already applied in current shared-main WIP, with BUG-433 preserved.
-- Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main WIP; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not repeat initial filing or claim this final-convergence packet is a prerequisite for wave advancement.
+- Current evidence: `3-session-agent.html#ledger` contains the four current `READY_AGENT` sections and no completed `BE-ACT-*` sections; BUG-433 remains preserved.
+- Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
 - Dependencies: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH, BE-ACT-CAMPAIGN-TARGET-SERIALIZATION, BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-ANIMAL-SPECIES-SPEC, BE-ACT-DOC-LSTEP-CONTRACT
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: imported baseline matches then-current shared WIP before editing; TASK-469 and completed `BE-ACT-*` sections are absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
+- Completion evidence: imported baseline matches then-current shared main before editing; every completed `BE-ACT-*` section is absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
 
-- Parallel group A: permission parity, LSTEP stale-tag, LSTEP daily-claim, q&a, phase2, BE-pending, and specification/architecture.
-- Sequential backend chain: animal-species DBOrTx → campaign target serialization → merchandise atomic delete → bounded master lists.
-- LSTEP performance work: daily-claim → delivery-batch N+1 removal; health-batch bulk loading and LTV ranking bound are path-disjoint parallel units.
-- Authorization/spec chain: permission parity → frontend animal-species authorization; then animal-species DBOrTx + frontend authorization → animal-species spec.
-- Documentation convergence: LSTEP implementation packets → LSTEP contract; every approved packet → session-ledger filing.
+- Current parallel wave: frontend animal-species authorization, campaign target serialization, delivery-batch N+1 removal, and LSTEP contract documentation.
+- Sequential inventory chain: campaign target serialization → merchandise atomic delete → bounded master lists.
+- Authorization/spec chain: frontend animal-species authorization → animal-species specification.
+- Final convergence: all seven implementation/specification packets → session-ledger cleanup.
 - Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
@@ -279,12 +278,7 @@ G2F-11	LIVE	ACTIVE	BE-ACT-BOUNDED-MASTER-LISTS	CURRENT:backend/internal/medicalr
 
 ## Source reconciliation and operational authority
 
-The pre-refresh auxiliary sources are losslessly absorbed as follows:
-
-- `NW-R2-01` is split into `NW-R2-01A/B`; `NW-R3-02` into `NW-R3-02A/B`. `NW-R2-02` maps to terminal G2C-03/G2B-01, `NW-R2-03` to AUS-04, `NW-R3-01` to BIL-01, and `NW-R3-03` to withdrawn AUS-06 plus the current Go/Gin guideline.
-- `POST-A-02/03/05` map to terminal LSB-04, POC-02/05, and G2F-05; `POST-A-04/06` and `POST-A-01` are active Source keys above; `POST-B-02` is terminal current frontend zero-impact evidence; `POST-C-02` maps to current POC-06. `POST-USER-01`, `POST-B-01`, `POST-USER-02`, `POST-B-03`, and `POST-C-01` map one-to-one to the operational rows below.
-- `DOC-LEDGER-TASK469` is terminal provenance: current shared-main WIP removes the completed TASK-469 section and every reference while preserving BUG-433. Later ledger advancement follows the lifecycle rule above; the remaining `BE-ACT-DOC-SESSION-LEDGER` packet is final convergence only.
-- `RULE-DOUBT-02/03/05/07/09/10/11/14/17/23` are implemented DEC-29..39 semantics now enforced by current code; `RULE-DOUBT-28` also maps to the animal-species DBOrTx packet. `RULE-DOUBT-15/19/25/32` are rejected heuristics under current Go/Gin rules. `RULE-DOUBT-27A/B` map to the two serialized inventory packets. `RULE-DOUBT-01/04/06/08/12/13/16/18/20/21/22/24/26/29/30/31` resolve to `backend/CODING_RULES.md`, `.claude/refs/backend-application-invariants.md`, `.claude/refs/go-gin-backend-review.md`, ADR-006, `backend/CLAUDE.md`, `backend/migrations/CLAUDE.md`, and current testing/ops contracts. These are authority references, not executable backend residuals.
+Only unresolved auxiliary keys remain in the active packets or operational pointers. `NW-R2-01A/B` and `RULE-DOUBT-27A/B` map to the two serialized inventory packets; the other packet keys are direct current identifiers. Terminal mappings remain recoverable from Git and the resolution index instead of being duplicated here.
 
 Operations are excluded from the active frontier:
 
