@@ -29,8 +29,9 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	for _, r := range records {
 		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
 		if decErr != nil {
-			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName)
-			val = ""
+			// LSB-04 / DEC-35: 復号失敗を空文字へ置換して握り潰さない（サイレント停止を防ぐ）
+			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName, "error", decErr)
+			return nil, apperrors.Wrap(decErr, "failed to decrypt integration value")
 		}
 		kvMap[r.KeyName] = val
 	}

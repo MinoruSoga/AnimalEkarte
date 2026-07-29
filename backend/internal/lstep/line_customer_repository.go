@@ -15,6 +15,8 @@ import (
 // LineCustomerRepository は予約顧客のデータアクセスインターフェース
 type LineCustomerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	// CountAll returns the unscoped (by safety cap) total for clinic-scoped line customers (G2F-05).
+	CountAll(ctx context.Context, clinicID uint64) (int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 	UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
 	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error)
@@ -27,8 +29,8 @@ func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 	return &lineCustomerRepository{db: db}
 }
 
-// lineCustomerListMax is a hard safety cap for List (G2F-05). Full page/limit
-// query plumbing needs LineCustomerService ownership (out of SOLO-16 allowlist).
+// lineCustomerListMax is a hard safety cap for List (G2F-05).
+// Truncation is surfaced to clients via LineCustomerListResult.Truncated + Total.
 const lineCustomerListMax = 200
 
 func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
@@ -46,6 +48,18 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 		return nil, apperrors.FromGORM(err, "line_customer", "")
 	}
 	return items, nil
+}
+
+func (r *lineCustomerRepository) CountAll(ctx context.Context, clinicID uint64) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&model.LineCustomer{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Count(&total).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "line_customer", "count")
+	}
+	return total, nil
 }
 
 func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {

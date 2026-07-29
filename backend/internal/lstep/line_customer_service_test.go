@@ -18,6 +18,7 @@ import (
 // 名前衝突を避けて別名で定義する。
 type mockLineCustomerRepositoryFull struct {
 	findAllFn         func(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	countAllFn        func(ctx context.Context, clinicID uint64) (int64, error)
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 	updateOwnerLinkFn func(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
 }
@@ -27,6 +28,17 @@ func (m *mockLineCustomerRepositoryFull) FindAll(ctx context.Context, clinicID u
 		return m.findAllFn(ctx, clinicID)
 	}
 	return nil, nil
+}
+
+func (m *mockLineCustomerRepositoryFull) CountAll(ctx context.Context, clinicID uint64) (int64, error) {
+	if m.countAllFn != nil {
+		return m.countAllFn(ctx, clinicID)
+	}
+	if m.findAllFn != nil {
+		items, err := m.findAllFn(ctx, clinicID)
+		return int64(len(items)), err
+	}
+	return 0, nil
 }
 
 func (m *mockLineCustomerRepositoryFull) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
@@ -58,11 +70,13 @@ func TestNewLineCustomerService(t *testing.T) {
 
 func TestLineCustomerService_List(t *testing.T) {
 	tests := []struct {
-		name     string
-		repoData []model.LineCustomer
-		repoErr  error
-		wantLen  int
-		wantErr  bool
+		name          string
+		repoData      []model.LineCustomer
+		repoErr       error
+		total         int64
+		wantLen       int
+		wantTruncated bool
+		wantErr       bool
 	}{
 		{
 			name: "returns line customer list",
@@ -70,17 +84,28 @@ func TestLineCustomerService_List(t *testing.T) {
 				{ID: 1, ClinicID: 1, LineUserID: "U1"},
 				{ID: 2, ClinicID: 1, LineUserID: "U2"},
 			},
+			total:   2,
 			wantLen: 2,
 		},
 		{
 			name:     "returns empty list when none exist",
 			repoData: []model.LineCustomer{},
+			total:    0,
 			wantLen:  0,
 		},
 		{
 			name:    "propagates repository error",
 			repoErr: errors.New("db connection error"),
 			wantErr: true,
+		},
+		{
+			name: "surfaces truncation when total exceeds safety cap",
+			repoData: []model.LineCustomer{
+				{ID: 1, ClinicID: 1, LineUserID: "U1"},
+			},
+			total:         int64(lineCustomerListMax + 10),
+			wantLen:       1,
+			wantTruncated: true,
 		},
 	}
 
@@ -90,16 +115,25 @@ func TestLineCustomerService_List(t *testing.T) {
 				findAllFn: func(_ context.Context, _ uint64) ([]model.LineCustomer, error) {
 					return tt.repoData, tt.repoErr
 				},
+				countAllFn: func(_ context.Context, _ uint64) (int64, error) {
+					if tt.repoErr != nil {
+						return 0, tt.repoErr
+					}
+					return tt.total, nil
+				},
 			}
 			svc := NewLineCustomerService(repo, &mockLstepOwnerRepo{})
 
-			customers, err := svc.List(context.Background(), 1)
+			result, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Len(t, customers, tt.wantLen)
+				assert.Len(t, result.Items, tt.wantLen)
+				assert.Equal(t, tt.total, result.Total)
+				assert.Equal(t, lineCustomerListMax, result.Limit)
+				assert.Equal(t, tt.wantTruncated, result.Truncated)
 			}
 		})
 	}

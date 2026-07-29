@@ -22,6 +22,12 @@ type suppressionMockTriggerLogRepository struct {
 func (m *suppressionMockTriggerLogRepository) Create(_ context.Context, _ *model.LstepDeliveryTriggerLog) error {
 	return nil
 }
+func (m *suppressionMockTriggerLogRepository) CreateIfAbsentToday(_ context.Context, log *model.LstepDeliveryTriggerLog) (bool, error) {
+	if log != nil && log.ID == 0 {
+		log.ID = 1
+	}
+	return true, nil
+}
 func (m *suppressionMockTriggerLogRepository) ExistsTodayByOwnerAndType(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 	return false, nil
 }

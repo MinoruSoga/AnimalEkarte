@@ -2,12 +2,12 @@ package lstep
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/httpapi"
-
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 // LineCustomerHandler は LineCustomerService の HTTP handler。
@@ -22,17 +22,27 @@ func NewLineCustomerHandler(svc LineCustomerService, requirePermission Permissio
 }
 
 // ListLineCustomers godoc
+// Response body stays a JSON array for OpenAPI/FE compatibility.
+// G2F-05: truncation is surfaced via headers (not silent 200-cap):
+//   X-Total-Count, X-Limit, X-Truncated
 func (h *LineCustomerHandler) ListLineCustomers(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	items, err := h.svc.List(c.Request.Context(), clinicID)
+	result, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(items, toLineCustomerResponse))
+	c.Header("X-Total-Count", strconv.FormatInt(result.Total, 10))
+	c.Header("X-Limit", strconv.Itoa(result.Limit))
+	if result.Truncated {
+		c.Header("X-Truncated", "true")
+	} else {
+		c.Header("X-Truncated", "false")
+	}
+	c.JSON(http.StatusOK, httpapi.MapSlice(result.Items, toLineCustomerResponse))
 }
 
 // LinkOwnerToLineCustomer godoc

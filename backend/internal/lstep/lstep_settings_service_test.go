@@ -428,7 +428,7 @@ func TestGetSettings_ClinicSettingsAppliesDefaultsAndCPMVersion(t *testing.T) {
 	})
 }
 
-func TestGetSettings_DecryptErrorFallsBackToEmptyValue(t *testing.T) {
+func TestGetSettings_DecryptErrorPropagates(t *testing.T) {
 	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
 	require.NoError(t, err)
 	repo := &mockLstepSettingsRepository{
@@ -441,8 +441,9 @@ func TestGetSettings_DecryptErrorFallsBackToEmptyValue(t *testing.T) {
 	svc := NewLstepSettingsService(repo, nil, cipher, nil, nil)
 
 	res, err := svc.GetSettings(context.Background(), 1)
-	require.NoError(t, err, "復号失敗はエラーにせず空文字にフォールバックする")
-	assert.False(t, res.IsConfigured, "復号失敗した値は未設定扱いになる")
+	require.Error(t, err, "LSB-04: 復号失敗を握り潰さず呼び出し元へ返す")
+	assert.Nil(t, res)
+	assert.Contains(t, err.Error(), "decrypt")
 }
 
 // ================================================================

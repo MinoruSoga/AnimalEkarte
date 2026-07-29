@@ -66,8 +66,9 @@ func TestRecordTrigger_Success(t *testing.T) {
 		},
 	}
 	asOf := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	id, err := svc.recordTrigger(context.Background(), 1, 10, "trigger_x", asOf)
+	id, claimed, err := svc.recordTrigger(context.Background(), 1, 10, "trigger_x", asOf)
 	assert.NoError(t, err)
+	assert.True(t, claimed)
 	assert.Equal(t, uint64(42), id)
 	if assert.NotNil(t, created) {
 		assert.Equal(t, uint64(10), created.OwnerID)
@@ -86,7 +87,8 @@ func TestRecordTrigger_RepoErrorIsWrapped(t *testing.T) {
 			},
 		},
 	}
-	id, err := svc.recordTrigger(context.Background(), 1, 10, "trigger_x", time.Now())
+	id, claimed, err := svc.recordTrigger(context.Background(), 1, 10, "trigger_x", time.Now())
 	assert.Error(t, err)
+	assert.False(t, claimed)
 	assert.Equal(t, uint64(0), id)
 }

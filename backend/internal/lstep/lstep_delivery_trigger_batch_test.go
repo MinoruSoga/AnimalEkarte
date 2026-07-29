@@ -51,6 +51,12 @@ func validOwnerRepoForDelivery() *mockOwnerRepoForDelivery {
 	}
 }
 
+func (m *mockDeliveryTriggerLogRepoForBatch) CreateIfAbsentToday(ctx context.Context, log *model.LstepDeliveryTriggerLog) (bool, error) {
+	if err := m.Create(ctx, log); err != nil {
+		return false, err
+	}
+	return true, nil
+}
 func (m *mockDeliveryTriggerLogRepoForBatch) Create(ctx context.Context, log *model.LstepDeliveryTriggerLog) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, log)

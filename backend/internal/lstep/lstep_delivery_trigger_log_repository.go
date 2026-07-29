@@ -35,6 +35,10 @@ type VisitConversionRow struct {
 type LstepDeliveryTriggerLogRepository interface {
 	// Create は新規トリガーログを作成する。
 	Create(ctx context.Context, log *model.LstepDeliveryTriggerLog) error
+	// CreateIfAbsentToday serializes check+create under a day-scoped advisory lock (LSA-15).
+	// Returns created=false when another row already claims the same clinic/owner/type/day slot.
+	// UNIQUE index (step ④) remains the final DB defense; this closes the app-level race first.
+	CreateIfAbsentToday(ctx context.Context, log *model.LstepDeliveryTriggerLog) (created bool, err error)
 	// ExistsTodayByOwnerAndType は当日同一飼い主・同一トリガー種別のログが存在するか返す（二重発火防止）。
 	ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error)
 	// UpdateStatus はログのステータス・fired_at・excluded_reason を更新する。
@@ -69,6 +73,45 @@ func (r *lstepDeliveryTriggerLogRepository) Create(ctx context.Context, log *mod
 		return apperrors.FromGORM(err, "lstep_delivery_trigger_log", "")
 	}
 	return nil
+}
+
+func (r *lstepDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Context, log *model.LstepDeliveryTriggerLog) (bool, error) {
+	if log == nil {
+		return false, apperrors.WrapInvalidInput("delivery trigger log is required")
+	}
+	dayStart := time.Date(log.ScheduledAt.Year(), log.ScheduledAt.Month(), log.ScheduledAt.Day(), 0, 0, 0, 0, log.ScheduledAt.Location())
+	dayKey := dayStart.Format("2006-01-02")
+	lockKey := fmt.Sprintf("lstep_delivery_trigger:%d:%d:%s:%s", log.ClinicID, log.OwnerID, log.TriggerType, dayKey)
+
+	var created bool
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Serialize concurrent claim of the same day/type slot (LSA-15 / X-05).
+		// Fail-closed: lock acquisition failure aborts the write.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).Error; err != nil {
+			return apperrors.Wrap(err, "failed to acquire delivery trigger day lock")
+		}
+		dayEnd := dayStart.AddDate(0, 0, 1)
+		var count int64
+		if err := tx.Model(&model.LstepDeliveryTriggerLog{}).
+			Where("clinic_id = ? AND owner_id = ? AND trigger_type = ? AND scheduled_at >= ? AND scheduled_at < ?",
+				log.ClinicID, log.OwnerID, log.TriggerType, dayStart, dayEnd).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "lstep_delivery_trigger_log", "exists_today_locked")
+		}
+		if count > 0 {
+			created = false
+			return nil
+		}
+		if err := tx.Create(log).Error; err != nil {
+			return apperrors.FromGORM(err, "lstep_delivery_trigger_log", "")
+		}
+		created = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return created, nil
 }
 
 func (r *lstepDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error) {

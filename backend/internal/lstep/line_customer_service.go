@@ -8,9 +8,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// LineCustomerListResult carries list rows plus truncation metadata (G2F-05).
+// Clients must not treat Items as the full clinic set when Truncated is true.
+type LineCustomerListResult struct {
+	Items     []model.LineCustomer
+	Total     int64
+	Limit     int
+	Truncated bool
+}
+
 // LineCustomerService は予約顧客のビジネスロジックインターフェース
 type LineCustomerService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	List(ctx context.Context, clinicID uint64) (*LineCustomerListResult, error)
 	LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error)
 }
 
@@ -23,13 +32,23 @@ func NewLineCustomerService(repo LineCustomerRepository, ownerRepo lstepOwnerRep
 	return &lineCustomerService{repo: repo, ownerRepo: ownerRepo}
 }
 
-func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) (*LineCustomerListResult, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list reservation customers", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list reservation customers")
 	}
-	return items, nil
+	total, err := s.repo.CountAll(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count reservation customers", "error", err)
+		return nil, apperrors.Wrap(err, "failed to count reservation customers")
+	}
+	return &LineCustomerListResult{
+		Items:     items,
+		Total:     total,
+		Limit:     lineCustomerListMax,
+		Truncated: total > int64(lineCustomerListMax),
+	}, nil
 }
 
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {

@@ -72,6 +72,43 @@ func TestLstepDeliveryTriggerLogRepository_Create(t *testing.T) {
 	assert.Equal(t, model.TriggerStatusScheduled, stored.Status)
 }
 
+// LSA-15: check-then-create under advisory lock is idempotent for the day slot.
+func TestLstepDeliveryTriggerLogRepository_CreateIfAbsentToday(t *testing.T) {
+	db := setupLstepDeliveryTriggerLogTestDB(t)
+	repo := NewLstepDeliveryTriggerLogRepository(db)
+	ctx := context.Background()
+	scheduledAt := time.Date(2026, 6, 11, 10, 0, 0, 0, time.UTC)
+
+	first := &model.LstepDeliveryTriggerLog{
+		ClinicID:    1,
+		OwnerID:     200,
+		TriggerType: model.TriggerTypeBirthdayMessage,
+		Status:      model.TriggerStatusScheduled,
+		ScheduledAt: scheduledAt,
+	}
+	created, err := repo.CreateIfAbsentToday(ctx, first)
+	require.NoError(t, err)
+	assert.True(t, created)
+	assert.NotZero(t, first.ID)
+
+	second := &model.LstepDeliveryTriggerLog{
+		ClinicID:    1,
+		OwnerID:     200,
+		TriggerType: model.TriggerTypeBirthdayMessage,
+		Status:      model.TriggerStatusScheduled,
+		ScheduledAt: scheduledAt.Add(2 * time.Hour),
+	}
+	created, err = repo.CreateIfAbsentToday(ctx, second)
+	require.NoError(t, err)
+	assert.False(t, created, "同日スロットは二重作成しない")
+
+	var count int64
+	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).
+		Where("clinic_id = ? AND owner_id = ? AND trigger_type = ?", 1, 200, model.TriggerTypeBirthdayMessage).
+		Count(&count).Error)
+	assert.Equal(t, int64(1), count)
+}
+
 func TestLstepDeliveryTriggerLogRepository_ExistsTodayByOwnerAndType(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)
 	repo := NewLstepDeliveryTriggerLogRepository(db)

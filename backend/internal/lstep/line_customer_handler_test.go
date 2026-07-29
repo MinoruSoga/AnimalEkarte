@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -25,15 +26,15 @@ func TestLineCustomerHandlerCompiles(t *testing.T) {
 // ---- mock LineCustomerService ----
 
 type mockLineCustomerService struct {
-	listFn      func(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	listFn      func(ctx context.Context, clinicID uint64) (*LineCustomerListResult, error)
 	linkOwnerFn func(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error)
 }
 
-func (m *mockLineCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+func (m *mockLineCustomerService) List(ctx context.Context, clinicID uint64) (*LineCustomerListResult, error) {
 	if m.listFn != nil {
 		return m.listFn(ctx, clinicID)
 	}
-	return nil, nil
+	return &LineCustomerListResult{Items: nil, Limit: lineCustomerListMax}, nil
 }
 
 func (m *mockLineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
@@ -62,16 +63,37 @@ func TestListLineCustomers(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns list of LINE customers",
+			name:     "returns list of LINE customers with truncation headers",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockLineCustomerService{
-				listFn: func(_ context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+				listFn: func(_ context.Context, clinicID uint64) (*LineCustomerListResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					return []model.LineCustomer{{ID: 1, ClinicID: 1, DisplayName: "田中太郎"}}, nil
+					return &LineCustomerListResult{
+						Items:     []model.LineCustomer{{ID: 1, ClinicID: 1, DisplayName: "田中太郎"}},
+						Total:     1,
+						Limit:     lineCustomerListMax,
+						Truncated: false,
+					}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"display_name":"田中太郎"`,
+		},
+		{
+			name:     "sets X-Truncated true when list was capped",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLineCustomerService{
+				listFn: func(_ context.Context, _ uint64) (*LineCustomerListResult, error) {
+					return &LineCustomerListResult{
+						Items:     []model.LineCustomer{{ID: 1, ClinicID: 1, DisplayName: "最新"}},
+						Total:     int64(lineCustomerListMax + 5),
+						Limit:     lineCustomerListMax,
+						Truncated: true,
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"display_name":"最新"`,
 		},
 		{
 			name:       "returns 401 when clinic_id missing",
@@ -83,7 +105,7 @@ func TestListLineCustomers(t *testing.T) {
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockLineCustomerService{
-				listFn: func(_ context.Context, _ uint64) ([]model.LineCustomer, error) {
+				listFn: func(_ context.Context, _ uint64) (*LineCustomerListResult, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -102,6 +124,13 @@ func TestListLineCustomers(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantStatus == http.StatusOK && tt.name == "sets X-Truncated true when list was capped" {
+				assert.Equal(t, "true", w.Header().Get("X-Truncated"))
+				assert.Equal(t, strconv.Itoa(lineCustomerListMax), w.Header().Get("X-Limit"))
+				assert.Equal(t, strconv.FormatInt(int64(lineCustomerListMax+5), 10), w.Header().Get("X-Total-Count"))
+				// Body remains a JSON array (FE/OpenAPI compatible).
+				assert.True(t, len(w.Body.Bytes()) > 0 && w.Body.Bytes()[0] == '[')
 			}
 		})
 	}

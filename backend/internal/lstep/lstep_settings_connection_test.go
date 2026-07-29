@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -238,5 +240,23 @@ func TestLstepSettingsService_TestConnection(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.False(t, result.LstepOK)
 		assert.NotEmpty(t, result.LstepError)
+	})
+
+	t.Run("propagates decrypt errors instead of probing with empty secrets", func(t *testing.T) {
+		cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+		require.NoError(t, err)
+		repo := &mockLstepSettingsRepository{
+			findByClinicAndServiceFn: func(_ context.Context, _ uint64, _ string) ([]*model.ClinicIntegration, error) {
+				return []*model.ClinicIntegration{
+					{KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "not-valid-base64!!"},
+				}, nil
+			},
+		}
+		svc := NewLstepSettingsService(repo, &mockLstepSyncSettingsRepository{}, cipher, nil, nil)
+
+		result, err := svc.TestConnection(context.Background(), 1)
+		require.Error(t, err, "LSB-04: 復号失敗を握り潰さない")
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "decrypt")
 	})
 }

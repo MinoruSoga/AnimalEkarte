@@ -55,6 +55,12 @@ func (m *mockDeliveryTriggerLogRepository) Create(ctx context.Context, log *mode
 	log.ID = 1
 	return nil
 }
+func (m *mockDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Context, log *model.LstepDeliveryTriggerLog) (bool, error) {
+	if err := m.Create(ctx, log); err != nil {
+		return false, err
+	}
+	return true, nil
+}
 func (m *mockDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error) {
 	if m.existsTodayFn != nil {
 		return m.existsTodayFn(ctx, clinicID, ownerID, triggerType, date)

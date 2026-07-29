@@ -41,8 +41,9 @@ func (s *lstepDeliveryTriggerService) alreadyFiredToday(ctx context.Context, cli
 	return exists, nil
 }
 
-// recordTrigger はトリガーログを作成し生成された ID を返す。
-func (s *lstepDeliveryTriggerService) recordTrigger(ctx context.Context, clinicID, ownerID uint64, triggerType string, asOf time.Time) (uint64, error) {
+// recordTrigger claims the day/type slot under advisory lock (LSA-15) and returns the log ID.
+// created=false means another worker already claimed the slot — caller must treat as no-op.
+func (s *lstepDeliveryTriggerService) recordTrigger(ctx context.Context, clinicID, ownerID uint64, triggerType string, asOf time.Time) (id uint64, created bool, err error) {
 	log := &model.LstepDeliveryTriggerLog{
 		OwnerID:     ownerID,
 		ClinicID:    clinicID,
@@ -50,10 +51,14 @@ func (s *lstepDeliveryTriggerService) recordTrigger(ctx context.Context, clinicI
 		ScheduledAt: asOf,
 		Status:      model.TriggerStatusScheduled,
 	}
-	if err := s.triggerLogRepo.Create(ctx, log); err != nil {
-		return 0, apperrors.Wrap(err, "failed to create trigger log")
+	created, err = s.triggerLogRepo.CreateIfAbsentToday(ctx, log)
+	if err != nil {
+		return 0, false, apperrors.Wrap(err, "failed to create trigger log")
 	}
-	return log.ID, nil
+	if !created {
+		return 0, false, nil
+	}
+	return log.ID, true, nil
 }
 
 // applyTagAndLog は L ステップへタグを付与しログを fired 状態に更新する。

@@ -84,10 +84,13 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 			SuppressedByPriority: true,
 			SuppressionReason:    &suppressionReason,
 		}
-		if createErr := s.triggerLogRepo.Create(ctx, suppressedLog); createErr != nil {
+		// LSA-15: claim day slot under lock so concurrent workers cannot double-insert.
+		created, createErr := s.triggerLogRepo.CreateIfAbsentToday(ctx, suppressedLog)
+		if createErr != nil {
 			slog.ErrorContext(ctx, "delivery trigger: failed to create suppressed log", "owner_id", ownerID, "trigger", triggerType, "error", createErr)
 			return false, apperrors.Wrap(createErr, "failed to create suppressed trigger log")
 		}
+		_ = created // already-exists is an idempotent no-op for suppressed path
 		return false, nil
 	}
 
@@ -97,10 +100,14 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, err
 	}
 
-	logID, err := s.recordTrigger(ctx, clinicID, ownerID, triggerType, asOf)
+	logID, claimed, err := s.recordTrigger(ctx, clinicID, ownerID, triggerType, asOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: recordTrigger error", "owner_id", ownerID, "error", err)
 		return false, err
+	}
+	if !claimed {
+		// Concurrent worker already created today's log for this owner/type.
+		return false, nil
 	}
 
 	if excluded {
