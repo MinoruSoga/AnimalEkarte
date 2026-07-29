@@ -200,7 +200,9 @@ type SummaryResponse struct {
 	Breed         string                        `json:"breed,omitempty"`
 	AnimalSpecies *AnimalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	// Owner は飼主名を必要とする一覧（トリミング/予約等）向け。Pet.Owner を Preload した場合のみ埋まる。
-	Owner *owner.SummaryResponse `json:"owner,omitempty"`
+	// owner.SummaryResponse は他 package 参照のため tygo が any に潰す。wire は id+name のみなので
+	// tstype で明示する（trimming の tstype:"-" と同系統。JSON タグ・runtime 形状は不変）。
+	Owner *owner.SummaryResponse `json:"owner,omitempty" tstype:"{ id: number; name: string }"`
 }
 
 // AnimalSpeciesSummaryResponse is the species summary nested in SummaryResponse.

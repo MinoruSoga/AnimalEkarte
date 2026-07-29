@@ -269,6 +269,10 @@ export const AuditActionBillingRefundCreate = "billing_refund.create";
  */
 export const AuditActionBillingCreditCorrection = "billing.credit_correction";
 /**
+ * BUG-440: 明細削除による予防接種 claim 解放（再取込可能化）の actor 監査
+ */
+export const AuditActionBillingVaccinationClaimRelease = "billing.vaccination_claim_release";
+/**
  * #201 薬量自動計算 監査アクション
  * dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
  */
@@ -298,7 +302,7 @@ export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.d
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -320,9 +324,17 @@ export const AuditResourceReservation = "reservation";
 export const AuditResourceHospitalization = "hospitalization";
 export const AuditResourceTrimming = "trimming";
 /**
+ * U-X01X03-MR-CARE / MRA-01: hard-delete care plan items need durable audit resource.
+ */
+export const AuditResourceCarePlanItem = "care_plan_item";
+/**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem;
+/**
+ * care plan item destructive actions (MRA-01)
+ */
+export const AuditActionCarePlanItemDelete = "care_plan_item.delete";
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。

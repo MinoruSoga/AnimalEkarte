@@ -89,9 +89,10 @@ export interface SummaryResponse {
   animal_species?: AnimalSpeciesSummaryResponse;
   /**
    * Owner は飼主名を必要とする一覧（トリミング/予約等）向け。Pet.Owner を Preload した場合のみ埋まる。
-   * owner.SummaryResponse（id + name）相当。make codegen 再生成時は Go 側 owner package 参照の解決結果に追随する。
+   * owner.SummaryResponse は他 package 参照のため tygo が any に潰す。wire は id+name のみなので
+   * tstype で明示する（trimming の tstype:"-" と同系統。JSON タグ・runtime 形状は不変）。
    */
-  owner?: { id: number /* uint64 */; name: string };
+  owner?: { id: number; name: string };
 }
 /**
  * AnimalSpeciesSummaryResponse is the species summary nested in SummaryResponse.
