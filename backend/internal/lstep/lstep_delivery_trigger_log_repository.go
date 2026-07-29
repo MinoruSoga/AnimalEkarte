@@ -8,8 +8,21 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// jstHalfOpenDay returns the half-open [dayStart, dayEnd) window for the JST
+// calendar day that contains t, plus the YYYY-MM-DD key for advisory locks.
+// Matches migration 002 expression index:
+// ((scheduled_at AT TIME ZONE 'Asia/Tokyo')::date).
+func jstHalfOpenDay(t time.Time) (dayStart, dayEnd time.Time, dayKey string) {
+	jst := t.In(config.JST)
+	dayStart = time.Date(jst.Year(), jst.Month(), jst.Day(), 0, 0, 0, 0, config.JST)
+	dayEnd = dayStart.AddDate(0, 0, 1)
+	dayKey = dayStart.Format(time.DateOnly)
+	return dayStart, dayEnd, dayKey
+}
 
 // DeliveryTriggerLogRow は FindByDateRangeWithFilters の飼い主名 JOIN 結合行。
 type DeliveryTriggerLogRow struct {
@@ -79,18 +92,16 @@ func (r *lstepDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Cont
 	if log == nil {
 		return false, apperrors.WrapInvalidInput("delivery trigger log is required")
 	}
-	dayStart := time.Date(log.ScheduledAt.Year(), log.ScheduledAt.Month(), log.ScheduledAt.Day(), 0, 0, 0, 0, log.ScheduledAt.Location())
-	dayKey := dayStart.Format("2006-01-02")
+	dayStart, dayEnd, dayKey := jstHalfOpenDay(log.ScheduledAt)
 	lockKey := fmt.Sprintf("lstep_delivery_trigger:%d:%d:%s:%s", log.ClinicID, log.OwnerID, log.TriggerType, dayKey)
 
 	var created bool
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Serialize concurrent claim of the same day/type slot (LSA-15 / X-05).
+		// Serialize concurrent claim of the same JST day/type slot (LSA-15 / X-05).
 		// Fail-closed: lock acquisition failure aborts the write.
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).Error; err != nil {
 			return apperrors.Wrap(err, "failed to acquire delivery trigger day lock")
 		}
-		dayEnd := dayStart.AddDate(0, 0, 1)
 		var count int64
 		if err := tx.Model(&model.LstepDeliveryTriggerLog{}).
 			Where("clinic_id = ? AND owner_id = ? AND trigger_type = ? AND scheduled_at >= ? AND scheduled_at < ?",
@@ -115,8 +126,7 @@ func (r *lstepDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Cont
 }
 
 func (r *lstepDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error) {
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	dayEnd := dayStart.AddDate(0, 0, 1)
+	dayStart, dayEnd, _ := jstHalfOpenDay(date)
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.LstepDeliveryTriggerLog{}).
 		Where("clinic_id = ? AND owner_id = ? AND trigger_type = ? AND scheduled_at >= ? AND scheduled_at < ?",
@@ -308,8 +318,7 @@ func (r *lstepDeliveryTriggerLogRepository) CountVisitConversionsByType(ctx cont
 
 // FindByOwnerAndDate は同日同 owner_id の既存ログを返す (Q23 suppressed check 用)。
 func (r *lstepDeliveryTriggerLogRepository) FindByOwnerAndDate(ctx context.Context, clinicID, ownerID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	dayEnd := dayStart.AddDate(0, 0, 1)
+	dayStart, dayEnd, _ := jstHalfOpenDay(date)
 	var logs []model.LstepDeliveryTriggerLog
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND owner_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, ownerID, dayStart, dayEnd).
