@@ -160,7 +160,8 @@ func TestLstepSettingsService_GetRawCredentials(t *testing.T) {
 		assert.Equal(t, "secret-line-token", lineToken)
 	})
 
-	t.Run("復号に失敗した値は空文字にフォールバックする", func(t *testing.T) {
+	t.Run("復号に失敗した値は error を返す（空文字フォールバックしない）", func(t *testing.T) {
+		// LSB-04 / DEC-35: silent empty substitution hides key-rotation failures.
 		repo := &mockLstepSettingsRepository{
 			findByClinicAndServiceFn: func(_ context.Context, _ uint64, _ string) ([]*model.ClinicIntegration, error) {
 				return []*model.ClinicIntegration{
@@ -170,7 +171,7 @@ func TestLstepSettingsService_GetRawCredentials(t *testing.T) {
 		}
 		svc := NewLstepSettingsService(repo, &mockLstepSyncSettingsRepository{}, cipher, nil, nil)
 		apiKey, _, _, err := svc.GetRawCredentials(context.Background(), 1)
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.Equal(t, "", apiKey)
 	})
 

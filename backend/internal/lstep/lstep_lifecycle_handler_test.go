@@ -39,13 +39,13 @@ func (m *mockLstepLifecycleService) HandlePetRevival(ctx context.Context, clinic
 	}
 	return nil
 }
-func (m *mockLstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string) error {
+func (m *mockLstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string, actorID *uint64) error {
 	if m.handleOwnerOptOutFn != nil {
 		return m.handleOwnerOptOutFn(ctx, clinicID, ownerID, reason)
 	}
 	return nil
 }
-func (m *mockLstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64) error {
+func (m *mockLstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64, actorID *uint64) error {
 	if m.handleOwnerOptInFn != nil {
 		return m.handleOwnerOptInFn(ctx, clinicID, ownerID)
 	}

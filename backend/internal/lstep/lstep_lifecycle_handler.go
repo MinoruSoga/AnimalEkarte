@@ -72,7 +72,8 @@ func (h *Handler) UpdateOwnerLstepOptOut(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if err := h.lifecycle.HandleOwnerOptOut(c.Request.Context(), clinicID, ownerID, req.Reason); err != nil {
+	actorID := httpapi.OptionalStaffID(c)
+	if err := h.lifecycle.HandleOwnerOptOut(c.Request.Context(), clinicID, ownerID, req.Reason, actorID); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -100,11 +101,12 @@ func (h *Handler) PatchOwnerLstepOptOut(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	actorID := httpapi.OptionalStaffID(c)
 	var err error
 	if req.OptOut {
-		err = h.lifecycle.HandleOwnerOptOut(c.Request.Context(), clinicID, ownerID, req.Reason)
+		err = h.lifecycle.HandleOwnerOptOut(c.Request.Context(), clinicID, ownerID, req.Reason, actorID)
 	} else {
-		err = h.lifecycle.HandleOwnerOptIn(c.Request.Context(), clinicID, ownerID)
+		err = h.lifecycle.HandleOwnerOptIn(c.Request.Context(), clinicID, ownerID, actorID)
 	}
 	if err != nil {
 		httpapi.RespondError(c, err)

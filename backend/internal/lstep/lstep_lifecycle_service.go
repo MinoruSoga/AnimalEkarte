@@ -20,9 +20,9 @@ type LstepLifecycleService interface {
 	// HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
 	HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error
 	// HandleOwnerOptOut はオプトアウトを記録し Lステップの全タグを解除する。
-	HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string) error
+	HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string, actorID *uint64) error
 	// HandleOwnerOptIn はオプトインを記録し CPM タグを再同期する。
-	HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64) error
+	HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64, actorID *uint64) error
 	// HandleOwnerDeletion は飼主削除前に Lステップの全タグを解除しキャッシュを削除する。
 	HandleOwnerDeletion(ctx context.Context, clinicID, ownerID uint64) error
 }
@@ -134,11 +134,11 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	ownerID := pet.OwnerID
 
 	// 生存ペットを確認 — 全滅時は配信停止としてタグを全解除
+	// LSB-03 / X-01: death は既に commit 済み。後段 read 失敗で応答を失敗へ反転しない。
 	livingPets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find living pets after pet death", "error", err)
-		// DB エラーは呼び出し元に通知（死亡記録の巻き戻しは行わない）
-		return apperrors.Wrap(err, "failed to find living pets after pet death")
+		slog.ErrorContext(ctx, "failed to find living pets after pet death", "error", err, "pet_id", petID)
+		return nil
 	}
 
 	if len(livingPets) == 0 {
@@ -236,7 +236,7 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 }
 
 // HandleOwnerOptOut はオプトアウトを記録し Lステップの全タグを解除する。
-func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string) error {
+func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string, actorID *uint64) error {
 	// P1: FindByID before Update
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
@@ -248,6 +248,11 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 	if err := s.ownerRepo.RecordLstepOptOut(ctx, clinicID, ownerID, now, reason); err != nil {
 		slog.ErrorContext(ctx, "failed to update owner opt-out fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-out")
+	}
+
+	// LSA-05: 配信同意変更は destructive — best-effort 監査を残す（actor 付き）
+	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "owner_lstep_opt_out", "owner", &ownerID); auditErr != nil {
+		slog.WarnContext(ctx, "audit log failed for owner lstep opt-out", "error", auditErr, "owner_id", ownerID)
 	}
 
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
@@ -263,7 +268,7 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 }
 
 // HandleOwnerOptIn はオプトインを記録し CPM タグを再同期する。
-func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64) error {
+func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64, actorID *uint64) error {
 	// P1: FindByID before Update
 	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to find owner for opt-in", "error", err)
@@ -273,6 +278,11 @@ func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, 
 	if err := s.ownerRepo.ClearLstepOptOut(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to update owner opt-in fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-in")
+	}
+
+	// LSA-05: 配信同意変更の監査
+	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "owner_lstep_opt_in", "owner", &ownerID); auditErr != nil {
+		slog.WarnContext(ctx, "audit log failed for owner lstep opt-in", "error", auditErr, "owner_id", ownerID)
 	}
 
 	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); syncErr != nil {
@@ -290,6 +300,11 @@ func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicI
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
+	// LSA-05: 削除前クリーンアップは irreversible — actor は owner HTTP 側に無いため nil で監査
+	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, nil, "owner_lstep_deletion_cleanup", "owner", &ownerID); auditErr != nil {
+		slog.WarnContext(ctx, "audit log failed for owner deletion lstep cleanup", "error", auditErr, "owner_id", ownerID)
+	}
+
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return nil
 	}
@@ -302,7 +317,9 @@ func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicI
 	return nil
 }
 
-// removeAllTagsFromLstep はキャッシュを参照して Lステップから全タグを解除しキャッシュを削除する。
+// removeAllTagsFromLstep はキャッシュを参照して Lステップからタグを解除する（LSB-02 / DEC-35）。
+// リモート解除に成功したタグだけローカル cache から DeleteTag する。
+// client==nil または RemoveTag 失敗時は cache を残し、再試行可能な根拠を保持する。
 func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -314,16 +331,27 @@ func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clin
 		return apperrors.Wrap(err, "failed to find tag cache")
 	}
 
-	if client != nil {
-		for _, t := range tags {
-			if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
-				slog.ErrorContext(ctx, "failed to remove tag on cleanup", "error", removeErr, "tag", t.TagName)
-			}
-		}
+	if client == nil {
+		// 同期無効・APIキー未設定: リモート解除不能なのに cache を消さない（LSB-02）
+		slog.WarnContext(ctx, "lstep client unavailable; keeping tag cache for retry", "owner_id", ownerID, "tag_count", len(tags))
+		return nil
 	}
 
-	if err := s.tagCacheRepo.DeleteAllByOwner(ctx, clinicID, ownerID); err != nil {
-		return apperrors.Wrap(err, "failed to delete tag cache")
+	var failed int
+	for _, t := range tags {
+		if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
+			failed++
+			slog.ErrorContext(ctx, "failed to remove tag on cleanup", "error", removeErr, "tag", t.TagName)
+			continue
+		}
+		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
+			failed++
+			slog.ErrorContext(ctx, "failed to delete tag cache after remote remove", "error", delErr, "tag", t.TagName)
+		}
+	}
+	if failed > 0 {
+		slog.WarnContext(ctx, "partial lstep tag cleanup; residual cache retained for retry",
+			"owner_id", ownerID, "failed", failed, "total", len(tags))
 	}
 
 	return nil

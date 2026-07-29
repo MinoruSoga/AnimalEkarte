@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
@@ -580,7 +581,7 @@ func TestLstepLifecycleService_HandleOwnerOptOut(t *testing.T) {
 				&mockLstepTagSyncService{},
 			)
 
-			err := svc.HandleOwnerOptOut(context.Background(), 1, 10, "希望なし")
+			err := svc.HandleOwnerOptOut(context.Background(), 1, 10, "希望なし", nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantErrIs != nil {
@@ -643,7 +644,7 @@ func TestLstepLifecycleService_HandleOwnerOptIn(t *testing.T) {
 				&mockLstepTagSyncService{},
 			)
 
-			err := svc.HandleOwnerOptIn(context.Background(), 1, 10)
+			err := svc.HandleOwnerOptIn(context.Background(), 1, 10, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantErrIs != nil {
@@ -902,24 +903,19 @@ func TestLstepLifecycleService_RemoveAllTagsFromLstep(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:        "client nil (sync disabled) deletes cache without calling RemoveTag",
+			// LSB-02: client nil must NOT wipe local cache (retry evidence retained)
+			name:        "client nil (sync disabled) keeps cache without calling DeleteAll",
 			settingsSvc: defaultLstepSettingsSvc(),
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return []*model.LstepTagCache{{TagName: "cpm_new"}}, nil
 				},
-			},
-			wantErr: false,
-		},
-		{
-			name:        "DeleteAllByOwner error is wrapped",
-			settingsSvc: defaultLstepSettingsSvc(),
-			tagCacheRepo: &mockLstepTagCacheRepository{
 				deleteAllByOwnerFn: func(_ context.Context, _, _ uint64) error {
-					return errors.New("db error")
+					t.Fatal("DeleteAllByOwner must not run when lstep client is nil")
+					return nil
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -1028,9 +1024,10 @@ func TestLstepLifecycleService_HandlePetDeath_FindLivingByOwnerError(t *testing.
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), &mockOwnerRepository{}, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
 
+	// LSB-03: post-commit FindLiving failure must not invert the successful death write.
 	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_OwnerFindError(t *testing.T) {
@@ -1058,6 +1055,8 @@ func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_OwnerFindError(t *test
 }
 
 func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_LineLinkedRemovesTags(t *testing.T) {
+	// defaultLstepSettingsSvc returns empty API key → client nil.
+	// LSB-02: without a remote client we keep cache for retry (no DeleteAllByOwner).
 	lineUserID := "Uabc123"
 	deleteAllCalled := false
 	petRepo := &mockPetRepository{
@@ -1088,7 +1087,7 @@ func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_LineLinkedRemovesTags(
 	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.NoError(t, err)
-	assert.True(t, deleteAllCalled)
+	assert.False(t, deleteAllCalled, "LSB-02: nil client must not wipe tag cache")
 }
 
 func TestLstepLifecycleService_HandlePetDeath_SurvivingPets_PetDerivedCleanupBestEffort(t *testing.T) {
@@ -1394,7 +1393,7 @@ func TestLstepLifecycleService_HandleOwnerOptIn_UpdateError(t *testing.T) {
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
 
-	err := svc.HandleOwnerOptIn(context.Background(), 1, 10)
+	err := svc.HandleOwnerOptIn(context.Background(), 1, 10, nil)
 
 	assert.Error(t, err)
 }
@@ -1413,9 +1412,59 @@ func TestLstepLifecycleService_HandleOwnerOptIn_SyncErrorIsBestEffort(t *testing
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, syncSvc)
 
-	err := svc.HandleOwnerOptIn(context.Background(), 1, 10)
+	err := svc.HandleOwnerOptIn(context.Background(), 1, 10, nil)
 
 	assert.NoError(t, err)
+}
+
+// LSA-05: opt-out/in/deletion leave audit trails with actor when provided.
+func TestLstepLifecycleService_HandleOwnerOptOut_LogsAuditWithActor(t *testing.T) {
+	actor := uint64(7)
+	var gotAction string
+	var gotActor *uint64
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	audit := &mockAuditService{
+		logLstepOperationFn: func(_ context.Context, _ uint64, actorID *uint64, action, _ string, _ *uint64) error {
+			gotAction = action
+			gotActor = actorID
+			return nil
+		},
+	}
+	svc := NewLstepLifecycleService(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{}, audit, nil, &mockTransactor{}, audit)
+
+	err := svc.HandleOwnerOptOut(context.Background(), 1, 10, "希望なし", &actor)
+	require.NoError(t, err)
+	assert.Equal(t, "owner_lstep_opt_out", gotAction)
+	if assert.NotNil(t, gotActor) {
+		assert.Equal(t, actor, *gotActor)
+	}
+}
+
+func TestLstepLifecycleService_HandleOwnerOptIn_LogsAuditWithActor(t *testing.T) {
+	actor := uint64(9)
+	var gotAction string
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LstepOptOut: true}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	audit := &mockAuditService{
+		logLstepOperationFn: func(_ context.Context, _ uint64, _ *uint64, action, _ string, _ *uint64) error {
+			gotAction = action
+			return nil
+		},
+	}
+	svc := NewLstepLifecycleService(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{}, audit, nil, &mockTransactor{}, audit)
+
+	err := svc.HandleOwnerOptIn(context.Background(), 1, 10, &actor)
+	require.NoError(t, err)
+	assert.Equal(t, "owner_lstep_opt_in", gotAction)
 }
 
 // ---- HandleOwnerDeletion: additional branches ----
