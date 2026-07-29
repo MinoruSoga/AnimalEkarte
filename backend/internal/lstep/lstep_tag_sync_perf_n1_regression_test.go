@@ -230,7 +230,10 @@ func TestPERFFOLLOWUP08_LTV_TagCacheFetchedOncePerClinic(t *testing.T) {
 		settingsSvc: &mockLstepSettingsService{},
 		accountRepo: accountRepo,
 		ownerRepo: &mockOwnerRepository{
-			findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+			findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+				if afterID != 0 {
+					return nil, nil
+				}
 				return owners, nil
 			},
 		},

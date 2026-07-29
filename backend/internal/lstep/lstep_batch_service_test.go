@@ -59,6 +59,13 @@ func (m *batchMockMedRecordRepo) FindDormantOwnerEntriesCursor(ctx context.Conte
 	if m.findDormantCursorFn != nil {
 		return m.findDormantCursorFn(ctx, clinicID, minDays, afterOwnerID, limit)
 	}
+	// G2F-04: production uses Cursor; tests that only stub findDormantFn still get one page.
+	if m.findDormantFn != nil {
+		if afterOwnerID != 0 {
+			return nil, nil
+		}
+		return m.findDormantFn(ctx, clinicID, minDays)
+	}
 	return nil, nil
 }
 

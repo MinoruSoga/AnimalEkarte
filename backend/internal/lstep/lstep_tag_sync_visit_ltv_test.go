@@ -51,15 +51,18 @@ func TestSyncLTVTopPercent(t *testing.T) {
 		assert.NotEmpty(t, errs)
 	})
 
-	t.Run("returns wrapped error when FindAllWithLineUserID fails", func(t *testing.T) {
+	t.Run("returns wrapped error when FindAllWithLineUserIDCursor fails", func(t *testing.T) {
 		accountRepo := newCPMAccountingRepository()
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
 					return nil, errors.New("db error")
 				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
+				return &mockLstepAPIClient{}, nil
 			},
 		}
 		count, errs := svc.SyncLTVTopPercent(context.Background(), 1)
@@ -107,7 +110,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 1, LineUserID: nil}}, nil
 				},
 			},
@@ -133,7 +139,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 1, LineUserID: &lineUID1}}, nil
 				},
 			},
@@ -162,7 +171,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 1, LineUserID: &lineUID1}}, nil
 				},
 			},
@@ -185,7 +197,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 2, LineUserID: &lineUID2}}, nil
 				},
 			},
@@ -214,7 +229,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 2, LineUserID: &lineUID2}}, nil
 				},
 			},
@@ -243,7 +261,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 2, LineUserID: &lineUID2}}, nil
 				},
 			},
@@ -269,7 +290,10 @@ func TestSyncLTVTopPercent(t *testing.T) {
 			settingsSvc: &mockLstepSettingsService{},
 			accountRepo: accountRepo,
 			ownerRepo: &mockOwnerRepository{
-				findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				findAllWithLineUserIDCursorFn: func(_ context.Context, _, afterID uint64, _ int) ([]model.Owner, error) {
+					if afterID != 0 {
+						return nil, nil
+					}
 					return []model.Owner{{ID: 2, LineUserID: &lineUID2}}, nil
 				},
 			},
