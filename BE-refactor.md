@@ -2406,7 +2406,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/reservation/... -run 'LineReservationSettingRequest|AvailableDates'`
 - 既知台帳: none
 - Size: M (5/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: a40008858a19718f2e331a1fd4319ff034f54af8
 
 ##### U-X03-PET-SPECIES-AUDIT
 
