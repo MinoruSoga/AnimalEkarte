@@ -7,9 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ---- AnimalSpecies モック ----
@@ -617,4 +619,104 @@ func TestAnimalSpeciesService_Delete_WritesAudit(t *testing.T) {
 	assert.NoError(t, err)
 	require.Len(t, aud.entries, 1)
 	assert.Equal(t, auditActionAnimalSpeciesDelete, aud.entries[0].Action)
+}
+
+// ---- DB-backed audit fail-closed proofs (BE-ACT-ANIMAL-SPECIES-DBORTX / POC-07) ----
+//
+// mockSpeciesTx は fn を呼ぶだけで rollback しないため、監査失敗時に Create/Update/Delete/
+// Reorder が DB に残らないことは実 DB + persistence.NewTransactor + 実 repository で証明する。
+// リポジトリが r.db.WithContext のままだと ambient tx に参加せず部分コミットになる（RED）。
+
+func newAnimalSpeciesAuditFailService(t *testing.T) (
+	AnimalSpeciesService,
+	AnimalSpeciesRepository,
+	*gorm.DB,
+) {
+	t.Helper()
+	db := setupAnimalSpeciesTestDB(t)
+	repo := NewAnimalSpeciesRepository(db)
+	aud := &mockSpeciesAudit{err: errors.New("audit unavailable")}
+	svc := NewAnimalSpeciesServiceWithAudit(
+		repo,
+		&mockPetRepository{},
+		aud,
+		persistence.NewTransactor(db),
+	)
+	return svc, repo, db
+}
+
+func TestAnimalSpeciesService_Create_AuditFailureRollsBack(t *testing.T) {
+	svc, _, db := newAnimalSpeciesAuditFailService(t)
+	ctx := context.Background()
+
+	got, err := svc.Create(ctx, &CreateAnimalSpeciesInput{
+		Name:      "audit-fail-create",
+		IsActive:  true,
+		SortOrder: 1,
+	}, testSpeciesMeta())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audit")
+	assert.Nil(t, got)
+
+	var count int64
+	require.NoError(t, db.WithContext(ctx).
+		Model(&model.AnimalSpecies{}).
+		Where("name = ?", "audit-fail-create").
+		Count(&count).Error)
+	assert.Equal(t, int64(0), count, "audit failure must roll back Create")
+}
+
+func TestAnimalSpeciesService_Update_AuditFailureRollsBack(t *testing.T) {
+	svc, repo, _ := newAnimalSpeciesAuditFailService(t)
+	ctx := context.Background()
+
+	species := &model.AnimalSpecies{Name: "audit-fail-update-before", SortOrder: 3}
+	require.NoError(t, repo.Create(ctx, species))
+
+	name := "audit-fail-update-after"
+	got, err := svc.Update(ctx, species.ID, &UpdateAnimalSpeciesInput{Name: &name}, testSpeciesMeta())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audit")
+	assert.Nil(t, got)
+
+	reloaded, err := repo.FindByID(ctx, species.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "audit-fail-update-before", reloaded.Name, "audit failure must roll back Update")
+}
+
+func TestAnimalSpeciesService_Delete_AuditFailureRollsBack(t *testing.T) {
+	svc, repo, _ := newAnimalSpeciesAuditFailService(t)
+	ctx := context.Background()
+
+	species := &model.AnimalSpecies{Name: "audit-fail-delete-target"}
+	require.NoError(t, repo.Create(ctx, species))
+
+	err := svc.Delete(ctx, species.ID, testSpeciesMeta())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audit")
+
+	reloaded, err := repo.FindByID(ctx, species.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "audit-fail-delete-target", reloaded.Name, "audit failure must roll back Delete")
+}
+
+func TestAnimalSpeciesService_Reorder_AuditFailureRollsBack(t *testing.T) {
+	svc, repo, _ := newAnimalSpeciesAuditFailService(t)
+	ctx := context.Background()
+
+	first := &model.AnimalSpecies{Name: "audit-fail-reorder-A", SortOrder: 10}
+	second := &model.AnimalSpecies{Name: "audit-fail-reorder-B", SortOrder: 20}
+	require.NoError(t, repo.Create(ctx, first))
+	require.NoError(t, repo.Create(ctx, second))
+
+	err := svc.Reorder(ctx, []uint64{second.ID, first.ID}, testSpeciesMeta())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audit")
+
+	gotFirst, err := repo.FindByID(ctx, first.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 10, gotFirst.SortOrder, "audit failure must roll back Reorder")
+	gotSecond, err := repo.FindByID(ctx, second.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 20, gotSecond.SortOrder, "audit failure must roll back Reorder")
 }

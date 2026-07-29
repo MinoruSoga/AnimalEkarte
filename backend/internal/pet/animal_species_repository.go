@@ -30,7 +30,7 @@ func NewAnimalSpeciesRepository(db *gorm.DB) AnimalSpeciesRepository {
 
 func (r *animalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSpecies, error) {
 	items := make([]model.AnimalSpecies, 0)
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "animal_species", "")
@@ -40,7 +40,7 @@ func (r *animalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSp
 
 func (r *animalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
 	var species model.AnimalSpecies
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		First(&species, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", id))
@@ -49,7 +49,7 @@ func (r *animalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*mod
 }
 
 func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.AnimalSpecies) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	// Capture intent before Create: gorm default:true omits zero bools from
 	// INSERT and may write the DB default back into the struct.
 	wantActive := species.IsActive
@@ -66,7 +66,7 @@ func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.Ani
 }
 
 func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.AnimalSpecies{}).
 		Where("id = ?", id).
 		Updates(fields)
@@ -80,7 +80,7 @@ func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields 
 }
 
 func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("id = ?", id).
 		Delete(&model.AnimalSpecies{})
 	if result.Error != nil {

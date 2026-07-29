@@ -329,6 +329,18 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineAndSpecies": {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineID":         {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Update":                   {},
+	// global animal_species master: audited Create/Update/Delete/Reorder share WithTx;
+	// FindAll/FindByID also participate so Update's post-write reload and service pre-read
+	// see ambient writes. Runtime:
+	// TestAnimalSpeciesRepository_*_RollsBackWhenAmbientTxFails /
+	// TestAnimalSpeciesService_*_AuditFailureRollsBack
+	// (internal/pet/animal_species_repository_test.go, animal_species_service_test.go).
+	// Reorder delegates to persistence.ReorderGlobal (DBOrTx inside helper; not inventoried).
+	"pet/animal_species_repository.go|animalSpeciesRepository.FindAll":  {},
+	"pet/animal_species_repository.go|animalSpeciesRepository.FindByID": {},
+	"pet/animal_species_repository.go|animalSpeciesRepository.Create":   {},
+	"pet/animal_species_repository.go|animalSpeciesRepository.Update":   {},
+	"pet/animal_species_repository.go|animalSpeciesRepository.Delete":   {},
 	// pet (BUG-407: lstepLifecycleService.HandlePetDeath/HandlePetRevival が status/deceased_at
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
