@@ -16,6 +16,7 @@ var phonePattern = regexp.MustCompile(`^0\d{1,4}-?\d{1,4}-?\d{4}$`)
 var postalCodePattern = regexp.MustCompile(`^\d{3}-?\d{4}$`)
 
 // validateEmailFormat はメールアドレス形式が有効かを検証する（空の場合はスキップ）
+// POC-17: clinic/company use the same patterns via jp_email/jp_phone/jp_postal binding tags.
 func validateEmailFormat(email string) error {
 	if email == "" {
 		return nil
@@ -48,4 +49,15 @@ func validatePostalCodeFormat(postalCode string) error {
 		return apperrors.WrapInvalidInput("郵便番号の形式が正しくありません（例：123-4567 または 1234567）")
 	}
 	return nil
+}
+
+// ValidateEmailFormat exports contact email validation for cross-domain binding parity tests.
+func ValidateEmailFormat(email string) error { return validateEmailFormat(email) }
+
+// ValidatePhoneFormat exports contact phone validation for cross-domain binding parity tests.
+func ValidatePhoneFormat(phone string) error { return validatePhoneFormat(phone) }
+
+// ValidatePostalCodeFormat exports postal validation for cross-domain binding parity tests.
+func ValidatePostalCodeFormat(postalCode string) error {
+	return validatePostalCodeFormat(postalCode)
 }

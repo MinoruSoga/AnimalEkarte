@@ -1,6 +1,38 @@
 package clinic
 
-import "net/url"
+import (
+	"net/url"
+	"regexp"
+
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
+)
+
+// POC-17: same contact formats as owner/validators_contact (email/phone/postal).
+var (
+	clinicEmailPattern      = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	clinicPhonePattern      = regexp.MustCompile(`^0\d{1,4}-?\d{1,4}-?\d{4}$`)
+	clinicPostalCodePattern = regexp.MustCompile(`^\d{3}-?\d{4}$`)
+)
+
+func init() {
+	engine, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		return
+	}
+	_ = engine.RegisterValidation("jp_email", func(fl validator.FieldLevel) bool {
+		s := fl.Field().String()
+		return s == "" || clinicEmailPattern.MatchString(s)
+	})
+	_ = engine.RegisterValidation("jp_phone", func(fl validator.FieldLevel) bool {
+		s := fl.Field().String()
+		return s == "" || clinicPhonePattern.MatchString(s)
+	})
+	_ = engine.RegisterValidation("jp_postal", func(fl validator.FieldLevel) bool {
+		s := fl.Field().String()
+		return s == "" || clinicPostalCodePattern.MatchString(s)
+	})
+}
 
 type ListClinicQuery struct {
 	Scope string
@@ -13,13 +45,13 @@ func NewListClinicQuery(values url.Values) ListClinicQuery {
 // createClinicRequest はクリニック作成リクエスト。
 type CreateClinicRequest struct {
 	Name               string `json:"name"                binding:"required"`
-	PostalCode         string `json:"postal_code"`
+	PostalCode         string `json:"postal_code"         binding:"omitempty,jp_postal"`
 	Address            string `json:"address"`
-	PhoneNumber        string `json:"phone_number"`
-	FaxNumber          string `json:"fax_number"`
+	PhoneNumber        string `json:"phone_number"        binding:"omitempty,jp_phone"`
+	FaxNumber          string `json:"fax_number"          binding:"omitempty,jp_phone"`
 	RegistrationNumber string `json:"registration_number"`
 	DirectorName       string `json:"director_name"`
-	Email              string `json:"email"`
+	Email              string `json:"email"               binding:"omitempty,jp_email"`
 	Website            string `json:"website"`
 }
 
@@ -41,13 +73,13 @@ func (r *CreateClinicRequest) ToServiceInput() *CreateClinicInput {
 // PATCH セマンティクス: 未送信フィールドは nil → 既存値を保持する。
 type UpdateClinicRequest struct {
 	Name                                      *string  `json:"name"`
-	PostalCode                                *string  `json:"postal_code"`
+	PostalCode                                *string  `json:"postal_code" binding:"omitempty,jp_postal"`
 	Address                                   *string  `json:"address"`
-	PhoneNumber                               *string  `json:"phone_number"`
-	FaxNumber                                 *string  `json:"fax_number"`
+	PhoneNumber                               *string  `json:"phone_number" binding:"omitempty,jp_phone"`
+	FaxNumber                                 *string  `json:"fax_number" binding:"omitempty,jp_phone"`
 	RegistrationNumber                        *string  `json:"registration_number"`
 	DirectorName                              *string  `json:"director_name"`
-	Email                                     *string  `json:"email"`
+	Email                                     *string  `json:"email" binding:"omitempty,jp_email"`
 	Website                                   *string  `json:"website"`
 	LogoURL                                   *string  `json:"logo_url"`
 	IsActive                                  *bool    `json:"is_active"`

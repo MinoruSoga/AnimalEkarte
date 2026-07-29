@@ -2,11 +2,11 @@ package clinic
 
 type UpdateCompanyRequest struct {
 	Name                      *string `json:"name"`
-	PostalCode                *string `json:"postal_code"`
+	PostalCode                *string `json:"postal_code" binding:"omitempty,jp_postal"`
 	Address                   *string `json:"address"`
-	PhoneNumber               *string `json:"phone_number"`
-	FaxNumber                 *string `json:"fax_number"`
-	Email                     *string `json:"email"`
+	PhoneNumber               *string `json:"phone_number" binding:"omitempty,jp_phone"`
+	FaxNumber                 *string `json:"fax_number" binding:"omitempty,jp_phone"`
+	Email                     *string `json:"email" binding:"omitempty,jp_email"`
 	Website                   *string `json:"website"`
 	DirectorName              *string `json:"director_name"`
 	RegistrationNumber        *string `json:"registration_number"`
