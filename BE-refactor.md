@@ -3060,7 +3060,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'VisitDormant|Batch'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 317ba2c2329c27bc20d42e0d218e5fa6ad14da5e
 
 ##### U-X04-LSTEP-HEALTH-REMOVE
 
