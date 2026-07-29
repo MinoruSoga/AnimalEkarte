@@ -229,7 +229,8 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("db reload error after save", func(t *testing.T) {
+	t.Run("returns write result without post-save reload (RSV-03)", func(t *testing.T) {
+		// Second FindByClinicID would fail; Save must still succeed with write result.
 		var findCount int
 		repo := &mockLineReservationSettingRepository{
 			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
@@ -241,8 +242,12 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 			},
 		}
 		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
-		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
-		assert.Error(t, err)
+		res, isNew, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{Status: "active"})
+		assert.NoError(t, err)
+		assert.True(t, isNew)
+		assert.NotNil(t, res)
+		assert.Equal(t, uint64(1), res.ClinicID)
+		assert.Equal(t, 1, findCount, "must not re-fetch after Save")
 	})
 }
 

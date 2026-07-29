@@ -126,6 +126,11 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		// RSV-02: clinic-scoped advisory lock before FOR UPDATE capacity/conflict checks
+		// (same order as reservationService.Create / ValidateAndCreate).
+		if err := s.resRepo.AcquireBookingLock(ctx, clinicID); err != nil {
+			return apperrors.Wrap(err, "failed to acquire booking lock")
+		}
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 			return apperrors.Wrap(err, "failed to validate staff capability")
 		}

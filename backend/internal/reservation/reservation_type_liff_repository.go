@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -20,6 +21,9 @@ type ReservationTypeLiffRepository interface {
 	Create(ctx context.Context, st *model.ReservationType) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// DeleteWithDependencyChecks locks the master row, re-evaluates children/appointment
+	// usage, then soft-deletes in one transaction (RSV-07).
+	DeleteWithDependencyChecks(ctx context.Context, clinicID, id uint64, usage reservationTypeUsageChecker) error
 	// UpdateSortOrder は隣接するレコードとの sort_order をスワップする。
 	// direction は "up"（sort_order 小さい方）または "down"（sort_order 大きい方）。
 	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
@@ -44,7 +48,7 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	return persistence.FindByIDScoped[model.ReservationType](ctx, r.db, "reservation_type_liff", clinicID, id)
+	return persistence.FindByIDScoped[model.ReservationType](ctx, persistence.DBOrTx(ctx, r.db), "reservation_type_liff", clinicID, id)
 }
 
 func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
@@ -77,16 +81,26 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 }
 
 func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields); err != nil {
+	// RSV-03: write + reload in one transaction.
+	var loaded *model.ReservationType
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields); err != nil {
+			return err
+		}
+		var findErr error
+		loaded, findErr = r.FindByID(txCtx, clinicID, id)
+		return findErr
+	})
+	if err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
+	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
 	if result.Error != nil {
-		// service 層で ExistsByReservationTypeID による先行チェック済みのため通常は発生しない。
 		// race condition 時のフォールバックとして FK 制約エラーを Conflict に変換する。
 		if persistence.IsFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このコースは予約に使用されているため削除できません")
@@ -97,6 +111,47 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 		return apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// DeleteWithDependencyChecks serializes master delete with appointment create
+// (which FOR SHARE locks reservation_types). RSV-07.
+func (r *reservationTypeLiffRepository) DeleteWithDependencyChecks(
+	ctx context.Context,
+	clinicID, id uint64,
+	usage reservationTypeUsageChecker,
+) error {
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		var st model.ReservationType
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&st).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
+		}
+		var childCount int64
+		if err := tx.Model(&model.ReservationType{}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("parent_id = ? AND deleted_at IS NULL", id).
+			Count(&childCount).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この予約コースには子予約区分が登録されているため削除できません")
+		}
+		exists, err := usage.ExistsByReservationTypeID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check reservation dependency")
+		}
+		if exists {
+			return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
+		}
+		if err := r.Delete(txCtx, clinicID, id); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (r *reservationTypeLiffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {

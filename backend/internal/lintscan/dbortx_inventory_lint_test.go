@@ -448,6 +448,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindAllWithChildren":           {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.Update":                        {},
 	// staff_clinic_assignment (moved into internal/staff). Runtime lock/replace proofs live in
 	// staff_clinic_assignment_*_test.go and staff_assignment_concurrency_test.go.
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic":      {},
@@ -529,7 +530,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"owner/repository.go|ownerRepository.UpdateAndFind":                                             {},
 	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                         {},
 	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                          {},
-	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":          {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Update":                   {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Delete":                   {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.DeleteWithDependencyChecks": {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.FindByID":                 {},
 	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},

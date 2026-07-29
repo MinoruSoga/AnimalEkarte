@@ -118,18 +118,29 @@ func (r *reservationTypeRepository) Create(ctx context.Context, reservationType 
 }
 
 func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.ReservationType{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
+	// RSV-03: write + reload in one transaction.
+	var loaded *model.ReservationType
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		result := tx.
+			Model(&model.ReservationType{}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			Updates(fields)
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
+		}
+		var findErr error
+		loaded, findErr = r.FindByID(txCtx, clinicID, id)
+		return findErr
+	})
+	if err != nil {
+		return nil, err
 	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
-	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -171,9 +171,9 @@ type ReservationSlotRepository interface {
 	// HasDoctorConflict/CountConflicts 等の SELECT FOR UPDATE）を取得する前に、同一
 	// トランザクション内で必ず本メソッドを先頭で呼ぶこと。逆順（行ロック取得後に advisory
 	// lock を取得）を許すと、2つのトランザクションが互いの advisory lock/行ロックを待ち合う
-	// AB-BA デッドロックが理論上成立しうる（現在の3呼び出し元 reservation_service.go の
-	// Create/updateWithConflictCheck・reservation_validators.go の ValidateAndCreate は
-	// いずれもこの順序を守っている）。
+	// AB-BA デッドロックが理論上成立しうる（呼び出し元: reservation_service Create/
+	// updateWithConflictCheck、reservation_validators ValidateAndCreate、
+	// appointment_admin_service Create — いずれもこの順序を守ること）。
 	AcquireBookingLock(ctx context.Context, clinicID uint64) error
 	// LockAndFindByID は FOR UPDATE で予約を行ロック取得する（updateWithConflictCheck 用）。
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
@@ -345,10 +345,21 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 }
 
 func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
+	// RSV-03: write + reload in one transaction so a post-commit Find cannot invert success.
+	var loaded *model.Reservation
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
+			return err
+		}
+		var findErr error
+		loaded, findErr = r.FindByID(txCtx, clinicID, id)
+		return findErr
+	})
+	if err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

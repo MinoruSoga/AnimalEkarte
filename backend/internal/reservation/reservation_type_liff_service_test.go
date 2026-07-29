@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -47,6 +48,37 @@ func (m *mockReservationTypeLiffRepository) Update(ctx context.Context, clinicID
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
 	return nil, nil
+}
+
+func (m *mockReservationTypeLiffRepository) DeleteWithDependencyChecks(ctx context.Context, clinicID, id uint64, usage reservationTypeUsageChecker) error {
+	// Mirror production order: lock/find → children → usage → delete.
+	if m.findByIDFn != nil {
+		if _, err := m.findByIDFn(ctx, clinicID, id); err != nil {
+			return err
+		}
+	}
+	if m.countChildrenFn != nil {
+		n, err := m.countChildrenFn(ctx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return apperrors.WrapConflict("この予約コースには子予約区分が登録されているため削除できません")
+		}
+	}
+	if usage != nil {
+		exists, err := usage.ExistsByReservationTypeID(ctx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
+		}
+	}
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 func (m *mockReservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -410,7 +442,8 @@ func TestReservationTypeLiffService_Create_RepoCreateError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestReservationTypeLiffService_Create_FindByIDAfterCreateError(t *testing.T) {
+func TestReservationTypeLiffService_Create_ReturnsWriteResultWithoutReload(t *testing.T) {
+	// RSV-03: Create returns the write result; post-commit FindByID is no longer used.
 	repo := &mockReservationTypeLiffRepository{
 		createFn: func(_ context.Context, st *model.ReservationType) error {
 			st.ID = 10
@@ -426,8 +459,10 @@ func TestReservationTypeLiffService_Create_FindByIDAfterCreateError(t *testing.T
 	input := &CreateReservationTypeLiffInput{Name: "コース", ReservationDayOption: "weekday"}
 	result, err := svc.Create(context.Background(), 1, input)
 
-	assert.Error(t, err)
-	assert.Nil(t, result)
+	assert.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, uint64(10), result.ID)
+	assert.Equal(t, "コース", result.Name)
 }
 
 // ---- Update: remaining branches ----

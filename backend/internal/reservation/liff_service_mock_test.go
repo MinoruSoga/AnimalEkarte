@@ -70,6 +70,10 @@ func (m *mockLiffTypeRepository) Update(_ context.Context, clinicID, id uint64, 
 
 func (m *mockLiffTypeRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
 
+func (m *mockLiffTypeRepository) DeleteWithDependencyChecks(_ context.Context, _, _ uint64, _ reservationTypeUsageChecker) error {
+	return nil
+}
+
 func (m *mockLiffTypeRepository) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }

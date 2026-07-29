@@ -157,15 +157,11 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 		slog.ErrorContext(ctx, "failed to create reservation course", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create reservation course")
 	}
+	// RSV-03: return the write result; Create populates ID and compensated flags.
 	slog.InfoContext(ctx, "reservation course created",
 		slog.Uint64("reservation_type_id", st.ID),
 		slog.Uint64("clinic_id", clinicID))
-	created, err := s.repo.FindByID(ctx, clinicID, st.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation course after create", "error", err, "id", st.ID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to get reservation course after create")
-	}
-	return created, nil
+	return st, nil
 }
 
 func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
@@ -197,28 +193,9 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get reservation course")
-	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation course children", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check reservation course children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この予約コースには子予約区分が登録されているため削除できません")
-	}
-	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check reservation dependency")
-	}
-	if exists {
-		return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete reservation course", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete reservation course")
+	// RSV-07: lock master + re-check deps + soft delete in one transaction.
+	if err := s.repo.DeleteWithDependencyChecks(ctx, clinicID, id, s.resRepo); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "reservation course deleted",
 		slog.Uint64("reservation_type_id", id),

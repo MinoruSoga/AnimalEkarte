@@ -199,12 +199,8 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}
-	result, err := s.repo.FindByClinicID(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation setting after upsert", "error", err, "clinic_id", clinicID)
-		return nil, false, apperrors.Wrap(err, "failed to get reservation setting after upsert")
-	}
+	// RSV-03: return the write result; do not re-fetch after commit (CODING_RULES.md:78).
 	slog.InfoContext(ctx, "reservation setting upserted",
 		slog.Uint64("clinic_id", clinicID))
-	return result, isNew, nil
+	return setting, isNew, nil
 }
