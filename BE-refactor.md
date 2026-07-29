@@ -2740,7 +2740,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/csvimport/... ./cmd/seed-export/...`
 - 既知台帳: none
 - Size: L (7/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: a7fe52dd9de38d1d405c7f7f242ba2aac1b44742
 
 ##### U-X04-RESERVATION-AUTODELEGATE
 
