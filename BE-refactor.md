@@ -2050,7 +2050,7 @@
 | レーン | 所有パス | 担当する残余 | 着手順 |
 |---|---|---|---|
 | **LANE-BE** | `backend/cmd/api/composition_owner_pet.go`、`backend/internal/lstep/**`、`backend/internal/clinic/**`、`backend/migrations/**`、`backend/seeds/**` | 下記 ①〜④ を**この順に逐次実行** | 単独セッション |
-| **LANE-FE** | `frontend/**` | ⑤ | LANE-BE と並行可 |
+| **LANE-FE** | `frontend/**` | ⑤ **完了（2026-07-29）**: 3アプリ走査の結果、コード変更不要（影響ゼロ） | LANE-BE と並行可 |
 
 **LANE-BE の実行順序**（所有パスは互いに衝突しないため、順序は優先度で決める）:
 
@@ -2061,7 +2061,7 @@
 
 **`001_init.sql` を触るのは 4 のみ。** 1〜3 は migrations に触らない。schema を単独 writer に閉じ込める点は前回の `U-SCHEMA-BARRIER` の教訓を引き継ぐ。
 
-**LANE-FE（⑤）**: `U-X04-MR-SUBRECORDS` でカルテ Create がサブレコード保存失敗時に 201 を返さなくなり、`U-X02X03X05-MR-HOSPITALIZATION` で退院 PATCH に `end_date >= start_date` 検証が入った。**どのフロントコードが 201 前提・無検証前提かの調査から始まる。**
+**LANE-FE（⑤）**: **完了（2026-07-29・影響ゼロ / コード変更なし）**。`U-X04-MR-SUBRECORDS`（Create がサブレコード失敗時に 201 を返さない）と `U-X02X03X05-MR-HOSPITALIZATION`（退院 PATCH の `end_date >= start_date` → 400）について `frontend/src`・`frontend/liff/src`・`frontend/line-reserve/src` を全数走査。**A**: `status === 201` 分岐は 0 件。Create 経路（`create-medical-record.ts` / `use-medical-record-auto-create.ts` / checkup `create-checkup-medical-record.ts`）は axios 非2xx 拒否 + `handleApiError` で失敗を利用者へ伝達し、成功トーストや navigate は成功後のみ。**B**: 退院は `jstNowISOString()` を送り catch で `handleApiError`（400 は serverMessage 表示）。Create の期間入力にクライアント end≥start は無いが 400 が `handleApiError` で到達する。liff / line-reserve は MR・入院ヒット 0。独立 REVIEW も CONFIRM_ZERO_IMPACT。
 
 **ユーザー専権（レーン化しない）**:
 - Worker の cutover デプロイ — `secret put` を先、デプロイを最後（Go は expected 空で全リクエスト 401）
@@ -2083,7 +2083,7 @@
 | 内容 | 影響 |
 |---|---|
 | **Worker の `X-Scheduler-Token` デプロイ** | コードは `ebfc3755e` で完了。cutover は **secret put を先 → デプロイを最後**（Go は expected 空で全リクエスト 401。逆順は全院バッチ停止） |
-| **フロント側の追随** | `U-X04-MR-SUBRECORDS` でカルテ Create がサブレコード保存失敗時に 201 を返さなくなった。`U-X02X03X05-MR-HOSPITALIZATION` で退院 PATCH に `end_date >= start_date` 検証が入った。201 前提・既存データ前提のフロントは壊れる |
+| **フロント側の追随** | **完了（LANE-FE ⑤・2026-07-29）**: 3アプリ走査で 201 成功前提・エラー握り潰し・400 未伝達は見つからず。フロントコード変更なし。根拠は残作業表 LANE-FE 行。 |
 | **DB リセット** | `681276f98` で 002〜007 を `001_init.sql` へ統合したため checksum mismatch。全開発者と STG で再構築が必要 |
 
 #### C. 運用上の未決事項
