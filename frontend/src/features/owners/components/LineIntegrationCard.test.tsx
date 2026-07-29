@@ -51,10 +51,13 @@ const baseOwner: Owner = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
-// mutation ハンドラーが transformOwner を通せる最低限レスポンス
+// mutation ハンドラーが transformOwner を通せる最低限 OwnerResponse（detail wire）。
+// line_user_id / lstep_opt_out は detail DTO に無い — LINE 専用 API fixture 側に置く。
 const minimalOwnerApiResponse = {
   id: 1,
+  clinic_id: 1,
   owner_name: "テスト飼い主",
+  owner_name_kana: "",
   company: "",
   postal_code: "",
   address1: "",
@@ -69,12 +72,11 @@ const minimalOwnerApiResponse = {
   is_dangerous: false,
   discount_rate: 0,
   membership_type: "member",
-  line_user_id: LINE_USER_ID,
   line_id_confirmed_at: "2026-05-01T00:00:00Z",
   delivery_excluded: false,
   delivery_caution: false,
   is_transferred: false,
-  lstep_opt_out: false,
+  pets: [] as const,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-05-01T00:00:00Z",
 };

@@ -246,7 +246,6 @@
   "src/lib/transforms/examination.ts",
   "src/lib/transforms/medicine.test.ts",
   "src/lib/transforms/medicine.ts",
-  "src/lib/transforms/owner.ts",
   "src/lib/transforms/pet.ts",
   "src/lib/transforms/reservation.ts",
   "src/lib/transforms/treatment.test.ts",
