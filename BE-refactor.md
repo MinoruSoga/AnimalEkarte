@@ -2071,10 +2071,10 @@
 
 | 所見 / ユニット | 残っている欠陥 | 未実施の理由 |
 |---|---|---|
-| `LSA-15` / `U-X04X05-LSTEP-DELIVERY` | **Go 側完了（LANE-BE ②）**: `CreateIfAbsentToday`（`pg_advisory_xact_lock` + recheck + create）を `recordTrigger` / suppressed path から使用。日次 UNIQUE は ④ で追加。 | UNIQUE は schema 残 |
+| `LSA-15` / `U-X04X05-LSTEP-DELIVERY` | **完了（LANE-BE ②+④）**: Go `CreateIfAbsentToday` + `002_lstep_delivery_trigger_log_daily_unique.sql`（JST day 表現 UNIQUE）。 | 解消済み（migrate はユーザー） |
 | `LSB-04` / `U-X01X03X04-LSTEP-LIFECYCLE` | **完了（LANE-BE ②）**: `GetSettings` / `TestConnection` の復号失敗を `GetRawCredentials` と同じく error 返却へ統一。握り潰しテストを伝播テストへ置換。 | 解消済み |
-| `POC-02` `POC-05` / `U-X01X05-CLINIC` | **Go 側完了（LANE-BE ③）**: `UpdateClinic` を WithTx 内 update+reload に変更。特別期間は `CreateCheckingOverlap`/`UpdateCheckingOverlap`（clinic advisory lock + CheckOverlap + write）。EXCLUDE index は ④。 | EXCLUDE は schema 残 |
-| `POC-01` / `SOLO-32` | 既存 clinic と seed に closing-settings の `create` / `delete` 権限が無い。手動付与または seed 修正が必要 | データ側の作業でユニット外 |
+| `POC-02` `POC-05` / `U-X01X05-CLINIC` | **完了（LANE-BE ③+④）**: Go 側 WithTx / CreateCheckingOverlap 等 + `003_closing_special_periods_exclude_overlap.sql`（btree_gist + EXCLUDE）。 | 解消済み（migrate はユーザー） |
+| `POC-01` / `SOLO-32` | **seed 完了（LANE-BE ④）**: `003_demo/permission_group_rules.csv` に `closing-settings` を 執行 CRUD / 一般・閲覧 view で追加（group 1–6,9）。新規 clinic の default は既存。group 7–8（clinic4）は seed ルール欠落が別途残る。 | seed は解消。live clinic 手動付与はユーザー |
 | `G2F-05` / `SOLO-16` | **完了（LANE-BE ②）**: body は配列のまま（OpenAPI/FE 互換）。`X-Total-Count` / `X-Limit` / `X-Truncated` で切り捨てを可視化。cap=200 維持。 | 解消済み |
 | `POC-07` `DEC-31` / `U-X03-PET-SPECIES-AUDIT` | **完了（LANE-BE ①）**: `composition_owner_pet.go` を `NewAnimalSpeciesServiceWithAudit(..., dependencies.Audit, repositories.Transactor)` へ差し替え。監査失敗時は API error（`Update_AuditFailureRollsBackPath`）。**追記**: `animal_species_repository` が `DBOrTx` 未参加のため CUD の真の同一 tx 原子性は別 follow-up（allowlist 外）。 | composition 配線は解消。repo TX 参加は New Work |
 
@@ -2089,6 +2089,7 @@
 #### C. 運用上の未決事項
 
 - `007` の unique index（`uk_owners_clinic_phone`）は seed に重複が無いことを確認して統合したが、**既存 DB では 23505 で失敗している**。seed 外のデータに同一 clinic 内の重複電話が存在する。世帯共有電話が正当な業務なら `POC-06` 自体の再検討が要る。
+- **LANE-BE ④ 決着（2026-07-29）: (a) 制約維持 + データ対処**。seed `003_demo/owners.csv` を `clinic_id`+非空 `phone` で集計 → **重複 0 件 / 61 行**。制約は seed 正本と整合。既存非 seed DB の 23505 は seed 外の重複行が原因。適用前に `SELECT clinic_id, phone, count(*), array_agg(id) FROM owners WHERE deleted_at IS NULL AND phone <> '' GROUP BY 1,2 HAVING count(*) > 1;` で棚卸しし、マージ/片方の phone 空欄後に index を適用（または `DB_RESET` で seed 経路）。**(b) 制約撤回は採らない**（seed と `uk_owners_clinic_email` 対称の product intent が intact。世帯共有を認めるなら別途 `POC-06` 再決裁）。
 
 ### Execution waves and parallel groups
 
