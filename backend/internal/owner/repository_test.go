@@ -214,6 +214,9 @@ func TestOwnerRepository_FindByNameAndPhone(t *testing.T) {
 	})
 
 	t.Run("同名同電話番号が複数件ある場合はnil,nil（自動紐付け不可）", func(t *testing.T) {
+		// POC-06: after uk_owners_clinic_phone, concurrent phone dups are rejected at DB.
+		// Keep multi-match defense only for environments without the index (AutoMigrate tests).
+		require.NoError(t, db.Exec(`DROP INDEX IF EXISTS uk_owners_clinic_phone`).Error)
 		dup1 := &model.Owner{ClinicID: clinicA, Name: "重複飼主", Phone: "070-2222-2222"}
 		require.NoError(t, db.WithContext(ctx).Create(dup1).Error)
 		dup2 := &model.Owner{ClinicID: clinicA, Name: "重複飼主", Phone: "070-2222-2222"}
@@ -223,6 +226,37 @@ func TestOwnerRepository_FindByNameAndPhone(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, got)
 	})
+}
+
+func TestOwnerRepository_PhoneUniqueConstraint(t *testing.T) {
+	db := setupOwnerPetIsolationTestDB(t)
+	repo := newTestRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	// Match production migration 007 (AutoMigrate does not create partial unique indexes).
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uk_owners_clinic_phone
+		ON owners (clinic_id, phone)
+		WHERE deleted_at IS NULL AND phone <> ''
+	`).Error)
+	t.Cleanup(func() {
+		_ = db.Exec(`DROP INDEX IF EXISTS uk_owners_clinic_phone`).Error
+	})
+
+	first := &model.Owner{ClinicID: clinicA, Name: "電話一意A", Phone: "090-3333-3333"}
+	require.NoError(t, repo.CreateWithPets(ctx, first, nil))
+
+	dup := &model.Owner{ClinicID: clinicA, Name: "電話一意B", Phone: "090-3333-3333"}
+	err := repo.CreateWithPets(ctx, dup, nil)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
+
+	// Empty phones may coexist (partial index excludes '').
+	empty1 := &model.Owner{ClinicID: clinicA, Name: "空電話1", Phone: ""}
+	empty2 := &model.Owner{ClinicID: clinicA, Name: "空電話2", Phone: ""}
+	require.NoError(t, repo.CreateWithPets(ctx, empty1, nil))
+	require.NoError(t, repo.CreateWithPets(ctx, empty2, nil))
 }
 
 // ---- CreateWithPets ----

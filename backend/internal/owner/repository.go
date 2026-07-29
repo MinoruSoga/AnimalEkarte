@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -219,8 +220,8 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 		txCtx := persistence.WithTxValue(ctx, tx)
 		// 1. 飼主を作成
 		if err := tx.Omit(clause.Associations).Create(owner).Error; err != nil {
-			if persistence.IsUniqueConstraintErr(err) {
-				return apperrors.WrapAlreadyExists("owner", "email already registered")
+			if mapped := mapOwnerUniqueConstraintErr(err); mapped != nil {
+				return mapped
 			}
 			return apperrors.FromGORM(err, "owner", "")
 		}
@@ -300,6 +301,9 @@ func (r *ownerRepository) UpdateAndFind(
 			id,
 			fields,
 		); err != nil {
+			if mapped := mapOwnerUniqueConstraintErr(err); mapped != nil {
+				return mapped
+			}
 			return err
 		}
 
@@ -311,9 +315,31 @@ func (r *ownerRepository) UpdateAndFind(
 		return nil
 	})
 	if err != nil {
+		if mapped := mapOwnerUniqueConstraintErr(err); mapped != nil {
+			return nil, mapped
+		}
 		return nil, apperrors.Wrap(err, "failed to update and reload owner")
 	}
 	return loaded, nil
+}
+
+// mapOwnerUniqueConstraintErr maps owners partial unique indexes (email/phone)
+// to AlreadyExists. POC-06 / U-X05-OWNER-PHONE.
+func mapOwnerUniqueConstraintErr(err error) error {
+	if err == nil || !persistence.IsUniqueConstraintErr(err) {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.ConstraintName {
+		case "uk_owners_clinic_phone":
+			return apperrors.WrapAlreadyExists("owner", "phone already registered")
+		case "uk_owners_clinic_email":
+			return apperrors.WrapAlreadyExists("owner", "email already registered")
+		}
+	}
+	// Constraint name missing (driver wrap) — still fail closed as already-exists.
+	return apperrors.WrapAlreadyExists("owner", "")
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
