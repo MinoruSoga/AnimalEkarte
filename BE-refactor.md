@@ -3235,7 +3235,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "TagCache|DeliveryTriggerBatch|DeliveryTriggerState"`
 - 既知台帳: none
 - Size: S (1/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 837272bed58c08c32b60d37b53e6e70c2402f1bf
 
 ##### SOLO-13
 
