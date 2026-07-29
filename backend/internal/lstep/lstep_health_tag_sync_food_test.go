@@ -244,4 +244,22 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, LtvFoodPurchaseTag, removedTag)
 	})
+
+	t.Run("RemoveTag failure propagates error (G2B-01)", func(t *testing.T) {
+		client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") }}
+		svc := &lstepTagSyncService{
+			tagCodeRepo:     &mockLstepTagCodeMappingRepository{},
+			billingItemRepo: &foodMockBillingItemRepository{hasFoodPurchaseByOwnerSinceFn: func(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) { return false, nil }},
+			settingsSvc:     &mockLstepSettingsService{},
+			tagCacheRepo:    &mockLstepTagCacheRepository{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
+		assert.Error(t, err)
+	})
 }

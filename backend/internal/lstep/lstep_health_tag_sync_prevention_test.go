@@ -82,7 +82,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 		assert.Equal(t, PrevFilariaTag, removedTag)
 	})
 
-	t.Run("complete=true: RemoveTag失敗はapiFailedのままnilを返す", func(t *testing.T) {
+	t.Run("complete=true: RemoveTag失敗はエラーを返す (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
 		}
@@ -91,7 +91,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 			checkupRepoWithResult(checkups, nil), petRepoWithPets([]model.Pet{dogPet()}, nil), nil, &mockLstepTagCacheRepository{}, client)
 
 		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("buildClientエラーは伝播する", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 		assert.Equal(t, PrevFleaTickTag, removedTag)
 	})
 
-	t.Run("処方あり: RemoveTag失敗はapiFailedのままnilを返す", func(t *testing.T) {
+	t.Run("処方あり: RemoveTag失敗はエラーを返す (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
 		}
@@ -175,7 +175,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 			nil, nil, billingItemRepoReturning(true, false), &mockLstepTagCacheRepository{}, client)
 
 		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("buildClientエラーは伝播する", func(t *testing.T) {

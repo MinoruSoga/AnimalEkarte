@@ -52,19 +52,17 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Contex
 		return nil
 	}
 
-	apiFailed := false
+	// DEC-35 / G2B-01: Remove 失敗も Add 同様に err 伝播し、BatchRunResult.Failed に計上する。
 	if hasPurchase {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", true); err != nil {
 			return err
 		}
 	} else {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", false); err != nil {
-			apiFailed = true
+			return err
 		}
 	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
+	s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	return nil
 }
 
