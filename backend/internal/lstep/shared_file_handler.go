@@ -65,10 +65,12 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.sharedFile.Upload(c.Request.Context(), clinicID, staffID, req.toServiceInput(
-		file,
-		meta,
-	))
+	input, err := req.toServiceInput(file, meta)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	resp, err := h.sharedFile.Upload(c.Request.Context(), clinicID, staffID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

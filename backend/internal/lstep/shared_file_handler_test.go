@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- mock SharedFileService ----
@@ -152,7 +154,7 @@ func TestUploadSharedFile(t *testing.T) {
 			includeFile: true,
 			fileName:    "file.pdf",
 			formFields: map[string]string{
-				"purpose":     "prescription",
+				"purpose":     model.SharedFilePurposeVaccineCert,
 				"owner_id":    "10",
 				"clinic_id":   "999",
 				"uploaded_by": "999",
@@ -161,7 +163,7 @@ func TestUploadSharedFile(t *testing.T) {
 				uploadFn: func(_ context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), uploadedBy)
-					assert.Equal(t, "prescription", input.Purpose)
+					assert.Equal(t, model.SharedFilePurposeVaccineCert, input.Purpose)
 					require.NotNil(t, input.OwnerID)
 					assert.Equal(t, uint64(10), *input.OwnerID)
 					return &SharedFileResponse{ID: 5, ClinicID: clinicID, FileName: "file.pdf"}, nil
@@ -190,6 +192,15 @@ func TestUploadSharedFile(t *testing.T) {
 			name:        "returns 400 when file field is missing",
 			setupCtx:    func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			includeFile: false,
+			formFields:  map[string]string{"purpose": model.SharedFilePurposeOther},
+			svc:         &mockSharedFileService{},
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "returns 400 when purpose is not an allowed enum",
+			setupCtx:    func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			includeFile: true,
+			fileName:    "file.pdf",
 			formFields:  map[string]string{"purpose": "prescription"},
 			svc:         &mockSharedFileService{},
 			wantStatus:  http.StatusBadRequest,

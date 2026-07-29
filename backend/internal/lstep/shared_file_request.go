@@ -12,8 +12,9 @@ import (
 )
 
 // uploadSharedFileRequest はPOST /shared-files のフォームパラメータ
+// Purpose: model 定数 (inspection_result|vaccine_cert|other); empty → other (LSB-06).
 type uploadSharedFileRequest struct {
-	Purpose string  `form:"purpose"`
+	Purpose string  `form:"purpose" binding:"omitempty,max=50,oneof=inspection_result vaccine_cert other"`
 	OwnerID *uint64 `form:"owner_id"`
 }
 
@@ -39,10 +40,10 @@ func newSharedFileUploadMeta(header *multipart.FileHeader) (sharedFileUploadMeta
 	}, nil
 }
 
-func (r uploadSharedFileRequest) toServiceInput(content io.Reader, meta sharedFileUploadMeta) *UploadSharedFileInput {
-	purpose := r.Purpose
-	if purpose == "" {
-		purpose = model.SharedFilePurposeOther
+func (r uploadSharedFileRequest) toServiceInput(content io.Reader, meta sharedFileUploadMeta) (*UploadSharedFileInput, error) {
+	purpose, err := validateSharedFilePurpose(r.Purpose)
+	if err != nil {
+		return nil, err
 	}
 
 	return &UploadSharedFileInput{
@@ -53,5 +54,23 @@ func (r uploadSharedFileRequest) toServiceInput(content io.Reader, meta sharedFi
 		FileSize:    meta.fileSize,
 		Purpose:     purpose,
 		OwnerID:     r.OwnerID,
+	}, nil
+}
+
+// validateSharedFilePurpose enforces purpose enum + length (LSB-06). Empty → other.
+// Length cap matches DDL shared_files.purpose varchar(50).
+func validateSharedFilePurpose(purpose string) (string, error) {
+	purpose = strings.TrimSpace(purpose)
+	if purpose == "" {
+		return model.SharedFilePurposeOther, nil
+	}
+	if len(purpose) > 50 {
+		return "", apperrors.WrapInvalidInput("purpose length must be <= 50")
+	}
+	switch purpose {
+	case model.SharedFilePurposeInspectionResult, model.SharedFilePurposeVaccineCert, model.SharedFilePurposeOther:
+		return purpose, nil
+	default:
+		return "", apperrors.WrapInvalidInput(fmt.Sprintf("invalid purpose: %s", purpose))
 	}
 }
