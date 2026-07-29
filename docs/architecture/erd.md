@@ -130,7 +130,7 @@ erDiagram
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 110（2026-07-04 統合前は 103） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners` を含む |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（単一DDL `001_init.sql` + seeds CSV）の物理テーブル総数 | 110 | ERD の全体数と一致 |
+| 全マイグレーション（直下 DDL 全数 + seeds CSV）の物理テーブル総数 | 110 | ERD の全体数と一致 |
 | ERD ドメイン表の物理テーブル数 | 110 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |

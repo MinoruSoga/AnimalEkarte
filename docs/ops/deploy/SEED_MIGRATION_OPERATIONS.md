@@ -8,14 +8,14 @@
 
 ## 前提
 
-- `backend/migrations/` 直下の `.sql` はDDL専用で、現行は旧増分002〜009を末尾へ統合した `001_init.sql` 1本だけが存在する。統合した旧ファイルの原文・元コミット・SHA-256は001末尾のアーカイブ節に保持する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
+- `backend/migrations/` 直下の `.sql` はDDL専用。顔ぶれ・本数は固定ではなく `ls backend/migrations/*.sql` の実測を正とする（増分の追加と `001_init.sql` への統合で変わる）。統合した旧ファイルの原文・元コミット・SHA-256は001末尾のアーカイブ節に保持する。旧seed stub SQL 002/003/004 は **2026-07 に削除済み**。seed 002〜004 は `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV + `manifest.json` として管理する。
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
   1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrder` の固定順（`002_master → 003_demo → 004_staging`）で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
-- fresh DB 適用後の正しい終了状態は `schema_migrations` に **4行**（DDL 1 + seed 3）: `001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
+- fresh DB 適用後の正しい終了状態は、`schema_migrations` の行数が **直下 DDL 本数 + seed バンドル数** に一致すること。直下 DDL は `ls backend/migrations/*.sql`、seed バンドルは `internal/seedbundle.BundleOrder`（`seeds/002_master` → `seeds/003_demo` → `seeds/004_staging`）を正とする。本節に固定値を書かない。
 - `schema_migrations`が空で既存の`clinics`テーブルを検出した場合、`guardEmptyMigrationHistory`はschema完全性を検証できないためfail-closedで停止する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築後、通常のDDL・seed適用経路を完走させる。
 - 2026-07-27統合前の `001_init.sql` が適用済みのDBでは、統合後001とのchecksum mismatchが必ず発生する。ローカルは`DB_RESET=true`相当の手動再構築が必要で、現行Cloudflare workflowにはSTGを自動resetする経路がない。共有STGは破壊的操作の明示承認後に再構築する。
 - **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し、旧 stub に対応する `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを現行キーへ翻訳して「適用済み」として記録する（見つかった旧キーに対応するものだけでなく、旧形式相当3件を常に全件）。これは履歴が存在するDBだけの互換処理で、CSVは再ロードせず、DDL checksum検証も迂回しない。旧キー移行だけを理由とする DB 再作成は不要。

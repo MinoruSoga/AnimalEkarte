@@ -379,7 +379,7 @@ WORKER_URL=https://api.noah-karte.com MIGRATE_RUN_SECRET=<production用の値> \
   ./infra/scripts/cf-run-migrate.sh
 ```
 
-exitCode 0 を確認。**初回は空DBへの統合済み `001_init.sql` 1本の適用後、seedバンドル3本の自動ロードになる。
+exitCode 0 を確認。**初回は空DBへ直下 DDL（`ls backend/migrations/*.sql` を正とする）を昇順適用後、seed バンドルの自動ロードになる。
 §10 を必ず読むこと(demo/staging データが自動投入される既知の挙動)。統合前001が適用済みのDBはchecksum mismatchになるため、通常のmigrateでは更新できず、明示承認した `DB_RESET=true` 相当の再構築が必要。現行Cloudflare workflowに自動reset経路はない。**
 
 ### 9.5 スモーク(任意)
@@ -401,7 +401,7 @@ STG_DEMO_EMAIL=<production用> STG_DEMO_PASSWORD=<production用> \
 (`002_master → 003_demo → 004_staging`)を**常に全件**適用する設計であり、環境(STG/production)を
 判定して一部をスキップする機構は現状コードに存在しない
 (`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`: 「fresh DB 適用後の正しい終了状態は
-schema_migrations に4行: 統合DDL 1本 + 3seedバンドル全て」)。
+schema_migrations の行数が直下 DDL 本数 + seed バンドル数に一致」)。
 
 これは本書が新規に発見した問題ではなく、`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` 44行目に
 「重要: 本番移行時に全削除。ステージング環境でのみ有効」と既に明記されている既知事項。

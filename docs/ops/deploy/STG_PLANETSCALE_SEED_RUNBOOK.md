@@ -38,7 +38,7 @@ STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.
 
 CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`../infra/_archive/migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
 
-**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、旧増分002〜009を末尾へ統合済みの `001_init.sql` 1本を適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go`）。fresh DB の終了状態は `schema_migrations` 4行（DDL 1 + seed 3）である。一方、統合前001が記録済みの現行STGへ通常の `POST /_internal/migrate` を実行するとchecksum mismatchでfailする。現行Cloudflare経路は `DB_RESET` を注入できないため、明示承認した再構築を先に完了させる必要がある。
+**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、直下 DDL（`ls backend/migrations/*.sql` を正とする）を昇順に適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go`）。fresh DB の終了状態は、`schema_migrations` の行数が直下 DDL 本数 + seed バンドル数に一致することである。一方、統合前001が記録済みの現行STGへ通常の `POST /_internal/migrate` を実行するとchecksum mismatchでfailする。現行Cloudflare経路は `DB_RESET` を注入できないため、明示承認した再構築を先に完了させる必要がある。
 
 ### 2.2 ただし前提条件が一つだけある: `public` スキーマの実在
 
@@ -193,7 +193,7 @@ export PGPASSWORD="<password>"; export PGDATABASE="<database>"
 ### Step D. 検証クエリ（テーブル別件数 + 主要マスタの存在確認）
 
 ```sql
--- 1. schema_migrations が4行そろっているか（fresh apply の正しい終了状態）
+-- 1. schema_migrations が「直下 DDL 本数 + seed バンドル数」そろっているか（fresh apply の正しい終了状態）
 --    SEED_MIGRATION_OPERATIONS.md:18 の期待値
 SELECT filename, checksum, executed_at FROM schema_migrations ORDER BY filename;
 -- 期待: 001_init.sql /
@@ -304,7 +304,7 @@ BEGIN
 END $$;
 EOSQL
 
-# 5. 必須の後処理: schema_migrations に3行を記録する。これを省略すると、
+# 5. 必須の後処理: schema_migrations に seed バンドル数ぶんの行を記録する。これを省略すると、
 #    次に正常な migrate が動いた時に「未適用」と誤認して同じCSVを再COPYし、
 #    PK重複で失敗する。checksum は Step D に記載の値（committed content 由来。
 #    seeds編集後は再計算要）を使う。
