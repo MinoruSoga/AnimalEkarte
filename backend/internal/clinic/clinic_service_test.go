@@ -2,7 +2,11 @@ package clinic
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/lib/pq"
@@ -426,6 +430,15 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 		assert.Lenf(t, c.rules, len(model.AllResources),
 			"group=%s: 全リソース分のルールが作成されること（ルール0件のデフォルトグループ回帰防止）", c.groupName)
 
+		// 共有マスタ animal-species は is_system_admin 以外 mutation 禁止
+		species := findRule(c.rules, model.ResourceMasterAnimalSpecies)
+		if assert.NotNilf(t, species, "group=%s: master-animal-species ルールが存在すること", c.groupName) {
+			assert.Truef(t, species.CanView, "group=%s: master-animal-species は閲覧可能であること", c.groupName)
+			assert.Falsef(t, species.CanCreate, "group=%s: master-animal-species は作成不可（system-admin only）", c.groupName)
+			assert.Falsef(t, species.CanEdit, "group=%s: master-animal-species は編集不可（system-admin only）", c.groupName)
+			assert.Falsef(t, species.CanDelete, "group=%s: master-animal-species は削除不可（system-admin only）", c.groupName)
+		}
+
 		switch c.groupName {
 		case "執行":
 			owners := findRule(c.rules, model.ResourceOwners)
@@ -459,6 +472,189 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 			}
 		default:
 			t.Fatalf("unexpected group name captured: %q", c.groupName)
+		}
+	}
+}
+
+// TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
+// model.AllResources (34) を過不足なくカバーし、共有マスタ animal-species が
+// 執行・一般とも view-only であることを固定する。
+func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
+	require.Len(t, model.AllResources, 34, "AllResources 件数の契約が変わったら本テストと seed 行列を同時に更新すること")
+	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
+		"defaultPermissionRuleTable は AllResources と同数であること")
+
+	seen := make(map[model.Resource]int, len(defaultPermissionRuleTable))
+	for _, r := range defaultPermissionRuleTable {
+		seen[r.resource]++
+	}
+	for _, res := range model.AllResources {
+		assert.Equalf(t, 1, seen[res], "AllResources の %s が defaultPermissionRuleTable に1回だけ現れること", res)
+	}
+	for res, n := range seen {
+		assert.Equalf(t, 1, n, "defaultPermissionRuleTable の %s が重複していないこと", res)
+	}
+
+	for _, isExecutive := range []bool{true, false} {
+		rules := buildDefaultPermissionGroupRules(isExecutive)
+		require.Len(t, rules, len(model.AllResources))
+		profile := "一般"
+		if isExecutive {
+			profile = "執行"
+		}
+		var species *model.PermissionGroupRule
+		for i := range rules {
+			if rules[i].Resource == string(model.ResourceMasterAnimalSpecies) {
+				species = &rules[i]
+				break
+			}
+		}
+		if assert.NotNilf(t, species, "%s に master-animal-species があること", profile) {
+			assert.True(t, species.CanView)
+			assert.False(t, species.CanCreate)
+			assert.False(t, species.CanEdit)
+			assert.False(t, species.CanDelete)
+		}
+	}
+}
+
+// demoPermissionSeedGroupProfiles maps 003_demo permission_groups IDs to the
+// default-creation profile they must mirror after BE-ACT-PERMISSION-SEED-PARITY.
+// 1/3/5/7 = 執行, 2/4/6/8 = 一般, 9 = 閲覧専用 (view-only; create/edit/delete 常に false)。
+var demoPermissionSeedGroupProfiles = map[uint64]string{
+	1: "executive",
+	2: "general",
+	3: "executive",
+	4: "general",
+	5: "executive",
+	6: "general",
+	7: "executive",
+	8: "general",
+	9: "view-only",
+}
+
+// TestDemoPermissionGroupRules_SeedParity は 003_demo の 9 グループが
+// model.AllResources (34) をすべて持ち、group 9 が view-only、
+// master-animal-species が全グループ view-only、執行/一般が
+// buildDefaultPermissionGroupRules と一致することを検証する。
+func TestDemoPermissionGroupRules_SeedParity(t *testing.T) {
+	require.Len(t, model.AllResources, 34)
+	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
+
+	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "permission_group_rules.csv")
+	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
+	require.NoError(t, err, "seed CSV を読めること (cwd は backend/ 想定)")
+	defer f.Close() //nolint:errcheck // test cleanup
+
+	reader := csv.NewReader(f)
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Greater(t, len(records), 1, "header + rows")
+
+	header := records[0]
+	col := func(name string) int {
+		t.Helper()
+		for i, h := range header {
+			if h == name {
+				return i
+			}
+		}
+		t.Fatalf("missing column %q", name)
+		return -1
+	}
+	iGroup := col("group_id")
+	iRes := col("resource")
+	iView := col("can_view")
+	iCreate := col("can_create")
+	iEdit := col("can_edit")
+	iDelete := col("can_delete")
+
+	type seedRule struct {
+		canView, canCreate, canEdit, canDelete bool
+	}
+	parseBool := func(s string) bool {
+		switch s {
+		case "t", "true", "TRUE", "1":
+			return true
+		case "f", "false", "FALSE", "0", "":
+			return false
+		default:
+			t.Fatalf("unexpected bool %q", s)
+			return false
+		}
+	}
+
+	byGroup := make(map[uint64]map[string]seedRule, 9)
+	for _, rec := range records[1:] {
+		if len(rec) <= iDelete {
+			t.Fatalf("short row: %#v", rec)
+		}
+		gid, err := strconv.ParseUint(rec[iGroup], 10, 64)
+		require.NoError(t, err)
+		if _, ok := byGroup[gid]; !ok {
+			byGroup[gid] = make(map[string]seedRule, len(model.AllResources))
+		}
+		byGroup[gid][rec[iRes]] = seedRule{
+			canView:   parseBool(rec[iView]),
+			canCreate: parseBool(rec[iCreate]),
+			canEdit:   parseBool(rec[iEdit]),
+			canDelete: parseBool(rec[iDelete]),
+		}
+	}
+
+	require.Len(t, byGroup, 9, "permission_group_rules は 9 グループすべてをカバーすること")
+
+	execExpected := buildDefaultPermissionGroupRules(true)
+	genExpected := buildDefaultPermissionGroupRules(false)
+	expectedByProfile := map[string][]model.PermissionGroupRule{
+		"executive": execExpected,
+		"general":   genExpected,
+	}
+
+	for gid, profile := range demoPermissionSeedGroupProfiles {
+		rules, ok := byGroup[gid]
+		require.Truef(t, ok, "group %d のルールが seed に存在すること", gid)
+		assert.Lenf(t, rules, len(model.AllResources),
+			"group %d (%s): AllResources (%d) をカバーすること", gid, profile, len(model.AllResources))
+
+		for _, res := range model.AllResources {
+			_, has := rules[string(res)]
+			assert.Truef(t, has, "group %d: resource %s が欠落", gid, res)
+		}
+
+		species, has := rules[string(model.ResourceMasterAnimalSpecies)]
+		if assert.Truef(t, has, "group %d: master-animal-species が存在すること", gid) {
+			assert.True(t, species.canView)
+			assert.False(t, species.canCreate)
+			assert.False(t, species.canEdit)
+			assert.False(t, species.canDelete)
+		}
+
+		switch profile {
+		case "view-only":
+			for res, r := range rules {
+				assert.Falsef(t, r.canCreate, "group 9 view-only: %s create 不可", res)
+				assert.Falsef(t, r.canEdit, "group 9 view-only: %s edit 不可", res)
+				assert.Falsef(t, r.canDelete, "group 9 view-only: %s delete 不可", res)
+			}
+			// master-permission のみ view も false（既存デモ契約）
+			mp := rules[string(model.ResourceMasterPermission)]
+			assert.False(t, mp.canView, "group 9: master-permission は閲覧不可")
+		case "executive", "general":
+			want := expectedByProfile[profile]
+			require.Len(t, want, len(model.AllResources))
+			for _, w := range want {
+				got, has := rules[w.Resource]
+				if !assert.Truef(t, has, "group %d: %s 欠落", gid, w.Resource) {
+					continue
+				}
+				assert.Equalf(t, w.CanView, got.canView, "group %d %s can_view", gid, w.Resource)
+				assert.Equalf(t, w.CanCreate, got.canCreate, "group %d %s can_create", gid, w.Resource)
+				assert.Equalf(t, w.CanEdit, got.canEdit, "group %d %s can_edit", gid, w.Resource)
+				assert.Equalf(t, w.CanDelete, got.canDelete, "group %d %s can_delete", gid, w.Resource)
+			}
+		default:
+			t.Fatalf("unknown profile %q for group %d", profile, gid)
 		}
 	}
 }

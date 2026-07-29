@@ -187,16 +187,19 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 // 末尾で false を返す）、新規クリニックでは is_system_admin 以外の全スタッフが
 // 全リソースへアクセス不能になっていた（疑い=事実）。
 //
-// 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の group 1-6
-// （執行=奇数ID/一般=偶数ID）で一貫しているパターンをそのまま採用する。
-// 以下 8 リソースのみ 003_demo 生成時点(2026-07-06)より後に model.AllResources へ
-// 追加されたため seed に定義が無く、フォールバック設計とする（判断）:
-// cash-register-close / accounting-reports / closing-settings /
+// 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の
+// 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
+// model.AllResources (34) をすべてカバーする。デモ seed の 9 グループも同じ
+// 行列へ揃える（BE-ACT-PERMISSION-SEED-PARITY）。
+//
+// 設定系フォールバック（cash-register-close / accounting-reports /
 // master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
-// lab-import。原則は執行=view+edit（create/delete 不可、hospital-settings と
-// 同じ設定系パターン）、一般=view のみとする。
+// lab-import）: 執行=view+edit（create/delete 不可、hospital-settings と同型）、
+// 一般=view のみ。
 // 例外: closing-settings は /closing-settings/holidays と special-periods が
 // create/delete を要求するため、執行は CRUD 全許可（POC-01 契約整合）。
+// 例外: master-animal-species は全クリニック共有マスタのため、is_system_admin
+// 以外の mutation を禁止する（執行・一般とも view-only）。
 type defaultPermissionRule struct {
 	resource                                   model.Resource
 	execView, execCreate, execEdit, execDelete bool
@@ -218,7 +221,8 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceEstimates, true, true, true, true, true, false, false, false},
 	{model.ResourceShifts, true, true, true, true, true, true, true, false},
 	{model.ResourceHospitalSettings, true, false, true, false, true, false, false, false},
-	{model.ResourceMasterAnimalSpecies, true, true, true, true, true, false, false, false},
+	// 共有マスタ: mutation は is_system_admin のみ（権限グループでは view-only）
+	{model.ResourceMasterAnimalSpecies, true, false, false, false, true, false, false, false},
 	{model.ResourceMasterMedical, true, true, true, true, true, false, false, false},
 	{model.ResourceMasterReservationType, true, true, true, true, true, false, false, false},
 	{model.ResourceMasterHospitalization, true, true, true, true, true, false, false, false},
@@ -230,7 +234,7 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceDiscount, true, true, true, true, false, false, false, false},
 	{model.ResourceAccountingCancel, true, false, true, false, true, false, false, false},
 	{model.ResourceAccountingPostCloseEdit, true, false, true, false, true, false, false, false},
-	// --- 003_demo 生成後に model.AllResources へ追加されたリソース（seed に定義なし・フォールバック設計） ---
+	// 設定系フォールバック（hospital-settings と同型: 執行 view+edit / 一般 view）
 	{model.ResourceCashRegisterClose, true, false, true, false, true, false, false, false},
 	{model.ResourceAccountingReports, true, false, true, false, true, false, false, false},
 	{model.ResourceClosingSettings, true, true, true, true, true, false, false, false},
