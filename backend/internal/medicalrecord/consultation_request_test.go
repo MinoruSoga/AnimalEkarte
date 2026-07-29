@@ -1,6 +1,10 @@
 package medicalrecord
 
-import "testing"
+import (
+	"reflect"
+	"strings"
+	"testing"
+)
 
 func TestCreateConsultationRequest_ToServiceInput(t *testing.T) {
 	price := int64(3300)
@@ -123,6 +127,26 @@ func TestUpdateConsultationRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.TaxRate != &taxRate {
 		t.Fatalf("TaxRate pointer was not preserved")
+	}
+}
+
+func TestConsultationRequest_TaxRateBindingTags_MRA03(t *testing.T) {
+	// MRA-03: align with medicine/procedure masters (omitempty,min=0,max=1).
+	createField, ok := reflect.TypeOf(createConsultationRequest{}).FieldByName("TaxRate")
+	if !ok {
+		t.Fatal("createConsultationRequest.TaxRate missing")
+	}
+	createBinding := createField.Tag.Get("binding")
+	if !strings.Contains(createBinding, "min=0") || !strings.Contains(createBinding, "max=1") {
+		t.Fatalf("create TaxRate binding = %q, want omitempty,min=0,max=1", createBinding)
+	}
+	updateField, ok := reflect.TypeOf(updateConsultationRequest{}).FieldByName("TaxRate")
+	if !ok {
+		t.Fatal("updateConsultationRequest.TaxRate missing")
+	}
+	updateBinding := updateField.Tag.Get("binding")
+	if !strings.Contains(updateBinding, "min=0") || !strings.Contains(updateBinding, "max=1") {
+		t.Fatalf("update TaxRate binding = %q, want omitempty,min=0,max=1", updateBinding)
 	}
 }
 

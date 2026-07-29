@@ -10,7 +10,7 @@ type createConsultationRequest struct {
 	ParentID      *uint64  `json:"parent_id"`
 	SortOrder     int      `json:"sort_order"`
 	TaxType       string   `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
-	TaxRate       *float64 `json:"tax_rate"`
+	TaxRate       *float64 `json:"tax_rate"        binding:"omitempty,min=0,max=1"`
 }
 
 func (r *createConsultationRequest) toServiceInput() *CreateConsultationInput {
@@ -39,7 +39,7 @@ type updateConsultationRequest struct {
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     *int     `json:"sort_order"`
 	TaxType       *string  `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
-	TaxRate       *float64 `json:"tax_rate"`
+	TaxRate       *float64 `json:"tax_rate"        binding:"omitempty,min=0,max=1"`
 }
 
 func (r *updateConsultationRequest) toServiceInput() *UpdateConsultationInput {
