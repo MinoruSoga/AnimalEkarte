@@ -198,7 +198,7 @@
 ・<b>TASK-467</b> count→delete TOCTOU方針明文化 = <code>c8a4b6dd6</code><br>
 ・<b>TASK-468</b> LSTEP best-effort契約明文化 = <code>8bf7cca9b</code><br>
 付随修正: <b>payments.csv seed drift</b>（TASK-445のclinic_id追加でheader/データ未追従）= <code>8760185fc</code>（billing_id経由でclinic_idを全27行backfill）。<b>reservation audit_logs test setup漏れ</b> = <code>cacad6f47</code>（回帰検証セッションが発見・修正）。<br>
-migration 004/005は<b>USER未適用</b>（<code>make migrate</code>待ち）。<b>台帳所掌が現在なし</b>のIssueレーンは前節「正本の境界」表を参照。</p>
+<b>migrationの現況（2026-07-29 更新）</b>: 上記で追加した増分（inventory quantity CHECK・payments clinic_id＋clinic軸複合FK・payment method system_key トリガー）は、別セッションが旧002〜007として <code>001_init.sql</code> 末尾<b>セクション9へ統合済み</b>。<code>backend/migrations/</code> 直下のDDLは <code>001_init.sql</code> 1本のみで、増分ファイルは独立ファイルとしては存在しない。したがって「004/005を <code>make migrate</code> で適用」という旧記述は失効した。<b>統合前DBのno-resetアップグレード経路は存在しない</b>ため、適用は <code>DB_RESET=true</code> 相当の承認済み再構築（USER手動・ローカルは <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>）による。詳細は <code>backend/migrations/CLAUDE.md</code> が正本。<b>台帳所掌が現在なし</b>のIssueレーンは前節「正本の境界」表を参照。</p>
 </blockquote>
 
 <h3>運用</h3>
