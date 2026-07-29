@@ -700,6 +700,10 @@ func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinic
 	return r.FindNoShowCandidatesAt(ctx, clinicID, time.Now().UTC())
 }
 
+// noShowCandidateMax is a safety cap for no-show batch candidate loads (G2F-08).
+// Oldest-first (id ASC) keeps processing deterministic; next batch cycle drains the rest.
+const noShowCandidateMax = 500
+
 // FindNoShowCandidatesAt evaluates the complete candidate predicate against
 // the durable scheduler timestamp instead of database wall-clock time.
 func (r *reservationRepository) FindNoShowCandidatesAt(
@@ -720,6 +724,8 @@ func (r *reservationRepository) FindNoShowCandidatesAt(
 			  AND mr.status = ?
 			  AND mr.deleted_at IS NULL
 		)`, model.MedicalRecordStatusFinalized).
+		Order("id ASC").
+		Limit(noShowCandidateMax).
 		Find(&reservations).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", "")

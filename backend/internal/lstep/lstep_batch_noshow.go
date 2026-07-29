@@ -18,6 +18,8 @@ func (s *lstepBatchService) detectNoShowReservations(ctx context.Context, clinic
 	if s.nowFn != nil {
 		evaluatedAt = s.nowFn().UTC()
 	}
+	// G2F-08: FindNoShowCandidates is hard-capped (noShowCandidateMax); remaining
+	// rows drain on later cycles. Per-row WithTx+audit stays intentional (fail-closed).
 	candidates, err := s.reservationRepo.FindNoShowCandidates(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "no-show batch: failed to find candidates", "clinic_id", clinicID, "error", err)
