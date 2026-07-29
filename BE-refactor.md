@@ -2039,6 +2039,33 @@
 
 ただし上記 Wave 0 の `U-SCHEMA-BARRIER` のみ全レーン共通の前提であり、これに依存する 16 ユニットは LANE-1 による barrier 完了後に着手する。依存を持たないユニットは barrier を待たずに着手してよい。
 
+### 完了後の残作業（2026-07-29・全85ユニット完走時点）
+
+**全ユニットが `Status: 完了` または `対象消失` になったが、以下は所見が完全には閉じていない。** 実行セッションの報告にのみ存在していた事項を、失われる前にここへ移す。着手判断は別途行うこと。
+
+#### A. ユニット内で部分実装に留まったもの
+
+| 所見 / ユニット | 残っている欠陥 | 未実施の理由 |
+|---|---|---|
+| `LSA-15` / `U-X04X05-LSTEP-DELIVERY` | `lstep_delivery_trigger_log` の日次粒度 UNIQUE が**未追加**。二重発火防止は status の fail-closed のみ | migration の所有権がユニット外 |
+| `LSB-04` / `U-X01X03X04-LSTEP-LIFECYCLE` | `GetSettings` / `TestConnection` の復号ループが依然 error を握り潰し得る。修正済みは `credentials.go` の `GetRawCredentials` のみ | 対象ファイルがユニットの所有パス外 |
+| `POC-02` `POC-05` / `U-X01X05-CLINIC` | `UpdateClinic` の write→reload 反転が未修正。`CheckOverlap`+`Create` の同一 tx 化と EXCLUDE index も未実施 | `clinic_service.go` が `SOLO-32` 所有・schema 所有権がユニット外 |
+| `POC-01` / `SOLO-32` | 既存 clinic と seed に closing-settings の `create` / `delete` 権限が無い。手動付与または seed 修正が必要 | データ側の作業でユニット外 |
+| `G2F-05` / `SOLO-16` | 新しい順 200 件のハードキャップであり、ページングでも切り捨て通知でもない。利用者に truncate が伝わらない | `line_customer_service` がユニットの所有パス外 |
+| `POC-07` `DEC-31` / `U-X03-PET-SPECIES-AUDIT` | `NewAnimalSpeciesServiceWithAudit` を用意したが composition は 2 引数版のまま。**本番で fail-closed 監査が動いていない** | composition が allowlist 除外 |
+
+#### B. backend 外へ波及する作業
+
+| 内容 | 影響 |
+|---|---|
+| **Worker の `X-Scheduler-Token` デプロイ** | コードは `ebfc3755e` で完了。cutover は **secret put を先 → デプロイを最後**（Go は expected 空で全リクエスト 401。逆順は全院バッチ停止） |
+| **フロント側の追随** | `U-X04-MR-SUBRECORDS` でカルテ Create がサブレコード保存失敗時に 201 を返さなくなった。`U-X02X03X05-MR-HOSPITALIZATION` で退院 PATCH に `end_date >= start_date` 検証が入った。201 前提・既存データ前提のフロントは壊れる |
+| **DB リセット** | `681276f98` で 002〜007 を `001_init.sql` へ統合したため checksum mismatch。全開発者と STG で再構築が必要 |
+
+#### C. 運用上の未決事項
+
+- `007` の unique index（`uk_owners_clinic_phone`）は seed に重複が無いことを確認して統合したが、**既存 DB では 23505 で失敗している**。seed 外のデータに同一 clinic 内の重複電話が存在する。世帯共有電話が正当な業務なら `POC-06` 自体の再検討が要る。
+
 ### Execution waves and parallel groups
 
 | Wave | Parallel group | Units | Reason |
