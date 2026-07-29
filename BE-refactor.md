@@ -2286,7 +2286,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|PetExclusion|OptOut'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 34b3d72ec744287843c0ce0cf7fe6bc9d2e69877
 
 ##### U-MR-TREATMENT-PLAN
 
