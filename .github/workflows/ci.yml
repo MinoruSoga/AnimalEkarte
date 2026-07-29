@@ -196,6 +196,8 @@ jobs:
       - name: Coverage ratchet
         if: always()
         working-directory: backend
+        # CMD-03: pipefail so coverage-ratchet non-zero exit is not swallowed by tee.
+        shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           if [ -f coverage-summary.txt ]; then
             go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
