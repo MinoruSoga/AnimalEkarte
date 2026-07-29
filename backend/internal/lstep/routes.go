@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -43,6 +45,25 @@ type Handler struct {
 	ownerLineLinker      OwnerLineLinker
 	requirePermission    PermissionMiddleware
 	requireAnyPermission PermissionAnyMiddleware
+}
+
+
+// requireSystemAdmin gates global LSTEP tag-config mutations (SOLO-09 / LSA-04 / DEC-30).
+// Hospital-settings RBAC must not mutate clinic-global masters that affect all clinics.
+func requireSystemAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		okAdmin, ok := httpapi.ExtractIsSystemAdmin(c)
+		if !ok {
+			c.Abort()
+			return
+		}
+		if !okAdmin {
+			httpapi.RespondError(c, apperrors.WrapForbidden("system administrator access required"))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 type OwnerLineLinker interface {
@@ -149,19 +170,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	codeMappingAlias.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
 	codeMappingAlias.PUT("/:tag_name", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
 
-	// Dynamic tag configuration (nine hospital-settings routes).
+	// Dynamic tag configuration: GET remains hospital-settings view; mutate is system_admin only
+	// so one clinic cannot change automation masters for all clinics (SOLO-09 / LSA-04 / DEC-30).
 	prefixes := rg.Group("/lstep-tag-config/auto-managed-prefixes")
 	prefixes.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListAutoManagedPrefixes)
-	prefixes.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateAutoManagedPrefix)
-	prefixes.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteAutoManagedPrefix)
+	prefixes.POST("", requireSystemAdmin(), h.CreateAutoManagedPrefix)
+	prefixes.DELETE("/:id", requireSystemAdmin(), h.DeleteAutoManagedPrefix)
 	conditions := rg.Group("/lstep-tag-config/condition-tag-mappings")
 	conditions.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListConditionTagMappings)
-	conditions.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateConditionTagMapping)
-	conditions.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteConditionTagMapping)
+	conditions.POST("", requireSystemAdmin(), h.CreateConditionTagMapping)
+	conditions.DELETE("/:id", requireSystemAdmin(), h.DeleteConditionTagMapping)
 	purposes := rg.Group("/lstep-tag-config/send-purpose-tag-prefixes")
 	purposes.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListSendPurposeTagPrefixes)
-	purposes.POST("", h.requirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateSendPurposeTagPrefix)
-	purposes.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteSendPurposeTagPrefix)
+	purposes.POST("", requireSystemAdmin(), h.CreateSendPurposeTagPrefix)
+	purposes.DELETE("/:id", requireSystemAdmin(), h.DeleteSendPurposeTagPrefix)
 
 	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携。
 	clinics := rg.Group("/clinics/:clinic_id")
