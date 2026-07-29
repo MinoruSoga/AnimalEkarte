@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -136,7 +138,7 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 		Name:      "フェレット",
 		IsActive:  true,
 		SortOrder: 7,
-	})
+	}, AnimalSpeciesMutationMeta{})
 
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(99), species.ID)
@@ -148,7 +150,7 @@ func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 	petRepo := &mockPetRepository{}
 	svc := NewAnimalSpeciesService(repo, petRepo)
 
-	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{})
+	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{}, AnimalSpeciesMutationMeta{})
 	assert.Error(t, err)
 }
 
@@ -157,7 +159,7 @@ func TestAnimalSpeciesService_Reorder_EmptyIDs(t *testing.T) {
 	petRepo := &mockPetRepository{}
 	svc := NewAnimalSpeciesService(repo, petRepo)
 
-	err := svc.Reorder(context.Background(), []uint64{})
+	err := svc.Reorder(context.Background(), []uint64{}, AnimalSpeciesMutationMeta{})
 	assert.Error(t, err)
 }
 
@@ -282,7 +284,7 @@ func TestAnimalSpeciesService_Create_Validation(t *testing.T) {
 			petRepo := &mockPetRepository{}
 			svc := NewAnimalSpeciesService(repo, petRepo)
 
-			result, err := svc.Create(context.Background(), tt.input)
+			result, err := svc.Create(context.Background(), tt.input, AnimalSpeciesMutationMeta{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -367,7 +369,7 @@ func TestAnimalSpeciesService_Update(t *testing.T) {
 			petRepo := &mockPetRepository{}
 			svc := NewAnimalSpeciesService(repo, petRepo)
 
-			result, err := svc.Update(context.Background(), tt.id, tt.input)
+			result, err := svc.Update(context.Background(), tt.id, tt.input, AnimalSpeciesMutationMeta{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -430,7 +432,7 @@ func TestAnimalSpeciesService_Delete_ErrorBranches(t *testing.T) {
 			}
 			svc := NewAnimalSpeciesService(repo, petRepo)
 
-			err := svc.Delete(context.Background(), 1)
+			err := svc.Delete(context.Background(), 1, AnimalSpeciesMutationMeta{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -473,7 +475,7 @@ func TestAnimalSpeciesService_Reorder(t *testing.T) {
 			petRepo := &mockPetRepository{}
 			svc := NewAnimalSpeciesService(repo, petRepo)
 
-			err := svc.Reorder(context.Background(), tt.ids)
+			err := svc.Reorder(context.Background(), tt.ids, AnimalSpeciesMutationMeta{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -519,7 +521,7 @@ func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
 			}
 			svc := NewAnimalSpeciesService(repo, petRepo)
 
-			err := svc.Delete(context.Background(), 1)
+			err := svc.Delete(context.Background(), 1, AnimalSpeciesMutationMeta{})
 
 			if tt.wantError {
 				assert.Error(t, err)
@@ -528,4 +530,91 @@ func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---- Audit (POC-07 / U-X03-PET-SPECIES-AUDIT) ----
+
+type mockSpeciesAudit struct {
+	entries []*audit.Entry
+	err     error
+}
+
+func (m *mockSpeciesAudit) LogEntryTx(_ context.Context, input *audit.Entry) error {
+	if m.err != nil {
+		return m.err
+	}
+	// copy pointer fields for assertions
+	cp := *input
+	m.entries = append(m.entries, &cp)
+	return nil
+}
+
+type mockSpeciesTx struct{}
+
+func (mockSpeciesTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+func testSpeciesMeta() AnimalSpeciesMutationMeta {
+	actor := uint64(7)
+	return AnimalSpeciesMutationMeta{
+		ClinicID:  1,
+		ActorID:   &actor,
+		ActorType: "staff",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test",
+	}
+}
+
+func TestAnimalSpeciesService_Create_WritesAudit(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{
+		createFn: func(_ context.Context, species *model.AnimalSpecies) error {
+			species.ID = 11
+			return nil
+		},
+	}
+	aud := &mockSpeciesAudit{}
+	svc := NewAnimalSpeciesServiceWithAudit(repo, &mockPetRepository{}, aud, mockSpeciesTx{})
+	got, err := svc.Create(context.Background(), &CreateAnimalSpeciesInput{Name: "鳥", IsActive: true}, testSpeciesMeta())
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(11), got.ID)
+	require.Len(t, aud.entries, 1)
+	assert.Equal(t, auditActionAnimalSpeciesCreate, aud.entries[0].Action)
+	assert.Equal(t, auditResourceAnimalSpecies, aud.entries[0].Resource)
+	assert.Equal(t, uint64(1), *aud.entries[0].ClinicID)
+}
+
+func TestAnimalSpeciesService_Update_AuditFailureRollsBackPath(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{
+		findByIDFn: func(_ context.Context, id uint64) (*model.AnimalSpecies, error) {
+			return &model.AnimalSpecies{ID: id, Name: "旧"}, nil
+		},
+		updateFieldsFn: func(_ context.Context, id uint64, _ map[string]any) (*model.AnimalSpecies, error) {
+			return &model.AnimalSpecies{ID: id, Name: "新"}, nil
+		},
+	}
+	aud := &mockSpeciesAudit{err: errors.New("audit unavailable")}
+	svc := NewAnimalSpeciesServiceWithAudit(repo, &mockPetRepository{}, aud, mockSpeciesTx{})
+	name := "新"
+	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{Name: &name}, testSpeciesMeta())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "audit")
+}
+
+func TestAnimalSpeciesService_Delete_WritesAudit(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{
+		findByIDFn: func(_ context.Context, id uint64) (*model.AnimalSpecies, error) {
+			return &model.AnimalSpecies{ID: id, Name: "削除対象"}, nil
+		},
+		deleteFn: func(_ context.Context, _ uint64) error { return nil },
+	}
+	petRepo := &mockPetRepository{
+		countUsageByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) { return 0, nil },
+	}
+	aud := &mockSpeciesAudit{}
+	svc := NewAnimalSpeciesServiceWithAudit(repo, petRepo, aud, mockSpeciesTx{})
+	err := svc.Delete(context.Background(), 3, testSpeciesMeta())
+	assert.NoError(t, err)
+	require.Len(t, aud.entries, 1)
+	assert.Equal(t, auditActionAnimalSpeciesDelete, aud.entries[0].Action)
 }

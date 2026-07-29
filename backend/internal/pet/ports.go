@@ -62,3 +62,14 @@ type PetOwnerAuditLogger interface {
 type AnimalSpeciesUsageCounter interface {
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 }
+
+// AnimalSpeciesAuditLogger writes fail-closed audit entries for global animal_species
+// mutations (POC-07 / U-X03-PET-SPECIES-AUDIT). Same shape as PetOwnerAuditLogger.
+type AnimalSpeciesAuditLogger interface {
+	LogEntryTx(ctx context.Context, input *audit.Entry) error
+}
+
+// AnimalSpeciesTransactor owns the transaction shared by species write and audit.
+type AnimalSpeciesTransactor interface {
+	WithTx(ctx context.Context, fn func(context.Context) error) error
+}

@@ -17,6 +17,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+
+func setSystemAdminAuth(c *gin.Context) {
+	c.Set("is_system_admin", true)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "42")
+}
+
 // ---- mock AnimalSpeciesService ----
 
 type mockAnimalSpeciesService struct {
@@ -36,19 +43,19 @@ func (m *mockAnimalSpeciesService) GetByID(ctx context.Context, id uint64) (*mod
 	return m.getByIDFn(ctx, id)
 }
 
-func (m *mockAnimalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+func (m *mockAnimalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput, _ AnimalSpeciesMutationMeta) (*model.AnimalSpecies, error) {
 	return m.createFn(ctx, input)
 }
 
-func (m *mockAnimalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+func (m *mockAnimalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput, _ AnimalSpeciesMutationMeta) (*model.AnimalSpecies, error) {
 	return m.updateFn(ctx, id, input)
 }
 
-func (m *mockAnimalSpeciesService) Delete(ctx context.Context, id uint64) error {
+func (m *mockAnimalSpeciesService) Delete(ctx context.Context, id uint64, _ AnimalSpeciesMutationMeta) error {
 	return m.deleteFn(ctx, id)
 }
 
-func (m *mockAnimalSpeciesService) Reorder(ctx context.Context, ids []uint64) error {
+func (m *mockAnimalSpeciesService) Reorder(ctx context.Context, ids []uint64, _ AnimalSpeciesMutationMeta) error {
 	return m.reorderFn(ctx, ids)
 }
 
@@ -261,6 +268,8 @@ func TestCreateAnimalSpecies(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
 			c.Request.Header.Set("Content-Type", "application/json")
 
+			setSystemAdminAuth(c)
+
 			h.CreateAnimalSpecies(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -345,6 +354,7 @@ func TestUpdateAnimalSpecies(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			setSystemAdminAuth(c)
 
 			h.UpdateAnimalSpecies(c)
 
@@ -360,6 +370,7 @@ func TestUpdateAnimalSpecies(t *testing.T) {
 
 func newDeleteAnimalSpeciesRouter(svc AnimalSpeciesService) *gin.Engine {
 	r := gin.New()
+	r.Use(func(c *gin.Context) { setSystemAdminAuth(c); c.Next() })
 	h := newHandlerWithAnimalSpeciesSvc(svc)
 	r.DELETE("/animal-species/:id", h.DeleteAnimalSpecies)
 	return r
@@ -428,6 +439,7 @@ func TestDeleteAnimalSpecies(t *testing.T) {
 
 func newReorderAnimalSpeciesRouter(svc AnimalSpeciesService) *gin.Engine {
 	r := gin.New()
+	r.Use(func(c *gin.Context) { setSystemAdminAuth(c); c.Next() })
 	h := newHandlerWithAnimalSpeciesSvc(svc)
 	r.POST("/animal-species/reorder", h.ReorderAnimalSpecies)
 	return r
@@ -486,4 +498,20 @@ func TestReorderAnimalSpecies(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+
+func TestCreateAnimalSpecies_RejectsNonSystemAdmin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithAnimalSpeciesSvc(&mockAnimalSpeciesService{})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body, _ := json.Marshal(map[string]any{"name": "x", "is_active": true, "sort_order": 1})
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("is_system_admin", false)
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "42")
+	h.CreateAnimalSpecies(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
