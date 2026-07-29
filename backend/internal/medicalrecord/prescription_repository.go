@@ -73,9 +73,11 @@ func (r *prescriptionRepository) FindByMedicalRecordID(ctx context.Context, clin
 	return prescriptions, nil
 }
 
+// FindByID participates in an ambient transaction so Update can complete its
+// response re-fetch before commit and roll back when that re-fetch fails (MRC-01).
 func (r *prescriptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Prescription, error) {
 	var prescription model.Prescription
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Scopes(prescriptionParentClinicScope).
 		Where("prescriptions.id = ?", id).

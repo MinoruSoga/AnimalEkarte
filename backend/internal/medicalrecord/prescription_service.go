@@ -126,6 +126,10 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 		return nil, apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", prescriptionID))
 	}
 
+	// MRC-01: write + response re-fetch before commit (vital Update pattern).
+	// Post-commit FindByID failure must not invert a committed success into 5xx
+	// and must not skip syncPrescriptionTag after a successful write.
+	var updated *model.Prescription
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// Prevent updating prescriptions for finalized medical records.
 		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
@@ -142,6 +146,12 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 			slog.ErrorContext(txCtx, "failed to update prescription", "error", err)
 			return apperrors.Wrap(err, "failed to update prescription")
 		}
+		reloaded, err := s.repo.FindByID(txCtx, clinicID, prescriptionID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get prescription after update", "error", err)
+			return apperrors.Wrap(err, "failed to get prescription after update")
+		}
+		updated = reloaded
 		return nil
 	}); err != nil {
 		return nil, err
@@ -150,11 +160,6 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 	slog.InfoContext(ctx, "prescription updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", prescriptionID))
-	updated, err := s.repo.FindByID(ctx, clinicID, prescriptionID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get prescription after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get prescription after update")
-	}
 	s.syncPrescriptionTag(ctx, clinicID, updated.OwnerID)
 	return updated, nil
 }

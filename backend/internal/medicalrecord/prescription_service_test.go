@@ -387,18 +387,21 @@ func TestPrescriptionService_Update_RepositoryUpdateError(t *testing.T) {
 }
 
 func TestPrescriptionService_Update_FindByIDAfterUpdateError(t *testing.T) {
+	// MRC-01: reload failure is inside WithTx, so the whole update fails (no committed success + 5xx).
 	durationDays := 5
 	medicalRecordID := uint64(2)
 	findCount := 0
+	updateCalled := false
 	repo := &mockPrescriptionRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Prescription, error) {
 			findCount++
 			if findCount == 1 {
-				return &model.Prescription{ID: 3, MedicalRecordID: &medicalRecordID}, nil
+				return &model.Prescription{ID: 3, MedicalRecordID: &medicalRecordID, OwnerID: 9}, nil
 			}
 			return nil, errors.New("db error")
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
 			return nil
 		},
 	}
@@ -413,6 +416,8 @@ func TestPrescriptionService_Update_FindByIDAfterUpdateError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.True(t, updateCalled)
+	assert.Equal(t, 2, findCount, "pre-check FindByID + in-tx reload FindByID")
 }
 
 // ---- Delete 追加分岐テスト ----
