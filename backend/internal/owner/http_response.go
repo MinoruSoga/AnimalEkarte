@@ -15,20 +15,23 @@ type SummaryResponse struct {
 	OwnerName string `json:"name"`
 }
 
-type petAnimalSpeciesNested struct {
+// PetAnimalSpeciesNested is the species embed on owner detail pets.
+type PetAnimalSpeciesNested struct {
 	ID        uint64 `json:"id"`
 	Name      string `json:"name"`
 	SortOrder int    `json:"sort_order"`
 }
 
-type petInsuranceNested struct {
+// PetInsuranceNested is the insurance embed on owner detail pets.
+type PetInsuranceNested struct {
 	ID           uint64  `json:"id"`
 	Name         string  `json:"name"`
 	CoverageRate float64 `json:"coverage_rate"`
 	ContactPhone string  `json:"contact_phone"`
 }
 
-type petInOwnerResponse struct {
+// PetInOwnerResponse is a pet row nested under OwnerResponse.
+type PetInOwnerResponse struct {
 	ID              uint64     `json:"id"`
 	OwnerID         uint64     `json:"owner_id"`
 	AnimalSpeciesID uint64     `json:"animal_species_id"`
@@ -58,11 +61,13 @@ type petInOwnerResponse struct {
 	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
 	CreatedAt     time.Time               `json:"created_at"`
 	UpdatedAt     time.Time               `json:"updated_at"`
-	AnimalSpecies *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance     *petInsuranceNested     `json:"insurance,omitempty"`
+	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
-type ownerResponse struct {
+// OwnerResponse is the owner detail/list HTTP response DTO (domain-owned wire).
+// Field names use owner_name / owner_name_kana — not model.Owner's name / name_kana.
+type OwnerResponse struct {
 	ID uint64 `json:"id"`
 	// ClinicID は所属医院 (#86 拠点横断一覧で医院名表示に使用)
 	ClinicID               uint64               `json:"clinic_id"`
@@ -92,13 +97,13 @@ type ownerResponse struct {
 	IsTransferred          bool                 `json:"is_transferred"`
 	TransferAt             *time.Time           `json:"transfer_at,omitempty"`
 	DMPreference           *bool                `json:"dm_preference,omitempty"`
-	Pets                   []petInOwnerResponse `json:"pets"`
+	Pets                   []PetInOwnerResponse `json:"pets"`
 	CreatedAt              time.Time            `json:"created_at"`
 	UpdatedAt              time.Time            `json:"updated_at"`
 }
 
-func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
-	resp := petInOwnerResponse{
+func toPetInOwnerResponse(p *model.Pet) PetInOwnerResponse {
+	resp := PetInOwnerResponse{
 		ID:              p.ID,
 		OwnerID:         p.OwnerID,
 		AnimalSpeciesID: p.AnimalSpeciesID,
@@ -129,14 +134,14 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 		resp.AcquisitionType = &s
 	}
 	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &petAnimalSpeciesNested{
+		resp.AnimalSpecies = &PetAnimalSpeciesNested{
 			ID:        p.AnimalSpecies.ID,
 			Name:      p.AnimalSpecies.Name,
 			SortOrder: p.AnimalSpecies.SortOrder,
 		}
 	}
 	if p.Insurance != nil {
-		resp.Insurance = &petInsuranceNested{
+		resp.Insurance = &PetInsuranceNested{
 			ID:           p.Insurance.ID,
 			Name:         p.Insurance.Name,
 			CoverageRate: float64(p.Insurance.CoverageRate),
@@ -146,12 +151,12 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 	return resp
 }
 
-func toOwnerResponse(o *model.Owner) ownerResponse {
-	pets := make([]petInOwnerResponse, 0, len(o.Pets))
+func toOwnerResponse(o *model.Owner) OwnerResponse {
+	pets := make([]PetInOwnerResponse, 0, len(o.Pets))
 	for i := range o.Pets {
 		pets = append(pets, toPetInOwnerResponse(&o.Pets[i]))
 	}
-	return ownerResponse{
+	return OwnerResponse{
 		ID:                     o.ID,
 		ClinicID:               o.ClinicID,
 		OwnerName:              o.Name,
