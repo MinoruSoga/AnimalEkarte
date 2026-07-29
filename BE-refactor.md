@@ -2345,7 +2345,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'Prescription'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: b434d77aa263c7d8a71bf504e802b5ef53a2069b
 
 ##### U-X02-LSTEP-TAG-MAPPING
 
