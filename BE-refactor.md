@@ -3295,7 +3295,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "SharedFile"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: a496d3904e383c42872a773fd967f9b586a1fd90
 
 ##### SOLO-19
 
