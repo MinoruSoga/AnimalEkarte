@@ -57,6 +57,7 @@ seed 側の構成は `seeds/{002_master,003_demo,004_staging}/` — CSV シー�
 
 - **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（本数は固定ではない。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
 - **schema_migrations の記録キー**: DDL は従来通りファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態の行数は **直下 `*.sql` の本数 + seed 3**（`BundleOrder` 長）。DDL 本数の検算は `ls backend/migrations/*.sql`
+- **両フェーズ後のキー突合（fail-closed）**: `cmd/migrate` は適用完了後に `Migration key coverage` 行を1行出す（`missing` / `extra` / `expected` / `recorded`）。`missing=0` なら期待キーは全て記録済み。欠落があれば非ゼロ終了する。`extra` は統合・削除でディスクから消えた履歴キーであり失敗にしない。再構築の成否は固定在庫数ではなくこのサマリー行で判定する
 - **空履歴 + 既存schemaはfail-closed**: `schema_migrations`が空で`clinics`が既に存在する場合、`guardEmptyMigrationHistory`はschema完全性を検証できないため起動を拒否する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築を行い、通常のDDL・seed適用経路を完走させる
 - seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
 - COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）

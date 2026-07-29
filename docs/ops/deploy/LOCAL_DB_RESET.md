@@ -63,11 +63,14 @@ Seed bundle loaded bundle=002_master
 Seed bundle loaded bundle=003_demo
 Seed bundle loaded bundle=004_staging
 Seed bundle summary applied=3 skipped=0 total=3
+Migration key coverage missing=0 extra=X expected=E recorded=R
 ```
 
 ここで `N` は `ls backend/migrations/*.sql` の件数。
 
-`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 3**（キーは各 DDL ファイル名と `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）。検算は上記 `ls` の件数に 3 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する。
+**成否の一次判定は `Migration key coverage` の 1 行**とする。`missing=0` なら、ディスク上の直下 DDL と seed バンドルの期待キーがすべて `schema_migrations` に記録されている。`extra` は統合・削除でディスクから消えた履歴キーの件数であり、0 でなくても失敗ではない。固定の行数期待で照合しない。
+
+`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 3**（キーは各 DDL ファイル名と `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）。検算は上記 `ls` の件数に 3 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 

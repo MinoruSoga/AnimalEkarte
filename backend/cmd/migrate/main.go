@@ -125,6 +125,12 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("seed bundle load failed: %w", err)
 	}
 
+	// 両フェーズ完了後: ディスク上の期待キーと schema_migrations を突合する。
+	// 欠落のみ fail-closed。余剰（統合・削除済みファイルの履歴）は情報ログのみ。
+	if err := verifyMigrationKeyCoverage(db, logger); err != nil {
+		return err
+	}
+
 	logger.Info("✓ All migrations completed successfully")
 	return nil
 }
