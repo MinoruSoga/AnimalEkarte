@@ -2043,6 +2043,26 @@
 
 **全ユニットが `Status: 完了` または `対象消失` になったが、以下は所見が完全には閉じていない。** 実行セッションの報告にのみ存在していた事項を、失われる前にここへ移す。着手判断は別途行うこと。
 
+#### 残タスクのレーン分割（2026-07-29）
+
+所有パスが相互に非重複になるよう5レーンへ割る。**レーンをまたぐファイル書き込みは発生しない。**
+
+| レーン | 所有パス | 担当する残余 | 規模 |
+|---|---|---|---|
+| **R1-audit** | `backend/cmd/api/composition_owner_pet.go` | `POC-07`/`DEC-31` の本番 audit 配線（`:104` の `pet.NewAnimalSpeciesService` を `NewAnimalSpeciesServiceWithAudit` へ差し替え） | 極小・**最優先** |
+| **R2-lstep** | `backend/internal/lstep/**` | `LSB-04`（`lstep_settings_service.go` / `lstep_settings_connection.go` の復号ループ）／ `G2F-05`（line customer 一覧のページング）／ `LSA-15` の Go 側（`lstep_delivery_trigger_log_repository.go`） | 中 |
+| **R3-clinic** | `backend/internal/clinic/**` | `POC-02`/`POC-05` の Go 側（`clinic_service.go` の write→reload 反転、`CheckOverlap`+`Create` の同一 tx 化） | 中 |
+| **R4-schema** | `backend/migrations/**`、`backend/seeds/**` | `LSA-15` の日次 UNIQUE ／ `POC-05` の EXCLUDE index ／ `POC-01` の権限データ ／ **`007` の既存 DB 重複の決着** | 中・**単独 writer** |
+| **R5-frontend** | `frontend/**` | カルテ Create が 201 を返さなくなった件（`U-X04-MR-SUBRECORDS`）と退院 PATCH の `end_date >= start_date` 検証追加（`U-X02X03X05-MR-HOSPITALIZATION`）への追随 | 要調査 |
+
+**R4 が唯一の schema writer である。** R2 の `LSA-15` と R3 の `POC-05` は index を防御の最終手段として扱い、Go 側の検証を先に入れる。index 自体は R4 が入れるため、R2 / R3 は migrations に触らない。
+
+**R1 を最初に片付けること。** 本番で fail-closed 監査が動いていない状態であり、影響が最も重い。差し替え1箇所で閉じる。
+
+**ユーザー専権（レーン化しない）**:
+- Worker の cutover デプロイ — `secret put` を先、デプロイを最後（Go は expected 空で全リクエスト 401）
+- DB リセット — `001_init.sql` 統合による checksum mismatch。全開発者と STG
+
 #### A. ユニット内で部分実装に留まったもの
 
 | 所見 / ユニット | 残っている欠陥 | 未実施の理由 |
