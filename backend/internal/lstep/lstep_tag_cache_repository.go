@@ -11,6 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // TagSummaryRow はタグ集計クエリの結果行。
@@ -176,8 +177,9 @@ func (r *lstepTagCacheRepository) FindOwnersByTag(ctx context.Context, clinicID 
 		WHERE o.clinic_id = ? AND o.deleted_at IS NULL AND tc.tag_name = ?`
 	args := []any{clinicID, clinicID, tagName}
 	if nameQuery != "" {
-		baseSQL += ` AND o.name LIKE ?`
-		args = append(args, "%"+nameQuery+"%")
+		// G2C-01: escape LIKE metacharacters; pair with ESCAPE (owner/pet repository pattern).
+		baseSQL += ` AND o.name LIKE ? ESCAPE '\'`
+		args = append(args, "%"+textsearch.EscapeLike(nameQuery)+"%")
 	}
 
 	var total int64
