@@ -27,7 +27,7 @@ func TestCreateSubRecords(t *testing.T) {
 		}
 		svc := &medicalRecordService{inquiryRepo: inquiryRepo, clinicalPlanRepo: clinicalPlanRepo}
 
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
 		assert.False(t, saveCalled, "inquiry upsert should be skipped when no inquiry fields are provided")
 	})
@@ -50,7 +50,7 @@ func TestCreateSubRecords(t *testing.T) {
 		}
 		svc := &medicalRecordService{inquiryRepo: inquiryRepo, clinicalPlanRepo: clinicalPlanRepo, chiefComplaintTypeRepo: okChiefComplaintTypeRepo()}
 
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 			ChiefComplaintTypeID: &typeID,
 			ChiefComplaint:       &complaint,
 			Notes:                &notes,
@@ -79,7 +79,7 @@ func TestCreateSubRecords(t *testing.T) {
 		svc := &medicalRecordService{inquiryRepo: inquiryRepo, clinicalPlanRepo: clinicalPlanRepo}
 
 		assert.NotPanics(t, func() {
-			svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{ChiefComplaint: &complaint})
+			_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{ChiefComplaint: &complaint})
 		})
 	})
 
@@ -104,7 +104,7 @@ func TestCreateSubRecords(t *testing.T) {
 		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
 
 		plan := "policy"
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: &plan})
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: &plan})
 
 		assert.Equal(t, 1, findCalls)
 		assert.False(t, createCalled)
@@ -124,7 +124,7 @@ func TestCreateSubRecords(t *testing.T) {
 		}
 		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
 
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
 		if assert.NotNil(t, createdPlan) {
 			assert.Equal(t, uint64(10), createdPlan.MedicalRecordID)
@@ -148,7 +148,7 @@ func TestCreateSubRecords(t *testing.T) {
 		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
 
 		plan := "policy"
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: &plan})
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: &plan})
 
 		assert.False(t, updateCalled)
 	})
@@ -166,7 +166,7 @@ func TestCreateSubRecords(t *testing.T) {
 		}
 		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
 
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
 		assert.False(t, updateCalled)
 	})
@@ -201,7 +201,7 @@ func TestCreateSubRecords(t *testing.T) {
 			},
 		}
 
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 			Plan:                 strPtr("policy"),
 			Assessment:           strPtr("assessment"),
 			Diagnosis1CategoryID: uint64Ptr(1),
@@ -232,7 +232,7 @@ func TestCreateSubRecords(t *testing.T) {
 		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
 
 		assert.NotPanics(t, func() {
-			svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: strPtr("policy")})
+			_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{Plan: strPtr("policy")})
 		})
 	})
 
@@ -265,7 +265,7 @@ func TestCreateSubRecords(t *testing.T) {
 			diagTypeRepo:     diagTypeRepo,
 			diagNameRepo:     diagNameRepo,
 		}
-		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+		_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 			Diagnosis2TypeID: uint64Ptr(3),
 			Diagnosis2NameID: uint64Ptr(4),
 		})

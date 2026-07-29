@@ -8,38 +8,39 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) {
+// CreateSubRecords creates inquiry / clinical_plan subrecords for a medical record.
+// MRC-04 / DEC-32 / DEC-35: failures return error so HTTP Create cannot claim full
+// clinical success with a silent empty chief complaint / diagnosis payload.
+func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) error {
 	// 1. inquiry: 入力がある場合のみ upsert する。
 	// 既存 appointment の再オープン時に空入力で既存問診を上書きしない。
 	if hasInquirySubRecordInput(input) {
-		skipInquiry := false
 		if input.ChiefComplaintTypeID != nil {
 			if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, clinicID, *input.ChiefComplaintTypeID); err != nil {
-				slog.WarnContext(ctx, "createSubRecords: failed to verify chief complaint type ownership; skipping inquiry upsert",
+				slog.ErrorContext(ctx, "createSubRecords: failed to verify chief complaint type ownership",
 					slog.Uint64("medical_record_id", recordID),
 					slog.Uint64("chief_complaint_type_id", *input.ChiefComplaintTypeID),
 					slog.String("error", err.Error()))
-				skipInquiry = true
+				return apperrors.Wrap(err, "failed to verify chief complaint type for medical record subrecords")
 			}
 		}
-		if !skipInquiry {
-			inquiry := &model.Inquiry{
-				MedicalRecordID: recordID,
-			}
-			if input.ChiefComplaintTypeID != nil {
-				inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
-			}
-			if input.ChiefComplaint != nil {
-				inquiry.ChiefComplaint = *input.ChiefComplaint
-			}
-			if input.Notes != nil {
-				inquiry.Notes = *input.Notes
-			}
-			if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
-				slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
-					slog.Uint64("medical_record_id", recordID),
-					slog.String("error", err.Error()))
-			}
+		inquiry := &model.Inquiry{
+			MedicalRecordID: recordID,
+		}
+		if input.ChiefComplaintTypeID != nil {
+			inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+		}
+		if input.ChiefComplaint != nil {
+			inquiry.ChiefComplaint = *input.ChiefComplaint
+		}
+		if input.Notes != nil {
+			inquiry.Notes = *input.Notes
+		}
+		if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+			slog.ErrorContext(ctx, "createSubRecords: failed to upsert inquiry",
+				slog.Uint64("medical_record_id", recordID),
+				slog.String("error", err.Error()))
+			return apperrors.Wrap(err, "failed to upsert medical record inquiry")
 		}
 	}
 
@@ -47,17 +48,17 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	plan, err := s.clinicalPlanRepo.FindByMedicalRecordID(ctx, clinicID, recordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			slog.WarnContext(ctx, "createSubRecords: failed to find clinical plan",
+			slog.ErrorContext(ctx, "createSubRecords: failed to find clinical plan",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
-			return
+			return apperrors.Wrap(err, "failed to find medical record clinical plan")
 		}
 		plan = &model.ClinicalPlan{MedicalRecordID: recordID}
 		if err := s.clinicalPlanRepo.Create(ctx, plan); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: failed to create clinical plan",
+			slog.ErrorContext(ctx, "createSubRecords: failed to create clinical plan",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
-			return
+			return apperrors.Wrap(err, "failed to create medical record clinical plan")
 		}
 	}
 	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil ||
@@ -71,19 +72,19 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			s.diagTypeRepo,
 			s.diagNameRepo,
 		); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership; skipping clinical plan update",
+			slog.ErrorContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
-			return
+			return apperrors.Wrap(err, "failed to verify diagnosis masters for medical record subrecords")
 		}
 		// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
 		if err := assertDiagnosisNameBelongsToType(
 			ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
 		); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch; skipping clinical plan update",
+			slog.ErrorContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
-			return
+			return err
 		}
 
 		fields := map[string]any{}
@@ -106,11 +107,13 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
 		}
 		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields, nil); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: failed to update clinical plan",
+			slog.ErrorContext(ctx, "createSubRecords: failed to update clinical plan",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
+			return apperrors.Wrap(err, "failed to update medical record clinical plan")
 		}
 	}
+	return nil
 }
 
 func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {
@@ -118,8 +121,3 @@ func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {
 		input.ChiefComplaint != nil ||
 		input.Notes != nil
 }
-
-// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
-// 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
-// LINE予約で owner_id / pet_id が未設定の場合は line_customer から補完を試みる（BUG-386）。
-// 失敗してもメイン処理（予約更新）には影響しない。

@@ -64,9 +64,10 @@ type MedicalRecordService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
-	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
-	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
+	// CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を作成する。
+	// MRC-04 / DEC-32: 同期 HTTP 経路では error を返し silent clinical drop を防ぐ。
+	// AutoCreateFromReservation など best-effort caller は error を監査して握る。
+	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) error
 	// AutoCreateFromReservation は予約ステータスが確定/受付済みに変わったときカルテを best-effort で自動作成する。
 	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 	// DeleteDraftFromReservation は予約キャンセル時に紐づく draft カルテを best-effort で論理削除する (#83 Q10)。

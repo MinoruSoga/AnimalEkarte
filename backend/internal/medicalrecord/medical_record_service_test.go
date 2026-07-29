@@ -1317,7 +1317,7 @@ func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing
 	inquiryRepo := &spyInquiryRepo{}
 	svc := NewMedicalRecordService(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
-	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
+	_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
 	assert.False(t, inquiryRepo.called)
 }
@@ -1327,7 +1327,7 @@ func TestMedicalRecordService_CreateSubRecords_SavesInquiryWhenInputProvided(t *
 	svc := NewMedicalRecordService(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 	chiefComplaint := "食欲不振"
 
-	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+	_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 		ChiefComplaint: &chiefComplaint,
 	})
 

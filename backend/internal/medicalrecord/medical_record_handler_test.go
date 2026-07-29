@@ -89,7 +89,8 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 	return nil
 }
 
-func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ CreateSubRecordsInput) {
+func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ CreateSubRecordsInput) error {
+	return nil
 }
 
 func (m *mockMedicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {

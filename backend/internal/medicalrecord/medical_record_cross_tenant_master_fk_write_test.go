@@ -43,7 +43,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintT
 		saved := false
 		svc := newSvc(&saved)
 		foreign := foreignTypeID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &foreign})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &foreign})
 		assert.False(t, saved, "inquiry must NOT be persisted referencing another clinic's chief complaint type")
 	})
 
@@ -51,7 +51,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintT
 		saved := false
 		svc := newSvc(&saved)
 		owned := ownedTypeID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &owned})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &owned})
 		assert.True(t, saved)
 	})
 }
@@ -84,7 +84,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &foreign})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &foreign})
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
 	})
 
@@ -92,7 +92,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedTypeID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &owned})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &owned})
 		assert.True(t, updated)
 	})
 }
@@ -125,7 +125,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &foreign})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &foreign})
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
 	})
 
@@ -133,7 +133,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedNameID
-		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &owned})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &owned})
 		assert.True(t, updated)
 	})
 }

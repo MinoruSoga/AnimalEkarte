@@ -140,7 +140,10 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 		// Public Create returned this appointment-linked record before the extraction and
 		// AutoCreate still ran the best-effort subrecord GetOrCreate path. Preserve that repair
 		// without repeating create audit, welcome, or tag side effects.
-		s.CreateSubRecords(ctx, clinicID, createResult.existingHit.ID, CreateSubRecordsInput{})
+		if err := s.CreateSubRecords(ctx, clinicID, createResult.existingHit.ID, CreateSubRecordsInput{}); err != nil {
+			// MRC-04 / DEC-35: best-effort auto-create path must leave a durable failure signal.
+			s.auditSubRecordsFailure(ctx, clinicID, createResult.existingHit.ID, reservation.ID, err)
+		}
 		return
 	}
 	if createResult.record == nil {
@@ -149,8 +152,48 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 
 	s.runMedicalRecordCreatePostCommit(ctx, createResult)
 
-	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
-	s.CreateSubRecords(ctx, clinicID, createResult.record.ID, CreateSubRecordsInput{})
+	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort + failure audit）
+	if err := s.CreateSubRecords(ctx, clinicID, createResult.record.ID, CreateSubRecordsInput{}); err != nil {
+		s.auditSubRecordsFailure(ctx, clinicID, createResult.record.ID, reservation.ID, err)
+	}
+}
+
+// medicalRecordSubRecordsFailedAction is durable evidence for auto-create subrecord failures (MRC-04).
+const medicalRecordSubRecordsFailedAction = "medical_record.subrecords_failed"
+
+func (s *medicalRecordService) auditSubRecordsFailure(ctx context.Context, clinicID, medicalRecordID, reservationID uint64, cause error) {
+	slog.ErrorContext(ctx, "autoCreateFromReservation: CreateSubRecords failed (best-effort)",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("medical_record_id", medicalRecordID),
+		slog.Uint64("reservation_id", reservationID),
+		slog.String("error", cause.Error()))
+	audit, ok := s.auditService.(AuditLogger)
+	if !ok {
+		slog.ErrorContext(ctx, "autoCreateFromReservation: subrecords failure audit dependency unavailable",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("medical_record_id", medicalRecordID),
+			slog.Uint64("reservation_id", reservationID))
+		return
+	}
+	auditCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), reservationDraftCleanupTimeout)
+	defer cancel()
+	if err := audit.LogEntry(auditCtx, &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorType:  model.AuditActorTypeSystem,
+		Action:     medicalRecordSubRecordsFailedAction,
+		Resource:   model.AuditResourceReservation,
+		ResourceID: &reservationID,
+		Metadata: map[string]any{
+			"medical_record_id": medicalRecordID,
+			"failure":           cause.Error(),
+		},
+	}); err != nil {
+		slog.ErrorContext(auditCtx, "autoCreateFromReservation: failed to audit CreateSubRecords failure",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("medical_record_id", medicalRecordID),
+			slog.Uint64("reservation_id", reservationID),
+			slog.String("error", err.Error()))
+	}
 }
 
 // DeleteDraftFromReservation は予約キャンセル時に、その予約に紐づく draft カルテを論理削除する (#83 Q10、best-effort)。

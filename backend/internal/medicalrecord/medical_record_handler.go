@@ -114,7 +114,11 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	h.service.CreateSubRecords(ctx, clinicID, record.ID, input.toSubRecordsInput())
+	// MRC-04 / DEC-32: do not return 201 when chief complaint / clinical plan subrecords failed.
+	if err := h.service.CreateSubRecords(ctx, clinicID, record.ID, input.toSubRecordsInput()); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d", record.ID))
 	c.JSON(http.StatusCreated, toMedicalRecordResponseWithVisitCount(record, 0))
 }
