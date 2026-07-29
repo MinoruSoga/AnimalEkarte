@@ -2269,7 +2269,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/ ./internal/apicontract/ -run "Routes|OpenAPI"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: 5f29b793ab2b0826bad80f50700cf9a3c2794d1b
 
 ##### U-LSTEP-OPTOUT
 
