@@ -292,20 +292,97 @@
 
 
 
-<section class="task" id="TASK-469">
-<h3>TASK-469: BE-refactor inventory 所見の「横断:」タグを横断パターン表と整合させる</h3>
+<div class="notice">
+<b>BE-refactor 初回実行wave（2026-07-29・USER承認）</b> — 下記10件は依存なし・owned path衝突なしとして <code>READY_AGENT</code>。詳細契約・対象path・検証command・完了条件の正本は各entryから参照する <a href="BE-refactor.md"><code>BE-refactor.md</code></a> とし、本台帳へ複製しない。各executorは着手時にHEADと根拠を再計測し、独立worktreeとDOCKER-MOUNT-PROOFを使う。依存付き8件は正本上で <code>READY_TO_FILE</code> のまま保持し、依存完了commitの統合後にだけ本台帳へ追加する。
+</div>
+
+<section class="task" id="BE-ACT-ANIMAL-SPECIES-DBORTX">
+<h3>BE-ACT-ANIMAL-SPECIES-DBORTX: animal-species repository DBOrTx・rollback保証</h3>
 <ul>
-  <li><b>状態: OPEN / LOW（任意・docs only）</b>。New Work。<code>BE-refactor.md</code> の inventory 関連所見に付いた個別「横断:」タグが <code>## 横断パターン</code> 表の構成員 ID 列と一致していない箇所がある。表側が正本なので所見側を寄せる。</li>
-  <li><b>決めるべきこと / 作業</b>:
-    <ol>
-      <li><code>## 横断パターン</code> 表の各 X-ID 構成員列を正本として読む。</li>
-      <li>inventory 関連（少なくとも G2P-01/02/03 周辺と inventory 横断: 付与済み見出し）の個別「横断:」を表と突合し、不一致のみ修正する。</li>
-      <li>表の構成員を増やしたい場合は表を先に更新し、所見タグを後から合わせる（所見だけ独自タグを増やさない）。</li>
-    </ol>
-  </li>
-  <li><b>参照</b>: <code>BE-refactor.md:61</code> のX-01表はG2P-02を含まないが所見 <code>:1623</code> はX-01を付与、<code>:62</code> のX-02表はG2P-03を含まないが <code>:1633</code> はX-02を付与、<code>:65</code> のX-05表はG2P-01を含まないが <code>:1615</code> はX-05を付与している。</li>
-  <li><b>境界</b>: 判定（UPHELD/WITHDRAWN）や所見本文の変更は並行 writer 専権。本 TASK は横断タグ整合のみ。コード変更なし。</li>
-  <li><b>出典</b>: <code>ffeae48747</code> の第3 decision itemで起票、<code>550159c8a</code> で現IDへ改番。</li>
+  <li><b>状態: READY_AGENT</b>。依存なし。backend実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-animal-species-dbortx"><code>BE-refactor.md#BE-ACT-ANIMAL-SPECIES-DBORTX</code></a>。着手前に同packetのowned paths・current evidence・verificationを再計測する。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-PERMISSION-SEED-PARITY">
+<h3>BE-ACT-PERMISSION-SEED-PARITY: permission profile・canonical seed parity</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。permission/seed実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-permission-seed-parity"><code>BE-refactor.md#BE-ACT-PERMISSION-SEED-PARITY</code></a>。generated CSVを手編集せず、同packetのallowlistとexport手順を守る。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-LSTEP-STALE-TAG-FAILCLOSED">
+<h3>BE-ACT-LSTEP-STALE-TAG-FAILCLOSED: stale tag同期のfail-closed化</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-stale-tag-failclosed"><code>BE-refactor.md#BE-ACT-LSTEP-STALE-TAG-FAILCLOSED</code></a>。cache failureと外部API partial failureのcontractを混同しない。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM">
+<h3>BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM: JST日次claim・index proof</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP repository実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-delivery-daily-claim"><code>BE-refactor.md#BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM</code></a>。3method・両consumer・named index・並行境界を同packetどおり検証する。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-LSTEP-HEALTH-BATCH-BULK">
+<h3>BE-ACT-LSTEP-HEALTH-BATCH-BULK: health prevention batch bulk read</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP/medical-record performance実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-health-batch-bulk"><code>BE-refactor.md#BE-ACT-LSTEP-HEALTH-BATCH-BULK</code></a>。clinic/owner分離と臨床filterを保持し、query growthをpage単位で証明する。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-LSTEP-LTV-RANKING-BOUND">
+<h3>BE-ACT-LSTEP-LTV-RANKING-BOUND: LTV rankingのbounded DB contract</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP/billing performance実装agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-ltv-ranking-bound"><code>BE-refactor.md#BE-ACT-LSTEP-LTV-RANKING-BOUND</code></a>。top-percent/tie/clinic/current-owner semanticsとquery-plan evidenceを保持する。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-DOC-QA-DECISIONS">
+<h3>BE-ACT-DOC-QA-DECISIONS: q&amp;a decision・OPS inventory更新</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-qa-decisions"><code>BE-refactor.md#BE-ACT-DOC-QA-DECISIONS</code></a>。DEC-40以降・OPS anchor・現行rulingを保持する。</li>
+  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-DOC-PHASE2">
+<h3>BE-ACT-DOC-PHASE2: phase2 current-state cleanup</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-phase2"><code>BE-refactor.md#BE-ACT-DOC-PHASE2</code></a>。完了済み前提だけを除去し、実在するproduct/owner blockerを保持する。</li>
+  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-DOC-BE-PENDING">
+<h3>BE-ACT-DOC-BE-PENDING: BE-pending provenance・外部境界更新</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-be-pending"><code>BE-refactor.md#BE-ACT-DOC-BE-PENDING</code></a>。STG監査をagent実行可能またはrelease blockerとして誤記しない。</li>
+  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+</ul>
+</section>
+
+<section class="task" id="BE-ACT-DOC-SPECIFICATION-ARCHITECTURE">
+<h3>BE-ACT-DOC-SPECIFICATION-ARCHITECTURE: specification・ADR-006現況同期</h3>
+<ul>
+  <li><b>状態: READY_AGENT</b>。依存なし。specification/architecture documentation agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-specification-architecture"><code>BE-refactor.md#BE-ACT-DOC-SPECIFICATION-ARCHITECTURE</code></a>。実装済み境界とproduction qualificationを混同しない。</li>
+  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
 
@@ -326,7 +403,7 @@
 <br>・unit 8b <code>570324247</code> = <code>OwnerPetsSection</code> へ共同飼育ペットを「副飼主」バッジ＋続柄付きの read-only 行として表示
 <br>・unit 9 <code>8ca1d73e5</code> = <code>docs/architecture/erd.md</code> へ <code>pet_owners</code>（ドメイン一覧・Mermaid 3 relation・複合FK越境防止・全110テーブル）を反映済み
 <br><b>#262 Phase 2 dev 完了・USER 操作待ち</b>: migration <code>002</code>・<code>003</code> は適用済み、<code>make codegen</code>／<code>codegen-check</code>／full type-check も 2026-07-28 に実行し green。残 = runtime 確認と GitHub Issue #262 のクローズ。<b>Issue #262 本文の記載は 2 点陳腐化している</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である<br>③ <a href="#TASK-251">#251</a> 残 unit のうち着手可能なものと<b>仕様未確定</b>のものがある（2026-07-29 USER確認・旧「別session実行中」は解消したが、残 unit 全体が着手可能ではない）。内訳は <a href="#TASK-251">#ledger TASK-251</a> が正本。着手前に <code>git log</code> で先行完了を実測すること<br>④ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表）— <b>ゲート継続</b>。受け入れ条件「#251 の全書込経路 category contract が確定」に対し <a href="#TASK-251">#251</a> の残 unit が未了（正本 = <a href="#TASK-251">#ledger TASK-251</a>）<br><br><b>dev 完了・USER 操作待ち（2026-07-27 に <code>gh</code> 実測で全件 OPEN）</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>（<code>711bcf561</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（U-A <code>a0a3d17f8</code>・U-B <code>49029973b</code>・U-C <code>9b9f57f9f</code>・U-D <code>ac7f35b1c</code> で dev 全完了。残 = <b>migrate → codegen → 動作確認 → クローズ</b>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>（<code>db9e0db59</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>（<code>7bce0e83b</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>（<code>bc2efba12</code>）。実装詳細は commit が正本のため本 view に複製しない。<br><b>#251 の完了済み unit の hash 一覧</b>: <a href="#TASK-251">#ledger TASK-251</a> を正本とする（本 view に複製しない）。<br><b>phase2 送り</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19）。#239 はレーン A へ移設（#249 と直列化裁定）。<br><b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。BUG-442（権限グループ割当の権限昇格）= <code>1f9108e6e</code>、BUG-446（credential 置換の認可欠落・PO 裁定案①＝password 供給時のみ <code>master-permission:edit</code> を条件付き要求）= <code>3673acbbd</code> で解消済み。生成 FE 型の追随も <code>0e40d1b18</code> で消化し <code>make codegen-check</code> は green。<b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。</td></tr>
-  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>台帳所掌</b>: <a href="#BUG-433">BUG-433</a>（FE/BE 契約ずれの横断課題）／ <a href="#TASK-469">TASK-469</a>（<code>BE-refactor.md</code> inventory 横断タグ整合・LOW・docs only）／ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/285">#285</a> ui-design-compliance.md C18 件数ratchet の記述が実装と乖離（docs）</td></tr>
+  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>台帳所掌</b>: <a href="#BUG-433">BUG-433</a>（FE/BE 契約ずれの横断課題）／ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/285">#285</a> ui-design-compliance.md C18 件数ratchet の記述が実装と乖離（docs）</td></tr>
   <tr><td colspan="2">USER/外部待ち</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a> Lステップ再開=先方API有効化待ち／OPS-2 DB適用（旧005/006は <code>001_init.sql</code> 統合済み・独立適用不可。DEC-9実装済み<code>c434c4e66</code>。ローカルは <code>DB_RESET</code> 相当の承認済み再構築、正本 <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>・<code>backend/migrations/CLAUDE.md</code>）／OPS-18 Sentry DSN発行（DEC-10裁定=無償プラン・課金契約なし）／ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284</a> line-reserve（LIFF）Noto Sans JP 実機フォント確認=試験環境・実機の受け渡し待ち</td></tr>
 </table>
 </div>

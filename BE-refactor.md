@@ -8,13 +8,13 @@ Last audited: 2026-07-29 at commit `a0350fd844e104ccc34692ab70c96435e3d6efa7`. T
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 112 live findings are `CLOSED_VERIFIED`, and 6 remain `ACTIVE`. There are 18 specification-ready packets, none yet filed as executable ledger units.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 112 live findings are `CLOSED_VERIFIED`, and 6 remain `ACTIVE`. There are 18 specification-ready packets: 10 dependency-free packets are filed in the execution ledger as `READY_AGENT`, and 8 dependency-gated packets remain `READY_TO_FILE`.
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
 ### BE-ACT-ANIMAL-SPECIES-DBORTX
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: POC-07, POST-A-06, RULE-DOUBT-28
 - Actor: backend implementation agent in an isolated worktree
 - Problem: `FindAll`, `FindByID`, `Create`, `Update`, and `Delete` use `r.db.WithContext`; only reorder is ambient-transaction aware, so audited mutations can escape rollback and reorder atomicity lacks PostgreSQL proof.
@@ -27,7 +27,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: scoped tests pass against the task worktree bytes; failed audit writes leave no create/update/delete mutation; injected reorder failure leaves the prior order intact; the inventory gate names this repository.
 
 ### BE-ACT-PERMISSION-SEED-PARITY
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: POC-01, POST-A-04, PERMISSION-PARITY
 - Actor: backend permission/seed implementation agent in an isolated worktree
 - Problem: `model.AllResources` has 34 resources while demo seed profiles omit the seven later resources; group defaults conflict with system-admin-only animal-species mutation.
@@ -79,7 +79,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: attach-first yields Conflict after serialization; delete-first makes later attachment reject the inactive row; NotFound remains distinct; all usage queries use the ambient tx and scoped tests pass.
 
 ### BE-ACT-LSTEP-STALE-TAG-FAILCLOSED
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: LSA-11, NW-R3-02A
 - Actor: LSTEP implementation agent in an isolated worktree
 - Problem: `removeStaleTagsByPrefixes` returns only bool, conflating cache-read failure with external RemoveTag partial failure; three callers can continue to AddTag after cache failure.
@@ -92,7 +92,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: each caller makes zero AddTag calls after cache failure and returns observable failure; RemoveTag partial failure accounting and desired-add behavior are separately pinned; scoped tests pass.
 
 ### BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: LSA-15, NW-R3-02B, POST-A-01
 - Actor: LSTEP repository implementation agent in an isolated worktree
 - Problem: three repository methods derive days from input Location while the named expression index uses Asia/Tokyo; tests do not prove live index definition, raw duplicate rejection, concurrency, boundaries, adjacent-day behavior, or both consumers.
@@ -118,7 +118,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: a multi-owner regression counts DB calls and proves no per-owner query growth for owner/daily/suppression/tag-cache reads while preserving selection and failure accounting; scoped tests pass against task-worktree bytes.
 
 ### BE-ACT-LSTEP-HEALTH-BATCH-BULK
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: G2F-02
 - Actor: LSTEP/medical-record performance implementation agent in an isolated worktree
 - Problem: owner enumeration and child-history row counts are bounded, but every health-prevention owner still triggers repeated checkup, annual-summary, and vaccination queries; the requested page-unit bulk SQL is absent.
@@ -131,7 +131,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: a two-page multi-owner regression proves fixed query groups per page with no owner-linear child reads; clinical filtering and owner/clinic isolation remain pinned; scoped tests pass against task-worktree bytes.
 
 ### BE-ACT-LSTEP-LTV-RANKING-BOUND
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: G2F-03
 - Actor: LSTEP/billing performance implementation agent in an isolated worktree
 - Problem: `SyncLTVTopPercent` pages LINE owners but first materializes every clinic owner revenue through an unbounded grouped scan before calculating the top 20 percent.
@@ -157,7 +157,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: both queries use the shared bound with deterministic order; exact-limit and over-limit fixtures prove bounded results without cross-clinic or deleted-row drift; scoped tests pass.
 
 ### BE-ACT-DOC-QA-DECISIONS
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-QA-DEC29-40, DOC-QA-OPS13
 - Actor: documentation agent in an isolated worktree
 - Problem: `q&a.html` retains stale unanswered DEC-29..39 cards and the 11-item summary; OPS-13 freezes migration inventory.
@@ -170,7 +170,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: stale cards/count are absent; DEC-40/newer and required anchors remain; OPS-13 uses dynamic inventory; duplicate IDs are absent; docs drift and correctly mounted Docker lint pass.
 
 ### BE-ACT-DOC-PHASE2
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-PHASE2-CURRENT
 - Actor: documentation agent in an isolated worktree
 - Problem: `phase2.html` retains completed cursor-pagination/BE9 assumptions, stale handler-permission pointers, and fixed migration numbering.
@@ -183,7 +183,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: every retained item has a current path/symbol or explicit human blocker; completed assumptions and fixed numbering are absent; links and IDs resolve.
 
 ### BE-ACT-DOC-BE-PENDING
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-BE-PENDING
 - Actor: documentation agent in an isolated worktree
 - Problem: `BE-pending.md` says this audit ledger was deleted and can overstate optional STG audit work.
@@ -222,7 +222,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: each flow has one explicit failure contract; paused Write API remains; false trigger-log/rate claims are absent; docs gates pass.
 
 ### BE-ACT-DOC-SPECIFICATION-ARCHITECTURE
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-SPEC-PRODUCTION-READY, DOC-SPEC-AUDIT-ALL, DOC-ADR006-CURRENT
 - Actor: specification/architecture documentation agent in an isolated worktree
 - Problem: specification prose falsely claims Production Ready, universal audit coverage, migration-in-progress, absolute tests/E2E, and deleted implementation paths.
@@ -236,16 +236,16 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 
 ### BE-ACT-DOC-SESSION-LEDGER
 - State: READY_TO_FILE
-- Source keys: DOC-LEDGER-TASK469, DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
+- Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
 - Actor: sole documentation integrator using a protected copy of current shared-main WIP
-- Problem: committed ledger still contains completed TASK-469 and obsolete BE-refactor/rule-doubt wording; shared-main WIP already removes TASK-469 and preserves BUG-433.
-- Current evidence: `3-session-agent.html#ledger`; shared-main WIP is evidence only and must not be overwritten by this task.
-- Required behavior: begin from byte-equivalent current shared-main WIP; remove TASK-469 section and references; preserve BUG-433 and current q&a rulings; remove obsolete BE/rule-doubt wording; file each approved executable packet before any state becomes READY_AGENT.
+- Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
+- Current evidence: `3-session-agent.html#ledger`; `DOC-LEDGER-TASK469` cleanup and the first dependency-free wave filing are already applied in current shared-main WIP, with BUG-433 preserved.
+- Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main WIP; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not repeat initial filing or claim this final-convergence packet is a prerequisite for wave advancement.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
 - Dependencies: BE-ACT-ANIMAL-SPECIES-DBORTX, BE-ACT-PERMISSION-SEED-PARITY, BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH, BE-ACT-CAMPAIGN-TARGET-SERIALIZATION, BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-LSTEP-STALE-TAG-FAILCLOSED, BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM, BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1, BE-ACT-LSTEP-HEALTH-BATCH-BULK, BE-ACT-LSTEP-LTV-RANKING-BOUND, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-QA-DECISIONS, BE-ACT-DOC-PHASE2, BE-ACT-DOC-BE-PENDING, BE-ACT-DOC-ANIMAL-SPECIES-SPEC, BE-ACT-DOC-LSTEP-CONTRACT, BE-ACT-DOC-SPECIFICATION-ARCHITECTURE
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: imported baseline matches current shared WIP before editing; TASK-469 is absent; BUG-433 and DEC-40/newer rulings remain; filed packet IDs and dependencies match this audit; duplicate IDs are absent.
+- Completion evidence: imported baseline matches then-current shared WIP before editing; TASK-469 and completed `BE-ACT-*` sections are absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
@@ -255,6 +255,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - LSTEP performance work: daily-claim → delivery-batch N+1 removal; health-batch bulk loading and LTV ranking bound are path-disjoint parallel units.
 - Authorization/spec chain: permission parity → frontend animal-species authorization; then animal-species DBOrTx + frontend authorization → animal-species spec.
 - Documentation convergence: LSTEP implementation packets → LSTEP contract; every approved packet → session-ledger filing.
+- Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
 ## Finding resolution index
@@ -412,6 +413,7 @@ The pre-refresh auxiliary sources are losslessly absorbed as follows:
 
 - `NW-R2-01` is split into `NW-R2-01A/B`; `NW-R3-02` into `NW-R3-02A/B`. `NW-R2-02` maps to terminal G2C-03/G2B-01, `NW-R2-03` to AUS-04, `NW-R3-01` to BIL-01, and `NW-R3-03` to withdrawn AUS-06 plus the current Go/Gin guideline.
 - `POST-A-02/03/05` map to terminal LSB-04, POC-02/05, and G2F-05; `POST-A-04/06` and `POST-A-01` are active Source keys above; `POST-B-02` is terminal current frontend zero-impact evidence; `POST-C-02` maps to current POC-06. `POST-USER-01`, `POST-B-01`, `POST-USER-02`, `POST-B-03`, and `POST-C-01` map one-to-one to the operational rows below.
+- `DOC-LEDGER-TASK469` is terminal provenance: current shared-main WIP removes the completed TASK-469 section and every reference while preserving BUG-433. Later ledger advancement follows the lifecycle rule above; the remaining `BE-ACT-DOC-SESSION-LEDGER` packet is final convergence only.
 - `RULE-DOUBT-02/03/05/07/09/10/11/14/17/23` are implemented DEC-29..39 semantics now enforced by current code; `RULE-DOUBT-28` also maps to the animal-species DBOrTx packet. `RULE-DOUBT-15/19/25/32` are rejected heuristics under current Go/Gin rules. `RULE-DOUBT-27A/B` map to the two serialized inventory packets. `RULE-DOUBT-01/04/06/08/12/13/16/18/20/21/22/24/26/29/30/31` resolve to `backend/CODING_RULES.md`, `.claude/refs/backend-application-invariants.md`, `.claude/refs/go-gin-backend-review.md`, ADR-006, `backend/CLAUDE.md`, `backend/migrations/CLAUDE.md`, and current testing/ops contracts. These are authority references, not executable backend residuals.
 
 Operations are excluded from the active frontier:
