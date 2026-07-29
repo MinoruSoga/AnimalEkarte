@@ -3423,7 +3423,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/ -run "ClinicSettings|HolidayRepository|ClosingSettingsService"`
 - 既知台帳: none
 - Size: M (3/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 0f104837fa732f71cc8047402cc8d3f440865245
 
 ##### SOLO-36
 
