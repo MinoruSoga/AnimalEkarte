@@ -169,7 +169,6 @@
   "src/features/medical-records/api/medicine-dose-lookup.ts",
   "src/features/medical-records/api/save-estimate.ts",
   "src/features/medical-records/api/transforms.ts",
-  "src/features/medical-records/api/types.ts",
   "src/features/medical-records/components/MedicalRecordAddenda/AddendumItem.tsx",
   "src/features/medical-records/components/MedicalRecordAddenda/MedicalRecordAddenda.test.tsx",
   "src/features/medical-records/components/MedicalRecordEstimate.tsx",

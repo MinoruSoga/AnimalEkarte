@@ -16,6 +16,8 @@ function makeBackendRecord(id: number): BackendMedicalRecord {
     record_no: `MR-${id}`,
     date: "2026-03-25T00:00:00Z",
     status: "draft",
+    version: 1,
+    visit_count: 0,
     created_at: "2026-03-25T00:00:00Z",
     updated_at: "2026-03-25T00:00:00Z",
   };
