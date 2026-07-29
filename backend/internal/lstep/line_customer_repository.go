@@ -27,6 +27,10 @@ func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 	return &lineCustomerRepository{db: db}
 }
 
+// lineCustomerListMax is a hard safety cap for List (G2F-05). Full page/limit
+// query plumbing needs LineCustomerService ownership (out of SOLO-16 allowlist).
+const lineCustomerListMax = 200
+
 func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items := make([]model.LineCustomer, 0)
 	// clinic_id 述語必須: LineCustomerService.LinkOwner が service 層で ownerID の所属クリニックを
@@ -36,6 +40,7 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("created_at DESC").
+		Limit(lineCustomerListMax).
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", "")

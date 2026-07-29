@@ -16,6 +16,7 @@ package lstep
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -87,6 +88,23 @@ func TestLineCustomerRepository_FindAll(t *testing.T) {
 		assert.NotNil(t, got)
 		assert.Empty(t, got)
 	})
+}
+
+// G2F-05 / SOLO-16: FindAll is safety-capped (full page/limit API needs service allowlist).
+func TestLineCustomerRepository_FindAll_RespectsSafetyCap(t *testing.T) {
+	db := setupLineCustomerTestDB(t)
+	repo := NewLineCustomerRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	for i := 0; i < lineCustomerListMax+5; i++ {
+		makeLineCustomer(t, db, clinicID, fmt.Sprintf("cap-line-%04d", i), fmt.Sprintf("cap-%d", i))
+	}
+
+	got, err := repo.FindAll(ctx, clinicID)
+	require.NoError(t, err)
+	require.Len(t, got, lineCustomerListMax)
+	assert.LessOrEqual(t, len(got), lineCustomerListMax)
 }
 
 func TestLineCustomerRepository_FindByID(t *testing.T) {
