@@ -4017,3 +4017,400 @@ SELECT app_private.apply_rls_policy(
 ALTER TABLE exam_results
     ADD COLUMN qualitative_min text,
     ADD COLUMN qualitative_max text;
+
+-- =============================================================================
+-- 9. 増分マイグレーション統合アーカイブ (旧 002〜007 / 2026-07-29)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜007 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+-- 様式はセクション 8（2026-07-27 統合アーカイブ）に倣う。CREATE TABLE への畳み込みは行わず、
+-- 増分適用時と同じ ALTER / CREATE INDEX / 関数・トリガー定義を原文のまま保持する。
+
+-- Source file: 002_add_pets_version.sql
+-- Purpose: pets.version 楽観ロック用カラムを追加する。
+-- Source commit: 38e29b2ab
+-- Source SHA-256: 940914030266fc5fe80db51dba2478c197167478a39fdd79cd5f85959621fcd2
+ALTER TABLE pets
+    ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+
+-- Source file: 003_add_exam_results_exam_type_field_id_index.sql
+-- Purpose: exam_results.exam_type_field_id 参照用の非一意 index。
+-- Source commit: 09426bdec
+-- Source SHA-256: de9ce47f9313219cf6b86aeea2e27a4b505aded77ae338efcce20b181ab41d23
+CREATE INDEX idx_exam_results_exam_type_field_id ON exam_results (exam_type_field_id);
+
+-- Source file: 004_add_inventory_quantity_check.sql
+-- Purpose: inventory_items.quantity を非負に制約する CHECK（BUG-466）。
+-- Source commit: 699c49e4a
+-- Source SHA-256: e82838cd8d3d3436ba0d9d78b0ccca308eda875435b25cb8d218a9d274cfdf51
+-- BUG-466: inventory_items.quantity を非負に制約し、負数在庫の永続化を DB 層でも拒否する。
+ALTER TABLE inventory_items
+  ADD CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0);
+
+-- Source file: 005_payment_clinic_id_and_clinic_axis_composite_fks.sql
+-- Purpose: payments.clinic_id と clinic 軸複合 FK を harden する（TASK-445 / BUG-454）。
+-- Source commit: c5ddacb62
+-- Source SHA-256: 755f3efa1d06d412488b8e4d0bfb250896b3062e3b4badf252887ed55a0c5c3a
+-- TASK-445: payments.clinic_id + clinic-axis composite FK hardening
+-- BUG-454: pets(clinic_id, owner_id) → owners(clinic_id, id)
+--
+-- Scope:
+--   1. payments.clinic_id ADD + backfill from billings + NOT NULL + FK clinics
+--   2. composite FK payments(billing_id, clinic_id) → billings(id, clinic_id)
+--   3. composite FK payments(payment_method_id, clinic_id) → payment_methods(id, clinic_id)
+--   4. BUG-454: pets(clinic_id, owner_id) → owners(clinic_id, id)
+--   5. medical_records UNIQUE(id, clinic_id) + clinic-axis FKs to pets/owners
+--   6. vaccinations clinic-axis FKs to pets / medical_records
+--   7. billings clinic-axis FKs to pets / owners (nullable components: PG skips FK when any is NULL)
+--
+-- New constraints use RESTRICT (or default). Do not introduce delete cascade here.
+
+-- =============================================================================
+-- 1–3. payments.clinic_id + composite FKs
+-- =============================================================================
+
+ALTER TABLE payments
+    ADD COLUMN clinic_id bigint;
+
+-- Backfill from the owning billing row (1:1 on billing_id).
+UPDATE payments AS payment
+SET clinic_id = billing.clinic_id
+FROM billings AS billing
+WHERE billing.id = payment.billing_id
+  AND payment.clinic_id IS NULL;
+
+-- Adding NOT NULL / composite FKs validates all existing rows and fails if any
+-- payment lacks a matching billing.clinic_id, or if payment_method_id (when set)
+-- belongs to another clinic. Before applying this migration, use the following
+-- queries to identify conflicting rows:
+--
+-- SELECT
+--     payment.id,
+--     payment.billing_id,
+--     payment.clinic_id AS payment_clinic_id,
+--     billing.clinic_id AS billing_clinic_id
+-- FROM payments AS payment
+-- LEFT JOIN billings AS billing
+--     ON billing.id = payment.billing_id
+-- WHERE payment.clinic_id IS NULL
+--    OR billing.id IS NULL
+--    OR billing.clinic_id IS DISTINCT FROM payment.clinic_id;
+--
+-- SELECT
+--     payment.id,
+--     payment.clinic_id,
+--     payment.payment_method_id,
+--     payment_method.clinic_id AS payment_method_clinic_id
+-- FROM payments AS payment
+-- LEFT JOIN payment_methods AS payment_method
+--     ON payment_method.id = payment.payment_method_id
+-- WHERE payment.payment_method_id IS NOT NULL
+--   AND (
+--       payment_method.id IS NULL
+--       OR payment_method.clinic_id IS DISTINCT FROM payment.clinic_id
+--   );
+
+ALTER TABLE payments
+    ALTER COLUMN clinic_id SET NOT NULL;
+
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+-- Parent UNIQUE already exists: uq_billings_id_clinic UNIQUE (id, clinic_id)
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_billing_clinic
+    FOREIGN KEY (billing_id, clinic_id)
+    REFERENCES billings (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- Parent UNIQUE already exists: uq_payment_methods_id_clinic UNIQUE (id, clinic_id)
+-- payment_method_id is nullable; PG skips the FK check when any component is NULL.
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_payment_method_clinic
+    FOREIGN KEY (payment_method_id, clinic_id)
+    REFERENCES payment_methods (id, clinic_id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_payments_clinic_id ON payments (clinic_id);
+
+-- =============================================================================
+-- 4. BUG-454: pets owner must belong to the same clinic
+-- =============================================================================
+
+-- Parent UNIQUE already exists: uq_owners_clinic_id_id UNIQUE (clinic_id, id)
+-- Before applying, identify cross-clinic pet.owner_id rows:
+--
+-- SELECT
+--     pet.id,
+--     pet.clinic_id,
+--     pet.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM pets AS pet
+-- LEFT JOIN owners AS owner
+--     ON owner.id = pet.owner_id
+-- WHERE owner.id IS NULL
+--    OR owner.clinic_id IS DISTINCT FROM pet.clinic_id;
+
+ALTER TABLE pets
+    ADD CONSTRAINT fk_pets_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 5. medical_records: parent UNIQUE + clinic-axis FKs to pets/owners
+-- =============================================================================
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT uq_medical_records_id_clinic UNIQUE (id, clinic_id);
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id), uq_owners_clinic_id_id (clinic_id, id)
+-- pet_id / owner_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     medical_record.id,
+--     medical_record.clinic_id,
+--     medical_record.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM medical_records AS medical_record
+-- LEFT JOIN pets AS pet
+--     ON pet.id = medical_record.pet_id
+-- WHERE medical_record.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM medical_record.clinic_id
+--   );
+--
+-- SELECT
+--     medical_record.id,
+--     medical_record.clinic_id,
+--     medical_record.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM medical_records AS medical_record
+-- LEFT JOIN owners AS owner
+--     ON owner.id = medical_record.owner_id
+-- WHERE medical_record.owner_id IS NOT NULL
+--   AND (
+--       owner.id IS NULL
+--       OR owner.clinic_id IS DISTINCT FROM medical_record.clinic_id
+--   );
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT fk_medical_records_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT fk_medical_records_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 6. vaccinations: clinic-axis FKs to pets / medical_records
+-- =============================================================================
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id),
+--                 uq_medical_records_id_clinic (id, clinic_id) added above.
+-- pet_id / medical_record_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     vaccination.id,
+--     vaccination.clinic_id,
+--     vaccination.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM vaccinations AS vaccination
+-- LEFT JOIN pets AS pet
+--     ON pet.id = vaccination.pet_id
+-- WHERE vaccination.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM vaccination.clinic_id
+--   );
+--
+-- SELECT
+--     vaccination.id,
+--     vaccination.clinic_id,
+--     vaccination.medical_record_id,
+--     medical_record.clinic_id AS medical_record_clinic_id
+-- FROM vaccinations AS vaccination
+-- LEFT JOIN medical_records AS medical_record
+--     ON medical_record.id = vaccination.medical_record_id
+-- WHERE vaccination.medical_record_id IS NOT NULL
+--   AND (
+--       medical_record.id IS NULL
+--       OR medical_record.clinic_id IS DISTINCT FROM vaccination.clinic_id
+--   );
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT fk_vaccinations_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT fk_vaccinations_medical_record_clinic
+    FOREIGN KEY (medical_record_id, clinic_id)
+    REFERENCES medical_records (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 7. billings: clinic-axis FKs to pets / owners
+-- =============================================================================
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id), uq_owners_clinic_id_id (clinic_id, id)
+-- pet_id / owner_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     billing.id,
+--     billing.clinic_id,
+--     billing.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM billings AS billing
+-- LEFT JOIN pets AS pet
+--     ON pet.id = billing.pet_id
+-- WHERE billing.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM billing.clinic_id
+--   );
+--
+-- SELECT
+--     billing.id,
+--     billing.clinic_id,
+--     billing.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM billings AS billing
+-- LEFT JOIN owners AS owner
+--     ON owner.id = billing.owner_id
+-- WHERE billing.owner_id IS NOT NULL
+--   AND (
+--       owner.id IS NULL
+--       OR owner.clinic_id IS DISTINCT FROM billing.clinic_id
+--   );
+
+ALTER TABLE billings
+    ADD CONSTRAINT fk_billings_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE billings
+    ADD CONSTRAINT fk_billings_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- Source file: 006_payment_method_system_key_match.sql
+-- Purpose: payments / payment_splits の method ⇔ payment_methods.system_key 一致を DB 境界で強制する（TASK-ADR003）。
+-- Source commit: fd29b27fe
+-- Source SHA-256: cecc85e1483d91227a6408a6904e17d521f2ab1a30d5778d9563f778c1646f43
+-- TASK-ADR003: payments / payment_splits の method ⇔ payment_methods.system_key 一致を DB 境界で fail-closed にする。
+--
+-- Scope:
+--   1. app_private.enforce_payment_method_system_key_match() を追加
+--   2. payment_splits / payments に BEFORE INSERT OR UPDATE トリガーを付与
+--
+-- Rules:
+--   - payment_method_id IS NULL の行はレガシー互換として許可（MATCH SIMPLE 相当）
+--   - payment_method_id が非 NULL のとき、payment_methods に
+--       id = payment_method_id AND system_key = method::text AND clinic_id = NEW.clinic_id
+--     の行が存在することを要求する
+--   - 削除時の連鎖削除制約は導入しない（RESTRICT / 既定のみ）
+--
+-- 前提: 005 により payments.clinic_id が存在する。
+-- 既存の不整合行を洗い出す場合（適用前の任意確認）:
+--
+-- SELECT p.id, p.clinic_id, p.method, p.payment_method_id, pm.system_key, pm.clinic_id AS pm_clinic_id
+-- FROM payments p
+-- LEFT JOIN payment_methods pm ON pm.id = p.payment_method_id
+-- WHERE p.payment_method_id IS NOT NULL
+--   AND (
+--     pm.id IS NULL
+--     OR pm.system_key IS DISTINCT FROM p.method::text
+--     OR pm.clinic_id IS DISTINCT FROM p.clinic_id
+--   );
+--
+-- SELECT s.id, s.clinic_id, s.method, s.payment_method_id, pm.system_key, pm.clinic_id AS pm_clinic_id
+-- FROM payment_splits s
+-- LEFT JOIN payment_methods pm ON pm.id = s.payment_method_id
+-- WHERE s.payment_method_id IS NOT NULL
+--   AND (
+--     pm.id IS NULL
+--     OR pm.system_key IS DISTINCT FROM s.method::text
+--     OR pm.clinic_id IS DISTINCT FROM s.clinic_id
+--   );
+
+CREATE SCHEMA IF NOT EXISTS app_private;
+
+CREATE OR REPLACE FUNCTION app_private.enforce_payment_method_system_key_match()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- レガシー行: payment_method_id 未設定は method ENUM のみで運用する（MATCH SIMPLE 相当）。
+    IF NEW.payment_method_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM payment_methods AS pm
+        WHERE pm.id = NEW.payment_method_id
+          AND pm.system_key IS NOT DISTINCT FROM NEW.method::text
+          AND pm.clinic_id = NEW.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            '支払方法の不整合: payment_method_id=% の system_key が method=% と一致しません (clinic_id=%)',
+            NEW.payment_method_id,
+            NEW.method,
+            NEW.clinic_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION app_private.enforce_payment_method_system_key_match() IS
+    'TASK-ADR003: payments/payment_splits の method と payment_methods.system_key の一致を fail-closed で強制する';
+
+DROP TRIGGER IF EXISTS trg_payment_splits_method_system_key_match ON payment_splits;
+CREATE TRIGGER trg_payment_splits_method_system_key_match
+    BEFORE INSERT OR UPDATE ON payment_splits
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.enforce_payment_method_system_key_match();
+
+DROP TRIGGER IF EXISTS trg_payments_method_system_key_match ON payments;
+CREATE TRIGGER trg_payments_method_system_key_match
+    BEFORE INSERT OR UPDATE ON payments
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.enforce_payment_method_system_key_match();
+
+GRANT USAGE ON SCHEMA app_private TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app_private.enforce_payment_method_system_key_match() TO PUBLIC;
+
+-- Source file: 007_owners_clinic_phone_unique.sql
+-- Purpose: owners の clinic 内非空 phone 部分 unique index（POC-06 / U-X05-OWNER-PHONE）。
+-- Source commit: ccfaaa311
+-- Source SHA-256: cd73b506a4513abfd54836e362f30a8cba9766991fdabbcc1692b595634b0ec4
+-- POC-06 / U-X05-OWNER-PHONE: feed-owner phone uniqueness at the DB boundary.
+--
+-- Mirrors uk_owners_clinic_email (partial unique on clinic_id + contact field)
+-- so concurrent Create/Update cannot insert two active owners with the same
+-- non-empty phone inside one clinic. Application ensureOwnerPhoneUnique remains
+-- for friendly messages; this index is the fail-closed source of truth.
+--
+-- Empty phone ('') is excluded so legacy rows without phone can coexist.
+-- Soft-deleted rows are excluded (deleted_at IS NULL).
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_owners_clinic_phone
+    ON owners (clinic_id, phone)
+    WHERE deleted_at IS NULL AND phone <> '';

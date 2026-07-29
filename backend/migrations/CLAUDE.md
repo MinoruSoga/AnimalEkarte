@@ -41,16 +41,16 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-27 に当時の incremental 002–009 を原文のまま `001_init.sql` 末尾へ統合し、同日夕に追加分の incremental 002–004（`002_pets_owners_clinic_composite_unique` / `003_add_pet_owners` / `004_add_exam_result_qualitative_bounds`）も同じ方式で統合して、直下 DDL を単一ファイルへ戻した。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-27 に当時の incremental 002–009 を原文のまま `001_init.sql` 末尾へ統合し、同日夕に追加分の incremental 002–004（`002_pets_owners_clinic_composite_unique` / `003_add_pet_owners` / `004_add_exam_result_qualitative_bounds`）も同じ方式で統合して、直下 DDL を単一ファイルへ戻した。2026-07-29 にさらに incremental 002–007（`pets.version` / exam_results index / inventory quantity CHECK / payments.clinic_id+clinic軸複合FK / payment method system_key 一致トリガー / owners phone 部分 unique）をセクション9へ同様式で統合した。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
 
-現行ファイル構成（2026-07-27 時点）:
+現行ファイル構成（2026-07-29 時点）:
 
-1. `001_init.sql` — 統合スキーマ（110 テーブル + 全インデックス/複合FK/RLS。旧増分002–009、および同日夕に統合した002–004の原文・元コミット・SHA-256は末尾セクション8に番号順で保存）
+1. `001_init.sql` — 統合スキーマ（110 テーブル + 全インデックス/複合FK/RLS。旧増分002–009および同日夕統合の002–004は末尾セクション8、2026-07-29統合の旧002–007は末尾セクション9に原文・元コミット・SHA-256付きで番号順保存）
 2. `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない）
 
-旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）、2026-07-22〜27に追加された旧 incremental 002–009、および2026-07-27 夕に統合した `002_pets_owners_clinic_composite_unique.sql` / `003_add_pet_owners.sql` / `004_add_exam_result_qualitative_bounds.sql` は全て独立ファイルとしては削除済み。必要なDDLの現行所在は `001_init.sql` の統合セクションである。
+旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）、2026-07-22〜27に追加された旧 incremental 002–009、2026-07-27 夕に統合した `002_pets_owners_clinic_composite_unique.sql` / `003_add_pet_owners.sql` / `004_add_exam_result_qualitative_bounds.sql`、および2026-07-29に統合した `002_add_pets_version.sql`〜`007_owners_clinic_phone_unique.sql` は全て独立ファイルとしては削除済み。必要なDDLの現行所在は `001_init.sql` の統合セクションである。
 
-**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、2026-07-27統合による001のchecksum変更でmigrateがfailする。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
+**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
 
 - **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（現状はDDL `001_init.sql` 1本）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
 - **schema_migrations の記録キー**: DDL は従来通りファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は、**直下 DDL 1 + seed 3 = 4 行**
