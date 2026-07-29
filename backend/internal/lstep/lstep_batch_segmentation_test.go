@@ -270,7 +270,7 @@ func TestRunVisitDormantSyncAllClinics_Success(t *testing.T) {
 	assert.Equal(t, "batch_visit_dormant", audit.capturedAction)
 }
 
-func TestRunVisitDormantSyncAllClinics_FindDormantEntriesErrorSkipsClinic(t *testing.T) {
+func TestRunVisitDormantSyncAllClinics_FindDormantEntriesErrorCountsFailed(t *testing.T) {
 	medRepo := &batchMockMedRecordRepo{
 		findDormantFn: func(_ context.Context, _ uint64, _ int) ([]medicalrecord.DormantOwnerEntry, error) {
 			return nil, errors.New("db error")
@@ -282,19 +282,26 @@ func TestRunVisitDormantSyncAllClinics_FindDormantEntriesErrorSkipsClinic(t *tes
 		called = true
 		return nil
 	}
+	audit := newSegAuditService()
 	svc := newSegBatchService(
 		&mockClinicRepository{findAllFn: func(_ context.Context) ([]model.Clinic, error) {
 			return []model.Clinic{{ID: 1}}, nil
 		}},
 		medRepo,
 		tagSvc,
-		newSegAuditService(),
+		audit,
 		&mockLstepSettingsService{},
 	)
 
+	// LSA-03: FindDormant failure must surface as Failed/audit, not silent (0,nil).
 	err := svc.RunVisitDormantSyncAllClinics(context.Background())
-	assert.NoError(t, err, "個別クリニックの取得エラーはバッチ全体を失敗させない")
+	assert.NoError(t, err, "per-clinic find errors do not abort the whole multi-clinic run")
 	assert.False(t, called)
+	assert.Equal(t, "batch_visit_dormant", audit.capturedAction)
+	meta, ok := audit.capturedMetadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, 1, meta["error_count"])
+	assert.Equal(t, 0, meta["processed_count"])
 }
 
 func TestRunVisitDormantSyncAllClinics_PartialSyncErrorsStillSucceeds(t *testing.T) {

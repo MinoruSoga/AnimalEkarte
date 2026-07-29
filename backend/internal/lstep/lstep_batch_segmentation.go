@@ -16,13 +16,13 @@ func (s *lstepBatchService) RunLTVTopPercentSyncAllClinics(ctx context.Context) 
 }
 
 // syncVisitDormantForClinic は 1 クリニック分の VISIT_* タグ同期を行う（G3-2 切り出し）。
-// entries 取得に失敗した場合は当該クリニックをログのみで静かにスキップする（挙動保存）。
+// entries 取得失敗は (0, nil) で握り潰さず error として返し、audit / Failed に計上する（LSA-03 / DEC-35）。
 func (s *lstepBatchService) syncVisitDormantForClinic(ctx context.Context, clinicID uint64) (int, []error) {
 	const minDaysSince = 120
 	entries, findErr := s.medRecordRepo.FindDormantOwnerEntries(ctx, clinicID, minDaysSince)
 	if findErr != nil {
 		slog.ErrorContext(ctx, "visit-dormant batch: failed to find entries", "clinic_id", clinicID, "error", findErr)
-		return 0, nil
+		return 0, []error{apperrors.Wrap(findErr, "failed to find visit dormant entries")}
 	}
 	count := 0
 	var errs []error
