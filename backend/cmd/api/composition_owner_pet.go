@@ -11,6 +11,8 @@ import (
 type ownerPetAuditLogger interface {
 	owner.AuditLogger
 	pet.PetOwnerAuditLogger
+	// AnimalSpeciesAuditLogger enables fail-closed audit on global animal_species writes (POC-07).
+	pet.AnimalSpeciesAuditLogger
 }
 
 type ownerPetCompositionDependencies struct {
@@ -101,9 +103,11 @@ func newOwnerPetComposition(
 		OwnerService:    ownerService,
 		PetService:      petService,
 		PetOwnerService: petOwnerService,
-		animalSpecies: pet.NewAnimalSpeciesService(
+		animalSpecies: pet.NewAnimalSpeciesServiceWithAudit(
 			repositories.AnimalSpecies,
 			repositories.Pet,
+			dependencies.Audit,
+			repositories.Transactor,
 		),
 		chronicConditions: pet.NewChronicConditionService(
 			repositories.ChronicConditions,

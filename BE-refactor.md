@@ -2076,7 +2076,7 @@
 | `POC-02` `POC-05` / `U-X01X05-CLINIC` | `UpdateClinic` の write→reload 反転が未修正。`CheckOverlap`+`Create` の同一 tx 化と EXCLUDE index も未実施 | `clinic_service.go` が `SOLO-32` 所有・schema 所有権がユニット外 |
 | `POC-01` / `SOLO-32` | 既存 clinic と seed に closing-settings の `create` / `delete` 権限が無い。手動付与または seed 修正が必要 | データ側の作業でユニット外 |
 | `G2F-05` / `SOLO-16` | 新しい順 200 件のハードキャップであり、ページングでも切り捨て通知でもない。利用者に truncate が伝わらない | `line_customer_service` がユニットの所有パス外 |
-| `POC-07` `DEC-31` / `U-X03-PET-SPECIES-AUDIT` | `NewAnimalSpeciesServiceWithAudit` を用意したが composition は 2 引数版のまま。**本番で fail-closed 監査が動いていない** | composition が allowlist 除外 |
+| `POC-07` `DEC-31` / `U-X03-PET-SPECIES-AUDIT` | **完了（LANE-BE ①）**: `composition_owner_pet.go` を `NewAnimalSpeciesServiceWithAudit(..., dependencies.Audit, repositories.Transactor)` へ差し替え。監査失敗時は API error（`Update_AuditFailureRollsBackPath`）。**追記**: `animal_species_repository` が `DBOrTx` 未参加のため CUD の真の同一 tx 原子性は別 follow-up（allowlist 外）。 | composition 配線は解消。repo TX 参加は New Work |
 
 #### B. backend 外へ波及する作業
 
