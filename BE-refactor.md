@@ -2957,7 +2957,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'MedicineDoseParam|Medicine.*Delete|Procedure.*Delete' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: L (8/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 8a1423b67b9e67b2cc8e6c5310be2ede8a90c1ca
 
 ##### BE-X09-CLOSING-01
 
