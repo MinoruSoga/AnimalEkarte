@@ -2705,7 +2705,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/staff/... -run 'StaffType|Create|Update'`
 - 既知台帳: none
 - Size: L (8/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: ff973b3818594fcd870bba4cd6cdc78c9c916f8b
 
 ##### U-X02X03X05-MR-HOSPITALIZATION
 
