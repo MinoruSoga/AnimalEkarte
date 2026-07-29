@@ -174,7 +174,11 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 	startedAt := time.Now()
 
 	if !m.cfg.DryRun {
-		m.updateProgress(ctx, owner.ID, "pending", 0, 0, "", &startedAt, nil)
+		if err := m.updateProgress(ctx, owner.ID, "pending", 0, 0, "", &startedAt, nil); err != nil {
+			rec.Status = "failed"
+			rec.ErrorMessage = "progress ledger write failed: " + err.Error()
+			return rec
+		}
 	}
 
 	type syncFn struct {
@@ -254,7 +258,21 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 		return rec
 	}
 
-	m.updateProgress(ctx, owner.ID, rec.Status, rec.TagsAdded, rec.TagsFailed, rec.ErrorMessage, &startedAt, &now)
+	if err := m.updateProgress(ctx, owner.ID, rec.Status, rec.TagsAdded, rec.TagsFailed, rec.ErrorMessage, &startedAt, &now); err != nil {
+		// CMD-07: do not report success when the progress ledger diverges from the run result.
+		if rec.Status == "success" {
+			rec.Status = "partial"
+		}
+		if rec.ErrorMessage == "" {
+			rec.ErrorMessage = "progress ledger write failed: " + err.Error()
+		} else {
+			rec.ErrorMessage = rec.ErrorMessage + "; progress ledger write failed: " + err.Error()
+		}
+		m.logger.Error("failed to update progress ledger",
+			slog.Uint64("owner_id", owner.ID),
+			slog.String("error", err.Error()),
+		)
+	}
 	m.logger.Info("owner synced",
 		slog.Uint64("owner_id", owner.ID),
 		slog.String("status", rec.Status),
@@ -274,7 +292,7 @@ func (m *Migrator) initProgressRows(ctx context.Context, owners []model.Owner) e
 		CreateInBatches(rows, 100).Error
 }
 
-func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status string, added, failed int, errMsg string, startedAt, completedAt *time.Time) {
+func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status string, added, failed int, errMsg string, startedAt, completedAt *time.Time) error {
 	var errPtr *string
 	if errMsg != "" {
 		errPtr = &errMsg
@@ -293,8 +311,9 @@ func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status st
 		Where("clinic_id = ? AND owner_id = ?", m.cfg.ClinicID, ownerID).
 		Assign(row).
 		FirstOrCreate(&row).Error; err != nil {
-		m.logger.Warn("failed to update progress", slog.Uint64("owner_id", ownerID), slog.String("error", err.Error()))
+		return fmt.Errorf("update progress owner_id=%d: %w", ownerID, err)
 	}
+	return nil
 }
 
 func join(parts []string, sep string) string {
