@@ -70,22 +70,22 @@ func TestApplyTagAndLog_AddTagFailsRecordsFailedStatus(t *testing.T) {
 	}
 }
 
-func TestApplyTagAndLog_AddTagFailsAndUpdateStatusAlsoFailsIsNonFatal(t *testing.T) {
+func TestApplyTagAndLog_AddTagFailsAndUpdateStatusAlsoFailsIsFatal(t *testing.T) {
+	// LSA-12 / DEC-35: failed status update failure must join the AddTag error (not silent).
 	client := &mockLstepClientForDelivery{
 		addTagFn: func(_ context.Context, _, _ string) error { return errors.New("lstep api error") },
 	}
 	svc := &lstepDeliveryTriggerService{
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, _ string, _ *time.Time, _ *string) error {
-				return errors.New("log update also failed (non-fatal)")
+				return errors.New("log update also failed")
 			},
 		},
 	}
-	// The original AddTag error must still be returned even though the (non-fatal)
-	// log update failed too.
 	err := svc.applyTagAndLog(context.Background(), 1, client, "U1", "tag_x", 10)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "add lstep tag")
+	assert.Contains(t, err.Error(), "failed")
 }
 
 // ---- buildClient ----

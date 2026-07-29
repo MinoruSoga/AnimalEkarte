@@ -104,8 +104,10 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	}
 
 	if excluded {
+		// LSA-12 / DEC-35: excluded status 更新失敗は silent success にしない
 		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusExcluded, nil, &reason); updateErr != nil {
-			slog.WarnContext(ctx, "failed to record trigger log excluded status (non-fatal)", "log_id", logID, "error", updateErr)
+			slog.ErrorContext(ctx, "failed to record trigger log excluded status", "log_id", logID, "error", updateErr)
+			return false, apperrors.Wrap(updateErr, "failed to update trigger log status to excluded")
 		}
 		return false, nil
 	}

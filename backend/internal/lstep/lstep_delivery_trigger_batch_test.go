@@ -301,7 +301,8 @@ func TestProcessSingleOwner_RecordTriggerError(t *testing.T) {
 	assert.False(t, fired)
 }
 
-func TestProcessSingleOwner_ExcludedUpdateStatusFailureIsNonFatal(t *testing.T) {
+func TestProcessSingleOwner_ExcludedUpdateStatusFailureIsFatal(t *testing.T) {
+	// LSA-12 / DEC-35: excluded status update failure must not return (false, nil).
 	updateStatusCalled := false
 	svc := &lstepDeliveryTriggerService{
 		ownerRepo: &mockOwnerRepoForDelivery{
@@ -313,12 +314,12 @@ func TestProcessSingleOwner_ExcludedUpdateStatusFailureIsNonFatal(t *testing.T) 
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, _ string, _ *time.Time, _ *string) error {
 				updateStatusCalled = true
-				return errors.New("update failed (non-fatal)")
+				return errors.New("update failed")
 			},
 		},
 	}
 	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now())
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.False(t, fired)
 	assert.True(t, updateStatusCalled)
 }
