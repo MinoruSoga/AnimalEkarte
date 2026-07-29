@@ -3016,7 +3016,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'Lifecycle|Settings|Credentials'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: afef75e8657799a959e9335797ddd2e88e91c35c
 
 ##### U-X04-AUDIT-MARSHAL
 
