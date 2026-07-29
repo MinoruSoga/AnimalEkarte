@@ -34,8 +34,9 @@ func (r *clinicHolidayRepository) FindAllByYearMonth(ctx context.Context, clinic
 func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
+	// INSERT ... ON CONFLICT に Scopes(WHERE) は効かないため、書き込み先は arg の clinicID を正とする（POC-09）。
+	holiday.ClinicID = clinicID
 	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "date"}},
 			DoUpdates: clause.AssignmentColumns([]string{"reason", "updated_at"}),

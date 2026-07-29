@@ -118,6 +118,25 @@ func TestClinicHolidayRepository_Save(t *testing.T) {
 	assert.Equal(t, int64(1), count, "UPSERT のため行は増えない")
 }
 
+// POC-09: Save は struct の ClinicID より arg clinicID を正として書き込む。
+func TestClinicHolidayRepository_Save_OverwritesStructClinicID(t *testing.T) {
+	db := setupClinicHolidayTestDB(t)
+	repo := NewClinicHolidayRepository(db)
+	ctx := context.Background()
+	clinic := makeClinicFixture(t, db, "休診日ClinicID上書き")
+	date := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+
+	holiday := &model.ClinicHoliday{ClinicID: clinic.ID + 9999, Date: date, Reason: "arg優先"}
+	saved, err := repo.Save(ctx, clinic.ID, holiday)
+	require.NoError(t, err)
+	require.Equal(t, clinic.ID, saved.ClinicID)
+
+	got, err := repo.FindByDate(ctx, clinic.ID, date)
+	require.NoError(t, err)
+	assert.Equal(t, "arg優先", got.Reason)
+	assert.Equal(t, clinic.ID, got.ClinicID)
+}
+
 func TestClinicHolidayRepository_Delete(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
 	repo := NewClinicHolidayRepository(db)

@@ -53,9 +53,9 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, clinic.ID, got.ClinicID)
-		assert.Equal(t, "14:00", got.ClosingAmPmBoundary)
-		assert.Equal(t, "18:30", got.ClosingWeekdayEnd)
-		assert.Equal(t, "17:30", got.ClosingSundayEnd)
+		assert.Equal(t, defaultClosingAmPmBoundary, got.ClosingAmPmBoundary)
+		assert.Equal(t, defaultClosingWeekdayEnd, got.ClosingWeekdayEnd)
+		assert.Equal(t, defaultClosingSundayEnd, got.ClosingSundayEnd)
 	})
 
 	t.Run("clinic_id隔離: 他院の設定は返らず自院はデフォルト値のまま", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 
 		gotA, err := repo.FindByClinicID(ctx, clinicA.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "14:00", gotA.ClosingAmPmBoundary, "他院(B)の値が漏れずデフォルト値のまま")
+		assert.Equal(t, defaultClosingAmPmBoundary, gotA.ClosingAmPmBoundary, "他院(B)の値が漏れずデフォルト値のまま")
 
 		gotB, err := repo.FindByClinicID(ctx, clinicB.ID)
 		require.NoError(t, err)
@@ -113,6 +113,42 @@ func TestClinicSettingsRepository_Save(t *testing.T) {
 	var count int64
 	db.Model(&model.ClinicSettings{}).Where("clinic_id = ?", clinic.ID).Count(&count)
 	assert.Equal(t, int64(1), count, "UPSERT のため行は増えない")
+}
+
+// POC-09: Save は struct の ClinicID より arg clinicID を正として書き込む。
+func TestClinicSettingsRepository_Save_OverwritesStructClinicID(t *testing.T) {
+	db := setupClinicSettingsTestDB(t)
+	repo := NewClinicSettingsRepository(db)
+	ctx := context.Background()
+	clinic := makeClinicFixture(t, db, "SaveClinicID上書き")
+
+	// 誤った ClinicID を載せた struct でも arg 側に正規化されること
+	s := &model.ClinicSettings{
+		ClinicID:            clinic.ID + 9999,
+		ClosingAmPmBoundary: "10:00",
+		ClosingWeekdayEnd:   "19:00",
+		ClosingSundayEnd:    "16:00",
+	}
+	saved, err := repo.Save(ctx, clinic.ID, s)
+	require.NoError(t, err)
+	require.Equal(t, clinic.ID, saved.ClinicID)
+
+	got, err := repo.FindByClinicID(ctx, clinic.ID)
+	require.NoError(t, err)
+	assert.Contains(t, got.ClosingAmPmBoundary, "10:00")
+}
+
+// POC-10: 締め時刻既定値は named constant で一元化し、DDL DEFAULT と一致させる。
+func TestClinicSettingsRepository_DefaultClosingConstants(t *testing.T) {
+	assert.Equal(t, "14:00", defaultClosingAmPmBoundary)
+	assert.Equal(t, "18:30", defaultClosingWeekdayEnd)
+	assert.Equal(t, "17:30", defaultClosingSundayEnd)
+
+	d := defaultClosingTimes(42)
+	assert.Equal(t, uint64(42), d.ClinicID)
+	assert.Equal(t, defaultClosingAmPmBoundary, d.ClosingAmPmBoundary)
+	assert.Equal(t, defaultClosingWeekdayEnd, d.ClosingWeekdayEnd)
+	assert.Equal(t, defaultClosingSundayEnd, d.ClosingSundayEnd)
 }
 
 func TestClinicSettingsRepository_UpdateCPMVersion(t *testing.T) {

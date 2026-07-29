@@ -15,6 +15,23 @@ import (
 
 type clinicSettingsRepository struct{ db *gorm.DB }
 
+// defaultClosing* は 001_init.sql clinic_settings の DDL DEFAULT と一致させる（POC-10）。
+// FindByClinicID フォールバックと Upsert 時の INSERT 既定値で共有し、リテラル重複を禁止する。
+const (
+	defaultClosingAmPmBoundary = "14:00"
+	defaultClosingWeekdayEnd   = "18:30"
+	defaultClosingSundayEnd    = "17:30"
+)
+
+func defaultClosingTimes(clinicID uint64) model.ClinicSettings {
+	return model.ClinicSettings{
+		ClinicID:            clinicID,
+		ClosingAmPmBoundary: defaultClosingAmPmBoundary,
+		ClosingWeekdayEnd:   defaultClosingWeekdayEnd,
+		ClosingSundayEnd:    defaultClosingSundayEnd,
+	}
+}
+
 func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
 	err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).First(&s).Error
@@ -22,12 +39,8 @@ func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID 
 		wrapped := apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 		if errors.Is(wrapped, apperrors.ErrNotFound) {
 			// レコードがなければデフォルト値を返す
-			return &model.ClinicSettings{
-				ClinicID:            clinicID,
-				ClosingAmPmBoundary: "14:00",
-				ClosingWeekdayEnd:   "18:30",
-				ClosingSundayEnd:    "17:30",
-			}, nil
+			d := defaultClosingTimes(clinicID)
+			return &d, nil
 		}
 		return nil, wrapped
 	}
@@ -35,8 +48,9 @@ func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID 
 }
 
 func (r *clinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
+	// INSERT ... ON CONFLICT に Scopes(WHERE) は効かないため、書き込み先は arg の clinicID を正とする（POC-09）。
+	s.ClinicID = clinicID
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -55,20 +69,15 @@ func (r *clinicSettingsRepository) Save(ctx context.Context, clinicID uint64, s 
 }
 
 func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicID uint64, version string) error {
-	s := &model.ClinicSettings{
-		ClinicID:            clinicID,
-		ClosingAmPmBoundary: "14:00",
-		ClosingWeekdayEnd:   "18:30",
-		ClosingSundayEnd:    "17:30",
-		CPMVersion:          version,
-	}
+	s := defaultClosingTimes(clinicID)
+	s.CPMVersion = version
+	// INSERT ON CONFLICT: tenant は s.ClinicID（= clinicID）で確定。Scopes は no-op のため付けない。
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"cpm_version", "updated_at"}),
 		}).
-		Create(s).Error
+		Create(&s).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 	}
@@ -76,18 +85,12 @@ func (r *clinicSettingsRepository) UpdateCPMVersion(ctx context.Context, clinicI
 }
 
 func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, clinicID uint64, thresholds model.DormantThresholds) error {
-	s := &model.ClinicSettings{
-		ClinicID:                 clinicID,
-		ClosingAmPmBoundary:      "14:00",
-		ClosingWeekdayEnd:        "18:30",
-		ClosingSundayEnd:         "17:30",
-		DormantPrevention180Days: thresholds.Stage180,
-		DormantPrevention210Days: thresholds.Stage210,
-		DormantPrevention240Days: thresholds.Stage240,
-		DormantPrevention365Days: thresholds.Stage365,
-	}
+	s := defaultClosingTimes(clinicID)
+	s.DormantPrevention180Days = thresholds.Stage180
+	s.DormantPrevention210Days = thresholds.Stage210
+	s.DormantPrevention240Days = thresholds.Stage240
+	s.DormantPrevention365Days = thresholds.Stage365
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -98,7 +101,7 @@ func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, 
 				"updated_at",
 			}),
 		}).
-		Create(s).Error
+		Create(&s).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 	}
@@ -106,18 +109,12 @@ func (r *clinicSettingsRepository) UpdateDormantThresholds(ctx context.Context, 
 }
 
 func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV2Thresholds) error {
-	s := &model.ClinicSettings{
-		ClinicID:             clinicID,
-		ClosingAmPmBoundary:  "14:00",
-		ClosingWeekdayEnd:    "18:30",
-		ClosingSundayEnd:     "17:30",
-		CPMV2ComingThreshold: thresholds.Coming,
-		CPMV2GoodThreshold:   thresholds.Good,
-		CPMV2FamilyThreshold: thresholds.Family,
-		CPMV2NoahThreshold:   thresholds.Noah,
-	}
+	s := defaultClosingTimes(clinicID)
+	s.CPMV2ComingThreshold = thresholds.Coming
+	s.CPMV2GoodThreshold = thresholds.Good
+	s.CPMV2FamilyThreshold = thresholds.Family
+	s.CPMV2NoahThreshold = thresholds.Noah
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -128,7 +125,7 @@ func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, cl
 				"updated_at",
 			}),
 		}).
-		Create(s).Error
+		Create(&s).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 	}
@@ -137,27 +134,21 @@ func (r *clinicSettingsRepository) UpdateCPMV2Thresholds(ctx context.Context, cl
 
 //nolint:gocritic // hugeParam: thresholds は immutable DTO として interface に揃える設計
 func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, clinicID uint64, thresholds model.CPMV1Thresholds) error {
-	s := &model.ClinicSettings{
-		ClinicID:              clinicID,
-		ClosingAmPmBoundary:   "14:00",
-		ClosingWeekdayEnd:     "18:30",
-		ClosingSundayEnd:      "17:30",
-		CPMV1DormantDays:      thresholds.DormantDays,
-		CPMV1NoahDays:         thresholds.NoahDays,
-		CPMV1NoahAnnualVisits: thresholds.NoahAnnualVisits,
-		CPMV1NoahLTV:          thresholds.NoahLTV,
-		CPMV1CoreDays:         thresholds.CoreDays,
-		CPMV1CoreAnnualVisits: thresholds.CoreAnnualVisits,
-		CPMV1CoreLTV:          thresholds.CoreLTV,
-		CPMV1SpotMinAmount:    thresholds.SpotMinAmount,
-		CPMV1SpotInactiveDays: thresholds.SpotInactiveDays,
-		CPMV1GrowingMaxDays:   thresholds.GrowingMaxDays,
-		CPMV1GrowingMinVisits: thresholds.GrowingMinVisits,
-		CPMV1GrowingMaxVisits: thresholds.GrowingMaxVisits,
-		CPMV1LTVBreakLow:      thresholds.LTVBreakLow,
-	}
+	s := defaultClosingTimes(clinicID)
+	s.CPMV1DormantDays = thresholds.DormantDays
+	s.CPMV1NoahDays = thresholds.NoahDays
+	s.CPMV1NoahAnnualVisits = thresholds.NoahAnnualVisits
+	s.CPMV1NoahLTV = thresholds.NoahLTV
+	s.CPMV1CoreDays = thresholds.CoreDays
+	s.CPMV1CoreAnnualVisits = thresholds.CoreAnnualVisits
+	s.CPMV1CoreLTV = thresholds.CoreLTV
+	s.CPMV1SpotMinAmount = thresholds.SpotMinAmount
+	s.CPMV1SpotInactiveDays = thresholds.SpotInactiveDays
+	s.CPMV1GrowingMaxDays = thresholds.GrowingMaxDays
+	s.CPMV1GrowingMinVisits = thresholds.GrowingMinVisits
+	s.CPMV1GrowingMaxVisits = thresholds.GrowingMaxVisits
+	s.CPMV1LTVBreakLow = thresholds.LTVBreakLow
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -177,7 +168,7 @@ func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, cl
 				"updated_at",
 			}),
 		}).
-		Create(s).Error
+		Create(&s).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 	}
@@ -185,16 +176,10 @@ func (r *clinicSettingsRepository) UpdateCPMV1Thresholds(ctx context.Context, cl
 }
 
 func (r *clinicSettingsRepository) UpdateHealthPreventionThresholds(ctx context.Context, clinicID uint64, thresholds model.HealthPreventionThresholds) error {
-	s := &model.ClinicSettings{
-		ClinicID:                     clinicID,
-		ClosingAmPmBoundary:          "14:00",
-		ClosingWeekdayEnd:            "18:30",
-		ClosingSundayEnd:             "17:30",
-		HealthPreventionLookbackDays: thresholds.LookbackDays,
-		VaccineDeadlineDays:          thresholds.VaccineDeadline,
-	}
+	s := defaultClosingTimes(clinicID)
+	s.HealthPreventionLookbackDays = thresholds.LookbackDays
+	s.VaccineDeadlineDays = thresholds.VaccineDeadline
 	err := persistence.DBOrTx(ctx, r.db).
-		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -203,7 +188,7 @@ func (r *clinicSettingsRepository) UpdateHealthPreventionThresholds(ctx context.
 				"updated_at",
 			}),
 		}).
-		Create(s).Error
+		Create(&s).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
 	}
