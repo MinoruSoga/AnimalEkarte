@@ -46,8 +46,12 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 	for _, t := range tags {
 		newTagSet[t] = struct{}{}
 	}
-	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+	apiFailed, err := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
 		[]string{"ltv_amount_", "visit_count_annual_", "first_visit_", "last_visit_"}, newTagSet)
+	if err != nil {
+		// LSA-11: cache-read failure — zero category API calls, surface the error.
+		return err
+	}
 
 	for _, tag := range tags {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "visit completion", "", true); err != nil {

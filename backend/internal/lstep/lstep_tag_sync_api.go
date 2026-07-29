@@ -12,14 +12,18 @@ import (
 
 // removeStaleTagsByPrefixes はキャッシュ内で指定プレフィックスに一致する古いタグを Lステップから解除する（ISSUE-006）。
 // 同一カテゴリ1タグ保持ルールのための前処理として呼ぶ。
-func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string, prefixes []string, skipTags map[string]struct{}) bool {
+//
+// 戻り値の契約（LSA-11）:
+//   - cache read 失敗: (true, err) — 呼び出し元はカテゴリ API（AddTag/RemoveTag）を一切呼ばず失敗を伝播する（fail-closed）。
+//   - RemoveTag 部分失敗: (true, nil) — 耐久的な failure accounting は行い、desired AddTag は既存どおり継続可能。
+//   - 成功: (false, nil)
+func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID string, prefixes []string, skipTags map[string]struct{}) (apiFailed bool, err error) {
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
-		// LSA-11: cache load failure must not look like a clean run (callers skip apply/notify when true).
+		// LSA-11: cache load failure is observable and must stop every category API call.
 		slog.ErrorContext(ctx, "failed to load tag cache for stale cleanup", "error", err)
-		return true
+		return true, apperrors.Wrap(err, "failed to load tag cache for stale cleanup")
 	}
-	apiFailed := false
 	for _, c := range cached {
 		if _, skip := skipTags[c.TagName]; skip {
 			continue
@@ -39,7 +43,7 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 			}
 		}
 	}
-	return apiFailed
+	return apiFailed, nil
 }
 
 // resolveSyncTargetOwner は飼い主のオプトアウト状態と LINE 連携有無を確認し、

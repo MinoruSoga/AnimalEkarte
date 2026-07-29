@@ -560,7 +560,7 @@ func TestRemoveStaleTagsByPrefixesRecordsRemoveFailure(t *testing.T) {
 	}
 	svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: tagCache}
 
-	apiFailed := svc.removeStaleTagsByPrefixes(
+	apiFailed, err := svc.removeStaleTagsByPrefixes(
 		context.Background(),
 		client,
 		1,
@@ -570,6 +570,7 @@ func TestRemoveStaleTagsByPrefixesRecordsRemoveFailure(t *testing.T) {
 		map[string]struct{}{},
 	)
 
+	assert.NoError(t, err)
 	assert.True(t, apiFailed)
 	assert.True(t, incrementCalled)
 }

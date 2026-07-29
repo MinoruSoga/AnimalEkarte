@@ -190,6 +190,87 @@ func TestSyncVaccineTag(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, removedTags, "vaccine_dog_2025-01-01")
 	})
+
+	t.Run("cache load failure: zero AddTag and returns observable error", func(t *testing.T) {
+		addCalls := 0
+		removeCalls := 0
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addCalls++
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				removeCalls++
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			vacRepo: &mockVaccinationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{Date: vacDate, Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog}}, nil
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return nil, errors.New("cache db error")
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		err := svc.SyncVaccineTag(context.Background(), 1, 10, 100)
+		assert.Error(t, err)
+		assert.Zero(t, addCalls, "cache failure must fail closed: zero AddTag")
+		assert.Zero(t, removeCalls, "cache failure must fail closed: zero RemoveTag")
+	})
+
+	t.Run("RemoveTag partial failure: desired AddTag continues and failure is accounted", func(t *testing.T) {
+		var addedTags []string
+		incrementCalls := 0
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTags = append(addedTags, tagName)
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				return errors.New("remove failed")
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			vacRepo: &mockVaccinationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{Date: vacDate, Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog}}, nil
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{{TagName: "vaccine_dog_2025-01-01"}}, nil
+				},
+			},
+			errorCounterRepo: &mockErrorCounterRepo{
+				incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+					incrementCalls++
+					return 1, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		err := svc.SyncVaccineTag(context.Background(), 1, 10, 100)
+		assert.NoError(t, err, "RemoveTag partial failure must not abort desired adds")
+		assert.Contains(t, addedTags, "vaccine_dog_2026-04-01")
+		assert.Positive(t, incrementCalls, "durable failure accounting must remain")
+	})
 }
 
 // ---- ResyncOwnerVaccineTags ----
@@ -357,5 +438,86 @@ func TestResyncOwnerVaccineTags(t *testing.T) {
 		}
 		err := svc.ResyncOwnerVaccineTags(context.Background(), 1, 10)
 		assert.Error(t, err)
+	})
+
+	t.Run("cache load failure: zero AddTag and returns observable error", func(t *testing.T) {
+		addCalls := 0
+		removeCalls := 0
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addCalls++
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				removeCalls++
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			vacRepo: &mockVaccinationRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+					return []model.Vaccination{{Date: vacDate, Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog}}}, nil
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return nil, errors.New("cache db error")
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		err := svc.ResyncOwnerVaccineTags(context.Background(), 1, 10)
+		assert.Error(t, err)
+		assert.Zero(t, addCalls, "cache failure must fail closed: zero AddTag")
+		assert.Zero(t, removeCalls, "cache failure must fail closed: zero RemoveTag")
+	})
+
+	t.Run("RemoveTag partial failure: desired AddTag continues and failure is accounted", func(t *testing.T) {
+		var addedTags []string
+		incrementCalls := 0
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTags = append(addedTags, tagName)
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error {
+				return errors.New("remove failed")
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			vacRepo: &mockVaccinationRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+					return []model.Vaccination{{Date: vacDate, Vaccine: &model.Vaccine{Name: "DHPP", Species: &dog}}}, nil
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{{TagName: "vaccine_dog_2025-01-01"}}, nil
+				},
+			},
+			errorCounterRepo: &mockErrorCounterRepo{
+				incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+					incrementCalls++
+					return 1, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		err := svc.ResyncOwnerVaccineTags(context.Background(), 1, 10)
+		assert.NoError(t, err, "RemoveTag partial failure must not abort desired adds")
+		assert.Contains(t, addedTags, "vaccine_dog_2026-04-01")
+		assert.Positive(t, incrementCalls, "durable failure accounting must remain")
 	})
 }

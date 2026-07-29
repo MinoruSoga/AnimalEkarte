@@ -24,10 +24,15 @@ func TestRemoveStaleTagsByPrefixes_FindByOwnerError(t *testing.T) {
 			t.Fatal("RemoveTag should not be called when FindByOwner fails")
 			return nil
 		},
+		addTagFn: func(_ context.Context, _, _ string) error {
+			t.Fatal("AddTag should not be called when FindByOwner fails")
+			return nil
+		},
 	}
-	apiFailed := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
-	// LSA-11: cache failure must report as failed so callers do not apply tags / notify success.
+	apiFailed, err := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
+	// LSA-11: cache-read failure is observable (err) and fails closed (apiFailed), distinct from RemoveTag partial failure.
 	assert.True(t, apiFailed)
+	assert.Error(t, err)
 }
 
 func TestRemoveStaleTagsByPrefixes_SkipsTagsInSkipSet(t *testing.T) {
@@ -44,8 +49,9 @@ func TestRemoveStaleTagsByPrefixes_SkipsTagsInSkipSet(t *testing.T) {
 			return nil
 		},
 	}
-	apiFailed := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1",
+	apiFailed, err := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1",
 		[]string{"vaccine_dog_"}, map[string]struct{}{"vaccine_dog_2026-05-01": {}})
+	assert.NoError(t, err)
 	assert.False(t, apiFailed)
 	assert.False(t, removeCalled, "skipTags に含まれるタグは RemoveTag されない")
 }
@@ -68,7 +74,8 @@ func TestRemoveStaleTagsByPrefixes_RemovesMatchingPrefixSuccess(t *testing.T) {
 			return nil
 		},
 	}
-	apiFailed := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
+	apiFailed, err := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
+	assert.NoError(t, err)
 	assert.False(t, apiFailed)
 	assert.Equal(t, "vaccine_dog_2026-05-01", removedTag)
 	assert.Equal(t, "vaccine_dog_2026-05-01", deletedCacheTag)
@@ -88,9 +95,38 @@ func TestRemoveStaleTagsByPrefixes_NoPrefixMatchLeavesTagAlone(t *testing.T) {
 			return nil
 		},
 	}
-	apiFailed := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
+	apiFailed, err := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1", []string{"vaccine_dog_"}, map[string]struct{}{})
+	assert.NoError(t, err)
 	assert.False(t, apiFailed)
 	assert.False(t, removeCalled, "プレフィックス不一致のタグは触られない")
+}
+
+func TestRemoveStaleTagsByPrefixes_RemoveTagPartialFailureIsNotCacheError(t *testing.T) {
+	// RemoveTag partial failure: durable failure accounting + apiFailed=true, but err=nil
+	// so callers may still apply desired AddTag (distinct from cache-read fail-closed).
+	tagCache := &mockLstepTagCacheRepository{
+		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+			return []*model.LstepTagCache{{TagName: "vaccine_dog_2026-05-01"}}, nil
+		},
+	}
+	incrementCalled := false
+	repo := &mockErrorCounterRepo{
+		incrementFn: func(_ context.Context, _, _ uint64) (int, error) {
+			incrementCalled = true
+			return lstepSyncErrorThreshold - 1, nil
+		},
+	}
+	svc := &lstepTagSyncService{errorCounterRepo: repo, tagCacheRepo: tagCache}
+	client := &mockLstepAPIClient{
+		removeTagFn: func(_ context.Context, _, _ string) error {
+			return errors.New("lstep remove failed")
+		},
+	}
+	apiFailed, err := svc.removeStaleTagsByPrefixes(context.Background(), client, 1, 2, "u1",
+		[]string{"vaccine_dog_"}, map[string]struct{}{})
+	assert.NoError(t, err, "RemoveTag partial failure must not surface as cache-read error")
+	assert.True(t, apiFailed)
+	assert.True(t, incrementCalled, "durable failure accounting must remain")
 }
 
 // ---- notifyAPIFailure additional branches ----

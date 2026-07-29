@@ -45,8 +45,12 @@ func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, owne
 	for _, t := range tags {
 		newTagSet[t] = struct{}{}
 	}
-	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+	apiFailed, err := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
 		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
+	if err != nil {
+		// LSA-11: cache-read failure — zero category API calls, surface the error.
+		return err
+	}
 
 	for _, tag := range tags {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "vaccine", "", true); err != nil {
@@ -119,8 +123,12 @@ func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinic
 
 	newTagSet := buildLatestVaccineTagSet(vaccinations)
 
-	apiFailed := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
+	apiFailed, err := s.removeStaleTagsByPrefixes(ctx, client, clinicID, ownerID, lineUserID,
 		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
+	if err != nil {
+		// LSA-11: cache-read failure — zero category API calls, surface the error.
+		return err
+	}
 
 	for tag := range newTagSet {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "vaccine resync", "", true); err != nil {
