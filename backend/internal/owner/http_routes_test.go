@@ -38,11 +38,6 @@ func TestHandler_RegisterRoutes_PreservesOwnerContract(t *testing.T) {
 		http.MethodDelete + " /api/v1/owners/:id",
 		http.MethodGet + " /api/v1/owners",
 		http.MethodGet + " /api/v1/owners/:id",
-		http.MethodPatch + " /api/v1/clinics/:clinic_id/owners/:id/delivery-caution",
-		http.MethodPatch + " /api/v1/clinics/:clinic_id/owners/:id/delivery-exclusion",
-		http.MethodPatch + " /api/v1/clinics/:clinic_id/owners/:id/line-id-confirm",
-		http.MethodPatch + " /api/v1/clinics/:clinic_id/owners/:id/line-user-id",
-		http.MethodPatch + " /api/v1/clinics/:clinic_id/owners/:id/transfer-status",
 		http.MethodPatch + " /api/v1/owners/:id",
 		http.MethodPatch + " /api/v1/owners/:id/delivery-caution",
 		http.MethodPatch + " /api/v1/owners/:id/delivery-exclusion",
@@ -67,11 +62,6 @@ func TestHandler_RegisterRoutes_PreservesOwnerContract(t *testing.T) {
 		{resource: "owners", action: "edit"},
 		{resource: "owners", action: "edit"},
 		{resource: "owners", action: "edit"},
-		{resource: "owners", action: "edit"},
-		{resource: "owners", action: "edit"},
-		{resource: "owners", action: "edit"},
-		{resource: "owners", action: "edit"},
-		{resource: "owners", action: "edit"},
 	}, permissions)
-	require.Len(t, gotRoutes, 16)
+	require.Len(t, gotRoutes, 11)
 }

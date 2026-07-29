@@ -93,12 +93,8 @@ var knownMissingFromSpec = map[string]bool{
 	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags/{tag_name}": true, // alias of documented DELETE /owners/{id}/lstep/tags/{tag_name}
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/line/send-logs":           true, // alias of documented GET /owners/{id}/line/send-logs
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":               true, // alias of documented GET /owners/{id}/lstep/tags
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-caution":       true, // alias of documented PATCH /owners/{id}/delivery-caution
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-exclusion":     true, // alias of documented PATCH /owners/{id}/delivery-exclusion
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-id-confirm":        true, // alias of documented PATCH /owners/{id}/line-id-confirm
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-user-id":           true, // alias of documented PATCH /owners/{id}/line-user-id
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/transfer-status":        true, // alias of documented PATCH /owners/{id}/transfer-status
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send":               true, // alias of documented POST /owners/{id}/line/send
+	// POC-08 / SOLO-33: removed decorative clinic-scoped owner PATCH aliases from routes.
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send": true, // alias of documented POST /owners/{id}/line/send
 	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":           true, // alias of documented POST /owners/{id}/lstep-opt-out
 	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":              true, // alias of documented POST /owners/{id}/lstep/tags
 

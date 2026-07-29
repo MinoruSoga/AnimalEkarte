@@ -20,11 +20,6 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	owners.PATCH("/:id/delivery-caution", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
 	owners.PATCH("/:id/transfer-status", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
 	owners.PATCH("/:id/line-id-confirm", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
-
-	clinicOwners := protected.Group("/clinics/:clinic_id/owners")
-	clinicOwners.PATCH("/:id/line-user-id", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
-	clinicOwners.PATCH("/:id/delivery-exclusion", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryExclusion)
-	clinicOwners.PATCH("/:id/delivery-caution", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
-	clinicOwners.PATCH("/:id/transfer-status", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
-	clinicOwners.PATCH("/:id/line-id-confirm", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
+	// POC-08 / SOLO-33: removed decorative /clinics/:clinic_id/owners/* PATCH aliases that
+	// ignored path clinic_id and were absent from OpenAPI. Canonical /owners/:id/* remains.
 }
