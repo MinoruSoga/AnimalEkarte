@@ -3,6 +3,7 @@ package staff
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"sort"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -210,6 +211,9 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 // SetClinicAssignments replaces a staff member's clinic assignments while
 // preserving the canonical lock order shared with reservation writes:
 // staff row, active assignment rows, then dependency checks and mutation.
+// AUS-01: fail-closed audit of old/new clinic_ids when production audit is wired
+// (permissionAudit + attachPermissionAssignmentAudit). Missing either half fails
+// closed; both absent (legacy NewStaffService unit constructors) skips audit.
 func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error {
 	clinicIDs, err := validateAndDedupeClinicAssignments(input)
 	if err != nil {
@@ -218,6 +222,13 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClini
 	if s.repo == nil || s.assignmentRepo == nil || s.reservationRepo == nil ||
 		s.shiftEntryRepo == nil || s.clinicRepo == nil || s.tx == nil {
 		return apperrors.WrapInternalServerError("clinic assignment dependencies are not configured")
+	}
+	auditMeta, hasAuditMeta := clinicAssignmentAuditFromContext(ctx, input.StaffID)
+	if s.permissionAudit == nil && hasAuditMeta {
+		return apperrors.WrapInternalServerError("clinic assignment audit logger is not configured")
+	}
+	if s.permissionAudit != nil && !hasAuditMeta {
+		return apperrors.WrapInternalServerError("staff clinic assignment audit metadata is invalid")
 	}
 
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
@@ -260,6 +271,11 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClini
 			return dependencyErr
 		}
 
+		oldClinicIDs := make([]uint64, 0, len(existingAssignments))
+		for _, a := range existingAssignments {
+			oldClinicIDs = append(oldClinicIDs, a.ClinicID)
+		}
+
 		if err := s.assignmentRepo.Delete(ctx, input.StaffID); err != nil {
 			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", input.StaffID)
 			return apperrors.Wrap(err, "failed to delete existing clinic assignments")
@@ -279,10 +295,66 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClini
 			slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", input.StaffID, "clinic_id", clinicIDs[0])
 			return apperrors.Wrap(err, "failed to update staff primary clinic")
 		}
+		if s.permissionAudit != nil && auditMeta != nil {
+			if auditWriteErr := s.permissionAudit.LogEntryTx(
+				ctx,
+				clinicAssignmentAuditEntry(*auditMeta, oldClinicIDs, clinicIDs),
+			); auditWriteErr != nil {
+				return apperrors.Wrap(auditWriteErr, "failed to write staff clinic assignment audit")
+			}
+		}
 		return nil
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to set clinic assignments")
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", input.StaffID), slog.Int("count", len(clinicIDs)))
 	return nil
+}
+
+// clinicAssignmentAuditFromContext reuses attachPermissionAssignmentAudit metadata (AUS-01).
+// ok=false when middleware did not attach metadata (legacy unit-test constructors).
+func clinicAssignmentAuditFromContext(
+	ctx context.Context,
+	targetStaffID uint64,
+) (*PermissionAssignmentAudit, bool) {
+	audit, ok := ctx.Value(permissionAssignmentAuditContextKey{}).(PermissionAssignmentAudit)
+	if !ok ||
+		audit.ClinicID == 0 ||
+		audit.ActorStaffID == 0 ||
+		audit.TargetStaffID == 0 ||
+		audit.TargetStaffID != targetStaffID {
+		return nil, false
+	}
+	return &audit, true
+}
+
+func clinicAssignmentAuditEntry(
+	audit PermissionAssignmentAudit,
+	oldClinicIDs, newClinicIDs []uint64,
+) *PermissionAssignmentAuditEntry {
+	clinicID := audit.ClinicID
+	actorID := audit.ActorStaffID
+	resourceID := audit.TargetStaffID
+	sortedOld := append([]uint64(nil), oldClinicIDs...)
+	sortedNew := append([]uint64(nil), newClinicIDs...)
+	slices.Sort(sortedOld)
+	slices.Sort(sortedNew)
+	return &PermissionAssignmentAuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    &actorID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     "staff.clinic_assignments.replace",
+		Resource:   model.AuditResourceStaff,
+		ResourceID: &resourceID,
+		OldValue: map[string]any{
+			"staff_id":   audit.TargetStaffID,
+			"clinic_ids": sortedOld,
+		},
+		NewValue: map[string]any{
+			"staff_id":   audit.TargetStaffID,
+			"clinic_ids": sortedNew,
+		},
+		IPAddress: audit.IPAddress,
+		UserAgent: audit.UserAgent,
+	}
 }

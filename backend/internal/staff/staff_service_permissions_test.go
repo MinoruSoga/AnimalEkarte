@@ -327,7 +327,130 @@ func TestStaffService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) 
 	err := svc.SetPermissionGroupIDs(permissionAssignmentAuditContext(), 1, 10, []uint64{2, 8})
 
 	require.Error(t, err)
+
 	assert.Equal(t, []uint64{3, 9}, state.groupIDs)
+}
+
+
+func clinicAssignmentAuditContext(staffID uint64) context.Context {
+	return withPermissionAssignmentAudit(context.Background(), PermissionAssignmentAudit{
+		ClinicID:      1,
+		ActorStaffID:  7,
+		TargetStaffID: staffID,
+		IPAddress:     "192.0.2.7",
+		UserAgent:     "clinic-assignment-test",
+	})
+}
+
+// AUS-01: SetClinicAssignments writes fail-closed audit when production audit is wired.
+func TestStaffService_SetClinicAssignments_AuditsInTransaction(t *testing.T) {
+	var created []model.StaffClinicAssignment
+	var entries []*PermissionAssignmentAuditEntry
+	repo := &mockStaffRepository{
+		updatePrimaryFn: func(_ context.Context, id, clinicID uint64) error {
+			assert.Equal(t, uint64(10), id)
+			assert.Equal(t, uint64(2), clinicID)
+			return nil
+		},
+	}
+	assignmentRepo := &mockAssignmentForStaff{
+		lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+			return []model.StaffClinicAssignment{{StaffID: staffID, ClinicID: 1}}, nil
+		},
+		restoreOrCreateFn: func(_ context.Context, a *model.StaffClinicAssignment) error {
+			created = append(created, *a)
+			return nil
+		},
+	}
+	svc := NewStaffServiceWithAudits(
+		repo,
+		&mockAccountForStaff{},
+		assignmentRepo,
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		&mockPermissionGroupRepository{},
+		&mockResStaffForStaff{},
+		nil,
+		existingClinicLookupForStaffAssignments(),
+		noopTransactor{},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(_ context.Context, entry *PermissionAssignmentAuditEntry) error {
+			entries = append(entries, entry)
+			return nil
+		}),
+	)
+
+	err := svc.SetClinicAssignments(clinicAssignmentAuditContext(10), &SetClinicAssignmentsInput{
+		StaffID:             10,
+		ClinicIDs:           []uint64{2, 4},
+		AuthorizedClinicIDs: []uint64{1, 2, 4},
+	})
+	require.NoError(t, err)
+	require.Len(t, created, 2)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "staff.clinic_assignments.replace", entries[0].Action)
+	assert.Equal(t, map[string]any{"staff_id": uint64(10), "clinic_ids": []uint64{1}}, entries[0].OldValue)
+	assert.Equal(t, map[string]any{"staff_id": uint64(10), "clinic_ids": []uint64{2, 4}}, entries[0].NewValue)
+}
+
+func TestStaffService_SetClinicAssignments_AuditFailureRollsBack(t *testing.T) {
+	state := &permissionAssignmentTxState{}
+	assignmentRepo := &mockAssignmentForStaff{
+		restoreOrCreateFn: func(_ context.Context, _ *model.StaffClinicAssignment) error {
+			state.groupIDs = []uint64{99}
+			return nil
+		},
+	}
+	svc := NewStaffServiceWithAudits(
+		&mockStaffRepository{},
+		&mockAccountForStaff{},
+		assignmentRepo,
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		&mockPermissionGroupRepository{},
+		&mockResStaffForStaff{},
+		nil,
+		existingClinicLookupForStaffAssignments(),
+		rollbackPermissionAssignmentTransactor{state: state},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(context.Context, *PermissionAssignmentAuditEntry) error {
+			return errors.New("audit failed")
+		}),
+	)
+
+	err := svc.SetClinicAssignments(clinicAssignmentAuditContext(10), &SetClinicAssignmentsInput{
+		StaffID:             10,
+		ClinicIDs:           []uint64{2},
+		AuthorizedClinicIDs: []uint64{2},
+	})
+	require.Error(t, err)
+	assert.Empty(t, state.groupIDs)
+}
+
+func TestStaffService_SetClinicAssignments_FailsClosedWithoutAuditMetadataWhenLoggerConfigured(t *testing.T) {
+	svc := NewStaffServiceWithAudits(
+		&mockStaffRepository{},
+		&mockAccountForStaff{},
+		&mockAssignmentForStaff{},
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		&mockPermissionGroupRepository{},
+		&mockResStaffForStaff{},
+		nil,
+		existingClinicLookupForStaffAssignments(),
+		noopTransactor{},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(context.Context, *PermissionAssignmentAuditEntry) error {
+			return nil
+		}),
+	)
+	err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
+		StaffID:             10,
+		ClinicIDs:           []uint64{2},
+		AuthorizedClinicIDs: []uint64{2},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audit metadata")
 }
 
 func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {

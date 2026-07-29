@@ -200,7 +200,12 @@ func (h *Handler) registerMasterRoutes(protected *gin.RouterGroup) {
 		h.SetStaffPermissionGroups,
 	)
 	masters.GET("/staffs/:id/clinics", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffClinicAssignments)
-	masters.PUT("/staffs/:id/clinics", perm(string(model.ResourceMasterStaff), "edit"), h.SetStaffClinicAssignments)
+	masters.PUT(
+		"/staffs/:id/clinics",
+		perm(string(model.ResourceMasterStaff), "edit"),
+		attachPermissionAssignmentAudit, // AUS-01: actor/target metadata for fail-closed clinic replace audit
+		h.SetStaffClinicAssignments,
+	)
 	masters.GET("/staffs/:id/excluded-reservation-types", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffExcludedReservationTypes)
 	masters.PUT("/staffs/:id/excluded-reservation-types", perm(string(model.ResourceMasterStaff), "edit"), h.SetStaffExcludedReservationTypes)
 	masters.GET("/staffs/:id/capable-reservation-types", perm(string(model.ResourceMasterStaff), "view"), h.GetStaffCapableReservationTypes)
