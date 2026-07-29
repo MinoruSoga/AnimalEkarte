@@ -64,22 +64,81 @@ type OwnerAnnualRevenue struct {
 	Revenue int64
 }
 
-// FindOwnersByAnnualRevenue は直近365日の完了済み請求額合計を飼い主ごとに集計し、降順で返す（LTV上位％判定用）。
+// ltvTopPercent は Lステップ LTV_上位20 タグの対象割合（％）。
+// topN = ceil(N * ltvTopPercent / 100) = (N * ltvTopPercent + 99) / 100（正の整数除算）。
+const ltvTopPercent = 20
+
+// ownerAnnualRevenueTopPercentSQL は直近365日完了会計を現在の clinic owner に集計し、
+// 売上降順・owner_id 昇順の確定タイブレークで exact top-percent だけを返す（G2F-03）。
+//
+// Bound contract:
+//   - DB が total_owners から topN を算出し、rn <= topN の行だけを返す
+//   - 呼び出し側 Go は返却集合を再スライスせず top 集合として扱う
+//   - 全 clinic owner 売上を Go ヒープへ materialize しない
+//
+// Query plan (EXPLAIN evidence pinned by TestAccountingRepository_FindOwnersByAnnualRevenue_ExplainPlanIsWindowBounded):
+// PostgreSQL evaluates the window phase (WindowAgg over the grouped owner_revenue CTE)
+// and filters to rn <= topN before the final result is scanned into Go. The returned
+// row count is O(ceil(N*20/100)), not O(N).
+const ownerAnnualRevenueTopPercentSQL = `
+WITH owner_revenue AS (
+	SELECT
+		billings.owner_id AS owner_id,
+		COALESCE(SUM(billings.total_amount), 0) AS revenue
+	FROM billings
+	INNER JOIN owners
+		ON owners.id = billings.owner_id
+		AND owners.clinic_id = billings.clinic_id
+		AND owners.deleted_at IS NULL
+	WHERE billings.clinic_id = ?
+		AND billings.status = ?
+		AND billings.deleted_at IS NULL
+		AND billings.completed_at >= ?
+		AND billings.owner_id IS NOT NULL
+		AND (
+			billings.medical_record_id IS NULL OR EXISTS (
+				SELECT 1
+				FROM medical_records AS mr
+				WHERE mr.id = billings.medical_record_id
+					AND mr.clinic_id = billings.clinic_id
+					AND mr.deleted_at IS NULL
+			)
+		)
+	GROUP BY billings.owner_id
+),
+ranked AS (
+	SELECT
+		owner_id,
+		revenue,
+		COUNT(*) OVER () AS total_owners,
+		ROW_NUMBER() OVER (ORDER BY revenue DESC, owner_id ASC) AS rn
+	FROM owner_revenue
+)
+SELECT owner_id, revenue
+FROM ranked
+WHERE rn <= ((total_owners * ? + 99) / 100)
+ORDER BY revenue DESC, owner_id ASC
+`
+
+// FindOwnersByAnnualRevenue は直近365日の完了済み請求額合計を飼い主ごとに集計し、
+// LTV 上位 ltvTopPercent% の飼い主だけを降順で返す（bounded top-N contract / LTV上位％判定用）。
+//
+// セマンティクス:
+//   - clinic scope + current non-deleted owners only
+//   - completed billings with completed_at within 365 days
+//   - deterministic ties: revenue DESC, owner_id ASC
+//   - exact topN = (count * 20 + 99) / 100; empty set when no qualifying owners
 func (r *accountingRepository) FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error) {
 	cutoff := time.Now().AddDate(0, 0, -365)
 	var results []OwnerAnnualRevenue
 	err := r.db.WithContext(ctx).
-		Model(&model.Billing{}).
-		Joins(`INNER JOIN owners
-			ON owners.id = billings.owner_id
-			AND owners.clinic_id = billings.clinic_id
-			AND owners.deleted_at IS NULL`).
-		Where("billings.clinic_id = ?", clinicID).
-		Scopes(validBillingOwnerMedicalRecordScope).
-		Where("billings.status = ? AND billings.deleted_at IS NULL AND billings.completed_at >= ? AND billings.owner_id IS NOT NULL", model.BillingStatusCompleted, cutoff).
-		Select("billings.owner_id, COALESCE(SUM(billings.total_amount), 0) AS revenue").
-		Group("billings.owner_id").
-		Order("revenue DESC").
+		Raw(
+			ownerAnnualRevenueTopPercentSQL,
+			clinicID,
+			model.BillingStatusCompleted,
+			cutoff,
+			ltvTopPercent,
+		).
 		Scan(&results).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("clinic=%d", clinicID))

@@ -5,9 +5,15 @@ package billing
 //
 // 注: これらは Lステップタグ同期 / CPM 判定用の集計であり、LtvRepository.FindOwnerLTV とは
 // 別の集計経路（ltv_repository_test.go 参照）。本ファイルは AccountingRepository 側を対象とする。
+//
+// G2F-03: FindOwnersByAnnualRevenue は exact top-20% の bounded SQL ranking。
+// 全 clinic owner 売上を Go へ materialize しない。
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,21 +106,37 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ZeroWhenNoCompletedBil
 	assert.Equal(t, int64(0), maxAmount)
 }
 
-func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExcludesOldBillings(t *testing.T) {
+func TestAccountingRepository_LTVRevenue_OrdersDescendingAndExcludesOldBillings(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	now := time.Now()
 
+	// 5 qualifying owners → top 20% = ceil(5*0.2) = 1 → only the highest revenue owner.
 	high := testdb.MakeTestOwner(t, db, clinicID, "高額飼主")
+	mid := testdb.MakeTestOwner(t, db, clinicID, "中額飼主")
 	low := testdb.MakeTestOwner(t, db, clinicID, "低額飼主")
+	lower := testdb.MakeTestOwner(t, db, clinicID, "更低額飼主")
+	lowest := testdb.MakeTestOwner(t, db, clinicID, "最低額飼主")
 
-	// 直近365日以内（対象）
-	b1 := &model.Billing{ClinicID: clinicID, OwnerID: &high.ID, TotalAmount: 30_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -10), CompletedAt: timePtr(now.AddDate(0, 0, -10))}
-	b2 := &model.Billing{ClinicID: clinicID, OwnerID: &low.ID, TotalAmount: 5_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -5), CompletedAt: timePtr(now.AddDate(0, 0, -5))}
-	require.NoError(t, db.WithContext(ctx).Create(b1).Error)
-	require.NoError(t, db.WithContext(ctx).Create(b2).Error)
+	for _, row := range []struct {
+		owner  *model.Owner
+		amount int64
+	}{
+		{high, 50_000},
+		{mid, 30_000},
+		{low, 10_000},
+		{lower, 5_000},
+		{lowest, 1_000},
+	} {
+		b := &model.Billing{
+			ClinicID: clinicID, OwnerID: &row.owner.ID, TotalAmount: row.amount,
+			Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -5),
+			CompletedAt: timePtr(now.AddDate(0, 0, -5)),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(b).Error)
+	}
 
 	// 365日超過（除外対象）— high の売上を追加してしまうと除外検証にならないため別飼主で作成
 	tooOld := testdb.MakeTestOwner(t, db, clinicID, "365日超過飼主")
@@ -124,20 +146,21 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExclu
 	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
 	require.NoError(t, err)
 
+	require.Len(t, results, 1, "top 20% of 5 qualifying owners is exactly 1")
+	assert.Equal(t, high.ID, results[0].OwnerID, "降順ソートで高額飼主のみが top 集合")
+	assert.Equal(t, int64(50_000), results[0].Revenue)
+
 	byOwner := make(map[uint64]int64, len(results))
 	for _, r := range results {
 		byOwner[r.OwnerID] = r.Revenue
 	}
-	assert.Equal(t, int64(30_000), byOwner[high.ID])
-	assert.Equal(t, int64(5_000), byOwner[low.ID])
 	_, oldPresent := byOwner[tooOld.ID]
 	assert.False(t, oldPresent, "365日超過の売上は集計から除外される")
-
-	require.Len(t, results, 2)
-	assert.Equal(t, high.ID, results[0].OwnerID, "降順ソートで高額飼主が先頭")
+	_, midPresent := byOwner[mid.ID]
+	assert.False(t, midPresent, "top 20% 外の飼主は返却集合に含まれない")
 }
 
-func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesNullOwnerID(t *testing.T) {
+func TestAccountingRepository_LTVRevenue_ExcludesNullOwnerID(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -153,7 +176,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesNullOwnerID(t *t
 	assert.Empty(t, results, "owner_id が NULL の会計は集計対象外")
 }
 
-func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testing.T) {
+func TestAccountingRepository_LTVRevenue_ClinicIsolation(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -174,7 +197,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testi
 	assert.Equal(t, int64(1_000), resultsA[0].Revenue)
 }
 
-func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwnerReference(t *testing.T) {
+func TestAccountingRepository_LTVRevenue_ExcludesCrossClinicOwnerReference(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -204,7 +227,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ExcludesCrossClinicOwner
 // DEC-27: medical_records.owner_id and billings.owner_id are independent
 // snapshots. Mismatched MR snapshot owner must not exclude LTV rows when
 // clinic matches; money attribution stays on billings.owner_id.
-func TestAccountingRepository_LTVAggregates_IncludeMismatchedMedicalRecordOwnerSnapshotAndAllowDirectBilling(t *testing.T) {
+func TestAccountingRepository_LTVRevenueAggregates_IncludeMismatchedMedicalRecordOwnerSnapshotAndAllowDirectBilling(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -247,7 +270,7 @@ func TestAccountingRepository_LTVAggregates_IncludeMismatchedMedicalRecordOwnerS
 // billing snapshot owner still includes the completed billing (keyed by
 // billings.owner_id), even when the linked MR snapshot owner differs from
 // the current pets.owner_id.
-func TestAccountingRepository_LTVAggregates_KeepsAttributionAfterPetTransfer(t *testing.T) {
+func TestAccountingRepository_LTVRevenueAggregates_KeepsAttributionAfterPetTransfer(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -285,6 +308,136 @@ func TestAccountingRepository_LTVAggregates_KeepsAttributionAfterPetTransfer(t *
 	newOwnerTotal, err := repo.SumPaidByOwner(ctx, clinicID, newOwner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), newOwnerTotal, "current pet owner does not inherit historical LTV")
+}
+
+// TestAccountingRepository_LTVRevenue_BoundsTopPercentForLargeClinic
+// is the G2F-03 large-clinic regression: with N qualifying owners the repository
+// must return only ceil(N*20/100) rows, never the full owner-revenue set.
+func TestAccountingRepository_LTVRevenue_BoundsTopPercentForLargeClinic(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	const ownerCount = 50
+	now := time.Now()
+
+	owners := make([]*model.Owner, 0, ownerCount)
+	for i := 0; i < ownerCount; i++ {
+		owners = append(owners, testdb.MakeTestOwner(t, db, clinicID, fmt.Sprintf("large-clinic-owner-%02d", i)))
+	}
+	// Distinct revenues: owners[i] gets (i+1)*1000 so owners[49] is highest.
+	for i, owner := range owners {
+		amount := int64(i+1) * 1_000
+		b := &model.Billing{
+			ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: amount,
+			Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(b).Error)
+	}
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	require.NoError(t, err)
+
+	wantTopN := (ownerCount*ltvTopPercent + 99) / 100 // 10 for N=50
+	require.Equal(t, wantTopN, len(results),
+		"bounded top-percent contract must return ceil(N*20/100)=%d, not full N=%d (Go must not materialize all owner revenues)",
+		wantTopN, ownerCount)
+
+	// Highest 10 revenues: owners[49]..owners[40]
+	for i, got := range results {
+		wantOwner := owners[ownerCount-1-i]
+		wantRevenue := int64(ownerCount-i) * 1_000
+		assert.Equal(t, wantOwner.ID, got.OwnerID, "rank %d owner", i+1)
+		assert.Equal(t, wantRevenue, got.Revenue, "rank %d revenue", i+1)
+	}
+}
+
+// TestAccountingRepository_LTVRevenue_DeterministicTieBreakByOwnerID
+// pins revenue DESC, owner_id ASC when revenues collide at the top-percent boundary.
+func TestAccountingRepository_LTVRevenue_DeterministicTieBreakByOwnerID(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now()
+
+	// 5 owners, identical revenue → topN = 1; lowest owner_id wins the tie.
+	owners := make([]*model.Owner, 0, 5)
+	for i := 0; i < 5; i++ {
+		owners = append(owners, testdb.MakeTestOwner(t, db, clinicID, fmt.Sprintf("tie-owner-%d", i)))
+	}
+	for _, owner := range owners {
+		b := &model.Billing{
+			ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 10_000,
+			Status: model.BillingStatusCompleted, ScheduledDate: now, CompletedAt: timePtr(now),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(b).Error)
+	}
+
+	// Ensure owner IDs are ascending as created.
+	for i := 1; i < len(owners); i++ {
+		require.Less(t, owners[i-1].ID, owners[i].ID)
+	}
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	require.NoError(t, err)
+	require.Len(t, results, 1, "top 20% of 5 tied owners is exactly 1")
+	assert.Equal(t, owners[0].ID, results[0].OwnerID, "tie-break: lowest owner_id wins at equal revenue")
+	assert.Equal(t, int64(10_000), results[0].Revenue)
+}
+
+// TestAccountingRepository_LTVRevenue_ExplainPlanIsWindowBounded
+// records PostgreSQL EXPLAIN evidence for the exact top-N/count strategy.
+// Asserts WindowAgg is present so ranking happens in the database, not in Go.
+func TestAccountingRepository_LTVRevenue_ExplainPlanIsWindowBounded(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	cutoff := time.Now().AddDate(0, 0, -365)
+
+	// EXPLAIN (FORMAT TEXT) returns one row per plan line.
+	rows, err := db.WithContext(ctx).Raw(
+		"EXPLAIN (FORMAT TEXT, COSTS FALSE) "+ownerAnnualRevenueTopPercentSQL,
+		clinicID,
+		model.BillingStatusCompleted,
+		cutoff,
+		ltvTopPercent,
+	).Rows()
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var planLines []string
+	for rows.Next() {
+		var line string
+		require.NoError(t, rows.Scan(&line))
+		planLines = append(planLines, line)
+	}
+	require.NoError(t, rows.Err())
+	require.NotEmpty(t, planLines, "EXPLAIN must return a non-empty plan")
+
+	plan := strings.Join(planLines, "\n")
+	t.Logf("FindOwnersByAnnualRevenue EXPLAIN plan:\n%s", plan)
+
+	// WindowAgg is PostgreSQL's node for ROW_NUMBER/COUNT(*) OVER ranking.
+	// Presence proves top-N selection is planned in SQL, not post-fetched in Go.
+	assert.Contains(t, plan, "WindowAgg",
+		"plan must use WindowAgg for bounded top-percent ranking (ROW_NUMBER/COUNT OVER)")
+}
+
+// TestAccountingRepository_LTVRevenue_SourceContractRejectsFullMaterialization
+// fails if the production source regresses to an unbounded grouped Scan without top-N filter.
+func TestAccountingRepository_LTVRevenue_SourceContractRejectsFullMaterialization(t *testing.T) {
+	src, err := os.ReadFile("accounting_repository_ltv.go")
+	require.NoError(t, err)
+	body := string(src)
+
+	assert.Contains(t, body, "ROW_NUMBER()", "ranking must use SQL ROW_NUMBER for exact top-N")
+	assert.Contains(t, body, "COUNT(*) OVER ()", "topN requires SQL total_owners window count")
+	assert.Contains(t, body, "total_owners * ? + 99", "exact ceil(N*percent/100) must live in SQL")
+	assert.Contains(t, body, "ORDER BY revenue DESC, owner_id ASC", "deterministic tie policy required")
+	assert.NotContains(t, body, `Order("revenue DESC").
+		Scan(&results)`,
+		"must not Scan the full unbounded owner-revenue set into Go")
 }
 
 func timePtr(t time.Time) *time.Time { return &t }

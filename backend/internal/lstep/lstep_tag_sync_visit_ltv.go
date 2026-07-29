@@ -9,9 +9,16 @@ import (
 )
 
 // SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
-// それ以外から解除する（FEAT-377）。
-// G2F-03: LINE 連携 owner は FindAllWithLineUserIDCursor でページングし、
-// ページ単位で tag cache をバッチ取得する（全件 materialize を避ける）。
+// それ以外から解除する（FEAT-377 / G2F-03）。
+//
+// Ranking contract:
+//   - accountRepo.FindOwnersByAnnualRevenue は DB 側で exact top-20% を確定した
+//     bounded 集合を返す（全 clinic owner 売上を Go へ materialize しない）。
+//   - 返却集合の全 owner が top 対象。Go 側で再スライスしない。
+//
+// Tag application:
+//   - LINE 連携 owner は FindAllWithLineUserIDCursor でページングし、
+//     ページ単位で tag cache をバッチ取得する（全件 materialize を避ける）。
 func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID uint64) (int, []error) {
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return 0, []error{err}
@@ -19,19 +26,17 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 		return 0, nil
 	}
 
-	revenues, err := s.accountRepo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	// Bounded top-percent set from SQL (exact ceil(N*20/100), deterministic ties).
+	// Do not recompute topN from len(revenues) — revenues is already the top set.
+	topRevenues, err := s.accountRepo.FindOwnersByAnnualRevenue(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to find revenues", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by annual revenue")}
 	}
 
-	topN := 0
-	if len(revenues) > 0 {
-		topN = (len(revenues)*20 + 99) / 100
-	}
-	topOwnerIDs := make(map[uint64]struct{}, topN)
-	for i := 0; i < topN; i++ {
-		topOwnerIDs[revenues[i].OwnerID] = struct{}{}
+	topOwnerIDs := make(map[uint64]struct{}, len(topRevenues))
+	for _, rev := range topRevenues {
+		topOwnerIDs[rev.OwnerID] = struct{}{}
 	}
 
 	client, err := s.buildClient(ctx, clinicID)
