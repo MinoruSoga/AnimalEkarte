@@ -2673,7 +2673,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'TagConfig|Lifecycle'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: ca66820b3784d7419eab2e28c53e54c0d5a1b1de
 
 ##### U-X02-MR-CONSULTATION
 
