@@ -1363,8 +1363,10 @@ func TestTrimmingService_Create_ExistingAppointment_AlreadyHasDetail(t *testing.
 		AppointmentID: &appointmentID,
 	})
 
-	assert.NoError(t, err)
-	assert.NotNil(t, appt)
+	// TRM-04: existing detail must conflict rather than silently return 201.
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "want conflict for existing detail: %v", err)
+	assert.Nil(t, appt)
 	assert.False(t, detailCreated, "既に detail が存在する場合は再作成しない")
 }
 
@@ -1518,6 +1520,9 @@ func TestTrimmingService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *
 		},
 	}
 	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+		},
 		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
 			return nil
 		},

@@ -342,8 +342,8 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			trimmingAuditValue(result, result.TrimmingDetail),
 		)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
-		return nil, apperrors.Wrap(err, "failed to set options trimming")
+		slog.ErrorContext(ctx, "failed to create trimming appointment", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
 
 	slog.InfoContext(ctx, "trimming appointment created",
@@ -467,10 +467,10 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return err
 		}
 		oldValue := trimmingAuditValue(locked, nil)
+		// TRM-04: existing detail must not silently return 201 with discarded payload.
 		if existing, err := s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, appointmentID); err == nil && existing != nil {
-			result, err = s.GetByID(txCtx, clinicID, appointmentID)
-			return err
-		} else if !apperrors.IsNotFound(err) {
+			return apperrors.WrapConflict("trimming detail already exists for this appointment; use PATCH to update")
+		} else if err != nil && !apperrors.IsNotFound(err) {
 			return apperrors.Wrap(err, "failed to check existing trimming detail")
 		}
 		if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
@@ -550,8 +550,8 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			StyleImage:      input.StyleImage,
 			CompletedImage:  input.CompletedImage,
 		}
+		// TRM-06: do not log here — outer WithTx failure boundary records once.
 		if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
-			slog.ErrorContext(txCtx, "failed to create trimming detail", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
@@ -748,8 +748,8 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			trimmingAuditValue(result, result.TrimmingDetail),
 		)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to set options trimming", "error", err)
-		return nil, apperrors.Wrap(err, "failed to set options trimming")
+		slog.ErrorContext(ctx, "failed to update trimming appointment", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update trimming appointment")
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",
