@@ -24,7 +24,7 @@ type medicalRecordImageResponse struct {
 	SortOrder       int                   `json:"sort_order"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
-	Staff           *staffSummaryResponse `json:"staff,omitempty"`
+	Staff           *StaffSummaryResponse `json:"staff,omitempty"`
 }
 
 // toMedicalRecordImageResponse は model.MedicalRecordImage を medicalRecordImageResponse に変換する

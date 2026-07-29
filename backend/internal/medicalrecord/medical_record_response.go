@@ -7,7 +7,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type medicalRecordResponse struct {
+// MedicalRecordResponse is the medical-record list/detail/create/update HTTP wire DTO
+// (domain-owned). TASK-444-S2: tygo source for frontend medicalrecord-responses.ts.
+// Version is on the wire so FE OCC can read the current CAS token (not models.ts).
+type MedicalRecordResponse struct {
 	ID                       uint64                  `json:"id"`
 	ClinicID                 uint64                  `json:"clinic_id"`
 	RecordNo                 string                  `json:"record_no"`
@@ -17,26 +20,27 @@ type medicalRecordResponse struct {
 	DoctorID                 *uint64                 `json:"doctor_id,omitempty"`
 	AppointmentID            *uint64                 `json:"appointment_id,omitempty"`
 	Status                   string                  `json:"status"`
+	Version                  int                     `json:"version"`
 	AccountingID             *uint64                 `json:"accounting_id,omitempty"`
 	VisitCount               int64                   `json:"visit_count"`
 	NextVisitRecommendedDate *string                 `json:"next_visit_recommended_date,omitempty"`
 	RecommendationReason     *string                 `json:"recommendation_reason,omitempty"`
 	CreatedAt                time.Time               `json:"created_at"`
 	UpdatedAt                time.Time               `json:"updated_at"`
-	Owner                    *ownerSummaryResponse   `json:"owner,omitempty"`
-	Pet                      *petSummaryResponse     `json:"pet,omitempty"`
-	Doctor                   *staffSummaryResponse   `json:"doctor,omitempty"`
-	Inquiry                  *inquirySummaryResponse `json:"inquiry,omitempty"`
+	Owner                    *OwnerSummaryResponse   `json:"owner,omitempty"`
+	Pet                      *PetSummaryResponse     `json:"pet,omitempty"`
+	Doctor                   *StaffSummaryResponse   `json:"doctor,omitempty"`
+	Inquiry                  *InquirySummaryResponse `json:"inquiry,omitempty"`
 }
 
-// inquirySummaryResponse はカルテ一覧で使用する問診の要約型
-type inquirySummaryResponse struct {
+// InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
+type InquirySummaryResponse struct {
 	ID             uint64 `json:"id"`
 	ChiefComplaint string `json:"chief_complaint"`
 }
 
-func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) medicalRecordResponse {
-	resp := medicalRecordResponse{
+func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) MedicalRecordResponse {
+	resp := MedicalRecordResponse{
 		ID:            r.ID,
 		ClinicID:      r.ClinicID,
 		RecordNo:      r.RecordNo,
@@ -46,6 +50,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		DoctorID:      r.DoctorID,
 		AppointmentID: r.AppointmentID,
 		Status:        string(r.Status),
+		Version:       r.Version,
 		VisitCount:    visitCount,
 		CreatedAt:     httpapi.LocalTime(r.CreatedAt),
 		UpdatedAt:     httpapi.LocalTime(r.UpdatedAt),
@@ -62,7 +67,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		resp.AccountingID = &r.Billing.ID
 	}
 	if r.Inquiry != nil {
-		resp.Inquiry = &inquirySummaryResponse{
+		resp.Inquiry = &InquirySummaryResponse{
 			ID:             r.Inquiry.ID,
 			ChiefComplaint: r.Inquiry.ChiefComplaint,
 		}
@@ -70,6 +75,6 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 	return resp
 }
 
-func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
+func toMedicalRecordResponse(r *model.MedicalRecord) MedicalRecordResponse {
 	return toMedicalRecordResponseWithVisitCount(r, 0)
 }

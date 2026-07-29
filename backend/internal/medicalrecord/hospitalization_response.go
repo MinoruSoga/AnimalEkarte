@@ -26,9 +26,9 @@ type hospitalizationResponse struct {
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 	// リレーション: 一覧/詳細で飼主名/ペット名/種別/担当医を表示するため。Preload 時のみ埋まる。
-	Owner  *ownerSummaryResponse `json:"owner,omitempty"`
-	Pet    *petSummaryResponse   `json:"pet,omitempty"`
-	Doctor *staffSummaryResponse `json:"doctor,omitempty"`
+	Owner  *OwnerSummaryResponse `json:"owner,omitempty"`
+	Pet    *PetSummaryResponse   `json:"pet,omitempty"`
+	Doctor *StaffSummaryResponse `json:"doctor,omitempty"`
 }
 
 func toHospitalizationResponse(h *model.Hospitalization) hospitalizationResponse {

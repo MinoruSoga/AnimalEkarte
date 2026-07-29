@@ -22,7 +22,7 @@ type checkupResponse struct {
 
 	// Nested
 	CheckupType *checkupTypeResponse  `json:"checkup_type,omitempty"`
-	Doctor      *staffSummaryResponse `json:"doctor,omitempty"`
+	Doctor      *StaffSummaryResponse `json:"doctor,omitempty"`
 }
 
 func toCheckupResponse(c *model.Checkup) checkupResponse {
@@ -68,7 +68,7 @@ type checkupGlobalResponse struct {
 
 	// Nested
 	CheckupType *checkupTypeResponse  `json:"checkup_type,omitempty"`
-	Doctor      *staffSummaryResponse `json:"doctor,omitempty"`
+	Doctor      *StaffSummaryResponse `json:"doctor,omitempty"`
 	PetName     string                `json:"pet_name"`
 	OwnerName   string                `json:"owner_name"`
 	OwnerID     *string               `json:"owner_id,omitempty"`

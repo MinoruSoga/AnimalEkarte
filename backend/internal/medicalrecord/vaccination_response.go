@@ -32,8 +32,8 @@ type vaccinationResponse struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/ワクチン名/担当医を表示するため。Preload 時のみ埋まる。
-	Pet     *petSummaryResponse     `json:"pet,omitempty"`
-	Doctor  *staffSummaryResponse   `json:"doctor,omitempty"`
+	Pet     *PetSummaryResponse     `json:"pet,omitempty"`
+	Doctor  *StaffSummaryResponse   `json:"doctor,omitempty"`
 	Vaccine *vaccineSummaryResponse `json:"vaccine,omitempty"`
 }
 

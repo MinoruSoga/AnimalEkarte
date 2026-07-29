@@ -53,7 +53,7 @@ func (h *MedicalRecordHandler) ListMedicalRecords(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(records, func(r *model.MedicalRecord) medicalRecordResponse {
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(records, func(r *model.MedicalRecord) MedicalRecordResponse {
 		return toMedicalRecordResponseWithVisitCount(r, 0)
 	}), total, page, limit))
 }
