@@ -206,6 +206,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Update":                {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Delete":                {}, // MRB-05: delete + audit same ambient tx
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},

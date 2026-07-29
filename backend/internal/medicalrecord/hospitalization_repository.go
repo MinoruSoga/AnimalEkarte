@@ -94,8 +94,9 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CarePlanItems").
-		Preload("DailyRecords").
-		Preload("TreatmentPlans", "deleted_at IS NULL").
+		// MRB-03: clinic-owned child tables must carry clinic scope (BUG-437 / SEC-SWEEP-02).
+		Preload("DailyRecords", "clinic_id = ?", clinicID).
+		Preload("TreatmentPlans", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
@@ -111,6 +112,11 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 // （BE9-2D ⑤: hospitalizationService.DischargeWithBilling の repos.Transaction→WithTx 化に伴い、
 // FOR UPDATE 直列化と退院status更新をbilling書込と同一 tx に保つ＝二重会計防止の要）。
 func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	// MRB-02: FOR UPDATE is meaningless outside an ambient transaction (autocommit releases
+	// the row lock at statement end). Match examinationRepository.LockByIDForUpdate fail-closed.
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("hospitalization lock requires an ambient transaction")
+	}
 	var hospitalization model.Hospitalization
 	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
@@ -163,7 +169,8 @@ func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, c
 }
 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
+	// Ambient-tx participation so Delete + fail-closed audit share one transaction (MRB-05).
+	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}

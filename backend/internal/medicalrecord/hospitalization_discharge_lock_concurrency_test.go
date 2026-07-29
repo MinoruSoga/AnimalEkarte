@@ -40,28 +40,43 @@ func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
 		h.Status = model.HospitalizationStatusAdmitted
 	})
 
+	t.Run("ambient tx 不在は fail-closed（MRB-02）", func(t *testing.T) {
+		_, err := repo.LockByIDForUpdate(ctx, clinicA, hosp.ID)
+		require.Error(t, err)
+		assert.False(t, apperrors.IsNotFound(err), "tx 不在は NotFound ではなく internal であるべき: %v", err)
+	})
+
 	t.Run("同一医院からは行を取得し OwnerID/PetID スナップショットが空でない", func(t *testing.T) {
-		got, err := repo.LockByIDForUpdate(ctx, clinicA, hosp.ID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, hosp.ID, got.ID)
-		assert.Equal(t, ownerA.ID, got.OwnerID)
-		assert.Equal(t, petA.ID, got.PetID)
-		assert.NotZero(t, got.OwnerID, "Q2-A 再検証用 OwnerID が空であってはならない")
-		assert.NotZero(t, got.PetID, "Q2-A 再検証用 PetID が空であってはならない")
-		assert.Equal(t, model.HospitalizationStatusAdmitted, got.Status)
+		require.NoError(t, withTx(ctx, db, func(txCtx context.Context) error {
+			got, err := repo.LockByIDForUpdate(txCtx, clinicA, hosp.ID)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, hosp.ID, got.ID)
+			assert.Equal(t, ownerA.ID, got.OwnerID)
+			assert.Equal(t, petA.ID, got.PetID)
+			assert.NotZero(t, got.OwnerID, "Q2-A 再検証用 OwnerID が空であってはならない")
+			assert.NotZero(t, got.PetID, "Q2-A 再検証用 PetID が空であってはならない")
+			assert.Equal(t, model.HospitalizationStatusAdmitted, got.Status)
+			return nil
+		}))
 	})
 
 	t.Run("他院からは NotFound（clinic_id 越境防止）", func(t *testing.T) {
-		_, err := repo.LockByIDForUpdate(ctx, clinicB, hosp.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
+		require.NoError(t, withTx(ctx, db, func(txCtx context.Context) error {
+			_, err := repo.LockByIDForUpdate(txCtx, clinicB, hosp.ID)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
+			return nil
+		}))
 	})
 
 	t.Run("存在しない ID は NotFound", func(t *testing.T) {
-		_, err := repo.LockByIDForUpdate(ctx, clinicA, uint64(999999))
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
+		require.NoError(t, withTx(ctx, db, func(txCtx context.Context) error {
+			_, err := repo.LockByIDForUpdate(txCtx, clinicA, uint64(999999))
+			require.Error(t, err)
+			assert.True(t, apperrors.IsNotFound(err))
+			return nil
+		}))
 	})
 }
 

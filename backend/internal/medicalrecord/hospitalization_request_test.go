@@ -291,3 +291,32 @@ func TestUpdateHospitalizationRequest_ToServiceInput_InvalidStatus(t *testing.T)
 		t.Fatal("toServiceInput() error = nil, want error")
 	}
 }
+
+func TestValidateHospitalizationDateRange_MRB06(t *testing.T) {
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	endOK := time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)
+	endBad := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	if err := validateHospitalizationDateRange(start, endOK); err != nil {
+		t.Fatalf("expected ok for end>=start, got %v", err)
+	}
+	if err := validateHospitalizationDateRange(start, start); err != nil {
+		t.Fatalf("expected ok for equal dates, got %v", err)
+	}
+	if err := validateHospitalizationDateRange(start, endBad); err == nil {
+		t.Fatal("expected error when end < start")
+	}
+}
+
+func TestCreateHospitalizationRequest_ToServiceInput_RejectsInvertedDates(t *testing.T) {
+	req := createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: string(model.HospitalizationTypeInpatient),
+		StartDate:           time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+	_, err := req.toServiceInput()
+	if err == nil {
+		t.Fatal("expected inverted date range to fail")
+	}
+}

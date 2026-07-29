@@ -6,8 +6,21 @@ import (
 	"slices"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// validateHospitalizationDateRange enforces end_date >= start_date at the application
+// boundary (MRB-06). Schema CHECK alone only yields a generic constraint message.
+func validateHospitalizationDateRange(start, end time.Time) error {
+	// Compare calendar dates in the values' locations after truncating to date-only.
+	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+	endDay := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, time.UTC)
+	if endDay.Before(startDay) {
+		return apperrors.WrapInvalidInput("end_date は start_date 以降である必要があります")
+	}
+	return nil
+}
 
 type listHospitalizationQuery struct {
 	PetID     string
@@ -115,6 +128,11 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 		status = s
 	}
 
+	// MRB-06: application-level end_date >= start_date (schema CHECK is not a field-level error).
+	if err := validateHospitalizationDateRange(r.StartDate, r.EndDate); err != nil {
+		return nil, err
+	}
+
 	return &CreateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
@@ -186,6 +204,12 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 			return UpdateHospitalizationInput{}, fmt.Errorf("invalid status: %w", err)
 		}
 		input.Status = &status
+	}
+	// MRB-06: when both dates are present on the patch, reject inverted ranges early.
+	if r.StartDate != nil && r.EndDate != nil {
+		if err := validateHospitalizationDateRange(*r.StartDate, *r.EndDate); err != nil {
+			return UpdateHospitalizationInput{}, err
+		}
 	}
 	return input, nil
 }

@@ -405,11 +405,20 @@ func TestHospitalizationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{
+						ID:        id,
+						ClinicID:  clinicID,
+						StartDate: now.Add(-24 * time.Hour),
+						EndDate:   now.Add(24 * time.Hour),
+						Status:    model.HospitalizationStatusAdmitted,
+					}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
-					return &model.Hospitalization{ID: 1, ClinicID: 1}, nil
+					return &model.Hospitalization{ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted}, nil
 				},
 			}
 			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
@@ -561,6 +570,10 @@ func TestHospitalizationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+					// "not found" case is modeled as delete returning NotFound after a successful pre-check.
+					return &model.Hospitalization{ID: id, ClinicID: clinicID, Status: model.HospitalizationStatusAdmitted}, nil
+				},
 				countDailyRecordsByHospitalizationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.dailyRecordCount, tt.countDailyRecordErr
 				},
@@ -574,7 +587,8 @@ func TestHospitalizationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			// MRB-05: Delete requires auditTx (fail-closed).
+			svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -603,7 +617,7 @@ func TestHospitalizationService_Delete_FindByIDError(t *testing.T) {
 			return 0, nil
 		},
 	}
-	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{})
 
 	err := svc.Delete(context.Background(), 1, 999)
 

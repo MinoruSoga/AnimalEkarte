@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -277,6 +278,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		insuranceNumber = input.InsuranceNumber
 	}
 
+	// MRB-06: service-layer date order (request binding already checks when both present).
+	if err := validateHospitalizationDateRange(input.StartDate, input.EndDate); err != nil {
+		return nil, err
+	}
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
 		OwnerID:              input.OwnerID,
@@ -347,6 +352,20 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			slog.ErrorContext(txCtx, "failed to lock hospitalization", "error", err)
 			return apperrors.Wrap(err, "failed to lock hospitalization")
 		}
+		if existing == nil {
+			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(id, 10))
+		}
+		// MRB-06: merge patch dates with locked row and reject inverted ranges.
+		finalStart, finalEnd := existing.StartDate, existing.EndDate
+		if input.StartDate != nil {
+			finalStart = *input.StartDate
+		}
+		if input.EndDate != nil {
+			finalEnd = *input.EndDate
+		}
+		if err := validateHospitalizationDateRange(finalStart, finalEnd); err != nil {
+			return err
+		}
 		if input.OwnerID != nil || input.PetID != nil {
 			finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
 			if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, finalOwnerID, finalPetID); err != nil {
@@ -373,6 +392,26 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			slog.ErrorContext(txCtx, "failed to update hospitalization", "error", err)
 			return apperrors.Wrap(err, "failed to update hospitalization")
 		}
+		// MRB-05: PATCH-driven discharge bypasses DischargeWithBilling; audit fail-closed.
+		if input.Status != nil && *input.Status == model.HospitalizationStatusDischarged &&
+			existing.Status != model.HospitalizationStatusDischarged {
+			if s.auditTx == nil {
+				return apperrors.WrapInternalServerError("hospitalization discharge audit dependency is required")
+			}
+			resourceID := id
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+				ClinicID:   &clinicID,
+				ActorType:  auditActorTypeFor(nil),
+				Action:     hospitalizationAuditActionDischarge,
+				Resource:   model.AuditResourceHospitalization,
+				ResourceID: &resourceID,
+				OldValue:   hospitalizationAuditValue(existing),
+				NewValue:   hospitalizationAuditValue(hosp),
+				Metadata:   map[string]any{"via": "update"},
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to audit hospitalization discharge")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -382,8 +421,31 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		slog.Uint64("clinic_id", clinicID))
 	return hosp, nil
 }
+
+// hospitalizationAuditAction* are local action strings so this unit stays within owned paths
+// (model/audit_log.go is not owned by U-X02X03X05-MR-HOSPITALIZATION).
+const (
+	hospitalizationAuditActionDelete    = "hospitalization.delete"
+	hospitalizationAuditActionDischarge = "hospitalization.discharge"
+)
+
+func hospitalizationAuditValue(h *model.Hospitalization) map[string]any {
+	if h == nil {
+		return nil
+	}
+	return map[string]any{
+		"id":         h.ID,
+		"owner_id":   h.OwnerID,
+		"pet_id":     h.PetID,
+		"status":     string(h.Status),
+		"start_date": h.StartDate,
+		"end_date":   h.EndDate,
+	}
+}
+
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.hospRepo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.hospRepo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find hospitalization")
 	}
 	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
@@ -416,9 +478,32 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.WrapConflict("ケアプランが紐付いているため削除できません。先にケアプランを削除してください")
 	}
 
-	if err := s.hospRepo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete hospitalization", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete hospitalization")
+	// MRB-05: soft-delete + fail-closed audit in one transaction.
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
+	}
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("hospitalization delete audit dependency is required")
+	}
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.hospRepo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete hospitalization", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete hospitalization")
+		}
+		resourceID := id
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorType:  auditActorTypeFor(nil),
+			Action:     hospitalizationAuditActionDelete,
+			Resource:   model.AuditResourceHospitalization,
+			ResourceID: &resourceID,
+			OldValue:   hospitalizationAuditValue(existing),
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to audit hospitalization delete")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	slog.InfoContext(ctx, "hospitalization deleted",
@@ -446,6 +531,10 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		Status:            string(model.HospitalizationStatusDischarged),
 	}
 
+	// MRB-02: same nil-transactor guard as Create/Update (panic vs explicit 500).
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
+	}
 	// BE9-2D ⑤ Phase1: repos.Transaction（tx-bound clone）→ Transactor.WithTx（ctx-txKey）へ変換。
 	// 閉包内の read/write は各 repo の dbOrTx が txCtx の ambient tx へ参加する（挙動は旧機構と等価）。
 	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -457,6 +546,10 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 		if locked.Status == model.HospitalizationStatusDischarged {
 			return apperrors.WrapInvalidInput("hospitalization is already discharged")
+		}
+		// MRB-06: discharge date must not precede admission start.
+		if err := validateHospitalizationDateRange(locked.StartDate, input.DischargeDate); err != nil {
+			return err
 		}
 
 		// 1. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004 Q2-A）。
