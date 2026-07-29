@@ -4,43 +4,17 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-29 at commit `a0350fd844e104ccc34692ab70c96435e3d6efa7`. This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-29 at commit `0903c2763fed6afeab078ab95745caf9c126618a` (initial READY wave integrated on local main). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 112 live findings are `CLOSED_VERIFIED`, and 6 remain `ACTIVE`. There are 18 specification-ready packets: 10 dependency-free packets are filed in the execution ledger as `READY_AGENT`, and 8 dependency-gated packets remain `READY_TO_FILE`.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 116 live findings are `CLOSED_VERIFIED`, and 2 remain `ACTIVE`. There are 8 remaining specification-ready packets: 4 newly unblocked packets are filed in the execution ledger as `READY_AGENT`, and 4 dependency-gated packets remain `READY_TO_FILE`. The initial 10 dependency-free wave packets are integrated and removed from the active frontier; completion SHAs are recorded in the resolution index.
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
-### BE-ACT-ANIMAL-SPECIES-DBORTX
-- State: READY_AGENT
-- Source keys: POC-07, POST-A-06, RULE-DOUBT-28
-- Actor: backend implementation agent in an isolated worktree
-- Problem: `FindAll`, `FindByID`, `Create`, `Update`, and `Delete` use `r.db.WithContext`; only reorder is ambient-transaction aware, so audited mutations can escape rollback and reorder atomicity lacks PostgreSQL proof.
-- Current evidence: `backend/internal/pet/animal_species_repository.go#FindAll|FindByID|Create|Update|Delete|Reorder`; `backend/internal/pet/animal_species_service.go#withOptionalAuditTx`.
-- Required behavior: use `persistence.DBOrTx` for every repository operation; prove all create/update/delete audit-failure branches roll back; prove reorder failure rolls back atomically; register the repository in the DBOrTx inventory.
-- Owned paths: backend/internal/pet/animal_species_repository.go, backend/internal/pet/animal_species_repository_test.go, backend/internal/pet/animal_species_service_test.go, backend/internal/lintscan/dbortx_inventory_lint_test.go
-- Reference paths: backend/internal/pet/animal_species_service.go, backend/internal/persistence/tx.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/pet/... -run 'AnimalSpecies.*(Audit|Rollback|Reorder)|AnimalSpeciesRepository'; docker compose exec -T backend go test -count=1 ./internal/lintscan/ -run DBOrTx
-- Completion evidence: scoped tests pass against the task worktree bytes; failed audit writes leave no create/update/delete mutation; injected reorder failure leaves the prior order intact; the inventory gate names this repository.
-
-### BE-ACT-PERMISSION-SEED-PARITY
-- State: READY_AGENT
-- Source keys: POC-01, POST-A-04, PERMISSION-PARITY
-- Actor: backend permission/seed implementation agent in an isolated worktree
-- Problem: `model.AllResources` has 34 resources while demo seed profiles omit the seven later resources; group defaults conflict with system-admin-only animal-species mutation.
-- Current evidence: `backend/internal/model/permission.go#AllResources`; `backend/internal/clinic/clinic_service.go#defaultPermissionRuleTable|buildDefaultPermissionGroupRules`; groups 1/3/5/7 are executive, 2/4/6/8 general, and 9 established view-only.
-- Required behavior: make every profile cover `AllResources`; make non-system-admin animal-species permissions view-only; update default creation and parity tests; generate seed SQL deterministically, record its SHA-256 before export, run the exporter, and reject any diff outside the owned allowlist. Never hand-edit generated CSV.
-- Owned paths: backend/internal/clinic/clinic_service.go, backend/internal/clinic/clinic_service_test.go, backend/migrations/seeds/003_demo/permission_group_rules.csv
-- Reference paths: backend/internal/model/permission.go, backend/migrations/seeds/003_demo/permission_groups.csv, backend/cmd/seed-export/main.go, backend/cmd/seed-export/tables.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; sha256sum /tmp/be-permission-seed-parity.sql; docker compose cp /tmp/be-permission-seed-parity.sql backend:/tmp/be-permission-seed-parity.sql; docker compose exec -T -e SEED_EXPORT_POST_SQL=/tmp/be-permission-seed-parity.sql backend go run ./cmd/seed-export; docker compose exec -T backend go test -count=1 ./internal/clinic/... -run 'Permission|Default'; python3 scripts/verify_seed.py
-- Completion evidence: 34-resource parity holds for all nine groups; group 9 is view-only; non-system-admin animal-species actions are view-only; generated SQL hash is recorded; changed paths are exactly the owned allowlist and every other seed artifact is byte-identical.
-
 ### BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: ANIMAL-SPECIES-FE-AUTH
 - Actor: frontend authorization implementation agent in an isolated worktree
 - Problem: the screen uses resource action permissions for mutation affordances although the backend handler requires system-admin for create/update/delete/reorder.
@@ -48,12 +22,12 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: retain resource-view authorization for reads; require `isSystemAdmin` for create/edit/delete/reorder controls and actions; cover ordinary view-only, ordinary legacy edit-grant, and system-admin cases.
 - Owned paths: frontend/src/features/master/routes/AnimalSpeciesSettings.tsx, frontend/src/features/master/routes/AnimalSpeciesSettings.test.tsx
 - Reference paths: frontend/src/hooks/use-permission.ts, backend/internal/pet/animal_species_handler.go
-- Dependencies: BE-ACT-PERMISSION-SEED-PARITY
+- Dependencies: none
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T frontend npx vitest run src/features/master/routes/AnimalSpeciesSettings.test.tsx
 - Completion evidence: non-system-admin users with view can read but cannot see or invoke mutation/reorder/delete affordances; system admins retain them; the scoped test passes against task-worktree bytes.
 
 ### BE-ACT-CAMPAIGN-TARGET-SERIALIZATION
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: NW-R2-01A, RULE-DOUBT-27A
 - Actor: billing/inventory implementation agent in an isolated worktree
 - Problem: Create and target-changing Update validate merchandise before the campaign transaction, without ambient same-clinic active-row locks or deterministic target order.
@@ -61,7 +35,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: open the transaction before validation; deduplicate and sort target IDs; share-lock every same-clinic active merchandise row through the ambient transaction; write and reload in that transaction; update mocks, cross-tenant tests, and lint coverage.
 - Owned paths: backend/internal/billing/campaign_service.go, backend/internal/billing/campaign_service_test.go, backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go, backend/internal/billing/service_deps.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go, backend/internal/lintscan/master_fk_write_inventory_lint_test.go, backend/internal/lintscan/dbortx_inventory_lint_test.go
 - Reference paths: backend/internal/billing/campaign_repository.go, backend/internal/sharedkernel/validators.go
-- Dependencies: BE-ACT-ANIMAL-SPECIES-DBORTX
+- Dependencies: none
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/billing/... ./internal/inventory/... -run 'Campaign.*(Target|Merchandise|Concurrent)|MerchandiseItem.*(ShareLock|Ambient)'; docker compose exec -T backend go test -count=1 ./internal/lintscan/... -run 'MasterFKWrite|DBOrTx'
 - Completion evidence: Create and target-changing Update reject cross-clinic/deleted/concurrently deleting targets; locks occur in ambient tx in sorted unique order; write/reload uses the same tx; scoped tests and lint gates pass.
 
@@ -78,34 +52,8 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/inventory/... ./internal/billing/... ./cmd/api/... -run 'MerchandiseItem.*(Delete|CountUsage|Concurrent)|Campaign.*Concurrent|RuntimeInventory'; docker compose exec -T backend go test -count=1 ./internal/lintscan/... -run DBOrTx
 - Completion evidence: attach-first yields Conflict after serialization; delete-first makes later attachment reject the inactive row; NotFound remains distinct; all usage queries use the ambient tx and scoped tests pass.
 
-### BE-ACT-LSTEP-STALE-TAG-FAILCLOSED
-- State: READY_AGENT
-- Source keys: LSA-11, NW-R3-02A
-- Actor: LSTEP implementation agent in an isolated worktree
-- Problem: `removeStaleTagsByPrefixes` returns only bool, conflating cache-read failure with external RemoveTag partial failure; three callers can continue to AddTag after cache failure.
-- Current evidence: `backend/internal/lstep/lstep_tag_sync_api.go#removeStaleTagsByPrefixes`; callers `SyncVaccineTag`, `ResyncOwnerVaccineTags`, and `SyncVisitCompletionTags`.
-- Required behavior: return an error-bearing result such as `(apiFailed bool, err error)`; cache read error stops every category API call and remains observable; RemoveTag partial failures retain durable failure accounting while desired adds follow existing behavior; add zero-AddTag cache-failure tests for all three callers.
-- Owned paths: backend/internal/lstep/lstep_tag_sync_api.go, backend/internal/lstep/lstep_tag_sync_api_test.go, backend/internal/lstep/lstep_tag_sync_vaccine.go, backend/internal/lstep/lstep_tag_sync_vaccine_test.go, backend/internal/lstep/lstep_tag_sync_visit.go, backend/internal/lstep/lstep_tag_sync_visit_test.go
-- Reference paths: backend/internal/lstep/lstep_tag_cache_repository.go, backend/CODING_RULES.md
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/... -run 'RemoveStaleTags|SyncVaccineTag|ResyncOwnerVaccineTags|SyncVisitCompletionTags'
-- Completion evidence: each caller makes zero AddTag calls after cache failure and returns observable failure; RemoveTag partial failure accounting and desired-add behavior are separately pinned; scoped tests pass.
-
-### BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM
-- State: READY_AGENT
-- Source keys: LSA-15, NW-R3-02B, POST-A-01
-- Actor: LSTEP repository implementation agent in an isolated worktree
-- Problem: three repository methods derive days from input Location while the named expression index uses Asia/Tokyo; tests do not prove live index definition, raw duplicate rejection, concurrency, boundaries, adjacent-day behavior, or both consumers.
-- Current evidence: `backend/internal/lstep/lstep_delivery_trigger_log_repository.go#CreateIfAbsentToday|ExistsTodayByOwnerAndType|FindByOwnerAndDate`; consumers `alreadyFiredToday` and suppression lookup; index `uk_lstep_delivery_trigger_log_clinic_owner_type_day`.
-- Required behavior: one repository-local `config.JST` half-open day helper shared by all three methods; use it for the advisory key and ranges; in tests install/assert the exact migration-002 index independently of AutoMigrate/advisory locks; prove concurrent one-true/one-false claim, raw duplicate rejection, UTC/JST boundaries, adjacent-day no false positive, and no false suppression in both consumers.
-- Owned paths: backend/internal/lstep/lstep_delivery_trigger_log_repository.go, backend/internal/lstep/lstep_delivery_trigger_log_repository_test.go
-- Reference paths: backend/internal/lstep/lstep_delivery_trigger_state.go, backend/internal/lstep/lstep_delivery_trigger_suppression.go, backend/migrations/002_lstep_delivery_trigger_log_daily_unique.sql, backend/internal/config/timezone.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/ -run 'TestLstepDeliveryTriggerLogRepository_(CreateIfAbsentToday|ExistsTodayByOwnerAndType|FindByOwnerAndDate)'
-- Completion evidence: all three methods share the config.JST helper; exact named index definition and raw rejection are proven; concurrent claim yields one true, one false, one row, no leaked unique error; boundary/adjacent-day and both-consumer suppression regressions pass.
-
 ### BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: G2F-01
 - Actor: LSTEP performance implementation agent in an isolated worktree
 - Problem: `RunDeliveryTriggerBatch` iterates owners and `processSingleOwner` performs owner, daily-existence, suppression, and tag-cache reads per owner, so query count grows by multiple round trips for every owner.
@@ -113,35 +61,9 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: introduce clinic-scoped bulk reads for the candidate owner set, preserve opt-out/suppression/daily-claim semantics, keep memory bounded, and prove query-count growth is constant by category rather than linear by owner count.
 - Owned paths: backend/internal/lstep/lstep_delivery_trigger_batch.go, backend/internal/lstep/lstep_delivery_trigger_batch_test.go
 - Reference paths: backend/internal/lstep/lstep_delivery_trigger_log_repository.go, backend/internal/lstep/lstep_tag_cache_repository.go
-- Dependencies: BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM
+- Dependencies: none
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/... -run 'DeliveryTriggerBatch.*(Query|Bulk|OptOut|Suppression|Daily)'
 - Completion evidence: a multi-owner regression counts DB calls and proves no per-owner query growth for owner/daily/suppression/tag-cache reads while preserving selection and failure accounting; scoped tests pass against task-worktree bytes.
-
-### BE-ACT-LSTEP-HEALTH-BATCH-BULK
-- State: READY_AGENT
-- Source keys: G2F-02
-- Actor: LSTEP/medical-record performance implementation agent in an isolated worktree
-- Problem: owner enumeration and child-history row counts are bounded, but every health-prevention owner still triggers repeated checkup, annual-summary, and vaccination queries; the requested page-unit bulk SQL is absent.
-- Current evidence: `backend/internal/lstep/lstep_health_tag_sync_batch.go#SyncHealthPreventionTagsForClinic`; per-owner calls in `lstep_health_tag_sync_checkup.go#SyncHealthcheckTagsWithMappings|SyncAnnual4CheckupTagWithMappings` and `lstep_health_tag_sync_vaccine.go#syncVaccineDeadlineTagImpl`.
-- Required behavior: load checkup/vaccination/visit-summary inputs for each bounded owner page with clinic-scoped bulk queries, index results by owner, and retain thresholds, opt-out, tag mapping, partial-failure accounting, and history caps; prove query count is page-bounded rather than owner-linear.
-- Owned paths: backend/internal/lstep/lstep_health_tag_sync_batch.go, backend/internal/lstep/lstep_health_tag_sync_batch_test.go, backend/internal/lstep/lstep_health_tag_sync_checkup.go, backend/internal/lstep/lstep_health_tag_sync_checkup_test.go, backend/internal/lstep/lstep_health_tag_sync_vaccine.go, backend/internal/lstep/lstep_health_tag_sync_vaccine_test.go, backend/internal/medicalrecord/checkup_repository.go, backend/internal/medicalrecord/checkup_repository_test.go, backend/internal/medicalrecord/vaccination_repository.go, backend/internal/medicalrecord/vaccination_repository_test.go
-- Reference paths: backend/internal/medicalrecord/medical_record_owner_visit_repository.go, backend/internal/persistence/scope.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/... ./internal/medicalrecord/... -run 'HealthPrevention|Healthcheck|Annual4|Vaccine.*(Bulk|Batch|Query|Owner)'
-- Completion evidence: a two-page multi-owner regression proves fixed query groups per page with no owner-linear child reads; clinical filtering and owner/clinic isolation remain pinned; scoped tests pass against task-worktree bytes.
-
-### BE-ACT-LSTEP-LTV-RANKING-BOUND
-- State: READY_AGENT
-- Source keys: G2F-03
-- Actor: LSTEP/billing performance implementation agent in an isolated worktree
-- Problem: `SyncLTVTopPercent` pages LINE owners but first materializes every clinic owner revenue through an unbounded grouped scan before calculating the top 20 percent.
-- Current evidence: `backend/internal/lstep/lstep_tag_sync_visit_ltv.go#SyncLTVTopPercent`; `backend/internal/billing/accounting_repository_ltv.go#FindOwnersByAnnualRevenue`.
-- Required behavior: move ranking to a bounded database contract using an exact top-N/count strategy or cursor/chunk design; preserve deterministic tie policy, clinic/current-owner scope, 365-day completed-billing semantics, and page-batched tag-cache behavior; measure the chosen query plan.
-- Owned paths: backend/internal/lstep/lstep_tag_sync_visit_ltv.go, backend/internal/lstep/lstep_tag_sync_visit_ltv_test.go, backend/internal/billing/accounting_repository_ltv.go, backend/internal/billing/accounting_repository_ltv_test.go
-- Reference paths: backend/internal/owner/repository.go, .claude/refs/go-gin-backend-review.md
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/... ./internal/billing/... -run 'LTV.*(Top|Revenue|Bound|Cursor|Tie|Clinic)'
-- Completion evidence: large-clinic regression and PostgreSQL query-plan evidence show no clinic-wide revenue materialization in Go; top-percent/tie/clinic/current-owner semantics and bounded tag-cache pages pass.
 
 ### BE-ACT-BOUNDED-MASTER-LISTS
 - State: READY_TO_FILE
@@ -156,45 +78,6 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/medicalrecord/... ./internal/inventory/... -run 'FindAll.*(Limit|Bound)|MaxMasterListRows|ExamType|MerchandiseItem'
 - Completion evidence: both queries use the shared bound with deterministic order; exact-limit and over-limit fixtures prove bounded results without cross-clinic or deleted-row drift; scoped tests pass.
 
-### BE-ACT-DOC-QA-DECISIONS
-- State: READY_AGENT
-- Source keys: DOC-QA-DEC29-40, DOC-QA-OPS13
-- Actor: documentation agent in an isolated worktree
-- Problem: `q&a.html` retains stale unanswered DEC-29..39 cards and the 11-item summary; OPS-13 freezes migration inventory.
-- Current evidence: `q&a.html#dec-29..dec-40`, `q&a.html#ops`; DEC-40 and newer are current and must remain.
-- Required behavior: remove only DEC-29..39 and the 11-unanswered summary; preserve `#issue-251-u2b-full-rulings`, DEC-40/newer, and `#ops`; make OPS-13 dynamic; quote `'q&a.html'` in commands.
-- Owned paths: q&a.html
-- Reference paths: backend/migrations/CLAUDE.md, scripts/check-docs-symbol-drift.sh
-- Dependencies: none
-- Verification command: git diff --check -- 'q&a.html'; rg -n 'DEC-(29|30|31|32|33|34|35|36|37|38|39|40)|id="ops"|issue-251-u2b-full-rulings' 'q&a.html'; DOCKER-MOUNT-PROOF; docker compose exec -T backend go test ./internal/lintscan/ -run TestDocsMigrationInventoryDrift
-- Completion evidence: stale cards/count are absent; DEC-40/newer and required anchors remain; OPS-13 uses dynamic inventory; duplicate IDs are absent; docs drift and correctly mounted Docker lint pass.
-
-### BE-ACT-DOC-PHASE2
-- State: READY_AGENT
-- Source keys: DOC-PHASE2-CURRENT
-- Actor: documentation agent in an isolated worktree
-- Problem: `phase2.html` retains completed cursor-pagination/BE9 assumptions, stale handler-permission pointers, and fixed migration numbering.
-- Current evidence: `phase2.html` current sections; current handlers implement architecture-level permission checks and migration allocation is dynamic.
-- Required behavior: retire completed cursor pagination and BE9 dependency; describe permissions from current handler architecture rather than stale lines; replace fixed numbering with max(existing migration number)+1; preserve actual product/owner/issue blockers.
-- Owned paths: phase2.html
-- Reference paths: 3-session-agent.html#ledger, backend/migrations/CLAUDE.md
-- Dependencies: none
-- Verification command: git diff --check -- phase2.html; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: every retained item has a current path/symbol or explicit human blocker; completed assumptions and fixed numbering are absent; links and IDs resolve.
-
-### BE-ACT-DOC-BE-PENDING
-- State: READY_AGENT
-- Source keys: DOC-BE-PENDING
-- Actor: documentation agent in an isolated worktree
-- Problem: `BE-pending.md` says this audit ledger was deleted and can overstate optional STG audit work.
-- Current evidence: `BE-pending.md` current provenance text; this file exists and STG work is external.
-- Required behavior: correct provenance; keep optional STG cross-tenant audit explicitly human-owned, non-agent-executable, and non-release-blocking.
-- Owned paths: BE-pending.md
-- Reference paths: BE-refactor.md, q&a.html#ops
-- Dependencies: none
-- Verification command: git diff --check -- BE-pending.md; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: deletion claim is absent; optional STG work has exact external ownership and no false release gate.
-
 ### BE-ACT-DOC-ANIMAL-SPECIES-SPEC
 - State: READY_TO_FILE
 - Source keys: DOC-ANIMAL-SPECIES-AUTH
@@ -204,12 +87,12 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: document resource-view reads and system-admin-only create/update/delete/reorder; document fail-closed audit atomicity only after backend proof lands.
 - Owned paths: docs/spec/screens/settings/master-animal-species.md
 - Reference paths: backend/internal/pet/animal_species_handler.go, backend/internal/pet/animal_species_service.go, frontend/src/features/master/routes/AnimalSpeciesSettings.tsx
-- Dependencies: BE-ACT-ANIMAL-SPECIES-DBORTX, BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH
+- Dependencies: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH
 - Verification command: git diff --check -- docs/spec/screens/settings/master-animal-species.md; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: spec and implemented authorization/transaction tests agree; retained links resolve; docs drift gate passes.
 
 ### BE-ACT-DOC-LSTEP-CONTRACT
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-LSTEP-BATCH-CONTRACT, DOC-LSTEP-WRITE-PAUSE
 - Actor: LSTEP documentation agent in an isolated worktree
 - Problem: current docs conflate scheduled multi-resource best effort, single-owner propagation, and request-local nonfatal secondary notification; they also retain false ordinary-sync trigger-log and dynamic-rate-adjustment claims.
@@ -217,22 +100,9 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: distinguish the three failure contracts; require durable partial-result accounting where applicable; preserve paused/no-op Write API; remove false ordinary-sync trigger-log and unsupported dynamic-rate-adjustment claims.
 - Owned paths: docs/spec/line/lstep-integration.md, docs/spec/screens/31-lstep-integration.md, docs/spec/screens/34-lstep-delivery-monitor.md, docs/spec/line/architecture.md
 - Reference paths: docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md, backend/CODING_RULES.md
-- Dependencies: BE-ACT-LSTEP-STALE-TAG-FAILCLOSED, BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM
+- Dependencies: none
 - Verification command: git diff --check -- docs/spec/line/lstep-integration.md docs/spec/screens/31-lstep-integration.md docs/spec/screens/34-lstep-delivery-monitor.md docs/spec/line/architecture.md; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: each flow has one explicit failure contract; paused Write API remains; false trigger-log/rate claims are absent; docs gates pass.
-
-### BE-ACT-DOC-SPECIFICATION-ARCHITECTURE
-- State: READY_AGENT
-- Source keys: DOC-SPEC-PRODUCTION-READY, DOC-SPEC-AUDIT-ALL, DOC-ADR006-CURRENT
-- Actor: specification/architecture documentation agent in an isolated worktree
-- Problem: specification prose falsely claims Production Ready, universal audit coverage, migration-in-progress, absolute tests/E2E, and deleted implementation paths.
-- Current evidence: `docs/spec/specification.md` conflicts with accepted `docs/architecture/adr/006-backend-domain-package-boundaries.md`, which separates implemented package boundaries from release readiness.
-- Required behavior: retain only current source/enforced-check claims; state ADR-006 rollout complete without equating it to production qualification; remove universal/absolute coverage language and deleted paths.
-- Owned paths: docs/spec/specification.md
-- Reference paths: docs/architecture/adr/006-backend-domain-package-boundaries.md, .claude/rules/go-gin-backend-guidelines.md, q&a.html#ops
-- Dependencies: none
-- Verification command: git diff --check -- docs/spec/specification.md; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: no false readiness/coverage/migration claims remain; ADR-006 relationship and ops boundary are accurate; links and docs drift gate pass.
 
 ### BE-ACT-DOC-SESSION-LEDGER
 - State: READY_TO_FILE
@@ -243,7 +113,7 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main WIP; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not repeat initial filing or claim this final-convergence packet is a prerequisite for wave advancement.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
-- Dependencies: BE-ACT-ANIMAL-SPECIES-DBORTX, BE-ACT-PERMISSION-SEED-PARITY, BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH, BE-ACT-CAMPAIGN-TARGET-SERIALIZATION, BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-LSTEP-STALE-TAG-FAILCLOSED, BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM, BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1, BE-ACT-LSTEP-HEALTH-BATCH-BULK, BE-ACT-LSTEP-LTV-RANKING-BOUND, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-QA-DECISIONS, BE-ACT-DOC-PHASE2, BE-ACT-DOC-BE-PENDING, BE-ACT-DOC-ANIMAL-SPECIES-SPEC, BE-ACT-DOC-LSTEP-CONTRACT, BE-ACT-DOC-SPECIFICATION-ARCHITECTURE
+- Dependencies: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH, BE-ACT-CAMPAIGN-TARGET-SERIALIZATION, BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-ANIMAL-SPECIES-SPEC, BE-ACT-DOC-LSTEP-CONTRACT
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: imported baseline matches then-current shared WIP before editing; TASK-469 and completed `BE-ACT-*` sections are absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
@@ -286,11 +156,11 @@ LSB-04	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_lifecycle_s
 LSA-08	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_settings_connection_test.go#symbols=TestValidateLstepBaseURL|TestTestLstepAPI|TestTestLineAPI|TestLstepSettingsService_TestConnection; completion_sha=d26f86b75f6ca0a02615db83b6b035c2623ffcfc; object=backend/internal/lstep/lstep_settings_connection_test.go; original=疎通確認 API が外部 HTTP エラーを err.Error() のまま JSON へ返し、到達先 URL・解決 IP・DNS エラーを露出する; why=TestValidateLstepBaseURL/TestTestLstepAPI/TestTestLineAPI/TestLstepSettingsService_TestConnection is the current guarded or regression-tested implementation of BE-X08-LSTEP-CONNECTION-01 for the exact failure condition: 疎通確認 API が外部 HTTP エラーを err.Error() のまま JSON へ返し、到達先 URL・解決 IP・DNS エラーを露出する
 LSA-09	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/line_send_handler_test.go#symbols=TestPostLineSend|TestGetLineSendLogs|newHandlerWithLineSendSvc|Send; completion_sha=d822c85b722e839e7ebecdb8b9c13b66e21646b8; object=backend/internal/lstep/line_send_handler_test.go; original=LINE 送信失敗時に外部 API の生エラー文字列を 502 応答と送信履歴 API の双方へ露出している; why=TestPostLineSend/TestGetLineSendLogs/newHandlerWithLineSendSvc/Send is the current guarded or regression-tested implementation of BE-X08-LSTEP-SEND-01 for the exact failure condition: LINE 送信失敗時に外部 API の生エラー文字列を 502 応答と送信履歴 API の双方へ露出している
 LSA-10	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_tag_handler_test.go#symbols=GetOwnerTags|TestGetOwnerLstepTags_ClinicAliasUsesAuthenticatedClinic|TestGetOwnerLstepTags|newHandlerWithLstepTagSvc; completion_sha=6b67a81c2e9fd5fa8bb6c7b8445dd881ed38beb7; object=backend/internal/lstep/lstep_tag_handler_test.go; original=GetOwnerTags のキャッシュフォールバックが DB エラーを握り潰し、200 + tags:[] を返して「タグ無し」と区別できなくする; why=GetOwnerTags/TestGetOwnerLstepTags_ClinicAliasUsesAuthenticatedClinic/TestGetOwnerLstepTags/newHandlerWithLstepTagSvc is the current guarded or regression-tested implementation of U-X04-LSTEP-OWNER-TAGS for the exact failure condition: GetOwnerTags のキャッシュフォールバックが DB エラーを握り潰し、200 + tags:[] を返して「タグ無し」と区別できなくする
-LSA-11	LIVE	ACTIVE	BE-ACT-LSTEP-STALE-TAG-FAILCLOSED	CURRENT:backend/internal/lstep/lstep_tag_sync_api.go#removeStaleTagsByPrefixes; why=cache-read and RemoveTag failures are still conflated and all three callers can continue to AddTag
+LSA-11	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_tag_sync_api.go#symbols=removeStaleTagsByPrefixes; completion_sha=a0c84a0d4b26795ef9e280c0a6e3530c9116e062; object=backend/internal/lstep/lstep_tag_sync_api.go; original=cache-read and RemoveTag failures are still conflated and all three callers can continue to AddTag; why=removeStaleTagsByPrefixes now returns (apiFailed, err) so cache-read failure stops all three callers before AddTag while RemoveTag partial failure remains distinct
 LSA-12	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_delivery_monitor_service_test.go#symbols=UpdateStatus|CountByStatusAndDateRange|CountExcludedReasonByDateRange|CountByTypeAndStatus; completion_sha=445754040c88e44ffc93b679f6a2d58db01f474e; object=backend/internal/lstep/lstep_delivery_monitor_service_test.go; original=配信トリガーログの excluded/failed への status 更新失敗が non-fatal 扱いで、ログが scheduled のまま残り監視集計が実態と乖離する; why=UpdateStatus/CountByStatusAndDateRange/CountExcludedReasonByDateRange/CountByTypeAndStatus is the current guarded or regression-tested implementation of U-X04X05-LSTEP-DELIVERY for the exact failure condition: 配信トリガーログの excluded/failed への status 更新失敗が non-fatal 扱いで、ログが scheduled のまま残り監視集計が実態と乖離する
 LSA-13	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_trigger_priority_handler_test.go#symbols=TestGetLstepTriggerPriorities|TestUpdateLstepTriggerPriorities|TestLstepTriggerPriorities_ClinicAliasUsesAuthenticatedClinic|GetByClinicID; completion_sha=f224c289af6137744234896baf850df38de4a761; object=backend/internal/lstep/lstep_trigger_priority_handler_test.go; original=trigger_type が列挙値検証されず、存在しないトリガー種別の優先順位が 200 で保存されて永久に無視される; why=TestGetLstepTriggerPriorities/TestUpdateLstepTriggerPriorities/TestLstepTriggerPriorities_ClinicAliasUsesAuthenticatedClinic/GetByClinicID is the current guarded or regression-tested implementation of U-X02-LSTEP-TRIGGER-PRIORITY for the exact failure condition: trigger_type が列挙値検証されず、存在しないトリガー種別の優先順位が 200 で保存されて永久に無視される
 LSA-14	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_tag_config_handler_test.go#symbols=TestListAutoManagedPrefixes_Handler|TestCreateAutoManagedPrefix_Handler|TestDeleteAutoManagedPrefix_Handler|TestListConditionTagMappings_Handler; completion_sha=ca66820b3784d7419eab2e28c53e54c0d5a1b1de; object=backend/internal/lstep/lstep_tag_config_handler_test.go; original=自動管理プレフィックスの category が列挙値検証されず、C2 以外の綴りで登録するとペット死亡時のタグ掃除が静かに効かなくなる; why=TestListAutoManagedPrefixes_Handler/TestCreateAutoManagedPrefix_Handler/TestDeleteAutoManagedPrefix_Handler/TestListConditionTagMappings_Handler is the current guarded or regression-tested implementation of U-X02-LSTEP-TAG-CONFIG for the exact failure condition: 自動管理プレフィックスの category が列挙値検証されず、C2 以外の綴りで登録するとペット死亡時のタグ掃除が静かに効かなくなる
-LSA-15	LIVE	ACTIVE	BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM	CURRENT:backend/internal/lstep/lstep_delivery_trigger_log_repository.go#CreateIfAbsentToday|ExistsTodayByOwnerAndType|FindByOwnerAndDate; why=input-location day windows still disagree with the config.JST expression index and both consumers
+LSA-15	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_delivery_trigger_log_repository.go#symbols=CreateIfAbsentToday|ExistsTodayByOwnerAndType|FindByOwnerAndDate|jstHalfOpenDay; completion_sha=6df6ef578cfbf923f22df123df0010f67a2fec5a; object=backend/internal/lstep/lstep_delivery_trigger_log_repository.go; original=input-location day windows still disagree with the config.JST expression index and both consumers; why=CreateIfAbsentToday/ExistsTodayByOwnerAndType/FindByOwnerAndDate share jstHalfOpenDay(config.JST) with index-aligned concurrent claim and boundary regressions
 LSB-06	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/shared_file_handler_test.go#symbols=TestListSharedFiles|TestGetSharedFileSignedURL|newHandlerWithSharedFileSvc|TestUploadSharedFile; completion_sha=6d6785c83167ff80c92f8257026c8678597d02f2; object=backend/internal/lstep/shared_file_handler_test.go; original=shared-files アップロードの purpose が列挙値・長さとも未検証で、超長値がDB errorとして500になる; why=TestListSharedFiles/TestGetSharedFileSignedURL/newHandlerWithSharedFileSvc/TestUploadSharedFile is the current guarded or regression-tested implementation of U-X02-LSTEP-SHARED-FILE for the exact failure condition: shared-files アップロードの purpose が列挙値・長さとも未検証で、超長値がDB errorとして500になる
 LSA-16	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
 LSB-05	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
@@ -395,8 +265,8 @@ G2P-03	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/inventory/inventory_req
 G2T-02	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
 G2T-03	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
 G2F-01	LIVE	ACTIVE	BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1	CURRENT:backend/internal/lstep/lstep_delivery_trigger_batch.go#processSingleOwner; why=the batch still performs multiple owner-scoped reads inside the owner loop
-G2F-02	LIVE	ACTIVE	BE-ACT-LSTEP-HEALTH-BATCH-BULK	CURRENT:backend/internal/lstep/lstep_health_tag_sync_batch.go#SyncHealthPreventionTagsForClinic; why=owner pages are bounded but checkup and vaccination history queries still execute per owner
-G2F-03	LIVE	ACTIVE	BE-ACT-LSTEP-LTV-RANKING-BOUND	CURRENT:backend/internal/lstep/lstep_tag_sync_visit_ltv.go#SyncLTVTopPercent|backend/internal/billing/accounting_repository_ltv.go#FindOwnersByAnnualRevenue; why=LINE owners are paged but clinic-wide annual revenue is still fully materialized before top-N selection
+G2F-02	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_health_tag_sync_batch.go#symbols=SyncHealthPreventionTagsForClinic|loadHealthPreventionPageInputs; completion_sha=cc66c281ec31d7dff0ddeee86c52af4f2eff6771; object=backend/internal/lstep/lstep_health_tag_sync_batch.go; original=owner pages are bounded but checkup and vaccination history queries still execute per owner; why=SyncHealthPreventionTagsForClinic/loadHealthPreventionPageInputs page-bulk load checkup/vaccination/visit-summary inputs so child history queries are page-bounded
+G2F-03	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/billing/accounting_repository_ltv.go#symbols=FindOwnersByAnnualRevenue; completion_sha=2a9d0fe6657c75ab11e7872a2ba2eb74c184aedc; object=backend/internal/billing/accounting_repository_ltv.go; original=LINE owners are paged but clinic-wide annual revenue is still fully materialized before top-N selection; why=FindOwnersByAnnualRevenue returns only the SQL window-bounded top 20% set so SyncLTVTopPercent no longer materializes clinic-wide revenues in Go
 G2F-04	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_batch_segmentation.go#symbols=syncVisitDormantForClinic; completion_sha=bffbea00efd41edfe515f06f0063df6a56c60dc5; object=backend/internal/lstep/lstep_batch_segmentation.go; original=visit-dormant タグ同期が非 cursor dormant list を使用; why=syncVisitDormantForClinic now loops FindDormantOwnerEntriesCursor pages and the repository orders by owner with Limit, so the non-cursor list scenario is absent
 G2F-05	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/line_customer_repository_test.go#symbols=TestLineCustomerRepository_FindAll_RespectsSafetyCap; completion_sha=8551773b24b824b61da61852e93d5b61ede567e3; object=backend/internal/lstep/line_customer_repository_test.go; original=LINE customers list が Preload 付き unbounded; why=TestLineCustomerRepository_FindAll_RespectsSafetyCap pins lineCustomerListMax while the handler exposes total, limit, and truncated metadata
 G2F-06	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/shared_file_repository_test.go#symbols=TestSharedFileRepository_FindAll|TestSharedFileRepository_FindExpired; completion_sha=a496d3904e383c42872a773fd967f9b586a1fd90; object=backend/internal/lstep/shared_file_repository_test.go; original=shared files list/cleanup が unbounded + per-row delete; why=the two repository regressions pin bounded list/expired batches and cleanup drains finite batches; per-row storage-plus-DB delete remains intentional, not an unbounded SELECT
@@ -574,11 +444,11 @@ const aus = resolution.find((r) => r.id === 'AUS-04');
 if (!aus || aus.disposition !== 'CLOSED_VERIFIED' || !/ShiftTemplateRepository\.CountUsageByShiftTemplateID/.test(aus.evidence) || !/SOLO-01/.test(aus.evidence) || /InquiryTemplate/.test(aus.evidence)) fail('AUS-04 contract');
 if (fs.readFileSync('backend/internal/staff/shift_template_repository.go', 'utf8').includes('CountUsageByShiftTemplateID')) fail('AUS-04 symbol still present');
 const lsa = resolution.find((r) => r.id === 'LSA-15');
-const lsaPacket = packets.get('BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM');
-for (const term of ['config.JST', 'CreateIfAbsentToday', 'ExistsTodayByOwnerAndType', 'FindByOwnerAndDate', 'uk_lstep_delivery_trigger_log_clinic_owner_type_day', 'concurrent', 'UTC/JST', 'adjacent-day', 'both consumers']) {
-  if (!lsaPacket || !activeText.includes(term)) fail('LSA-15 missing ' + term);
+if (!lsa || lsa.disposition !== 'CLOSED_VERIFIED' || !/jstHalfOpenDay|CreateIfAbsentToday/.test(lsa.evidence) || !/completion_sha=6df6ef578cfbf923f22df123df0010f67a2fec5a/.test(lsa.evidence)) fail('LSA-15 closed contract');
+const lsaRepo = fs.readFileSync('backend/internal/lstep/lstep_delivery_trigger_log_repository.go', 'utf8');
+for (const term of ['config.JST', 'jstHalfOpenDay', 'CreateIfAbsentToday', 'ExistsTodayByOwnerAndType', 'FindByOwnerAndDate']) {
+  if (!lsaRepo.includes(term)) fail('LSA-15 source missing ' + term);
 }
-if (!lsa || lsa.disposition !== 'ACTIVE' || lsa.target !== 'BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM') fail('LSA-15 disposition');
 console.log(JSON.stringify({
   findings: resolution.length,
   withdrawn: withdrawn.length,

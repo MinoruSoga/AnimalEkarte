@@ -293,95 +293,42 @@
 
 
 <div class="notice">
-<b>BE-refactor 初回実行wave（2026-07-29・USER承認）</b> — 下記10件は依存なし・owned path衝突なしとして <code>READY_AGENT</code>。詳細契約・対象path・検証command・完了条件の正本は各entryから参照する <a href="BE-refactor.md"><code>BE-refactor.md</code></a> とし、本台帳へ複製しない。各executorは着手時にHEADと根拠を再計測し、独立worktreeとDOCKER-MOUNT-PROOFを使う。依存付き8件は正本上で <code>READY_TO_FILE</code> のまま保持し、依存完了commitの統合後にだけ本台帳へ追加する。
+<b>BE-refactor 初回READY wave統合完了（2026-07-29・local main）</b> — 依存なし10件は統合済みで本台帳から削除。次waveとして依存解除された4件のみを <code>READY_AGENT</code> として下記に登録（実装は未着手）。詳細契約の正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a>。残4件は依存未充足のため <code>READY_TO_FILE</code> のまま正本のみ。各executorは独立worktreeとDOCKER-MOUNT-PROOFを使う。
 </div>
 
-<section class="task" id="BE-ACT-ANIMAL-SPECIES-DBORTX">
-<h3>BE-ACT-ANIMAL-SPECIES-DBORTX: animal-species repository DBOrTx・rollback保証</h3>
+
+<section class="task" id="BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH">
+<h3>BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH: animal-species FE system-admin mutation gate</h3>
 <ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。backend実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-animal-species-dbortx"><code>BE-refactor.md#BE-ACT-ANIMAL-SPECIES-DBORTX</code></a>。着手前に同packetのowned paths・current evidence・verificationを再計測する。</li>
+  <li><b>状態: READY_AGENT</b>。依存 <code>BE-ACT-PERMISSION-SEED-PARITY</code> 統合済み（completion <code>de4246adc</code>）。frontend authorization agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-animal-species-frontend-auth"><code>BE-refactor.md#BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH</code></a>。</li>
   <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
 
-<section class="task" id="BE-ACT-PERMISSION-SEED-PARITY">
-<h3>BE-ACT-PERMISSION-SEED-PARITY: permission profile・canonical seed parity</h3>
+<section class="task" id="BE-ACT-CAMPAIGN-TARGET-SERIALIZATION">
+<h3>BE-ACT-CAMPAIGN-TARGET-SERIALIZATION: campaign target share-lock serialization</h3>
 <ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。permission/seed実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-permission-seed-parity"><code>BE-refactor.md#BE-ACT-PERMISSION-SEED-PARITY</code></a>。generated CSVを手編集せず、同packetのallowlistとexport手順を守る。</li>
+  <li><b>状態: READY_AGENT</b>。依存 <code>BE-ACT-ANIMAL-SPECIES-DBORTX</code> 統合済み（completion <code>d5f00cb99</code>）。billing/inventory agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-campaign-target-serialization"><code>BE-refactor.md#BE-ACT-CAMPAIGN-TARGET-SERIALIZATION</code></a>。</li>
   <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
 
-<section class="task" id="BE-ACT-LSTEP-STALE-TAG-FAILCLOSED">
-<h3>BE-ACT-LSTEP-STALE-TAG-FAILCLOSED: stale tag同期のfail-closed化</h3>
+<section class="task" id="BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1">
+<h3>BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1: delivery trigger batch bulk reads</h3>
 <ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-stale-tag-failclosed"><code>BE-refactor.md#BE-ACT-LSTEP-STALE-TAG-FAILCLOSED</code></a>。cache failureと外部API partial failureのcontractを混同しない。</li>
+  <li><b>状態: READY_AGENT</b>。依存 <code>BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM</code> 統合済み（completion <code>6df6ef578</code>）。LSTEP performance agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-delivery-batch-nplus1"><code>BE-refactor.md#BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1</code></a>。</li>
   <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
 
-<section class="task" id="BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM">
-<h3>BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM: JST日次claim・index proof</h3>
+<section class="task" id="BE-ACT-DOC-LSTEP-CONTRACT">
+<h3>BE-ACT-DOC-LSTEP-CONTRACT: LSTEP failure-contract documentation</h3>
 <ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP repository実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-delivery-daily-claim"><code>BE-refactor.md#BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM</code></a>。3method・両consumer・named index・並行境界を同packetどおり検証する。</li>
-  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-LSTEP-HEALTH-BATCH-BULK">
-<h3>BE-ACT-LSTEP-HEALTH-BATCH-BULK: health prevention batch bulk read</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP/medical-record performance実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-health-batch-bulk"><code>BE-refactor.md#BE-ACT-LSTEP-HEALTH-BATCH-BULK</code></a>。clinic/owner分離と臨床filterを保持し、query growthをpage単位で証明する。</li>
-  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-LSTEP-LTV-RANKING-BOUND">
-<h3>BE-ACT-LSTEP-LTV-RANKING-BOUND: LTV rankingのbounded DB contract</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。LSTEP/billing performance実装agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-lstep-ltv-ranking-bound"><code>BE-refactor.md#BE-ACT-LSTEP-LTV-RANKING-BOUND</code></a>。top-percent/tie/clinic/current-owner semanticsとquery-plan evidenceを保持する。</li>
-  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-DOC-QA-DECISIONS">
-<h3>BE-ACT-DOC-QA-DECISIONS: q&amp;a decision・OPS inventory更新</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-qa-decisions"><code>BE-refactor.md#BE-ACT-DOC-QA-DECISIONS</code></a>。DEC-40以降・OPS anchor・現行rulingを保持する。</li>
-  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-DOC-PHASE2">
-<h3>BE-ACT-DOC-PHASE2: phase2 current-state cleanup</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-phase2"><code>BE-refactor.md#BE-ACT-DOC-PHASE2</code></a>。完了済み前提だけを除去し、実在するproduct/owner blockerを保持する。</li>
-  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-DOC-BE-PENDING">
-<h3>BE-ACT-DOC-BE-PENDING: BE-pending provenance・外部境界更新</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。documentation agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-be-pending"><code>BE-refactor.md#BE-ACT-DOC-BE-PENDING</code></a>。STG監査をagent実行可能またはrelease blockerとして誤記しない。</li>
-  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
-
-<section class="task" id="BE-ACT-DOC-SPECIFICATION-ARCHITECTURE">
-<h3>BE-ACT-DOC-SPECIFICATION-ARCHITECTURE: specification・ADR-006現況同期</h3>
-<ul>
-  <li><b>状態: READY_AGENT</b>。依存なし。specification/architecture documentation agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-specification-architecture"><code>BE-refactor.md#BE-ACT-DOC-SPECIFICATION-ARCHITECTURE</code></a>。実装済み境界とproduction qualificationを混同しない。</li>
+  <li><b>状態: READY_AGENT</b>。依存 <code>BE-ACT-LSTEP-STALE-TAG-FAILCLOSED</code>（<code>a0c84a0d4</code>）と <code>BE-ACT-LSTEP-DELIVERY-DAILY-CLAIM</code>（<code>6df6ef578</code>）統合済み。LSTEP documentation agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-lstep-contract"><code>BE-refactor.md#BE-ACT-DOC-LSTEP-CONTRACT</code></a>。</li>
   <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
