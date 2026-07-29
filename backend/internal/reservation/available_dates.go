@@ -82,13 +82,43 @@ func orEmptyJSONArray(b []byte) []byte {
 	return b
 }
 
+// maxAvailableDatesResultCap is the upper bound for the results slice capacity.
+// Matches binding max on booking_window_max_days (line_reservation_setting_request).
+const maxAvailableDatesResultCap = 366
+
+// availableDatesResultCap clamps BookingWindowMaxDays for make([]T, 0, cap).
+// Negative values become 0 (avoids makeslice panic); values above the bind max are capped.
+func availableDatesResultCap(bookingWindowMaxDays int) int {
+	if bookingWindowMaxDays < 0 {
+		return 0
+	}
+	if bookingWindowMaxDays > maxAvailableDatesResultCap {
+		return maxAvailableDatesResultCap
+	}
+	return bookingWindowMaxDays
+}
+
 // BookingWindowDates は BookingWindowMinDays/MaxDays から予約受付期間 [minDate, maxDate]（JST日付・時刻0時）を計算する。
 // CalcAvailableDates と GetAvailableDates のプリフェッチ経路が同一の窓計算を共有するために抽出した（G7-1）。
 func BookingWindowDates(settings AvailableDatesSettings) (minDate, maxDate time.Time) {
 	now := time.Now().In(config.JST)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
-	minDate = today.AddDate(0, 0, settings.BookingWindowMinDays)
-	maxDate = today.AddDate(0, 0, settings.BookingWindowMaxDays)
+	minDays := settings.BookingWindowMinDays
+	maxDays := settings.BookingWindowMaxDays
+	if minDays < 0 {
+		minDays = 0
+	}
+	if maxDays < 0 {
+		maxDays = 0
+	}
+	if maxDays > maxAvailableDatesResultCap {
+		maxDays = maxAvailableDatesResultCap
+	}
+	if minDays > maxDays {
+		minDays = maxDays
+	}
+	minDate = today.AddDate(0, 0, minDays)
+	maxDate = today.AddDate(0, 0, maxDays)
 	return minDate, maxDate
 }
 
@@ -112,7 +142,9 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 		closedWeekdaySet[w] = struct{}{}
 	}
 
-	results := make([]AvailableDateResult, 0, input.Settings.BookingWindowMaxDays)
+	// Defensive cap: binding rejects negative/huge values on write (RSV-04), but
+	// previously-persisted bad settings must not panic makeslice or OOM a request.
+	results := make([]AvailableDateResult, 0, availableDatesResultCap(input.Settings.BookingWindowMaxDays))
 
 	for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {
 		dateStr := d.Format(time.DateOnly)

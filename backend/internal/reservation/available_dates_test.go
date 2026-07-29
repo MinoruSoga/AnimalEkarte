@@ -89,6 +89,28 @@ func TestOrEmptyJSONArray(t *testing.T) {
 	}
 }
 
+func TestAvailableDatesResultCap(t *testing.T) {
+	assert.Equal(t, 0, availableDatesResultCap(-5))
+	assert.Equal(t, 0, availableDatesResultCap(0))
+	assert.Equal(t, 30, availableDatesResultCap(30))
+	assert.Equal(t, maxAvailableDatesResultCap, availableDatesResultCap(maxAvailableDatesResultCap))
+	assert.Equal(t, maxAvailableDatesResultCap, availableDatesResultCap(maxAvailableDatesResultCap+1000))
+}
+
+func TestCalcAvailableDates_NegativeWindowDoesNotPanic(t *testing.T) {
+	// RSV-04: previously make([]T, 0, negative) panicked; clamp keeps the request alive.
+	ctx := context.Background()
+	settings := AvailableDatesSettings{
+		BookingWindowMinDays: -3,
+		BookingWindowMaxDays: -1,
+	}
+	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{Settings: settings})
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.NotEmpty(t, window.Start)
+	assert.NotEmpty(t, window.End)
+}
+
 func TestCalcAvailableDates(t *testing.T) {
 	ctx := context.Background()
 

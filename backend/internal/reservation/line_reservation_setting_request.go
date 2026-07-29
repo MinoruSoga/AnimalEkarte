@@ -4,37 +4,40 @@ import (
 	"encoding/json"
 )
 
+// upsertLineReservationSettingRequest is the HTTP body for LINE reservation settings upsert.
+// Binding tags enforce guidelines:151 (enum, range, length, email) so invalid values
+// never reach persistence or available-dates make(cap) (RSV-04 / U-X02-RESERVATION-SETTINGS).
 type upsertLineReservationSettingRequest struct {
-	Status                  string         `json:"status"`
-	HeaderText              string         `json:"header_text"`
-	ReservationNotice       string         `json:"reservation_notice"`
-	CancelNotice            string         `json:"cancel_notice"`
-	PrivacyPolicy           string         `json:"privacy_policy"`
+	Status                  string         `json:"status" binding:"required,oneof=running stopped"`
+	HeaderText              string         `json:"header_text" binding:"max=2000"`
+	ReservationNotice       string         `json:"reservation_notice" binding:"max=10000"`
+	CancelNotice            string         `json:"cancel_notice" binding:"max=10000"`
+	PrivacyPolicy           string         `json:"privacy_policy" binding:"max=100000"`
 	ClosedWeekdays          jsonRawOrEmpty `json:"closed_weekdays"`
 	ClosedDates             jsonRawOrEmpty `json:"closed_dates"`
 	NationalHolidayClosed   bool           `json:"national_holiday_closed"`
 	BusinessHours           jsonRawOrEmpty `json:"business_hours"`
 	BusinessHoursByWeekday  jsonRawOrEmpty `json:"business_hours_by_weekday"`
 	BreakHours              jsonRawOrEmpty `json:"break_hours"`
-	DailyLimit              *int           `json:"daily_limit"`
-	MonthlyLimit            *int           `json:"monthly_limit"`
-	BookingWindowMaxDays    int            `json:"booking_window_max_days"`
-	BookingWindowMinDays    int            `json:"booking_window_min_days"`
-	CalendarMonths          int            `json:"calendar_months"`
-	PhoneNumber             string         `json:"phone_number"`
-	NotificationEmail       string         `json:"notification_email"`
-	RequestExample          string         `json:"request_example"`
-	TimeSlotMode            string         `json:"time_slot_mode"`
-	TimeSlotIntervalMinutes int            `json:"time_slot_interval_minutes"`
-	NoStaffMode             string         `json:"no_staff_mode"`
+	DailyLimit              *int           `json:"daily_limit" binding:"omitempty,min=0,max=100000"`
+	MonthlyLimit            *int           `json:"monthly_limit" binding:"omitempty,min=0,max=100000"`
+	BookingWindowMaxDays    int            `json:"booking_window_max_days" binding:"min=0,max=366"`
+	BookingWindowMinDays    int            `json:"booking_window_min_days" binding:"min=0,max=366"`
+	CalendarMonths          int            `json:"calendar_months" binding:"min=0,max=12"`
+	PhoneNumber             string         `json:"phone_number" binding:"max=32"`
+	NotificationEmail       string         `json:"notification_email" binding:"omitempty,email,max=254"`
+	RequestExample          string         `json:"request_example" binding:"max=2000"`
+	TimeSlotMode            string         `json:"time_slot_mode" binding:"required,oneof=minimize_gaps allow_gaps"`
+	TimeSlotIntervalMinutes int            `json:"time_slot_interval_minutes" binding:"min=1,max=1440"`
+	NoStaffMode             string         `json:"no_staff_mode" binding:"required,oneof=first_available top_priority"`
 	// ShowNoStaffOption is *bool so JSON binding can distinguish omitted / false / true.
 	// Omitted (nil) resolves to true in toServiceInput.
-	ShowNoStaffOption       *bool          `json:"show_no_staff_option"`
-	AdditionalFields        jsonRawOrEmpty `json:"additional_fields"`
-	LineChannelID           string         `json:"line_channel_id"`
-	LineChannelSecret       string         `json:"line_channel_secret"`
-	LiffID                  string         `json:"liff_id"`
-	LineAccessToken         string         `json:"line_access_token"`
+	ShowNoStaffOption *bool          `json:"show_no_staff_option"`
+	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
+	LineChannelID     string         `json:"line_channel_id" binding:"max=255"`
+	LineChannelSecret string         `json:"line_channel_secret" binding:"max=255"`
+	LiffID            string         `json:"liff_id" binding:"max=255"`
+	LineAccessToken   string         `json:"line_access_token" binding:"max=2000"`
 }
 
 func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReservationSettingInput {

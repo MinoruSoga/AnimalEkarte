@@ -5,6 +5,8 @@ package reservation
 
 import (
 	"testing"
+
+	"github.com/gin-gonic/gin/binding"
 )
 
 func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
@@ -12,11 +14,13 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	showNoStaff := true
 	closedWeekdays := jsonRawOrEmpty(`[1,2]`)
 	req := upsertLineReservationSettingRequest{
-		Status:                  "active",
+		Status:                  "running",
 		ClosedWeekdays:          closedWeekdays,
 		DailyLimit:              &dailyLimit,
 		BookingWindowMaxDays:    30,
+		TimeSlotMode:            "minimize_gaps",
 		TimeSlotIntervalMinutes: 15,
+		NoStaffMode:             "first_available",
 		ShowNoStaffOption:       &showNoStaff,
 		LineChannelSecret:       "secret",
 	}
@@ -54,5 +58,66 @@ func TestUpsertLineReservationSettingRequest_ShowNoStaffOptionOmitted(t *testing
 	input := req.toServiceInput()
 	if !input.ShowNoStaffOption {
 		t.Error("omitted show_no_staff_option must resolve to true")
+	}
+}
+
+// RSV-04 / U-X02-RESERVATION-SETTINGS: binding tags must reject enum/range/email violations.
+func TestUpsertLineReservationSettingRequest_BindingRejectsInvalidValues(t *testing.T) {
+	valid := func() upsertLineReservationSettingRequest {
+		return upsertLineReservationSettingRequest{
+			Status:                  "running",
+			BookingWindowMaxDays:    30,
+			BookingWindowMinDays:    2,
+			CalendarMonths:          2,
+			TimeSlotMode:            "minimize_gaps",
+			TimeSlotIntervalMinutes: 15,
+			NoStaffMode:             "first_available",
+		}
+	}
+
+	if err := binding.Validator.ValidateStruct(valid()); err != nil {
+		t.Fatalf("valid request rejected: %v", err)
+	}
+
+	badStatus := valid()
+	badStatus.Status = "open"
+	if err := binding.Validator.ValidateStruct(badStatus); err == nil {
+		t.Fatal("expected invalid status rejection")
+	}
+
+	negWindow := valid()
+	negWindow.BookingWindowMaxDays = -1
+	if err := binding.Validator.ValidateStruct(negWindow); err == nil {
+		t.Fatal("expected negative booking_window_max_days rejection")
+	}
+
+	hugeWindow := valid()
+	hugeWindow.BookingWindowMaxDays = 367
+	if err := binding.Validator.ValidateStruct(hugeWindow); err == nil {
+		t.Fatal("expected booking_window_max_days > 366 rejection")
+	}
+
+	badMode := valid()
+	badMode.TimeSlotMode = "unknown"
+	if err := binding.Validator.ValidateStruct(badMode); err == nil {
+		t.Fatal("expected invalid time_slot_mode rejection")
+	}
+
+	badNoStaff := valid()
+	badNoStaff.NoStaffMode = "hide"
+	if err := binding.Validator.ValidateStruct(badNoStaff); err == nil {
+		t.Fatal("expected invalid no_staff_mode rejection")
+	}
+
+	badEmail := valid()
+	badEmail.NotificationEmail = "not-an-email"
+	if err := binding.Validator.ValidateStruct(badEmail); err == nil {
+		t.Fatal("expected invalid notification_email rejection")
+	}
+
+	okEmail := valid()
+	okEmail.NotificationEmail = "desk@example.com"
+	if err := binding.Validator.ValidateStruct(okEmail); err != nil {
+		t.Fatalf("valid notification_email rejected: %v", err)
 	}
 }
