@@ -60,20 +60,18 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, cl
 		vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format(time.DateOnly))
 	}
 
-	apiFailed := false
+	// DEC-35 / G2B-01: Remove 失敗も err 伝播（silent success 禁止）。
 	if deadlineSoon {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, PrevVaccineDeadlineTag, "vaccine deadline", vaccineReason, true); err != nil {
 			return err
 		}
 	} else {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, PrevVaccineDeadlineTag, "vaccine deadline", vaccineReason, false); err != nil {
-			apiFailed = true
+			return err
 		}
 	}
 
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
+	s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	return nil
 }
 

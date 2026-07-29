@@ -137,7 +137,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 		assert.Equal(t, PrevVaccineDeadlineTag, deletedTag)
 	})
 
-	t.Run("no deadline soon: RemoveTag failure is non-fatal (notifies API failure, no error returned)", func(t *testing.T) {
+	t.Run("no deadline soon: RemoveTag failure propagates (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") }}
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
@@ -153,6 +153,6 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
 		err := svc.syncVaccineDeadlineTagImpl(context.Background(), 1, 10, model.HealthPreventionThresholds{}.WithDefaults())
-		assert.NoError(t, err, "RemoveTag failures on the deadline-clear path are logged, not propagated")
+		assert.Error(t, err)
 	})
 }

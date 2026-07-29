@@ -72,26 +72,24 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 		return nil
 	}
 
-	apiFailed := false
+	// DEC-35 / G2B-01: Remove 失敗も err 伝播（silent success 禁止）。
 	if hasHealthcheck {
 		doneReason := fmt.Sprintf("最終健診: %s", lastCheckupDate.Format(time.DateOnly))
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckDoneTag, "healthcheck done", doneReason, true); err != nil {
 			return err
 		}
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckNeverTag, "healthcheck never", "", false); err != nil {
-			apiFailed = true
+			return err
 		}
 	} else {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckNeverTag, "healthcheck never", "", true); err != nil {
 			return err
 		}
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckDoneTag, "healthcheck done", "", false); err != nil {
-			apiFailed = true
+			return err
 		}
 	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
+	s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	return nil
 }
 
@@ -163,19 +161,17 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Cont
 		return nil
 	}
 
-	apiFailed := false
+	// DEC-35 / G2B-01: Remove 失敗も err 伝播（silent success 禁止）。
 	if qualified {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthAnnual4CheckupTag, "annual4checkup", "", true); err != nil {
 			return err
 		}
 	} else {
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthAnnual4CheckupTag, "annual4checkup", "", false); err != nil {
-			apiFailed = true
+			return err
 		}
 	}
-	if !apiFailed {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-	}
+	s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	return nil
 }
 

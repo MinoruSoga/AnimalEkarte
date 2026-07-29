@@ -90,8 +90,13 @@ func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64,
 	return checkups, total, nil
 }
 
+// healthTagOwnerHistoryMax is a safety cap for LSTEP health-tag resync history
+// loads (G2F-02). Order is newest-first so lookback windows still see recent rows.
+const healthTagOwnerHistoryMax = 500
+
 // FindByOwnerID は現在飼主のペットに紐づく生存健診記録を返す（ISSUE-004 タグ再同期用）。
 // medical_records.pet_id から pets.owner_id を解決し、checkup と medical_record の両方が生存しているレコードのみ返す。
+// G2F-02: newest-first hard Limit to avoid unbounded owner history materialization.
 func (r *checkupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	err := persistence.DBOrTx(ctx, r.db).
@@ -114,6 +119,7 @@ func (r *checkupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID
 		Scopes(checkupPatientRelationsScope(clinicID)).
 		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("checkups.date DESC").
+		Limit(healthTagOwnerHistoryMax).
 		Find(&checkups).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("owner=%d", ownerID))

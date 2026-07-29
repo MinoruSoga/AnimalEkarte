@@ -70,7 +70,7 @@ func TestSyncHealthcheckTagsWithMappings_ClientCalls(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("hasHealthcheck=true: RemoveTag失敗はapiFailedのままnilを返す", func(t *testing.T) {
+	t.Run("hasHealthcheck=true: RemoveTag失敗はエラーを返す (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
 		}
@@ -78,7 +78,7 @@ func TestSyncHealthcheckTagsWithMappings_ClientCalls(t *testing.T) {
 			checkupRepoWithResult([]model.Checkup{recentCheckup("健診A")}, nil), nil, &mockLstepTagCacheRepository{}, client)
 
 		err := svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("hasHealthcheck=false: AddTag(never)/RemoveTag(done)成功", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestSyncHealthcheckTagsWithMappings_ClientCalls(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("hasHealthcheck=false: RemoveTag(done)失敗はapiFailedのままnilを返す", func(t *testing.T) {
+	t.Run("hasHealthcheck=false: RemoveTag(done)失敗はエラーを返す (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
 		}
@@ -115,7 +115,7 @@ func TestSyncHealthcheckTagsWithMappings_ClientCalls(t *testing.T) {
 			checkupRepoWithResult(nil, nil), nil, &mockLstepTagCacheRepository{}, client)
 
 		err := svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("cachedMappingsが渡されればtagCodeRepoは呼ばれない", func(t *testing.T) {
@@ -222,7 +222,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 		assert.Equal(t, HlthAnnual4CheckupTag, removedTag)
 	})
 
-	t.Run("qualified=false: RemoveTag失敗はapiFailedのままnilを返す", func(t *testing.T) {
+	t.Run("qualified=false: RemoveTag失敗はエラーを返す (G2B-01)", func(t *testing.T) {
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
 		}
@@ -230,7 +230,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 			checkupRepoWithResult(nil, nil), visitSummaryRepo(0), &mockLstepTagCacheRepository{}, client)
 
 		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("buildClientエラーは伝播する", func(t *testing.T) {

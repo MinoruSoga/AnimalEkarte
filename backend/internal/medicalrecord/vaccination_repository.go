@@ -83,6 +83,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 // FindByOwner は飼い主の全生存ワクチン記録を返す（ISSUE-004 タグ再同期用）。
 // pets テーブルを JOIN し、飼い主に属する生存ペットのワクチンのみ取得する。
+// G2F-02: newest-first hard Limit (healthTagOwnerHistoryMax) to avoid unbounded history.
 func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error) {
 	vaccinations := make([]model.Vaccination, 0)
 	err := persistence.DBOrTx(ctx, r.db).
@@ -92,6 +93,7 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 		Scopes(vaccinationPatientRelationsScope(clinicID)).
 		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Limit(healthTagOwnerHistoryMax).
 		Find(&vaccinations).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("owner=%d", ownerID))
