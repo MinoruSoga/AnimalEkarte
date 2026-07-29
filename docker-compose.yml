@@ -107,10 +107,10 @@ services:
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
-    # Domain-owned HTTP DTO を auth/trimming/pet/owner 別の生成物へ再現可能に出力する。
+    # Domain-owned HTTP DTO を auth/trimming/pet/owner/medicalrecord 別の生成物へ再現可能に出力する。
     # /output/*.ts はコンテナ内パスなので、frontend bind mount 上の generated/ へ sed で書き換える。
     # 新パッケージを tygo.yaml に足したら、ここにも同じ置換を1行追加すること（忘れると生成物が host に出ない）。
-    command: /bin/sh -c "cd /app && sed -e 's|/output/models.ts|/frontend/src/types/generated/models.ts|' -e 's|/output/auth-responses.ts|/frontend/src/types/generated/auth-responses.ts|' -e 's|/output/trimming-responses.ts|/frontend/src/types/generated/trimming-responses.ts|' -e 's|/output/pet-responses.ts|/frontend/src/types/generated/pet-responses.ts|' -e 's|/output/owner-responses.ts|/frontend/src/types/generated/owner-responses.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml"
+    command: /bin/sh -c "cd /app && sed -e 's|/output/models.ts|/frontend/src/types/generated/models.ts|' -e 's|/output/auth-responses.ts|/frontend/src/types/generated/auth-responses.ts|' -e 's|/output/trimming-responses.ts|/frontend/src/types/generated/trimming-responses.ts|' -e 's|/output/pet-responses.ts|/frontend/src/types/generated/pet-responses.ts|' -e 's|/output/owner-responses.ts|/frontend/src/types/generated/owner-responses.ts|' -e 's|/output/medicalrecord-responses.ts|/frontend/src/types/generated/medicalrecord-responses.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml"
 
 volumes:
   postgres_data:
