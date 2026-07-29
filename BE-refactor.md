@@ -2441,7 +2441,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/staff/... -run 'ClinicAssignment|PermissionAssignment|Audit'`
 - 既知台帳: none
 - Size: M (6/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-4 ｜ 完了 commit: 0ea639b16c64300591531a6c0ed6d29de5b7180f
 
 ##### U-X05-MR-EXAMTYPE
 
