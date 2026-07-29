@@ -8,24 +8,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/owner"
 )
 
-type petAnimalSpeciesNested struct {
+type PetAnimalSpeciesNested struct {
 	ID        uint64 `json:"id"`
 	Name      string `json:"name"`
 	SortOrder int    `json:"sort_order"`
 }
 
-type petInsuranceNested struct {
+type PetInsuranceNested struct {
 	ID           uint64 `json:"id"`
 	Name         string `json:"name"`
 	CoverageRate int    `json:"coverage_rate"`
 	ContactPhone string `json:"contact_phone"`
 }
 
-// petOwnerNested はペット行に埋め込む飼主サマリ（#266: pets 一覧のペット行粒度化）。
-// petListResponse / petResponse の両方で共有する（detail 側は追加フィールドを無視すれば足りるため
+// PetOwnerNested はペット行に埋め込む飼主サマリ（#266: pets 一覧のペット行粒度化）。
+// petListResponse / PetResponse の両方で共有する（detail 側は追加フィールドを無視すれば足りるため
 // 型を分けない）。OwnerNumber は独立した採番カラムではなく Owner.ID のエイリアス
 // （FE 既存実装が ownerNumber: owner.id として扱っていた表示上の呼称に合わせる）。
-type petOwnerNested struct {
+type PetOwnerNested struct {
 	ID          uint64 `json:"id"`
 	OwnerNumber uint64 `json:"owner_number"`
 	Name        string `json:"name"`
@@ -34,11 +34,11 @@ type petOwnerNested struct {
 	IsDangerous bool   `json:"is_dangerous"`
 }
 
-func toPetOwnerNested(o *model.Owner) *petOwnerNested {
+func toPetOwnerNested(o *model.Owner) *PetOwnerNested {
 	if o == nil {
 		return nil
 	}
-	return &petOwnerNested{
+	return &PetOwnerNested{
 		ID:          o.ID,
 		OwnerNumber: o.ID,
 		Name:        o.Name,
@@ -48,7 +48,7 @@ func toPetOwnerNested(o *model.Owner) *petOwnerNested {
 	}
 }
 
-type petResponse struct {
+type PetResponse struct {
 	ID              uint64     `json:"id"`
 	Version         int        `json:"version"`
 	ClinicID        uint64     `json:"clinic_id"`
@@ -81,9 +81,9 @@ type petResponse struct {
 	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
 	CreatedAt     time.Time               `json:"created_at"`
 	UpdatedAt     time.Time               `json:"updated_at"`
-	Owner         *petOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance     *petInsuranceNested     `json:"insurance,omitempty"`
+	Owner         *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
@@ -103,7 +103,7 @@ func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
 type petListResponse struct {
 	ID uint64 `json:"id"`
 	// ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
-	// 判定に使う。petResponse(詳細) には既にあるが petListResponse は最小限フィールド構成のため
+	// 判定に使う。PetResponse(詳細) には既にあるが petListResponse は最小限フィールド構成のため
 	// 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
 	ClinicID        uint64                  `json:"clinic_id"`
 	OwnerID         uint64                  `json:"owner_id"`
@@ -128,9 +128,9 @@ type petListResponse struct {
 	LastVisit       *time.Time              `json:"last_visit,omitempty"`
 	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
 	Remarks         string                  `json:"remarks"`
-	Owner           *petOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
+	Owner           *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies   *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance       *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
 func toPetListResponse(p *model.Pet) petListResponse {
@@ -170,14 +170,14 @@ func toPetListResponse(p *model.Pet) petListResponse {
 	}
 	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &petAnimalSpeciesNested{
+		resp.AnimalSpecies = &PetAnimalSpeciesNested{
 			ID:        p.AnimalSpecies.ID,
 			Name:      p.AnimalSpecies.Name,
 			SortOrder: p.AnimalSpecies.SortOrder,
 		}
 	}
 	if p.Insurance != nil {
-		resp.Insurance = &petInsuranceNested{
+		resp.Insurance = &PetInsuranceNested{
 			ID:           p.Insurance.ID,
 			Name:         p.Insurance.Name,
 			CoverageRate: p.Insurance.CoverageRate,
@@ -209,13 +209,13 @@ type AnimalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-func toPetResponse(p *model.Pet) petResponse {
+func toPetResponse(p *model.Pet) PetResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
 		s := string(*p.AcquisitionType)
 		acquisitionType = &s
 	}
-	resp := petResponse{
+	resp := PetResponse{
 		ID:              p.ID,
 		Version:         p.Version,
 		ClinicID:        p.ClinicID,
@@ -250,14 +250,14 @@ func toPetResponse(p *model.Pet) petResponse {
 	}
 	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &petAnimalSpeciesNested{
+		resp.AnimalSpecies = &PetAnimalSpeciesNested{
 			ID:        p.AnimalSpecies.ID,
 			Name:      p.AnimalSpecies.Name,
 			SortOrder: p.AnimalSpecies.SortOrder,
 		}
 	}
 	if p.Insurance != nil {
-		resp.Insurance = &petInsuranceNested{
+		resp.Insurance = &PetInsuranceNested{
 			ID:           p.Insurance.ID,
 			Name:         p.Insurance.Name,
 			CoverageRate: p.Insurance.CoverageRate,
