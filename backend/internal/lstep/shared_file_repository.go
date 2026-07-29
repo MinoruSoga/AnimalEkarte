@@ -47,11 +47,18 @@ func (r *sharedFileRepository) FindByID(ctx context.Context, clinicID, id uint64
 	return &f, nil
 }
 
+// sharedFileListMax / sharedFileExpiredMax are hard safety caps (G2F-06).
+const (
+	sharedFileListMax    = 200
+	sharedFileExpiredMax = 500
+)
+
 func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]*model.SharedFile, error) {
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("created_at DESC").
+		Limit(sharedFileListMax).
 		Find(&files).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shared_file", fmt.Sprintf("clinic=%d", clinicID))
@@ -77,6 +84,8 @@ func (r *sharedFileRepository) FindExpired(ctx context.Context, thresholdUnix in
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
 		Where("EXTRACT(EPOCH FROM created_at) < ?", thresholdUnix).
+		Order("created_at ASC").
+		Limit(sharedFileExpiredMax).
 		Find(&files).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shared_file", "expired")

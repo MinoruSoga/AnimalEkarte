@@ -159,29 +159,39 @@ func (s *sharedFileService) Delete(ctx context.Context, clinicID, id uint64) err
 
 // CleanupExpired は 7日 - 25時間 = 143時間以上経過したファイルを削除する。
 // 24時間有効の署名付きURLとの衝突を防ぐために25時間バッファを設ける。
+// G2F-06: FindExpired is hard-capped; drain batches until a short page.
 func (s *sharedFileService) CleanupExpired(ctx context.Context) error {
 	const expiryHours = 7*24 - 25
-	threshold := time.Now().Add(-expiryHours * time.Hour)
-	records, err := s.repo.FindExpired(ctx, threshold.Unix())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find expired shared files", "error", err)
-		return apperrors.Wrap(err, "failed to find expired shared files")
-	}
+	threshold := time.Now().Add(-expiryHours * time.Hour).Unix()
 
 	var firstErr error
-	for _, r := range records {
-		if err := s.storage.Delete(ctx, r.FileKey); err != nil {
-			slog.ErrorContext(ctx, "failed to delete expired file from storage", "error", err, "key", r.FileKey, "id", r.ID)
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
+	for {
+		records, err := s.repo.FindExpired(ctx, threshold)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find expired shared files", "error", err)
+			return apperrors.Wrap(err, "failed to find expired shared files")
 		}
-		if err := s.repo.Delete(ctx, r.ClinicID, r.ID); err != nil {
-			slog.ErrorContext(ctx, "failed to soft-delete expired shared file", "error", err, "id", r.ID)
-			if firstErr == nil {
-				firstErr = err
+		if len(records) == 0 {
+			break
+		}
+		for _, r := range records {
+			if err := s.storage.Delete(ctx, r.FileKey); err != nil {
+				slog.ErrorContext(ctx, "failed to delete expired file from storage", "error", err, "key", r.FileKey, "id", r.ID)
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
 			}
+			if err := s.repo.Delete(ctx, r.ClinicID, r.ID); err != nil {
+				slog.ErrorContext(ctx, "failed to soft-delete expired shared file", "error", err, "id", r.ID)
+				if firstErr == nil {
+					firstErr = err
+				}
+			}
+		}
+		// Full batch may mean more remain; short batch ends the drain.
+		if len(records) < sharedFileExpiredMax {
+			break
 		}
 	}
 	if firstErr != nil {
