@@ -2938,7 +2938,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'LabImport'`
 - 既知台帳: none
 - Size: S (1/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: c7cd4c568edc9915ea56559d3fb7b2e2d72d6eed
 
 ##### U-X05-MR-MEDICINE-MASTERS
 
