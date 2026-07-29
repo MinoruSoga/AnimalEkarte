@@ -175,7 +175,8 @@
       "MIGRATE_RUN_SECRET",
       "SCHEDULER_OPS_SECRET",
       // DEC-36 / CMD-02: Worker→Container X-Scheduler-Token 共有秘密（値は secret put のみ）。
-      // Cutover: Worker 先行デプロイ後に put。逆順は全院バッチ 401 停止。
+      // Cutover: secret put を先 → デプロイを最後。Go は expected 空で全リクエスト 401
+      // (fail-closed on missing config) のため、secret 不在のデプロイは全院バッチ停止。
       "SCHEDULER_INTERNAL_TOKEN",
       "SCHEDULER_ACCESS_TEAM_DOMAIN",
       "SCHEDULER_ACCESS_AUDIENCE",

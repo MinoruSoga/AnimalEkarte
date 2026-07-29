@@ -160,8 +160,9 @@
       "SCHEDULER_OPS_SECRET",
       // DEC-36 / CMD-02: Worker→Container scheduled-jobs の X-Scheduler-Token 共有秘密。
       // 値は `wrangler secret put SCHEDULER_INTERNAL_TOKEN` のみで投入（本ファイルに値を書かない）。
-      // Cutover 順序: Worker を先にデプロイ（ヘッダ送信 + envVars 伝播）→ その後に secret put。
-      // 逆順（Go 側だけ先に有効化）だと Worker が 401 を受け全院バッチが停止する。
+      // Cutover 順序: secret put を先 → その後に Worker をデプロイする。
+      // Go の requireSchedulerInternalToken は expected が空だと全リクエストを 401 にするため
+      // (fail-closed on missing config)、secret 不在のままデプロイすると全院バッチが停止する。
       "SCHEDULER_INTERNAL_TOKEN",
       // Cloudflare Access の署名済み operator identity。JWT は Worker 内で
       // team-domain JWKS / issuer / audience / exp / nbf を検証し、任意 header は信用しない。

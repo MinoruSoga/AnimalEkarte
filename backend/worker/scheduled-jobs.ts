@@ -131,10 +131,14 @@ export const SCHEDULER_INTERNAL_TOKEN_HEADER = "X-Scheduler-Token" as const;
  * Go fails closed if expected token is empty or header mismatches (401).
  *
  * Cutover order (must not reverse):
- * 1. Deploy Worker that sends X-Scheduler-Token and forwards SCHEDULER_INTERNAL_TOKEN via envVars
- * 2. Then set SCHEDULER_INTERNAL_TOKEN (wrangler secret put) so Go and Worker share the same value
- * Reversing this (enabling the Go-side secret before Worker ships the header) makes every clinic
- * batch return 401 and stops all-hospital scheduled jobs.
+ * 1. FIRST set the secret: `wrangler secret put SCHEDULER_INTERNAL_TOKEN`.
+ *    The currently deployed Worker ignores it, so this step is harmless on its own.
+ * 2. THEN deploy this Worker. The deploy is what brings the Go binary whose middleware
+ *    enforces the header, and it binds the secret into the Container envVars at the same time.
+ * Reversing this (deploying before the secret exists) leaves the Go middleware with an EMPTY
+ * expected token, and requireSchedulerInternalToken 401s EVERY request regardless of what the
+ * Worker sends -- all-hospital scheduled jobs stop until the secret is put and the Container
+ * restarts. The deploy is the cutover event; the secret must already be in place.
  */
 export function buildScheduledJobHeaders(
   schedulerInternalToken?: string,

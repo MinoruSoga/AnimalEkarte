@@ -67,7 +67,9 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     INTEGRATION_ENCRYPTION_KEY: env.INTEGRATION_ENCRYPTION_KEY,
     // DEC-36 / CMD-02: Go requireSchedulerInternalToken の expected 値。
     // 3 ホップ必須: wrangler secrets.required → 本 allowlist → scheduled-jobs.ts ヘッダ。
-    // Cutover: Worker を先にデプロイしてから secret を put する（逆順は全院バッチ 401 停止）。
+    // Cutover: secret put を先、デプロイを最後にする。Go の requireSchedulerInternalToken は
+    // expected が空だと Worker が何を送っても全リクエストを 401 にする(fail-closed on missing
+    // config)ため、secret 不在のままデプロイすると全院バッチが停止する。
     SCHEDULER_INTERNAL_TOKEN: env.SCHEDULER_INTERNAL_TOKEN,
 
     // H2: Worker→Container 経路の信頼プロキシ CIDR(rate-limit bypass 防止)。
