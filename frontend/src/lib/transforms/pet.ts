@@ -1,15 +1,11 @@
 import type {
-  Pet as BackendPet,
   PetGender,
   AcquisitionType,
   DangerLevel,
 } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
-
-type BackendPetWithDangerReason = BackendPet & {
-  danger_reason?: string;
-};
 
 type CreatePetRequestWithDangerReason = CreatePetRequest & {
   danger_reason?: string;
@@ -75,27 +71,24 @@ export const DANGER_LEVEL_MAP: Record<string, string> = {
 };
 
 /**
- * バックエンドペットレスポンスをフロントエンド Pet 型に変換
- * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義
+ * バックエンドペット詳細レスポンス（PetResponse）をフロントエンド Pet 型に変換。
+ * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義。
+ * wire 正本は pet domain の PetResponse（pet_name_kana 等）。models.Pet は使わない（BUG-433）。
  */
-export const transformBackendPetToFrontend = (p: BackendPetWithDangerReason) => ({
+export const transformBackendPetToFrontend = (p: PetResponse) => ({
   id: String(p.id ?? 0),
-  // #86: 拠点横断一覧での医院名表示用。飼主の所属医院を優先し、無ければペット自身の clinic_id
-  clinicId:
-    p.owner?.clinic_id != null
-      ? String(p.owner.clinic_id)
-      : p.clinic_id != null
-        ? String(p.clinic_id)
-        : undefined,
+  // #86: 医院名表示用。detail wire の PetOwnerNested に clinic_id は無いため pet.clinic_id を使う。
+  clinicId: p.clinic_id != null ? String(p.clinic_id) : undefined,
   ownerId: String(p.owner_id ?? 0),
-  ownerNumber: p.owner?.id,
+  ownerNumber: p.owner?.owner_number ?? p.owner?.id,
   ownerName: p.owner?.name ?? "",
   ownerNameKana: p.owner?.name_kana ?? undefined,
-  address: [p.owner?.address1, p.owner?.address2].filter(Boolean).join(" ") || undefined,
-  phone: p.owner?.phone ?? "",
+  // PetOwnerNested に住所フィールドは無い（detail/list 共有の軽量サマリ）。
+  address: undefined as string | undefined,
+  phone: p.owner?.phone || p.phone || "",
   petNumber: p.pet_number,
   name: p.name ?? "",
-  petNameKana: p.name_kana ?? undefined,
+  petNameKana: p.pet_name_kana || undefined,
   species: p.animal_species?.name ?? "",
   animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
   breed: p.breed,
@@ -125,14 +118,14 @@ export const transformBackendPetToFrontend = (p: BackendPetWithDangerReason) => 
   remarks: p.remarks,
   // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
   // deceasedReason は含めない — セキュリティレビュー指摘によりバックエンド
-  // response DTO (petResponse/petInOwnerResponse) から意図的に除外済み
+  // response DTO (PetResponse / petInOwnerResponse) から意図的に除外済み
   // (未curationの LIFF 経路での漏洩防止。UI側にも読み取り消費者が無い)。
   deceasedAt: p.deceased_at,
 });
 
 /**
  * Pet フロントエンド型 — transformBackendPetToFrontend の戻り値から自動導出
- * 手動管理せず BackendPet（models.ts）と常に同期される
+ * wire 正本は PetResponse（pet-responses.ts）
  */
 export type Pet = ReturnType<typeof transformBackendPetToFrontend>;
 

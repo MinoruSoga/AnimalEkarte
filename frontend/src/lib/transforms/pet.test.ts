@@ -5,18 +5,19 @@ import {
   transformCreatePetRequest,
   transformUpdatePetRequest,
 } from "./pet";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 
-// makeBackendPet は transformBackendPetToFrontend に渡す最小の BackendPet を組み立てる。
-function makeBackendPet(overrides: Partial<BackendPet> = {}): BackendPet {
+// makeBackendPet は transformBackendPetToFrontend に渡す最小の PetResponse を組み立てる。
+function makeBackendPet(overrides: Partial<PetResponse> = {}): PetResponse {
   return {
     id: 7,
+    version: 1,
     clinic_id: 1,
     owner_id: 42,
     animal_species_id: 1,
     pet_number: "42-1",
     name: "ポチ",
-    name_kana: "ぽち",
+    pet_name_kana: "ぽち",
     gender: "male",
     status: "alive",
     breed: "",
@@ -128,6 +129,13 @@ describe("transformBackendPetToFrontend", () => {
     });
 
     expect(request.status).toBeUndefined();
+  });
+
+  it("pet_name_kana を petNameKana へマッピングする（models.Pet の name_kana ではない）", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({ pet_name_kana: "ぽちたろう" }),
+    );
+    expect(pet.petNameKana).toBe("ぽちたろう");
   });
 });
 

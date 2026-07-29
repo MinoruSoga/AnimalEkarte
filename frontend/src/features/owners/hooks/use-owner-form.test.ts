@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import { createTestWrapper } from "@/testing/utils";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
 import { ownerLoader } from "../loaders";
@@ -176,14 +176,15 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
 
 describe("useOwnerForm dangerReason readback", () => {
   it("owner detail の再読込で staff pet detail の保存済み理由を pet form 初期値へ保持する", async () => {
-    const backendPet: BackendPet & { danger_reason?: string } = {
+    const backendPet: PetResponse = {
       id: 7,
+      version: 1,
       clinic_id: 1,
       owner_id: 123,
       animal_species_id: 1,
       pet_number: "123-1",
       name: "ポチ",
-      name_kana: "ぽち",
+      pet_name_kana: "ぽち",
       gender: "male",
       status: "alive",
       breed: "",

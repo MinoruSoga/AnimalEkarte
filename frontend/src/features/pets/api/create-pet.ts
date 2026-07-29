@@ -4,11 +4,11 @@ import type { Pet } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import type { CreatePetRequest } from "@/types/pet";
 
 export const createPet = async (req: CreatePetRequest): Promise<Pet> => {
-  const { data } = await axios.post<BackendPet>("/v1/pets", req);
+  const { data } = await axios.post<PetResponse>("/v1/pets", req);
   return transformBackendPetToFrontend(data);
 };
 

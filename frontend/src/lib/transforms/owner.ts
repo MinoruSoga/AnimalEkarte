@@ -1,5 +1,6 @@
 import type { Owner } from "@/types/owner";
-import type { Owner as BackendOwner, Pet as BackendPet } from "@/types/generated/models";
+import type { Owner as BackendOwner } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
 /**
@@ -21,11 +22,12 @@ const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
 };
 
 /**
- * Owner配下のペット変換
- * transformBackendPetToFrontendをベースにownerName/phoneをオーナー親から上書き
+ * Owner配下のペット変換。
+ * owner 埋め込み wire は petInOwnerResponse（pet_name_kana）であり models.Pet ではない。
+ * owner domain の response codegen 前は PetResponse 形状へアサートして detail 変換を再利用する。
  */
-const transformPetInOwner = (pet: BackendPet, ownerName: string) => ({
-  ...transformBackendPetToFrontend(pet),
+const transformPetInOwner = (pet: unknown, ownerName: string) => ({
+  ...transformBackendPetToFrontend(pet as PetResponse),
   ownerName,
   phone: "",
 });

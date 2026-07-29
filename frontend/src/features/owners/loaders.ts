@@ -11,13 +11,12 @@ import {
   transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 
-// #266: GET /v1/pets 専用の petListResponse（pet_response.go 参照）は petResponse（詳細）より
-// 薄いDTOで、owner も id/owner_number/name/name_kana/phone/is_dangerous のみのサマリを埋め込む。
-// docs/api.yaml 未同期（make codegen 未実行）のため、生成型 (BackendPet/Owner) を流用せず
-// 実際のワイヤー契約に忠実なローカル型を定義する。
+// #266: GET /v1/pets 専用の list DTO は PetResponse（詳細）より薄い。
+// PetOwnerNested 等は pet-responses と一致するが、list 専用の欠落フィールドがあるため
+// ローカル型を維持する。
 interface PetListOwnerNested {
   id: number;
   owner_number: number;
@@ -185,7 +184,7 @@ export const ownerLoader = async ({ params }: { params: Record<string, string | 
   const owner = await getOwner(id);
   const pets = await Promise.all(
     (owner.pets ?? []).map(async (pet) => {
-      const { data } = await axios.get<BackendPet>(`/v1/pets/${pet.id}`);
+      const { data } = await axios.get<PetResponse>(`/v1/pets/${pet.id}`);
       return transformBackendPetToFrontend(data);
     }),
   );

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 
 import { selectCohabitingPets } from "../hooks/use-medical-record-form";
 import { MedicalRecordStickyHeader } from "./MedicalRecordFormPanels";
@@ -33,7 +33,7 @@ vi.mock("./NextVisitButton", () => ({
 
 function makePet(overrides: Partial<Pet> = {}): Pet {
   return {
-    ...transformBackendPetToFrontend({} as BackendPet),
+    ...transformBackendPetToFrontend({} as PetResponse),
     id: "10",
     ownerId: "20",
     ownerName: "山田太郎",

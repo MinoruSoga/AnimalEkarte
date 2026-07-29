@@ -4,12 +4,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 
-type BackendPetList = Omit<BackendPet, "name_kana"> & {
-  /** GET /v1/pets の list DTO は detail DTO と異なる wire name を使う。 */
-  pet_name_kana: string;
-};
+/** GET /v1/pets list は detail より薄いが、共通フィールドは PetResponse と同形（pet_name_kana）。 */
+type BackendPetList = Omit<
+  PetResponse,
+  "version" | "phone" | "deceased_at" | "created_at" | "updated_at"
+>;
 
 interface PetListResponse {
   data: BackendPetList[];
@@ -34,9 +35,13 @@ interface GetPetsQueryOptions {
 }
 
 function transformBackendPetListToFrontend(pet: BackendPetList): Pet {
+  // list DTO は version/phone/timestamps を持たないため、detail 変換へ渡すときだけ既定値を補う。
   return transformBackendPetToFrontend({
     ...pet,
-    name_kana: pet.pet_name_kana,
+    version: 0,
+    phone: pet.owner?.phone ?? "",
+    created_at: "",
+    updated_at: "",
   });
 }
 
@@ -48,7 +53,7 @@ export function useGetPet(petId: string) {
   return useQuery({
     queryKey: queryKeys.pets.detail(petId),
     queryFn: async (): Promise<Pet> => {
-      const { data } = await axios.get<BackendPet>(`/v1/pets/${petId}`);
+      const { data } = await axios.get<PetResponse>(`/v1/pets/${petId}`);
       return transformBackendPetToFrontend(data);
     },
     enabled: !!petId,

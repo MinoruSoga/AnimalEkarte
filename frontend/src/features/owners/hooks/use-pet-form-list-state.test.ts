@@ -21,7 +21,7 @@ import {
 } from "@/lib/transforms/pet";
 import { ownersLoader } from "../loaders";
 import { usePetFormListState } from "./use-pet-form-list-state";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData } from "../types";
 
@@ -168,14 +168,15 @@ describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステー�
 
 describe("dangerReason shared transform contract", () => {
   it("staff pet response の danger_reason を dangerReason へマッピングする", () => {
-    const backendPet: BackendPet & { danger_reason?: string } = {
+    const backendPet: PetResponse = {
       id: 7,
+      version: 1,
       clinic_id: 1,
       owner_id: 42,
       animal_species_id: 1,
       pet_number: "42-1",
       name: "ポチ",
-      name_kana: "ぽち",
+      pet_name_kana: "ぽち",
       gender: "male",
       status: "alive",
       breed: "",
