@@ -64,11 +64,15 @@ func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
 	// mockInventoryRepository は inventory_service_test.go で定義済み（パッケージスコープ共有）
 	inventoryRepo := &mockInventoryRepository{
 		createFn: func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+			if item != nil && item.ID == 0 {
+				item.ID = 9001 // simulate GORM auto-increment for inventory_id link (MRC-02)
+			}
 			return nil // デフォルト: 在庫作成成功
 		},
 	}
 	// mockTransactor は trimming_service_test.go で定義済み（パッケージスコープ共有）
-	return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
+	// MRC-02: delete requires fail-closed audit dependency.
+	return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, okCarePlanAuditTx{})
 }
 
 func TestMedicineService_List(t *testing.T) {
@@ -242,8 +246,21 @@ func TestMedicineService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				createFn: func(_ context.Context, _ *model.Medicine) error {
+				createFn: func(_ context.Context, m *model.Medicine) error {
+					if tt.repoErr == nil && m != nil && m.ID == 0 {
+						m.ID = 42
+					}
 					return tt.repoErr
+				},
+				updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Medicine, error) {
+					// MRC-02 inventory_id link writeback after auto-create.
+					med := &model.Medicine{ID: id, Name: tt.input.Name, ClinicID: 1}
+					if inv, ok := fields[colMedicineInventoryID]; ok {
+						if invID, ok := inv.(uint64); ok {
+							med.InventoryID = &invID
+						}
+					}
+					return med, nil
 				},
 			}
 			svc := newTestMedicineService(repo)
@@ -256,6 +273,9 @@ func TestMedicineService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, medicine)
+				if medicine != nil {
+					assert.NotNil(t, medicine.InventoryID, "auto-created inventory must be linked (MRC-02)")
+				}
 			}
 		})
 	}

@@ -322,6 +322,15 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 			slog.ErrorContext(txCtx, "failed to create inventory item for medicine", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create inventory item for medicine")
 		}
+		// MRC-02: persist inventory_id so delete/rename use id not fragile name matching.
+		if inventoryItem.ID != 0 {
+			invID := inventoryItem.ID
+			medicine.InventoryID = &invID
+			if _, err := s.repo.Update(txCtx, clinicID, medicine.ID, map[string]any{colMedicineInventoryID: invID}); err != nil {
+				slog.ErrorContext(txCtx, "failed to link inventory item to medicine", "error", err, "clinic_id", clinicID, "medicine_id", medicine.ID)
+				return apperrors.Wrap(err, "failed to link inventory item to medicine")
+			}
+		}
 		// #201 B-2: per_weight 有効化は安全クリティカル設定変更 → 監査（fail-closed）。
 		if calcType == model.MedicineCalculationTypePerWeight {
 			if err := s.auditPerWeightEnableTx(txCtx, clinicID, input.ActorID, medicine.ID, nil, medicine); err != nil {
@@ -491,15 +500,62 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	}
 
 	// BUG-429: 薬剤削除と連携在庫削除をトランザクションでアトミックに実行
-	// BUG-381: Create 時に BUG-320 で自動生成した連携在庫もカスケード削除する。
+	// MRC-02: prefer medicines.inventory_id; fall back to name only for pre-link rows.
+	// MRC-02: fail-closed delete audit in the same transaction.
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("medicine delete audit dependency is required")
+	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Re-check usage inside tx to shrink MRC-07 TOCTOU window for medicine deletes.
+		if m.ParentID != nil {
+			usageCount, err := s.repo.CountUsageByMedicineID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to re-check medicine usage")
+			}
+			if usageCount > 0 {
+				return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
+			}
+		} else {
+			count, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to re-count medicine children")
+			}
+			if count > 0 {
+				return apperrors.WrapConflict(
+					fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を移動または削除してください", count),
+				)
+			}
+		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete medicine")
 		}
-		if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID)
+		if m.InventoryID != nil && *m.InventoryID != 0 {
+			if err := s.inventoryRepo.Delete(txCtx, clinicID, *m.InventoryID); err != nil {
+				// NotFound is acceptable for already-orphaned inventory; other errors fail closed.
+				if !apperrors.IsNotFound(err) {
+					slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID, "inventory_id", *m.InventoryID)
+					return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
+				}
+			}
+		} else if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine by name", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
+		}
+		resourceID := id
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorType:  auditActorTypeFor(nil),
+			Action:     "medicine.delete",
+			Resource:   model.AuditResourceMedicine,
+			ResourceID: &resourceID,
+			OldValue: map[string]any{
+				"id":           m.ID,
+				"name":         m.Name,
+				"inventory_id": m.InventoryID,
+			},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to audit medicine delete")
 		}
 		return nil
 	}); err != nil {

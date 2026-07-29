@@ -220,6 +220,8 @@ type medicineInventoryRepo interface {
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error
 	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
+	// Delete removes inventory by clinic-scoped id (MRC-02: link medicines.inventory_id).
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 // ── medical_record 本体/addendum consumer-side views (BE9-2D ⑦) ──

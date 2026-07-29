@@ -36,18 +36,19 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository {
 
 func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&procedures).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
 }
 
 func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	return persistence.FindByIDScoped[model.Procedure](ctx, r.db, "procedure", clinicID, id)
+	// MRC-07: ambient-tx participation for delete usage re-check under WithTx.
+	return persistence.FindByIDScoped[model.Procedure](ctx, persistence.DBOrTx(ctx, r.db), "procedure", clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.Procedure) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	wantActive := procedure.IsActive
 	if err := db.Create(procedure).Error; err != nil {
 		return apperrors.FromGORM(err, "procedure", "")
@@ -62,28 +63,29 @@ func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.P
 }
 
 func (r *procedureRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
+	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id)
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Procedure{}, "procedure", clinicID, id)
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
 // treatments/care_plan_items は直接 clinic_id を持たないため JOIN でテナント分離する
 func (r *procedureRepositoryImpl) CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error) {
 	var treatmentCount, carePlanCount int64
-	if err := r.db.WithContext(ctx).
+	db := persistence.DBOrTx(ctx, r.db)
+	if err := db.
 		Model(&model.Treatment{}).
 		Scopes(persistence.MedicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.procedure_id = ? AND treatments.deleted_at IS NULL", procedureID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
 	}
-	if err := r.db.WithContext(ctx).
+	if err := db.
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
 		Where("care_plan_items.procedure_id = ? AND care_plan_items.deleted_at IS NULL", procedureID).
@@ -100,7 +102,7 @@ func (r *procedureRepositoryImpl) Reorder(ctx context.Context, clinicID uint64, 
 // CountChildrenByParentID は指定した処置の子処置数を返す (BUG-390)
 func (r *procedureRepositoryImpl) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Procedure{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).

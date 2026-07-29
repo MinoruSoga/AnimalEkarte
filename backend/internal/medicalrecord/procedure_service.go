@@ -96,11 +96,13 @@ type ProcedureService interface {
 }
 
 type procedureService struct {
-	repo ProcedureRepository
+	repo       ProcedureRepository
+	transactor Transactor
 }
 
-func NewProcedureService(repo ProcedureRepository) ProcedureService {
-	return &procedureService{repo: repo}
+// NewProcedureService constructs ProcedureService with a Transactor for atomic delete (MRC-07).
+func NewProcedureService(repo ProcedureRepository, transactor Transactor) ProcedureService {
+	return &procedureService{repo: repo, transactor: transactor}
 }
 
 func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
@@ -210,28 +212,37 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get procedure")
+	// MRC-07: usage/children checks and soft-delete share one ambient transaction.
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("procedure write transaction dependency is required")
 	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count procedure children", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to count procedure children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この処置は子処置が存在するため削除できません")
-	}
-	count, err := s.repo.CountUsageByProcedureID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check procedure dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check procedure dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete procedure", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete procedure")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to get procedure")
+		}
+		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to count procedure children", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to count procedure children")
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この処置は子処置が存在するため削除できません")
+		}
+		count, err := s.repo.CountUsageByProcedureID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check procedure dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check procedure dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete procedure", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete procedure")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "procedure deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", id))
 	return nil

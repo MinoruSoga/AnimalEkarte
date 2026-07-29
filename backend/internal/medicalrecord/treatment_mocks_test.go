@@ -143,6 +143,10 @@ func (m *mockInventoryRepository) DeleteByNameAndMedicineCategory(_ context.Cont
 	return nil
 }
 
+func (m *mockInventoryRepository) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // mockMedicineDoseParamRepository は MedicineDoseParamRepository の full test double
 // （④b では doseParamFinder 部分集合だったが、⑥で dose_param service test が本 package へ
 // 移動したため full 実装へ拡張。nil fn の NotFound デフォルト維持）。

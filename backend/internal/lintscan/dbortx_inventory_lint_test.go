@@ -365,9 +365,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"owner/repository.go|ownerRepository.UpdateLineFollowedAt": {},
 	"owner/repository.go|ownerRepository.UpdateLineUserID":     {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":   {}, // BE8-4 batch7: moved from prescription_repository.go
-	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID": {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Update":   {}, // BE8-4 batch7: moved from prescription_repository.go
+	// procedure (MRC-07 ambient tx for delete usage check)
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindAll":                 {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindByID":                {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Create":                  {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Update":                  {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Delete":                  {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountUsageByProcedureID": {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountChildrenByParentID": {},
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":                {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID":              {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Update":                {}, // BE8-4 batch7: moved from prescription_repository.go
 	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go

@@ -118,7 +118,7 @@ func TestProcedureService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.Procedure) error { *created = true; return nil },
 		}
-		return NewProcedureService(repo)
+		return NewProcedureService(repo, &mockTransactor{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.Procedure{ID: id}, nil
 			},
 		}
-		return NewProcedureService(repo)
+		return NewProcedureService(repo, &mockTransactor{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {

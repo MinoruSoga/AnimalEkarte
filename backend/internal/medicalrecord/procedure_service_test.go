@@ -183,7 +183,7 @@ func TestProcedureService_List(t *testing.T) {
 					return tt.repoProcedures, tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			procedures, err := svc.List(context.Background(), 1)
 
@@ -232,7 +232,7 @@ func TestProcedureService_GetByID(t *testing.T) {
 					return tt.repoProcedure, tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			procedure, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -334,7 +334,7 @@ func TestProcedureService_Create(t *testing.T) {
 					return &model.Procedure{ID: id}, nil
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			procedure, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -447,7 +447,7 @@ func TestProcedureService_Update(t *testing.T) {
 					return &model.Procedure{ID: 1}, nil
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			procedure, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -467,7 +467,7 @@ func TestProcedureService_Update(t *testing.T) {
 
 func TestProcedureService_Update_NilInput(t *testing.T) {
 	repo := &mockProcedureRepository{}
-	svc := NewProcedureService(repo)
+	svc := NewProcedureService(repo, &mockTransactor{})
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -577,7 +577,7 @@ func TestProcedureService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -634,7 +634,7 @@ func TestProcedureService_Reorder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo)
+			svc := NewProcedureService(repo, &mockTransactor{})
 
 			err := svc.Reorder(context.Background(), tt.clinicID, tt.ids)
 

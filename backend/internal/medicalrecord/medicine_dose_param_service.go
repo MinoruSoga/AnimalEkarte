@@ -96,84 +96,85 @@ func (s *medicineDoseParamService) List(ctx context.Context, clinicID, medicineI
 }
 
 func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicineID uint64, input *MedicineDoseParamInput, actorID *uint64) (*model.MedicineDoseParam, error) {
-	// P1: 親 medicine の所有権/存在確認（別 clinic → NotFound・IDOR 遮断）。
-	med, err := s.medRepo.FindByID(ctx, clinicID, medicineID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find medicine")
-	}
-	// 医療安全ガード①: dose param は per_weight 専用。none 薬剤への設定を拒否（誤 per_weight 保存防止）。
-	if med.CalculationType != model.MedicineCalculationTypePerWeight {
-		return nil, apperrors.WrapInvalidInput("この薬剤は per_weight 計算ではないため投与量パラメータを設定できません")
-	}
-	// 医療安全ガード②: 親 medicine の単位/含量整合を再検証（互換しない unit・strength 欠落を弾く）。
-	if err := ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, med.Strength, med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate dose config")
-	}
-	// 医療安全ガード③: 行検証（default-deny / range / 上限必須 / 丸めペア）。
+	// 医療安全ガード③: 行検証（default-deny / range / 上限必須 / 丸めペア）は DB 非依存なので先に実行。
 	if err := ValidateMedicineDoseParamInput(input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose param input")
 	}
 
-	existing, findErr := s.repo.FindByMedicineAndSpecies(ctx, clinicID, medicineID, input.Species)
-	switch {
-	case findErr == nil:
-		var updated *model.MedicineDoseParam
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	// MRC-03: parent per_weight / ownership / existing row checks share the write transaction
+	// so concurrent medicine type flips cannot pass a stale pre-tx validation.
+	var result *model.MedicineDoseParam
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		med, err := s.medRepo.FindByID(txCtx, clinicID, medicineID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to find medicine")
+		}
+		if med.CalculationType != model.MedicineCalculationTypePerWeight {
+			return apperrors.WrapInvalidInput("この薬剤は per_weight 計算ではないため投与量パラメータを設定できません")
+		}
+		if err := ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, med.Strength, med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
+			return apperrors.Wrap(err, "failed to validate dose config")
+		}
+		existing, findErr := s.repo.FindByMedicineAndSpecies(txCtx, clinicID, medicineID, input.Species)
+		switch {
+		case findErr == nil:
 			fields := buildDoseParamReplaceFields(input)
-			var txErr error
-			updated, txErr = s.repo.Update(txCtx, clinicID, existing.ID, fields)
+			updated, txErr := s.repo.Update(txCtx, clinicID, existing.ID, fields)
 			if txErr != nil {
 				slog.ErrorContext(txCtx, "failed to update medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to update medicine dose param")
 			}
-			return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, updated.ID, existing, updated)
-		}); err != nil {
-			return nil, err
-		}
-		return updated, nil
-	case apperrors.IsNotFound(findErr):
-		param := &model.MedicineDoseParam{
-			ClinicID:        clinicID,
-			MedicineID:      medicineID,
-			Species:         input.Species,
-			DoseBasis:       input.DoseBasis,
-			DosePerKg:       input.DosePerKg,
-			MinMgPerKg:      input.MinMgPerKg,
-			MaxMgPerKg:      input.MaxMgPerKg,
-			AbsoluteMaxDose: input.AbsoluteMaxDose,
-			RoundingStep:    input.RoundingStep,
-			RoundingMode:    input.RoundingMode,
-			Notes:           input.Notes,
-		}
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if err := s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, updated.ID, existing, updated); err != nil {
+				return err
+			}
+			result = updated
+			return nil
+		case apperrors.IsNotFound(findErr):
+			param := &model.MedicineDoseParam{
+				ClinicID:        clinicID,
+				MedicineID:      medicineID,
+				Species:         input.Species,
+				DoseBasis:       input.DoseBasis,
+				DosePerKg:       input.DosePerKg,
+				MinMgPerKg:      input.MinMgPerKg,
+				MaxMgPerKg:      input.MaxMgPerKg,
+				AbsoluteMaxDose: input.AbsoluteMaxDose,
+				RoundingStep:    input.RoundingStep,
+				RoundingMode:    input.RoundingMode,
+				Notes:           input.Notes,
+			}
 			if txErr := s.repo.Create(txCtx, clinicID, param); txErr != nil {
 				slog.ErrorContext(txCtx, "failed to create medicine dose param", "error", txErr, "medicine_id", medicineID, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to create medicine dose param")
 			}
-			return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, param.ID, nil, param)
-		}); err != nil {
-			return nil, err
+			if err := s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, param.ID, nil, param); err != nil {
+				return err
+			}
+			result = param
+			return nil
+		default:
+			slog.ErrorContext(txCtx, "failed to lookup medicine dose param", "error", findErr, "medicine_id", medicineID, "clinic_id", clinicID)
+			return apperrors.Wrap(findErr, "failed to lookup medicine dose param")
 		}
-		return param, nil
-	default:
-		slog.ErrorContext(ctx, "failed to lookup medicine dose param", "error", findErr, "medicine_id", medicineID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(findErr, "failed to lookup medicine dose param")
+	}); err != nil {
+		return nil, err
 	}
+	return result, nil
 }
 
 func (s *medicineDoseParamService) Delete(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies, actorID *uint64) error {
 	if !model.ValidMedicineDoseSpecies(species) {
 		return apperrors.WrapInvalidInput("species は dog または cat である必要があります")
 	}
-	// P1: 親 medicine の所有権/存在確認（別 clinic → NotFound・IDOR 遮断）。
-	if _, err := s.medRepo.FindByID(ctx, clinicID, medicineID); err != nil {
-		return apperrors.Wrap(err, "failed to find medicine")
-	}
-	existing, err := s.repo.FindByMedicineAndSpecies(ctx, clinicID, medicineID, species)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find medicine dose param")
-	}
+	// MRC-03: ownership + row lookup re-checked inside the delete transaction.
 	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.medRepo.FindByID(txCtx, clinicID, medicineID); err != nil {
+			return apperrors.Wrap(err, "failed to find medicine")
+		}
+		existing, err := s.repo.FindByMedicineAndSpecies(txCtx, clinicID, medicineID, species)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to find medicine dose param")
+		}
 		if txErr := s.repo.Delete(txCtx, clinicID, existing.ID); txErr != nil {
 			slog.ErrorContext(txCtx, "failed to delete medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
 			return apperrors.Wrap(txErr, "failed to delete medicine dose param")

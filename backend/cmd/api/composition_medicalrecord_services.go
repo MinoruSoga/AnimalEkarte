@@ -54,7 +54,7 @@ func newMedicalRecordMasterServices(
 ) medicalRecordMasterServices {
 	return medicalRecordMasterServices{
 		consultations: medicalrecord.NewConsultationService(r.consultations),
-		procedures:    medicalrecord.NewProcedureService(r.procedures),
+		procedures:    medicalrecord.NewProcedureService(r.procedures, d.Transactor),
 		medicines: medicalrecord.NewMedicineServiceWithAudit(
 			r.medicines,
 			d.Inventory,
