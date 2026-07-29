@@ -196,247 +196,14 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-28 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-28 時点: PO 判断待ち 11 件 — DEC-29〜39 は BE refactor 着手前決裁として未回答。DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>。<b>DEC-25 のみ同日 USER 再裁定で「通知実装なし・運用カバー」へ変更</b> — OPS-19/TASK-443 は撤回・BUG-435 はクローズ）。残 = DEC-29〜39（BE refactor 着手前決裁）・OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-29 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-29 時点: PO 判断待ち 2 件 — DEC-42/43 は DEC-30/35 の再審として未回答。DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>。<b>DEC-25 のみ同日 USER 再裁定で「通知実装なし・運用カバー」へ変更</b> — OPS-19/TASK-443 は撤回・BUG-435 はクローズ）。残 = DEC-42/43（DEC-30/35 再審）・OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
   </header>
 
-  <p class="summary">PO 判断待ちカード: 現在 11 件（DEC-29〜39、BE refactor 着手前決裁）— 回答済みカード 51 件（PO-001〜008・SD-1〜19・GAP-1/2・DEC-1〜28）は削除済み（DEC-23〜28 は 2026-07-27 に全て A で裁定・同日削除、カード原文 = <code>4189eda9b</code>）。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
+  <p class="summary">PO 判断待ちカード: 現在 2 件（DEC-42/43、DEC-30/35 の再審）。回答済みカードは削除済み（DEC-23〜28 は 2026-07-27 に全て A で裁定・同日削除、カード原文 = <code>4189eda9b</code>）。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
 
 <div class="po-ops">
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
-<h2 id="be-refactor-decisions">BE refactor — 着手前決裁（11 件）</h2>
-<p class="section-intro">live 所見を実装ユニットへ割り当てる前に、PO 判断が必要な境界だけを集約する。各カードは未回答であり、推奨は決裁そのものではない。</p>
-
-<article class="task" id="dec-29" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-29</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">clinic-scoped 子テーブルの clinic_id 省略条件</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 2 ／ <code>MDL-06</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">親 FK で単一 clinic への所属を保証できる子テーブルは、どの条件で <code>clinic_id</code> の非正規化を省略できるか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> 親相関 FK があり、全 read/write/count/preload が clinic 相関 lint の登録対象である場合だけ省略可。未登録なら <code>clinic_id NOT NULL</code> と複合 FK を要求する。<br>
-<strong>B.</strong> clinic-scoped 業務データは階層にかかわらず <code>clinic_id NOT NULL</code> と複合 FK を必須とする。</p>
-    <div class="rec"><strong>推奨: A</strong> — 二重保持を増やさず、機械 gate を省略条件にすることで tenant isolation を fail-closed にできる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>MDL-06</code>。<strong>未決裁時:</strong> Payment 系へ <code>clinic_id</code> を追加する案と、親相関 lint を追加する案のどちらを所有パスと完了条件にするか確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-30" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-30</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">global Lステップ設定の write model</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 3 ／ <code>LSA-04</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">clinic 権限で変更される Lステップ設定行は clinic-scoped にするか、platform global として管理するか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> <code>clinic_id</code> を追加し、clinic ごとの設定へ移行する。<br>
-<strong>B.</strong> global 行を維持し、write を platform-admin 専権へ変更する。</p>
-    <div class="rec"><strong>推奨: A</strong> — 現行の hospital-settings 操作モデルと整合し、ある clinic の操作が他 clinic の自動化を変える経路を除去できる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>LSA-04</code>。<strong>未決裁時:</strong> schema migration と authorization-only 修正のどちらを所有パスに含めるか確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-31" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-31</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">global shared master の write owner</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 5 ／ <code>POC-07</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text"><code>animal_species</code> 等の全 clinic 共有 master を誰が変更できるべきか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> platform-admin のみが変更可能。全変更を監査し、clinic role からの write route を閉じる。<br>
-<strong>B.</strong> clinic role の変更を許容する。ただし全 tenant 使用中検査と fail-closed 監査を必須にする。</p>
-    <div class="rec"><strong>推奨: A</strong> — clinic-scoped 権限で global fact を変更できる境界をなくす方が authorization と tenant isolation を単純化できる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>POC-07</code>。<strong>未決裁時:</strong> route authorization、全 tenant 使用中検査、監査のどれを必須範囲とするか確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-32" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-32</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">同期 HTTP の subrecord 失敗 contract</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 7 ／ <code>MRC-04</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">カルテ本体成功後に subrecord が失敗した場合、同期 HTTP endpoint は何を返すか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> 全体を同一 transaction に入れ、subrecord 失敗時は rollback して成功を返さない。<br>
-<strong>B.</strong> 本体成功を維持し、response に部分失敗を明示し、durable audit と retry 経路を必須にする。</p>
-    <div class="rec"><strong>推奨: A</strong> — 主訴・診断等の臨床記録では caller が保存成功を誤認しない原子 contract を優先する。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>MRC-04</code>。<strong>未決裁時:</strong> transaction 化と response/audit/retry 追加で API contract と所有パスが分岐し、実装形を確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-33" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-33</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">締め後「会計編集」の対象範囲</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 9 ／ <code>BIL-01</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">締め後ゲートは <code>billings</code> 直接更新だけでなく、金額を導出する子行 write にも適用するか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> <code>billing_items</code>、<code>payments</code>、<code>payment_splits</code>、<code>billing_refunds</code> を含む金額導出 write 全てに適用する。<br>
-<strong>B.</strong> <code>billings</code> 直接更新だけに適用し、子行は既存 authorization のままにする。</p>
-    <div class="rec"><strong>推奨: A</strong> — 締め snapshot と日次・月次再集計の不一致を同じ post-close 権限・理由・監査で防止できる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>BIL-01</code>。<strong>未決裁時:</strong> billing child write へ post-close gate と fail-closed audit を加えることが完了条件か確定しない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-34" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-34</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">型を公開しない driver error の分類</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 10 ／ <code>INF-04</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">upstream が sentinel/type を公開しない driver error を message で分類してよいか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> 外部 driver 境界に限定し、対象文言・根拠・回帰 test を ADR/invariant に登録した場合だけ許可する。<br>
-<strong>B.</strong> message 分類を禁止し、型判定不能な error は stable generic error に落とす。</p>
-    <div class="rec"><strong>推奨: A</strong> — 既存の client-correctable 分類を保ちつつ、例外面を限定して upstream 文言 drift を test で検知できる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>INF-04</code>。<strong>未決裁時:</strong> message match を削除する案と、限定例外として文書化・test 固定する案のどちらを完了条件にするか確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-35" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-35</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">best-effort を宣言できる最低条件</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 11 ／ <code>LSA-03</code>, <code>LSA-10</code>, <code>LSA-11</code>, <code>LSA-12</code>, <code>LSB-02</code>, <code>LSB-04</code>, <code>MRC-04</code>, <code>RSV-09</code>, <code>INF-06</code>, <code>CMD-03</code>, <code>CMD-07</code>, <code>G2B-01</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">error を caller へ返さず処理継続できる best-effort の最低条件は何か。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> business fact を不整合にしない、次回実行で必ず収束できる、失敗が durable result/audit に計上される、の全条件を必須にする。<br>
-<strong>B.</strong> durable failure record と retry 手段だけを必須にし、補償・部分成功 response は call site ごとに選択する。</p>
-    <div class="rec"><strong>推奨: A</strong> — silent success と再試行不能を機械的に除外でき、単なる <code>slog</code> を成功根拠にしない。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>LSA-03</code>, <code>LSA-10</code>, <code>LSA-11</code>, <code>LSA-12</code>, <code>LSB-02</code>, <code>LSB-04</code>, <code>MRC-04</code>, <code>RSV-09</code>, <code>INF-06</code>, <code>CMD-03</code>, <code>CMD-07</code>, <code>G2B-01</code>。<strong>未決裁時:</strong> error 伝播、durable retry、observability-only のどれを各 unit の完了条件にするか統一できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-36" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-36</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">/_internal route の edge 依存</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 14 ／ <code>CMD-02</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">edge が public access を遮断する <code>/_internal</code> route は Go application 内でも認証・認可を必須にするか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> Go 側でも fail-closed authentication/authorization を必須にする。<br>
-<strong>B.</strong> edge-only 強制を許可するが、route inventory、強制主体の file reference、edge bypass test を必須にする。</p>
-    <div class="rec"><strong>推奨: A</strong> — 全 clinic batch のような高影響 route は deployment topology に依存しない defense-in-depth が安全である。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>CMD-02</code>。<strong>未決裁時:</strong> Go middleware を追加する案と worker inventory/test だけを追加する案のどちらを正とするか確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-37" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-37</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">JSON body 上限の適用単位</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 17 ／ <code>INF-02</code>, <code>POC-12</code>, <code>TRM-03</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">通常 JSON endpoint の raw request body 上限をどこで強制するか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> protected route group の共通 middleware で sanitization 前 raw byte 上限を強制し、より小さい endpoint だけ上書きする。<br>
-<strong>B.</strong> 各 handler が個別に <code>MaxBytesReader</code> 相当を設定する。</p>
-    <div class="rec"><strong>推奨: A</strong> — 未設定 handler と middleware 順序 drift を一つの gate で防げる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>INF-02</code>, <code>POC-12</code>, <code>TRM-03</code>。<strong>未決裁時:</strong> middleware と各 domain handler が同じ path を別 unit で所有し、非重複 unit 境界を確定できない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-38" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-38</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">自動化の停止粒度</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 23 ／ <code>LSA-02</code>, <code>LSB-01</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">自動配信の停止要件は clinic-wide stop に加えて data-subject opt-out を含むか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> clinic stop と subject opt-out の両方を必須とし、opt-out を全配信 consumer の write-time predicate に含める。<br>
-<strong>B.</strong> 規約上の停止は clinic-wide のみとし、subject opt-out は別 contract として対象経路を個別指定する。</p>
-    <div class="rec"><strong>推奨: A</strong> — opt-out business evidence を外部タグ同期の成否に依存せず fail-closed に評価できる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>LSA-02</code>, <code>LSB-01</code>。<strong>未決裁時:</strong> owner state の直接評価を全経路へ追加することが完了条件か確定しない。</div>
-  </div>
-</article>
-
-<article class="task" id="dec-39" data-status="unanswered">
-  <div class="task-head">
-    <span class="qno">DEC-39</span>
-    <span class="badge category">BE refactor</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: execution-readiness</span>
-    <h3 class="task-title">clinic-scoped repository write の ambient transaction</h3>
-  </div>
-  <div class="task-body">
-    <p class="section-label">関係箇所 / live 所見</p>
-    <p class="qa-text"><code>BE-refactor.md</code> 規約側疑義 28 ／ <code>TRM-09</code></p>
-    <p class="section-label">決裁事項</p>
-    <p class="qa-text">clinic-scoped repository write は既定で ambient transaction に参加すべきか。</p>
-    <p class="section-label">選択肢</p>
-    <p class="qa-text"><strong>A.</strong> 既定で <code>DBOrTx</code> 相当を通し、非参加は doc comment と lint allowlist で明示する。<br>
-<strong>B.</strong> caller が transaction を必要とする場合だけ opt-in し、通常 write は repository の base DB を使う。</p>
-    <div class="rec"><strong>推奨: A</strong> — 将来 caller が <code>WithTx</code> 化されたときに write が黙って transaction 外へ逃げる contract drift を防げる。</div>
-    <div class="need"><strong>着手ブロック:</strong> <code>TRM-09</code>。<strong>未決裁時:</strong> trimming master repository を <code>DBOrTx</code> へ統一する修正の正当性と lint gate を確定できない。</div>
-  </div>
-</article>
-
+<p class="section-intro">DEC-29〜39 は 2026-07-28 に USER が全件 A で裁定済みのため削除済み（根拠 commit = <code>044f41726</code>）。</p>
 <h2 id="issue-251-u2b-full-rulings">#251 U2b-full 第2段 — 代理決裁（8 論点）</h2>
 <p class="section-intro">本カードは USER 本人の裁定ではなく、委任代行による代理決裁である。USER が覆せる。</p>
 
@@ -504,6 +271,82 @@
   </div>
 </article>
 
+<h2 id="issue-261-ruling">#261 臨床安全・画面仕様ギャップ — 判定結果</h2>
+<p class="section-intro">2026-07-29・代理判定。</p>
+
+<article class="task" id="dec-41" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-41</span>
+    <span class="badge category">臨床安全 / #261</span>
+    <span class="badge status">代理決裁済み・USER 承認待ち</span>
+    <span class="asker">起票: #261 ／ 判定: 2026-07-29・代理判定</span>
+    <h3 class="task-title">臨床安全・画面仕様ギャップの判定結果</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">内訳</p>
+    <p class="qa-text"><strong>対象消失 13 件 / 実装する 2 件 / 判定不能 1 件 / 削除する 0 件 / 臨床責任者への返却 0 件</strong>（判定対象は GAP-1・GAP-2 と SD 14 件の計 16 件。SD-10 は臨床安全枠との重複）。</p>
+
+    <p class="section-label">対象消失 13 件</p>
+    <p class="qa-text">臨床安全 = GAP-1（カルテ確定 Lock UI）・GAP-2（検査権限 seed）・SD-10（死亡ペット入院 API）／機能不全 = SD-3・SD-15／PO 判断 = SD-6・SD-9・SD-13・SD-17／UX 表示 = SD-11・SD-12・SD-16・SD-18。</p>
+
+    <p class="section-label">実装する 2 件</p>
+    <p class="qa-text"><strong>SD-4（在庫アラート）</strong>: アラート・filter は導出済みだが、<code>inventory_request.go:45,82</code> と <code>inventory_service.go:69-70,121-140</code> に<strong>死んだ保存 status が残存</strong>。原裁定の「status を保存せず二重管理を作らない」が未達。<br>
+    責任者: @MinoruSoga（技術担当個人は実装 Issue 化前に指名が必要）／業務目的: <code>quantity</code>・<code>min_stock_level</code> を唯一の真実源とし、アラート・filter と保存値の矛盾をなくす／安全条件: clinic scope と在庫行・数量を維持。API consumer / backward compatibility を確認してから死んだ status 入力・write・schema を除去／計測指標: client 指定 status write 経路 0、保存 status 参照 0、<code>quantity=0</code> ／ <code>&lt;=min</code> ／ <code>&gt;min</code> の導出テスト</p>
+    <p class="qa-text"><strong>SD-19（JST 日付）</strong>: 表示用は JST 化済みだが、<code>use-pet-vaccinations.ts:24</code> の期限判定用 <code>nextDate</code> が <code>split("T")[0]</code> のまま。<strong>UTC 境界で表示日と upcoming/overdue 判定日が 1 日ずれ得る。</strong><br>
+    責任者: @MinoruSoga（同上）／業務目的: 飼主レポートの表示日と接種期限判定日を、閲覧ブラウザ TZ に依存しない同一 JST 日付にする／安全条件: 欠損・不正な <code>next_date</code> は期限対象にしない。表示と summary が同一の JST 変換を使用／計測指標: UTC 境界 fixture で表示日 = <code>nextDate</code>、複数 TZ で同結果、upcoming/overdue の 1 日乖離 0</p>
+
+    <p class="section-label">判定不能 1 件</p>
+    <p class="qa-text"><strong>SD-14（LINE 紐付け）</strong> — <code>clinic_id</code> 付き URL と FE 発行導線は実装済みだが、原文の完了条件が E2E 成立であり、<strong>STG 実機 E2E（OPS-4）が未報告</strong>。静的コードだけでは「対象消失」を証明できず「実装する」とも断定できない。</p>
+
+    <p class="section-label">未完として残る USER 操作</p>
+    <p class="qa-text">OPS-2（DB reset 後に GAP-2 / S02 を実測）・OPS-3（STG/本番で SD-9 の既存 0-rule グループを監査）・OPS-4（SD-14 の STK 実機 E2E）。<strong>GAP-2 と SD-9 は「ソース上は解消、DB 適用は未報告」であり、消失と完了を混同しない。</strong></p>
+    <div class="need"><strong>横断残件:</strong> <code>phase2.html:197</code> の予約 admin・trimming・LIFF における死亡ペット guard は未解決。<strong>SD-10 の対象消失をこの横断監査の完了と読み替えてはならない。</strong></div>
+  </div>
+</article>
+
+<h2 id="decision-reconsiderations">再審が要る 2 件（2026-07-29・勧告）</h2>
+<p class="section-intro">両件とも現時点では選択肢 A が有効な裁定である。以下は再審の提案であり、A を取り消すものではない。</p>
+
+<article class="task" id="dec-42" data-status="unanswered">
+  <div class="task-head">
+    <span class="qno">DEC-42</span>
+    <span class="badge category">再審 / DEC-30</span>
+    <span class="badge status">PO 判断待ち</span>
+    <span class="asker">起票: 2026-07-29・再審勧告</span>
+    <h3 class="task-title">DEC-30（global Lステップ設定の write model）の再審</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">現在有効な裁定</p>
+    <p class="qa-text"><strong>A</strong> =「<code>clinic_id</code> を追加し、clinic ごとの設定へ移行する。」</p>
+    <p class="section-label">再審が要る理由</p>
+    <p class="qa-text"><strong>実装は B 相当</strong>（<code>lstep/routes.go:51,173</code> が全 mutation を system_admin 専権、<code>001_init.sql:619</code> は 3 テーブルとも <code>clinic_id</code> なしの global schema）。repository / consumer にも clinic context がない。<strong>A と実装の差は局所的な取りこぼしではなく、schema・repository・全 consumer に及ぶ ownership model の不一致。</strong></p>
+    <p class="section-label">USER への質問</p>
+    <p class="qa-text">「現行 A のまま 3 種の global automation master を clinic ごとに複製し、schema・repository・全 consumer を clinic-scoped 化することで生じる設定重複と drift を受け入れますか。それとも、新カードで B『global 行を維持し、write を platform-admin 専権』を正式裁定にしますか。」</p>
+    <div class="rec"><strong>推奨: B</strong>。現行実装と consumer ownership に一致し、clinic 間影響を権限境界だけで除去でき、二重管理を増やさないため。</div>
+    <div class="need"><strong>A へ実装追随させる場合の影響:</strong> 3 テーブルの migration/backfill、repository、consumer、route、UI の clinic-scoping が必要。</div>
+  </div>
+</article>
+
+<article class="task" id="dec-43" data-status="unanswered">
+  <div class="task-head">
+    <span class="qno">DEC-43</span>
+    <span class="badge category">再審 / DEC-35</span>
+    <span class="badge status">PO 判断待ち</span>
+    <span class="asker">起票: 2026-07-29・再審勧告</span>
+    <h3 class="task-title">DEC-35（best-effort を宣言できる最低条件）の再審</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">現在有効な裁定</p>
+    <p class="qa-text"><strong>A</strong> =「business fact を不整合にしない、次回実行で必ず収束できる、失敗が durable result/audit に計上される、の全条件を必須にする。」</p>
+    <p class="section-label">再審が要る理由</p>
+    <p class="qa-text">元所見 <code>LSA-03</code> は <code>lstep_batch_segmentation.go:18</code> で収束済み。一方 <code>backend/CODING_RULES.md:44</code> は batch・saga・非権威的な副次効果を<strong>明示的に区別</strong>しており、cache/counter cleanup は主契約非反転＋log＋収束/補償を採用している（<code>lstep_lifecycle_service.go:320</code>）。<strong>A の「全条件」「必ず次回収束」を軽微な副次効果へ一律適用すると durable job/audit の過剰実装になる。黙って弱く解釈すると silent swallow を再導入する。</strong></p>
+    <p class="section-label">USER への質問</p>
+    <p class="qa-text">「<code>DEC-35</code> A の 3 条件を全 best-effort に一律適用せず、①business fact・multi-item batch は durable result/audit と再試行・再評価を必須、②external saga は補償または retry evidence と部分失敗 contract を必須、③主契約を反転しない軽微な副次効果は error log と収束・補償方針を必須とする段階契約へ再裁定しますか。」</p>
+    <div class="rec"><strong>推奨: 段階契約</strong>。silent success を禁止したまま、cache/counter cleanup まで durable job 化する過剰実装を避けられるため。</div>
+    <div class="need"><strong>実装上の要件:</strong> 段階境界を「business fact / batch / saga / non-authoritative side effect」で機械判定できるよう、新カード本文で定義する必要がある。</div>
+  </div>
+</article>
+
 <h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
 <table>
@@ -525,7 +368,7 @@
 <article class="task" data-task="OPS-2">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title"><code>DB_RESET=true</code> 再適用（ローカル→STG）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、現行DDLは001単一file。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は <code>58c653df5</code> で修正、<code>39e7b5f7b</code> で旧台帳から削除済み。次回シナリオ再実行は OPS-5 の S05 で追跡する。</p>
+  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、直下の現行 DDL 在庫は <code>ls backend/migrations/*.sql</code> の実測を正とする。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は <code>58c653df5</code> で修正、<code>39e7b5f7b</code> で旧台帳から削除済み。次回シナリオ再実行は OPS-5 の S05 で追跡する。</p>
 </article>
 
 <article class="task" data-task="OPS-3">
@@ -605,7 +448,7 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <article class="task" data-task="OPS-13">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-13 (BE9 L⑤)</span></label><h3 class="task-title">統合済み <code>001_init.sql</code> の fresh DB 実適用（旧002節 release gate）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">BE9 L⑤ のDDLは、統合済み <code>001_init.sql</code> 末尾の旧002アーカイブブロック（原文・元commit・SHA-256付き）に現存する。統合001を fresh DB へ実適用し、runner記録・checksum・rollback方針を確認する（統合前001が適用済みのDBはchecksum mismatchになるため、<code>DB_RESET=true</code> 相当のUSER手動再構築が必須。現行STG workflowに自動reset経路なし）。OPS-2と同一実行で兼ねてよい。完了条件: fresh適用green + <code>schema_migrations</code> 4行（DDL1+seed3）+ rollback方針確認。完了まではBE9 L⑤はrelease pending（経緯はgit履歴、境界の正本はADR-006）。完了後のエージェント作業: 本カードをチェック済みへ更新し、release evidenceを記録する。</p>
+  <p class="task-desc">BE9 L⑤ のDDLは、統合済み <code>001_init.sql</code> 末尾の旧002アーカイブブロック（原文・元commit・SHA-256付き）に現存する。統合001を fresh DB へ実適用し、runner記録・checksum・rollback方針を確認する（統合前001が適用済みのDBはchecksum mismatchになるため、<code>DB_RESET=true</code> 相当のUSER手動再構築が必須。現行STG workflowに自動reset経路なし）。OPS-2と同一実行で兼ねてよい。完了条件: fresh適用green + <code>ls backend/migrations/*.sql</code> で実測した現行 DDL と seed bundle の期待キーが <code>schema_migrations</code> に揃い、runner の <code>Migration key coverage</code> が <code>missing=0</code> + rollback方針確認。完了まではBE9 L⑤はrelease pending（経緯はgit履歴、境界の正本はADR-006）。完了後のエージェント作業: 本カードをチェック済みへ更新し、release evidenceを記録する。</p>
 </article>
 
 <article class="task" data-task="OPS-14">
