@@ -2768,7 +2768,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/... -run 'DeliveryTrigger|DeliveryMonitor'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 445754040c88e44ffc93b679f6a2d58db01f474e
 
 ##### U-X05-OWNER-PHONE
 
