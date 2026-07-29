@@ -3045,7 +3045,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./cmd/coverage-ratchet/...`
 - 既知台帳: none
 - Size: M (3/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: 550d87a35708b3a00cbd2ea9d5f0ee4e8bab4828
 
 ##### U-X04-LSTEP-BATCH
 
