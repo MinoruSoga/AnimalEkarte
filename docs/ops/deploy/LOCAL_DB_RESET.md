@@ -35,23 +35,39 @@ docker volume rm ekarte-postgres-data
 # 再びコンテナを起動
 make up
 ```
-起動時に旧増分002〜009を末尾へ統合済みの `001_init.sql` が単一DDLとして適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。2026-07-27統合前の001が適用済みのDBはchecksum mismatchになるため、この再構築が必須です。
+起動時に `backend/migrations/` 直下の `*.sql` がファイル名昇順で適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。直下 DDL の本数は固定ではない。検算:
+
+```bash
+ls backend/migrations/*.sql
+```
+
+2026-07-27統合前の001が適用済みのDBはchecksum mismatchになるため、この再構築が必須です。
 
 ---
 
 ## 3. 正常終了の確認
-バックエンドのログに以下の表示が出れば、再構築は完了です。
+
+適用対象の直下 DDL 本数は固定ではない。先に数える:
+
+```bash
+ls backend/migrations/*.sql
+```
+
+バックエンドのログでは、**直下の各 DDL ファイルごとに** 1 行の `Migration completed file=<ファイル名>` が出たあと、サマリが出る（1 本だけの例を正常終了の条件にしない）。形:
 
 ```text
-Migration completed file=001_init.sql
-Migration summary applied=1 skipped=0 total=1
+Migration completed file=<各トップレベル *.sql のファイル名>
+…（`ls backend/migrations/*.sql` の件数ぶん並ぶ）
+Migration summary applied=N skipped=0 total=N
 Seed bundle loaded bundle=002_master
 Seed bundle loaded bundle=003_demo
 Seed bundle loaded bundle=004_staging
 Seed bundle summary applied=3 skipped=0 total=3
 ```
 
-`schema_migrations` テーブルは最終的に4行（`001_init.sql` / `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）になります。
+ここで `N` は `ls backend/migrations/*.sql` の件数。
+
+`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 3**（キーは各 DDL ファイル名と `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）。検算は上記 `ls` の件数に 3 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。
 
