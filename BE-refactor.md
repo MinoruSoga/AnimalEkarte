@@ -2305,7 +2305,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/medicalrecord/... -run 'TreatmentPlan'`
 - 既知台帳: none
 - Size: L (8/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-3 ｜ 完了 commit: 9f3390d08d8e4378b62422a71da09962c03ba7f6
 
 ##### 共有所有 barrier U-SCHEMA-BARRIER
 
