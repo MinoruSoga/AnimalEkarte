@@ -2913,7 +2913,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/owner/... -run 'Request|Email|Phone|Postal'`
 - 既知台帳: none
 - Size: M (5/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: PENDING
+- Status: 完了 ｜ 担当レーン: LANE-2 ｜ 完了 commit: e60d6609a6c4b09a5be0322d592c084af8f2c84e
 
 ##### U-X02-LSTEP-AGGREGATION
 
