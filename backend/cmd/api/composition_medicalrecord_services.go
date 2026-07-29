@@ -68,7 +68,7 @@ func newMedicalRecordMasterServices(
 			auditTx,
 		),
 		cages:          medicalrecord.NewCageService(r.cages),
-		treatmentPlans: medicalrecord.NewTreatmentPlanService(r.treatmentPlans),
+		treatmentPlans: medicalrecord.NewTreatmentPlanService(r.treatmentPlans, d.Transactor),
 	}
 }
 

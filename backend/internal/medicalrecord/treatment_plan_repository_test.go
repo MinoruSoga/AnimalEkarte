@@ -183,7 +183,7 @@ func TestTreatmentPlanRepository_FindByID(t *testing.T) {
 	})
 
 	t.Run("soft-deleted plan is not found", func(t *testing.T) {
-		require.NoError(t, repo.Delete(ctx, clinicA, plan.ID))
+		require.NoError(t, repo.Delete(ctx, clinicA, plan.ID, nil, nil))
 		got, err := repo.FindByID(ctx, clinicA, plan.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -217,20 +217,34 @@ func TestTreatmentPlanRepository_Update(t *testing.T) {
 	plan := makeTreatmentPlan(t, db, clinicA, &mrA.ID, nil, "更新前", 1)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{"treatment_content": "更新後"}))
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, nil, nil, map[string]any{"treatment_content": "更新後"}))
 		got, err := repo.FindByID(ctx, clinicA, plan.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.TreatmentContent)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"treatment_content": "x"})
+		err := repo.Update(ctx, clinicA, uint64(999999), nil, nil, map[string]any{"treatment_content": "x"})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, plan.ID, map[string]any{"treatment_content": "乗っ取り"})
+		err := repo.Update(ctx, clinicB, plan.ID, nil, nil, map[string]any{"treatment_content": "乗っ取り"})
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("parent bind mismatch returns NotFound (MRD-03)", func(t *testing.T) {
+		wrongMR := uint64(999999)
+		err := repo.Update(ctx, clinicA, plan.ID, &wrongMR, nil, map[string]any{"treatment_content": "parent mismatch"})
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("parent bind match updates successfully (MRD-03)", func(t *testing.T) {
+		mrID := mrA.ID
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, &mrID, nil, map[string]any{"treatment_content": "parent ok"}))
+		got, err := repo.FindByID(ctx, clinicA, plan.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "parent ok", got.TreatmentContent)
 	})
 }
 
@@ -247,12 +261,12 @@ func TestTreatmentPlanRepository_Delete(t *testing.T) {
 	plan := makeTreatmentPlan(t, db, clinicA, &mrA.ID, nil, "削除対象", 1)
 
 	t.Run("clinic isolation: wrong clinic cannot delete", func(t *testing.T) {
-		err := repo.Delete(ctx, clinicB, plan.ID)
+		err := repo.Delete(ctx, clinicB, plan.ID, nil, nil)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("soft-deletes successfully", func(t *testing.T) {
-		require.NoError(t, repo.Delete(ctx, clinicA, plan.ID))
+		require.NoError(t, repo.Delete(ctx, clinicA, plan.ID, nil, nil))
 
 		var unscoped int64
 		require.NoError(t, db.Unscoped().Model(&model.TreatmentPlan{}).Where("id = ?", plan.ID).Count(&unscoped).Error)
@@ -264,7 +278,7 @@ func TestTreatmentPlanRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("not found for already-deleted id", func(t *testing.T) {
-		err := repo.Delete(ctx, clinicA, plan.ID)
+		err := repo.Delete(ctx, clinicA, plan.ID, nil, nil)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

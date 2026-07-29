@@ -31,8 +31,8 @@ type mockTreatmentPlanService struct {
 	listByHospitalizationFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	getByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	createFn                func(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	updateFn                func(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	deleteFn                func(ctx context.Context, clinicID, id uint64) error
+	updateFn                func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	deleteFn                func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
 func (m *mockTreatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
@@ -54,12 +54,12 @@ func (m *mockTreatmentPlanService) Create(ctx context.Context, clinicID uint64, 
 	return m.createFn(ctx, clinicID, medicalRecordID, hospitalizationID, input)
 }
 
-func (m *mockTreatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
-	return m.updateFn(ctx, clinicID, id, input)
+func (m *mockTreatmentPlanService) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	return m.updateFn(ctx, clinicID, id, medicalRecordID, hospitalizationID, input)
 }
 
-func (m *mockTreatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+func (m *mockTreatmentPlanService) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
+	return m.deleteFn(ctx, clinicID, id, medicalRecordID, hospitalizationID)
 }
 
 // ---- test helpers ----
@@ -292,6 +292,7 @@ func TestCreateTreatmentPlanForMedicalRecord(t *testing.T) {
 			paramID: "7",
 			body: map[string]any{
 				"treatment_content": "点滴",
+				"quantity":          1.0,
 				"discount_rate":     10.0,
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
@@ -309,6 +310,7 @@ func TestCreateTreatmentPlanForMedicalRecord(t *testing.T) {
 			paramID: "7",
 			body: map[string]any{
 				"treatment_content": "点滴",
+				"quantity":          1.0,
 				"discount_amount":   500,
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
@@ -326,6 +328,7 @@ func TestCreateTreatmentPlanForMedicalRecord(t *testing.T) {
 			paramID: "7",
 			body: map[string]any{
 				"treatment_content": "点滴",
+				"quantity":          1.0,
 				"discount_rate":     10.0,
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
@@ -498,6 +501,7 @@ func TestCreateTreatmentPlanForHospitalization(t *testing.T) {
 
 	validBody := map[string]any{
 		"treatment_content": "点滴",
+		"quantity":          1.0,
 	}
 
 	tests := []struct {
@@ -595,6 +599,7 @@ func TestCreateTreatmentPlanForHospitalization(t *testing.T) {
 			paramID: "5",
 			body: map[string]any{
 				"treatment_content": "点滴",
+				"quantity":          1.0,
 				"discount_rate":     15.0,
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
@@ -612,6 +617,7 @@ func TestCreateTreatmentPlanForHospitalization(t *testing.T) {
 			paramID: "5",
 			body: map[string]any{
 				"treatment_content": "点滴",
+				"quantity":          1.0,
 				"discount_amount":   300,
 			},
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
@@ -704,7 +710,7 @@ func TestUpdateTreatmentPlanInMedicalRecord(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					require.NotNil(t, input.Memo)
@@ -847,7 +853,7 @@ func TestUpdateTreatmentPlanInMedicalRecord(t *testing.T) {
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
 					return &model.TreatmentPlan{ID: 1, DiscountRate: 5.0}, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					return &model.TreatmentPlan{ID: 1, DiscountRate: 5.0}, nil
 				},
 			},
@@ -865,7 +871,7 @@ func TestUpdateTreatmentPlanInMedicalRecord(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -927,7 +933,7 @@ func TestDeleteTreatmentPlanInMedicalRecord(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+				deleteFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					return nil
@@ -990,7 +996,7 @@ func TestDeleteTreatmentPlanInMedicalRecord(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
 					return fmt.Errorf("db failure")
 				},
 			},
@@ -1042,7 +1048,7 @@ func TestUpdateTreatmentPlanInHospitalization(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					return &model.TreatmentPlan{ID: 1, Memo: *input.Memo}, nil
@@ -1143,7 +1149,7 @@ func TestUpdateTreatmentPlanInHospitalization(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -1205,7 +1211,7 @@ func TestDeleteTreatmentPlanInHospitalization(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+				deleteFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					return nil
@@ -1268,7 +1274,7 @@ func TestDeleteTreatmentPlanInHospitalization(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
 					return fmt.Errorf("db failure")
 				},
 			},

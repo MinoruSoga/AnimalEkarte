@@ -12,13 +12,19 @@ import (
 
 // ---- TreatmentPlan モック ----
 
+type passthroughTreatmentPlanTransactor struct{}
+
+func (passthroughTreatmentPlanTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 type mockTreatmentPlanRepository struct {
 	listByMedicalRecordIDFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	listByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	createFn                  func(ctx context.Context, plan *model.TreatmentPlan) error
-	updateFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	updateFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
+	deleteFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
 func (m *mockTreatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
@@ -40,12 +46,12 @@ func (m *mockTreatmentPlanRepository) Create(ctx context.Context, plan *model.Tr
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockTreatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockTreatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, medicalRecordID, hospitalizationID, fields)
 }
 
-func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
+	return m.deleteFn(ctx, clinicID, id, medicalRecordID, hospitalizationID)
 }
 
 // ---- Tests ----
@@ -84,7 +90,7 @@ func TestTreatmentPlanService_GetByID(t *testing.T) {
 					return &model.TreatmentPlan{ID: id, ClinicID: clinicID, TreatmentContent: "Surgery"}, nil
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
 			plan, err := svc.GetByID(context.Background(), testClinicIDTP, 1)
 
@@ -139,8 +145,8 @@ func TestBuildTreatmentPlanUpdate(t *testing.T) {
 				"quantity":          float64(2),
 				"discount_rate":     float64(10),
 				"discount_amount":   int64(100),
-				"subtotal":          int64(1700),
-				"sort_order":        3,
+				// subtotal is server-computed in Update, not via buildTreatmentPlanUpdate (MRD-04)
+				"sort_order": 3,
 			},
 		},
 	}
@@ -197,7 +203,7 @@ func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 					return tt.repoPlans, tt.repoErr
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
 			plans, err := svc.ListByMedicalRecord(context.Background(), testClinicIDTP, tt.medicalRecordID)
 
@@ -254,7 +260,7 @@ func TestTreatmentPlanService_ListByHospitalization(t *testing.T) {
 					return tt.repoPlans, tt.repoErr
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
 			plans, err := svc.ListByHospitalization(context.Background(), testClinicIDTP, tt.hospitalizationID)
 
@@ -327,6 +333,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 			input: &CreateTreatmentPlanInput{
 				TreatmentContent: "Test",
 				UnitPrice:        100,
+				Quantity:         1,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -338,24 +345,67 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 			input: &CreateTreatmentPlanInput{
 				TreatmentContent: "Checkup",
 				UnitPrice:        100,
+				Quantity:         1,
 			},
 			reloadErr: errors.New("reload failed"),
 			wantErr:   true,
+		},
+		{
+			name:              "rejects non-positive quantity (MRD-04)",
+			medicalRecordID:   &medicalRecordID,
+			hospitalizationID: nil,
+			input: &CreateTreatmentPlanInput{
+				TreatmentContent: "Bad qty",
+				UnitPrice:        100,
+				Quantity:         0,
+			},
+			wantErr: true,
+		},
+		{
+			name:              "rejects discount rate above 100 (MRD-04)",
+			medicalRecordID:   &medicalRecordID,
+			hospitalizationID: nil,
+			input: &CreateTreatmentPlanInput{
+				TreatmentContent: "Bad rate",
+				UnitPrice:        100,
+				Quantity:         1,
+				DiscountRate:     1000,
+			},
+			wantErr: true,
+		},
+		{
+			name:              "ignores client subtotal and recomputes server-side (MRD-04)",
+			medicalRecordID:   &medicalRecordID,
+			hospitalizationID: nil,
+			input: &CreateTreatmentPlanInput{
+				TreatmentContent: "Subtotal ignore",
+				UnitPrice:        1000,
+				Quantity:         2,
+				DiscountRate:     10,
+				DiscountAmount:   50,
+				Subtotal:         -999999,
+			},
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var created *model.TreatmentPlan
 			repo := &mockTreatmentPlanRepository{
 				createFn: func(_ context.Context, plan *model.TreatmentPlan) error {
 					if tt.repoErr == nil {
 						assert.Equal(t, testClinicIDTP, plan.ClinicID)
+						created = plan
 					}
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
 					if tt.reloadErr != nil {
 						return nil, tt.reloadErr
+					}
+					if created != nil {
+						return created, nil
 					}
 					return &model.TreatmentPlan{
 						ClinicID:          testClinicIDTP,
@@ -364,7 +414,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 					}, nil
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
 			plan, err := svc.Create(context.Background(), testClinicIDTP, tt.medicalRecordID, tt.hospitalizationID, tt.input)
 
@@ -375,6 +425,10 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, plan)
 				assert.Equal(t, testClinicIDTP, plan.ClinicID)
+				if tt.name == "ignores client subtotal and recomputes server-side (MRD-04)" {
+					// 1000*2*(1-0.1)-50 = 1750
+					assert.Equal(t, int64(1750), plan.Subtotal)
+				}
 			}
 		})
 	}
@@ -406,6 +460,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 				ID:               1,
 				TreatmentContent: newContent,
 				UnitPrice:        newPrice,
+				Quantity:         1,
 			},
 			wantErr: false,
 		},
@@ -414,7 +469,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			id:             1,
 			input:          &UpdateTreatmentPlanInput{},
 			repoUpdateErr:  nil,
-			repoReturnPlan: nil,
+			repoReturnPlan: &model.TreatmentPlan{ID: 1, Quantity: 1},
 			wantErr:        true,
 		},
 		{
@@ -424,7 +479,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 				TreatmentContent: &newContent,
 			},
 			repoUpdateErr:  errors.New("db error"),
-			repoReturnPlan: nil,
+			repoReturnPlan: &model.TreatmentPlan{ID: 1, Quantity: 1},
 			wantErr:        true,
 		},
 		{
@@ -443,6 +498,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 				TreatmentContent: &newContent,
 			},
 			repoUpdateErr:       nil,
+			repoReturnPlan:      &model.TreatmentPlan{ID: 1, Quantity: 1},
 			findByIDErrOnReload: true,
 			wantErr:             true,
 		},
@@ -452,7 +508,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			callCount := 0
 			repo := &mockTreatmentPlanRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
@@ -466,9 +522,9 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 					return tt.repoReturnPlan, nil
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
-			plan, err := svc.Update(context.Background(), testClinicIDTP, tt.id, tt.input)
+			plan, err := svc.Update(context.Background(), testClinicIDTP, tt.id, nil, nil, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -478,6 +534,51 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("rejects parent mismatch on update (MRD-03)", func(t *testing.T) {
+		mrOwned := uint64(10)
+		wrongMR := uint64(99)
+		repo := &mockTreatmentPlanRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
+				return &model.TreatmentPlan{ID: id, MedicalRecordID: &mrOwned, Quantity: 1}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+				t.Fatal("update must not run on parent mismatch")
+				return nil
+			},
+		}
+		svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
+		content := "x"
+		plan, err := svc.Update(context.Background(), testClinicIDTP, 1, &wrongMR, nil, &UpdateTreatmentPlanInput{TreatmentContent: &content})
+		assert.Error(t, err)
+		assert.Nil(t, plan)
+	})
+
+	t.Run("recomputes subtotal on money update and ignores client subtotal (MRD-04)", func(t *testing.T) {
+		price := int64(500)
+		qty := float64(3)
+		clientSub := int64(-1)
+		var captured map[string]any
+		repo := &mockTreatmentPlanRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
+				return &model.TreatmentPlan{
+					ID: id, UnitPrice: 100, Quantity: 1, DiscountRate: 0, DiscountAmount: 0, Subtotal: 100,
+				}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, fields map[string]any) error {
+				captured = fields
+				return nil
+			},
+		}
+		svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
+		_, err := svc.Update(context.Background(), testClinicIDTP, 1, nil, nil, &UpdateTreatmentPlanInput{
+			UnitPrice: &price,
+			Quantity:  &qty,
+			Subtotal:  &clientSub,
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1500), captured["subtotal"])
+	})
 }
 
 func TestTreatmentPlanService_Delete(t *testing.T) {
@@ -517,13 +618,13 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 					}
 					return &model.TreatmentPlan{ID: id}, nil
 				},
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentPlanService(repo)
+			svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
 
-			err := svc.Delete(context.Background(), testClinicIDTP, tt.id)
+			err := svc.Delete(context.Background(), testClinicIDTP, tt.id, nil, nil)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -532,6 +633,23 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("rejects parent mismatch on delete (MRD-03)", func(t *testing.T) {
+		hospOwned := uint64(7)
+		wrongHosp := uint64(8)
+		repo := &mockTreatmentPlanRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
+				return &model.TreatmentPlan{ID: id, HospitalizationID: &hospOwned}, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
+				t.Fatal("delete must not run on parent mismatch")
+				return nil
+			},
+		}
+		svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
+		err := svc.Delete(context.Background(), testClinicIDTP, 1, nil, &wrongHosp)
+		assert.Error(t, err)
+	})
 }
 
 // Helper

@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -16,8 +17,9 @@ type CreateTreatmentPlanInput struct {
 	Quantity         float64
 	DiscountRate     float64
 	DiscountAmount   int64
-	Subtotal         int64
-	SortOrder        int
+	// Subtotal is ignored on write; server always recomputes (MRD-04).
+	Subtotal  int64
+	SortOrder int
 }
 
 type UpdateTreatmentPlanInput struct {
@@ -28,8 +30,30 @@ type UpdateTreatmentPlanInput struct {
 	Quantity         *float64
 	DiscountRate     *float64
 	DiscountAmount   *int64
-	Subtotal         *int64
-	SortOrder        *int
+	// Subtotal is ignored on write; server always recomputes when price fields change (MRD-04).
+	Subtotal  *int64
+	SortOrder *int
+}
+
+// computeTreatmentPlanSubtotal is the single source of truth for plan subtotal (MRD-04).
+func computeTreatmentPlanSubtotal(unitPrice int64, quantity, discountRate float64, discountAmount int64) int64 {
+	return int64(float64(unitPrice)*quantity*(1-discountRate/100)) - discountAmount
+}
+
+func validateTreatmentPlanMoney(unitPrice int64, quantity, discountRate float64, discountAmount int64) error {
+	if err := validateNonNegativePrice(&unitPrice); err != nil {
+		return err
+	}
+	if quantity <= 0 {
+		return apperrors.WrapInvalidInput(errMsgQuantityPositive)
+	}
+	if err := validateDiscountRate(discountRate); err != nil {
+		return err
+	}
+	if discountAmount < 0 {
+		return apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
+	}
+	return nil
 }
 
 func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
@@ -55,9 +79,7 @@ func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	if input.DiscountAmount != nil {
 		fields["discount_amount"] = *input.DiscountAmount
 	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
+	// Subtotal is never taken from client input (MRD-04).
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
 	}
@@ -69,16 +91,27 @@ type TreatmentPlanService interface {
 	ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	// medicalRecordID / hospitalizationID bind the plan to the URL parent resource (MRD-03).
+	Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
 type treatmentPlanService struct {
-	repo TreatmentPlanRepository
+	repo       TreatmentPlanRepository
+	transactor Transactor
 }
 
-func NewTreatmentPlanService(repo TreatmentPlanRepository) TreatmentPlanService {
-	return &treatmentPlanService{repo: repo}
+// NewTreatmentPlanService constructs TreatmentPlanService.
+// transactor is required so Create/Update write+reload stay in one transaction (MRD-02 / X-01).
+func NewTreatmentPlanService(repo TreatmentPlanRepository, transactor Transactor) TreatmentPlanService {
+	return &treatmentPlanService{repo: repo, transactor: transactor}
+}
+
+func (s *treatmentPlanService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("treatment plan transaction dependency is required")
+	}
+	return s.transactor.WithTx(ctx, fn)
 }
 
 func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
@@ -108,15 +141,26 @@ func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, clinic
 	return plans, nil
 }
 
-func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
-	subtotal := input.Subtotal
-	if subtotal == 0 && input.UnitPrice > 0 {
-		qty := input.Quantity
-		if qty == 0 {
-			qty = 1
+// assertPlanParentMatch ensures plan belongs to the URL parent resource (MRD-03).
+func assertPlanParentMatch(plan *model.TreatmentPlan, medicalRecordID, hospitalizationID *uint64) error {
+	if medicalRecordID != nil {
+		if plan.MedicalRecordID == nil || *plan.MedicalRecordID != *medicalRecordID {
+			return apperrors.WrapNotFound("treatment_plan", "parent")
 		}
-		subtotal = int64(float64(input.UnitPrice)*qty*(1-input.DiscountRate/100)) - input.DiscountAmount
 	}
+	if hospitalizationID != nil {
+		if plan.HospitalizationID == nil || *plan.HospitalizationID != *hospitalizationID {
+			return apperrors.WrapNotFound("treatment_plan", "parent")
+		}
+	}
+	return nil
+}
+
+func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	if err := validateTreatmentPlanMoney(input.UnitPrice, input.Quantity, input.DiscountRate, input.DiscountAmount); err != nil {
+		return nil, err
+	}
+	subtotal := computeTreatmentPlanSubtotal(input.UnitPrice, input.Quantity, input.DiscountRate, input.DiscountAmount)
 
 	plan := &model.TreatmentPlan{
 		ClinicID:          clinicID,
@@ -132,50 +176,119 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		Subtotal:          subtotal,
 		SortOrder:         input.SortOrder,
 	}
-	if err := s.repo.Create(ctx, plan); err != nil {
-		slog.ErrorContext(ctx, "failed to create treatment plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create treatment plan")
+
+	// MRD-02: write + response re-fetch in one transaction (vital Update pattern).
+	var result *model.TreatmentPlan
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, plan); err != nil {
+			slog.ErrorContext(txCtx, "failed to create treatment plan", "error", err)
+			return apperrors.Wrap(err, "failed to create treatment plan")
+		}
+		reloaded, err := s.repo.FindByID(txCtx, clinicID, plan.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to reload treatment plan after create", "error", err)
+			return apperrors.Wrap(err, "failed to reload treatment plan after create")
+		}
+		result = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", plan.ID))
-
-	result, err := s.repo.FindByID(ctx, clinicID, plan.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload treatment plan after create", "error", err)
-		return nil, apperrors.Wrap(err, "failed to reload treatment plan after create")
-	}
 	return result, nil
 }
 
-func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find treatment plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find treatment plan")
+func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	// MRD-02 + MRD-03 + MRD-04: parent bind, money validation, write+reload in one tx.
+	var result *model.TreatmentPlan
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		existing, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find treatment plan", "error", err)
+			return apperrors.Wrap(err, "failed to find treatment plan")
+		}
+		if existing == nil {
+			return apperrors.WrapNotFound("treatment_plan", strconv.FormatUint(id, 10))
+		}
+		if err := assertPlanParentMatch(existing, medicalRecordID, hospitalizationID); err != nil {
+			return err
+		}
+
+		// Merge money fields for validation / subtotal recompute.
+		unitPrice := existing.UnitPrice
+		quantity := existing.Quantity
+		discountRate := existing.DiscountRate
+		discountAmount := existing.DiscountAmount
+		moneyTouched := false
+		if input.UnitPrice != nil {
+			unitPrice = *input.UnitPrice
+			moneyTouched = true
+		}
+		if input.Quantity != nil {
+			quantity = *input.Quantity
+			moneyTouched = true
+		}
+		if input.DiscountRate != nil {
+			discountRate = *input.DiscountRate
+			moneyTouched = true
+		}
+		if input.DiscountAmount != nil {
+			discountAmount = *input.DiscountAmount
+			moneyTouched = true
+		}
+		if moneyTouched {
+			if err := validateTreatmentPlanMoney(unitPrice, quantity, discountRate, discountAmount); err != nil {
+				return err
+			}
+		}
+
+		fields := buildTreatmentPlanUpdate(input)
+		if moneyTouched {
+			fields["unit_price"] = unitPrice
+			fields["quantity"] = quantity
+			fields["discount_rate"] = discountRate
+			fields["discount_amount"] = discountAmount
+			fields["subtotal"] = computeTreatmentPlanSubtotal(unitPrice, quantity, discountRate, discountAmount)
+		}
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		if err := s.repo.Update(txCtx, clinicID, id, medicalRecordID, hospitalizationID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update treatment plan", "error", err)
+			return apperrors.Wrap(err, "failed to update treatment plan")
+		}
+		reloaded, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to reload treatment plan after update", "error", err)
+			return apperrors.Wrap(err, "failed to reload treatment plan after update")
+		}
+		result = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	fields := buildTreatmentPlanUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update treatment plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update treatment plan")
-	}
+
 	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
-
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload treatment plan after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to reload treatment plan after update")
-	}
 	return result, nil
 }
 
-func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find treatment plan")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete treatment plan", "error", err, "clinic_id", clinicID, "treatment_plan_id", id)
-		return apperrors.Wrap(err, "failed to delete treatment plan")
+func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		existing, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to find treatment plan")
+		}
+		if err := assertPlanParentMatch(existing, medicalRecordID, hospitalizationID); err != nil {
+			return err
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id, medicalRecordID, hospitalizationID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete treatment plan", "error", err, "clinic_id", clinicID, "treatment_plan_id", id)
+			return apperrors.Wrap(err, "failed to delete treatment plan")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 	return nil

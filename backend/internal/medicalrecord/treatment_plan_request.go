@@ -4,12 +4,13 @@ type createTreatmentPlanRequest struct {
 	TreatmentContent string  `json:"treatment_content" binding:"required"`
 	Memo             string  `json:"memo"`
 	IsInsurance      bool    `json:"is_insurance"`
-	UnitPrice        int64   `json:"unit_price"`
-	Quantity         float64 `json:"quantity"`
-	DiscountRate     float64 `json:"discount_rate"`
-	DiscountAmount   int64   `json:"discount_amount"`
-	Subtotal         int64   `json:"subtotal"`
-	SortOrder        int     `json:"sort_order"`
+	UnitPrice        int64   `json:"unit_price" binding:"min=0"`
+	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
+	DiscountRate     float64 `json:"discount_rate" binding:"min=0,max=100"`
+	DiscountAmount   int64   `json:"discount_amount" binding:"min=0"`
+	// Subtotal is accepted for backward-compatible JSON but ignored server-side (MRD-04).
+	Subtotal  int64 `json:"subtotal"`
+	SortOrder int   `json:"sort_order"`
 }
 
 func (r *createTreatmentPlanRequest) toServiceInput() *CreateTreatmentPlanInput {
@@ -30,12 +31,13 @@ type updateTreatmentPlanRequest struct {
 	TreatmentContent *string  `json:"treatment_content"`
 	Memo             *string  `json:"memo"`
 	IsInsurance      *bool    `json:"is_insurance"`
-	UnitPrice        *int64   `json:"unit_price"`
-	Quantity         *float64 `json:"quantity"`
-	DiscountRate     *float64 `json:"discount_rate"`
-	DiscountAmount   *int64   `json:"discount_amount"`
-	Subtotal         *int64   `json:"subtotal"`
-	SortOrder        *int     `json:"sort_order"`
+	UnitPrice        *int64   `json:"unit_price" binding:"omitempty,min=0"`
+	Quantity         *float64 `json:"quantity" binding:"omitempty,gt=0"`
+	DiscountRate     *float64 `json:"discount_rate" binding:"omitempty,min=0,max=100"`
+	DiscountAmount   *int64   `json:"discount_amount" binding:"omitempty,min=0"`
+	// Subtotal is accepted for backward-compatible JSON but ignored server-side (MRD-04).
+	Subtotal  *int64 `json:"subtotal"`
+	SortOrder *int   `json:"sort_order"`
 }
 
 func (r updateTreatmentPlanRequest) toServiceInput() *UpdateTreatmentPlanInput {

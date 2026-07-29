@@ -19,8 +19,9 @@ type TreatmentPlanRepository interface {
 	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, plan *model.TreatmentPlan) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, clinicID, id uint64) error
+	// medicalRecordID / hospitalizationID optionally bind write to URL parent (MRD-03).
+	Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
 type treatmentPlanRepository struct{ db *gorm.DB }
@@ -30,7 +31,7 @@ func NewTreatmentPlanRepository(db *gorm.DB) TreatmentPlanRepository {
 }
 
 func (r *treatmentPlanRepository) clinicScopeQuery(ctx context.Context, clinicID uint64) *gorm.DB {
-	return r.db.WithContext(ctx).
+	return persistence.DBOrTx(ctx, r.db).
 		Model(&model.TreatmentPlan{}).
 		Scopes(persistence.ClinicScope(clinicID))
 }
@@ -51,6 +52,16 @@ func treatmentPlanParentClinicScope(db *gorm.DB) *gorm.DB {
 			  AND hospitalizations.clinic_id = treatment_plans.clinic_id
 		))
 	`)
+}
+
+func applyTreatmentPlanParentBind(q *gorm.DB, medicalRecordID, hospitalizationID *uint64) *gorm.DB {
+	if medicalRecordID != nil {
+		q = q.Where("treatment_plans.medical_record_id = ?", *medicalRecordID)
+	}
+	if hospitalizationID != nil {
+		q = q.Where("treatment_plans.hospitalization_id = ?", *hospitalizationID)
+	}
+	return q
 }
 
 func (r *treatmentPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
@@ -90,17 +101,18 @@ func (r *treatmentPlanRepository) FindByID(ctx context.Context, clinicID, id uin
 }
 
 func (r *treatmentPlanRepository) Create(ctx context.Context, plan *model.TreatmentPlan) error {
-	if err := r.db.WithContext(ctx).Create(plan).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(plan).Error; err != nil {
 		return apperrors.FromGORM(err, "treatment_plan", "")
 	}
 	return nil
 }
 
-func (r *treatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.clinicScopeQuery(ctx, clinicID).
+func (r *treatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error {
+	q := r.clinicScopeQuery(ctx, clinicID).
 		Model(&model.TreatmentPlan{}).
-		Where("treatment_plans.id = ?", id).
-		Updates(fields)
+		Where("treatment_plans.id = ?", id)
+	q = applyTreatmentPlanParentBind(q, medicalRecordID, hospitalizationID)
+	result := q.Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment_plan", strconv.FormatUint(id, 10))
 	}
@@ -110,10 +122,11 @@ func (r *treatmentPlanRepository) Update(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-func (r *treatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.clinicScopeQuery(ctx, clinicID).
-		Where("treatment_plans.id = ?", id).
-		Delete(&model.TreatmentPlan{})
+func (r *treatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
+	q := r.clinicScopeQuery(ctx, clinicID).
+		Where("treatment_plans.id = ?", id)
+	q = applyTreatmentPlanParentBind(q, medicalRecordID, hospitalizationID)
+	result := q.Delete(&model.TreatmentPlan{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment_plan", strconv.FormatUint(id, 10))
 	}

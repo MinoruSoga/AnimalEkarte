@@ -194,7 +194,8 @@ func (h *TreatmentPlanHandler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context
 		httpapi.RespondError(c, err)
 		return
 	}
-	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, req.toServiceInput())
+	mrIDCopy := mrID
+	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, &mrIDCopy, nil, req.toServiceInput())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -220,7 +221,8 @@ func (h *TreatmentPlanHandler) DeleteTreatmentPlanInMedicalRecord(c *gin.Context
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, planID); err != nil {
+	mrIDCopy := mrID
+	if err := h.service.Delete(c.Request.Context(), clinicID, planID, &mrIDCopy, nil); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -255,7 +257,8 @@ func (h *TreatmentPlanHandler) UpdateTreatmentPlanInHospitalization(c *gin.Conte
 		httpapi.RespondError(c, err)
 		return
 	}
-	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, req.toServiceInput())
+	hospIDCopy := hospID
+	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, nil, &hospIDCopy, req.toServiceInput())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -282,7 +285,8 @@ func (h *TreatmentPlanHandler) DeleteTreatmentPlanInHospitalization(c *gin.Conte
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, planID); err != nil {
+	hospIDCopy := hospID
+	if err := h.service.Delete(c.Request.Context(), clinicID, planID, nil, &hospIDCopy); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

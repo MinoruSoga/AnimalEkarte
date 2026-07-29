@@ -157,25 +157,25 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
 	// BE-X06-BIL-CAMPAIGN-01 / BIL-03: Update+ReplaceTargets+FindByID share ambient tx.
 	// Runtime: campaign_repository_tx_atomicity_test.go
-	"billing/campaign_repository.go|campaignRepository.Create":  {},
-	"billing/campaign_repository.go|campaignRepository.Delete":  {},
-	"billing/campaign_repository.go|campaignRepository.FindAll": {},
+	"billing/campaign_repository.go|campaignRepository.Create":   {},
+	"billing/campaign_repository.go|campaignRepository.Delete":   {},
+	"billing/campaign_repository.go|campaignRepository.FindAll":  {},
 	"billing/campaign_repository.go|campaignRepository.FindByID": {},
-	"billing/campaign_repository.go|campaignRepository.Update":  {},
+	"billing/campaign_repository.go|campaignRepository.Update":   {},
 	// BE-X06-LSTEP-SETTINGS-01 / LSA-06: settings write graph joins ambient tx.
 	// Runtime: lstep_settings_tx_atomicity_test.go
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService": {},
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                   {},
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService": {},
-	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID": {},
-	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.Upsert":         {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.FindByClinicID":                    {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.Save":                              {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMVersion":                  {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateDormantThresholds":           {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV2Thresholds":             {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV1Thresholds":             {},
-	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateHealthPreventionThresholds":  {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":              {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                              {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService":            {},
+	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID":             {},
+	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.Upsert":                     {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.FindByClinicID":                   {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.Save":                             {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMVersion":                 {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateDormantThresholds":          {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV2Thresholds":            {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV1Thresholds":            {},
+	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateHealthPreventionThresholds": {},
 
 	// daily_record: parent/clinic relation validation and audit-coupled writes must
 	// remain on the service-owned ambient transaction.
@@ -186,6 +186,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindByHospitalizationIDAndDate": {},
 	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate":             {}, // BE8-4 batch6: moved from daily_record_repository.go
 	"medicalrecord/vital_repository.go|vitalRepository.FindByID":                                    {}, // response re-fetch must observe and govern the same tx mutation
+	// treatment_plan (U-MR-TREATMENT-PLAN / MRD-02): Create + clinicScopeQuery join ambient tx
+	// so service write+reload stays atomic under Transactor.WithTx.
+	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.Create":           {},
+	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.clinicScopeQuery": {},
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
 	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master
@@ -240,12 +244,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID":     {},
 	"medicalrecord/examination_repository.go|examinationRepository.Update":                   {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.Create": {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.Update": {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete": {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.Reorder": {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.CountUsageByExamTypeID": {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.CountChildrenByParentID": {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Update":                        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete":                        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Reorder":                       {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountUsageByExamTypeID":        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.CountChildrenByParentID":       {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.AnimalSpeciesExists":           {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountExamResultsByFieldID":     {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountReferenceRangesByFieldID": {},
