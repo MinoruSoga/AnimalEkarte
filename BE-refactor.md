@@ -3309,7 +3309,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/reservation/ -run "NoShow"`
 - 既知台帳: none
 - Size: M (3/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 078f39ed48e23d295cb78b1c4f8660023ed5d8fc
 
 ##### SOLO-20
 
