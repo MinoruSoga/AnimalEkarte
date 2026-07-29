@@ -1,6 +1,6 @@
 # BE-pending.md — バックエンド 着手保留・次期送り
 
-- **更新日**: 2026-07-15
+- **更新日**: 2026-07-29
 - **本書の規約**: 今期は着手しない（次期送り確定 / PO 判断待ち / サイクル外 / reset 後の任意検証）項目の正本。再検討トリガが立つか判断が出たら、実装単位として [`3-session-agent.html` の実装タスク台帳（正本）](3-session-agent.html#ledger) に戻す。
 - **別台帳**: 今期着手可能な残・リファクタ次期引き継ぎ（第7期完了）は [`3-session-agent.html` の実装タスク台帳（正本）](3-session-agent.html#ledger)。本書と重複させない。
 
@@ -22,17 +22,17 @@
 
 ### STG クロステナント監査 SQL — reset 後の任意検証（2026-07-12）
 
-- **扱い**: 必須ではない。ガード導入前の残存越境データを、承認済みのSTG診断時に読み取り専用で確認する任意監査。
-- **残す理由**: migration/seed適用後に、既存データがclinic越境を含まないことの任意スモークとして使える。
-- **移管元**: `BE-refactor.md`（2026-07-12）。同fileはBE10 round close 2026-07-26で削除済み・正本=git履歴。
-- **実行条件**: 人間実行のみ・自動実行禁止。接続経路と対象DBを確認し、migration/seed完了後に任意で1回。
-- **期待値**: 全クエリ 0 行。ヒット時はシード不整合として個別是正（是正 DML は件数確認後に別途起案）。
-- SQL は 001_init.sql の DDL と突合済み（2026-07-12）。読み取り専用 SELECT のみ。
+- **扱い**: **任意・非 release gate**。BE9/OPS release 完了条件にも、実装タスクの完了条件にも含めない。ガード導入前の残存越境データを、承認済みの STG 診断時に読み取り専用で確認する任意監査。
+- **残す理由**: migration/seed 適用後に、既存データが clinic 越境を含まないことの任意スモークとして使える。
+- **移管元 / provenance**: 2026-07-12 に当時の `BE-refactor.md` 台帳項目から本書へ移管。**`BE-refactor.md` 自体は削除されていない**（現行も repo 直下に存続し、BE refactor packet 台帳として運用中）。過去の移管時点の文言は git 履歴で追跡する。
+- **実行主体**: **人間所有・人間実行のみ**。エージェント実行禁止（自動実行・CI・agent セッションからの接続・SQL 発行をしない）。接続経路と対象 DB を人間が確認し、migration/seed 完了後に任意で 1 回。
+- **期待値**: 全クエリ 0 行。ヒット時はシード不整合として個別是正（是正 DML は件数確認後に別途起案。是正も人間所有）。
+- **SQL の前提**: 下記は読み取り専用の `SELECT` に限定した監査クエリ。列・テーブル・`deleted_at` 有無などの前提は、実行前に `ls backend/migrations/*.sql` で現行 DDL 在庫を確認し、対象ファイルの DDL と突合する（在庫の本数・単一ファイル断定は本書に書かない。在庫は増分追加と統合で変動する）。
 
 **実行先と接続経路**:
-- STGの正系統はCloudflare Workers + ContainersとPlanetScale Postgres。旧AWS ECS/RDSは廃止済みで、監査対象や接続経路にしない。
-- 接続は `docs/ops/infra/staging/runbook.md` のTTL付き診断ロール手順に従う。credential値は保存・ログ出力せず、対象DBとclinic境界を実行前に確認する。
-- 各クエリは `deleted_at IS NULL` で**能動データに絞ってある**（junction 4 テーブル spg/sre/atd/ato には deleted_at 列なし — DDL 実測）。
+- STG の正系統は Cloudflare Workers + Containers と PlanetScale Postgres。旧 AWS ECS/RDS は廃止済みで、監査対象や接続経路にしない。
+- 接続は `docs/ops/infra/staging/runbook.md` の TTL 付き診断ロール手順に従う（人間実行・credential 値は保存・ログ出力しない）。対象 DB と clinic 境界を実行前に確認する。
+- 各クエリは `deleted_at IS NULL` で**能動データに絞ってある**（junction 4 テーブル spg/sre/atd/ato には deleted_at 列なし — 実行前に現行 DDL で再確認）。
 
 ```sql
 -- 1) treatments.inventory_id（X-14a）
