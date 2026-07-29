@@ -2640,7 +2640,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/clinic/... ./internal/pet/... -run 'Clinic|Company|SpecialPeriod|Chronic' && docker compose exec backend go test ./internal/lintscan/ -run DBOrTx`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 9fe4efddae0125ae62c696d68de8f7cd345971bb
 
 ##### U-X02-LSTEP-SHARED-FILE
 
