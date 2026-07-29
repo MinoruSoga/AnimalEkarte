@@ -15,6 +15,18 @@ import (
 //
 //nolint:gocritic // hugeParam: thresholds は HealthPreventionThresholds を値型で受ける
 func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, clinicID, ownerID uint64, thresholds model.HealthPreventionThresholds) error {
+	return s.syncVaccineDeadlineTagWithInputs(ctx, clinicID, ownerID, thresholds, nil)
+}
+
+// syncVaccineDeadlineTagWithInputs は preloadedVaccinations が非 nil なら再取得しない（G2F-02 page bulk）。
+//
+//nolint:gocritic // hugeParam: thresholds は HealthPreventionThresholds を値型で受ける
+func (s *lstepTagSyncService) syncVaccineDeadlineTagWithInputs(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	thresholds model.HealthPreventionThresholds,
+	preloadedVaccinations *[]model.Vaccination,
+) error {
 	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, PrevVaccineDeadlineTag)
 	if err != nil {
 		return err
@@ -23,10 +35,15 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, cl
 		return nil
 	}
 
-	vaccinations, err := s.vacRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find vaccinations for deadline tag", "error", err)
-		return apperrors.Wrap(err, "failed to find vaccinations")
+	var vaccinations []model.Vaccination
+	if preloadedVaccinations != nil {
+		vaccinations = *preloadedVaccinations
+	} else {
+		vaccinations, err = s.vacRepo.FindByOwner(ctx, clinicID, ownerID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find vaccinations for deadline tag", "error", err)
+			return apperrors.Wrap(err, "failed to find vaccinations")
+		}
 	}
 
 	now := time.Now()

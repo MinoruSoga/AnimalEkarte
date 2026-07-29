@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -125,6 +126,131 @@ func (r *checkupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID
 		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("owner=%d", ownerID))
 	}
 	return checkups, nil
+}
+
+// FindByOwnerIDs は複数飼い主の生存健診記録を clinic スコープで一括取得し owner_id 別に返す
+// （G2F-02 / BE-ACT-LSTEP-HEALTH-BATCH-BULK）。各 owner は newest-first で
+// healthTagOwnerHistoryMax 件に cap する。空 ownerIDs は空 map を即返す。
+//
+// NOTE: CheckupRepository インタフェースには載せない（consumer は型アサーションで利用）。
+// バッチ経路は ambient tx を持たないため r.db.WithContext を使う（dbOrTx inventory 非参加）。
+func (r *checkupRepository) FindByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]model.Checkup, error) {
+	result := make(map[uint64][]model.Checkup, len(ownerIDs))
+	if len(ownerIDs) == 0 {
+		return result, nil
+	}
+
+	type rankedRow struct {
+		ID      uint64
+		OwnerID uint64
+	}
+	var ranked []rankedRow
+	// Per-owner newest-first cap via window function so page bulk stays memory-bounded.
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT id, owner_id FROM (
+			SELECT checkups.id AS id,
+			       current_owner_pet.owner_id AS owner_id,
+			       ROW_NUMBER() OVER (
+			         PARTITION BY current_owner_pet.owner_id
+			         ORDER BY checkups.date DESC
+			       ) AS rn
+			FROM checkups
+			INNER JOIN medical_records
+			  ON medical_records.id = checkups.medical_record_id
+			 AND medical_records.clinic_id = ?
+			 AND medical_records.deleted_at IS NULL
+			INNER JOIN pets current_owner_pet
+			  ON current_owner_pet.id = medical_records.pet_id
+			 AND current_owner_pet.clinic_id = medical_records.clinic_id
+			WHERE checkups.clinic_id = ?
+			  AND checkups.deleted_at IS NULL
+			  AND current_owner_pet.owner_id IN ?
+		) ranked
+		WHERE rn <= ?
+	`, clinicID, clinicID, ownerIDs, healthTagOwnerHistoryMax).Scan(&ranked).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", "find_by_owner_ids")
+	}
+	if len(ranked) == 0 {
+		return result, nil
+	}
+
+	ids := make([]uint64, len(ranked))
+	ownerByCheckupID := make(map[uint64]uint64, len(ranked))
+	for i, row := range ranked {
+		ids[i] = row.ID
+		ownerByCheckupID[row.ID] = row.OwnerID
+	}
+
+	checkups := make([]model.Checkup, 0, len(ids))
+	err = r.db.WithContext(ctx).
+		Where("checkups.id IN ?", ids).
+		Where("checkups.clinic_id = ?", clinicID).
+		Scopes(checkupPatientRelationsScope(clinicID)).
+		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Order("checkups.date DESC").
+		Find(&checkups).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup", "find_by_owner_ids")
+	}
+
+	for i := range checkups {
+		ownerID, ok := ownerByCheckupID[checkups[i].ID]
+		if !ok {
+			continue
+		}
+		result[ownerID] = append(result[ownerID], checkups[i])
+	}
+	return result, nil
+}
+
+// FindOwnerVisitSummariesByOwnerIDs は複数飼い主の診療集計を clinic スコープで一括取得する
+// （G2F-02 health-prevention page bulk）。MedicalRecordRepository インタフェース外の
+// concrete メソッド。結果に含まれない owner は来院 0 件として扱う。
+//
+// Co-located in this file under health-tag bulk ownership (visit summary repo is reference-only).
+func (r *medicalRecordRepository) FindOwnerVisitSummariesByOwnerIDs(
+	ctx context.Context,
+	clinicID uint64,
+	ownerIDs []uint64,
+) (map[uint64]*OwnerVisitSummary, error) {
+	result := make(map[uint64]*OwnerVisitSummary, len(ownerIDs))
+	if len(ownerIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		OwnerID      uint64
+		FirstVisitAt *time.Time
+		LastVisitAt  *time.Time
+		TotalCount   int64
+		AnnualCount  int64
+	}
+	var rows []row
+	oneYearAgo := time.Now().In(time.Local).AddDate(-1, 0, 0)
+	err := r.db.WithContext(ctx).
+		Table("medical_records AS mr").
+		Joins("JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL AND current_owner_pet.owner_id IN ?", clinicID, ownerIDs).
+		Select(`current_owner_pet.owner_id AS owner_id,
+			MIN(mr.date) AS first_visit_at,
+			MAX(mr.date) AS last_visit_at,
+			COUNT(*) AS total_count,
+			COUNT(CASE WHEN mr.date >= ? THEN 1 END) AS annual_count`, oneYearAgo).
+		Group("current_owner_pet.owner_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", "find_owner_visit_summaries_by_owner_ids")
+	}
+	for i := range rows {
+		result[rows[i].OwnerID] = &OwnerVisitSummary{
+			FirstVisitAt: rows[i].FirstVisitAt,
+			LastVisitAt:  rows[i].LastVisitAt,
+			TotalCount:   rows[i].TotalCount,
+			AnnualCount:  rows[i].AnnualCount,
+		}
+	}
+	return result, nil
 }
 
 func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {

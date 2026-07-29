@@ -101,6 +101,82 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 	return vaccinations, nil
 }
 
+// FindByOwnerIDs は複数飼い主の生存ワクチン記録を clinic スコープで一括取得し owner_id 別に返す
+// （G2F-02 / BE-ACT-LSTEP-HEALTH-BATCH-BULK）。各 owner は newest-first で
+// healthTagOwnerHistoryMax 件に cap する。空 ownerIDs は空 map を即返す。
+//
+// NOTE: VaccinationRepository インタフェースには載せない（consumer は型アサーションで利用）。
+// バッチ経路は ambient tx を持たないため r.db.WithContext を使う（dbOrTx inventory 非参加）。
+func (r *vaccinationRepository) FindByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]model.Vaccination, error) {
+	result := make(map[uint64][]model.Vaccination, len(ownerIDs))
+	if len(ownerIDs) == 0 {
+		return result, nil
+	}
+
+	type rankedRow struct {
+		ID      uint64
+		OwnerID uint64
+	}
+	var ranked []rankedRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT id, owner_id FROM (
+			SELECT vaccinations.id AS id,
+			       pets.owner_id AS owner_id,
+			       ROW_NUMBER() OVER (
+			         PARTITION BY pets.owner_id
+			         ORDER BY vaccinations.date DESC, vaccinations.created_at DESC
+			       ) AS rn
+			FROM vaccinations
+			INNER JOIN pets
+			  ON pets.id = vaccinations.pet_id
+			 AND pets.clinic_id = vaccinations.clinic_id
+			 AND pets.deleted_at IS NULL
+			INNER JOIN owners
+			  ON owners.id = pets.owner_id
+			 AND owners.clinic_id = vaccinations.clinic_id
+			 AND owners.deleted_at IS NULL
+			WHERE vaccinations.clinic_id = ?
+			  AND vaccinations.deleted_at IS NULL
+			  AND pets.owner_id IN ?
+		) ranked
+		WHERE rn <= ?
+	`, clinicID, ownerIDs, healthTagOwnerHistoryMax).Scan(&ranked).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", "find_by_owner_ids")
+	}
+	if len(ranked) == 0 {
+		return result, nil
+	}
+
+	ids := make([]uint64, len(ranked))
+	ownerByVacID := make(map[uint64]uint64, len(ranked))
+	for i, row := range ranked {
+		ids[i] = row.ID
+		ownerByVacID[row.ID] = row.OwnerID
+	}
+
+	vaccinations := make([]model.Vaccination, 0, len(ids))
+	err = r.db.WithContext(ctx).
+		Where("vaccinations.id IN ?", ids).
+		Where("vaccinations.clinic_id = ?", clinicID).
+		Scopes(vaccinationPatientRelationsScope(clinicID)).
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Find(&vaccinations).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", "find_by_owner_ids")
+	}
+
+	for i := range vaccinations {
+		ownerID, ok := ownerByVacID[vaccinations[i].ID]
+		if !ok {
+			continue
+		}
+		result[ownerID] = append(result[ownerID], vaccinations[i])
+	}
+	return result, nil
+}
+
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
 	err := vaccinationReadPreloads(persistence.DBOrTx(ctx, r.db), clinicID).

@@ -7,11 +7,23 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // SyncHealthcheckTagsWithMappings は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
+	return s.syncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, cachedThresholds, nil)
+}
+
+// syncHealthcheckTagsWithMappings は preloadedCheckups が非 nil なら再取得せずその値を使う（G2F-02 page bulk）。
+func (s *lstepTagSyncService) syncHealthcheckTagsWithMappings(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	cachedMappings []*model.LstepTagCodeMapping,
+	cachedThresholds *model.HealthPreventionThresholds,
+	preloadedCheckups *[]model.Checkup,
+) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
@@ -40,10 +52,10 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
-	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+
+	checkups, err := s.checkupsForOwner(ctx, clinicID, ownerID, preloadedCheckups, "healthcheck tags")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find checkups for healthcheck tags", "error", err)
-		return apperrors.Wrap(err, "failed to find checkups")
+		return err
 	}
 
 	codeSet := strSet(checkupCodes)
@@ -96,6 +108,18 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 // SyncAnnual4CheckupTagWithMappings は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する
 // （FEAT-379）。事前取得済み mappings/thresholds を使って処理する（PERF-M1 N+1 解消用）。
 func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
+	return s.syncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, cachedMappings, cachedThresholds, nil, nil)
+}
+
+// syncAnnual4CheckupTagWithMappings は preloaded 入力が非 nil なら再取得しない（G2F-02 page bulk）。
+func (s *lstepTagSyncService) syncAnnual4CheckupTagWithMappings(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	cachedMappings []*model.LstepTagCodeMapping,
+	cachedThresholds *model.HealthPreventionThresholds,
+	preloadedCheckups *[]model.Checkup,
+	preloadedVisitSummary **medicalrecord.OwnerVisitSummary,
+) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
@@ -124,10 +148,10 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Cont
 		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
-	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+
+	checkups, err := s.checkupsForOwner(ctx, clinicID, ownerID, preloadedCheckups, "annual4checkup tag")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find checkups for annual4checkup tag", "error", err)
-		return apperrors.Wrap(err, "failed to find checkups")
+		return err
 	}
 
 	codeSet := strSet(checkupCodes)
@@ -145,10 +169,9 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Cont
 		}
 	}
 
-	visitSummary, err := s.medRecordRepo.FindOwnerVisitSummary(ctx, clinicID, ownerID)
+	visitSummary, err := s.visitSummaryForOwner(ctx, clinicID, ownerID, preloadedVisitSummary)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find visit summary for annual4checkup tag", "error", err)
-		return apperrors.Wrap(err, "failed to find visit summary")
+		return err
 	}
 
 	qualified := hasHealthcheck && visitSummary.AnnualCount >= 2
@@ -173,6 +196,45 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Cont
 	}
 	s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	return nil
+}
+
+// checkupsForOwner は preloaded が非 nil ならそれを返し、nil なら repo から取得する。
+func (s *lstepTagSyncService) checkupsForOwner(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	preloaded *[]model.Checkup,
+	label string,
+) ([]model.Checkup, error) {
+	if preloaded != nil {
+		return *preloaded, nil
+	}
+	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find checkups for "+label, "error", err)
+		return nil, apperrors.Wrap(err, "failed to find checkups")
+	}
+	return checkups, nil
+}
+
+// visitSummaryForOwner は preloaded が非 nil ならそれを返し、nil なら repo から取得する。
+// preloaded の内側が nil の場合は空サマリ（来院 0）として扱う。
+func (s *lstepTagSyncService) visitSummaryForOwner(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	preloaded **medicalrecord.OwnerVisitSummary,
+) (*medicalrecord.OwnerVisitSummary, error) {
+	if preloaded != nil {
+		if *preloaded != nil {
+			return *preloaded, nil
+		}
+		return &medicalrecord.OwnerVisitSummary{}, nil
+	}
+	visitSummary, err := s.medRecordRepo.FindOwnerVisitSummary(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find visit summary for annual4checkup tag", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find visit summary")
+	}
+	return visitSummary, nil
 }
 
 // SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内なら

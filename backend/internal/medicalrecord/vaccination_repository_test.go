@@ -232,6 +232,44 @@ func TestVaccinationRepository_FindByOwner(t *testing.T) {
 	})
 }
 
+// TestVaccinationRepository_FindByOwnerIDs は G2F-02 page bulk: multi-owner index と clinic 隔離を検証する。
+func TestVaccinationRepository_FindByOwnerIDs(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db).(*vaccinationRepository)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	owner1 := makeTestOwner(t, db, clinicA, "vac bulk1")
+	owner2 := makeTestOwner(t, db, clinicA, "vac bulk2")
+	otherClinicOwner := makeTestOwner(t, db, clinicB, "vac bulk other clinic")
+	pet1 := makeVaccinationRepoTestPet(t, db, clinicA, owner1.ID, "vac pet1")
+	pet2 := makeVaccinationRepoTestPet(t, db, clinicA, owner2.ID, "vac pet2")
+	petB := makeVaccinationRepoTestPet(t, db, clinicB, otherClinicOwner.ID, "vac petB")
+	vaccineA := makeVaccineMaster(t, db, clinicA, "vac bulk vaccine A")
+	vaccineB := makeVaccineMaster(t, db, clinicB, "vac bulk vaccine B")
+
+	rec1 := makeVaccinationRecord(t, db, clinicA, pet1.ID, vaccineA.ID)
+	rec2 := makeVaccinationRecord(t, db, clinicA, pet2.ID, vaccineA.ID)
+	_ = makeVaccinationRecord(t, db, clinicB, petB.ID, vaccineB.ID)
+
+	t.Run("indexes by owner and excludes other clinic", func(t *testing.T) {
+		got, err := repo.FindByOwnerIDs(ctx, clinicA, []uint64{owner1.ID, owner2.ID, otherClinicOwner.ID})
+		require.NoError(t, err)
+		require.Len(t, got[owner1.ID], 1)
+		assert.Equal(t, rec1.ID, got[owner1.ID][0].ID)
+		require.NotNil(t, got[owner1.ID][0].Vaccine)
+		require.Len(t, got[owner2.ID], 1)
+		assert.Equal(t, rec2.ID, got[owner2.ID][0].ID)
+		assert.Empty(t, got[otherClinicOwner.ID])
+	})
+
+	t.Run("empty ownerIDs returns empty map", func(t *testing.T) {
+		got, err := repo.FindByOwnerIDs(ctx, clinicA, nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
 func TestVaccinationRepository_Update(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
 	repo := NewVaccinationRepository(db)

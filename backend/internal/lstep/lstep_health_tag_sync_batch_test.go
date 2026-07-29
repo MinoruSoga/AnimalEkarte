@@ -3,10 +3,13 @@ package lstep
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -174,4 +177,148 @@ func TestSyncHealthPreventionTagsForClinic_PaginatesAcrossMultiplePages(t *testi
 	assert.Empty(t, errs)
 	assert.Equal(t, lstepBatchPageSize+1, count, "owners from both pages must be processed")
 	assert.Equal(t, []uint64{0, uint64(lstepBatchPageSize)}, fetchCalls, "cursor must advance using the last owner ID of the previous page, no duplicates/no skips")
+}
+
+// bulk-capable page loaders for G2F-02 query-count regression.
+type bulkCheckupRepo struct {
+	findByOwnerIDCalls  int64
+	findByOwnerIDsCalls int64
+	lastBulkSize        int
+}
+
+func (m *bulkCheckupRepo) FindByOwnerID(_ context.Context, _, _ uint64) ([]model.Checkup, error) {
+	atomic.AddInt64(&m.findByOwnerIDCalls, 1)
+	return nil, nil
+}
+
+func (m *bulkCheckupRepo) FindByOwnerIDs(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64][]model.Checkup, error) {
+	atomic.AddInt64(&m.findByOwnerIDsCalls, 1)
+	m.lastBulkSize = len(ownerIDs)
+	return map[uint64][]model.Checkup{}, nil
+}
+
+type bulkVaccinationRepo struct {
+	findByOwnerCalls    int64
+	findByOwnerIDsCalls int64
+	lastBulkSize        int
+}
+
+func (m *bulkVaccinationRepo) FindByID(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+	return nil, nil
+}
+
+func (m *bulkVaccinationRepo) FindByOwner(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+	atomic.AddInt64(&m.findByOwnerCalls, 1)
+	return nil, nil
+}
+
+func (m *bulkVaccinationRepo) FindByOwnerIDs(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64][]model.Vaccination, error) {
+	atomic.AddInt64(&m.findByOwnerIDsCalls, 1)
+	m.lastBulkSize = len(ownerIDs)
+	return map[uint64][]model.Vaccination{}, nil
+}
+
+type bulkMedRecordRepo struct {
+	findVisitSummaryCalls     int64
+	findVisitSummariesCalls   int64
+	lastBulkSize              int
+}
+
+func (m *bulkMedRecordRepo) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*medicalrecord.OwnerVisitSummary, error) {
+	atomic.AddInt64(&m.findVisitSummaryCalls, 1)
+	return &medicalrecord.OwnerVisitSummary{}, nil
+}
+
+func (m *bulkMedRecordRepo) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return nil, nil
+}
+
+func (m *bulkMedRecordRepo) FindOwnerVisitSummariesByOwnerIDs(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]*medicalrecord.OwnerVisitSummary, error) {
+	atomic.AddInt64(&m.findVisitSummariesCalls, 1)
+	m.lastBulkSize = len(ownerIDs)
+	return map[uint64]*medicalrecord.OwnerVisitSummary{}, nil
+}
+
+// TestSyncHealthPreventionTagsForClinic_PageBulkChildQueriesArePageBounded proves G2F-02:
+// over two owner pages, checkup/vaccination/visit-summary loads are 1 bulk call per page
+// (page-bounded), never 1 call per owner (owner-linear).
+func TestSyncHealthPreventionTagsForClinic_PageBulkChildQueriesArePageBounded(t *testing.T) {
+	checkupRepo := &bulkCheckupRepo{}
+	vacRepo := &bulkVaccinationRepo{}
+	medRepo := &bulkMedRecordRepo{}
+
+	lineID := "U_bulk_page"
+	svc := &lstepTagSyncService{
+		settingsSvc: &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+			getHealthPreventionThresholdsFn: func(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+				return model.HealthPreventionThresholds{}.WithDefaults(), nil
+			},
+			// empty credentials → buildClient returns nil client after child inputs are consumed
+		},
+		ownerRepo: &mockOwnerRepository{
+			findAllWithLineUserIDCursorFn: func(_ context.Context, _ uint64, afterID uint64, limit int) ([]model.Owner, error) {
+				require.Equal(t, lstepBatchPageSize, limit)
+				switch afterID {
+				case 0:
+					owners := make([]model.Owner, lstepBatchPageSize)
+					for i := range owners {
+						owners[i] = model.Owner{ID: uint64(i + 1), LineUserID: &lineID}
+					}
+					return owners, nil
+				case uint64(lstepBatchPageSize):
+					return []model.Owner{{ID: uint64(lstepBatchPageSize + 1), LineUserID: &lineID}}, nil
+				default:
+					return nil, nil
+				}
+			},
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				// LINE linked so sub-syncs reach child-input consumption (would hit per-owner
+				// Find* if page bulk failed to preload).
+				return &model.Owner{ID: id, LineUserID: &lineID}, nil
+			},
+		},
+		checkupRepo:   checkupRepo,
+		vacRepo:       vacRepo,
+		medRecordRepo: medRepo,
+		// Non-empty healthcheck mappings so healthcheck/annual4 consume preloaded checkups/visit.
+		tagCodeRepo: &mockLstepTagCodeMappingRepository{
+			findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, tagName string) ([]*model.LstepTagCodeMapping, error) {
+				if tagName == HlthHealthcheckDoneTag {
+					return []*model.LstepTagCodeMapping{{
+						TagName:  tagName,
+						CodeType: model.CodeTypeCheckupType,
+						Codes:    []string{"健診A"},
+					}}, nil
+				}
+				return nil, nil
+			},
+		},
+		tagCacheRepo: &mockLstepTagCacheRepository{},
+	}
+
+	_, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), 1)
+	assert.Empty(t, errs)
+
+	const pages = 2
+	totalOwners := lstepBatchPageSize + 1
+
+	assert.Equal(t, int64(pages), atomic.LoadInt64(&checkupRepo.findByOwnerIDsCalls),
+		"checkup bulk must be 1 call per page (got %d)", atomic.LoadInt64(&checkupRepo.findByOwnerIDsCalls))
+	assert.Equal(t, int64(0), atomic.LoadInt64(&checkupRepo.findByOwnerIDCalls),
+		"per-owner checkup FindByOwnerID must not run when bulk loaded (got %d; owner-linear would be ~%d)",
+		atomic.LoadInt64(&checkupRepo.findByOwnerIDCalls), totalOwners*2) // healthcheck + annual4
+
+	assert.Equal(t, int64(pages), atomic.LoadInt64(&vacRepo.findByOwnerIDsCalls),
+		"vaccination bulk must be 1 call per page")
+	assert.Equal(t, int64(0), atomic.LoadInt64(&vacRepo.findByOwnerCalls),
+		"per-owner vaccination FindByOwner must not run when bulk loaded")
+
+	assert.Equal(t, int64(pages), atomic.LoadInt64(&medRepo.findVisitSummariesCalls),
+		"visit-summary bulk must be 1 call per page")
+	assert.Equal(t, int64(0), atomic.LoadInt64(&medRepo.findVisitSummaryCalls),
+		"per-owner FindOwnerVisitSummary must not run when bulk loaded")
+
+	// Second page has 1 owner; last bulk size should reflect that page.
+	assert.Equal(t, 1, medRepo.lastBulkSize, "last page bulk size should equal last page owner count")
 }

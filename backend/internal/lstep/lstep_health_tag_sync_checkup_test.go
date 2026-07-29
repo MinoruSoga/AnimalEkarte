@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -242,5 +243,31 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 
 		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
+	})
+
+	t.Run("preloaded checkups/visit summary skip repo fetches (G2F-02)", func(t *testing.T) {
+		var findCheckupCalls, findVisitCalls int
+		panicCheckup := &mockCheckupRepository{
+			findByOwnerIDFn: func(_ context.Context, _, _ uint64) ([]model.Checkup, error) {
+				findCheckupCalls++
+				return nil, errors.New("should not fetch")
+			},
+		}
+		panicVisit := &mockMedicalRecordRepository{
+			findOwnerVisitSummaryFn: func(_ context.Context, _, _ uint64) (*medicalrecord.OwnerVisitSummary, error) {
+				findVisitCalls++
+				return nil, errors.New("should not fetch")
+			},
+		}
+		client := &mockLstepAPIClient{}
+		svc := buildCheckupTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
+			panicCheckup, panicVisit, &mockLstepTagCacheRepository{}, client)
+
+		checkups := []model.Checkup{recentCheckup("健診A")}
+		summary := &medicalrecord.OwnerVisitSummary{AnnualCount: 2}
+		err := svc.syncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil, &checkups, &summary)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, findCheckupCalls)
+		assert.Equal(t, 0, findVisitCalls)
 	})
 }

@@ -155,4 +155,29 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 		err := svc.syncVaccineDeadlineTagImpl(context.Background(), 1, 10, model.HealthPreventionThresholds{}.WithDefaults())
 		assert.Error(t, err)
 	})
+
+	t.Run("preloaded vaccinations skip vacRepo.FindByOwner (G2F-02 bulk)", func(t *testing.T) {
+		var findCalls int
+		client := &mockLstepAPIClient{addTagFn: func(_ context.Context, _, _ string) error { return nil }}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
+				},
+			},
+			vacRepo: &mockVaccinationRepoForHealth{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Vaccination, error) {
+					findCalls++
+					return nil, errors.New("should not fetch")
+				},
+			},
+			tagCacheRepo:  &mockLstepTagCacheRepository{},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+		}
+		preloaded := []model.Vaccination{{NextDate: &near}}
+		err := svc.syncVaccineDeadlineTagWithInputs(context.Background(), 1, 10, model.HealthPreventionThresholds{}.WithDefaults(), &preloaded)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, findCalls)
+	})
 }

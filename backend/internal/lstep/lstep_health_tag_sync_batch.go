@@ -5,8 +5,35 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// healthPrevention page bulk loaders (G2F-02). Concrete medicalrecord repos implement these;
+// consumer interfaces stay narrow and batch type-asserts at the page boundary.
+type healthPreventionCheckupPageLoader interface {
+	FindByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]model.Checkup, error)
+}
+
+type healthPreventionVaccinationPageLoader interface {
+	FindByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]model.Vaccination, error)
+}
+
+type healthPreventionVisitSummaryPageLoader interface {
+	FindOwnerVisitSummariesByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]*medicalrecord.OwnerVisitSummary, error)
+}
+
+// healthPreventionPageInputs holds clinic-scoped bulk inputs for one owner page.
+type healthPreventionPageInputs struct {
+	checkupsByOwner     map[uint64][]model.Checkup
+	vaccinationsByOwner map[uint64][]model.Vaccination
+	visitSummaryByOwner map[uint64]*medicalrecord.OwnerVisitSummary
+	// loaded* is true when the corresponding bulk query ran (missing owner key means empty).
+	// false keeps the per-owner fallback path for repos without bulk methods.
+	loadedCheckups     bool
+	loadedVaccinations bool
+	loadedVisitSummary bool
+}
 
 // cachedTagMappings は tag code mappings を clinic 単位で 1 回取得しキャッシュする
 // （BE-refactor.md E-7）。取得失敗時は warn ログを出し nil を返す（呼出元は per-owner
@@ -52,21 +79,25 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 
 	var errs []error
 	count := 0
-	syncOwners := func(owners []model.Owner) {
+	syncOwners := func(owners []model.Owner, pageInputs healthPreventionPageInputs) {
 		for i := range owners {
 			ownerID := owners[i].ID
+			ownerCheckups := pageOwnerCheckups(pageInputs, ownerID)
+			ownerVaccinations := pageOwnerVaccinations(pageInputs, ownerID)
+			ownerVisitSummary := pageOwnerVisitSummary(pageInputs, ownerID)
+
 			syncFns := []struct {
 				name string
 				fn   func() error
 			}{
 				{"SyncHealthcheckTags", func() error {
-					return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, &thresholds)
+					return s.syncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, cachedMappings, &thresholds, ownerCheckups)
 				}},
 				{"SyncAnnual4CheckupTag", func() error {
-					return s.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, cachedMappings, &thresholds)
+					return s.syncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, cachedMappings, &thresholds, ownerCheckups, ownerVisitSummary)
 				}},
 				{"SyncVaccineDeadlineTag", func() error {
-					return s.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, thresholds)
+					return s.syncVaccineDeadlineTagWithInputs(ctx, clinicID, ownerID, thresholds, ownerVaccinations)
 				}},
 				{"SyncFilariaTag", func() error {
 					return s.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, cachedFilariaMappings, &thresholds)
@@ -95,10 +126,13 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 
 	// PERF-FOLLOWUP-02: カーソルページネーションでオーナーを取得しながら処理する。
 	// 直前のページが pageSize ちょうどの場合のみ次ページを取得する（最後の空ページ取得を 1 回に抑える）。
+	// G2F-02: 各ページで checkup / vaccination / visit-summary を clinic-scoped bulk 取得する。
 	page := firstPage
 	afterID := uint64(0)
 	for len(page) > 0 {
-		syncOwners(page)
+		pageInputs, pageLoadErrs := s.loadHealthPreventionPageInputs(ctx, clinicID, page)
+		errs = append(errs, pageLoadErrs...)
+		syncOwners(page, pageInputs)
 		afterID = page[len(page)-1].ID
 		if len(page) < lstepBatchPageSize {
 			break
@@ -113,4 +147,100 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 		}
 	}
 	return count, errs
+}
+
+// loadHealthPreventionPageInputs bulk-loads child history for one owner page.
+// Missing bulk loaders fall back to per-owner queries inside the sync methods.
+// A bulk-load error is recorded and that category falls back (partial failure accounting).
+func (s *lstepTagSyncService) loadHealthPreventionPageInputs(
+	ctx context.Context,
+	clinicID uint64,
+	owners []model.Owner,
+) (healthPreventionPageInputs, []error) {
+	var inputs healthPreventionPageInputs
+	var errs []error
+	if len(owners) == 0 {
+		return inputs, nil
+	}
+	ownerIDs := make([]uint64, len(owners))
+	for i := range owners {
+		ownerIDs[i] = owners[i].ID
+	}
+
+	if loader, ok := any(s.checkupRepo).(healthPreventionCheckupPageLoader); ok {
+		byOwner, err := loader.FindByOwnerIDs(ctx, clinicID, ownerIDs)
+		if err != nil {
+			slog.ErrorContext(ctx, "health-prevention batch: bulk checkup load failed",
+				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
+			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load checkups"))
+		} else {
+			if byOwner == nil {
+				byOwner = map[uint64][]model.Checkup{}
+			}
+			inputs.checkupsByOwner = byOwner
+			inputs.loadedCheckups = true
+		}
+	}
+
+	if loader, ok := any(s.vacRepo).(healthPreventionVaccinationPageLoader); ok {
+		byOwner, err := loader.FindByOwnerIDs(ctx, clinicID, ownerIDs)
+		if err != nil {
+			slog.ErrorContext(ctx, "health-prevention batch: bulk vaccination load failed",
+				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
+			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load vaccinations"))
+		} else {
+			if byOwner == nil {
+				byOwner = map[uint64][]model.Vaccination{}
+			}
+			inputs.vaccinationsByOwner = byOwner
+			inputs.loadedVaccinations = true
+		}
+	}
+
+	if loader, ok := any(s.medRecordRepo).(healthPreventionVisitSummaryPageLoader); ok {
+		byOwner, err := loader.FindOwnerVisitSummariesByOwnerIDs(ctx, clinicID, ownerIDs)
+		if err != nil {
+			slog.ErrorContext(ctx, "health-prevention batch: bulk visit-summary load failed",
+				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
+			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load visit summaries"))
+		} else {
+			if byOwner == nil {
+				byOwner = map[uint64]*medicalrecord.OwnerVisitSummary{}
+			}
+			inputs.visitSummaryByOwner = byOwner
+			inputs.loadedVisitSummary = true
+		}
+	}
+
+	return inputs, errs
+}
+
+func pageOwnerCheckups(inputs healthPreventionPageInputs, ownerID uint64) *[]model.Checkup {
+	if !inputs.loadedCheckups {
+		return nil
+	}
+	items := inputs.checkupsByOwner[ownerID]
+	if items == nil {
+		items = []model.Checkup{}
+	}
+	return &items
+}
+
+func pageOwnerVaccinations(inputs healthPreventionPageInputs, ownerID uint64) *[]model.Vaccination {
+	if !inputs.loadedVaccinations {
+		return nil
+	}
+	items := inputs.vaccinationsByOwner[ownerID]
+	if items == nil {
+		items = []model.Vaccination{}
+	}
+	return &items
+}
+
+func pageOwnerVisitSummary(inputs healthPreventionPageInputs, ownerID uint64) **medicalrecord.OwnerVisitSummary {
+	if !inputs.loadedVisitSummary {
+		return nil
+	}
+	summary := inputs.visitSummaryByOwner[ownerID]
+	return &summary
 }

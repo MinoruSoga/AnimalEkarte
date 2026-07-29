@@ -342,6 +342,94 @@ func TestCheckupRepository_FindByOwnerID_CurrentOwnerAfterTransfer(t *testing.T)
 	assert.Empty(t, previous)
 }
 
+// TestCheckupRepository_FindByOwnerIDs は G2F-02 page bulk: multi-owner index、clinic 隔離、空入力を検証する。
+func TestCheckupRepository_FindByOwnerIDs(t *testing.T) {
+	db := setupCheckupRepoTestDB(t)
+	repo := NewCheckupRepository(db).(*checkupRepository)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	owner1 := testdb.MakeTestOwner(t, db, clinicA, "bulk飼主1")
+	owner2 := testdb.MakeTestOwner(t, db, clinicA, "bulk飼主2")
+	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "他院飼主")
+	pet1 := makeSpeciesAndPet(t, db, clinicA, owner1.ID, "bulkポチ1")
+	pet2 := makeSpeciesAndPet(t, db, clinicA, owner2.ID, "bulkポチ2")
+	petB := makeSpeciesAndPet(t, db, clinicB, otherClinicOwner.ID, "他院ポチ")
+	ctA := makeCheckupTypeMaster(t, db, clinicA, "bulk健診")
+	ctB := makeCheckupTypeMaster(t, db, clinicB, "他院健診")
+
+	mr1 := makeHistoryMedicalRecord(t, db, clinicA, pet1.ID, "MR-BULK-1", time.Now())
+	mr2 := makeHistoryMedicalRecord(t, db, clinicA, pet2.ID, "MR-BULK-2", time.Now())
+	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-BULK-B", time.Now())
+
+	c1 := makeCheckupWithDates(t, db, clinicA, mr1.ID, pet1.ID, ctA.ID, time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), nil)
+	c2 := makeCheckupWithDates(t, db, clinicA, mr2.ID, pet2.ID, ctA.ID, time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC), nil)
+	_ = makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC), nil)
+
+	t.Run("indexes by owner and excludes other clinic", func(t *testing.T) {
+		got, err := repo.FindByOwnerIDs(ctx, clinicA, []uint64{owner1.ID, owner2.ID, otherClinicOwner.ID})
+		require.NoError(t, err)
+		require.Len(t, got[owner1.ID], 1)
+		assert.Equal(t, c1.ID, got[owner1.ID][0].ID)
+		require.NotNil(t, got[owner1.ID][0].CheckupType)
+		require.Len(t, got[owner2.ID], 1)
+		assert.Equal(t, c2.ID, got[owner2.ID][0].ID)
+		assert.Empty(t, got[otherClinicOwner.ID], "cross-clinic owner must not leak into clinicA bulk")
+	})
+
+	t.Run("empty ownerIDs returns empty map", func(t *testing.T) {
+		got, err := repo.FindByOwnerIDs(ctx, clinicA, nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("history cap is applied per owner", func(t *testing.T) {
+		// healthTagOwnerHistoryMax+1 rows for owner1; only the newest max rows return.
+		for i := 0; i < healthTagOwnerHistoryMax+1; i++ {
+			d := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, i)
+			makeCheckupWithDates(t, db, clinicA, mr1.ID, pet1.ID, ctA.ID, d, nil)
+		}
+		got, err := repo.FindByOwnerIDs(ctx, clinicA, []uint64{owner1.ID})
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(got[owner1.ID]), healthTagOwnerHistoryMax)
+	})
+}
+
+// TestMedicalRecordRepository_FindOwnerVisitSummariesByOwnerIDs は page bulk visit-summary を検証する。
+func TestMedicalRecordRepository_FindOwnerVisitSummariesByOwnerIDs(t *testing.T) {
+	db := setupCheckupRepoTestDB(t)
+	repo := NewMedicalRecordRepository(db).(*medicalRecordRepository)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	owner1 := testdb.MakeTestOwner(t, db, clinicA, "visit bulk1")
+	owner2 := testdb.MakeTestOwner(t, db, clinicA, "visit bulk2")
+	other := testdb.MakeTestOwner(t, db, clinicB, "visit other clinic")
+	pet1 := makeSpeciesAndPet(t, db, clinicA, owner1.ID, "visit pet1")
+	pet2 := makeSpeciesAndPet(t, db, clinicA, owner2.ID, "visit pet2")
+	petB := makeSpeciesAndPet(t, db, clinicB, other.ID, "visit petB")
+
+	// owner1: 2 records in last year → AnnualCount 2
+	makeHistoryMedicalRecord(t, db, clinicA, pet1.ID, "MR-VS-1A", time.Now().AddDate(0, -1, 0))
+	makeHistoryMedicalRecord(t, db, clinicA, pet1.ID, "MR-VS-1B", time.Now().AddDate(0, -2, 0))
+	// owner2: none
+	// other clinic: should not appear under clinicA
+	makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-VS-B", time.Now())
+
+	got, err := repo.FindOwnerVisitSummariesByOwnerIDs(ctx, clinicA, []uint64{owner1.ID, owner2.ID, other.ID})
+	require.NoError(t, err)
+	require.NotNil(t, got[owner1.ID])
+	assert.Equal(t, int64(2), got[owner1.ID].AnnualCount)
+	assert.Equal(t, int64(2), got[owner1.ID].TotalCount)
+	assert.Nil(t, got[owner2.ID], "owners with no visits are absent (caller treats as zero)")
+	assert.Nil(t, got[other.ID], "cross-clinic owner must not appear")
+
+	empty, err := repo.FindOwnerVisitSummariesByOwnerIDs(ctx, clinicA, nil)
+	require.NoError(t, err)
+	assert.Empty(t, empty)
+	_ = pet2
+}
+
 func TestCheckupRepository_FindByID(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
 	repo := NewCheckupRepository(db)
