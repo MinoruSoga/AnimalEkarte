@@ -196,10 +196,10 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-29 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（PO 判断待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。回答済み決裁カードは削除する — 決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-29 時点: PO 判断待ち 2 件 — DEC-42/43 は DEC-30/35 の再審として未回答。DEC-23〜28 は 2026-07-27 に全て A で裁定・実装台帳へ反映済み（カード原文 = git 履歴 <code>4189eda9b</code>。<b>DEC-25 のみ同日 USER 再裁定で「通知実装なし・運用カバー」へ変更</b> — OPS-19/TASK-443 は撤回・BUG-435 はクローズ）。残 = DEC-42/43（DEC-30/35 再審）・OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（USER 入力待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-42/43/44 は代理判定済み。現在の USER 入力待ち決裁カードは 0 件。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
   </header>
 
-  <p class="summary">PO 判断待ちカード: 現在 2 件（DEC-42/43、DEC-30/35 の再審）。回答済みカードは削除済み（DEC-23〜28 は 2026-07-27 に全て A で裁定・同日削除、カード原文 = <code>4189eda9b</code>）。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の PO 判断待ちはここへカードとして起票する。</p>
+  <p class="summary">USER 入力待ちカード: 現在 0 件。DEC-42/43/44 は 2026-07-30 に代理判定済み。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の USER 入力待ちはここへカードとして起票する。</p>
 
 <div class="po-ops">
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
@@ -304,46 +304,80 @@
   </div>
 </article>
 
-<h2 id="decision-reconsiderations">再審が要る 2 件（2026-07-29・勧告）</h2>
-<p class="section-intro">両件とも現時点では選択肢 A が有効な裁定である。以下は再審の提案であり、A を取り消すものではない。</p>
+<h2 id="decision-reconsiderations">再審 2 件の代理判定（2026-07-30）</h2>
+<p class="section-intro">DEC-42 は A 維持、DEC-43 は段階契約として条件付き受理。USER は後から覆せる。</p>
 
-<article class="task" id="dec-42" data-status="unanswered">
+<article class="task" id="dec-42" data-status="proxy-decided">
   <div class="task-head">
     <span class="qno">DEC-42</span>
     <span class="badge category">再審 / DEC-30</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: 2026-07-29・再審勧告</span>
+    <span class="badge status">代理決裁済み・A 維持</span>
+    <span class="asker">起票: 2026-07-29 ／ 判定: 2026-07-30・代理判定</span>
     <h3 class="task-title">DEC-30（global Lステップ設定の write model）の再審</h3>
   </div>
   <div class="task-body">
-    <p class="section-label">現在有効な裁定</p>
-    <p class="qa-text"><strong>A</strong> =「<code>clinic_id</code> を追加し、clinic ごとの設定へ移行する。」</p>
-    <p class="section-label">再審が要る理由</p>
-    <p class="qa-text"><strong>実装は B 相当</strong>（<code>lstep/routes.go:51,173</code> が全 mutation を system_admin 専権、<code>001_init.sql:619</code> は 3 テーブルとも <code>clinic_id</code> なしの global schema）。repository / consumer にも clinic context がない。<strong>A と実装の差は局所的な取りこぼしではなく、schema・repository・全 consumer に及ぶ ownership model の不一致。</strong></p>
-    <p class="section-label">USER への質問</p>
-    <p class="qa-text">「現行 A のまま 3 種の global automation master を clinic ごとに複製し、schema・repository・全 consumer を clinic-scoped 化することで生じる設定重複と drift を受け入れますか。それとも、新カードで B『global 行を維持し、write を platform-admin 専権』を正式裁定にしますか。」</p>
-    <div class="rec"><strong>推奨: B</strong>。現行実装と consumer ownership に一致し、clinic 間影響を権限境界だけで除去でき、二重管理を増やさないため。</div>
-    <div class="need"><strong>A へ実装追随させる場合の影響:</strong> 3 テーブルの migration/backfill、repository、consumer、route、UI の clinic-scoping が必要。</div>
+    <p class="section-label">判定</p>
+    <p class="qa-text"><strong>A 維持・推奨 B 棄却。</strong></p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text">global seed の mapping key と clinic データの condition code が別語彙で運用されている。<code>backend/seeds/002_master/lstep_condition_tag_mappings.csv:2</code> の key は小文字 <code>ckd</code>、<code>backend/seeds/003_demo/pet_chronic_conditions.csv:2</code> の code は大文字 <code>ATOPY</code> であり、完全一致 map では解決しない。したがって「global 値が clinic 間で同一」という B の前提が成立していない。</p>
   </div>
 </article>
 
-<article class="task" id="dec-43" data-status="unanswered">
+<article class="task" id="dec-43" data-status="proxy-decided">
   <div class="task-head">
     <span class="qno">DEC-43</span>
     <span class="badge category">再審 / DEC-35</span>
-    <span class="badge status">PO 判断待ち</span>
-    <span class="asker">起票: 2026-07-29・再審勧告</span>
+    <span class="badge status">代理決裁済み・条件付き受理</span>
+    <span class="asker">起票: 2026-07-29 ／ 判定: 2026-07-30・代理判定</span>
     <h3 class="task-title">DEC-35（best-effort を宣言できる最低条件）の再審</h3>
   </div>
   <div class="task-body">
-    <p class="section-label">現在有効な裁定</p>
-    <p class="qa-text"><strong>A</strong> =「business fact を不整合にしない、次回実行で必ず収束できる、失敗が durable result/audit に計上される、の全条件を必須にする。」</p>
-    <p class="section-label">再審が要る理由</p>
-    <p class="qa-text">元所見 <code>LSA-03</code> は <code>lstep_batch_segmentation.go:18</code> で収束済み。一方 <code>backend/CODING_RULES.md:44</code> は batch・saga・非権威的な副次効果を<strong>明示的に区別</strong>しており、cache/counter cleanup は主契約非反転＋log＋収束/補償を採用している（<code>lstep_lifecycle_service.go:320</code>）。<strong>A の「全条件」「必ず次回収束」を軽微な副次効果へ一律適用すると durable job/audit の過剰実装になる。黙って弱く解釈すると silent swallow を再導入する。</strong></p>
-    <p class="section-label">USER への質問</p>
-    <p class="qa-text">「<code>DEC-35</code> A の 3 条件を全 best-effort に一律適用せず、①business fact・multi-item batch は durable result/audit と再試行・再評価を必須、②external saga は補償または retry evidence と部分失敗 contract を必須、③主契約を反転しない軽微な副次効果は error log と収束・補償方針を必須とする段階契約へ再裁定しますか。」</p>
-    <div class="rec"><strong>推奨: 段階契約</strong>。silent success を禁止したまま、cache/counter cleanup まで durable job 化する過剰実装を避けられるため。</div>
-    <div class="need"><strong>実装上の要件:</strong> 段階境界を「business fact / batch / saga / non-authoritative side effect」で機械判定できるよう、新カード本文で定義する必要がある。</div>
+    <p class="section-label">判定</p>
+    <p class="qa-text"><strong>段階契約へ再裁定（条件付き受理）。</strong> 分類軸は処理名ではなく、失敗時の業務影響とする。「cache だから」「counter だから」という呼び替えで business fact を軽い側へ逃がさない。</p>
+    <p class="section-label">3 レーン</p>
+    <ul>
+      <li><code>AUTHORITATIVE</code>: fail-closed・business write と同一 tx。</li>
+      <li><code>EXTERNAL_SAGA</code>: 外部系との補償付き。</li>
+      <li><code>REBUILDABLE_DERIVATIVE</code>: 再構築可能な派生物。</li>
+    </ul>
+    <div class="need"><strong>既定:</strong> 判定不能な場合は <code>AUTHORITATIVE</code> へ倒す（最も厳しいレーンを既定とする）。</div>
+  </div>
+</article>
+
+<h2 id="task-251-u4-input">TASK-251 U4 — スコープ代理裁定</h2>
+<p class="section-intro">自動導出 source を今期に設計するかを代理裁定した。training カテゴリと既存の手入力経路は維持し、USER は後から本裁定を覆せる。</p>
+
+<article class="task" id="dec-44" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-44</span>
+    <span class="badge category">スコープ裁定 / TASK-251 U4</span>
+    <span class="badge status">代理決裁済み・案 A</span>
+    <span class="asker">起票: 2026-07-30・台帳 readiness 確定 ／ 判定: 2026-07-30・委任代行</span>
+    <h3 class="task-title">training 自動導出 source は phase2 へ見送る</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">裁定</p>
+    <p class="qa-text"><strong>案 A — phase2 送り。</strong> training 自動導出 source は <code>TASK-251</code> の今期完了条件から外す。training カテゴリは削除せず、U2b-min で開通済みの12分類手入力経路も維持する。具体的な training 業務イベントが発生した時点で <code>DEC-21</code> へ戻り、自動導出 source の要否を再審する。</p>
+
+    <p class="section-label">一次資料（逐語）</p>
+    <p class="qa-text"><strong>DEC-21 原文:</strong> 「USER 本人裁定（業務責任者）— ①12分類すべて正式化 ②入院＝care item 単位で展開 ③vaccination＝接種記録から自動生成 ④training/hotel＝両方 実運用売上あり（維持）。」／「④ hotel source＝HospitalizationTypeHotel（②と連動）、training は現状 source 不在のため新規 source 設計を要する。両カテゴリとも削除しない。」<br>
+    <strong>#251 本文:</strong> 「vaccine／hotel／training の自動入力 source／contract が未特定」／「hospitalization／vaccine／hotel／training は責任者が source を決めるまで推測 mapping しない」／「#247 は本 Issue の contract 完了後に着手する」。</p>
+
+    <p class="section-label">実測と判断原則</p>
+    <p class="qa-text"><code>model.ItemCategoryTraining</code> を業務イベントから代入する production 経路は存在しない。既存の <code>POST /billing-items</code> は request の category を通す汎用手入力経路であり、U2b-min の成果物として残る。自動化対象となる業務イベント・責任者・確定時点・provenance FK が未定のまま source を設計すると、product philosophy の①「要件を疑う」と⑤「検証済みプロセスだけを自動化する」に反する。</p>
+
+    <p class="section-label">退けた案と理由</p>
+    <p class="qa-text"><strong>案 B（手入力のみを正式な到達点とする）:</strong> DEC-21 が手動 U2b と U4 を分離しているため、明示的な DEC-21 再審なしに恒久運用へ読み替えられない。<br>
+    <strong>案 C（今期 source 設計）:</strong> 業務イベント等の6入力が無く、#251 の「推測 mapping しない」に反する。<br>
+    <strong>training 削除:</strong> DEC-21 の「実運用売上あり（維持）」「両カテゴリとも削除しない」に反する。</p>
+
+    <p class="section-label">#247 への影響</p>
+    <p class="qa-text">#247 の受け入れ条件「#251 の全書込経路 category contract が確定している」に対し、U4 は今期 contract の対象外と確定した。したがって <strong>#247 が待つ #251 側の対象は U2b-full 第2段だけ</strong>となる。これは依存 gate の縮小であり、#247 自体の実装・test・print 受け入れ条件の完了を意味しない。</p>
+
+    <p class="section-label">委任境界</p>
+    <p class="qa-text">本裁定は current-phase scope と文書分類だけを変更する。臨床値・価格を決めず、実際の課金、GitHub 書き込み、credential・物理操作も行わないため代理決裁の範囲内。</p>
+
+    <div class="need"><strong>phase2 移設条件:</strong> <code>phase2.html</code> に「見送り」として移し、再開条件を「具体的な training 業務イベント、個人責任者、利用頻度、料金確定時点、provenance FK が確認された時」とする。実移設は本 unit の2-file allowlist外なので New Work Surfaced として扱う。</div>
   </div>
 </article>
 

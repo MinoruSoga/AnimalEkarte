@@ -117,6 +117,7 @@
   <h2>PO 決裁済み「やらない」（決裁正本: q&amp;a.html）</h2>
   <ul>
     <li><span class="badge hold">見送り</span><strong>#235 カルテ画像・PDF の D&amp;D アップロード</strong>（DEC-19・2026-07-25）— <em>再開条件</em>: 利用者・頻度・現行操作時間の価値実測の提出。再開時も確定済みカルテでは drop UI・保存とも不可（#260）。</li>
+    <li><span class="badge hold">見送り</span><strong>training カテゴリの自動導出 source 設計（#251 TASK-251 U4）</strong>（DEC-44・2026-07-30・決裁正本 = <a href="q&amp;a.html#dec-44">q&amp;a.html#dec-44</a>）— DEC-21 ②が求める「確定時に権威 source＋FK lineage で billing item 候補を生成する」経路のうち training 分のみを今期スコープ外とする。<strong>training カテゴリ自体と 12 分類手入力経路は維持</strong>するため売上の記録手段は失われない（DEC-21 ④「実運用売上あり・両カテゴリとも削除しない」を満たす）。hotel は <code>HospitalizationTypeHotel</code> 経路で到達済みであり、12 分類のうち training だけが自動導出 source を持たない。<em>再開条件</em>: ①料金を発生させる業務イベント（誰が・いつ・どの画面/帳票で確定させるか） ②価格・回数・取消・返金それぞれの正本 ③現行業務の責任者（個人名） ④明細に持たせる provenance FK の指す実体 ⑤重複実行を防ぐ idempotency 方針 — の5点が責任者名付きで揃うこと。手入力運用を恒久の到達点として正式化する場合は、DEC-21 が手動 U2b と U4 を明示的に分離している以上、<strong>DEC-21 ④の明示的な再審</strong>を要する（勝手な読み替えは USER 本人裁定を空文にする）。</li>
     <li><span class="badge never">やらない</span><strong>lab_import 外部検査連携の FE</strong>（PO-007）— FE 着手禁止。<em>再開条件</em>: 実データ経路開通後に最小 UX を定義してから実装可。</li>
     <li><span class="badge never">やらない</span><strong>健診 CRUD UI</strong>（#211 決裁）</li>
     <li><span class="badge never">やらない</span><strong>四季分割・腎臓ドック</strong>（#211 決裁）</li>
