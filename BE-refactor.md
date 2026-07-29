@@ -2574,7 +2574,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "Payment|TxAtomicity"`
 - 既知台帳: MDL-06=TASK-445 / DEC-28
 - Size: M (3/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 対象消失（ALREADY-FIXED: model.Payment.ClinicID + migration 005 + SavePayment lockBillingClinic + PersistsClinicID test） ｜ 担当レーン: LANE-4 ｜ 完了 commit: —
 
 ##### U-X01X02-INVENTORY
 
@@ -3322,7 +3322,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/billing/ -run "Close"`
 - 既知台帳: none
 - Size: S (2/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 対象消失（G2F-09 DOWNGRADED: PeriodStart/End 束縛の締め詳細 dump。lifetime unbounded 非該当・pagination 非必須） ｜ 担当レーン: LANE-4 ｜ 完了 commit: —
 
 ##### SOLO-21
 
