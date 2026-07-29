@@ -14,14 +14,17 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+const testDisposableDatabase = "seed_export_tmp"
+
 func TestImportWithBeginReplacesAndImportsLegacyGraph(t *testing.T) {
 	sourceDir := writeLegacyImportFixture(t)
-	tx := &fakeLegacyTransaction{}
+	tx := &fakeLegacyTransaction{currentDatabase: testDisposableDatabase}
 
 	counts, err := importWithBegin(
 		context.Background(),
 		func(context.Context) (legacyImportTransaction, error) { return tx, nil },
 		sourceDir,
+		testDisposableDatabase,
 		1,
 		2,
 		3,
@@ -40,9 +43,46 @@ func TestImportWithBeginReplacesAndImportsLegacyGraph(t *testing.T) {
 }
 
 func TestImportRejectsRelativeSourceBeforeOpeningTransaction(t *testing.T) {
-	counts, err := Import(context.Background(), nil, "relative/source", 1, 2, 3)
+	counts, err := Import(context.Background(), nil, "relative/source", testDisposableDatabase, 1, 2, 3)
 	if err == nil || counts != nil {
 		t.Fatalf("Import() = (%v, %v), want absolute-path rejection", counts, err)
+	}
+}
+
+func TestImportRejectsEmptyExpectedDatabase(t *testing.T) {
+	tx := &fakeLegacyTransaction{currentDatabase: testDisposableDatabase}
+	_, err := importWithBegin(
+		context.Background(),
+		func(context.Context) (legacyImportTransaction, error) { return tx, nil },
+		t.TempDir(),
+		"  ",
+		1, 2, 3,
+	)
+	if err == nil || !strings.Contains(err.Error(), "expected disposable database name is required") {
+		t.Fatalf("error = %v, want required expected database", err)
+	}
+	if tx.deletedTables != 0 {
+		t.Fatalf("deletedTables=%d, want 0 before identity check", tx.deletedTables)
+	}
+}
+
+func TestImportRejectsDatabaseIdentityMismatchWithoutDelete(t *testing.T) {
+	tx := &fakeLegacyTransaction{currentDatabase: "ekarte_db"}
+	_, err := importWithBegin(
+		context.Background(),
+		func(context.Context) (legacyImportTransaction, error) { return tx, nil },
+		writeLegacyImportFixture(t),
+		testDisposableDatabase,
+		1, 2, 3,
+	)
+	if err == nil || !strings.Contains(err.Error(), "target database identity mismatch") {
+		t.Fatalf("error = %v, want identity mismatch", err)
+	}
+	if tx.deletedTables != 0 {
+		t.Fatalf("deletedTables=%d, want 0 on mismatch", tx.deletedTables)
+	}
+	if tx.committed {
+		t.Fatal("must not commit after identity mismatch")
 	}
 }
 
@@ -54,6 +94,7 @@ func TestImportWithBeginReportsBeginFailure(t *testing.T) {
 			return nil, fmt.Errorf("%s", privateValue)
 		},
 		t.TempDir(),
+		testDisposableDatabase,
 		1,
 		2,
 		3,
@@ -81,11 +122,12 @@ func TestLegacyImportErrorsDoNotExposeSourceValues(t *testing.T) {
 		})
 	}
 
-	tx := &fakeLegacyTransaction{copyError: errors.New(privateValue)}
+	tx := &fakeLegacyTransaction{currentDatabase: testDisposableDatabase, copyError: errors.New(privateValue)}
 	_, err := importWithBegin(
 		context.Background(),
 		func(context.Context) (legacyImportTransaction, error) { return tx, nil },
 		writeLegacyImportFixture(t),
+		testDisposableDatabase,
 		1,
 		2,
 		3,
@@ -98,14 +140,15 @@ func TestLegacyImportErrorsDoNotExposeSourceValues(t *testing.T) {
 		name string
 		tx   *fakeLegacyTransaction
 	}{
-		{name: "delete", tx: &fakeLegacyTransaction{execError: errors.New(privateValue)}},
-		{name: "commit", tx: &fakeLegacyTransaction{commitError: errors.New(privateValue)}},
+		{name: "delete", tx: &fakeLegacyTransaction{currentDatabase: testDisposableDatabase, execError: errors.New(privateValue)}},
+		{name: "commit", tx: &fakeLegacyTransaction{currentDatabase: testDisposableDatabase, commitError: errors.New(privateValue)}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := importWithBegin(
 				context.Background(),
 				func(context.Context) (legacyImportTransaction, error) { return test.tx, nil },
 				writeLegacyImportFixture(t),
+				testDisposableDatabase,
 				1,
 				2,
 				3,
@@ -167,21 +210,52 @@ func writeLegacyImportFixture(t *testing.T) string {
 }
 
 type fakeLegacyTransaction struct {
-	committed     bool
-	rolledBack    bool
-	copyCalls     int
-	deletedTables int
-	copyError     error
-	execError     error
-	commitError   error
+	committed       bool
+	rolledBack      bool
+	copyCalls       int
+	deletedTables   int
+	currentDatabase string
+	copyError       error
+	execError       error
+	commitError     error
+	queryError      error
 }
 
-func (tx *fakeLegacyTransaction) Exec(_ context.Context, _ string, _ ...any) (pgconn.CommandTag, error) {
+func (tx *fakeLegacyTransaction) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag, error) {
 	if tx.execError != nil {
 		return pgconn.CommandTag{}, tx.execError
 	}
-	tx.deletedTables++
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(sql)), "DELETE") {
+		tx.deletedTables++
+	}
 	return pgconn.NewCommandTag("DELETE 1"), nil
+}
+
+func (tx *fakeLegacyTransaction) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
+	return fakeLegacyRow{tx: tx, sql: sql}
+}
+
+type fakeLegacyRow struct {
+	tx  *fakeLegacyTransaction
+	sql string
+}
+
+func (r fakeLegacyRow) Scan(dest ...any) error {
+	if r.tx.queryError != nil {
+		return r.tx.queryError
+	}
+	if !strings.Contains(strings.ToLower(r.sql), "current_database") {
+		return fmt.Errorf("unexpected QueryRow sql")
+	}
+	if len(dest) != 1 {
+		return fmt.Errorf("unexpected Scan arity")
+	}
+	ptr, ok := dest[0].(*string)
+	if !ok {
+		return fmt.Errorf("unexpected Scan type")
+	}
+	*ptr = r.tx.currentDatabase
+	return nil
 }
 
 func (tx *fakeLegacyTransaction) CopyFrom(_ context.Context, _ pgx.Identifier, _ []string, source pgx.CopyFromSource) (int64, error) {

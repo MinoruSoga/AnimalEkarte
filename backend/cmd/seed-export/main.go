@@ -112,7 +112,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if err := tmpPool.QueryRow(ctx, `SELECT id FROM exam_types WHERE name = $1 AND clinic_id = $2 LIMIT 1`, "検査", clinicID).Scan(&examTypeID); err != nil {
 			return fmt.Errorf("resolve import exam type: %w", err)
 		}
-		counts, err := csvimport.Import(ctx, tmpPool, sourceDir, clinicID, speciesID, examTypeID)
+		counts, err := csvimport.Import(ctx, tmpPool, sourceDir, tmpDBName, clinicID, speciesID, examTypeID)
 		if err != nil {
 			return fmt.Errorf("CSV source import failed: %w", err)
 		}
