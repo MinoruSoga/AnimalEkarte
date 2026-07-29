@@ -2783,7 +2783,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/owner/... -run 'Phone|Unique'`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: c83e05a1cd2edd046da786b12a62994436cfec9a
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: ccfaaa311ec1bc1987f6fe189c7e2dfb1799319b
 
 ##### BE-X08-LSTEP-CONNECTION-01
 
