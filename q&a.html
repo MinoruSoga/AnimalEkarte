@@ -437,6 +437,73 @@
   </div>
 </article>
 
+<h2 id="issue-251-u2b-full-rulings">#251 U2b-full 第2段 — 代理決裁（8 論点）</h2>
+<p class="section-intro">本カードは USER 本人の裁定ではなく、委任代行による代理決裁である。USER が覆せる。</p>
+
+<article class="task" id="dec-40" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-40</span>
+    <span class="badge category">会計 / #251 U2b-full 第2段</span>
+    <span class="badge status">代理決裁済み・USER 承認待ち</span>
+    <span class="asker">起票: #251 U2b-full 第2段 ／ 決定: 委任代行（USER が覆せる）</span>
+    <h3 class="task-title">締め表の「未分類・要確認」件数表示 — 代理決裁 8 論点</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">Q1 件数の母集団</p>
+    <p class="qa-text"><strong>決裁:</strong> 全 <code>category=other</code>。正式 enum 値ではあるが、運用上は要確認 escape category として扱う。<br>
+<strong>一次資料:</strong> DEC-16①「導出不能行は『未分類・要確認』として締め前に可視化」、③「other は理由必須の例外として残し…締めで要確認件数として表示」、④「legacy/import 済み other…未分類率・source 別件数を計測」<br>
+<strong>退けた代替案と理由:</strong> 理由付き手入力のみ／理由なしのみ／導出不能のみ — いずれも DEC-16 が明示した別集合を欠落させる。<br>
+<strong>委任境界:</strong> なし。報告母集団の定義であり、臨床・価格を変更しない。</p>
+
+    <p class="section-label">Q2 件数の粒度</p>
+    <p class="qa-text"><strong>決裁:</strong> 会計 distinct。<br>
+<strong>一次資料:</strong> DEC-16⑥「『件数』=会計 distinct」<br>
+<strong>退けた代替案と理由:</strong> <code>billing_items</code> 件数は 1 会計内の複数明細で過大。現行 <code>MIN(category)</code> は other を含む混在会計を落とし得る。<br>
+<strong>委任境界:</strong> なし。金額配賦は再決裁せず、既決の件数定義のみ流用。</p>
+
+    <p class="section-label">Q3 UI の形</p>
+    <p class="qa-text"><strong>決裁:</strong> 既存「その他」行を「未分類・要確認」へリネームし、正しい distinct 件数を載せる。別バナーは作らない。<br>
+<strong>一次資料:</strong> DEC-16④「締め/月次では『未分類』を別掲」。現行ラベルは <code>frontend/src/features/cash-register/constants.ts:26</code>、ゼロ行除外は <code>frontend/src/features/cash-register/closing-summary.ts:49</code><br>
+<strong>退けた代替案と理由:</strong> バナーは既存 other 行との二重表示。「両方」は重複が最大。既存行自体を別掲面として使うのが最少工程。<br>
+<strong>委任境界:</strong> なし。表示語彙のみ。</p>
+
+    <p class="section-label">Q4 印刷・履歴</p>
+    <p class="qa-text"><strong>決裁:</strong> preview、印刷、締め履歴すべてに出す。履歴は締め時点の snapshot。旧履歴は「記録なし」で、0 扱いや live 再計算をしない。<br>
+<strong>一次資料:</strong> DEC-16⑤「FE 型・締め・月次・印刷へ同一 typed mapping で派生」。現行 snapshot は <code>backend/internal/model/cash_register_close.go:19</code>、生成は <code>backend/internal/billing/cash_register_service.go:358</code><br>
+<strong>退けた代替案と理由:</strong> preview のみでは締め後の確認に紙/PDF や live 再構築が必要になり、当時の状態を失う。<br>
+<strong>委任境界:</strong> なし。印刷内容を定めるだけで、物理印刷を実行しない。</p>
+
+    <p class="section-label">Q5 月次を本 unit に含めるか</p>
+    <p class="qa-text"><strong>決裁:</strong> 本 unit には含めない。ただし DEC-16④ の月次義務は撤回せず、後続 <code>#247</code> の契約として保持。<br>
+<strong>一次資料:</strong> DEC-16④「締め/月次では『未分類』を別掲」。DEC-21「#247（月次統合表）は本 contract 完了後に着手」<br>
+<strong>退けた代替案と理由:</strong> 同時実装は締め専用 unit を別 API・別帳票へ広げる。永久除外は DEC-16 違反なので不可。<br>
+<strong>委任境界:</strong> なし。実施順序の決裁。</p>
+
+    <p class="section-label">Q6 物販由来 other に理由を求めるか</p>
+    <p class="qa-text"><strong>決裁:</strong> 販売ごとの理由入力は求めない。<br>
+<strong>一次資料:</strong> DEC-16③は「手動明細」の理由要件。現行も物販を除外する <code>backend/internal/billing/billing_item_service.go:164</code>、master 由来 category を採用する同ファイル <code>backend/internal/billing/billing_item_service.go:405</code><br>
+<strong>退けた代替案と理由:</strong> 毎販売理由は master 由来事実の二重入力。誤分類なら master を一度直す方が少ない工程。<br>
+<strong>委任境界:</strong> なし。価格・料金体系は変更しない。</p>
+
+    <p class="section-label">Q7 <code>MIN(category)</code> の歪みを本 unit で扱うか</p>
+    <p class="qa-text"><strong>決裁:</strong> 本 unit で扱う。ただし新しい要確認件数だけを独立した会計 distinct 集計にし、既存 detail/report 全体の再設計はしない。<br>
+<strong>一次資料:</strong> <code>MIN(category::text)</code> は <code>backend/internal/billing/accounting_repository_reports_close.go:150</code>、payment split 展開は同 <code>:163</code>。DEC-16⑥は会計 distinct。<br>
+<strong>退けた代替案と理由:</strong> 無視すると混在会計の other を欠落。FE dedupe では MIN で失われた情報を復元不能。全面改修は本件の目的を超える。<br>
+<strong>委任境界:</strong> なし。報告件数の正確性のみ。</p>
+
+    <p class="section-label">Q8 DEC-16③の「8分類」と現行 12 分類</p>
+    <p class="qa-text"><strong>決裁:</strong> 「8分類」は廃止済み語彙。現行 12 分類すべてを明示選択対象とする。<br>
+<strong>一次資料:</strong> DEC-21「12分類すべて正式化」「enum 現状（12値）を締め contract として確定」。DEC-22「12分類の必須 Select」。実定義は <code>backend/internal/model/accounting.go:36</code><br>
+<strong>退けた代替案と理由:</strong> 根拠のない 8 分類 subset は 4 分類を黙って落とす。13 番目の分類追加も不要。<br>
+<strong>委任境界:</strong> なし。臨床判断ではなく既決の会計 taxonomy 解釈。</p>
+
+    <p class="qa-text"><strong>12 分類:</strong> <code>examination</code> / <code>test</code> / <code>procedure</code> / <code>surgery</code> / <code>medicine</code> / <code>food</code> / <code>goods</code> / <code>other</code> / <code>vaccine</code> / <code>trimming</code> / <code>hotel</code> / <code>training</code></p>
+
+    <div class="rec"><strong>判断原則の適用（決裁 run の結論・これも転記する）:</strong> 削減される工程は「未分類が 0 件の日に、締め担当者が全会計明細を目視して例外の有無を確認する工程」。非ゼロ日は件数だけでは対象会計を特定できないため探索工程は残る。評価指標は日次締め所要時間／締め時に目視した会計数／0 件表示によって確認を省略できた締めの割合。非ゼロが常態化する場合の最少工程案は、別帳票や手動チェックリストではなく、該当会計だけへの条件付き filter/drilldown。</div>
+    <div class="need"><strong>決裁 run が自ら記録した残リスク（これも転記する）:</strong> 現行 FE 件数は <code>billingDetails</code> 行数を数えるため再利用不可／履歴対応は既存 JSONB snapshot の後方互換が必要（旧データは「記録なし」）／全 other 方式は意図的な物販 master other も要確認に含めるため friction を意識的に受容した／月次義務は未完のまま残るため<strong>本 unit 完了を DEC-16④ 全体完了と報告してはならない</strong>／既存の一般部門件数に残る MIN・split 歪みの全面修正は本 unit 外。</div>
+  </div>
+</article>
+
 <h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
 <table>
