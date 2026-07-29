@@ -3280,7 +3280,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ ./internal/owner/ ./internal/medicalrecord/ ./internal/billing/ -run "LTV|Dormant|Segmentation"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: bffbea00efd41edfe515f06f0063df6a56c60dc5
 
 ##### SOLO-17
 
