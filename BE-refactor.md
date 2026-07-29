@@ -3265,7 +3265,7 @@ A unit with a decision ID remains blocked until that packet is decided. Within e
 - 検証: `docker compose exec backend go test ./internal/lstep/ -run "HealthTagSync"`
 - 既知台帳: none
 - Size: M (4/8 files)
-- Status: 未着手 ｜ 担当レーン: — ｜ 完了 commit: —
+- Status: 完了 ｜ 担当レーン: LANE-1 ｜ 完了 commit: 0b3e455ebbc9c4b9616f2f4c967520b9b80abfca
 
 ##### SOLO-15
 
