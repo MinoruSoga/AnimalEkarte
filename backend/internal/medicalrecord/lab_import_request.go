@@ -36,15 +36,15 @@ type labImportBatchReq struct {
 }
 
 type labImportResultRowReq struct {
-	OldPetKey      string `json:"old_pet_key"`
-	OldChartKey    string `json:"old_chart_key"`
-	OldRowKey      string `json:"old_row_key"`
-	ExamDate       string `json:"exam_date"`
-	ExamCode       string `json:"exam_code"`
-	ExamName       string `json:"exam_name"`
-	ItemName       string `json:"item_name"`
-	DisplayValue   string `json:"display_value"`
-	ReferenceValue string `json:"reference_value"`
+	OldPetKey      string `json:"old_pet_key" binding:"omitempty,max=255"`
+	OldChartKey    string `json:"old_chart_key" binding:"omitempty,max=255"`
+	OldRowKey      string `json:"old_row_key" binding:"omitempty,max=255"`
+	ExamDate       string `json:"exam_date" binding:"omitempty,max=32"`
+	ExamCode       string `json:"exam_code" binding:"omitempty,max=64"`
+	ExamName       string `json:"exam_name" binding:"omitempty,max=255"`
+	ItemName       string `json:"item_name" binding:"omitempty,max=255"`
+	DisplayValue   string `json:"display_value" binding:"omitempty,max=255"`
+	ReferenceValue string `json:"reference_value" binding:"omitempty,max=255"`
 }
 
 // labExamInputReq はハンドラー境界での exam 入力。
@@ -59,12 +59,13 @@ type labExamInputReq struct {
 }
 
 type labExamItemReq struct {
-	Name            string   `json:"name"`
-	InspectionValue string   `json:"inspection_value"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min"`
-	RefMax          *float64 `json:"ref_max"`
+	// MRC-08: boundary validation for free-text import fields and numeric ref range.
+	Name            string   `json:"name" binding:"omitempty,max=255"`
+	InspectionValue string   `json:"inspection_value" binding:"omitempty,max=255"`
+	Unit            string   `json:"unit" binding:"omitempty,max=64"`
+	ReferenceValue  string   `json:"reference_value" binding:"omitempty,max=255"`
+	RefMin          *float64 `json:"ref_min" binding:"omitempty"`
+	RefMax          *float64 `json:"ref_max" binding:"omitempty"`
 	SortOrder       int      `json:"sort_order"`
 }
 
@@ -124,6 +125,12 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]LabExamPersistInpu
 
 		items := make([]LabExamItemInput, len(r.Items))
 		for j, it := range r.Items {
+			// MRC-08: reject inverted reference ranges at the conversion boundary.
+			if it.RefMin != nil && it.RefMax != nil && *it.RefMin > *it.RefMax {
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf(
+					"inputs[%d].items[%d].ref_min は ref_max 以下である必要があります", i, j,
+				))
+			}
 			items[j] = LabExamItemInput{
 				Name:            it.Name,
 				InspectionValue: it.InspectionValue,
