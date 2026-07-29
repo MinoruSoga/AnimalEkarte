@@ -195,7 +195,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master
 	// 検証も同一txへ収束。Create/FindByID/Updateのrollback proofは
 	// TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction。)
-	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID":   {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID": {},
+	// U-X01X03-MR-CARE / MRA-02: Create/Update/Delete/FindByID join ambient tx for write+reload + audited hard-delete.
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByID":                  {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Create":                    {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Update":                    {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Delete":                    {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Create":                {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindByID":              {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},

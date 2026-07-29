@@ -229,6 +229,8 @@ func newMedicalRecordHospitalServices(
 			r.medicines,
 			r.procedures,
 			r.hospitalizationPlans,
+			d.Transactor,
+			auditTx,
 		),
 	}
 }

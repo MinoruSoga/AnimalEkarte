@@ -49,9 +49,11 @@ func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, cl
 	return items, nil
 }
 
+// FindByID participates in an ambient transaction so Create/Update can complete
+// response re-fetch before commit (MRA-02).
 func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error) {
 	var item model.CarePlanItem
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
 		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -64,7 +66,7 @@ func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint
 }
 
 func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePlanItem) error {
-	err := r.db.WithContext(ctx).Create(item).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(item).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "care_plan_item", "")
 	}
@@ -75,7 +77,7 @@ func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64
 	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.CarePlanItem{}).
 		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
@@ -92,7 +94,8 @@ func (r *carePlanItemRepository) Delete(ctx context.Context, clinicID, id uint64
 	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
 	// .Unscoped() is a no-op here (CarePlanItem has no DeletedAt field, i.e. it is a hard-delete
 	// model already) but is kept to make that intent explicit for future maintainers.
-	result := r.db.WithContext(ctx).
+	// Hard-delete durability for MRA-01 is provided by fail-closed audit of the pre-delete snapshot.
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Unscoped().
 		Delete(&model.CarePlanItem{})

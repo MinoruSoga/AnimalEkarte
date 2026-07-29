@@ -98,11 +98,83 @@ type carePlanItemService struct {
 	medicineRepo  medicineFinder
 	procedureRepo procedureFinder
 	hospPlanRepo  HospitalizationPlanRepository
+	transactor    Transactor
+	auditTx       AuditTxLogger
 }
 
-// NewCarePlanItemService は CarePlanItemService を初期化して返す
-func NewCarePlanItemService(repo CarePlanItemRepository, hospRepo HospitalizationRepository, medicineRepo medicineFinder, procedureRepo procedureFinder, hospPlanRepo HospitalizationPlanRepository) CarePlanItemService {
-	return &carePlanItemService{repo: repo, hospRepo: hospRepo, medicineRepo: medicineRepo, procedureRepo: procedureRepo, hospPlanRepo: hospPlanRepo}
+// NewCarePlanItemService は CarePlanItemService を初期化して返す。
+// transactor is required for Create/Update write+reload atomicity (MRA-02).
+// auditTx is required so hard-delete leaves a fail-closed audit trail (MRA-01).
+func NewCarePlanItemService(
+	repo CarePlanItemRepository,
+	hospRepo HospitalizationRepository,
+	medicineRepo medicineFinder,
+	procedureRepo procedureFinder,
+	hospPlanRepo HospitalizationPlanRepository,
+	transactor Transactor,
+	auditTx AuditTxLogger,
+) CarePlanItemService {
+	return &carePlanItemService{
+		repo:          repo,
+		hospRepo:      hospRepo,
+		medicineRepo:  medicineRepo,
+		procedureRepo: procedureRepo,
+		hospPlanRepo:  hospPlanRepo,
+		transactor:    transactor,
+		auditTx:       auditTx,
+	}
+}
+
+func (s *carePlanItemService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("care plan item transaction dependency is required")
+	}
+	return s.transactor.WithTx(ctx, fn)
+}
+
+func carePlanItemAuditValue(item *model.CarePlanItem) map[string]any {
+	if item == nil {
+		return nil
+	}
+	return map[string]any{
+		"id":                      item.ID,
+		"hospitalization_id":      item.HospitalizationID,
+		"type":                    string(item.Type),
+		"name":                    item.Name,
+		"description":             item.Description,
+		"timing":                  []string(item.Timing),
+		"status":                  string(item.Status),
+		"notes":                   item.Notes,
+		"medicine_id":             item.MedicineID,
+		"procedure_id":            item.ProcedureID,
+		"hospitalization_plan_id": item.HospitalizationPlanID,
+		"unit_price":              item.UnitPrice,
+		"category":                item.Category,
+		"sort_order":              item.SortOrder,
+	}
+}
+
+func (s *carePlanItemService) auditDeleteTx(ctx context.Context, clinicID uint64, item *model.CarePlanItem) error {
+	// MRA-01: hard-delete without durable recovery requires fail-closed audit.
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("care plan item audit dependency is required")
+	}
+	resourceID := item.ID
+	entry := &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorType:  auditActorTypeFor(nil),
+		Action:     model.AuditActionCarePlanItemDelete,
+		Resource:   model.AuditResourceCarePlanItem,
+		ResourceID: &resourceID,
+		OldValue:   carePlanItemAuditValue(item),
+		Metadata: map[string]any{
+			"hospitalization_id": item.HospitalizationID,
+		},
+	}
+	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
+		return apperrors.Wrap(err, "failed to audit care plan item delete")
+	}
+	return nil
 }
 
 // validateMasterFKs は request 由来の clinic-scoped マスタFK (medicine/procedure/hospitalization_plan)
@@ -181,21 +253,28 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		Category:              input.Category,
 		SortOrder:             input.SortOrder,
 	}
-	if err := s.repo.Create(ctx, item); err != nil {
-		slog.ErrorContext(ctx, "failed to create care plan item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create care plan item")
+	// MRA-02: write + response re-fetch before commit.
+	var created *model.CarePlanItem
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, item); err != nil {
+			slog.ErrorContext(txCtx, "failed to create care plan item", "error", err)
+			return apperrors.Wrap(err, "failed to create care plan item")
+		}
+		reloaded, err := s.repo.FindByID(txCtx, clinicID, item.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get created care plan item", "error", err)
+			return apperrors.Wrap(err, "failed to get created care plan item")
+		}
+		created = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "care plan item created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", item.ID))
-
-	created, err := s.repo.FindByID(ctx, clinicID, item.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get created care plan item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get created care plan item")
-	}
 	return created, nil
 }
 
@@ -231,21 +310,28 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, clinicID, itemID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update care plan item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update care plan item")
+	// MRA-02: write + response re-fetch before commit.
+	var updated *model.CarePlanItem
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Update(txCtx, clinicID, itemID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update care plan item", "error", err)
+			return apperrors.Wrap(err, "failed to update care plan item")
+		}
+		reloaded, err := s.repo.FindByID(txCtx, clinicID, itemID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get updated care plan item", "error", err)
+			return apperrors.Wrap(err, "failed to get updated care plan item")
+		}
+		updated = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "care plan item updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", itemID))
-
-	updated, err := s.repo.FindByID(ctx, clinicID, itemID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated care plan item", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated care plan item")
-	}
 	return updated, nil
 }
 
@@ -258,9 +344,15 @@ func (s *carePlanItemService) Delete(ctx context.Context, clinicID, hospitalizat
 		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", itemID))
 	}
 
-	if err := s.repo.Delete(ctx, clinicID, itemID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete care plan item", "error", err, "id", itemID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete care plan item")
+	// MRA-01: hard-delete + fail-closed audit in one transaction.
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, itemID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete care plan item", "error", err, "id", itemID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete care plan item")
+		}
+		return s.auditDeleteTx(txCtx, clinicID, existing)
+	}); err != nil {
+		return err
 	}
 
 	slog.InfoContext(ctx, "care plan item deleted",

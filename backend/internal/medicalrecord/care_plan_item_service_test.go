@@ -51,6 +51,20 @@ func okHospRepoForCarePlan() *mockHospitalizationRepository {
 	}
 }
 
+type passthroughCarePlanTransactor struct{}
+
+func (passthroughCarePlanTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+type okCarePlanAuditTx struct{}
+
+func (okCarePlanAuditTx) LogEntryTx(context.Context, *AuditEntry) error { return nil }
+
+func newTestCarePlanItemService(repo CarePlanItemRepository, hospRepo HospitalizationRepository, medicineRepo medicineFinder, procedureRepo procedureFinder, hospPlanRepo HospitalizationPlanRepository) CarePlanItemService {
+	return NewCarePlanItemService(repo, hospRepo, medicineRepo, procedureRepo, hospPlanRepo, passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
+}
+
 // ---- Tests ----
 
 func TestBuildCarePlanItemUpdate(t *testing.T) {
@@ -195,7 +209,7 @@ func TestCarePlanItemService_List(t *testing.T) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+			svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 			items, err := svc.List(context.Background(), 1, tt.hospitalizationID)
 
@@ -289,7 +303,7 @@ func TestCarePlanItemService_Create(t *testing.T) {
 					return &model.CarePlanItem{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+			svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 			item, err := svc.Create(context.Background(), 1, tt.hospitalizationID, tt.input)
 
@@ -321,7 +335,7 @@ func TestCarePlanItemService_ValidateMasterFKs_ProcedureOwnership(t *testing.T) 
 				return &model.CarePlanItem{ID: itemID}, nil
 			},
 		}
-		svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID), okHospitalizationPlanRepo())
+		svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID), okHospitalizationPlanRepo())
 
 		foreign := foreignProcedureID
 		item, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
@@ -341,7 +355,7 @@ func TestCarePlanItemService_ValidateMasterFKs_ProcedureOwnership(t *testing.T) 
 				return &model.CarePlanItem{ID: itemID}, nil
 			},
 		}
-		svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID), okHospitalizationPlanRepo())
+		svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID), okHospitalizationPlanRepo())
 
 		owned := ownedProcedureID
 		item, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
@@ -438,7 +452,7 @@ func TestCarePlanItemService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+			svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 			item, err := svc.Update(context.Background(), 1, tt.hospitalizationID, tt.itemID, tt.input)
 
@@ -459,7 +473,7 @@ func TestCarePlanItemService_Update_InvalidType(t *testing.T) {
 			return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
 		},
 	}
-	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+	svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Type: &invalidType})
 
@@ -474,7 +488,7 @@ func TestCarePlanItemService_Update_InvalidStatus(t *testing.T) {
 			return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
 		},
 	}
-	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+	svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Status: &invalidStatus})
 
@@ -499,7 +513,7 @@ func TestCarePlanItemService_Update_ReloadError(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+	svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Name: &newName})
 
@@ -556,7 +570,7 @@ func TestCarePlanItemService_Delete(t *testing.T) {
 					return tt.repoDeleteErr
 				},
 			}
-			svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+			svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 			err := svc.Delete(context.Background(), 1, tt.hospitalizationID, tt.itemID)
 
@@ -595,7 +609,7 @@ func TestCarePlanItemService_Create_CrossTenantParentRejected(t *testing.T) {
 			return nil, apperrors.WrapNotFound("hospitalization", "99")
 		},
 	}
-	svc := NewCarePlanItemService(repo, hospRepo, okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+	svc := newTestCarePlanItemService(repo, hospRepo, okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
 
 	item, err := svc.Create(context.Background(), clinicA, clinicBHospID, &CreateCarePlanItemInput{
 		Type: string(model.CarePlanTypeMedicine),

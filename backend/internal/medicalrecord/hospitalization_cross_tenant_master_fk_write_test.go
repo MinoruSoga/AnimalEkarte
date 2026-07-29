@@ -56,7 +56,7 @@ func TestCarePlanItemService_Create_RejectsCrossClinicMasterFK(t *testing.T) {
 				return &model.CarePlanItem{ID: itemID}, nil
 			},
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo())
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo(), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
 
 	t.Run("rejects cross-clinic medicine_id and does not persist", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestCarePlanItemService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo())
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo(), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
 
 	t.Run("rejects cross-clinic medicine_id on update and does not persist", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK(t *t
 				return &model.CarePlanItem{ID: itemID}, nil
 			},
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID))
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
 
 	t.Run("rejects cross-clinic hospitalization_plan_id and does not persist", func(t *testing.T) {
@@ -164,7 +164,7 @@ func TestCarePlanItemService_Update_RejectsCrossClinicHospitalizationPlanFK(t *t
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID))
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
 
 	t.Run("rejects cross-clinic hospitalization_plan_id on update and does not persist", func(t *testing.T) {

@@ -115,6 +115,13 @@ const (
 	AuditResourceReservation     = "reservation"
 	AuditResourceHospitalization = "hospitalization"
 	AuditResourceTrimming        = "trimming"
+	// U-X01X03-MR-CARE / MRA-01: hard-delete care plan items need durable audit resource.
+	AuditResourceCarePlanItem = "care_plan_item"
+)
+
+// care plan item destructive actions (MRA-01)
+const (
+	AuditActionCarePlanItemDelete = "care_plan_item.delete"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
