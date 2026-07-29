@@ -9,6 +9,11 @@ import (
 )
 
 func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinicID, ownerID uint64, owner *model.Owner) (excluded bool, reason string, err error) {
+	// LSB-01 / LSA-02 / DEC-38: LstepOptOut is fail-closed delivery exclusion evidence
+	// independent of delivery_excluded and EXCL cache tags (which opt-out may clear).
+	if owner.LstepOptOut {
+		return true, "lstep_opt_out", nil
+	}
 	if owner.DeliveryExcluded {
 		return true, "delivery_excluded_flag", nil
 	}
