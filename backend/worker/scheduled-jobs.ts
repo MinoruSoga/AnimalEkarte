@@ -119,9 +119,42 @@ export function isScheduledJobsInternalPath(pathname: string): boolean {
   return true;
 }
 
+// Privilege header required by Go requireSchedulerInternalToken (batch_scheduler.go).
+// Must match SCHEDULER_INTERNAL_TOKEN injected into the Container envVars.
+export const SCHEDULER_INTERNAL_TOKEN_HEADER = "X-Scheduler-Token" as const;
+
+/**
+ * Build outbound headers for Worker → Container scheduled-job POSTs.
+ *
+ * Contract when token is unset/empty: **omit** X-Scheduler-Token entirely.
+ * Never attach undefined or empty string (would look like a present-but-wrong secret).
+ * Go fails closed if expected token is empty or header mismatches (401).
+ *
+ * Cutover order (must not reverse):
+ * 1. Deploy Worker that sends X-Scheduler-Token and forwards SCHEDULER_INTERNAL_TOKEN via envVars
+ * 2. Then set SCHEDULER_INTERNAL_TOKEN (wrangler secret put) so Go and Worker share the same value
+ * Reversing this (enabling the Go-side secret before Worker ships the header) makes every clinic
+ * batch return 401 and stops all-hospital scheduled jobs.
+ */
+export function buildScheduledJobHeaders(
+  schedulerInternalToken?: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (
+    typeof schedulerInternalToken === "string" &&
+    schedulerInternalToken.length > 0
+  ) {
+    headers[SCHEDULER_INTERNAL_TOKEN_HEADER] = schedulerInternalToken;
+  }
+  return headers;
+}
+
 export async function runScheduledJobRequest(
   fetchContainer: ContainerRequest,
   request: ScheduledJobRequest,
+  schedulerInternalToken?: string,
 ): Promise<ScheduledJobOutcome> {
   const abort = new AbortController();
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -142,7 +175,7 @@ export async function runScheduledJobRequest(
           `http://container.internal${SCHEDULED_JOBS_INTERNAL_PREFIX}/${request.job}:run`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: buildScheduledJobHeaders(schedulerInternalToken),
             body: JSON.stringify(request),
             signal: abort.signal,
           },

@@ -65,6 +65,10 @@ export class AnimalEkarteApiContainer extends Container<Env> {
 
     JWT_SECRET: env.JWT_SECRET,
     INTEGRATION_ENCRYPTION_KEY: env.INTEGRATION_ENCRYPTION_KEY,
+    // DEC-36 / CMD-02: Go requireSchedulerInternalToken の expected 値。
+    // 3 ホップ必須: wrangler secrets.required → 本 allowlist → scheduled-jobs.ts ヘッダ。
+    // Cutover: Worker を先にデプロイしてから secret を put する（逆順は全院バッチ 401 停止）。
+    SCHEDULER_INTERNAL_TOKEN: env.SCHEDULER_INTERNAL_TOKEN,
 
     // H2: Worker→Container 経路の信頼プロキシ CIDR(rate-limit bypass 防止)。
     // 値の根拠は docs/ops/infra/_archive/migration-cloudflare.md 試行9(実測ログに基づき決定)参照。
@@ -168,6 +172,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         request,
+        this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
   }
@@ -200,6 +205,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         scheduledRequest,
+        this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
   }

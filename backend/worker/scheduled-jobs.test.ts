@@ -116,6 +116,51 @@ describe("runScheduledJobRequest", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  // Go requireSchedulerInternalToken expects header X-Scheduler-Token matching
+  // SCHEDULER_INTERNAL_TOKEN (batch_scheduler.go). Worker must send it when configured.
+  it("sends X-Scheduler-Token when schedulerInternalToken is configured", async () => {
+    const token = "test-scheduler-internal-token-32b!!";
+    const fetcher = vi.fn(async (request: Request) => {
+      expect(request.headers.get("Content-Type")).toBe("application/json");
+      expect(request.headers.get("X-Scheduler-Token")).toBe(token);
+      return Response.json({
+        outcome: "success",
+        processed: 1,
+        succeeded: 1,
+        failed: 0,
+      });
+    });
+
+    await expect(
+      runScheduledJobRequest(fetcher, requestFor("no_show"), token),
+    ).resolves.toMatchObject({ outcome: "success" });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  // Explicit contract when unset: omit the privilege header entirely.
+  // Never put undefined/empty into the header map (silent wrong auth).
+  // Go fails closed on empty expected token (401); Worker must not invent a value.
+  it.each([undefined, ""] as const)(
+    "omits X-Scheduler-Token when schedulerInternalToken is %s",
+    async (token) => {
+      const fetcher = vi.fn(async (request: Request) => {
+        expect(request.headers.get("Content-Type")).toBe("application/json");
+        expect(request.headers.get("X-Scheduler-Token")).toBeNull();
+        return Response.json({
+          outcome: "success",
+          processed: 0,
+          succeeded: 0,
+          failed: 0,
+        });
+      });
+
+      await expect(
+        runScheduledJobRequest(fetcher, requestFor("delivery"), token),
+      ).resolves.toMatchObject({ outcome: "success" });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it.each(["partial", "failed"] as const)("preserves a structured %s outcome", async (outcome) => {
     const fetcher = vi.fn(async () =>
       Response.json(

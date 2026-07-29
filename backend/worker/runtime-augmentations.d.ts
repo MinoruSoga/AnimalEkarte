@@ -12,6 +12,9 @@ interface Env {
   SCHEDULER_ALERT_ALLOWED_HOST: string;
   SCHEDULER_ALERT_WEBHOOK_URL: string;
   SCHEDULER_ALERT_WEBHOOK_SECRET: string;
+  // Shared secret for Worker→Container scheduled-jobs (X-Scheduler-Token).
+  // Declare in wrangler secrets.required; value via `wrangler secret put` only.
+  SCHEDULER_INTERNAL_TOKEN: string;
 }
 
 declare namespace Cloudflare {
@@ -26,6 +29,7 @@ declare namespace Cloudflare {
     SCHEDULER_ALERT_ALLOWED_HOST: string;
     SCHEDULER_ALERT_WEBHOOK_URL: string;
     SCHEDULER_ALERT_WEBHOOK_SECRET: string;
+    SCHEDULER_INTERNAL_TOKEN: string;
   }
 }
 
