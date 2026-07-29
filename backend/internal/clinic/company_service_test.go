@@ -265,16 +265,20 @@ func TestCompanyService_Update(t *testing.T) {
 	}
 }
 
-// TestCompanyService_Update_PostUpdateFindSingletonError は Update 自体は成功したが
-// 直後の再取得（FindSingleton）が失敗した場合にエラーを返すことを検証する
-// （Update が repoErr を Update と FindSingleton 両方に流用する既存テーブルでは分離できない分岐）。
+// TestCompanyService_Update_PostUpdateFindSingletonError は Update 成功後の再取得失敗で
+// 5xx へ反転せず、pre-image に適用済み fields を載せた成功応答を返すこと（POC-02 / X-01）。
 func TestCompanyService_Update_PostUpdateFindSingletonError(t *testing.T) {
 	newName := "更新動物病院"
+	findCalls := 0
 	repo := &mockCompanyRepository{
 		updateFn: func(_ context.Context, _ map[string]any) error {
 			return nil
 		},
 		getFn: func(_ context.Context) (*model.Company, error) {
+			findCalls++
+			if findCalls == 1 {
+				return &model.Company{ID: 1, Name: "旧名称"}, nil
+			}
 			return nil, errors.New("db error on post-update fetch")
 		},
 	}
@@ -282,6 +286,9 @@ func TestCompanyService_Update_PostUpdateFindSingletonError(t *testing.T) {
 
 	company, err := svc.Update(context.Background(), &UpdateCompanyInput{Name: &newName})
 
-	assert.Error(t, err)
-	assert.Nil(t, company)
+	assert.NoError(t, err)
+	if assert.NotNil(t, company) {
+		assert.Equal(t, newName, company.Name)
+		assert.Equal(t, uint64(1), company.ID)
+	}
 }

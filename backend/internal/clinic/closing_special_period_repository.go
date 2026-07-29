@@ -17,7 +17,7 @@ type closingSpecialPeriodRepository struct{ db *gorm.DB }
 
 func (r *closingSpecialPeriodRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
 	var periods []model.ClosingSpecialPeriod
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("start_date ASC").
 		Find(&periods).Error
@@ -29,7 +29,7 @@ func (r *closingSpecialPeriodRepository) FindAll(ctx context.Context, clinicID u
 
 func (r *closingSpecialPeriodRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&p).Error
@@ -41,7 +41,7 @@ func (r *closingSpecialPeriodRepository) FindByID(ctx context.Context, clinicID,
 
 func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error) {
 	var p model.ClosingSpecialPeriod
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_date <= ? AND end_date >= ?", date, date).
 		First(&p).Error
@@ -56,28 +56,39 @@ func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicI
 }
 
 func (r *closingSpecialPeriodRepository) Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error) {
-	if err := r.db.WithContext(ctx).Create(p).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(p).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "closing_special_period", "")
 	}
 	return p, nil
 }
 
+// Update は update+reload を同一 transaction に収める（POC-02 / X-01）。
+// reload 失敗時は write をロールバックし、commit 済み成功を 5xx へ反転しない。
 func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
-		return nil, err
+	var loaded *model.ClosingSpecialPeriod
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
+			return err
+		}
+		var p model.ClosingSpecialPeriod
+		if err := tx.WithContext(txCtx).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&p).Error; err != nil {
+			return apperrors.Wrap(apperrors.FromGORM(err, "closing_special_period", fmt.Sprintf("%d", id)), "reload closing special period after update")
+		}
+		loaded = &p
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to update and reload closing special period")
 	}
-	var p model.ClosingSpecialPeriod
-	if err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", id).
-		First(&p).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "closing_special_period", fmt.Sprintf("%d", id))
-	}
-	return &p, nil
+	return loaded, nil
 }
 
 func (r *closingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.ClosingSpecialPeriod{})
@@ -91,7 +102,7 @@ func (r *closingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, i
 }
 
 func (r *closingSpecialPeriodRepository) CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error) {
-	q := r.db.WithContext(ctx).
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ClosingSpecialPeriod{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("start_date <= ? AND end_date >= ?", endDate, startDate)

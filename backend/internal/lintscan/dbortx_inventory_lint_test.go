@@ -176,6 +176,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV2Thresholds":            {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV1Thresholds":            {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateHealthPreventionThresholds": {},
+	// U-X01X05-CLINIC / POC-02+POC-05: special-period reads/writes join ambient tx via DBOrTx.
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.FindAll":      {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.FindByID":     {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.FindByDate":   {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.Create":       {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.Update":       {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.Delete":       {},
+	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.CheckOverlap": {},
 
 	// daily_record: parent/clinic relation validation and audit-coupled writes must
 	// remain on the service-owned ambient transaction.
@@ -525,16 +533,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vital_repository.go|vitalRepository.Delete":                {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
-	"manualarticle/repository.go|repository.Upsert":                                                 {}, // BE8-4 batch3: moved from manual_article_repository.go
-	"owner/repository.go|ownerRepository.CreateWithPets":                                            {},
-	"owner/repository.go|ownerRepository.UpdateAndFind":                                             {},
-	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                         {},
-	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                          {},
-	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":          {},
-	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Update":                   {},
-	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Delete":                   {},
+	"manualarticle/repository.go|repository.Upsert":                                                            {}, // BE8-4 batch3: moved from manual_article_repository.go
+	"owner/repository.go|ownerRepository.CreateWithPets":                                                       {},
+	"owner/repository.go|ownerRepository.UpdateAndFind":                                                        {},
+	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                                    {},
+	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                                     {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":            {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Update":                     {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.Delete":                     {},
 	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.DeleteWithDependencyChecks": {},
-	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.FindByID":                 {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.FindByID":                   {},
 	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},
