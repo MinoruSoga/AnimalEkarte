@@ -1,10 +1,36 @@
 package staff
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func TestValidateStaffType(t *testing.T) {
+	t.Run("empty is allowed for create defaults", func(t *testing.T) {
+		require.NoError(t, validateStaffType(""))
+	})
+	t.Run("accepted enums", func(t *testing.T) {
+		for _, st := range []string{
+			string(model.StaffTypeDoctor),
+			string(model.StaffTypeNurse),
+			string(model.StaffTypeTrimmer),
+			string(model.StaffTypeResource),
+		} {
+			require.NoError(t, validateStaffType(st), st)
+		}
+	})
+	t.Run("rejects unknown", func(t *testing.T) {
+		err := validateStaffType("receptionist")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid staff_type")
+	})
+}
 
 func TestBuildStaffUpdate(t *testing.T) {
 	t.Run("empty input produces empty field map", func(t *testing.T) {
@@ -55,5 +81,59 @@ func TestBuildStaffUpdate(t *testing.T) {
 		fields := buildStaffUpdate(&UpdateStaffInput{Name: &name})
 		assert.Len(t, fields, 1)
 		assert.Equal(t, name, fields[colStaffName])
+	})
+}
+
+// AUS-03: application-layer staff_type rejection on Create/CreateWithAccount/Update paths.
+func TestStaffService_CreateUpdate_RejectsInvalidStaffType(t *testing.T) {
+	svc := NewStaffService(
+		&mockStaffRepository{
+			createFn: func(context.Context, *model.Staff) error {
+				t.Fatal("repository Create must not run for invalid staff_type")
+				return nil
+			},
+			updateFn: func(context.Context, uint64, uint64, map[string]any) error {
+				t.Fatal("repository Update must not run for invalid staff_type")
+				return nil
+			},
+		},
+		&mockAccountForStaff{},
+		&mockAssignmentForStaff{},
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		&mockPermissionGroupRepository{},
+		&mockResStaffForStaff{},
+		nil,
+		nil,
+		noopTransactor{},
+	)
+
+	t.Run("Create", func(t *testing.T) {
+		_, err := svc.Create(context.Background(), &CreateStaffInput{
+			ClinicID:  1,
+			Name:      "staff",
+			StaffType: "receptionist",
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("CreateWithAccount", func(t *testing.T) {
+		_, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
+			ClinicID:  1,
+			Name:      "staff",
+			Email:     "staff-type@example.test",
+			Password:  "Passw0rd1",
+			StaffType: "receptionist",
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		bad := "receptionist"
+		_, err := svc.Update(context.Background(), 1, 10, &UpdateStaffInput{StaffType: &bad})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 }

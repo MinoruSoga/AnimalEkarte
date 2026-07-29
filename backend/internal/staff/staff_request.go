@@ -14,7 +14,7 @@ type createStaffRequest struct {
 	SortOrder     int     `json:"sort_order"`
 
 	// LINE予約用フィールド
-	StaffType              string `json:"staff_type"               binding:"max=16"`
+	StaffType              string `json:"staff_type"               binding:"omitempty,max=16,oneof=doctor nurse trimmer resource"`
 	ReservationDisplayName string `json:"reservation_display_name" binding:"max=255"`
 	ReservationVisible     *bool  `json:"reservation_visible"`
 	ReservationComment     string `json:"reservation_comment"      binding:"max=2000"`
@@ -67,7 +67,7 @@ type updateStaffRequest struct {
 	Password      *string `json:"password" binding:"omitempty,min=8,max=72"`
 
 	// LINE予約用フィールド
-	StaffType              *string `json:"staff_type"               binding:"omitempty,max=16"`
+	StaffType              *string `json:"staff_type"               binding:"omitempty,max=16,oneof=doctor nurse trimmer resource"`
 	ReservationDisplayName *string `json:"reservation_display_name" binding:"omitempty,max=255"`
 	ReservationVisible     *bool   `json:"reservation_visible"`
 	ReservationComment     *string `json:"reservation_comment"      binding:"omitempty,max=2000"`

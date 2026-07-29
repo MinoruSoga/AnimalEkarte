@@ -1,5 +1,12 @@
 package staff
 
+import (
+	"fmt"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
 const (
 	colStaffName                   = "name"
 	colStaffLicenseNumber          = "license_number"
@@ -12,6 +19,20 @@ const (
 	colStaffReservationComment     = "reservation_comment"
 	colStaffReservationImageURL    = "reservation_image_url"
 )
+
+// validateStaffType enforces doctor/nurse/trimmer/resource at application boundary (AUS-03).
+// Empty is allowed (defaults applied by Create paths).
+func validateStaffType(staffType string) error {
+	if staffType == "" {
+		return nil
+	}
+	switch model.StaffType(staffType) {
+	case model.StaffTypeDoctor, model.StaffTypeNurse, model.StaffTypeTrimmer, model.StaffTypeResource:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid staff_type: %s", staffType))
+	}
+}
 
 func buildStaffUpdate(input *UpdateStaffInput) map[string]any {
 	fields := map[string]any{}

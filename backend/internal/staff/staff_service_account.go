@@ -55,6 +55,9 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		return nil, apperrors.Wrap(hashErr, "failed to hash password")
 	}
 
+	if err := validateStaffType(input.StaffType); err != nil {
+		return nil, err
+	}
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor

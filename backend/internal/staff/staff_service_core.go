@@ -82,6 +82,9 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	if input.ClinicID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id is required")
 	}
+	if err := validateStaffType(input.StaffType); err != nil {
+		return nil, err
+	}
 	input.Name = strings.TrimSpace(input.Name)
 
 	staffType := model.StaffType(input.StaffType)
@@ -158,6 +161,11 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 		trimmed := strings.TrimSpace(*input.Name)
 		input.Name = &trimmed
+	}
+	if input.StaffType != nil {
+		if err := validateStaffType(*input.StaffType); err != nil {
+			return nil, err
+		}
 	}
 
 	hasPasswordUpdate := input.Password != nil && *input.Password != ""
