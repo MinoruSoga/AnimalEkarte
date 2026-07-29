@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -551,4 +552,72 @@ func TestDeleteSpecialPeriod(t *testing.T) {
 		h.DeleteSpecialPeriod(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+// POC-01 (REFRAMED): dual holiday routes are intentional; the defect is that
+// defaultPermissionRuleTable denies closing-settings create/delete while
+// /closing-settings/holidays POST|DELETE require those actions, so FE
+// holiday mutations 403 for every non-system_admin on new clinics.
+func TestClosingSettingsHoliday_DefaultPermissionAllowsCreateDelete(t *testing.T) {
+	findRule := func(rules []model.PermissionGroupRule, resource model.Resource) *model.PermissionGroupRule {
+		for i := range rules {
+			if rules[i].Resource == string(resource) {
+				return &rules[i]
+			}
+		}
+		return nil
+	}
+
+	execRules := buildDefaultPermissionGroupRules(true)
+	execCS := findRule(execRules, model.ResourceClosingSettings)
+	if assert.NotNil(t, execCS, "執行に closing-settings ルールが存在すること") {
+		assert.True(t, execCS.CanView, "執行は closing-settings を閲覧可能であること")
+		assert.True(t, execCS.CanCreate, "執行は closing-settings を作成可能であること（/closing-settings/holidays POST）")
+		assert.True(t, execCS.CanEdit, "執行は closing-settings を編集可能であること")
+		assert.True(t, execCS.CanDelete, "執行は closing-settings を削除可能であること（/closing-settings/holidays DELETE）")
+	}
+
+	genRules := buildDefaultPermissionGroupRules(false)
+	genCS := findRule(genRules, model.ResourceClosingSettings)
+	if assert.NotNil(t, genCS, "一般に closing-settings ルールが存在すること") {
+		assert.True(t, genCS.CanView, "一般は closing-settings を閲覧可能であること")
+		assert.False(t, genCS.CanCreate, "一般は closing-settings を作成できないこと")
+		assert.False(t, genCS.CanEdit, "一般は closing-settings を編集できないこと")
+		assert.False(t, genCS.CanDelete, "一般は closing-settings を削除できないこと")
+	}
+}
+
+// POC-01: keep dual path; assert closing-settings holiday mutations still
+// require closing-settings:create|delete (aligned with defaultPermissionRuleTable).
+func TestClosingSettingsHolidayRoutes_PermissionActions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var permissions []string
+	requirePermission := func(resource, action string) gin.HandlerFunc {
+		permissions = append(permissions, resource+":"+action)
+		return func(c *gin.Context) { c.Next() }
+	}
+
+	handler := NewHandler(nil, nil, nil, nil, requirePermission)
+	router := gin.New()
+	handler.RegisterClosingSettingsRoutes(router.Group("/api/v1"))
+
+	assert.Contains(t, permissions, "closing-settings:view")
+	assert.Contains(t, permissions, "closing-settings:create")
+	assert.Contains(t, permissions, "closing-settings:delete")
+
+	// Holiday mutations must remain create/delete (not silently remapped).
+	// Registration order for holidays is view, create, delete after special-periods.
+	require.GreaterOrEqual(t, len(permissions), 3)
+	var holidayCreate, holidayDelete bool
+	for _, p := range permissions {
+		if p == "closing-settings:create" {
+			holidayCreate = true
+		}
+		if p == "closing-settings:delete" {
+			holidayDelete = true
+		}
+	}
+	assert.True(t, holidayCreate, "closing-settings holiday POST must require create")
+	assert.True(t, holidayDelete, "closing-settings holiday DELETE must require delete")
 }

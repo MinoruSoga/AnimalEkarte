@@ -193,8 +193,10 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 // 追加されたため seed に定義が無く、フォールバック設計とする（判断）:
 // cash-register-close / accounting-reports / closing-settings /
 // master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
-// lab-import。これらは執行=view+edit（create/delete 不可、hospital-settings と
+// lab-import。原則は執行=view+edit（create/delete 不可、hospital-settings と
 // 同じ設定系パターン）、一般=view のみとする。
+// 例外: closing-settings は /closing-settings/holidays と special-periods が
+// create/delete を要求するため、執行は CRUD 全許可（POC-01 契約整合）。
 type defaultPermissionRule struct {
 	resource                                   model.Resource
 	execView, execCreate, execEdit, execDelete bool
@@ -231,7 +233,7 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	// --- 003_demo 生成後に model.AllResources へ追加されたリソース（seed に定義なし・フォールバック設計） ---
 	{model.ResourceCashRegisterClose, true, false, true, false, true, false, false, false},
 	{model.ResourceAccountingReports, true, false, true, false, true, false, false, false},
-	{model.ResourceClosingSettings, true, false, true, false, true, false, false, false},
+	{model.ResourceClosingSettings, true, true, true, true, true, false, false, false},
 	{model.ResourcePaymentMethod, true, false, true, false, true, false, false, false},
 	{model.ResourceLstepCsvImport, true, false, true, false, true, false, false, false},
 	{model.ResourceLstepAnalytics, true, false, true, false, true, false, false, false},
