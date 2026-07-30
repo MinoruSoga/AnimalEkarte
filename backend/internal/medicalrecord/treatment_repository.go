@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -29,6 +30,9 @@ type TreatmentSortUpdate struct {
 type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
+	// LockByIDForUpdate serializes treatment writes (discount recheck TOCTOU, dose snapshot).
+	// Fail-closed without an ambient transaction — FOR UPDATE is meaningless under autocommit.
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
 	// FindHistoryByPetID は #158/#159 飼主レポート用: ペット単位で treatments を横断取得する。
 	// medical_records JOIN で clinic_id 隔離し、medical_records.date 降順で返す。
@@ -77,6 +81,26 @@ func (r *treatmentRepository) FindByID(ctx context.Context, clinicID, id uint64)
 		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
 	}
 	sanitizeTreatmentMasterRelation(&treatment, clinicID)
+	return &treatment, nil
+}
+
+// LockByIDForUpdate は clinic-scoped FOR UPDATE で treatment 行を固定する（SEC-CS-F09）。
+// Joins() は SELECT 専用のため clinic 隔離は Update と同じ subquery で表現する。
+func (r *treatmentRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("treatment lock requires an ambient transaction")
+	}
+	var treatment model.Treatment
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where(
+			"treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)",
+			id, clinicID,
+		).
+		First(&treatment).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
+	}
 	return &treatment, nil
 }
 

@@ -79,6 +79,31 @@ func (m *mockOwnerRepository) UpdateAndFind(
 	clinicID, id uint64,
 	fields map[string]any,
 ) (*model.Owner, error) {
+	return m.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (map[string]any, error) {
+		return fields, nil
+	})
+}
+
+func (m *mockOwnerRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
+func (m *mockOwnerRepository) UpdateAndFindApplying(
+	ctx context.Context,
+	clinicID, id uint64,
+	apply OwnerUpdateApplier,
+) (*model.Owner, error) {
+	if apply == nil {
+		return nil, apperrors.WrapInternalServerError("owner update applier is required")
+	}
+	locked, err := m.LockByIDForUpdate(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	fields, err := apply(locked)
+	if err != nil {
+		return nil, err
+	}
 	if m.updateAndFindFn != nil {
 		return m.updateAndFindFn(ctx, clinicID, id, fields)
 	}
@@ -525,8 +550,9 @@ func TestOwnerService_Update(t *testing.T) {
 			clinicID: 1,
 			id:       1,
 			input: UpdateOwnerInput{
-				OwnerName:    ptrString("更新後 氏名"),
-				DiscountRate: ptrFloat64(10),
+				OwnerName:           ptrString("更新後 氏名"),
+				DiscountRate:        ptrFloat64(10),
+				DiscountEditAllowed: true, // SEC-CS-F15: discount change requires edit flag
 			},
 			updateErr: nil,
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {

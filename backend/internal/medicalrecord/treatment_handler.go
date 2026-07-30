@@ -207,6 +207,10 @@ func (h *TreatmentHandler) UpdateTreatment(c *gin.Context) {
 
 	updateInput := req.toServiceInput()
 	updateInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: 逸脱 audit の実施者
+	// SEC-CS-F09: pass discount:edit into the write TX so the service can recheck against the locked row.
+	if h.hasPermission != nil {
+		updateInput.DiscountEditAllowed = h.hasPermission(c, string(model.ResourceDiscount), "edit")
+	}
 	treatment, err := h.service.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, updateInput)
 	if err != nil {
 		httpapi.RespondError(c, err)

@@ -116,6 +116,9 @@ type UpdateOwnerInput struct {
 	MembershipType *model.MembershipType
 	// DMPreference は DM 送付希望（#158）。nil=未指定 / &nil=NULLクリア / &&value=更新対象。
 	DMPreference **bool
+	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
+	// Service rechecks discount_rate against the FOR UPDATE locked row (SEC-CS-F15).
+	DiscountEditAllowed bool
 }
 
 // UpdateDeliveryExclusionInput は配信除外フラグ更新の入力DTO（FEAT-381）
