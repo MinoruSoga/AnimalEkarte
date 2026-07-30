@@ -3,6 +3,7 @@ package lstep
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/lib/pq"
@@ -317,5 +318,144 @@ func TestLstepTagCodeMappingService_PutMappingsForTag(t *testing.T) {
 		assert.ErrorContains(t, err, "transaction dependency is required")
 		assert.Nil(t, got)
 		assert.Zero(t, writeCalls)
+	})
+
+	// SEC-CS-F11: over-limit cardinality must fail before WithTx / SoftDelete / Create.
+	t.Run("rejects over MaxEntries before SoftDelete or Create", func(t *testing.T) {
+		txCalls := 0
+		softDeleteCalls := 0
+		createCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
+				softDeleteCalls++
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				createCalls++
+				return nil
+			},
+		}
+		transactor := &mockLstepTagCodeMappingTransactor{
+			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCalls++
+				return fn(ctx)
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, transactor)
+
+		entries := make([]PutMappingEntry, MaxTagCodeMappingEntries+1)
+		for i := range entries {
+			entries[i] = PutMappingEntry{
+				CodeType: model.CodeTypeCheckupType,
+				Codes:    []string{fmt.Sprintf("C%02d", i)},
+			}
+		}
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, entries)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, txCalls, "over-limit must not open a transaction")
+		assert.Zero(t, softDeleteCalls, "over-limit must not SoftDelete")
+		assert.Zero(t, createCalls, "over-limit must not Create")
+	})
+
+	t.Run("rejects over MaxCodesPerEntry before SoftDelete or Create", func(t *testing.T) {
+		txCalls := 0
+		softDeleteCalls := 0
+		createCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
+				softDeleteCalls++
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				createCalls++
+				return nil
+			},
+		}
+		transactor := &mockLstepTagCodeMappingTransactor{
+			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCalls++
+				return fn(ctx)
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, transactor)
+
+		codes := make([]string, MaxTagCodeMappingCodesPerEntry+1)
+		for i := range codes {
+			codes[i] = fmt.Sprintf("CODE_%03d", i)
+		}
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, []PutMappingEntry{
+			{CodeType: model.CodeTypeCheckupType, Codes: codes},
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, txCalls)
+		assert.Zero(t, softDeleteCalls)
+		assert.Zero(t, createCalls)
+	})
+
+	t.Run("rejects over MaxTotalCodes before SoftDelete or Create", func(t *testing.T) {
+		txCalls := 0
+		softDeleteCalls := 0
+		createCalls := 0
+		repo := &mockLstepTagCodeMappingRepositoryForCodeSettings{
+			softDeleteByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, _ string) error {
+				softDeleteCalls++
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				createCalls++
+				return nil
+			},
+		}
+		transactor := &mockLstepTagCodeMappingTransactor{
+			withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCalls++
+				return fn(ctx)
+			},
+		}
+		svc := NewLstepTagCodeMappingService(repo, transactor)
+
+		// 3 entries × 70 codes = 210 > MaxTotalCodes(200), each under MaxCodesPerEntry(100).
+		entries := make([]PutMappingEntry, 3)
+		for i := range entries {
+			codes := make([]string, 70)
+			for j := range codes {
+				codes[j] = fmt.Sprintf("E%d_C%02d", i, j)
+			}
+			entries[i] = PutMappingEntry{CodeType: model.CodeTypeCheckupType, Codes: codes}
+		}
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, entries)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.Zero(t, txCalls)
+		assert.Zero(t, softDeleteCalls)
+		assert.Zero(t, createCalls)
+	})
+
+	t.Run("accepts boundary MaxEntries MaxCodesPerEntry and MaxTotalCodes", func(t *testing.T) {
+		// 2 entries × 100 codes = 200 total — exactly at all three caps that apply.
+		createCalls := 0
+		svc := newTestLstepTagCodeMappingService(&mockLstepTagCodeMappingRepositoryForCodeSettings{
+			createFn: func(_ context.Context, _ *model.LstepTagCodeMapping) error {
+				createCalls++
+				return nil
+			},
+		})
+		entries := make([]PutMappingEntry, 2)
+		for i := range entries {
+			codes := make([]string, MaxTagCodeMappingCodesPerEntry)
+			for j := range codes {
+				codes[j] = fmt.Sprintf("B%d_%03d", i, j)
+			}
+			entries[i] = PutMappingEntry{CodeType: model.CodeTypeCheckupType, Codes: codes}
+		}
+		got, err := svc.PutMappingsForTag(context.Background(), 10, HlthHealthcheckDoneTag, entries)
+		assert.NoError(t, err)
+		assert.Len(t, got, 2)
+		assert.Equal(t, 2, createCalls)
 	})
 }
