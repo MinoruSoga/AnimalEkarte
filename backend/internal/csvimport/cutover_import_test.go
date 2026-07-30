@@ -581,6 +581,21 @@ func TestPreflightRejectsMissingValidatedForeignKey(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsMissingValidatedCompositeForeignKey(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingCompositeForeignKeyTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "validated composite foreign key") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want composite foreign-key rejection", err)
+	}
+	if !strings.Contains(err.Error(), "payments(") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want payments composite naming", err)
+	}
+}
+
 func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 	required := map[string]bool{
 		"payments.clinic_id->clinics.id":                       false,
@@ -602,6 +617,75 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 	for key, found := range required {
 		if !found {
 			t.Errorf("missing required payment foreign key %s", key)
+		}
+	}
+}
+
+func TestCutoverRequiredCompositeForeignKeysIncludePaymentClinicAxis(t *testing.T) {
+	required := map[string]bool{
+		"payments(billing_id, clinic_id)->billings(id, clinic_id)":               false,
+		"payments(payment_method_id, clinic_id)->payment_methods(id, clinic_id)": false,
+	}
+	for _, foreignKey := range cutoverRequiredCompositeForeignKeys() {
+		key := foreignKey.childTable + "(" + strings.Join(foreignKey.childColumns, ", ") + ")->" +
+			foreignKey.parentTable + "(" + strings.Join(foreignKey.parentColumns, ", ") + ")"
+		if _, ok := required[key]; ok {
+			required[key] = true
+		}
+	}
+	for key, found := range required {
+		if !found {
+			t.Errorf("missing required composite foreign key %s", key)
+		}
+	}
+	for _, fragment := range []string{
+		"array_agg(a.attname ORDER BY cols.ordinality)",
+		"c.convalidated = true",
+		"c.conenforced = true",
+		"unnest(c.conkey) WITH ORDINALITY",
+		"unnest(c.confkey) WITH ORDINALITY",
+	} {
+		if !strings.Contains(cutoverCompositeForeignKeyQuery, fragment) {
+			t.Errorf("composite foreign-key query is missing %q", fragment)
+		}
+	}
+}
+
+func TestPreflightRejectsMissingRequiredTargetColumn(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		missingRequiredTargetColumnQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "staffs.missing_required_column") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want staffs.missing_required_column", err)
+	}
+}
+
+func TestPreflightAcceptsNullableOrDefaultedTargetColumnsOutsideSpec(t *testing.T) {
+	// validTargetQuerier returns no NOT NULL/no-default columns, modeling a
+	// target where only nullable or defaulted columns exist outside the CSV.
+	err := PreflightCutoverTarget(
+		context.Background(),
+		validTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err != nil {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want success for nullable/defaulted extras", err)
+	}
+}
+
+func TestRequiredTargetColumnsQueryExcludesIdentityGeneratedAndDefaults(t *testing.T) {
+	for _, fragment := range []string{
+		"is_nullable = 'NO'",
+		"column_default IS NULL",
+		"COALESCE(is_identity, 'NO') = 'NO'",
+		"COALESCE(is_generated, 'NEVER') = 'NEVER'",
+	} {
+		if !strings.Contains(cutoverRequiredTargetColumnsQuery, fragment) {
+			t.Errorf("required target columns query is missing %q", fragment)
 		}
 	}
 }
@@ -801,6 +885,11 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 			int64(1), "cash", true, int64(1),
 			int64(1), "credit_card", true, int64(1),
 		}}
+	case strings.Contains(query, "information_schema.columns") && strings.Contains(query, "is_nullable"):
+		// No NOT NULL / no-default / non-identity / non-generated columns outside
+		// the CSV contract: serial/identity ids and defaulted columns are filtered
+		// by the query itself, so unit tests model an empty required set.
+		return staticRow{values: []any{[]string{}}}
 	case strings.Contains(query, "information_schema.columns"):
 		return staticRow{values: []any{"bigint"}}
 	case strings.Contains(query, "FROM pg_constraint"):
@@ -864,6 +953,26 @@ type missingForeignKeyTargetQuerier struct{}
 func (missingForeignKeyTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "FROM pg_constraint") {
 		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type missingCompositeForeignKeyTargetQuerier struct{}
+
+func (missingCompositeForeignKeyTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	// Single-column FK preflight keeps array_length=1; composite uses ordered
+	// array_agg over conkey/confkey and must fail independently when missing.
+	if strings.Contains(query, "FROM pg_constraint") && strings.Contains(query, "array_agg") {
+		return staticRow{values: []any{false}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+type missingRequiredTargetColumnQuerier struct{}
+
+func (missingRequiredTargetColumnQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "information_schema.columns") && strings.Contains(query, "is_nullable") {
+		return staticRow{values: []any{[]string{"missing_required_column"}}}
 	}
 	return validTargetQuerier{}.QueryRow(ctx, query, args...)
 }
@@ -954,6 +1063,12 @@ func (row staticRow) Scan(destinations ...any) error {
 		case **string:
 			copy := value.(string)
 			*destination = &copy
+		case *[]string:
+			if value == nil {
+				*destination = nil
+				continue
+			}
+			*destination = append([]string(nil), value.([]string)...)
 		default:
 			return errUnexpectedQuery
 		}

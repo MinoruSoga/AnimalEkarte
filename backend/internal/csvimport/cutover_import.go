@@ -96,6 +96,13 @@ type cutoverForeignKeySpec struct {
 	parentColumn string
 }
 
+type cutoverCompositeForeignKeySpec struct {
+	childTable    string
+	childColumns  []string
+	parentTable   string
+	parentColumns []string
+}
+
 func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 	return []cutoverForeignKeySpec{
 		{"staffs", "clinic_id", "clinics", "id"},
@@ -161,6 +168,76 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"vaccinations", "doctor_id", "staffs", "id"},
 	}
 }
+
+// cutoverRequiredCompositeForeignKeys lists multi-column clinic-axis FKs that
+// single-column inventory cannot express. Column order is matched exactly
+// against pg_constraint.conkey/confkey ordinals.
+func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
+	return []cutoverCompositeForeignKeySpec{
+		{
+			childTable:    "payments",
+			childColumns:  []string{"billing_id", "clinic_id"},
+			parentTable:   "billings",
+			parentColumns: []string{"id", "clinic_id"},
+		},
+		{
+			childTable:    "payments",
+			childColumns:  []string{"payment_method_id", "clinic_id"},
+			parentTable:   "payment_methods",
+			parentColumns: []string{"id", "clinic_id"},
+		},
+	}
+}
+
+// cutoverRequiredTargetColumnExclusions lists target columns that are NOT NULL,
+// have no default, and are not identity/generated, yet are intentionally omitted
+// from CutoverTableSpecs.Columns. Prefer extending the CSV contract over adding
+// exclusions; only document justified exceptions here.
+func cutoverRequiredTargetColumnExclusions() map[string]map[string]struct{} {
+	// No exclusions currently justified.
+	return nil
+}
+
+// cutoverCompositeForeignKeyQuery matches a validated+enforced multi-column FK
+// by ordered child/parent column name arrays (conkey/confkey ordinal order).
+const cutoverCompositeForeignKeyQuery = `SELECT EXISTS (
+  SELECT 1
+  FROM pg_constraint c
+  JOIN pg_class child ON child.oid = c.conrelid
+  JOIN pg_namespace child_ns ON child_ns.oid = child.relnamespace
+  JOIN pg_class parent ON parent.oid = c.confrelid
+  JOIN pg_namespace parent_ns ON parent_ns.oid = parent.relnamespace
+  WHERE c.contype = 'f' AND c.convalidated = true AND c.conenforced = true
+    AND child_ns.nspname = 'public' AND child.relname = $1
+    AND parent_ns.nspname = 'public' AND parent.relname = $2
+    AND array_length(c.conkey, 1) = cardinality($3::text[])
+    AND array_length(c.confkey, 1) = cardinality($4::text[])
+    AND (
+      SELECT array_agg(a.attname ORDER BY cols.ordinality)
+      FROM unnest(c.conkey) WITH ORDINALITY AS cols(attnum, ordinality)
+      JOIN pg_attribute a ON a.attrelid = child.oid AND a.attnum = cols.attnum
+    ) = $3::text[]
+    AND (
+      SELECT array_agg(a.attname ORDER BY cols.ordinality)
+      FROM unnest(c.confkey) WITH ORDINALITY AS cols(attnum, ordinality)
+      JOIN pg_attribute a ON a.attrelid = parent.oid AND a.attnum = cols.attnum
+    ) = $4::text[]
+)`
+
+// cutoverRequiredTargetColumnsQuery lists target columns that COPY must supply:
+// NOT NULL, no column_default, not identity, not generated. Serial/identity id
+// columns are excluded by default/identity filters so they need not appear as a
+// "missing required" drift signal when present only as DB-managed keys.
+const cutoverRequiredTargetColumnsQuery = `
+SELECT COALESCE(array_agg(column_name::text ORDER BY ordinal_position), '{}'::text[])
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = $1
+  AND is_nullable = 'NO'
+  AND column_default IS NULL
+  AND COALESCE(is_identity, 'NO') = 'NO'
+  AND COALESCE(is_generated, 'NEVER') = 'NEVER'
+`
 
 // PreflightCutoverTarget is read-only. It verifies the explicit target seed
 // bindings, BIGINT ID contract, serial sequences, and that the clinic band has
@@ -273,7 +350,13 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	if err := validateCutoverColumnTypes(ctx, q); err != nil {
 		return err
 	}
+	if err := validateCutoverRequiredTargetColumns(ctx, q); err != nil {
+		return err
+	}
 	if err := validateCutoverForeignKeys(ctx, q); err != nil {
+		return err
+	}
+	if err := validateCutoverCompositeForeignKeys(ctx, q); err != nil {
 		return err
 	}
 	if err := validateCutoverUniqueIndexes(ctx, q); err != nil {
@@ -320,6 +403,62 @@ func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier) error {
 				foreignKey.parentTable,
 				foreignKey.parentColumn,
 			)
+		}
+	}
+	return nil
+}
+
+func validateCutoverCompositeForeignKeys(ctx context.Context, q cutoverQuerier) error {
+	for _, foreignKey := range cutoverRequiredCompositeForeignKeys() {
+		var exists bool
+		if err := q.QueryRow(ctx, cutoverCompositeForeignKeyQuery,
+			foreignKey.childTable,
+			foreignKey.parentTable,
+			foreignKey.childColumns,
+			foreignKey.parentColumns,
+		).Scan(&exists); err != nil {
+			return fmt.Errorf("inspect target composite foreign key for %s(%s)",
+				foreignKey.childTable,
+				strings.Join(foreignKey.childColumns, ", "),
+			)
+		}
+		if !exists {
+			return fmt.Errorf("target requires a validated composite foreign key from %s(%s) to %s(%s)",
+				foreignKey.childTable,
+				strings.Join(foreignKey.childColumns, ", "),
+				foreignKey.parentTable,
+				strings.Join(foreignKey.parentColumns, ", "),
+			)
+		}
+	}
+	return nil
+}
+
+// validateCutoverRequiredTargetColumns fail-closes when the target has a column
+// that COPY cannot leave unset (NOT NULL, no default, not identity/generated)
+// but CutoverTableSpecs.Columns omits it. This catches Z1-class drift such as
+// payments.clinic_id becoming NOT NULL on the target while remaining absent from
+// the CSV contract.
+func validateCutoverRequiredTargetColumns(ctx context.Context, q cutoverQuerier) error {
+	exclusions := cutoverRequiredTargetColumnExclusions()
+	for _, spec := range CutoverTableSpecs() {
+		declared := make(map[string]struct{}, len(spec.Columns))
+		for _, column := range spec.Columns {
+			declared[column] = struct{}{}
+		}
+		var required []string
+		if err := q.QueryRow(ctx, cutoverRequiredTargetColumnsQuery, spec.Name).Scan(&required); err != nil {
+			return fmt.Errorf("inspect required target columns for %s: %w", spec.Name, err)
+		}
+		tableExclusions := exclusions[spec.Name]
+		for _, column := range required {
+			if _, ok := declared[column]; ok {
+				continue
+			}
+			if _, excluded := tableExclusions[column]; excluded {
+				continue
+			}
+			return fmt.Errorf("cutover CSV contract is missing required target column %s.%s", spec.Name, column)
 		}
 	}
 	return nil
