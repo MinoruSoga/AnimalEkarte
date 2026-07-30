@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import {
   ImageGalleryFilter,
+  MAX_FILE_SIZE_BYTES,
   MAX_UPLOAD_BATCH_BYTES,
   MAX_UPLOAD_FILES,
 } from "./ImageGalleryFilter";
@@ -89,6 +90,24 @@ describe("ImageGalleryFilter — SEC-CS-F08 multi-file caps", () => {
     expect(passed).toHaveLength(2);
     expect(passed.map((f) => f.name)).toEqual(["ok.jpg", "ok2.jpg"]);
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("混在する oversized がある選択は valid も送らず whole-batch で拒否する (SEC-CS-F08-R1)", async () => {
+    const user = userEvent.setup();
+    const { onFilesSelected } = renderFilter();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    // one valid + one over per-file 10MiB → no partial upload
+    const files = [
+      makeFile("ok.jpg", 1024),
+      makeFile("huge.jpg", MAX_FILE_SIZE_BYTES + 1),
+    ];
+    await user.upload(input, files);
+
+    expect(onFilesSelected).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("huge.jpg"),
+    );
   });
 
   it("アップロード不可時はボタンを出さない", () => {
