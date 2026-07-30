@@ -337,18 +337,19 @@
 
 
 <div class="notice">
-<b>BE-refactor 残作業（2026-07-30 wave2）</b> — merchandise atomic delete と animal-species spec を完了。新たに <b>着手可能</b> になったのは <code>BE-ACT-BOUNDED-MASTER-LISTS</code>（正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a>）。DOC-SESSION-LEDGER は最終収束 unit で依存未充足のまま READY_TO_FILE。各executorは独立worktreeとDOCKER-MOUNT-PROOFを使う。
+<b>BE-refactor 残作業（2026-07-30 wave3）</b> — bounded master lists を完了。残る BE-ACT は最終収束 unit <code>BE-ACT-DOC-SESSION-LEDGER</code> のみ（正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a>）。各executorは独立worktreeとDOCKER-MOUNT-PROOFを使う。
 </div>
 
 
 
 
-<section class="task" id="BE-ACT-BOUNDED-MASTER-LISTS">
-<h3>BE-ACT-BOUNDED-MASTER-LISTS: bound remaining master FindAll queries</h3>
+
+<section class="task" id="BE-ACT-DOC-SESSION-LEDGER">
+<h3>BE-ACT-DOC-SESSION-LEDGER: final ledger convergence after BE-ACT wave</h3>
 <ul>
-  <li><b>分類: 着手可能</b>。依存 <code>BE-ACT-MERCHANDISE-ATOMIC-DELETE</code> 統合済み。backend repository agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-bounded-master-lists"><code>BE-refactor.md#BE-ACT-BOUNDED-MASTER-LISTS</code></a>。</li>
-  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+  <li><b>分類: 着手可能</b>。依存する実装 packet（bounded master lists を含む）は統合済み。sole documentation integratorが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-session-ledger"><code>BE-refactor.md#BE-ACT-DOC-SESSION-LEDGER</code></a>。</li>
+  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。BUG-433 と現行 q&amp;a 裁定は保持する。</li>
 </ul>
 </section>
 

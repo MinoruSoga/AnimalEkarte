@@ -4,46 +4,32 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-30 wave2 (post merchandise atomic delete + animal-species spec). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-30 wave3 (post bounded master lists). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There are 2 remaining specification-ready packets: 1 is filed in the execution ledger as `READY_AGENT` (bounded master lists), and 1 remains `READY_TO_FILE` (session-ledger final convergence). Wave2 completed: BE-ACT-MERCHANDISE-ATOMIC-DELETE and BE-ACT-DOC-ANIMAL-SPECIES-SPEC.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There is 1 remaining specification-ready packet filed as `READY_AGENT` (session-ledger final convergence). Wave3 completed: BE-ACT-BOUNDED-MASTER-LISTS.
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
-### BE-ACT-BOUNDED-MASTER-LISTS
-- State: READY_AGENT
-- Source keys: G2F-11
-- Actor: backend repository implementation agent in an isolated worktree
-- Problem: the consultation list was bounded, but exam-type and merchandise `FindAll` still issue unbounded queries, so the original multi-repository finding is only partially remediated.
-- Current evidence: `backend/internal/medicalrecord/exam_type_repository.go#FindAll`; `backend/internal/inventory/merchandise_item_repository.go#FindAll`; consultation coverage is terminal provenance only. Dependency BE-ACT-MERCHANDISE-ATOMIC-DELETE integrated.
-- Required behavior: apply the current `MaxMasterListRows` contract consistently to both remaining repositories, retain deterministic ordering and clinic/deleted-row semantics, and add boundary regressions at limit and limit+1.
-- Owned paths: backend/internal/medicalrecord/exam_type_repository.go, backend/internal/medicalrecord/exam_type_repository_test.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go
-- Reference paths: backend/internal/medicalrecord/consultation_repository.go, backend/internal/persistence/scope.go
-- Dependencies: none (prior merchandise atomic delete integrated)
-- Verification command: DOCKER-MOUNT-PROOF; docker compose run --rm --no-deps --entrypoint '' backend go test -count=1 ./internal/medicalrecord/... ./internal/inventory/... -run 'FindAll.*(Limit|Bound)|MaxMasterListRows|ExamType|MerchandiseItem'
-- Completion evidence: both queries use the shared bound with deterministic order; exact-limit and over-limit fixtures prove bounded results without cross-clinic or deleted-row drift; scoped tests pass.
-
 ### BE-ACT-DOC-SESSION-LEDGER
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
 - Actor: sole documentation integrator using a protected copy of current shared-main state
 - Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
-- Current evidence: ledger files READY_AGENT BE-ACT-BOUNDED-MASTER-LISTS only among remaining BE-ACT implementation packets.
-- Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement.
+- Current evidence: all prior BE-ACT implementation packets are integrated (including BE-ACT-BOUNDED-MASTER-LISTS); BUG-433 remains USER 専権 for codegen confirmation.
+- Required behavior: begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement of already-filed work.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
-- Dependencies: BE-ACT-BOUNDED-MASTER-LISTS
+- Dependencies: none (all prior BE-ACT implementation packets integrated)
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: imported baseline matches then-current shared main before editing; every completed `BE-ACT-*` section is absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
 
-- Current wave: bounded master lists (exam-type and merchandise FindAll).
-- Final convergence: session-ledger cleanup after bounded master lists.
+- Current wave: session-ledger final convergence only (docs).
 - Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
@@ -193,7 +179,7 @@ G2F-07	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/reservation/appointment
 G2F-08	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/reservation/reservation_repository_test.go#symbols=TestReservationRepository_FindNoShowCandidates|TestReservationRepository_FindNoShowCandidatesAt_UsesSuppliedEvaluationTime; completion_sha=078f39ed48e23d295cb78b1c4f8660023ed5d8fc; object=backend/internal/reservation/reservation_repository_test.go; original=no-show 候補 unbounded + per-row WithTx; why=noShowCandidateMax bounds the candidate query and the regressions pin its predicate/time; per-row transaction plus audit is intentional fail-closed behavior
 G2F-09	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/billing/accounting_repository_reports_close_test.go#symbols=TestAccountingRepository_GetCloseAggregate_AggregatesPaymentsAndCategories|TestAccountingRepository_GetCloseAggregate_ClinicIsolation|TestAccountingRepository_GetCloseAggregate_EmptyPeriodReturnsZeroValues; original=レジ締め詳細が completed billings 全行 Scan; why=the close query is constrained by PeriodStart and PeriodEnd and these regressions pin aggregation, clinic isolation, and empty-window behavior, so it does not scan lifetime completed billings
 G2F-10	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/staff/shift_entry_service.go#symbols=List; completion_sha=38c41ae3173176680003e5ab85f682cd04cb784a; object=backend/internal/staff/shift_entry_service.go; original=shift_entry list が year_month 未指定で全件; why=List defaults an empty yearMonth to the current local month before the repository date-range query, eliminating the handler/service all-history path
-G2F-11	LIVE	ACTIVE	BE-ACT-BOUNDED-MASTER-LISTS	CURRENT:backend/internal/medicalrecord/exam_type_repository.go#FindAll|backend/internal/inventory/merchandise_item_repository.go#FindAll; why=both remaining master queries are unbounded even though consultation was fixed
+G2F-11	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/medicalrecord/exam_type_repository.go#FindAll|backend/internal/inventory/merchandise_item_repository.go#FindAll; completion_sha=4f51998e4abb09f8c80eaa74ecebd66574914c2f; object=exam_type_repository.go/merchandise_item_repository.go; original=exam-type and merchandise FindAll unbounded; why=both FindAll use Limit(MaxMasterListRows) with exact/limit+1 regressions
 <!-- RESOLUTION-INDEX:END -->
 
 ## Source reconciliation and operational authority
