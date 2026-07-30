@@ -1,7 +1,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { Navigate } from "react-router";
 
-import { C, STYLE } from "@/lib/design-tokens";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { C } from "@/lib/design-tokens";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceIdentityLinks } from "@/types/generated/models";
@@ -194,152 +195,150 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   };
 
   return (
-    <div className={`p-4 space-y-6 ${C.bgPage}`}>
-      <header>
-        <h1 className={C.textInk} style={STYLE.pageTitle}>
-          同一飼主・ペット連携
-        </h1>
-        <p className={`text-sm ${C.textInkSecondary}`}>
-          所属医院内の手動リンクのみ。権限のない医院の ID はサーバ側で拒否されます。
-        </p>
+    <PageLayout
+      title="同一飼主・ペット連携"
+      description="所属医院内の手動リンクのみ。権限のない医院の ID はサーバ側で拒否されます。"
+      resource={ResourceIdentityLinks}
+    >
+      <div className="space-y-6">
         {!canEdit && (
-          <p className={`mt-2 text-sm ${C.textWarning}`} role="status">
+          <p className={`text-sm ${C.textWarning}`} role="status">
             閲覧のみ（link/unlink 権限なし）
           </p>
         )}
-      </header>
 
-      {error && (
-        <div
-          className={`rounded border p-3 text-sm ${C.borderDanger} ${C.bgDanger10} ${C.textWarning}`}
-          role="alert"
-        >
-          {error}
-        </div>
-      )}
-
-      <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="飼主リンク">
-        <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
-        <label className="block text-sm">
-          <span className={C.textInkMuted}>検索（300ms debounce）</span>
-          <input
-            className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
-            value={ownerQuery}
-            onChange={(e) => setOwnerQuery(e.target.value)}
-            placeholder="氏名・カナ・電話"
-          />
-        </label>
-        <ul className="space-y-1 max-h-40 overflow-auto text-sm">
-          {ownerHits.map((o) => (
-            <li key={`${o.clinic_id}-${o.owner_id}`}>
-              <button
-                type="button"
-                className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
-                onClick={() => toggleOwner(o)}
-              >
-                [clinic {o.clinic_id}] {o.name} ({o.phone})
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className={`text-sm ${C.textInkSecondary}`}>
-          選択: {selectedOwners.map((o) => `${o.clinic_id}/${o.owner_id}`).join(", ") || "なし"}
-          {ownerGroupId != null && ` / group #${ownerGroupId}`}
-        </div>
-        {canEdit && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
-              disabled={pending || selectedOwners.length < 2}
-              onClick={onLinkOwners}
-            >
-              飼主をリンク
-            </button>
-            {selectedOwners.map((o) => (
-              <button
-                key={`unlink-o-${o.clinic_id}-${o.owner_id}`}
-                type="button"
-                className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
-                disabled={pending || ownerGroupId == null}
-                onClick={() => onUnlinkOwner(o)}
-              >
-                unlink {o.clinic_id}/{o.owner_id}
-              </button>
-            ))}
+        {error && (
+          <div
+            className={`rounded border p-3 text-sm ${C.borderDanger} ${C.bgDanger10} ${C.textWarning}`}
+            role="alert"
+          >
+            {error}
           </div>
         )}
-      </section>
 
-      <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="ペットリンク">
-        <h2 className={`font-semibold ${C.textInk}`}>ペットリンク</h2>
-        <p className={`text-xs ${C.textInkMuted}`}>親の飼主 identity group が必要です。</p>
-        <label className="block text-sm">
-          <span className={C.textInkMuted}>検索（300ms debounce）</span>
-          <input
-            className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
-            value={petQuery}
-            onChange={(e) => setPetQuery(e.target.value)}
-            placeholder="ペット名・番号"
-          />
-        </label>
-        <ul className="space-y-1 max-h-40 overflow-auto text-sm">
-          {petHits.map((p) => (
-            <li key={`${p.clinic_id}-${p.pet_id}`}>
+        <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="飼主リンク">
+          <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
+          <label className="block text-sm">
+            <span className={C.textInkMuted}>検索（300ms debounce）</span>
+            <input
+              className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
+              value={ownerQuery}
+              onChange={(e) => setOwnerQuery(e.target.value)}
+              placeholder="氏名・カナ・電話"
+            />
+          </label>
+          <ul className="space-y-1 max-h-40 overflow-auto text-sm">
+            {ownerHits.map((o) => (
+              <li key={`${o.clinic_id}-${o.owner_id}`}>
+                <button
+                  type="button"
+                  className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
+                  onClick={() => toggleOwner(o)}
+                >
+                  [clinic {o.clinic_id}] {o.name} ({o.phone})
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className={`text-sm ${C.textInkSecondary}`}>
+            選択: {selectedOwners.map((o) => `${o.clinic_id}/${o.owner_id}`).join(", ") || "なし"}
+            {ownerGroupId != null && ` / group #${ownerGroupId}`}
+          </div>
+          {canEdit && (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
-                onClick={() => togglePet(p)}
+                className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
+                disabled={pending || selectedOwners.length < 2}
+                onClick={onLinkOwners}
               >
-                [clinic {p.clinic_id}] {p.name}
+                飼主をリンク
               </button>
-            </li>
-          ))}
-        </ul>
-        <div className={`text-sm ${C.textInkSecondary}`}>
-          選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
-          {petGroupId != null && ` / group #${petGroupId}`}
-        </div>
-        {canEdit && (
+              {selectedOwners.map((o) => (
+                <button
+                  key={`unlink-o-${o.clinic_id}-${o.owner_id}`}
+                  type="button"
+                  className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+                  disabled={pending || ownerGroupId == null}
+                  onClick={() => onUnlinkOwner(o)}
+                >
+                  unlink {o.clinic_id}/{o.owner_id}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="ペットリンク">
+          <h2 className={`font-semibold ${C.textInk}`}>ペットリンク</h2>
+          <p className={`text-xs ${C.textInkMuted}`}>親の飼主 identity group が必要です。</p>
+          <label className="block text-sm">
+            <span className={C.textInkMuted}>検索（300ms debounce）</span>
+            <input
+              className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
+              value={petQuery}
+              onChange={(e) => setPetQuery(e.target.value)}
+              placeholder="ペット名・番号"
+            />
+          </label>
+          <ul className="space-y-1 max-h-40 overflow-auto text-sm">
+            {petHits.map((p) => (
+              <li key={`${p.clinic_id}-${p.pet_id}`}>
+                <button
+                  type="button"
+                  className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
+                  onClick={() => togglePet(p)}
+                >
+                  [clinic {p.clinic_id}] {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className={`text-sm ${C.textInkSecondary}`}>
+            選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
+            {petGroupId != null && ` / group #${petGroupId}`}
+          </div>
+          {canEdit && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
+                disabled={pending || ownerGroupId == null || selectedPets.length < 2}
+                onClick={onLinkPets}
+              >
+                ペットをリンク
+              </button>
+              {selectedPets.map((p) => (
+                <button
+                  key={`unlink-p-${p.clinic_id}-${p.pet_id}`}
+                  type="button"
+                  className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+                  disabled={pending || petGroupId == null}
+                  onClick={() => onUnlinkPet(p)}
+                >
+                  unlink {p.clinic_id}/{p.pet_id}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
-              disabled={pending || ownerGroupId == null || selectedPets.length < 2}
-              onClick={onLinkPets}
-            >
-              ペットをリンク
-            </button>
             {selectedPets.map((p) => (
               <button
-                key={`unlink-p-${p.clinic_id}-${p.pet_id}`}
+                key={`hist-${p.clinic_id}-${p.pet_id}`}
                 type="button"
                 className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
-                disabled={pending || petGroupId == null}
-                onClick={() => onUnlinkPet(p)}
+                disabled={pending}
+                onClick={() => onLoadHistory(p)}
               >
-                unlink {p.clinic_id}/{p.pet_id}
+                連携履歴 {p.clinic_id}/{p.pet_id}
               </button>
             ))}
           </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {selectedPets.map((p) => (
-            <button
-              key={`hist-${p.clinic_id}-${p.pet_id}`}
-              type="button"
-              className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
-              disabled={pending}
-              onClick={() => onLoadHistory(p)}
-            >
-              連携履歴 {p.clinic_id}/{p.pet_id}
-            </button>
-          ))}
-        </div>
-        {historyText && (
-          <pre className={`text-xs whitespace-pre-wrap rounded p-2 ${C.bgMuted} ${C.textInk}`}>{historyText}</pre>
-        )}
-      </section>
-    </div>
+          {historyText && (
+            <pre className={`text-xs whitespace-pre-wrap rounded p-2 ${C.bgMuted} ${C.textInk}`}>{historyText}</pre>
+          )}
+        </section>
+      </div>
+    </PageLayout>
   );
 }

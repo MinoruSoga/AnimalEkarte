@@ -63,6 +63,10 @@ func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (CloseRegisterI
 	if err != nil {
 		return CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
 	}
+	// FE CashRegisterClosePage min=0 と整合。負の実査現金は無効（V02-F04）。
+	if r.ActualCash < 0 {
+		return CloseRegisterInput{}, fmt.Errorf("actual_cash は 0 以上で指定してください")
+	}
 
 	return CloseRegisterInput{
 		Date:       date,

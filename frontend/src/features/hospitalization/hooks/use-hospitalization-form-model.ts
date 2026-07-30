@@ -11,31 +11,6 @@ import type { HospitalizationFormData } from "../types";
 
 const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
-export const DEFAULT_TREATMENT_PLANS: HospitalizationTreatmentPlan[] = [
-  {
-    id: "1",
-    treatmentContent: "adm rate",
-    memo: "入院料1日分",
-    is_insurance: true,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-  {
-    id: "2",
-    treatmentContent: "PCG/SC ~15kg",
-    memo: "",
-    is_insurance: false,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-];
-
 function getDefaultHospitalizationEndDate() {
   const endDate = toJSTWallDate(new Date());
   endDate.setDate(endDate.getDate() + DEFAULT_HOSPITALIZATION_DAYS);
@@ -204,6 +179,54 @@ export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {
     discountAmount: 0,
     subtotal: 0,
   };
+}
+
+/**
+ * UI treatment plan → POST /hospitalizations/:id/treatment-plans body.
+ * Empty treatmentContent rows are not persistable (BE requires content).
+ */
+export function buildCreateTreatmentPlanRequest(
+  plan: HospitalizationTreatmentPlan,
+  sortOrder: number,
+): {
+  treatment_content: string;
+  memo: string;
+  is_insurance: boolean;
+  unit_price: number;
+  quantity: number;
+  discount_rate: number;
+  discount_amount: number;
+  sort_order: number;
+} | null {
+  const content = plan.treatmentContent.trim();
+  if (!content) return null;
+  const quantity = plan.quantity > 0 ? plan.quantity : 1;
+  return {
+    treatment_content: content,
+    memo: plan.memo ?? "",
+    is_insurance: plan.is_insurance,
+    unit_price: plan.unitPrice,
+    quantity,
+    discount_rate: plan.discount,
+    discount_amount: plan.discountAmount,
+    sort_order: sortOrder,
+  };
+}
+
+/** Plans with non-empty content, mapped to create wire bodies in display order. */
+export function buildPersistableTreatmentPlanRequests(
+  plans: readonly HospitalizationTreatmentPlan[],
+) {
+  const bodies: NonNullable<ReturnType<typeof buildCreateTreatmentPlanRequest>>[] = [];
+  let sortOrder = 0;
+  for (const plan of plans) {
+    const body = buildCreateTreatmentPlanRequest(plan, sortOrder);
+    if (body) {
+      bodies.push(body);
+      sortOrder += 1;
+    }
+  }
+  return bodies;
 }
 
 export function updateTreatmentPlanField(

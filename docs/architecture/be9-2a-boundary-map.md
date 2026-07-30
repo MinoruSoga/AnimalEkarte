@@ -19,7 +19,7 @@ classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保
 
 - target bucket 601 row: 旧path現存 **0** / removed or moved **601**。
 - keep bucket 160 row: present **136** / consolidation・責務移動・削除により旧pathなし **24**。
-- 旧layer: `internal/handler` directoryなし、`internal/service` production 0 / test-only 14、`internal/repository` production 0 / test-only 50。
+- 旧layer（2026-07-24 snapshot）: `internal/handler` directoryなし、`internal/service` production 0 / test-only 14、`internal/repository` production 0 / test-only 50。**その後3旧layer directoryは完全削除済み**（test residual も含め現行 tree に残存しない）。live lint は `backend/internal/lintscan/`。
 - production Go import: 旧`internal/handler|service|repository`へのedge 0。
 - composition: `cmd/api` production 22 file、target domainを直接importするfile 18。
 

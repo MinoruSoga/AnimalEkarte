@@ -1,6 +1,6 @@
 # S11: トリミング業務と診察併用精算
 
-> **目的**: トリミング予約→トリミングカルテ記録→同日の診察カルテとの併用精算で、同一ペットの未請求明細（診察処置＋トリミングコース・オプション）が 1 つの会計に自動統合され合計金額が一致すること、および「診察中」枠からのトリミングカルテ入力に制限がないことを納品前に証明する（#245 で報告された併用精算ミスに対する調査結果 2 点の実機証明）。
+> **目的**: トリミング予約→トリミングカルテ記録→同日の診察カルテとの併用精算で、同一ペットの未請求明細（診察処置＋トリミングコース・オプション）が 1 つの会計に自動統合され合計金額が一致すること、を納品前に証明する。トリミングカルテ open は受付済のみ（AppointmentCard）。
 > **所要目安**: 30分 / **深度**: 深い
 > **仕様正本**: [screens/16-trimming-list.md](../../../spec/screens/16-trimming-list.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)・[screens/10-accounting-list.md](../../../spec/screens/10-accounting-list.md)・[screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[reservation-to-record-flow.md §5.2-G/§8/§10](../../../spec/reservation-to-record-flow.md)
 
@@ -16,7 +16,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | トリミング一覧から新規登録 → 対象ペットを選択し、ステータス「予約」・コース 1 件・オプション 1 件を選択して保存する（[17 §1.1](../../../spec/screens/17-trimming-form.md)・#233） | 保存成功。コース・オプションにマスタ定義の価格が表示される（[17 §2.1](../../../spec/screens/17-trimming-form.md)）。トリミング一覧に「予約」で表示され、当日 appointment として受付カンバン「受付予約」列にも現れる（[16 §2](../../../spec/screens/16-trimming-list.md)・[flow §3.4/§3.7](../../../spec/reservation-to-record-flow.md)） |
-| 2 | 受付カンバンで当該トリミングカードを「受付済」→「診療中」へ進め、カードからトリミングカルテを開いてスタイル要望・体重を追記保存する | トリミングカードからは通常カルテではなくトリミングカルテへ遷移する（[flow §6 受付カンバン](../../../spec/reservation-to-record-flow.md)）。**「診療中」列のカードからのトリミングカルテ入力・編集は制限・警告なく成功する**（#245 調査結果 (2) の証明） |
+| 2 | 受付カンバンで当該トリミングカードを「受付済」→「診療中」へ進め、カードからトリミングカルテを開いてスタイル要望・体重を追記保存する | トリミングカードからは通常カルテではなくトリミングカルテへ遷移する（[flow §6 受付カンバン](../../../spec/reservation-to-record-flow.md)）。**受付済列からのみ open 可**（診療中 unrestricted open は実装に無い）。カルテ作成が診療中への契機 |
 | 3 | 同日に同じペットの通常カルテを新規作成し、価格を持つ処置を 1 件以上入力して保存する | トリミングと診察は別 appointment として並存し、受付カンバンに 2 枚のカードが表示される（[flow §5.2-G](../../../spec/reservation-to-record-flow.md): 併用は appointments を 2 件作成）。トリミング記録の存在が診察カルテ入力を妨げない |
 | 4 | 通常カルテの会計確認を確定し、受付カンバンでトリミングカードを「会計待ち」へ進める | 明示的な完了操作により双方の appointment が「会計待ち」になる（[flow §8 ステータス連動](../../../spec/reservation-to-record-flow.md)）。受付カンバンの「会計待ち」列に 2 カード |
 | 5 | 会計一覧の「新規会計登録」から対象ペットを選択し、会計作成画面（`/accounting/new?petId=xxx`）を開く（[11 概要](../../../spec/screens/11-accounting-detail.md)） | **診察の処置明細とトリミングのコース・オプション明細が、未請求明細として 1 つの会計に自動で統合して取り込まれる**（[16 §2 会計への連携](../../../spec/screens/16-trimming-list.md): `billing_item_repository` が UNION で統合取得・[flow §10-6/補足](../../../spec/reservation-to-record-flow.md)）— #245 調査結果 (1) の証明 |

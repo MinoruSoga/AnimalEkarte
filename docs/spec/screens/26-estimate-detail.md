@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 作成済みの見積内容の最終確認、および承認ステータスの遷移。
 - **URLパターン**: `/estimates/:id`
-- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
+- **アクセス権限**: 親 `/estimates` の `ResourceEstimates` **`view`** を継承。編集/削除は `usePermission`
 
 ---
 

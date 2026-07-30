@@ -7,9 +7,11 @@
   - タグ管理: `/settings/lstep/tags`
   - 健診対象者抽出: `/lstep/checkup-sync`
   - 分析レポート: `/lstep/analytics`
-- **アクセス権限**: 
-  - 連携設定・タグ管理・健診対象者抽出: 外部連携管理権限が必要（`ResourceHospitalSettings`）
-  - 分析レポート: 外部連携管理権限（`ResourceHospitalSettings`）に加え、Lステップ分析閲覧権限（`ResourceLstepAnalytics`）が必要
+- **アクセス権限**（FE）:
+  - 連携設定 `/settings/integrations/lstep`: `ResourceHospitalSettings`
+  - タグ管理 `/settings/lstep/tags`: **`ResourceLstepAnalytics`**
+  - 健診同期 `/lstep/checkup-sync`: 親 `/lstep` の `ResourceHospitalSettings`
+  - 分析 `/lstep/analytics`: 親 `ResourceHospitalSettings` **かつ** ネスト `ResourceLstepAnalytics`
 
 ---
 

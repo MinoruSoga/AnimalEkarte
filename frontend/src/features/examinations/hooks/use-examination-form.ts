@@ -123,6 +123,12 @@ export function useExaminationForm(
     [],
   );
 
+  // サーバ保存済み確定フラグ（useActionState 内の stale closure を避ける）
+  const isPersistedConfirmedRef = useRef(false);
+  useLayoutEffect(() => {
+    isPersistedConfirmedRef.current = isEdit && existingExam?.status === "確定";
+  }, [isEdit, existingExam?.status]);
+
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
@@ -263,10 +269,10 @@ export function useExaminationForm(
       }
 
       try {
-        // 確定済みの場合は items の更新が backend で 400 になるため、従来どおり省略する。
-        // それ以外は空配列も含めて parent と同じ operation に載せ、全体を原子的に保存する。
+        // サーバ保存済みの確定のみ items を省略する（BE は confirmed への item 更新を 400）。
+        // ドラフトでステータス「確定」を選んだだけの遷移保存では items を送る（A-S02-01）。
         const items = rowsToRequest(formItemsRef.current);
-        const isConfirmed = current.status === "確定";
+        const isPersistedConfirmed = isPersistedConfirmedRef.current;
 
         if (isPetExplicitlyDeceased()) {
           return { success: false, timestamp: Date.now() };
@@ -282,7 +288,7 @@ export function useExaminationForm(
                 ? current.date
                 : jstDateStartISOString(current.date)
               : undefined,
-            ...(!isConfirmed ? { items } : {}),
+            ...(!isPersistedConfirmed ? { items } : {}),
           };
           if (!isMutationAllowed("canEdit")) {
             return { success: false, timestamp: Date.now() };
@@ -299,7 +305,8 @@ export function useExaminationForm(
             date: current.date ?? jstDateStartISOString(todayJSTISO()),
             result_summary: current.resultSummary,
             machine: current.machine,
-            ...(!isConfirmed ? { items } : {}),
+            // 新規は常に items を送る（作成時点で「確定」を選んでもロック対象はサーバ確定後のみ）
+            items,
           };
           if (
             !isMutationAllowed("canCreate") ||
@@ -354,6 +361,8 @@ export function useExaminationForm(
 
   const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
+  // UI ロックはサーバ保存済み確定のみ（ドラフトで「確定」を選んだだけではロックしない — A-S02-01）
+  const isPersistedConfirmed = isEdit && existingExam?.status === "確定";
 
   return {
     formData: formDataWithPet,
@@ -365,6 +374,7 @@ export function useExaminationForm(
     isEdit,
     isSaving,
     isDeleting,
+    isPersistedConfirmed,
     // 検査項目テーブル
     formItems,
     setInspectionValue,

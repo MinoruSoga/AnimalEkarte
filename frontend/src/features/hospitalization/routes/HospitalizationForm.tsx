@@ -249,12 +249,16 @@ export function HospitalizationForm() {
           />
         </div>
 
-        {/* 治療プラン */}
+        {/* 治療プラン: create 時のみ編集可（保存時に nested POST）。edit は参照のみ。 */}
         {isEdit ? (
           <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-            既存の治療プランと割引は参照のみです。この画面の更新では変更されません。
+            既存の治療プランは参照のみです。この画面の更新では変更されません（明細の追加・変更は入院詳細のケア／治療導線を利用してください）。
           </p>
-        ) : null}
+        ) : (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            治療内容・メモが入力された行のみ、入院登録成功後に治療プランとして保存されます。空行は保存されません。
+          </p>
+        )}
         <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
@@ -263,14 +267,17 @@ export function HospitalizationForm() {
             readOnly={isEdit}
         />
 
-        {/* 診療費計算 */}
+        {/* 一括割引: BE に永続化フィールドが無いため常に表示専用（画面内概算のみ） */}
+        <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+          画面上部の一括割引（%／円）は概算表示用で、入院登録・更新では保存されません。
+        </p>
         <HospitalizationCostSummary
             totals={totals}
             globalDiscount={globalDiscount}
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
-            readOnly={isEdit}
+            readOnly
         />
         </fieldset>
     </PageLayout>

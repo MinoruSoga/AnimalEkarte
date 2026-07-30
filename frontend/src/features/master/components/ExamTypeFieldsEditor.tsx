@@ -264,7 +264,7 @@ function ExamTypeFieldsEditorState({
 
   return (
     <section
-      className={`mt-5 pt-4 ${STYLE.sectionDivider}`}
+      className={`mt-4 pt-4 ${STYLE.sectionDivider}`}
       aria-label="検査項目設定"
       onKeyDown={handleNestedKeyDown}
     >

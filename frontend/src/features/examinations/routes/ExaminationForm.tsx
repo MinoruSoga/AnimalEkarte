@@ -62,6 +62,7 @@ export function ExaminationForm() {
     isDeleting,
     formItems,
     setInspectionValue,
+    isPersistedConfirmed,
   } = useExaminationForm(
     id,
     medicalRecordId ?? undefined,
@@ -122,7 +123,8 @@ export function ExaminationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
-  const isConfirmed = formData.status === "確定";
+  // 編集ロックはサーバ保存済み確定のみ。ドラフトで「確定」を選んでも保存 UI を消さない（A-S02-01）。
+  const isConfirmed = isPersistedConfirmed;
 
   // 現在のペットID（履歴フィルタ用）
   const currentPetId = formData.petId ?? selectedPet?.id ?? petId ?? undefined;

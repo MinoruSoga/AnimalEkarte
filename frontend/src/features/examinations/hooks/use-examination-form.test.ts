@@ -672,6 +672,64 @@ describe('useExaminationForm — 検査項目テーブル（FE-EXAM-001）', () 
         req: expect.not.objectContaining({ items: expect.anything() }),
       }),
     );
+    expect(result.current.isPersistedConfirmed).toBe(true);
+  });
+
+  it('未確定検査でステータスを確定に変えても items を PATCH に含め保存できる（A-S02-01）', async () => {
+    const { useGetExamination } = await import('../api/get-examination');
+    const { useGetExaminationItems } = await import('../api/get-examination-items');
+    const { useUpdateExamination } = await import('../api/update-examination');
+
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: 'exam-001',
+        testTypeId: '5',
+        doctorId: '3',
+        status: '結果入力済み' as const,
+        ownerName: '',
+        petName: '',
+        date: '',
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: '101', examTypeFieldId: 1, name: 'WBC', result: '', inspectionValue: '5.0',
+          normalValue: '', unit: '', referenceValue: '',
+          refMin: undefined, refMax: undefined, isAbnormal: false, status: 'normal' as const, sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({ mutateAsync: updateMutate } as ReturnType<typeof useUpdateExamination>);
+
+    const { result } = renderExaminationForm('exam-001');
+
+    await waitFor(() => expect(result.current.isPersistedConfirmed).toBe(false));
+
+    await act(async () => {
+      result.current.setFormData({ status: '確定' });
+    });
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(updateMutate).toHaveBeenCalledOnce());
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'exam-001',
+        req: expect.objectContaining({
+          status: 'confirmed',
+          items: expect.arrayContaining([
+            expect.objectContaining({ name: 'WBC', inspection_value: '5.0' }),
+          ]),
+        }),
+      }),
+    );
+    // ドラフト選択だけでは isPersistedConfirmed は true にならない
+    expect(result.current.isPersistedConfirmed).toBe(false);
   });
 
   it('新規保存時に表示値を保持し判定境界を含まない items を POST する', async () => {

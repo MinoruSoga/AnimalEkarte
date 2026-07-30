@@ -13,11 +13,12 @@ import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
+import { createTreatmentPlanForHospitalization } from "../api/treatment-plans-write";
 import { calculateBillingTotals } from "@/lib/calculations";
 import {
-  DEFAULT_TREATMENT_PLANS,
   buildCreateHospitalizationRequest,
   buildHospitalizationFormDataFromRecord,
+  buildPersistableTreatmentPlanRequests,
   buildSelectedPetFromHospitalization,
   buildTreatmentPlansFromRecord,
   buildUpdateHospitalizationRequest,
@@ -44,9 +45,9 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>(
-    isEdit ? [] : DEFAULT_TREATMENT_PLANS,
-  );
+  // Create starts empty — only user-entered rows with content are POSTed after parent create.
+  // Edit hydrates from GET /hospitalizations/:id/treatment-plans (read-only UI).
+  const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>([]);
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -54,6 +55,14 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   useLayoutEffect(() => {
     selectedPetRef.current = selectedPets[0];
   }, [selectedPets]);
+  const formDataRef = useRef(formData);
+  useLayoutEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+  const treatmentPlansRef = useRef(treatmentPlans);
+  useLayoutEffect(() => {
+    treatmentPlansRef.current = treatmentPlans;
+  }, [treatmentPlans]);
   const canSubmitRef = useRef(canSubmit);
   useLayoutEffect(() => {
     canSubmitRef.current = canSubmit;
@@ -79,13 +88,23 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
         };
       }
       try {
+        const latestFormData = formDataRef.current;
         if (isEdit && id) {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
-          await updateHospitalization(id, buildUpdateHospitalizationRequest(formData));
+          // Edit: parent fields only. Treatment plans / bulk discount are honesty-read-only on this screen.
+          await updateHospitalization(id, buildUpdateHospitalizationRequest(latestFormData));
           toast.success("入院情報を更新しました");
         } else {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
-          await createHospitalization(buildCreateHospitalizationRequest(formData, pet));
+          const created = await createHospitalization(
+            buildCreateHospitalizationRequest(latestFormData, pet),
+          );
+          // Nested plan writes after parent exists (existing BE hospitalization treatment-plan APIs).
+          // Not a single DB transaction — partial failure is reported and surfaces as save error.
+          const planBodies = buildPersistableTreatmentPlanRequests(treatmentPlansRef.current);
+          for (const body of planBodies) {
+            await createTreatmentPlanForHospitalization(created.id, body);
+          }
           toast.success("入院情報を登録しました");
         }
 

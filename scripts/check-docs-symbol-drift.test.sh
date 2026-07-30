@@ -8,6 +8,7 @@
 #   - 実在しない use* フック名                        → exit 1
 #   - 実在しないソースファイル名                      → exit 1
 #   - テーブル総数宣言の不一致（全nテーブル）          → exit 1
+#   - 直下 migrations/*.sql 合算（002/003 非CREATE・seeds 除外）→ exit 0
 #   - 部分集合の言及（「この5テーブル」）は総数扱いしない → exit 0
 #   - 16進カラーコード（`A39E98` 等）は検査対象外       → exit 0
 # で判定できることを確認する。Docker 不要・純テキスト検査。
@@ -41,7 +42,13 @@ build_fixture() {
 export function GoodWidget() { return null; }
 export function useGoodHook() { return 1; }
 EOF
+  # 直下 DDL 合算: 001=2 / 002・003=0 CREATE。seeds/ 配下の CREATE は数えない。
   printf 'CREATE TABLE a (id int);\nCREATE TABLE b (id int);\n' > "$d/backend/migrations/001_init.sql"
+  # printf treats leading -- as options; use %s format.
+  printf '%s\n' '-- index only; no CREATE TABLE' > "$d/backend/migrations/002_noop.sql"
+  printf '%s\n' '-- constraint only; no CREATE TABLE' > "$d/backend/migrations/003_constraint.sql"
+  mkdir -p "$d/backend/migrations/seeds"
+  printf '%s\n' 'CREATE TABLE seed_ghost (id int);' > "$d/backend/migrations/seeds/ghost.sql"
   printf 'package model\n\nconst (\n\tResourceAlpha Resource = "alpha"\n\tResourceBeta Resource = "beta"\n)\n' \
     > "$d/backend/internal/model/permission.go"
   printf 'package model\n\nconst (\n\tTriggerTypeFoo TriggerType = "foo"\n)\n' \

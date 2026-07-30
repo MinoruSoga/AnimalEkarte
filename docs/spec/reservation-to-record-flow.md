@@ -162,14 +162,14 @@ LINE予約は `line_customer_id` と `customer_fields` を持って作成され�
 
 バックエンドには `GenerateTimeSlots` と LIFF 用の `GET /available-times` が存在する。
 
-現状の用途:
+現状の用途（実装済み）:
 
 - LINE予約向けに予約可能日／予約可能時刻を返す
 - 営業時間、休憩、スタッフ個別シフト、既存予約、予約区分の不可時間を考慮する
+- 院内の予約管理フォームは `GET /v1/reservations/available-times` 経由で同じ空き枠計算を使う（Phase 2 完了）
 
 現状の不足:
 
-- 院内の予約管理フォームは `GET /v1/reservations/available-times` 経由でこの空き枠計算を使う
 - トリミング専用の基本予約時間や予約可能枠設定を、院内 UI で統一的に扱えていない
 
 ## 4. 現状の問題
@@ -305,8 +305,9 @@ UI と仕様上は「対応可能コース」として扱う。
 採用方針:
 
 - 未リリース段階のため DB 変更を許容する
-- `staff_reservation_exclusions` の読み替えをやめ、`staff_reservation_capabilities` を追加済み
-- 対応可能コースは肯定形テーブルを source of truth とする
+- 予約作成・更新・空き枠の staff 可否判定は `staff_reservation_capabilities` を肯定形の source of truth とする（`SupportsReservationType` / `ValidateReservationStaffCapability`）
+- `staff_reservation_exclusions` の読み替えは write 検証の active design ではない
+- 残存: スタッフ CRUD の一部 API 表面（`ExcludedTypeIDs` / `excluded_courses` 等）はまだ exclusion 形を持ち、両方の junction を書き得る。候補絞り込みと POST 検証は capabilities のみを見る
 
 候補テーブル:
 
@@ -333,14 +334,17 @@ UI と仕様上は「対応可能コース」として扱う。
 
 院内予約フォームも LIFF と同じ空き枠計算を使う。
 
-必要な API:
+実装済み API:
 
-| API | 用途 |
-|---|---|
-| `GET /v1/reservations/available-times?reservation_type_id=&date=&staff_id=` | 院内予約フォーム用の空き時間取得 |
-| `GET /v1/reservations/available-staffs?reservation_type_id=&date=&start_time=&end_time=` | 選択枠に対応可能なスタッフ取得 |
+| API | 用途 | 状態 |
+|---|---|---|
+| `GET /v1/reservations/available-times?reservation_type_id=&date=&staff_id=` | 院内予約フォーム用の空き時間取得 | 実装済み・院内フォームで利用中 |
 
-院内予約フォームでは、院内用の空き枠 API として切り出した `GET /v1/reservations/available-times` を使う。
+スタッフ候補の現状経路（`available-staffs` エンドポイントは未実装・導入しない）:
+
+- フォーム側でスタッフ一覧を取得し、選択日の出勤（shift）と `staff_reservation_capabilities` で候補を絞り込む
+- 作成・更新時は `POST` 側の `ValidateReservationStaffCapability` が capabilities を最終検証する
+- 将来の `GET /v1/reservations/available-staffs` は任意・deferred。現行設計では不要
 
 ### 5.5 appointment lifecycle write contract
 
@@ -484,29 +488,30 @@ erDiagram
 
 #### スタッフ対応可能コース
 
-現状の `staff_reservation_exclusions` は「対応不可」を表す。改善後は UI と業務仕様を「対応可能」に寄せる。
+旧実装の `staff_reservation_exclusions` は「対応不可」を表す。改善後は UI と業務仕様を「対応可能」に寄せ、write 検証の source of truth は `staff_reservation_capabilities` とする。
 
-既存の `reservation_type_occupations` は「予約区分に対応する職種」を表す。これはスタッフ個人ではなく職種単位のガードであり、LIFF の日付可否判定で使われている。
+既存の `reservation_type_occupations` は「予約区分に対応する職種」を表す。これはスタッフ個人ではなく職種単位のガードであり、**LIFF の日付可否判定（`applyOccupationGuard`）専用**である。院内 `POST /v1/reservations` の staff 検証には使わない。
 
-改善後のスタッフ候補判定は、以下の2段階に分ける。
+スタッフ候補・可否の現行経路:
 
-1. 予約区分に対応する職種かどうかを `reservation_type_occupations` で判定する
-2. スタッフ個人がその予約区分に対応可能かどうかを `staff_reservation_capabilities` または既存 `staff_reservation_exclusions` の読み替えで判定する
+1. **職種ガード（LIFF のみ）**: `reservation_type_occupations` で日付可否を絞る
+2. **個人 capability（院内候補 + POST 検証）**: `staff_reservation_capabilities` のみ。exclusions の読み替えは active design ではない
+3. **残存 dual surface**: スタッフ CRUD の一部は `ExcludedTypeIDs` / `excluded_courses` 形のまま両方の junction を書き得る。予約候補絞り込みと `ValidateReservationStaffCapability` は capabilities だけを読む
 
 候補:
 
 | テーブル | 役割 | 主なカラム |
 |---|---|---|
-| `staff_reservation_capabilities` | スタッフが対応可能な予約区分 | `staff_id`, `reservation_type_id` |
+| `staff_reservation_capabilities` | スタッフが対応可能な予約区分（write 検証 SoT） | `staff_id`, `reservation_type_id` |
 
-移行方針の選択肢:
+移行方針の選択肢（履歴）:
 
 | 方針 | 内容 | 注意点 |
 |---|---|---|
-| 既存テーブル読み替え | `staff_reservation_exclusions` を維持し、UI だけ対応可能表示にする | 意味が反転しており保守しづらい |
-| 新テーブル追加 | `staff_reservation_capabilities` を追加し、対応可能を正で保存する | 既存データの移行ルールが必要 |
+| 既存テーブル読み替え | `staff_reservation_exclusions` を維持し、UI だけ対応可能表示にする | 意味が反転しており保守しづらい — **不採用** |
+| 新テーブル追加 | `staff_reservation_capabilities` を追加し、対応可能を正で保存する | 採用済み。CRUD 残存 exclusion 表面の整理は別途 |
 
-採用方針は新テーブル追加。未リリース段階のため DB 変更を許容し、予約時のスタッフ候補絞り込み、空き枠計算、スタッフ管理 UI の意味を肯定形で揃える。
+採用方針は新テーブル追加済み。予約時のスタッフ候補絞り込み・空き枠・POST 検証は肯定形 capabilities で揃える。スタッフ管理 CRUD の exclusion 形 API 表面は残存し得る。
 
 #### トリミング予約可能枠
 
@@ -550,12 +555,16 @@ erDiagram
 - 予約区分が active
 - `start_time < end_time`
 - 対象日時が予約可能枠内
-- staff 指定時、その staff が出勤中
-- staff 指定時、その staff の職種が予約区分に対応している
-- staff 指定時、その staff が予約区分に対応可能
+- staff 指定時、その staff が `staff_reservation_capabilities` 上で予約区分に対応可能（`ValidateReservationStaffCapability`）
 - 競合予約がない
 - LINE予約の場合、`line_customer_id` / `customer_fields` / `is_staff_delegated` を保持する
 - 院内予約の場合、`reservation_route` / `actual_reservation_at` を必要に応じて保持する
+
+職種・出勤との役割分担:
+
+- **職種（`reservation_type_occupations`）**: LIFF の日付可否ガード専用。院内 POST create/update では検証しない
+- **出勤（shift）**: 空き枠計算・フォーム側の候補絞り込みで扱う capacity 関心。POST の staff capability 検証とは別
+- **capability**: staff 指定時の POST 最終検証は `staff_reservation_capabilities` のみ
 
 ただし、当日の受付・診察室・カルテ一覧・トリミング一覧から作る実来院中の appointment は、予約枠を確保する操作ではなく業務状態を表すレコード作成である。そのため `checked_in` / `in_consultation` などの実来院ステータスでは、予約可能枠・予約競合の制約を予約作成時に適用しない。スタッフ対応可能コースの検証は引き続き適用する。
 
@@ -591,9 +600,11 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 カルテ作成と appointment status は以下の粒度で連動する。
 
-- 通常カルテまたはトリミングカルテの初回作成時は appointment を `in_consultation` として扱う
+- **`POST /v1/medical-records` は appointment status を自動 promote しない**（BE 側で `in_consultation` へ進めない）
+- 一覧ショートカットで appointment が無い場合、FE が `POST /v1/reservations` で `status=in_consultation`・`reservation_route=record_shortcut` の appointment を先に作る（§5.2 E / Phase 1）
+- 既存 appointment は受付由来で既に `checked_in` / `in_consultation` 等の場合がある。カルテ作成はその status を書き換えない
 - 下書き保存だけでは `accounting` に進めない
-- 明示的な診療完了・トリミング完了操作で `accounting` に進める
+- 明示的な診療完了・トリミング完了操作（promote-to-accounting）で `accounting` に進める
 - 会計完了で、同日・同一飼主・同一ペット・`accounting` の appointment を `completed` に進める
 - 併用予約では通常診療 appointment とトリミング appointment がそれぞれ status を持つ
 
@@ -624,10 +635,10 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 ### Phase 3: スタッフ対応可能コース
 
-- 対応不可から対応可能への仕様変更（完了: UI/API/DB は `staff_reservation_capabilities` を肯定形で保存）
-- DB 移行方針を決める（完了: `staff_reservation_capabilities` を追加し、既存 `staff_reservation_exclusions` から移行）
-- スタッフ管理 UI を予約区分カテゴリごとに表示する（完了）
-- 予約作成時に対応可能コースを検証する（完了）
+- 対応不可から対応可能への仕様変更（完了: 予約 write 検証・候補絞り込みは `staff_reservation_capabilities` を肯定形 SoT とする）
+- DB 移行方針を決める（完了: `staff_reservation_capabilities` を追加。旧 `staff_reservation_exclusions` は write 検証の SoT ではない）
+- スタッフ管理 UI を予約区分カテゴリごとに表示する（完了。CRUD の一部 API 表面は exclusion 形が残存し得る）
+- 予約作成時に対応可能コースを検証する（完了: `ValidateReservationStaffCapability` は capabilities のみ）
 
 ### Phase 4: トリミング予約枠
 
@@ -639,11 +650,11 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 ## 10. 確定した仕様判断
 
-1. 対応可能コースは `staff_reservation_capabilities` を追加し、肯定形で保存する
+1. 対応可能コースの write 検証 SoT は `staff_reservation_capabilities`（肯定形）。職種ガード（`reservation_type_occupations`）は LIFF 日付可否専用。スタッフ CRUD に exclusion 形 API 表面が残存しても、候補絞り込みと POST 検証は capabilities のみを読む
 2. 通常診療とトリミングの同時予約は appointment を2件作成する
 3. LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにするタイミングで紐付けを必須にする
 4. 一覧ショートカットで自動作成した appointment の `reservation_route` は `record_shortcut` とする
-5. 通常カルテ・トリミングカルテ作成時は `in_consultation`、明示的な完了操作で `accounting`、会計完了で `completed` に進める
+5. 一覧ショートカットで appointment を新規作成する場合、FE が `POST /v1/reservations` で `status=in_consultation` を指定する。`POST /v1/medical-records` 自体は appointment を promote しない。既存 appointment は受付由来 status を維持し、`accounting` への promote は明示操作、会計完了で `completed`
 6. 併用予約でも会計は appointment 単位に固定せず、同日同一飼主・ペットの未会計項目を1会計に集約できる
 
 補足:

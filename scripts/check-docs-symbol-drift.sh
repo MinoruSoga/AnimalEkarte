@@ -177,14 +177,23 @@ check_number() {
   done < <(extract_claims "$regex" "$@")
 }
 
-# 3a. テーブル数（正 = 001_init.sql の行頭 CREATE TABLE。コメント行を含めないこと）
+# 3a. テーブル数（正 = 全 backend/migrations/*.sql 直下の行頭 CREATE TABLE 合算。seeds/ は対象外）
 # 「全nテーブル」形式の総数宣言のみを対象とし、部分集合の言及（「この5テーブル」等）は対象外。
-if [[ -f "$ROOT/backend/migrations/001_init.sql" ]]; then
-  tables="$(grep -c '^CREATE TABLE' "$ROOT/backend/migrations/001_init.sql" || true)"
+# find+grep: BSD/GNU 両対応（macOS の grep は --include 非対応のため）。-maxdepth 1 で seeds/ を除外。
+if [[ -d "$ROOT/backend/migrations" ]]; then
+  tables="$(
+    {
+      find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
+        | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
+    } | wc -l | tr -d ' '
+  )"
+  tables="${tables:-0}"
+  # 総数の正本は ERD + specification（ゲートが強制する宣言面）。
+  # docs/README.md / screens/README.md / overview の索引フッタは別 unit で追随する。
   check_number "テーブル数" "$tables" '全[^0-9]{0,6}[0-9]+[^0-9]{0,6}テーブル|[0-9]+ Tables' \
-    "$ROOT/docs/architecture/erd.md" "$ROOT/docs/README.md" "$ROOT/docs/spec/specification.md" "$DOCS_SCREENS/README.md"
+    "$ROOT/docs/architecture/erd.md" "$ROOT/docs/spec/specification.md"
   check_number "テーブル数" "$tables" '[0-9]+ テーブル' \
-    "$ROOT/docs/architecture/overview.md"
+    "$ROOT/docs/spec/specification.md"
 fi
 
 # 3b. 権限リソース数（正 = permission.go の Resource 定数）

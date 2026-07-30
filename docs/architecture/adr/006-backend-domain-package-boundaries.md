@@ -15,7 +15,7 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 ## Implementation outcome（2026-07-24）
 
-本Decisionは実装済み。当初13 target packageは全て現行domain/capability packageへ収束し、2026-07-30に`identitylink`を加えて14 target packageとなった。旧`internal/handler` directoryは削除、旧`internal/service`はtest-only 14 file、旧`internal/repository`はtest-only 50 fileとなった。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。
+本Decisionは実装済み。当初13 target packageは全て現行domain/capability packageへ収束し、2026-07-30に`identitylink`を加えて14 target packageとなった。旧`internal/handler`、`internal/service`、`internal/repository` directoryは**完全削除済み**（2026-07-24 recensus時点では service test-only 14 / repository test-only 50 が残っていたが、その後撤去し test residual も含め directory 自体が存在しない）。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。live mechanical lint gateは`backend/internal/lintscan/`に置く。
 
 `cmd/api`は22 production Go fileへ分割した明示composition rootで、18 fileがtarget domain packageを直接importする。共有能力は実consumerに基づき`audit`、`persistence`、`scheduler`、`sharedkernel`、`textsearch`、`testdb`等へ命名して抽出し、`common`/`util`の無差別bucketは作成していない。移行後の物理file数、manifest 761 rowのprovenance、旧path消滅状況は[boundary map](../be9-2a-boundary-map.md)を正本とする。
 
@@ -54,7 +54,7 @@ backend/internal/
 - domain内に`handler`、`service`、`repository` subpackageを機械的に作らない。実際のconsumer、依存方向、変更周期が分かれた場合だけ分離する。
 - 1つのbusiness factには1つのsource of truthとwrite ownerを置く。`appointments`とそのlifecycleのwrite ownerは`reservation`、`staffs`と`shift_entries`のwrite ownerは`staff`とする。他domainはbusiness intentを表すconsumer-side interfaceまたは明示的orchestrationを通して操作し、owner外へ任意fieldを変更できるgeneric update APIを公開しない。
 - cross-domain writeはownerとtransaction境界を明示し、owner外に独立したpersistence実装を作らない。移行中のcompatibility facadeは薄いdelegate/type aliasに限定し、consumer移行後の削除条件を持たせる。
-- BE9-2B以降、旧`internal/handler|service|repository`を未移行実装と期限付きcompatibility codeのmigration surfaceとして扱い、新規production実装を追加しない方針で移行した。BE9完了時点ではproduction implementation 0件で、残る`service`/`repository` fileは全てtest-onlyである。新規実装は本ADRのtarget domain packageまたは実consumerを持つ命名済みcross-cutting packageへ置く。
+- BE9-2B以降、旧`internal/handler|service|repository`を未移行実装と期限付きcompatibility codeのmigration surfaceとして扱い、新規production実装を追加しない方針で移行した。BE9完了時点で production implementation 0件となり、その後3旧layer directoryは**完全削除済み**である。新規実装は本ADRのtarget domain packageまたは実consumerを持つ命名済みcross-cutting packageへ置く。
 - 自動化は安全な手動pathと同じuse caseを再利用し、停止手段、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 - clinical safety、clinic isolation、authorization、auditabilityは効率化より優先する。package配置だけを安全性の証拠にせず、runtime testとapplication invariantで検証する。
 - `internal/csvimport` は医院カットオーバー専用のcross-domain例外として、固定21表・固定列契約だけを単一transactionで扱う。`payments.billing_id`一意性と同じ`billing_id`を使うpayment_splits論理親子、completed billingのpayment/completed_at、cash/credit-cardの明示seed binding、split整合もcommit前とread-only REPEATABLE READ verifyで検証する。通常applicationから再利用できる汎用write APIは公開せず、manifest digest、clinic band、6つの明示seed binding、全件検証を満たすoperator commandからのみ呼ぶ。
@@ -125,7 +125,7 @@ owner内の汎用`update(map[string]any)`は非公開primitiveとし、owner外�
 - **起票時の記録（2026-07-21に是正済み）**: `BillingItem`は間接isolationの中で唯一、repository層の防御が実質的にno-opだった（[boundary map §7.4](../be9-2a-boundary-map.md#be9-2a-bug-417)）。`billing_item_repository.go`のUpdate/DeleteがGORMの`Joins()`をUPDATE/DELETE SQLへ伝播しない罠に該当したが、当時もservice層の事前check（`FindByID`）でgateされており生きた漏洩ではなかった。BE9-2Aではmeasurement/document-onlyのため修正せず、2026-07-21のbilling Phase 0でsubquery形式への是正とクロステナントtest追加を完了した。詳細は「論点の解決記録」#6。
 - `AnimalSpecies`（pet）、`Company`（clinic、シングルトン）、`LstepAutoManagedPrefix`/`LstepConditionTagMapping`/`LstepSendPurposeTagPrefix`（lstep）はglobal-master。BE9-1でlintのsource discoveryはpackage非依存化済みで、preload lintは`AnimalSpecies`を明示的なglobal exemptionとして持つ。他のglobal-masterも新しいassociation/preload pathを追加する際にclinic predicateを誤強制しないよう、この分類をreview根拠にする。
 
-master-FK-write lint（実装fileはmigration中の`backend/internal/service/master_fk_write_inventory_lint_test.go`）はapplication write-roleのreview-coverageゲートであり、上記global-master allowlist（clinic-id-isolation/preload lint向け）とは対象・目的が異なる。GORM column definitionとHTTP DTOはwrite operationではないため意図的にscope外とし、package layerを理由には除外しない。role filterはwrite logicを持つdomain packageへ広げる単一の拡張ポイントを持つ。
+master-FK-write lint（実装fileは`backend/internal/lintscan/master_fk_write_inventory_lint_test.go`）はapplication write-roleのreview-coverageゲートであり、上記global-master allowlist（clinic-id-isolation/preload lint向け）とは対象・目的が異なる。GORM column definitionとHTTP DTOはwrite operationではないため意図的にscope外とし、package layerを理由には除外しない。role filterはwrite logicを持つdomain packageへ広げる単一の拡張ポイントを持つ。
 
 ### (d) 段階移行方法
 

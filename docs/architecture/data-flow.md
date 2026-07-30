@@ -5,7 +5,7 @@
 > **タイミング**: リクエスト処理フローを具体的に理解したい時。
 
 > **Animal Ekarte**: リクエストからレスポンス、バックグラウンド処理までの追跡
-> **最新更新**: 2026-06-12
+> **最新更新**: 2026-07-31
 
 ---
 
@@ -25,17 +25,21 @@
 
 ### 例：飼主一覧の取得 (GET /api/v1/owners)
 
+[ADR-006](./adr/006-backend-domain-package-boundaries.md) の domain/capability-first modular monolith では、固定の `internal/handler`・`internal/service`・`internal/repository` ディレクトリを必須としない。小規模 resource は `internal/<domain>` 内に HTTP 境界・use case・persistence を同居させる。
+
 1.  **Middleware (Auth)**:
-    - `access_token` Cookie から JWT を検証。
-    - Claims から `clinic_id` を抽出し `gin.Context` へ格納。
-2.  **Handler (ListOwners)**:
-    - `extractClinicID` でテナントを確定。
-    - `parsePagination` でページ・リミットを解析。
-3.  **Service (OwnerService.List)**:
-    - `clinic_id` でスコープしたリポジトリ呼び出し（権限チェックは handler 層の `RequirePermission` ミドルウェアが担い、service 層では行わない）。
-4.  **Repository (OwnerRepository.FindAll)**:
-    - **テナント隔離**: `WHERE clinic_id = ?` を強制適用。
-    - 総件数 (Total) とリストを単一トランザクションまたは一貫した状態で取得。
+    - `access_token` Cookie（または Bearer）から JWT を検証（`middleware.Auth`）。
+    - トークンの `clinic_ids` はログイン時スナップショットであり **最終 authority ではない**。
+    - 原則として毎リクエスト `current_access_service` で account / staff / clinic assignment を再解決し、信頼できる clinic scope を `gin.Context` に格納する。
+    - 対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で確定し、再解決済み所属集合との一致を必須とする。DB 障害時の PO-005 例外は [auth.md §4.2](./auth.md) を参照。
+2.  **HTTP 境界（`internal/owner` 等）**:
+    - ページング等の query を bind / 検証する。
+    - ルート側の `RequirePermission` 等で RBAC を強制する。
+3.  **Use case（同一 domain package）**:
+    - 再解決済み clinic scope を使って一覧・件数を取得する（例: `clinic_id IN (?)`）。
+4.  **Persistence（同一 domain package 内）**:
+    - **テナント隔離**: clinic 述語を強制適用。
+    - 総件数 (Total) とリストを一貫した状態で取得。
 
 ---
 
@@ -43,12 +47,15 @@
 
 ### 例：Lステップタグ自動付与 (会計完了時)
 
-1.  **Event Trigger**: サービス層 `accountingService.Create/Update` が会計完了（billing 確定）を検知（`accounting_service_core.go`）。
+1.  **Event Trigger**: `internal/billing` の `accountingService.Create/Update` が会計完了（billing 確定）を検知（`accounting_service_core.go`）。
 2.  **同期ディスパッチ**: レスポンス返却前に `syncCPMStageTag` → `tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID)` を**同期呼び出し**（goroutine ではない）。タグ同期が失敗してもエラーは記録のみで会計処理は継続（fail-open）。
-3.  **Condition Judge**: 
+3.  **Condition Judge**:
     - 累計売上、来院頻度、最終来院日を再計算。
     - CPM ステージを再算出（変動判定は行わず、旧ステージタグを全削除して新ステージタグを付与する冪等方式。`lstep_tag_sync_visit_cpm.go`）。
-4.  **External API**: Lステップ API クライアント経由でタグを付与/解除。ただし **Write 系 API（AddTag/RemoveTag 等）はポリシーにより一時停止中**で、`internal/infra/lstep/tag.go` は HTTP 送信を抑止した noop（Read 系 `GetUserTags` は稼働）。
+4.  **External API**: Lステップ API クライアント経由でタグを付与/解除する。Write 系は **二重ゲート**:
+    - **Deploy kill switch**: 環境変数 `LSTEP_WRITE_API_ENABLED` が exact `true` のときのみ有効（未設定・空・`false`・未知値は無効）。無効時は HTTP を送らず `ErrWriteDisabled` を返す（成功 `nil` の silent noop ではない）。
+    - **Clinic setting**: `is_sync_enabled` 等の医院設定も満たす必要がある。
+    - Read 系（`GetUserTags` 等）は deploy gate の対象外で稼働し得る。運用詳細は [`LSTEP_WRITE_API_PAUSE.md`](../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
 5.  **記録**: 処理結果は `slog` とタグキャッシュ（`lstep_tag_cache_repository.go` の UpsertTag/DeleteTag）に反映。API 失敗はエラーカウンターに記録し、閾値到達で `EXCL_カルテ連携エラー` タグを付与。タグ同期経路では `audit_logs` / `lstep_delivery_trigger_log` への記録は行わない（後者は自動配信トリガー専用ログ）。
 
 ---
@@ -71,8 +78,8 @@
 
 全エンドポイントで以下の原則を徹底しています。
 
-- **No Trust**: クライアントからの `clinic_id` 指定は一切信用せず、JWT から取得。
-- **Strict Isolation**: 全クエリに `clinic_id` フィルタを適用し、他院のデータ混入を物理的に遮断。
-- **Audit Trace**: 全てのデータ変更（Create/Update/Delete）について、実行者と対象院を監査ログに記録。
+- **No Trust (request-time authority)**: クライアントが query/body で指定する `clinic_id` は信用しない。通常リクエストの最終 authority は JWT の `clinic_ids` スナップショットではなく、`current_access_service` による request-time 再解決結果である。対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で選び、再解決済みの有効所属集合との一致を必須とする（system admin も active clinic のみ）。DB 障害時の PO-005 例外は [auth.md §4.2](./auth.md) を参照。
+- **Strict Isolation**: 全クエリに clinic スコープを適用し、他院のデータ混入を物理的に遮断する。
+- **Audit Trace (path-dependent)**: セキュリティ・資格情報・clinic 切替・臨床/会計上必須と定めた変更など、経路ごとに監査対象が決まる。すべての CUD が機械的に `audit_logs` へ入るわけではなく、タグ同期のように意図的に監査しない経路もある。必須監査は業務 write と同一 transaction で fail-closed にする（詳細は各 domain / [auth.md](./auth.md)）。
 
 ---

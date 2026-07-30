@@ -31,6 +31,7 @@ const {
   mockPetFromQuery,
   mockCreateHospitalization,
   mockUpdateHospitalization,
+  mockCreateTreatmentPlan,
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockToast: { error: vi.fn(), success: vi.fn() },
@@ -39,8 +40,9 @@ const {
   mockSetSelectedPets: vi.fn(),
   mockSearchParams: new URLSearchParams(),
   mockPetFromQuery: { current: undefined as unknown },
-  mockCreateHospitalization: vi.fn().mockResolvedValue({}),
+  mockCreateHospitalization: vi.fn().mockResolvedValue({ id: "99" }),
   mockUpdateHospitalization: vi.fn().mockResolvedValue({}),
+  mockCreateTreatmentPlan: vi.fn().mockResolvedValue({ id: "1" }),
 }));
 
 vi.mock("react-router", () => ({
@@ -71,6 +73,10 @@ vi.mock("../api/create-hospitalization", () => ({
 
 vi.mock("../api/update-hospitalization", () => ({
   updateHospitalization: mockUpdateHospitalization,
+}));
+
+vi.mock("../api/treatment-plans-write", () => ({
+  createTreatmentPlanForHospitalization: mockCreateTreatmentPlan,
 }));
 
 vi.mock("../api/get-hospitalization", () => ({
@@ -126,8 +132,9 @@ describe("useHospitalizationForm", () => {
     });
     mockSearchParams.delete("petId");
     mockPetFromQuery.current = undefined;
-    mockCreateHospitalization.mockResolvedValue({});
+    mockCreateHospitalization.mockResolvedValue({ id: "99" });
     mockUpdateHospitalization.mockResolvedValue({});
+    mockCreateTreatmentPlan.mockResolvedValue({ id: "1" });
     vi.mocked(useGetHospitalizationRaw).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -283,6 +290,50 @@ describe("useHospitalizationForm", () => {
       expect(result.current.formState.fieldErrors?.pet).toBe(
         "死亡したペットは入院登録できません",
       );
+    });
+
+    it("新規作成の初期 treatmentPlans は空（偽デフォルト行を持たない）", () => {
+      const { result } = renderHospitalizationForm();
+      expect(result.current.treatmentPlans).toEqual([]);
+    });
+
+    it("治療内容ありの行は create 後に nested treatment-plan POST される", async () => {
+      const { result } = renderHospitalizationForm();
+
+      await act(async () => {
+        result.current.addTreatmentPlan();
+      });
+      const planId = result.current.treatmentPlans[0]?.id;
+      expect(planId).toBeTruthy();
+      await act(async () => {
+        result.current.updateTreatmentPlan(planId!, "treatmentContent", "adm rate");
+        result.current.updateTreatmentPlan(planId!, "unitPrice", 990);
+      });
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
+      expect(mockCreateTreatmentPlan).toHaveBeenCalledTimes(1);
+      expect(mockCreateTreatmentPlan).toHaveBeenCalledWith(
+        "99",
+        expect.objectContaining({
+          treatment_content: "adm rate",
+          unit_price: 990,
+          quantity: 1,
+        }),
+      );
+    });
+
+    it("空の治療内容行は nested POST しない", async () => {
+      const { result } = renderHospitalizationForm();
+      await act(async () => {
+        result.current.addTreatmentPlan();
+      });
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
+      expect(mockCreateTreatmentPlan).not.toHaveBeenCalled();
     });
 
     it("選択petが死亡へ変わったcommit直後のlayout phaseでも取得済みformActionはcreate mutationを発行しない", async () => {
@@ -599,6 +650,15 @@ describe("useHospitalizationForm", () => {
     it("保険対象flagをbilling計算契約へ明示的に変換する", () => {
       const { result } = renderHospitalizationForm();
 
+      act(() => {
+        result.current.addTreatmentPlan();
+      });
+      const planId = result.current.treatmentPlans[0]!.id;
+      act(() => {
+        result.current.updateTreatmentPlan(planId, "is_insurance", true);
+        result.current.updateTreatmentPlan(planId, "treatmentContent", "plan");
+      });
+
       result.current.calculateTotals();
 
       expect(vi.mocked(calculateBillingTotals)).toHaveBeenCalledWith(
@@ -623,6 +683,9 @@ describe("useHospitalizationForm", () => {
 
     it("removeTreatmentPlan で計画を削除できる", () => {
       const { result } = renderHospitalizationForm();
+      act(() => {
+        result.current.addTreatmentPlan();
+      });
       const firstPlanId = result.current.treatmentPlans[0]?.id;
 
       if (firstPlanId) {

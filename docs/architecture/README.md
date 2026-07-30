@@ -20,4 +20,5 @@
 ## AI エージェント向け注記
 
 - API contract の正本は本フォルダではなく [`backend/docs/api.yaml`](../../backend/docs/api.yaml)。
-- erd.md・auth.md・overview.md が宣言する数値（テーブル数・リソース数等）は CI の docs-symbol-drift ゲート（`scripts/check-docs-symbol-drift.sh`）で実装と機械突合される。数値を変更する場合は実装側の実測値と一致させること。
+- erd.md・auth.md・overview.md が宣言する数値（テーブル数・リソース数等）と固定シンボルは CI の docs-symbol-drift ゲート（`scripts/check-docs-symbol-drift.sh`）で実装と機械突合される。数値を変更する場合は実装側の実測値と一致させること。
+- docs-symbol-drift の対象は**宣言された count / symbol の突合のみ**であり、ADR 本文の narrative 整合・status 文言・歴史的 snapshot の全面 alignment は対象外。narrative の正本は各 ADR 本体と boundary map を読むこと。

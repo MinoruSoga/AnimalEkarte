@@ -5,6 +5,7 @@ import type { BackendHospitalization } from "../api/types";
 import {
   buildCreateHospitalizationRequest,
   buildHospitalizationFormDataFromRecord,
+  buildPersistableTreatmentPlanRequests,
   buildSelectedPetFromHospitalization,
   buildTreatmentPlansFromRecord,
   buildUpdateHospitalizationRequest,
@@ -105,6 +106,32 @@ describe("buildTreatmentPlansFromRecord", () => {
     const [plan] = buildTreatmentPlansFromRecord(treatmentPlanWire);
     expect(typeof plan.id).toBe("string");
     expect(plan.id).toBe("990018");
+  });
+
+  it("persistable create bodies skip empty content and map UI fields to wire", () => {
+    const empty = createEmptyTreatmentPlan();
+    const filled = {
+      ...createEmptyTreatmentPlan(),
+      treatmentContent: "  adm rate  ",
+      memo: "memo",
+      is_insurance: true,
+      unitPrice: 990,
+      quantity: 2,
+      discount: 10,
+      discountAmount: 198,
+    };
+    const bodies = buildPersistableTreatmentPlanRequests([empty, filled]);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toEqual({
+      treatment_content: "adm rate",
+      memo: "memo",
+      is_insurance: true,
+      unit_price: 990,
+      quantity: 2,
+      discount_rate: 10,
+      discount_amount: 198,
+      sort_order: 0,
+    });
   });
 });
 

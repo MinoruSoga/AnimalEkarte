@@ -4,7 +4,7 @@
 - **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
-- **アクセス権限**: フロントエンド表示には外部連携管理権限（`ResourceHospitalSettings`）が必要。バックエンドAPIには Lステップ分析閲覧権限（`ResourceLstepAnalytics`）が必要。
+- **アクセス権限**: FE は親 `/lstep` の `ResourceHospitalSettings` **かつ** 子 `ResourceLstepAnalytics` の両方。BE API は `ResourceLstepAnalytics`。
 - **Write API**: タグ書込みは一時停止中（noop）でも、判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。
 
 ---

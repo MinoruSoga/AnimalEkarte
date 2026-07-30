@@ -36,8 +36,8 @@ describe("IdentityLinksPage permission gates", () => {
         <IdentityLinksPage />
       </MemoryRouter>,
     );
-    // Navigate replaces content; page title must not appear
-    expect(screen.queryByText("同一飼主・ペット連携")).not.toBeInTheDocument();
+    // Navigate replaces content; FormHeader title must not appear
+    expect(screen.queryByRole("heading", { name: "同一飼主・ペット連携" })).not.toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceIdentityLinks, "view");
   });
 
@@ -50,8 +50,10 @@ describe("IdentityLinksPage permission gates", () => {
         <IdentityLinksPage />
       </MemoryRouter>,
     );
-    expect(screen.getByText("同一飼主・ペット連携")).toBeInTheDocument();
-    expect(screen.getByText(/閲覧のみ/)).toBeInTheDocument();
+    // PageLayout / FormHeader owns the page title
+    expect(screen.getByRole("heading", { name: "同一飼主・ペット連携" })).toBeInTheDocument();
+    // children status note (+ PermissionBadges may also show 閲覧のみ)
+    expect(screen.getByRole("status")).toHaveTextContent(/閲覧のみ/);
     expect(screen.queryByRole("button", { name: "飼主をリンク" })).not.toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceIdentityLinks, "edit");
   });
@@ -65,6 +67,7 @@ describe("IdentityLinksPage permission gates", () => {
         <IdentityLinksPage />
       </MemoryRouter>,
     );
+    expect(screen.getByRole("heading", { name: "同一飼主・ペット連携" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "飼主をリンク" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ペットをリンク" })).toBeInTheDocument();
   });

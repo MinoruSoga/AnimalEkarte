@@ -2,6 +2,7 @@
   "scripts": {
     "deploy:frontend": "cd frontend && vercel deploy",
     "deploy:frontend:prod": "cd frontend && vercel deploy --prod",
+    "codex-security:export": "bash scripts/export-codex-security-latest.sh",
     "cf:whoami": "wrangler whoami",
     "cf:deploy": "cd backend && wrangler deploy",
     "cf:migrate": "./infra/scripts/cf-run-migrate.sh",
@@ -12,11 +13,12 @@
     "typecheck:worker": "tsc --project backend/worker/tsconfig.test.json"
   },
   "dependencies": {
-    "@openai/codex": "^0.120.0",
-    "@cloudflare/containers": "^0.3.7"
+    "@cloudflare/containers": "^0.3.7",
+    "@openai/codex": "^0.120.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.8",
+    "@openai/codex-security": "^0.1.4",
     "typescript": "6.0.3",
     "vitest": "4.1.10",
     "wrangler": "4.114.0"

@@ -131,3 +131,35 @@ func TestCloseCashRegisterRequest_ToServiceInput_InvalidDate(t *testing.T) {
 		t.Fatal("toServiceInput() error = nil, want error")
 	}
 }
+
+func TestCloseCashRegisterRequest_ToServiceInput_NegativeActualCash(t *testing.T) {
+	req := closeCashRegisterRequest{
+		Date:       "2026-05-28",
+		Period:     "am",
+		ActualCash: -1,
+	}
+
+	_, err := req.toServiceInput(9)
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want error for negative actual_cash")
+	}
+	if got := err.Error(); got != "actual_cash は 0 以上で指定してください" {
+		t.Fatalf("error = %q, want actual_cash は 0 以上で指定してください", got)
+	}
+}
+
+func TestCloseCashRegisterRequest_ToServiceInput_ZeroActualCashAllowed(t *testing.T) {
+	req := closeCashRegisterRequest{
+		Date:       "2026-05-28",
+		Period:     "am",
+		ActualCash: 0,
+	}
+
+	input, err := req.toServiceInput(9)
+	if err != nil {
+		t.Fatalf("toServiceInput() error = %v, want nil for actual_cash=0", err)
+	}
+	if input.ActualCash != 0 {
+		t.Fatalf("ActualCash = %d, want 0", input.ActualCash)
+	}
+}

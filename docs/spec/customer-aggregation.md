@@ -33,7 +33,7 @@
 - **1年以上**: 365 日以上。
 - **来院なし**: 来院記録なし。
 
-> **境界の出典**: 境界日数(90/180/365)は `backend/internal/repository/ltv_repository.go` の `FindOwnerLTV` SQL に固定値として実装されており、clinic 単位の設定変更はできない。CPM ステージ(cpm_dormant 等6段階、clinic 単位で設定変更可能な `CPMV1Thresholds`(`DormantDays` 既定240・`SpotInactiveDays` 既定90、`backend/internal/model/cpm_v1_thresholds.go`)を用いる)は Lステップ連携・CPMステージ絞り込み用の別軸の判定であり、本項の最終来院日分類とは別の仕組み。
+> **境界の出典**: 境界日数(90/180/365)は `backend/internal/owner/ltv_repository.go` の `FindOwnerLTV` SQL に固定値として実装されており、clinic 単位の設定変更はできない。CPM ステージ(cpm_dormant 等6段階、clinic 単位で設定変更可能な `CPMV1Thresholds`(`DormantDays` 既定240・`SpotInactiveDays` 既定90、`backend/internal/model/cpm_v1_thresholds.go`)を用いる)は Lステップ連携・CPMステージ絞り込み用の別軸の判定であり、本項の最終来院日分類とは別の仕組み。
 
 ---
 

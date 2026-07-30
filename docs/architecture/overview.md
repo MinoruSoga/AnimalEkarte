@@ -47,9 +47,9 @@ Handler → Service → Repository、Clean Architecture、repository pattern、l
 - migration facadeは薄いdelegate/type aliasに限定し、旧実装と新実装を二重のwrite pathとして残さない。
 - 自動化は安全な手動pathを置き換えるのではなく同じuse caseを再利用し、停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを備える。
 
-BE9の構造移行後、production実装は`internal/<domain>`へ収束した。旧`internal/handler`は削除済みで、旧`internal/service`と`internal/repository`に残るGo fileは、移行後のpackageを対象にする互換・回帰testだけである。production codeから旧3 packageへのimport edgeはない。
+BE9の構造移行後、production実装は`internal/<domain>`へ収束した。旧`internal/handler`、`internal/service`、`internal/repository` directoryは**完全削除済み**（test-only residualも含め残存しない）。production codeから旧3 packageへのimport edgeはない。live mechanical lint gateは`backend/internal/lintscan/`に置く。
 
-`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`smtptransport`、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡はgit履歴と[ADR-006](adr/006-backend-domain-package-boundaries.md)、release gateは[`q&a.html` OPS-13〜17](../../q&a.html#ops)を正本とする。
+`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`infra/smtp`（package `smtp`）、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡はgit履歴と[ADR-006](adr/006-backend-domain-package-boundaries.md)、release gateは[`q&a.html` OPS-13〜17](../../q&a.html#ops)を正本とする。
 
 この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 

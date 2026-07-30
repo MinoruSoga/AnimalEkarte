@@ -193,11 +193,13 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 ## 7. 親子両者 Soft Delete のケース
 
 ### 7.1 適用シーン
-- 医療記録の addendum 削除：親 medical_record，子 addendums 双方 soft delete
-- スタッフ権限グループ：両者とも監査対象
+- **スタッフ権限グループ**: 親 `permission_groups` と子 `permission_group_rules` / 割当はいずれも監査対象として Soft Delete が妥当（§4.2）
+- **医療記録本体**: 親 `medical_records` は Soft Delete（§4.1）
+- **対象外 — `medical_record_addenda`**: 追記は Append-only。`deleted_at` カラムを持たず、削除 API / Soft Delete も存在しない（§4.1 と一致）。親子 Soft Delete の例に使わない
 
 ### 7.2 実装上の留意点
-- **FK チェック**: 親 soft delete 時に、アクティブ子を確認（service 層で 409）
+- **FK チェック**: 親 soft delete 時に、アクティブ子を確認（409）
+- **Append-only 子**: `medical_record_addenda` のように子に `deleted_at` が無い場合、親 Soft Delete 時の子 cleanup / 子 Soft Delete は適用しない。親側の active 判定と clinic 軸 FK のみを扱う
 - **クエリの明示性**: soft delete 後のジョイン時に `Unscoped()` を明示的に記載
   ```go
   // ❌ 暗黙：WHERE 句に deleted_at 混在判断があいまい

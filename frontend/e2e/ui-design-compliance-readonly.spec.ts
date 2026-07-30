@@ -153,6 +153,7 @@ const PROTECTED_ROUTES: RouteTemplate[] = [
   { label: "割引キャンペーン", path: "/settings/campaigns" },
   { label: "Lステップ連携設定", path: "/settings/integrations/lstep" },
   { label: "Lステップタグ管理", path: "/settings/lstep/tags" },
+  { label: "同一飼主・ペット連携", path: "/identity-links" },
 ];
 
 type FixturePaths = Partial<Record<FixtureKey, string>>;
@@ -443,10 +444,10 @@ async function auditRoute(
   }
 }
 
-test("route matrix inventory is exactly 83 product pages", () => {
+test("route matrix inventory is exactly 84 product pages", () => {
   expect(PUBLIC_ROUTES).toHaveLength(3);
-  expect(PROTECTED_ROUTES).toHaveLength(80);
-  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(83);
+  expect(PROTECTED_ROUTES).toHaveLength(81);
+  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(84);
   expect(PROTECTED_ROUTES.filter((route) => route.syntheticClinical)).toHaveLength(5);
 });
 

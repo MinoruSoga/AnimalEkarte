@@ -8,12 +8,14 @@ import {
   FolderTree,
   Scissors,
   Stethoscope,
+  Tag,
 } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
 import type { MasterSettingsCategory } from "../constants/category-config";
 import type { Resource } from "@/types/generated/models";
 import {
-  ResourceCashRegisterClose,
+  ResourceAccounting,
+  ResourceClosingSettings,
   ResourceHospitalSettings,
   ResourceMasterMedical,
   ResourceMasterTrimming,
@@ -30,6 +32,7 @@ export type GroupKey =
   | "inquiry_template"
   | "shift_template"
   | "paymentMethods"
+  | "campaigns"
   | "closingTime";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
@@ -113,12 +116,22 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourcePaymentMethod,
     countCategories: [],
   },
+  // #81: 割引キャンペーンは会計割引マスタのため ResourceAccounting（settings-routes campaigns と同権）
+  campaigns: {
+    label: "割引キャンペーンマスタ",
+    description: "会計割引に使うキャンペーン期間と対象商品を管理します",
+    IconComponent: Tag,
+    path: "/settings/campaigns",
+    resource: ResourceAccounting,
+    countCategories: [],
+  },
   closingTime: {
     label: "締め時間設定",
     description: "レジ締めのAM/PM境界・終了時刻・特別期間・休診日を設定します",
     IconComponent: Clock,
     path: "/settings/closing-time",
-    resource: ResourceCashRegisterClose,
+    // Align with settings-routes.tsx RequirePermission(ResourceClosingSettings)
+    resource: ResourceClosingSettings,
     countCategories: [],
   },
 };
@@ -132,7 +145,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup", "trimmingCourseTypes"] },
-  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "closingTime"] },
+  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "campaigns", "closingTime"] },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
 ];

@@ -6,7 +6,7 @@
   - 一覧表示: `/checkups`
   - ペット選択: `/checkups/select-pet`
   - 新規登録: `/checkups/new`
-- **アクセス権限**: 認証済ユーザー全員（`ResourceCheckups` 権限が必要）
+- **アクセス権限**: 一覧は `ResourceCheckups` **`view`**。select-pet/new は `ResourceMedicalRecords` の **create かつ edit**
 
 ---
 

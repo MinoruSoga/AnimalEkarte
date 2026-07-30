@@ -73,4 +73,54 @@ describe("ExaminationFormFields", () => {
 
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
+
+  it("未確定（isConfirmed=false）でステータスが確定でも保存buttonを表示する（A-S02-01）", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
+          examTypes={[]}
+          staffList={[]}
+          masterLoading={false}
+          isEdit
+          isDeleting={false}
+          isConfirmed={false}
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "ステータス" })).not.toBeDisabled();
+  });
+
+  it("サーバ確定済み（isConfirmed=true）では保存buttonを消しステータスを無効化する", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
+          examTypes={[]}
+          staffList={[]}
+          masterLoading={false}
+          isEdit
+          isDeleting={false}
+          isConfirmed
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "ステータス" })).toBeDisabled();
+  });
 });
