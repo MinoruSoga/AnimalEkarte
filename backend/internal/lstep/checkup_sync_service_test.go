@@ -223,6 +223,9 @@ func newCheckupSyncSvcForCreate(
 // 直接 POST された場合でも opt-out / 生存ペットなし / LINE未連携の owner が
 // 確実にスキップされ、有効な owner のみに送信されることを検証する（ISSUE-007）。
 func TestCheckupSyncService_CreateCheckupSync_SkipsByExclusionReason(t *testing.T) {
+	// 除外ロジック検証のため deploy write gate を有効化し、eligible のみ HTTP 1 を観測する。
+	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+
 	lineID1 := "U_eligible"
 	lineID2 := "U_optout" // opt-out なので使われない
 	lineID3 := "U_no_living_pet"
@@ -266,9 +269,8 @@ func TestCheckupSyncService_CreateCheckupSync_SkipsByExclusionReason(t *testing.
 	assert.Equal(t, 0, result.FailedCount)
 	assert.Empty(t, result.FailedOwnerIDs)
 
-	// AddTag は現在 noop 中（[DISABLED]）のため HTTP 呼び出しは一切発生しない。
-	// サービス層の除外ロジックは SuccessCount/SkippedCount で引き続き検証する。
-	assert.Equal(t, 0, addTagCalls[lineID1], "noop 中のため HTTP 呼び出しなし")
+	// 両 gate true（deploy exact true + clinic is_sync_enabled default true）で eligible のみ HTTP 1。
+	assert.Equal(t, 1, addTagCalls[lineID1], "eligible owner のみ AddTag HTTP 1")
 	assert.Equal(t, 0, addTagCalls[lineID2], "opt-out owner には呼ばれない")
 	assert.Equal(t, 0, addTagCalls[lineID3], "死亡ペットのみ owner には呼ばれない（誤配信防止）")
 	assert.Equal(t, 0, addTagCalls[lineID5], "opt-out + 生存ペットなし owner には呼ばれない")
@@ -692,6 +694,9 @@ func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata_NilFilters(t *te
 // TestCheckupSyncService_CreateCheckupSync_PersistsMetadata は CreateCheckupSync 実行時に
 // 件数とスキップ理由内訳が metadata として永続化されることを検証する（ISSUE-010）。
 func TestCheckupSyncService_CreateCheckupSync_PersistsMetadata(t *testing.T) {
+	// 成功経路の metadata を検証するため deploy write gate を有効化する。
+	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+
 	// CreateCheckupSync は HTTP モックが必要なため newCheckupSyncSvcForCreate と組み合わせる。
 	lineID1 := "U_eligible"
 	owners := map[uint64]*model.Owner{
@@ -853,4 +858,209 @@ func TestCheckupSyncService_buildClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 	})
+}
+
+// ================================================================
+// Write dual-gate: deploy LSTEP_WRITE_API_ENABLED + clinic is_sync_enabled
+// ================================================================
+
+// TestCheckupSyncService_CreateCheckupSync_WriteGateDisabled_NoReceiptUpdate は
+// deploy gate 無効時に real httpLstepClient が ErrWriteDisabled を返し、
+// HTTP 0・Success 0・tag cache receipt (UpsertTag) 0 であることを証明する。
+// （delivery fired / receipt 更新に相当する成功経路副作用が走らないこと）
+func TestCheckupSyncService_CreateCheckupSync_WriteGateDisabled_NoReceiptUpdate(t *testing.T) {
+	// 既定: LSTEP_WRITE_API_ENABLED 未設定/非 true → write disabled
+	t.Setenv(lstepapi.EnvWriteAPIEnabled, "false")
+
+	lineID := "U_gate_disabled"
+	owners := map[uint64]*model.Owner{
+		1: {ID: 1, LineUserID: &lineID, LstepOptOut: false},
+	}
+	livingPetCounts := map[uint64]int64{1: 1}
+
+	httpHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		httpHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	upsertCalls := 0
+	tagCache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, _, _ uint64, _, _, _ string) error {
+			upsertCalls++
+			return nil
+		},
+	}
+
+	settingsSvc := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+		getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+			return "test-api-key", server.URL, "", nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDsFn: func(_ context.Context, _ uint64, ids []uint64) ([]*model.Owner, error) {
+			result := make([]*model.Owner, 0, len(ids))
+			for _, id := range ids {
+				if o, ok := owners[id]; ok {
+					result = append(result, o)
+				}
+			}
+			return result, nil
+		},
+	}
+	petRepo := &mockPetRepository{
+		countLivingByOwnerIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			m := make(map[uint64]int64, len(ownerIDs))
+			for _, id := range ownerIDs {
+				m[id] = livingPetCounts[id]
+			}
+			return m, nil
+		},
+	}
+
+	svc := NewCheckupSyncService(
+		&mockCheckupSyncRepository{},
+		ownerRepo,
+		petRepo,
+		tagCache,
+		settingsSvc,
+		&mockAuditService{},
+	)
+
+	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
+		CheckupType: "annual",
+		OwnerIDs:    []uint64{1},
+		TagName:     "campaign_gate_test",
+	}, nil)
+	assert.NoError(t, err)
+	if !assert.NotNil(t, result) {
+		return
+	}
+	assert.Equal(t, 0, result.SuccessCount, "gate error must not count as success")
+	assert.Equal(t, 1, result.FailedCount, "ErrWriteDisabled is recorded as failed owner")
+	assert.Equal(t, []uint64{1}, result.FailedOwnerIDs)
+	assert.Equal(t, 0, httpHits, "deploy gate false: 0 HTTP requests")
+	assert.Equal(t, 0, upsertCalls, "receipt/tag-cache update must stay 0 on gate error")
+}
+
+// TestCheckupSyncService_CreateCheckupSync_ClinicSyncDisabled_ZeroHTTP は
+// clinic is_sync_enabled=false のとき client 未生成で HTTP 0・Create が設定エラーになることを証明する。
+func TestCheckupSyncService_CreateCheckupSync_ClinicSyncDisabled_ZeroHTTP(t *testing.T) {
+	// deploy gate を true にしても clinic flag false なら write しない（二重 gate）。
+	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+
+	httpHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		httpHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	settingsSvc := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil },
+		getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+			return "test-api-key", server.URL, "", nil
+		},
+	}
+	svc := NewCheckupSyncService(
+		&mockCheckupSyncRepository{},
+		&mockOwnerRepository{},
+		&mockPetRepository{},
+		&mockLstepTagCacheRepository{},
+		settingsSvc,
+		&mockAuditService{},
+	)
+
+	_, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
+		CheckupType: "annual",
+		OwnerIDs:    []uint64{1},
+		TagName:     "campaign_clinic_off",
+	}, nil)
+	assert.Error(t, err)
+	assert.Equal(t, 0, httpHits, "clinic is_sync_enabled=false: 0 HTTP requests")
+}
+
+// TestCheckupSyncService_CreateCheckupSync_BothGatesTrue_HTTPAndReceipt は
+// deploy gate true + clinic sync true のとき HTTP 1 と tag cache receipt 1 を証明する。
+func TestCheckupSyncService_CreateCheckupSync_BothGatesTrue_HTTPAndReceipt(t *testing.T) {
+	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+
+	lineID := "U_both_gates"
+	owners := map[uint64]*model.Owner{
+		1: {ID: 1, LineUserID: &lineID, LstepOptOut: false},
+	}
+	livingPetCounts := map[uint64]int64{1: 1}
+
+	httpHits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpHits++
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	upsertCalls := 0
+	tagCache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, clinicID, ownerID uint64, tagName, category, _ string) error {
+			upsertCalls++
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), ownerID)
+			assert.Equal(t, "campaign_both_gates", tagName)
+			assert.Equal(t, "manual", category)
+			return nil
+		},
+	}
+
+	settingsSvc := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+		getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+			return "test-api-key", server.URL, "", nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDsFn: func(_ context.Context, _ uint64, ids []uint64) ([]*model.Owner, error) {
+			result := make([]*model.Owner, 0, len(ids))
+			for _, id := range ids {
+				if o, ok := owners[id]; ok {
+					result = append(result, o)
+				}
+			}
+			return result, nil
+		},
+	}
+	petRepo := &mockPetRepository{
+		countLivingByOwnerIDsFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+			m := make(map[uint64]int64, len(ownerIDs))
+			for _, id := range ownerIDs {
+				m[id] = livingPetCounts[id]
+			}
+			return m, nil
+		},
+	}
+
+	svc := NewCheckupSyncService(
+		&mockCheckupSyncRepository{},
+		ownerRepo,
+		petRepo,
+		tagCache,
+		settingsSvc,
+		&mockAuditService{},
+	)
+
+	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
+		CheckupType: "annual",
+		OwnerIDs:    []uint64{1},
+		TagName:     "campaign_both_gates",
+	}, nil)
+	assert.NoError(t, err)
+	if !assert.NotNil(t, result) {
+		return
+	}
+	assert.Equal(t, 1, result.SuccessCount)
+	assert.Equal(t, 0, result.FailedCount)
+	assert.Equal(t, 1, httpHits, "both gates true: HTTP 1")
+	assert.Equal(t, 1, upsertCalls, "success path updates tag cache receipt once")
 }
