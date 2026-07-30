@@ -9,6 +9,12 @@ import (
 )
 
 func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinicID, ownerID uint64, owner *model.Owner) (excluded bool, reason string, err error) {
+	// Fail-closed: nil owner is never delivery-eligible. Can reach here when
+	// FindByID returns (nil, nil) (mock or contract violation) after bulk cache
+	// miss/fallback (see processSingleOwner). Do not treat as "not excluded".
+	if owner == nil {
+		return true, "owner_missing", nil
+	}
 	// LSB-01 / LSA-02 / DEC-38: LstepOptOut is fail-closed delivery exclusion evidence
 	// independent of delivery_excluded and EXCL cache tags (which opt-out may clear).
 	if owner.LstepOptOut {

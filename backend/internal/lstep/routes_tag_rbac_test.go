@@ -46,10 +46,10 @@ func TestRegisterRoutes_TagCoreRBACTuples(t *testing.T) {
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	// L①/L② register 15 tuples first. L③a's 23 tuples remain at the same
-	// positions; L③b/L④ append their tuples before the final line-customer pair.
-	require.Len(t, calls, 67)
-	tagCoreCalls := calls[15:38]
+	// L①/L② register 15 tuples first. L③a tag-core is 17 tuples after SOLO-09:
+	// tag-config POST/DELETE use requireSystemAdmin (not hospital-settings RBAC).
+	require.Len(t, calls, 61)
+	tagCoreCalls := calls[15:32]
 	expected := []permissionTuple{
 		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceOwners), "edit"},
@@ -66,14 +66,8 @@ func TestRegisterRoutes_TagCoreRBACTuples(t *testing.T) {
 		{string(model.ResourceHospitalSettings), "view"},
 		{string(model.ResourceHospitalSettings), "edit"},
 		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
 		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
 		{string(model.ResourceHospitalSettings), "view"},
-		{string(model.ResourceHospitalSettings), "create"},
-		{string(model.ResourceHospitalSettings), "delete"},
 	}
 	assert.Equal(t, expected, tagCoreCalls)
 }

@@ -46,7 +46,9 @@ func TestRegisterRoutes_L5RBACTuples(t *testing.T) {
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	require.Len(t, calls, 67)
+	// Total requirePermission calls is 61 after SOLO-09 removed 6 tag-config
+	// hospital-settings create/delete tuples (mutate is system_admin only).
+	require.Len(t, calls, 61)
 	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceLstepCsvImport), "edit"},
@@ -54,5 +56,5 @@ func TestRegisterRoutes_L5RBACTuples(t *testing.T) {
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
 		{string(model.ResourceLstepAnalytics), "view"},
-	}, calls[56:62])
+	}, calls[50:56])
 }

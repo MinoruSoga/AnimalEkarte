@@ -10,8 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// injectTagClient bypasses the deploy write gate for unit tests that exercise
+// AddOwnerTag/RemoveOwnerTag success paths (TASK-610: default LSTEP_WRITE_API_ENABLED off).
+func injectTagClient(svc LstepTagService, client lstepapi.Client) {
+	if s, ok := svc.(*lstepTagService); ok {
+		s.buildClientFn = func(_ context.Context, _ uint64) (lstepapi.Client, error) {
+			return client, nil
+		}
+	}
+}
 
 // ---- mocks ----
 
@@ -242,6 +253,7 @@ func TestAddOwnerTag_NotManaged_NilTagConfigRepo_Proceeds(t *testing.T) {
 		},
 	}
 	svc := NewLstepTagService(settingsSvc, ownerRepo, &mockLstepTagCacheRepository{}, &mockAuditService{}, nil)
+	injectTagClient(svc, &mockLstepAPIClient{})
 	err := svc.AddOwnerTag(context.Background(), 1, 1, "manual_note", nil)
 	assert.NoError(t, err)
 }
@@ -499,6 +511,7 @@ func TestAddOwnerTag_Success_CacheUpsertErrorIsBestEffort(t *testing.T) {
 		},
 	}
 	svc := NewLstepTagService(settingsSvc, ownerRepo, tagCache, &mockAuditService{}, nil)
+	injectTagClient(svc, &mockLstepAPIClient{})
 	err := svc.AddOwnerTag(context.Background(), 1, 1, "manual_tag", nil)
 	assert.NoError(t, err)
 }
@@ -566,6 +579,7 @@ func TestRemoveOwnerTag_Success_CacheDeleteErrorIsBestEffort(t *testing.T) {
 		},
 	}
 	svc := NewLstepTagService(settingsSvc, ownerRepo, tagCache, &mockAuditService{}, nil)
+	injectTagClient(svc, &mockLstepAPIClient{})
 	err := svc.RemoveOwnerTag(context.Background(), 1, 1, "manual_tag", nil)
 	assert.NoError(t, err)
 }

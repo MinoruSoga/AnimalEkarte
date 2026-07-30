@@ -46,11 +46,11 @@ func TestRegisterRoutes_CheckupSyncRBACTuples(t *testing.T) {
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
-	// L①/L② register 15 tuples, L③a registers 23, and L③b inserts the
-	// two checkup-sync tuples before L④ and the final two line-customer tuples.
-	require.Len(t, calls, 67)
+	// L①/L② register 15 tuples; L③a is 17 after SOLO-09 (tag-config mutate uses
+	// system_admin, not hospital-settings create/delete). L③b checkup-sync is next.
+	require.Len(t, calls, 61)
 	assert.Equal(t, []permissionTuple{
 		{string(model.ResourceOwners), "view"},
 		{string(model.ResourceOwners), "edit"},
-	}, calls[38:40])
+	}, calls[32:34])
 }

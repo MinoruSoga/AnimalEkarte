@@ -365,6 +365,12 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		slog.ErrorContext(ctx, "delivery trigger: failed to validate owner scope", "owner_id", ownerID, "error", err)
 		return false, apperrors.Wrap(err, "failed to find owner")
 	}
+	// Fail-closed: bulk cache (ce79e0c23) may fall back to FindByID after a map miss.
+	// A (nil, nil) return is a contract violation — never treat as delivery-eligible.
+	if owner == nil {
+		slog.ErrorContext(ctx, "delivery trigger: owner repo returned nil without error", "owner_id", ownerID, "clinic_id", clinicID)
+		return false, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", ownerID))
+	}
 
 	already, err := s.alreadyFiredToday(ctx, clinicID, ownerID, triggerType, asOf)
 	if err != nil {

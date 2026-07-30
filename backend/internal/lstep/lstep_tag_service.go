@@ -74,6 +74,8 @@ type lstepTagService struct {
 	tagCacheRepo  LstepTagCacheRepository
 	auditSvc      lstepAuditLogger
 	tagConfigRepo LstepTagConfigRepository
+	// buildClientFn is a test hook to inject a Client without the real deploy write gate.
+	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
 }
 
 // NewLstepTagService は LstepTagService を初期化して返す。
@@ -113,6 +115,9 @@ func (s *lstepTagService) isAutoManagedTag(ctx context.Context, tagName string) 
 // buildClient はクリニック設定から lstep.Client を構築する。
 // 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す。
 func (s *lstepTagService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	if s.buildClientFn != nil {
+		return s.buildClientFn(ctx, clinicID)
+	}
 	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")
