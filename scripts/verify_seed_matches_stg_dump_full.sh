@@ -43,7 +43,9 @@ if [[ -z "$DUMP_FILE" ]]; then
 fi
 MIGRATION_DIR="$REPO_ROOT/backend/migrations"
 CONTAINER="ekarte_verify_$$"
-PORT="${VERIFY_PORT:-15432}"
+# Ephemeral credential per run — never hardcode. Host port is intentionally not
+# published; all access is via `docker exec` (no 0.0.0.0 bind, no loopback publish).
+POSTGRES_PASSWORD="$(openssl rand -hex 16)"
 DB_A="ekarte_a"
 DB_B="ekarte_b"
 
@@ -113,11 +115,10 @@ DDL_FILES=("$MIGRATION_DIR"/*.sql)
 # ---------------------------------------------------------------------------
 # 1. Start container
 # ---------------------------------------------------------------------------
-echo "[1/5] Starting postgres:18-alpine container (name=$CONTAINER, port=$PORT)..."
+echo "[1/5] Starting postgres:18-alpine container (name=$CONTAINER, no host port publish)..."
 docker run -d --name "$CONTAINER" \
-  -e POSTGRES_PASSWORD=verify \
+  -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
   -e POSTGRES_USER=postgres \
-  -p "${PORT}:5432" \
   postgres:18-alpine > /dev/null
 
 for _ in $(seq 1 30); do
