@@ -9,6 +9,7 @@ const verifyCutoverPaymentGraphQuery = `
 WITH payment_rows AS MATERIALIZED (
   SELECT
     payment.id,
+    payment.clinic_id,
     payment.billing_id,
     payment.subtotal,
     payment.tax_total,
@@ -113,6 +114,9 @@ payment_violations AS (
     OR payment.parent_billing_id < $1
     OR payment.parent_billing_id >= $2
     OR payment.billing_deleted_at IS NOT NULL
+    OR payment.clinic_id IS NULL
+    OR payment.clinic_id IS DISTINCT FROM $3
+    OR payment.clinic_id IS DISTINCT FROM payment.billing_clinic_id
     OR payment.billing_clinic_id IS DISTINCT FROM $3
     OR payment.billing_total_amount IS DISTINCT FROM payment.total_amount
     OR payment.billing_status IS DISTINCT FROM 'completed'

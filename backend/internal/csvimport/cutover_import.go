@@ -129,6 +129,7 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"billings", "owner_id", "owners", "id"},
 		{"billings", "pet_id", "pets", "id"},
 		{"billing_items", "billing_id", "billings", "id"},
+		{"payments", "clinic_id", "clinics", "id"},
 		{"payments", "billing_id", "billings", "id"},
 		{"payments", "payment_method_id", "payment_methods", "id"},
 		{"payments", "paid_by", "staffs", "id"},

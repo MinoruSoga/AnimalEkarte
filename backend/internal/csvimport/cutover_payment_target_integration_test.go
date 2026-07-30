@@ -83,6 +83,7 @@ func TestCutoverPaymentTargetSQLAgainstPostgres(t *testing.T) {
 )`,
 		`CREATE TEMP TABLE payments (
   id bigint PRIMARY KEY,
+  clinic_id bigint NOT NULL,
   billing_id bigint NOT NULL UNIQUE,
   subtotal bigint,
   tax_total bigint,
@@ -141,14 +142,14 @@ VALUES ($1, $2, 1000, 'completed', '2026-07-22T00:00:00Z')
 	}
 	if _, err := tx.Exec(ctx, `
 INSERT INTO payments (
-  id, billing_id, subtotal, tax_total, total_amount, insurance_ratio,
+  id, clinic_id, billing_id, subtotal, tax_total, total_amount, insurance_ratio,
   insurance_amount, discount_amount, billing_amount, received_amount,
   change_amount, method, payment_method_id, paid_by, created_at
 ) VALUES (
-  $1, $2, 1000, 0, 1000, 0, 0, 0, 1000, 1000,
-  0, 'cash', $3, $4, '2026-07-22T00:00:00Z'
+  $1, $2, $3, 1000, 0, 1000, 0, 0, 0, 1000, 1000,
+  0, 'cash', $4, $5, '2026-07-22T00:00:00Z'
 )
-`, paymentID, billingID, cashID, staffID); err != nil {
+`, paymentID, clinicID, billingID, cashID, staffID); err != nil {
 		t.Fatalf("insert payment fixture: %v", err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -194,6 +195,13 @@ INSERT INTO payment_splits (
 			}
 		})
 	}
+	assertRejected(
+		"cross-clinic payment",
+		"UPDATE payments SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID + 1, paymentID},
+		"UPDATE payments SET clinic_id = $1 WHERE id = $2",
+		[]any{clinicID, paymentID},
+	)
 	assertRejected(
 		"cross-clinic split",
 		"UPDATE payment_splits SET clinic_id = $1 WHERE id = $2",

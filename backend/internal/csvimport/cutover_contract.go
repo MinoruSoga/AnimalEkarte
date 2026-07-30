@@ -28,8 +28,8 @@ const (
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
-	cutoverStageMappingSHA256  = "06f26a0ffefb9892d8c6c271bb1441439be377b25bb8b34a044db89ab76afc8c"
-	cutoverCSVContractSHA256   = "203faab02ccf820c0b0122ecbbcd75e78ed6c0240afc614530dd73aaf12a317a"
+	cutoverStageMappingSHA256  = "9976ba9fbd7339d6b60a80f7ede0cf71ed15a6b7468cb635ab432e594e68149f"
+	cutoverCSVContractSHA256   = "6ccc8b88124d88edfd7e91807bda2794054a0c1f6e24943cecb24e238a2c5af1"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
@@ -147,6 +147,7 @@ func CutoverPlaceholderColumns() map[string]string {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"payments.clinic_id":                                      "{{CLINIC_ID}}",
 		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
 		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
 		"payment_splits.clinic_id":                                "{{CLINIC_ID}}",
@@ -176,7 +177,7 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
 		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date", "completed_at"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
 		{"billing_items", []string{"id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
-		{"payments", []string{"id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},
+		{"payments", []string{"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},
 		{"payment_splits", []string{"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount", "received_amount", "change_amount", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, nil},
 		{"estimates", []string{"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "status", "subtotal", "tax_total", "total_amount", "insurance_amount", "discount_amount", "valid_until", "comment", "notes", "created_by", "created_at"}, []string{"id", "medical_record_id", "owner_id", "created_by"}, []string{"estimate_no", "title", "comment", "notes"}},
 		{"estimate_items", []string{"id", "estimate_id", "name", "category", "unit_price", "quantity", "tax_type", "tax_rate", "discount_rate", "discount_amount", "is_insurance_applicable", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id", "sort_order"}, []string{"id", "estimate_id", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id"}, []string{"name"}},
@@ -542,8 +543,8 @@ func validateCutoverRow(spec CutoverTableSpec, row []string, indexes map[string]
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err
 	}
-	if spec.Name == "payment_splits" && row[indexes["clinic_id"]] != "{{CLINIC_ID}}" {
-		return fmt.Errorf("table payment_splits column clinic_id row %d: clinic placeholder is required", csvLine)
+	if (spec.Name == "payments" || spec.Name == "payment_splits") && row[indexes["clinic_id"]] != "{{CLINIC_ID}}" {
+		return fmt.Errorf("table %s column clinic_id row %d: clinic placeholder is required", spec.Name, csvLine)
 	}
 	for i, value := range row {
 		matches := placeholderPattern.FindAllString(value, -1)

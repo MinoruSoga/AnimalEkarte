@@ -188,7 +188,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	}
 	payments := specs[13]
 	if !slices.Equal(payments.Columns, []string{
-		"id", "billing_id", "subtotal", "tax_total", "total_amount",
+		"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount",
 		"insurance_name", "insurance_ratio", "insurance_amount", "discount_amount",
 		"billing_amount", "received_amount", "change_amount", "method",
 		"payment_method_id", "paid_by", "created_at",
@@ -222,6 +222,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"payments.clinic_id":                                      "{{CLINIC_ID}}",
 		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
 		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
 		"payment_splits.clinic_id":                                "{{CLINIC_ID}}",
@@ -405,6 +406,13 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
 			},
 			wantErr: "does not match method",
+		},
+		{
+			name: "payment clinic is not an explicit placeholder",
+			mutate: func(f *fixtureBundle) {
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "clinic_id")] = "1"
+			},
+			wantErr: "clinic placeholder",
 		},
 		{
 			name: "payment split clinic is not an explicit placeholder",

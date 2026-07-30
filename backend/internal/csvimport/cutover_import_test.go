@@ -583,6 +583,7 @@ func TestPreflightRejectsMissingValidatedForeignKey(t *testing.T) {
 
 func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 	required := map[string]bool{
+		"payments.clinic_id->clinics.id":                       false,
 		"payments.billing_id->billings.id":                     false,
 		"payments.payment_method_id->payment_methods.id":       false,
 		"payments.paid_by->staffs.id":                          false,
@@ -662,6 +663,9 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"payment.deleted_at IS NOT NULL",
 		"payment.parent_billing_id < $1",
 		"payment.billing_deleted_at IS NOT NULL",
+		"payment.clinic_id IS NULL",
+		"payment.clinic_id IS DISTINCT FROM $3",
+		"payment.clinic_id IS DISTINCT FROM payment.billing_clinic_id",
 		"payment.billing_clinic_id IS DISTINCT FROM $3",
 		"payment.billing_total_amount IS DISTINCT FROM payment.total_amount",
 		"payment.subtotal IS NULL",
