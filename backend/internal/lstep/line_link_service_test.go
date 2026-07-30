@@ -1470,3 +1470,94 @@ func TestVerifySignatureAnyClinic_NoMatch(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 }
+
+// TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit
+// は SEC-CS-F05: 無効署名パスでも setting ID キャッシュが効き、2 回目以降の
+// AES 復号をスキップすることを保証する。
+func TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit(t *testing.T) {
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	require.NoError(t, err)
+	encSecret, err := cipher.Encrypt("clinic-secret")
+	require.NoError(t, err)
+
+	settings := []model.LineReservationSetting{
+		{ID: 11, ClinicID: 1, LineChannelSecret: encSecret},
+		{ID: 12, ClinicID: 2, LineChannelSecret: encSecret},
+		{ID: 13, ClinicID: 3, LineChannelSecret: encSecret},
+	}
+	svc := &lineLinkService{
+		lineSettingRepo: &mockLineLinkSettingRepo{
+			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+				return settings, nil
+			},
+		},
+		cipher: cipher,
+	}
+
+	var decryptCalls int
+	prev := lineCredentialDecrypt
+	lineCredentialDecrypt = func(ctx context.Context, c *crypto.AESGCMCipher, value string) string {
+		decryptCalls++
+		return prev(ctx, c, value)
+	}
+	t.Cleanup(func() { lineCredentialDecrypt = prev })
+
+	body := []byte(`{"destination":"Ufake","events":[]}`)
+	// 1st pass: cold cache → decrypt once per setting
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "invalid-signature")
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, len(settings), decryptCalls, "cold cache must decrypt each setting once")
+
+	// 2nd pass: warm cache → no additional decrypts on invalid signature path
+	clinicID, ok = svc.verifySignatureAnyClinic(context.Background(), body, "still-invalid")
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, len(settings), decryptCalls, "cache hit must not re-decrypt secrets")
+}
+
+// TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates は
+// channel secret ローテ後に古い平文を使い続けないことを確認する。
+func TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates(t *testing.T) {
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	require.NoError(t, err)
+	encOld, err := cipher.Encrypt("old-secret")
+	require.NoError(t, err)
+	encNew, err := cipher.Encrypt("new-secret")
+	require.NoError(t, err)
+
+	currentCiphertext := encOld
+	svc := &lineLinkService{
+		lineSettingRepo: &mockLineLinkSettingRepo{
+			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+				return []model.LineReservationSetting{
+					{ID: 21, ClinicID: 1, LineChannelSecret: currentCiphertext},
+				}, nil
+			},
+		},
+		cipher: cipher,
+	}
+
+	var decryptCalls int
+	prev := lineCredentialDecrypt
+	lineCredentialDecrypt = func(ctx context.Context, c *crypto.AESGCMCipher, value string) string {
+		decryptCalls++
+		return prev(ctx, c, value)
+	}
+	t.Cleanup(func() { lineCredentialDecrypt = prev })
+
+	body := []byte("body")
+	_, _ = svc.verifySignatureAnyClinic(context.Background(), body, "nope")
+	assert.Equal(t, 1, decryptCalls)
+
+	currentCiphertext = encNew
+	_, _ = svc.verifySignatureAnyClinic(context.Background(), body, "nope")
+	assert.Equal(t, 2, decryptCalls, "rotated ciphertext must force re-decrypt")
+}
+
+// TestVerifySignatureAnyClinic_ConcurrencyLimitConstant documents the SEC-CS-F05
+// global verification semaphore capacity.
+func TestVerifySignatureAnyClinic_ConcurrencyLimitConstant(t *testing.T) {
+	assert.Equal(t, int64(32), maxConcurrentLineWebhookVerifications)
+	assert.Equal(t, 30*time.Second, lineChannelSecretCacheTTL)
+}

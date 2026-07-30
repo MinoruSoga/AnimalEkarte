@@ -14,7 +14,10 @@ import (
 )
 
 const (
-	maxLineWebhookRequestBytes int64 = 2 * 1024 * 1024
+	// maxLineWebhookRequestBytes bounds webhook body size before signature
+	// verification. follow/unfollow payloads are small; a large body amplifies
+	// per-clinic HMAC work on invalid signatures (SEC-CS-F05).
+	maxLineWebhookRequestBytes int64 = 256 * 1024
 	maxLineLinkRequestBytes    int64 = 16 * 1024
 	maxLineLinkTokenChars            = 128
 	maxLineIDTokenChars              = 12 * 1024

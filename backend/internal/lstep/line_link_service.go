@@ -14,7 +14,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
@@ -69,6 +72,19 @@ type lineLinkService struct {
 	cipher *crypto.AESGCMCipher
 	// httpClient は LINE ID Token 検証 API 呼び出しに使う。
 	httpClient *http.Client
+
+	// secretCache は setting ID ごとの復号済み channel secret を短 TTL で保持する。
+	// 無効 webhook が毎リクエスト FindAll + AES 復号を繰り返す増幅を抑える（SEC-CS-F05）。
+	secretCacheMu sync.Mutex
+	secretCache   map[uint64]lineChannelSecretCacheEntry
+}
+
+// lineChannelSecretCacheEntry は decrypt 結果のキャッシュ 1 件。
+// ciphertext が変わった場合はヒットさせず再復号する。
+type lineChannelSecretCacheEntry struct {
+	ciphertext string
+	plaintext  string
+	expiresAt  time.Time
 }
 
 const (
@@ -78,7 +94,22 @@ const (
 	maxLineVerifyResponseBytes = 64 * 1024
 	maxLineUserIDChars         = 64
 	maxLineWebhookFutureSkew   = 5 * time.Minute
+
+	// lineChannelSecretCacheTTL は復号済み secret キャッシュの寿命。
+	// 設定ローテ後も長くてもこの時間で平文が捨てられる。
+	lineChannelSecretCacheTTL = 30 * time.Second
+
+	// maxConcurrentLineWebhookVerifications は同時に走れる署名検証の上限。
+	// 全 clinic の HMAC を並列に増幅させない（SEC-CS-F05）。
+	maxConcurrentLineWebhookVerifications int64 = 32
 )
+
+// lineWebhookVerifySem はプロセス全体の webhook 署名検証同時実行数を制限する。
+var lineWebhookVerifySem = semaphore.NewWeighted(maxConcurrentLineWebhookVerifications)
+
+// lineCredentialDecrypt は webhook 検証パスの復号関数。
+// 本番は DecryptLineCredential。テストで呼び出し回数を観測するために差し替え可能。
+var lineCredentialDecrypt = DecryptLineCredential
 
 // NewLineLinkService は LineLinkService を初期化して返す。
 // cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
@@ -325,11 +356,20 @@ func (s *lineLinkService) handleUnfollowEvent(
 // verifySignatureAnyClinic は全クリニックの LINE Channel Secret で署名を検証し、
 // 一意に一致した clinic ID を返す。複数 clinic の secret が一致した場合は、
 // 更新先を安全に決定できないため fail closed とする。
+//
+// SEC-CS-F05: 同時検証数をセマフォで制限し、復号結果を短 TTL キャッシュする。
+// 無効署名でも全 clinic の HMAC は走るが、AES 復号の繰り返しは避ける。
 func (s *lineLinkService) verifySignatureAnyClinic(
 	ctx context.Context,
 	body []byte,
 	signature string,
 ) (uint64, bool) {
+	if err := lineWebhookVerifySem.Acquire(ctx, 1); err != nil {
+		slog.ErrorContext(ctx, "LINE webhook verification concurrency limit", "error", err)
+		return 0, false
+	}
+	defer lineWebhookVerifySem.Release(1)
+
 	settings, err := s.lineSettingRepo.FindAll(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load line settings for signature verification", "error", err)
@@ -339,7 +379,7 @@ func (s *lineLinkService) verifySignatureAnyClinic(
 	for i := range settings {
 		setting := &settings[i]
 		// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
-		secret := DecryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
+		secret := s.cachedDecryptChannelSecret(ctx, setting)
 		if secret == "" {
 			continue
 		}
@@ -355,6 +395,50 @@ func (s *lineLinkService) verifySignatureAnyClinic(
 		}
 	}
 	return matchedClinicID, matchedClinicID != 0
+}
+
+// cachedDecryptChannelSecret は setting ID をキーに復号済み secret を短 TTL キャッシュする。
+// ID が 0（未採番のテスト行など）の場合はキャッシュせず都度復号する。
+func (s *lineLinkService) cachedDecryptChannelSecret(
+	ctx context.Context,
+	setting *model.LineReservationSetting,
+) string {
+	if setting == nil {
+		return ""
+	}
+	ciphertext := setting.LineChannelSecret
+	if ciphertext == "" {
+		return ""
+	}
+	now := time.Now()
+	if setting.ID != 0 {
+		s.secretCacheMu.Lock()
+		if entry, ok := s.secretCache[setting.ID]; ok {
+			if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
+				plaintext := entry.plaintext
+				s.secretCacheMu.Unlock()
+				return plaintext
+			}
+		}
+		s.secretCacheMu.Unlock()
+	}
+
+	plaintext := lineCredentialDecrypt(ctx, s.cipher, ciphertext)
+	if setting.ID == 0 || plaintext == "" {
+		return plaintext
+	}
+
+	s.secretCacheMu.Lock()
+	if s.secretCache == nil {
+		s.secretCache = make(map[uint64]lineChannelSecretCacheEntry)
+	}
+	s.secretCache[setting.ID] = lineChannelSecretCacheEntry{
+		ciphertext: ciphertext,
+		plaintext:  plaintext,
+		expiresAt:  now.Add(lineChannelSecretCacheTTL),
+	}
+	s.secretCacheMu.Unlock()
+	return plaintext
 }
 
 // verifyLineSignature は LINE HMAC-SHA256 署名を検証する。
