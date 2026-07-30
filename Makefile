@@ -53,17 +53,16 @@ clean:
 	$(DC) down --rmi local --volumes --remove-orphans
 	$(DC) build --no-cache
 
-# 完全リセット（スキーマ・シーダー含む）
-# migration は backend の entrypoint 内で go run ./cmd/migrate として実行されるため、
-# reset は DB 初期化 + 起動完了待ちだけに絞る
-# --wait は up と同じく長寿命サービス（db backend frontend）だけを対象にする。
-# codegen は一発実行で正常終了する one-shot のため、wait 対象に含めると正常終了が
-# --wait の失敗扱いになり cosmetic exit 1 を起こす（必要時は make codegen で個別実行）。
+# 完全リセット（スキーマ・シーダー含む）— local 専用・USER のみ実行
+# 単一入口: scripts/local-db-reset-contract.sh
+#   1) project/volume を固定値と compose 実測で照合（他環境は拒否）
+#   2) umask 077 で .local-db-backups/<UTC>/ に pg_dumpall + sha256 + manifest
+#   3) サービス停止後 ekarte-postgres-data のみ削除（cache 3 volume は保持）
+#   4) 再起動 + missing=0 / DDL / 002_master,003_demo,004_staging /health を fail-closed 確認
+# snapshot 失敗時は volume 削除へ進まない。compose の全 volume 一括削除は使わない。
+# --wait の wait-set（db backend frontend, codegen 除外）は contract スクリプト側。
 reset:
-	@echo "🔄 Resetting database..."
-	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db backend frontend
-	@echo "✓ Reset complete — database reinitialized and services are healthy"
+	@bash scripts/local-db-reset-contract.sh
 
 # reset の wait-set 契約チェック（Docker 不要・純テキスト検査・高速）
 # `make reset` の `up --wait` が長寿命サービス (db backend frontend) だけを
@@ -371,7 +370,7 @@ help:
 	@echo "  ps            コンテナ状態確認"
 	@echo "  db            DB接続（psql）"
 	@echo "  clean         キャッシュクリア＆再ビルド"
-	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
+	@echo "  reset         local DB 再構築（snapshot→ekarte-postgres-data のみ削除→postflight。USER のみ）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
 	@echo ""

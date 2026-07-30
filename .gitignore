@@ -44,6 +44,10 @@ backend/coverage-summary.txt
 prodData/
 cookies.txt
 
+# Local DB reset recovery snapshots (owner-only pg_dumpall under umask 077).
+# Created by scripts/local-db-reset-contract.sh / make reset — never commit.
+.local-db-backups/
+
 # IDE
 .idea/
 .vscode/
