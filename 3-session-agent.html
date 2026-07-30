@@ -337,26 +337,18 @@
 
 
 <div class="notice">
-<b>BE-refactor 残作業（2026-07-30 更新）</b> — 2026-07-30 batch で animal-species FE auth / campaign target serialization / LSTEP delivery batch N+1 / LSTEP docs contract を完了。新たに <b>着手可能</b> になったのは下記2件（正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a>）。後続の BOUNDED-MASTER-LISTS と DOC-SESSION-LEDGER は依存未充足のため READY_TO_FILE のまま。各executorは独立worktreeとDOCKER-MOUNT-PROOFを使う。
+<b>BE-refactor 残作業（2026-07-30 wave2）</b> — merchandise atomic delete と animal-species spec を完了。新たに <b>着手可能</b> になったのは <code>BE-ACT-BOUNDED-MASTER-LISTS</code>（正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a>）。DOC-SESSION-LEDGER は最終収束 unit で依存未充足のまま READY_TO_FILE。各executorは独立worktreeとDOCKER-MOUNT-PROOFを使う。
 </div>
 
 
 
-<section class="task" id="BE-ACT-MERCHANDISE-ATOMIC-DELETE">
-<h3>BE-ACT-MERCHANDISE-ATOMIC-DELETE: merchandise atomic delete with usage serialization</h3>
-<ul>
-  <li><b>分類: 着手可能</b>。依存 <code>BE-ACT-CAMPAIGN-TARGET-SERIALIZATION</code> 統合済み（completion <code>c3179776b</code>）。inventory/billing agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-merchandise-atomic-delete"><code>BE-refactor.md#BE-ACT-MERCHANDISE-ATOMIC-DELETE</code></a>。</li>
-  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
-</ul>
-</section>
 
-<section class="task" id="BE-ACT-DOC-ANIMAL-SPECIES-SPEC">
-<h3>BE-ACT-DOC-ANIMAL-SPECIES-SPEC: animal-species screen authorization documentation</h3>
+<section class="task" id="BE-ACT-BOUNDED-MASTER-LISTS">
+<h3>BE-ACT-BOUNDED-MASTER-LISTS: bound remaining master FindAll queries</h3>
 <ul>
-  <li><b>分類: 着手可能</b>。依存 <code>BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH</code> 統合済み（completion <code>b385cfdbb</code>）。specification documentation agentが独立worktreeで担当する。</li>
-  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-doc-animal-species-spec"><code>BE-refactor.md#BE-ACT-DOC-ANIMAL-SPECIES-SPEC</code></a>。</li>
-  <li><b>完了処理</b>: docs gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
+  <li><b>分類: 着手可能</b>。依存 <code>BE-ACT-MERCHANDISE-ATOMIC-DELETE</code> 統合済み。backend repository agentが独立worktreeで担当する。</li>
+  <li><b>実行契約の正本</b>: <a href="BE-refactor.md#be-act-bounded-master-lists"><code>BE-refactor.md#BE-ACT-BOUNDED-MASTER-LISTS</code></a>。</li>
+  <li><b>完了処理</b>: scoped gate greenとintegration commitを確認後、このsectionを削除し、正本packetを更新または削除する。</li>
 </ul>
 </section>
 

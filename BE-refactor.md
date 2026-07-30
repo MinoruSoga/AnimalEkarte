@@ -4,73 +4,46 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-30 at commit `7839faa7b` (post batch: animal-species FE auth, campaign target serialization, LSTEP batch bulk, LSTEP docs). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-30 wave2 (post merchandise atomic delete + animal-species spec). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There are 4 remaining specification-ready packets: 2 are filed in the execution ledger as `READY_AGENT` (merchandise atomic delete, animal-species spec), and 2 dependency-gated packets remain `READY_TO_FILE` (bounded master lists, session-ledger final convergence). Completed 2026-07-30: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH (`b385cfdbb`), BE-ACT-CAMPAIGN-TARGET-SERIALIZATION (`c3179776b`), BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1 (`ce79e0c23`), BE-ACT-DOC-LSTEP-CONTRACT (`a45046985`).
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There are 2 remaining specification-ready packets: 1 is filed in the execution ledger as `READY_AGENT` (bounded master lists), and 1 remains `READY_TO_FILE` (session-ledger final convergence). Wave2 completed: BE-ACT-MERCHANDISE-ATOMIC-DELETE and BE-ACT-DOC-ANIMAL-SPECIES-SPEC.
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
-### BE-ACT-MERCHANDISE-ATOMIC-DELETE
-- State: READY_AGENT
-- Source keys: NW-R2-01B, RULE-DOUBT-27B
-- Actor: inventory/billing implementation agent in an isolated worktree
-- Problem: delete performs unlocked Find→Count→Delete, counts only billing/estimate via fallback handles, and omits campaign-target usage.
-- Current evidence: `backend/internal/inventory/merchandise_item_service.go#Delete`; `backend/internal/inventory/merchandise_item_repository.go#CountUsage`. Dependency BE-ACT-CAMPAIGN-TARGET-SERIALIZATION integrated as `c3179776b`.
-- Required behavior: in one transaction lock the same-clinic non-deleted item; count active billing and estimate usage plus targets joined to any same-clinic non-deleted campaign regardless of active/date; return NotFound for no active item and Conflict for any usage; soft-delete only after zero usage; prove both interleavings.
-- Owned paths: backend/internal/inventory/merchandise_item_service.go, backend/internal/inventory/merchandise_item_service_test.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go, backend/cmd/api/composition_runtime.go, backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go, backend/internal/lintscan/dbortx_inventory_lint_test.go
-- Reference paths: backend/internal/billing/campaign_repository.go, backend/internal/model/campaign.go
-- Dependencies: none (prior campaign-target serialization integrated)
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/inventory/... ./internal/billing/... ./cmd/api/... -run 'MerchandiseItem.*(Delete|CountUsage|Concurrent)|Campaign.*Concurrent|RuntimeInventory'; docker compose exec -T backend go test -count=1 ./internal/lintscan/... -run DBOrTx
-- Completion evidence: attach-first yields Conflict after serialization; delete-first makes later attachment reject the inactive row; NotFound remains distinct; all usage queries use the ambient tx and scoped tests pass.
-
 ### BE-ACT-BOUNDED-MASTER-LISTS
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: G2F-11
 - Actor: backend repository implementation agent in an isolated worktree
 - Problem: the consultation list was bounded, but exam-type and merchandise `FindAll` still issue unbounded queries, so the original multi-repository finding is only partially remediated.
-- Current evidence: `backend/internal/medicalrecord/exam_type_repository.go#FindAll`; `backend/internal/inventory/merchandise_item_repository.go#FindAll`; consultation coverage is terminal provenance only.
+- Current evidence: `backend/internal/medicalrecord/exam_type_repository.go#FindAll`; `backend/internal/inventory/merchandise_item_repository.go#FindAll`; consultation coverage is terminal provenance only. Dependency BE-ACT-MERCHANDISE-ATOMIC-DELETE integrated.
 - Required behavior: apply the current `MaxMasterListRows` contract consistently to both remaining repositories, retain deterministic ordering and clinic/deleted-row semantics, and add boundary regressions at limit and limit+1.
 - Owned paths: backend/internal/medicalrecord/exam_type_repository.go, backend/internal/medicalrecord/exam_type_repository_test.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go
 - Reference paths: backend/internal/medicalrecord/consultation_repository.go, backend/internal/persistence/scope.go
-- Dependencies: BE-ACT-MERCHANDISE-ATOMIC-DELETE
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/medicalrecord/... ./internal/inventory/... -run 'FindAll.*(Limit|Bound)|MaxMasterListRows|ExamType|MerchandiseItem'
+- Dependencies: none (prior merchandise atomic delete integrated)
+- Verification command: DOCKER-MOUNT-PROOF; docker compose run --rm --no-deps --entrypoint '' backend go test -count=1 ./internal/medicalrecord/... ./internal/inventory/... -run 'FindAll.*(Limit|Bound)|MaxMasterListRows|ExamType|MerchandiseItem'
 - Completion evidence: both queries use the shared bound with deterministic order; exact-limit and over-limit fixtures prove bounded results without cross-clinic or deleted-row drift; scoped tests pass.
-
-### BE-ACT-DOC-ANIMAL-SPECIES-SPEC
-- State: READY_AGENT
-- Source keys: DOC-ANIMAL-SPECIES-AUTH
-- Actor: specification documentation agent in an isolated worktree
-- Problem: the screen spec grants ordinary create/edit/delete/reorder permissions and does not describe audited transaction rollback.
-- Current evidence: `docs/spec/screens/settings/master-animal-species.md` mutation table conflicts with backend system-admin checks and current frontend affordances. Dependency BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH integrated as `b385cfdbb`.
-- Required behavior: document resource-view reads and system-admin-only create/update/delete/reorder; document fail-closed audit atomicity only after backend proof lands.
-- Owned paths: docs/spec/screens/settings/master-animal-species.md
-- Reference paths: backend/internal/pet/animal_species_handler.go, backend/internal/pet/animal_species_service.go, frontend/src/features/master/routes/AnimalSpeciesSettings.tsx
-- Dependencies: none (prior FE auth integrated)
-- Verification command: git diff --check -- docs/spec/screens/settings/master-animal-species.md; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: spec and implemented authorization/transaction tests agree; retained links resolve; docs drift gate passes.
 
 ### BE-ACT-DOC-SESSION-LEDGER
 - State: READY_TO_FILE
 - Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
 - Actor: sole documentation integrator using a protected copy of current shared-main state
 - Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
-- Current evidence: `3-session-agent.html#ledger` now files READY_AGENT merchandise-atomic-delete and animal-species-spec; BUG-433 remains USER 専権 for codegen.
+- Current evidence: ledger files READY_AGENT BE-ACT-BOUNDED-MASTER-LISTS only among remaining BE-ACT implementation packets.
 - Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
-- Dependencies: BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-ANIMAL-SPECIES-SPEC
+- Dependencies: BE-ACT-BOUNDED-MASTER-LISTS
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: imported baseline matches then-current shared main before editing; every completed `BE-ACT-*` section is absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
 
-- Current parallel wave: merchandise atomic delete and animal-species specification documentation.
-- Sequential inventory chain: merchandise atomic delete → bounded master lists.
-- Final convergence: remaining implementation/specification packets → session-ledger cleanup.
+- Current wave: bounded master lists (exam-type and merchandise FindAll).
+- Final convergence: session-ledger cleanup after bounded master lists.
 - Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
