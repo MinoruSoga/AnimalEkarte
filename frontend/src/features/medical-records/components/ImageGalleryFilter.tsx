@@ -13,8 +13,13 @@ import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+/** 1ファイルあたりの上限（MB） */
+export const MAX_FILE_SIZE_MB = 10;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+/** SEC-CS-F08: 1回の選択で受け付ける最大ファイル数 */
+export const MAX_UPLOAD_FILES = 10;
+/** SEC-CS-F08: 1回の選択で受け付ける合計バイト上限（50MiB） */
+export const MAX_UPLOAD_BATCH_BYTES = 50 * 1024 * 1024;
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 const SORT_ORDER_SELECT_ITEMS = (
@@ -59,6 +64,18 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const allFiles = Array.from(e.target.files ?? []);
+    // SEC-CS-F08: 件数・合計バイトを onFilesSelected 前に fail-closed で拒否
+    if (allFiles.length > MAX_UPLOAD_FILES) {
+      toast.error(`一度にアップロードできるファイルは${MAX_UPLOAD_FILES}件までです`);
+      e.target.value = "";
+      return;
+    }
+    const totalBytes = allFiles.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > MAX_UPLOAD_BATCH_BYTES) {
+      toast.error("合計ファイルサイズが上限（50MB）を超えています");
+      e.target.value = "";
+      return;
+    }
     const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
     const valid = allFiles.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
     if (oversized.length > 0) {
