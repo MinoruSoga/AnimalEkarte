@@ -1,19 +1,19 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全114テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
+> **目的**: 全115テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=114 -->
+<!-- ERD:TABLE_COUNT=115 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.32 | **最新更新**: 2026-07-31 | **状態**: Production Ready (114 Tables Verified)
+> **バージョン**: v31.33 | **最新更新**: 2026-07-31 | **状態**: Production Ready (115 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 114 テーブル)
+## 1. データモデルの全体像 (全 115 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 114 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 115 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -21,7 +21,7 @@
 |:---|:---|
 | **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
-| **臨床・診察 (23)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
+| **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (13)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `shared_files`, `lab_import_jobs`, `lab_import_events` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (15)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
@@ -104,7 +104,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション（`001_init.sql` + append-only incremental `002`–`004`。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = 001 の 110 + 004 の 4 = **114**。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-31 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション（`001_init.sql` + append-only incremental `002`–`006`。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = 001 の 110 + 004 の 4 + 006 の 1 = **115**。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-31 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -127,15 +127,17 @@ erDiagram
 >
 > **2026-07-29 追記（統合第4回）**: その後に追加された incremental `002_add_pets_version.sql` / `003_add_exam_results_exam_type_field_id_index.sql` / `004_add_inventory_quantity_check.sql` / `005_payment_clinic_id_and_clinic_axis_composite_fks.sql` / `006_payment_method_system_key_match.sql` / `007_owners_clinic_phone_unique.sql` を、セクション8と同様式（原文・元commit・SHA-256）で `001_init.sql` 末尾セクション9へ統合し独立ファイルを削除した。新規テーブルはなく総数110は不変。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。seed `003_demo/owners.csv` には非空 phone の clinic 内重複が無いことを静的検証済みで、`uk_owners_clinic_phone` は 001 へ統合する（適用済み DB 上の 23505 は seed 外の既存行由来であり、リセット後は seed 経路では再現しない）。
 >
-> **2026-07-31 追記**: append-only incremental として `002_lstep_delivery_trigger_log_daily_unique.sql`（index のみ）・`003_closing_special_periods_exclude_overlap.sql`（EXCLUDE 制約のみ）・`004_add_identity_links.sql`（#239 Phase 1・医院横断 owner/pet identity link 4 テーブル）が追加された。物理テーブル総数は 001 の 110 + 004 の 4 = **114**。ゲート 3a の正本は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算。
+> **2026-07-31 追記**: append-only incremental として `002_lstep_delivery_trigger_log_daily_unique.sql`（index のみ）・`003_closing_special_periods_exclude_overlap.sql`（EXCLUDE 制約のみ）・`004_add_identity_links.sql`（#239 Phase 1・医院横断 owner/pet identity link 4 テーブル）が追加された。当時の物理テーブル総数は 001 の 110 + 004 の 4 = **114**。ゲート 3a の正本は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算。
+>
+> **2026-07-31 夕 追記**: `005_line_webhook_bot_user_id.sql`（カラムのみ・新規テーブルなし）および `006_medical_record_image_upload_quota.sql`（`medical_record_image_upload_quota` 1 テーブル。SEC-CS-F08-R1 画像 upload quota lease）が追加された。006 は 001 へ fold しない append-only。物理テーブル総数は 110 + 4 + 1 = **115**。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 110（2026-07-04 統合前は 103） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners` を含む。001 単体の数は不変 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 114 | 001=110 + 004 identity links=4。ERD の全体数と一致 |
-| ERD ドメイン表の物理テーブル数 | 114 | migrations と一致（横断・identity links 4 を含む） |
-| ERD へ追加した不足テーブル | 10: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4（`owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`） | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 115 | 001=110 + 004 identity links=4 + 006 upload quota=1。ERD の全体数と一致 |
+| ERD ドメイン表の物理テーブル数 | 115 | migrations と一致（横断・identity links 4 + clinical `medical_record_image_upload_quota` を含む） |
+| ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
 | 不要確定テーブル | 0 | 静的照合では削除対象なし |
@@ -173,9 +175,11 @@ erDiagram
 - `002_lstep_delivery_trigger_log_daily_unique.sql`（LSA-15・`lstep_delivery_trigger_log` の clinic/owner/type/JST-day 部分 unique index。新規テーブルなし）
 - `003_closing_special_periods_exclude_overlap.sql`（POC-05・`closing_special_periods` の clinic+daterange EXCLUDE 制約。新規テーブルなし）
 - `004_add_identity_links.sql`（#239 Phase 1・医院横断 owner/pet identity link 4 テーブル: `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`）
+- `005_line_webhook_bot_user_id.sql`（カラムのみ・新規テーブルなし）
+- `006_medical_record_image_upload_quota.sql`（`medical_record_image_upload_quota` 1 テーブル。001 へ fold しない append-only）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
-物理テーブル総数 = 001 の 110 + 004 の 4 = **114**（ゲート 3a は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算を正とする）。
+物理テーブル総数 = 001 の 110 + 004 の 4 + 006 の 1 = **115**（ゲート 3a は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算を正とする）。
 
 2026-07-29統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション9）:
 
