@@ -45,7 +45,13 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 
 func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Preload("Items", "clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&exTypes).Error
+	// G2F-11: vaccine/procedure/consultation と同型の master list safety Limit（unbounded Find 防止）。
+	err := r.db.WithContext(ctx).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Preload("Items", "clinic_id = ?", clinicID).
+		Order("sort_order ASC, name ASC").
+		Limit(persistence.MaxMasterListRows).
+		Find(&exTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", "")
 	}

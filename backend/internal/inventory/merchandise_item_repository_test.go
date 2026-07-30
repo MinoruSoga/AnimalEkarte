@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -280,6 +281,98 @@ func TestMerchandiseItemRepository_FindAll(t *testing.T) {
 		var raw model.MerchandiseItem
 		require.NoError(t, db2.WithContext(ctx).Unscoped().First(&raw, item.ID).Error)
 		assert.NotNil(t, raw.DeletedAt)
+	})
+}
+
+// seedMerchandiseItemsForBoundTest bulk-inserts clinic-scoped merchandise rows with
+// deterministic sort_order/name (bound-mi-00001..) for MaxMasterListRows regressions.
+func seedMerchandiseItemsForBoundTest(t *testing.T, db *gorm.DB, clinicID uint64, count int) {
+	t.Helper()
+	rows := make([]model.MerchandiseItem, 0, count)
+	for i := 1; i <= count; i++ {
+		rows = append(rows, model.MerchandiseItem{
+			ClinicID:  clinicID,
+			Name:      fmt.Sprintf("bound-mi-%05d", i),
+			Category:  model.ItemCategoryGoods,
+			UnitPrice: 1000,
+			TaxRate:   0.10,
+			IsActive:  true,
+			SortOrder: i,
+		})
+	}
+	require.NoError(t, db.WithContext(context.Background()).CreateInBatches(rows, 500).Error)
+}
+
+func assertMerchandiseItemsOrderedBySortThenName(t *testing.T, got []model.MerchandiseItem) {
+	t.Helper()
+	for i := 1; i < len(got); i++ {
+		prev, cur := got[i-1], got[i]
+		if prev.SortOrder == cur.SortOrder {
+			assert.LessOrEqual(t, prev.Name, cur.Name, "same sort_order must order by name ASC")
+			continue
+		}
+		assert.Less(t, prev.SortOrder, cur.SortOrder, "must order by sort_order ASC")
+	}
+}
+
+// TestMerchandiseItemRepository_FindAll_AppliesMaxMasterListRows is G2F-11: FindAll
+// applies persistence.MaxMasterListRows (same as consultation/vaccine/procedure),
+// excludes other clinics and soft-deleted rows, and keeps sort_order ASC, name ASC.
+func TestMerchandiseItemRepository_FindAll_AppliesMaxMasterListRows(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	limit := persistence.MaxMasterListRows
+
+	t.Run("exact MaxMasterListRows returns all rows in order", func(t *testing.T) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE merchandise_items CASCADE").Error)
+		seedMerchandiseItemsForBoundTest(t, db, clinicA, limit)
+
+		got, err := repo.FindAll(ctx, clinicA, "")
+		require.NoError(t, err)
+		require.Len(t, got, limit, "exact bound must return every active clinic row")
+		assert.Equal(t, 1, got[0].SortOrder)
+		assert.Equal(t, limit, got[len(got)-1].SortOrder)
+		assertMerchandiseItemsOrderedBySortThenName(t, got)
+	})
+
+	t.Run("limit+1 caps at MaxMasterListRows and excludes foreign/soft-deleted", func(t *testing.T) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE merchandise_items CASCADE").Error)
+		// limit+2 active for clinic A so soft-deleting one still leaves limit+1 active.
+		seedMerchandiseItemsForBoundTest(t, db, clinicA, limit+2)
+
+		// Cross-clinic rows that would sort first if clinic isolation regressed.
+		foreign := []model.MerchandiseItem{
+			{ClinicID: clinicB, Name: "aaa-other-clinic-1", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: 0.10, IsActive: true, SortOrder: 0},
+			{ClinicID: clinicB, Name: "aaa-other-clinic-2", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: 0.10, IsActive: true, SortOrder: 0},
+		}
+		require.NoError(t, db.WithContext(ctx).Create(&foreign).Error)
+
+		// Soft-delete a row that would otherwise appear in the capped window.
+		var softDeleted model.MerchandiseItem
+		require.NoError(t, db.WithContext(ctx).
+			Where("clinic_id = ? AND sort_order = ?", clinicA, 2).
+			First(&softDeleted).Error)
+		require.NoError(t, repo.Delete(ctx, clinicA, softDeleted.ID))
+
+		got, err := repo.FindAll(ctx, clinicA, "")
+		require.NoError(t, err)
+		require.Len(t, got, limit, "must cap at MaxMasterListRows when more active rows exist")
+		assertMerchandiseItemsOrderedBySortThenName(t, got)
+
+		for _, it := range got {
+			assert.NotEqual(t, softDeleted.ID, it.ID, "soft-deleted row must be excluded")
+			assert.Equal(t, clinicA, it.ClinicID, "cross-clinic rows must not mix into result")
+			assert.NotEqual(t, foreign[0].ID, it.ID)
+			assert.NotEqual(t, foreign[1].ID, it.ID)
+		}
+
+		assert.Equal(t, 1, got[0].SortOrder)
+		assert.Equal(t, "bound-mi-00001", got[0].Name)
+		assert.Equal(t, 3, got[1].SortOrder)
+		// First `limit` of remaining active ordered set ends at sort_order = limit+1.
+		assert.Equal(t, limit+1, got[len(got)-1].SortOrder)
 	})
 }
 

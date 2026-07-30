@@ -18,6 +18,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -89,6 +91,97 @@ func TestExamTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	for _, et := range got {
 		assert.NotEqual(t, etB.ID, et.ID, "別クリニックの検査種別が混入してはならない")
 	}
+}
+
+// seedExamTypesForBoundTest bulk-inserts clinic-scoped examination types with
+// deterministic sort_order/name (bound-et-00001..) for MaxMasterListRows regressions.
+func seedExamTypesForBoundTest(t *testing.T, db *gorm.DB, clinicID uint64, count int) {
+	t.Helper()
+	rows := make([]model.ExaminationType, 0, count)
+	for i := 1; i <= count; i++ {
+		rows = append(rows, model.ExaminationType{
+			ClinicID:  clinicID,
+			Name:      fmt.Sprintf("bound-et-%05d", i),
+			SortOrder: i,
+			IsActive:  true,
+		})
+	}
+	require.NoError(t, db.WithContext(context.Background()).CreateInBatches(rows, 500).Error)
+}
+
+func assertExamTypesOrderedBySortThenName(t *testing.T, got []model.ExaminationType) {
+	t.Helper()
+	for i := 1; i < len(got); i++ {
+		prev, cur := got[i-1], got[i]
+		if prev.SortOrder == cur.SortOrder {
+			assert.LessOrEqual(t, prev.Name, cur.Name, "same sort_order must order by name ASC")
+			continue
+		}
+		assert.Less(t, prev.SortOrder, cur.SortOrder, "must order by sort_order ASC")
+	}
+}
+
+// TestExamTypeRepository_FindAll_AppliesMaxMasterListRows is G2F-11: FindAll applies
+// persistence.MaxMasterListRows (same as consultation/vaccine/procedure), excludes
+// other clinics and soft-deleted rows, and keeps sort_order ASC, name ASC.
+func TestExamTypeRepository_FindAll_AppliesMaxMasterListRows(t *testing.T) {
+	db := setupExamTypeTestDB(t)
+	repo := NewExamTypeRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	limit := persistence.MaxMasterListRows
+
+	t.Run("exact MaxMasterListRows returns all rows in order", func(t *testing.T) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE exam_types CASCADE").Error)
+		seedExamTypesForBoundTest(t, db, clinicA, limit)
+
+		got, err := repo.FindAll(ctx, clinicA)
+		require.NoError(t, err)
+		require.Len(t, got, limit, "exact bound must return every active clinic row")
+		assert.Equal(t, 1, got[0].SortOrder)
+		assert.Equal(t, limit, got[len(got)-1].SortOrder)
+		assertExamTypesOrderedBySortThenName(t, got)
+	})
+
+	t.Run("limit+1 caps at MaxMasterListRows and excludes foreign/soft-deleted", func(t *testing.T) {
+		require.NoError(t, db.Exec("TRUNCATE TABLE exam_types CASCADE").Error)
+		// limit+2 active for clinic A so that soft-deleting one still leaves limit+1 active.
+		seedExamTypesForBoundTest(t, db, clinicA, limit+2)
+
+		// Cross-clinic rows that would sort first if clinic isolation regressed.
+		foreign := []model.ExaminationType{
+			{ClinicID: clinicB, Name: "aaa-other-clinic-1", SortOrder: 0, IsActive: true},
+			{ClinicID: clinicB, Name: "aaa-other-clinic-2", SortOrder: 0, IsActive: true},
+		}
+		require.NoError(t, db.WithContext(ctx).Create(&foreign).Error)
+
+		// Soft-delete a row that would otherwise appear in the capped window.
+		var softDeleted model.ExaminationType
+		require.NoError(t, db.WithContext(ctx).
+			Where("clinic_id = ? AND sort_order = ?", clinicA, 2).
+			First(&softDeleted).Error)
+		require.NoError(t, repo.Delete(ctx, clinicA, softDeleted.ID))
+
+		got, err := repo.FindAll(ctx, clinicA)
+		require.NoError(t, err)
+		require.Len(t, got, limit, "must cap at MaxMasterListRows when more active rows exist")
+		assertExamTypesOrderedBySortThenName(t, got)
+
+		// Soft-deleted must not appear; foreign clinic rows must not mix in.
+		for _, et := range got {
+			assert.NotEqual(t, softDeleted.ID, et.ID, "soft-deleted row must be excluded")
+			assert.Equal(t, clinicA, et.ClinicID, "cross-clinic rows must not mix into result")
+			assert.NotEqual(t, foreign[0].ID, et.ID)
+			assert.NotEqual(t, foreign[1].ID, et.ID)
+		}
+
+		// After soft-deleting sort_order=2, ordered active starts at 1 then 3..
+		assert.Equal(t, 1, got[0].SortOrder)
+		assert.Equal(t, "bound-et-00001", got[0].Name)
+		assert.Equal(t, 3, got[1].SortOrder)
+		// First `limit` of remaining active ordered set ends at sort_order = limit+1.
+		assert.Equal(t, limit+1, got[len(got)-1].SortOrder)
+	})
 }
 
 func TestExamTypeRepository_ItemsPreload_ClinicIsolation(t *testing.T) {

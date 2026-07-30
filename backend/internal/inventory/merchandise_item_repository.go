@@ -37,7 +37,8 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	if category != "" {
 		q = q.Where("category = ?", category)
 	}
-	if err := q.Order("sort_order ASC, name ASC").Find(&items).Error; err != nil {
+	// G2F-11: vaccine/procedure/consultation と同型の master list safety Limit（unbounded Find 防止）。
+	if err := q.Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	return items, nil
