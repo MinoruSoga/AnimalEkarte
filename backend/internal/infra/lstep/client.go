@@ -111,12 +111,13 @@ func (c *httpLstepClient) newRequest(ctx context.Context, method, path string, b
 }
 
 // checkResponse はLステップ write API レスポンスのステータスコードを検査する。
-// 404 は ErrUserNotFound。それ以外の 4xx/5xx は status のみを含む observable error。
+// 404 は ErrUserNotFound（lineUserID は error 文字列に埋め込まない）。
+// それ以外の 4xx/5xx は status のみを含む observable error。
 // api key / request body / response body は error にも log にも出さない。
-func checkResponse(resp *http.Response, lineUserID string) error {
+func checkResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusNotFound {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		return fmt.Errorf("lineUserID=%s: %w", lineUserID, ErrUserNotFound)
+		return ErrUserNotFound
 	}
 	if resp.StatusCode >= 400 {
 		_, _ = io.Copy(io.Discard, resp.Body)
