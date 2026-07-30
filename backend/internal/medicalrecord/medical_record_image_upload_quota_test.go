@@ -14,8 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestMemoryMedicalRecordImageUploadQuotaStore_StaffConcurrency(t *testing.T) {
@@ -317,4 +319,204 @@ func (r *countingUploadRequestBody) Read(p []byte) (int, error) {
 
 func (r *countingUploadRequestBody) Len() int {
 	return r.Reader.Len()
+}
+
+// ---------------------------------------------------------------------------
+// SEC-CS-F08-R2: shared Postgres multi-handle proof (independent *gorm.DB pools)
+// ---------------------------------------------------------------------------
+
+// setupImageUploadQuotaPostgresPair opens two independent DB handles to the same
+// test database and provisions only the quota lease table in-test (no make migrate).
+func setupImageUploadQuotaPostgresPair(t *testing.T) (db1, db2 *gorm.DB) {
+	t.Helper()
+	db1 = testdb.SetupIsolatedTestDB(t)
+	db2 = testdb.SetupIsolatedTestDB(t)
+	require.NoError(t, db1.AutoMigrate(&medicalRecordImageUploadQuotaRow{}))
+	// Second handle must see the same table; AutoMigrate is idempotent.
+	require.NoError(t, db2.AutoMigrate(&medicalRecordImageUploadQuotaRow{}))
+	require.NoError(t, db1.Exec(`TRUNCATE TABLE medical_record_image_upload_quota`).Error)
+	return db1, db2
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_FailClosedNilDB(t *testing.T) {
+	store := NewPostgresMedicalRecordImageUploadQuotaStore(nil)
+	release, err := store.Acquire(context.Background(), 1, 1, 1)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadQuotaUnavailable)
+	assert.Nil(t, release)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_SharedStateAcrossTwoHandles(t *testing.T) {
+	db1, db2 := setupImageUploadQuotaPostgresPair(t)
+	ctx := context.Background()
+	const clinicID, staffID uint64 = 92001, 42
+
+	storeA := NewPostgresMedicalRecordImageUploadQuotaStore(db1)
+	storeB := NewPostgresMedicalRecordImageUploadQuotaStore(db2)
+
+	var held []func(context.Context)
+	t.Cleanup(func() {
+		for _, release := range held {
+			if release != nil {
+				release(context.Background())
+			}
+		}
+	})
+
+	for i := 0; i < medicalRecordImageUploadStaffMaxConcurrent; i++ {
+		release, err := storeA.Acquire(ctx, clinicID, staffID, 1024)
+		require.NoError(t, err, "slot %d via handle A", i)
+		held = append(held, release)
+	}
+
+	_, err := storeB.Acquire(ctx, clinicID, staffID, 1024)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadConcurrency,
+		"handle B must observe handle A's in-flight leases on shared Postgres state")
+
+	held[0](ctx)
+	held[0] = nil
+	release, err := storeB.Acquire(ctx, clinicID, staffID, 1024)
+	require.NoError(t, err, "release via A must free a slot for B")
+	held = append(held, release)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_ConcurrentAcquireSerializesToStaffMax(t *testing.T) {
+	db1, db2 := setupImageUploadQuotaPostgresPair(t)
+	ctx := context.Background()
+	const clinicID, staffID uint64 = 92002, 7
+
+	storeA := NewPostgresMedicalRecordImageUploadQuotaStore(db1)
+	storeB := NewPostgresMedicalRecordImageUploadQuotaStore(db2)
+	stores := []medicalRecordImageUploadQuotaStore{storeA, storeB}
+
+	const total = medicalRecordImageUploadStaffMaxConcurrent + 2
+	start := make(chan struct{})
+	type result struct {
+		release func(context.Context)
+		err     error
+	}
+	results := make([]result, total)
+	var wg sync.WaitGroup
+	wg.Add(total)
+	for i := 0; i < total; i++ {
+		go func(idx int) {
+			defer wg.Done()
+			<-start
+			rel, err := stores[idx%2].Acquire(ctx, clinicID, staffID, 1)
+			results[idx] = result{release: rel, err: err}
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var ok, limited int
+	for _, r := range results {
+		if r.err == nil {
+			ok++
+			require.NotNil(t, r.release)
+			t.Cleanup(func() {
+				if r.release != nil {
+					r.release(context.Background())
+				}
+			})
+			continue
+		}
+		require.ErrorIs(t, r.err, errMedicalRecordImageUploadConcurrency)
+		limited++
+	}
+	assert.Equal(t, medicalRecordImageUploadStaffMaxConcurrent, ok)
+	assert.Equal(t, 2, limited)
+
+	var inflight int64
+	require.NoError(t, db1.Model(&medicalRecordImageUploadQuotaRow{}).
+		Where("clinic_id = ? AND staff_id = ? AND released_at IS NULL", clinicID, staffID).
+		Count(&inflight).Error)
+	assert.Equal(t, int64(medicalRecordImageUploadStaffMaxConcurrent), inflight)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_StaffRateIncludesReleased(t *testing.T) {
+	db1, db2 := setupImageUploadQuotaPostgresPair(t)
+	ctx := context.Background()
+	const clinicID, staffID uint64 = 92003, 11
+
+	storeA := NewPostgresMedicalRecordImageUploadQuotaStore(db1)
+	storeB := NewPostgresMedicalRecordImageUploadQuotaStore(db2)
+
+	for i := 0; i < medicalRecordImageUploadStaffRatePerMinute; i++ {
+		store := storeA
+		if i%2 == 1 {
+			store = storeB
+		}
+		release, err := store.Acquire(ctx, clinicID, staffID, 64)
+		require.NoError(t, err, "rate slot %d", i)
+		release(ctx)
+	}
+
+	_, err := storeB.Acquire(ctx, clinicID, staffID, 64)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadRateLimit)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_StaffByteBudget(t *testing.T) {
+	db1, db2 := setupImageUploadQuotaPostgresPair(t)
+	ctx := context.Background()
+	const clinicID, staffID uint64 = 92004, 12
+
+	storeA := NewPostgresMedicalRecordImageUploadQuotaStore(db1)
+	storeB := NewPostgresMedicalRecordImageUploadQuotaStore(db2)
+
+	half := medicalRecordImageUploadStaffByteBudget / 2
+	releaseA, err := storeA.Acquire(ctx, clinicID, staffID, half)
+	require.NoError(t, err)
+	releaseA(ctx)
+	releaseB, err := storeB.Acquire(ctx, clinicID, staffID, half)
+	require.NoError(t, err)
+	releaseB(ctx)
+
+	_, err = storeA.Acquire(ctx, clinicID, staffID, 1)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadByteBudget)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_ClinicConcurrencyAcrossStaff(t *testing.T) {
+	db1, db2 := setupImageUploadQuotaPostgresPair(t)
+	ctx := context.Background()
+	const clinicID uint64 = 92005
+
+	storeA := NewPostgresMedicalRecordImageUploadQuotaStore(db1)
+	storeB := NewPostgresMedicalRecordImageUploadQuotaStore(db2)
+
+	var held []func(context.Context)
+	t.Cleanup(func() {
+		for _, release := range held {
+			if release != nil {
+				release(context.Background())
+			}
+		}
+	})
+
+	for i := 0; i < medicalRecordImageUploadClinicMaxConcurrent; i++ {
+		store := storeA
+		if i%2 == 1 {
+			store = storeB
+		}
+		// Distinct staff IDs so staff concurrency does not bind first.
+		release, err := store.Acquire(ctx, clinicID, uint64(1000+i), 128)
+		require.NoError(t, err, "clinic slot %d", i)
+		held = append(held, release)
+	}
+
+	_, err := storeB.Acquire(ctx, clinicID, 9999, 128)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadConcurrency)
+}
+
+func TestPostgresMedicalRecordImageUploadQuotaStore_FailClosedBadDB(t *testing.T) {
+	// Closed pool must fail closed (unavailable), never allow unlimited uploads.
+	db := testdb.SetupIsolatedTestDB(t)
+	require.NoError(t, db.AutoMigrate(&medicalRecordImageUploadQuotaRow{}))
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	require.NoError(t, sqlDB.Close())
+
+	store := NewPostgresMedicalRecordImageUploadQuotaStore(db)
+	release, err := store.Acquire(context.Background(), 93001, 1, 1)
+	require.ErrorIs(t, err, errMedicalRecordImageUploadQuotaUnavailable)
+	assert.Nil(t, release)
 }
