@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -523,32 +524,54 @@ func TestCageService_Delete(t *testing.T) {
 
 func TestCageService_Reorder(t *testing.T) {
 	tests := []struct {
-		name    string
-		ids     []uint64
-		repoErr error
-		wantErr bool
+		name        string
+		ids         []uint64
+		repoErr     error
+		wantErr     bool
+		wantInvalid bool
+		repoCalled  bool
 	}{
 		{
-			name: "reorders successfully",
-			ids:  []uint64{3, 1, 2},
+			name:       "reorders successfully",
+			ids:        []uint64{3, 1, 2},
+			repoCalled: true,
 		},
 		{
-			name:    "returns error when ids is empty",
-			ids:     []uint64{},
-			wantErr: true,
+			name:        "returns error when ids is empty",
+			ids:         []uint64{},
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
 		},
 		{
-			name:    "propagates repository error",
-			ids:     []uint64{1, 2},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:        "rejects duplicate ids without calling repo",
+			ids:         []uint64{1, 2, 1},
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
+		},
+		{
+			name:        "rejects over-limit ids without calling repo",
+			ids:         overLimitReorderIDs(),
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
+		},
+		{
+			name:       "propagates repository error",
+			ids:        []uint64{1, 2},
+			repoErr:    errors.New("db error"),
+			wantErr:    true,
+			repoCalled: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			repoCalled := false
 			repo := &mockCageRepository{
 				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					repoCalled = true
 					return tt.repoErr
 				},
 			}
@@ -558,11 +581,24 @@ func TestCageService_Reorder(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
+			assert.Equal(t, tt.repoCalled, repoCalled, "repository call expectation")
 		})
 	}
+}
+
+// overLimitReorderIDs builds a unique ID list one past the shared reorder bound.
+func overLimitReorderIDs() []uint64 {
+	ids := make([]uint64, httpapi.MaxReorderIDs+1)
+	for i := range ids {
+		ids[i] = uint64(i + 1)
+	}
+	return ids
 }
 
 func TestBuildCageUpdate(t *testing.T) {

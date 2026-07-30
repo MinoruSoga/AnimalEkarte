@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -188,8 +189,9 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 }
 
 func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
+	// SEC-CS-F04: bound cardinality + uniqueness before fan-out UPDATE per id.
+	if err := httpapi.ValidateReorderIDs(ids); err != nil {
+		return err
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		slog.ErrorContext(ctx, "failed to reorder cage", "error", err, "clinic_id", clinicID)
