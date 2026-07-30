@@ -54,18 +54,23 @@ AWS 時代の SSM 登録、ECS task definition、`db_reset` workflow dispatch �
 
 ---
 
-## 2. 【参考】performance-tests 認証情報（#109 / STG_DEMO_* 統合）
+## 2. performance-tests 認証情報（#109 / TASK-606 完了契約）
 
-> **現状**: `.github/workflows/performance-tests.yml` は `CI_TEST_EMAIL` / `CI_TEST_PASSWORD`
-> 未登録時に `admin@example.com` / `test` へフォールバックする（fail-fast しない）。
-> **確定方針**: `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（`infra/cloudflare/README.md` P5-2）へ一本化。
+> **現状（TASK-606）**: `.github/workflows/performance-tests.yml` と `load-tests/k6-api-endpoints.js` /
+> `load-tests/k6-spike-test.js` は **`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` のみ**を使用する。
+> 旧 CI テスト用 secret 名・汎用 TEST_* env・ハードコード demo 認証の fallback は撤去済み。
+> 両 k6 step は required（`continue-on-error` なし）。`--summary-export` の aggregate
+>（`http_reqs` / `iterations` / `checks` / `successful_logins`）を fail-closed で検証する。
+> login 非200・cookie 欠落・protected 非200・0 カウントは非0終了。パスワード/body/cookie/token 値は log しない。
 >
-> **エージェント作業境界**: GitHub Secrets 登録（ユーザー）が先行。登録前にフォールバックを
-> 撤去すると scheduled 実行が壊れるため、フォールバック撤去は **USER 登録完了後の Phase C**。
+> **エージェント作業境界**: secret の作成・更新・値照合は **USER 専権**。names-only 確認のみ可。
+> remote green run / Issue close は統合後の USER acceptance。
 
 ```bash
-# ユーザー実施: P5-2 と合わせて登録
+# ユーザー実施: 未登録時のみ（値はチャット・git に残さない）
 gh secret set STG_DEMO_EMAIL --body "<STG_DEMO_ACCOUNT_EMAIL>"
 gh secret set STG_DEMO_PASSWORD --body "<STG_DEMO_ACCOUNT_PASSWORD>"
-# 任意: 旧名の互換期間が必要なら一時併存可。最終的に CI_TEST_* 参照ゼロがクローズ条件
+
+# names-only 確認（値は出ない）
+gh secret list --json name --jq '[.[] | select(.name == "STG_DEMO_EMAIL" or .name == "STG_DEMO_PASSWORD")] | length'
 ```
