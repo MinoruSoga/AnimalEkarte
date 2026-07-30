@@ -240,7 +240,7 @@
   <li><b>残 unit</b>: active 実装 unit なし（U2b-full 第2段は 2026-07-30 に着地）。月次統合表（#247）は別Issueとして着手可能になったが、DEC-16④月次義務の実装は本 entry 外。</li>
   <li><b>U4 scope status: 今期スコープ外（active 3分類の対象外）</b>。<a href="q&amp;a.html#dec-44"><code>DEC-44</code></a> の代理裁定 A により、training カテゴリと既存の手入力経路は維持したまま、自動導出 source の設計を phase2 へ見送る。移設済み — 再開条件5点の正本は <a href="phase2.html">phase2.html</a>「PO 決裁済み『やらない』」節。</li>
   <li><b>分類: USER 専権 — USER/CI 手順（未実施）</b>: 旧008/009を末尾へ統合済みの <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ <code>make codegen</code> → full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。</li>
-  <li><b>分類: USER 専権 — #247（月次統合表）</b>: 実装着地済み。残=runtime確認と GitHub Issue クローズ。DEC-16④の月次義務は helper 共有で対応。</li>
+  <li><b>分類: USER 専権 — #247（月次統合表）</b>: 実装着地済み（allocation + matrix）。返金は発生日負値行・matrix総計=締め合計を文書化済み。残=runtime確認と GitHub Issue クローズ。demo seed に identity-links fail-closed 行取り込み済み（60ae08f8b）。</li>
 </ul>
 </section>
 
