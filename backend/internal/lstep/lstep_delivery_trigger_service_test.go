@@ -88,8 +88,13 @@ func (m *mockDeliveryTriggerLogRepository) CountExcludedReasonByDateRange(_ cont
 func (m *mockDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(_ context.Context, _ uint64, _, _ time.Time, _ string) (int64, error) {
 	return 0, nil
 }
+
+// FindByDateRangeWithFilters deliberately fails so runBatch bulk day-log preload
+// falls back to per-owner ExistsTodayByOwnerAndType (existsTodayFn). Returning
+// (nil, 0, nil) would install an empty authoritative day-log cache and break
+// already-fired tests that only stub ExistsToday.
 func (m *mockDeliveryTriggerLogRepository) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]DeliveryTriggerLogRow, int64, error) {
-	return nil, 0, nil
+	return nil, 0, errors.New("mock: bulk day-log not configured; use per-owner ExistsToday")
 }
 func (m *mockDeliveryTriggerLogRepository) CountByTypeAndStatus(_ context.Context, _ uint64, _, _ time.Time) ([]DeliveryStatsRow, error) {
 	return nil, nil
@@ -169,8 +174,21 @@ func (m *mockOwnerRepoForDelivery) Delete(_ context.Context, _, _ uint64) error 
 func (m *mockOwnerRepoForDelivery) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-func (m *mockOwnerRepoForDelivery) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
-	return nil, nil
+
+// FindByIDs materializes via FindByID so runBatch bulk install (ce79e0c23) does not
+// install an empty owner cache that later returns (nil, nil) on miss+fallback.
+func (m *mockOwnerRepoForDelivery) FindByIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) ([]*model.Owner, error) {
+	out := make([]*model.Owner, 0, len(ownerIDs))
+	for _, id := range ownerIDs {
+		o, err := m.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, err
+		}
+		if o != nil {
+			out = append(out, o)
+		}
+	}
+	return out, nil
 }
 
 // ---- TagCacheRepository モック（delivery trigger 用）----
@@ -186,8 +204,22 @@ func (m *mockTagCacheRepoForDelivery) FindByOwner(ctx context.Context, clinicID,
 	}
 	return nil, nil
 }
-func (m *mockTagCacheRepoForDelivery) FindByOwners(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
-	return map[uint64][]*model.LstepTagCache{}, nil
+
+// FindByOwners materializes via FindByOwner so bulk tag cache install does not
+// treat missing keys as authoritative empty (which would hide EXCL tags).
+func (m *mockTagCacheRepoForDelivery) FindByOwners(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error) {
+	out := make(map[uint64][]*model.LstepTagCache, len(ownerIDs))
+	for _, id := range ownerIDs {
+		tags, err := m.FindByOwner(ctx, clinicID, id)
+		if err != nil {
+			return nil, err
+		}
+		if tags == nil {
+			tags = []*model.LstepTagCache{}
+		}
+		out[id] = tags
+	}
+	return out, nil
 }
 func (m *mockTagCacheRepoForDelivery) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
 	if m.findOwnerIDsByTagFn != nil {
@@ -732,12 +764,17 @@ func TestLstepDeliveryTriggerService_AlreadyFiredSkips(t *testing.T) {
 			return []uint64{10}, nil
 		},
 	}
+	ownerRepo := &mockOwnerRepoForDelivery{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+			return defaultOwnerWithLine(id), nil
+		},
+	}
 	logRepo := &mockDeliveryTriggerLogRepository{
 		existsTodayFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 			return true, nil
 		},
 	}
-	svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, medRepo, nil, nil, &mockTagCacheRepoForDelivery{}, logRepo, enabledSettings())
+	svc := buildDeliverySvc(ownerRepo, medRepo, nil, nil, &mockTagCacheRepoForDelivery{}, logRepo, enabledSettings())
 	count, errs := svc.TriggerFirstVisitFollowUp3D(context.Background(), 1, time.Now())
 	assert.Equal(t, 0, count)
 	assert.Empty(t, errs)

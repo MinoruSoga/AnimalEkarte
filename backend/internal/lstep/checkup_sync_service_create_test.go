@@ -303,7 +303,23 @@ func TestCheckupSyncService_CreateCheckupSync_PropagatesClinicScopeToBatchDepend
 			return nil
 		},
 	}
-	svc := NewCheckupSyncService(&mockCheckupSyncRepository{}, owners, pets, cache, settings, audit)
+	// Gate-independent: inject mock write client so default-off LSTEP_WRITE_API_ENABLED
+	// (TASK-610) does not mask clinic-scope propagation assertions. Do not enable the
+	// deploy gate; keep SuccessCount/SkippedCount as the clinic-scope oracle.
+	svc := &checkupSyncService{
+		repo:         &mockCheckupSyncRepository{},
+		ownerRepo:    owners,
+		petRepo:      pets,
+		tagCacheRepo: cache,
+		settingsSvc:  settings,
+		auditSvc:     audit,
+		buildClientFn: func(_ context.Context, gotClinicID uint64) (lstepapi.Client, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			return &mockLstepAPIClient{
+				addTagFn: func(_ context.Context, _, _ string) error { return nil },
+			}, nil
+		},
+	}
 
 	result, err := svc.CreateCheckupSync(context.Background(), clinicID, CreateCheckupSyncInput{
 		OwnerIDs: []uint64{1, 2},
