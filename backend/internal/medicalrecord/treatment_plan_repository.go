@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -18,6 +19,9 @@ type TreatmentPlanRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
+	// LockByIDForUpdate serializes plan writes for discount recheck (SEC-CS-F10).
+	// Fail-closed without an ambient transaction.
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, plan *model.TreatmentPlan) error
 	// medicalRecordID / hospitalizationID optionally bind write to URL parent (MRD-03).
 	Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
@@ -92,6 +96,23 @@ func (r *treatmentPlanRepository) FindByID(ctx context.Context, clinicID, id uin
 	var plan model.TreatmentPlan
 	err := r.clinicScopeQuery(ctx, clinicID).
 		Scopes(treatmentPlanParentClinicScope).
+		Where("treatment_plans.id = ?", id).
+		First(&plan).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment_plan", strconv.FormatUint(id, 10))
+	}
+	return &plan, nil
+}
+
+// LockByIDForUpdate は clinic-scoped FOR UPDATE で treatment_plan 行を固定する（SEC-CS-F10）。
+func (r *treatmentPlanRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("treatment plan lock requires an ambient transaction")
+	}
+	var plan model.TreatmentPlan
+	err := r.clinicScopeQuery(ctx, clinicID).
+		Scopes(treatmentPlanParentClinicScope).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("treatment_plans.id = ?", id).
 		First(&plan).Error
 	if err != nil {

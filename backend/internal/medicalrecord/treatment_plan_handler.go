@@ -195,7 +195,12 @@ func (h *TreatmentPlanHandler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context
 		return
 	}
 	mrIDCopy := mrID
-	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, &mrIDCopy, nil, req.toServiceInput())
+	input := req.toServiceInput()
+	// SEC-CS-F10: pass discount:edit into the write TX for locked-row recheck.
+	if h.hasPermission != nil {
+		input.DiscountEditAllowed = h.hasPermission(c, string(model.ResourceDiscount), "edit")
+	}
+	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, &mrIDCopy, nil, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -258,7 +263,12 @@ func (h *TreatmentPlanHandler) UpdateTreatmentPlanInHospitalization(c *gin.Conte
 		return
 	}
 	hospIDCopy := hospID
-	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, nil, &hospIDCopy, req.toServiceInput())
+	input := req.toServiceInput()
+	// SEC-CS-F10: pass discount:edit into the write TX for locked-row recheck.
+	if h.hasPermission != nil {
+		input.DiscountEditAllowed = h.hasPermission(c, string(model.ResourceDiscount), "edit")
+	}
+	plan, err := h.service.Update(c.Request.Context(), clinicID, planID, nil, &hospIDCopy, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

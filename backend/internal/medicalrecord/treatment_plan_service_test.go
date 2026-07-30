@@ -22,6 +22,7 @@ type mockTreatmentPlanRepository struct {
 	listByMedicalRecordIDFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	listByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
+	lockByIDForUpdateFn       func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	createFn                  func(ctx context.Context, plan *model.TreatmentPlan) error
 	updateFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
 	deleteFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
@@ -40,6 +41,14 @@ func (m *mockTreatmentPlanRepository) FindByID(ctx context.Context, clinicID, id
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, nil
+}
+
+func (m *mockTreatmentPlanRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	if m.lockByIDForUpdateFn != nil {
+		return m.lockByIDForUpdateFn(ctx, clinicID, id)
+	}
+	// Default: same snapshot as FindByID so existing unit tests keep working.
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockTreatmentPlanRepository) Create(ctx context.Context, plan *model.TreatmentPlan) error {
