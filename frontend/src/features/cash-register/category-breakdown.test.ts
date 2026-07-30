@@ -75,3 +75,39 @@ describe("summarizeCategoryTotals", () => {
     expect(totals).toContainEqual({ label: "診療", total: 3000 });
   });
 });
+
+describe("summarizeCategoryTotals DEC-40 未分類・要確認件数", () => {
+  it("新 snapshot の unclassified_other_count を件数として載せる", () => {
+    const breakdown = {
+      categories: { other: { 現金: 800 } },
+      unclassified_other_count: 2,
+    };
+    expect(summarizeCategoryTotals(breakdown)).toContainEqual({
+      label: "未分類・要確認",
+      total: 800,
+      count: 2,
+    });
+  });
+
+  it("旧 snapshot（フィールド欠落）は count=null（記録なし）。0 扱いにしない", () => {
+    const breakdown = {
+      categories: { other: { 現金: 500 } },
+    };
+    const row = summarizeCategoryTotals(breakdown).find((r) => r.label === "未分類・要確認");
+    expect(row).toEqual({ label: "未分類・要確認", total: 500, count: null });
+    expect(row?.count).not.toBe(0);
+  });
+
+  it("件数 0・金額 0 の新 snapshot は行を出さない", () => {
+    expect(
+      summarizeCategoryTotals({ categories: {}, unclassified_other_count: 0 }),
+    ).toEqual([]);
+  });
+
+  it("件数のみ（金額 0）の新 snapshot は行を出す", () => {
+    expect(
+      summarizeCategoryTotals({ categories: {}, unclassified_other_count: 1 }),
+    ).toEqual([{ label: "未分類・要確認", total: 0, count: 1 }]);
+  });
+});
+

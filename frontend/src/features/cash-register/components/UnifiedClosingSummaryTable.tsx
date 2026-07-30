@@ -5,12 +5,19 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
-import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";
+import {
+  buildUnifiedClosingRows,
+  buildUnifiedClosingTotals,
+  formatClosingCount,
+  type UnclassifiedOtherCountInput,
+} from "../closing-summary";
 
 interface UnifiedClosingSummaryTableProps {
   categories: Record<string, Record<string, number>>;
   paymentMethods: PaymentMethodMaster[];
   billingDetails: CloseBillingDetail[];
+  /** DEC-40: other 行の会計 distinct 件数。null = 記録なし */
+  unclassifiedOtherCount?: UnclassifiedOtherCountInput;
 }
 
 /**
@@ -22,10 +29,11 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
   categories,
   paymentMethods,
   billingDetails,
+  unclassifiedOtherCount,
 }: UnifiedClosingSummaryTableProps) {
   const rows = useMemo(
-    () => buildUnifiedClosingRows(categories, billingDetails),
-    [categories, billingDetails],
+    () => buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount),
+    [categories, billingDetails, unclassifiedOtherCount],
   );
   const totals = useMemo(() => buildUnifiedClosingTotals(rows), [rows]);
 
@@ -52,7 +60,9 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
           {rows.map((row) => (
             <tr key={row.label} className={`border-b ${C.borderLight} ${STYLE.tableRow}`}>
               <TableCell className={`font-medium ${C.text}`}>{row.label}</TableCell>
-              <TableCell className={`text-right ${C.text60}`}>{row.count}件</TableCell>
+              <TableCell className={`text-right ${C.text60}`}>
+                {formatClosingCount(row.count)}
+              </TableCell>
               {paymentMethods.map((pm) => (
                 <TableCell key={pm.id} className={`text-right ${C.text}`}>
                   {row.byMethod[pm.name] != null
@@ -69,7 +79,9 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
         <tfoot>
           <tr className={`border-t-2 ${C.borderMedium} ${C.bgPage}`}>
             <TableCell className={`font-semibold ${C.text}`}>合計</TableCell>
-            <TableCell className={`text-right font-semibold ${C.text}`}>{totals.count}件</TableCell>
+            <TableCell className={`text-right font-semibold ${C.text}`}>
+              {formatClosingCount(totals.count)}
+            </TableCell>
             {paymentMethods.map((pm) => (
               <TableCell key={pm.id} className={`text-right font-semibold ${C.text}`}>
                 {totals.byMethod[pm.name] != null

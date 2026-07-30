@@ -22,6 +22,8 @@ interface BackendCashRegisterAggregateSummary {
   payment_methods: PaymentMethodMaster[];
   theoretical_cash: number;
   tax_breakdown: BackendCashRegisterTaxBreakdown;
+  /** DEC-40: category=other 明細を持つ会計の distinct 件数 */
+  unclassified_other_count: number;
 }
 
 interface BackendCloseBillingDetail {
@@ -67,6 +69,12 @@ function transformAggregateSummary(raw: BackendCashRegisterAggregateSummary) {
       standard: transformTaxBreakdownEntry(raw.tax_breakdown.standard),
       reduced: transformTaxBreakdownEntry(raw.tax_breakdown.reduced),
     },
+    // DEC-40: 欠落時は 0（preview は常にサーバが返す。履歴 snapshot は category-breakdown 側で扱う）
+    unclassifiedOtherCount:
+      typeof raw.unclassified_other_count === "number" &&
+      Number.isFinite(raw.unclassified_other_count)
+        ? raw.unclassified_other_count
+        : 0,
   };
 }
 

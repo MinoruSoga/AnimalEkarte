@@ -326,7 +326,15 @@ export function CashRegisterHistoryPage() {
                         {detailSubtotals.map((row) => (
                           <div key={row.label} className="flex justify-between text-base">
                             <dt className={C.text60}>{row.label}</dt>
-                            <dd className={C.text}>{formatCurrency(row.total)}</dd>
+                            <dd className={C.text}>
+                              {formatCurrency(row.total)}
+                              {/* DEC-40: 未分類・要確認の件数は締め時点 snapshot。欠落は「記録なし」 */}
+                              {row.count !== undefined ? (
+                                <span className={`ml-2 ${C.text60}`}>
+                                  {row.count === null ? "記録なし" : `${row.count}件`}
+                                </span>
+                              ) : null}
+                            </dd>
                           </div>
                         ))}
                       </dl>

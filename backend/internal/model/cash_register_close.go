@@ -34,6 +34,10 @@ func (CashRegisterClose) TableName() string { return "cash_register_closes" }
 type CategoryBreakdownSchema struct {
 	Categories   map[string]map[string]int64 `json:"categories"` // category → payment_method_name → amount
 	TaxBreakdown TaxBreakdown                `json:"tax_breakdown"`
+	// UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
+	// ポインタ + omitempty により旧 snapshot ではフィールド欠落（FE は「記録なし」表示）。
+	// 0 件の場合もポインタ先 0 として保存し、欠落と区別する。
+	UnclassifiedOtherCount *int64 `json:"unclassified_other_count,omitempty"`
 }
 
 // TaxBreakdown は消費税区分別の集計

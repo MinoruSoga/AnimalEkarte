@@ -41,6 +41,9 @@ type CloseAggregateResult struct {
 	TotalRefund    int64
 	BillingDetails []CloseBillingDetailRow
 	TaxBreakdown   []TaxBreakdownRow `json:"-"`
+	// UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
+	// billing_items 行数や MIN(category) 明細行数とは独立に集計する。
+	UnclassifiedOtherCount int64
 }
 
 // MonthlyReportResult は月次売上レポートの結果

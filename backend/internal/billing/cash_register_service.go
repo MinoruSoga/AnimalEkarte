@@ -41,6 +41,8 @@ type CloseAggregateSummary struct {
 	PaymentMethods  []model.PaymentMethodMaster `json:"payment_methods"`
 	TheoreticalCash int64                       `json:"theoretical_cash"`
 	TaxBreakdown    TaxBreakdownSummary         `json:"tax_breakdown"`
+	// UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
+	UnclassifiedOtherCount int64 `json:"unclassified_other_count"`
 }
 
 // CloseBillingDetail は個別会計一覧の1レコード（フロントエンド向け）
@@ -64,7 +66,8 @@ type CloseBillingDetail struct {
 // payment_method_id=NULL の行（旧 seed/レガシーデータの現金 split）は現金 system_key に計上する。
 // calcTheoreticalCash と同じ「NULL=現金」判定（#128 後方互換）に揃えないと、category_breakdown の合計が
 // totalPayment（NULL 行を含む）と一致しなくなる。
-func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, taxRows []TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
+// unclassifiedOtherCount は DEC-40 の会計 distinct 件数を snapshot に保存する（0 でもポインタで記録）。
+func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, taxRows []TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates, unclassifiedOtherCount int64) model.CategoryBreakdownSchema {
 	idToKey := make(map[uint64]string, len(payMethods))
 	for i := range payMethods {
 		m := &payMethods[i]
@@ -100,12 +103,14 @@ func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAgg
 	}
 
 	tax := buildTaxBreakdown(taxRows, taxRates)
+	count := unclassifiedOtherCount
 	return model.CategoryBreakdownSchema{
 		Categories: cats,
 		TaxBreakdown: model.TaxBreakdown{
 			Standard: model.TaxBreakdownItem{TaxableAmount: tax.Standard.TaxableAmount, TaxAmount: tax.Standard.TaxAmount},
 			Reduced:  model.TaxBreakdownItem{TaxableAmount: tax.Reduced.TaxableAmount, TaxAmount: tax.Reduced.TaxAmount},
 		},
+		UnclassifiedOtherCount: &count,
 	}
 }
 
@@ -159,6 +164,8 @@ type periodAggregate struct {
 	PaymentMethods []model.PaymentMethodMaster
 	// TaxRates は病院マスタの税率設定。M-7(#191): 締めレジの税率分類を月次レポート経路（exact-match）と統一する。
 	TaxRates accountingReportTaxRates
+	// UnclassifiedOtherCount は category=other 明細を持つ会計の distinct 件数（DEC-40）。
+	UnclassifiedOtherCount int64
 }
 
 type cashRegisterService struct {
@@ -240,17 +247,18 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 	}
 
 	return &periodAggregate{
-		Schedule:        schedule,
-		PaymentRows:     aggregate.PaymentRows,
-		CategoryRows:    aggregate.CategoryRows,
-		TotalRefund:     aggregate.TotalRefund,
-		BillingDetails:  aggregate.BillingDetails,
-		TaxBreakdown:    aggregate.TaxBreakdown,
-		TheoreticalCash: calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
-		PeriodStart:     periodStart,
-		PeriodEnd:       periodEnd,
-		PaymentMethods:  payMethods,
-		TaxRates:        clinicTaxRates(clinic),
+		Schedule:               schedule,
+		PaymentRows:            aggregate.PaymentRows,
+		CategoryRows:           aggregate.CategoryRows,
+		TotalRefund:            aggregate.TotalRefund,
+		BillingDetails:         aggregate.BillingDetails,
+		TaxBreakdown:           aggregate.TaxBreakdown,
+		TheoreticalCash:        calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
+		PeriodStart:            periodStart,
+		PeriodEnd:              periodEnd,
+		PaymentMethods:         payMethods,
+		TaxRates:               clinicTaxRates(clinic),
+		UnclassifiedOtherCount: aggregate.UnclassifiedOtherCount,
 	}, nil
 }
 
@@ -323,10 +331,11 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		IsAlreadyClosed: isAlreadyClosed,
 		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
 		Aggregate: CloseAggregateSummary{
-			Categories:      categories,
-			PaymentMethods:  payMethods,
-			TheoreticalCash: agg.TheoreticalCash,
-			TaxBreakdown:    taxSummary,
+			Categories:             categories,
+			PaymentMethods:         payMethods,
+			TheoreticalCash:        agg.TheoreticalCash,
+			TaxBreakdown:           taxSummary,
+			UnclassifiedOtherCount: agg.UnclassifiedOtherCount,
 		},
 		BillingDetails: details,
 	}, nil
@@ -355,8 +364,8 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
-	// category_breakdown JSONB を構築（消費税内訳を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods, agg.TaxRates)
+	// category_breakdown JSONB を構築（消費税内訳・未分類件数 snapshot を含む）
+	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods, agg.TaxRates, agg.UnclassifiedOtherCount)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
@@ -457,7 +466,6 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *sharedkernel
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
 }
-
 
 // findCashMethodID は payment_methods マスタ群から現金マスタ（system_key='cash'）の id を返す（#197）。
 // system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。

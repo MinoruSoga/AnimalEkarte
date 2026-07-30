@@ -303,6 +303,56 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("内訳データなし")).toBeInTheDocument();
   });
+
+  it("DEC-40: 新 snapshot は未分類・要確認件数を表示する", async () => {
+    const user = userEvent.setup();
+    stubCloses([
+      makeClose(1, "2026-06-15", "am", {
+        category_breakdown: {
+          categories: { other: { 現金: 800 } },
+          unclassified_other_count: 2,
+        },
+      }),
+    ]);
+
+    renderPage("/accounting/close/history");
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("未分類・要確認")).toBeInTheDocument();
+    expect(within(dialog).getByText("2件")).toBeInTheDocument();
+    expect(within(dialog).queryByText("記録なし")).not.toBeInTheDocument();
+  });
+
+  it("DEC-40: 旧 snapshot は未分類・要確認件数を「記録なし」と表示する（0 や live 再計算にしない）", async () => {
+    const user = userEvent.setup();
+    stubCloses([
+      makeClose(1, "2026-06-15", "am", {
+        category_breakdown: {
+          categories: { other: { 現金: 500 } },
+          // unclassified_other_count 欠落
+        },
+      }),
+    ]);
+
+    renderPage("/accounting/close/history");
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("未分類・要確認")).toBeInTheDocument();
+    expect(within(dialog).getByText("記録なし")).toBeInTheDocument();
+    expect(within(dialog).queryByText("0件")).not.toBeInTheDocument();
+  });
 });
 
 describe("CashRegisterHistoryPage DESIGN.md table contract", () => {

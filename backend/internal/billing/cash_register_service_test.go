@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
@@ -919,6 +920,76 @@ func TestCalcTheoreticalCash(t *testing.T) {
 	}
 }
 
+// TestCashRegisterService_UnclassifiedOtherCountSnapshot DEC-40:
+// preview に件数を載せ、Close の category_breakdown snapshot にポインタで保存する。
+func TestCashRegisterService_UnclassifiedOtherCountSnapshot(t *testing.T) {
+	targetDate := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
+	targetDateStr := "2026-04-20"
+	const wantCount int64 = 2
+
+	cashID := uint64(1)
+	var created *model.CashRegisterClose
+	closeRepo := &mockCashRegisterCloseRepository{
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, c *model.CashRegisterClose) error {
+			created = c
+			return nil
+		},
+	}
+	accountingRepo := &mockAccountingRepository{
+		getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+			return &CloseAggregateResult{
+				PaymentRows: []PaymentAggregateRow{
+					{PaymentMethodID: &cashID, Amount: 1000},
+				},
+				CategoryRows: []CategoryAggregateRow{
+					{Category: string(model.ItemCategoryOther), Amount: 1000},
+				},
+				TotalRefund:            0,
+				BillingDetails:         []CloseBillingDetailRow{},
+				TaxBreakdown:           []TaxBreakdownRow{},
+				UnclassifiedOtherCount: wantCount,
+			}, nil
+		},
+	}
+	closingsSvc := &mockClosingSettingsService{
+		resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+			return defaultSchedule(), nil
+		},
+	}
+	payMethodRepo := &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{
+				{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+			}, nil
+		},
+	}
+	svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+
+	preview, err := svc.GetPreview(context.Background(), 1, targetDateStr, "am")
+	require.NoError(t, err)
+	assert.Equal(t, wantCount, preview.Aggregate.UnclassifiedOtherCount)
+
+	got, err := svc.Close(context.Background(), 1, CloseRegisterInput{
+		Date: targetDate, Period: "am", ActualCash: 1000,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.NotNil(t, created)
+
+	var schema model.CategoryBreakdownSchema
+	require.NoError(t, json.Unmarshal(created.CategoryBreakdown, &schema))
+	require.NotNil(t, schema.UnclassifiedOtherCount, "new snapshot must record the count (including via pointer)")
+	assert.Equal(t, wantCount, *schema.UnclassifiedOtherCount)
+
+	// 旧 snapshot（フィールド欠落）は nil のまま（FE は「記録なし」）
+	var oldSchema model.CategoryBreakdownSchema
+	require.NoError(t, json.Unmarshal([]byte(`{"categories":{"other":{"cash":1000}},"tax_breakdown":{"standard":{"taxable_amount":0,"tax_amount":0},"reduced":{"taxable_amount":0,"tax_amount":0}}}`), &oldSchema))
+	assert.Nil(t, oldSchema.UnclassifiedOtherCount)
+}
+
 // TestCashRegisterService_Close_ExcludesActualCashFromAggregation は #152 の不変条件を固定する。
 // 締め集計サマリー（永続化される category_breakdown JSONB と理論現金）は医療記録ベースの金額のみで構成され、
 // レジ実査入力 actual_cash / cash_difference は一切混入しないことを検証する。
@@ -1160,7 +1231,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		payMethods := []model.PaymentMethodMaster{
 			{ID: 5, Name: "謎の支払方法", SystemKey: nil},
 		}
-		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates)
+		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates, 0)
 		assert.Equal(t, int64(1000), got.Categories[string(model.ItemCategoryExamination)]["method_5"])
 	})
 
@@ -1171,7 +1242,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		catRows := []CategoryAggregateRow{
 			{Category: string(model.ItemCategoryTest), Amount: 500},
 		}
-		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates)
+		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates, 0)
 		assert.Equal(t, int64(500), got.Categories[string(model.ItemCategoryTest)]["method_99"])
 	})
 
@@ -1182,7 +1253,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		catRows := []CategoryAggregateRow{
 			{Category: string(model.ItemCategoryExamination), Amount: 1000},
 		}
-		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates)
+		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates, 0)
 		assert.Equal(t, int64(1000), got.Categories[string(model.ItemCategoryExamination)]["cash"], "PaymentMethodID=nil の支払方法は現金として按分される")
 	})
 
@@ -1202,7 +1273,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		}
 		const totalPayment = int64(1000 + 2000)
 
-		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates)
+		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates, 0)
 
 		assert.Equal(t, int64(1000), got.Categories[string(model.ItemCategoryExamination)]["cash"], "NULL 行は現金に計上される")
 		assert.Equal(t, int64(2000), got.Categories[string(model.ItemCategoryExamination)]["credit_card"], "非 NULL 行は対応する system_key に計上される")
@@ -1220,7 +1291,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		catRows := []CategoryAggregateRow{
 			{Category: string(model.ItemCategoryExamination), Amount: 1000},
 		}
-		got := buildCategoryBreakdown(nil, catRows, nil, nil, rates)
+		got := buildCategoryBreakdown(nil, catRows, nil, nil, rates, 0)
 		assert.Empty(t, got.Categories[string(model.ItemCategoryExamination)])
 	})
 
@@ -1229,11 +1300,22 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 			{TaxRate: 10, TaxableAmount: 1000, TaxAmount: 100},
 			{TaxRate: 8, TaxableAmount: 500, TaxAmount: 40},
 		}
-		got := buildCategoryBreakdown(nil, nil, taxRows, nil, rates)
+		got := buildCategoryBreakdown(nil, nil, taxRows, nil, rates, 0)
 		assert.Equal(t, int64(1000), got.TaxBreakdown.Standard.TaxableAmount)
 		assert.Equal(t, int64(100), got.TaxBreakdown.Standard.TaxAmount)
 		assert.Equal(t, int64(500), got.TaxBreakdown.Reduced.TaxableAmount)
 		assert.Equal(t, int64(40), got.TaxBreakdown.Reduced.TaxAmount)
+	})
+
+	// DEC-40: snapshot に会計 distinct 件数を保存し、0 件でも欠落と区別する。
+	t.Run("UnclassifiedOtherCount を snapshot にポインタで保存する", func(t *testing.T) {
+		got := buildCategoryBreakdown(nil, nil, nil, nil, rates, 3)
+		require.NotNil(t, got.UnclassifiedOtherCount)
+		assert.Equal(t, int64(3), *got.UnclassifiedOtherCount)
+
+		gotZero := buildCategoryBreakdown(nil, nil, nil, nil, rates, 0)
+		require.NotNil(t, gotZero.UnclassifiedOtherCount, "0 件でもポインタを立てて欠落と区別する")
+		assert.Equal(t, int64(0), *gotZero.UnclassifiedOtherCount)
 	})
 }
 

@@ -281,3 +281,146 @@ func TestAccountingRepository_GetCloseAggregate_BlanksForeignPetParentNames(t *t
 	require.Contains(t, byID, crossClinicPet.ID, "own-clinic billing with foreign pet_id must remain in close details")
 	assert.Empty(t, byID[crossClinicPet.ID].PetName, "foreign-clinic pet name must be blanked")
 }
+
+// TestAccountingRepository_GetCloseAggregate_UnclassifiedOtherCountDistinct
+// DEC-40: 未分類・要確認件数は category=other 明細を持つ会計の distinct 数。
+// - 混在会計（examination + other）も 1 件として数える（MIN(category) では other が落ちる）
+// - 同一会計の複数 other 明細 / 複数 payment_splits でも 1 件
+// - 明細行数・detail 行数とは一致しない
+func TestAccountingRepository_GetCloseAggregate_UnclassifiedOtherCountDistinct(t *testing.T) {
+	db := setupCloseAggregateTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	periodStart := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	periodEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	// 1) pure other × 2 payment splits → accounting distinct = 1（detail 行は 2）
+	ca1 := midJune(10)
+	pureOther := &model.Billing{
+		ClinicID: clinicID, Status: model.BillingStatusCompleted, CompletedAt: &ca1,
+		ScheduledDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC), TotalAmount: 3000,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(pureOther).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{
+		BillingID: pureOther.ID, Category: model.ItemCategoryOther, Name: "その他A",
+		UnitPrice: 3000, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.PaymentSplit{
+		ClinicID: clinicID, BillingID: pureOther.ID, Method: model.PaymentMethodCash, Amount: 1000,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.PaymentSplit{
+		ClinicID: clinicID, BillingID: pureOther.ID, Method: model.PaymentMethodCreditCard, Amount: 2000,
+	}).Error)
+
+	// 2) mixed examination + other → MIN(category)='examination' だが other 件数に 1 を加算
+	ca2 := midJune(11)
+	mixed := &model.Billing{
+		ClinicID: clinicID, Status: model.BillingStatusCompleted, CompletedAt: &ca2,
+		ScheduledDate: time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC), TotalAmount: 4000,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(mixed).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{
+		BillingID: mixed.ID, Category: model.ItemCategoryExamination, Name: "診察",
+		UnitPrice: 3000, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{
+		BillingID: mixed.ID, Category: model.ItemCategoryOther, Name: "その他B",
+		UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.PaymentSplit{
+		ClinicID: clinicID, BillingID: mixed.ID, Method: model.PaymentMethodCash, Amount: 4000,
+	}).Error)
+
+	// 3) pure examination only → other 件数に含めない
+	makeCloseBilling(t, db, clinicID, midJune(12), model.ItemCategoryExamination, 500, 0.10, model.PaymentMethodCash, 500)
+
+	// 4) pure other with two other line items → still 1 accounting
+	ca4 := midJune(13)
+	multiOtherItems := &model.Billing{
+		ClinicID: clinicID, Status: model.BillingStatusCompleted, CompletedAt: &ca4,
+		ScheduledDate: time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC), TotalAmount: 700,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(multiOtherItems).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{
+		BillingID: multiOtherItems.ID, Category: model.ItemCategoryOther, Name: "その他C1",
+		UnitPrice: 300, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{
+		BillingID: multiOtherItems.ID, Category: model.ItemCategoryOther, Name: "その他C2",
+		UnitPrice: 400, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.PaymentSplit{
+		ClinicID: clinicID, BillingID: multiOtherItems.ID, Method: model.PaymentMethodCash, Amount: 700,
+	}).Error)
+
+	result, err := repo.GetCloseAggregate(ctx, GetCloseAggregateInput{
+		ClinicID: clinicID, PeriodStart: periodStart, PeriodEnd: periodEnd,
+	})
+	require.NoError(t, err)
+
+	// pureOther + mixed + multiOtherItems = 3（exam-only は除外）
+	assert.Equal(t, int64(3), result.UnclassifiedOtherCount,
+		"accounting distinct with any other item; not billing_items rows and not MIN(category) detail rows")
+
+	// detail 行: pureOther の 2 splits + mixed 1 + exam 1 + multiOther 1 = 5
+	// other として MIN(category) で分類される detail は pureOther の 2 行 + multiOther 1 行 = 3
+	// （mixed は MIN='examination' のため other detail から落ちる）
+	// 偶然 3==3 にならないよう、detail の other 行数は split 展開込みで数える:
+	// pureOther 2 + multiOther 1 = 3、だが distinct は mixed を含む 3 で同数になり得る。
+	// そこで「mixed を含む distinct」と「billing_items other 行数」の乖離を主に検証し、
+	// detail 側は mixed が other に出ていないこと（MIN 歪み）を確認する。
+	require.Len(t, result.BillingDetails, 5)
+	var otherDetailRows int
+	var mixedAppearsAsOther bool
+	for _, d := range result.BillingDetails {
+		if d.Category == string(model.ItemCategoryOther) {
+			otherDetailRows++
+			if d.BillingID == mixed.ID {
+				mixedAppearsAsOther = true
+			}
+		}
+	}
+	assert.Equal(t, 3, otherDetailRows, "MIN(category) detail rows for other (excludes mixed; includes pureOther 2 splits)")
+	assert.False(t, mixedAppearsAsOther, "mixed billing must not appear as other under MIN(category)")
+	// mixed は distinct に含まれるが detail other には出ない → 件数の意味が異なる
+	assert.Contains(t, []uint64{pureOther.ID, mixed.ID, multiOtherItems.ID}, mixed.ID)
+
+	// billing_items の other 行数 = pureOther1 + mixed1 + multiOther2 = 4 ≠ distinct 3
+	var otherItemRows int64
+	require.NoError(t, db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM billing_items
+		WHERE category = ? AND deleted_at IS NULL
+		  AND billing_id IN (SELECT id FROM billings WHERE clinic_id = ? AND deleted_at IS NULL)
+	`, model.ItemCategoryOther, clinicID).Scan(&otherItemRows).Error)
+	assert.Equal(t, int64(4), otherItemRows)
+	assert.NotEqual(t, otherItemRows, result.UnclassifiedOtherCount,
+		"distinct count must not equal billing_items row count")
+
+	// payment-split 展開: pureOther の detail は 2 行だが accounting は 1
+	var pureOtherDetailRows int
+	for _, d := range result.BillingDetails {
+		if d.BillingID == pureOther.ID {
+			pureOtherDetailRows++
+		}
+	}
+	assert.Equal(t, 2, pureOtherDetailRows, "mixed payment splits expand detail rows")
+	assert.Equal(t, int64(3), result.UnclassifiedOtherCount, "distinct remains accounting-grain")
+}
+
+func TestAccountingRepository_GetCloseAggregate_UnclassifiedOtherCountEmpty(t *testing.T) {
+	db := setupCloseAggregateTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	makeCloseBilling(t, db, clinicID, midJune(10), model.ItemCategoryExamination, 1000, 0.10, model.PaymentMethodCash, 1000)
+
+	result, err := repo.GetCloseAggregate(ctx, GetCloseAggregateInput{
+		ClinicID:    clinicID,
+		PeriodStart: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		PeriodEnd:   time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), result.UnclassifiedOtherCount)
+}

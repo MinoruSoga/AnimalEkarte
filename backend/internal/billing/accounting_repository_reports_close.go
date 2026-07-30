@@ -214,11 +214,28 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for close")
 	}
 
+	// DEC-40: 未分類・要確認件数 = category=other 明細を1件以上持つ会計の distinct 数。
+	// 既存 detail の MIN(category) / payment_splits 展開とは独立に集計し、混在会計の欠落と
+	// 明細行・split 行の過大計上を避ける（detail/report 全体の再設計はしない）。
+	var unclassifiedOtherCount int64
+	if err := r.db.WithContext(ctx).Raw(
+		completedCTE+`
+		SELECT COUNT(DISTINCT bi.billing_id)
+		FROM billing_items bi
+		WHERE bi.billing_id IN (SELECT id FROM completed_billings)
+		  AND bi.deleted_at IS NULL
+		  AND bi.category = ?
+		`, append(append([]any{}, cArgs...), model.ItemCategoryOther)...).
+		Scan(&unclassifiedOtherCount).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to count unclassified other accountings for close")
+	}
+
 	return &CloseAggregateResult{
-		PaymentRows:    paymentRows,
-		CategoryRows:   categoryRows,
-		TotalRefund:    totalRefund,
-		BillingDetails: details,
-		TaxBreakdown:   taxBreakdown,
+		PaymentRows:            paymentRows,
+		CategoryRows:           categoryRows,
+		TotalRefund:            totalRefund,
+		BillingDetails:         details,
+		TaxBreakdown:           taxBreakdown,
+		UnclassifiedOtherCount: unclassifiedOtherCount,
 	}, nil
 }

@@ -23,8 +23,12 @@ export const CATEGORY_LABELS: Record<string, string> = {
   hotel: "ホテル",
   goods: "用品",
   training: "トレセン",
-  other: "その他",
+  // DEC-40: other は運用上の要確認 escape category。締め表ラベルは「未分類・要確認」。
+  other: "未分類・要確認",
 };
+
+/** DEC-40: 締め表の other 行表示ラベル（DISPLAY_CATEGORIES / CATEGORY_LABELS と一致） */
+export const UNCLASSIFIED_OTHER_LABEL = "未分類・要確認";
 
 export const DISPLAY_CATEGORIES: { label: string; keys: string[] }[] = [
   { label: "診療", keys: ["examination", "test", "procedure", "medicine"] },
@@ -35,5 +39,5 @@ export const DISPLAY_CATEGORIES: { label: string; keys: string[] }[] = [
   { label: "ホテル", keys: ["hotel"] },
   { label: "用品", keys: ["goods"] },
   { label: "トレセン", keys: ["training"] },
-  { label: "その他", keys: ["other"] },
+  { label: UNCLASSIFIED_OTHER_LABEL, keys: ["other"] },
 ];
