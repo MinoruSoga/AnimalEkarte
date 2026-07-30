@@ -98,6 +98,45 @@ func TestCampaignService_Update_RejectsCrossClinicTargetItemFK(t *testing.T) {
 		assert.NotNil(t, out)
 		assert.True(t, replaced)
 	})
+
+	// Ambient-tx path: validation must run inside WithTx so a foreign FK aborts before ReplaceTargets.
+	t.Run("rejects cross-clinic target inside ambient transaction before replace", func(t *testing.T) {
+		replaced := false
+		inTx := false
+		validatedInTx := false
+		tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+			inTx = true
+			defer func() { inTx = false }()
+			return fn(ctx)
+		}}
+		current := &model.Campaign{ID: 100, ClinicID: clinicID}
+		repo := &mockCampaignRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
+				return current, nil
+			},
+			replaceTargetsFn: func(_ context.Context, _ uint64, _ []model.ItemCategory, _ []uint64) error {
+				replaced = true
+				return nil
+			},
+		}
+		merch := &mockMerchandiseItemFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			if !inTx {
+				t.Error("cross-tenant merchandise check must run inside WithTx")
+			}
+			validatedInTx = inTx
+			if id != ownedItemID {
+				return nil, apperrors.WrapNotFound("merchandise_item", "foreign")
+			}
+			return &model.MerchandiseItem{ID: id, IsActive: true}, nil
+		}}
+		svc := NewCampaignService(repo, merch, tx)
+		ids := []uint64{foreignItemID}
+		out, err := svc.Update(context.Background(), clinicID, 100, &UpdateCampaignInput{TargetItemIDs: &ids})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.True(t, validatedInTx)
+		assert.False(t, replaced)
+	})
 }
 
 // ── X-14 batch: self-ref ParentID ownership guard ──

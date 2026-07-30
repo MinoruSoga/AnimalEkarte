@@ -584,6 +584,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: merchandise_item_repository_test.go AmbientTxRollback cases.
 	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Create": {},
 	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Update": {},
+	// BE-ACT-CAMPAIGN-TARGET-SERIALIZATION: FindByID joins ambient tx and takes FOR SHARE so
+	// campaign target attachment serializes with concurrent merchandise soft-delete.
+	// Runtime: TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction.
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.FindByID": {},
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic repository tx conversion.
 	// Permission-group ownership moved to internal/auth in BE9 auth Phase 1.
 	"clinic/clinic_repository.go|clinicRepository.Create":                            {},

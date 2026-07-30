@@ -12,6 +12,8 @@ import (
 // 最小メソッド集合。具象は service 集約または cmd/api/main.go が注入する。
 
 // merchandiseItemFinder は物販マスタ（inventory domain）の所有権確認に使う最小view。
+// ambient transaction 配下では FindByID が FOR SHARE を取り、キャンペーン対象付け替えと
+// 物販 soft-delete を直列化する（BE-ACT-CAMPAIGN-TARGET-SERIALIZATION）。
 type merchandiseItemFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 }

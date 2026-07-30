@@ -2,8 +2,10 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -41,8 +43,19 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	return items, nil
 }
 
+// FindByID loads a clinic-scoped merchandise row. When called under an ambient
+// transaction it takes FOR SHARE so concurrent soft-delete/update waits until
+// the caller commits (campaign target attachment serialization).
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	return persistence.FindByIDScoped[model.MerchandiseItem](ctx, r.db, "merchandise_item", clinicID, id)
+	var item model.MerchandiseItem
+	db := persistence.DBOrTx(ctx, r.db)
+	if persistence.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := db.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&item).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
+	}
+	return &item, nil
 }
 
 func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {

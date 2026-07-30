@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -181,14 +182,34 @@ type campaignService struct {
 }
 
 // NewCampaignService は CampaignService を初期化して返す。
-// transactor は Update の本体更新と対象差し替えを同一 transaction に載せるために必須（BIL-03 / X-06）。
+// transactor は Create/Update の対象商品検証（FOR SHARE）と write/reload を同一 transaction に
+// 載せるために必須（BIL-03 / X-06 / BE-ACT-CAMPAIGN-TARGET-SERIALIZATION）。
 func NewCampaignService(repo CampaignRepository, merchandiseItemRepo merchandiseItemFinder, transactor Transactor) CampaignService {
 	return &campaignService{repo: repo, merchandiseItemRepo: merchandiseItemRepo, transactor: transactor}
+}
+
+// uniqueSortedUint64s deduplicates ids and returns them in ascending order so
+// multi-row FOR SHARE acquisition is deadlock-safe and deterministic.
+func uniqueSortedUint64s(ids []uint64) []uint64 {
+	if len(ids) == 0 {
+		return nil
+	}
+	sorted := append([]uint64(nil), ids...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	out := make([]uint64, 0, len(sorted))
+	for i, id := range sorted {
+		if i == 0 || id != sorted[i-1] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // validateOwnedMerchandiseItemIDs は request 由来の TargetItemIDs (clinic-scoped マスタFK) の
 // 所有権を検証する。別 clinic の商品IDを campaign_target_items に紐付けられると、割引マッチング
 // (CalculateItemCampaignDiscount) がクロステナントで汚染される (#124/#125 同型)。
+// 呼び出し側は ambient transaction を開いたうえで渡し、FindByID の FOR SHARE を commit まで保持する。
+// itemIDs は uniqueSortedUint64s 済みであること（ロック順序の決定論）。
 func (s *campaignService) validateOwnedMerchandiseItemIDs(ctx context.Context, clinicID uint64, itemIDs []uint64) error {
 	return sharedkernel.ValidateOwnedMasterFKs(ctx, "merchandise item", clinicID, itemIDs,
 		func(actx context.Context, cid, mid uint64) error {
@@ -225,9 +246,8 @@ func (s *campaignService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateCampaignDiscount(input.DiscountType, input.DiscountValue); err != nil {
 		return nil, err
 	}
-	if err := s.validateOwnedMerchandiseItemIDs(ctx, clinicID, input.TargetItemIDs); err != nil {
-		return nil, err
-	}
+	// Deduplicate+sort before the write so FOR SHARE order and persisted targets match.
+	targetItemIDs := uniqueSortedUint64s(input.TargetItemIDs)
 	m := &model.Campaign{
 		ClinicID:         clinicID,
 		Name:             input.Name,
@@ -238,14 +258,25 @@ func (s *campaignService) Create(ctx context.Context, clinicID uint64, input *Cr
 		IsActive:         input.IsActive,
 		SortOrder:        input.SortOrder,
 		TargetCategories: buildCampaignTargetCategories(input.TargetCategories),
-		TargetItems:      buildCampaignTargetItems(input.TargetItemIDs),
+		TargetItems:      buildCampaignTargetItems(targetItemIDs),
 	}
-	result, err := s.repo.Create(ctx, m)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create campaign", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to create campaign")
+	// Open the transaction BEFORE merchandise validation so share-locks cover the write.
+	var result *model.Campaign
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateOwnedMerchandiseItemIDs(txCtx, clinicID, targetItemIDs); err != nil {
+			return err
+		}
+		created, err := s.repo.Create(txCtx, m)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to create campaign", "error", err, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to create campaign")
+		}
+		result = created
+		slog.InfoContext(txCtx, "campaign created", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", created.ID))
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create campaign in transaction")
 	}
-	slog.InfoContext(ctx, "campaign created", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", result.ID))
 	return result, nil
 }
 
@@ -280,14 +311,22 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 	if len(fields) == 0 && !hasTargets {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
+	// TargetItemIDs が指定されたときだけ商品 FK を検証する（カテゴリのみ差し替えは既存 item を再ロックしない）。
+	// 検証・差し替えとも uniqueSorted 済み ID を使い、ロック順序と永続化内容を一致させる。
+	var targetItemIDs []uint64
 	if input.TargetItemIDs != nil {
-		if err := s.validateOwnedMerchandiseItemIDs(ctx, clinicID, *input.TargetItemIDs); err != nil {
-			return nil, err
-		}
+		targetItemIDs = uniqueSortedUint64s(itemIDs)
+		itemIDs = targetItemIDs
 	}
 
 	var updated *model.Campaign
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Merchandise validation runs inside the ambient tx so FOR SHARE covers ReplaceTargets.
+		if input.TargetItemIDs != nil {
+			if err := s.validateOwnedMerchandiseItemIDs(txCtx, clinicID, targetItemIDs); err != nil {
+				return err
+			}
+		}
 		if len(fields) > 0 {
 			if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
 				slog.ErrorContext(txCtx, "failed to update campaign", "error", err, "id", id, "clinic_id", clinicID)

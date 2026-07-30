@@ -553,3 +553,94 @@ func BenchmarkCountUsageByMerchandiseItemID(b *testing.B) {
 		_ = int64(0)
 	}
 }
+
+// TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction proves
+// ambient-tx FindByID takes FOR SHARE so concurrent soft-delete waits until commit
+// (campaign target attachment serialization / BE-ACT-CAMPAIGN-TARGET-SERIALIZATION).
+func TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	item := makeMerchItem(t, db, clinicID, "share-lock merchandise", model.ItemCategoryGoods)
+
+	locked := make(chan struct{})
+	release := make(chan struct{})
+	readDone := make(chan error, 1)
+	go func() {
+		readDone <- db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			txCtx := persistence.WithTxValue(ctx, tx)
+			if _, err := repo.FindByID(txCtx, clinicID, item.ID); err != nil {
+				return err
+			}
+			close(locked)
+			<-release
+			return nil
+		})
+	}()
+	<-locked
+
+	updateStarted := make(chan struct{})
+	updateDone := make(chan error, 1)
+	go func() {
+		close(updateStarted)
+		updateDone <- db.WithContext(ctx).
+			Model(&model.MerchandiseItem{}).
+			Where("id = ? AND clinic_id = ?", item.ID, clinicID).
+			Delete(&model.MerchandiseItem{}).Error
+	}()
+	<-updateStarted
+
+	select {
+	case err := <-updateDone:
+		close(release)
+		require.Failf(t, "merchandise soft-delete was not serialized behind share lock", "err=%v", err)
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+	}
+	require.NoError(t, <-readDone)
+	require.NoError(t, <-updateDone)
+
+	_, err := repo.FindByID(ctx, clinicID, item.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "soft-delete after share-lock release must hide the row")
+}
+
+// TestMerchandiseItemRepository_FindByID_SeesAmbientUncommittedState proves FindByID
+// participates via DBOrTx and observes uncommitted writes in the same ambient tx.
+func TestMerchandiseItemRepository_FindByID_AmbientTxSeesUncommittedRow(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	forcedErr := errors.New("force rollback after ambient find")
+	var createdID uint64
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		item := &model.MerchandiseItem{
+			ClinicID:  clinicID,
+			Name:      "ambient find merchandise",
+			Category:  model.ItemCategoryGoods,
+			UnitPrice: 1000,
+			IsActive:  true,
+		}
+		if err := repo.Create(txCtx, item); err != nil {
+			return err
+		}
+		createdID = item.ID
+		got, err := repo.FindByID(txCtx, clinicID, item.ID)
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, "ambient find merchandise", got.Name)
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+	require.NotZero(t, createdID)
+
+	_, err = repo.FindByID(ctx, clinicID, createdID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}

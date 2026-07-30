@@ -7,8 +7,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 type mockCampaignRepository struct {
@@ -618,6 +623,144 @@ func TestResolveCampaignDiscount(t *testing.T) {
 	}
 }
 
+// ---- Target merchandise serialization (BE-ACT-CAMPAIGN-TARGET-SERIALIZATION) ----
+
+func TestUniqueSortedUint64s(t *testing.T) {
+	assert.Nil(t, uniqueSortedUint64s(nil))
+	assert.Nil(t, uniqueSortedUint64s([]uint64{}))
+	assert.Equal(t, []uint64{1, 2, 9}, uniqueSortedUint64s([]uint64{9, 1, 2, 1, 9}))
+}
+
+// TestCampaignService_Create_ValidatesMerchandiseTargetsInsideTransaction proves
+// TargetItemIDs ownership checks run only after WithTx opens (ambient share-lock path).
+func TestCampaignService_Create_ValidatesMerchandiseTargetsInsideTransaction(t *testing.T) {
+	ctx := context.Background()
+	var findCalls []uint64
+	var sawTxBeforeFind, createAfterFind bool
+	inTx := false
+
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		inTx = true
+		defer func() { inTx = false }()
+		return fn(ctx)
+	}}
+	merch := &mockMerchandiseItemRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			if !inTx {
+				t.Error("merchandise FindByID must run inside WithTx")
+			}
+			sawTxBeforeFind = inTx
+			findCalls = append(findCalls, id)
+			return &model.MerchandiseItem{ID: id, ClinicID: 1, IsActive: true}, nil
+		},
+	}
+	repo := &mockCampaignRepository{
+		createFn: func(_ context.Context, m *model.Campaign) (*model.Campaign, error) {
+			if !sawTxBeforeFind {
+				t.Error("Create must run after merchandise validation inside the same tx")
+			}
+			createAfterFind = true
+			m.ID = 1
+			return m, nil
+		},
+	}
+	svc := NewCampaignService(repo, merch, tx)
+	out, err := svc.Create(ctx, 1, &CreateCampaignInput{
+		Name:          "tx-ambient target create",
+		StartDate:     time.Now(),
+		EndDate:       time.Now().Add(24 * time.Hour),
+		DiscountType:  model.CampaignDiscountTypeRate,
+		DiscountValue: 5,
+		TargetItemIDs: []uint64{3, 1, 2, 1},
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, out)
+	assert.True(t, createAfterFind)
+	assert.Equal(t, []uint64{1, 2, 3}, findCalls, "targets must be share-locked in sorted unique order")
+	require.Len(t, out.TargetItems, 3)
+	assert.Equal(t, uint64(1), out.TargetItems[0].MerchandiseItemID)
+	assert.Equal(t, uint64(2), out.TargetItems[1].MerchandiseItemID)
+	assert.Equal(t, uint64(3), out.TargetItems[2].MerchandiseItemID)
+}
+
+// TestCampaignService_Update_ValidatesMerchandiseTargetsInsideTransaction proves
+// target-changing Update validates merchandise under the ambient transaction.
+func TestCampaignService_Update_ValidatesMerchandiseTargetsInsideTransaction(t *testing.T) {
+	ctx := context.Background()
+	var findCalls []uint64
+	var replaceAfterFind bool
+	inTx := false
+	current := &model.Campaign{ID: 100, ClinicID: 1}
+
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		inTx = true
+		defer func() { inTx = false }()
+		return fn(ctx)
+	}}
+	merch := &mockMerchandiseItemRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			if !inTx {
+				t.Error("merchandise FindByID must run inside WithTx on Update")
+			}
+			findCalls = append(findCalls, id)
+			return &model.MerchandiseItem{ID: id, ClinicID: 1, IsActive: true}, nil
+		},
+	}
+	repo := &mockCampaignRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Campaign, error) {
+			if id == 100 {
+				return current, nil
+			}
+			return current, nil
+		},
+		replaceTargetsFn: func(_ context.Context, _ uint64, _ []model.ItemCategory, itemIDs []uint64) error {
+			if len(findCalls) == 0 {
+				t.Error("ReplaceTargets must run after merchandise validation")
+			}
+			replaceAfterFind = true
+			assert.Equal(t, []uint64{1, 2, 3}, itemIDs, "ReplaceTargets must receive sorted unique IDs")
+			return nil
+		},
+	}
+	svc := NewCampaignService(repo, merch, tx)
+	ids := []uint64{3, 1, 2, 3}
+	out, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{TargetItemIDs: &ids})
+	assert.NoError(t, err)
+	assert.NotNil(t, out)
+	assert.True(t, replaceAfterFind)
+	assert.Equal(t, []uint64{1, 2, 3}, findCalls)
+}
+
+// TestCampaignService_Create_RejectsMissingMerchandiseTarget keeps foreign/deleted
+// targets from being persisted (validation failure aborts before Create).
+func TestCampaignService_Create_RejectsMissingMerchandiseTarget(t *testing.T) {
+	ctx := context.Background()
+	created := false
+	merch := &mockMerchandiseItemRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
+			return nil, errors.New("not found")
+		},
+	}
+	repo := &mockCampaignRepository{
+		createFn: func(_ context.Context, m *model.Campaign) (*model.Campaign, error) {
+			created = true
+			return m, nil
+		},
+	}
+	svc := NewCampaignService(repo, merch, noopTransactor{})
+	out, err := svc.Create(ctx, 1, &CreateCampaignInput{
+		Name:          "missing target",
+		StartDate:     time.Now(),
+		EndDate:       time.Now().Add(time.Hour),
+		DiscountType:  model.CampaignDiscountTypeAmount,
+		DiscountValue: 100,
+		TargetItemIDs: []uint64{99},
+	})
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.False(t, created)
+}
+
 // ---- Update: additional branches not covered by TestCampaignService_Update ----
 
 func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
@@ -696,5 +839,87 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 		newName := "x"
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{Name: &newName})
 		assert.Error(t, err)
+	})
+}
+
+// setupCampaignMerchandiseTargetTestDB prepares campaigns + merchandise_items for
+// concurrent target serialization proofs (BE-ACT-CAMPAIGN-TARGET-SERIALIZATION).
+func setupCampaignMerchandiseTargetTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupCampaignTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.MerchandiseItem{}))
+	db.Exec("TRUNCATE TABLE merchandise_items CASCADE")
+	return db
+}
+
+// TestCampaignService_Create_ConcurrentMerchandiseDeleteSerialized proves:
+// 1) ambient merchandise FOR SHARE (same path as Create validation) blocks concurrent soft-delete
+// 2) delete-first makes a later Create reject the missing target
+func TestCampaignService_Create_ConcurrentMerchandiseDeleteSerialized(t *testing.T) {
+	db := setupCampaignMerchandiseTargetTestDB(t)
+	campaignRepo := NewCampaignRepository(db)
+	merchRepo := inventory.NewMerchandiseItemRepository(db)
+	svc := NewCampaignService(campaignRepo, merchRepo, testNewTransactor(db))
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	t.Run("share-lock holds concurrent merchandise soft-delete", func(t *testing.T) {
+		item := &model.MerchandiseItem{
+			ClinicID: clinicID, Name: "concurrent-lock target", Category: model.ItemCategoryGoods,
+			UnitPrice: 1000, IsActive: true,
+		}
+		require.NoError(t, merchRepo.Create(ctx, item))
+
+		locked := make(chan struct{})
+		release := make(chan struct{})
+		holderDone := make(chan error, 1)
+		go func() {
+			// Same ambient FindByID path Create uses for target validation.
+			holderDone <- testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+				if _, err := merchRepo.FindByID(txCtx, clinicID, item.ID); err != nil {
+					return err
+				}
+				close(locked)
+				<-release
+				return nil
+			})
+		}()
+		<-locked
+
+		deleteDone := make(chan error, 1)
+		go func() {
+			deleteDone <- merchRepo.Delete(ctx, clinicID, item.ID)
+		}()
+
+		select {
+		case err := <-deleteDone:
+			close(release)
+			require.Failf(t, "merchandise delete was not serialized behind campaign target share-lock", "err=%v", err)
+		case <-time.After(100 * time.Millisecond):
+			close(release)
+		}
+		require.NoError(t, <-holderDone)
+		require.NoError(t, <-deleteDone)
+	})
+
+	t.Run("delete-first rejects subsequent campaign target attach", func(t *testing.T) {
+		item := &model.MerchandiseItem{
+			ClinicID: clinicID, Name: "delete-first target", Category: model.ItemCategoryGoods,
+			UnitPrice: 1000, IsActive: true,
+		}
+		require.NoError(t, merchRepo.Create(ctx, item))
+		require.NoError(t, merchRepo.Delete(ctx, clinicID, item.ID))
+
+		out, err := svc.Create(ctx, clinicID, &CreateCampaignInput{
+			Name:          "attach after delete",
+			StartDate:     time.Now(),
+			EndDate:       time.Now().Add(24 * time.Hour),
+			DiscountType:  model.CampaignDiscountTypeRate,
+			DiscountValue: 10,
+			TargetItemIDs: []uint64{item.ID},
+		})
+		require.Error(t, err)
+		assert.Nil(t, out)
+		assert.True(t, apperrors.IsNotFound(err), "deleted merchandise target must surface as NotFound")
 	})
 }
