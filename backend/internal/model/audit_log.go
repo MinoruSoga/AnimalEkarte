@@ -105,6 +105,10 @@ const (
 	AuditActionPetIdentityLinkCreate   = "pet_identity_link.create"
 	AuditActionPetIdentityLinkAdd      = "pet_identity_link.add_members"
 	AuditActionPetIdentityLinkUnlink   = "pet_identity_link.unlink"
+
+	// #255 staff batch provisioning（PII 非搭載: batch_id / digest / count / external_staff_id のみ）
+	AuditActionStaffProvisionCreate  = "staff.provision.create"
+	AuditActionStaffProvisionReceipt = "staff.provision.receipt"
 )
 
 // audit_logs.resource 定数
@@ -127,6 +131,8 @@ const (
 	AuditResourceCarePlanItem = "care_plan_item"
 	// #239 identity link groups（owner / pet 共通 resource 名）
 	AuditResourceIdentityLink = "identity_link"
+	// #255 staff batch provisioning receipt（clinic-scoped, PII-free）
+	AuditResourceStaffProvisionBatch = "staff_provision_batch"
 )
 
 // care plan item destructive actions (MRA-01)
