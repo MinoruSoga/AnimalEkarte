@@ -36,7 +36,7 @@
 
 ## 3. 全リソース・キー一覧 (Verified)
 
-実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 34 リソースキーです。
+実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 35 リソースキーです。
 
 | カテゴリ | リソースキー | 管理対象 |
 |:---|:---|:---|
@@ -45,6 +45,7 @@
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |
 | **外部連携** | `lstep-analytics`, `lstep-csv-import` | CRM 分析、CSV インポート履歴。 |
+| **横断（医院間リンク）** | `identity-links` | 医院別 owner/pet の明示リンク（view/edit 分離・fail-closed 既定）。 |
 | **その他** | `manual-edit` | 取扱説明書の編集権限。 |
 
 ---
