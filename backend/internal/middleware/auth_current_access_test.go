@@ -486,7 +486,7 @@ func TestAuth_FirstSystemAdminClinicOverrideIsAudited(t *testing.T) {
 	}
 }
 
-func TestAuth_PO005SystemAdminFallbackUsesSignedClinicScope(t *testing.T) {
+func TestAuth_PO005SystemAdminFallbackFailsClosed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	resolver := authdomain.NewCurrentAccessResolver(
 		&mockCurrentAccessStaffReader{
@@ -504,22 +504,18 @@ func TestAuth_PO005SystemAdminFallbackUsesSignedClinicScope(t *testing.T) {
 	for _, test := range []struct {
 		name           string
 		headerClinicID string
-		wantStatus     int
-		wantDownstream bool
 	}{
 		{
-			name:           "allows a clinic captured in the signed active scope",
+			name:           "denies signed active clinic scope on temporary staff lookup",
 			headerClinicID: "1",
-			wantStatus:     http.StatusOK,
-			wantDownstream: true,
 		},
 		{
-			name:           "rejects an arbitrary global clinic during fallback",
+			name:           "denies arbitrary global clinic on temporary staff lookup",
 			headerClinicID: "2",
-			wantStatus:     http.StatusForbidden,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			notifierCalls := 0
 			token := makeToken(
 				t,
 				jwt.SigningMethodHS256,
@@ -532,7 +528,10 @@ func TestAuth_PO005SystemAdminFallbackUsesSignedClinicScope(t *testing.T) {
 				false,
 				nil,
 				resolver,
-				func(context.Context, uint64, error) error { return nil },
+				func(context.Context, uint64, error) error {
+					notifierCalls++
+					return nil
+				},
 			))
 			downstreamCalled := false
 			router.GET("/test", func(c *gin.Context) {
@@ -545,8 +544,10 @@ func TestAuth_PO005SystemAdminFallbackUsesSignedClinicScope(t *testing.T) {
 
 			router.ServeHTTP(response, request)
 
-			assert.Equal(t, test.wantStatus, response.Code)
-			assert.Equal(t, test.wantDownstream, downstreamCalled)
+			assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+			assert.False(t, downstreamCalled)
+			assert.Equal(t, 1, notifierCalls)
+			require.Contains(t, response.Body.String(), "access validation unavailable")
 		})
 	}
 }

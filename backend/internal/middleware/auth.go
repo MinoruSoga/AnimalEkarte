@@ -22,8 +22,9 @@ import (
 // JWTClaims は JWT ペイロードのエイリアス。
 type JWTClaims = authjwt.Claims
 
-// StaffValidationFailureNotifier は staff 有効性検証の取得エラーを通知する。
-// 通知自体の失敗は認証を閉じず、呼び出し元でベストエフォートとして扱う。
+// StaffValidationFailureNotifier は staff 有効性検証の一時的な取得エラーを通知する。
+// 通知はベストエフォートであり、通知の有無にかかわらず一時障害は fail-closed で拒否する。
+// 通知自体の失敗も認証判定を変えない。
 type StaffValidationFailureNotifier func(ctx context.Context, staffID uint64, cause error) error
 
 // Auth はJWTトークンを検証する認証ミドルウェア。
@@ -42,7 +43,8 @@ func Auth(
 }
 
 // AuthWithStaffValidationFailureNotifier は Auth に staff 有効性検証エラーの通知経路を追加する。
-// DB取得エラー時の継続は PO-005 の明示的な可用性例外であり、非nil notifier が必須。
+// 一時的な staff lookup 障害でも JWT の role/clinic/system-admin/epoch を保持して継続せず、
+// 通知後に access validation unavailable として fail-closed する。
 func AuthWithStaffValidationFailureNotifier(
 	tokenSvc authdomain.TokenService,
 	isProduction bool,
@@ -81,7 +83,7 @@ func auth(
 			return
 		}
 
-		currentAccess, usedPO005Fallback, ok := resolveCurrentAccess(
+		currentAccess, ok := resolveCurrentAccess(
 			c,
 			accessResolver,
 			claims.UserID,
@@ -91,40 +93,40 @@ func auth(
 			return
 		}
 
+		// Live authority always wins on successful resolution. Temporary
+		// lookup failures never reach this branch (fail-closed above).
 		requestClaims := cloneJWTClaims(claims)
-		if !usedPO005Fallback {
-			if !authdomain.TokenMatchesAccountEpoch(
-				claims,
-				currentAccess.AccountEpoch,
-			) {
-				respondError(c, http.StatusUnauthorized, "invalid or expired token")
+		if !authdomain.TokenMatchesAccountEpoch(
+			claims,
+			currentAccess.AccountEpoch,
+		) {
+			respondError(c, http.StatusUnauthorized, "invalid or expired token")
+			return
+		}
+		requestClaims.IsSystemAdmin = currentAccess.IsSystemAdmin
+		requestClaims.ClinicIDs = append(
+			[]uint64(nil),
+			currentAccess.ClinicIDs...,
+		)
+		if requestClaims.IsSystemAdmin {
+			currentMainID, parseErr := strconv.ParseUint(
+				currentAccess.MainClinicID,
+				10,
+				64,
+			)
+			if parseErr != nil ||
+				currentMainID == 0 ||
+				!slices.Contains(currentAccess.ClinicIDs, currentMainID) {
+				slog.ErrorContext(
+					c.Request.Context(),
+					"current system administrator clinic authority is invalid",
+					"staff_id",
+					currentAccess.StaffID,
+				)
+				respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
 				return
 			}
-			requestClaims.IsSystemAdmin = currentAccess.IsSystemAdmin
-			requestClaims.ClinicIDs = append(
-				[]uint64(nil),
-				currentAccess.ClinicIDs...,
-			)
-			if requestClaims.IsSystemAdmin {
-				currentMainID, parseErr := strconv.ParseUint(
-					currentAccess.MainClinicID,
-					10,
-					64,
-				)
-				if parseErr != nil ||
-					currentMainID == 0 ||
-					!slices.Contains(currentAccess.ClinicIDs, currentMainID) {
-					slog.ErrorContext(
-						c.Request.Context(),
-						"current system administrator clinic authority is invalid",
-						"staff_id",
-						currentAccess.StaffID,
-					)
-					respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-					return
-				}
-				requestClaims.ClinicID = currentAccess.MainClinicID
-			}
+			requestClaims.ClinicID = currentAccess.MainClinicID
 		}
 
 		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、所属チェック後に上書き（BUG-128）
@@ -179,17 +181,18 @@ func extractToken(c *gin.Context) string {
 }
 
 // resolveCurrentAccess revalidates mutable staff/account/clinic authority.
-// Only a typed temporary failure from the first staff lookup may use PO-005.
+// Temporary staff-lookup failures may alert via notifier but always fail closed;
+// JWT role/clinic/system-admin/epoch claims are never preserved as continuity.
 func resolveCurrentAccess(
 	c *gin.Context,
 	resolver authdomain.CurrentAccessResolver,
 	userID string,
 	notifier StaffValidationFailureNotifier,
-) (*authdomain.CurrentAccess, bool, bool) {
+) (*authdomain.CurrentAccess, bool) {
 	staffID, err := strconv.ParseUint(userID, 10, 64)
 	if err != nil || staffID == 0 {
 		respondError(c, http.StatusUnauthorized, "invalid staff identity")
-		return nil, false, false
+		return nil, false
 	}
 	if resolver == nil {
 		slog.ErrorContext(
@@ -199,7 +202,7 @@ func resolveCurrentAccess(
 			staffID,
 		)
 		respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-		return nil, false, false
+		return nil, false
 	}
 
 	ctx := c.Request.Context()
@@ -210,38 +213,41 @@ func resolveCurrentAccess(
 			cause := errors.Unwrap(staffLookupErr)
 			if apperrors.IsNotFound(cause) {
 				respondError(c, http.StatusForbidden, "staff account is no longer active")
-				return nil, false, false
+				return nil, false
 			}
-			if isTemporaryStaffValidationError(cause) && notifier != nil {
+			if isTemporaryStaffValidationError(cause) {
 				slog.WarnContext(
 					ctx,
-					"failed to verify staff validity (PO-005 continuity)",
+					"failed to verify staff validity; denying request (fail-closed)",
 					"staff_id",
 					staffID,
 					"error",
 					cause,
 				)
-				if notifyErr := notifier(ctx, staffID, cause); notifyErr != nil {
-					slog.ErrorContext(
-						ctx,
-						"failed to notify staff validation failure (non-fatal)",
-						"staff_id",
-						staffID,
-						"error",
-						notifyErr,
-					)
+				if notifier != nil {
+					if notifyErr := notifier(ctx, staffID, cause); notifyErr != nil {
+						slog.ErrorContext(
+							ctx,
+							"failed to notify staff validation failure (non-fatal)",
+							"staff_id",
+							staffID,
+							"error",
+							notifyErr,
+						)
+					}
 				}
-				return nil, true, true
+				respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
+				return nil, false
 			}
 		}
 
 		if errors.Is(resolveErr, apperrors.ErrForbidden) {
 			respondError(c, http.StatusForbidden, "current access is no longer available")
-			return nil, false, false
+			return nil, false
 		}
 		if errors.Is(resolveErr, apperrors.ErrUnauthorized) {
 			respondError(c, http.StatusUnauthorized, "invalid or expired token")
-			return nil, false, false
+			return nil, false
 		}
 
 		slog.ErrorContext(
@@ -253,7 +259,7 @@ func resolveCurrentAccess(
 			resolveErr,
 		)
 		respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-		return nil, false, false
+		return nil, false
 	}
 	if access == nil || access.StaffID != staffID ||
 		access.AccountEpoch <= 0 {
@@ -264,14 +270,15 @@ func resolveCurrentAccess(
 			staffID,
 		)
 		respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-		return nil, false, false
+		return nil, false
 	}
-	return access, false, true
+	return access, true
 }
 
 // isTemporaryStaffValidationError recognizes only typed database availability
-// failures. Generic errors, PostgreSQL programming/constraint errors, and
-// identity errors must never activate the PO-005 fail-open exception.
+// failures eligible for operational notification before fail-closed denial.
+// Generic errors, PostgreSQL programming/constraint errors, and identity
+// errors must never be treated as temporary continuity exceptions.
 func isTemporaryStaffValidationError(err error) bool {
 	if err == nil {
 		return false
