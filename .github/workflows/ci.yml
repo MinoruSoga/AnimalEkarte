@@ -56,10 +56,9 @@ jobs:
             frontend:
               - 'frontend/**'
             codegen:
-              - 'backend/internal/model/**'
-              - 'backend/internal/auth/http_response.go'
-              - 'backend/internal/trimming/trimming_response.go'
+              - '.github/workflows/ci.yml'
               - 'backend/tygo.yaml'
+              - 'backend/internal/**/*.go'
               - 'frontend/src/types/generated/**'
             migrations:
               - 'backend/migrations/*.sql'
@@ -367,13 +366,31 @@ jobs:
         working-directory: backend
         run: |
           mkdir -p "$GITHUB_WORKSPACE/tygo-output"
-          # Domain-owned HTTP DTO を auth/trimming 別の生成物へ再現可能に出力する。
-          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/auth-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/auth-responses.ts|' -e 's|/output/trimming-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/trimming-responses.ts|' tygo.yaml > tygo-ci.yaml
+          # Domain-owned HTTP DTO を tygo.yaml の 8 出力すべてへ再現可能に出力する。
+          # docker-compose.yml codegen と同じ remap 対象（models/auth/trimming/pet/owner/
+          # medicalrecord/hospitalization/identitylink）。CI では workspace 配下の
+          # tygo-output/ に一度書き、後段で generated/ へ同名 copy して byte-identity を検証する。
+          # 新パッケージを tygo.yaml に足したら、ここにも同じ置換と cp を追加すること。
+          sed \
+            -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' \
+            -e 's|/output/auth-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/auth-responses.ts|' \
+            -e 's|/output/trimming-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/trimming-responses.ts|' \
+            -e 's|/output/pet-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/pet-responses.ts|' \
+            -e 's|/output/owner-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/owner-responses.ts|' \
+            -e 's|/output/medicalrecord-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/medicalrecord-responses.ts|' \
+            -e 's|/output/hospitalization-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/hospitalization-responses.ts|' \
+            -e 's|/output/identitylink-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/identitylink-responses.ts|' \
+            tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
           cp "$GITHUB_WORKSPACE/tygo-output/auth-responses.ts" ../frontend/src/types/generated/auth-responses.ts
           cp "$GITHUB_WORKSPACE/tygo-output/trimming-responses.ts" ../frontend/src/types/generated/trimming-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/pet-responses.ts" ../frontend/src/types/generated/pet-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/owner-responses.ts" ../frontend/src/types/generated/owner-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/medicalrecord-responses.ts" ../frontend/src/types/generated/medicalrecord-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts" ../frontend/src/types/generated/hospitalization-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/identitylink-responses.ts" ../frontend/src/types/generated/identitylink-responses.ts
 
       - name: Check for drift
         run: |
