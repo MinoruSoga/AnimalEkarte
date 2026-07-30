@@ -111,6 +111,10 @@ var lineWebhookVerifySem = semaphore.NewWeighted(maxConcurrentLineWebhookVerific
 // 本番は DecryptLineCredential。テストで呼び出し回数を観測するために差し替え可能。
 var lineCredentialDecrypt = DecryptLineCredential
 
+// lineSignatureVerifier は webhook 検証パスの HMAC 検証関数。
+// 本番は verifyLineSignature。テストで呼び出し回数を観測するために差し替え可能。
+var lineSignatureVerifier = verifyLineSignature
+
 // NewLineLinkService は LineLinkService を初期化して返す。
 // cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
 func NewLineLinkService(

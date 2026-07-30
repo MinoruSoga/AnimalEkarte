@@ -31,6 +31,9 @@ type LineReservationSetting struct {
 	AdditionalFields        []byte    `gorm:"type:jsonb;not null"                            json:"additional_fields"`
 	LineChannelID           string    `gorm:"not null;default:''"                            json:"line_channel_id"`
 	LineChannelSecret       string    `gorm:"not null;default:''"                            json:"-"`
+	// LineBotUserID is the LINE Messaging API bot user ID (webhook destination).
+	// Used for O(1) webhook signature routing (SEC-CS-F05-R1). Empty until provisioned.
+	LineBotUserID           string    `gorm:"not null;default:''"                            json:"line_bot_user_id,omitempty"`
 	LiffID                  string    `gorm:"not null;default:''"                            json:"liff_id"`
 	LineAccessToken         string    `gorm:"not null;default:''"                            json:"-"`
 	CreatedAt               time.Time `gorm:"autoCreateTime"                                 json:"created_at"`

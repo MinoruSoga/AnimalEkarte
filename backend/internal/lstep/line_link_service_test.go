@@ -146,8 +146,12 @@ func (m *mockLineLinkAuditTxLogger) LogOwnerLineLinkTx(ctx context.Context, clin
 // --- mock: LineReservationSettingRepository ---
 
 type mockLineLinkSettingRepo struct {
-	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	findAllFn        func(ctx context.Context) ([]model.LineReservationSetting, error)
+	findByClinicIDFn      func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	findByLineBotUserIDFn func(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error)
+	findAllFn             func(ctx context.Context) ([]model.LineReservationSetting, error)
+
+	findAllCalls             int
+	findByLineBotUserIDCalls int
 }
 
 func (m *mockLineLinkSettingRepo) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -156,7 +160,21 @@ func (m *mockLineLinkSettingRepo) FindByClinicID(ctx context.Context, clinicID u
 	}
 	return &model.LineReservationSetting{ClinicID: clinicID, LiffID: "test-liff-id", LineChannelSecret: "secret", LineChannelID: "channel-id"}, nil
 }
+func (m *mockLineLinkSettingRepo) FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+	m.findByLineBotUserIDCalls++
+	if m.findByLineBotUserIDFn != nil {
+		return m.findByLineBotUserIDFn(ctx, lineBotUserID)
+	}
+	// Default: map any non-empty destination to clinic 1 with plaintext secret "secret".
+	return &model.LineReservationSetting{
+		ID:               1,
+		ClinicID:         1,
+		LineBotUserID:    lineBotUserID,
+		LineChannelSecret: "secret",
+	}, nil
+}
 func (m *mockLineLinkSettingRepo) FindAll(ctx context.Context) ([]model.LineReservationSetting, error) {
+	m.findAllCalls++
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx)
 	}
