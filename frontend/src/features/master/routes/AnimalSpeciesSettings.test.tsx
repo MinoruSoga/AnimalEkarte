@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AuthContext } from "@/hooks/auth-context";
+import type { AuthContextValue, AuthUser } from "@/types/auth";
 import { AnimalSpeciesSettings } from "./AnimalSpeciesSettings";
 
 const mocks = vi.hoisted(() => ({
@@ -17,12 +19,24 @@ const mocks = vi.hoisted(() => ({
   crudCanDelete: true,
   saveCanCreate: true,
   saveCanEdit: true,
+  tableCanEdit: true,
   reorderCallback: (_ids: string[]) => {},
   reorderMutation: vi.fn(),
+  isSystemAdmin: true,
+  resourcePermissions: {
+    canView: true,
+    canCreate: true,
+    canEdit: true,
+    canDelete: true,
+  },
+  usePermissionResource: null as string | null,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canCreate: true, canEdit: true, canDelete: true }),
+  usePermission: (resource: string) => {
+    mocks.usePermissionResource = resource;
+    return { ...mocks.resourcePermissions };
+  },
 }));
 
 vi.mock("@/hooks/use-side-peek-dirty", () => ({
@@ -104,9 +118,10 @@ vi.mock("../components/AnimalSpeciesSidePanel", () => ({
 
 vi.mock("../components/AnimalSpeciesSortableTable", () => ({
   ANIMAL_SPECIES_COLUMNS: [],
-  AnimalSpeciesSortableTable: () => (
-    <div role="table" aria-label="動物種類一覧" />
-  ),
+  AnimalSpeciesSortableTable: ({ canEdit }: { canEdit: boolean }) => {
+    mocks.tableCanEdit = canEdit;
+    return <div role="table" aria-label="動物種類一覧" />;
+  },
 }));
 
 function mutationStub() {
@@ -136,10 +151,81 @@ function setQueryResult({
   mocks.queryResult.error = error;
 }
 
+function setPermissionCase({
+  isSystemAdmin,
+  canView = true,
+  canCreate = false,
+  canEdit = false,
+  canDelete = false,
+}: {
+  isSystemAdmin: boolean;
+  canView?: boolean;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+}) {
+  mocks.isSystemAdmin = isSystemAdmin;
+  mocks.resourcePermissions = { canView, canCreate, canEdit, canDelete };
+}
+
+function authValue(): AuthContextValue {
+  const user = {
+    id: "1",
+    email: "test@example.com",
+    displayName: "Test",
+    isSystemAdmin: mocks.isSystemAdmin,
+    mainClinicId: "1",
+    clinic: null,
+    clinics: [],
+    permissions: {},
+  } satisfies AuthUser;
+
+  return {
+    user,
+    currentClinicId: "1",
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    switchClinic: vi.fn(),
+    hasPermission: vi.fn(),
+    refreshPermissions: vi.fn(),
+  };
+}
+
+function renderPage() {
+  return render(
+    <AuthContext.Provider value={authValue()}>
+      <AnimalSpeciesSettings />
+    </AuthContext.Provider>,
+  );
+}
+
+function expectMutationAffordances(enabled: boolean) {
+  expect(mocks.saveCanCreate).toBe(enabled);
+  expect(mocks.saveCanEdit).toBe(enabled);
+  expect(mocks.crudCanDelete).toBe(enabled);
+  expect(mocks.tableCanEdit).toBe(enabled);
+  mocks.reorderMutation.mockClear();
+  mocks.reorderCallback(["1", "2"]);
+  if (enabled) {
+    expect(mocks.reorderMutation).toHaveBeenCalledWith({ ids: [1, 2] });
+  } else {
+    expect(mocks.reorderMutation).not.toHaveBeenCalled();
+  }
+}
+
 describe("AnimalSpeciesSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setQueryResult({});
+    setPermissionCase({
+      isSystemAdmin: true,
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: true,
+    });
   });
 
   it("取得失敗を読み込み中やデータより優先して表示し、生のエラー詳細を隠す", () => {
@@ -150,7 +236,7 @@ describe("AnimalSpeciesSettings", () => {
       error: new Error("GET /v1/masters/animal-species 500"),
     });
 
-    render(<AnimalSpeciesSettings />);
+    renderPage();
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("動物種の取得に失敗しました。");
@@ -165,6 +251,7 @@ describe("AnimalSpeciesSettings", () => {
     ).not.toBeInTheDocument();
     expect(mocks.crudData).toEqual([]);
     expect(mocks.crudCanDelete).toBe(false);
+    // create は取得失敗中でも system admin なら許可（既存契約）
     expect(mocks.saveCanCreate).toBe(true);
     expect(mocks.saveCanEdit).toBe(false);
     mocks.reorderCallback(["1"]);
@@ -177,7 +264,7 @@ describe("AnimalSpeciesSettings", () => {
       isPending: true,
     });
 
-    render(<AnimalSpeciesSettings />);
+    renderPage();
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("動物種を読み込み中です。");
@@ -196,7 +283,7 @@ describe("AnimalSpeciesSettings", () => {
   });
 
   it("取得成功かつ0件をdistinctなaccessible statusで表示する", () => {
-    render(<AnimalSpeciesSettings />);
+    renderPage();
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(
@@ -213,7 +300,7 @@ describe("AnimalSpeciesSettings", () => {
       data: [{ id: "1", name: "犬", isActive: true }],
     });
 
-    render(<AnimalSpeciesSettings />);
+    renderPage();
 
     expect(
       screen.getByRole("table", { name: "動物種類一覧" }),
@@ -236,9 +323,73 @@ describe("AnimalSpeciesSettings", () => {
     const user = userEvent.setup();
     setQueryResult(queryResult);
 
-    render(<AnimalSpeciesSettings />);
+    renderPage();
     await user.click(screen.getByRole("button", { name: "動物種類を追加" }));
 
     expect(mocks.handleNew).toHaveBeenCalledOnce();
+  });
+
+  describe("global master mutation gate (isSystemAdmin)", () => {
+    const listedSpecies = [{ id: "1", name: "犬", isActive: true }];
+
+    it("view-only user: can list, cannot create/edit/delete/reorder", () => {
+      setPermissionCase({
+        isSystemAdmin: false,
+        canView: true,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+      });
+      setQueryResult({ data: listedSpecies });
+
+      renderPage();
+
+      // 一覧は resource-view のまま閲覧可能
+      expect(mocks.usePermissionResource).toBe("master-animal-species");
+      expect(
+        screen.getByRole("table", { name: "動物種類一覧" }),
+      ).toBeInTheDocument();
+      expect(mocks.crudData).toEqual(listedSpecies);
+      expectMutationAffordances(false);
+    });
+
+    it("legacy resource-edit grant without system admin: can list, cannot mutate", () => {
+      setPermissionCase({
+        isSystemAdmin: false,
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      });
+      setQueryResult({ data: listedSpecies });
+
+      renderPage();
+
+      expect(mocks.usePermissionResource).toBe("master-animal-species");
+      expect(
+        screen.getByRole("table", { name: "動物種類一覧" }),
+      ).toBeInTheDocument();
+      // resource create/edit/delete があっても mutation は system admin のみ
+      expectMutationAffordances(false);
+    });
+
+    it("system admin: full create/edit/delete/reorder mutation possible", () => {
+      setPermissionCase({
+        isSystemAdmin: true,
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      });
+      setQueryResult({ data: listedSpecies });
+
+      renderPage();
+
+      expect(mocks.usePermissionResource).toBe("master-animal-species");
+      expect(
+        screen.getByRole("table", { name: "動物種類一覧" }),
+      ).toBeInTheDocument();
+      expectMutationAffordances(true);
+    });
   });
 });

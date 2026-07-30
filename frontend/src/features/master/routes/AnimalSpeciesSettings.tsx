@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useContext } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
@@ -13,6 +13,7 @@ import {
   ANIMAL_SPECIES_COLUMNS,
   AnimalSpeciesSortableTable,
 } from "../components/AnimalSpeciesSortableTable";
+import { AuthContext } from "@/hooks/auth-context";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "../api/animal-species";
 import type { AnimalSpecies, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequest } from "../api/animal-species";
@@ -23,7 +24,12 @@ import {
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 export function AnimalSpeciesSettings() {
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterAnimalSpecies);
+  // Read remains resource-view scoped (route + listing). Global animal_species
+  // writes require isSystemAdmin (backend requireSystemAdminForGlobalMaster).
+  usePermission(ResourceMasterAnimalSpecies);
+  // Fail-closed: missing AuthProvider ⇒ no mutation affordances.
+  const auth = useContext(AuthContext);
+  const canMutate = auth?.user?.isSystemAdmin === true;
   const {
     data: animalSpecies = [],
     isPending,
@@ -43,7 +49,7 @@ export function AnimalSpeciesSettings() {
     deleteMutation,
     entityLabel: "動物種類",
     dirtyGuard: dirty,
-    permissions: { canDelete: canDelete && !isSpeciesUnavailable },
+    permissions: { canDelete: canMutate && !isSpeciesUnavailable },
   });
 
   const handleDirtyChange = useCallback(
@@ -57,7 +63,7 @@ export function AnimalSpeciesSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
-      if (!canEdit || isSpeciesUnavailable) return;
+      if (!canMutate || isSpeciesUnavailable) return;
       reorderMutation.mutate({ ids: newIds.map(Number) });
     },
   });
@@ -68,13 +74,16 @@ export function AnimalSpeciesSettings() {
     toCreateRequest: buildAnimalSpeciesCreateRequest,
     toUpdateRequest: buildAnimalSpeciesUpdateRequest,
     permissions: {
-      canCreate,
-      canEdit: canEdit && !isSpeciesUnavailable,
+      canCreate: canMutate,
+      canEdit: canMutate && !isSpeciesUnavailable,
     },
   });
 
   return (
-    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterAnimalSpecies}
+    // resource を渡すと MasterCRUDPage が legacy resource-edit で mutation UI を出してしまう。
+    // 未指定時 usePermission("") は isSystemAdmin のみ true（hasPermission バイパス）になるため、
+    // 新規登録/side panel の mutation affordance も system admin に限定される。
+    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
       entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
       crud={crud} handleSave={handleSave} columns={ANIMAL_SPECIES_COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
@@ -109,7 +118,7 @@ export function AnimalSpeciesSettings() {
           items={orderedItems}
           sensors={sensors}
           onDragEnd={handleDragEnd}
-          canEdit={canEdit}
+          canEdit={canMutate}
           onEdit={crud.handleEdit}
         />
       )}
