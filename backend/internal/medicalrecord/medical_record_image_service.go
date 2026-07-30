@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -34,6 +35,7 @@ type MedicalRecordImageService interface {
 type medicalRecordImageService struct {
 	repo             MedicalRecordImageRepository
 	medRec           medicalRecordLocker
+	pets             petFinder
 	examinations     medicalRecordImageExaminationFinder
 	staffs           clinicalStaffLocker
 	staffAssignments clinicalStaffAssignmentLocker
@@ -57,11 +59,12 @@ func NewMedicalRecordImageService(repo MedicalRecordImageRepository, medRec medi
 	return &medicalRecordImageService{repo: repo, medRec: medRec, transactor: transactor}
 }
 
-// NewMedicalRecordImageServiceWithRelationValidation は、request 由来の exam_id / staff_id を
-// 保存トランザクション内で検証する依存を明示的に注入する。
+// NewMedicalRecordImageServiceWithRelationValidation は、request 由来の exam_id / staff_id と
+// 親カルテ紐付けペットの死亡状態を保存トランザクション内で検証する依存を明示的に注入する。
 func NewMedicalRecordImageServiceWithRelationValidation(
 	repo MedicalRecordImageRepository,
 	medRec medicalRecordLocker,
+	pets petFinder,
 	examinations medicalRecordImageExaminationFinder,
 	staffs clinicalStaffLocker,
 	staffAssignments clinicalStaffAssignmentLocker,
@@ -70,6 +73,7 @@ func NewMedicalRecordImageServiceWithRelationValidation(
 	return &medicalRecordImageService{
 		repo:             repo,
 		medRec:           medRec,
+		pets:             pets,
 		examinations:     examinations,
 		staffs:           staffs,
 		staffAssignments: staffAssignments,
@@ -126,8 +130,20 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は画像追加を拒否。LockByIDForUpdate の
 		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
 		// 確定と同時の画像追加が確定済みカルテに混入する競合を防ぐ（examination_service.go Create 同型）。
-		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
-			"failed to find medical record", "確定済みカルテに画像を追加できません"); err != nil {
+		// 死亡ペット検証のため親行を保持する（lockDraftMedicalRecord は親を破棄するため直接 lock）。
+		parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent == nil {
+			return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", medicalRecordID))
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテに画像を追加できません")
+		}
+		// SEC-CS-F14: 死亡ペットのカルテへの画像作成を fail-closed で拒否（storage 作成前の service 境界）。
+		if err := s.validateLinkedPetNotDeceased(txCtx, clinicID, parent.PetID); err != nil {
 			return err
 		}
 		if err := s.validateExaminationReference(txCtx, clinicID, medicalRecordID, input.ExamID); err != nil {
@@ -156,6 +172,28 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		slog.Uint64("image_id", image.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return image, nil
+}
+
+// validateLinkedPetNotDeceased は親カルテに紐づくペットが生存していることを検証する（SEC-CS-F14）。
+// PetID 欠落・pets 依存欠落は fail-closed。死亡時は Create も storage 永続化も行わない。
+func (s *medicalRecordImageService) validateLinkedPetNotDeceased(
+	ctx context.Context,
+	clinicID uint64,
+	petID *uint64,
+) error {
+	if petID == nil || *petID == 0 {
+		return apperrors.WrapInvalidInput("medical record has no linked pet")
+	}
+	if s.pets == nil {
+		return apperrors.WrapInternalServerError("medical record image pet validation dependency is required")
+	}
+	return validatePetNotDeceased(
+		ctx,
+		s.pets,
+		clinicID,
+		*petID,
+		"死亡したペットのカルテに画像を追加できません",
+	)
 }
 
 func (s *medicalRecordImageService) validateExaminationReference(

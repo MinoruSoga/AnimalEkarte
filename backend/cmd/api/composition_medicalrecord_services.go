@@ -182,6 +182,7 @@ func newMedicalRecordClinicalServices(
 		images: medicalrecord.NewMedicalRecordImageServiceWithRelationValidation(
 			r.medicalRecordImages,
 			r.medicalRecords,
+			d.Pets,
 			r.examinations,
 			d.Staff,
 			d.StaffAssignments,
