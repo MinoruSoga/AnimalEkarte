@@ -212,7 +212,7 @@ Cloudflare Workers Logs はインフラ障害調査用で、業務操作監査�
 1. `DROP SCHEMA public CASCADE`
 2. `CREATE SCHEMA public`
 3. DDL migrationを昇順適用
-4. `002_master` → `003_demo` → `004_staging` のseedバンドルを適用
+4. `APP_ENV` ゲート付き seed バンドルを適用（STG は `APP_ENV=staging` で `002_master → 003_demo → 004_staging`。production は master のみ — SEC-CS-F01）
 
 ### 7.2 使用シーン
 

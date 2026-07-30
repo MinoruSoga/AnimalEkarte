@@ -14,7 +14,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
@@ -69,6 +72,20 @@ type lineLinkService struct {
 	cipher *crypto.AESGCMCipher
 	// httpClient は LINE ID Token 検証 API 呼び出しに使う。
 	httpClient *http.Client
+
+	// secretCache は setting ID ごとの復号済み channel secret を短 TTL で保持する。
+	// 同一 setting への再検証で AES 復号を繰り返さない（SEC-CS-F05 二次防御）。
+	// 一次防御は destination → FindByLineBotUserID の固定コスト routing（SEC-CS-F05-R1）。
+	secretCacheMu sync.Mutex
+	secretCache   map[uint64]lineChannelSecretCacheEntry
+}
+
+// lineChannelSecretCacheEntry は decrypt 結果のキャッシュ 1 件。
+// ciphertext が変わった場合はヒットさせず再復号する。
+type lineChannelSecretCacheEntry struct {
+	ciphertext string
+	plaintext  string
+	expiresAt  time.Time
 }
 
 const (
@@ -78,7 +95,30 @@ const (
 	maxLineVerifyResponseBytes = 64 * 1024
 	maxLineUserIDChars         = 64
 	maxLineWebhookFutureSkew   = 5 * time.Minute
+
+	// lineChannelSecretCacheTTL は復号済み secret キャッシュの寿命。
+	// 設定ローテ後も長くてもこの時間で平文が捨てられる。
+	lineChannelSecretCacheTTL = 30 * time.Second
+
+	// maxLineWebhookDestinationChars は webhook body から抜く destination の上限。
+	// 過大な値は lookup 前に reject し、秘密計算を一切走らせない。
+	maxLineWebhookDestinationChars = 128
+
+	// maxConcurrentLineWebhookVerifications は同時に走れる署名検証の上限。
+	// destination ルーティング後の二次 backpressure（SEC-CS-F05）。
+	maxConcurrentLineWebhookVerifications int64 = 32
 )
+
+// lineWebhookVerifySem はプロセス全体の webhook 署名検証同時実行数を制限する。
+var lineWebhookVerifySem = semaphore.NewWeighted(maxConcurrentLineWebhookVerifications)
+
+// lineCredentialDecrypt は webhook 検証パスの復号関数。
+// 本番は DecryptLineCredential。テストで呼び出し回数を観測するために差し替え可能。
+var lineCredentialDecrypt = DecryptLineCredential
+
+// lineSignatureVerifier は webhook 検証パスの HMAC 検証関数。
+// 本番は verifyLineSignature。テストで呼び出し回数を観測するために差し替え可能。
+var lineSignatureVerifier = verifyLineSignature
 
 // NewLineLinkService は LineLinkService を初期化して返す。
 // cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
@@ -322,39 +362,112 @@ func (s *lineLinkService) handleUnfollowEvent(
 	return nil
 }
 
-// verifySignatureAnyClinic は全クリニックの LINE Channel Secret で署名を検証し、
-// 一意に一致した clinic ID を返す。複数 clinic の secret が一致した場合は、
-// 更新先を安全に決定できないため fail closed とする。
+// verifySignatureAnyClinic は webhook body の destination（LINE bot user ID）で
+// 対象 clinic を1件に絞り、その Channel Secret だけで HMAC を検証する。
+//
+// SEC-CS-F05-R1: FindAll + 全 clinic HMAC は禁止。固定コストは
+// destination 抽出 → FindByLineBotUserID → 最大1回 decrypt → 最大1回 HMAC。
+// セマフォと decrypt キャッシュは二次 backpressure として維持する。
 func (s *lineLinkService) verifySignatureAnyClinic(
 	ctx context.Context,
 	body []byte,
 	signature string,
 ) (uint64, bool) {
-	settings, err := s.lineSettingRepo.FindAll(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load line settings for signature verification", "error", err)
+	if err := lineWebhookVerifySem.Acquire(ctx, 1); err != nil {
+		slog.ErrorContext(ctx, "LINE webhook verification concurrency limit", "error", err)
 		return 0, false
 	}
-	var matchedClinicID uint64
-	for i := range settings {
-		setting := &settings[i]
-		// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
-		secret := DecryptLineCredential(ctx, s.cipher, setting.LineChannelSecret)
-		if secret == "" {
-			continue
-		}
-		if verifyLineSignature(body, signature, secret) {
-			if setting.ClinicID == 0 {
-				return 0, false
-			}
-			if matchedClinicID != 0 && matchedClinicID != setting.ClinicID {
-				slog.ErrorContext(ctx, "ambiguous LINE webhook signature")
-				return 0, false
-			}
-			matchedClinicID = setting.ClinicID
-		}
+	defer lineWebhookVerifySem.Release(1)
+
+	destination, ok := extractLineWebhookDestination(body)
+	if !ok {
+		return 0, false
 	}
-	return matchedClinicID, matchedClinicID != 0
+
+	setting, err := s.lineSettingRepo.FindByLineBotUserID(ctx, destination)
+	if err != nil {
+		// not found / DB error とも invalid signature として fail-closed（情報漏洩防止）。
+		return 0, false
+	}
+	if setting == nil {
+		return 0, false
+	}
+
+	// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
+	secret := s.cachedDecryptChannelSecret(ctx, setting)
+	if secret == "" {
+		return 0, false
+	}
+	if !lineSignatureVerifier(body, signature, secret) {
+		return 0, false
+	}
+	if setting.ClinicID == 0 {
+		return 0, false
+	}
+	return setting.ClinicID, true
+}
+
+// extractLineWebhookDestination は raw webhook body から destination だけを抜く。
+// 業務イベントのフルパース前に呼び、欠落・空・過大は reject（秘密計算ゼロ）。
+func extractLineWebhookDestination(body []byte) (string, bool) {
+	var probe struct {
+		Destination string `json:"destination"`
+	}
+	if err := json.Unmarshal(body, &probe); err != nil {
+		return "", false
+	}
+	dest := strings.TrimSpace(probe.Destination)
+	if dest == "" {
+		return "", false
+	}
+	if len(dest) > maxLineWebhookDestinationChars {
+		return "", false
+	}
+	return dest, true
+}
+
+// cachedDecryptChannelSecret は setting ID をキーに復号済み secret を短 TTL キャッシュする。
+// ID が 0（未採番のテスト行など）の場合はキャッシュせず都度復号する。
+func (s *lineLinkService) cachedDecryptChannelSecret(
+	ctx context.Context,
+	setting *model.LineReservationSetting,
+) string {
+	if setting == nil {
+		return ""
+	}
+	ciphertext := setting.LineChannelSecret
+	if ciphertext == "" {
+		return ""
+	}
+	now := time.Now()
+	if setting.ID != 0 {
+		s.secretCacheMu.Lock()
+		if entry, ok := s.secretCache[setting.ID]; ok {
+			if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
+				plaintext := entry.plaintext
+				s.secretCacheMu.Unlock()
+				return plaintext
+			}
+		}
+		s.secretCacheMu.Unlock()
+	}
+
+	plaintext := lineCredentialDecrypt(ctx, s.cipher, ciphertext)
+	if setting.ID == 0 || plaintext == "" {
+		return plaintext
+	}
+
+	s.secretCacheMu.Lock()
+	if s.secretCache == nil {
+		s.secretCache = make(map[uint64]lineChannelSecretCacheEntry)
+	}
+	s.secretCache[setting.ID] = lineChannelSecretCacheEntry{
+		ciphertext: ciphertext,
+		plaintext:  plaintext,
+		expiresAt:  now.Add(lineChannelSecretCacheTTL),
+	}
+	s.secretCacheMu.Unlock()
+	return plaintext
 }
 
 // verifyLineSignature は LINE HMAC-SHA256 署名を検証する。

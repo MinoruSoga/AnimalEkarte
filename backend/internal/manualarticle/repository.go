@@ -14,6 +14,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
+// MaxVersionsPerArticle is the hard retention / list cap for version snapshots per article.
+// Storage prune and FindVersionsByArticleID both fail-closed at this bound (SEC-CS-F07).
+const MaxVersionsPerArticle = 50
+
 // Repository は取扱説明書（マニュアル）のデータアクセスインターフェース
 //
 // P4 例外: マニュアルは医院共通の情報のため clinic_id を持たない。
@@ -106,6 +110,11 @@ func (r *repository) Upsert(ctx context.Context, article *model.ManualArticle, e
 			return apperrors.FromGORM(err, "manual_article_version", "")
 		}
 
+		// SEC-CS-F07: prune oldest snapshots beyond retention in the same TX.
+		if err := pruneVersionsBeyondRetention(tx, article.ID); err != nil {
+			return err
+		}
+
 		// TRM-01: re-load before commit so post-commit read cannot flip success to failure.
 		if err := tx.Where("category = ? AND slug = ?", article.Category, article.Slug).
 			First(&saved).Error; err != nil {
@@ -117,6 +126,26 @@ func (r *repository) Upsert(ctx context.Context, article *model.ManualArticle, e
 	}
 
 	return &saved, nil
+}
+
+// pruneVersionsBeyondRetention keeps the newest MaxVersionsPerArticle rows per article.
+// Must run inside the same transaction as version create (fail-closed retention).
+func pruneVersionsBeyondRetention(tx *gorm.DB, articleID uint64) error {
+	var oldIDs []uint64
+	if err := tx.Model(&model.ManualArticleVersion{}).
+		Where("article_id = ?", articleID).
+		Order("edited_at DESC, id DESC").
+		Offset(MaxVersionsPerArticle).
+		Pluck("id", &oldIDs).Error; err != nil {
+		return apperrors.FromGORM(err, "manual_article_version", fmt.Sprintf("article=%d", articleID))
+	}
+	if len(oldIDs) == 0 {
+		return nil
+	}
+	if err := tx.Where("id IN ?", oldIDs).Delete(&model.ManualArticleVersion{}).Error; err != nil {
+		return apperrors.FromGORM(err, "manual_article_version", fmt.Sprintf("article=%d", articleID))
+	}
+	return nil
 }
 
 func (r *repository) Delete(ctx context.Context, category model.ManualCategory, slug string) error {
@@ -136,7 +165,8 @@ func (r *repository) FindVersionsByArticleID(ctx context.Context, articleID uint
 	versions := make([]model.ManualArticleVersion, 0)
 	if err := r.db.WithContext(ctx).
 		Where("article_id = ?", articleID).
-		Order("edited_at DESC").
+		Order("edited_at DESC, id DESC").
+		Limit(MaxVersionsPerArticle).
 		Find(&versions).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "manual_article_version", fmt.Sprintf("article=%d", articleID))
 	}

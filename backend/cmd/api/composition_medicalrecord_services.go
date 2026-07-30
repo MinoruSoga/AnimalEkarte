@@ -67,7 +67,7 @@ func newMedicalRecordMasterServices(
 			d.Transactor,
 			auditTx,
 		),
-		cages:          medicalrecord.NewCageService(r.cages),
+		cages:          medicalrecord.NewCageService(r.cages, d.Transactor),
 		treatmentPlans: medicalrecord.NewTreatmentPlanService(r.treatmentPlans, d.Transactor),
 	}
 }
@@ -182,6 +182,7 @@ func newMedicalRecordClinicalServices(
 		images: medicalrecord.NewMedicalRecordImageServiceWithRelationValidation(
 			r.medicalRecordImages,
 			r.medicalRecords,
+			d.Pets,
 			r.examinations,
 			d.Staff,
 			d.StaffAssignments,

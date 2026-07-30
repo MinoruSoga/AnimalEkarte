@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -33,6 +34,24 @@ type UpdateTreatmentPlanInput struct {
 	// Subtotal is ignored on write; server always recomputes when price fields change (MRD-04).
 	Subtotal  *int64
 	SortOrder *int
+	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
+	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F10).
+	DiscountEditAllowed bool
+}
+
+// applyTreatmentPlanDiscountGuard rechecks discount against the locked plan row (SEC-CS-F10).
+func applyTreatmentPlanDiscountGuard(locked *model.TreatmentPlan, input *UpdateTreatmentPlanInput) error {
+	if input.DiscountRate != nil {
+		if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) && !input.DiscountEditAllowed {
+			return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+		}
+	}
+	if input.DiscountAmount != nil {
+		if *input.DiscountAmount != locked.DiscountAmount && !input.DiscountEditAllowed {
+			return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+		}
+	}
+	return nil
 }
 
 // computeTreatmentPlanSubtotal is the single source of truth for plan subtotal (MRD-04).
@@ -201,18 +220,32 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 	// MRD-02 + MRD-03 + MRD-04: parent bind, money validation, write+reload in one tx.
+	// SEC-CS-F10: lock plan row and recheck discount against the locked snapshot.
 	var result *model.TreatmentPlan
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		existing, err := s.repo.FindByID(txCtx, clinicID, id)
+		existing, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find treatment plan", "error", err)
-			return apperrors.Wrap(err, "failed to find treatment plan")
+			slog.ErrorContext(txCtx, "failed to lock treatment plan", "error", err)
+			return apperrors.Wrap(err, "failed to lock treatment plan")
 		}
 		if existing == nil {
 			return apperrors.WrapNotFound("treatment_plan", strconv.FormatUint(id, 10))
 		}
 		if err := assertPlanParentMatch(existing, medicalRecordID, hospitalizationID); err != nil {
 			return err
+		}
+		if err := applyTreatmentPlanDiscountGuard(existing, input); err != nil {
+			return err
+		}
+
+		// Unprivileged equal-to-locked discount is a no-op: drop it so money merge cannot
+		// race-write stale values. Differing values already failed the guard above.
+		effective := *input
+		if input.DiscountRate != nil && httpapi.FloatEquals(*input.DiscountRate, existing.DiscountRate) && !input.DiscountEditAllowed {
+			effective.DiscountRate = nil
+		}
+		if input.DiscountAmount != nil && *input.DiscountAmount == existing.DiscountAmount && !input.DiscountEditAllowed {
+			effective.DiscountAmount = nil
 		}
 
 		// Merge money fields for validation / subtotal recompute.
@@ -221,20 +254,20 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		discountRate := existing.DiscountRate
 		discountAmount := existing.DiscountAmount
 		moneyTouched := false
-		if input.UnitPrice != nil {
-			unitPrice = *input.UnitPrice
+		if effective.UnitPrice != nil {
+			unitPrice = *effective.UnitPrice
 			moneyTouched = true
 		}
-		if input.Quantity != nil {
-			quantity = *input.Quantity
+		if effective.Quantity != nil {
+			quantity = *effective.Quantity
 			moneyTouched = true
 		}
-		if input.DiscountRate != nil {
-			discountRate = *input.DiscountRate
+		if effective.DiscountRate != nil {
+			discountRate = *effective.DiscountRate
 			moneyTouched = true
 		}
-		if input.DiscountAmount != nil {
-			discountAmount = *input.DiscountAmount
+		if effective.DiscountAmount != nil {
+			discountAmount = *effective.DiscountAmount
 			moneyTouched = true
 		}
 		if moneyTouched {
@@ -243,7 +276,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 			}
 		}
 
-		fields := buildTreatmentPlanUpdate(input)
+		fields := buildTreatmentPlanUpdate(&effective)
 		if moneyTouched {
 			fields["unit_price"] = unitPrice
 			fields["quantity"] = quantity

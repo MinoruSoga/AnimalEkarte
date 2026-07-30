@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListOwners godoc
@@ -121,6 +122,10 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	}
 
 	input := req.toServiceInput()
+	// SEC-CS-F15: pass discount:edit into the write TX for locked-row recheck.
+	if h.hasPermission != nil {
+		input.DiscountEditAllowed = h.hasPermission(c, string(model.ResourceDiscount), "edit")
+	}
 	owner, err := h.service.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)

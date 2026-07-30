@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/infra"
@@ -32,6 +34,7 @@ type medicalRecordCompositionDependencies struct {
 
 type medicalRecordHTTPDependencies struct {
 	Uploader          infra.FileUploader
+	DB                *gorm.DB
 	HasPermission     medicalrecord.PermissionChecker
 	RequirePermission medicalrecord.PermissionMiddleware
 }
@@ -86,7 +89,12 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewLabReportHandler(s.lab.reports),
 		medicalrecord.NewVitalHandler(s.clinical.vitals, s.core.medicalRecords),
 		medicalrecord.NewClinicalPlanHandler(s.clinical.plans),
-		medicalrecord.NewMedicalRecordImageHandler(s.clinical.images, s.core.medicalRecords, dependencies.Uploader),
+		medicalrecord.NewMedicalRecordImageHandler(
+			s.clinical.images,
+			s.core.medicalRecords,
+			dependencies.Uploader,
+			medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(dependencies.DB),
+		),
 		medicalrecord.NewTreatmentHandler(s.treatment.treatments, dependencies.HasPermission),
 		medicalrecord.NewHospitalizationHandler(s.hospital.hospitalizations),
 		medicalrecord.NewHospitalizationPlanHandler(s.hospital.plans),

@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -22,11 +23,28 @@ type MedicalRecordImageHandler struct {
 	service       MedicalRecordImageService
 	medicalRecord medicalRecordGetter
 	uploader      fileUploader
+	quota         medicalRecordImageUploadQuotaStore
 }
 
 // NewMedicalRecordImageHandler initializes a MedicalRecordImageHandler.
-func NewMedicalRecordImageHandler(service MedicalRecordImageService, medicalRecord medicalRecordGetter, uploader fileUploader) *MedicalRecordImageHandler {
-	return &MedicalRecordImageHandler{service: service, medicalRecord: medicalRecord, uploader: uploader}
+// quota is required for uploads; nil fails closed. Optional trailing arg keeps
+// route-snapshot call sites compiling during migration.
+func NewMedicalRecordImageHandler(
+	service MedicalRecordImageService,
+	medicalRecord medicalRecordGetter,
+	uploader fileUploader,
+	quota ...medicalRecordImageUploadQuotaStore,
+) *MedicalRecordImageHandler {
+	var q medicalRecordImageUploadQuotaStore
+	if len(quota) > 0 {
+		q = quota[0]
+	}
+	return &MedicalRecordImageHandler{
+		service:       service,
+		medicalRecord: medicalRecord,
+		uploader:      uploader,
+		quota:         q,
+	}
 }
 
 // verifyOwnership は clinicID + medicalRecordID を検証しテナント分離を保証する（pre-move
@@ -140,6 +158,10 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
@@ -148,6 +170,25 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("medical record image upload request exceeds size limit"))
 		return
 	}
+
+	// SEC-CS-F08-R1: acquire shared quota BEFORE FormFile / MaxBytesReader body work.
+	if h.quota == nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "upload quota unavailable"})
+		return
+	}
+	declaredBytes := c.Request.ContentLength
+	if declaredBytes <= 0 {
+		// Chunked / unknown length: reserve per-file upper bound conservatively.
+		declaredBytes = medicalRecordImageMaxUploadSize
+	}
+	release, err := h.quota.Acquire(c.Request.Context(), clinicID, staffID, declaredBytes)
+	if err != nil {
+		respondMedicalRecordImageUploadQuotaError(c, err)
+		return
+	}
+	// Release must not inherit a canceled request context (lease would stick until stale TTL).
+	defer release(context.WithoutCancel(c.Request.Context()))
+
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, medicalRecordImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")
 	if err != nil {
@@ -194,4 +235,28 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
 	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
+}
+
+// respondMedicalRecordImageUploadQuotaError maps quota errors to stable HTTP 429 messages
+// (or fail-closed 500 when the quota store is unavailable).
+func respondMedicalRecordImageUploadQuotaError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, errMedicalRecordImageUploadConcurrency):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": errMedicalRecordImageUploadConcurrency.Error(),
+		})
+	case errors.Is(err, errMedicalRecordImageUploadRateLimit):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": errMedicalRecordImageUploadRateLimit.Error(),
+		})
+	case errors.Is(err, errMedicalRecordImageUploadByteBudget):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": errMedicalRecordImageUploadByteBudget.Error(),
+		})
+	default:
+		// Infrastructure failure → fail-closed (do not allow unlimited upload).
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": "upload quota unavailable",
+		})
+	}
 }

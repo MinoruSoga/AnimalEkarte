@@ -13,8 +13,14 @@ vi.mock("../api/medical-record-images", () => ({
   useDeleteImage: () => ({ mutate: vi.fn() }),
 }));
 
+const permissionState = {
+  canView: true,
+  canCreate: false,
+  canDelete: false,
+};
+
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canView: true, canCreate: false, canDelete: false }),
+  usePermission: () => permissionState,
 }));
 
 // src が非 null の場合は <img alt={name}> でレンダリングされ、
@@ -37,6 +43,9 @@ const IMAGE_GROUPS: ImageGalleryGroup[] = [
 ];
 
 beforeEach(() => {
+  permissionState.canView = true;
+  permissionState.canCreate = false;
+  permissionState.canDelete = false;
   vi.mocked(useGetMedicalRecordImages).mockReturnValue({
     data: IMAGE_GROUPS,
     isLoading: false,
@@ -84,5 +93,21 @@ describe("MedicalRecordImage — カナ混同検索", () => {
       expect(screen.getByText("エコー検査")).toBeInTheDocument();
       expect(screen.queryByText("レントゲン画像")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("MedicalRecordImage — SEC-CS-F14 死亡ペット", () => {
+  it("作成権限があっても死亡ペットではアップロードボタンを出さない", () => {
+    permissionState.canCreate = true;
+    render(<MedicalRecordImage medicalRecordId="123" isPetDeceased />);
+
+    expect(screen.queryByRole("button", { name: "画像アップロード" })).not.toBeInTheDocument();
+  });
+
+  it("作成権限があり生存ペットならアップロードボタンを出す", () => {
+    permissionState.canCreate = true;
+    render(<MedicalRecordImage medicalRecordId="123" isPetDeceased={false} />);
+
+    expect(screen.getByRole("button", { name: "画像アップロード" })).toBeInTheDocument();
   });
 });

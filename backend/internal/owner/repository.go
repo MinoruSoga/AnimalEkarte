@@ -17,6 +17,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
+// OwnerUpdateApplier builds the update field map from the FOR UPDATE locked row.
+// Returning an error aborts the transaction without writing.
+type OwnerUpdateApplier func(locked *model.Owner) (map[string]any, error)
+
 // ServiceRepository is the minimal owner persistence view consumed by the
 // owner use case.
 type ServiceRepository interface {
@@ -30,6 +34,11 @@ type ServiceRepository interface {
 	// UpdateAndFind updates and reloads an owner in one transaction. A reload
 	// failure rolls the write back.
 	UpdateAndFind(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error)
+	// UpdateAndFindApplying locks the owner FOR UPDATE, lets apply build fields from
+	// the locked snapshot, then updates and reloads (SEC-CS-F15 discount recheck).
+	UpdateAndFindApplying(ctx context.Context, clinicID, id uint64, apply OwnerUpdateApplier) (*model.Owner, error)
+	// LockByIDForUpdate locks a full clinic-scoped owner row. Fail-closed without ambient tx.
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
@@ -289,9 +298,50 @@ func (r *ownerRepository) UpdateAndFind(
 	clinicID, id uint64,
 	fields map[string]any,
 ) (*model.Owner, error) {
+	return r.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (map[string]any, error) {
+		return fields, nil
+	})
+}
+
+// LockByIDForUpdate は clinic-scoped FOR UPDATE で owner 全カラムを固定する（SEC-CS-F15）。
+func (r *ownerRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("owner lock requires an ambient transaction")
+	}
+	var owner model.Owner
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		First(&owner).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return &owner, nil
+}
+
+func (r *ownerRepository) UpdateAndFindApplying(
+	ctx context.Context,
+	clinicID, id uint64,
+	apply OwnerUpdateApplier,
+) (*model.Owner, error) {
+	if apply == nil {
+		return nil, apperrors.WrapInternalServerError("owner update applier is required")
+	}
 	var loaded *model.Owner
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, err := r.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		fields, err := apply(locked)
+		if err != nil {
+			return err
+		}
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
 		if err := persistence.UpdateScopedByID(
 			txCtx,
 			tx,
@@ -307,7 +357,6 @@ func (r *ownerRepository) UpdateAndFind(
 			return err
 		}
 
-		var err error
 		loaded, err = r.findOwnerByIDWithDB(txCtx, tx, []uint64{clinicID}, id)
 		if err != nil {
 			return apperrors.Wrap(err, "reload owner after update")
@@ -317,6 +366,11 @@ func (r *ownerRepository) UpdateAndFind(
 	if err != nil {
 		if mapped := mapOwnerUniqueConstraintErr(err); mapped != nil {
 			return nil, mapped
+		}
+		// Preserve Forbidden/InvalidInput from apply without double-wrapping.
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			return nil, err
 		}
 		return nil, apperrors.Wrap(err, "failed to update and reload owner")
 	}

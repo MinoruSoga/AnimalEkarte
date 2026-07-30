@@ -15,7 +15,11 @@ import (
 // LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
 type LineReservationSettingRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	// FindAll は全クリニックの設定を返す（Webhook署名検証用）。
+	// FindByLineBotUserID は webhook destination（LINE bot user ID）で設定を1件返す。
+	// SEC-CS-F05-R1: 署名検証は FindAll 全件走査ではなくこの lookup を使う。
+	// line_bot_user_id が空文字の行はマッチさせない（未プロビジョニング）。
+	FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error)
+	// FindAll は全クリニックの設定を返す（管理用途）。Webhook 署名検証では使わない。
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 	Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
 }
@@ -32,6 +36,22 @@ func (r *lineReservationSettingRepository) FindAll(ctx context.Context) ([]model
 		return nil, apperrors.FromGORM(err, "line_reservation_setting", "")
 	}
 	return settings, nil
+}
+
+// FindByLineBotUserID は line_bot_user_id が一致する設定を1件返す。
+// 空の bot user ID は未設定行との衝突を避けるため常に not found とする。
+func (r *lineReservationSettingRepository) FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+	if lineBotUserID == "" {
+		return nil, apperrors.FromGORM(gorm.ErrRecordNotFound, "line_reservation_setting", "line_bot_user_id")
+	}
+	var setting model.LineReservationSetting
+	err := r.db.WithContext(ctx).
+		Where("line_bot_user_id = ? AND line_bot_user_id <> ''", lineBotUserID).
+		First(&setting).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "line_reservation_setting", "line_bot_user_id")
+	}
+	return &setting, nil
 }
 
 func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -97,6 +117,9 @@ func lineReservationSettingUpdatableColumns() []string {
 		"additional_fields",
 		"line_channel_id",
 		"line_channel_secret",
+		// line_bot_user_id is ops/migration-provisioned for O(1) webhook routing
+		// (SEC-CS-F05-R1). Exclude from OnConflict updates so UI/API Save cannot
+		// wipe a provisioned bot user ID with the zero value.
 		"liff_id",
 		"line_access_token",
 		"updated_at",

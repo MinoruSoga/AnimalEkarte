@@ -69,7 +69,7 @@ func (m *mockMedicalRecordImageUploader) Delete(ctx context.Context, key string)
 var _ fileUploader = (*mockMedicalRecordImageUploader)(nil)
 
 func newHandlerWithMedicalRecordImageSvc(mrSvc medicalRecordGetter, imgSvc MedicalRecordImageService, uploader fileUploader) *MedicalRecordImageHandler {
-	return NewMedicalRecordImageHandler(imgSvc, mrSvc, uploader)
+	return NewMedicalRecordImageHandler(imgSvc, mrSvc, uploader, newMemoryMedicalRecordImageUploadQuotaStore())
 }
 
 // buildImageMultipart はテスト用の multipart/form-data ボディを組み立てる。
@@ -454,7 +454,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
@@ -498,7 +498,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc:      &mockMedicalRecordService{},
 			imgSvc:     &mockMedicalRecordImageService{},
 			uploader:   &mockMedicalRecordImageUploader{},
@@ -513,7 +513,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return nil, apperrors.WrapNotFound("medical_record", "5")
@@ -531,7 +531,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
@@ -550,7 +550,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
@@ -569,7 +569,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
@@ -592,7 +592,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				req.Header.Set("Content-Type", ct)
 				return req
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil

@@ -426,7 +426,12 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("画像") ? (
         <UnifiedTabsContent value="画像">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
-            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} recordClinicId={recordClinicId} />
+            <MedicalRecordImage
+              isNewRecord={isNewRecord}
+              medicalRecordId={recordId}
+              recordClinicId={recordClinicId}
+              isPetDeceased={selectedPet.status === "死亡"}
+            />
           </div>
         </UnifiedTabsContent>
       ) : null}

@@ -393,6 +393,18 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Delete":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountUsageByProcedureID": {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountChildrenByParentID": {},
+	// SEC-CS-F13: cage soft-delete + hospitalization usage re-check join ambient tx.
+	// FindByID takes FOR SHARE under ambient tx (hospitalization cage FK validation).
+	// Runtime: cage_delete_concurrency_test.go ConcurrentAssignFirst / DeleteFirst /
+	// CountUsage_AmbientTxSeesUncommittedHospitalization /
+	// LockByIDForUpdate_RequiresAmbientTransaction.
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":            {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":            {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":   {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":              {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Update":              {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":              {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":  {},
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":                {}, // BE8-4 batch7: moved from prescription_repository.go
 	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID":              {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Update":                {}, // BE8-4 batch7: moved from prescription_repository.go
@@ -570,7 +582,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                                            {}, // BE8-4 batch3: moved from manual_article_repository.go
 	"owner/repository.go|ownerRepository.CreateWithPets":                                                       {},
-	"owner/repository.go|ownerRepository.UpdateAndFind":                                                        {},
+	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
+	// delegate without its own DBOrTx shape (removed from allowlist after F15).
+	// Runtime: owner_discount_toctou_test.go.
+	"owner/repository.go|ownerRepository.UpdateAndFindApplying": {},
+	"owner/repository.go|ownerRepository.LockByIDForUpdate":     {},
 	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                                    {},
 	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                                     {},
 	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":            {},
@@ -584,6 +600,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/treatment_repository.go|treatmentRepository.Delete":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.Update":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
+	// SEC-CS-F09/F10: treatment / treatment-plan discount recheck under FOR UPDATE in write TX.
+	// Runtime: treatment_discount_toctou_test.go, treatment_plan_discount_toctou_test.go.
+	"medicalrecord/treatment_repository.go|treatmentRepository.LockByIDForUpdate":             {},
+	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.LockByIDForUpdate": {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).

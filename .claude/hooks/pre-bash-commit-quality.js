@@ -17,7 +17,7 @@
  */
 'use strict';
 
-const { execSync, execFileSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -62,14 +62,19 @@ process.stdin.on('end', () => {
     const isProjectRepo = scanDir === path.resolve(projectDir);
 
     // --- 1. Check staged files for console.log / debugger ---
+    // argv + NUL delimiters: never shell-interpolate staged paths (SEC-CS-F02)
     let stagedFiles = [];
     try {
-      const output = execSync('git diff --cached --name-only --diff-filter=ACM', {
-        cwd: scanDir,
-        encoding: 'utf8',
-        timeout: 10000,
-      }).trim();
-      stagedFiles = output ? output.split('\n') : [];
+      const output = execFileSync(
+        'git',
+        ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACM'],
+        {
+          cwd: scanDir,
+          encoding: 'utf8',
+          timeout: 10000,
+        },
+      );
+      stagedFiles = output ? output.split('\0').filter(Boolean) : [];
     } catch {
       // No staged files or git error — skip
     }
@@ -79,7 +84,7 @@ process.stdin.on('end', () => {
     for (const file of jsFiles) {
       let content;
       try {
-        content = execSync(`git show ":${file}"`, {
+        content = execFileSync('git', ['show', ':' + file], {
           cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
@@ -125,7 +130,7 @@ process.stdin.on('end', () => {
 
       let content;
       try {
-        content = execSync(`git show ":${file}"`, {
+        content = execFileSync('git', ['show', ':' + file], {
           cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
