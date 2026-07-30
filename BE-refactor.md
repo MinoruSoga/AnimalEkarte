@@ -4,33 +4,22 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-30 wave3 (post bounded master lists). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-30 session-ledger convergence completed (BE-ACT implementation wave closed; historical resolution index retained). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There is 1 remaining specification-ready packet filed as `READY_AGENT` (session-ledger final convergence). Wave3 completed: BE-ACT-BOUNDED-MASTER-LISTS.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). Remaining READY_AGENT packets for the BE-ACT wave: 0. BE-ACT implementation wave is complete (wave1–3 integrated; session-ledger final convergence closed). Only the historical finding resolution index remains as audit authority.
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
-### BE-ACT-DOC-SESSION-LEDGER
-- State: READY_AGENT
-- Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
-- Actor: sole documentation integrator using a protected copy of current shared-main state
-- Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
-- Current evidence: all prior BE-ACT implementation packets are integrated (including BE-ACT-BOUNDED-MASTER-LISTS); BUG-433 remains USER 専権 for codegen confirmation.
-- Required behavior: begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement of already-filed work.
-- Owned paths: 3-session-agent.html
-- Reference paths: q&a.html#ops, BE-refactor.md
-- Dependencies: none (all prior BE-ACT implementation packets integrated)
-- Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: imported baseline matches then-current shared main before editing; every completed `BE-ACT-*` section is absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
+BE-ACT implementation wave complete. No READY_AGENT packets remain; only the historical resolution index below is retained.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
 
-- Current wave: session-ledger final convergence only (docs).
-- Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
+- Current wave: none — BE-ACT implementation wave complete; no active path-disjoint execution packets.
+- Ledger wave advancement remains an integration-owner lifecycle action: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
 ## Finding resolution index
