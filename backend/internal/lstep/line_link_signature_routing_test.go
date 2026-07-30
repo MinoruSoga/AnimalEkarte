@@ -42,25 +42,32 @@ func installDecryptCounter(t *testing.T) *int {
 	return &decryptCalls
 }
 
-// nClinicSettingRepo builds N clinics with distinct secrets; bot-A maps to clinic 7.
+// nClinicSettingRepo builds N clinics with distinct secrets; "bot-A" always maps to clinic 7
+// (clinic 7 is included even when n < 7 so fixed-routing scenarios stay valid).
 func nClinicSettingRepo(n int) *mockLineLinkSettingRepo {
-	byBot := make(map[string]model.LineReservationSetting, n)
-	all := make([]model.LineReservationSetting, 0, n)
-	for i := 1; i <= n; i++ {
-		botID := fmt.Sprintf("bot-%d", i)
-		// Clinic 7 is addressable as "bot-A" for the fixed routing scenarios.
-		if i == 7 {
-			botID = "bot-A"
-		}
+	if n < 1 {
+		n = 1
+	}
+	byBot := make(map[string]model.LineReservationSetting, n+1)
+	all := make([]model.LineReservationSetting, 0, n+1)
+	add := func(clinicID uint64, botID, secret string) {
 		s := model.LineReservationSetting{
-			ID:                uint64(i),
-			ClinicID:          uint64(i),
+			ID:                clinicID,
+			ClinicID:          clinicID,
 			LineBotUserID:     botID,
-			LineChannelSecret: fmt.Sprintf("secret-%d", i),
+			LineChannelSecret: secret,
 		}
 		byBot[botID] = s
 		all = append(all, s)
 	}
+	for i := 1; i <= n; i++ {
+		if i == 7 {
+			continue // added below as bot-A
+		}
+		add(uint64(i), fmt.Sprintf("bot-%d", i), fmt.Sprintf("secret-%d", i))
+	}
+	// Always provision bot-A → clinic 7 with secret-7 (target of fixed-work assertions).
+	add(7, "bot-A", "secret-7")
 	return &mockLineLinkSettingRepo{
 		findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
 			s, ok := byBot[lineBotUserID]

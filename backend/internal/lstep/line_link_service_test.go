@@ -167,9 +167,9 @@ func (m *mockLineLinkSettingRepo) FindByLineBotUserID(ctx context.Context, lineB
 	}
 	// Default: map any non-empty destination to clinic 1 with plaintext secret "secret".
 	return &model.LineReservationSetting{
-		ID:               1,
-		ClinicID:         1,
-		LineBotUserID:    lineBotUserID,
+		ID:                1,
+		ClinicID:          1,
+		LineBotUserID:     lineBotUserID,
 		LineChannelSecret: "secret",
 	}, nil
 }
@@ -329,8 +329,12 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 		},
 	}
 	settingRepo := &mockLineLinkSettingRepo{
-		findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-			return []model.LineReservationSetting{{ClinicID: 1, LineChannelSecret: encSecret}}, nil
+		findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClinicID:          1,
+				LineBotUserID:     lineBotUserID,
+				LineChannelSecret: encSecret,
+			}, nil
 		},
 	}
 	svc := NewLineLinkService(
@@ -429,15 +433,24 @@ func TestLineLinkService_HandleWebhook_ScopesOwnerMutationToSigningClinic(t *tes
 				},
 			}
 			settingRepo := &mockLineLinkSettingRepo{
-				findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-					return []model.LineReservationSetting{
-						{ClinicID: 1, LineChannelSecret: "clinic-one-secret"},
-						{ClinicID: signingClinicID, LineChannelSecret: "clinic-two-secret"},
-					}, nil
+				findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+					switch lineBotUserID {
+					case "bot-clinic-1":
+						return &model.LineReservationSetting{
+							ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: "clinic-one-secret",
+						}, nil
+					case "bot-clinic-2":
+						return &model.LineReservationSetting{
+							ClinicID: signingClinicID, LineBotUserID: lineBotUserID, LineChannelSecret: "clinic-two-secret",
+						}, nil
+					default:
+						return nil, apperrors.WrapNotFound("line_reservation_setting", lineBotUserID)
+					}
 				},
 			}
 			svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo)
 			payload := WebhookPayload{
+				Destination: "bot-clinic-2",
 				Events: []WebhookEvent{
 					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
 						UserID string `json:"userId"`
@@ -462,8 +475,11 @@ func TestLineLinkService_HandleWebhook_ScopesOwnerMutationToSigningClinic(t *tes
 	}
 }
 
-func TestLineLinkService_HandleWebhook_RejectsAmbiguousSigningClinic(t *testing.T) {
-	lineUserID := "U-ambiguous-secret"
+// TestLineLinkService_HandleWebhook_RejectsForeignDestinationSecret は
+// destination が指す clinic 以外の secret で署名しても通さないことを保証する。
+// （旧: 共有 secret の ambiguous 全件スキャン拒否。R1 では destination 固定 routing。）
+func TestLineLinkService_HandleWebhook_RejectsForeignDestinationSecret(t *testing.T) {
+	lineUserID := "U-foreign-destination"
 	lookupCalled := false
 	updateCalled := false
 	ownerRepo := &mockLstepOwnerRepo{
@@ -477,15 +493,18 @@ func TestLineLinkService_HandleWebhook_RejectsAmbiguousSigningClinic(t *testing.
 		},
 	}
 	settingRepo := &mockLineLinkSettingRepo{
-		findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-			return []model.LineReservationSetting{
-				{ClinicID: 1, LineChannelSecret: "shared-secret"},
-				{ClinicID: 2, LineChannelSecret: "shared-secret"},
-			}, nil
+		findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+			if lineBotUserID == "bot-clinic-1" {
+				return &model.LineReservationSetting{
+					ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: "clinic-one-secret",
+				}, nil
+			}
+			return nil, apperrors.WrapNotFound("line_reservation_setting", lineBotUserID)
 		},
 	}
 	svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo)
 	payload := WebhookPayload{
+		Destination: "bot-clinic-1",
 		Events: []WebhookEvent{
 			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
@@ -495,7 +514,8 @@ func TestLineLinkService_HandleWebhook_RejectsAmbiguousSigningClinic(t *testing.
 	body, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "shared-secret"))
+	// Sign with a different clinic's secret — must not authenticate as clinic 1.
+	err = svc.HandleWebhook(context.Background(), body, makeLineSignature(body, "clinic-two-secret"))
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
@@ -533,6 +553,7 @@ func TestLineLinkService_HandleWebhook_DoesNotLogRawLineUserID(t *testing.T) {
 				&mockLineLinkSettingRepo{},
 			)
 			payload := WebhookPayload{
+				Destination: "dest",
 				Events: []WebhookEvent{
 					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
 						UserID string `json:"userId"`
@@ -1173,6 +1194,7 @@ func TestLineLinkService_HandleWebhook_EmptyUserIDSkipped(t *testing.T) {
 	)
 
 	payload := WebhookPayload{
+		Destination: "dest",
 		Events: []WebhookEvent{
 			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
@@ -1200,6 +1222,7 @@ func TestLineLinkService_HandleWebhook_FollowEvent_FindOwnerErrorIsPropagated(t 
 	)
 
 	payload := WebhookPayload{
+		Destination: "dest",
 		Events: []WebhookEvent{
 			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
@@ -1227,6 +1250,7 @@ func TestLineLinkService_HandleWebhook_UnfollowEvent_FindOwnerErrorIsPropagated(
 	)
 
 	payload := WebhookPayload{
+		Destination: "dest",
 		Events: []WebhookEvent{
 			{Type: "unfollow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
@@ -1308,6 +1332,7 @@ func TestLineLinkService_HandleWebhook_StaleOrMappingChangedEventIsNoOp(t *testi
 				&mockLineLinkSettingRepo{},
 			)
 			payload := WebhookPayload{
+				Destination: "dest",
 				Events: []WebhookEvent{
 					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
 						UserID string `json:"userId"`
@@ -1354,6 +1379,7 @@ func TestLineLinkService_HandleWebhook_NotFoundOwnerIsNoOp(t *testing.T) {
 				&mockLineLinkSettingRepo{},
 			)
 			payload := WebhookPayload{
+				Destination: "dest",
 				Events: []WebhookEvent{
 					{Type: tt.eventType, Timestamp: testLineWebhookTimestamp, Source: struct {
 						UserID string `json:"userId"`
@@ -1382,6 +1408,7 @@ func TestLineLinkService_HandleWebhook_OwnerScopeMismatchIsPropagated(t *testing
 		&mockLineLinkSettingRepo{},
 	)
 	payload := WebhookPayload{
+		Destination: "dest",
 		Events: []WebhookEvent{
 			{Type: "follow", Timestamp: testLineWebhookTimestamp, Source: struct {
 				UserID string `json:"userId"`
@@ -1421,6 +1448,7 @@ func TestLineLinkService_HandleWebhook_RejectsInvalidEventTimestamp(t *testing.T
 				&mockLineLinkSettingRepo{},
 			)
 			payload := WebhookPayload{
+				Destination: "dest",
 				Events: []WebhookEvent{
 					{Type: "follow", Timestamp: tt.timestamp, Source: struct {
 						UserID string `json:"userId"`
@@ -1441,72 +1469,72 @@ func TestLineLinkService_HandleWebhook_RejectsInvalidEventTimestamp(t *testing.T
 
 // --- verifySignatureAnyClinic additional branch tests ---
 
-func TestVerifySignatureAnyClinic_FindAllError(t *testing.T) {
+func TestVerifySignatureAnyClinic_FindByLineBotUserIDError(t *testing.T) {
 	svc := &lineLinkService{
 		lineSettingRepo: &mockLineLinkSettingRepo{
-			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
+			findByLineBotUserIDFn: func(_ context.Context, _ string) (*model.LineReservationSetting, error) {
 				return nil, errors.New("db error")
 			},
 		},
 	}
 
-	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "sig")
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "sig")
 
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 }
 
-func TestVerifySignatureAnyClinic_EmptySecretSkipped(t *testing.T) {
+func TestVerifySignatureAnyClinic_EmptySecretRejected(t *testing.T) {
 	svc := &lineLinkService{
 		lineSettingRepo: &mockLineLinkSettingRepo{
-			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-				return []model.LineReservationSetting{
-					{ClinicID: 1, LineChannelSecret: ""},
-					{ClinicID: 2, LineChannelSecret: "secret"},
+			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{
+					ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: "",
 				}, nil
 			},
 		},
 	}
-	body := []byte("body")
+	body := []byte(`{"destination":"bot-A","events":[]}`)
 	sig := makeLineSignature(body, "secret")
 
 	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, sig)
 
-	assert.True(t, ok, "should skip the empty-secret clinic and match the second")
-	assert.Equal(t, uint64(2), clinicID)
+	assert.False(t, ok, "empty channel secret must not authenticate")
+	assert.Zero(t, clinicID)
 }
 
 func TestVerifySignatureAnyClinic_NoMatch(t *testing.T) {
 	svc := &lineLinkService{
 		lineSettingRepo: &mockLineLinkSettingRepo{
-			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-				return []model.LineReservationSetting{{ClinicID: 1, LineChannelSecret: "secret"}}, nil
+			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{
+					ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: "secret",
+				}, nil
 			},
 		},
 	}
-	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), []byte("body"), "wrong-signature")
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "wrong-signature")
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 }
 
 // TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit
 // は SEC-CS-F05: 無効署名パスでも setting ID キャッシュが効き、2 回目以降の
-// AES 復号をスキップすることを保証する。
+// AES 復号をスキップすることを保証する（destination 固定後も 1 setting 単位）。
 func TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit(t *testing.T) {
 	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
 	require.NoError(t, err)
 	encSecret, err := cipher.Encrypt("clinic-secret")
 	require.NoError(t, err)
 
-	settings := []model.LineReservationSetting{
-		{ID: 11, ClinicID: 1, LineChannelSecret: encSecret},
-		{ID: 12, ClinicID: 2, LineChannelSecret: encSecret},
-		{ID: 13, ClinicID: 3, LineChannelSecret: encSecret},
-	}
 	svc := &lineLinkService{
 		lineSettingRepo: &mockLineLinkSettingRepo{
-			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-				return settings, nil
+			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{
+					ID: 11, ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: encSecret,
+				}, nil
 			},
 		},
 		cipher: cipher,
@@ -1520,18 +1548,18 @@ func TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit(t *
 	}
 	t.Cleanup(func() { lineCredentialDecrypt = prev })
 
-	body := []byte(`{"destination":"Ufake","events":[]}`)
-	// 1st pass: cold cache → decrypt once per setting
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	// 1st pass: cold cache → decrypt once for the single looked-up setting
 	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "invalid-signature")
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
-	assert.Equal(t, len(settings), decryptCalls, "cold cache must decrypt each setting once")
+	assert.Equal(t, 1, decryptCalls, "cold cache must decrypt the destination setting once")
 
 	// 2nd pass: warm cache → no additional decrypts on invalid signature path
 	clinicID, ok = svc.verifySignatureAnyClinic(context.Background(), body, "still-invalid")
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
-	assert.Equal(t, len(settings), decryptCalls, "cache hit must not re-decrypt secrets")
+	assert.Equal(t, 1, decryptCalls, "cache hit must not re-decrypt secrets")
 }
 
 // TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates は
@@ -1547,9 +1575,9 @@ func TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates(t *testi
 	currentCiphertext := encOld
 	svc := &lineLinkService{
 		lineSettingRepo: &mockLineLinkSettingRepo{
-			findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
-				return []model.LineReservationSetting{
-					{ID: 21, ClinicID: 1, LineChannelSecret: currentCiphertext},
+			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{
+					ID: 21, ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: currentCiphertext,
 				}, nil
 			},
 		},
@@ -1564,7 +1592,7 @@ func TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates(t *testi
 	}
 	t.Cleanup(func() { lineCredentialDecrypt = prev })
 
-	body := []byte("body")
+	body := []byte(`{"destination":"bot-A","events":[]}`)
 	_, _ = svc.verifySignatureAnyClinic(context.Background(), body, "nope")
 	assert.Equal(t, 1, decryptCalls)
 
