@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -78,11 +79,15 @@ type CageService interface {
 }
 
 type cageService struct {
-	repo CageRepository
+	repo       CageRepository
+	transactor Transactor
 }
 
-func NewCageService(repo CageRepository) CageService {
-	return &cageService{repo: repo}
+// NewCageService constructs CageService.
+// transactor is required for Delete: lock + usage check + soft-delete share one
+// ambient transaction (SEC-CS-F13; merchandise/procedure atomic-delete pattern).
+func NewCageService(repo CageRepository, transactor Transactor) CageService {
+	return &cageService{repo: repo, transactor: transactor}
 }
 
 func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -166,20 +171,30 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	return cage, nil
 }
 func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get cage")
+	// SEC-CS-F13: FOR UPDATE → usage count → soft-delete in one ambient tx so a
+	// concurrent hospitalization assignment cannot sneak between check and delete.
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("cage write transaction dependency is required")
 	}
-	count, err := s.repo.CountUsageByCageID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check cage usage", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check cage usage")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete cage", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete cage")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to get cage")
+		}
+		count, err := s.repo.CountUsageByCageID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check cage usage", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check cage usage")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete cage", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete cage")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "cage deleted",
 		slog.Uint64("clinic_id", clinicID),
@@ -188,8 +203,9 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 }
 
 func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
+	// SEC-CS-F04: bound cardinality + uniqueness before fan-out UPDATE per id.
+	if err := httpapi.ValidateReorderIDs(ids); err != nil {
+		return err
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		slog.ErrorContext(ctx, "failed to reorder cage", "error", err, "clinic_id", clinicID)

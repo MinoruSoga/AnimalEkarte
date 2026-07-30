@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -15,6 +16,7 @@ import (
 type mockCageRepository struct {
 	findAllFn            func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	lockByIDForUpdateFn  func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	createFn             func(ctx context.Context, cage *model.Cage) error
 	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
@@ -31,6 +33,14 @@ func (m *mockCageRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, nil
+}
+
+func (m *mockCageRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
+	if m.lockByIDForUpdateFn != nil {
+		return m.lockByIDForUpdateFn(ctx, clinicID, id)
+	}
+	// Default: fall back to FindByID so existing tests stay simple.
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error {
@@ -60,7 +70,11 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 }
 
 func newTestCageService(repo *mockCageRepository) CageService {
-	return NewCageService(repo)
+	return NewCageService(repo, &mockTransactor{})
+}
+
+func newTestCageServiceWithTx(repo *mockCageRepository, tx Transactor) CageService {
+	return NewCageService(repo, tx)
 }
 
 func TestCageService_List(t *testing.T) {
@@ -488,21 +502,36 @@ func TestCageService_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var locked, counted, deleted bool
+			inTx := false
+			tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				inTx = true
+				defer func() { inTx = false }()
+				return fn(ctx)
+			}}
 			repo := &mockCageRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+				lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+					assert.True(t, inTx, "LockByIDForUpdate must run inside WithTx")
 					if tt.findByIDErr != nil {
 						return nil, tt.findByIDErr
 					}
+					locked = true
 					return &model.Cage{ID: id}, nil
 				},
 				countUsageByCageIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					assert.True(t, inTx, "CountUsage must run inside WithTx")
+					assert.True(t, locked, "lock must precede usage count")
+					counted = true
 					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
+					assert.True(t, inTx, "Delete must run inside WithTx")
+					assert.True(t, counted, "usage count must precede soft-delete")
+					deleted = true
 					return tt.repoErr
 				},
 			}
-			svc := newTestCageService(repo)
+			svc := newTestCageServiceWithTx(repo, tx)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -510,45 +539,81 @@ func TestCageService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+					assert.True(t, locked || tt.findByIDErr != nil)
+					assert.False(t, deleted, "must not soft-delete on not-found")
 				}
 				if tt.wantConflict {
 					assert.True(t, apperrors.IsConflict(err))
+					assert.False(t, deleted, "must not soft-delete when usage > 0")
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.True(t, locked)
+				assert.True(t, counted)
+				assert.True(t, deleted)
 			}
 		})
 	}
 }
 
+func TestCageService_Delete_RequiresTransactor(t *testing.T) {
+	svc := NewCageService(&mockCageRepository{}, nil)
+	err := svc.Delete(context.Background(), 1, 1)
+	assert.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
+	assert.False(t, apperrors.IsConflict(err))
+}
+
 func TestCageService_Reorder(t *testing.T) {
 	tests := []struct {
-		name    string
-		ids     []uint64
-		repoErr error
-		wantErr bool
+		name        string
+		ids         []uint64
+		repoErr     error
+		wantErr     bool
+		wantInvalid bool
+		repoCalled  bool
 	}{
 		{
-			name: "reorders successfully",
-			ids:  []uint64{3, 1, 2},
+			name:       "reorders successfully",
+			ids:        []uint64{3, 1, 2},
+			repoCalled: true,
 		},
 		{
-			name:    "returns error when ids is empty",
-			ids:     []uint64{},
-			wantErr: true,
+			name:        "returns error when ids is empty",
+			ids:         []uint64{},
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
 		},
 		{
-			name:    "propagates repository error",
-			ids:     []uint64{1, 2},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:        "rejects duplicate ids without calling repo",
+			ids:         []uint64{1, 2, 1},
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
+		},
+		{
+			name:        "rejects over-limit ids without calling repo",
+			ids:         overLimitReorderIDs(),
+			wantErr:     true,
+			wantInvalid: true,
+			repoCalled:  false,
+		},
+		{
+			name:       "propagates repository error",
+			ids:        []uint64{1, 2},
+			repoErr:    errors.New("db error"),
+			wantErr:    true,
+			repoCalled: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			repoCalled := false
 			repo := &mockCageRepository{
 				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					repoCalled = true
 					return tt.repoErr
 				},
 			}
@@ -558,11 +623,24 @@ func TestCageService_Reorder(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
+			assert.Equal(t, tt.repoCalled, repoCalled, "repository call expectation")
 		})
 	}
+}
+
+// overLimitReorderIDs builds a unique ID list one past the shared reorder bound.
+func overLimitReorderIDs() []uint64 {
+	ids := make([]uint64, httpapi.MaxReorderIDs+1)
+	for i := range ids {
+		ids[i] = uint64(i + 1)
+	}
+	return ids
 }
 
 func TestBuildCageUpdate(t *testing.T) {
