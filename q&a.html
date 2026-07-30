@@ -196,10 +196,10 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（decision-ready pack・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-40〜46 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の入力は下記decision-ready packに分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・PO-008クライアント確認。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-40〜47 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
   </header>
 
-  <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜46は代理判定済み。委任外の臨床値・契約/外部条件・クライアント仕様はdecision-ready packで選択肢と不足入力だけを示し、決定済みに数えない。</p>
+  <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜47は代理判定済み。委任外の臨床値・価格・契約値は空欄フォームだけを示し、決定済みに数えない。</p>
 
 <div class="po-ops">
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
@@ -430,17 +430,78 @@
   </div>
 </article>
 
+<article class="task" id="dec-47" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-47</span>
+    <span class="badge category">残余分解 / 臨床・課金・クライアント仕様</span>
+    <span class="badge status">代理決裁済み・値は未決定</span>
+    <span class="asker">起票・決定: 2026-07-30 readiness round 2 ／ 委任代行（USERが覆せる）</span>
+    <h3 class="task-title">設計・欠落時挙動を固定し、人へ残すものを値の記入だけにする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">Q1 #201 — 薬用量gate</p>
+    <p class="qa-text"><strong>決裁:</strong> 既存masterが宣言する上限のBE物理reject、上限内warningのaudit、緊急例外を追加しないDEC-1を維持する。体重なし・種別未解決・該当paramなしは現行どおり手動保存へfallbackし、repository/DB lookup障害は現行sourceどおり保存を中止する。この区別を欠落表へ明記し、値の承認と挙動の再設計を混ぜない。<br>
+<strong>一次資料:</strong> DEC-1原文（<code>git show ab68c61f5:q&amp;a.html</code>）と、現行<code>backend/internal/medicalrecord/treatment_dose_save.go:15-81</code>、<code>treatment_dose_save_test.go:220-275</code>。前者はlookup障害も保存継続と記したが、truth-source優先順位ではcurrent source/testのerror伝播が上位であり、このdriftを明示的に解消する。<br>
+<strong>退けた代替案と理由:</strong> 欠落を一律rejectすると救急の手動記録を止める。一律保存継続はDB障害を安全な欠落と誤認する。新しい上限/warning値の代理決定は臨床責任を越える。<br>
+<strong>委任境界:</strong> gateとfallbackの設計だけを決裁する。薬剤・種別ごとの上限、warning数値、医学的妥当性は臨床責任者フォームの空欄に残す。</p>
+
+    <p class="section-label">Q2 #261 — 臨床安全gapの値重複を作らない</p>
+    <p class="qa-text"><strong>決裁:</strong> DEC-41の16件判定と残る実機OPSを維持し、#261を新しい薬量値の別正本にしない。#261が#201と同じ値を参照する場合は同じ承認行IDを参照し、値を複製しない。<br>
+<strong>一次資料:</strong> <a href="#dec-41">DEC-41</a>は13件対象消失・2件実装・1件実機判定不能を確定し、臨床責任者へ返す独立値を0件としている。<br>
+<strong>退けた代替案と理由:</strong> #261用の同一上限/warning表を新設すると二重正本になり、承認値がdriftする。DEC-41済みのruntime項目を臨床値問題へ戻すのも分類逆行である。<br>
+<strong>委任境界:</strong> 参照設計だけを決裁する。#201とは異なる臨床値が必要だと臨床責任者が判断した場合だけ、対象・単位・出典・承認者を別行で供給する。</p>
+
+    <p class="section-label">Q3 #211 — provisional clinical seed</p>
+    <p class="qa-text"><strong>決裁:</strong> seedを唯一のcanonical入力とし、臨床責任者が行単位で承認/修正した後に一度だけ更新する。未承認値をruntime defaultや別文書で補完せず、DB適用と臨床承認を別gateとして報告する。<br>
+<strong>一次資料:</strong> P0表の#211はcode/seed/migration完了、残りをDB適用とprovisional seed臨床確認に分離している。seed bundleは<code>002_master</code>〜<code>004_staging</code>を順次処理する。<br>
+<strong>退けた代替案と理由:</strong> agentが妥当値を補う案は臨床値の発明になる。複数文書で修正表を持つ案はcanonical seedとdriftする。<br>
+<strong>委任境界:</strong> single-sourceと適用順だけを決裁する。field/choice/unit/rangeの値、出典、承認者は空欄のまま残す。</p>
+
+    <p class="section-label">Q4 #249 — 検査基準値と表示fallback</p>
+    <p class="qa-text"><strong>決裁:</strong> 数値化不能は「未判定」、明示された定性H/Lはその状態を表示し、lab reportは保存済みassessment snapshotを返す現行contractを維持する。基準値が無い項目を推測判定せず、承認済みrangeだけをcanonical sourceへ投入する。<br>
+<strong>一次資料:</strong> <code>backend/internal/medicalrecord/exam_result_assessment_test.go</code>、<code>lab_report_query_service_test.go</code>、<code>frontend/src/features/medical-records/components/ExamItemsTable.test.tsx</code>が未判定・定性状態・report responseを固定する。<br>
+<strong>退けた代替案と理由:</strong> 一般値や他測定系のrangeを流用すると医学的誤判定になる。基準値投入と表示contractを同じ承認にすると設計まで臨床責任者へ戻してしまう。<br>
+<strong>委任境界:</strong> fallback/表示/snapshot設計のみ。項目×種別×測定系の下限・上限・単位は決裁しない。</p>
+
+    <p class="section-label">Q5 FEAT-VACCINE-SPECIES — 種別適合性</p>
+    <p class="qa-text"><strong>決裁:</strong> 適合性はmasterの明示属性だけを権威とし、FEが名称から推測しない。承認mappingが未入力の間は現行どおりactive候補を隠さず、属性導入後もnull/未知/既存不一致をsilent非表示にせず「要確認」で候補へ残す。inactiveは既存編集の表示だけを許し新規候補には出さない。<br>
+<strong>一次資料:</strong> 現行candidate経路はactive候補を種別filterせず、医学的mapping owner/defaultは未承認。product philosophyは未検証の分類自動化を禁止する。<br>
+<strong>退けた代替案と理由:</strong> 名称推測/default dog-cat mappingは医学的値の発明になる。未入力を非表示にすると既存業務をsilentに欠落させる。<br>
+<strong>委任境界:</strong> 権威source、fallback、表示だけを決裁する。各ワクチンのdog/cat/other/both適合性とaliasは臨床責任者が供給する。</p>
+
+    <p class="section-label">Q6 DEC-10 — Sentry課金</p>
+    <p class="qa-text"><strong>決裁:</strong> DEC-10のfree-only/default-offを維持し、容量超過を観測しても自動upgradeしない。必要になった時だけplan・予算上限・payer・更新/解約権限を埋めたフォームをUSERへ再上程する。<br>
+<strong>一次資料:</strong> DEC-10原文（<code>git show ab68c61f5:q&amp;a.html</code>）は無償plan前提、実測超過時のみ課金判断としている。<br>
+<strong>退けた代替案と理由:</strong> 自動upgradeや暫定課金は価格・契約のUSER専権を越える。監視自体を削除すると障害観測性を失う。<br>
+<strong>委任境界:</strong> upgradeしない挙動だけを決裁する。金額、plan、payer、契約操作は空欄のままUSERに残す。</p>
+
+    <p class="section-label">Q7 PO-008 — 年次/L-step意味論</p>
+    <p class="qa-text"><strong>決裁:</strong> current sourceの期間境界とpath別failure契約を、クライアント確認まで勝手に統一しない。各metric/pathの現行意味をフォームの「現行値」に転記し、クライアントは「承認」または修正値だけを記入する。L-step writeはdefault-offかつ実2xx後だけ成功とする<a href="3-session-agent.html#TASK-610">TASK-610</a>の技術contractへ寄せる。<br>
+<strong>一次資料:</strong> PO-008 7-1はannual visit/countとamountの期間定義が異なり、7-3は通常同期・cleanup・補助pathでfatal/non-fatalが異なる。<code>docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md</code>はwriteを停止中。<br>
+<strong>退けた代替案と理由:</strong> 一律の年次境界/failureへ正規化すると未承認の業務仕様変更になる。現状差を説明しない案はclientが意図を確認できない。<br>
+<strong>委任境界:</strong> 確認方式、default-off、成功判定だけを決裁する。期間境界、CSV要否、path別業務継続可否はclientが供給する。</p>
+    <div class="rec"><strong>推奨:</strong> DEC-47の設計を既定として維持し、臨床値・価格・契約値は一次資料とnamed approverが揃ったフォーム行だけを採用する。未入力を推測で埋めない。</div>
+    <div class="need"><strong>決裁結果:</strong> 7論点の設計は確定。臨床値・価格・契約値は1つも代理決定していない。人に残る入力は下記3カードの空欄表だけである。</div>
+  </div>
+</article>
+
 <h2 id="decision-ready">委任外 decision-ready packs</h2>
-<p class="section-intro">以下は未決定。A/B、推奨、必要入力を意思決定者へ渡すためのpackであり、代理裁定・実装承認・外部操作を表さない。</p>
+<p class="section-intro">設計はDEC-47で確定済み。以下は未決定の臨床値・価格・契約値だけを意思決定者が埋める空欄フォームであり、代理裁定・実装承認・外部操作を表さない。</p>
 
 <article class="task" id="decision-pack-clinical" data-status="user-input-required">
   <div class="task-head"><span class="qno">DR-CLINICAL</span><span class="badge category">#201 / #211 / #249 / #261 / FEAT-VACCINE-SPECIES</span><span class="badge status">臨床責任者入力待ち</span><h3 class="task-title">臨床値・欠落時挙動・動物種default</h3></div>
   <div class="task-body">
-    <p class="qa-text"><strong>#201/#261 現状の実測:</strong> absolute max超過はBE reject、20% warningはaudit、体重/種別/parameter/lookup欠落時は保存継続。臨床責任者の値/挙動確認は未了。<strong>A:</strong> 現行値と挙動を署名承認。<strong>Aの帰結:</strong> code変更なしで臨床確認を閉じる。<strong>B:</strong> 薬剤・種別別の修正値と欠落case表を提出。<strong>Bの帰結:</strong> canonical master/specだけの別packetを起票する。<strong>推奨:</strong> 署名済み確認が無ければB。<strong>必要入力:</strong> 承認者名、薬剤/種別/単位/上限、warning率、4欠落caseの保存可否、発効日。</p>
-    <p class="qa-text"><strong>#211 現状の実測:</strong> code/seed/migrationは着地済みだが、DB適用とprovisional seedの臨床全件確認が未了。<strong>A:</strong> 現行field/choice/unit/rangeを承認。<strong>Aの帰結:</strong> DB適用後のruntime確認へ進む。<strong>B:</strong> row単位の修正表を提出。<strong>Bの帰結:</strong> canonical seedを一度だけ更新する別packetになる。<strong>推奨:</strong> 全件確認までB。<strong>必要入力:</strong> 承認者、row ID、type/unit/options/range、修正理由、発効日。</p>
-    <p class="qa-text"><strong>#249 現状の実測:</strong> reference range投入経路はsource上存在するが、canonical臨床値とruntime投入状況はUNREPORTED。<strong>A:</strong> 種別range/unit/sourceを供給。<strong>Aの帰結:</strong> 責任者承認値だけを投入する別packetへ進む。<strong>B:</strong> 空のまま未判定を維持。<strong>Bの帰結:</strong> 誤った判定を避けるが自動評価は増えない。<strong>推奨:</strong> 出典と承認者が揃うまでB。<strong>必要入力:</strong> 種別、項目、下限/上限、単位、測定系、出典、承認者、発効日。</p>
-    <p class="qa-text"><strong>FEAT-VACCINE-SPECIES 現状の実測:</strong> 現行はactive候補を種別filterせず、提案defaultと要件責任者が未承認。<strong>A:</strong> 全件候補を維持し延期。<strong>Aの帰結:</strong> visibility/DB変更なし。<strong>B:</strong> dog/cat/other/both、nullable/inactive/既存不一致defaultを承認。<strong>Bの帰結:</strong> 後続schema/UI packetの起票を許すがDB/codegenはUSER境界。<strong>推奨:</strong> ownerとmappingが揃うまでA。<strong>必要入力:</strong> owner、visibility matrix、alias、null/inactive/edit挙動、受入署名者。</p>
-    <div class="need"><strong>回答形式:</strong> Issue番号、A/B、責任者個人名、上記構造化入力、発効日。秘密値・患者情報は記載しない。</div>
+    <p class="qa-text"><strong>確定済み設計:</strong> <a href="#dec-47">DEC-47 Q1〜Q5</a>を上書きしない。ここに書くのは臨床値だけであり、空欄をagentが補完してはならない。行が足りない場合は同じ列を持つ行を追加する。</p>
+    <table>
+      <tr><th>論点</th><th>対象</th><th>値/範囲・適合性</th><th>単位</th><th>出典</th><th>承認者</th><th>発効日</th></tr>
+      <tr><td>#201 上限</td><td>（未記入: 薬剤・種別・master row ID）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入: guideline/添付文書/院内規定）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
+      <tr><td>#201 warning帯</td><td>（未記入: 適用薬剤/種別）</td><td>（未記入）</td><td>（未記入: %等）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>#261 独立値</td><td>（未記入: #201と同じなら承認行ID、異なるなら対象）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>#211 provisional seed</td><td>（未記入: seed bundle/row ID/field）</td><td>（未記入: type/choice/range）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>#249 reference range</td><td>（未記入: 検査項目・動物種・測定系）</td><td>（未記入: 下限/上限または定性規則）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>VACCINE-SPECIES</td><td>（未記入: vaccine master row ID）</td><td>（未記入: dog/cat/other/both・alias）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+    </table>
+    <div class="need"><strong>提出条件:</strong> 全行に対象・値・単位（非数値なら「該当なし」）・出典・承認者・発効日があること。秘密値・患者情報を記載しない。未記入行が1つでもある対象は未承認のまま。</div>
   </div>
 </article>
 
@@ -448,16 +509,29 @@
   <div class="task-head"><span class="qno">DR-DELIVERY</span><span class="badge category">#258 / PO-008</span><span class="badge status">契約責任者・クライアント入力待ち</span><h3 class="task-title">納品後の外部契約/運用責任とクライアント仕様確認</h3></div>
   <div class="task-body">
     <p class="qa-text"><strong>#258 現状の実測:</strong> <code>docs/delivery/DELIVERY_PACKAGE.md</code>はproduction未構築、契約名義/plan、backup/recovery、窓口、LINE、通知先を未確定としている。<strong>A:</strong> クライアントがservice account・契約・請求・backup・support・monitoringを所有。<strong>Aの帰結:</strong> self-operation前提の責任表と引渡手順を確定できる。<strong>B:</strong> 開発者保有を明示契約。<strong>Bの帰結:</strong> 料金・期間・責任・終了時移管を含む別契約が必要。<strong>推奨:</strong> A。<strong>必要入力:</strong> provider/plan、account/billing owner、上限/更新/解約、backup保持/PITR/RPO/RTO/restore証跡、窓口/channel/hours/escalation、LINE owner、monitoring通知先。</p>
-    <p class="qa-text"><strong>PO-008 現状の実測:</strong> 7-1はannual_visit_countとannual_amountの期間定義が異なり、7-3はLステップpathごとにwrite/failure挙動が異なる。client確認は未了。<strong>A:</strong> 現行差異を意図した仕様として承認。<strong>Aの帰結:</strong> 挙動を維持し差異を仕様書へ明記する。<strong>B:</strong> 項目/pathごとの統一定義を修正表で指定。<strong>Bの帰結:</strong> compatibilityを含む別packetへ進む。<strong>推奨:</strong> 意図と実装の一致証跡が無いためB。<strong>必要入力:</strong> metric owner、期間境界、CSV要否、last-visit/dormant分離、Lステップwrite可否/failure/rollback owner。</p>
-    <div class="need"><strong>回答形式:</strong> 項目ごとのA/B、責任者、契約/仕様の正本URLまたは文書、発効日。credential値・料金の代理決定・外部契約操作は行わない。</div>
+    <p class="qa-text"><strong>PO-008 確定済み設計:</strong> <a href="#dec-47">DEC-47 Q7</a>どおりcurrent sourceを勝手に統一せず、クライアントは現行値の承認または修正値だけを入力する。</p>
+    <table>
+      <tr><th>対象</th><th>現行値/挙動</th><th>希望値/承認</th><th>単位</th><th>出典/仕様正本</th><th>承認者</th><th>発効日</th></tr>
+      <tr><td>annual_visit_count期間境界</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>期間</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>annual_amount期間境界</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>期間</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>CSV要否・last-visit/dormant分離</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>L-step通常同期path</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入: write可否/failure/rollback）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>L-step cleanup/補助path</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入: 継続可否/通知/rollback）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+    </table>
+    <div class="need"><strong>提出条件:</strong> #258は既存A/B契約packの全入力、PO-008は上表の全行をnamed ownerが記入する。credential値・患者情報は記載せず、料金をagentが補完しない。</div>
   </div>
 </article>
 
 <article class="task" id="decision-pack-external-physical" data-status="user-input-required">
   <div class="task-head"><span class="qno">DR-OPS</span><span class="badge category">課金 / 外部書込 / 物理操作</span><span class="badge status">USER実行判断待ち</span><h3 class="task-title">OPSの外部・有償・実機操作をrunbook単位で承認する</h3></div>
   <div class="task-body">
-    <p class="qa-text"><strong>現状の実測:</strong> OPS-1〜4、6、8、11〜18はcredential、DB、deploy、remote CI、外部Console、DSN、実機等のUSER境界を含む。SentryはDEC-10でfree-only、paid planは未承認。<strong>A:</strong> 対象OPSを既存runbookどおり、named operator/window/rollback/evidence先付きで実行。<strong>Aの帰結:</strong> そのOPSだけを実測証跡で完了判定できる。<strong>B:</strong> defer。<strong>Bの帰結:</strong> blockerを維持しpartial external changeを行わない。Sentry paid化が必要な場合はplan/budget/payer/cap/renewal/cancel authorityを別途USERが供給する。<strong>推奨:</strong> 前提とrollbackが揃うOPSだけA、その他B。</p>
-    <div class="need"><strong>必要入力:</strong> OPS番号、A/B、operator、環境、日時、rollback owner、evidence保存先。credential値・患者情報は記載しない。エージェントはAを選ばず実行しない。</div>
+    <p class="qa-text"><strong>確定済み設計:</strong> OPSはnamed operator/window/rollback/evidence先が揃った単位だけを実行する。Sentryは<a href="#dec-47">DEC-47 Q6</a>どおりfree-onlyで、自動upgradeしない。</p>
+    <table>
+      <tr><th>対象</th><th>値/選択</th><th>単位</th><th>出典/契約</th><th>承認者</th><th>実施者</th><th>日時・rollback・evidence先</th></tr>
+      <tr><td>OPS番号</td><td>（未記入: 実行/defer）</td><td>該当なし</td><td>（未記入: runbook）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>Sentry paid plan（free枠超過時だけ）</td><td>（未記入: plan/budget cap/payer/renewal/cancel authority）</td><td>（未記入: 通貨/期間）</td><td>（未記入: vendor quote/契約）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+    </table>
+    <div class="need"><strong>提出条件:</strong> OPSごとに1行を複製し全欄を埋める。credential値・患者情報は記載しない。エージェントは実行を選ばず、課金額を代理決定せず、外部操作を行わない。</div>
   </div>
 </article>
 

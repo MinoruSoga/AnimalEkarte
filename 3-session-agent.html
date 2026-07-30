@@ -75,7 +75,7 @@
 <p class="meta">
 同期日: 2026-07-30 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
 <b>Issue事項の正本は各GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）、決裁の正本は<a href="q&amp;a.html">q&amp;a.html</a>、着手可能な実装タスクの正本は本fileの<a href="#ledger">#ledger</a></b>。本fileのreadiness viewはIssue群を2並行レーンで着手するためのガイドであり、Issueの受け入れ条件を複製しない。<br>
-決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・decision-ready pack — DEC-40〜46は代理判定済み、現在のUSER入力待ちDECカードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
+決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・decision-ready pack — DEC-40〜47は代理判定済み、現在のUSER入力待ちDECカードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
 </p>
 
 <div class="notice">
@@ -90,15 +90,15 @@
   </section>
   <section class="card">
     <h3>着手可能な実装</h3>
-    <p><span class="status done">4 件</span> TASK-603〜606（環境非依存。<a href="#ledger">#ledger</a>）</p>
+    <p><span class="status done">8 件</span> TASK-603〜610（環境非依存。<a href="#ledger">#ledger</a>）</p>
   </section>
   <section class="card">
     <h3>決裁状況</h3>
-    <p><span class="status done">DEC-40〜46代理裁定済み</span> <span class="status wait">委任外=decision-ready pack</span></p>
+    <p><span class="status done">DEC-40〜47代理裁定済み</span> <span class="status wait">委任外=記入フォーム</span></p>
   </section>
   <section class="card">
     <h3>残作業の性質</h3>
-    <p><span class="status done">環境非依存4件</span> ＋ <span class="status risk">USER 実操作</span> migrate／codegen／runtime／OPS</p>
+    <p><span class="status done">環境非依存8件</span> ＋ <span class="status risk">USER 実操作</span> DB再構築／runtime／外部入力／OPS</p>
   </section>
 </div>
 
@@ -150,8 +150,8 @@
   </tr>
   <tr>
     <td>7</td>
-    <td>OPS群: <b>#250=<span class="status risk">USER 専権</span></b>（旧stage-import/BUG-430のみ完了、cutoverはproducer bundle入力と実操作が残る）／<b>#252=<span class="status risk">USER 専権</span></b>（締め時間投入）／<b>#255=<span class="status wait">依存待ち</span></b>（先方スタッフ一覧の受領完了待ち）／<b>#256=<span class="status wait">依存待ち</span></b>（全体はruntime/#254待ち、静的slice=<a href="#TASK-603">TASK-603</a>・<a href="#TASK-604">TASK-604</a>）／<b>#257=<span class="status risk">USER 専権</span></b>（本番切替実操作）／<b>#258=<span class="status risk">委任外判断待ち</span></b>（全体は契約/外部入力待ち、repo slice=<a href="#TASK-605">TASK-605</a>）</td>
-    <td>#250 #252 #255 #256 #257 #258</td>
+    <td>OPS群: <b>#250=<span class="status risk">USER 専権</span></b>（producer bundle preflightは既存で充足、入力とcutover実操作が残る）／<b>#252=<span class="status risk">USER 専権</span></b>（締め時間投入）／<b>#255=<span class="status done">repo準備着手可能</span></b>（一括発行=<a href="#TASK-609">TASK-609</a>、実データと適用はUSER）／<b>#256=<span class="status wait">依存待ち</span></b>（全体はruntime/#254待ち、静的slice=<a href="#TASK-603">TASK-603</a>・<a href="#TASK-604">TASK-604</a>）／<b>#257=<span class="status risk">USER 専権</span></b>（本番切替実操作）／<b>#258=<span class="status risk">委任外判断待ち</span></b>（全体は契約/外部入力待ち、repo slice=<a href="#TASK-605">TASK-605</a>）／<b>#259=<span class="status done">repo準備着手可能</span></b>（default-off配線=<a href="#TASK-610">TASK-610</a>、外部有効化/送信はUSER）</td>
+    <td>#250 #252 #255 #256 #257 #258 #259</td>
     <td>USER中心</td>
     <td>各項目の分類は左欄に明記</td>
   </tr>
@@ -169,7 +169,7 @@
 </div>
 
 <blockquote>
-<p><b>更新: 2026-07-30 — active な実装 unit は 4 件</b>。全 open Issue・既存 ledger・OPS-1〜18・phase2 条件付き再開を current source/runtime と再照合し、環境非依存の残作業を <a href="#TASK-603">TASK-603</a>〜<a href="#TASK-606">TASK-606</a> に起票した。従来のレーンA（#249 Phase 2・#239 Phase 1）、レーンB（#251・#262・#247）、横断（BUG-433・#285）、および BE-refactor 監査の packet は dev 着地済みである。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger には hash 一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
+<p><b>更新: 2026-07-30 — active な実装 unit は 8 件</b>。前ラウンドの <a href="#TASK-603">TASK-603</a>〜<a href="#TASK-606">TASK-606</a> に加え、残余最小化の再監査から、安全なlocal DB再構築契約・全tygo出力のCI byte-identity・staff一括発行・default-off L-step Write APIを <a href="#TASK-607">TASK-607</a>〜<a href="#TASK-610">TASK-610</a> として分離した。L2の他9件は、同じ利用者操作を人が一度も通していないため「runtime確認を自動化で置換済み」とは扱わない。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger にはhash一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
 <p><b>テストDBに関する既知の落とし穴（2026-07-27 実測）</b>: <code>backend/internal/testdb/testdb.go</code> は <code>ekarte_db_test</code> を空で <code>CREATE DATABASE</code> するだけで <code>backend/migrations/*.sql</code> を適用しない。テストDBのスキーマは各 setup が <code>testdb.EnsureAutoMigrated(db, &amp;model.X{})</code> を呼んだモデルぶんだけ GORM AutoMigrate で作られる。したがって新テーブルの <code>SQLSTATE 42P01</code> は「migration 未適用」ではなく <b>モデル未登録</b>であり、<code>make reset</code> では直らない。切り分け = <code>docker compose exec -T db psql -U ekarte_user -d ekarte_db_test -c "\dt &lt;table&gt;"</code>。あわせて AutoMigrate は GORM tag からしか制約を作らないため、DDL の <code>UNIQUE</code> を model の <code>uniqueIndex</code> tag で宣言しないと制約不在のまま重複 insert 系テストが素通りする。</p>
 <p><b>分類対象外の運用注意 — 整形チェックの既知 baseline debt（2026-07-27 実測・所有者不在）</b>: directory 引数の <code>gofmt -l</code> は <code>internal/billing/accounting_complete_appointments_test.go</code>、<code>internal/billing/accounting_repository_tx_atomicity_test.go</code>、<code>internal/medicalrecord/discount_permission.go</code> の3件を必然的に列挙する。したがって<b>整形ゲートに directory 引数を渡すと充足不能になる</b> — 各 unit は自分の変更ファイルを列挙して <code>gofmt -l &lt;files&gt;</code> の引数にすること。本段落は active ledger entry ではない。</p>
 <p><b>完了 entry の扱い</b>: 対応済みの <code>&lt;section&gt;</code> は運用規約どおり削除している。<b>探しても見つからない task ID は削除済みであり、未起票ではない。</b>完了記録の正本は git 履歴と各実装 test であり、hash 一覧を本 file へ複製しない（<code>git log --oneline</code> と <code>git log --all -- todo.md</code> で参照する）。</p>
@@ -219,7 +219,7 @@
 <section class="task" id="BUG-433">
 <h3>BUG-433: 生成FE型がGoドメインモデル由来のため応答DTOに無いフィールドが型上は存在扱いになる — dev 完了</h3>
 <ul>
-  <li><b>分類: USER 専権</b>。残作業は <code>make codegen</code> の実行と、Pet / Owner / medicalrecord / hospitalization の生成物が clean かつ byte-identical であることの確認のみ。<b>active な実装 unit は無い</b>。</li>
+  <li><b>分類: 着手可能＋USER/CI acceptance</b>。全tygo出力をCIでbyte-identicalにするrepo側unitは<a href="#TASK-608">TASK-608</a>。remote required jobとIssue closeだけをUSER/CIへ残す。</li>
   <li>欠陥クラス: <code>frontend/src/types/generated/models.ts</code> は tygo が <code>backend/internal/model/</code> から生成するため、FE 型は Go ドメインモデルを写し、HTTP が実際に返す応答 DTO と一致しない。DTO に無いフィールドは実行時 <code>undefined</code> なのに型検査を通る（実害例 = BUG-431 の危険度バッジが実 API で一度も点灯しなかった件）。</li>
   <li><b>DEC-26 裁定（2026-07-27・A=2段構え）= 完遂</b>。短期段（TASK-444-S1）は生成型を応答型として使う新規 import を禁じる ESLint 境界を新設し、既存 import サイトを allowlist で凍結した。恒久段（TASK-444-S2）は実害を実測した Pet / Owner / medicalrecord / hospitalization+treatment_plan の4スライスを応答 DTO 由来の型出力へ移行して完了した。</li>
   <li><b>残余判定（2026-07-30 全数実測・対応不要）</b>: 実害判定規則は <code>③ ∧ (① ∨ ②)</code>（①=field 名不一致 ②=生成型のみの field ③=FE が生成型を detail wire として実消費）。medicalrecord response 29件と非スライス残余3件を再照合し、実害ありは hospitalization と treatment_plan の2件のみで、いずれも移行済み。残る30件は FE 側 transform 層または手書き DTO が吸収しており対応不要。個別の判定根拠は <code>git show 47233b981~1:3-session-agent.html</code> の判定表を参照する。</li>
@@ -350,6 +350,190 @@ diff -u &lt;(printf '%s\n' "${owned[@]}" | sort) &lt;(git diff --name-only "$pac
 </ul>
 </section>
 
+<section class="task" id="TASK-607">
+<h3>TASK-607: 001 checksum mismatch — local DB再構築を1アクション・回復可能・fail-closedにする</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> 統合前 <code>001_init.sql</code> checksumを記録したlocal DBには非破壊の更新経路がない。一方、現行<code>make reset</code>は<code>docker compose down -v</code>でDBだけでなくfrontend node_modules・Go module/build cacheの4 named volumeを全削除し、runbookの「DB volumeだけ削除」と一致しない。再構築前の回復点と再構築後の機械判定も1アクションに閉じていない。</li>
+  <li><b>現況の実測根拠:</b> <code>backend/cmd/migrate/main.go:87-118</code>は<code>DB_RESET=true</code>以外にreset分岐を持たず、<code>:145-153</code>の<code>schema_migrations</code>は<code>filename/checksum/executed_at</code>だけ、<code>:342-375</code>はchecksum不一致をerrorにして成功時だけinsertする。<code>:419-456</code>はSQL実行前にそのerrorを伝播する。<code>Makefile:93-103</code>のmigrate/seedも同じrunnerで迂回にならない。<code>docker-compose.yml</code>の実名volumeはDB=<code>ekarte-postgres-data</code>、ほか3件はcacheである。</li>
+  <li><b>要求挙動:</b> <code>make reset</code>をlocal専用の単一入口にし、対象project/volumeを固定値とcompose実測の双方で照合して他環境では拒否する。<code>umask 077</code>で追跡外の<code>.local-db-backups/&lt;UTC timestamp&gt;/</code>へowner-onlyのgzip済み<code>pg_dumpall</code>回復snapshot、SHA-256、対象volume・DDL・seed key manifestを作成し、空dump・空digest・容量不足なら停止する。その後サービスを停止して<code>ekarte-postgres-data</code>だけを削除し、cache 3件を保持する。再起動後はmigration key coverage <code>missing=0</code>、直下DDL全件、<code>002_master/003_demo/004_staging</code>、<code>schema_migrations</code>契約、backend healthyと<code>/health</code> HTTP 200を同じ入口でfail-closed確認する。snapshot失敗時は削除へ進まない。実際のresetはUSERだけが実行する。</li>
+  <li><b>Owned paths:</b> <code>.gitignore</code>、<code>Makefile</code>、<code>docs/ops/deploy/LOCAL_DB_RESET.md</code>、<code>scripts/check-reset-wait-services.sh</code>、<code>scripts/check-reset-wait-services.test.sh</code>、<code>scripts/local-db-reset-contract.sh</code>（新規）、<code>scripts/local-db-reset-contract.test.sh</code>（新規）。<b>Reference paths（read-only）:</b> <code>docker-compose.yml</code>、<code>backend/entrypoint.sh</code>、<code>backend/cmd/migrate/main.go</code>、<code>backend/migrations/CLAUDE.md</code>、<code>backend/internal/seedbundle/</code>。</li>
+  <li><b>依存:</b> local実装はなし。実DB snapshot/reset/postflightは統合後に破壊的操作を明示承認したUSERだけが行う。STG/PRODでは実行不可。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。最初の編集前に<code>git branch --list 'claim/TASK-607'</code>が空であることを確認して<code>git branch claim/TASK-607</code>を取得し、<code>packet_baseline=$(git rev-parse HEAD)</code>を記録する。非空/取得失敗はBLOCKED。実装者はclaimを削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>bash scripts/local-db-reset-contract.test.sh
+bash scripts/check-reset-wait-services.test.sh
+docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.10.0 --severity=warning scripts/local-db-reset-contract.sh scripts/local-db-reset-contract.test.sh scripts/check-reset-wait-services.sh scripts/check-reset-wait-services.test.sh
+rg -n 'ekarte-postgres-data|\\.local-db-backups|umask 077|pg_dumpall|sha256|missing=0|002_master|003_demo|004_staging|/health' .gitignore Makefile docs/ops/deploy/LOCAL_DB_RESET.md scripts/local-db-reset-contract.sh
+! rg -n 'down[[:space:]]+-v|volume[[:space:]]+prune' Makefile scripts/local-db-reset-contract.sh
+owned=(.gitignore Makefile docs/ops/deploy/LOCAL_DB_RESET.md scripts/check-reset-wait-services.sh scripts/check-reset-wait-services.test.sh scripts/local-db-reset-contract.sh scripts/local-db-reset-contract.test.sh)
+git diff --check -- "${owned[@]}"
+diff -u &lt;(printf '%s\n' "${owned[@]}" | sort) &lt;(git diff --name-only "$packet_baseline" -- | sort)</pre>
+  <b>完了条件:</b> fixture/static testが、誤project・誤volume・snapshot/hash失敗・cache削除・migration/seed/health不足を全て非0にし、正常fixtureだけを0にする。変更はowned 7 pathsのみ。実装完了報告には「失われるもの=local Postgres cluster内の全DB/global/schema/data/migration/seed/手入力行」「保持されるもの=bind mount・source/docs/.env・cache 3 volume・object storage」を明記し、実resetはUNREPORTEDのままUSERへ渡す。</li>
+  <li><b>完了処理:</b> main統合後に本sectionを削除し、local reset runbookを正本としてOPS-2/#254へ「USERが1回実行する」境界を記録する。<code>claim/TASK-607</code>はmain統合後にUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-608">
+<h3>TASK-608: BUG-433 — Codegen Syncを全tygo出力へ拡張しbyte-identityをCI化</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> CIのCodegen Syncは<code>backend/tygo.yaml</code>が定義する8出力のうちmodels/auth/trimmingの3件しか再生成せず、残る5生成物はwhole-directory diffの前に更新されない。そのためgreenが全生成型のbyte-identityを証明しない。</li>
+  <li><b>現況の実測根拠:</b> <code>.github/workflows/ci.yml:58-63</code>のpath filterと<code>:366-380</code>の生成stepは3出力だけを列挙する。<code>backend/tygo.yaml</code>と<code>docker-compose.yml</code>のcodegen commandはmodels/auth/trimming/pet/owner/medicalrecord/hospitalization/identitylinkの8出力を定義する。既存<code>git diff --exit-code frontend/src/types/generated/</code>は全dirを見るが、未再生成5件のdriftを作れない。</li>
+  <li><b>要求挙動:</b> Codegen Syncのpath filterをworkflow・tygo config・全domain Go source・生成出力へ広げ、pin済み<code>tygo@v0.2.21</code>で8出力を一度ずつ生成・所定pathへcopyし、生成dir全体のbyte diffをrequired gateにする。CIから生成物を書き戻さず、出力欠落・追加・差分はいずれもfailにする。元の手動確認「make codegen後に差分0」と同じbyte列を観測し、差分はDocker composeではなくCI上の同一pin/configである点だけとする。</li>
+  <li><b>Owned paths:</b> <code>.github/workflows/ci.yml</code>。<b>Reference paths（read-only）:</b> <code>backend/tygo.yaml</code>、<code>docker-compose.yml</code>、<code>frontend/src/types/generated/</code>、BUG-433。</li>
+  <li><b>依存:</b> local編集はなし。remote required jobの実行とBUG-433 closeはUSER/CI境界。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned path限定。最初の編集前に<code>git branch --list 'claim/TASK-608'</code>が空であることを確認して<code>git branch claim/TASK-608</code>を取得し、<code>packet_baseline=$(git rev-parse HEAD)</code>を記録する。非空/取得失敗はBLOCKED。claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>ruby -e 'require "yaml"; YAML.safe_load(File.read(ARGV[0]), aliases: true)' .github/workflows/ci.yml
+node - &lt;&lt;'NODE'
+const fs = require("fs");
+const ci = fs.readFileSync(".github/workflows/ci.yml", "utf8");
+const outputs = [...fs.readFileSync("backend/tygo.yaml", "utf8").matchAll(/output_path:\s*["']?([^\s"']+)/g)].map(m =&gt; m[1].split("/").pop());
+if (outputs.length !== 8 || new Set(outputs).size !== 8) process.exit(1);
+const stepStart = ci.indexOf("- name: Run tygo");
+const stepEnd = ci.indexOf("\n      - name:", stepStart + 1);
+if (stepStart &lt; 0) process.exit(1);
+const step = ci.slice(stepStart, stepEnd &lt; 0 ? ci.length : stepEnd);
+const remapped = [...step.matchAll(/s\|\/output\/([^|]+)\|/g)].map(m =&gt; m[1]);
+const copiedPairs = [...step.matchAll(/tygo-output\/([^"\s]+)"\s+\.\.\/frontend\/src\/types\/generated\/([^\s"']+)/g)].map(m =&gt; [m[1], m[2]]);
+const sameSet = (a, b) =&gt; a.length === b.length &amp;&amp; [...a].sort().every((v, i) =&gt; v === [...b].sort()[i]);
+if (!sameSet(remapped, outputs)) process.exit(1);
+if (copiedPairs.some(([source, target]) =&gt; source !== target) || !sameSet(copiedPairs.map(([, target]) =&gt; target), outputs)) process.exit(1);
+for (const token of ["backend/tygo.yaml", "backend/internal/**/*.go", "frontend/src/types/generated/**", "github.com/gzuidhof/tygo@v0.2.21", "git diff --exit-code frontend/src/types/generated/"]) if (!ci.includes(token)) process.exit(1);
+NODE
+git diff --check -- .github/workflows/ci.yml
+test "$(git diff --name-only "$packet_baseline" -- | sort)" = ".github/workflows/ci.yml"</pre>
+  <b>完了条件:</b> YAML parseとstatic contractがexit 0、8/8出力が同一pin/configから生成され、whole generated directoryのbyte差分がrequired failureになる。変更はCI workflow 1件だけ。remote greenはUSER acceptanceとして残す。</li>
+  <li><b>完了処理:</b> main統合後に本sectionを削除し、BUG-433へCI byte-identityの範囲とremote runをUSERが記録する。<code>claim/TASK-608</code>はUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-609">
+<h3>TASK-609: #255 — secret-managed staff batch provisioningをpreflight/apply化</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> 受領予定のstaff一覧をaccount・staff・permission・clinicへ分割requestすると部分成功し得て、現在はbatch preflight、全件atomic apply、構造化audit、再実行receiptがない。外部一覧未着を理由にrepo側準備まで待つ必要はない。</li>
+  <li><b>現況の実測根拠:</b> #255には54名受領予定と、email方針・clinic対応・休職/退職/委託者の発行可否・role mappingの4入力が残る。現行account/staff作成、permission付与、clinic所属は別handler/service transactionであり、一括原子性を持たない。<code>backend/internal/model/audit_log.go</code>にstaff provisioning専用action/resourceはなく、<code>backend/internal/staff/</code>と<code>backend/cmd/</code>に一括発行commandは存在しない。</li>
+  <li><b>要求挙動:</b> manifestは<code>schema_version</code>、<code>batch_id</code>、昇順重複なしの<code>clinic_scope</code>、<code>actor_account_id</code>、<code>staff[]</code>を持ち、各staffは<code>external_staff_id/name/email/main_clinic_id/clinic_ids/permission_group_ids/occupation_id/staff_type/is_active/reservation_visible/secret_ref</code>を明示する。<code>clinic_scope</code>は全staffのmain/assignment clinic集合と完全一致し、そのSHA-256を含むnamespace形式の<code>batch_id</code>だけを受理する。別secret fileは<code>secret_ref</code>と初期passwordだけを持つ。両fileをstrict decodeし、件数/重複/未知field/参照ID/clinic所属/auth identity/role-permission整合、actorがsystem adminまたは全scope clinicへ権限を持つことをreceipt照合前にpreflightする。両入力はrepo外のabsolute realpathかつmode 0600だけを許し、値・氏名・email・password・bodyをlog/receiptへ出さずdigest/countだけを残す。roleからpermission/clinicを推測せずmanifestの明示値だけを使う。<code>preflight</code>はwrite 0、<code>apply</code>はfull <code>batch_id</code>由来のtransaction advisory lockを取った内側で、認可済みの各clinic scopeに限定して既存receipt digestを照合する。全員を1 transactionで作成し、staff単位auditと、影響する各clinicへ同じbatch ID/digest/countだけを持つPII-free receipt auditを同tx記録する。全clinic receiptが同digestで揃う完了batchはno-op、一部欠落/不一致または同batch IDの異digestは競合実行を含め必ずconflictにする。scope外receiptを検索せず、存在有無をerrorへ漏らさない。実スタッフdataやPROD適用は含めない。</li>
+  <li><b>Owned paths:</b> <code>backend/internal/model/audit_log.go</code>、<code>backend/internal/staff/staff_provisioning.go</code>（新規）、<code>backend/internal/staff/staff_provisioning_repository.go</code>（新規）、<code>backend/internal/staff/staff_provisioning_test.go</code>（新規）、<code>backend/internal/staff/staff_provisioning_repository_integration_test.go</code>（新規）、<code>backend/cmd/staff-provision/main.go</code>（新規）、<code>backend/cmd/staff-provision/main_test.go</code>（新規）、<code>docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md</code>（新規）。<b>Reference paths（read-only）:</b> auth/staff/permission/clinic service・repository・model、composition root、testdb、#255。</li>
+  <li><b>依存:</b> repo実装とsynthetic fixture検証はなし。実manifest作成にはemail方針・clinic対応・休退職/委託者扱い・role mappingのUSER入力、applyには実一覧、secret配布、対象環境、authorized actorが必要。外部入力をfixtureで代用しない。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。最初の編集前に<code>git branch --list 'claim/TASK-609'</code>が空であることを確認して<code>git branch claim/TASK-609</code>を取得し、<code>packet_baseline=$(git rev-parse HEAD)</code>を記録する。非空/取得失敗はBLOCKED。clinic isolation・database・Go・security reviewerを通し、claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>docker compose run --rm --no-deps --entrypoint '' -T backend go test -p 1 ./internal/staff -run 'TestStaffProvisioning' -count=1
+docker compose run --rm --no-deps --entrypoint '' -T backend go test -p 1 ./cmd/staff-provision -count=1
+owned_go=(backend/internal/model/audit_log.go backend/internal/staff/staff_provisioning.go backend/internal/staff/staff_provisioning_repository.go backend/internal/staff/staff_provisioning_test.go backend/internal/staff/staff_provisioning_repository_integration_test.go backend/cmd/staff-provision/main.go backend/cmd/staff-provision/main_test.go)
+test -z "$(docker compose run --rm --no-deps --entrypoint '' -T backend gofmt -l "${owned_go[@]#backend/}")"
+git diff --check -- "${owned_go[@]}" docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md
+diff -u &lt;(printf '%s\n' "${owned_go[@]}" docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md | sort) &lt;(git diff --name-only "$packet_baseline" -- | sort)</pre>
+  <b>完了条件:</b> synthetic testがstrict decode、0600/repo外入力、preflight write 0、clinic scope集合/digest namespace、cross-clinic/unknown FK拒否、unauthorized scopeでreceipt存在を漏らさないこと、各affected clinicだけへのreceipt可視性、全件commit/rollback、同tx audit、全clinic receipt同digestのidempotency、一部receipt欠落、同batch ID・異digestの直列/並行conflict、secret非露出を証明する。変更はowned 8 pathsだけ。実一覧/secret/applyはUNREPORTEDでUSERへ残す。</li>
+  <li><b>完了処理:</b> main統合後に本sectionを削除し、#255へrepo準備完了と残る4入力・実適用境界をUSERが記録する。<code>claim/TASK-609</code>はUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-610">
+<h3>TASK-610: #259 — deploy kill switch＋clinic flagの二重gateでL-step Write APIを復元</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> cron/service配線とclinic別<code>is_sync_enabled</code> gateは存在するが、このflagは既存PATCH/UIからtrueにでき、deploy全体のkill switchではない。infra clientの<code>AddTag</code>/<code>RemoveTag</code>/<code>AddTagBulk</code>/<code>SetProperty</code>は入力検証後にnilを返すpaused no-opであり、現状のままHTTPだけ復元すると、既にtrueのclinicが次回deploy/cronから外部writeを開始し得るうえ、no-opを成功扱いし得る。</li>
+  <li><b>現況の実測根拠:</b> <code>backend/internal/infra/lstep/tag.go:15-79</code>と<code>user.go:62-74</code>がHTTP writeを抑止する。<code>backend/internal/lstep/checkup_sync_service.go:145</code>等5つの<code>buildClient</code>とbatchはclinic flagをgateにする一方、<code>backend/internal/lstep/lstep_settings_request.go</code>、settings service、<code>LstepSettingsForm</code>には既存の更新経路がある。独立したdeployment write gateは存在しない。<code>docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md</code>は復元条件と外部有効化をUSER境界にしている。</li>
+  <li><b>要求挙動:</b> deploy-levelの<code>LSTEP_WRITE_API_ENABLED</code> kill switchをinfra clientに追加し、未設定/空/false/未知値は全てfalse、exact <code>true</code>だけを有効にする。false時のwriteはHTTP request 0で<code>ErrWriteDisabled</code>を返し、nil成功・delivery fired/receipt更新にしない。既存4 write methodは、このdeploy gateとclinic別<code>is_sync_enabled</code>の双方がtrueの時だけcurrent read clientと同じcontext/retry/status/error契約で送信し、path segmentをescape、JSON bodyとcontent typeを正しく扱い、404/rate-limit/non-2xxをsentinel/observable errorにする。api key・request/response bodyをlogしない。既存UI/APIからdeploy gateは変更できず、seed/migrationにも追加しない。外部API有効化、環境変数設定、clinic flag変更、実送信は行わない。</li>
+  <li><b>Owned paths:</b> <code>backend/internal/infra/lstep/client.go</code>、<code>backend/internal/infra/lstep/errors.go</code>、<code>backend/internal/infra/lstep/tag.go</code>、<code>backend/internal/infra/lstep/user.go</code>、<code>backend/internal/infra/lstep/write_client_test.go</code>（新規）、<code>backend/internal/lstep/checkup_sync_service_test.go</code>、<code>docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md</code>。<b>Reference paths（read-only）:</b> <code>backend/internal/infra/httpx/</code>、L-step settings/UI・5つのbuildClient・batch/cron/composition/delivery trigger source、deploy environment config、#259。</li>
+  <li><b>依存:</b> synthetic implementation/testはなし。実API有効化、credential確認、deploy gate設定、clinic flag変更、STG送信、第三者受信確認はUSER/先方境界。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。最初の編集前に<code>git branch --list 'claim/TASK-610'</code>が空であることを確認して<code>git branch claim/TASK-610</code>を取得し、<code>packet_baseline=$(git rev-parse HEAD)</code>を記録する。非空/取得失敗はBLOCKED。Go/security/silent-failure reviewerを通し、claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>docker compose run --rm --no-deps --entrypoint '' -T backend go test -p 1 ./internal/infra/lstep -run 'TestWrite' -count=1
+docker compose run --rm --no-deps --entrypoint '' -T backend go test -p 1 ./internal/lstep -count=1
+owned_go=(backend/internal/infra/lstep/client.go backend/internal/infra/lstep/errors.go backend/internal/infra/lstep/tag.go backend/internal/infra/lstep/user.go backend/internal/infra/lstep/write_client_test.go backend/internal/lstep/checkup_sync_service_test.go)
+test -z "$(docker compose run --rm --no-deps --entrypoint '' -T backend gofmt -l "${owned_go[@]#backend/}")"
+! rg -n '\[DISABLED\]|suppressed|Temporarily disabled' backend/internal/infra/lstep/tag.go backend/internal/infra/lstep/user.go
+! rg -n 'apiKey|Authorization|request body|response body' backend/internal/infra/lstep/tag.go backend/internal/infra/lstep/user.go
+rg -n 'LSTEP_WRITE_API_ENABLED|ErrWriteDisabled' backend/internal/infra/lstep/client.go backend/internal/infra/lstep/errors.go backend/internal/infra/lstep/write_client_test.go docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md
+git diff --check -- "${owned_go[@]}" docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md
+diff -u &lt;(printf '%s\n' "${owned_go[@]}" docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md | sort) &lt;(git diff --name-only "$packet_baseline" -- | sort)</pre>
+  <b>完了条件:</b> synthetic HTTP testsがdeploy gate未設定/false/未知値=request 0＋<code>ErrWriteDisabled</code>、clinic flag false=request 0、両gate true=request 1を固定し、4 methodのmethod/path/body、JSON writeの<code>Content-Type: application/json</code>、escaping、2xx、404、429 retry exhaustion、context cancellation、non-2xx、secret非露出を証明する。service testはgate error時fired更新0を証明する。変更はowned 7 pathsだけ。main統合時の既定は外部write 0で、実送信はUNREPORTEDのままUSERへ残す。</li>
+  <li><b>完了処理:</b> main統合後に本sectionを削除し、#259/runbookへ二重gateのrepo準備完了と、USER専権の外部API有効化→deploy gate設定→対象clinic flag設定→STG一回送信→rollbackの順序を記録する。<code>claim/TASK-610</code>はUSERだけが解放する。</li>
+</ul>
+</section>
+
+<div class="notice" id="readiness-round2-20260730-outcome">
+<h3>READINESS-ROUND2-20260730 staged-plan outcome</h3>
+<p><b>Status: COMPLETE（docs-only packet起票・設計決裁・空欄フォーム化）。</b> 起票したTASK-607〜610の実装、DB再構築、外部write、実機確認は未着手で本runの授権外。変更fileは<code>3-session-agent.html</code>と<code>q&amp;a.html</code>の2件のみ。Acceptanceは10項目PASS、L1実DB schemaの指定psql証跡だけproject禁止規約によりBLOCKED/UNREPORTED。</p>
+<p><b>Baseline / validation / inventory — command and verbatim output:</b></p>
+<pre>node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-readiness-round2-residue-minimization-20260730.md
+Prompt Craft Harness Validation: PASS
+Execution contract: dynamic-workflow/v1
+
+git rev-parse HEAD
+883c632a93198d22698d4a71b59f9fe5a2787476
+git status --short --branch
+## main...origin/main [ahead 1]
+
+current+history ID recensus before claims
+LEDGER_MAX=606
+DEC_MAX=46
+
+gh issue list --state open --limit 1000 --json number --jq 'length'
+33
+grep -c '&lt;section class="task"' 3-session-agent.html
+10
+grep -o 'data-task="OPS-[0-9]*"' 'q&amp;a.html' | sort -u | wc -l
+18
+phase2 conditional item probe
+6
+
+git branch claim/TASK-607 ... claim/TASK-610
+ACQUIRED claim/TASK-607
+ACQUIRED claim/TASK-608
+ACQUIRED claim/TASK-609
+ACQUIRED claim/TASK-610</pre>
+<p><b>L1 required runtime schema probe:</b></p>
+<pre>docker compose exec -T db psql -U ekarte_user -d ekarte_db -c '\d schema_migrations'
+BLOCKED / NOT RUN — .claude/CLAUDE.md prohibits agents from direct psql. USER output required; source DDL is not promoted to runtime PASS.</pre>
+<p><b>Contract / scope / HTML gates — command and verbatim output:</b></p>
+<pre>new/existing packet contract + owned-path probe
+TASK-603_FIELDS=PASS;OWNED=14
+TASK-604_FIELDS=PASS;OWNED=9
+TASK-605_FIELDS=PASS;OWNED=2
+TASK-606_FIELDS=PASS;OWNED=5
+TASK-607_FIELDS=PASS;OWNED=7
+TASK-608_FIELDS=PASS;OWNED=1
+TASK-609_FIELDS=PASS;OWNED=8
+TASK-610_FIELDS=PASS;OWNED=7
+PACKETS=8;OWNED_TOTAL=53;OVERLAPS=0;MISSING=0;FIELD_FAILURES=0
+
+decision form probe
+decision-pack-clinical rows=7 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
+decision-pack-delivery rows=6 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
+decision-pack-external-physical rows=3 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
+DEC-47_Q1_Q7=PASS
+DEC47_REC_NEED=PASS
+
+grep -o 'id=&quot;[^&quot;]*&quot;' 3-session-agent.html | sort | uniq -d
+(no output; duplicate IDs=0)
+grep -o 'id=&quot;[^&quot;]*&quot;' 'q&amp;a.html' | sort | uniq -d
+(no output; duplicate IDs=0)
+
+TASK-608 parser sanity check against current source
+TYGO_CONFIG=8 CURRENT_CI_REMAP=3 CURRENT_CI_COPY=3
+CURRENT_CI_PAIRS_MATCH=true
+
+git diff --check -- 3-session-agent.html 'q&amp;a.html'
+(no output; exit 0)
+bash scripts/check-docs-symbol-drift.sh
+OK    docs-symbol-drift: ドリフトなし（検査トークン 521 件）
+tidy -q -errors -utf8 3-session-agent.html
+3-session-agent.html_TIDY=PASS
+tidy -q -errors -utf8 'q&amp;a.html'
+q&amp;a.html_TIDY=PASS
+
+independent reviewer final re-review
+CRITICAL=0 HIGH=0 MEDIUM=0 LOW=0
+final rejected packets: none</pre>
+<p><b>Assumption deviations:</b> native Workflow primitiveはsessionに無いため、planning＋L1〜L4の独立worktree read-only fan-out、coordinator単独writer、独立reviewerで<code>dynamic-workflow/v1</code>を実行。promptが想定したdirect psqlはproject規約が禁止するためruntime schemaだけBLOCKED。L2は同一利用者processの事前手動検証があるBUG-433だけをTASK-608化し、未検証の9件を自動化済みと偽らない。#250は既存cutover preflightが十分、#284は既存3実機checklistが十分なので重複packetなし。DEC-1原文の「lookup障害も保存継続」はcurrent source/testのerror伝播と矛盾するためDEC-47でcurrent behaviorを優先。現行<code>make reset</code>の<code>down -v</code>はrunbookのDB-volume限定記述と不一致のためTASK-607にcache保持を明記。参照指示の<code>docs/CODEX-NAVIGATION-GUIDE.md</code>は現treeに不存在。</p>
+<p><b>Failure Signature log:</b> (1) ID履歴scanが<code>pipefail</code>下のSIGPIPEでexit 141を2回返したため、同じ最小scanを<code>set +o pipefail</code>で再実行して606/46を確定。(2) 一時file方式は削除commandを含みpolicy拒否されたため採用せず。(3) 実在確認でzsh特殊変数<code>path</code>をloop変数に使い、そのshell内のcommand lookupを破壊したため<code>target_file</code>へ改名して再実行。(4) 初回owned parserが既存packetの省略basenameと新規fileの未作成直上dirを20欠落と誤判定したため、同一dir補完＋最寄り既存親dir検査へ修正しMISSING=0。(5) independent review round 1〜2でTASK-608 output parser/偽green、DEC-47 rec欠落、TASK-607 shellcheck scope、TASK-609 batch lock/clinic receipt、TASK-610 deploy kill switch/Content-Typeを検出。全件を最小修正し、final re-reviewで同signature再発なし。2-strike超過による中止対象なし。</p>
+</div>
+
 <div class="notice" id="readiness-audit-20260730-outcome">
 <h3>READINESS-AUDIT-20260730 staged-plan outcome</h3>
 <p><b>Status: COMPLETE（docs-only packet起票・代理裁定・decision-ready整形）。</b> 起票したpacketの実装は未着手で、本runの授権外。変更fileは <code>3-session-agent.html</code>、<code>q&amp;a.html</code>、<code>phase2.html</code> の3件のみ。</p>
@@ -421,9 +605,9 @@ CRITICAL=0 HIGH=0 MEDIUM=0; diff review PASS</pre>
 <b>Issue #262 本文の陳腐化2点</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である。<br>
 <b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。<br>
 <b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。</td></tr>
-  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=USER 専権</a></b>（4スライス全着地。残 = <code>make codegen</code> と生成物の byte-identity 確認）。<b>#285 は完了済み</b>（GitHub Issue のクローズは USER 操作）。</td></tr>
-  <tr><td colspan="2">環境非依存 docs / CI</td><td><b>分類: 着手可能。</b> #256=<a href="#TASK-603">TASK-603</a>（主要8業務の既存記事同期）＋<a href="#TASK-604">TASK-604</a>（誤ったaccount lock記載除去）、#258=<a href="#TASK-605">TASK-605</a>（repo由来納品3領域）、#109=<a href="#TASK-606">TASK-606</a>（performance test認証/silent green）。Owned pathsは4 packet間で重複なし。</td></tr>
-  <tr><td colspan="2">USER/外部待ち</td><td><b>分類: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259=依存待ち</a>（先方API有効化の完了待ち）／OPS-2=USER 専権／OPS-18=USER 専権／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284=USER 専権</a></b>。OPS-2は承認済みDB再構築、OPS-18はSentry DSN発行、#284は試験環境・実機受け渡し後の物理確認。</td></tr>
+  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=着手可能＋USER/CI acceptance</a></b>（全出力byte-identity=<a href="#TASK-608">TASK-608</a>）。<b>#285 は完了済み</b>（GitHub Issue のクローズは USER 操作）。</td></tr>
+  <tr><td colspan="2">環境非依存 packet</td><td><b>分類: 着手可能。</b> #256=<a href="#TASK-603">TASK-603</a>＋<a href="#TASK-604">TASK-604</a>、#258=<a href="#TASK-605">TASK-605</a>、#109=<a href="#TASK-606">TASK-606</a>、local DB=<a href="#TASK-607">TASK-607</a>、BUG-433=<a href="#TASK-608">TASK-608</a>、#255=<a href="#TASK-609">TASK-609</a>、#259=<a href="#TASK-610">TASK-610</a>。8 packetのowned pathsは重複なし。</td></tr>
+  <tr><td colspan="2">USER/外部待ち</td><td><b>分類: #250 producer bundle／#255実一覧・4業務入力・適用／#259先方API有効化・実送信／OPS-2／OPS-18／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284実機確認はいずれもUSERまたは第三者境界。</a></b> repo準備はTASK-607/609/610まで先行できるが、到着していないdata、破壊的DB操作、外部write、物理確認を代替しない。</td></tr>
 </table>
 </div>
 
