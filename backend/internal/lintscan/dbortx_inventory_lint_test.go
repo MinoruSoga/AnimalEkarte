@@ -588,6 +588,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// campaign target attachment serializes with concurrent merchandise soft-delete.
 	// Runtime: TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction.
 	"inventory/merchandise_item_repository.go|merchandiseItemRepository.FindByID": {},
+	// BE-ACT-MERCHANDISE-ATOMIC-DELETE: soft-delete + billing/estimate/campaign-target usage
+	// re-check join the service-owned ambient transaction. Runtime:
+	// TestMerchandiseItemService_Delete_ConcurrentAttachFirstYieldsConflict /
+	// TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_IncludesCampaignTargets /
+	// TestMerchandiseItemRepository_CountUsage_AmbientTxSeesUncommittedCampaignTarget.
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.CountUsageByMerchandiseItemID": {},
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Delete":                        {},
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic repository tx conversion.
 	// Permission-group ownership moved to internal/auth in BE9 auth Phase 1.
 	"clinic/clinic_repository.go|clinicRepository.Create":                            {},

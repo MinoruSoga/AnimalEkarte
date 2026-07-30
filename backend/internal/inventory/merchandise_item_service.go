@@ -76,6 +76,11 @@ type UpdateMerchandiseItemInput struct {
 
 // ---- MerchandiseItemService ----
 
+// Transactor is the consumer-side ambient transaction port for atomic merchandise delete.
+type Transactor interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 // MerchandiseItemService は物販品マスタのビジネスロジック
 type MerchandiseItemService interface {
 	List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
@@ -98,12 +103,15 @@ type merchandiseItemStore interface {
 }
 
 type merchandiseItemService struct {
-	repo merchandiseItemStore
+	repo       merchandiseItemStore
+	transactor Transactor
 }
 
-// NewMerchandiseItemService は物販品サービスを初期化する
-func NewMerchandiseItemService(repo merchandiseItemStore) MerchandiseItemService {
-	return &merchandiseItemService{repo: repo}
+// NewMerchandiseItemService は物販品サービスを初期化する。
+// transactor は Delete の soft-delete + usage 再確認を同一 transaction に載せるために必須
+// （BE-ACT-MERCHANDISE-ATOMIC-DELETE）。
+func NewMerchandiseItemService(repo merchandiseItemStore, transactor Transactor) MerchandiseItemService {
+	return &merchandiseItemService{repo: repo, transactor: transactor}
 }
 
 func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
@@ -207,20 +215,28 @@ func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get merchandise item")
+	// Soft-delete first acquires the exclusive row lock (serializes with campaign target
+	// FOR SHARE validation). Usage is re-checked in the same ambient tx; any billing /
+	// estimate / campaign-target reference rolls the soft-delete back as Conflict.
+	// Pattern matches trimming master delete (soft-delete → count → conflict rollback).
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("merchandise item transaction dependency is required")
 	}
-
-	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check merchandise item dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check merchandise item dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この物販品目は請求・見積データで使用中のため削除できません")
-	}
-
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			// NotFound when the same-clinic non-deleted row is absent (already deleted / wrong clinic).
+			return apperrors.Wrap(err, "failed to delete merchandise item")
+		}
+		count, err := s.repo.CountUsageByMerchandiseItemID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check merchandise item dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check merchandise item dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この物販品目は請求・見積・キャンペーンで使用中のため削除できません")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete merchandise item", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete merchandise item")
 	}

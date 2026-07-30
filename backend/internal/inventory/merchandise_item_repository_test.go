@@ -21,21 +21,47 @@ import (
 // 以下は実際の merchandiseItemRepository を実 Postgres テストDBに対して駆動する。
 
 // setupMerchandiseItemRepoTestDB は merchandise_item_repository のテストに必要なテーブルを整備する。
-// CountUsageByMerchandiseItemID は billing_items / estimate_items を billings / estimates 経由でJOINするため
-// それらも migrate する。
+// CountUsageByMerchandiseItemID は billing_items / estimate_items を billings / estimates 経由でJOINし、
+// さらに campaign_target_items を non-deleted campaigns 経由でJOINするためそれらも migrate する。
 func setupMerchandiseItemRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.MerchandiseItem{}, &model.Billing{}, &model.BillingItem{},
 		&model.Estimate{}, &model.EstimateItem{},
+		&model.Campaign{}, &model.CampaignTargetItem{}, &model.CampaignTargetCategory{},
 	))
+	db.Exec("TRUNCATE TABLE campaign_target_items CASCADE")
+	db.Exec("TRUNCATE TABLE campaign_target_categories CASCADE")
+	db.Exec("TRUNCATE TABLE campaigns CASCADE")
 	db.Exec("TRUNCATE TABLE billing_items CASCADE")
 	db.Exec("TRUNCATE TABLE estimate_items CASCADE")
 	db.Exec("TRUNCATE TABLE estimates CASCADE")
 	db.Exec("TRUNCATE TABLE billings CASCADE")
 	db.Exec("TRUNCATE TABLE merchandise_items CASCADE")
 	return db
+}
+
+func makeMerchCampaign(t *testing.T, db *gorm.DB, clinicID uint64, name string, isActive bool, start, end time.Time) *model.Campaign {
+	t.Helper()
+	c := &model.Campaign{
+		ClinicID:      clinicID,
+		Name:          name,
+		StartDate:     start,
+		EndDate:       end,
+		DiscountType:  model.CampaignDiscountTypeRate,
+		DiscountValue: 10,
+		IsActive:      isActive,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)
+	return c
+}
+
+func makeMerchCampaignTarget(t *testing.T, db *gorm.DB, campaignID, merchandiseItemID uint64) *model.CampaignTargetItem {
+	t.Helper()
+	ti := &model.CampaignTargetItem{CampaignID: campaignID, MerchandiseItemID: merchandiseItemID}
+	require.NoError(t, db.WithContext(context.Background()).Create(ti).Error)
+	return ti
 }
 
 func makeMerchItem(t *testing.T, db *gorm.DB, clinicID uint64, name string, category model.ItemCategory) *model.MerchandiseItem {
@@ -466,6 +492,117 @@ func TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_RealDB(t *testi
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count, "別クリニックのbillingに紐づく参照はJOINで除外される")
 	})
+}
+
+// TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_IncludesCampaignTargets
+// proves campaign_target_items joined to any same-clinic non-deleted campaign count as usage,
+// including inactive and out-of-date campaigns (BE-ACT-MERCHANDISE-ATOMIC-DELETE).
+func TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_IncludesCampaignTargets(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	now := time.Now().UTC().Truncate(24 * time.Hour)
+
+	t.Run("active campaign target counts as usage", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "active campaign target item", model.ItemCategoryGoods)
+		camp := makeMerchCampaign(t, db, clinicA, "active camp", true, now.Add(-24*time.Hour), now.Add(24*time.Hour))
+		makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
+
+	t.Run("inactive campaign target still blocks delete (counts as usage)", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "inactive campaign target item", model.ItemCategoryGoods)
+		camp := makeMerchCampaign(t, db, clinicA, "inactive camp", false, now.Add(-24*time.Hour), now.Add(24*time.Hour))
+		makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count, "is_active=false campaign targets must still count")
+	})
+
+	t.Run("out-of-date campaign target still counts as usage", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "expired campaign target item", model.ItemCategoryGoods)
+		camp := makeMerchCampaign(t, db, clinicA, "expired camp", true, now.Add(-72*time.Hour), now.Add(-48*time.Hour))
+		makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count, "date-window-expired campaign targets must still count")
+	})
+
+	t.Run("soft-deleted campaign targets are excluded", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "deleted campaign target item", model.ItemCategoryGoods)
+		camp := makeMerchCampaign(t, db, clinicA, "to-delete camp", true, now.Add(-24*time.Hour), now.Add(24*time.Hour))
+		makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+		require.NoError(t, db.WithContext(ctx).Delete(camp).Error)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("other clinic campaign targets are excluded", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "cross clinic campaign target item", model.ItemCategoryGoods)
+		campB := makeMerchCampaign(t, db, clinicB, "clinic B camp", true, now.Add(-24*time.Hour), now.Add(24*time.Hour))
+		makeMerchCampaignTarget(t, db, campB.ID, item.ID)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("billing + estimate + campaign targets sum", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "mixed usage item", model.ItemCategoryGoods)
+		billing := makeMerchBilling(t, db, clinicA)
+		makeMerchBillingItem(t, db, billing.ID, item.ID)
+		estimate := makeMerchEstimate(t, db, clinicA)
+		makeMerchEstimateItem(t, db, estimate.ID, item.ID)
+		camp := makeMerchCampaign(t, db, clinicA, "mixed camp", false, now.Add(-100*24*time.Hour), now.Add(-90*24*time.Hour))
+		makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+
+		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), count, "1 billing + 1 estimate + 1 inactive/expired campaign target")
+	})
+}
+
+// TestMerchandiseItemRepository_CountUsage_AmbientTxSeesUncommittedCampaignTarget proves
+// CountUsage joins ambient tx via DBOrTx and observes uncommitted campaign targets.
+func TestMerchandiseItemRepository_CountUsage_AmbientTxSeesUncommittedCampaignTarget(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now().UTC().Truncate(24 * time.Hour)
+
+	item := makeMerchItem(t, db, clinicID, "ambient count merchandise", model.ItemCategoryGoods)
+	camp := makeMerchCampaign(t, db, clinicID, "ambient count camp", true, now, now.Add(24*time.Hour))
+
+	forcedErr := errors.New("force rollback after ambient count")
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := tx.Create(&model.CampaignTargetItem{
+			CampaignID:        camp.ID,
+			MerchandiseItemID: item.ID,
+		}).Error; err != nil {
+			return err
+		}
+		count, err := repo.CountUsageByMerchandiseItemID(txCtx, clinicID, item.ID)
+		if err != nil {
+			return err
+		}
+		assert.Equal(t, int64(1), count, "ambient CountUsage must see uncommitted campaign target")
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicID, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count, "rolled-back target must not remain after ambient failure")
 }
 
 // TestCountUsageByMerchandiseItemID - マーチャンダイズアイテムの使用数をカウント

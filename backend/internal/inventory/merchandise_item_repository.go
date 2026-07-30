@@ -101,11 +101,15 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 	return persistence.ReorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids, "sort_order")
 }
 
-// CountUsageByMerchandiseItemID returns billing_items + estimate_items references (BUG-109).
-// Child tables lack clinic_id; tenant isolation is via JOIN.
+// CountUsageByMerchandiseItemID returns active billing_items + estimate_items references
+// (BUG-109) plus campaign_target_items joined to any same-clinic non-deleted campaign
+// (regardless of is_active / date window). Child tables lack clinic_id; tenant isolation
+// is via JOIN. Uses DBOrTx so delete's ambient transaction sees uncommitted attaches.
 func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
+	db := persistence.DBOrTx(ctx, r.db)
+
 	var billingCount int64
-	if err := r.db.WithContext(ctx).
+	if err := db.
 		Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.merchandise_item_id = ? AND billing_items.deleted_at IS NULL", merchandiseItemID).
@@ -114,7 +118,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 	}
 
 	var estimateCount int64
-	if err := r.db.WithContext(ctx).
+	if err := db.
 		Model(&model.EstimateItem{}).
 		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ? AND estimates.deleted_at IS NULL", clinicID).
 		Where("estimate_items.merchandise_item_id = ? AND estimate_items.deleted_at IS NULL", merchandiseItemID).
@@ -122,9 +126,22 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}
 
-	return billingCount + estimateCount, nil
+	// Campaign targets block delete even when the campaign is inactive or outside its date
+	// window: historical/target configuration still references the merchandise row.
+	var campaignCount int64
+	if err := db.
+		Model(&model.CampaignTargetItem{}).
+		Joins("JOIN campaigns ON campaigns.id = campaign_target_items.campaign_id AND campaigns.clinic_id = ? AND campaigns.deleted_at IS NULL", clinicID).
+		Where("campaign_target_items.merchandise_item_id = ?", merchandiseItemID).
+		Count(&campaignCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "campaign_target_item", "")
+	}
+
+	return billingCount + estimateCount + campaignCount, nil
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
+	// Ambient tx participation is required so soft-delete exclusive-locks serialize with
+	// campaign target FOR SHARE validation and usage re-check in the same transaction.
+	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
 }

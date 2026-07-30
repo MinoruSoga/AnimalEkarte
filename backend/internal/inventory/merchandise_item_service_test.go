@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // mockMerchandiseItemRepository は MerchandiseItemRepository のテスト用モック実装
@@ -65,8 +69,24 @@ func (m *mockMerchandiseItemRepository) Reorder(ctx context.Context, clinicID ui
 	return nil
 }
 
+// mockMerchandiseItemTransactor runs WithTx by invoking fn on the same ctx (unit tests).
+type mockMerchandiseItemTransactor struct {
+	withTxFn func(ctx context.Context, fn func(context.Context) error) error
+}
+
+func (m *mockMerchandiseItemTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	if m != nil && m.withTxFn != nil {
+		return m.withTxFn(ctx, fn)
+	}
+	return fn(ctx)
+}
+
 func newTestMerchandiseItemService(repo *mockMerchandiseItemRepository) MerchandiseItemService {
-	return NewMerchandiseItemService(repo)
+	return NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+}
+
+func newTestMerchandiseItemServiceWithTx(repo *mockMerchandiseItemRepository, tx Transactor) MerchandiseItemService {
+	return NewMerchandiseItemService(repo, tx)
 }
 
 // ---- List テスト ----
@@ -422,29 +442,41 @@ func TestMerchandiseItemService_Update(t *testing.T) {
 // ---- Delete テスト ----
 
 func TestMerchandiseItemService_Delete_Success(t *testing.T) {
-	item := &model.MerchandiseItem{ID: 1, ClinicID: 1, Name: "ドッグフード"}
+	// Soft-delete first, then usage re-check under the same WithTx.
+	var deleted, counted bool
+	inTx := false
+	tx := &mockMerchandiseItemTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		inTx = true
+		defer func() { inTx = false }()
+		return fn(ctx)
+	}}
 	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
-			return item, nil
-		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
-			return 0, nil
-		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
+			assert.True(t, inTx, "Delete must run inside WithTx")
+			deleted = true
 			return nil
 		},
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			assert.True(t, inTx, "CountUsage must run inside WithTx")
+			assert.True(t, deleted, "soft-delete must precede usage re-check")
+			counted = true
+			return 0, nil
+		},
 	}
-	svc := newTestMerchandiseItemService(repo)
+	svc := newTestMerchandiseItemServiceWithTx(repo, tx)
 
 	err := svc.Delete(context.Background(), 1, 1)
 
 	assert.NoError(t, err)
+	assert.True(t, deleted)
+	assert.True(t, counted)
 }
 
 func TestMerchandiseItemService_Delete_NotFound(t *testing.T) {
+	// Soft-delete miss surfaces as NotFound (distinct from Conflict when usage > 0).
 	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
-			return nil, apperrors.WrapNotFound("merchandise_item", "999")
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return apperrors.WrapNotFound("merchandise_item", "999")
 		},
 	}
 	svc := newTestMerchandiseItemService(repo)
@@ -453,16 +485,17 @@ func TestMerchandiseItemService_Delete_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+	assert.False(t, apperrors.IsConflict(err))
 }
 
 func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
-	item := &model.MerchandiseItem{ID: 1, ClinicID: 1, Name: "ドッグフード"}
+	// Soft-delete succeeds inside the tx; usage re-check returns Conflict and rolls back.
 	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
-			return item, nil
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return nil
 		},
 		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
-			return 2, nil // 2件の billing_items から参照
+			return 2, nil // billing / estimate / campaign target references
 		},
 	}
 	svc := newTestMerchandiseItemService(repo)
@@ -471,13 +504,13 @@ func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
+	assert.False(t, apperrors.IsNotFound(err), "usage conflict must stay distinct from NotFound")
 }
 
 func TestMerchandiseItemService_Delete_CountUsageError(t *testing.T) {
-	item := &model.MerchandiseItem{ID: 1, ClinicID: 1, Name: "ドッグフード"}
 	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
-			return item, nil
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return nil
 		},
 		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, errors.New("db connection error")
@@ -494,14 +527,7 @@ func TestMerchandiseItemService_Delete_CountUsageError(t *testing.T) {
 }
 
 func TestMerchandiseItemService_Delete_RepositoryError(t *testing.T) {
-	item := &model.MerchandiseItem{ID: 1, ClinicID: 1, Name: "ドッグフード"}
 	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
-			return item, nil
-		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
-			return 0, nil
-		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
 			return errors.New("db error")
 		},
@@ -511,6 +537,16 @@ func TestMerchandiseItemService_Delete_RepositoryError(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 1)
 
 	assert.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
+	assert.False(t, apperrors.IsConflict(err))
+}
+
+func TestMerchandiseItemService_Delete_RequiresTransactor(t *testing.T) {
+	svc := NewMerchandiseItemService(&mockMerchandiseItemRepository{}, nil)
+	err := svc.Delete(context.Background(), 1, 1)
+	assert.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
+	assert.False(t, apperrors.IsConflict(err))
 }
 
 // ---- Update 追加分岐テスト ----
@@ -598,4 +634,131 @@ func TestBuildMerchandiseItemUpdate(t *testing.T) {
 		assert.True(t, ok, "IsActive=false でもキーが存在するべき")
 		assert.Equal(t, false, val)
 	})
+}
+
+// ---- Atomic delete concurrent interleavings (BE-ACT-MERCHANDISE-ATOMIC-DELETE) ----
+
+// TestMerchandiseItemService_Delete_ConcurrentAttachFirstYieldsConflict proves attach-first:
+// campaign target attachment holds FOR SHARE, concurrent Delete waits, then after attach
+// commits CountUsage sees the target and returns Conflict (soft-delete rolls back).
+func TestMerchandiseItemService_Delete_ConcurrentAttachFirstYieldsConflict(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	svc := NewMerchandiseItemService(repo, persistence.NewTransactor(db))
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now().UTC().Truncate(24 * time.Hour)
+
+	item := makeMerchItem(t, db, clinicID, "attach-first merch", model.ItemCategoryGoods)
+	camp := makeMerchCampaign(t, db, clinicID, "attach-first camp", true, now, now.Add(24*time.Hour))
+
+	// Hold FOR SHARE on merchandise (same path as campaign target validation) and insert target.
+	locked := make(chan struct{})
+	release := make(chan struct{})
+	holderDone := make(chan error, 1)
+	go func() {
+		holderDone <- db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			txCtx := persistence.WithTxValue(ctx, tx)
+			if _, err := repo.FindByID(txCtx, clinicID, item.ID); err != nil {
+				return err
+			}
+			if err := tx.Create(&model.CampaignTargetItem{
+				CampaignID:        camp.ID,
+				MerchandiseItemID: item.ID,
+			}).Error; err != nil {
+				return err
+			}
+			close(locked)
+			<-release
+			return nil
+		})
+	}()
+	<-locked
+
+	deleteDone := make(chan error, 1)
+	go func() {
+		deleteDone <- svc.Delete(ctx, clinicID, item.ID)
+	}()
+
+	// Soft-delete exclusive lock must wait behind the attacher's FOR SHARE.
+	select {
+	case err := <-deleteDone:
+		close(release)
+		require.Failf(t, "merchandise delete was not serialized behind campaign attach share-lock", "err=%v", err)
+	case <-time.After(100 * time.Millisecond):
+		// still waiting — good
+	}
+
+	close(release)
+	require.NoError(t, <-holderDone)
+
+	deleteErr := <-deleteDone
+	require.Error(t, deleteErr)
+	assert.True(t, apperrors.IsConflict(deleteErr), "attach-first must yield Conflict after serialization, got %v", deleteErr)
+	assert.False(t, apperrors.IsNotFound(deleteErr))
+
+	// Merchandise row must remain (soft-delete rolled back).
+	got, err := repo.FindByID(ctx, clinicID, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, item.ID, got.ID)
+}
+
+// TestMerchandiseItemService_Delete_ConcurrentDeleteFirstRejectsLaterAttach proves delete-first:
+// atomic Delete soft-deletes with zero usage; later attach FindByID rejects the inactive row.
+func TestMerchandiseItemService_Delete_ConcurrentDeleteFirstRejectsLaterAttach(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	svc := NewMerchandiseItemService(repo, persistence.NewTransactor(db))
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	item := makeMerchItem(t, db, clinicID, "delete-first merch", model.ItemCategoryGoods)
+	require.NoError(t, svc.Delete(ctx, clinicID, item.ID))
+
+	// Later attach path: ambient FindByID (FOR SHARE) must NotFound soft-deleted merchandise.
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		_, findErr := repo.FindByID(txCtx, clinicID, item.ID)
+		return findErr
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "delete-first must make later attach reject inactive row as NotFound")
+}
+
+// TestMerchandiseItemService_Delete_InactiveCampaignTargetBlocksWithConflict is the fixture
+// that inactive / out-of-date campaign targets still Conflict on Delete.
+func TestMerchandiseItemService_Delete_InactiveCampaignTargetBlocksWithConflict(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	svc := NewMerchandiseItemService(repo, persistence.NewTransactor(db))
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now().UTC().Truncate(24 * time.Hour)
+
+	item := makeMerchItem(t, db, clinicID, "inactive camp block merch", model.ItemCategoryGoods)
+	// Inactive + expired date window — still blocks.
+	camp := makeMerchCampaign(t, db, clinicID, "inactive expired camp", false, now.Add(-90*24*time.Hour), now.Add(-60*24*time.Hour))
+	makeMerchCampaignTarget(t, db, camp.ID, item.ID)
+
+	err := svc.Delete(ctx, clinicID, item.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "inactive/out-of-date campaign target must Conflict, got %v", err)
+	assert.False(t, apperrors.IsNotFound(err))
+
+	got, findErr := repo.FindByID(ctx, clinicID, item.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, item.ID, got.ID, "Conflict must leave the merchandise row active")
+}
+
+// TestMerchandiseItemService_Delete_NotFoundDistinctFromConflict ensures missing rows stay NotFound.
+func TestMerchandiseItemService_Delete_NotFoundDistinctFromConflict_RealDB(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	svc := NewMerchandiseItemService(repo, persistence.NewTransactor(db))
+	ctx := context.Background()
+
+	err := svc.Delete(ctx, 1, 999999)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.False(t, apperrors.IsConflict(err))
 }

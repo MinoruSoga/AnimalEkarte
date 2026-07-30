@@ -238,6 +238,7 @@ func newRuntimeDomainCompositions(
 		medicalRecord: medicalRecordComposition,
 		inventory: newRuntimeInventory(
 			repositories,
+			transactor,
 		),
 		trimming: newRuntimeTrimming(
 			repositories,
@@ -420,10 +421,12 @@ func newRuntimeAuthComposition(
 
 func newRuntimeInventory(
 	repositories runtimeRepositories,
+	transactor persistence.Transactor,
 ) inventoryRuntime {
 	return inventoryRuntime{
-		inventory:        inventory.NewInventoryService(repositories.inventory),
-		merchandiseItems: inventory.NewMerchandiseItemService(repositories.merchandiseItems),
+		inventory: inventory.NewInventoryService(repositories.inventory),
+		// BE-ACT-MERCHANDISE-ATOMIC-DELETE: Delete soft-delete + usage re-check share one tx.
+		merchandiseItems: inventory.NewMerchandiseItemService(repositories.merchandiseItems, transactor),
 	}
 }
 
