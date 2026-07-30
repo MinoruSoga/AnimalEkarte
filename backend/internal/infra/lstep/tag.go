@@ -57,7 +57,7 @@ func (c *httpLstepClient) AddTag(ctx context.Context, lineUserID, tagName string
 		return fmt.Errorf("lstep AddTag: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if err := checkResponse(resp, lineUserID); err != nil {
+	if err := checkResponse(resp); err != nil {
 		return fmt.Errorf("lstep AddTag: %w", err)
 	}
 	return nil
@@ -89,7 +89,7 @@ func (c *httpLstepClient) RemoveTag(ctx context.Context, lineUserID, tagName str
 		return fmt.Errorf("lstep RemoveTag: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if err := checkResponse(resp, lineUserID); err != nil {
+	if err := checkResponse(resp); err != nil {
 		return fmt.Errorf("lstep RemoveTag: %w", err)
 	}
 	return nil
@@ -115,7 +115,8 @@ func (c *httpLstepClient) GetUserTags(ctx context.Context, lineUserID string) ([
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("lineUserID=%s: %w", lineUserID, ErrUserNotFound)
+		// lineUserID は error 文字列に埋め込まない（ログ/監視への PII 漏えい防止）
+		return nil, ErrUserNotFound
 	}
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("lstep GetUserTags: status=%d", resp.StatusCode)
