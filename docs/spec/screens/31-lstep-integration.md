@@ -50,9 +50,19 @@
 
 ## 3. 技術仕様
 
-### 3.1 同期エンジン
-- **リアルタイム同期**: 会計完了、ペット登録、死亡記録などのイベントをトリガーに即座にタグを更新。ただし Lステップ側へのタグ書き込み API 呼び出し（AddTag / RemoveTag / AddTagBulk）はポリシーにより一時停止中で、内部タグキャッシュのみ更新される。
+### 3.1 同期エンジンと失敗契約
+経路ごとに失敗契約を混同しない（詳細: [line/architecture.md](../line/architecture.md) §4、[line/lstep-integration.md](../line/lstep-integration.md) §5）。
+
+| 経路 | 契約 | 画面・運用への影響 |
+|:---|:---|:---|
+| 会計完了・ペット登録・死亡記録などイベント直後のタグ更新 | **request-local nonfatal secondary notification** | 本処理（会計等）は成功のまま。タグ同期失敗はログのみで本処理を反転させない。**配信トリガーログには書かない** |
+| 1 飼主分のタグ同期本体（画面操作やバッチ内 1 owner） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は error 伝播。呼び出し元が失敗を観測・計上する |
+| 定時バッチ（dormant / no_show / delivery / LTV 等 multi-resource） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult` と `processed_count`/`error_count` 監査による **durable 部分結果計上**が必須。必須 dependency 欠落は fail-closed |
+
+- **Write API**: タグ書き込み API（AddTag / RemoveTag / AddTagBulk / SetProperty）はポリシーにより一時停止中（noop）。内部タグキャッシュ・判定・監査は更新されるが Lステップ側実タグは変わらない（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。
 - **バッチ同期**: Cloudflare scheduled eventは、毎日02:00 JSTに`dormant`（休眠判定）、10:00 JSTに`no_show`→`delivery`、15:00/20:00 JSTに`no_show`を実行する。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知はcode/configへ配線済み。今回versionのSTG/production実deploy・自然発火・運用rehearsalはrelease gateとして未実施（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
+- **配信トリガー候補の読み取り**: clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。
+- **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

@@ -5,7 +5,7 @@
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
 > **Animal Ekarte**: カルテデータに基づいた自動マーケティングの実現
-> **最新更新**: 2026-07-10 | **ステータス**: Production Ready
+> **最新更新**: 2026-07-30 | **ステータス**: Production Ready
 
 ---
 
@@ -72,9 +72,30 @@ LTV 上位 20% は CPM ステージとは独立した `LTV_上位20` タグと�
 
 ---
 
-## 5. 運用と効果測定
+## 5. 失敗契約（経路別・混同禁止）
 
-- **配信監視 (`/lstep/delivery-monitor`)**: 実行ログ、除外理由、API 失敗をリアルタイム監視。
+LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細アーキテクチャは [architecture.md](./architecture.md) §4。
+
+| 経路 | 契約 | 要点 |
+|:---|:---|:---|
+| 定時バッチ（配信トリガー・休眠・LTV・健診予防など multi-clinic / multi-owner） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult`（`Processed = Succeeded + Failed`）と `processed_count`/`error_count` 監査で **durable な部分結果計上を必須**。必須 dependency 欠落は fail-closed。silent swallow は新規禁止 |
+| 1 飼主分のタグ同期本体（バッチ内 1 owner 処理を含む） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は呼び出し元へ伝播し、上位の Failed 計上に載せる |
+| 会計確定後の CPM 同期、手動 LINE 送信後の purpose タグなど副次処理 | **request-local nonfatal secondary notification** | 本処理（会計・送信本体）は成功のまま。副次失敗はログ必須で本処理を反転させない。**`lstep_delivery_trigger_log` は使わない** |
+
+### 5.1 書き込み停止と運用停止
+
+- **Write API pause（noop）**: タグ付与・解除・プロパティ更新の外部 HTTP は停止中。判定・アプリ内 DB・監査は継続。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+- **clinic 停止**: `is_sync_enabled=false` の医院は再有効化後もサービス層で同期対象外。
+
+### 5.2 定時 delivery バッチの読み取り要件
+
+候補 owner 集合に対する owner / 当日 claim / 優先度抑制 / tag-cache 読みは clinic スコープの bulk-read を必須とし、owner 数線形の N+1 読みを置かない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
+
+---
+
+## 6. 運用と効果測定
+
+- **配信監視 (`/lstep/delivery-monitor`)**: **自動配信トリガー**の実行ログ、除外理由、API 失敗を監視（ordinary タグ同期の request-local 経路は対象外）。
 - **来院転換分析**: メッセージ配信から 30 日以内の来院率を自動集計。
 
 ---
