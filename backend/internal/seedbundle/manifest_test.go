@@ -32,27 +32,10 @@ func TestBundleOrderForEnv_ProductionExcludesDemoAndStaging(t *testing.T) {
 	}
 }
 
-// SEC-CS2-F01: APP_ENV=staging must not load privileged demo/staging CSV
-// bundles (active system-admin accounts). Staging is master-only; full demo
-// order is restricted to local development/test only.
-func TestBundleOrderForEnv_StagingIsMasterOnly(t *testing.T) {
-	t.Parallel()
-
-	for _, env := range []string{"staging", "STAGING", " staging "} {
-		env := env
-		t.Run("env="+env, func(t *testing.T) {
-			t.Parallel()
-			got := BundleOrderForEnv(env)
-			if !slices.Equal(got, []string{"002_master"}) {
-				t.Fatalf("BundleOrderForEnv(%q) = %v, want master only", env, got)
-			}
-			if slices.Contains(got, "003_demo") || slices.Contains(got, "004_staging") {
-				t.Fatalf("staging env %q must not include demo/staging bundles: %v", env, got)
-			}
-		})
-	}
-}
-
+// Local development/test only. Staging is intentionally master-only under
+// SEC-CS2-F01 (see seed_env_gate_test.go TestSeedBundlesForEnv_StagingIsMasterOnly).
+// Baseline historically listed staging in a "non-production full order" case;
+// that assertion is incompatible with F1 production code and is not restored.
 func TestBundleOrderForEnv_LocalDevAndTestIncludesFullOrder(t *testing.T) {
 	t.Parallel()
 
