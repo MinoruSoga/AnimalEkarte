@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 import type { BackendHospitalization } from "../api/types";
 import {
   buildCreateHospitalizationRequest,
@@ -13,6 +14,7 @@ import {
   updateTreatmentPlanField,
 } from "./use-hospitalization-form-model";
 
+/** HospitalizationResponse wire fixture (no treatment_plans embed). */
 const hospitalization = {
   id: 990007,
   clinic_id: 990001,
@@ -27,61 +29,46 @@ const hospitalization = {
   staff_notes: "",
   created_at: "2026-07-23T00:00:00+09:00",
   updated_at: "2026-07-23T00:00:00+09:00",
-  treatment_plans: [
-    {
-      id: 990018,
-      clinic_id: 990001,
-      hospitalization_id: 990007,
-      treatment_content: "合成監査輸液",
-      memo: "既存record由来",
-      is_insurance: true,
-      unit_price: 3_210,
-      quantity: 2,
-      discount_rate: 10,
-      discount_amount: 642,
-      subtotal: 5_778,
-      sort_order: 1,
-      created_at: "2026-07-23T00:00:00+09:00",
-      updated_at: "2026-07-23T00:00:00+09:00",
-    },
-  ],
 } satisfies BackendHospitalization;
+
+/** GET /hospitalizations/:id/treatment-plans wire fixture. */
+const treatmentPlanWire: TreatmentPlanResponse[] = [
+  {
+    id: "990018",
+    hospitalization_id: "990007",
+    treatment_content: "合成監査輸液",
+    memo: "既存record由来",
+    is_insurance: true,
+    unit_price: 3_210,
+    quantity: 2,
+    discount_rate: 10,
+    discount_amount: 642,
+    subtotal: 5_778,
+    sort_order: 1,
+    created_at: "2026-07-23T00:00:00+09:00",
+    updated_at: "2026-07-23T00:00:00+09:00",
+  },
+];
 
 const hospitalizationWithPet = {
   ...hospitalization,
+  owner: { id: 990002, name: "合成監査飼主" },
   pet: {
     id: 990003,
-    clinic_id: 990001,
-    owner_id: 990002,
-    animal_species_id: 990004,
-    pet_number: "SYN-PET-990003",
     name: "合成監査ペット",
-    name_kana: "ゴウセイカンサペット",
-    gender: "male",
+    pet_number: "SYN-PET-990003",
     status: "alive",
     breed: "合成監査品種",
-    color: "合成監査色",
-    danger_level: "low",
-    food: "",
-    environment: "",
-    phone: "",
-    remarks: "",
-    created_at: "2026-07-23T00:00:00+09:00",
-    updated_at: "2026-07-23T00:00:00+09:00",
     animal_species: {
       id: 990004,
       name: "合成動物種",
-      is_active: true,
-      sort_order: 1,
-      created_at: "2026-07-23T00:00:00+09:00",
-      updated_at: "2026-07-23T00:00:00+09:00",
     },
   },
 } satisfies BackendHospitalization;
 
 const formData = {
   ...createInitialHospitalizationFormData(),
-  hospitalizationType: "ホテル",
+  hospitalizationType: "ホテル" as const,
   displayDate: "2026-07-23",
   endDate: "2026-07-30",
   ownerRequest: "合成監査要望",
@@ -94,8 +81,8 @@ const formData = {
 };
 
 describe("buildTreatmentPlansFromRecord", () => {
-  it("backendの既存治療明細をUI form shapeへ欠落なく変換する", () => {
-    expect(buildTreatmentPlansFromRecord(hospitalization)).toEqual([
+  it("GET treatment-plans wire を UI form shape へ欠落なく変換する", () => {
+    expect(buildTreatmentPlansFromRecord(treatmentPlanWire)).toEqual([
       {
         id: "990018",
         treatmentContent: "合成監査輸液",
@@ -110,8 +97,14 @@ describe("buildTreatmentPlansFromRecord", () => {
     ]);
   });
 
-  it("明細のないrecordに新規作成用defaultを混入させない", () => {
-    expect(buildTreatmentPlansFromRecord({ ...hospitalization, treatment_plans: [] })).toEqual([]);
+  it("明細のない wire 配列に新規作成用 default を混入させない", () => {
+    expect(buildTreatmentPlansFromRecord([])).toEqual([]);
+  });
+
+  it("id は wire 上 string のまま UI に載せる（models.TreatmentPlan の number ではない）", () => {
+    const [plan] = buildTreatmentPlansFromRecord(treatmentPlanWire);
+    expect(typeof plan.id).toBe("string");
+    expect(plan.id).toBe("990018");
   });
 });
 
@@ -190,7 +183,7 @@ describe("hospitalization form model", () => {
     expect(buildSelectedPetFromHospitalization(hospitalization)).toBeNull();
   });
 
-  it("typed pet relationをform選択値へ変換する", () => {
+  it("typed pet summary nest を form 選択値へ変換する", () => {
     const pet = buildSelectedPetFromHospitalization(hospitalizationWithPet);
 
     expect(pet).toMatchObject({
@@ -199,7 +192,6 @@ describe("hospitalization form model", () => {
       name: "合成監査ペット",
       species: "合成動物種",
       breed: "合成監査品種",
-      gender: "male",
       status: "生存",
     });
   });
@@ -208,7 +200,7 @@ describe("hospitalization form model", () => {
     const pet = buildSelectedPetFromHospitalization({
       ...hospitalizationWithPet,
       pet: {
-        ...hospitalizationWithPet.pet,
+        ...hospitalizationWithPet.pet!,
         status: "deceased",
       },
     });
@@ -251,7 +243,7 @@ describe("hospitalization form model", () => {
   });
 
   it("単価・数量・割引更新時だけ小計を再計算し元objectを変更しない", () => {
-    const original = buildTreatmentPlansFromRecord(hospitalization)[0];
+    const original = buildTreatmentPlansFromRecord(treatmentPlanWire)[0];
     const updated = updateTreatmentPlanField(original, "quantity", 3);
     const memoOnly = updateTreatmentPlanField(original, "memo", "更新メモ");
 

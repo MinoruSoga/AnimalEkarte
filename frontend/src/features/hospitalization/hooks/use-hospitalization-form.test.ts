@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { useGetHospitalizationRaw } from "../api/get-hospitalization";
+import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import { useHospitalizationForm } from "./use-hospitalization-form";
 
 async function submitForm(action: ReturnType<typeof useHospitalizationForm>["formAction"]) {
@@ -80,6 +82,16 @@ vi.mock("../api/get-hospitalization", () => ({
   })),
 }));
 
+vi.mock("../api/get-treatment-plans", () => ({
+  useGetTreatmentPlans: vi.fn(() => ({
+    data: undefined,
+    isSuccess: false,
+    isLoading: false,
+    isError: false,
+    error: null,
+  })),
+}));
+
 vi.mock("@/lib/calculations", () => ({
   calculateBillingTotals: vi.fn(() => ({
     subtotal: 0,
@@ -116,6 +128,19 @@ describe("useHospitalizationForm", () => {
     mockPetFromQuery.current = undefined;
     mockCreateHospitalization.mockResolvedValue({});
     mockUpdateHospitalization.mockResolvedValue({});
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useGetHospitalizationRaw>);
+    vi.mocked(useGetTreatmentPlans).mockReturnValue({
+      data: undefined,
+      isSuccess: false,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useGetTreatmentPlans>);
   });
 
   // ──────────────────────────
@@ -609,6 +634,76 @@ describe("useHospitalizationForm", () => {
           result.current.treatmentPlans.find((p) => p.id === firstPlanId)
         ).toBeUndefined();
       }
+    });
+
+    it("編集時は GET treatment-plans wire から hydrate し detail の treatment_plans を見ない", async () => {
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        data: {
+          id: 7,
+          clinic_id: 1,
+          owner_id: 2,
+          pet_id: 3,
+          hospitalization_type: "hospitalization",
+          start_date: "2026-07-23T00:00:00+09:00",
+          end_date: "2026-07-30T00:00:00+09:00",
+          status: "admitted",
+          memo: "m",
+          owner_request: "o",
+          staff_notes: "s",
+          created_at: "2026-07-23T00:00:00+09:00",
+          updated_at: "2026-07-23T00:00:00+09:00",
+          // intentionally no treatment_plans — absent on HospitalizationResponse wire
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+
+      vi.mocked(useGetTreatmentPlans).mockReturnValue({
+        data: [
+          {
+            id: "990018",
+            hospitalization_id: "7",
+            treatment_content: "合成監査輸液",
+            memo: "wire由来",
+            is_insurance: true,
+            unit_price: 3_210,
+            quantity: 2,
+            discount_rate: 10,
+            discount_amount: 642,
+            subtotal: 5_778,
+            sort_order: 1,
+            created_at: "2026-07-23T00:00:00+09:00",
+            updated_at: "2026-07-23T00:00:00+09:00",
+          },
+        ],
+        isSuccess: true,
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as ReturnType<typeof useGetTreatmentPlans>);
+
+      const { result } = renderHospitalizationForm("7");
+
+      await waitFor(() => {
+        expect(result.current.treatmentPlans).toEqual([
+          {
+            id: "990018",
+            treatmentContent: "合成監査輸液",
+            memo: "wire由来",
+            is_insurance: true,
+            unitPrice: 3_210,
+            quantity: 2,
+            discount: 10,
+            discountAmount: 642,
+            subtotal: 5_778,
+          },
+        ]);
+      });
+
+      expect(result.current.formData.memo).toBe("m");
+      expect(result.current.formData.ownerRequest).toBe("o");
+      expect(useGetTreatmentPlans).toHaveBeenCalledWith("7");
     });
   });
 });

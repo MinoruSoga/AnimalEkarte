@@ -7,7 +7,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type hospitalizationResponse struct {
+// HospitalizationResponse is the hospitalization list/detail/create/update HTTP wire DTO
+// (domain-owned). TASK-444-S2: tygo source for frontend hospitalization-responses.ts.
+// Nested treatment_plans / care_plan_items / daily_records are NOT on this wire — they are
+// loaded via dedicated nested endpoints (e.g. GET /hospitalizations/:id/treatment-plans).
+type HospitalizationResponse struct {
 	ID                   uint64    `json:"id"`
 	ClinicID             uint64    `json:"clinic_id"`
 	OwnerID              uint64    `json:"owner_id"`
@@ -31,8 +35,8 @@ type hospitalizationResponse struct {
 	Doctor *StaffSummaryResponse `json:"doctor,omitempty"`
 }
 
-func toHospitalizationResponse(h *model.Hospitalization) hospitalizationResponse {
-	return hospitalizationResponse{
+func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse {
+	return HospitalizationResponse{
 		ID:                   h.ID,
 		ClinicID:             h.ClinicID,
 		OwnerID:              h.OwnerID,

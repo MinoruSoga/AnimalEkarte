@@ -1,10 +1,11 @@
-import type { Hospitalization } from "@/types/generated/models";
+import type { HospitalizationResponse } from "@/types/generated/hospitalization-responses";
 
-// Extend generated type with fields added in migration 006 (pending codegen)
-export type BackendHospitalization = Hospitalization & {
-  insurance_company_name?: string | null;
-  insurance_number?: string | null;
-};
+/**
+ * Backend hospitalization list/detail/create/update wire.
+ * Source of truth: HospitalizationResponse (domain-owned DTO / tygo), not models.Hospitalization.
+ * treatment_plans are NOT on this payload — use GET /hospitalizations/:id/treatment-plans.
+ */
+export type BackendHospitalization = HospitalizationResponse;
 
 export interface CreateHospitalizationRequest {
   pet_id: string;

@@ -3,6 +3,11 @@ import type { BackendHospitalization } from "./types";
 type HospitalizationStatus = "入院中" | "退院済" | "予約" | "一時帰宅";
 type HospitalizationType = "入院" | "ホテル";
 
+/**
+ * HospitalizationResponse wire → UI list/detail view model.
+ * treatment_plans / care_plan_items / daily_records は detail wire に無い
+ * （専用 nested endpoint が正本）。
+ */
 export const transformHospitalization = (
   hosp: BackendHospitalization
 ) => {

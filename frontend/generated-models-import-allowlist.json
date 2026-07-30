@@ -72,7 +72,6 @@
   "src/features/examinations/routes/ExaminationForm.tsx",
   "src/features/examinations/routes/ExaminationPetSelection.tsx",
   "src/features/examinations/routes/ExaminationsList.tsx",
-  "src/features/hospitalization/api/types.ts",
   "src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx",
   "src/features/hospitalization/components/HospitalizationDetailActions.tsx",
   "src/features/hospitalization/routes/HospitalizationDetail.tsx",

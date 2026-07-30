@@ -1,14 +1,19 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type treatmentPlanResponse struct {
+// TreatmentPlanResponse is the treatment-plan list/create/update HTTP wire DTO
+// (domain-owned). TASK-444-S2: tygo source for frontend hospitalization-responses.ts.
+// ID / FK fields are string on the wire (uint64 formatted) — not models.TreatmentPlan numbers.
+// Nested under GET /hospitalizations/:id/treatment-plans (or medical-records/...); not embedded
+// on HospitalizationResponse / MedicalRecordResponse detail payloads.
+type TreatmentPlanResponse struct {
 	ID                string    `json:"id"`
 	MedicalRecordID   *string   `json:"medical_record_id,omitempty"`
 	HospitalizationID *string   `json:"hospitalization_id,omitempty"`
@@ -25,8 +30,8 @@ type treatmentPlanResponse struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-func toTreatmentPlanResponse(p *model.TreatmentPlan) treatmentPlanResponse {
-	r := treatmentPlanResponse{
+func toTreatmentPlanResponse(p *model.TreatmentPlan) TreatmentPlanResponse {
+	r := TreatmentPlanResponse{
 		ID:               strconv.FormatUint(p.ID, 10),
 		TreatmentContent: p.TreatmentContent,
 		Memo:             p.Memo,

@@ -158,6 +158,8 @@ export const queryKeys = {
     detailRaw: (id: string) => ["hospitalization", "raw", id] as const,
     carePlanItems: (hospitalizationId: string) =>
       ["hospitalizations", hospitalizationId, "care-plan-items"] as const,
+    treatmentPlans: (hospitalizationId: string) =>
+      ["hospitalizations", hospitalizationId, "treatment-plans"] as const,
     dailyRecords: {
       all: (hospitalizationId: string) => ["hospitalizations", hospitalizationId, "daily-records"] as const,
       byDate: (hospitalizationId: string, date: string) =>

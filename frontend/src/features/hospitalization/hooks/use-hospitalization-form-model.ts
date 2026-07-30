@@ -1,5 +1,6 @@
 import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
+import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 
 import type {
   CreateHospitalizationRequest,
@@ -140,6 +141,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     return null;
   }
 
+  // PetSummaryResponse wire has name/breed/status/species — not full Pet detail (gender etc.).
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -147,7 +149,6 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     name: hospitalization.pet.name,
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
-    gender: hospitalization.pet.gender,
     status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
   } as Pet;
 }
@@ -171,10 +172,14 @@ export function mergePetIntoHospitalizationFormData(
   };
 }
 
+/**
+ * Map GET /hospitalizations/:id/treatment-plans wire rows to edit-form UI shape.
+ * Does NOT read hospitalization.treatment_plans (absent on HospitalizationResponse wire).
+ */
 export function buildTreatmentPlansFromRecord(
-  hospitalization: BackendHospitalization,
+  plans: readonly TreatmentPlanResponse[],
 ): HospitalizationTreatmentPlan[] {
-  return (hospitalization.treatment_plans ?? []).map((plan) => ({
+  return plans.map((plan) => ({
     id: String(plan.id),
     treatmentContent: plan.treatment_content,
     memo: plan.memo,

@@ -12,6 +12,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
+import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import { calculateBillingTotals } from "@/lib/calculations";
 import {
   DEFAULT_TREATMENT_PLANS,
@@ -104,18 +105,31 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     error: hospitalizationError,
   } = useGetHospitalizationRaw(id);
 
+  // Real wire: GET /hospitalizations/:id/treatment-plans (not embedded on detail).
+  const {
+    data: treatmentPlanWire,
+    isSuccess: isTreatmentPlansSuccess,
+  } = useGetTreatmentPlans(isEdit ? id : undefined);
+
   const hydratedHospitalizationId = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!hospitalizationData || hydratedHospitalizationId.current === hospitalizationData.id) return;
     hydratedHospitalizationId.current = hospitalizationData.id;
     setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, hospitalizationData));
-    setTreatmentPlans(buildTreatmentPlansFromRecord(hospitalizationData));
     const selectedPet = buildSelectedPetFromHospitalization(hospitalizationData);
     if (selectedPet) {
       selectedPetRef.current = selectedPet;
       setSelectedPets([selectedPet]);
     }
   }, [hospitalizationData, setSelectedPets]);
+
+  const hydratedTreatmentPlansForId = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!isEdit || !id || !isTreatmentPlansSuccess || treatmentPlanWire === undefined) return;
+    if (hydratedTreatmentPlansForId.current === id) return;
+    hydratedTreatmentPlansForId.current = id;
+    setTreatmentPlans(buildTreatmentPlansFromRecord(treatmentPlanWire));
+  }, [isEdit, id, isTreatmentPlansSuccess, treatmentPlanWire]);
 
   useEffect(() => {
     if (isError) {
