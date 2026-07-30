@@ -582,7 +582,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                                            {}, // BE8-4 batch3: moved from manual_article_repository.go
 	"owner/repository.go|ownerRepository.CreateWithPets":                                                       {},
-	"owner/repository.go|ownerRepository.UpdateAndFind":                                                        {},
+	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
+	// delegate without its own DBOrTx shape (removed from allowlist after F15).
+	// Runtime: owner_discount_toctou_test.go.
+	"owner/repository.go|ownerRepository.UpdateAndFindApplying": {},
+	"owner/repository.go|ownerRepository.LockByIDForUpdate":     {},
 	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                                    {},
 	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                                     {},
 	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":            {},
@@ -596,6 +600,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/treatment_repository.go|treatmentRepository.Delete":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.Update":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
+	// SEC-CS-F09/F10: treatment / treatment-plan discount recheck under FOR UPDATE in write TX.
+	// Runtime: treatment_discount_toctou_test.go, treatment_plan_discount_toctou_test.go.
+	"medicalrecord/treatment_repository.go|treatmentRepository.LockByIDForUpdate":             {},
+	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.LockByIDForUpdate": {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).

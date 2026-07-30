@@ -110,8 +110,11 @@ func (r *treatmentPlanRepository) LockByIDForUpdate(ctx context.Context, clinicI
 		return nil, apperrors.WrapInternalServerError("treatment plan lock requires an ambient transaction")
 	}
 	var plan model.TreatmentPlan
-	err := r.clinicScopeQuery(ctx, clinicID).
-		Scopes(treatmentPlanParentClinicScope).
+	// Call DBOrTx directly (not only via clinicScopeQuery) so lintscan inventory
+	// recognizes ambient-tx participation for this lock helper.
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.TreatmentPlan{}).
+		Scopes(persistence.ClinicScope(clinicID), treatmentPlanParentClinicScope).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("treatment_plans.id = ?", id).
 		First(&plan).Error
