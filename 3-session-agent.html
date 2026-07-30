@@ -221,7 +221,7 @@
   <tr><td>GitHub Issueのstate・一覧</td><td>GitHub Issues</td></tr>
   <tr><td>BE9構造移行・進捗・release gate</td><td>BE9は2026-07-24にcode complete（release pending）。境界は<a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> / <a href="docs/architecture/be9-2a-boundary-map.md">boundary map</a>、release gateは<a href="q&amp;a.html#ops"><code>q&amp;a.html</code> OPS-13〜17</a></td></tr>
   <tr><td>FEデザイン準拠</td><td>タイポグラフィ・形状・寸法は<a href="DESIGN.md"><code>DESIGN.md</code></a>、色は<a href="docs/spec/design-system.md"><code>docs/spec/design-system.md</code></a></td></tr>
-  <tr><td>backend規約適合監査</td><td><a href="BE-refactor.md"><code>BE-refactor.md</code></a>（backend規約適合監査の現役の監査索引（実装 packet は wave1〜3 で統合済み）。規約側の疑義は<a href="q&amp;a.html"><code>q&amp;a.html</code></a>の決裁カードから参照）</td></tr>
+  <tr><td>backend規約適合監査</td><td>退役。<code>BE-refactor.md</code> は 141 所見すべての終端と全 packet の統合完了により 2026-07-30 に削除した（監査索引および コード comment 中の <code>BE-refactor.md</code> 引用は git 履歴で解決する: <code>git show 3d3410f93:BE-refactor.md</code>）。規約側の疑義は<a href="q&amp;a.html"><code>q&amp;a.html</code></a>の決裁カードから参照</td></tr>
   <tr><td>今フェーズで着手しない事項</td><td><a href="phase2.html"><code>phase2.html</code></a></td></tr>
   <tr><td>着手保留・任意検証のBE技術債</td><td><a href="BE-pending.md"><code>BE-pending.md</code></a></td></tr>
   <tr><td>PO判断・USER実操作・P0ブロッカー</td><td><a href="q&amp;a.html"><code>q&amp;a.html</code></a></td></tr>
@@ -363,7 +363,7 @@
 </div>
 
 <div class="notice">
-<b>並行実行ルール（#260要約）:</b> 「全件ready・同一checkoutで完全並列」は撤回済み。並列時は独立worktree＋file ownership＋単一integration ownerの直列取り込み。migrationは作成直前に実ファイル最大番号を再計算し<code>max+1</code>、作成とintegrationは単一担当が直列化する。確認ダイアログを安全装置にしない。scoped verificationのみ自動実行。#239⇔#249は競合面があるため直列化する（#239はレーンAで#249完了後。前提だったstaff権限面の欠陥はBUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>で解消済み）。並行実行の現況と直列化制約の正本は <a href="BE-refactor.md"><code>BE-refactor.md</code></a> を参照（本 view に写さない）。
+<b>並行実行ルール（#260要約）:</b> 「全件ready・同一checkoutで完全並列」は撤回済み。並列時は独立worktree＋file ownership＋単一integration ownerの直列取り込み。migrationは作成直前に実ファイル最大番号を再計算し<code>max+1</code>、作成とintegrationは単一担当が直列化する。確認ダイアログを安全装置にしない。scoped verificationのみ自動実行。#239⇔#249は競合面があるため直列化する（#239はレーンAで#249完了後。前提だったstaff権限面の欠陥はBUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>で解消済み）。並行実行の排他は <a href="AGENTS.md"><code>AGENTS.md</code></a> の packet claim protocol（<code>git branch claim/&lt;TASK-ID&gt;</code>）を正本とする。worktree 隔離は file 衝突しか防がず、同一 task の二重実装は防げない（2026-07-30 に4回発生）。
 </div>
 
 <div class="gate">
