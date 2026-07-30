@@ -1,9 +1,10 @@
 // P4-1〜P4-4: Cloudflare Workers + Containers 設定。
 //
-// 各バインディングの確定状況(2026-07-05 試行9時点):
-//   - hyperdrive[0].id … 試行7で確定済み(45ae9b2a018a4c0fa84c1744c0f12efa)。Worker binding として
-//     残すが、Container(Go API)は PlanetScale へ直結するため Phase 4 では未使用
-//     (Hyperdrive は Container 内非対応: https://github.com/cloudflare/containers/issues/97)
+// 各バインディングの確定状況:
+//   - DB 接続 … Container(Go API)は PlanetScale へ DB_* secrets で直結
+//     (Workers 接続プール binding は Container 内非対応:
+//     https://github.com/cloudflare/containers/issues/97)。SEC-CS2-F03 で未使用の
+//     プール binding と対応 Terraform resource を除去済み。
 //   - r2_buckets[0].bucket_name … 試行4で apply 済み(animalekarte-stg-images)。S3互換 Access Key/
 //     Secret は試行8で発行済みのため、試行9で Container の STORAGE_TYPE=s3 化も完了(vars/envVars参照)
 //   - routes[0] … P1-2 の NS 切替後でないと Custom Domain として機能しない(現時点では参考値)。
@@ -16,8 +17,8 @@
 // migrate one-shot タスク(現行 ECS one-shot 相当)は P4-5(試行10)で実装済み: Worker の
 // POST /_internal/migrate(MIGRATE_RUN_SECRET認証)→ Containers の低レベル exec() API →
 // /app/migrate 実行、という経路(backend/worker/index.ts の AnimalEkarteApiContainer.runMigrate()
-// 参照)。本ファイルにはコンテナ定義のみ含む。migrate バイナリは Hyperdrive を経由せず
-// PlanetScale へ直結する(pg_advisory_lock 使用のため。P3-5 の判断を参照)。
+// 参照)。本ファイルにはコンテナ定義のみ含む。migrate バイナリは PlanetScale へ直結する
+// (pg_advisory_lock 使用のため)。
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "animalekarte-stg-api",
@@ -50,7 +51,7 @@
     "DB_SSL_MODE": "verify-full",
     "DB_SSL_ROOT_CERT": "system",
     // DB接続プール上限(Goコード既定=50/25はローカル・単一プロセス前提)。
-    // Containers は直結(Hyperdrive/プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
+    // Containers は PlanetScale 直結(プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
     // ありうるため、インスタンスあたりを低く抑えないと PlanetScale の接続スロットを食い潰す
     // (2026-07-17 実障害: 旧インスタンス滞留×50conn でスロット枯渇→新インスタンス起動不能ループ)。
     "DB_MAX_OPEN_CONNS": "10",
@@ -126,15 +127,6 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["AnimalEkarteApiContainer"],
-    },
-  ],
-
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      // 2026-07-05 試行7: infra/cloudflare/hyperdrive.tf apply 済み(animalekarte-stg-planetscale)。
-      // wrangler dev --remote での実接続 CRUD/トランザクション検証 PASS(docs/ops/infra/_archive/migration-cloudflare.md 試行7参照)。
-      "id": "45ae9b2a018a4c0fa84c1744c0f12efa",
     },
   ],
 

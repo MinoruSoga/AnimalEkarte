@@ -1,12 +1,21 @@
-# tfstate は当面 local backend(STGと同じ運用)。
-# STGとは別ディレクトリのため local tfstate ファイル自体は自然に分離されるが
-# (このディレクトリ配下に独自の terraform.tfstate が生成される)、将来 R2 backend へ
-# 移行する際は STG の env/stg/terraform.tfstate と衝突しない key を使うこと(下記コメント参照)。
+# tfstate backend notes (production).
 #
-# TODO(P0-5 follow-up 相当): R2 バケット(S3互換backend)を用意した後にここを以下へ切替える。
-# 切替時は `terraform init -migrate-state` を実行し、既存の local tfstate を破棄せず
-# R2 へ移行すること。STGと同一R2バケットを使う場合は key で環境を分離する
-# (bucket 自体を分ける場合は STG の tfstate 用と別に production 用 R2 バケットを用意する)。
+# There is intentionally no active backend block here — Terraform defaults to a
+# workspace-local state file when none is set. STG and production use separate
+# directories, so local state files do not collide.
+#
+# SEC-CS2-F03: Hyperdrive (which would store PlanetScale origin host/user/
+# password in state) has been removed from this module. No secret-bearing
+# Hyperdrive resource remains under local backend configuration. If an older
+# local terraform.tfstate still contains a cloudflare_hyperdrive_config entry,
+# treat destroy + state disposal + DB password rotation as USER-only ops (see
+# hyperdrive.tf tombstone). Agents must not read, print, commit, or apply
+# against that state.
+#
+# TODO(P0-5 follow-up 相当): R2 バケット(S3互換backend)を用意した後にここを以下へ
+# 切替える。切替時は人間が `terraform init -migrate-state` を実行し、既存の
+# local tfstate を破棄せず R2 へ移行すること。STG と同一 R2 バケットを使う場合は
+# key で環境を分離する（agents は migrate-state / apply を実行しない）。
 #
 # terraform {
 #   backend "s3" {
