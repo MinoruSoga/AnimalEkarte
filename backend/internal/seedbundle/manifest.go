@@ -15,12 +15,42 @@
 // (demo) already created — it never introduces a new parent relationship.
 package seedbundle
 
+import "strings"
+
 // BundleOrder is the fixed, FK-safe load order of seed bundles (directory
 // names relative to backend/migrations/seeds/). It mirrors the historical
 // migration filename order (002 before 003 before 004) now that the stub
 // 00[2-4]_seed_*.sql files that used to carry that ordering have been
-// deleted — this slice is the sole source of load order.
+// deleted — this slice is the sole source of full load order for
+// non-production environments and for tooling that enumerates every bundle
+// on disk (seed-export, lint). Runtime migrate selection is BundleOrderForEnv.
 var BundleOrder = []string{"002_master", "003_demo", "004_staging"}
+
+// masterOnlyBundleOrder is the fail-closed production plan: reference masters
+// only. Demo/staging CSV bundles carry active system-admin accounts and must
+// never load on production or unknown environments.
+var masterOnlyBundleOrder = []string{"002_master"}
+
+// BundleOrderForEnv returns the seed bundles that may load for the given
+// application environment value (APP_ENV). Fail-closed: only an explicit
+// non-production allowlist receives demo/staging seeds. production, empty,
+// prod, and any unknown value receive master only so repository demo
+// credentials never land on production via migrate.
+//
+// Allowed full-order values (case-insensitive, trimmed):
+// development, local, dev, test, staging.
+func BundleOrderForEnv(env string) []string {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "development", "local", "dev", "test", "staging":
+		out := make([]string, len(BundleOrder))
+		copy(out, BundleOrder)
+		return out
+	default:
+		out := make([]string, len(masterOnlyBundleOrder))
+		copy(out, masterOnlyBundleOrder)
+		return out
+	}
+}
 
 // BundleMigrationKey returns the schema_migrations.filename key used to
 // record a seed bundle's application. The "seeds/" prefix keeps this key

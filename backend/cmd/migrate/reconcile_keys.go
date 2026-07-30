@@ -116,14 +116,20 @@ func verifyMigrationKeyCoverage(db *sql.DB, logger *slog.Logger) error {
 		return err
 	}
 
-	missing, extra := reconcileMigrationKeys(recorded, ddlFiles, seedbundle.BundleOrder)
-	expectedCount := len(ddlFiles) + len(seedbundle.BundleOrder)
+	// Expected seed keys must match the same APP_ENV gate as runSeedBundles.
+	// Production plans exclude demo/staging; previously-applied demo keys on a
+	// production DB surface as informational "extra", not as missing failures.
+	seedBundles := seedBundlesForCurrentEnv()
+	missing, extra := reconcileMigrationKeys(recorded, ddlFiles, seedBundles)
+	expectedCount := len(ddlFiles) + len(seedBundles)
 
 	logger.Info("Migration key coverage",
 		slog.Int("missing", len(missing)),
 		slog.Int("extra", len(extra)),
 		slog.Int("expected", expectedCount),
-		slog.Int("recorded", len(recorded)))
+		slog.Int("recorded", len(recorded)),
+		slog.String("APP_ENV", os.Getenv("APP_ENV")),
+		slog.Any("seed_bundles", seedBundles))
 
 	if len(extra) > 0 {
 		logger.Info("Migration key coverage has extra recorded keys (informational)",

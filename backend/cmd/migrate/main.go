@@ -118,7 +118,8 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
-	// フェーズ2: CSV シードバンドルを seedbundle.BundleOrder の固定順でロード
+	// フェーズ2: CSV シードバンドルを APP_ENV ゲート付き BundleOrder でロード。
+	// production / empty / unknown は master のみ（demo の system admin を投入しない）。
 	// connStr は pgx（CSVシードバンドルのCOPYロード用）でもそのまま使える
 	// libpq形式のDSNのため、lib/pq用に構築したものを使い回す。
 	if err := runSeedBundles(context.Background(), db, connStr, logger); err != nil {
@@ -472,11 +473,26 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 	return nil
 }
 
-// runSeedBundles はフェーズ2: CSV シードバンドルを seedbundle.BundleOrder の
-// 固定順（002_master → 003_demo → 004_staging）でロードする。フェーズ1が全て
-// commit した後にのみ実行される。各バンドルは applyCSVBundle が単一トランザクション
-// で完走した後にのみ schema_migrations へ seedbundle.BundleMigrationKey で記録される
-// ため、CSVロードが失敗した場合は何も記録されず次回実行でバンドル全体がリトライされる。
+// seedBundlesForEnv is the migrate-side selection of seed bundles for an
+// APP_ENV value. Thin wrapper over seedbundle.BundleOrderForEnv so tests and
+// runSeedBundles / verifyMigrationKeyCoverage share one plan.
+func seedBundlesForEnv(env string) []string {
+	return seedbundle.BundleOrderForEnv(env)
+}
+
+// seedBundlesForCurrentEnv reads APP_ENV (same name as .env.example /
+// local-db-reset-contract). Unset or unknown values fail closed to master only.
+func seedBundlesForCurrentEnv() []string {
+	return seedBundlesForEnv(os.Getenv("APP_ENV"))
+}
+
+// runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
+// non-production allowlist（development/local/dev/test/staging）では
+// 002_master → 003_demo → 004_staging。production / empty / unknown は 002_master のみ。
+// フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
+// 単一トランザクションで完走した後にのみ schema_migrations へ
+// seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も
+// 記録されず次回実行でバンドル全体がリトライされる。
 // 既知の限界: applyCSVBundle が commit した直後・このレコード用トランザクションの
 // commit 前にプロセスが落ちた場合のみ、CSVは投入済みだが schema_migrations は
 // 未記録という不整合が起こり得る（次回実行がCOPYを再試行しUNIQUE制約違反になる）。
@@ -486,8 +502,15 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slog.Logger) error {
 	applied := 0
 	skipped := 0
+	appEnv := os.Getenv("APP_ENV")
+	bundles := seedBundlesForEnv(appEnv)
 
-	for _, bundleDir := range seedbundle.BundleOrder {
+	logger.Info("Seed bundle plan",
+		slog.String("APP_ENV", appEnv),
+		slog.Any("bundles", bundles),
+		slog.Int("total", len(bundles)))
+
+	for _, bundleDir := range bundles {
 		key := seedbundle.BundleMigrationKey(bundleDir)
 
 		checksum, err := bundleChecksum(migrationsDir, bundleDir)
@@ -529,7 +552,7 @@ func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slo
 	logger.Info("Seed bundle summary",
 		slog.Int("applied", applied),
 		slog.Int("skipped", skipped),
-		slog.Int("total", len(seedbundle.BundleOrder)))
+		slog.Int("total", len(bundles)))
 
 	return nil
 }
