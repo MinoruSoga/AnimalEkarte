@@ -37,7 +37,10 @@ classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保
 | owner | 17 |
 | inventory | 12 |
 | httpapi | 10 |
+| identitylink | 7 |
 | manualarticle | 6 |
+
+> 2026-07-30: `identitylink` を #239 Phase 1 として target recensus に追加（14 target package）。production import は `cmd/api` composition root のみ。package 内 production 依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch`。
 
 file分割、typed adapter、domain-owned composition/test helperの追加により、現行物理file数はsnapshotのtarget bucket行数と一致しない。移行完了判定は「旧pathの消滅」「現行target packageの存在」「production legacy import 0」「runtime/AST gate」で行い、行数一致だけで判定しない。
 

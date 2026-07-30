@@ -25,6 +25,7 @@ var acceptedTopLevelPackages = map[string]struct{}{
 	"csvimport":     {},
 	"dbconn":        {},
 	"httpapi":       {},
+	"identitylink":  {},
 	"infra":         {},
 	"inventory":     {},
 	"lintscan":      {},
@@ -53,6 +54,7 @@ var domainPackages = map[string]struct{}{
 	"billing":       {},
 	"clinic":        {},
 	"httpapi":       {},
+	"identitylink":  {},
 	"inventory":     {},
 	"lstep":         {},
 	"manualarticle": {},
@@ -101,8 +103,8 @@ func TestPackageBoundaryGate(t *testing.T) {
 	})
 
 	t.Run("accepted_and_bucket_sets_are_disjoint", func(t *testing.T) {
-		requireSetSize(t, "accepted top-level packages", acceptedTopLevelPackages, 32)
-		requireSetSize(t, "domain packages", domainPackages, 13)
+		requireSetSize(t, "accepted top-level packages", acceptedTopLevelPackages, 33)
+		requireSetSize(t, "domain packages", domainPackages, 14)
 		requireSetSize(t, "layer package names", layerPackageNames, 6)
 		requireSetSize(t, "bucket package names", bucketPackageNames, 5)
 

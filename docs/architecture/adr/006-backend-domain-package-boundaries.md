@@ -15,7 +15,7 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 ## Implementation outcome（2026-07-24）
 
-本Decisionは実装済み。13 target packageは全て現行domain/capability packageへ収束し、旧`internal/handler` directoryは削除、旧`internal/service`はtest-only 14 file、旧`internal/repository`はtest-only 50 fileとなった。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。
+本Decisionは実装済み。当初13 target packageは全て現行domain/capability packageへ収束し、2026-07-30に`identitylink`を加えて14 target packageとなった。旧`internal/handler` directoryは削除、旧`internal/service`はtest-only 14 file、旧`internal/repository`はtest-only 50 fileとなった。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。
 
 `cmd/api`は22 production Go fileへ分割した明示composition rootで、18 fileがtarget domain packageを直接importする。共有能力は実consumerに基づき`audit`、`persistence`、`scheduler`、`sharedkernel`、`textsearch`、`testdb`等へ命名して抽出し、`common`/`util`の無差別bucketは作成していない。移行後の物理file数、manifest 761 rowのprovenance、旧path消滅状況は[boundary map](../be9-2a-boundary-map.md)を正本とする。
 
@@ -27,15 +27,15 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 ### (a) domain-firstはproject decisionであり、Go/Gin公式の必須構成ではない
 
-Go公式（[Organizing a Go module](https://go.dev/doc/modules/layout)、[Package names](https://go.dev/blog/package-names)）とGin公式（[API design patterns](https://gin-gonic.com/en/docs/routing/api-design/)）は、domain-firstかlayer-firstか、あるいはどちらでもない構成かを規定しない。本ADRが採用するdomain-first境界（下記13 target package）は、AnimalEkarteプロジェクト固有の設計判断であり、[go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md) §2「公式未規定」の範囲内で、ADR-005が示す4基準（凝集性・利用者・依存方向・変更単位）を根拠に確定した。
+Go公式（[Organizing a Go module](https://go.dev/doc/modules/layout)、[Package names](https://go.dev/blog/package-names)）とGin公式（[API design patterns](https://gin-gonic.com/en/docs/routing/api-design/)）は、domain-firstかlayer-firstか、あるいはどちらでもない構成かを規定しない。本ADRが採用するdomain-first境界（下記14 target package）は、AnimalEkarteプロジェクト固有の設計判断であり、[go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md) §2「公式未規定」の範囲内で、ADR-005が示す4基準（凝集性・利用者・依存方向・変更単位）を根拠に確定した。
 
-**採用するtarget package構成（13 target package + 既存cross-cutting packageの現状維持）**:
+**採用するtarget package構成（14 target package + 既存cross-cutting packageの現状維持）**:
 
 ```text
 backend/internal/
   owner/ pet/ staff/ auth/ reservation/ trimming/
   medicalrecord/ billing/ inventory/ lstep/
-  clinic/ manualarticle/ httpapi/
+  clinic/ manualarticle/ httpapi/ identitylink/
   # 現状維持（既存の凝集cross-cutting package）:
   config/ dbconn/ middleware/ infra/ model/
   timeutil/ seedbundle/ logger/ csvimport/
@@ -43,6 +43,8 @@ backend/internal/
   audit/ persistence/ scheduler/ sharedkernel/
   textsearch/ testdb/
 ```
+
+> 2026-07-30 amendment: `identitylink/` を #239 Phase 1 の vertical slice として target domain に追加（cross-clinic owner/pet identity 連結）。依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch` のみ（owner/pet package への Go import は無し）。
 
 ### Product philosophyに基づく運用境界（project decision）
 
