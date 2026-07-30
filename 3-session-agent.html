@@ -73,32 +73,32 @@
 
 <h1>開発計画（2レーン体制） — Readiness View＋実装タスク台帳</h1>
 <p class="meta">
-同期日: 2026-07-29 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
+同期日: 2026-07-30 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
 <b>Issue事項の正本は各GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）、決裁の正本は<a href="q&amp;a.html">q&amp;a.html</a>、着手可能な実装タスクの正本は本fileの<a href="#ledger">#ledger</a></b>。本fileのreadiness viewはIssue群を2並行レーンで着手するためのガイドであり、Issueの受け入れ条件を複製しない。<br>
 決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・USER入力待ち — DEC-42/43/44は代理判定済み、現在のUSER入力待ち決裁カードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
 </p>
 
 <div class="notice">
-本HTMLのreadiness viewは進捗と着手順を一目で確認するためのガイドであり、Issueの受け入れ条件・決裁内容を複製しない。実装タスクは本fileの<a href="#ledger">#ledger</a>を正本とする。差異がある場合、Issue事項は各Issue、決裁はq&amp;a.html、着手可能な実装タスクは本fileの#ledgerを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（2026-07-29時点 33件）。
+本HTMLのreadiness viewは進捗と着手順を一目で確認するためのガイドであり、Issueの受け入れ条件・決裁内容を複製しない。実装タスクは本fileの<a href="#ledger">#ledger</a>を正本とする。差異がある場合、Issue事項は各Issue、決裁はq&amp;a.html、着手可能な実装タスクは本fileの#ledgerを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（件数は本 view に固定しない）。
 </div>
 
-<h2>現在地（2026-07-29）</h2>
+<h2>現在地（2026-07-30）</h2>
 <div class="grid">
   <section class="card">
     <h3>納品</h3>
     <p><span class="status risk">納品日経過</span> Go-live 2026-07-27／残作業は納品後バッチで継続</p>
   </section>
   <section class="card">
-    <h3>検査ハイライト</h3>
-    <p><span class="status done">コード面 解消</span> <span class="status risk">基準値マスタ 0行＝未点灯</span></p>
+    <h3>着手可能な実装</h3>
+    <p><span class="status done">0 件</span> active な実装 unit は残っていない（<a href="#ledger">#ledger</a>）</p>
   </section>
   <section class="card">
     <h3>決裁状況</h3>
     <p><span class="status done">DEC-1/9/14〜21裁定済み</span> <span class="status wait">残=DEC-10（課金・USER）</span></p>
   </section>
   <section class="card">
-    <h3>BE9 backend refactor</h3>
-    <p><span class="status done">CODE COMPLETE</span> <span class="status risk">release gate=OPS-13〜17</span></p>
+    <h3>残作業の性質</h3>
+    <p><span class="status risk">USER 実操作</span> migrate／codegen／runtime 確認／Issue クローズと OPS-1〜18</p>
   </section>
 </div>
 
@@ -169,39 +169,11 @@
 </div>
 
 <blockquote>
-<p>更新: 2026-07-30（<b>レーンA: #249 Phase 2 完了</b>。U1〜U3 に続き <b>U4（F-2d 検査項目マスタ管理 UI/API）が着地</b>〔<code>09426bdec</code> API＋<code>d371cc6eb</code> UI＋索引 migration <code>003_add_exam_results_exam_type_field_id_index.sql</code>〕。これに続く3件も清算済み: <b>TASK-249-U4B</b>（動物種権限の不整合＝seed 実測で該当グループ0件・実装不要と確定/entry 削除）、<b>TASK-249-U4C</b>（基準範囲エディタの取得失敗可視化 <code>04b39484a</code>/entry 削除）、<b>TASK-SPECIES-01</b>（同欠陥の横断掃引5面 <code>816fb66d3</code>＋<code>aa472068e</code>/entry 削除）。<b>通常検査の基準値経路は完了履歴</b>（<code>7e266c37d</code> FE＋<code>af1832320</code> BE で死んだ経路を撤去し、通常検査の判定入力を <code>exam_reference_ranges</code> の1本に確定）。未評価cueは <code>19bbdbae2</code>＋<code>78632e970</code>、一覧明細欠落は <code>270bccf2f</code> で解消済み。<b>分類: 着手可能 — 次の対象＝<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></b>（#249 との直列化制約が解けたため）。<br><b>分類: USER 専権 — 臨床基準値</b>: canonical seedに臨床値は無く、runtime投入状況は<b>UNREPORTED</b>。投入画面は U4 で開通済みであり、獣医師/master-data責任者が動物種別基準値を確認・投入する（臨床判断のため委任外）。残る操作は基準値の確認・投入とruntime確認。<br>レーンB: <b>#262 Phase 2 は unit 1〜9 まで完了（dev 完了）</b>（migration 002 <code>a0165b1c5</code>・003 <code>b4933b50b</code>／unit 3 <code>729580d46</code>＋<code>7c75dae65</code>／unit 4a+4b+4c <code>38e29b2ab</code>／unit 5+5b <code>bc929ac66</code>／unit 6 api.yaml <code>cde381b6a</code>／生成型追随 <code>3c411d26e</code>／unit 7+7b FE <code>60e1a6145</code>／unit 8a <code>6e1bfc123</code>／unit 8b <code>570324247</code>／unit 9 ERD <code>8ca1d73e5</code>。<b>分類: USER 専権 — #262残操作</b>: migration <code>002</code>・<code>003</code> 適用済み、<code>make codegen</code>／<code>codegen-check</code>／full type-check green 済み、残る runtime 確認と GitHub Issue #262 クローズ）。BUG-451 クローズ（BUG-452 は本 view 同期時点で entry が存在せず、所有セッションが清算済みと解する）。TASK-251 残 unit は <a href="#TASK-251">#ledger TASK-251</a> を正本とする（本 view に unit 名を複製しない）。⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）</p>
+<p><b>更新: 2026-07-30 — active な実装 unit は 0 件</b>。レーンA（#249 Phase 2・#239 Phase 1）、レーンB（#251・#262・#247）、横断（BUG-433・#285）、および BE-refactor 監査の全 packet は dev 着地済みで、残る作業はいずれも USER 実操作（migration 適用・<code>make codegen</code>・runtime 確認・GitHub Issue クローズ・臨床値投入）である。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger には hash 一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
 <p><b>テストDBに関する既知の落とし穴（2026-07-27 実測）</b>: <code>backend/internal/testdb/testdb.go</code> は <code>ekarte_db_test</code> を空で <code>CREATE DATABASE</code> するだけで <code>backend/migrations/*.sql</code> を適用しない。テストDBのスキーマは各 setup が <code>testdb.EnsureAutoMigrated(db, &amp;model.X{})</code> を呼んだモデルぶんだけ GORM AutoMigrate で作られる。したがって新テーブルの <code>SQLSTATE 42P01</code> は「migration 未適用」ではなく <b>モデル未登録</b>であり、<code>make reset</code> では直らない。切り分け = <code>docker compose exec -T db psql -U ekarte_user -d ekarte_db_test -c "\dt &lt;table&gt;"</code>。あわせて AutoMigrate は GORM tag からしか制約を作らないため、DDL の <code>UNIQUE</code> を model の <code>uniqueIndex</code> tag で宣言しないと制約不在のまま重複 insert 系テストが素通りする。</p>
 <p><b>分類対象外の運用注意 — 整形チェックの既知 baseline debt（2026-07-27 実測・所有者不在）</b>: directory 引数の <code>gofmt -l</code> は <code>internal/billing/accounting_complete_appointments_test.go</code>、<code>internal/billing/accounting_repository_tx_atomicity_test.go</code>、<code>internal/medicalrecord/discount_permission.go</code> の3件を必然的に列挙する。したがって<b>整形ゲートに directory 引数を渡すと充足不能になる</b> — 各 unit は自分の変更ファイルを列挙して <code>gofmt -l &lt;files&gt;</code> の引数にすること。本段落は active ledger entry ではない。</p>
-<p><b>coordinator レーン 2026-07-28 の清算</b>: 下記5件が完了し、運用規約（本節「運用」の第3項）どおり <code>&lt;section&gt;</code> を削除した。<b>探しても見つからないのは削除済みだからであり、未起票ではない。</b>正本は git 履歴である。<br>
-・<b>BUG-430</b> stage-import 退役 = <code>905e686c5</code>（tool/compose/script/Make target/ignore/13.7MB binary の21 file）<br>
-・<b>BUG-453</b> カタカナ exact 検索 = <code>bbb31f9be</code> + <code>d40ae967d</code><br>
-・<b>BUG-457</b> 退院認可の FE/BE 一致 = <code>e18cffd60</code>（FE 4 file）+ <code>b415892ec</code>（BE route permission test 78行）+ <code>7f17aeb53</code>（<code>docs/spec/screens/08-hospitalization-detail.md:34</code> の drift 是正）。製品判断 = <b><code>edit</code></b>（退院は record を消さない状態遷移であるため）。<br>
-・<b>TASK-462</b> tygo pointer mapping 削除 = <code>fdbe77ef0</code>。USER codegen gate 通過済み（生成3本の mtime が更新されたうえで byte-identical であることを確認＝空振りではない）。<br>
-・<b>SEC-DUR-01 の一部</b> = <code>bf4e210e2</code>（MR-A1: 譲渡後に臨床履歴が両飼主から消える欠陥の解消・7 read surface）+ <code>576ed17ce</code>（TESTDB-APPT-01）+ <code>4d83e8cad</code>（MR-C1-3）。残 unit（MR-T1/MR-S1/BILL）は2026-07-29に全て着地し、section 自体を削除した（下記参照）。<br>
-あわせて <b>BUG-455</b> は AUTH-S（<code>0c2bce44a</code>）+ AUTH-B（<code>77fbbacaf</code>）で PermissionGroup 1件が解消。残り27 field（S2〜S8の7 slice）は2026-07-29に全て着地し、section を削除した。<b>BUG-456</b> も根本原因修正＋browser proofまで完了し削除した。</p>
-<p><b>coordinator レーン 2026-07-29 の清算</b>: GrokAgent 5並行セッション（billing/inventory・medicalrecord・pet/reservation/staff/trimming/lstep/lintscan・frontend/docs・runtime実証）とその続きプロンプト（BUG-463 DELETE gate残・回帰検証2件・browser proof・TASK-461実行）が完了し、下記20件のsectionを削除した。全commitはcoordinatorが<code>git cat-file -e</code>で実在確認済み。<b>探しても見つからないのは削除済みだからであり、未起票ではない。</b>正本は git 履歴である。<br>
-・<b>TASK-ADR003</b> method↔system_key trigger = <code>fd29b27fe</code>+<code>376eeeb39</code><br>
-・<b>SEC-DUR-01</b> 残unit（MR-T1/MR-S1/BILL） = <code>9aad15993</code>+<code>66a550658</code>+<code>6fdb3fc83</code><br>
-・<b>BUG-440</b> vaccination claim監査 = <code>45dafabc9</code><br>
-・<b>BUG-437</b> Preload clinic scope context-aware lint = <code>d075c32e2</code><br>
-・<b>TASK-445</b> Payment clinic_id + BUG-454統合DB hardening = <code>c5ddacb62</code>（migration 005）<br>
-・<b>BUG-448</b> 検査明細削除監査provenance = <code>98f506ad5</code><br>
-・<b>E2E-BASELINE-DEBT-01</b> fixture/selector drift = <code>f520dbc0e</code><br>
-・<b>BUG-454</b> DB hardening（TASK-445へ統合） = <code>c5ddacb62</code>（application層は先行して<code>47b7b5b5a</code>で解消済み）<br>
-・<b>BUG-455</b> 残27 field（S2〜S8） = <code>3a17b053b</code>+<code>edfda373c</code>+<code>005438c31</code>+<code>71457d5ba</code>+<code>0dd00b630</code>+<code>86a0c2c6f</code>+<code>9ca626961</code><br>
-・<b>BUG-456</b> 単位欠損セル修正＋browser proof = <code>b968c316d</code><br>
-・<b>BUG-458</b> レスポンシブlayout修正＋browser proof = <code>38524c771</code><br>
-・<b>BUG-459</b> care-plan-items runtime proof = 前fix<code>114bdf23a</code>のruntime証拠収集完了（コード変更なし）<br>
-・<b>BUG-460</b> 予約詳細 browser proof = 仕様どおりと実測確認（コード変更なし）<br>
-・<b>TASK-461</b> M-05残2件実測 = 新実行契約設計後、2026-07-29に実行完了（コード変更なし、evidence <code>tmp/fe12-m05-evidence/2026-07-29/run2/</code>）<br>
-・<b>BUG-463</b> billing-items post-close bypass = Create/Update <code>6a208d191</code>＋Delete <code>2cf462529</code><br>
-・<b>BUG-464</b> tag owners CSV無信号truncate = <code>772015304</code><br>
-・<b>BUG-465</b> inventory Update後re-fetch transaction外 = <code>7d8c75353</code><br>
-・<b>BUG-466</b> inventory quantity非負ガード = <code>699c49e4a</code>（migration 004）<br>
-・<b>TASK-467</b> count→delete TOCTOU方針明文化 = <code>c8a4b6dd6</code><br>
-・<b>TASK-468</b> LSTEP best-effort契約明文化 = <code>8bf7cca9b</code><br>
-付随修正: <b>payments.csv seed drift</b>（TASK-445のclinic_id追加でheader/データ未追従）= <code>8760185fc</code>（billing_id経由でclinic_idを全27行backfill）。<b>reservation audit_logs test setup漏れ</b> = <code>cacad6f47</code>（回帰検証セッションが発見・修正）。<br>
-<b>migrationの現況（2026-07-29 更新）</b>: 上記で追加した増分（inventory quantity CHECK・payments clinic_id＋clinic軸複合FK・payment method system_key トリガー）は、別セッションが旧002〜007として <code>001_init.sql</code> 末尾<b>セクション9へ統合済み</b>。旧004/005/006等の独立ファイルは存在しない（したがって「004/005を <code>make migrate</code> で適用」という旧記述は失効）。直下の現行増分の在庫は <code>ls backend/migrations/</code> の実測を正とする（件数・ファイル名は本 view に複製しない）。<b>統合前DBのno-resetアップグレード経路は存在しない</b>ため、適用は <code>DB_RESET=true</code> 相当の承認済み再構築（USER手動・ローカルは <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>）による。詳細は <code>backend/migrations/CLAUDE.md</code> が正本。</p>
+<p><b>完了 entry の扱い</b>: 対応済みの <code>&lt;section&gt;</code> は運用規約どおり削除している。<b>探しても見つからない task ID は削除済みであり、未起票ではない。</b>完了記録の正本は git 履歴と各実装 test であり、hash 一覧を本 file へ複製しない（<code>git log --oneline</code> と <code>git log --all -- todo.md</code> で参照する）。</p>
+<p><b>migration の現況（2026-07-30 実測）</b>: 現行増分の在庫は <code>ls backend/migrations/</code> の実測を正とする（件数・ファイル名は本 view に複製しない）。旧 002〜007 相当の増分は <code>001_init.sql</code> 末尾セクション9へ統合済みで、独立ファイルとしては存在しない。<b>統合前 DB の no-reset アップグレード経路は存在しない</b>ため、適用は <code>DB_RESET=true</code> 相当の承認済み再構築（USER 手動・ローカルは <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>）による。詳細は <code>backend/migrations/CLAUDE.md</code> が正本。</p>
 </blockquote>
 
 <h3>運用</h3>
@@ -233,87 +205,25 @@
 
 
 <section class="task" id="TASK-251">
-<h3>TASK-251: 締め集計 category contract 確定実装（#251・12分類）</h3>
+<h3>TASK-251: 締め集計 category contract（#251・12分類）— dev 完了</h3>
 <ul>
-  <li>contract 正本 = #251 本文（DEC-21・<b>USER 本人裁定</b> 2026-07-25・原文 = q&amp;a.html git 履歴）。完了 unit の証跡正本 = git 履歴と各実装 test（本 entry には残作業のみを置く。旧全文 = <code>b2897a409</code> 以前の本 entry 履歴）。</li>
-  <li><b>完了済み unit（hash のみ）</b>: U1 category resolver 単一ソース化 <code>2154dc9de</code> ／ U2a 物販 master 由来導出 <code>33690944e</code>+<code>24d4ae2fd</code>（BUG-436 解消） ／ U2b-min 手入力12分類必須 Select <code>b8a29d3e7</code> ／ U2b-full 第1段 other 理由必須化+旧migration 009（現行001内）<code>7a64d9e63</code> ／ U5 締め集計12値 fail-closed+<code>AllItemCategories</code> <code>581d6b87c</code> ／ U3 ワクチン接種 pull 型導出+旧migration 008（現行001内）<code>65a0dd08d</code>（第2走の trigger 案は coordinator 裁定で宣言的構成へ簡素化。派生 = SEC-DUR-01・BUG-440） ／ U2b-full 第2段 未分類・要確認件数（DEC-40） <code>33e863f74</code>。</li>
-  <li><b>残 unit</b>: active 実装 unit なし（U2b-full 第2段は 2026-07-30 に着地）。月次統合表（#247）は別Issueとして着手可能になったが、DEC-16④月次義務の実装は本 entry 外。</li>
-  <li><b>U4 scope status: 今期スコープ外（active 3分類の対象外）</b>。<a href="q&amp;a.html#dec-44"><code>DEC-44</code></a> の代理裁定 A により、training カテゴリと既存の手入力経路は維持したまま、自動導出 source の設計を phase2 へ見送る。移設済み — 再開条件5点の正本は <a href="phase2.html">phase2.html</a>「PO 決裁済み『やらない』」節。</li>
-  <li><b>分類: USER 専権 — USER/CI 手順（未実施）</b>: 旧008/009を末尾へ統合済みの <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前001はchecksum mismatchになるため必須）→ <code>make codegen</code> → full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。</li>
-  <li><b>分類: USER 専権 — #247（月次統合表）</b>: 実装着地済み（allocation + matrix）。返金は発生日負値行・matrix総計=締め合計を文書化済み。残=runtime確認と GitHub Issue クローズ。demo seed に identity-links fail-closed 行取り込み済み（60ae08f8b）。</li>
+  <li>contract 正本 = #251 本文（DEC-21・<b>USER 本人裁定</b> 2026-07-25・原文 = q&amp;a.html git 履歴）。<b>active な実装 unit は無い</b>（U1〜U5 と U2b-full 第1段/第2段はすべて着地済み。証跡正本 = git 履歴と各実装 test）。</li>
+  <li><b>U4 scope status: 今期スコープ外</b>。<a href="q&amp;a.html#dec-44"><code>DEC-44</code></a> の代理裁定 A により、training カテゴリと既存の手入力経路は維持したまま自動導出 source の設計を phase2 へ見送る。再開条件5点の正本は <a href="phase2.html">phase2.html</a>「PO 決裁済み『やらない』」節。</li>
+  <li><b>分類: USER 専権 — 未実施の USER/CI 手順</b>: <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前 001 は checksum mismatch になるため必須）→ <code>make codegen</code> → frontend full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。</li>
+  <li><b>分類: USER 専権 — #247（月次統合表）</b>: dev 着地済み（DEC-16⑥ の allocation helper と月次 matrix、返金=発生日負値行、matrix 総計=締め合計）。残 = runtime 確認と GitHub Issue クローズ。</li>
 </ul>
 </section>
 
 
 
 <section class="task" id="BUG-433">
-<h3>BUG-433: 生成FE型がGoドメインモデル由来のため、応答DTOに無いフィールドが型上は存在扱いになる</h3>
+<h3>BUG-433: 生成FE型がGoドメインモデル由来のため応答DTOに無いフィールドが型上は存在扱いになる — dev 完了</h3>
 <ul>
-  <li><b>分類: USER 専権</b>。Hospitalization detail 第4スライスは 2026-07-30 に着地（<code>7839faa7b</code>）。残 = 既着地 Pet/Owner/medicalrecord/hospitalization 出力に対する <code>make codegen</code> と生成物 clean/byte-identity 確認（USER 専権）。</li>
-  <li>HIGH（サイレント機能不全の生成器）。<b>特定レーンに属さない横断課題</b>。<code>frontend/src/types/generated/models.ts</code> は tygo が <code>backend/internal/model/</code> から生成しており（同ファイル冒頭コメント）、OpenAPI／応答DTOからではない。このため FE の型は <em>Goドメインモデル</em> を写し、HTTP が実際に返す <em>応答DTO</em> とは一致しない。DTOに無いフィールドは実行時 <code>undefined</code> なのに型検査は通る。</li>
-  <li>実害の実例: BUG-431（受付の危険度バッジが実APIで一度も点灯しなかった・<code>463e07424</code> で修正）は本ドリフトの1インスタンスに過ぎない。fixtureは型どおり作られるためテストでも検出されない。</li>
-  <li>現HEADの実測例: <code>frontend/src/types/generated/models.ts:2465-2507</code> の生成 <code>Pet</code> は33プロパティ、<code>backend/internal/reservation/nested_summary_response.go:54-66</code> の予約 <code>petSummaryResponse</code> は10 JSONフィールドで、差は23。wireに無い23フィールドは <code>clinic_id</code> <code>owner_id</code> <code>animal_species_id</code> <code>name_kana</code> <code>gender</code> <code>birth_date</code> <code>color</code> <code>blood_type</code> <code>microchip_number</code> <code>neutered_date</code> <code>acquisition_type</code> <code>food</code> <code>environment</code> <code>phone</code> <code>last_visit</code> <code>insurance_id</code> <code>remarks</code> <code>deceased_at</code> <code>deceased_reason</code> <code>version</code> <code>created_at</code> <code>updated_at</code> <code>insurance</code>。<code>danger_reason</code> と <code>animal_species</code> は現在DTOに存在し、<code>version</code> が新たなgenerated-only差分である。他モデル（Owner/Reservation等）も同構造。</li>
-  <li><s>対応方針（未確定・要判断）: ①応答DTOからFE型を生成する経路へ切り替える ②生成型を「ドメインモデル」と明示リネームし、画面が使う型は応答DTO由来へ分離する ③現状維持で個別に埋める（BUG-431と同じ対症）。</s> <b>2026-07-29 USER裁定 = ①（根本解決）</b>。②は生成型のリネームだけでは同じ欠陥クラスが別箇所で再発するため不採用。①は新規アーキテクチャ設計ではなく<b>既存の実証済みパターンのdomain横展開</b>である——<code>backend/tygo.yaml</code> は既に <code>internal/auth</code>（<code>http_response.go</code> のみ）と <code>internal/trimming</code>（<code>trimming_response.go</code> のみ）で応答DTO由来の型出力を運用しており、同ファイルのコメントにも「将来必要になった場合は FE6-5 と同じ手法（domain-owned response struct を公開してパッケージ追加）で対応すること」と明記済み。</li>
-  <li>出典: BUG-431 修正時に判明したNew Work（2026-07-25・executorが残22フィールドを実測列挙）。</li>
-  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）</b>: <b>短期（TASK-444-S1）完了（2026-07-28・<code>226a7dc29</code>）</b>——新規importが生成型を応答型として使えないESLint境界を新設し、既存266+相対2=268 importサイトをallowlistで凍結（旧記述の268/294件は誤測、実測268/277相当で訂正）。恒久段（応答DTOからの型出力へ切替・TASK-444-S2）は実害を実測したPet/Owner/medicalrecord detail経路まで着地し、残候補は2026-07-30に再測定済み。</li>
-  <li><b>TASK-444-S2 恒久段の進捗（domain別スライス・2026-07-29〜）</b>:
-    <ul>
-      <li><b>Pet domain 第1スライス = 完了（2026-07-29）</b>: <code>629c2c127</code>（<code>petResponse</code>他4型をPascalCase公開）＋<code>b56355136</code>（<code>backend/tygo.yaml</code> に <code>internal/pet</code> 追加）＋<code>c83e05a1c</code>（FE detail消費箇所を <code>PetResponse</code> へ移行・allowlistから8ファイル削除）＋<code>c895c74f7</code>（<code>docker-compose.yml</code> のcodegen sed列に pet-responses のpath書き換えを追加＋<code>owner.SummaryResponse</code> へ tstype 付与）。coordinator独立検証で <code>go build</code>／<code>go test ./internal/pet/...</code>／<code>vitest src/lib/transforms/pet.test.ts</code>（12/12）green、他domainへの越境なしを確認済み。<b>USER確認済み</b>: <code>make codegen</code> 再実行後 <code>frontend/src/types/generated/</code> は clean（生成経路が健全）。</li>
-      <li><b>Owner domain 第2スライス = 完了（2026-07-29）</b>: <code>460734d0f</code>（<code>ownerResponse</code>他3型をPascalCase公開）＋<code>7f0b66eab</code>（<code>backend/tygo.yaml</code> に <code>internal/owner</code> 追加＋<code>docker-compose.yml</code> のsed列を同一commitで更新）＋<code>53ccf2e43</code>（FE detail消費を <code>OwnerResponse</code> へ移行・allowlist整理）。Petより深刻な<b>フィールド名不一致</b>（応答DTOは <code>json:"owner_name"</code>、生成型は <code>name</code>）を解消。coordinator独立検証で <code>go build</code>／<code>go test ./internal/owner/...</code>（9.7s）／vitest 34/34 green、json tag無変更（Goシンボル名のみ変更）、<code>SummaryResponse</code>（BUG-374の <code>json:"name"</code>）無変更、他domain越境なしを確認済み。<b>実測で判明した重要な事実</b>: detail wireとして <code>models.Owner</code> を直接importしていたのは <code>lib/transforms/owner.ts</code> ただ1ファイルで、UI側は既にtransform後の型を使う構造だった。<b>分類: USER 専権</b>: <code>make codegen</code> 実行と <code>owner-responses.ts</code> の再生成clean確認。</li>
-      <li><b>TASK-444-S2-SURVEY = 完了（2026-07-29・コード変更なし）</b>: 未対象6domainを3軸（①フィールド名不一致 ②生成型のみのフィールド ③FEがdetail wireとして実消費しているか）で実測。実害を確認したmedicalrecord detail経路は第3スライスで移行済み。他5domainはFE側transform層または手書きDTOが吸収していた。</li>
-      <li><b>medicalrecord domain 第3スライス = 完了（2026-07-29）</b>: <code>8abddcee0</code>（<code>MedicalRecordResponse</code> 他6型をPascalCase公開＋wireへ <code>version</code> 追加）＋<code>b175152f6</code>（<code>backend/tygo.yaml</code> に <code>internal/medicalrecord</code> 追加＋<code>docker-compose.yml</code> のsed列を同一commitで更新）＋<code>3b99284cc</code>（FE移行・<code>?? 1</code> フォールバック撤去・allowlist整理）。coordinator独立検証で <code>go test ./internal/medicalrecord/...</code>（46.7s）／FE test 41/41 green、他domain越境なしを確認済み。<b>分類: USER 専権</b>: <code>make codegen</code> と生成物の byte-identity 確認。</li>
-      <li><b>2026-07-30 残スコープ再測定・判定規則是正</b>: medicalrecord response 31件からtygo include済み2件を除く29件と、非スライス残余3件を同じ3軸で全数確認。<b>実害判定規則は <code>③ ∧ (① ∨ ②)</code></b> — 軸③（FEが生成型をdetail wireとして実消費）が必須で、軸①（field名不一致）と軸②（生成型のみのfield）は独立した欠陥classなので、どちらか一方の成立で実害とする。旧 <code>① ∧ ② ∧ ③</code> は、②∧③で着手したPet第1スライスと①∧③で着手したOwner第2スライスの実根拠に矛盾していた。32行を是正後の規則へ再照合した結果、<b>実害ありは hospitalization と treatment_plan の2件、矛盾0件</b>。medical_record_addendum と medicine_dose_param は①・②がともに偽、軸③が偽の残28件も対応不要。</li>
-      <li><b>Hospitalization detail 第4スライス = 完了（2026-07-30・<code>7839faa7b</code>）</b>: <code>HospitalizationResponse</code> / <code>TreatmentPlanResponse</code> を export し tygo 経路へ追加、<code>docker-compose.yml</code> sed 列を同一 commit で更新。FE は生成 domain 型依存を撤去し、治療計画は <code>GET /hospitalizations/:id/treatment-plans</code> から hydrate。wire shape / edit-form hydration の focused regression test green。<b>分類: USER 専権</b>: <code>make codegen</code> と <code>hospitalization-responses.ts</code> の byte-identity 確認。</li>
-      <li>
-        <div class="table-wrap">
-        <table>
-          <tr><th>medicalrecord未移行response</th><th>①</th><th>②</th><th>③</th><th>根拠・判定</th></tr>
-          <tr><td><code>cage_response.go:10-22</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>models.ts:451-463</code>と同集合。FEは生成型を受信型に使うが、<code>master/api/cages.ts:6,26-45</code>のtransformが吸収。対応不要</td></tr>
-          <tr><td><code>care_plan_item_response.go:11-28</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:1305</code>のrelationのみ余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>checkup_field_response.go:11-22,44-58,83-88</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:575,595</code>に余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>checkup_response.go:11-26,59-75</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:629</code>に余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>checkup_type_response.go:10-23</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>transforms/treatment.ts:97-109</code>がmaster wireを射影。対応不要</td></tr>
-          <tr><td><code>chief_complaint_response.go:10-19</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>models.ts:674-683</code>と同集合。FEは生成型を受信型に使うが、<code>medical-records/api/get-chief-complaint-types.ts:5-17</code>のtransformが吸収。対応不要</td></tr>
-          <tr><td><code>clinical_plan_response.go:11-28</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:829-850</code>のrelationのみ余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>consultation_response.go:10-25</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>transforms/treatment.ts:14-28</code>がmaster wireを射影。対応不要</td></tr>
-          <tr><td><code>daily_record_response.go:11-22,56-76</code></td><td>真</td><td>真</td><td>偽</td><td><code>time</code>対<code>recorded_at</code>、生成型に余剰あり、対象生成型import 0。対応不要</td></tr>
-          <tr><td><code>diagnosis_response.go:17-27,43-54</code></td><td>偽</td><td>真</td><td>偽</td><td><code>master/api/diagnosis.ts:23-48,71-96</code>がtransform。対応不要</td></tr>
-          <tr><td><code>exam_type_response.go:10-21,33-46</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>transforms/treatment.ts:36-47</code>がmaster wireを射影。対応不要</td></tr>
-          <tr><td><code>examination_response.go:16-34,70-90</code></td><td>偽</td><td>真</td><td>偽</td><td><code>api/types.ts:10-13</code>と<code>lib/transforms/examination.ts:15-51</code>が吸収。対応不要</td></tr>
-          <tr><td><code>hospitalization_plan_response.go:10-24</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>master/api/hospitalization-plans.ts:60-107</code>がtransform。対応不要</td></tr>
-          <tr><td><code>hospitalization_response.go:10-32</code></td><td>偽</td><td>真</td><td>真</td><td><code>hospitalization/api/types.ts:1-7</code>が生成型をwire型化し、<code>get-hospitalization.ts:28-34</code>のraw detail経路を<code>use-hospitalization-form.ts:100-113</code>が実消費する。生成型だけに <code>cage</code> / <code>care_plan_items</code> / <code>daily_records</code> / <code>treatment_plans</code> があり、wireのowner/pet/doctorもsummary DTO。<b>②∧③は第4スライスで解消（<code>7839faa7b</code>）・残=USER 専権 codegen</b></td></tr>
-          <tr><td><code>inquiry_response.go:10-28</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:1458</code>にrelation余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>inquiry_template_response.go:10-20</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>models.ts:1490</code>と同集合。FEは生成型を受信型に使うが、<code>master/api/inquiry-templates.ts:6,29-55</code>のtransformが吸収。対応不要</td></tr>
-          <tr><td><code>lab_import_response.go:14-62</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:1575</code>の<code>error_message</code>のみ余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>lab_report_response.go:12-59</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>backend/tygo.yaml:8-16</code>で明示exclude、生成型なし。対応不要</td></tr>
-          <tr><td><code>medical_record_addendum_response.go:10-19</code></td><td>偽</td><td>偽</td><td>真</td><td><code>models.ts:2060</code>と同集合。<code>get-medical-record-addenda.ts:2,6-10</code>と<code>create-medical-record-addendum.ts:2,9-16</code>が生成型をwireとして直接消費するが、軸①・②は偽。対応不要</td></tr>
-          <tr><td><code>medical_record_image_response.go:11-29</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:2089</code>のrelationのみ余剰。FEは生成型を受信型に使うが、<code>get-medical-record-images.ts:5,7-16,59-67</code>のtransformが吸収。対応不要</td></tr>
-          <tr><td><code>medicine_dose_param_response.go:10-26</code></td><td>偽</td><td>偽</td><td>真</td><td><code>medicine-dose-params.ts:6-11,28-32,45-54</code>と<code>medicine-dose-lookup.ts:8-10,19-24</code>が生成型をwireとして直接消費するが、軸①・②は偽。対応不要</td></tr>
-          <tr><td><code>medicine_response.go:10-35</code></td><td>偽</td><td>真</td><td>偽</td><td><code>lib/transforms/medicine.ts:12-34</code>が実wireへ射影。対応不要</td></tr>
-          <tr><td><code>prescription_response.go:11-21</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:2565</code>のrelation余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>procedure_response.go:10-25</code></td><td>偽</td><td>真</td><td>偽</td><td><code>transforms/treatment.ts:55-69</code>がmaster wireを射影。対応不要</td></tr>
-          <tr><td><code>treatment_plan_response.go:11-26</code></td><td>偽</td><td>真</td><td>真</td><td><code>models.ts:1329</code>の生成型にはwireに無い <code>clinic_id</code> とfull relationがある。生成<code>Hospitalization.treatment_plans</code>を<code>use-hospitalization-form-model.ts:174-187</code>がraw detail経路から実消費する一方、実wireは <code>GET /hospitalizations/:id/treatment-plans</code>。<b>②∧③は第4スライスで解消（<code>7839faa7b</code>）・残=USER 専権 codegen</b></td></tr>
-          <tr><td><code>treatment_response.go:12-39,74-91</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:3021</code>のrelation余剰、生成型import 0。対応不要</td></tr>
-          <tr><td><code>vaccination_response.go:16-38</code></td><td>偽</td><td>真</td><td>偽</td><td><code>vaccinations/api/types.ts:5-7</code>と同<code>transforms.ts</code>が吸収。対応不要</td></tr>
-          <tr><td><code>vaccine_response.go:10-24</code></td><td>偽</td><td>偽</td><td>偽</td><td><code>transforms/treatment.ts:77-89</code>がmaster wireを射影。対応不要</td></tr>
-          <tr><td><code>vital_response.go:11-23</code></td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:3231</code>に余剰、生成型import 0。対応不要</td></tr>
-        </table>
-        </div>
-      </li>
-      <li>
-        <div class="table-wrap">
-        <table>
-          <tr><th>非スライス残余</th><th>①</th><th>②</th><th>③</th><th>根拠・判定</th></tr>
-          <tr><td>reservation scheduleの名称二重</td><td>真</td><td>真</td><td>偽</td><td><code>model/staff.go:58-72</code>の<code>start_time/end_time/notes</code>と<code>reservation_schedule_response.go:16-27</code>の<code>work_start/work_end/note</code>が不一致し、生成型には<code>staff</code>も余剰。FEに当該reservation-staff schedule wireの消費なし。対応不要</td></tr>
-          <tr><td>lstepのPascalCase models</td><td>真</td><td>真</td><td>偽</td><td><code>models.ts:1837-1849</code>と<code>lstep_delivery_monitor_response.go:20-29</code>が不一致。FEは手書き<code>get-lstep-delivery-trigger-logs.ts:7-23,40-43</code>を消費。対応不要</td></tr>
-          <tr><td>billingのdead field</td><td>偽</td><td>真</td><td>偽</td><td><code>models.ts:125-154</code>の<code>Payment.payment_method_id</code>は<code>accounting_response.go:174-192</code>に無く、<code>accounting/api/transforms.ts:41-59</code>も読まない。対応不要</td></tr>
-        </table>
-        </div>
-      </li>
-      <li><b>本スライスで判明した実バグ（coordinatorの誤判定を含む記録）</b>: BEは <code>medical_record_repository.go:62-64</code> で version 述語による楽観ロック（BE-refactor.md X-10）を実装しCASしていたにもかかわらず、GET応答が <code>version</code> を返さずFEが <code>?? 1</code> で既定値化していた。つまり更新は常に <code>version=1</code> を送っており、<b>実バージョンが1以外のレコードでは楽観ロックが意図どおり機能していなかった</b>。「型が嘘をついているだけ」ではなく書き込み競合制御の実欠陥。<b>coordinatorは事前調査でこのOCCを見落とし</b>（<code>medical_record_service.go</code> のみをgrepし repository/request 層を見ずに「OCC不在」と断定）、GrokAgentサーベイの正しい指摘を誤って訂正してプロンプトへ書き込んだ。実行セッションが再実測して覆した。教訓 = 負の主張（実装が無い）はdomain package全体を確認するまで成立しない。</li>
-      <li><b>各スライス共通の必須手順（Pet sliceで実際に事故った）</b>: <code>backend/tygo.yaml</code> へパッケージを追加したら、<code>docker-compose.yml</code> のcodegen commandのsed列にも同じpath書き換えを1行追加すること。片方だけでは <code>make codegen</code> が無言で空振りし、出力先ファイルがhostへ届かない。</li>
-    </ul>
-  </li>
+  <li><b>分類: USER 専権</b>。残作業は <code>make codegen</code> の実行と、Pet / Owner / medicalrecord / hospitalization の生成物が clean かつ byte-identical であることの確認のみ。<b>active な実装 unit は無い</b>。</li>
+  <li>欠陥クラス: <code>frontend/src/types/generated/models.ts</code> は tygo が <code>backend/internal/model/</code> から生成するため、FE 型は Go ドメインモデルを写し、HTTP が実際に返す応答 DTO と一致しない。DTO に無いフィールドは実行時 <code>undefined</code> なのに型検査を通る（実害例 = BUG-431 の危険度バッジが実 API で一度も点灯しなかった件）。</li>
+  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）= 完遂</b>。短期段（TASK-444-S1）は生成型を応答型として使う新規 import を禁じる ESLint 境界を新設し、既存 import サイトを allowlist で凍結した。恒久段（TASK-444-S2）は実害を実測した Pet / Owner / medicalrecord / hospitalization+treatment_plan の4スライスを応答 DTO 由来の型出力へ移行して完了した。</li>
+  <li><b>残余判定（2026-07-30 全数実測・対応不要）</b>: 実害判定規則は <code>③ ∧ (① ∨ ②)</code>（①=field 名不一致 ②=生成型のみの field ③=FE が生成型を detail wire として実消費）。medicalrecord response 29件と非スライス残余3件を再照合し、実害ありは hospitalization と treatment_plan の2件のみで、いずれも移行済み。残る30件は FE 側 transform 層または手書き DTO が吸収しており対応不要。個別の判定根拠は <code>git show 47233b981~1:3-session-agent.html</code> の判定表を参照する。</li>
+  <li><b>各スライス共通の必須手順（Pet slice で実際に事故った）</b>: <code>backend/tygo.yaml</code> へパッケージを追加したら、<code>docker-compose.yml</code> の codegen command の sed 列にも同じ path 書き換えを1行追加すること。片方だけでは <code>make codegen</code> が無言で空振りし、出力先ファイルが host へ届かない。</li>
 </ul>
 </section>
 
@@ -346,18 +256,19 @@
 <div class="table-wrap">
 <table>
   <tr><th>レーン</th><th>領域</th><th>Issue・台帳（着手順・ゲートは各Issue/#260/q&amp;a.html参照）</th></tr>
-  <tr><td><b>A</b></td><td>検査・backend基盤</td><td><b>分類: #239=Phase1 dev完了・USER 専権（migrate/seed/codegen/runtime）／#249残手順・#211残=USER 専権。</b> <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a>=<b>Phase 2完了・USER 操作待ち</b>。<b>Phase 1完了</b>（<code>bc4fe88cb</code>・検歴の項目×日付ピボット。<code>exam_type_field_id</code> NULLのlegacy行をsnapshot keyでグルーピングし「未マッピング」を可視表示 — field IDのみを行キーにすると旧Access検歴がほぼ全件欠落するため）。<b>Phase 2 U1完了</b>（<code>b4d10e083</code>・migration 005。<code>exam_types</code>→<code>exam_type_fields</code>→<code>exam_reference_ranges</code>の3段複合FKでclinic越境をDB制約化し、動物種次元は<code>animal_species_id</code>を正本とする〔<code>vaccine_species</code>は適用範囲の語彙のため不採用〕。RLSは同名policyでdirect条件へ置換、<code>Preload("Items")</code>にchild側clinic predicate追加）。<b>#250 cutoverを待つ必要はない</b>（正式21表契約に<code>exam_types</code>/<code>exam_type_fields</code>は含まれず、cutoverは両masterへ1行も書かない — 2026-07-25実測確定・Issue本文C-5）。<br><b>U1b完了（2026-07-27・commit前）</b>: read-side registryの <code>"ExamTypeField": "ExamTypeField"</code> は既登録、modelのschema-drift/RLS gateは最終ALTERと最終direct policyを検査する形へ是正、<code>cmd/migrate</code> にmigration inventory testは存在しないことを実測し本unitでは新設していない。<code>TestMasterModelReconciliation_RealSourceIsConsistent</code> はphase 1のpackage実測でFAILしておらず、旧台帳の「現在FAIL」は陳腐化していた。<b>BUG-441 残余清算完了（entry削除済・2026-07-27・<code>7ef7ee72d</code>）</b>: U2由来のmedicalrecord 2件（<code>examinationRepository.FindAnimalSpeciesID</code>/<code>ResolveByFieldIDs</code>）をmethod別ambient-lock test付きで<code>dbOrTxParticipatingMethods</code>へ登録しdbOrTx gateをgreen化。<code>ambientTxRequired</code> shapeは現行matcherが<code>TxFromContext</code>由来handleを要求するため不一致で、direct mapが正。<br><b>Phase 2 U2完了（2026-07-27・<code>5708ae68e</code>＋<code>19bbdbae2</code>）</b>: F-2a サーバ側基準値解決・スナップショット保存。U1で作られたが未配線だった<code>exam_reference_ranges</code>を<code>(clinic_id, exam_type_field_id, animal_species_id)</code>で一括解決し（N+1なし・動物種は<code>exams.pet_id</code>→<code>pets.animal_species_id</code>・pet不定はfail closed）、解決値を<code>exam_results.ref_min/ref_max</code>へスナップショット。リクエスト由来の境界値は判定にもスナップショットにも使わない。あわせて<code>is_assessed</code>を応答DTOへ追加（DDL変更なし）し、基準値不在を「未判定」としてFEで区別表示（<code>基準値内</code>との混同を解消。臨床安全）。<br><b>Phase 2 U3完了（2026-07-27・<code>cb3b1c448</code>）</b>: F-2c 定性値判定＋BUG-447解消。順序表<code>(-) &lt; (±) &lt; (+) &lt; (++) &lt; (+++)</code>をGo定数で持ち範囲外をhigh/lowへ写像。<code>is_assessed</code>の意味を「境界が存在するか」から<b>「その入力値がその境界に対して実際に比較されたか」</b>へ引き上げ、数値境界×非数値・定性境界×表外表記を未判定へ落とした。数値境界と定性境界の併存はデータ不整合としてfail-closed。migration <code>004_add_exam_result_qualitative_bounds.sql</code>で<code>exam_results</code>へ定性境界のスナップショット列2本を追加。enumは<code>('normal','high','low')</code>のまま。<br><b>Phase 2 U4完了（2026-07-27・<code>09426bdec</code> API＋<code>d371cc6eb</code> UI）</b>: F-2d 検査項目マスタ管理UI/API。<code>PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges</code> で <code>exam_reference_ranges</code> への投入経路が開通し、BUG-449 の「投入手段が無い」状態は解消した（残るのは臨床値そのものの投入で委任外）。<b>Phase 2 は U4 をもって完了</b>。派生3件も清算済み（動物種取得失敗の可視化 <code>04b39484a</code>＋横断5面 <code>816fb66d3</code>/<code>aa472068e</code>、動物種権限は seed 実測で該当グループ0件のため実装不要と確定）。<b>#239 Phase 1 dev 着地</b>（identity-links 手動 link/unlink。残=migration適用・seed/権限付与・codegen・runtime。Phase 2 以降はスコープ外）。BUG-437 は2026-07-29に <code>d075c32e2</code> で完了（context-aware Preload clinic scope lint）。<b>USER手動</b>: ①旧004等の増分DDLは <code>001_init.sql</code> 統合済み（旧番号の独立ファイルは無し）。ローカルは <code>DB_RESET</code> 相当の承認済み再構築（正本: <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>・<code>backend/migrations/CLAUDE.md</code>。seed checksum 変更時も同様。共有STG/PRODでは実行しない）②<code>make codegen</code>（U3でmodelへ列追加のため生成型に差分が出る） ③frontend full type-check ④runtime確認（数値項目への非数値入力が「未判定」・定性値のhigh/low・lab report応答）。<br><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> 残=USERのDB適用と臨床責任者のseed確認のみ。<br><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a>=DEC-15裁定済み（7項目＋単独権限＋group soft-delete）。Phase 0の設計確定は<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239#issuecomment-5077710947">#239コメント</a>が正本。<b>#249 Phase 2 完了により着手可能になった（2026-07-28・本レーンの次タスク）</b>。着手の前提だったstaff権限面はいずれも解消済み（BUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>）。#239はstaff権限面の既知欠陥が無い状態から着手できる。<br><b>台帳所掌</b>: 現在なし（BUG-437 = <code>d075c32e2</code> で完了・section削除済み）。</td></tr>
-  <tr><td><b>B</b></td><td>カルテ／飼主／会計・医院間リンク</td><td><b>分類: TASK-251=USER 専権（unit別正本は<a href="#TASK-251">#ledger</a>）／#262・#238・#234・#230・#232・#237=USER 専権／#247=Phase1 dev完了・USER 専権（runtime確認・Issueクローズ）／#235・#212=依存待ち（DEC-19のphase2開始待ち）。</b> <b>着手対象（納品日 2026-07-27 に到達したため、旧「納品後」繰り延べラベルは失効）</b>。<b>#251 の unit 別進捗は本 view に複製せず、正本 = <a href="#TASK-251">#ledger TASK-251</a></b>（2026-07-27 に本行が U3/U5 を未了と誤記していた。unit 状態の二重管理が原因のため列挙をやめる）。<br>① <a href="#TASK-251">#251</a> は本レーン最優先（#247 ゲートを解く unit を含む。unit 別進捗は本 view に複製せず <a href="#TASK-251">#ledger TASK-251</a> が正本）<br>② <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a> <b>複数飼主紐付け — Phase 2 dev 完了・USER 操作待ち</b>（L）。サイグラム自動算出（<code>e146b212e</code>・81 test）と BUG-432（<code>0889be9bc</code>）は解消済み。<b>DEC-17 補強の実装前提 3 件は 2026-07-27 に全て充足</b>（<code>UNIQUE (clinic_id, id)</code> = migration 002 <code>a0165b1c5</code>／<code>pet_owners</code> 本体 + <code>app_private.apply_rls_policy</code> による RLS = migration 003 <code>b4933b50b</code>／番号は作成直前の実ファイル最大値から採番）。<b>unit 1〜9 完了（2026-07-28）</b>:
-<br>・unit 3 <code>729580d46</code>＋<code>7c75dae65</code> = <code>model.PetOwner</code>＋<code>PetOwnerRepository</code>（clinic 相関は pets/owners の両親へ EXISTS）
-<br>・unit 4a/4b/4c <code>38e29b2ab</code> = <code>pets.version</code> 追加（migration <code>002_add_pets_version.sql</code>）＋<code>ReplaceForPet</code> の version CAS／副飼主 service（バリデーション 8 項目・置換と audit の同一 tx fail-closed・空配列 PUT も監査必須）／<code>owner</code> 側 Delete の 409 ガード。<b>副次的に既存欠陥 2 件を是正</b>: <code>ReplaceForPet</code> の owner 存在確認が <code>Unscoped()</code> で soft-delete 済み飼主を受理していた／<code>ownerRepository</code> の <code>Delete</code>・<code>CountPetsByOwnerID</code> が <code>DBOrTx</code> を経由せず、呼び出し元 tx 内で self-block する状態だった
-<br>・unit 5/5b <code>bc929ac66</code> = <code>GET|PUT /pets/:id/sub-owners</code>（PUT は <code>version</code> 必須・成功は body 無し 204）＋pet 応答への <code>version</code> 露出。route 件数ゲート 2 件も実測値へ是正
-<br>・unit 6 <code>cde381b6a</code> = <code>api.yaml</code> へ 2 経路と <code>Pet.version</code> を記述／生成型追随 <code>3c411d26e</code>
-<br>・unit 7/7b <code>60e1a6145</code> = <code>PetEditModalFields</code> へ副飼主セクション（<code>PetEditModal</code> 本体は無変更）。候補取得は <code>GET /v1/owners?search=</code> のサーバ側検索＋300ms デバウンス（初版の全飼主ページ全走査を 7b で撤去）
-<br>・unit 8a <code>6e1bfc123</code> = <code>GET /owners/:id/shared-pets</code>（飼主→副飼主として紐付くペット。unit 5 の逆方向で、unit 8b の表示に必須）
-<br>・unit 8b <code>570324247</code> = <code>OwnerPetsSection</code> へ共同飼育ペットを「副飼主」バッジ＋続柄付きの read-only 行として表示
-<br>・unit 9 <code>8ca1d73e5</code> = <code>docs/architecture/erd.md</code> へ <code>pet_owners</code>（ドメイン一覧・Mermaid 3 relation・複合FK越境防止・全110テーブル）を反映済み
-<br><b>#262 Phase 2 dev 完了・USER 操作待ち</b>: migration <code>002</code>・<code>003</code> は適用済み、<code>make codegen</code>／<code>codegen-check</code>／full type-check も 2026-07-28 に実行し green。残 = runtime 確認と GitHub Issue #262 のクローズ。<b>Issue #262 本文の記載は 2 点陳腐化している</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である<br>③ <a href="#TASK-251">#251</a> のactive実装unitは完了（U2b-full第2段 <code>33e863f74</code>）。残 = USER/CI 手順と U4 phase2 送り。内訳は <a href="#TASK-251">#ledger TASK-251</a> が正本<br>④ <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表）— <b>dev 着地</b>（DEC-16 allocation helper＋月次/締め matrix）。残=runtime確認・Issueクローズ（正本 = Issue #247）<br><br><b>dev 完了・USER 操作待ち（2026-07-27 に <code>gh</code> 実測で全件 OPEN）</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>（<code>711bcf561</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（U-A <code>a0a3d17f8</code>・U-B <code>49029973b</code>・U-C <code>9b9f57f9f</code>・U-D <code>ac7f35b1c</code> で dev 全完了。残 = <b>migrate → codegen → 動作確認 → クローズ</b>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>（<code>db9e0db59</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>（<code>7bce0e83b</code>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>（<code>bc2efba12</code>）。実装詳細は commit が正本のため本 view に複製しない。<br><b>#251 の完了済み unit の hash 一覧</b>: <a href="#TASK-251">#ledger TASK-251</a> を正本とする（本 view に複製しない）。<br><b>phase2 送り</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19）。#239 はレーン A へ移設（#249 と直列化裁定）。<br><b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。BUG-442（権限グループ割当の権限昇格）= <code>1f9108e6e</code>、BUG-446（credential 置換の認可欠落・PO 裁定案①＝password 供給時のみ <code>master-permission:edit</code> を条件付き要求）= <code>3673acbbd</code> で解消済み。生成 FE 型の追随も <code>0e40d1b18</code> で消化し <code>make codegen-check</code> は green。<b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。</td></tr>
-  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=USER 専権</a>（Hospitalization detail第4スライス完了 <code>7839faa7b</code>／残るcodegen確認）／#285=完了（<code>157e969d2</code>）</b>。実行契約は各#ledger sectionを正本とする。</td></tr>
+  <tr><td><b>A</b></td><td>検査・backend基盤</td><td><b>分類: 全件 USER 専権（active な実装 unit なし）。</b><br>
+<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a> = Phase 1・Phase 2（U1〜U4）dev 完了。<code>exam_reference_ranges</code> への投入経路は U4 で開通済みで、BUG-449 の「投入手段が無い」状態は解消した。<b>残 = USER 実操作</b>: ①承認済み DB 再構築（正本: <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>・<code>backend/migrations/CLAUDE.md</code>。共有 STG/PROD では実行しない）②<code>make codegen</code> ③frontend full type-check ④runtime 確認（数値項目への非数値入力が「未判定」・定性値の high/low・lab report 応答）。<br>
+<b>臨床基準値の投入は委任外</b>: canonical seed に臨床値は無く runtime 投入状況は UNREPORTED。獣医師 / master-data 責任者が動物種別基準値を確認・投入する。<br>
+<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a> = DEC-15 裁定済み（7項目＋単独権限＋group soft-delete）。<b>Phase 1 dev 着地</b>（<code>identity-links</code> permission・link tables＋RLS・手動 link/unlink・clinic-scoped の最小履歴）。残 = migration 適用・seed / 権限付与・<code>make codegen</code>・runtime 確認。<b>Phase 2 以降（auto link・merge・追加 surface）は未着手</b>で、着手時は Issue 本文の実装順2〜4と <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239#issuecomment-5077710947">#239 コメント</a>の Phase 0 設計が正本。<br>
+<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> 残 = USER の DB 適用と臨床責任者の seed 確認のみ。<br>
+<b>台帳所掌</b>: なし。</td></tr>
+  <tr><td><b>B</b></td><td>カルテ／飼主／会計・医院間リンク</td><td><b>分類: 全件 USER 専権または依存待ち（active な実装 unit なし）。</b><br>
+<b>USER 専権</b>: <a href="#TASK-251">#251</a>（unit 別正本は <a href="#TASK-251">#ledger TASK-251</a>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表 — dev 着地、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a>（複数飼主紐付け Phase 2 — migration 002/003 適用済み・codegen / type-check green、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（残 = migrate → codegen → 動作確認 → クローズ）・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>。実装詳細は commit が正本のため本 view に複製しない。<br>
+<b>依存待ち</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19 の phase2 開始待ち）。<br>
+<b>Issue #262 本文の陳腐化2点</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である。<br>
+<b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。<br>
+<b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。</td></tr>
+  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=USER 専権</a></b>（4スライス全着地。残 = <code>make codegen</code> と生成物の byte-identity 確認）。<b>#285 は完了済み</b>（GitHub Issue のクローズは USER 操作）。</td></tr>
   <tr><td colspan="2">USER/外部待ち</td><td><b>分類: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259=依存待ち</a>（先方API有効化の完了待ち）／OPS-2=USER 専権／OPS-18=USER 専権／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284=USER 専権</a></b>。OPS-2は承認済みDB再構築、OPS-18はSentry DSN発行、#284は試験環境・実機受け渡し後の物理確認。</td></tr>
 </table>
 </div>
