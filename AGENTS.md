@@ -28,6 +28,16 @@ Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-s
 - **Parallel Grok/Claude tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
 - Prefer WIP commits over discarding work. Do not “clean the tree” to unblock yourself.
 
+### Packet claim protocol (Mandatory)
+
+Mutual exclusion on a ledger task ID / packet ID. Convention over existing `git branch` only — no script, hook, or CI.
+
+- **Check (required before the first edit for any ledger task ID):** `git branch --list 'claim/<TASK-ID>'`. A non-empty result is a hard stop: report BLOCKED naming the claim branch; do not edit.
+- **Acquire:** `git branch claim/<TASK-ID>` in the shared repository. A non-zero exit means another session already owns the task — hard stop and report BLOCKED; do not proceed.
+- **Release (USER-only):** Agents must never delete a claim branch (own or another's). After the work is integrated into `main` or explicitly abandoned, the agent reports the claim branch name(s) to the user; the user releases with `git branch -D claim/<TASK-ID>` in a human terminal. PreToolUse blocks agent-side claim deletion, so claims stick until the user deletes them.
+- Never delete another session's claim to unblock yourself. A claim that looks abandoned is reported to the user with its branch name and commit date (`git log -1 --format='%ci %s' claim/<TASK-ID>`); removal is a user action.
+- `<TASK-ID>` is the ledger task ID or packet ID exactly as written (example: `BE-ACT-BOUNDED-MASTER-LISTS`). If an ID contains characters invalid in a git reference name, replace each invalid character with `-` and state the transformed name in the session report before acquire.
+
 ## Execution Autonomy
 
 - Ask specification questions only before execution starts, such as during /grill-me or an equivalent clarification phase.

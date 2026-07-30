@@ -161,6 +161,10 @@
 <h2 id="ledger">実装タスク台帳（正本）</h2>
 
 <div class="notice">
+<b>packet claim 規約（必須）</b> — 台帳 task ID / packet ID に対する最初の編集の前に、共有リポジトリで次を実行する。<b>確認:</b> <code>git branch --list 'claim/&lt;TASK-ID&gt;'</code>（非空なら他セッション所有 → hard stop / BLOCKED。編集しない）。<b>取得:</b> <code>git branch claim/&lt;TASK-ID&gt;</code>（非0終了も hard stop / BLOCKED）。<b>解放は USER 専権:</b> エージェントは claim branch を削除してはならない（自分の claim も含む）。作業が <code>main</code> へ統合された後、または明示的に破棄した後、エージェントは claim branch 名を USER へ報告する。USER が人間端末で <code>git branch -D claim/&lt;TASK-ID&gt;</code> を実行して解放する（PreToolUse がエージェント側の claim 削除を遮断するため、USER が消すまで claim は残る）。他セッションの claim を自分のために削除してはならない。放置に見える claim は branch 名と commit 日付（<code>git log -1 --format='%ci %s' claim/&lt;TASK-ID&gt;</code>）を USER へ報告する。<code>&lt;TASK-ID&gt;</code> は台帳 ID をそのまま使う。git 参照名に無効な文字を含む場合は各文字を <code>-</code> に置換し、取得前に変換後の名前をセッション報告へ書く。
+</div>
+
+<div class="notice">
 <b>統合: 2026-07-27／分類更新: 2026-07-30</b> — 旧<code>todo.md</code>の全内容を本節へ移設し、実装タスクの正本を一本化した。active entry は残 unit / 操作単位で <b>着手可能 / USER 専権 / 依存待ち</b> のいずれかを明記する。清算済み履歴と既知の運用注意は active entry ではなく分類対象外。
 </div>
 
