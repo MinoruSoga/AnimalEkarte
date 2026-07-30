@@ -38,6 +38,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   "closing-settings": "締め設定",
   "master-payment-method": "支払方法マスタ",
   "manual-edit": "取扱説明書 編集",
+  "identity-links": "同一飼主・ペット連携",
 };
 
 export const ALL_PERMISSION_RESOURCES = Object.keys(RESOURCE_LABELS);

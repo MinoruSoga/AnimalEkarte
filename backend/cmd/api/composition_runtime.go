@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/identitylink"
 	"github.com/animal-ekarte/backend/internal/infra"
 	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/inventory"
@@ -552,6 +553,14 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	manualarticle.NewHandler(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
+		c.auth.Handler.RequirePermission,
+	).RegisterRoutes(protected)
+	identitylink.NewHandler(
+		identitylink.NewService(
+			identitylink.NewRepository(c.db),
+			persistence.NewTransactor(c.db),
+			c.audit,
+		),
 		c.auth.Handler.RequirePermission,
 	).RegisterRoutes(protected)
 	inventory.NewHandler(

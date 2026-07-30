@@ -2399,7 +2399,11 @@ export const ResourceAccountingPostCloseEdit = "accounting-post-close-edit";
  * lab import: 外部検査結果インポートジョブ管理
  */
 export const ResourceLabImport = "lab-import";
-export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport;
+/**
+ * #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
+ */
+export const ResourceIdentityLinks = "identity-links";
+export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks;
 
 //////////
 // source: permission_group.go

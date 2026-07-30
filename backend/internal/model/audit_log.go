@@ -97,6 +97,14 @@ const (
 	AuditActionExamResultReplace                   = "exam_result.replace"
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
+
+	// #239 identity link 手動 link/unlink（PHI を載せない ID のみ）
+	AuditActionOwnerIdentityLinkCreate = "owner_identity_link.create"
+	AuditActionOwnerIdentityLinkAdd    = "owner_identity_link.add_members"
+	AuditActionOwnerIdentityLinkUnlink = "owner_identity_link.unlink"
+	AuditActionPetIdentityLinkCreate   = "pet_identity_link.create"
+	AuditActionPetIdentityLinkAdd      = "pet_identity_link.add_members"
+	AuditActionPetIdentityLinkUnlink   = "pet_identity_link.unlink"
 )
 
 // audit_logs.resource 定数
@@ -117,6 +125,8 @@ const (
 	AuditResourceTrimming        = "trimming"
 	// U-X01X03-MR-CARE / MRA-01: hard-delete care plan items need durable audit resource.
 	AuditResourceCarePlanItem = "care_plan_item"
+	// #239 identity link groups（owner / pet 共通 resource 名）
+	AuditResourceIdentityLink = "identity_link"
 )
 
 // care plan item destructive actions (MRA-01)

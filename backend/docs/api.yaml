@@ -23485,3 +23485,227 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  # ---------------------------------------------------------------------------
+  # #239 identity-links (Phase 1 manual link/unlink + minimal linked history)
+  # Permission resource: identity-links (view / edit). Fail-closed defaults.
+  # ---------------------------------------------------------------------------
+  /identity-links/owners/search:
+    get:
+      operationId: searchOwnersForIdentityLink
+      summary: 手動 identity link 用の飼主検索（所属医院スコープ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200': { description: 検索結果 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/pets/search:
+    get:
+      operationId: searchPetsForIdentityLink
+      summary: 手動 identity link 用のペット検索（所属医院スコープ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200': { description: 検索結果 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/owner-groups:
+    post:
+      operationId: createOwnerIdentityGroup
+      summary: 飼主 identity group を作成（2件以上・同一 tx audit）
+      tags: [IdentityLinks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [clinic_id, owner_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      owner_id: { type: integer, format: int64 }
+      responses:
+        '201': { description: 作成済み group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /identity-links/owner-groups/{id}:
+    get:
+      operationId: getOwnerIdentityGroup
+      summary: 飼主 identity group 取得（可視メンバーのみ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/owner-groups/{id}/members:
+    post:
+      operationId: addOwnerIdentityMembers
+      summary: 飼主 identity group にメンバー追加
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: 更新後 group }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: unlinkOwnerIdentityMember
+      summary: 飼主 identity member を unlink（last-member で group soft-delete）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_id, owner_id]
+              properties:
+                clinic_id: { type: integer, format: int64 }
+                owner_id: { type: integer, format: int64 }
+      responses:
+        '204': { description: unlinked }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pet-groups:
+    post:
+      operationId: createPetIdentityGroup
+      summary: ペット identity group 作成（親 owner group 必須）
+      tags: [IdentityLinks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_group_id, members]
+              properties:
+                owner_group_id: { type: integer, format: int64 }
+                members:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [clinic_id, pet_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
+      responses:
+        '201': { description: 作成済み group }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /identity-links/pet-groups/{id}:
+    get:
+      operationId: getPetIdentityGroup
+      summary: ペット identity group 取得
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pet-groups/{id}/members:
+    post:
+      operationId: addPetIdentityMembers
+      summary: ペット identity group にメンバー追加
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: 更新後 group }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: unlinkPetIdentityMember
+      summary: ペット identity member を unlink（last-member で group soft-delete）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_id, pet_id]
+              properties:
+                clinic_id: { type: integer, format: int64 }
+                pet_id: { type: integer, format: int64 }
+      responses:
+        '204': { description: unlinked }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pets/{clinic_id}/{pet_id}/treatment-history:
+    get:
+      operationId: listLinkedTreatmentHistory
+      summary: 最小治療履歴（include_linked 時は相関 (clinic_id,pet_id) ペアのみ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: pet_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: include_linked
+          in: query
+          schema: { type: boolean, default: false }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: ページネーション付き履歴 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }

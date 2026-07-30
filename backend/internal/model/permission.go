@@ -56,6 +56,9 @@ const (
 
 	// lab import: 外部検査結果インポートジョブ管理
 	ResourceLabImport Resource = "lab-import"
+
+	// #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
+	ResourceIdentityLinks Resource = "identity-links"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -94,6 +97,7 @@ var AllResources = []Resource{
 	ResourceAccountingCancel,
 	ResourceAccountingPostCloseEdit,
 	ResourceLabImport,
+	ResourceIdentityLinks,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

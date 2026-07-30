@@ -477,10 +477,10 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 }
 
 // TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
-// model.AllResources (34) を過不足なくカバーし、共有マスタ animal-species が
+// model.AllResources (35) を過不足なくカバーし、共有マスタ animal-species が
 // 執行・一般とも view-only であることを固定する。
 func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
-	require.Len(t, model.AllResources, 34, "AllResources 件数の契約が変わったら本テストと seed 行列を同時に更新すること")
+	require.Len(t, model.AllResources, 35, "AllResources 件数の契約が変わったら本テストと seed 行列を同時に更新すること")
 	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
 		"defaultPermissionRuleTable は AllResources と同数であること")
 
@@ -534,11 +534,11 @@ var demoPermissionSeedGroupProfiles = map[uint64]string{
 }
 
 // TestDemoPermissionGroupRules_SeedParity は 003_demo の 9 グループが
-// model.AllResources (34) をすべて持ち、group 9 が view-only、
+// model.AllResources (35) をすべて持ち、group 9 が view-only、
 // master-animal-species が全グループ view-only、執行/一般が
 // buildDefaultPermissionGroupRules と一致することを検証する。
 func TestDemoPermissionGroupRules_SeedParity(t *testing.T) {
-	require.Len(t, model.AllResources, 34)
+	require.Len(t, model.AllResources, 35)
 	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
 
 	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "permission_group_rules.csv")

@@ -189,7 +189,7 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 //
 // 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の
 // 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
-// model.AllResources (34) をすべてカバーする。デモ seed の 9 グループも同じ
+// model.AllResources (35) をすべてカバーする。デモ seed の 9 グループも同じ
 // 行列へ揃える（BE-ACT-PERMISSION-SEED-PARITY）。
 //
 // 設定系フォールバック（cash-register-close / accounting-reports /
@@ -243,6 +243,8 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceLstepAnalytics, true, false, true, false, true, false, false, false},
 	{model.ResourceManualEdit, true, false, true, false, true, false, false, false},
 	{model.ResourceLabImport, true, false, true, false, true, false, false, false},
+	// #239 identity-links: fail-closed（通常 staff へ自動付与しない。運用で明示付与）
+	{model.ResourceIdentityLinks, false, false, false, false, false, false, false, false},
 }
 
 // buildDefaultPermissionGroupRules は defaultPermissionRuleTable から、指定グループが
@@ -406,7 +408,7 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 		}
 		return clinic, nil
 	}
-// POC-02 / X-01: update+reload を同一 tx に収め、commit 済み成功を後段 read error で 5xx へ反転させない。
+	// POC-02 / X-01: update+reload を同一 tx に収め、commit 済み成功を後段 read error で 5xx へ反転させない。
 	// reload 失敗時は tx がロールバックするため、write は永続化されない。
 	var updated *model.Clinic
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {

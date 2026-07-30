@@ -149,4 +149,12 @@ export const operationsRoutes: RouteObject[] = [
       },
     ],
   },
+  {
+    path: "/identity-links",
+    errorElement: <RouteErrorBoundary />,
+    lazy: async () => {
+      const { IdentityLinksPage } = await import("@/features/identity-links");
+      return { Component: IdentityLinksPage };
+    },
+  },
 ];
