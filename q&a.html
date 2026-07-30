@@ -196,10 +196,10 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（USER 入力待ちカード・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-42/43/44 は代理判定済み。現在の USER 入力待ち決裁カードは 0 件。残 = OPS-1〜18（USER 実操作）・P0 ブロッカー 3 行・PO-008 ファクトシートのクライアント確認（7-2/7-4 は先方回答待ち）。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（decision-ready pack・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-40〜46 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の入力は下記decision-ready packに分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・PO-008クライアント確認。</p>
   </header>
 
-  <p class="summary">USER 入力待ちカード: 現在 0 件。DEC-42/43/44 は 2026-07-30 に代理判定済み。決裁記録の正本 = 本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記。新規の USER 入力待ちはここへカードとして起票する。</p>
+  <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜46は代理判定済み。委任外の臨床値・契約/外部条件・クライアント仕様はdecision-ready packで選択肢と不足入力だけを示し、決定済みに数えない。</p>
 
 <div class="po-ops">
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
@@ -381,13 +381,93 @@
   </div>
 </article>
 
+<h2 id="readiness-proxy-decisions">readiness再監査 — 代理裁定</h2>
+<p class="section-intro">既存裁定を上書きせず、current source/runtimeで再開gateと実装順だけを確定する。USERは後から覆せる。</p>
+
+<article class="task" id="dec-45" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-45</span>
+    <span class="badge category">再開gate / #235・#212</span>
+    <span class="badge status">代理決裁済み・USER 承認待ち</span>
+    <span class="asker">起票: 2026-07-30 readiness再監査 ／ 決定: 委任代行（USERが覆せる）</span>
+    <h3 class="task-title">DEC-19のphase2判定を維持し、価値実測/coverage証跡まで実装packet化しない</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁:</p>
+    <p class="qa-text"><strong>案A — DEC-19を維持。</strong> #235は利用者・頻度・現行操作時間の価値実測、#212はratchetのcurrent artifactと不足packageの優先順位が揃うまで依存待ちとする。readiness台帳へ実装packetを起票しない。</p>
+    <p class="section-label">一次資料:</p>
+    <p class="qa-text"><code>phase2.html:112-119</code> と #212/#235 comments は、DEC-19の#235 phase2送りと#212 90%長期目標を正本化する。<code>docs/ops/coverage-policy.md:54-55</code> はratchetを定義する。OPS-14のremote CI/coverage artifactはUSER/CI境界で、現時点のcurrent PASS証跡はUNREPORTED。</p>
+    <p class="section-label">指標と判断原則</p>
+    <p class="qa-text">#235は対象利用者数・月次利用頻度・1件当たり現行操作時間・失敗率を測る。#212はpackage別coverage、ratchet違反数、追加testの欠陥検出数を測る。product philosophy①「要件を疑う」⑤「検証済みプロセスだけ自動化」に従い、数値不在を実装推測で埋めない。</p>
+    <p class="section-label">退けた代替案と理由:</p>
+    <p class="qa-text"><strong>今すぐ起票:</strong> #235は価値、#212は不足量と優先順位が未測定で、完了条件が閉じない。<strong>恒久中止:</strong> DEC-19は条件付き再開であり、将来の実測価値を否定していない。</p>
+    <p class="section-label">委任境界:</p>
+    <p class="qa-text">scope/readinessだけの代理裁定。臨床・価格・外部書込・coverage実行を決めない。再開値の承認とIssue更新はUSER。</p>
+    <div class="need"><strong>残余リスク:</strong> current coverage artifactが無い間は#212の距離を定量化できない。#235の需要を口頭印象だけで再開すると工程増加を正当化できない。</div>
+  </div>
+</article>
+
+<article class="task" id="dec-46" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-46</span>
+    <span class="badge category">実装順 / #239 Phase 2</span>
+    <span class="badge status">代理決裁済み・USER 承認待ち</span>
+    <span class="asker">起票: 2026-07-30 readiness再監査 ／ 決定: 委任代行（USERが覆せる）</span>
+    <h3 class="task-title">Phase 1 runtime検証後、代表surfaceの手動link/unlink評価をPhase 2の唯一の入口にする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁:</p>
+    <p class="qa-text"><strong>案A — 段階再開。</strong> 承認済みDB再構築、migration/seed/permission/codegen/typecheck、Phase 1 runtime確認後に、代表1 surfaceで手動link/unlink/relinkの業務成立性を測る。merge・auto-link・追加surfaceはその結果が不足を証明したものだけを1段ずつ再審する。</p>
+    <p class="section-label">一次資料:</p>
+    <p class="qa-text">#239本文の実装順2〜4とPhase 0設計comment、DEC-15の7項目＋単独権限＋group soft-delete。現行Phase 1は <code>frontend/src/features/identity-links/routes/IdentityLinksPage.tsx:25-27</code>、<code>backend/docs/api.yaml:23490-23698</code>、<code>backend/internal/identitylink/service.go:234-242</code> に手動経路と既存group merge conflictを持つ。runtimeはbackend停止中でUNREPORTED。</p>
+    <p class="section-label">指標と判断原則</p>
+    <p class="qa-text">誤link件数、unlink/relinkで復旧不能な件数、1件当たり工程数、追加surfaceごとの実利用件数を測る。philosophy②工程削減・⑤検証済みprocessだけ自動化に従い、手動経路で十分なら自動化しない。</p>
+    <p class="section-label">退けた代替案と理由:</p>
+    <p class="qa-text"><strong>Phase 2一括実装:</strong> merge/auto-link/全surfaceを同時投入すると責任境界と失敗原因を分離できない。<strong>永続凍結:</strong> Phase 1の実測で不足が出た場合の改善を閉ざす。</p>
+    <p class="section-label">委任境界:</p>
+    <p class="qa-text">実装順と測定gateのみ。DB再構築、migration適用、codegen、runtime操作、本人同一性の業務判断、Issue書込はUSER境界。</p>
+    <div class="need"><strong>残余リスク:</strong> runtime未実施のためPhase 1の権限/履歴/誤操作回復はUNREPORTED。代表surfaceの選定者と実施日時が無い間はPhase 2を開始しない。</div>
+  </div>
+</article>
+
+<h2 id="decision-ready">委任外 decision-ready packs</h2>
+<p class="section-intro">以下は未決定。A/B、推奨、必要入力を意思決定者へ渡すためのpackであり、代理裁定・実装承認・外部操作を表さない。</p>
+
+<article class="task" id="decision-pack-clinical" data-status="user-input-required">
+  <div class="task-head"><span class="qno">DR-CLINICAL</span><span class="badge category">#201 / #211 / #249 / #261 / FEAT-VACCINE-SPECIES</span><span class="badge status">臨床責任者入力待ち</span><h3 class="task-title">臨床値・欠落時挙動・動物種default</h3></div>
+  <div class="task-body">
+    <p class="qa-text"><strong>#201/#261 現状の実測:</strong> absolute max超過はBE reject、20% warningはaudit、体重/種別/parameter/lookup欠落時は保存継続。臨床責任者の値/挙動確認は未了。<strong>A:</strong> 現行値と挙動を署名承認。<strong>Aの帰結:</strong> code変更なしで臨床確認を閉じる。<strong>B:</strong> 薬剤・種別別の修正値と欠落case表を提出。<strong>Bの帰結:</strong> canonical master/specだけの別packetを起票する。<strong>推奨:</strong> 署名済み確認が無ければB。<strong>必要入力:</strong> 承認者名、薬剤/種別/単位/上限、warning率、4欠落caseの保存可否、発効日。</p>
+    <p class="qa-text"><strong>#211 現状の実測:</strong> code/seed/migrationは着地済みだが、DB適用とprovisional seedの臨床全件確認が未了。<strong>A:</strong> 現行field/choice/unit/rangeを承認。<strong>Aの帰結:</strong> DB適用後のruntime確認へ進む。<strong>B:</strong> row単位の修正表を提出。<strong>Bの帰結:</strong> canonical seedを一度だけ更新する別packetになる。<strong>推奨:</strong> 全件確認までB。<strong>必要入力:</strong> 承認者、row ID、type/unit/options/range、修正理由、発効日。</p>
+    <p class="qa-text"><strong>#249 現状の実測:</strong> reference range投入経路はsource上存在するが、canonical臨床値とruntime投入状況はUNREPORTED。<strong>A:</strong> 種別range/unit/sourceを供給。<strong>Aの帰結:</strong> 責任者承認値だけを投入する別packetへ進む。<strong>B:</strong> 空のまま未判定を維持。<strong>Bの帰結:</strong> 誤った判定を避けるが自動評価は増えない。<strong>推奨:</strong> 出典と承認者が揃うまでB。<strong>必要入力:</strong> 種別、項目、下限/上限、単位、測定系、出典、承認者、発効日。</p>
+    <p class="qa-text"><strong>FEAT-VACCINE-SPECIES 現状の実測:</strong> 現行はactive候補を種別filterせず、提案defaultと要件責任者が未承認。<strong>A:</strong> 全件候補を維持し延期。<strong>Aの帰結:</strong> visibility/DB変更なし。<strong>B:</strong> dog/cat/other/both、nullable/inactive/既存不一致defaultを承認。<strong>Bの帰結:</strong> 後続schema/UI packetの起票を許すがDB/codegenはUSER境界。<strong>推奨:</strong> ownerとmappingが揃うまでA。<strong>必要入力:</strong> owner、visibility matrix、alias、null/inactive/edit挙動、受入署名者。</p>
+    <div class="need"><strong>回答形式:</strong> Issue番号、A/B、責任者個人名、上記構造化入力、発効日。秘密値・患者情報は記載しない。</div>
+  </div>
+</article>
+
+<article class="task" id="decision-pack-delivery" data-status="user-input-required">
+  <div class="task-head"><span class="qno">DR-DELIVERY</span><span class="badge category">#258 / PO-008</span><span class="badge status">契約責任者・クライアント入力待ち</span><h3 class="task-title">納品後の外部契約/運用責任とクライアント仕様確認</h3></div>
+  <div class="task-body">
+    <p class="qa-text"><strong>#258 現状の実測:</strong> <code>docs/delivery/DELIVERY_PACKAGE.md</code>はproduction未構築、契約名義/plan、backup/recovery、窓口、LINE、通知先を未確定としている。<strong>A:</strong> クライアントがservice account・契約・請求・backup・support・monitoringを所有。<strong>Aの帰結:</strong> self-operation前提の責任表と引渡手順を確定できる。<strong>B:</strong> 開発者保有を明示契約。<strong>Bの帰結:</strong> 料金・期間・責任・終了時移管を含む別契約が必要。<strong>推奨:</strong> A。<strong>必要入力:</strong> provider/plan、account/billing owner、上限/更新/解約、backup保持/PITR/RPO/RTO/restore証跡、窓口/channel/hours/escalation、LINE owner、monitoring通知先。</p>
+    <p class="qa-text"><strong>PO-008 現状の実測:</strong> 7-1はannual_visit_countとannual_amountの期間定義が異なり、7-3はLステップpathごとにwrite/failure挙動が異なる。client確認は未了。<strong>A:</strong> 現行差異を意図した仕様として承認。<strong>Aの帰結:</strong> 挙動を維持し差異を仕様書へ明記する。<strong>B:</strong> 項目/pathごとの統一定義を修正表で指定。<strong>Bの帰結:</strong> compatibilityを含む別packetへ進む。<strong>推奨:</strong> 意図と実装の一致証跡が無いためB。<strong>必要入力:</strong> metric owner、期間境界、CSV要否、last-visit/dormant分離、Lステップwrite可否/failure/rollback owner。</p>
+    <div class="need"><strong>回答形式:</strong> 項目ごとのA/B、責任者、契約/仕様の正本URLまたは文書、発効日。credential値・料金の代理決定・外部契約操作は行わない。</div>
+  </div>
+</article>
+
+<article class="task" id="decision-pack-external-physical" data-status="user-input-required">
+  <div class="task-head"><span class="qno">DR-OPS</span><span class="badge category">課金 / 外部書込 / 物理操作</span><span class="badge status">USER実行判断待ち</span><h3 class="task-title">OPSの外部・有償・実機操作をrunbook単位で承認する</h3></div>
+  <div class="task-body">
+    <p class="qa-text"><strong>現状の実測:</strong> OPS-1〜4、6、8、11〜18はcredential、DB、deploy、remote CI、外部Console、DSN、実機等のUSER境界を含む。SentryはDEC-10でfree-only、paid planは未承認。<strong>A:</strong> 対象OPSを既存runbookどおり、named operator/window/rollback/evidence先付きで実行。<strong>Aの帰結:</strong> そのOPSだけを実測証跡で完了判定できる。<strong>B:</strong> defer。<strong>Bの帰結:</strong> blockerを維持しpartial external changeを行わない。Sentry paid化が必要な場合はplan/budget/payer/cap/renewal/cancel authorityを別途USERが供給する。<strong>推奨:</strong> 前提とrollbackが揃うOPSだけA、その他B。</p>
+    <div class="need"><strong>必要入力:</strong> OPS番号、A/B、operator、環境、日時、rollback owner、evidence保存先。credential値・患者情報は記載しない。エージェントはAを選ばず実行しない。</div>
+  </div>
+</article>
+
 <h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
 <table>
 <tr><th>#</th><th>内容</th><th>現状</th></tr>
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><b>[SAFETY] 薬量上限超過の物理ブロックと例外統制</b></td><td><b>dev 完了（2026-07-25・<code>fa119abb9</code>）</b>。DEC-1 設計Aどおり BE が絶対上限超過の保存を物理 reject し、FE <code>ConfirmDialog</code>「この数量で保存」解除経路を撤去（下限未満・20%乖離 warning は従来どおり audit のみ・欠落データは保存継続・設計B緊急例外は未実装）。doc 側 <code>docs/spec/screens/06-medical-records-form.md</code> §2 は同一コミットで同期済み。残 = 臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯20%・欠落ケース別挙動表 = DEC-1残余）＋STG実測＋Issue クローズ判断（USER）。<b>本表から除去禁止</b>（除去→再オープン不可視の前歴あり・クローズ確定まで残置）</td></tr>
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td><td>検査・健診パッケージ化</td><td><b>コード・seed・migration は全て完了。残 = DB 適用（OPS-2）と臨床確認のみ</b>。A6 複合 FK は <code>001_init.sql</code> の 013 セクションへ統合済み。既存 DB は checksum 変更のため <code>DB_RESET=true</code> 再適用が必要。provisional seed の臨床確認はクライアント臨床責任者の回答待ち</td></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>#89/#97/#98/#99はOPS-1/外部操作待ち。</b>#109の <code>STG_DEMO_*</code> はnames-only probeで登録済みのため、旧fallback・401合格・結果parserのsilent green除去を <a href="3-session-agent.html#TASK-606">TASK-606</a> として着手可能化した。remote実行/closeはbilling復旧後のUSER境界</td></tr>
 </table>
 
 <h2 id="ops">USER 操作（承認・実行待ち・18 件）</h2>

@@ -75,7 +75,7 @@
 <p class="meta">
 同期日: 2026-07-30 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
 <b>Issue事項の正本は各GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）、決裁の正本は<a href="q&amp;a.html">q&amp;a.html</a>、着手可能な実装タスクの正本は本fileの<a href="#ledger">#ledger</a></b>。本fileのreadiness viewはIssue群を2並行レーンで着手するためのガイドであり、Issueの受け入れ条件を複製しない。<br>
-決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・USER入力待ち — DEC-42/43/44は代理判定済み、現在のUSER入力待ち決裁カードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
+決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・decision-ready pack — DEC-40〜46は代理判定済み、現在のUSER入力待ちDECカードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
 </p>
 
 <div class="notice">
@@ -90,15 +90,15 @@
   </section>
   <section class="card">
     <h3>着手可能な実装</h3>
-    <p><span class="status done">0 件</span> active な実装 unit は残っていない（<a href="#ledger">#ledger</a>）</p>
+    <p><span class="status done">4 件</span> TASK-603〜606（環境非依存。<a href="#ledger">#ledger</a>）</p>
   </section>
   <section class="card">
     <h3>決裁状況</h3>
-    <p><span class="status done">DEC-1/9/14〜21裁定済み</span> <span class="status wait">残=DEC-10（課金・USER）</span></p>
+    <p><span class="status done">DEC-40〜46代理裁定済み</span> <span class="status wait">委任外=decision-ready pack</span></p>
   </section>
   <section class="card">
     <h3>残作業の性質</h3>
-    <p><span class="status risk">USER 実操作</span> migrate／codegen／runtime 確認／Issue クローズと OPS-1〜18</p>
+    <p><span class="status done">環境非依存4件</span> ＋ <span class="status risk">USER 実操作</span> migrate／codegen／runtime／OPS</p>
   </section>
 </div>
 
@@ -124,8 +124,8 @@
     <td>3</td>
     <td>全業務シナリオ通し確認（UAT代行）— #266のdev修正は完了済み</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
-    <td>dev → USER</td>
-    <td><span class="status done">着手可能</span></td>
+    <td>USER → dev</td>
+    <td><span class="status wait">依存待ち</span> — 承認済みDB再構築と起動確認後</td>
   </tr>
   <tr>
     <td>4</td>
@@ -136,21 +136,21 @@
   </tr>
   <tr>
     <td>5</td>
-    <td>credential rotation・履歴対応＋GitHub Actions billing復旧→最新main全必須job green。#99（旧ECS deploy経路撤去）／#109（CI認証二重管理解消）はmitigationの実地確認が必要</td>
+    <td>credential rotation・履歴対応＋GitHub Actions billing復旧→最新main全必須job green。#99（旧ECS deploy経路撤去）は実地確認待ち。#109 は <code>STG_DEMO_*</code> 登録済みのため、旧認証 fallback と silent green の除去を <a href="#TASK-606">TASK-606</a> として分離した</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
-    <td>USER専権</td>
-    <td><span class="status risk">USER 専権</span> — credential・課金・外部サービス実操作</td>
+    <td>USER＋dev</td>
+    <td><span class="status done">#109 着手可能</span>／他は <span class="status risk">USER 専権</span></td>
   </tr>
   <tr>
     <td>6</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a>=<b>dev完了</b>（<code>fa119abb9</code>・絶対上限超過をBEで物理reject＋FEのConfirmDialog解除2経路を撤去）。<a href="q&amp;a.html#dec-41">DEC-41</a> で #261 の判定は決着済み。残 = 臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯・欠落ケース別挙動表）</td>
     <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / DEC-1（原文=q&amp;a.html git履歴）</td>
     <td>PO＋臨床責任者</td>
-    <td><span class="status risk">USER 専権</span> — 臨床責任者の事後確認3点</td>
+    <td><span class="status risk">委任外判断待ち</span> — 臨床責任者の事後確認3点</td>
   </tr>
   <tr>
     <td>7</td>
-    <td>OPS群: <b>#250=<span class="status risk">USER 専権</span></b>（旧stage-import/BUG-430のみ完了、cutoverはproducer bundle入力と実操作が残る）／<b>#252=<span class="status risk">USER 専権</span></b>（締め時間投入）／<b>#255=<span class="status wait">依存待ち</span></b>（先方スタッフ一覧の受領完了待ち）／<b>#256=<span class="status done">着手可能</span></b>（マニュアル）／<b>#257=<span class="status risk">USER 専権</span></b>（本番切替実操作）／<b>#258=<span class="status done">着手可能</span></b>（納品ドキュメント）</td>
+    <td>OPS群: <b>#250=<span class="status risk">USER 専権</span></b>（旧stage-import/BUG-430のみ完了、cutoverはproducer bundle入力と実操作が残る）／<b>#252=<span class="status risk">USER 専権</span></b>（締め時間投入）／<b>#255=<span class="status wait">依存待ち</span></b>（先方スタッフ一覧の受領完了待ち）／<b>#256=<span class="status wait">依存待ち</span></b>（全体はruntime/#254待ち、静的slice=<a href="#TASK-603">TASK-603</a>・<a href="#TASK-604">TASK-604</a>）／<b>#257=<span class="status risk">USER 専権</span></b>（本番切替実操作）／<b>#258=<span class="status risk">委任外判断待ち</span></b>（全体は契約/外部入力待ち、repo slice=<a href="#TASK-605">TASK-605</a>）</td>
     <td>#250 #252 #255 #256 #257 #258</td>
     <td>USER中心</td>
     <td>各項目の分類は左欄に明記</td>
@@ -169,7 +169,7 @@
 </div>
 
 <blockquote>
-<p><b>更新: 2026-07-30 — active な実装 unit は 0 件</b>。レーンA（#249 Phase 2・#239 Phase 1）、レーンB（#251・#262・#247）、横断（BUG-433・#285）、および BE-refactor 監査の全 packet は dev 着地済みで、残る作業はいずれも USER 実操作（migration 適用・<code>make codegen</code>・runtime 確認・GitHub Issue クローズ・臨床値投入）である。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger には hash 一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
+<p><b>更新: 2026-07-30 — active な実装 unit は 4 件</b>。全 open Issue・既存 ledger・OPS-1〜18・phase2 条件付き再開を current source/runtime と再照合し、環境非依存の残作業を <a href="#TASK-603">TASK-603</a>〜<a href="#TASK-606">TASK-606</a> に起票した。従来のレーンA（#249 Phase 2・#239 Phase 1）、レーンB（#251・#262・#247）、横断（BUG-433・#285）、および BE-refactor 監査の packet は dev 着地済みである。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger には hash 一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
 <p><b>テストDBに関する既知の落とし穴（2026-07-27 実測）</b>: <code>backend/internal/testdb/testdb.go</code> は <code>ekarte_db_test</code> を空で <code>CREATE DATABASE</code> するだけで <code>backend/migrations/*.sql</code> を適用しない。テストDBのスキーマは各 setup が <code>testdb.EnsureAutoMigrated(db, &amp;model.X{})</code> を呼んだモデルぶんだけ GORM AutoMigrate で作られる。したがって新テーブルの <code>SQLSTATE 42P01</code> は「migration 未適用」ではなく <b>モデル未登録</b>であり、<code>make reset</code> では直らない。切り分け = <code>docker compose exec -T db psql -U ekarte_user -d ekarte_db_test -c "\dt &lt;table&gt;"</code>。あわせて AutoMigrate は GORM tag からしか制約を作らないため、DDL の <code>UNIQUE</code> を model の <code>uniqueIndex</code> tag で宣言しないと制約不在のまま重複 insert 系テストが素通りする。</p>
 <p><b>分類対象外の運用注意 — 整形チェックの既知 baseline debt（2026-07-27 実測・所有者不在）</b>: directory 引数の <code>gofmt -l</code> は <code>internal/billing/accounting_complete_appointments_test.go</code>、<code>internal/billing/accounting_repository_tx_atomicity_test.go</code>、<code>internal/medicalrecord/discount_permission.go</code> の3件を必然的に列挙する。したがって<b>整形ゲートに directory 引数を渡すと充足不能になる</b> — 各 unit は自分の変更ファイルを列挙して <code>gofmt -l &lt;files&gt;</code> の引数にすること。本段落は active ledger entry ではない。</p>
 <p><b>完了 entry の扱い</b>: 対応済みの <code>&lt;section&gt;</code> は運用規約どおり削除している。<b>探しても見つからない task ID は削除済みであり、未起票ではない。</b>完了記録の正本は git 履歴と各実装 test であり、hash 一覧を本 file へ複製しない（<code>git log --oneline</code> と <code>git log --all -- todo.md</code> で参照する）。</p>
@@ -250,6 +250,159 @@
 
 
 
+<section class="task" id="TASK-603">
+<h3>TASK-603: #256 手順1 — 主要8業務の既存システム内マニュアルを現行実装へ同期</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> 受付・診察カルテ・検査・会計/締め・予約・トリミング・LINE予約・集計の記事は既に存在するが、主要記事は2026-05-22導入のままで、7月の route・画面・自動連動・権限 contract との全数照合が未実施。別マニュアルは作らず既存記事を正す。</li>
+  <li><b>現況の実測根拠:</b> <code>frontend/src/features/manual/lib/manual-index.ts:50-87</code> と同領域 <code>CLAUDE.md:116-132</code> は <code>content/screens/*.md</code> / <code>content/workflows/*.md</code> の静的 import を正本化する。対象記事の <code>git log -1</code> は導入 commit を示す。Issue 正本は #256。</li>
+  <li><b>要求挙動:</b> 8業務が既存記事から到達でき、route・操作名・状態遷移・自動連動・権限が現行 source/spec と一致する。裏付けのない固定値・操作・自動化は削除する。</li>
+  <li><b>Owned paths:</b> <code>frontend/src/features/manual/content/screens/02-reception.md</code>、<code>04-medical-records.md</code>、<code>05-accounting.md</code>、<code>06-reservations.md</code>、<code>07-examinations.md</code>、<code>10-trimming.md</code>、<code>13-cash-register.md</code>、<code>14-accounting-reports.md</code>、<code>16-line-reservation.md</code>、<code>19-aggregation.md</code>、<code>frontend/src/features/manual/content/workflows/04-daily-closing.md</code>、<code>05-monthly-closing.md</code>、<code>07-line-lstep-flow.md</code>、<code>11-reception-daily-flow.md</code>。<b>Reference paths（read-only）:</b> <code>frontend/src/config/paths.ts</code>、<code>frontend/src/app/routes/</code>、対応 feature、<code>docs/spec/screens/</code>、<code>docs/delivery/OPERATION_MANUAL.md</code>。画像は変更しない。</li>
+  <li><b>依存:</b> 本 packet はなし。#256 全体は承認済みDB再構築後の現行 screenshot 再取得と、#254後のFAQを別 unitとして残す。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。起票時の <code>claim/TASK-603</code> をmain統合後にUSERが解放してから、実装者が最初の編集前に同名claimの空確認と取得を行う。非空/取得失敗はBLOCKED、claimは実装者も削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>owned=(frontend/src/features/manual/content/screens/{02-reception,04-medical-records,05-accounting,06-reservations,07-examinations,10-trimming,13-cash-register,14-accounting-reports,16-line-reservation,19-aggregation}.md frontend/src/features/manual/content/workflows/{04-daily-closing,05-monthly-closing,07-line-lstep-flow,11-reception-daily-flow}.md)
+for f in "${owned[@]}"; do test "$(sed -n '1p' "$f")" = "---"; sed -n '2,5p' "$f" | grep -q '^title: '; sed -n '2,5p' "$f" | grep -q '^order: '; sed -n '2,5p' "$f" | grep -q '^section: '; done
+for route in /medical-records /examinations /accounting /accounting/close /accounting/reports /reservations /trimming /line-reservation /aggregation; do
+  rg -Fq "path: \"$route\"" frontend/src/config/paths.ts
+  rg -Fq "\`$route\`" "${owned[@]}"
+done
+git diff --check -- "${owned[@]}"
+bash scripts/check-docs-symbol-drift.sh</pre>
+  <b>完了条件:</b> commit/Completion Reportに8業務×記事×source/specの対応表を残し、各行のroute・状態遷移・権限をreviewerが逐語突合する。裏付けのない記述0件、frontmatter・route・diff・docs drift gateがexit 0。screenshot/FAQ未実施を明記し、本 packetだけで#256をcloseしない。</li>
+  <li><b>完了処理:</b> 統合後に本sectionを削除し、#256へ完了範囲と残依存をUSERが記録する。<code>claim/TASK-603</code> はmain統合後にUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-604">
+<h3>TASK-604: #256 — 存在しないアカウントロック/解除手順を全マニュアルから除去</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> システム内マニュアル8記事に「5回連続失敗でaccount lock」「管理者がlock解除」という存在しない挙動が残り、納品版も既知差異として未修正。</li>
+  <li><b>現況の実測根拠:</b> <code>backend/internal/auth/http_types.go:125-132</code> と <code>http_routes.go:35-52</code> は login をIP単位5回/分へ制限し、<code>http_routes_test.go</code> が固定する。誤記は <code>rg -n '5回|5 回|アカウントロック|ロック解除' frontend/src/features/manual/content</code> で8記事に存在する。</li>
+  <li><b>要求挙動:</b> account-state lock/管理者解除を削除する。login正本と納品版にはIP単位5回/分、時間経過後の再試行、継続時のpassword reset/有効状態確認だけを記載し、他記事は正本へ誘導する。</li>
+  <li><b>Owned paths:</b> <code>frontend/src/features/manual/content/screens/00-overview.md</code>、<code>01-login.md</code>、<code>25-master-staff.md</code>、<code>40-automation-rules.md</code>、<code>frontend/src/features/manual/content/workflows/09-staff-onboarding.md</code>、<code>10-troubleshooting.md</code>、<code>20-security-multi-clinic.md</code>、<code>24-system-outage-bcp.md</code>、<code>docs/delivery/OPERATION_MANUAL.md</code>。<b>Reference paths（read-only）:</b> auth source/test、<code>backend/internal/middleware/rate_limit.go</code>、<code>docs/spec/screens/21-login.md</code>。</li>
+  <li><b>依存:</b> なし。#254 FAQとruntime screenshotは別unit。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。起票時の <code>claim/TASK-604</code> をmain統合後にUSERが解放してから、最初の編集前に同名claimを空確認・取得する。非空/取得失敗はBLOCKED、claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>manuals=(frontend/src/features/manual/content/screens/{00-overview,01-login,25-master-staff,40-automation-rules}.md frontend/src/features/manual/content/workflows/{09-staff-onboarding,10-troubleshooting,20-security-multi-clinic,24-system-outage-bcp}.md)
+! rg -n '5 回連続.*ロック|5回連続.*ロック|管理者.*ロック解除|アカウントが自動ロック' "${manuals[@]}"
+rg -n 'IP.*(5 回|5回).*(1 分|1分)|5 回 / 分.*IP' frontend/src/features/manual/content/screens/01-login.md docs/delivery/OPERATION_MANUAL.md
+! rg -n '既知の記載差異（納品時点・修正予定）|確定待ち: 上記 4 記事' docs/delivery/OPERATION_MANUAL.md
+git diff --check -- "${manuals[@]}" docs/delivery/OPERATION_MANUAL.md
+bash scripts/check-docs-symbol-drift.sh</pre>
+  <b>完了条件:</b> owned 9 pathsの誤記0件、正しいIP rate-limit/自動回復説明が正本2箇所に存在し、全text gateがexit 0。</li>
+  <li><b>完了処理:</b> 統合後に本sectionを削除し、#256へ旧マニュアル誤記修正の証跡をUSERが記録する。<code>claim/TASK-604</code> はmain統合後にUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-605">
+<h3>TASK-605: #258 — 納品パッケージのrepo由来3領域を現行SSOTへ同期</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> <code>docs/delivery/DELIVERY_PACKAGE.md</code> はdraft/未確定を残し、「初期パスワードを発行して1回表示」と現行UIにない挙動を記載する。</li>
+  <li><b>現況の実測根拠:</b> <code>docs/ops/infra/architecture.md:22-31</code> はSTG稼働・Production未構築、<code>frontend/src/config/paths.ts</code> とroutesは管理画面/permission、<code>StaffBasicInfoSection.tsx:87-107</code> は管理者入力passwordを正本化する。契約・backup・窓口・LINE・通知先はrepoだけでは確定不能。</li>
+  <li><b>要求挙動:</b> 「システム構成概要」「管理者設定手順」「運用手順」を現行SSOTへの直接link付きで同期し、Production未構築とpermission boundaryを明記する。委任外の値は発明せず、供給者・必要入力を伴うUSER入力待ち表へ集約し、秘密値は記載しない。</li>
+  <li><b>Owned paths:</b> <code>docs/delivery/DELIVERY_PACKAGE.md</code>、<code>docs/delivery/README.md</code>。<b>Reference paths（read-only）:</b> <code>docs/ops/infra/</code>、<code>docs/ops/deploy/</code>、<code>infra/cloudflare/README.md</code>、deploy workflow、wrangler、paths/routes、staff settings source、対応screen spec。</li>
+  <li><b>依存:</b> repo由来sliceはなし。#258最終承認は#253、production/backup実測、契約名義/plan、障害窓口、LINE/Lステップ、通知先のUSER入力後。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。起票時の <code>claim/TASK-605</code> をmain統合後にUSERが解放してから、最初の編集前に同名claimを空確認・取得する。非空/取得失敗はBLOCKED、claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>rg -n '^## 1\. システム構成概要|^## 2\. 管理者向け|^## 3\. 運用手順' docs/delivery/DELIVERY_PACKAGE.md
+! rg -n '状態.*ドラフト|初期パスワード.*(発行|1 回だけ)' docs/delivery/DELIVERY_PACKAGE.md
+rg -n 'Production.*未構築|本番.*未構築|USER ?入力待ち' docs/delivery/DELIVERY_PACKAGE.md
+for route in /settings/clinic /settings/staff /settings/permission-groups /settings/closing-time; do
+  rg -Fq "path: \"$route\"" frontend/src/config/paths.ts
+  rg -Fq "\`$route\`" docs/delivery/DELIVERY_PACKAGE.md
+done
+git diff --check -- docs/delivery/DELIVERY_PACKAGE.md docs/delivery/README.md
+bash scripts/check-docs-symbol-drift.sh</pre>
+  <b>完了条件:</b> commit/Completion Reportに3領域×SSOTの対応表を残してreviewerが逐語突合し、既知誤記0件、未構築productionと全委任外入力が明示され、route/text gateがexit 0。#258はcloseしない。</li>
+  <li><b>完了処理:</b> 統合後に本sectionを削除し、#258へrepo由来sliceと残依存をUSERが記録する。<code>claim/TASK-605</code> はmain統合後にUSERだけが解放する。</li>
+</ul>
+</section>
+
+<section class="task" id="TASK-606">
+<h3>TASK-606: #109 performance-tests認証をSTG_DEMO_*へ一本化しsilent greenをfail-fast化</h3>
+<ul>
+  <li><b>分類:</b> 着手可能。</li>
+  <li><b>問題:</b> workflow/k6は旧 <code>CI_TEST_*</code> とliteral fallbackを残し、k6 2 stepは<code>continue-on-error</code>、protected 401を合格扱いする。spikeはloginせず、time-series JSONをsummaryとしてparseして失敗を文字列へ変換するため、greenが認証済みrequest/assertionを証明しない。</li>
+  <li><b>現況の実測根拠:</b> <code>.github/workflows/performance-tests.yml:83-114</code>、<code>load-tests/k6-api-endpoints.js:39-56,99-137,164-167</code>、<code>load-tests/k6-spike-test.js:31-49</code>、README/runbookを実測。値を取得しないnames-only probeで <code>STG_DEMO_EMAIL</code>/<code>STG_DEMO_PASSWORD</code> の登録済みを確認した。</li>
+  <li><b>要求挙動:</b> Owned paths内のperformance-test認証契約を <code>STG_DEMO_*</code> 2キーへ統一し、旧名/literal fallbackを0件にする。欠落・login非200・cookie欠落・protected非200・0 request/check/iteration/<code>successful_logins</code>を非0終了にし、値/body/cookie/tokenをlog/artifactへ出さない。両k6 stepはrequired化し、<code>--summary-export</code> のaggregateをfail-closedで検証する。Lighthouseの既存<code>continue-on-error</code>と、performance test契約外のdemo表示/文書は対象外。</li>
+  <li><b>Owned paths:</b> <code>.github/workflows/performance-tests.yml</code>、<code>load-tests/k6-api-endpoints.js</code>、<code>load-tests/k6-spike-test.js</code>、<code>load-tests/README.md</code>、<code>docs/ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md</code>。<b>Reference paths（read-only）:</b> project rules、deploy docs/workflow、<code>load-tests/k6-cf-stg-sustained.js</code>、Issue #109。</li>
+  <li><b>依存:</b> local実装はなし。GitHub Actions billing復旧、workflow dispatch、Issue closeは統合後のUSER専権。secretの作成・更新・値照合はしない。</li>
+  <li><b>実行契約:</b> 独立worktree・single writer・Owned paths限定。起票時の <code>claim/TASK-606</code> をmain統合後にUSERが解放してから、最初の編集前に同名claimを空確認・取得し、<code>packet_baseline=$(git rev-parse HEAD)</code> を記録する。非空/取得失敗はBLOCKED、claimは削除しない。</li>
+  <li><b>検証コマンド:</b>
+<pre>gh secret list --json name --jq '[.[] | select(.name == "STG_DEMO_EMAIL" or .name == "STG_DEMO_PASSWORD")] | length' | grep -qx '2'
+ruby -e 'require "yaml"; YAML.safe_load(File.read(ARGV[0]), aliases: true)' .github/workflows/performance-tests.yml
+node --check load-tests/k6-api-endpoints.js
+node --check load-tests/k6-spike-test.js
+owned=(.github/workflows/performance-tests.yml load-tests/k6-api-endpoints.js load-tests/k6-spike-test.js load-tests/README.md docs/ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)
+! git grep -n -E 'CI_TEST_(EMAIL|PASSWORD)|__ENV\.(TEST_EMAIL|TEST_CRED)|admin@example\.com|TEST_CRED=test' -- "${owned[@]}"
+rg -n -- '--summary-export load-tests/results-(endpoints|spike)-summary\.json' .github/workflows/performance-tests.yml
+! rg -n 'Results parsing failed|metrics\.http_requests|status === 401|200 or 401|console\.(log|error).*body' .github/workflows/performance-tests.yml load-tests/k6-*.js
+rg -n 'metrics\.http_reqs|http_reqs|successful_logins' .github/workflows/performance-tests.yml load-tests/k6-*.js
+node -e 'const fs=require("fs"); for (const p of ["load-tests/k6-api-endpoints.js","load-tests/k6-spike-test.js"]) { const s=fs.readFileSync(p,"utf8"); for (const t of ["http_reqs","iterations","checks","successful_logins"]) if (!s.includes(t)) process.exit(1) }'
+node -e 'const fs=require("fs"); const s=fs.readFileSync(".github/workflows/performance-tests.yml","utf8"); for (const n of ["Run k6 API endpoints load test","Run k6 spike test"]) { const a=s.indexOf(`- name: ${n}`), b=s.indexOf("- name:",a+8); if(a&lt;0 || /continue-on-error/.test(s.slice(a,b&lt;0?s.length:b))) process.exit(1) }'
+git diff --check -- "${owned[@]}"
+diff -u &lt;(printf '%s\n' "${owned[@]}" | sort) &lt;(git diff --name-only "$packet_baseline" -- | sort)</pre>
+  <b>完了条件:</b> 全gate exit 0、変更はowned 5 pathsだけ、旧認証/fallback/401合格/silent parserが0、認証成功と非zero countをfail-closedで証明し、secretを含むdiff/log/artifactがない。remote green runはUSER acceptanceとして残す。</li>
+  <li><b>完了処理:</b> main統合後に本sectionを削除し、#109をremote acceptance待ちへUSERが更新する。billing復旧後のgreen runをclose evidenceとし、<code>claim/TASK-606</code> はUSERだけが解放する。</li>
+</ul>
+</section>
+
+<div class="notice" id="readiness-audit-20260730-outcome">
+<h3>READINESS-AUDIT-20260730 staged-plan outcome</h3>
+<p><b>Status: COMPLETE（docs-only packet起票・代理裁定・decision-ready整形）。</b> 起票したpacketの実装は未着手で、本runの授権外。変更fileは <code>3-session-agent.html</code>、<code>q&amp;a.html</code>、<code>phase2.html</code> の3件のみ。</p>
+<p><b>Gate commands / verbatim output:</b></p>
+<pre>node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-readiness-enablement-audit-20260730.md
+Prompt Craft Harness Validation: PASS
+VALIDATOR_EXIT=0
+
+gh issue list --state open --limit 1000 --json number --jq 'length'
+33
+grep -c '&lt;section class="task"' 3-session-agent.html
+6
+grep -o 'data-task="OPS-[0-9]*"' 'q&amp;a.html' | sort -u | wc -l
+18
+awk '/&lt;h2&gt;条件付き再開 — todo.md/{flag=1; next} flag &amp;&amp; /&lt;\/section&gt;/{exit} flag' phase2.html | rg -c '^[[:space:]]*&lt;h3&gt;'
+6
+
+packet contract probe
+TASK-603_CONTRACT=PASS
+TASK-604_CONTRACT=PASS
+TASK-605_CONTRACT=PASS
+TASK-606_CONTRACT=PASS
+owned-path probe
+TASK-603_OWNED=14;MISSING=0
+TASK-604_OWNED=9;MISSING=0
+TASK-605_OWNED=2;MISSING=0
+TASK-606_OWNED=5;MISSING=0
+OWNED_TOTAL=30;OVERLAPS=0
+DEC/P4 probe
+DEC-45_FOUR=PASS
+DEC-46_FOUR=PASS
+DECISION-PACK-CLINICAL=PASS
+DECISION-PACK-DELIVERY=PASS
+DECISION-PACK-EXTERNAL-PHYSICAL=PASS
+
+grep -o 'id=&quot;[^&quot;]*&quot;' 3-session-agent.html | sort | uniq -d
+(no output; exit 0)
+grep -o 'id=&quot;[^&quot;]*&quot;' 'q&amp;a.html' | sort | uniq -d
+(no output; exit 0)
+git diff --check -- 3-session-agent.html 'q&amp;a.html' phase2.html
+(no output; exit 0)
+bash scripts/check-docs-symbol-drift.sh
+OK    docs-symbol-drift: ドリフトなし（検査トークン 521 件）
+tidy -q -errors &lt;changed-file&gt;
+3-session-agent.html_TIDY=PASS
+q&amp;a.html_TIDY=PASS
+phase2.html_TIDY=PASS
+independent reviewer re-review
+CRITICAL=0 HIGH=0 MEDIUM=0; diff review PASS</pre>
+<p><b>Assumption deviations:</b> prompt記載のOPS selector <code>id="ops-*"</code> は現行DOMと不一致のため <code>data-task="OPS-*"</code> で計数。packet必須フィールドは見出しの「8」ではなく列挙された9項目を採用。DEC-19は未決裁ではなく既決のためDEC-45は再開gateの再監査として現状維持。#285は実装済みでUSER closeのみ。#256/#258はIssue全体をreadyとせず、環境非依存sliceだけをTASK-603〜605へ分離。#109はsecret names登録済みを実測しTASK-606化。参照指示の <code>docs/CODEX-NAVIGATION-GUIDE.md</code> は現treeに不存在。</p>
+<p><b>Failure Signature log:</b> review round 1で <code>TASK606_WHOLE_TREE_GATE</code>、<code>DEC_LITERAL_LABELS</code>、<code>P4_MISSING_CONSEQUENCES</code>、<code>STALE_ACTIVE_SUMMARY</code> を検出。各々を最小修正し、同signaturesの再発なしでround 2 independent review PASS。2-strike/3-strikeには未到達。</p>
+</div>
+
 <!-- LEDGER:APPEND -->
 
 <h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
@@ -264,11 +417,12 @@
 <b>台帳所掌</b>: なし。</td></tr>
   <tr><td><b>B</b></td><td>カルテ／飼主／会計・医院間リンク</td><td><b>分類: 全件 USER 専権または依存待ち（active な実装 unit なし）。</b><br>
 <b>USER 専権</b>: <a href="#TASK-251">#251</a>（unit 別正本は <a href="#TASK-251">#ledger TASK-251</a>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表 — dev 着地、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a>（複数飼主紐付け Phase 2 — migration 002/003 適用済み・codegen / type-check green、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（残 = migrate → codegen → 動作確認 → クローズ）・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>。実装詳細は commit が正本のため本 view に複製しない。<br>
-<b>依存待ち</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19 の phase2 開始待ち）。<br>
+<b>依存待ち</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19のphase2判定を<a href="q&amp;a.html#dec-45">DEC-45</a>で再監査し維持。価値実測/current coverage証跡待ち）。<br>
 <b>Issue #262 本文の陳腐化2点</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である。<br>
 <b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。<br>
 <b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。</td></tr>
   <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=USER 専権</a></b>（4スライス全着地。残 = <code>make codegen</code> と生成物の byte-identity 確認）。<b>#285 は完了済み</b>（GitHub Issue のクローズは USER 操作）。</td></tr>
+  <tr><td colspan="2">環境非依存 docs / CI</td><td><b>分類: 着手可能。</b> #256=<a href="#TASK-603">TASK-603</a>（主要8業務の既存記事同期）＋<a href="#TASK-604">TASK-604</a>（誤ったaccount lock記載除去）、#258=<a href="#TASK-605">TASK-605</a>（repo由来納品3領域）、#109=<a href="#TASK-606">TASK-606</a>（performance test認証/silent green）。Owned pathsは4 packet間で重複なし。</td></tr>
   <tr><td colspan="2">USER/外部待ち</td><td><b>分類: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259=依存待ち</a>（先方API有効化の完了待ち）／OPS-2=USER 専権／OPS-18=USER 専権／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284=USER 専権</a></b>。OPS-2は承認済みDB再構築、OPS-18はSentry DSN発行、#284は試験環境・実機受け渡し後の物理確認。</td></tr>
 </table>
 </div>

@@ -94,7 +94,7 @@
 <div class="container">
 <header>
   <h1>Phase 2 台帳 — 今フェーズでやらないもの</h1>
-  <p class="meta">更新: 2026-07-29（実装突合: 完了済み cursor pagination / BE9 依存 / 権限記述 / 固定 migration 番号を是正）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
+  <p class="meta">更新: 2026-07-30（readiness再監査: #239 Phase 2の段階再開gateをDEC-46へ同期）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
 </header>
 
 <section>
@@ -183,6 +183,14 @@
     <li><strong>実装順序</strong>: ①CSV header対応＋DB/model/API（<code>internal/pet</code> 上） ②ユーザー手動codegen ③seed bootstrap＋マスタcategory UI ④共有pure filterをstandaloneとカルテ内の両フォームへ適用 ⑤画面仕様とtest同期。schema 変更と filter UX を同一batchへ混ぜない。</li>
     <li><strong>受け入れ条件</strong>: 旧6列→新7列schemaのbootstrapと、生成済み7列CSVからのfresh applyが両方成功する。既存DB backfillとfresh seedが承認済みmappingどおり。不正enumは400で未保存、categoryのcreate/get/update/reloadを保持。承認済みの犬/猫/other/未選択/全件表示/nullable/inactive/既存不一致contractが両フォームで一致する。<code>docs/spec/screens/15-vaccinations-form.md</code>と<code>docs/spec/screens/settings/master-animal-species.md</code>も同期する。</li>
     <li><strong>状態</strong>: BLOCKED（製品/所有者ブロック）。依存=提案デフォルトと要件責任者（個人名）の正本記録、正本GitHub Issue作成。BE9 依存は解消済み。再開時は少なくとも「DB/BE/API＋seed tooling」と「master UI＋2フォームfilter」の<code>TASK-xxx-BE</code>/<code>TASK-xxx-FE</code>へ分割してから<a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>へ戻す。FEAT系はGitHub Issuesが正本だが、2026-07-22のread-only検索では対応Issueなし。外部Issue作成は明示承認後に行う。</li>
+  </ul>
+
+  <h3><span class="badge hold">依存待ち</span>#239 Phase 2: identity linkのmerge・auto-link・追加surface（DEC-46）</h3>
+  <ul>
+    <li><strong>現況</strong>: Phase 1（identity-links permission、link tables/RLS、手動link/unlink、clinic-scoped最小履歴）はsource上dev着地済み。backend停止中でruntimeはUNREPORTED。</li>
+    <li><strong>再開条件</strong>: USERによる承認済みDB再構築、migration/seed/permission付与、<code>make codegen</code>、full typecheck、Phase 1 runtime確認が全て完了し、代表1 surfaceの実施者・日時・評価指標が記録されること。</li>
+    <li><strong>再開時の順序</strong>: まず代表1 surfaceで手動link/unlink/relinkを検証し、誤link件数・復旧不能件数・1件当たり工程数を測る。手動経路で解消できない不足だけをmerge、auto-link、追加surfaceの順に1段ずつ再審する。一括実装しない。</li>
+    <li><strong>受け入れ境界</strong>: clinic isolation、単独権限、group soft-delete、監査履歴を維持し、別clinicの候補/履歴を返さない。本人同一性の業務判断・DB操作・Issue更新はUSER境界。決裁正本は <a href="q&amp;a.html#dec-46">DEC-46</a>。</li>
   </ul>
 </section>
 
