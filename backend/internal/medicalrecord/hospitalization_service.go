@@ -61,16 +61,19 @@ type UpdateHospitalizationInput struct {
 	InsuranceNumber      *string
 }
 
-// validatePetNotDeceased は死亡ペットへの入院登録・貼り替えをブロックする（SD-10・臨床安全）。
+// validatePetNotDeceased は死亡ペットへの業務書き込みをブロックする（SD-10・臨床安全）。
 // FE のペット選択 UI は死亡ペットをクリック不可にするだけで API 直叩きを防げないため、
-// BE 側でも fail-closed に検証する。
-func validatePetNotDeceased(ctx context.Context, petRepo petFinder, clinicID, petID uint64) error {
+// BE 側でも fail-closed に検証する。message は呼び出し元の業務文言を渡す。
+func validatePetNotDeceased(ctx context.Context, petRepo petFinder, clinicID, petID uint64, message string) error {
 	pet, err := petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify pet status")
 	}
+	if pet == nil {
+		return apperrors.WrapNotFound("pet", "status")
+	}
 	if pet.DeceasedAt != nil {
-		return apperrors.WrapInvalidInput("死亡したペットは入院登録できません")
+		return apperrors.WrapInvalidInput(message)
 	}
 	return nil
 }
@@ -307,7 +310,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
 			return err
 		}
-		if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID); err != nil {
+		if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
 			return err
 		}
 		if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
@@ -373,7 +376,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			}
 		}
 		if input.PetID != nil {
-			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, *input.PetID); err != nil {
+			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, *input.PetID, "死亡したペットは入院登録できません"); err != nil {
 				return err
 			}
 		}

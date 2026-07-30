@@ -8,8 +8,28 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// livingPetFinder は Create 成功系 fixture 用の生存ペット stub。
+func livingPetFinder() petFinder {
+	return &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id}, nil
+		},
+	}
+}
+
+// draftMedicalRecordWithPet は画像 Create の親 draft カルテ（PetID 付き）を返す。
+func draftMedicalRecordWithPet(clinicID, recordID, petID uint64) *model.MedicalRecord {
+	return &model.MedicalRecord{
+		ID:       recordID,
+		ClinicID: clinicID,
+		PetID:    &petID,
+		Status:   model.MedicalRecordStatusDraft,
+	}
+}
 
 // ---- MedicalRecordImage モック ----
 
@@ -237,6 +257,8 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 		},
 	}
 
+	const petID = uint64(7)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordImageRepository{
@@ -245,14 +267,15 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 				},
 			}
 			medRecRepo := &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					// stub: always return a valid draft parent record (LockByIDForUpdate delegates to FindByID)
-					return &model.MedicalRecord{ID: tt.medicalRecordID, Status: model.MedicalRecordStatusDraft}, nil
+					return draftMedicalRecordWithPet(clinicID, id, petID), nil
 				},
 			}
 			svc := NewMedicalRecordImageServiceWithRelationValidation(
 				repo,
 				medRecRepo,
+				livingPetFinder(),
 				&medicalRecordImageExaminationFinderStub{exam: &model.Examination{
 					ID: examID, ClinicID: 1, MedicalRecordID: ptrUint64(tt.medicalRecordID),
 				}},
@@ -479,6 +502,8 @@ func TestMedicalRecordImageService_CreateRejectsInvalidRequestRelations(t *testi
 		},
 	}
 
+	const petID = uint64(40)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			createCalls := 0
@@ -491,14 +516,13 @@ func TestMedicalRecordImageService_CreateRejectsInvalidRequestRelations(t *testi
 			}
 			medRecRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{
-						ID: gotRecordID, ClinicID: gotClinicID, Status: model.MedicalRecordStatusDraft,
-					}, nil
+					return draftMedicalRecordWithPet(gotClinicID, gotRecordID, petID), nil
 				},
 			}
 			svc := NewMedicalRecordImageServiceWithRelationValidation(
 				repo,
 				medRecRepo,
+				livingPetFinder(),
 				&medicalRecordImageExaminationFinderStub{exam: tt.exam},
 				&clinicalStaffLockerStub{staff: tt.staff},
 				&clinicalStaffAssignmentLockerStub{assignment: tt.assignment},
@@ -526,6 +550,7 @@ func TestMedicalRecordImageService_CreateRejectsInvalidRequestRelations(t *testi
 
 func TestMedicalRecordImageService_CreateFailsClosedWithoutRelationDependencies(t *testing.T) {
 	createCalls := 0
+	const petID = uint64(40)
 	repo := &mockMedicalRecordImageRepository{
 		createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
 			createCalls++
@@ -534,11 +559,10 @@ func TestMedicalRecordImageService_CreateFailsClosedWithoutRelationDependencies(
 	}
 	medRecRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{
-				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
-			}, nil
+			return draftMedicalRecordWithPet(clinicID, id, petID), nil
 		},
 	}
+	// pets 依存なしの簡易 constructor — 死亡検証で fail-closed になる。
 	svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
 
 	got, err := svc.Create(context.Background(), 1, 10, &CreateMedicalRecordImageInput{
@@ -547,6 +571,55 @@ func TestMedicalRecordImageService_CreateFailsClosedWithoutRelationDependencies(
 	})
 
 	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.Zero(t, createCalls)
+}
+
+// TestMedicalRecordImageService_CreateRejectsDeceasedPet は SEC-CS-F14:
+// 親カルテのペットが死亡している場合、画像 Create を拒否し repo.Create を呼ばない。
+func TestMedicalRecordImageService_CreateRejectsDeceasedPet(t *testing.T) {
+	const (
+		clinicID      = uint64(1)
+		medicalRecord = uint64(10)
+		petID         = uint64(40)
+	)
+	deceasedAt := time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
+	createCalls := 0
+	repo := &mockMedicalRecordImageRepository{
+		createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
+			createCalls++
+			t.Fatal("repo.Create must not be called for a deceased pet")
+			return nil
+		},
+	}
+	medRecRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+			return draftMedicalRecordWithPet(gotClinicID, gotRecordID, petID), nil
+		},
+	}
+	pets := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+		},
+	}
+	svc := NewMedicalRecordImageServiceWithRelationValidation(
+		repo,
+		medRecRepo,
+		pets,
+		&medicalRecordImageExaminationFinderStub{},
+		&clinicalStaffLockerStub{},
+		&clinicalStaffAssignmentLockerStub{},
+		&mockCheckupTransactor{},
+	)
+
+	got, err := svc.Create(context.Background(), clinicID, medicalRecord, &CreateMedicalRecordImageInput{
+		ImageURL:  "https://example.com/image.jpg",
+		FileName:  "image.jpg",
+		ImageType: model.MedicalImageTypeXray,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, got)
 	assert.Zero(t, createCalls)
 }

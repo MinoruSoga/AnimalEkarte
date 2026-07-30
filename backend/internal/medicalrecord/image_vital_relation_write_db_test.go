@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	petdomain "github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -185,6 +186,7 @@ func TestDB_MedicalRecordImageServiceRejectsPollutedExamAndStaffRelations(t *tes
 	service := NewMedicalRecordImageServiceWithRelationValidation(
 		repo,
 		NewMedicalRecordRepository(fixture.db),
+		petdomain.NewRepository(fixture.db),
 		NewExaminationRepository(fixture.db),
 		staffdomain.NewStaffRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),
