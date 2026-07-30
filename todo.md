@@ -10,14 +10,14 @@ Pack A–F の doc honesty 出荷済み分は再掲しない（再スキャン�
 | R1 | 入院 create + nested treatment-plan POSTs が非原子的 | **TASK-001-BE / TASK-001-FE** |
 | R2 | 編集モード治療プランが read-only のまま | **TASK-002**（要PO判断） |
 | R3 | フォーム一括割引が非永続 | **TASK-003**（要PO判断） |
-| R4 | screens-drift 意図変更のコミット隔離 | **TASK-004** |
-| R5 | コミット前の closed pack 回帰ゲート | **TASK-005** |
+| R4 | screens-drift 意図変更のコミット隔離 | **TASK-004**（stage plan 済み・未 stage / 未 commit） |
+| R5 | コミット前の closed pack 回帰ゲート | **TASK-005**（scoped gates 実行済み・land 前に再実行可） |
 | R6 | マルチエージェント共有 tree thrash | **ops-only**（下記）— 製品 TASK なし。既存 `git-worktree-safety` を正本とし worktree 隔離を徹底 |
 | R7 | Writer が diff なしで成功宣言した harness 問題 | **ops-only**（下記）— 製品 TASK なし。任意で CLAUDE/Agents に「empty-diff ≠ success」1行を後続で検討 |
-| R8-D | `40-identity-links.md` 欠落 + README 索引不全 | **TASK-006** |
-| R8-B03 | `03-owners-list.md` が client-side `/owners` のまま | **TASK-007** |
-| R8-board | ボードカード open が `edit` 必須 vs 仕様未記載 | **TASK-008** |
-| R8-README | README「全40」 | **TASK-006 に包含** |
+| R8-D | `40-identity-links.md` 欠落 + README 索引不全 | **TASK-006 done**（docs 作成済） |
+| R8-B03 | `03-owners-list.md` が client-side `/owners` のまま | **TASK-007 done** |
+| R8-board | ボードカード open が `edit` 必須 vs 仕様未記載 | **TASK-008 done** |
+| R8-README | README「全40」 | **TASK-006 done に包含** |
 | 一時帰宅 | ドキュメント honesty 済み / BE enum 一致 | **WONTFILE** — mismatch ではない |
 
 ### Ops-only notes（製品コード TASK にしない）
@@ -27,8 +27,8 @@ Pack A–F の doc honesty 出荷済み分は再掲しない（再スキャン�
 
 ### 推奨実装順
 
-1. TASK-004（隔離）→ TASK-005（検証）で screens-drift を安全に land  
-2. TASK-006 / TASK-007 / TASK-008（docs residual、低リスク）  
+1. TASK-004 path-scoped stage → 再 TASK-005 → ユーザー承認後 commit で screens-drift land  
+2. ~~TASK-006 / 007 / 008~~（docs residual 完了）  
 3. TASK-001-BE → TASK-001-FE（原子性、臨床 integrity）  
 4. TASK-002 / TASK-003（PO 判断待ち）
 
@@ -71,10 +71,10 @@ Pack A–F の doc honesty 出荷済み分は再掲しない（再スキャン�
 ### TASK-004: screens-drift 意図変更セットのコミット隔離（Medium・ops）
 
 - **問題**: 共有 tree に screens-drift 修正と foreign WIP（billing / examinations / scenarios / architecture / package 等）が混在。一括 stage すると異レーンが同一 commit に混入する。
-- **根拠**: 現 tree（再スキャン）: intentional 例 — `docs/spec/screens/*`（00/03/07/09/10/11/14/15/18/20/22/25/26/31/34/39/README/settings/master-examinations）、hospitalization form hooks/routes + `treatment-plans-write(.test).ts`、`route-inventory.test.tsx`、`master-settings-index-model(.test).ts`、任意で identity-links / ExamTypeFieldsEditor / permission-rule-table-model。Foreign 例 — billing、csvimport、examinations、`docs/ops/testing/scenarios/*`、`docs/architecture/*`、`docs/spec/specification.md` 等、`package.json`/`pnpm-lock.yaml`、symbol-drift scripts、`codex-security-output/`。`40-identity-links.md` は **欠落**（TASK-006）。
-- **修正方針**: path-scoped `git add` のみ（`git add -A` 禁止）。可能なら worktree で intentional のみ land。ambiguous（README / identity-links / master-settings-index-model / ExamTypeFieldsEditor）は hunk 確認後。foreign は触らない・捨てない。
+- **根拠**: intentional に `docs/spec/screens/*`（+ 新規 `40-identity-links.md`）、Pack C hospitalization form/write、`route-inventory.test.tsx`、`master-settings-index-model(.test).ts` を含む。Foreign は billing/csvimport/examinations/scenarios/architecture/package/symbol-drift scripts/codex-security 等。identity-links FE / ExamTypeFieldsEditor は ambiguous（既定 OUT）。
+- **修正方針**: path-scoped `git add` のみ（`git add -A` 禁止）。Completion Report の stage コマンドを使用。foreign は触らない・捨てない。
 - **受け入れ条件**: ① `git diff --cached --name-only` が intentional 集合 ⊆ のみ。② foreign パスが staged に含まれない。③ commit 後も foreign WIP が working tree に残る（破棄しない）。
-- **状態**: Medium/ops。TASK-005 とセットで land 前に実施。コミット自体はユーザー承認境界。
+- **状態**: Medium/ops。**stage plan 準備済み（未 stage）**。commit はユーザー承認境界。
 
 ### TASK-005: closed packs 回帰のコミット前検証ゲート（Medium・ops）
 
@@ -82,30 +82,30 @@ Pack A–F の doc honesty 出荷済み分は再掲しない（再スキャン�
 - **根拠**: 意図パスに hospitalization 保存・route inventory・screens docs が含まれる。symbol-drift スクリプトは foreign dirty の可能性あり（`scripts/check-docs-symbol-drift.*`）— ゲート実行時はスクリプト自体の foreign 変更に注意。
 - **修正方針**: land 直前に（ユーザー/Docker）: `bash scripts/check-docs-symbol-drift.sh`（意図 docs が stage 済みの状態）; `docker compose exec frontend pnpm test:run -- src/features/hospitalization src/app/routes/route-inventory.test.tsx src/features/master/routes/master-settings-index-model.test.ts`。失敗時は TASK-004 の stage 集合を見直す。
 - **受け入れ条件**: ① 上記コマンドが PASS。② inventory が 84 product pages を維持。③ hospitalization create/plan 関連 unit が PASS。
-- **状態**: Medium/ops。TASK-004 の直後。エージェントは full-suite を自動実行しない（scoped のみ）。
+- **状態**: Medium/ops。**scoped symbol-drift + vitest を本セッションで実行**。land 直前に再実行推奨。full-suite は自動実行しない。
 
 ### TASK-006: identity-links 画面仕様の新設と screens README 索引更新（High）
 
 - **問題**: 製品ルート `/identity-links` と inventory 84 がある一方、`docs/spec/screens/40-identity-links.md` が欠落。README は「全40」のまま identity-links 行なし。Pack D ドキュメント完了の再スキャンで回帰。
-- **根拠**: `docs/spec/screens/40-identity-links.md` 不存在; `docs/spec/screens/README.md` L3 付近「全40」; `route-inventory.test.tsx` が 84 pages; `IdentityLinksPage.tsx` が `ResourceIdentityLinks` view/edit。影響: docs のみ（コード変更不要が原則）。
-- **修正方針**: 実装（`IdentityLinksPage.tsx` + routes）を読んで `40-identity-links.md` を他 screens と同型で作成。README に索引行を追加し件数表記を現実（40 ファイル前提なら identity-links を含めた正しい数え方、または「画面仕様ファイル数」と product leaf 84 の関係を混同しない文言）に修正。symbol-drift トークンを満たす。
-- **受け入れ条件**: ① `40-identity-links.md` が存在し権限・主 API・主要操作がコードと一致。② README から到達可能。③ `bash scripts/check-docs-symbol-drift.sh` が identity-links 関連で fail しない。
-- **状態**: High（docs residual）。TASK-004 の intentional set に含めて land 可。
+- **根拠**: （実装前）`40-identity-links.md` 不存在; README「全40」; `IdentityLinksPage` + `ResourceIdentityLinks`。
+- **修正方針**: `IdentityLinksPage` / `identity-links-api` / routes を読んで仕様作成。README に No.40 行 + 「全41画面」（番号付き md ファイル数）と product leaf 84 の数え分けを明記。
+- **受け入れ条件**: ① ファイル存在・権限/API 一致 ② README リンク ③ symbol-drift OK。
+- **状態**: **done**（docs 作成・README 更新・symbol-drift PASS）。commit は TASK-004 と同時 land。
 
 ### TASK-007: 飼主一覧仕様を GET /v1/pets サーバページネーションに合わせて修正（High）
 
-- **問題**: `03-owners-list.md` が `GET /api/v1/owners` + クライアント側フィルタ/ソート、`useDeferredValue` を記載。実装は `ownersLoader` が `GET /v1/pets` で page/search/species/include_deceased をサーバ転送。owners feature に `useDeferredValue` なし。
-- **根拠**: doc L58–67 付近; code `frontend/src/features/owners/loaders.ts`（ownersLoader, `/v1/pets`）。影響: docs。
-- **修正方針**: 仕様を pets 行粒度・サーバサイド pagination/search に書き換え。API 表を実エンドポイント/権限に合わせて更新。削除・レポート等の残アクションはコード突合のうえ維持/修正。
-- **受け入れ条件**: ① 仕様の list 取得が `/v1/pets`（または現行正本）と一致。② 「クライアント側で全件フィルタ」主張が消える。③ symbol-drift が通る。
-- **状態**: High（docs residual / Pack B 回帰）。コード変更は不要（実装が正）。
+- **問題**: `03-owners-list.md` が `GET /api/v1/owners` + クライアント側フィルタ、`useDeferredValue` を誤記載。
+- **根拠**: `ownersLoader` → `GET /v1/pets` サーバ page/search 等。owners に `useDeferredValue` なし（300ms debounce → URL）。
+- **修正方針**: API 表・§3.1・列ソート撤去をコードに合わせて書き換え。
+- **受け入れ条件**: `/v1/pets` 正本・クライアント全件フィルタ主張なし・symbol-drift OK。
+- **状態**: **done**（`03-owners-list.md` 更新済み）。
 
 ### TASK-008: 入院ボードのカード open が edit 必須であることの仕様正直化（Medium）
 
-- **問題**: 仕様は「カードまたはリスト行クリックで詳細へ」と view 相当に読めるが、ボードは `canOpenCard = occupant && !deceased && canEdit` のため view-only ではカードから詳細遷移できない（リスト側は別経路）。
-- **根拠**: `HospitalizationBoard.tsx` L43–44, L80–81; 遷移先は `use-hospitalization-list.ts` の detail href; `07-hospitalization-list.md` L35。影響: docs（または PO が view でも open させたいなら FE 1 行級変更 — **要PO**）。
-- **修正方針**: 既定は **docs honesty**: ボードカード open / DnD は `hospitalization:edit`、一覧番号リンク等の view 経路は別と明記。PO が view-open を要求する場合のみ `canOpenCard` を view に緩和する FE タスクに分岐。
-- **受け入れ条件**: ① 仕様が board の edit ゲートを明示。② view-only 手動/テストで期待どおり（docs 案ならクリック不可が仕様通り）。③ リスト経路の記述が board と混線しない。
-- **状態**: Medium。既定 docs-only。要PO判断は view-open 変更時のみ。
+- **問題**: 仕様が「カード/行クリック→詳細」と一般化し、board の `canEdit` ゲートを欠く。
+- **根拠**: `HospitalizationBoard` `canOpenCard`/`canDrag` が `canEdit`; リスト No リンクは view。
+- **修正方針**: docs honesty で board open/DnD=edit、list No=view を明記（FE 変更なし）。
+- **受け入れ条件**: 仕様が edit ゲートを明示し board/list を混線しない。
+- **状態**: **done**（`07-hospitalization-list.md` 更新済み）。
 
 ---
