@@ -1,9 +1,20 @@
 import { readFile } from 'node:fs/promises';
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 
-const DEMO_EMAIL = 'admin@noavet.jp';
-const DEMO_PASSWORD = 'password';
+// SEC-CS2-F01: credentials must be injected via env. No repository-known
+// password fallback — privileged demo secrets must not live in source.
 const AUTH_STATE_PATH = process.env.E2E_AUTH_STATE_PATH ?? '/tmp/animal-ekarte-demo-admin-storage-state.json';
+
+function requireE2ECredentials(): { email: string; password: string } {
+  const email = process.env.E2E_LOGIN_EMAIL?.trim() ?? '';
+  const password = process.env.E2E_LOGIN_PASSWORD ?? '';
+  if (!email || !password) {
+    throw new Error(
+      'E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD must be set (no in-repo credential fallback; see frontend/e2e/README.md)',
+    );
+  }
+  return { email, password };
+}
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
@@ -30,6 +41,8 @@ async function restoreCachedAuth(page: Page): Promise<boolean> {
 export async function loginAsDemoAdmin(page: Page) {
   if (await restoreCachedAuth(page)) return;
 
+  const { email, password } = requireE2ECredentials();
+
   // Use domcontentloaded to avoid waiting for all Vite ES module requests (which
   // can be slow through the Docker host-gateway bridge). React renders after the
   // modules load; we wait explicitly for the email input instead.
@@ -42,8 +55,8 @@ export async function loginAsDemoAdmin(page: Page) {
   const emailInput = page.locator('#login-email');
   await emailInput.waitFor({ state: 'visible', timeout: 60000 });
 
-  await emailInput.fill(DEMO_EMAIL);
-  await page.locator('#login-password').fill(DEMO_PASSWORD);
+  await emailInput.fill(email);
+  await page.locator('#login-password').fill(password);
 
   const loginResponsePromise = page.waitForResponse(
     (response) => response.url().includes('/v1/login') && response.request().method() === 'POST',

@@ -33,15 +33,18 @@ var masterOnlyBundleOrder = []string{"002_master"}
 
 // BundleOrderForEnv returns the seed bundles that may load for the given
 // application environment value (APP_ENV). Fail-closed: only an explicit
-// non-production allowlist receives demo/staging seeds. production, empty,
-// prod, and any unknown value receive master only so repository demo
-// credentials never land on production via migrate.
+// local development/test allowlist receives demo/staging seeds. production,
+// staging, empty, prod, and any unknown value receive master only so
+// repository demo credentials (including active system-admin accounts) never
+// land on production or shared staging via migrate.
 //
 // Allowed full-order values (case-insensitive, trimmed):
-// development, local, dev, test, staging.
+// development, local, dev, test.
+//
+// SEC-CS2-F01: staging is intentionally master-only (not full-order).
 func BundleOrderForEnv(env string) []string {
 	switch strings.ToLower(strings.TrimSpace(env)) {
-	case "development", "local", "dev", "test", "staging":
+	case "development", "local", "dev", "test":
 		out := make([]string, len(BundleOrder))
 		copy(out, BundleOrder)
 		return out
