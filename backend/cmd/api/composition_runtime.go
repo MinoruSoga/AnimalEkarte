@@ -578,6 +578,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	c.medicalRecord.newHandler(
 		medicalRecordHTTPDependencies{
 			Uploader:          uploader,
+			DB:                c.db,
 			HasPermission:     c.auth.Handler.HasPermission,
 			RequirePermission: c.auth.Handler.RequirePermission,
 		},

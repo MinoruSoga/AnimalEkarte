@@ -76,15 +76,17 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       e.target.value = "";
       return;
     }
+    // SEC-CS-F08-R1: any oversized file rejects the whole batch (no partial upload).
     const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
-    const valid = allFiles.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
     if (oversized.length > 0) {
       toast.error(
         `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`
       );
+      e.target.value = "";
+      return;
     }
-    if (valid.length > 0) {
-      onFilesSelected(valid);
+    if (allFiles.length > 0) {
+      onFilesSelected(allFiles);
     }
     // Reset input so the same file can be re-selected
     e.target.value = "";

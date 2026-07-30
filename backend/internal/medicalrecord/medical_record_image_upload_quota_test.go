@@ -147,27 +147,6 @@ func TestUploadMedicalRecordImage_QuotaRejectsExcessConcurrentBeforeBodyRead(t *
 		}
 	})
 
-	firstEntered := make(chan struct{})
-	releaseFirst := make(chan struct{})
-	firstDone := make(chan struct{})
-	var uploadCalls atomic.Int32
-
-	// Blocking uploader for a request that still gets a concurrency slot after we free one...
-	// For this test we keep slots full and only issue the rejected request.
-	uploader := &mockMedicalRecordImageUploader{
-		uploadFn: func(context.Context, string, io.Reader, string) (string, error) {
-			uploadCalls.Add(1)
-			close(firstEntered)
-			<-releaseFirst
-			return "https://uploads.example.test/photo.png", nil
-		},
-	}
-	// Override: we do not free slots; rejected path never reaches uploader.
-	_ = firstEntered
-	_ = releaseFirst
-	_ = firstDone
-	_ = uploader
-
 	h := NewMedicalRecordImageHandler(
 		&mockMedicalRecordImageService{
 			createFn: func(context.Context, uint64, uint64, *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
@@ -207,7 +186,6 @@ func TestUploadMedicalRecordImage_QuotaRejectsExcessConcurrentBeforeBodyRead(t *
 	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "too many concurrent medical record image uploads")
 	assert.Zero(t, counting.bytesRead, "quota rejection must happen before multipart body read")
-	assert.Equal(t, int32(0), uploadCalls.Load())
 }
 
 func TestUploadMedicalRecordImage_NilQuotaFailClosed(t *testing.T) {
