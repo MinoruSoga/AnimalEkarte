@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -120,22 +121,26 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 	}
 
-	// 更新フィールドマップ構築（nil フィールドはスキップ）
-	fields := buildOwnerUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-
-	owner, err := s.updateOwnerAndFind(
-		ctx,
-		clinicID,
-		id,
-		fields,
-		"failed to update owner",
-		"failed to update owner",
-	)
+	// SEC-CS-F15: lock owner under write TX and recheck discount_rate against locked snapshot.
+	// Handler early check uses pre-TX GetByID; stale equality must not authorize overwrite.
+	owner, err := s.repo.UpdateAndFindApplying(ctx, clinicID, id, func(locked *model.Owner) (map[string]any, error) {
+		fields := buildOwnerUpdate(input)
+		if input.DiscountRate != nil {
+			if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
+				if !input.DiscountEditAllowed {
+					return nil, apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+				}
+			} else if !input.DiscountEditAllowed {
+				delete(fields, colDiscountRate)
+			}
+		}
+		if len(fields) == 0 {
+			return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		return fields, nil
+	})
 	if err != nil {
-		return nil, err
+		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, "failed to update owner", "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",
