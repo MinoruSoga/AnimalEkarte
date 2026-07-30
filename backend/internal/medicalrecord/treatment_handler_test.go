@@ -396,6 +396,21 @@ func TestUpdateTreatment(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			// SEC-CS-F09: handler must pass discount:edit into service for TX recheck.
+			name:        "passes DiscountEditAllowed=true when discount:edit granted",
+			paramID:     "10",
+			treatmentID: "5",
+			body:        map[string]any{"memo": "m"},
+			setupCtx:    func(c *gin.Context) { setClinicID(c) },
+			svc: &mockTreatmentService{
+				updateFn: func(_ context.Context, _, _, _ uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
+					assert.True(t, input.DiscountEditAllowed)
+					return &model.Treatment{ID: 5}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:        "returns 401 when clinic_id is missing",
 			paramID:     "1",
 			treatmentID: "1",

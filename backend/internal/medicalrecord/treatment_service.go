@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -52,6 +53,9 @@ type UpdateTreatmentInput struct {
 	DiscountAmount *int64
 	SortOrder      *int
 	ActorID        *uint64 // #201 監査ログ用: 操作スタッフ ID（nil = システム）
+	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
+	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
+	DiscountEditAllowed bool
 }
 
 // BulkUpdateTreatmentsInput は並び順一括更新の入力DTO
@@ -66,6 +70,31 @@ type BulkTreatmentItem struct {
 }
 
 // ─── Interface ────────────────────────────────────────────────────────────────
+
+// applyTreatmentDiscountGuard rechecks discount fields against the FOR UPDATE locked row.
+// If the request differs from the locked current value without DiscountEditAllowed → Forbidden.
+// If equal and not allowed, omit discount columns so a stale PATCH cannot race-write.
+func applyTreatmentDiscountGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
+	if input.DiscountRate != nil {
+		if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
+			if !input.DiscountEditAllowed {
+				return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+			}
+		} else if !input.DiscountEditAllowed {
+			delete(fields, "discount_rate")
+		}
+	}
+	if input.DiscountAmount != nil {
+		if *input.DiscountAmount != locked.DiscountAmount {
+			if !input.DiscountEditAllowed {
+				return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+			}
+		} else if !input.DiscountEditAllowed {
+			delete(fields, "discount_amount")
+		}
+	}
+	return nil
+}
 
 // GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
 func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
@@ -424,16 +453,24 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 			return err
 		}
 
+		// SEC-CS-F09: lock treatment row and recheck discount against the locked snapshot.
+		// Handler early check uses a pre-TX GetByID; stale equality must not authorize overwrite.
+		current, err := s.treatmentRepo.LockByIDForUpdate(txCtx, clinicID, treatmentID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock treatment for update")
+		}
+		if current.MedicalRecordID != medicalRecordID {
+			return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
+		}
+		if err := applyTreatmentDiscountGuard(current, input, fields); err != nil {
+			return err
+		}
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+		}
+
 		if doseRelevant {
-			// 親行ロックの取得後に treatment を再読込し、並行する部分 PATCH が更新した
-			// medicine/quantity と今回の入力を最新の組み合わせで評価する。
-			current, err := s.treatmentRepo.FindByID(txCtx, clinicID, treatmentID)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to reload treatment for dose validation")
-			}
-			if current.MedicalRecordID != medicalRecordID {
-				return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
-			}
+			// 親行 + treatment 行ロック取得後の locked snapshot で dose を評価する。
 			effItemType, effMedicineID, effQty := effectiveDoseInputs(current, input)
 			eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 			if derr != nil {
