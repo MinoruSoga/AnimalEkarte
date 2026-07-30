@@ -9,10 +9,13 @@ package manualarticle
 //     いずれの場合も ManualArticleVersion に履歴スナップショットを追加する。
 //   - Upsert の UPDATE 経路は CreatedAt を保持する。
 //   - Delete は対象なしで NotFound を返す。
-//   - FindVersionsByArticleID は edited_at DESC で返す。
+//   - FindVersionsByArticleID は edited_at DESC で返し、件数は MaxVersionsPerArticle を超えない。
+//   - Upsert は同一 TX 内で記事あたりの履歴を MaxVersionsPerArticle 件までに prune する。
+//   - prune 後も current article 行は最新内容を保持する。
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -199,4 +202,93 @@ func TestRepository_FindVersionsByArticleID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
+}
+
+func TestRepository_VersionHistoryRetention(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	editor := uint64(1)
+
+	// 履歴が MaxVersionsPerArticle を超えると prune され、list も同上限で fail-closed する。
+	// current article は最新 upsert 内容を保持する。
+	const overflow = 5
+	totalWrites := MaxVersionsPerArticle + overflow
+
+	var articleID uint64
+	for i := 1; i <= totalWrites; i++ {
+		body := fmt.Sprintf("body-%03d", i)
+		got, err := repo.Upsert(ctx, &model.ManualArticle{
+			Category:     model.ManualCategoryScreens,
+			Slug:         "retention-article",
+			Title:        "履歴上限",
+			OrderValue:   float64(i),
+			Section:      "A",
+			BodyMarkdown: body,
+		}, &editor)
+		require.NoError(t, err)
+		articleID = got.ID
+	}
+
+	// current article は最新内容を保持
+	current, err := repo.FindByCategoryAndSlug(ctx, model.ManualCategoryScreens, "retention-article")
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("body-%03d", totalWrites), current.BodyMarkdown)
+	assert.Equal(t, float64(totalWrites), current.OrderValue)
+
+	// DB 上の履歴件数も MaxVersionsPerArticle 以下
+	var storedCount int64
+	require.NoError(t, db.WithContext(ctx).Model(&model.ManualArticleVersion{}).
+		Where("article_id = ?", articleID).
+		Count(&storedCount).Error)
+	assert.Equal(t, int64(MaxVersionsPerArticle), storedCount)
+
+	// list は上限を超えず、最新が先頭
+	versions, err := repo.FindVersionsByArticleID(ctx, articleID)
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(versions), MaxVersionsPerArticle)
+	require.Len(t, versions, MaxVersionsPerArticle)
+	assert.Equal(t, fmt.Sprintf("body-%03d", totalWrites), versions[0].BodyMarkdown)
+	assert.Equal(t, fmt.Sprintf("body-%03d", totalWrites-MaxVersionsPerArticle+1), versions[len(versions)-1].BodyMarkdown)
+}
+
+func TestRepository_FindVersionsByArticleID_CapsAtMax(t *testing.T) {
+	// Upsert の prune を経由せず、直接大量 insert しても list は LIMIT で上限を守る。
+	db := setupTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+
+	article := &model.ManualArticle{
+		Category:     model.ManualCategoryWorkflows,
+		Slug:         "list-cap",
+		Title:        "list cap",
+		OrderValue:   1,
+		Section:      "A",
+		BodyMarkdown: "current",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(article).Error)
+
+	const excess = 7
+	for i := 1; i <= MaxVersionsPerArticle+excess; i++ {
+		v := &model.ManualArticleVersion{
+			ArticleID:    article.ID,
+			Title:        "list cap",
+			OrderValue:   1,
+			Section:      "A",
+			BodyMarkdown: fmt.Sprintf("snap-%03d", i),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(v).Error)
+	}
+
+	var storedCount int64
+	require.NoError(t, db.WithContext(ctx).Model(&model.ManualArticleVersion{}).
+		Where("article_id = ?", article.ID).
+		Count(&storedCount).Error)
+	require.Equal(t, int64(MaxVersionsPerArticle+excess), storedCount)
+
+	got, err := repo.FindVersionsByArticleID(ctx, article.ID)
+	require.NoError(t, err)
+	require.Len(t, got, MaxVersionsPerArticle)
+	// 最新 (edited_at DESC) が先頭
+	assert.Equal(t, fmt.Sprintf("snap-%03d", MaxVersionsPerArticle+excess), got[0].BodyMarkdown)
 }
