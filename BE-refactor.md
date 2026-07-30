@@ -4,66 +4,27 @@
 
 This file is the backend audit and actionability source, not the implementation-task execution ledger. Current source, tests, schema, and accepted ADR semantics outrank historical summaries. Executable task authority is [`3-session-agent.html#ledger`](3-session-agent.html#ledger). Release, reset, secret, and environment operations belong to [`q&a.html#ops`](q&a.html#ops) and its current runbooks.
 
-Last audited: 2026-07-30 at commit `fbc0906d68fc9b213bfcd4b6ab86081bb076e321`. This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
+Last audited: 2026-07-30 at commit `7839faa7b` (post batch: animal-species FE auth, campaign target serialization, LSTEP batch bulk, LSTEP docs). This marker is evidence of this audit only. Remeasure HEAD and evidence before every unit; stop and reconcile on drift; synchronize an approved packet into the execution ledger before implementation; update or remove it here after an integrated completion commit. READY_TO_FILE means specification-ready but is not executable from the ledger. READY_AGENT is allowed only after a matching current ledger entry exists.
 
 Future Docker verification is valid only after **DOCKER-MOUNT-PROOF**: compare the SHA-256 of at least one owned source file on the host task worktree with the same path inside the target container, or use an isolated Compose project mounted from that worktree. A container mounted from shared main is a false green and must stop the unit.
 
-Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; 116 live findings are `CLOSED_VERIFIED`, and 2 remain `ACTIVE`. There are 8 remaining specification-ready packets: 4 are filed in the execution ledger as `READY_AGENT`, and 4 dependency-gated packets remain `READY_TO_FILE`.
+Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 118 historically live; live ACTIVE findings continue to shrink as packets close (G2F-01 delivery-batch N+1 closed by `ce79e0c23`). There are 4 remaining specification-ready packets: 2 are filed in the execution ledger as `READY_AGENT` (merchandise atomic delete, animal-species spec), and 2 dependency-gated packets remain `READY_TO_FILE` (bounded master lists, session-ledger final convergence). Completed 2026-07-30: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH (`b385cfdbb`), BE-ACT-CAMPAIGN-TARGET-SERIALIZATION (`c3179776b`), BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1 (`ce79e0c23`), BE-ACT-DOC-LSTEP-CONTRACT (`a45046985`).
 
 ## Active frontier
 
 <!-- ACTIVE-FRONTIER:BEGIN -->
-### BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH
-- State: READY_AGENT
-- Source keys: ANIMAL-SPECIES-FE-AUTH
-- Actor: frontend authorization implementation agent in an isolated worktree
-- Problem: the screen uses resource action permissions for mutation affordances although the backend handler requires system-admin for create/update/delete/reorder.
-- Current evidence: `frontend/src/features/master/routes/AnimalSpeciesSettings.tsx` uses `usePermission(ResourceMasterAnimalSpecies)`; backend handlers require system-admin for mutations.
-- Required behavior: retain resource-view authorization for reads; require `isSystemAdmin` for create/edit/delete/reorder controls and actions; cover ordinary view-only, ordinary legacy edit-grant, and system-admin cases.
-- Owned paths: frontend/src/features/master/routes/AnimalSpeciesSettings.tsx, frontend/src/features/master/routes/AnimalSpeciesSettings.test.tsx
-- Reference paths: frontend/src/hooks/use-permission.ts, backend/internal/pet/animal_species_handler.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T frontend npx vitest run src/features/master/routes/AnimalSpeciesSettings.test.tsx
-- Completion evidence: non-system-admin users with view can read but cannot see or invoke mutation/reorder/delete affordances; system admins retain them; the scoped test passes against task-worktree bytes.
-
-### BE-ACT-CAMPAIGN-TARGET-SERIALIZATION
-- State: READY_AGENT
-- Source keys: NW-R2-01A, RULE-DOUBT-27A
-- Actor: billing/inventory implementation agent in an isolated worktree
-- Problem: Create and target-changing Update validate merchandise before the campaign transaction, without ambient same-clinic active-row locks or deterministic target order.
-- Current evidence: `backend/internal/billing/campaign_service.go#Create|Update`; `backend/internal/billing/campaign_repository.go#ReplaceTargets`; `backend/internal/billing/service_deps.go#merchandiseItemFinder`.
-- Required behavior: open the transaction before validation; deduplicate and sort target IDs; share-lock every same-clinic active merchandise row through the ambient transaction; write and reload in that transaction; update mocks, cross-tenant tests, and lint coverage.
-- Owned paths: backend/internal/billing/campaign_service.go, backend/internal/billing/campaign_service_test.go, backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go, backend/internal/billing/service_deps.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go, backend/internal/lintscan/master_fk_write_inventory_lint_test.go, backend/internal/lintscan/dbortx_inventory_lint_test.go
-- Reference paths: backend/internal/billing/campaign_repository.go, backend/internal/sharedkernel/validators.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/billing/... ./internal/inventory/... -run 'Campaign.*(Target|Merchandise|Concurrent)|MerchandiseItem.*(ShareLock|Ambient)'; docker compose exec -T backend go test -count=1 ./internal/lintscan/... -run 'MasterFKWrite|DBOrTx'
-- Completion evidence: Create and target-changing Update reject cross-clinic/deleted/concurrently deleting targets; locks occur in ambient tx in sorted unique order; write/reload uses the same tx; scoped tests and lint gates pass.
-
 ### BE-ACT-MERCHANDISE-ATOMIC-DELETE
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: NW-R2-01B, RULE-DOUBT-27B
 - Actor: inventory/billing implementation agent in an isolated worktree
 - Problem: delete performs unlocked Find→Count→Delete, counts only billing/estimate via fallback handles, and omits campaign-target usage.
-- Current evidence: `backend/internal/inventory/merchandise_item_service.go#Delete`; `backend/internal/inventory/merchandise_item_repository.go#CountUsage`.
+- Current evidence: `backend/internal/inventory/merchandise_item_service.go#Delete`; `backend/internal/inventory/merchandise_item_repository.go#CountUsage`. Dependency BE-ACT-CAMPAIGN-TARGET-SERIALIZATION integrated as `c3179776b`.
 - Required behavior: in one transaction lock the same-clinic non-deleted item; count active billing and estimate usage plus targets joined to any same-clinic non-deleted campaign regardless of active/date; return NotFound for no active item and Conflict for any usage; soft-delete only after zero usage; prove both interleavings.
 - Owned paths: backend/internal/inventory/merchandise_item_service.go, backend/internal/inventory/merchandise_item_service_test.go, backend/internal/inventory/merchandise_item_repository.go, backend/internal/inventory/merchandise_item_repository_test.go, backend/cmd/api/composition_runtime.go, backend/internal/billing/campaign_cross_tenant_master_fk_write_test.go, backend/internal/lintscan/dbortx_inventory_lint_test.go
 - Reference paths: backend/internal/billing/campaign_repository.go, backend/internal/model/campaign.go
-- Dependencies: BE-ACT-CAMPAIGN-TARGET-SERIALIZATION
+- Dependencies: none (prior campaign-target serialization integrated)
 - Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/inventory/... ./internal/billing/... ./cmd/api/... -run 'MerchandiseItem.*(Delete|CountUsage|Concurrent)|Campaign.*Concurrent|RuntimeInventory'; docker compose exec -T backend go test -count=1 ./internal/lintscan/... -run DBOrTx
 - Completion evidence: attach-first yields Conflict after serialization; delete-first makes later attachment reject the inactive row; NotFound remains distinct; all usage queries use the ambient tx and scoped tests pass.
-
-### BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1
-- State: READY_AGENT
-- Source keys: G2F-01
-- Actor: LSTEP performance implementation agent in an isolated worktree
-- Problem: `RunDeliveryTriggerBatch` iterates owners and `processSingleOwner` performs owner, daily-existence, suppression, and tag-cache reads per owner, so query count grows by multiple round trips for every owner.
-- Current evidence: `backend/internal/lstep/lstep_delivery_trigger_batch.go#RunDeliveryTriggerBatch|processSingleOwner`; the earlier SOLO-12 change only escaped tag-cache LIKE input and did not remove this batch N+1.
-- Required behavior: introduce clinic-scoped bulk reads for the candidate owner set, preserve opt-out/suppression/daily-claim semantics, keep memory bounded, and prove query-count growth is constant by category rather than linear by owner count.
-- Owned paths: backend/internal/lstep/lstep_delivery_trigger_batch.go, backend/internal/lstep/lstep_delivery_trigger_batch_test.go
-- Reference paths: backend/internal/lstep/lstep_delivery_trigger_log_repository.go, backend/internal/lstep/lstep_tag_cache_repository.go
-- Dependencies: none
-- Verification command: DOCKER-MOUNT-PROOF; docker compose exec -T backend go test -count=1 ./internal/lstep/... -run 'DeliveryTriggerBatch.*(Query|Bulk|OptOut|Suppression|Daily)'
-- Completion evidence: a multi-owner regression counts DB calls and proves no per-owner query growth for owner/daily/suppression/tag-cache reads while preserving selection and failure accounting; scoped tests pass against task-worktree bytes.
 
 ### BE-ACT-BOUNDED-MASTER-LISTS
 - State: READY_TO_FILE
@@ -79,51 +40,37 @@ Current counts are derived from the blocks below: 141 findings = 23 withdrawn + 
 - Completion evidence: both queries use the shared bound with deterministic order; exact-limit and over-limit fixtures prove bounded results without cross-clinic or deleted-row drift; scoped tests pass.
 
 ### BE-ACT-DOC-ANIMAL-SPECIES-SPEC
-- State: READY_TO_FILE
+- State: READY_AGENT
 - Source keys: DOC-ANIMAL-SPECIES-AUTH
 - Actor: specification documentation agent in an isolated worktree
 - Problem: the screen spec grants ordinary create/edit/delete/reorder permissions and does not describe audited transaction rollback.
-- Current evidence: `docs/spec/screens/settings/master-animal-species.md` mutation table conflicts with backend system-admin checks and current frontend affordances.
+- Current evidence: `docs/spec/screens/settings/master-animal-species.md` mutation table conflicts with backend system-admin checks and current frontend affordances. Dependency BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH integrated as `b385cfdbb`.
 - Required behavior: document resource-view reads and system-admin-only create/update/delete/reorder; document fail-closed audit atomicity only after backend proof lands.
 - Owned paths: docs/spec/screens/settings/master-animal-species.md
 - Reference paths: backend/internal/pet/animal_species_handler.go, backend/internal/pet/animal_species_service.go, frontend/src/features/master/routes/AnimalSpeciesSettings.tsx
-- Dependencies: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH
+- Dependencies: none (prior FE auth integrated)
 - Verification command: git diff --check -- docs/spec/screens/settings/master-animal-species.md; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: spec and implemented authorization/transaction tests agree; retained links resolve; docs drift gate passes.
-
-### BE-ACT-DOC-LSTEP-CONTRACT
-- State: READY_AGENT
-- Source keys: DOC-LSTEP-BATCH-CONTRACT, DOC-LSTEP-WRITE-PAUSE
-- Actor: LSTEP documentation agent in an isolated worktree
-- Problem: current docs conflate scheduled multi-resource best effort, single-owner propagation, and request-local nonfatal secondary notification; they also retain false ordinary-sync trigger-log and dynamic-rate-adjustment claims.
-- Current evidence: Write API is paused/no-op in `docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`; scheduler qualification remains external.
-- Required behavior: distinguish the three failure contracts; require durable partial-result accounting where applicable; preserve paused/no-op Write API; remove false ordinary-sync trigger-log and unsupported dynamic-rate-adjustment claims.
-- Owned paths: docs/spec/line/lstep-integration.md, docs/spec/screens/31-lstep-integration.md, docs/spec/screens/34-lstep-delivery-monitor.md, docs/spec/line/architecture.md
-- Reference paths: docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md, backend/CODING_RULES.md
-- Dependencies: none
-- Verification command: git diff --check -- docs/spec/line/lstep-integration.md docs/spec/screens/31-lstep-integration.md docs/spec/screens/34-lstep-delivery-monitor.md docs/spec/line/architecture.md; bash scripts/check-docs-symbol-drift.sh
-- Completion evidence: each flow has one explicit failure contract; paused Write API remains; false trigger-log/rate claims are absent; docs gates pass.
 
 ### BE-ACT-DOC-SESSION-LEDGER
 - State: READY_TO_FILE
 - Source keys: DOC-LEDGER-BUG433, DOC-LEDGER-SYNC
 - Actor: sole documentation integrator using a protected copy of current shared-main state
 - Problem: after every other packet is integrated, the ledger will still contain completed wave entries and historical BE/rule-doubt readiness prose that must not survive as active work.
-- Current evidence: `3-session-agent.html#ledger` contains the four current `READY_AGENT` sections and no completed `BE-ACT-*` sections; BUG-433 remains preserved.
+- Current evidence: `3-session-agent.html#ledger` now files READY_AGENT merchandise-atomic-delete and animal-species-spec; BUG-433 remains USER 専権 for codegen.
 - Required behavior: after all dependencies are integrated, begin from byte-equivalent then-current shared-main; remove every completed `BE-ACT-*` section and obsolete BE/rule-doubt readiness wording; preserve BUG-433, current q&a rulings, and the operational boundary. Do not claim this final-convergence packet is a prerequisite for wave advancement.
 - Owned paths: 3-session-agent.html
 - Reference paths: q&a.html#ops, BE-refactor.md
-- Dependencies: BE-ACT-ANIMAL-SPECIES-FRONTEND-AUTH, BE-ACT-CAMPAIGN-TARGET-SERIALIZATION, BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-ANIMAL-SPECIES-SPEC, BE-ACT-DOC-LSTEP-CONTRACT
+- Dependencies: BE-ACT-MERCHANDISE-ATOMIC-DELETE, BE-ACT-BOUNDED-MASTER-LISTS, BE-ACT-DOC-ANIMAL-SPECIES-SPEC
 - Verification command: git diff --check -- 3-session-agent.html; bash scripts/check-docs-symbol-drift.sh
 - Completion evidence: imported baseline matches then-current shared main before editing; every completed `BE-ACT-*` section is absent; BUG-433 and DEC-40/newer rulings remain; no obsolete BE/rule-doubt readiness wording or duplicate IDs remains.
 <!-- ACTIVE-FRONTIER:END -->
 
 ## Path-disjoint execution plan
 
-- Current parallel wave: frontend animal-species authorization, campaign target serialization, delivery-batch N+1 removal, and LSTEP contract documentation.
-- Sequential inventory chain: campaign target serialization → merchandise atomic delete → bounded master lists.
-- Authorization/spec chain: frontend animal-species authorization → animal-species specification.
-- Final convergence: all seven implementation/specification packets → session-ledger cleanup.
+- Current parallel wave: merchandise atomic delete and animal-species specification documentation.
+- Sequential inventory chain: merchandise atomic delete → bounded master lists.
+- Final convergence: remaining implementation/specification packets → session-ledger cleanup.
 - Ledger wave advancement is an integration-owner lifecycle action, not `BE-ACT-DOC-SESSION-LEDGER`: after each integrated completion commit, the sole ledger integrator removes the completed section, files only newly unblocked packets, and changes those packets to `READY_AGENT` in the same docs change. `BE-ACT-DOC-SESSION-LEDGER` is final convergence after all other packets, so it does not block later waves.
 - The dependency graph totally orders every duplicate owned path. Agents must still remeasure path ownership before execution.
 
@@ -263,7 +210,7 @@ G2P-02	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/inventory/repository.go
 G2P-03	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/inventory/inventory_request.go#symbols=binding:"min=0"|binding:"omitempty,min=0"; atomic=backend/internal/inventory/repository.go#symbols=DecreaseStock|quantity >= ?; regressions=backend/internal/inventory/repository_test.go#symbols=TestInventoryRepository_DecreaseStock|TestInventoryRepository_DecreaseStock_AmbientTxRollback; original=inventory quantity が非負未検証で DecreaseStock が負在庫を作れる; why=Create/update request binding rejects negative submitted quantities, while DecreaseStock uses an atomic quantity >= ? update predicate so insufficient stock returns Conflict without decrement, exact-stock decrement reaches zero, and ambient rollback restores the prior quantity
 G2T-02	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
 G2T-03	WITHDRAWN	WITHDRAWN	—	historical withdrawal retained from the frozen 141-ID inventory; excluded from the 118 live findings
-G2F-01	LIVE	ACTIVE	BE-ACT-LSTEP-DELIVERY-BATCH-NPLUS1	CURRENT:backend/internal/lstep/lstep_delivery_trigger_batch.go#processSingleOwner; why=the batch still performs multiple owner-scoped reads inside the owner loop
+G2F-01	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_delivery_trigger_batch.go#symbols=runBatch|processSingleOwner|TestDeliveryTriggerBatch_BulkQueryCountsConstantWithOwnerCount; completion_sha=ce79e0c23e92642f5e42b995e91d5e387a3b081d; object=backend/internal/lstep/lstep_delivery_trigger_batch.go; original=delivery trigger batch per-owner N+1 reads; why=clinic-scoped bulk preloads keep owner/daily/suppression/tag-cache reads constant by owner count
 G2F-02	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_health_tag_sync_batch.go#symbols=SyncHealthPreventionTagsForClinic|loadHealthPreventionPageInputs; completion_sha=cc66c281ec31d7dff0ddeee86c52af4f2eff6771; object=backend/internal/lstep/lstep_health_tag_sync_batch.go; original=owner pages are bounded but checkup and vaccination history queries still execute per owner; why=SyncHealthPreventionTagsForClinic/loadHealthPreventionPageInputs page-bulk load checkup/vaccination/visit-summary inputs so child history queries are page-bounded
 G2F-03	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/billing/accounting_repository_ltv.go#symbols=FindOwnersByAnnualRevenue; completion_sha=2a9d0fe6657c75ab11e7872a2ba2eb74c184aedc; object=backend/internal/billing/accounting_repository_ltv.go; original=LINE owners are paged but clinic-wide annual revenue is still fully materialized before top-N selection; why=FindOwnersByAnnualRevenue returns only the SQL window-bounded top 20% set so SyncLTVTopPercent no longer materializes clinic-wide revenues in Go
 G2F-04	LIVE	CLOSED_VERIFIED	—	CURRENT:backend/internal/lstep/lstep_batch_segmentation.go#symbols=syncVisitDormantForClinic; completion_sha=bffbea00efd41edfe515f06f0063df6a56c60dc5; object=backend/internal/lstep/lstep_batch_segmentation.go; original=visit-dormant タグ同期が非 cursor dormant list を使用; why=syncVisitDormantForClinic now loops FindDormantOwnerEntriesCursor pages and the repository orders by owner with Limit, so the non-cursor list scenario is absent
