@@ -73,6 +73,10 @@ func (s *lstepTagCodeMappingService) PutMappingsForTag(ctx context.Context, clin
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("lstep tag code mapping transaction dependency is required")
 	}
+	// Cardinality must be rejected before WithTx so SoftDelete/Create never run (SEC-CS-F11).
+	if err := validatePutMappingEntriesCardinality(entries); err != nil {
+		return nil, err
+	}
 	for i := range entries {
 		if err := validatePutMappingEntry(&entries[i]); err != nil {
 			return nil, err
@@ -123,6 +127,32 @@ func isConfigurableTag(tagName string) bool {
 	return false
 }
 
+// validatePutMappingEntriesCardinality enforces request-level size caps (SEC-CS-F11).
+// Must run before WithTx so over-limit input never reaches SoftDelete/Create.
+func validatePutMappingEntriesCardinality(entries []PutMappingEntry) error {
+	if len(entries) > MaxTagCodeMappingEntries {
+		return apperrors.WrapInvalidInput(
+			fmt.Sprintf("entries must contain at most %d items", MaxTagCodeMappingEntries),
+		)
+	}
+	totalCodes := 0
+	for i := range entries {
+		n := len(entries[i].Codes)
+		if n > MaxTagCodeMappingCodesPerEntry {
+			return apperrors.WrapInvalidInput(
+				fmt.Sprintf("codes must contain at most %d items per entry", MaxTagCodeMappingCodesPerEntry),
+			)
+		}
+		totalCodes += n
+		if totalCodes > MaxTagCodeMappingTotalCodes {
+			return apperrors.WrapInvalidInput(
+				fmt.Sprintf("codes total must be at most %d across all entries", MaxTagCodeMappingTotalCodes),
+			)
+		}
+	}
+	return nil
+}
+
 // validatePutMappingEntry enforces code_type / species_scope / age_min / codes bounds (G2C-02).
 func validatePutMappingEntry(e *PutMappingEntry) error {
 	switch e.CodeType {
@@ -133,6 +163,8 @@ func validatePutMappingEntry(e *PutMappingEntry) error {
 	if len(e.Codes) == 0 {
 		return apperrors.WrapInvalidInput("codes must contain at least one entry")
 	}
+	// Per-entry length is also enforced in validatePutMappingEntriesCardinality;
+	// keep the empty-check here and individual code shape bounds below.
 	for _, c := range e.Codes {
 		if c == "" {
 			return apperrors.WrapInvalidInput("codes must not contain empty values")
