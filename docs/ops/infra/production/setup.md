@@ -395,33 +395,30 @@ STG_DEMO_EMAIL=<production用> STG_DEMO_PASSWORD=<production用> \
 
 ## 10. 既知の制約・フォローアップ
 
-### 10.1 【重要】初回 migrate が demo/staging seed データを自動投入する
+### 10.1 Seed バンドルは APP_ENV でゲートする（SEC-CS-F01）
 
-`backend/cmd/migrate/main.go` の `runSeedBundles` は `seedbundle.BundleOrder`
-(`002_master → 003_demo → 004_staging`)を**常に全件**適用する設計であり、環境(STG/production)を
-判定して一部をスキップする機構は現状コードに存在しない
-(`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`: 「fresh DB 適用後の正しい終了状態は
-schema_migrations の行数が直下 DDL 本数 + seed バンドル数に一致」)。
+`backend/cmd/migrate` の `runSeedBundles` は `seedbundle.BundleOrderForEnv(APP_ENV)` で
+ロード対象を決める（fail-closed）:
 
-これは本書が新規に発見した問題ではなく、`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` 44行目に
-「重要: 本番移行時に全削除。ステージング環境でのみ有効」と既に明記されている既知事項。
-**ただし、これを自動的に防ぐ仕組みは現状存在しないため、production の初回 migrate 実行後は
-以下を人間が実施する必要がある**:
+| `APP_ENV` | 適用バンドル |
+|-----------|--------------|
+| `development` / `local` / `dev` / `test` / `staging` | `002_master` → `003_demo` → `004_staging` |
+| `production` / `prod` / 空 / 未知の値 | **`002_master` のみ** |
 
-1. `003_demo`/`004_staging` バンドルが投入したレコード(デモアカウント・テスト医院等)を特定する
-   (バンドル定義: `backend/migrations/seeds/003_demo/` / `004_staging/` の CSV / `manifest.json`)
-2. **生SQLの `DELETE FROM ...` は使わないこと**
-   (`STG-DEMO-DATA-LIFECYCLE.md` 99行目で明示的に「禁止パターン」とされている。
-   FK制約・監査ログ・soft delete規約を無視した削除は整合性を壊すリスクがある)
-3. 代わりに、アプリケーションの **API DELETE エンドポイント**を使い、
-   `STG-DEMO-DATA-LIFECYCLE.md` §3〜4 のFK安全な削除順序に従って削除する
-   (audit_log に削除操作が正しく記録される)
-4. **PO決定 #250(Access移行)による実データ投入は、この cleanup 完了後に行うこと**
-   (デモ/テストデータと実データが混在した状態での投入を避けるため)
+production では demo/staging CSV（active system admin アカウントを含む）を migrate 経路で
+投入しない。fresh production の正しい終了状態は **直下 DDL 本数 + seed 1**
+（`seeds/002_master`）。non-production は従来どおり **DDL 本数 + seed 3**。
 
-この制約はコード改修(migrate時のバンドル選択を環境変数等で制御する等)で恒久対応可能だが、
-本タスクのスコープ(新規ファイルのみ・既存ファイル非改変)には含まれない。恒久対応が必要と
-判断される場合は、別途Issue化してスコープを切り出すこと(本書はその判断材料として記録する)。
+**運用必須**: production コンテナ/ジョブに `APP_ENV=production` を明示すること。
+未設定は fail-closed で master のみになるが、staging を運用する場合は
+`APP_ENV=staging` を明示しないと demo が載らない。
+
+**既存 production DB に既に demo/staging が載っている場合**（本ゲート導入前の migrate 履歴）:
+
+1. 余剰キー `seeds/003_demo` / `seeds/004_staging` は coverage の informational `extra` になる
+2. 投入済みデモ行の除去は API DELETE（`STG-DEMO-DATA-LIFECYCLE.md` §3〜4）で行う。
+   生 SQL の `DELETE FROM ...` は禁止
+3. **PO決定 #250(Access移行)による実データ投入は、cleanup 完了後に行うこと**
 
 ### 10.2 通知(アラート)はSTG側ポリシーが production も暗黙にカバーする
 
