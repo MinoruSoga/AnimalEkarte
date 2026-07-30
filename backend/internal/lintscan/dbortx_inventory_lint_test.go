@@ -530,6 +530,29 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/shift_template_repository.go|shiftTemplateRepository.Update":                  {},
 	"staff/shift_template_repository.go|shiftTemplateRepository.UpdateBreaks":            {},
 	"staff/shift_template_repository.go|shiftTemplateRepository.WithTx":                  {},
+	// staff_provisioning (TASK-609). Runtime ambient-tx proofs:
+	// staff_provisioning_repository_tx_atomicity_test.go +
+	// staff_provisioning_repository_integration_test.go (Apply path).
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AcquireBatchLock":               {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AssignPermissionGroups":         {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ClinicExists":                   {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateAccount":                  {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateAssignment":               {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateStaff":                    {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.EmailExists":                    {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.FindAccountByID":                {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.FindReceiptsInScope":            {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.FindStaffByAccountID":           {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.HasMasterStaffCreate":           {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.LockOccupationForShare":         {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.OccupationBelongsToClinic":      {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.PermissionGroupsBelongToClinic": {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.StaffAssignedToClinic":          {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
+	// identitylink (#239 Phase 1). Runtime ambient-tx proofs:
+	// identitylink/repository_tx_atomicity_test.go
+	"identitylink/repository.go|repository.conn":             {},
+	"identitylink/repository.go|repository.requireAmbientTx": {},
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
@@ -706,6 +729,14 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI": {
 		shape:      ambientTxViaLocalDBOrTxHelper,
 		helperName: "silentTokenBlacklistDB",
+	},
+	// staff provision audit: TxFromContext-only fail-closed (never weakens to DBOrTx).
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit": {
+		shape: ambientTxRequired,
+	},
+	// identitylink writes: requireAmbientTx returns TxFromContext handle only.
+	"identitylink/repository.go|repository.requireAmbientTx": {
+		shape: ambientTxRequired,
 	},
 }
 
