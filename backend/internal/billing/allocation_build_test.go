@@ -80,6 +80,152 @@ func TestBuildAllocationBillings_Conservation(t *testing.T) {
 	assert.Contains(t, MatrixColumnTotals(nameMatrix), "不明な支払方法(99)")
 }
 
+// TestBuildAllocationBillings_RefundsRemainSeparateNegativeRows locks DEC-16⑥ (a):
+// refunds are occurrence-day negative rows — not pre-netted into payment amounts before allocate.
+func TestBuildAllocationBillings_RefundsRemainSeparateNegativeRows(t *testing.T) {
+	t.Parallel()
+
+	cashID := uint64(1)
+	cashEnum := string(model.PaymentMethodCash)
+	data := &CategoryPaymentAllocationData{
+		Weights: []allocationCategoryWeightRow{
+			{BillingID: 42, Category: "examination", Amount: 600},
+			{BillingID: 42, Category: "goods", Amount: 400},
+		},
+		Payments: []allocationPaymentRow{
+			{BillingID: 42, PaymentMethodID: &cashID, Amount: 1000},
+		},
+		// Two refunds on occurrence day — must stay two negative rows (not -150 pre-sum, not 850 net payment).
+		Refunds: []allocationRefundRow{
+			{BillingID: 42, PaymentMethod: &cashEnum, Amount: 100},
+			{BillingID: 42, PaymentMethod: &cashEnum, Amount: 50},
+		},
+	}
+
+	payMethods := []model.PaymentMethodMaster{
+		{ID: 1, Name: "現金", SystemKey: ptrString("cash"), IsActive: true, DisplayOrder: 1},
+	}
+	sysFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
+	billings := BuildAllocationBillings(data, sysFn, sysRefundFn)
+	require.Len(t, billings, 1)
+
+	pays := billings[0].Payments
+	require.Len(t, pays, 3, "1 payment + 2 refund rows; must not collapse to net payment")
+	var positive, negatives int
+	var negSum int64
+	for _, p := range pays {
+		assert.Equal(t, "cash", p.MethodKey)
+		switch {
+		case p.Amount > 0:
+			positive++
+			assert.Equal(t, int64(1000), p.Amount)
+		case p.Amount < 0:
+			negatives++
+			negSum += p.Amount
+		}
+	}
+	assert.Equal(t, 1, positive)
+	assert.Equal(t, 2, negatives)
+	assert.Equal(t, int64(-150), negSum)
+
+	matrix := AggregateCategoryPaymentMatrix(billings)
+	// Conservation still holds on occurrence-net: 1000 - 100 - 50
+	assert.Equal(t, int64(850), MatrixGrandTotal(matrix))
+	assert.Equal(t, int64(850), MatrixColumnTotals(matrix)["cash"])
+}
+
+// TestBuildAllocationBillings_CrossPeriodRefundIsOccurrenceNegativeOnly locks DEC-16⑥:
+// a refund whose parent completed outside the period still contributes a negative row only
+// (no positive payment from that billing), using RefundParentWeights for category share.
+func TestBuildAllocationBillings_CrossPeriodRefundIsOccurrenceNegativeOnly(t *testing.T) {
+	t.Parallel()
+
+	cashEnum := string(model.PaymentMethodCash)
+	data := &CategoryPaymentAllocationData{
+		// Period completed set has no billing 99 — only the refund occurs in period.
+		Weights:  nil,
+		Payments: nil,
+		Refunds: []allocationRefundRow{
+			{BillingID: 99, PaymentMethod: &cashEnum, Amount: 200},
+		},
+		RefundParentWeights: []allocationCategoryWeightRow{
+			{BillingID: 99, Category: "examination", Amount: 1},
+			{BillingID: 99, Category: "goods", Amount: 1},
+		},
+	}
+
+	payMethods := []model.PaymentMethodMaster{
+		{ID: 1, Name: "現金", SystemKey: ptrString("cash"), IsActive: true, DisplayOrder: 1},
+	}
+	sysFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
+	billings := BuildAllocationBillings(data, sysFn, sysRefundFn)
+	require.Len(t, billings, 1)
+	require.Len(t, billings[0].Payments, 1)
+	assert.Equal(t, int64(-200), billings[0].Payments[0].Amount)
+	assert.Equal(t, "cash", billings[0].Payments[0].MethodKey)
+
+	matrix := AggregateCategoryPaymentMatrix(billings)
+	assert.Equal(t, int64(-200), MatrixGrandTotal(matrix), "occurrence-day refund is the only matrix contribution")
+	assert.Equal(t, int64(-200), MatrixColumnTotals(matrix)["cash"])
+}
+
+// TestBuildAllocationBillings_MatrixGrandEqualsOccurrenceNetNotCompletedAttachedKPI documents
+// DEC-16⑥ (b) dual definition: matrix grand == 締め合計 (occurrence refund net), which can
+// differ from KPI NetAmount that attaches refunds to the completed-billing period.
+func TestBuildAllocationBillings_MatrixGrandEqualsOccurrenceNetNotCompletedAttachedKPI(t *testing.T) {
+	t.Parallel()
+
+	cashID := uint64(1)
+	cashEnum := string(model.PaymentMethodCash)
+
+	// Scenario (same calendar period window for matrix):
+	//   - billing A completed in period: payment 3000 cash
+	//   - billing B completed outside period, refund 400 cash with refunded_at in period
+	// Matrix grand (DEC-16⑥ 締め合計) = 3000 - 400 = 2600
+	// KPI NetAmount (completed-attached refunds only for billings completed in period) =
+	//   3000 - 0 = 3000  (billing B's refund is NOT attached to a completed-in-period billing)
+	data := &CategoryPaymentAllocationData{
+		Weights: []allocationCategoryWeightRow{
+			{BillingID: 1, Category: "examination", Amount: 3000},
+		},
+		Payments: []allocationPaymentRow{
+			{BillingID: 1, PaymentMethodID: &cashID, Amount: 3000},
+		},
+		Refunds: []allocationRefundRow{
+			{BillingID: 2, PaymentMethod: &cashEnum, Amount: 400},
+		},
+		RefundParentWeights: []allocationCategoryWeightRow{
+			{BillingID: 2, Category: "goods", Amount: 1000},
+		},
+	}
+
+	payMethods := []model.PaymentMethodMaster{
+		{ID: 1, Name: "現金", SystemKey: ptrString("cash"), IsActive: true, DisplayOrder: 1},
+	}
+	sysFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
+	matrix := AggregateCategoryPaymentMatrix(BuildAllocationBillings(data, sysFn, sysRefundFn))
+
+	matrixGrand := MatrixGrandTotal(matrix)
+	assert.Equal(t, int64(2600), matrixGrand, "締め合計 = period payments − occurrence-date refunds")
+
+	// KPI NetAmount path (documented dual definition — not used as matrix total):
+	var paymentSum int64
+	for _, p := range data.Payments {
+		paymentSum += p.Amount
+	}
+	// completed-attached refunds for billings that have period payments/weights only
+	completedInPeriod := map[uint64]struct{}{1: {}}
+	var completedAttachedRefund int64
+	for _, ref := range data.Refunds {
+		if _, ok := completedInPeriod[ref.BillingID]; ok {
+			completedAttachedRefund += ref.Amount
+		}
+	}
+	kpiNet := paymentSum - completedAttachedRefund
+	assert.Equal(t, int64(3000), kpiNet, "KPI NetAmount ignores occurrence-only cross-period refund")
+	assert.NotEqual(t, matrixGrand, kpiNet, "dual definition: matrix grand ≠ KPI NetAmount when refund occurrence ≠ completion period")
+}
+
 func TestOrderPaymentMethodsForMatrix_InactiveAndUnknownAtEnd(t *testing.T) {
 	t.Parallel()
 	masters := []model.PaymentMethodMaster{
@@ -95,9 +241,9 @@ func TestOrderPaymentMethodsForMatrix_InactiveAndUnknownAtEnd(t *testing.T) {
 	}
 	matrix := map[string]map[string]int64{
 		"examination": {
-			"現金":       100,
-			"クレジット":    200,
-			"旧ポイント":    50,
+			"現金":      100,
+			"クレジット":   200,
+			"旧ポイント":   50,
 			"削除済みカード": 30,
 		},
 	}

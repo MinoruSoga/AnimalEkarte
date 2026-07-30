@@ -10,9 +10,14 @@ import (
 // Contract (DEC-16⑥ / DEC-40 Q2):
 //   - matrix 総額 = 支払実額基準（割引適用後・締め合計と一致）
 //   - 割引は明細金額比例で配賦（category weight = 明細金額、payment を配分）
-//   - 返金は発生日の負値として payment 側に負額を載せる
+//   - 返金は発生日の負値として payment 側に負額を載せる（pre-net 禁止・行単位配賦）
 //   - 端数は最大剰余法で行合計=列合計=総計を円単位保存
 //   - 「件数」= 会計 distinct（本 helper は金額のみ。件数は呼び出し側）
+//
+// Dual amount definitions (do not collapse):
+//   - 締め合計 / matrix grand = Σpayments(completed_at∈period) − Σrefunds(refunded_at∈period)
+//   - KPI NetAmount may attach refunds to parent completed_at period instead; that figure is
+//     NOT the matrix total. See docs/spec/screens/29-closing-aggregation.md §DEC-16⑥.
 //
 // Do NOT use period-wide payment ratio (old buildCategoryBreakdown bug).
 
