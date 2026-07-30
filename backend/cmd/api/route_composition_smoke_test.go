@@ -37,9 +37,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	for _, route := range router.Routes() {
 		routes[route.Method+" "+route.Path] = struct{}{}
 	}
-	// The contract scanner resolves 486 explicit target routes. Gin's StaticFS
-	// adds GET and HEAD for /uploads/*filepath, yielding 488 runtime routes.
-	require.Len(t, routes, 488)
+	// Runtime surface after #239 identitylink routes (11) and StaticFS GET/HEAD.
+	// Measured 2026-07-30 red-sweep: 496 unique Method+Path pairs.
+	require.Len(t, routes, 496)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",

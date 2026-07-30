@@ -39,6 +39,7 @@ func TestNewOwnerPetCompositionBuildsRepositoriesServicesAndHandlers(t *testing.
 	handlers.Owner.RegisterRoutes(protected)
 	handlers.Pet.RegisterRoutes(protected)
 
-	require.Len(t, router.Routes(), 36)
-	require.Equal(t, 36, permissionCalls)
+	// Owner surface is 11 routes (SOLO-33 removed clinic-scoped aliases); pet surface is 20.
+	require.Len(t, router.Routes(), 31)
+	require.Equal(t, 31, permissionCalls)
 }
