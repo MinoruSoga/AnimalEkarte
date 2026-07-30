@@ -64,6 +64,9 @@ type LineLinkAuditTxLogger interface {
 // import 不可）の LINE 認証情報参照の最小view。
 type lstepLineSettingReader interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	// FindByLineBotUserID は webhook destination（LINE bot user ID）で 1 件だけ引く。
+	// SEC-CS-F05-R1: 署名検証は FindAll 全件 HMAC ではなくこの lookup を使う。
+	FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error)
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 }
 
