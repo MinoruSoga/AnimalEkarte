@@ -28,6 +28,9 @@ frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/debug_*.png
+# Playwright MCP のブラウザQA成果物（console ログ・page snapshot yml）。
+# curated な証跡は tmp/ 配下（同じく ignore 済み）へ置く運用のため commit しない。
+.playwright-mcp/
 
 # Backend coverage artifacts (CI generates these; non-gating)
 backend/coverage.out
