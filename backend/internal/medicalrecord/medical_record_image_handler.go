@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -185,7 +186,8 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		respondMedicalRecordImageUploadQuotaError(c, err)
 		return
 	}
-	defer release(c.Request.Context())
+	// Release must not inherit a canceled request context (lease would stick until stale TTL).
+	defer release(context.WithoutCancel(c.Request.Context()))
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, medicalRecordImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")

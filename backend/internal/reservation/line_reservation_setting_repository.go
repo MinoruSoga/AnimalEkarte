@@ -117,7 +117,9 @@ func lineReservationSettingUpdatableColumns() []string {
 		"additional_fields",
 		"line_channel_id",
 		"line_channel_secret",
-		"line_bot_user_id",
+		// line_bot_user_id is ops/migration-provisioned for O(1) webhook routing
+		// (SEC-CS-F05-R1). Exclude from OnConflict updates so UI/API Save cannot
+		// wipe a provisioned bot user ID with the zero value.
 		"liff_id",
 		"line_access_token",
 		"updated_at",

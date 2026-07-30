@@ -153,6 +153,29 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
+	t.Run("Save does not wipe provisioned line_bot_user_id (SEC-CS-F05-R1)", func(t *testing.T) {
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Where("clinic_id = ?", clinicA).
+			Update("line_bot_user_id", "bot-provisioned").Error)
+
+		wiped := &model.LineReservationSetting{
+			ClinicID:         clinicA,
+			Status:           "active",
+			ClosedWeekdays:   []byte(`[]`),
+			ClosedDates:      []byte(`[]`),
+			BusinessHours:    []byte(`{"start":"1000","end":"1800"}`),
+			BreakHours:       []byte(`[]`),
+			AdditionalFields: []byte(`{}`),
+			// LineBotUserID intentionally empty — API Save path never sends it.
+		}
+		require.NoError(t, repo.Save(ctx, clinicA, wiped))
+
+		got, err := repo.FindByClinicID(ctx, clinicA)
+		require.NoError(t, err)
+		assert.Equal(t, "bot-provisioned", got.LineBotUserID)
+	})
+
 	t.Run("does not affect another clinic", func(t *testing.T) {
 		const clinicB = uint64(2)
 		makeLineReservationSetting(t, db, clinicB)
