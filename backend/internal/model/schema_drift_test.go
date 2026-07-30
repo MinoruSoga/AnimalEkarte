@@ -159,6 +159,11 @@ func allModels() []any {
 		&model.LstepTagCache{},
 		&model.LstepTagCodeMapping{},
 		&model.LstepTriggerPriority{},
+		// #239 Phase 1 (fb11108c8): multi-clinic identity links
+		&model.OwnerIdentityGroup{},
+		&model.OwnerIdentityGroupMember{},
+		&model.PetIdentityGroup{},
+		&model.PetIdentityGroupMember{},
 	}
 }
 

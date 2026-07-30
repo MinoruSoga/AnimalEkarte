@@ -66,11 +66,11 @@ func TestGetLineReservationSetting(t *testing.T) {
 			svc: &mockLineReservationSettingService{
 				getFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					return &model.LineReservationSetting{ID: 1, ClinicID: 1, Status: "open"}, nil
+					return &model.LineReservationSetting{ID: 1, ClinicID: 1, Status: "running"}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"status":"open"`,
+			wantBody:   `"status":"running"`,
 		},
 		{
 			name:       "returns 401 when clinic_id missing",
@@ -130,7 +130,14 @@ func TestSaveLineReservationSetting(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	validBody := func() map[string]any {
-		return map[string]any{"status": "open", "header_text": "ご予約はこちら"}
+		// Binding contract: status oneof=running|stopped; time_slot_* / no_staff_mode required.
+		return map[string]any{
+			"status":                     "running",
+			"header_text":                "ご予約はこちら",
+			"time_slot_mode":             "minimize_gaps",
+			"time_slot_interval_minutes": 15,
+			"no_staff_mode":              "first_available",
+		}
 	}
 
 	tests := []struct {
@@ -149,12 +156,12 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			svc: &mockLineReservationSettingService{
 				saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, "open", input.Status)
+					assert.Equal(t, "running", input.Status)
 					return &model.LineReservationSetting{ID: 1, ClinicID: clinicID, Status: input.Status}, true, nil
 				},
 			},
 			wantStatus:      http.StatusCreated,
-			wantBody:        `"status":"open"`,
+			wantBody:        `"status":"running"`,
 			wantLocationHdr: true,
 		},
 		{
@@ -167,7 +174,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"status":"open"`,
+			wantBody:   `"status":"running"`,
 		},
 		{
 			name:       "returns 401 when clinic_id missing",

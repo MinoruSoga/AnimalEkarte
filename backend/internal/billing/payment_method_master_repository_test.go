@@ -35,7 +35,11 @@ func setupPaymentMethodMasterRepoTestDB(t *testing.T) *gorm.DB {
 
 func makePaymentMethodMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.PaymentMethodMaster {
 	t.Helper()
-	m := &model.PaymentMethodMaster{ClinicID: clinicID, Name: name, IsActive: true}
+	// SystemKey must match Payment.Method for the TASK-ADR003 DB boundary check.
+	systemKey := string(model.PaymentMethodCash)
+	m := &model.PaymentMethodMaster{
+		ClinicID: clinicID, Name: name, IsActive: true, SystemKey: &systemKey,
+	}
 	require.NoError(t, db.WithContext(context.Background()).Create(m).Error)
 	return m
 }
@@ -50,7 +54,14 @@ func makePaymentMethodBilling(t *testing.T, db *gorm.DB, clinicID uint64) *model
 func makePaymentForBilling(t *testing.T, db *gorm.DB, billingID, paymentMethodID uint64) *model.Payment {
 	t.Helper()
 	pmID := paymentMethodID
-	p := &model.Payment{BillingID: billingID, PaymentMethodID: &pmID, Method: model.PaymentMethodCash, TotalAmount: 1000, BillingAmount: 1000}
+	// clinic_id + payment_method system_key alignment required by ADR-003 check constraint.
+	var clinicID uint64
+	require.NoError(t, db.WithContext(context.Background()).
+		Model(&model.Billing{}).Select("clinic_id").Where("id = ?", billingID).Scan(&clinicID).Error)
+	p := &model.Payment{
+		ClinicID: clinicID, BillingID: billingID, PaymentMethodID: &pmID,
+		Method: model.PaymentMethodCash, TotalAmount: 1000, BillingAmount: 1000,
+	}
 	require.NoError(t, db.WithContext(context.Background()).Create(p).Error)
 	return p
 }
@@ -223,12 +234,14 @@ func TestPaymentMethodMasterRepository_CountUsageByPaymentMethodID(t *testing.T)
 	})
 
 	t.Run("別クリニックの請求に紐づく支払はカウントされない", func(t *testing.T) {
-		m := makePaymentMethodMaster(t, db, clinicA, "越境参照対象支払方法")
-		// clinic B の billing から clinic A の支払方法を参照する汚染データを模擬
+		mA := makePaymentMethodMaster(t, db, clinicA, "越境参照対象支払方法")
+		// ADR-003 DB boundary rejects cross-clinic payment_method_id pollution.
+		// Prove isolation via a valid clinic-B payment that must not inflate clinic-A usage.
+		mB := makePaymentMethodMaster(t, db, clinicB, "医院B支払方法")
 		billingB := makePaymentMethodBilling(t, db, clinicB)
-		makePaymentForBilling(t, db, billingB.ID, m.ID)
+		makePaymentForBilling(t, db, billingB.ID, mB.ID)
 
-		count, err := repo.CountUsageByPaymentMethodID(ctx, clinicA, m.ID)
+		count, err := repo.CountUsageByPaymentMethodID(ctx, clinicA, mA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count, "別クリニックのbillingに紐づく支払はJOINで除外される")
 	})

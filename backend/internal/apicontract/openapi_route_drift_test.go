@@ -94,9 +94,9 @@ var knownMissingFromSpec = map[string]bool{
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/line/send-logs":           true, // alias of documented GET /owners/{id}/line/send-logs
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":               true, // alias of documented GET /owners/{id}/lstep/tags
 	// POC-08 / SOLO-33: removed decorative clinic-scoped owner PATCH aliases from routes.
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send": true, // alias of documented POST /owners/{id}/line/send
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":           true, // alias of documented POST /owners/{id}/lstep-opt-out
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":              true, // alias of documented POST /owners/{id}/lstep/tags
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send":     true, // alias of documented POST /owners/{id}/line/send
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out": true, // alias of documented POST /owners/{id}/lstep-opt-out
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":    true, // alias of documented POST /owners/{id}/lstep/tags
 
 	// --- Phase D-1 (完了): canonical /owners/{id} lstep/line family — 15/18 documented in
 	// api.yaml; the remaining 3 are same-handler aliases of a documented sibling path and stay
@@ -145,6 +145,10 @@ var knownMissingFromSpec = map[string]bool{
 	"PATCH /api/v1/clinics/{clinic_id}/pets/{id}/death":                  true, // alias of documented PATCH /pets/{id}/death
 	"POST /api/v1/clinics/{clinic_id}/lstep-settings/test-connection":    true, // alias of documented POST /lstep-settings/test-connection
 	"PUT /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings/{tag_name}": true, // alias of documented PUT /lstep-tag-code-mappings/{tag_name}
+
+	// #239 Phase 1: reverse-lookup routes implemented; OpenAPI docs still pending (packet: IDENTITYLINK-OPENAPI-GROUP-LOOKUP).
+	"GET /api/v1/identity-links/owners/{clinic_id}/{owner_id}/group": true,
+	"GET /api/v1/identity-links/pets/{clinic_id}/{pet_id}/group":     true,
 }
 
 var knownPhantomInSpec = map[string]bool{
@@ -452,6 +456,9 @@ var routeRootPackages = []struct {
 	{dir: "../billing", prefix: "/api/v1"},
 	{dir: "../lstep", prefix: "/api/v1"},
 	{dir: "../trimming", prefix: "/api/v1"},
+	// #239 Phase 1 — identitylink.RegisterRoutes is mounted from composition_runtime
+	// via NewHandler(...).RegisterRoutes(protected); walk package root directly.
+	{dir: "../identitylink", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
 	{dir: "../lstep", prefix: "", rootFn: "RegisterWebhookRoutes"},
 	{dir: "../scheduler", prefix: ""},
