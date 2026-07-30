@@ -24,6 +24,14 @@
 - **KPI 4枚**: 診療日数 / 会計件数 / 売上合計（返金併記） / 純売上。
 - **内訳3枚**: 支払方法別合計 / 部門別合計 / 消費税内訳（医院設定マスタの標準・軽減税率ごと。病院設定の閲覧権限保持時のみ消費税内訳ヘッダ右に「税率設定を変更」リンクを `taxSettingsLink` として表示）。
 
+### ゾーン4. 部門×支払方法統合表（#247 / DEC-16⑥）— `CategoryPaymentMatrixTable`
+- **目的**: カテゴリ×支払方法を 1 表で確認し、別集計・手計算を削除する。
+- **金額**: 支払実額基準（割引適用後・締め合計と一致する配賦 helper を共有）。
+- **配賦**: 会計単位・明細金額比例・最大剰余法。返金は発生日の負値。
+- **件数**: 会計 distinct（フッタ件数は期間内完了会計の総 distinct。行件数の単純合算ではない）。
+- **列順**: 医院 payment method master 順。期間内データ付き inactive / unknown は末尾。
+- **印刷**: `MonthlyReportPrintArea` が同一 `category_payment_matrix` を描画（列欠落・横切れを避けるため A4 横）。
+
 ---
 
 ## 主要な機能
@@ -45,12 +53,13 @@
 - **`AccountingReportsPage`**: メインページ。
 - **`MonthlySummaryCards`**: 指標サマリーのカード部品。
 - **`DailyBreakdownTable`**: 日次推移の一覧テーブル。
+- **`CategoryPaymentMatrixTable`**: #247 部門×支払方法統合表。
 - **`MonthlyReportPrintArea`**: 印刷 / PDF出力用の帳票ビュー（`PrintPortal` 経由・印刷時のみ表示）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/reports/monthly` | 指定年月（`year`/`month`）または期間（`start_date`/`end_date`）の集計データの取得 | `accounting-reports` | `view` |
+| GET | `/api/v1/reports/monthly` | 指定年月（`year`/`month`）または期間（`start_date`/`end_date`）の集計データ取得。`category_payment_matrix` を含む | `accounting-reports` | `view` |
 | GET | `/api/v1/reports/monthly/csv` | 集計データの CSV 出力（同じく年月・期間の両指定に対応） | `accounting-reports` | `view` |
 
 ---

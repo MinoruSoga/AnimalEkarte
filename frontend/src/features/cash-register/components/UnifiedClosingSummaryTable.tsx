@@ -18,6 +18,8 @@ interface UnifiedClosingSummaryTableProps {
   billingDetails: CloseBillingDetail[];
   /** DEC-40: other 行の会計 distinct 件数。null = 記録なし */
   unclassifiedOtherCount?: UnclassifiedOtherCountInput;
+  /** #247: 部門ごとの会計 distinct 件数 */
+  categoryCounts?: Record<string, number>;
 }
 
 /**
@@ -30,10 +32,11 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
   paymentMethods,
   billingDetails,
   unclassifiedOtherCount,
+  categoryCounts,
 }: UnifiedClosingSummaryTableProps) {
   const rows = useMemo(
-    () => buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount),
-    [categories, billingDetails, unclassifiedOtherCount],
+    () => buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount, categoryCounts),
+    [categories, billingDetails, unclassifiedOtherCount, categoryCounts],
   );
   const totals = useMemo(() => buildUnifiedClosingTotals(rows), [rows]);
 

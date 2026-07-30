@@ -40,14 +40,16 @@ export type UnclassifiedOtherCountInput = number | null | undefined;
  * 画面表示（UnifiedClosingSummaryTable）と印刷／PDF（ClosePrintArea）の双方が
  * この単一関数を描画源とすることで、表示値とPDF出力値の一致を構造的に保証する。
  *
- * 注: 一般部門の件数は billingDetails、金額は categories マトリクスという別系統のサーバ値から
- * 導出する（クライアントでは突合しない）。other 行の件数だけは DEC-40 の独立集計
- * （unclassifiedOtherCount）を優先し、MIN(category) / payment_splits 展開の歪みを避ける。
+ * 件数優先順位 (#247 DEC-16⑥ / DEC-40):
+ * 1. other 行: unclassifiedOtherCount（独立 distinct）
+ * 2. 一般行: categoryCounts（サーバ会計 distinct、split 二重計上なし）
+ * 3. フォールバック: billingDetails 行数（旧経路・MIN(category)/split 歪みあり）
  */
 export function buildUnifiedClosingRows(
   categories: Record<string, Record<string, number>>,
   billingDetails: readonly CloseBillingDetail[],
   unclassifiedOtherCount?: UnclassifiedOtherCountInput,
+  categoryCounts?: Record<string, number>,
 ): UnifiedClosingRow[] {
   return DISPLAY_CATEGORIES.map((group) => {
     const byMethod: Record<string, number> = {};
@@ -65,6 +67,10 @@ export function buildUnifiedClosingRows(
     if (isOther && unclassifiedOtherCount !== undefined) {
       // null → 記録なし / number → 独立集計値
       count = unclassifiedOtherCount;
+    } else if (categoryCounts) {
+      // #247: 会計 distinct をカテゴリキー合算（同一会計が複数 key を持つ場合は OR 近似として合算。
+      // DISPLAY_CATEGORIES の key は排他グループなので二重計上しない）
+      count = group.keys.reduce((sum, key) => sum + (categoryCounts[key] ?? 0), 0);
     } else {
       count = billingDetails.filter((d) => group.keys.includes(d.category)).length;
     }

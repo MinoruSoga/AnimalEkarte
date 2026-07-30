@@ -3,8 +3,8 @@ package billing
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -43,6 +43,9 @@ type CloseAggregateSummary struct {
 	TaxBreakdown    TaxBreakdownSummary         `json:"tax_breakdown"`
 	// UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
 	UnclassifiedOtherCount int64 `json:"unclassified_other_count"`
+	// CategoryCounts は部門ごとの会計 distinct 件数（#247 DEC-16⑥ / DEC-40）。
+	// key = item_category enum。FE は DISPLAY_CATEGORIES で集約する。
+	CategoryCounts map[string]int64 `json:"category_counts"`
 }
 
 // CloseBillingDetail は個別会計一覧の1レコード（フロントエンド向け）
@@ -60,46 +63,19 @@ type CloseBillingDetail struct {
 	NetAmount         int64   `json:"net_amount"`
 }
 
-// buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
-// 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
-// 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
-// payment_method_id=NULL の行（旧 seed/レガシーデータの現金 split）は現金 system_key に計上する。
-// calcTheoreticalCash と同じ「NULL=現金」判定（#128 後方互換）に揃えないと、category_breakdown の合計が
-// totalPayment（NULL 行を含む）と一致しなくなる。
+// buildCategoryBreakdown builds CategoryBreakdownSchema from a per-billing allocated matrix
+// (#247 DEC-16⑥). Matrix keys are system_key / method_N / cash (NULL legacy).
+// Do NOT reintroduce period-wide payment ratio pseudo-allocation.
 // unclassifiedOtherCount は DEC-40 の会計 distinct 件数を snapshot に保存する（0 でもポインタで記録）。
-func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, taxRows []TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates, unclassifiedOtherCount int64) model.CategoryBreakdownSchema {
-	idToKey := make(map[uint64]string, len(payMethods))
-	for i := range payMethods {
-		m := &payMethods[i]
-		if m.SystemKey != nil {
-			idToKey[m.ID] = *m.SystemKey
-		} else {
-			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
+func buildCategoryBreakdown(matrix map[string]map[string]int64, taxRows []TaxBreakdownRow, taxRates accountingReportTaxRates, unclassifiedOtherCount int64) model.CategoryBreakdownSchema {
+	// Defensive copy so callers cannot mutate snapshot map.
+	cats := make(map[string]map[string]int64, len(matrix))
+	for cat, byMethod := range matrix {
+		dst := make(map[string]int64, len(byMethod))
+		for k, v := range byMethod {
+			dst[k] = v
 		}
-	}
-	cashKey := PaymentMethodSystemKeys[model.PaymentMethodCash]
-
-	var totalPayment int64
-	for _, pm := range payRows {
-		totalPayment += pm.Amount
-	}
-
-	cats := make(map[string]map[string]int64)
-	for _, cat := range catRows {
-		cats[cat.Category] = make(map[string]int64)
-		for _, pm := range payRows {
-			key := cashKey
-			if pm.PaymentMethodID != nil {
-				var ok bool
-				key, ok = idToKey[*pm.PaymentMethodID]
-				if !ok {
-					key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
-				}
-			}
-			if totalPayment > 0 {
-				cats[cat.Category][key] += cat.Amount * pm.Amount / totalPayment
-			}
-		}
+		cats[cat] = dst
 	}
 
 	tax := buildTaxBreakdown(taxRows, taxRates)
@@ -114,29 +90,87 @@ func buildCategoryBreakdown(payRows []PaymentAggregateRow, catRows []CategoryAgg
 	}
 }
 
-func buildPreviewCategories(payRows []PaymentAggregateRow, catRows []CategoryAggregateRow, names map[uint64]string) (map[string]map[string]int64, error) {
-	for _, cat := range catRows {
-		if err := validateCloseAggregateCategory(cat.Category); err != nil {
+// buildPreviewCategories validates categories and returns the name-keyed matrix for UI.
+func buildPreviewCategories(matrix map[string]map[string]int64) (map[string]map[string]int64, error) {
+	for cat := range matrix {
+		if err := validateCloseAggregateCategory(cat); err != nil {
 			return nil, err
 		}
 	}
-
-	var totalPayment int64
-	for _, pm := range payRows {
-		totalPayment += pm.Amount
+	// Defensive copy
+	out := make(map[string]map[string]int64, len(matrix))
+	for cat, byMethod := range matrix {
+		dst := make(map[string]int64, len(byMethod))
+		for k, v := range byMethod {
+			dst[k] = v
+		}
+		out[cat] = dst
 	}
+	return out, nil
+}
 
-	categories := make(map[string]map[string]int64)
-	for _, cat := range catRows {
-		categories[cat.Category] = make(map[string]int64)
-		for _, pm := range payRows {
-			pmName := paymentMethodNameForClose(pm.PaymentMethodID, names)
-			if totalPayment > 0 {
-				categories[cat.Category][pmName] += cat.Amount * pm.Amount / totalPayment
-			}
+// computeCategoryPaymentMatrix allocates payment net onto categories per billing (DEC-16⑥).
+func computeCategoryPaymentMatrix(
+	data *CategoryPaymentAllocationData,
+	methodKeyFn func(*uint64) string,
+	refundMethodKeyFn func(*string) string,
+) map[string]map[string]int64 {
+	billings := BuildAllocationBillings(data, methodKeyFn, refundMethodKeyFn)
+	return AggregateCategoryPaymentMatrix(billings)
+}
+
+// orderPaymentMethodsForMatrix returns payment method columns:
+// active masters in display_order, then inactive masters that have period data, then
+// unknown method labels present in the matrix (DEC-16⑥ 末尾表示).
+func orderPaymentMethodsForMatrix(masters []model.PaymentMethodMaster, matrix map[string]map[string]int64) []model.PaymentMethodMaster {
+	usedNames := make(map[string]struct{})
+	for _, byMethod := range matrix {
+		for name := range byMethod {
+			usedNames[name] = struct{}{}
 		}
 	}
-	return categories, nil
+
+	out := make([]model.PaymentMethodMaster, 0, len(masters)+len(usedNames))
+	seenName := make(map[string]struct{}, len(masters))
+	// Pass 1: active masters (already ordered by FindAll display_order)
+	for i := range masters {
+		m := masters[i]
+		if !m.IsActive {
+			continue
+		}
+		out = append(out, m)
+		seenName[m.Name] = struct{}{}
+		delete(usedNames, m.Name)
+	}
+	// Pass 2: inactive masters with data
+	for i := range masters {
+		m := masters[i]
+		if m.IsActive {
+			continue
+		}
+		if _, ok := usedNames[m.Name]; !ok {
+			continue
+		}
+		out = append(out, m)
+		seenName[m.Name] = struct{}{}
+		delete(usedNames, m.Name)
+	}
+	// Pass 3: unknown / deleted labels still holding amounts
+	unknown := make([]string, 0, len(usedNames))
+	for name := range usedNames {
+		if _, ok := seenName[name]; ok {
+			continue
+		}
+		unknown = append(unknown, name)
+	}
+	sort.Strings(unknown)
+	for _, name := range unknown {
+		out = append(out, model.PaymentMethodMaster{
+			Name:     name,
+			IsActive: false,
+		})
+	}
+	return out
 }
 
 // CashRegisterService はレジ締めのビジネスロジックインターフェース
@@ -166,6 +200,12 @@ type periodAggregate struct {
 	TaxRates accountingReportTaxRates
 	// UnclassifiedOtherCount は category=other 明細を持つ会計の distinct 件数（DEC-40）。
 	UnclassifiedOtherCount int64
+	// CategoryPaymentMatrixSystemKey は system_key キーの配賦マトリクス（snapshot 用）。
+	CategoryPaymentMatrixSystemKey map[string]map[string]int64
+	// CategoryPaymentMatrixNames は表示名キーの配賦マトリクス（preview UI 用）。
+	CategoryPaymentMatrixNames map[string]map[string]int64
+	// CategoryCounts は部門ごとの会計 distinct 件数。
+	CategoryCounts map[string]int64
 }
 
 type cashRegisterService struct {
@@ -246,19 +286,37 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to load clinic for tax rates")
 	}
 
+	// #247 DEC-16⑥: per-billing 配賦（期間全体 payment 比率の擬似按分は禁止）
+	allocData, err := s.accountingRepo.GetCategoryPaymentAllocationData(ctx, clinicID, periodStart, periodEnd)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load category payment allocation data", "error", err)
+		return nil, apperrors.Wrap(err, "failed to load category payment allocation data")
+	}
+	sysKeyFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
+	nameFn, nameRefundFn := BuildNameMethodResolvers(payMethods)
+	matrixSystemKey := computeCategoryPaymentMatrix(allocData, sysKeyFn, sysRefundFn)
+	matrixNames := computeCategoryPaymentMatrix(allocData, nameFn, nameRefundFn)
+	categoryCounts := map[string]int64{}
+	if allocData != nil && allocData.CategoryCounts != nil {
+		categoryCounts = allocData.CategoryCounts
+	}
+
 	return &periodAggregate{
-		Schedule:               schedule,
-		PaymentRows:            aggregate.PaymentRows,
-		CategoryRows:           aggregate.CategoryRows,
-		TotalRefund:            aggregate.TotalRefund,
-		BillingDetails:         aggregate.BillingDetails,
-		TaxBreakdown:           aggregate.TaxBreakdown,
-		TheoreticalCash:        calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
-		PeriodStart:            periodStart,
-		PeriodEnd:              periodEnd,
-		PaymentMethods:         payMethods,
-		TaxRates:               clinicTaxRates(clinic),
-		UnclassifiedOtherCount: aggregate.UnclassifiedOtherCount,
+		Schedule:                       schedule,
+		PaymentRows:                    aggregate.PaymentRows,
+		CategoryRows:                   aggregate.CategoryRows,
+		TotalRefund:                    aggregate.TotalRefund,
+		BillingDetails:                 aggregate.BillingDetails,
+		TaxBreakdown:                   aggregate.TaxBreakdown,
+		TheoreticalCash:                calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
+		PeriodStart:                    periodStart,
+		PeriodEnd:                      periodEnd,
+		PaymentMethods:                 payMethods,
+		TaxRates:                       clinicTaxRates(clinic),
+		UnclassifiedOtherCount:         aggregate.UnclassifiedOtherCount,
+		CategoryPaymentMatrixSystemKey: matrixSystemKey,
+		CategoryPaymentMatrixNames:     matrixNames,
+		CategoryCounts:                 categoryCounts,
 	}, nil
 }
 
@@ -295,8 +353,8 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	payMethods := agg.PaymentMethods
 	payMethodNames := buildPayMethodNameMap(payMethods)
 
-	// カテゴリ別×支払方法名別集計マップを構築（混在支払いは比率按分）
-	categories, err := buildPreviewCategories(agg.PaymentRows, agg.CategoryRows, payMethodNames)
+	// #247: per-billing 配賦済みマトリクス（表示名キー）
+	categories, err := buildPreviewCategories(agg.CategoryPaymentMatrixNames)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to build preview categories")
 	}
@@ -332,10 +390,11 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
 		Aggregate: CloseAggregateSummary{
 			Categories:             categories,
-			PaymentMethods:         payMethods,
+			PaymentMethods:         orderPaymentMethodsForMatrix(payMethods, categories),
 			TheoreticalCash:        agg.TheoreticalCash,
 			TaxBreakdown:           taxSummary,
 			UnclassifiedOtherCount: agg.UnclassifiedOtherCount,
+			CategoryCounts:         agg.CategoryCounts,
 		},
 		BillingDetails: details,
 	}, nil
@@ -364,8 +423,8 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
-	// category_breakdown JSONB を構築（消費税内訳・未分類件数 snapshot を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods, agg.TaxRates, agg.UnclassifiedOtherCount)
+	// category_breakdown JSONB を構築（#247 per-billing 配賦・消費税内訳・未分類件数 snapshot）
+	breakdownSchema := buildCategoryBreakdown(agg.CategoryPaymentMatrixSystemKey, agg.TaxBreakdown, agg.TaxRates, agg.UnclassifiedOtherCount)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)

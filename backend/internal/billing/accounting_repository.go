@@ -41,6 +41,8 @@ type AccountingRepository interface {
 	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
 	GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
+	// #247 DEC-16⑥: カテゴリ×支払 per-billing 配賦入力（締め・月次共通）
+	GetCategoryPaymentAllocationData(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error)
 	// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
 	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。

@@ -25,6 +25,8 @@ type MonthlyReportResponse struct {
 	EndDate      string               `json:"end_date"`
 	Summary      MonthlyReportSummary `json:"summary"`
 	DailyDetails []DailyReportDetail  `json:"daily_details"`
+	// CategoryPaymentMatrix は #247 部門×支払方法統合表（画面・印刷同一データ）。
+	CategoryPaymentMatrix *CategoryPaymentMatrix `json:"category_payment_matrix"`
 }
 
 // MonthlyReportSummary は月次サマリー情報
@@ -37,6 +39,40 @@ type MonthlyReportSummary struct {
 	ByPaymentMethod map[string]int64    `json:"by_payment_method"`
 	ByCategory      map[string]int64    `json:"by_category"`
 	TaxBreakdown    TaxBreakdownSummary `json:"tax_breakdown"`
+}
+
+// CategoryPaymentMatrix は #247 DEC-16⑥ のカテゴリ×支払方法マトリクス。
+// 金額は支払実額基準（割引適用後）。件数は会計 distinct。
+type CategoryPaymentMatrix struct {
+	// PaymentMethods は列順（医院 master 順 + 期間内データ付き inactive/unknown 末尾）。
+	PaymentMethods []CategoryPaymentMethodColumn `json:"payment_methods"`
+	// Rows は部門行（amount 0 かつ count 0 の行は省略可だが、FE が DISPLAY 集約するため raw category を返す）。
+	Rows []CategoryPaymentMatrixRow `json:"rows"`
+	// Totals は列合計・総合計。件数合計は会計 distinct 総数（行件数の単純合算ではない）。
+	Totals CategoryPaymentMatrixTotals `json:"totals"`
+}
+
+// CategoryPaymentMethodColumn はマトリクスの支払方法列。
+type CategoryPaymentMethodColumn struct {
+	ID       *uint64 `json:"id,omitempty"`
+	Name     string  `json:"name"`
+	IsActive bool    `json:"is_active"`
+}
+
+// CategoryPaymentMatrixRow は1カテゴリ行。
+type CategoryPaymentMatrixRow struct {
+	Category string           `json:"category"`
+	Count    int64            `json:"count"` // 会計 distinct
+	ByMethod map[string]int64 `json:"by_method"`
+	RowTotal int64            `json:"row_total"`
+}
+
+// CategoryPaymentMatrixTotals はフッタ合計。
+type CategoryPaymentMatrixTotals struct {
+	// Count は期間内完了会計の distinct 総数（split 二重計上なし）。
+	Count      int64            `json:"count"`
+	ByMethod   map[string]int64 `json:"by_method"`
+	GrandTotal int64            `json:"grand_total"`
 }
 
 // TaxBreakdownSummary は標準・軽減税率別サマリー
@@ -95,7 +131,8 @@ func isReducedTaxRate(rowRate int64, rates accountingReportTaxRates) bool {
 	return rowRate == rates.ReducedPercent
 }
 
-// buildMonthlyReportResponse は生データからフロントエンド向けレスポンスを構築する
+// buildMonthlyReportResponse は生データからフロントエンド向けレスポンスを構築する。
+// matrix は #247 配賦済み（nil 可 — その場合 category_payment_matrix は空骨格）。
 func buildMonthlyReportResponse(
 	year, month int,
 	startDate, endDate time.Time,
@@ -103,6 +140,7 @@ func buildMonthlyReportResponse(
 	payMethodNames map[uint64]string,
 	holidaySet map[string]bool,
 	taxRates accountingReportTaxRates,
+	matrix *CategoryPaymentMatrix,
 ) *MonthlyReportResponse {
 	// 日付別の集計マップを構築
 	type dailyAgg struct {
@@ -232,13 +270,86 @@ func buildMonthlyReportResponse(
 		TaxBreakdown:    taxSummary,
 	}
 
+	if matrix == nil {
+		matrix = &CategoryPaymentMatrix{
+			PaymentMethods: []CategoryPaymentMethodColumn{},
+			Rows:           []CategoryPaymentMatrixRow{},
+			Totals: CategoryPaymentMatrixTotals{
+				Count:    raw.BillingCount,
+				ByMethod: map[string]int64{},
+			},
+		}
+	}
+
 	return &MonthlyReportResponse{
-		Year:         year,
-		Month:        month,
-		StartDate:    startDate.Format(time.DateOnly),
-		EndDate:      endDate.Format(time.DateOnly),
-		Summary:      summary,
-		DailyDetails: dailyDetails,
+		Year:                  year,
+		Month:                 month,
+		StartDate:             startDate.Format(time.DateOnly),
+		EndDate:               endDate.Format(time.DateOnly),
+		Summary:               summary,
+		DailyDetails:          dailyDetails,
+		CategoryPaymentMatrix: matrix,
+	}
+}
+
+// buildCategoryPaymentMatrix assembles the API matrix from allocation result + masters.
+// byCategoryNet is derived from matrix row totals (支払実額) so summary.by_category matches matrix.
+func buildCategoryPaymentMatrix(
+	matrix map[string]map[string]int64,
+	categoryCounts map[string]int64,
+	payMethods []model.PaymentMethodMaster,
+	billingCount int64,
+) *CategoryPaymentMatrix {
+	// Order columns: active master order → inactive with data → unknown labels
+	ordered := orderPaymentMethodsForMatrix(payMethods, matrix)
+	cols := make([]CategoryPaymentMethodColumn, 0, len(ordered))
+	for i := range ordered {
+		m := ordered[i]
+		col := CategoryPaymentMethodColumn{
+			Name:     m.Name,
+			IsActive: m.IsActive,
+		}
+		if m.ID != 0 {
+			id := m.ID
+			col.ID = &id
+		}
+		cols = append(cols, col)
+	}
+
+	// Stable category order = AllItemCategories declaration order
+	rows := make([]CategoryPaymentMatrixRow, 0, len(model.AllItemCategories()))
+	colTotals := make(map[string]int64)
+	var grand int64
+	for _, cat := range model.AllItemCategories() {
+		key := string(cat)
+		byMethod := matrix[key]
+		if len(byMethod) == 0 && categoryCounts[key] == 0 {
+			continue
+		}
+		rowByMethod := make(map[string]int64, len(byMethod))
+		var rowTotal int64
+		for name, amount := range byMethod {
+			rowByMethod[name] = amount
+			rowTotal += amount
+			colTotals[name] += amount
+		}
+		grand += rowTotal
+		rows = append(rows, CategoryPaymentMatrixRow{
+			Category: key,
+			Count:    categoryCounts[key],
+			ByMethod: rowByMethod,
+			RowTotal: rowTotal,
+		})
+	}
+
+	return &CategoryPaymentMatrix{
+		PaymentMethods: cols,
+		Rows:           rows,
+		Totals: CategoryPaymentMatrixTotals{
+			Count:      billingCount,
+			ByMethod:   colTotals,
+			GrandTotal: grand,
+		},
 	}
 }
 
@@ -381,7 +492,31 @@ func (s *accountingReportService) buildReportResponse(
 		return nil, apperrors.Wrap(err, "failed to get clinic tax settings")
 	}
 
-	return buildMonthlyReportResponse(year, month, startDate, endDate, raw, payMethodNames, holidaySet, clinicTaxRates(clinic)), nil
+	// #247: category×payment matrix（期間は [startDate, endDate+1day)）
+	periodEnd := endDate.AddDate(0, 0, 1)
+	allocData, err := s.repo.GetCategoryPaymentAllocationData(ctx, clinicID, startDate, periodEnd)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load category payment allocation data", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to load category payment allocation data")
+	}
+	nameFn, nameRefundFn := BuildNameMethodResolvers(payMethods)
+	allocated := computeCategoryPaymentMatrix(allocData, nameFn, nameRefundFn)
+	counts := map[string]int64{}
+	if allocData != nil {
+		counts = allocData.CategoryCounts
+	}
+	matrix := buildCategoryPaymentMatrix(allocated, counts, payMethods, raw.BillingCount)
+
+	// by_category を支払実額基準の行合計で上書き（summary と matrix の一致）
+	byCategoryNet := make(map[string]int64, len(matrix.Rows))
+	for _, row := range matrix.Rows {
+		byCategoryNet[row.Category] = row.RowTotal
+	}
+	resp := buildMonthlyReportResponse(year, month, startDate, endDate, raw, payMethodNames, holidaySet, clinicTaxRates(clinic), matrix)
+	if len(byCategoryNet) > 0 {
+		resp.Summary.ByCategory = byCategoryNet
+	}
+	return resp, nil
 }
 
 func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (map[string]bool, error) {

@@ -176,6 +176,7 @@ type mockAccountingRepository struct {
 	getCloseAggregateFn        func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 	getMonthlyReportFn         func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
 	getMonthlyReportByPeriodFn func(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
+	getCategoryPaymentAllocationDataFn func(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error)
 	sumPaidByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
@@ -288,6 +289,13 @@ func (m *mockAccountingRepository) GetMonthlyReportByPeriod(ctx context.Context,
 		return m.getMonthlyReportByPeriodFn(ctx, clinicID, start, end)
 	}
 	return &MonthlyReportResult{}, nil
+}
+
+func (m *mockAccountingRepository) GetCategoryPaymentAllocationData(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error) {
+	if m.getCategoryPaymentAllocationDataFn != nil {
+		return m.getCategoryPaymentAllocationDataFn(ctx, clinicID, periodStart, periodEnd)
+	}
+	return &CategoryPaymentAllocationData{CategoryCounts: map[string]int64{}}, nil
 }
 
 func (m *mockAccountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {

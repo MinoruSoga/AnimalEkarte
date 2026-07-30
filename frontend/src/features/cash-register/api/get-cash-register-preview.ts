@@ -24,6 +24,8 @@ interface BackendCashRegisterAggregateSummary {
   tax_breakdown: BackendCashRegisterTaxBreakdown;
   /** DEC-40: category=other 明細を持つ会計の distinct 件数 */
   unclassified_other_count: number;
+  /** #247 DEC-16⑥: 部門ごとの会計 distinct 件数 */
+  category_counts?: Record<string, number>;
 }
 
 interface BackendCloseBillingDetail {
@@ -75,6 +77,8 @@ function transformAggregateSummary(raw: BackendCashRegisterAggregateSummary) {
       Number.isFinite(raw.unclassified_other_count)
         ? raw.unclassified_other_count
         : 0,
+    // #247: 会計 distinct 件数（split 二重計上なし）。欠落時は undefined → FE は billingDetails フォールバック
+    categoryCounts: raw.category_counts ?? undefined,
   };
 }
 

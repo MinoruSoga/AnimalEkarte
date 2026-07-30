@@ -156,30 +156,30 @@ func TestCloseCategoryContract(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("preview allocation preserves integer arithmetic and rejects unknown categories", func(t *testing.T) {
-		cashID := uint64(1)
-		cardID := uint64(2)
-		payRows := []PaymentAggregateRow{
-			{PaymentMethodID: &cashID, Amount: 1},
-			{PaymentMethodID: &cardID, Amount: 2},
+	t.Run("preview allocation preserves conservation and rejects unknown categories (#247)", func(t *testing.T) {
+		// #247: matrix is payment-net based (not category gross * period ratio).
+		// Single category, payments 1+2 → cells equal payment amounts (sum=3).
+		matrix := map[string]map[string]int64{
+			string(model.ItemCategoryExamination): {
+				"現金":  1,
+				"カード": 2,
+			},
 		}
-		names := map[uint64]string{cashID: "現金", cardID: "カード"}
-
-		got, err := buildPreviewCategories(payRows, []CategoryAggregateRow{
-			{Category: string(model.ItemCategoryExamination), Amount: 100},
-		}, names)
+		got, err := buildPreviewCategories(matrix)
 		require.NoError(t, err)
 		assert.Equal(t, map[string]map[string]int64{
 			string(model.ItemCategoryExamination): {
-				"現金":  33,
-				"カード": 66,
+				"現金":  1,
+				"カード": 2,
 			},
 		}, got)
+		assert.Equal(t, int64(3), MatrixGrandTotal(got), "preview matrix conserves payment net")
 
-		got, err = buildPreviewCategories(payRows, []CategoryAggregateRow{
-			{Category: string(model.ItemCategoryExamination), Amount: 100},
-			{Category: "exam", Amount: 200},
-		}, names)
+		bad := map[string]map[string]int64{
+			string(model.ItemCategoryExamination): {"現金": 1},
+			"exam":                                {"現金": 2},
+		}
+		got, err = buildPreviewCategories(bad)
 		require.EqualError(t, err, `unknown item category in close aggregate: "exam"`)
 		assert.Nil(t, got)
 	})

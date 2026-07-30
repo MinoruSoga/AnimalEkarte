@@ -39,6 +39,32 @@ interface BackendDailyReportDetail {
   is_holiday: boolean;
 }
 
+/** #247 DEC-16⑥: 部門×支払方法マトリクス（支払実額・会計 distinct） */
+interface BackendCategoryPaymentMethodColumn {
+  id?: number;
+  name: string;
+  is_active: boolean;
+}
+
+interface BackendCategoryPaymentMatrixRow {
+  category: string;
+  count: number;
+  by_method: Record<string, number>;
+  row_total: number;
+}
+
+interface BackendCategoryPaymentMatrixTotals {
+  count: number;
+  by_method: Record<string, number>;
+  grand_total: number;
+}
+
+interface BackendCategoryPaymentMatrix {
+  payment_methods: BackendCategoryPaymentMethodColumn[];
+  rows: BackendCategoryPaymentMatrixRow[];
+  totals: BackendCategoryPaymentMatrixTotals;
+}
+
 interface BackendMonthlyReportResponse {
   year: number;
   month: number;
@@ -46,6 +72,7 @@ interface BackendMonthlyReportResponse {
   end_date: string;
   summary: BackendMonthlyReportSummary;
   daily_details: BackendDailyReportDetail[];
+  category_payment_matrix?: BackendCategoryPaymentMatrix | null;
 }
 
 // ── Transform functions ──────────────────────────────────────────────────────
@@ -89,6 +116,30 @@ function transformDailyReportDetail(raw: BackendDailyReportDetail) {
   };
 }
 
+function transformCategoryPaymentMatrix(
+  raw: BackendCategoryPaymentMatrix | null | undefined,
+): CategoryPaymentMatrix | null {
+  if (!raw) return null;
+  return {
+    paymentMethods: (raw.payment_methods ?? []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      isActive: m.is_active,
+    })),
+    rows: (raw.rows ?? []).map((r) => ({
+      category: r.category,
+      count: r.count,
+      byMethod: r.by_method ?? {},
+      rowTotal: r.row_total,
+    })),
+    totals: {
+      count: raw.totals?.count ?? 0,
+      byMethod: raw.totals?.by_method ?? {},
+      grandTotal: raw.totals?.grand_total ?? 0,
+    },
+  };
+}
+
 function transformMonthlyReport(raw: BackendMonthlyReportResponse) {
   return {
     year: raw.year,
@@ -97,6 +148,24 @@ function transformMonthlyReport(raw: BackendMonthlyReportResponse) {
     endDate: raw.end_date,
     summary: transformMonthlyReportSummary(raw.summary),
     dailyDetails: raw.daily_details.map(transformDailyReportDetail),
+    categoryPaymentMatrix: transformCategoryPaymentMatrix(raw.category_payment_matrix),
+  };
+}
+
+// ── Exported matrix types (pre-transform helper needs forward name) ──────────
+
+export interface CategoryPaymentMatrix {
+  paymentMethods: { id?: number; name: string; isActive: boolean }[];
+  rows: {
+    category: string;
+    count: number;
+    byMethod: Record<string, number>;
+    rowTotal: number;
+  }[];
+  totals: {
+    count: number;
+    byMethod: Record<string, number>;
+    grandTotal: number;
   };
 }
 

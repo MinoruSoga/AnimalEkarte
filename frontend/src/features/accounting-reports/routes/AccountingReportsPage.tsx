@@ -19,6 +19,7 @@ import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
 import { MonthlyReportPrintArea } from "../components/MonthlyReportPrintArea";
+import { CategoryPaymentMatrixTable } from "../components/CategoryPaymentMatrixTable";
 import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
 
 type ReportMode = "month" | "period";
@@ -233,6 +234,7 @@ export function AccountingReportsPage() {
               dailyDetails={data.dailyDetails}
               standardTaxRate={standardTaxRate}
               reducedTaxRate={reducedTaxRate}
+              categoryPaymentMatrix={data.categoryPaymentMatrix}
             />
 
             {/* ゾーン2: 日次明細（periodLabel を唯一のスケール強調見出しに） */}
@@ -245,6 +247,17 @@ export function AccountingReportsPage() {
                 onDrillDown={canViewCloses ? handleDrillDown : undefined}
               />
             </section>
+
+            {/* #247: 部門×支払方法統合表（画面・印刷同一データ） */}
+            {data.categoryPaymentMatrix ? (
+              <section
+                className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}
+                data-testid="category-payment-matrix"
+              >
+                <h2 className={`text-xl font-semibold ${C.text} mb-4`}>部門×支払方法</h2>
+                <CategoryPaymentMatrixTable matrix={data.categoryPaymentMatrix} />
+              </section>
+            ) : null}
 
             {/* ゾーン3: #179 ④-b KPI/内訳は日次明細より下。#179 ② 税率設定導線もここに集約 */}
             <MonthlySummaryCards

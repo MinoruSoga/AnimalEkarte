@@ -29,6 +29,8 @@ interface ClosePrintAreaProps {
   actualCash: number | null;
   /** DEC-40: other 行の会計 distinct 件数。null = 記録なし */
   unclassifiedOtherCount?: UnclassifiedOtherCountInput;
+  /** #247: 部門ごとの会計 distinct 件数 */
+  categoryCounts?: Record<string, number>;
 }
 
 /**
@@ -50,8 +52,14 @@ export function ClosePrintArea({
   theoreticalCash,
   actualCash,
   unclassifiedOtherCount,
+  categoryCounts,
 }: ClosePrintAreaProps) {
-  const rows = buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount);
+  const rows = buildUnifiedClosingRows(
+    categories,
+    billingDetails,
+    unclassifiedOtherCount,
+    categoryCounts,
+  );
   const totals = buildUnifiedClosingTotals(rows);
   const { standard, reduced } = taxBreakdown;
   const difference = actualCash !== null ? actualCash - theoreticalCash : null;

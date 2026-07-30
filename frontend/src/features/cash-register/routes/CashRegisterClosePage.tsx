@@ -174,6 +174,7 @@ export function CashRegisterClosePage() {
                     paymentMethods={preview.aggregate.paymentMethods}
                     billingDetails={preview.billingDetails}
                     unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
+                    categoryCounts={preview.aggregate.categoryCounts}
                   />
                 </section>
 
@@ -189,6 +190,7 @@ export function CashRegisterClosePage() {
                   theoreticalCash={preview.aggregate.theoreticalCash}
                   actualCash={actualCash !== "" ? Number(actualCash) : null}
                   unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
+                  categoryCounts={preview.aggregate.categoryCounts}
                 />
 
                 {/* 消費税内訳 */}
