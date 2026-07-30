@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { computeShowDemoAccounts } from "./show-demo-accounts";
 
-// M-10: 本番ビルドで VITE_SHOW_DEMO_ACCOUNTS が誤って true のままでも
-// Vercel Production では必ずデモアカウントを非表示にする回帰防止テスト。
+// M-10 / SEC-CS2-F01: demo accounts UI is local Vite DEV only.
+// Vercel preview / production / flag must never expose privileged demo accounts.
 describe("computeShowDemoAccounts", () => {
   it("VERCEL_ENV=production かつ非 dev では flag=true でも false", () => {
     // 実 Vercel production ビルドでは import.meta.env.DEV は常に false。
@@ -18,12 +18,16 @@ describe("computeShowDemoAccounts", () => {
     expect(
       computeShowDemoAccounts({ vercelEnv: "production", isDev: true, showDemoAccountsFlag: "true" }),
     ).toBe(true);
+    expect(
+      computeShowDemoAccounts({ vercelEnv: "preview", isDev: true, showDemoAccountsFlag: "true" }),
+    ).toBe(true);
   });
 
-  it("preview（STG）で VITE_SHOW_DEMO_ACCOUNTS=true のときは true", () => {
+  // SEC-CS2-F01: STG/preview ではデモアカウント UI を出さない（特権 demo 資格情報の露出防止）。
+  it("preview（STG）で VITE_SHOW_DEMO_ACCOUNTS=true でも false（local DEV only）", () => {
     expect(
       computeShowDemoAccounts({ vercelEnv: "preview", isDev: false, showDemoAccountsFlag: "true" }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("VITE_SHOW_DEMO_ACCOUNTS が未設定/false のときは false", () => {
@@ -36,7 +40,6 @@ describe("computeShowDemoAccounts", () => {
   });
 
   // DEC-7 / SEC-DEMO-FAILCLOSED: 非 Vercel ビルドでは __VERCEL_ENV__=""。
-  // 旧式 `!== "production"` は fail-open になるため、未定義 × flag=true でも非表示にする。
   it("VERCEL_ENV 未定義（\"\"）かつ非 dev では flag=true でも false（fail-closed）", () => {
     expect(
       computeShowDemoAccounts({ vercelEnv: "", isDev: false, showDemoAccountsFlag: "true" }),

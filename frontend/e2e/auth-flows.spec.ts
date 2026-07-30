@@ -4,6 +4,18 @@ import { LoginPage } from './pages/login-page';
 // E2E tests for authentication flows: login, forgot-password, reset-password.
 // These are unauthenticated-only pages; no loginAsDemoAdmin() helper used.
 // Auth forms use React 19 useActionState; validation is server-side.
+// SEC-CS2-F01: valid-login credentials come from E2E_LOGIN_* env only (no in-repo secrets).
+
+function requireE2ELoginCredentials(): { email: string; password: string } {
+  const email = process.env.E2E_LOGIN_EMAIL?.trim() ?? '';
+  const password = process.env.E2E_LOGIN_PASSWORD ?? '';
+  if (!email || !password) {
+    throw new Error(
+      'E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD must be set (no in-repo credential fallback; see frontend/e2e/README.md)',
+    );
+  }
+  return { email, password };
+}
 
 test.describe('認証フロー E2E', () => {
   test('/login — ログインページが表示される', async ({ page }) => {
@@ -30,13 +42,14 @@ test.describe('認証フロー E2E', () => {
   });
 
   test('/login — 有効な認証情報でログインできる', async ({ page }) => {
+    const { email, password } = requireE2ELoginCredentials();
     const loginPage = new LoginPage(page);
     await loginPage.gotoLogin();
     const emailInput = loginPage.emailInput();
     await emailInput.waitFor({ state: 'visible', timeout: 60000 });
 
-    await emailInput.fill('admin@noavet.jp');
-    await loginPage.passwordInput().fill('password');
+    await emailInput.fill(email);
+    await loginPage.passwordInput().fill(password);
 
     const loginResponsePromise = loginPage.waitForLoginResponse();
     await loginPage.submitButton().click();
@@ -53,8 +66,9 @@ test.describe('認証フロー E2E', () => {
     const emailInput = loginPage.emailInput();
     await emailInput.waitFor({ state: 'visible', timeout: 60000 });
 
-    await emailInput.fill('admin@noavet.jp');
-    await loginPage.passwordInput().fill('wrongpassword');
+    // Intentionally non-secret invalid pair — must not use repository-known passwords.
+    await emailInput.fill('invalid-login@example.invalid');
+    await loginPage.passwordInput().fill('not-a-valid-password');
 
     const loginResponsePromise = loginPage.waitForLoginResponse();
     await loginPage.submitButton().click();

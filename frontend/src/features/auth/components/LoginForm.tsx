@@ -24,12 +24,10 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-// M-10 (#91) / DEC-7: deny-by-default。dev または (preview かつ flag=true) のみ表示。
+// M-10 (#91) / SEC-CS2-F01: local Vite DEV only。preview/production では非表示。
 // ロジックは computeShowDemoAccounts (show-demo-accounts.ts) と同一 — 定数畳み込み維持のためインライン化。
 // export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
-export const SHOW_DEMO =
-  import.meta.env.DEV ||
-  (__VERCEL_ENV__ === "preview" && import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true");
+export const SHOW_DEMO = import.meta.env.DEV;
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）

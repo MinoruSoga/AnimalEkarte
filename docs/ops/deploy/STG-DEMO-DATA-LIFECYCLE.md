@@ -5,7 +5,7 @@
 > **タイミング**: STGデータの分類判断・cleanup時。
 
 > **Animal Ekarte**: ステージング環境におけるデモ・テストデータの作成から廃棄までの完全ガイド
-> **最新更新**: 2026-07-23 | **ステータス**: STG-001 インシデント対応済
+> **最新更新**: 2026-07-31 | **ステータス**: STG-001 対応済 / SEC-CS2-F01 staging master-only
 
 ---
 
@@ -15,8 +15,8 @@
 
 | カテゴリ | 説明 | 作成時期 | 保有者 | 削除義務 |
 |---------|------|--------|-------|--------|
-| **Seed Data** | migration で自動生成。system_admin、base clinics、デフォルト permission_groups | DB 初期化時 | インフラ/DevOps | なし（永続） |
-| **Demo Accounts** | 営業デモ、顧客向けプレゼンテーション用。固定アカウント数、予め作成済 | 環境構築時 | PO/営業チーム | なし（永続） |
+| **Seed Data** | migration で自動生成。`APP_ENV=staging` では **master のみ**（`002_master`）。reference masters / 権限マスタ | DB 初期化時 | インフラ/DevOps | なし（永続） |
+| **Demo Accounts** | 営業デモ用の特権アカウント。**リポジトリ seed（`003_demo`）経由では STG に投入しない**（SEC-CS2-F01）。必要な場合は運用側で明示プロビジョニング | 明示作成時のみ | PO/営業・運用 | 環境方針に従う |
 | **Smoke Test Data** | デプロイ直後の機能検証用。CRUD-SMOKE-TEST.md に従い作成・削除 | デプロイ直後 | DevOps/エンジニア | **あり（デプロイ直後に全削除）** |
 | **Investigation Data** | バグ調査、仕様検証用の一時データ。調査完了後は廃棄対象 | 随時（必要時） | エンジニア | あり（調査終了時） |
 
@@ -34,14 +34,11 @@
 - **管理**: migrations で定義。fresh DB または明示承認済みの再構築時に `cmd/migrate` で復元
 
 ### 2.2 Demo Accounts
-- **目的**: 営業・顧客向けデモ環境でのロールプレイ
-- **具体例**: 
-  - demo-admin@example.com（システム管理者権限）
-  - demo-staff@example.com（医院スタッフ権限、clinic_id 限定）
-  - demo-owner@example.com（飼い主アカウント）
-- **生存期間**: 環境存在期間中は永続
-- **管理**: seed data として migration 定義、または デプロイ初期化スクリプトで作成
-- **重要**: 本番移行時に全削除。ステージング環境でのみ有効
+- **目的**: 営業・顧客向けデモ環境でのロールプレイ（必要な場合のみ）
+- **SEC-CS2-F01**: `cmd/migrate` の `APP_ENV=staging` は **master-only**。`003_demo` / `004_staging` CSV（active system_admin を含む）は STG に自動投入されない。ローカル `development` / `local` / `dev` / `test` のみ full order。
+- **フロント**: ログイン画面のデモアカウント UI は **ローカル Vite DEV のみ**。Vercel preview（STG）では `VITE_SHOW_DEMO_ACCOUNTS` が true でも表示しない。
+- **管理**: STG でデモが必要な場合は seed に依存せず、運用プロビジョニング（[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)）で作成し、資格情報は secrets 管理する
+- **重要**: 本番移行時に全削除。リポジトリ既知のデモパスワードを STG/本番へ持ち込まない
 
 ### 2.3 Smoke Test Data
 - **目的**: デプロイ直後の機能確認（CRUD 操作、外部キー保護、権限チェック）
@@ -71,11 +68,12 @@
 STG データは以下の 4 つの方法で作成されます。それぞれの作成元ごとに、削除責任者が異なります。
 
 ### 3.1 Migration（自動）
-- **対象**: seed data のみ
-- **ファイル**: `backend/migrations/` の DDL SQL と `backend/migrations/seeds/{002_master,003_demo,004_staging}` の CSV バンドル
+- **対象**: seed data のみ（環境ゲート付き）
+- **ファイル**: `backend/migrations/` の DDL SQL と `backend/migrations/seeds/` の CSV バンドル
+- **STG 計画**（`APP_ENV=staging`）: `002_master` のみ。`003_demo` / `004_staging` はロードしない（`seedbundle.BundleOrderForEnv`）
+- **ローカル計画**（`development` / `local` / `dev` / `test`）: `002_master` → `003_demo` → `004_staging`
 - **削除方法**: 不可。migration は immutable。削除は新規 migration で実装
-- **例**: `backend/migrations/001_init.sql` の DDL + `backend/migrations/seeds/003_demo/accounts.csv`（admin@noavet.jp の `is_system_admin=true`）が
-  STG の最初期 seed を構成
+- **例**: STG の最初期 seed は `001_init.sql` DDL + `002_master` の reference masters。特権デモアカウント CSV は STG 自動経路に乗らない
 
 ### 3.2 API 経由（推奨）
 - **対象**: demo accounts, smoke test data, investigation data
@@ -212,7 +210,7 @@ Cloudflare Workers Logs はインフラ障害調査用で、業務操作監査�
 1. `DROP SCHEMA public CASCADE`
 2. `CREATE SCHEMA public`
 3. DDL migrationを昇順適用
-4. `APP_ENV` ゲート付き seed バンドルを適用（STG は `APP_ENV=staging` で `002_master → 003_demo → 004_staging`。production は master のみ — SEC-CS-F01）
+4. `APP_ENV` ゲート付き seed バンドルを適用（STG は `APP_ENV=staging` で **master のみ** `002_master`。production も master のみ。full order は local development/test のみ — SEC-CS2-F01）
 
 ### 7.2 使用シーン
 
@@ -243,9 +241,9 @@ AWS ECS/RDS と旧 reset workflow は廃止済みで、共有 STG の DB 再作�
 
 **実行後**:
 - [ ] API ヘルスチェック `/health` で 200 OK 確認
-- [ ] migrate レスポンスと Workers / Containers のログを確認（004 までの full execution）
-- [ ] seed data（system_admin group, clinic id=1）が再生成されたことを確認
-- [ ] demo accounts でログイン可能か確認
+- [ ] migrate レスポンスと Workers / Containers のログを確認（STG: `002_master` のみ。demo/staging バンドルが plan に含まれないこと）
+- [ ] seed data（reference masters / permission masters）が再生成されたことを確認
+- [ ] 運用プロビジョニング済みアカウントでログイン可能か確認（リポジトリ demo seed に依存しない）
 - [ ] スモークテストを再実行（一度のみ）
 
 ### 7.5 DB_RESET が実行されないケース
