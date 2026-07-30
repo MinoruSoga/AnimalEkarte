@@ -28,6 +28,7 @@ func newMedicalRecordImageUploadContext(
 	c.Request = request
 	c.Params = gin.Params{{Key: "id", Value: "5"}}
 	setClinicID(c)
+	setStaffID(c)
 	return c, recorder
 }
 

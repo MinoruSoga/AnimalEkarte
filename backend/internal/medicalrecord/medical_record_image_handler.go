@@ -22,11 +22,28 @@ type MedicalRecordImageHandler struct {
 	service       MedicalRecordImageService
 	medicalRecord medicalRecordGetter
 	uploader      fileUploader
+	quota         medicalRecordImageUploadQuotaStore
 }
 
 // NewMedicalRecordImageHandler initializes a MedicalRecordImageHandler.
-func NewMedicalRecordImageHandler(service MedicalRecordImageService, medicalRecord medicalRecordGetter, uploader fileUploader) *MedicalRecordImageHandler {
-	return &MedicalRecordImageHandler{service: service, medicalRecord: medicalRecord, uploader: uploader}
+// quota is required for uploads; nil fails closed. Optional trailing arg keeps
+// route-snapshot call sites compiling during migration.
+func NewMedicalRecordImageHandler(
+	service MedicalRecordImageService,
+	medicalRecord medicalRecordGetter,
+	uploader fileUploader,
+	quota ...medicalRecordImageUploadQuotaStore,
+) *MedicalRecordImageHandler {
+	var q medicalRecordImageUploadQuotaStore
+	if len(quota) > 0 {
+		q = quota[0]
+	}
+	return &MedicalRecordImageHandler{
+		service:       service,
+		medicalRecord: medicalRecord,
+		uploader:      uploader,
+		quota:         q,
+	}
 }
 
 // verifyOwnership は clinicID + medicalRecordID を検証しテナント分離を保証する（pre-move
