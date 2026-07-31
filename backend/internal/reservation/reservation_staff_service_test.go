@@ -280,12 +280,40 @@ func TestReservationStaffService_Create_DefaultsStaffTypeWhenEmpty(t *testing.T)
 	assert.Equal(t, model.StaffTypeDoctor, createdStaff.StaffType)
 }
 
-func TestReservationStaffService_Create_WithExcludedTypeIDs(t *testing.T) {
-	input := &CreateReservationStaffInput{
+func TestReservationStaffService_Create_RejectsNonEmptyExcludedTypeIDs(t *testing.T) {
+	// TASK-021 Phase2 slice2: non-empty excluded_type_ids is hard-rejected.
+	// Capability writes must go through capable-reservation-types API.
+	createCalled := false
+	repo := &mockReservationStaffRepository{
+		createFn: func(_ context.Context, staff *model.Staff, _ uint64) error {
+			createCalled = true
+			staff.ID = 12
+			return nil
+		},
+		replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+			t.Fatal("UpdateExcludedReservationTypes must not run when excluded_type_ids is non-empty")
+			return nil
+		},
+	}
+	transactor := &mockTransactor{}
+	svc := newTestReservationStaffService(repo, transactor)
+
+	staff, excluded, err := svc.Create(context.Background(), 1, &CreateReservationStaffInput{
 		Name:            "除外あり",
 		StaffType:       string(model.StaffTypeNurse),
 		ExcludedTypeIDs: []uint64{1, 2},
-	}
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "capable-reservation-types")
+	assert.Nil(t, staff)
+	assert.Nil(t, excluded)
+	assert.False(t, createCalled)
+}
+
+func TestReservationStaffService_Create_EmptyExcludedTypeIDsStillSeedsUniverse(t *testing.T) {
+	// Empty excluded_type_ids remains allowed so Create seeds full active universe via inverse facade.
 	var replacedIDs []uint64
 	repo := &mockReservationStaffRepository{
 		createFn: func(_ context.Context, staff *model.Staff, _ uint64) error {
@@ -297,18 +325,22 @@ func TestReservationStaffService_Create_WithExcludedTypeIDs(t *testing.T) {
 			return nil
 		},
 		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
-			return []model.StaffReservationExclusion{{ID: 1, StaffID: 12, ReservationTypeID: 1}}, nil
+			return []model.StaffReservationExclusion{}, nil
 		},
 	}
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.Create(context.Background(), 1, input)
+	staff, excluded, err := svc.Create(context.Background(), 1, &CreateReservationStaffInput{
+		Name:            "除外なし",
+		StaffType:       string(model.StaffTypeNurse),
+		ExcludedTypeIDs: []uint64{},
+	})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
-	assert.Len(t, excluded, 1)
-	assert.Equal(t, []uint64{1, 2}, replacedIDs)
+	assert.NotNil(t, excluded)
+	assert.Equal(t, []uint64{}, replacedIDs)
 }
 
 func TestReservationStaffService_Create_TxCreateError(t *testing.T) {
@@ -329,9 +361,10 @@ func TestReservationStaffService_Create_TxCreateError(t *testing.T) {
 }
 
 func TestReservationStaffService_Create_TxUpdateExcludedError(t *testing.T) {
+	// Empty excluded_type_ids still seeds universe; repo failure on that seed path is surfaced.
 	input := &CreateReservationStaffInput{
 		Name:            "除外エラー",
-		ExcludedTypeIDs: []uint64{1},
+		ExcludedTypeIDs: []uint64{},
 	}
 	repo := &mockReservationStaffRepository{
 		createFn: func(_ context.Context, staff *model.Staff, _ uint64) error {
@@ -461,26 +494,69 @@ func TestReservationStaffService_Update_Success(t *testing.T) {
 	assert.NotNil(t, excluded)
 }
 
-func TestReservationStaffService_Update_WithExcludedTypeIDs(t *testing.T) {
-	excludedIDs := []uint64{3, 4}
-	var replacedIDs []uint64
+func TestReservationStaffService_Update_RejectsExcludedTypeIDsPresent(t *testing.T) {
+	// TASK-021 Phase2 slice2: any present excluded_type_ids (including empty slice) is rejected.
+	// Omitted field (nil) still allows staff field-only updates.
+	tests := []struct {
+		name  string
+		ids   []uint64
+	}{
+		{name: "non-empty", ids: []uint64{3, 4}},
+		{name: "empty slice pointer", ids: []uint64{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lockCalled := false
+			ids := tt.ids
+			repo := &mockReservationStaffRepository{
+				lockForMutationFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+					lockCalled = true
+					return &model.Staff{ID: id}, nil
+				},
+				replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+					t.Fatal("UpdateExcludedReservationTypes must not run when excluded_type_ids is present")
+					return nil
+				},
+			}
+			svc := newTestReservationStaffService(repo, &mockTransactor{})
+
+			staff, excluded, err := svc.Update(context.Background(), 1, 1, &UpdateReservationStaffInput{
+				ExcludedTypeIDs: &ids,
+			})
+
+			assert.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.Contains(t, err.Error(), "capable-reservation-types")
+			assert.Nil(t, staff)
+			assert.Nil(t, excluded)
+			assert.False(t, lockCalled)
+		})
+	}
+}
+
+func TestReservationStaffService_Update_OmitsExcludedTypeIDsDoesNotReplace(t *testing.T) {
+	name := "更新後の名前"
+	replaceCalled := false
 	repo := &mockReservationStaffRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id}, nil
+			return &model.Staff{ID: id, Name: name}, nil
 		},
-		replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, courseIDs []uint64) error {
-			replacedIDs = courseIDs
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+		replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+			replaceCalled = true
 			return nil
 		},
 	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
+	svc := newTestReservationStaffService(repo, &mockTransactor{})
 
-	staff, _, err := svc.Update(context.Background(), 1, 1, &UpdateReservationStaffInput{ExcludedTypeIDs: &excludedIDs})
+	staff, excluded, err := svc.Update(context.Background(), 1, 1, &UpdateReservationStaffInput{Name: &name})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
-	assert.Equal(t, excludedIDs, replacedIDs)
+	assert.NotNil(t, excluded)
+	assert.False(t, replaceCalled)
 }
 
 func TestReservationStaffService_Update_NotFound(t *testing.T) {
@@ -520,25 +596,8 @@ func TestReservationStaffService_Update_RepoUpdateError(t *testing.T) {
 	assert.Nil(t, excluded)
 }
 
-func TestReservationStaffService_Update_ExcludedTypesError(t *testing.T) {
-	excludedIDs := []uint64{1}
-	repo := &mockReservationStaffRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-			return &model.Staff{ID: id}, nil
-		},
-		replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
-			return errors.New("db error")
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	staff, excluded, err := svc.Update(context.Background(), 1, 1, &UpdateReservationStaffInput{ExcludedTypeIDs: &excludedIDs})
-
-	assert.Error(t, err)
-	assert.Nil(t, staff)
-	assert.Nil(t, excluded)
-}
+// Update no longer applies request excluded_type_ids; inverse replacement from request is rejected
+// before the transaction (see TestReservationStaffService_Update_RejectsExcludedTypeIDsPresent).
 
 func TestReservationStaffService_Update_FindByIDAfterUpdateError(t *testing.T) {
 	name := "名前"

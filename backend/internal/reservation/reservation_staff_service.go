@@ -123,7 +123,17 @@ func (s *reservationStaffService) GetByID(ctx context.Context, clinicID, id uint
 	return staff, nil
 }
 
+// errDeprecatedExcludedTypeIDs は reservation-staffs Create/Update で deprecated な
+// excluded_type_ids が非空または存在する場合に返す validation error。
+// 対応可能区分の変更は capable-reservation-types API を使う。
+const errDeprecatedExcludedTypeIDs = "excluded_type_ids is deprecated and rejected; use capable-reservation-types API"
+
 func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+	// TASK-021 Phase2 slice2: non-empty excluded_type_ids is hard-rejected on write.
+	// Empty slice remains allowed so Create seeds the full active universe via inverse facade.
+	if len(input.ExcludedTypeIDs) > 0 {
+		return nil, nil, apperrors.WrapInvalidInput(errDeprecatedExcludedTypeIDs)
+	}
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor
@@ -145,6 +155,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		}
 		// Stage B: always run inverse facade (empty excluded ⇒ full active universe capable).
 		// Skipping empty write left staff with zero capabilities (fail-closed strand).
+		// Non-empty request values are rejected above; seed path always passes empty.
 		if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
 			slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 			return apperrors.Wrap(err, "failed to set excluded courses")
@@ -171,10 +182,12 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
-	// BE-refactor.md X-8: staff 本体更新 + 除外コース置換を WithTx で括り原子化する（Create と対称）。
-	// 括らないと、fields 更新が成功し UpdateExcludedReservationTypes が失敗した場合に
-	// staff 側の変更（名前/種別/表示可否等）だけがコミットされ、除外コースは古いまま残る
-	// 非原子な部分更新になる。
+	// TASK-021 Phase2 slice2: present excluded_type_ids (including empty slice) is hard-rejected.
+	// Capability replacement must use capable-reservation-types API. Omitted field keeps staff-only update.
+	if input.ExcludedTypeIDs != nil {
+		return nil, nil, apperrors.WrapInvalidInput(errDeprecatedExcludedTypeIDs)
+	}
+	// BE-refactor.md X-8: staff 本体更新を WithTx で括り原子化する。
 	// mutation-specific UPDATE lock を最初に取得し、所有権確認から更新までを直列化する。
 	// FindByID の SHARE lock から UPDATE への lock upgrade は、Update と PatchStatus が
 	// 同時実行された際に相互待ちを作り得るため mutation の先頭では使用しない。
@@ -190,12 +203,6 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
 				slog.ErrorContext(txCtx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
 				return apperrors.Wrap(err, "failed to update reservation staff")
-			}
-		}
-		if input.ExcludedTypeIDs != nil {
-			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, id, *input.ExcludedTypeIDs); err != nil {
-				slog.ErrorContext(txCtx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to update excluded courses")
 			}
 		}
 		var err error
