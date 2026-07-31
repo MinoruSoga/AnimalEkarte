@@ -73,6 +73,8 @@ type mockRepo struct {
 
 	createOwnerGroupCalled   int
 	createOwnerMembersCalled int
+	createPetGroupCalled     int
+	createPetMembersCalled   int
 	softDeleteOwnerCalled    int
 	softDeleteGroupCalled    int
 }
@@ -185,6 +187,7 @@ func (m *mockRepo) CountActiveOwnerMembers(ctx context.Context, groupID uint64) 
 	return 0, nil
 }
 func (m *mockRepo) CreatePetGroup(ctx context.Context, group *model.PetIdentityGroup) error {
+	m.createPetGroupCalled++
 	if m.createPetGroupFn != nil {
 		return m.createPetGroupFn(ctx, group)
 	}
@@ -192,6 +195,7 @@ func (m *mockRepo) CreatePetGroup(ctx context.Context, group *model.PetIdentityG
 	return nil
 }
 func (m *mockRepo) CreatePetMembers(ctx context.Context, members []model.PetIdentityGroupMember) error {
+	m.createPetMembersCalled++
 	if m.createPetMembersFn != nil {
 		return m.createPetMembersFn(ctx, members)
 	}
@@ -261,6 +265,56 @@ func TestCreateOwnerGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "mixed or cross-clinic")
 	assert.Equal(t, 0, repo.createOwnerGroupCalled, "no partial write on mixed/cross-clinic reject")
 	assert.Equal(t, 0, repo.createOwnerMembersCalled)
+	assert.Equal(t, 0, auditLog.called)
+}
+
+func TestCreatePetGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
+	repo := &mockRepo{}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	// Actor only belongs to clinic 1; pet members include clinic 2 → reject-all before any write.
+	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1), 1, []PetMemberRef{
+		{ClinicID: 1, PetID: 100},
+		{ClinicID: 2, PetID: 200},
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrForbidden), "mixed/cross-clinic pet ids must be forbidden")
+	assert.Contains(t, err.Error(), "mixed or cross-clinic")
+	assert.Equal(t, 0, repo.createPetGroupCalled, "no partial write on mixed/cross-clinic reject")
+	assert.Equal(t, 0, repo.createPetMembersCalled)
+	assert.Equal(t, 0, auditLog.called)
+}
+
+func TestAddOwnerMembers_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
+	repo := &mockRepo{}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	_, _, err := svc.AddOwnerMembers(context.Background(), testActor(1), 3, []OwnerMemberRef{
+		{ClinicID: 1, OwnerID: 10},
+		{ClinicID: 9, OwnerID: 99},
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrForbidden), "mixed/cross-clinic must be forbidden")
+	assert.Contains(t, err.Error(), "mixed or cross-clinic")
+	assert.Equal(t, 0, repo.createOwnerMembersCalled, "no partial write on mixed/cross-clinic reject")
+	assert.Equal(t, 0, auditLog.called)
+}
+
+func TestAddPetMembers_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
+	repo := &mockRepo{}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	_, _, err := svc.AddPetMembers(context.Background(), testActor(1), 7, []PetMemberRef{
+		{ClinicID: 1, PetID: 100},
+		{ClinicID: 9, PetID: 999},
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrForbidden), "mixed/cross-clinic pet ids must be forbidden")
+	assert.Contains(t, err.Error(), "mixed or cross-clinic")
+	assert.Equal(t, 0, repo.createPetMembersCalled, "no partial write on mixed/cross-clinic reject")
 	assert.Equal(t, 0, auditLog.called)
 }
 

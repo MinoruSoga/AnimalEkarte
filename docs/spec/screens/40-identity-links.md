@@ -82,12 +82,38 @@
 | DELETE | `/api/v1/identity-links/pet-groups/:groupId/members` | ペットメンバー unlink | `edit` |
 | GET | `/api/v1/identity-links/pets/:clinicId/:petId/treatment-history` | 連携治療履歴（`include_linked`, page, limit） | `view` |
 
-BE には group GET / member POST 等の追加ルートがあるが、Phase 1 の `IdentityLinksPage` は未使用。
+### BE 追加ルート（Phase 1 UI 未使用・OpenAPI 契約済み）
+
+| メソッド | エンドポイント | 用途 | 必須アクション |
+|:---|:---|:---|:---|
+| GET | `/api/v1/identity-links/owner-groups/:id` | group 取得（可視メンバーのみ） | `view` |
+| GET | `/api/v1/identity-links/owners/:clinic_id/:owner_id/group` | 飼主メンバー逆引き | `view` |
+| POST | `/api/v1/identity-links/owner-groups/:id/members` | 飼主メンバー追加 | `edit` |
+| GET | `/api/v1/identity-links/pet-groups/:id` | pet group 取得 | `view` |
+| GET | `/api/v1/identity-links/pets/:clinic_id/:pet_id/group` | ペットメンバー逆引き | `view` |
+| POST | `/api/v1/identity-links/pet-groups/:id/members` | ペットメンバー追加 | `edit` |
+
+OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート drift gate は `backend/internal/apicontract/openapi_route_drift_test.go` が identitylink package を walk。
 
 ### 関連
 
 - ルート: `frontend/src/app/routes/operations-routes.tsx`
 - Feature: `frontend/src/features/identity-links/`
 - 製品 leaf 数の正本は `route-inventory.test.tsx`（84 product pages）。本ファイルは **画面仕様インデックス上の 1 葉**であり、product leaf 数と「番号付き md ファイル数」は一致しない。
+
+---
+
+## 5. Phase 1 Acceptance Criteria（証拠）
+
+| AC | 要件 | 証拠 |
+|:---|:---|:---|
+| AC-1 | 手動 link/unlink（飼主・ペット） | BE: `CreateOwnerGroup` / `UnlinkOwnerMember` / `CreatePetGroup` / `UnlinkPetMember` + FE workbench ボタン。OpenAPI: POST/DELETE owner-groups・pet-groups members |
+| AC-2 | clinic-scoped linked treatment history | `ListLinkedTreatmentHistory` + `include_linked` 相関 `(clinic_id,pet_id)` のみ。FE: `getLinkedTreatmentHistory`。Test: `TestListLinkedTreatmentHistory_*` |
+| AC-3 | mixed / hidden / cross-clinic IDs は **全体 reject・部分書き込みなし** | `assertOwnerRefsInActorScope` / `assertPetRefsInActorScope` + lock length check。Tests: `TestCreateOwnerGroup_RejectsMixedCrossClinic_NoPartialWrite`, `TestCreatePetGroup_RejectsMixedCrossClinic_NoPartialWrite`, `TestAddOwnerMembers_RejectsMixedCrossClinic_NoPartialWrite`, `TestAddPetMembers_RejectsMixedCrossClinic_NoPartialWrite`, `TestCreateOwnerGroup_RejectsHiddenOwner_NoPartialWrite` |
+| AC-4 | audit は business write と同一 tx・fail-closed | `writeAudit` 失敗で callback error。PHI（name/phone）を audit payload に含めない（IDs のみ）。Tests: `TestCreateOwnerGroup_AuditFailureRollsBack`, `TestCreateOwnerGroup_NilAuditFailClosed`, `TestCreateOwnerGroup_SuccessWritesAuditWithoutPHI` |
+| AC-5 | 権限 fail-closed（view/edit） | routes: GET=view, link/unlink=edit。FE: view なし → `/` Navigate、edit なし → 閲覧バナー。Tests: `handler_permission_test.go`, `IdentityLinksPage.test.tsx` |
+| AC-6 | OpenAPI と RegisterRoutes の route 一致 | identity-links 全 13 ルートを `api.yaml` に記載。reverse-lookup 2 本を known-missing allowlist から除去済み |
+
+**Out of scope (Phase 2 / DEC-46)**: 自動 link、merge、候補提示 UI。
 
 ---

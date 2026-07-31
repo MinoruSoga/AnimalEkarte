@@ -23556,6 +23556,29 @@ paths:
         '200': { description: 検索結果 }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/owners/{clinic_id}/{owner_id}/group:
+    get:
+      operationId: findOwnerIdentityGroupByMember
+      summary: 飼主メンバーから identity group を逆引き（可視メンバーのみ）
+      description: |
+        actor の verified clinic scope 外の clinic_id は 403。
+        所属 group が無い／可視メンバーが 0 件なら 404（fail-closed）。
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: owner_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group（可視メンバーのみ） }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /identity-links/pets/search:
     get:
       operationId: searchPetsForIdentityLink
@@ -23573,10 +23596,36 @@ paths:
         '200': { description: 検索結果 }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/pets/{clinic_id}/{pet_id}/group:
+    get:
+      operationId: findPetIdentityGroupByMember
+      summary: ペットメンバーから identity group を逆引き（可視メンバーのみ）
+      description: |
+        actor の verified clinic scope 外の clinic_id は 403。
+        所属 group が無い／可視メンバーが 0 件なら 404（fail-closed）。
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: pet_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group（可視メンバーのみ） }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /identity-links/owner-groups:
     post:
       operationId: createOwnerIdentityGroup
       summary: 飼主 identity group を作成（2件以上・同一 tx audit）
+      description: |
+        mixed / cross-clinic / hidden owner ids は全体 reject（部分書き込みなし）。
+        audit は同一 tx で fail-closed。PHI（氏名・電話）は audit に含めない。
       tags: [IdentityLinks]
       requestBody:
         required: true
@@ -23620,15 +23669,38 @@ paths:
     post:
       operationId: addOwnerIdentityMembers
       summary: 飼主 identity group にメンバー追加
+      description: |
+        mixed / cross-clinic / hidden owner ids は全体 reject（部分書き込みなし）。
+        audit は同一 tx で fail-closed。PHI（氏名・電話）は audit に含めない。
       tags: [IdentityLinks]
       parameters:
         - name: id
           in: path
           required: true
           schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [clinic_id, owner_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      owner_id: { type: integer, format: int64 }
       responses:
         '200': { description: 更新後 group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
     delete:
       operationId: unlinkOwnerIdentityMember
@@ -23657,6 +23729,9 @@ paths:
     post:
       operationId: createPetIdentityGroup
       summary: ペット identity group 作成（親 owner group 必須）
+      description: |
+        mixed / cross-clinic / hidden pet ids は全体 reject（部分書き込みなし）。
+        親 owner group 所属外のペットは 409。audit は同一 tx で fail-closed（PHI なし）。
       tags: [IdentityLinks]
       requestBody:
         required: true
@@ -23697,15 +23772,38 @@ paths:
     post:
       operationId: addPetIdentityMembers
       summary: ペット identity group にメンバー追加
+      description: |
+        mixed / cross-clinic / hidden pet ids は全体 reject（部分書き込みなし）。
+        親 owner group 所属外のペットは 409。audit は同一 tx で fail-closed（PHI なし）。
       tags: [IdentityLinks]
       parameters:
         - name: id
           in: path
           required: true
           schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [clinic_id, pet_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
       responses:
         '200': { description: 更新後 group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
     delete:
       operationId: unlinkPetIdentityMember
