@@ -49,4 +49,15 @@ describe("owner report summary", () => {
 
     expect(selectLatestOverdueVaccination(vaccinations, "2026-07-21")?.id).toBe(2);
   });
+
+  it("JST 壁日付の nextDate を todayJST と比較し upcoming を選ぶ（UTC 切り出しと矛盾しない）", () => {
+    // use-pet-vaccinations が formatJSTDate した nextDate を想定:
+    // 2026-07-30T15:00:00Z → JST 2026-07-31。UTC split だと 2026-07-30 で overdue 誤判定になる。
+    const vaccinations = [{ id: 1, nextDate: "2026-07-31" }];
+
+    expect(selectUpcomingVaccination(vaccinations, "2026-07-31")?.id).toBe(1);
+    expect(selectLatestOverdueVaccination(vaccinations, "2026-07-31")).toBeUndefined();
+    expect(selectUpcomingVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31")).toBeUndefined();
+    expect(selectLatestOverdueVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31")?.id).toBe(2);
+  });
 });
