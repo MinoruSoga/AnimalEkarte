@@ -271,6 +271,79 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 	}
 }
 
+// TestCutoverMappingCoverageCoversAllFormalTables locks the Issue #250
+// source→target inventory: 21 formal tables, isolation mode, non-PHI fields only.
+func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
+	specs := CutoverTableSpecs()
+	coverage := CutoverMappingCoverage()
+	if len(coverage) != len(specs) {
+		t.Fatalf("coverage count = %d, want %d", len(coverage), len(specs))
+	}
+	if len(coverage) != 21 {
+		t.Fatalf("formal table count = %d, want 21", len(coverage))
+	}
+
+	// Child tables without clinic_id must still declare parent-FK isolation.
+	wantParentFK := map[string]struct{}{
+		"inquiries": {}, "clinical_plans": {}, "billing_items": {},
+		"estimate_items": {}, "exam_results": {},
+	}
+
+	seen := make(map[string]struct{}, len(coverage))
+	for i, entry := range coverage {
+		spec := specs[i]
+		if entry.TargetTable != spec.Name {
+			t.Fatalf("coverage[%d].TargetTable = %q, want %q", i, entry.TargetTable, spec.Name)
+		}
+		if entry.CSVFile != spec.Name+".csv" {
+			t.Fatalf("%s CSVFile = %q", entry.TargetTable, entry.CSVFile)
+		}
+		if entry.ColumnCount != len(spec.Columns) {
+			t.Fatalf("%s ColumnCount = %d, want %d", entry.TargetTable, entry.ColumnCount, len(spec.Columns))
+		}
+		if !slices.Equal(entry.BandColumns, spec.BandColumns) {
+			t.Fatalf("%s BandColumns = %v, want %v", entry.TargetTable, entry.BandColumns, spec.BandColumns)
+		}
+		if entry.ConsumerStatus != "formal_cutover_v1" {
+			t.Fatalf("%s ConsumerStatus = %q", entry.TargetTable, entry.ConsumerStatus)
+		}
+		expectClinicID := hasColumn(spec.Columns, "clinic_id")
+		if entry.HasClinicID != expectClinicID {
+			t.Fatalf("%s HasClinicID = %v, want %v", entry.TargetTable, entry.HasClinicID, expectClinicID)
+		}
+		if expectClinicID {
+			if entry.IsolationCheck != CutoverIsolationClinicID {
+				t.Fatalf("%s IsolationCheck = %q, want %q", entry.TargetTable, entry.IsolationCheck, CutoverIsolationClinicID)
+			}
+		} else {
+			if _, ok := wantParentFK[entry.TargetTable]; !ok {
+				t.Fatalf("unexpected table without clinic_id: %s", entry.TargetTable)
+			}
+			if entry.IsolationCheck != CutoverIsolationParentFK {
+				t.Fatalf("%s IsolationCheck = %q, want %q", entry.TargetTable, entry.IsolationCheck, CutoverIsolationParentFK)
+			}
+		}
+		// Inventory must stay non-PHI: no free-text payload fields.
+		blob := entry.TargetTable + entry.CSVFile + entry.IsolationCheck + entry.ConsumerStatus
+		for _, forbidden := range []string{"private-", "password", "phone", "address", "email@", "owner name"} {
+			if strings.Contains(strings.ToLower(blob), forbidden) {
+				t.Fatalf("mapping inventory looks PHI-bearing (%q): %+v", forbidden, entry)
+			}
+		}
+		if _, dup := seen[entry.TargetTable]; dup {
+			t.Fatalf("duplicate mapping entry for %s", entry.TargetTable)
+		}
+		seen[entry.TargetTable] = struct{}{}
+	}
+
+	// Mutation safety: returned BandColumns must be a copy.
+	coverage[0].BandColumns[0] = "mutated"
+	fresh := CutoverMappingCoverage()
+	if fresh[0].BandColumns[0] == "mutated" {
+		t.Fatal("CutoverMappingCoverage returned a shared BandColumns slice")
+	}
+}
+
 func TestPreflightCutoverBundleFailsClosed(t *testing.T) {
 	tests := []struct {
 		name    string

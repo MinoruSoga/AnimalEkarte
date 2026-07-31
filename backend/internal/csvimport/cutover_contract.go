@@ -202,6 +202,59 @@ func cloneCutoverSpecs(specs []CutoverTableSpec) []CutoverTableSpec {
 	return cloned
 }
 
+// Stable non-PHI operator error references for cutover audit trails (Issue #250).
+// Errors may include table/column/CSV line coordinates and these refs only —
+// never owner/pet names, addresses, phones, clinical text, or CSV cell values.
+const (
+	CutoverRefBandOccupied    = "CUTOVER_REF_BAND_OCCUPIED"
+	CutoverRefClinicIsolation = "CUTOVER_REF_CLINIC_ISOLATION"
+	CutoverRefRowCount        = "CUTOVER_REF_ROW_COUNT"
+)
+
+// CutoverIsolationClinicID is the verify path for tables that carry clinic_id.
+const CutoverIsolationClinicID = "clinic_id_column"
+
+// CutoverIsolationParentFK is the verify path for child tables without clinic_id:
+// isolation is enforced by the clinic ID band plus validated parent FKs.
+const CutoverIsolationParentFK = "id_band_and_parent_fk"
+
+// CutoverMappingEntry is the non-PHI source→target inventory for one formal
+// cutover table. It intentionally excludes source cell values and personal data.
+type CutoverMappingEntry struct {
+	TargetTable    string
+	CSVFile        string
+	ColumnCount    int
+	BandColumns    []string
+	HasClinicID    bool
+	IsolationCheck string
+	ConsumerStatus string
+}
+
+// CutoverMappingCoverage returns the immutable 21-table mapping inventory used
+// by Issue #250 acceptance (source CSV → target table, isolation mode).
+// Personal business owners remain a USER ops assignment outside this package.
+func CutoverMappingCoverage() []CutoverMappingEntry {
+	specs := CutoverTableSpecs()
+	coverage := make([]CutoverMappingEntry, 0, len(specs))
+	for _, spec := range specs {
+		hasClinicID := hasColumn(spec.Columns, "clinic_id")
+		isolation := CutoverIsolationParentFK
+		if hasClinicID {
+			isolation = CutoverIsolationClinicID
+		}
+		coverage = append(coverage, CutoverMappingEntry{
+			TargetTable:    spec.Name,
+			CSVFile:        spec.Name + ".csv",
+			ColumnCount:    len(spec.Columns),
+			BandColumns:    append([]string(nil), spec.BandColumns...),
+			HasClinicID:    hasClinicID,
+			IsolationCheck: isolation,
+			ConsumerStatus: "formal_cutover_v1",
+		})
+	}
+	return coverage
+}
+
 // PreflightCutoverBundle validates all source-side trust boundaries before any
 // target database connection is opened. Errors contain table/column/row numbers
 // only; source values are deliberately never included because CSVs contain PHI.

@@ -535,6 +535,55 @@ func TestPreflightAndVerifyCutoverTarget(t *testing.T) {
 	if err := VerifyCutover(context.Background(), target, manifest, seeds); err != nil {
 		t.Fatalf("VerifyCutover() error = %v", err)
 	}
+	// Verify is idempotent/read-only: a second call against the same snapshot must pass.
+	if err := VerifyCutover(context.Background(), target, manifest, seeds); err != nil {
+		t.Fatalf("second VerifyCutover() error = %v (must be idempotent)", err)
+	}
+}
+
+// TestPreflightRejectsOccupiedClinicBand proves apply rerun cannot double-create:
+// a non-empty clinic band fails closed at preflight (Issue #250 idempotency).
+func TestPreflightRejectsOccupiedClinicBand(t *testing.T) {
+	err := PreflightCutoverTarget(
+		context.Background(),
+		occupiedBandTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), CutoverRefBandOccupied) {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want %s", err, CutoverRefBandOccupied)
+	}
+	if !strings.Contains(err.Error(), "already occupied") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want occupied-band message", err)
+	}
+	// Non-PHI: no private payloads or numeric clinic IDs from the hostile fixture.
+	for _, leaked := range []string{"private-owner-name", "private-clinic", "99999"} {
+		if strings.Contains(err.Error(), leaked) {
+			t.Fatalf("occupied-band error leaked %q: %v", leaked, err)
+		}
+	}
+}
+
+// TestVerifyRejectsCrossClinicAssignment proves clinic isolation on every
+// clinic_id-bearing table (Issue #250 owner/pet/clinic/staff boundary).
+func TestVerifyRejectsCrossClinicAssignment(t *testing.T) {
+	err := VerifyCutover(
+		context.Background(),
+		crossClinicTargetQuerier{},
+		cutoverManifestForTargetTests(),
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), CutoverRefClinicIsolation) {
+		t.Fatalf("VerifyCutover() error = %v, want %s", err, CutoverRefClinicIsolation)
+	}
+	if !strings.Contains(err.Error(), "another clinic") {
+		t.Fatalf("VerifyCutover() error = %v, want cross-clinic message", err)
+	}
+	for _, leaked := range []string{"private-owner-name", "private-pet-name", "clinic-9-name"} {
+		if strings.Contains(err.Error(), leaked) {
+			t.Fatalf("clinic-isolation error leaked %q: %v", leaked, err)
+		}
+	}
 }
 
 func TestPreflightAllowsLowSequenceButVerifyRequiresApplicationFloor(t *testing.T) {
@@ -1008,6 +1057,28 @@ type missingPaymentParentTargetQuerier struct{}
 
 func (missingPaymentParentTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "FROM payment_splits split") {
+		return staticRow{values: []any{int64(1)}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+// occupiedBandTargetQuerier models a target whose clinic band already holds rows,
+// so a second apply/preflight must fail closed (no silent double-create).
+type occupiedBandTargetQuerier struct{}
+
+func (occupiedBandTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "SELECT EXISTS") {
+		return staticRow{values: []any{true}}
+	}
+	return validTargetQuerier{}.QueryRow(ctx, query, args...)
+}
+
+// crossClinicTargetQuerier reports band rows whose clinic_id does not match the
+// operator-supplied seed clinic (cross-tenant assignment).
+type crossClinicTargetQuerier struct{}
+
+func (crossClinicTargetQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "clinic_id <> $3") {
 		return staticRow{values: []any{int64(1)}}
 	}
 	return validTargetQuerier{}.QueryRow(ctx, query, args...)
