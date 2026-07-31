@@ -42,12 +42,8 @@ func countReservationJunction(
 ) int64 {
 	t.Helper()
 	var count int64
-	if kind == reservationJunctionExclusion {
-		require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
-			Where("staff_id = ?", staffID).
-			Count(&count).Error)
-		return count
-	}
+	// Stage B: exclusion facade writes capabilities only. Both kinds count capabilities.
+	_ = kind
 	require.NoError(t, db.Model(&model.StaffReservationCapability{}).
 		Where("staff_id = ?", staffID).
 		Count(&count).Error)
@@ -138,6 +134,9 @@ func TestReservationStaffRepository_JunctionReplacement_WriteWins(t *testing.T) 
 			const clinicID = uint64(1)
 			staff := makeDoctorAssignedToClinic(t, db, clinicID, "write wins "+string(kind))
 			reservationType := makeReservationType(t, db, clinicID)
+			// Extra type so exclusion facade leave ≥1 capability row when excluding one type.
+			otherType := makeReservationType(t, db, clinicID)
+			_ = otherType
 			writerReady := make(chan struct{})
 			releaseWriter := make(chan struct{})
 			writerResult := make(chan error, 1)
@@ -179,6 +178,8 @@ func TestReservationStaffRepository_JunctionReplacement_WriteWins(t *testing.T) 
 			close(releaseWriter)
 			require.NoError(t, <-writerResult)
 			require.NoError(t, <-revokeResult)
+			// capability path: capable={reservationType} → count 1
+			// exclusion facade: exclude reservationType → capable={otherType} → count 1
 			assert.EqualValues(t, 1, countReservationJunction(t, db, kind, staff.ID))
 
 			var activeAssignments int64

@@ -5,7 +5,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
 // ─────────────────────────────────────────────────
-// Staff Excluded Service Types API
+// Staff Capable Reservation Types API (TASK-021 Stage B SoT)
 // ─────────────────────────────────────────────────
 
 const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
@@ -47,8 +47,16 @@ export function useUpdateStaffCapableReservationTypes() {
       queryClient.invalidateQueries({
         queryKey: STAFF_CAPABLE_ST_KEY(variables.staffId),
       });
+      // Stage B facade key until Stage A removes exclusion routes.
       queryClient.invalidateQueries({
         queryKey: STAFF_EXCLUDED_ST_KEY(variables.staffId),
+      });
+      // In-clinic reservation form candidates (reservation-staffs).
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === "clinics" &&
+          query.queryKey[2] === "reservation-staffs",
       });
     },
     onError: (error) => handleApiError(error, "設定"),

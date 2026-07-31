@@ -165,35 +165,42 @@ func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinic
 	return r.staff.SwapSortOrderForReservation(ctx, clinicID, id, direction)
 }
 
-// FindAllExcludedReservationTypes scopes the clinic-less junction
-// through its reservation_types master. This is required for shared staff:
-// staff_id alone spans every clinic assignment and would disclose another
-// clinic's reservation type IDs and names.
+// FindAllExcludedReservationTypes derives the exclusion compatibility facade
+// from staff_reservation_capabilities (TASK-021 Stage B sole write SoT).
+// excluded = clinic active universe \ capable. Legacy exclusion table rows are ignored.
 func (r *reservationStaffRepository) FindAllExcludedReservationTypes(
 	ctx context.Context,
 	clinicID, staffID uint64,
 ) ([]model.StaffReservationExclusion, error) {
-	var items []model.StaffReservationExclusion
-	err := persistence.DBOrTx(ctx, r.db).
-		Joins(
-			"JOIN reservation_types ON reservation_types.id = staff_reservation_exclusions.reservation_type_id"+
-				" AND reservation_types.clinic_id = ? AND reservation_types.deleted_at IS NULL",
-			clinicID,
-		).
-		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("staff_reservation_exclusions.staff_id = ?", staffID).
-		Where(
-			"EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staff_reservation_exclusions.staff_id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)",
-			clinicID,
-		).
-		Find(&items).Error
+	universe, err := r.listActiveReservationTypeUniverse(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "staff_reservation_exclusion", "")
+		return nil, err
 	}
-	return items, nil
+	if len(universe) == 0 {
+		return nil, nil
+	}
+	// Shared-staff isolation: staff without an active assignment in this clinic
+	// must not receive derived exclusions for this clinic's universe.
+	assigned, err := r.hasActiveClinicAssignment(ctx, clinicID, staffID)
+	if err != nil {
+		return nil, err
+	}
+	if !assigned {
+		return nil, nil
+	}
+	caps, err := r.FindAllReservationCapabilities(ctx, clinicID, staffID)
+	if err != nil {
+		return nil, err
+	}
+	capableIDs := make([]uint64, 0, len(caps))
+	for _, c := range caps {
+		capableIDs = append(capableIDs, c.ReservationTypeID)
+	}
+	return deriveExcludedFromUniverse(staffID, universe, capableIDs), nil
 }
 
-// FindAllExcludedReservationTypesByStaffIDs は複数スタッフの除外コースを医院スコープで一括取得する（N+1回避）
+// FindAllExcludedReservationTypesByStaffIDs derives exclusion facade rows for
+// many staff in one capability bulk read (TASK-021 Stage B).
 func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(
 	ctx context.Context,
 	clinicID uint64,
@@ -202,24 +209,122 @@ func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(
 	if len(staffIDs) == 0 {
 		return nil, nil
 	}
-	var items []model.StaffReservationExclusion
-	err := persistence.DBOrTx(ctx, r.db).
-		Joins(
-			"JOIN reservation_types ON reservation_types.id = staff_reservation_exclusions.reservation_type_id"+
-				" AND reservation_types.clinic_id = ? AND reservation_types.deleted_at IS NULL",
-			clinicID,
-		).
-		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("staff_reservation_exclusions.staff_id IN ?", staffIDs).
-		Where(
-			"EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staff_reservation_exclusions.staff_id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)",
-			clinicID,
-		).
-		Find(&items).Error
+	universe, err := r.listActiveReservationTypeUniverse(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "staff_reservation_exclusion", "")
+		return nil, err
 	}
-	return items, nil
+	if len(universe) == 0 {
+		return nil, nil
+	}
+	// Match single-staff path: only staff with active assignment in this clinic.
+	assignedIDs, err := r.filterStaffIDsWithActiveAssignment(ctx, clinicID, staffIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedIDs) == 0 {
+		return nil, nil
+	}
+	caps, err := r.FindAllReservationCapabilitiesByStaffIDs(ctx, clinicID, assignedIDs)
+	if err != nil {
+		return nil, err
+	}
+	byStaff := make(map[uint64][]uint64, len(assignedIDs))
+	for _, c := range caps {
+		byStaff[c.StaffID] = append(byStaff[c.StaffID], c.ReservationTypeID)
+	}
+	out := make([]model.StaffReservationExclusion, 0)
+	for _, staffID := range assignedIDs {
+		out = append(out, deriveExcludedFromUniverse(staffID, universe, byStaff[staffID])...)
+	}
+	return out, nil
+}
+
+func (r *reservationStaffRepository) filterStaffIDsWithActiveAssignment(
+	ctx context.Context,
+	clinicID uint64,
+	staffIDs []uint64,
+) ([]uint64, error) {
+	if len(staffIDs) == 0 {
+		return nil, nil
+	}
+	var rows []model.StaffClinicAssignment
+	err := persistence.DBOrTx(ctx, r.db).
+		Select("staff_id").
+		Where("clinic_id = ? AND staff_id IN ? AND deleted_at IS NULL", clinicID, staffIDs).
+		Find(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff_clinic_assignment", "")
+	}
+	out := make([]uint64, 0, len(rows))
+	seen := make(map[uint64]struct{}, len(rows))
+	for _, row := range rows {
+		if _, ok := seen[row.StaffID]; ok {
+			continue
+		}
+		seen[row.StaffID] = struct{}{}
+		out = append(out, row.StaffID)
+	}
+	return out, nil
+}
+
+// listActiveReservationTypeUniverse returns clinic-scoped active non-deleted
+// reservation types ordered by id (Stage B inverse-mapping universe).
+func (r *reservationStaffRepository) listActiveReservationTypeUniverse(
+	ctx context.Context,
+	clinicID uint64,
+) ([]model.ReservationType, error) {
+	var types []model.ReservationType
+	err := persistence.DBOrTx(ctx, r.db).
+		Select("id", "clinic_id", "name", "is_active").
+		Where("clinic_id = ? AND deleted_at IS NULL AND is_active = ?", clinicID, true).
+		Order("id ASC").
+		Find(&types).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_type", "")
+	}
+	return types, nil
+}
+
+func (r *reservationStaffRepository) hasActiveClinicAssignment(
+	ctx context.Context,
+	clinicID, staffID uint64,
+) (bool, error) {
+	var n int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.StaffClinicAssignment{}).
+		Where("staff_id = ? AND clinic_id = ? AND deleted_at IS NULL", staffID, clinicID).
+		Count(&n).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "staff_clinic_assignment", "")
+	}
+	return n > 0, nil
+}
+
+func deriveExcludedFromUniverse(
+	staffID uint64,
+	universe []model.ReservationType,
+	capableIDs []uint64,
+) []model.StaffReservationExclusion {
+	universeIDs := make([]uint64, len(universe))
+	byID := make(map[uint64]*model.ReservationType, len(universe))
+	for i := range universe {
+		universeIDs[i] = universe[i].ID
+		byID[universe[i].ID] = &universe[i]
+	}
+	excludedIDs := excludedIDsFromCapable(universeIDs, capableIDs)
+	out := make([]model.StaffReservationExclusion, 0, len(excludedIDs))
+	for _, id := range excludedIDs {
+		item := model.StaffReservationExclusion{
+			StaffID:           staffID,
+			ReservationTypeID: id,
+		}
+		if rt := byID[id]; rt != nil {
+			copyRT := *rt
+			item.ReservationType = &copyRT
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func lockReservationJunctionWriteScope(
@@ -260,37 +365,46 @@ func lockReservationTypesForShare(
 	return nil
 }
 
-// UpdateExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
+// UpdateExcludedReservationTypes is a Stage B compatibility write facade.
+// It converts excluded_type_ids into one atomic capability replacement
+// (capable = active universe \ excluded) and does not write staff_reservation_exclusions.
 func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error {
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		// Validate requested exclusion IDs belong to this clinic (non-deleted).
 		if err := lockReservationJunctionWriteScope(tx, clinicID, staffID, courseIDs); err != nil {
 			return err
 		}
-		if err := persistence.DeleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
-			&model.StaffReservationExclusion{}, &model.ReservationType{}, "reservation_type_id",
-			"staff_reservation_exclusion", fmt.Sprintf("%d", staffID)); err != nil {
+		// Load inverse-mapping universe under the same transaction.
+		var universe []model.ReservationType
+		if err := tx.
+			Select("id").
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Where("clinic_id = ? AND deleted_at IS NULL AND is_active = ?", clinicID, true).
+			Order("id ASC").
+			Find(&universe).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type", "")
+		}
+		universeIDs := make([]uint64, len(universe))
+		for i := range universe {
+			universeIDs[i] = universe[i].ID
+		}
+		capableIDs := capableIDsFromExcluded(universeIDs, courseIDs)
+		// Replace capabilities only — zero production writes to exclusions table.
+		if err := replaceReservationCapabilitiesTx(tx, clinicID, staffID, capableIDs); err != nil {
 			return err
 		}
-		if len(courseIDs) == 0 {
-			return nil
-		}
-		items := make([]model.StaffReservationExclusion, 0, len(courseIDs))
-		for _, cid := range courseIDs {
-			items = append(items, model.StaffReservationExclusion{
-				StaffID:           staffID,
-				ReservationTypeID: cid,
-			})
-		}
-		return persistence.InsertJunctionRowsInBatches(tx, items, "staff_reservation_exclusion", "")
+		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to replace excluded reservation types")
+		return apperrors.Wrap(err, "failed to replace excluded reservation types via capability facade")
 	}
 	return nil
 }
 
 func (r *reservationStaffRepository) FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error) {
 	var items []model.StaffReservationCapability
-	err := r.db.WithContext(ctx).
+	// DBOrTx: Stage B exclusion facade readback after capability replace must see
+	// uncommitted rows in the same ambient transaction.
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
 		Find(&items).Error
@@ -305,7 +419,7 @@ func (r *reservationStaffRepository) FindAllReservationCapabilitiesByStaffIDs(ct
 		return nil, nil
 	}
 	var items []model.StaffReservationCapability
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("clinic_id = ? AND staff_id IN ?", clinicID, staffIDs).
 		Find(&items).Error
@@ -320,26 +434,37 @@ func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.C
 		if err := lockReservationJunctionWriteScope(tx, clinicID, staffID, typeIDs); err != nil {
 			return err
 		}
-		if err := persistence.DeleteJunctionByClinicAndStaff(tx, clinicID, staffID,
-			&model.StaffReservationCapability{}, "staff_reservation_capability", fmt.Sprintf("%d", staffID)); err != nil {
-			return err
-		}
-		if len(typeIDs) == 0 {
-			return nil
-		}
-		items := make([]model.StaffReservationCapability, 0, len(typeIDs))
-		for _, typeID := range typeIDs {
-			items = append(items, model.StaffReservationCapability{
-				ClinicID:          clinicID,
-				StaffID:           staffID,
-				ReservationTypeID: typeID,
-			})
-		}
-		return persistence.InsertJunctionRowsInBatches(tx, items, "staff_reservation_capability", "")
+		return replaceReservationCapabilitiesTx(tx, clinicID, staffID, typeIDs)
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to replace capable reservation types")
 	}
 	return nil
+}
+
+// replaceReservationCapabilitiesTx assumes ambient tx and that junction write scope
+// (staff/assignment/types) is already locked by the caller when required.
+func replaceReservationCapabilitiesTx(tx *gorm.DB, clinicID, staffID uint64, typeIDs []uint64) error {
+	// When called from exclusion facade, typeIDs may differ from already-locked
+	// exclusion IDs — lock capable IDs for share as well.
+	if err := lockReservationTypesForShare(tx, clinicID, typeIDs); err != nil {
+		return err
+	}
+	if err := persistence.DeleteJunctionByClinicAndStaff(tx, clinicID, staffID,
+		&model.StaffReservationCapability{}, "staff_reservation_capability", fmt.Sprintf("%d", staffID)); err != nil {
+		return err
+	}
+	if len(typeIDs) == 0 {
+		return nil
+	}
+	items := make([]model.StaffReservationCapability, 0, len(typeIDs))
+	for _, typeID := range typeIDs {
+		items = append(items, model.StaffReservationCapability{
+			ClinicID:          clinicID,
+			StaffID:           staffID,
+			ReservationTypeID: typeID,
+		})
+	}
+	return persistence.InsertJunctionRowsInBatches(tx, items, "staff_reservation_capability", "")
 }
 
 func (r *reservationStaffRepository) SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {

@@ -101,6 +101,10 @@ func (m *mockReservationStaffService) ListExcludedByStaffIDs(ctx context.Context
 	return map[uint64][]model.StaffReservationExclusion{}, nil
 }
 
+func (m *mockReservationStaffService) ListCapableByStaffIDs(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.StaffReservationCapability, error) {
+	return map[uint64][]model.StaffReservationCapability{}, nil
+}
+
 // ---- test helper ----
 
 func newHandlerWithReservationStaffSvc(svc ReservationStaffService) *ReservationStaffHandler {

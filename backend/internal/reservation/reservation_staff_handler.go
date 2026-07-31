@@ -36,14 +36,21 @@ func (h *ReservationStaffHandler) ListReservationStaffs(c *gin.Context) {
 	for i := range staffs {
 		staffIDs[i] = staffs[i].ID
 	}
-	excludedMap, err := h.svc.ListExcludedByStaffIDs(c.Request.Context(), clinicID, staffIDs)
+	ctx := c.Request.Context()
+	excludedMap, err := h.svc.ListExcludedByStaffIDs(ctx, clinicID, staffIDs)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	capableMap, err := h.svc.ListCapableByStaffIDs(ctx, clinicID, staffIDs)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	list := make([]reservationStaffResponse, 0, len(staffs))
 	for i := range staffs {
-		list = append(list, toReservationStaffResponse(&staffs[i], excludedMap[staffs[i].ID]))
+		sid := staffs[i].ID
+		list = append(list, toReservationStaffResponse(&staffs[i], excludedMap[sid], capableMap[sid]))
 	}
 	c.JSON(http.StatusOK, list)
 }
@@ -59,13 +66,19 @@ func (h *ReservationStaffHandler) CreateReservationStaff(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	staff, excluded, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	ctx := c.Request.Context()
+	staff, excluded, err := h.svc.Create(ctx, clinicID, req.toServiceInput())
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	capableMap, err := h.svc.ListCapableByStaffIDs(ctx, clinicID, []uint64{staff.ID})
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/reservation-staffs/%d", staff.ID))
-	c.JSON(http.StatusCreated, toReservationStaffResponse(staff, excluded))
+	c.JSON(http.StatusCreated, toReservationStaffResponse(staff, excluded, capableMap[staff.ID]))
 }
 
 // UpdateReservationStaff godoc
@@ -83,12 +96,18 @@ func (h *ReservationStaffHandler) UpdateReservationStaff(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	staff, excluded, err := h.svc.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	ctx := c.Request.Context()
+	staff, excluded, err := h.svc.Update(ctx, clinicID, id, req.toServiceInput())
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded))
+	capableMap, err := h.svc.ListCapableByStaffIDs(ctx, clinicID, []uint64{staff.ID})
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded, capableMap[staff.ID]))
 }
 
 // DeleteReservationStaff godoc
@@ -123,12 +142,18 @@ func (h *ReservationStaffHandler) UpdateReservationStaffStatus(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	staff, excluded, err := h.svc.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
+	ctx := c.Request.Context()
+	staff, excluded, err := h.svc.PatchStatus(ctx, clinicID, id, req.IsActive)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded))
+	capableMap, err := h.svc.ListCapableByStaffIDs(ctx, clinicID, []uint64{staff.ID})
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded, capableMap[staff.ID]))
 }
 
 // UpdateReservationStaffSortOrder godoc

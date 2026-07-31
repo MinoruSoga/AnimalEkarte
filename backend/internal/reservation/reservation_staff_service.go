@@ -70,13 +70,21 @@ type ReservationStaffCoreService interface {
 // ReservationStaffExclusionService は予約スタッフの除外コース操作
 type ReservationStaffExclusionService interface {
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
+	// Stage B: values are derived from capabilities (compatibility facade).
 	ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+}
+
+// ReservationStaffCapabilityService は対応可能予約区分の bulk read。
+type ReservationStaffCapabilityService interface {
+	// ListCapableByStaffIDs は複数スタッフの対応可能コースをバルク取得する（N+1回避）
+	ListCapableByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationCapability, error)
 }
 
 // ReservationStaffService は ReservationStaffCoreService / ReservationStaffExclusionService を統合したインターフェース。
 type ReservationStaffService interface {
 	ReservationStaffCoreService
 	ReservationStaffExclusionService
+	ReservationStaffCapabilityService
 }
 
 type reservationStaffService struct {
@@ -135,11 +143,11 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 			slog.ErrorContext(txCtx, "failed to create reservation staff", "error", err)
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
-		if len(input.ExcludedTypeIDs) > 0 {
-			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
-				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
-				return apperrors.Wrap(err, "failed to set excluded courses")
-			}
+		// Stage B: always run inverse facade (empty excluded ⇒ full active universe capable).
+		// Skipping empty write left staff with zero capabilities (fail-closed strand).
+		if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
+			slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
+			return apperrors.Wrap(err, "failed to set excluded courses")
 		}
 		var err error
 		excluded, err = s.repo.FindAllExcludedReservationTypes(txCtx, clinicID, staff.ID)
@@ -286,6 +294,7 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 }
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す
+// Stage B: derived from capabilities (exclusion table is not the SoT).
 func (s *reservationStaffService) ListExcludedByStaffIDs(
 	ctx context.Context,
 	clinicID uint64,
@@ -297,6 +306,25 @@ func (s *reservationStaffService) ListExcludedByStaffIDs(
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")
 	}
 	m := make(map[uint64][]model.StaffReservationExclusion, len(staffIDs))
+	for i := range items {
+		sid := items[i].StaffID
+		m[sid] = append(m[sid], items[i])
+	}
+	return m, nil
+}
+
+// ListCapableByStaffIDs は複数スタッフの対応可能コースをバルク取得してスタッフID→一覧のマップを返す
+func (s *reservationStaffService) ListCapableByStaffIDs(
+	ctx context.Context,
+	clinicID uint64,
+	staffIDs []uint64,
+) (map[uint64][]model.StaffReservationCapability, error) {
+	items, err := s.repo.FindAllReservationCapabilitiesByStaffIDs(ctx, clinicID, staffIDs)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list capable reservation types", "error", err)
+		return nil, apperrors.Wrap(err, "failed to list capable reservation types")
+	}
+	m := make(map[uint64][]model.StaffReservationCapability, len(staffIDs))
 	for i := range items {
 		sid := items[i].StaffID
 		m[sid] = append(m[sid], items[i])

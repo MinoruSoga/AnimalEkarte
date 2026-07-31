@@ -141,6 +141,6 @@ TASK-001-BE/FE, TASK-006/007/008, TASK-011, TASK-015/016/017, TASK-018（監査�
 
 - **問題**: capabilities SoT と exclusion 面の dual residual。available-staffs は導入しない（WONTFILE）。
 - **修正方針**: **段階 B→A 決裁済**。Stage B で exclusion を capabilities-only の期限付き facade にし、production の exclusion write をゼロ化。Stage A は consumer inventory 後に撤去する。新 endpoint は追加しない。
-- **状態**: **段階 B→A 決裁済 — 実装 follow-up 要**。Stage B で exclusion を capabilities-only の期限付き facade にし、Stage A で consumer inventory 後に撤去する。`available-staffs` は WONTFILE。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **Stage B done**（`TODO-MD-TASK-021-STAGE-B-20260731`）。capabilities が唯一の write SoT。exclusion GET/PUT は active universe 上の inverse facade（`staff_reservation_exclusions` production write=0）。`reservation-staffs` に `capable_courses` 追加。院内 FE 候補は肯定形 + missing metadata fail-closed。`available-staffs` static ban。**Stage A remaining**: consumer inventory + 破壊変更承認後に exclusion route/payload/model/table/seed/OpenAPI を migration 付き撤去。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
 
 ---

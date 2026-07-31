@@ -55,9 +55,10 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 		&model.StaffClinicAssignment{},
 		&model.ReservationType{},
 		&model.StaffReservationExclusion{},
+		&model.StaffReservationCapability{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_reservation_exclusions, staff_clinic_assignments, reservation_types, staffs CASCADE",
+		"TRUNCATE TABLE staff_reservation_capabilities, staff_reservation_exclusions, staff_clinic_assignments, reservation_types, staffs CASCADE",
 	).Error)
 
 	company := &model.Company{Name: "予約スタッフ除外レスポンステスト法人"}
@@ -91,10 +92,8 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 	}
 	require.NoError(t, db.Create(typeA).Error)
 	require.NoError(t, db.Create(typeB).Error)
-	require.NoError(t, db.Create([]model.StaffReservationExclusion{
-		{StaffID: sharedStaff.ID, ReservationTypeID: typeA.ID},
-		{StaffID: sharedStaff.ID, ReservationTypeID: typeB.ID},
-	}).Error)
+	// Stage B: no capabilities ⇒ clinic A derived excluded = {typeA} only (universe scoped).
+	// Legacy exclusion rows (if any) are ignored; do not seed them.
 
 	repo := NewReservationStaffRepository(db, exclusionResponseStaffWriter{})
 	service := NewReservationStaffService(repo, nil, nil)
@@ -115,4 +114,5 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 	assert.Equal(t, typeA.Name, response[0].ExcludedCourses[0].Name)
 	assert.NotEqual(t, typeB.ID, response[0].ExcludedCourses[0].ID)
 	assert.NotEqual(t, typeB.Name, response[0].ExcludedCourses[0].Name)
+	assert.Empty(t, response[0].CapableCourses, "empty capabilities surface as empty capable_courses")
 }

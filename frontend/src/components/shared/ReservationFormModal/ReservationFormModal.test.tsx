@@ -277,7 +277,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 });
 
 describe("ReservationFormModal — 担当者候補", () => {
-  it("選択した予約区分を対応不可にしているスタッフを担当者候補から除外する", async () => {
+  it("対応可能コースを持つスタッフだけを担当者候補に残す（肯定形 capability）", async () => {
     localStorage.setItem("auth_current_clinic:v1", "1");
     server.use(
       http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
@@ -311,12 +311,14 @@ describe("ReservationFormModal — 担当者候補", () => {
             id: 10,
             name: "非対応スタッフ",
             is_active: true,
+            capable_courses: [],
             excluded_courses: [{ id: 5, name: "トリミング" }],
           },
           {
             id: 11,
             name: "対応スタッフ",
             is_active: true,
+            capable_courses: [{ id: 5, name: "トリミング" }],
             excluded_courses: [],
           },
         ])

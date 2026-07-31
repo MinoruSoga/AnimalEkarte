@@ -120,12 +120,26 @@ func TestReservationStaffRepository_Create_CommitsWithinAmbientTx(t *testing.T) 
 	require.NoError(t, db.Model(&model.Staff{}).Where("id = ?", staff.ID).Count(&staffCount).Error)
 	assert.EqualValues(t, 1, staffCount, "commit 後は staff が永続化される")
 
+	// Stage B: exclusion facade writes capabilities (exclude typeA with universe={typeA}
+	// ⇒ capable empty). Dual-write to exclusions must stay zero.
 	var exclusionCount int64
 	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&exclusionCount).Error)
-	assert.EqualValues(t, 1, exclusionCount, "commit 後は除外コースが永続化される")
+	assert.Zero(t, exclusionCount, "Stage B: exclusions table must not receive production writes")
+	// empty excluded list would write all capable; here excluded={typeA}=universe → capable empty.
+	// Re-run with exclude-none to prove capability persistence under ambient tx:
+	typeB := makeReservationType(t, db, clinicA)
+	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+		// exclude typeA only → capable={typeB}
+		return repo.UpdateExcludedReservationTypes(txCtx, clinicA, staff.ID, []uint64{typeA.ID})
+	}))
+	var capCount int64
+	require.NoError(t, db.Model(&model.StaffReservationCapability{}).
+		Where("clinic_id = ? AND staff_id = ?", clinicA, staff.ID).Count(&capCount).Error)
+	assert.EqualValues(t, 1, capCount, "commit 後は capabilities が永続化される")
+	_ = typeB
 }
 
-// ─── UpdateExcludedReservationTypes 単体（DELETE→INSERT の原子性） ─────────────────
+// ─── UpdateExcludedReservationTypes 単体（capability facade 原子性） ─────────────────
 
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhenAmbientTxFails(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
@@ -136,6 +150,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhen
 
 	staff := makeDoctorAssignedToClinic(t, db, clinicA, "除外原子性テスト用スタッフ")
 	typeA := makeReservationType(t, db, clinicA)
+	_ = makeReservationType(t, db, clinicA) // so exclude typeA leaves ≥1 capable on success path
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
 		if err := repo.UpdateExcludedReservationTypes(txCtx, clinicA, staff.ID, []uint64{typeA.ID}); err != nil {
@@ -146,11 +161,14 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_RollsBackWhen
 	require.Error(t, txErr)
 	require.ErrorIs(t, txErr, errSentinelReservationStaffTx)
 
-	var count int64
-	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&count).Error)
-	assert.Zero(t, count,
-		"ambient tx 失敗時、UpdateExcludedReservationTypes の DELETE→INSERT はロールバックされる。"+
-			"バグ時は独立 tx で即コミットされるため count=1 になり FAIL する（部分コミットの実証）")
+	var exclCount int64
+	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&exclCount).Error)
+	assert.Zero(t, exclCount)
+	var capCount int64
+	require.NoError(t, db.Model(&model.StaffReservationCapability{}).
+		Where("clinic_id = ? AND staff_id = ?", clinicA, staff.ID).Count(&capCount).Error)
+	assert.Zero(t, capCount,
+		"ambient tx 失敗時、UpdateExcludedReservationTypes の capability 置換はロールバックされる")
 }
 
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_CommitsWithinAmbientTx(t *testing.T) {
@@ -162,14 +180,24 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_CommitsWithin
 
 	staff := makeDoctorAssignedToClinic(t, db, clinicA, "除外原子性テスト用スタッフ2")
 	typeA := makeReservationType(t, db, clinicA)
+	typeB := makeReservationType(t, db, clinicA)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+		// exclude typeA → capable={typeB}
 		return repo.UpdateExcludedReservationTypes(txCtx, clinicA, staff.ID, []uint64{typeA.ID})
 	}))
 
-	var count int64
-	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&count).Error)
-	assert.EqualValues(t, 1, count, "commit 後は除外コースが永続化される")
+	var exclCount int64
+	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&exclCount).Error)
+	assert.Zero(t, exclCount, "Stage B: no exclusion dual-write")
+	var capCount int64
+	require.NoError(t, db.Model(&model.StaffReservationCapability{}).
+		Where("clinic_id = ? AND staff_id = ?", clinicA, staff.ID).Count(&capCount).Error)
+	assert.EqualValues(t, 1, capCount, "commit 後は capabilities が永続化される")
+	caps, err := repo.FindAllReservationCapabilities(ctx, clinicA, staff.ID)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+	assert.Equal(t, typeB.ID, caps[0].ReservationTypeID)
 }
 
 // ─── Update + UpdateExcludedReservationTypes 合成（reservationStaffService.Update の judgment call） ──
@@ -227,5 +255,10 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Com
 
 	var exclusionCount int64
 	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).Where("staff_id = ?", staff.ID).Count(&exclusionCount).Error)
-	assert.EqualValues(t, 1, exclusionCount, "commit 後は除外コースが永続化される")
+	assert.Zero(t, exclusionCount, "Stage B: exclusion facade must not dual-write exclusions")
+	// exclude typeA with universe={typeA} → capable empty is a successful affinity write
+	excluded, err := repo.FindAllExcludedReservationTypes(ctx, clinicA, staff.ID)
+	require.NoError(t, err)
+	require.Len(t, excluded, 1)
+	assert.Equal(t, typeA.ID, excluded[0].ReservationTypeID)
 }

@@ -51,20 +51,20 @@ func reservationStaffReplacementTypeIDs(
 	t.Helper()
 	typeIDs := make([]uint64, 0)
 	query := db.Order("reservation_type_id ASC")
-	if kind == reservationStaffReplacementExclusion {
-		var rows []model.StaffReservationExclusion
-		require.NoError(t, query.Where("staff_id = ?", staffID).Find(&rows).Error)
-		for i := range rows {
-			typeIDs = append(typeIDs, rows[i].ReservationTypeID)
-		}
-		return typeIDs
-	}
+	// Stage B: exclusion facade persists capabilities only. For both kinds the
+	// durable junction is staff_reservation_capabilities; exclusion path stores
+	// capable = universe \ excluded, so callers assert the intended end-state
+	// of that table (or derived excluded via FindAllExcluded in dedicated tests).
 	var rows []model.StaffReservationCapability
 	require.NoError(t, query.
 		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
 		Find(&rows).Error)
 	for i := range rows {
 		typeIDs = append(typeIDs, rows[i].ReservationTypeID)
+	}
+	if kind == reservationStaffReplacementExclusion {
+		// Requested excluded set is not stored; return capable IDs for SoT checks.
+		return typeIDs
 	}
 	return typeIDs
 }
@@ -136,12 +136,19 @@ func TestReservationStaffRepository_FullReplacementOwnsExclusiveMutationLock(t *
 				staff.ID,
 				secondType.ID,
 			))
-			assert.Equal(
-				t,
-				[]uint64{secondType.ID},
-				reservationStaffReplacementTypeIDs(t, db, tt.kind, clinicID, staff.ID),
-				"a full replacement must end at exactly one request, never their union",
-			)
+			got := reservationStaffReplacementTypeIDs(t, db, tt.kind, clinicID, staff.ID)
+			if tt.kind == reservationStaffReplacementExclusion {
+				// UpdateExcluded([second]) ⇒ capable = universe\{second} = {first}
+				assert.Equal(t, []uint64{firstType.ID}, got,
+					"exclusion facade must replace capabilities as universe\\excluded, not dual-write exclusions")
+				var exclN int64
+				require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
+					Where("staff_id = ?", staff.ID).Count(&exclN).Error)
+				assert.Zero(t, exclN, "Stage B: no production rows in staff_reservation_exclusions")
+			} else {
+				assert.Equal(t, []uint64{secondType.ID}, got,
+					"a full replacement must end at exactly one request, never their union")
+			}
 		})
 	}
 }
