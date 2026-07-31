@@ -30,11 +30,12 @@
 ### 1. 環境変数の準備
 
 ```bash
-# ローカル開発用のテンプレートをコピー
+# ローカル開発用のテンプレートをコピー（別マシンでも同じ手順）
 cp .env.example .env.local
 ```
 
-コピー後、`.env.local` のプレースホルダーをローカル環境用に設定してください。開発用の Make ターゲットは、このファイルを Docker Compose の変数展開元として使用します。クイックスタートでは `.env` は使用しません。`.env.local` は Git 管理対象外です。実際の認証情報は README や `.env.example` に記載しないでください。
+`.env.example` にはローカル Docker 用のキーとダミー値が入っています。**コピーしただけで `make up` できます。**  
+開発用 Make / Compose は `.env.local` を変数源にします（`.env` は使わない）。`.env.local` は Git 管理外です。STG/本番の認証情報・LINE/Vercel トークンは `.env.example` に書かず、必要な人だけ `.env.local` に追記してください。
 
 ### 2. 起動
 
