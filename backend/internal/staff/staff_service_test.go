@@ -187,6 +187,11 @@ func (m *mockReservationForStaff) FindPetOwnerInClinic(_ context.Context, _, _ u
 	return 0, nil
 }
 
+func (m *mockReservationForStaff) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+
 func (m *mockReservationForStaff) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
 }

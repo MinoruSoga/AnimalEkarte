@@ -485,6 +485,11 @@ func (m *mockLiffReservationRepository) FindPetOwnerInClinic(_ context.Context, 
 	return 0, nil
 }
 
+func (m *mockLiffReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+
 func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
 }

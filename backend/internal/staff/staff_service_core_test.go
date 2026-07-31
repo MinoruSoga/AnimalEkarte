@@ -275,6 +275,11 @@ func (m *coreMockReservationQueryRepository) FindPetOwnerInClinic(_ context.Cont
 	return 0, nil
 }
 
+func (m *coreMockReservationQueryRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+
 func (m *coreMockReservationQueryRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
 }

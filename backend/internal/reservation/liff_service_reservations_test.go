@@ -226,6 +226,7 @@ func TestLiffService_CreateReservation_NotifyEnrichmentFallback(t *testing.T) {
 // ================================================================
 
 func TestResolveReservationPetID(t *testing.T) {
+	deceasedAtForResolve := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name           string
 		customer       *model.LineCustomer
@@ -290,6 +291,32 @@ func TestResolveReservationPetID(t *testing.T) {
 				{ID: 300, Name: "ポチ"}, {ID: 301, Name: "タマ"},
 			}}},
 			customerFields: []byte(`{"pets":[{"name":"ハチ"}]}`),
+			wantNil:        true,
+		},
+		{
+			name: "単頭だが死亡 -> nil",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ", DeceasedAt: &deceasedAtForResolve},
+			}}},
+			wantNil: true,
+		},
+		{
+			name: "生存1頭+死亡1頭 -> 生存ID",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ", DeceasedAt: &deceasedAtForResolve},
+				{ID: 301, Name: "タマ"},
+			}}},
+			wantID: 301,
+		},
+		{
+			// 生存が2頭以上のときだけ名前解決する。死亡名への一致は skip して nil。
+			name: "複数頭生存・名前一致だが死亡 -> nil",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ"},
+				{ID: 301, Name: "タマ", DeceasedAt: &deceasedAtForResolve},
+				{ID: 302, Name: "ハチ"},
+			}}},
+			customerFields: []byte(`{"pets":[{"name":"タマ"}]}`),
 			wantNil:        true,
 		},
 	}

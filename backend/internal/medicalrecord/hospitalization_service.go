@@ -65,20 +65,9 @@ type UpdateHospitalizationInput struct {
 }
 
 // validatePetNotDeceased は死亡ペットへの業務書き込みをブロックする（SD-10・臨床安全）。
-// FE のペット選択 UI は死亡ペットをクリック不可にするだけで API 直叩きを防げないため、
-// BE 側でも fail-closed に検証する。message は呼び出し元の業務文言を渡す。
+// 実装正本は sharedkernel.ValidatePetNotDeceased（#261 P0 で昇格）。message は呼び出し元の業務文言。
 func validatePetNotDeceased(ctx context.Context, petRepo petFinder, clinicID, petID uint64, message string) error {
-	pet, err := petRepo.FindByID(ctx, clinicID, petID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to verify pet status")
-	}
-	if pet == nil {
-		return apperrors.WrapNotFound("pet", "status")
-	}
-	if pet.DeceasedAt != nil {
-		return apperrors.WrapInvalidInput(message)
-	}
-	return nil
+	return sharedkernel.ValidatePetNotDeceased(ctx, petRepo, clinicID, petID, message)
 }
 
 // resolveFinalHospitalizationOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-004）。

@@ -188,6 +188,11 @@ func (m *mockMedicalRecordRepository) FindPetOwnerInClinic(ctx context.Context, 
 	return 1, nil
 }
 
+func (m *mockMedicalRecordRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+
 func (m *mockMedicalRecordRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
 	if m.assertDoctorInClinicFn != nil {
 		return m.assertDoctorInClinicFn(ctx, clinicID, doctorID)

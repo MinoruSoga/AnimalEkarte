@@ -247,6 +247,40 @@ func TestReservationAdminService_Create(t *testing.T) {
 	}
 }
 
+func TestReservationAdminService_Create_RejectsDeceasedPet(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	deceasedAt := start.Add(-24 * time.Hour)
+	petID := uint64(5)
+	ownerID := uint64(2)
+	createCalled := false
+	resRepo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	svc := NewReservationAdminServiceWithAvailabilityAndType(
+		&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, nil,
+	)
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         start,
+		EndTime:           start.Add(time.Hour),
+		OwnerID:           &ownerID,
+		PetID:             &petID,
+		ReservationTypeID: 1,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
 func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
 	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	maxConcurrent := 2

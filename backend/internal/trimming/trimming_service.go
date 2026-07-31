@@ -117,6 +117,8 @@ type trimmingService struct {
 // It intentionally exposes only trimming-specific intents plus the reads needed by this domain.
 type TrimmingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
+	// FindPetByIDInClinic is required for SD-10 deceased write guard (#261 P0).
+	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	FindTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	AcquireBookingLock(ctx context.Context, clinicID uint64) error
@@ -272,6 +274,9 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			}
 		}
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
+			return err
+		}
+		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, input.PetID); err != nil {
 			return err
 		}
 		if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
@@ -489,6 +494,9 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
 			return err
 		}
+		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, finalPetID); err != nil {
+			return err
+		}
 
 		if input.PetID != nil && locked.PetID != nil && *locked.PetID != *input.PetID {
 			return apperrors.WrapInvalidInput("pet_id does not match appointment")
@@ -638,6 +646,9 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			finalPetID = input.PetID
 		}
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
+			return err
+		}
+		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, finalPetID); err != nil {
 			return err
 		}
 		resolvedStart := locked.StartTime

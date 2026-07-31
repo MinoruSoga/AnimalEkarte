@@ -211,6 +211,9 @@ type ReservationQueryRepository interface {
 	AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error
 	// FindPetOwnerInClinic は pet が clinic に属する場合にその OwnerID を返す（AUD-001、dbOrTx 参加）。
 	FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	// FindPetByIDInClinic は clinic スコープでペットを読む（SD-10 死亡 write ガード用、dbOrTx 参加）。
+	// 部分列（id / owner_id / deceased_at / status）のみを返す。
+	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	// AssertLineCustomerInClinic は line_customer が clinic に属することを検証する（AUD-001、dbOrTx 参加）。
 	AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
@@ -784,6 +787,24 @@ func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinic
 		return 0, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
 	}
 	return pet.OwnerID, nil
+}
+
+// FindPetByIDInClinic は clinic スコープでペットを読み、死亡 write ガード（SD-10）に必要な列を返す。
+// transaction 内では行を共有ロックし、検証後から write までの deceased_at 変更を防ぐ。
+func (r *reservationRepository) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	var pet model.Pet
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.Pet{})
+	if persistence.TxFromContext(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	err := db.
+		Select("pets.id", "pets.owner_id", "pets.deceased_at", "pets.status").
+		Where("pets.id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", petID, clinicID).
+		First(&pet).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
+	}
+	return &pet, nil
 }
 
 // AssertLineCustomerInClinic は line_customers を clinic スコープで存在確認する（AUD-001）。
