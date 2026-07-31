@@ -36,9 +36,9 @@ type UpsertLineReservationSettingInput struct {
 	ShowNoStaffOption       bool
 	AdditionalFields        []byte
 	LineChannelID           string
-	LineChannelSecret       string
-	LiffID                  string
-	LineAccessToken         string
+	// LineChannelSecret removed in R-05 Phase B — canonical SoT is clinic_integrations.
+	LiffID          string
+	LineAccessToken string
 }
 
 // LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
@@ -137,27 +137,20 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	}
 	isNew := existing == nil
 
-	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
-	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値（DB 上は暗号文）を
-	// 復号して平文として保持する。lstep.DecryptLineCredential はレガシー平文行もそのまま返す。
-	channelSecret := input.LineChannelSecret
+	// LineAccessToken はレスポンスに含まれないため、フロントエンドは既存値を読み取れない。
+	// 空文字が送られてきた場合は既存値（DB 上は暗号文）を復号して平文として保持する。
+	// lstep.DecryptLineCredential はレガシー平文行もそのまま返す。
+	//
+	// R-05 Phase B: LineChannelSecret は本経路では一切読まない・書かない。
+	// 正規 write owner は clinic_integrations（L-step 設定 API）。
+	// 既存 DB 列の値は repository の OnConflict 除外で温存し、presence SELECT 用に残す。
 	accessToken := input.LineAccessToken
-	if existing != nil {
-		if channelSecret == "" {
-			channelSecret = s.decryptCredential(ctx, existing.LineChannelSecret)
-		}
-		if accessToken == "" {
-			accessToken = s.decryptCredential(ctx, existing.LineAccessToken)
-		}
+	if existing != nil && accessToken == "" {
+		accessToken = s.decryptCredential(ctx, existing.LineAccessToken)
 	}
 
-	// H-4: 保存時は常に暗号化して書き込む。既存のレガシー平文行は、この経路（次回保存）で
-	// 自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
-	encryptedSecret, err := s.encryptCredential(channelSecret)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to encrypt line channel secret", "error", err, "clinic_id", clinicID)
-		return nil, false, apperrors.Wrap(err, "failed to encrypt line channel secret")
-	}
+	// H-4: access token は保存時に常に暗号化する。既存のレガシー平文行は、この経路
+	// （次回保存）で自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
 	encryptedToken, err := s.encryptCredential(accessToken)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
@@ -191,9 +184,10 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ShowNoStaffOption:       input.ShowNoStaffOption,
 		AdditionalFields:        input.AdditionalFields,
 		LineChannelID:           input.LineChannelID,
-		LineChannelSecret:       encryptedSecret,
-		LiffID:                  input.LiffID,
-		LineAccessToken:         encryptedToken,
+		// LineChannelSecret: intentionally unset (zero). Create inserts empty;
+		// update OnConflict excludes the column so existing values stay intact.
+		LiffID:          input.LiffID,
+		LineAccessToken: encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)

@@ -98,39 +98,52 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		}
 		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
-			Status:            "active",
-			ClosedWeekdays:    []byte("[1, 2]"),
-			LineChannelSecret: "secret",
-			LineAccessToken:   "token",
+			Status:          "active",
+			ClosedWeekdays:  []byte("[1, 2]"),
+			LineAccessToken: "token",
 		}
 		res, isNew, err := svc.Save(ctx, 1, input)
 		assert.NoError(t, err)
 		assert.True(t, isNew)
 		assert.NotNil(t, res)
+		// R-05 Phase B: channel secret is never written from this path.
+		assert.Empty(t, res.LineChannelSecret)
+		assert.Equal(t, "token", res.LineAccessToken)
 	})
 
-	t.Run("success update existing setting keeping sensitive keys", func(t *testing.T) {
+	t.Run("success update existing setting keeps access token; never rewrites channel secret", func(t *testing.T) {
 		existing := &model.LineReservationSetting{
 			ClinicID:          1,
 			LineChannelSecret: "old_secret",
 			LineAccessToken:   "old_token",
 		}
+		var persisted *model.LineReservationSetting
 		repo := &mockLineReservationSettingRepository{
 			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 				return existing, nil
 			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
 		}
 		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
-			Status:            "active",
-			ClosedWeekdays:    []byte("[1, 2]"),
-			LineChannelSecret: "",
-			LineAccessToken:   "",
+			Status:          "active",
+			ClosedWeekdays:  []byte("[1, 2]"),
+			LineAccessToken: "",
 		}
 		res, isNew, err := svc.Save(ctx, 1, input)
 		assert.NoError(t, err)
 		assert.False(t, isNew)
 		assert.NotNil(t, res)
+		// Access token empty-input preserve remains (co-travel token path).
+		assert.Equal(t, "old_token", res.LineAccessToken)
+		// Channel secret must not be copied/re-encrypted into the write model.
+		assert.Empty(t, res.LineChannelSecret)
+		if assert.NotNil(t, persisted) {
+			assert.Empty(t, persisted.LineChannelSecret)
+		}
 	})
 
 	t.Run("invalid json fields", func(t *testing.T) {
@@ -281,7 +294,7 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 		}
 	}
 
-	t.Run("plaintext secrets are encrypted at rest on save", func(t *testing.T) {
+	t.Run("plaintext access token is encrypted at rest; channel secret is never written", func(t *testing.T) {
 		var persisted *model.LineReservationSetting
 		var findCount int
 		repo := &mockLineReservationSettingRepository{
@@ -299,25 +312,21 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 		}
 		svc := NewLineReservationSettingService(repo, testCipherEncrypt(cipher), testCipherDecrypt(cipher))
 		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
-			LineChannelSecret: "plain-secret",
-			LineAccessToken:   "plain-token",
+			LineAccessToken: "plain-token",
 		})
 		assert.NoError(t, err)
 		if assert.NotNil(t, persisted) {
-			// 平文が DB 値としてそのまま残らない
-			assert.NotEqual(t, "plain-secret", persisted.LineChannelSecret)
+			// R-05 Phase B: channel secret write path removed — model must stay empty.
+			assert.Empty(t, persisted.LineChannelSecret)
+			// Access token still encrypts at rest.
 			assert.NotEqual(t, "plain-token", persisted.LineAccessToken)
-			// round-trip: 復号すると元の平文に戻る
-			gotSecret, decErr := cipher.Decrypt(persisted.LineChannelSecret)
-			assert.NoError(t, decErr)
-			assert.Equal(t, "plain-secret", gotSecret)
 			gotToken, decErr := cipher.Decrypt(persisted.LineAccessToken)
 			assert.NoError(t, decErr)
 			assert.Equal(t, "plain-token", gotToken)
 		}
 	})
 
-	t.Run("existing encrypted value preserved without double-encryption when input empty", func(t *testing.T) {
+	t.Run("existing encrypted access token preserved without double-encryption when input empty", func(t *testing.T) {
 		encSecret, err := cipher.Encrypt("kept-secret")
 		assert.NoError(t, err)
 		encToken, err := cipher.Encrypt("kept-token")
@@ -329,23 +338,21 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 		})
 		svc := NewLineReservationSettingService(repo, testCipherEncrypt(cipher), testCipherDecrypt(cipher))
 		res, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
-			LineChannelSecret: "",
-			LineAccessToken:   "",
+			LineAccessToken: "",
 		})
 		assert.NoError(t, err)
 		if assert.NotNil(t, res) {
-			// 二重暗号化されず、1 回の復号で元の平文に戻る
-			gotSecret, decErr := cipher.Decrypt(res.LineChannelSecret)
-			assert.NoError(t, decErr)
-			assert.Equal(t, "kept-secret", gotSecret)
+			// Channel secret must not be re-read/re-encrypted onto the write model.
+			assert.Empty(t, res.LineChannelSecret)
+			// Access token: 二重暗号化されず、1 回の復号で元の平文に戻る
 			gotToken, decErr := cipher.Decrypt(res.LineAccessToken)
 			assert.NoError(t, decErr)
 			assert.Equal(t, "kept-token", gotToken)
 		}
 	})
 
-	t.Run("legacy plaintext existing is re-encrypted when input empty", func(t *testing.T) {
-		// 暗号化導入前に保存された平文レコードを模す（AES-GCM 復号に失敗する値）
+	t.Run("legacy plaintext access token is re-encrypted; channel secret is left untouched by service", func(t *testing.T) {
+		// 暗号化導入前に保存された平文 access token を模す（AES-GCM 復号に失敗する値）
 		// 実クレデンシャルを使わず、明らかに合成の 32-hex ダミーを用いる
 		const legacyPlainSecret = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 		repo := newCapturingRepo(&model.LineReservationSetting{
@@ -357,11 +364,8 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 		res, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
 		assert.NoError(t, err)
 		if assert.NotNil(t, res) {
-			// 機会的再暗号化: 平文のまま残らず、暗号化される
-			assert.NotEqual(t, legacyPlainSecret, res.LineChannelSecret)
-			gotSecret, decErr := cipher.Decrypt(res.LineChannelSecret)
-			assert.NoError(t, decErr)
-			assert.Equal(t, legacyPlainSecret, gotSecret)
+			// R-05 Phase B: service must not opportunistic-re-encrypt channel secret.
+			assert.Empty(t, res.LineChannelSecret)
 
 			assert.NotEqual(t, "legacy-plain-token", res.LineAccessToken)
 			gotToken, decErr := cipher.Decrypt(res.LineAccessToken)

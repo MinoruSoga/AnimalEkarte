@@ -185,6 +185,38 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		assert.Equal(t, "bot-provisioned", got.LineBotUserID)
 	})
 
+	// R-05 Phase B: OnConflict update must not overwrite legacy line_channel_secret column
+	// (column remains for presence SELECT until inventory-zero DROP packet).
+	t.Run("Save does not wipe existing line_channel_secret on update (R-05 Phase B)", func(t *testing.T) {
+		const placeholder = "legacy-present-placeholder"
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Where("clinic_id = ?", clinicA).
+			Update("line_channel_secret", placeholder).Error)
+
+		withoutSecret := &model.LineReservationSetting{
+			ClinicID:         clinicA,
+			Status:           "active",
+			ClosedWeekdays:   []byte(`[]`),
+			ClosedDates:      []byte(`[]`),
+			BusinessHours:    []byte(`{"start":"1000","end":"1800"}`),
+			BreakHours:       []byte(`[]`),
+			AdditionalFields: []byte(`{}`),
+			// LineChannelSecret intentionally zero — write path no longer sets it.
+		}
+		require.NoError(t, repo.Save(ctx, clinicA, withoutSecret))
+
+		got, err := repo.FindByClinicID(ctx, clinicA)
+		require.NoError(t, err)
+		assert.Equal(t, placeholder, got.LineChannelSecret)
+	})
+
+	t.Run("updatable columns exclude line_channel_secret (R-05 Phase B)", func(t *testing.T) {
+		for _, col := range lineReservationSettingUpdatableColumns() {
+			assert.NotEqual(t, "line_channel_secret", col)
+		}
+	})
+
 	t.Run("does not affect another clinic", func(t *testing.T) {
 		const clinicB = uint64(2)
 		makeLineReservationSetting(t, db, clinicB)

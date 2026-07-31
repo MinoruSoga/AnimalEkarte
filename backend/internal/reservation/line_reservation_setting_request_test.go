@@ -22,7 +22,9 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 		TimeSlotIntervalMinutes: 15,
 		NoStaffMode:             "first_available",
 		ShowNoStaffOption:       &showNoStaff,
-		LineChannelSecret:       "secret",
+		// R-05 Phase B: line_channel_secret is no longer accepted on this request.
+		// Canonical channel secret write owner is clinic_integrations via L-step settings.
+		LineAccessToken: "token",
 	}
 
 	input := req.toServiceInput()
@@ -39,8 +41,34 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	if !input.ShowNoStaffOption {
 		t.Error("ShowNoStaffOption = false, want true")
 	}
-	if input.LineChannelSecret != req.LineChannelSecret {
-		t.Errorf("LineChannelSecret = %q, want %q", input.LineChannelSecret, req.LineChannelSecret)
+	if input.LineAccessToken != req.LineAccessToken {
+		t.Errorf("LineAccessToken = %q, want %q", input.LineAccessToken, req.LineAccessToken)
+	}
+}
+
+// R-05 Phase B: unknown JSON field line_channel_secret must be ignored (not bound).
+func TestUpsertLineReservationSettingRequest_IgnoresLegacyChannelSecretJSON(t *testing.T) {
+	const body = `{
+		"status":"running",
+		"booking_window_max_days":30,
+		"booking_window_min_days":0,
+		"calendar_months":2,
+		"time_slot_mode":"minimize_gaps",
+		"time_slot_interval_minutes":15,
+		"no_staff_mode":"first_available",
+		"line_channel_secret":"must-be-ignored"
+	}`
+	var req upsertLineReservationSettingRequest
+	if err := binding.JSON.BindBody([]byte(body), &req); err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	input := req.toServiceInput()
+	// Input type no longer carries LineChannelSecret; binding success without field is the contract.
+	if input.Status != "running" {
+		t.Errorf("Status = %q, want running", input.Status)
+	}
+	if input.LineAccessToken != "" {
+		t.Errorf("LineAccessToken unexpectedly set to %q", input.LineAccessToken)
 	}
 }
 

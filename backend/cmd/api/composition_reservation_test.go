@@ -123,6 +123,9 @@ func TestNewReservationComposition_InjectsLineCredentialCipherClosures(t *testin
 
 	require.NoError(t, err)
 	require.NotNil(t, repository.persisted)
-	assert.Equal(t, "rewired:secret", repository.persisted.LineChannelSecret)
+	// R-05 Phase B: reservation settings path no longer re-encrypts or writes
+	// LineChannelSecret (canonical SoT is clinic_integrations). OnConflict also
+	// excludes the column, so empty model field must not assert a rewired secret.
+	assert.Empty(t, repository.persisted.LineChannelSecret)
 	assert.Equal(t, "rewired:token", repository.persisted.LineAccessToken)
 }

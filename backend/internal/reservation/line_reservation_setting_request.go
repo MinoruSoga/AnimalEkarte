@@ -35,9 +35,12 @@ type upsertLineReservationSettingRequest struct {
 	ShowNoStaffOption *bool          `json:"show_no_staff_option"`
 	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
 	LineChannelID     string         `json:"line_channel_id" binding:"max=255"`
-	LineChannelSecret string         `json:"line_channel_secret" binding:"max=255"`
-	LiffID            string         `json:"liff_id" binding:"max=255"`
-	LineAccessToken   string         `json:"line_access_token" binding:"max=2000"`
+	// R-05 Phase B: line_channel_secret is intentionally not accepted here.
+	// Canonical write owner is clinic_integrations via L-step settings API.
+	// Unknown JSON key is ignored by encoding/json; presence SELECT on the
+	// legacy column remains until inventory-zero DROP (HOLD).
+	LiffID          string `json:"liff_id" binding:"max=255"`
+	LineAccessToken string `json:"line_access_token" binding:"max=2000"`
 }
 
 func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReservationSettingInput {
@@ -67,7 +70,6 @@ func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReserv
 		ShowNoStaffOption:       resolveBoolDefaultTrue(r.ShowNoStaffOption),
 		AdditionalFields:        r.AdditionalFields,
 		LineChannelID:           r.LineChannelID,
-		LineChannelSecret:       r.LineChannelSecret,
 		LiffID:                  r.LiffID,
 		LineAccessToken:         r.LineAccessToken,
 	}
