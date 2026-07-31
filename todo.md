@@ -13,7 +13,7 @@
 | R5 | コミット前の closed pack 回帰ゲート | **TASK-005**（ops 手順・land 前再実行） |
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
-| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（設計済・**適用は USER**） |
+| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・**適用は USER**） |
 | SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（BLOCKED env） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
@@ -41,7 +41,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 ### 推奨実装順（open のみ）
 
-1. **TASK-009** seed 適用（USER。設計: `reports/2026-07-31-task-009-seed-design.md`）  
+1. **TASK-009** seed 適用（USER。設計: `reports/2026-07-31-task-009-seed-design.md` / slice1: `reports/2026-07-31-task-009-slice1.md`）  
 2. **TASK-010** browser 要実測（env 後。seed 後が理想）  
 3. **TASK-020** Playwright 84 runtime（env 後）  
 4. **TASK-021 Stage A**（consumer inventory + 破壊変更承認後）  
@@ -70,7 +70,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: clinical CSV がヘッダのみでシナリオ前提データが揃わない可能性。
 - **修正方針**: 設計 `reports/2026-07-31-task-009-seed-design.md` に従い USER が seed 適用。エージェントは migrate/seed auto-apply しない。
 - **受け入れ条件**: 対象 CSV がヘッダのみでなくなる; シナリオ前提を満たす; 適用手順が1箇所で辿れる; 適用は USER。
-- **状態**: **設計 done / 適用は USER**。
+- **状態**: **CSV slice1 committed（authoring done）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。claim: `claim/TASK-009`（USER が統合後に解放）。
 
 ### TASK-010: scenarios【要実測】一括実測バックログ（Medium）
 
