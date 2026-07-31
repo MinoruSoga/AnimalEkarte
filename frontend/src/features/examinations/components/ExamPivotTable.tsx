@@ -56,6 +56,11 @@ function formatStoredReference(item: ExamResult): string {
     return `${item.refMin ?? ""}-${item.refMax ?? ""}`;
   }
 
+  // 保存済み定性 bounds のみ表示。token を合成・補完しない（open end は数値と同型: '(-)-' / '-(+)'）。
+  if (item.qualitativeMin !== undefined || item.qualitativeMax !== undefined) {
+    return `${item.qualitativeMin ?? ""}-${item.qualitativeMax ?? ""}`;
+  }
+
   return "-";
 }
 

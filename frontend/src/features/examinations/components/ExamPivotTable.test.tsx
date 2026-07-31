@@ -22,6 +22,8 @@ interface ExamItemFixture {
   reference_value: string;
   ref_min: number | null;
   ref_max: number | null;
+  qualitative_min?: string | null;
+  qualitative_max?: string | null;
   is_assessed?: boolean;
   is_abnormal: boolean;
   status: "normal" | "high" | "low";
@@ -433,6 +435,102 @@ describe("ExamPivotTable", () => {
       within(screen.getByRole("row", { name: /BUN/ })).getByText("-"),
     ).toBeInTheDocument();
     expect(screen.getByText("0-")).toBeInTheDocument();
+  });
+
+  it("保存済み qualitative_min/max を基準値列に表示し、reference_value・数値基準の優先順位を守る", async () => {
+    renderPivot(
+      [makeExamination("1", "2026-07-20")],
+      {
+        "1": [
+          makeItem({
+            id: 1,
+            exam_type_field_id: 100,
+            name: "PRO",
+            inspection_value: "(+)",
+            reference_value: "",
+            ref_min: null,
+            ref_max: null,
+            qualitative_min: "(-)",
+            qualitative_max: "(+)",
+          }),
+          makeItem({
+            id: 2,
+            exam_type_field_id: 200,
+            name: "BLO",
+            inspection_value: "(-)",
+            reference_value: "",
+            ref_min: null,
+            ref_max: null,
+            qualitative_min: "(-)",
+            qualitative_max: null,
+          }),
+          makeItem({
+            id: 3,
+            exam_type_field_id: 300,
+            name: "KET",
+            inspection_value: "(±)",
+            reference_value: "",
+            ref_min: null,
+            ref_max: null,
+            qualitative_min: null,
+            qualitative_max: "(+)",
+          }),
+          makeItem({
+            id: 4,
+            exam_type_field_id: 400,
+            name: "GLU-RV",
+            inspection_value: "95",
+            reference_value: "70-110",
+            ref_min: null,
+            ref_max: null,
+            qualitative_min: "(-)",
+            qualitative_max: "(+)",
+          }),
+          makeItem({
+            id: 5,
+            exam_type_field_id: 500,
+            name: "ALT",
+            unit: "U/L",
+            inspection_value: "40",
+            reference_value: "",
+            ref_min: 10,
+            ref_max: 50,
+            qualitative_min: "(-)",
+            qualitative_max: "(+)",
+          }),
+          makeItem({
+            id: 6,
+            exam_type_field_id: 600,
+            name: "BUN",
+            inspection_value: "20",
+            reference_value: "",
+            ref_min: null,
+            ref_max: null,
+          }),
+          makeItem({
+            id: 7,
+            exam_type_field_id: 700,
+            name: "未実施定性",
+            inspection_value: "",
+            reference_value: "",
+            ref_min: null,
+            ref_max: null,
+            qualitative_min: "(-)",
+            qualitative_max: "(+)",
+          }),
+        ],
+      },
+    );
+
+    expect(await screen.findByText("(-)-(+)")).toBeInTheDocument();
+    expect(screen.getByText("(-)-")).toBeInTheDocument();
+    expect(screen.getByText("-(+)")).toBeInTheDocument();
+    expect(screen.getByText("70-110")).toBeInTheDocument();
+    expect(screen.getByText("10-50")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: /BUN/ })).getByText("-"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("未実施定性")).not.toBeInTheDocument();
   });
 
   it("検査履歴が無い場合は空状態を表示する", () => {

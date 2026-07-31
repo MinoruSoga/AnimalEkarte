@@ -64,7 +64,7 @@ Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）
 |:---|:---|:---|:---|
 | R-1 | 臨床用 `exam_reference_ranges` seed（clinic×species） | OPEN | demo seed に CSV 無し。マスタ UI から投入可 |
 | R-2 | lab import の pet / medical_record 相関 fail-closed | DONE | `lab_import_examination_service` が不一致を NotFound で拒否 |
-| R-3 | IsDuplicate を「完全同一データの再取込のみ skip」へ再設計（PO 裁定 2） | OPEN | 現行は 4-col `(clinic, exam_type, date, pet)`。同日再検査を誤 skip しうる。F-4e スコープ |
+| R-3 | IsDuplicate を「完全同一データの再取込のみ skip」へ再設計（PO 裁定 2） | DONE | 4-col 日付粒度 IsDuplicate を廃止。候補 filter は clinic_id / exam_type_id / date(UTC date-only) / pet_id(NULL-aware)。full match は medical_record_id(NULL-aware) / machine / exam_results（name, inspection_value, unit, reference_value, ref_min, ref_max, sort_order）の完全一致のみ skip。同日同 type でも内容差は insert。回帰は medicalrecord の IsDuplicate 全同一系テストと package で固定 |
 | R-4 | lab import `auto_commit` 解禁 | BLOCKED | clinic/source ごとに初期 `false` 維持。authorized enable / stop / failure notify / audit が前提 |
-| R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | OPEN | BE は snapshot 済み。FE transform / `formatStoredReference` が未配線 |
+| R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | DONE | feature-local transform が `qualitativeMin/Max` を写像。`formatStoredReference` 優先度: `referenceValue` > `refMin/refMax` > `qualitativeMin/Max` > `-`。`ExamPivotTable` に配線済み（open end は `(-)-` / `-(+)`）。ExamItemsTable/ExaminationGroup の parity は任意延期。scoped green: examinations vitest 9 files / 118 tests |
 | R-6 | Phase 2 seed/COPY redesign を伴う追加 migration | BLOCKED | 現行 seed は `clinic_id` 列付き。追加 DDL が seed 列衝突を起こす場合は redesign 後のみ |
