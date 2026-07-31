@@ -166,3 +166,35 @@ func (h *EstimateHandler) DeleteEstimate(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// CreateEstimateSuccessor godoc
+// POST /api/v1/estimates/:id/successors — 確定見積の後継ドラフト作成（TASK-012 FINAL B）。
+// 権限: estimates:create。原見積は不変。unlock は存在しない。
+func (h *EstimateHandler) CreateEstimateSuccessor(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+
+	var req createEstimateSuccessorRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+
+	estimate, err := h.svc.CreateSuccessor(c.Request.Context(), clinicID, id, req.toServiceInput(staffID))
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.Header("Location", fmt.Sprintf("/api/v1/estimates/%d", estimate.ID))
+	c.JSON(http.StatusCreated, toEstimateResponse(estimate))
+}

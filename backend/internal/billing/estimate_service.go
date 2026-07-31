@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -29,6 +30,16 @@ type CreateEstimateInput struct {
 	Comment         string
 	Notes           string
 	CreatedBy       *uint64
+}
+
+// CreateSuccessorInput は確定見積の後継ドラフト作成入力（TASK-012 FINAL B）。
+// 原見積は不変。unlock は存在しない。
+type CreateSuccessorInput struct {
+	Reason  string  // required, min=1 max=500（handler binding と同契約）
+	Title   *string // optional override
+	Comment *string // optional override
+	Notes   *string // optional override
+	ActorID uint64  // required（handler staff id）
 }
 
 // UpdateEstimateInput は見積書更新のサービス入力DTO（nil = 未送信）
@@ -99,6 +110,8 @@ type EstimateService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	// CreateSuccessor は承認/却下済み見積の後継ドラフトを新規作成する（原行は不変・unlock 無し）。
+	CreateSuccessor(ctx context.Context, clinicID, originalID uint64, input *CreateSuccessorInput) (*model.Estimate, error)
 }
 
 type estimateService struct {
@@ -107,15 +120,28 @@ type estimateService struct {
 	reservationRepo   sharedkernel.OwnerPetLinkVerifier
 	staffClinicRepo   staffClinicMembershipCounter
 	auditService      billingAuditLogger
+	auditTx           billingAuditTxLogger // fail-closed supersede 監査（TASK-012）。nil なら CreateSuccessor 拒否。
 	transactor        Transactor
+}
+
+// estimateServiceOption は EstimateService 構築時の任意依存注入。
+type estimateServiceOption func(*estimateService)
+
+// WithEstimateAuditTx は後継ドラフト（supersede）の fail-closed 監査 logger を配線する（TASK-012）。
+func WithEstimateAuditTx(auditTx billingAuditTxLogger) estimateServiceOption {
+	return func(s *estimateService) {
+		s.auditTx = auditTx
+	}
 }
 
 // medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
 // staffClinicRepo は AUD-005 の created_by clinic 所属検証用。
 // auditService は Create/Update/Delete の best-effort 監査（medical_record 同型。fail-closed にしない）。
+// auditTx は CreateSuccessor の fail-closed 監査（optional; WithEstimateAuditTx で注入）。
 // transactor は BE-refactor.md X-11（確定と子書込の競合防止）のため、見積書（medical_record_id に
 // 紐付く「カルテ配下データ」— docs/architecture/erd.md）の書込を LockByIDForUpdate の行ロックと
 // 同一トランザクションに収める目的で注入する（SD-2 系ガード監査で発見された欠落）。
+// 既存 call site 互換のため opts は可変長引数（未指定時 auditTx=nil）。
 func NewEstimateService(
 	repo EstimateRepository,
 	medicalRecordRepo billingMedicalRecordLocker,
@@ -123,8 +149,9 @@ func NewEstimateService(
 	staffClinicRepo staffClinicMembershipCounter,
 	auditService billingAuditLogger,
 	transactor Transactor,
+	opts ...estimateServiceOption,
 ) EstimateService {
-	return &estimateService{
+	s := &estimateService{
 		repo:              repo,
 		medicalRecordRepo: medicalRecordRepo,
 		reservationRepo:   reservationRepo,
@@ -132,6 +159,10 @@ func NewEstimateService(
 		auditService:      auditService,
 		transactor:        transactor,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // logEstimateChangeBestEffort は見積の監査ログを LogEntry で記録する（best-effort）。
@@ -294,6 +325,13 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, *input.CreatedBy); err != nil {
 			return err
 		}
+		// TASK-012: clinic スコープの EST-{N} を原子採番してから INSERT する。
+		estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to allocate estimate number", "error", err)
+			return apperrors.Wrap(err, "failed to allocate estimate number")
+		}
+		estimate.EstimateNo = estimateNo
 		if err := s.repo.Create(txCtx, estimate); err != nil {
 			slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
 			return apperrors.Wrap(err, "failed to create estimate")
@@ -434,4 +472,127 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	// 監査ログ: delete（best-effort）。actorID=nil は system actor。
 	s.logEstimateChangeBestEffort(ctx, clinicID, actorID, "delete", id, oldValue, nil)
 	return nil
+}
+
+// CreateSuccessor は承認済み/却下済み見積の後継ドラフトを新規作成する（TASK-012 FINAL B）。
+// - 原見積は変更しない（unlock 経路は存在しない）
+// - 確定カルテに紐付く原見積でも LockDraftMedicalRecord を呼ばず後継を許可する（明示訂正）
+// - 監査は fail-closed（auditTx nil または LogEntryTx 失敗で TX 全体ロールバック）
+func (s *estimateService) CreateSuccessor(
+	ctx context.Context,
+	clinicID, originalID uint64,
+	input *CreateSuccessorInput,
+) (*model.Estimate, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input is required")
+	}
+	reason := strings.TrimSpace(input.Reason)
+	if reason == "" {
+		return nil, apperrors.WrapInvalidInput("reason is required")
+	}
+	if len([]rune(reason)) > 500 {
+		return nil, apperrors.WrapInvalidInput("reason must be at most 500 characters")
+	}
+	if input.ActorID == 0 {
+		return nil, apperrors.WrapInvalidInput("actor is required")
+	}
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("estimate audit dependency is required")
+	}
+
+	original, err := s.repo.FindByID(ctx, clinicID, originalID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find estimate for successor", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find estimate")
+	}
+	if !isEstimateLocked(original.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書のみ後継ドラフトを作成できます")
+	}
+
+	title := original.Title
+	if input.Title != nil {
+		title = *input.Title
+	}
+	comment := original.Comment
+	if input.Comment != nil {
+		comment = *input.Comment
+	}
+	notes := original.Notes
+	if input.Notes != nil {
+		notes = *input.Notes
+	}
+	actorID := input.ActorID
+	originalIDCopy := original.ID
+
+	var successor *model.Estimate
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// FINAL: 確定カルテでも LockDraftMedicalRecord を呼ばない（明示訂正パス）。
+		// created_by は actor の clinic 所属を検証する。
+		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, actorID); err != nil {
+			return err
+		}
+		estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to allocate estimate number for successor", "error", err)
+			return apperrors.Wrap(err, "failed to allocate estimate number")
+		}
+
+		successor = &model.Estimate{
+			ClinicID:             clinicID,
+			EstimateNo:           estimateNo,
+			MedicalRecordID:      original.MedicalRecordID,
+			Title:                title,
+			OwnerID:              original.OwnerID,
+			Status:               model.EstimateStatusDraft,
+			Subtotal:             original.Subtotal,
+			TaxTotal:             original.TaxTotal,
+			TotalAmount:          original.TotalAmount,
+			InsuranceAmount:      original.InsuranceAmount,
+			DiscountAmount:       original.DiscountAmount,
+			ValidUntil:           original.ValidUntil,
+			Comment:              comment,
+			Notes:                notes,
+			CreatedBy:            &actorID,
+			SupersedesEstimateID: &originalIDCopy,
+		}
+		if err := s.repo.Create(txCtx, successor); err != nil {
+			slog.ErrorContext(txCtx, "failed to create successor estimate", "error", err)
+			return apperrors.Wrap(err, "failed to create successor estimate")
+		}
+
+		// fail-closed: 監査失敗 → 後継 INSERT ごとロールバック。原行は未変更のまま。
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorID:    &actorID,
+			ActorType:  sharedkernel.AuditActorTypeFor(&actorID),
+			Action:     "supersede",
+			Resource:   "estimate",
+			ResourceID: &successor.ID,
+			NewValue: map[string]any{
+				"original_id":  original.ID,
+				"successor_id": successor.ID,
+				"reason":       reason,
+				"estimate_no":  successor.EstimateNo,
+			},
+		}); err != nil {
+			slog.ErrorContext(txCtx, "audit log failed for estimate supersede", "error", err, "successor_id", successor.ID)
+			return apperrors.Wrap(err, "failed to write estimate supersede audit log")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	slog.InfoContext(ctx, "estimate successor created",
+		slog.Uint64("original_id", original.ID),
+		slog.Uint64("successor_id", successor.ID),
+		slog.Uint64("clinic_id", clinicID))
+
+	created, err := s.repo.FindByID(ctx, clinicID, successor.ID)
+	if err != nil {
+		// commit 済み成功を後段 read error で失敗応答へ反転させない: 最低限の successor を返す。
+		slog.ErrorContext(ctx, "failed to get successor estimate after create", "error", err)
+		return successor, nil
+	}
+	return created, nil
 }

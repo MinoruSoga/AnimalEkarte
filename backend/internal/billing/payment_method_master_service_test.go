@@ -291,17 +291,26 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 }
 
 func TestPaymentMethodMasterService_Delete(t *testing.T) {
+	cashKey := "cash"
+	ptrStr := func(s string) *string { return &s }
+
 	tests := []struct {
 		name                          string
 		id                            uint64
+		findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 		countUsageByPaymentMethodIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 		deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 		wantErr                       bool
 		wantErrIs                     error
+		wantErrMsg                    string
 	}{
 		{
-			name: "正常: 未使用の支払方法を削除",
+			name: "正常: 未使用のカスタム支払方法を削除",
 			id:   1,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				// system_key nil = カスタム行
+				return &model.PaymentMethodMaster{ID: id, Name: "カスタム"}, nil
+			},
 			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
@@ -310,8 +319,35 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 			},
 		},
 		{
+			name: "正常: system_key 空文字の行はカスタム扱い・usage=0 なら削除可",
+			id:   10,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				return &model.PaymentMethodMaster{ID: id, Name: "空キー", SystemKey: ptrStr("")}, nil
+			},
+			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				return 0, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+		},
+		{
+			name: "エラー: システム標準行（cash）は usage=0 でも削除不可 → ErrConflict",
+			id:   5,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				return &model.PaymentMethodMaster{ID: id, Name: "現金", SystemKey: &cashKey}, nil
+			},
+			// countUsage は呼ばれない想定（システムガードが先）
+			wantErr:    true,
+			wantErrIs:  apperrors.ErrConflict,
+			wantErrMsg: "システム標準の支払方法は削除できません",
+		},
+		{
 			name: "エラー: 使用中の支払方法 → ErrConflict",
 			id:   2,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				return &model.PaymentMethodMaster{ID: id}, nil
+			},
 			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 5, nil
 			},
@@ -321,6 +357,9 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: CountUsageByPaymentMethodID がエラーを返す",
 			id:   3,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				return &model.PaymentMethodMaster{ID: id}, nil
+			},
 			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, errors.New("db error")
 			},
@@ -329,6 +368,9 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: Delete がエラーを返す",
 			id:   4,
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+				return &model.PaymentMethodMaster{ID: id}, nil
+			},
 			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
@@ -343,9 +385,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			repo := &mockPaymentMethodMasterRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
-					return &model.PaymentMethodMaster{ID: id}, nil
-				},
+				findByIDFn:                    tt.findByIDFn,
 				countUsageByPaymentMethodIDFn: tt.countUsageByPaymentMethodIDFn,
 				deleteFn:                      tt.deleteFn,
 			}
@@ -360,6 +400,9 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 				if tt.wantErrIs != nil {
 					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
 				}
+				if tt.wantErrMsg != "" {
+					assert.Contains(t, err.Error(), tt.wantErrMsg)
+				}
 				return
 			}
 			assert.NoError(t, err)
@@ -368,9 +411,22 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 }
 
 func TestPaymentMethodMasterService_Update(t *testing.T) {
+	cashKey := "cash"
 	updated := &model.PaymentMethodMaster{ID: 1, ClinicID: 1, Name: "現金", DisplayOrder: 1}
+	systemCash := &model.PaymentMethodMaster{
+		ID: 1, ClinicID: 1, Name: "現金", DisplayOrder: 1, SystemKey: &cashKey, IsActive: true,
+	}
+	customPM := &model.PaymentMethodMaster{
+		ID: 2, ClinicID: 1, Name: "カスタム決済", DisplayOrder: 10, IsActive: true,
+	}
 
 	ptrStr := func(s string) *string { return &s }
+	ptrBool := func(b bool) *bool { return &b }
+
+	// 既定 FindByID: カスタム行（system_key nil）— 既存テスト互換
+	defaultFindByID := func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+		return &model.PaymentMethodMaster{ID: id, ClinicID: 1, Name: "カスタム"}, nil
+	}
 
 	tests := []struct {
 		name           string
@@ -378,6 +434,8 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 		findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 		updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 		wantErr        bool
+		wantErrIs      error
+		wantErrMsg     string
 		wantResult     *model.PaymentMethodMaster
 	}{
 		{
@@ -387,6 +445,48 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 				return updated, nil
 			},
 			wantResult: updated,
+		},
+		{
+			name:  "正常: システム標準行（cash）の名称更新は許可",
+			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金（店舗）")},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return systemCash, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+				assert.Equal(t, "現金（店舗）", fields[colPaymentMethodName])
+				renamed := *systemCash
+				renamed.Name = "現金（店舗）"
+				return &renamed, nil
+			},
+			wantResult: &model.PaymentMethodMaster{
+				ID: 1, ClinicID: 1, Name: "現金（店舗）", DisplayOrder: 1, SystemKey: &cashKey, IsActive: true,
+			},
+		},
+		{
+			name:  "正常: カスタム行の IsActive=false は許可",
+			input: &UpdatePaymentMethodMasterInput{IsActive: ptrBool(false)},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return customPM, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+				assert.Equal(t, false, fields[colPaymentMethodIsActive])
+				deactivated := *customPM
+				deactivated.IsActive = false
+				return &deactivated, nil
+			},
+			wantResult: &model.PaymentMethodMaster{
+				ID: 2, ClinicID: 1, Name: "カスタム決済", DisplayOrder: 10, IsActive: false,
+			},
+		},
+		{
+			name:  "エラー: システム標準行（cash）の IsActive=false → ErrConflict",
+			input: &UpdatePaymentMethodMasterInput{IsActive: ptrBool(false)},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return systemCash, nil
+			},
+			wantErr:    true,
+			wantErrIs:  apperrors.ErrConflict,
+			wantErrMsg: "システム標準の支払方法は無効化できません",
 		},
 		{
 			name:    "エラー: input nil はエラー",
@@ -406,6 +506,7 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 		{
 			name:  "エラー: 存在しないIDはエラー",
 			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
+			// FindByID 成功後に Update が NotFound を返す経路
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
 				return nil, apperrors.WrapNotFound("payment_method", "99")
 			},
@@ -424,7 +525,16 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			repo := &mockPaymentMethodMasterRepository{findByIDFn: tt.findByIDFn, updateFieldsFn: tt.updateFieldsFn}
+			findFn := tt.findByIDFn
+			if findFn == nil && tt.input != nil {
+				// input nil 以外で FindByID 未指定ならカスタム行を返す（nil 受信を避ける）
+				findFn = defaultFindByID
+			}
+			// FindByID 失敗ケースは findByIDFn が明示されているので上書きしない
+			if tt.findByIDFn != nil {
+				findFn = tt.findByIDFn
+			}
+			repo := &mockPaymentMethodMasterRepository{findByIDFn: findFn, updateFieldsFn: tt.updateFieldsFn}
 			svc := NewPaymentMethodMasterService(repo)
 
 			// Act
@@ -434,10 +544,36 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, got)
+				if tt.wantErrIs != nil {
+					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
+				}
+				if tt.wantErrMsg != "" {
+					assert.Contains(t, err.Error(), tt.wantErrMsg)
+				}
 				return
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantResult, got)
+		})
+	}
+}
+
+func TestIsSystemPaymentMethod(t *testing.T) {
+	cashKey := "cash"
+	empty := ""
+	tests := []struct {
+		name string
+		m    *model.PaymentMethodMaster
+		want bool
+	}{
+		{name: "nil master", m: nil, want: false},
+		{name: "system_key nil", m: &model.PaymentMethodMaster{}, want: false},
+		{name: "system_key 空文字", m: &model.PaymentMethodMaster{SystemKey: &empty}, want: false},
+		{name: "system_key cash", m: &model.PaymentMethodMaster{SystemKey: &cashKey}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSystemPaymentMethod(tt.m))
 		})
 	}
 }

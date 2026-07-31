@@ -7,7 +7,8 @@ package billing
 //   - FindAll は close_date DESC, period ASC で返し、startDate/endDate でフィルタする。
 //   - FindByID / FindAll は ClosedByStaff を deleted_at IS NULL 付きで Preload する。
 //   - FindByDateAndPeriod は未検出時 (nil, nil) を返す（NotFound エラーにしない）。
-//   - CashRegisterClose はソフトデリート対応（deleted_at）で、削除済み行は検索結果から除外される。
+//   - W-013: Create / CreateAdjustment のみ。Update/Delete/soft-delete 再開は app に存在しない（append-only）。
+//   - 同一 (clinic_id, close_date, period) の二重 Create は Conflict になる。
 
 import (
 	"context"
@@ -23,12 +24,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-// setupCashRegisterCloseTestDB は cash_register_closes と ClosedByStaff Preload に必要な
+// setupCashRegisterCloseTestDB は cash_register_closes / adjustments と ClosedByStaff Preload に必要な
 // staffs テーブルを用意する。
 func setupCashRegisterCloseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.Staff{},
+		&model.CashRegisterClose{},
+		&model.CashRegisterCloseAdjustment{},
+	))
+	db.Exec("TRUNCATE TABLE cash_register_close_adjustments CASCADE")
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db
@@ -70,6 +76,98 @@ func TestCashRegisterCloseRepository_Create(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, c))
 	assert.NotZero(t, c.ID)
+}
+
+func TestCashRegisterCloseRepository_Create_DuplicateDatePeriodConflicts(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, repo.Create(ctx, &model.CashRegisterClose{
+		ClinicID:          1,
+		CloseDate:         date,
+		Period:            "am",
+		CategoryBreakdown: json.RawMessage(`{}`),
+	}))
+
+	// W-013: soft-delete 再開経路は存在しない。同一キーの再 Create は Conflict。
+	err := repo.Create(ctx, &model.CashRegisterClose{
+		ClinicID:          1,
+		CloseDate:         date,
+		Period:            "am",
+		CategoryBreakdown: json.RawMessage(`{}`),
+	})
+	require.Error(t, err)
+}
+
+func TestCashRegisterCloseRepository_CreateAdjustment(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	closeRec := makeCashRegisterClose(t, db, 1, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), "am", nil)
+	actorID := uint64(9)
+
+	adj := &model.CashRegisterCloseAdjustment{
+		ClinicID:           1,
+		CloseID:            closeRec.ID,
+		BillingID:          42,
+		AccountingDelta:    -500,
+		CashMovementAmount: 0,
+		Reason:             "金額訂正",
+		ActorID:            &actorID,
+		ExecutedAt:         time.Now(),
+	}
+	require.NoError(t, repo.CreateAdjustment(ctx, adj))
+	assert.NotZero(t, adj.ID)
+
+	var got model.CashRegisterCloseAdjustment
+	require.NoError(t, db.First(&got, adj.ID).Error)
+	assert.Equal(t, closeRec.ID, got.CloseID)
+	assert.Equal(t, uint64(42), got.BillingID)
+	assert.Equal(t, int64(-500), got.AccountingDelta)
+	assert.Equal(t, "金額訂正", got.Reason)
+}
+
+func TestCashRegisterCloseRepository_CreateAdjustment_ReasonRequired(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	closeRec := makeCashRegisterClose(t, db, 1, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), "pm", nil)
+	err := repo.CreateAdjustment(ctx, &model.CashRegisterCloseAdjustment{
+		ClinicID:  1,
+		CloseID:   closeRec.ID,
+		BillingID: 1,
+		Reason:    "",
+	})
+	require.Error(t, err)
+}
+
+func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testing.T) {
+	// コンパイル時契約: CashRegisterCloseRepository に Update/Delete は無い。
+	// ランタイムでは Create 後も FindByID で取得でき、app から reopen できないことを固定する。
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	c := makeCashRegisterClose(t, db, 1, time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC), "emg", nil)
+	got, err := repo.FindByID(ctx, 1, c.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, c.ID, got.ID)
+
+	// soft-delete 再開は productize しない。GORM Delete は app 経路ではなく、
+	// migration 003 適用後は immutability trigger が UPDATE/DELETE を拒否する。
+	// ここでは app API に Delete が無いことと、再 Create が拒否されることを固定する。
+	err = repo.Create(ctx, &model.CashRegisterClose{
+		ClinicID:          1,
+		CloseDate:         time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC),
+		Period:            "emg",
+		CategoryBreakdown: json.RawMessage(`{}`),
+	})
+	require.Error(t, err, "同一 date/period の再 Create は不可（append-only・再オープン禁止）")
 }
 
 func TestCashRegisterCloseRepository_FindAll(t *testing.T) {
@@ -160,19 +258,6 @@ func TestCashRegisterCloseRepository_FindByID(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, c.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
-	})
-
-	t.Run("soft-deleted row is excluded but remains in the table", func(t *testing.T) {
-		toDelete := makeCashRegisterClose(t, db, clinicA, time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC), "emg", nil)
-		require.NoError(t, db.WithContext(ctx).Delete(&model.CashRegisterClose{}, toDelete.ID).Error)
-
-		got, err := repo.FindByID(ctx, clinicA, toDelete.ID)
-		assert.Error(t, err)
-		assert.Nil(t, got)
-
-		var unscoped int64
-		require.NoError(t, db.Unscoped().Model(&model.CashRegisterClose{}).Where("id = ?", toDelete.ID).Count(&unscoped).Error)
-		assert.Equal(t, int64(1), unscoped, "ソフトデリートなので物理的には行が残る")
 	})
 }
 

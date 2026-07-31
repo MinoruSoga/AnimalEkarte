@@ -88,11 +88,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	pm.PATCH("/:id", h.requirePermission(string(model.ResourcePaymentMethod), "edit"), h.paymentMethodMaster.UpdatePaymentMethod)
 	pm.DELETE("/:id", h.requirePermission(string(model.ResourcePaymentMethod), "delete"), h.paymentMethodMaster.DeletePaymentMethod)
 
-	// 見積（旧 handler.go 逐語）
+	// 見積（旧 handler.go 逐語 + TASK-012 successors）
 	estimates := rg.Group("/estimates")
 	estimates.GET("", h.requirePermission(string(model.ResourceEstimates), "view"), h.estimate.ListEstimates)
 	estimates.GET("/:id", h.requirePermission(string(model.ResourceEstimates), "view"), h.estimate.GetEstimate)
 	estimates.POST("", h.requirePermission(string(model.ResourceEstimates), "create"), h.estimate.CreateEstimate)
+	estimates.POST("/:id/successors", h.requirePermission(string(model.ResourceEstimates), "create"), h.estimate.CreateEstimateSuccessor)
 	estimates.PATCH("/:id", h.requirePermission(string(model.ResourceEstimates), "edit"), h.estimate.UpdateEstimate)
 	estimates.DELETE("/:id", h.requirePermission(string(model.ResourceEstimates), "delete"), h.estimate.DeleteEstimate)
 

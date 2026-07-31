@@ -47,8 +47,6 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   // Edit hydrates from GET /hospitalizations/:id/treatment-plans (read-only UI).
   const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>([]);
 
-  const [globalDiscount, setGlobalDiscount] = useState(0);
-  const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const selectedPetRef = useRef(selectedPets[0]);
   useLayoutEffect(() => {
     selectedPetRef.current = selectedPets[0];
@@ -89,7 +87,7 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
         const latestFormData = formDataRef.current;
         if (isEdit && id) {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
-          // Edit: parent fields only. Treatment plans / bulk discount are honesty-read-only on this screen.
+          // Edit: parent fields only. Treatment plans are create-time snapshots (RO on this screen).
           await updateHospitalization(id, buildUpdateHospitalizationRequest(latestFormData));
           toast.success("入院情報を更新しました");
         } else {
@@ -192,7 +190,8 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
       ...plan,
       isInsuranceApplicable: plan.is_insurance,
     }));
-    const result = calculateBillingTotals(billingItems, globalDiscount, globalDiscountAmount);
+    // Bulk discount is not available on this screen (W-003); always pass 0.
+    const result = calculateBillingTotals(billingItems, 0, 0);
     return {
       subtotalBeforeDiscount: result.subtotal,
       discountAmount: result.globalDiscountAmount,
@@ -213,10 +212,6 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     addTreatmentPlan,
     removeTreatmentPlan,
     updateTreatmentPlan,
-    globalDiscount,
-    setGlobalDiscount,
-    globalDiscountAmount,
-    setGlobalDiscountAmount,
     calculateTotals,
     petSelection,
     formAction,

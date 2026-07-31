@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ type mockEstimateRepository struct {
 	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
 	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
+	allocateNextEstimateNo func(ctx context.Context, clinicID uint64) (string, error)
 }
 
 func (m *mockEstimateRepository) FindAll(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
@@ -72,6 +74,13 @@ func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, _, 
 		return m.countItemsByEstimateID(ctx, estimateID)
 	}
 	return 0, nil
+}
+
+func (m *mockEstimateRepository) AllocateNextEstimateNo(ctx context.Context, clinicID uint64) (string, error) {
+	if m.allocateNextEstimateNo != nil {
+		return m.allocateNextEstimateNo(ctx, clinicID)
+	}
+	return "EST-1", nil
 }
 
 // ---- Tests ----
@@ -1191,4 +1200,207 @@ func TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord(t *testing.T
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書削除は Conflict(409) であるべき: %v", err)
 	assert.False(t, deleteCalled, "確定済みカルテの見積書は削除されてはならない")
+}
+
+// ---- CreateSuccessor (TASK-012 FINAL B) ----
+
+func TestEstimateService_CreateSuccessor_LockedOK(t *testing.T) {
+	const clinicID, originalID, actorID = uint64(1), uint64(10), uint64(7)
+	ownerID := uint64(5)
+	mrID := uint64(3)
+	original := &model.Estimate{
+		ID:              originalID,
+		ClinicID:        clinicID,
+		EstimateNo:      "EST-1",
+		MedicalRecordID: &mrID,
+		Title:           "確定見積",
+		OwnerID:         &ownerID,
+		Status:          model.EstimateStatusApproved,
+		Subtotal:        10000,
+		TaxTotal:        1000,
+		TotalAmount:     11000,
+		InsuranceAmount: 500,
+		DiscountAmount:  200,
+		Comment:         "飼主向け",
+		Notes:           "社内メモ",
+	}
+
+	var created *model.Estimate
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, cID, id uint64) (*model.Estimate, error) {
+			assert.Equal(t, clinicID, cID)
+			if id == originalID {
+				return original, nil
+			}
+			if created != nil && id == created.ID {
+				return created, nil
+			}
+			return nil, apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
+		},
+		allocateNextEstimateNo: func(_ context.Context, cID uint64) (string, error) {
+			assert.Equal(t, clinicID, cID)
+			return "EST-2", nil
+		},
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 99
+			// copy for post-create FindByID
+			cp := *e
+			created = &cp
+			return nil
+		},
+	}
+	audit := &capturingAuditTxLogger{}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}, WithEstimateAuditTx(audit))
+
+	got, err := svc.CreateSuccessor(context.Background(), clinicID, originalID, &CreateSuccessorInput{
+		Reason:  "金額訂正",
+		ActorID: actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, uint64(99), got.ID)
+	assert.Equal(t, "EST-2", got.EstimateNo)
+	assert.Equal(t, model.EstimateStatusDraft, got.Status)
+	require.NotNil(t, got.SupersedesEstimateID)
+	assert.Equal(t, originalID, *got.SupersedesEstimateID)
+	assert.Equal(t, original.Title, got.Title)
+	assert.Equal(t, original.TotalAmount, got.TotalAmount)
+	assert.Equal(t, original.MedicalRecordID, got.MedicalRecordID)
+	assert.Equal(t, original.OwnerID, got.OwnerID)
+	require.NotNil(t, got.CreatedBy)
+	assert.Equal(t, actorID, *got.CreatedBy)
+
+	// original は不変（mock 上の参照も status のまま）
+	assert.Equal(t, model.EstimateStatusApproved, original.Status)
+
+	require.NotNil(t, audit.lastInput)
+	assert.Equal(t, "supersede", audit.lastInput.Action)
+	assert.Equal(t, "estimate", audit.lastInput.Resource)
+	require.NotNil(t, audit.lastInput.ResourceID)
+	assert.Equal(t, uint64(99), *audit.lastInput.ResourceID)
+	newVal, ok := audit.lastInput.NewValue.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, originalID, newVal["original_id"])
+	assert.Equal(t, uint64(99), newVal["successor_id"])
+	assert.Equal(t, "金額訂正", newVal["reason"])
+	assert.Equal(t, "EST-2", newVal["estimate_no"])
+}
+
+func TestEstimateService_CreateSuccessor_RejectsUnlocked(t *testing.T) {
+	createCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, Title: "下書き"}, nil
+		},
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			createCalled = true
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}, WithEstimateAuditTx(&noopAuditTxLogger{}))
+
+	_, err := svc.CreateSuccessor(context.Background(), 1, 10, &CreateSuccessorInput{
+		Reason:  "訂正",
+		ActorID: 1,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "unlocked estimate must Conflict: %v", err)
+	assert.False(t, createCalled)
+}
+
+func TestEstimateService_CreateSuccessor_ReasonRequired(t *testing.T) {
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusApproved}, nil
+		},
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			t.Fatal("Create must not be called when reason is empty")
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}, WithEstimateAuditTx(&noopAuditTxLogger{}))
+
+	for _, reason := range []string{"", "   "} {
+		_, err := svc.CreateSuccessor(context.Background(), 1, 10, &CreateSuccessorInput{
+			Reason:  reason,
+			ActorID: 1,
+		})
+		require.Error(t, err, "reason=%q", reason)
+		assert.True(t, apperrors.IsInvalidInput(err), "reason=%q: %v", reason, err)
+	}
+}
+
+func TestEstimateService_CreateSuccessor_AuditFailRollsBack(t *testing.T) {
+	const clinicID, originalID = uint64(1), uint64(10)
+	var persisted *model.Estimate
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:          id,
+				ClinicID:    clinicID,
+				Status:      model.EstimateStatusRejected,
+				Title:       "却下見積",
+				TotalAmount: 5000,
+			}, nil
+		},
+		allocateNextEstimateNo: func(_ context.Context, _ uint64) (string, error) {
+			return "EST-9", nil
+		},
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 55
+			cp := *e
+			persisted = &cp
+			return nil
+		},
+	}
+	// TX がエラーを返したら mock 上の「永続化」を破棄して rollback を模擬する。
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		if err := fn(ctx); err != nil {
+			persisted = nil
+			return err
+		}
+		return nil
+	}}
+	audit := &capturingAuditTxLogger{err: errors.New("audit write failed")}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, tx, WithEstimateAuditTx(audit))
+
+	_, err := svc.CreateSuccessor(context.Background(), clinicID, originalID, &CreateSuccessorInput{
+		Reason:  "監査失敗注入",
+		ActorID: 1,
+	})
+	require.Error(t, err)
+	assert.Nil(t, persisted, "監査失敗時は successor が永続化されてはならない（TX rollback）")
+	require.NotNil(t, audit.lastInput, "audit LogEntryTx should be attempted before fail-closed")
+}
+
+func TestEstimateService_Create_AssignsEstimateNo(t *testing.T) {
+	var saved *model.Estimate
+	repo := &mockEstimateRepository{
+		allocateNextEstimateNo: func(_ context.Context, clinicID uint64) (string, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			return "EST-42", nil
+		},
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			saved = e
+			e.ID = 7
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			require.NotNil(t, saved)
+			cp := *saved
+			cp.ID = id
+			return &cp, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:     "番号採番見積",
+		CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.NotNil(t, saved)
+	assert.Equal(t, "EST-42", saved.EstimateNo)
+	assert.Equal(t, "EST-42", got.EstimateNo)
 }

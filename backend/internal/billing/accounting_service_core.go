@@ -3,6 +3,8 @@ package billing
 import (
 	"context"
 	"log/slog"
+	"strings"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -231,8 +233,22 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 				slog.Uint64("billing_id", input.ID))
 		}
 
-		// #115: 締め後編集監査ログ（fail-closed: 失敗時は tx をロールバックし更新ごと無効にする。BE-refactor.md R1-2）
-		if input.IsPostClose {
+		// #115 / W-013: 締め後編集は (1) append-only adjustment 台帳追記 (2) 監査ログ を同一 tx で
+		// fail-closed に記録する。close reverse/取消は productize しない。
+		// HIGH-1: handler の IsDateClosed は候補 read に過ぎないため、write 時に同一 tx で再評価する。
+		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, existing.ScheduledDate, input.IsPostClose)
+		if err != nil {
+			return err
+		}
+		if postClose {
+			// 再評価で締め済みと判明した場合も理由必須（handler が非締めとして通した競合を fail-closed）。
+			if input.PostCloseReason == nil || *input.PostCloseReason == "" {
+				return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+			}
+			input.IsPostClose = true
+			if err := s.writePostCloseAdjustment(txCtx, input, existing); err != nil {
+				return err
+			}
 			if err := s.logPostCloseEdit(txCtx, input); err != nil {
 				return err
 			}
@@ -266,6 +282,111 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil
+}
+
+// resolvePostCloseInTx は write 時に締め状態を再評価する（handler 候補 read の TOCTOU を閉じる）。
+// closeRepo 未配線時は handler フラグのみ信頼（ユニットテスト互換）。本番 DI では closeRepo 必須経路。
+func (s *accountingService) resolvePostCloseInTx(ctx context.Context, clinicID uint64, scheduledDate time.Time, handlerFlag bool) (bool, error) {
+	if s.closeRepo == nil {
+		return handlerFlag, nil
+	}
+	closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, scheduledDate)
+	if err != nil {
+		return false, apperrors.Wrap(err, "failed to re-check cash register close state")
+	}
+	if closed {
+		return true, nil
+	}
+	return handlerFlag, nil
+}
+
+// writePostCloseAdjustment は締め後会計編集を cash_register_close_adjustments へ append-only 追記する（W-013）。
+// Update の ambient tx に参加し、失敗時は呼び出し元が rollback する（fail-closed）。
+// close 自体の reverse は行わず、当該日付に存在する close のいずれかに紐付ける。
+func (s *accountingService) writePostCloseAdjustment(ctx context.Context, input *UpdateAccountingInput, existing *model.Billing) error {
+	if existing == nil {
+		return apperrors.WrapInternalServerError("existing billing is required for post-close adjustment")
+	}
+	reason := ""
+	if input.PostCloseReason != nil {
+		reason = *input.PostCloseReason
+	}
+	delta := int64(0)
+	if input.TotalAmount != nil {
+		delta = *input.TotalAmount - existing.TotalAmount
+	}
+	return s.recordPostCloseAdjustment(ctx, input.ClinicID, input.ID, existing.ScheduledDate, reason, input.StaffID, delta)
+}
+
+// recordPostCloseAdjustment は締め後訂正を cash_register_close_adjustments へ fail-closed で追記する。
+// Update / CorrectCreditPayment / billing-item 経路から同一 tx で呼ぶ（W-013 HIGH-2）。
+func (s *accountingService) recordPostCloseAdjustment(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	scheduledDate time.Time,
+	reason string,
+	actorID *uint64,
+	accountingDelta int64,
+) error {
+	return createPostCloseAdjustment(ctx, s.closeRepo, clinicID, billingID, scheduledDate, reason, actorID, accountingDelta)
+}
+
+// createPostCloseAdjustment は close repo を使った append-only 台帳追記の package 共有実装。
+func createPostCloseAdjustment(
+	ctx context.Context,
+	closeRepo CashRegisterCloseRepository,
+	clinicID, billingID uint64,
+	scheduledDate time.Time,
+	reason string,
+	actorID *uint64,
+	accountingDelta int64,
+) error {
+	if closeRepo == nil {
+		return apperrors.WrapInternalServerError("cash register close repository is required for post-close edits")
+	}
+	if strings.TrimSpace(reason) == "" {
+		return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+	}
+
+	closeRec, err := findCloseForBillingDate(ctx, closeRepo, clinicID, scheduledDate)
+	if err != nil {
+		return err
+	}
+
+	adj := &model.CashRegisterCloseAdjustment{
+		ClinicID:           clinicID,
+		CloseID:            closeRec.ID,
+		BillingID:          billingID,
+		AccountingDelta:    accountingDelta,
+		CashMovementAmount: 0, // 会計のみの訂正。現金移動は別経路（現状 productize なし）
+		Reason:             reason,
+		ActorID:            actorID,
+		ExecutedAt:         time.Now(),
+	}
+	if err := closeRepo.CreateAdjustment(ctx, adj); err != nil {
+		slog.ErrorContext(ctx, "failed to write post-close adjustment", "error", err,
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("billing_id", billingID),
+			slog.Uint64("close_id", closeRec.ID))
+		return apperrors.Wrap(err, "failed to write post-close cash register adjustment")
+	}
+	return nil
+}
+
+// findCloseForBillingDate は会計予定日に紐づく close を period 順（am→pm→emg）で解決する。
+// 締め後編集ゲートは日付単位のため、いずれかの区分が締め済みならその close に adjustment を紐付ける。
+func findCloseForBillingDate(ctx context.Context, closeRepo CashRegisterCloseRepository, clinicID uint64, billingDate time.Time) (*model.CashRegisterClose, error) {
+	date := time.Date(billingDate.Year(), billingDate.Month(), billingDate.Day(), 0, 0, 0, 0, time.UTC)
+	for _, period := range []string{"am", "pm", "emg"} {
+		c, err := closeRepo.FindByDateAndPeriod(ctx, clinicID, date, period)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve cash register close for post-close adjustment")
+		}
+		if c != nil {
+			return c, nil
+		}
+	}
+	return nil, apperrors.WrapConflict("締め後編集の対象となるレジ締めレコードが見つかりません")
 }
 
 // logPostCloseEdit はレジ締め済み期間の会計編集監査ログを記録する（#115 / B4）。

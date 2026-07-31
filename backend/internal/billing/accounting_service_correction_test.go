@@ -144,7 +144,14 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
 		}
 		audit := &mockAuditService{}
-		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+		var capturedAdj *model.CashRegisterCloseAdjustment
+		closeRepo := postCloseCloseRepoForTests(billing.ScheduledDate)
+		closeRepo.createAdjustmentFn = func(_ context.Context, adj *model.CashRegisterCloseAdjustment) error {
+			capturedAdj = adj
+			return nil
+		}
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
+			WithCashRegisterCloseRepository(closeRepo))
 
 		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
 			ClinicID: 1, BillingID: 10, StaffID: &staffID,
@@ -158,6 +165,11 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 		assert.True(t, ok, "Metadata は map")
 		assert.Equal(t, true, meta["post_close"], "締め済み期間の訂正は post_close=true を記録")
 		assert.Equal(t, "2026-06-30", meta["post_close_date"], "対象締めの識別子として予定日を記録")
+		// W-013 HIGH-2: adjustment 台帳にも追記する
+		if assert.NotNil(t, capturedAdj) {
+			assert.Equal(t, int64(2000), capturedAdj.AccountingDelta)
+			assert.Equal(t, "締め後のカード端末訂正", capturedAdj.Reason)
+		}
 	})
 
 	// BIL-02: auditTx 欠落は成功扱いしない（logPostCloseEdit と同型 fail-closed）。

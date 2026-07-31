@@ -37,4 +37,9 @@
 ## 異常系
 
 - **API レベルの更新・削除拒否**: 承認済み・却下見積への PATCH/DELETE 拒否はサービス層テストで検証済みのため、本シナリオでは UI 導線消失（#4〜#6）の確認を主とする。ブラウザからの API 直叩き再現は行わない。
-- **確定見積の修正が必要になった場合**: 「下書きへ戻す」ステップを挟む運用（仕様正本 26 §2.1）。ただし確定後は編集フォーム自体に到達できないため、**unlock 導線は現行実装に無い**（要仕様決定）。
+- **確定見積の修正が必要になった場合（TASK-012 FINAL B）**: 承認済み・却下は**不可逆**（unlock / 「下書きへ戻す」は存在しない。仕様正本 26 §2.1 と同旨）。訂正は後継ドラフトのみ:
+  - `POST /api/v1/estimates/:id/successors`（権限 `estimates:create`）
+  - body: `{ "reason": string required min=1 max=500 }`（任意で title/comment/notes 上書き）
+  - 201: 新規 draft 見積（新 ID・新 estimate_no・`supersedes_estimate_id` = 原見積 ID）。原行は不変。
+  - 監査: action=`supersede` を同一 TX で fail-closed 記録。
+  - 確定カルテに紐付く原見積でも後継作成を許可する（カルテ reopen 不要の明示訂正パス）。

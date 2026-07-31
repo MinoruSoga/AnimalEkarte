@@ -1,6 +1,4 @@
 import { memo } from "react";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import { Label } from "@/components/ui/label";
 import { H_STYLES } from "../styles";
 import { C } from "@/lib/design-tokens";
 
@@ -11,20 +9,11 @@ interface HospitalizationCostSummaryProps {
         consumptionTax: number;
         total: number;
     };
-    globalDiscount: number;
-    setGlobalDiscount: (val: number) => void;
-    globalDiscountAmount: number;
-    setGlobalDiscountAmount: (val: number) => void;
-    readOnly?: boolean;
 }
 
+/** Read-only cost summary from treatment-plan line items (no bulk discount inputs). */
 export const HospitalizationCostSummary = memo(function HospitalizationCostSummary({
     totals,
-    globalDiscount,
-    setGlobalDiscount,
-    globalDiscountAmount,
-    setGlobalDiscountAmount,
-    readOnly = false,
 }: HospitalizationCostSummaryProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
@@ -36,52 +25,6 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
           <span className={`${H_STYLES.text.base} ${C.text60}`}>診療費 小計</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
             ￥{totals.subtotalBeforeDiscount.toLocaleString()}
-          </span>
-        </div>
-
-        {/* 割引 */}
-        <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="hospitalization-global-discount" className={`${H_STYLES.text.base} ${C.text60}`}>
-              割引適用額
-            </Label>
-            <div className="flex items-center gap-2">
-              <NumberInput
-                id="hospitalization-global-discount"
-                value={globalDiscount}
-                onChange={(v) => setGlobalDiscount(parseInt(v) || 0)}
-                disabled={readOnly}
-                suffix="%"
-                align="right"
-                className={`w-16 h-11 ${H_STYLES.text.base}`}
-              />
-            </div>
-          </div>
-          <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
-            ￥{totals.subtotalAfterDiscount.toLocaleString()}
-          </span>
-        </div>
-
-        {/* 値引 */}
-        <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="hospitalization-global-discount-amount" className={`${H_STYLES.text.base} ${C.text60}`}>
-              値引適用額
-            </Label>
-            <div className="flex items-center gap-2">
-              <NumberInput
-                id="hospitalization-global-discount-amount"
-                value={globalDiscountAmount}
-                onChange={(v) => setGlobalDiscountAmount(parseInt(v) || 0)}
-                disabled={readOnly}
-                suffix="円"
-                align="right"
-                className={`w-20 h-11 ${H_STYLES.text.base}`}
-              />
-            </div>
-          </div>
-          <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
-            ￥{totals.subtotalAfterDiscount.toLocaleString()}
           </span>
         </div>
 

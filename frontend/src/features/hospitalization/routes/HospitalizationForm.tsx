@@ -57,10 +57,6 @@ export function HospitalizationForm() {
       addTreatmentPlan,
       removeTreatmentPlan,
       updateTreatmentPlan,
-      globalDiscount,
-      setGlobalDiscount,
-      globalDiscountAmount,
-      setGlobalDiscountAmount,
       calculateTotals,
       petSelection,
       formAction,
@@ -135,15 +131,9 @@ export function HospitalizationForm() {
     handleFormDataChangeRaw(updates);
   }, [markDirty, handleFormDataChangeRaw]);
 
-  const handleGlobalDiscountChange = useCallback((val: number) => {
-    markDirty();
-    setGlobalDiscount(val);
-  }, [markDirty, setGlobalDiscount]);
-
-  const handleGlobalDiscountAmountChange = useCallback((val: number) => {
-    markDirty();
-    setGlobalDiscountAmount(val);
-  }, [markDirty, setGlobalDiscountAmount]);
+  // Parent delete is blocked when child treatment plans exist (BE Conflict + UI guard).
+  const hasChildTreatmentPlans = isEdit && treatmentPlans.length > 0;
+  const canShowDelete = canDelete === true && !hasChildTreatmentPlans;
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
@@ -176,7 +166,7 @@ export function HospitalizationForm() {
                     <FileText className={ICON.action} />
                     デイリーカルテ
                   </Button>
-                  {canDelete ? (
+                  {canShowDelete ? (
                     <Button
                       variant="ghost"
                       type="button"
@@ -249,16 +239,21 @@ export function HospitalizationForm() {
           />
         </div>
 
-        {/* 治療プラン: create 時のみ編集可（保存時に nested POST）。edit は参照のみ。 */}
+        {/* 治療プラン: create 時のみ入力可（登録時スナップショット）。edit は参照のみ。ケアプランは入院詳細。 */}
         {isEdit ? (
           <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-            既存の治療プランは参照のみです。この画面の更新では変更されません（明細の追加・変更は入院詳細のケア／治療導線を利用してください）。
+            登録時の治療プランはスナップショットとして参照のみです。この画面では変更・削除できません。入院中の投薬・給餌などは入院詳細のケアプランで管理します。
           </p>
         ) : (
           <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-            治療内容・メモが入力された行のみ、入院登録成功後に治療プランとして保存されます。空行は保存されません。
+            治療内容・メモが入力された行のみ、入院登録時に治療プラン（登録時スナップショット）として保存されます。空行は保存されません。
           </p>
         )}
+        {hasChildTreatmentPlans ? (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`} role="status">
+            治療プランが紐付いているため、この入院は削除できません。
+          </p>
+        ) : null}
         <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
@@ -267,18 +262,11 @@ export function HospitalizationForm() {
             readOnly={isEdit}
         />
 
-        {/* 一括割引: BE に永続化フィールドが無いため常に表示専用（画面内概算のみ） */}
+        {/* 一括割引 UI は提供しない（W-003）。金額は明細小計の概算のみ。 */}
         <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-          画面上部の一括割引（%／円）は概算表示用で、入院登録・更新では保存されません。
+          一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
         </p>
-        <HospitalizationCostSummary
-            totals={totals}
-            globalDiscount={globalDiscount}
-            setGlobalDiscount={handleGlobalDiscountChange}
-            globalDiscountAmount={globalDiscountAmount}
-            setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
-            readOnly
-        />
+        <HospitalizationCostSummary totals={totals} />
         </fieldset>
     </PageLayout>
     </form>

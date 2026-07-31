@@ -219,6 +219,10 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 }
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	// Hospitalization-nested plans are create-time snapshots (W-002): no PATCH after create.
+	if hospitalizationID != nil {
+		return nil, apperrors.WrapConflict("入院に紐づく治療プランは登録時スナップショットのため変更・削除できません")
+	}
 	// MRD-02 + MRD-03 + MRD-04: parent bind, money validation, write+reload in one tx.
 	// SEC-CS-F10: lock plan row and recheck discount against the locked snapshot.
 	var result *model.TreatmentPlan
@@ -307,6 +311,10 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
+	// Hospitalization-nested plans are create-time snapshots (W-002): no DELETE after create.
+	if hospitalizationID != nil {
+		return apperrors.WrapConflict("入院に紐づく治療プランは登録時スナップショットのため変更・削除できません")
+	}
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {

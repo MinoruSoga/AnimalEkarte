@@ -228,6 +228,7 @@ func TestBillingItemService_CreateItem_PostCloseAuditFailureRollsBack(t *testing
 		nil,
 		nil,
 		WithBillingItemAuditTx(audit),
+		WithBillingItemCloseRepository(postCloseCloseRepoForTests(f.billing.ScheduledDate)),
 	)
 
 	reason := "締め後修正"
@@ -269,6 +270,7 @@ func TestBillingItemService_CreateItem_PostCloseEmitsAudit(t *testing.T) {
 		nil,
 		nil,
 		WithBillingItemAuditTx(audit),
+		WithBillingItemCloseRepository(postCloseCloseRepoForTests(f.billing.ScheduledDate)),
 	)
 
 	reason := "締め後明細追加"
@@ -318,6 +320,7 @@ func TestBillingItemService_UpdateItem_PostCloseAuditFailureRollsBack(t *testing
 		nil,
 		nil,
 		WithBillingItemAuditTx(audit),
+		WithBillingItemCloseRepository(postCloseCloseRepoForTests(f.billing.ScheduledDate)),
 	)
 
 	reason := "締め後単価修正"
@@ -391,6 +394,7 @@ func TestBillingItemService_DeleteItem_PostCloseEmitsAudit(t *testing.T) {
 		nil,
 		nil,
 		WithBillingItemAuditTx(audit),
+		WithBillingItemCloseRepository(postCloseCloseRepoForTests(f.billing.ScheduledDate)),
 	)
 
 	reason := "締め後明細削除"
@@ -436,6 +440,7 @@ func TestBillingItemService_DeleteItem_PostCloseAuditFailureRollsBack(t *testing
 		nil,
 		nil,
 		WithBillingItemAuditTx(audit),
+		WithBillingItemCloseRepository(postCloseCloseRepoForTests(f.billing.ScheduledDate)),
 	)
 
 	reason := "締め後削除失敗"

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -590,6 +591,29 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 	})
 }
 
+// W-002: hospitalization-nested treatment plans are create-time snapshots.
+func TestTreatmentPlanService_Update_HospitalizationNestedRejected(t *testing.T) {
+	hospID := uint64(5)
+	content := "must not apply"
+	repo := &mockTreatmentPlanRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+			t.Fatal("repo must not be called for hospitalization-nested update")
+			return nil, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+			t.Fatal("update must not run for hospitalization-nested plan")
+			return nil
+		},
+	}
+	svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
+	plan, err := svc.Update(context.Background(), testClinicIDTP, 1, nil, &hospID, &UpdateTreatmentPlanInput{
+		TreatmentContent: &content,
+	})
+	assert.Nil(t, plan)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+	assert.Contains(t, err.Error(), "登録時スナップショット")
+}
+
 func TestTreatmentPlanService_Delete(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -644,11 +668,13 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 	}
 
 	t.Run("rejects parent mismatch on delete (MRD-03)", func(t *testing.T) {
-		hospOwned := uint64(7)
-		wrongHosp := uint64(8)
+		// Parent-mismatch for hospitalization is unreachable after W-002 snapshot reject
+		// (hospitalizationID != nil short-circuits). Keep medical-record parent mismatch.
+		mrOwned := uint64(10)
+		wrongMR := uint64(99)
 		repo := &mockTreatmentPlanRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
-				return &model.TreatmentPlan{ID: id, HospitalizationID: &hospOwned}, nil
+				return &model.TreatmentPlan{ID: id, MedicalRecordID: &mrOwned}, nil
 			},
 			deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
 				t.Fatal("delete must not run on parent mismatch")
@@ -656,9 +682,28 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 			},
 		}
 		svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
-		err := svc.Delete(context.Background(), testClinicIDTP, 1, nil, &wrongHosp)
+		err := svc.Delete(context.Background(), testClinicIDTP, 1, &wrongMR, nil)
 		assert.Error(t, err)
 	})
+}
+
+// W-002: hospitalization-nested treatment plans are create-time snapshots.
+func TestTreatmentPlanService_Delete_HospitalizationNestedRejected(t *testing.T) {
+	hospID := uint64(5)
+	repo := &mockTreatmentPlanRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+			t.Fatal("repo must not be called for hospitalization-nested delete")
+			return nil, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64, _, _ *uint64) error {
+			t.Fatal("delete must not run for hospitalization-nested plan")
+			return nil
+		},
+	}
+	svc := NewTreatmentPlanService(repo, passthroughTreatmentPlanTransactor{})
+	err := svc.Delete(context.Background(), testClinicIDTP, 1, nil, &hospID)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+	assert.Contains(t, err.Error(), "登録時スナップショット")
 }
 
 // Helper

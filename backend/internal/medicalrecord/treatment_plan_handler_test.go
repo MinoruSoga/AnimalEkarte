@@ -1037,7 +1037,8 @@ func TestUpdateTreatmentPlanInHospitalization(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:     "updates plan successfully",
+			// W-002: hospitalization-nested plans are create-time snapshots — service returns Conflict.
+			name:     "returns 409 when service rejects hospitalization-nested update",
 			hospID:   "5",
 			planID:   "1",
 			body:     map[string]any{"memo": "経過良好"},
@@ -1048,13 +1049,16 @@ func TestUpdateTreatmentPlanInHospitalization(t *testing.T) {
 				},
 			},
 			tpSvc: &mockTreatmentPlanService{
-				updateFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, _ *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
-					return &model.TreatmentPlan{ID: 1, Memo: *input.Memo}, nil
+					assert.Nil(t, medicalRecordID)
+					require.NotNil(t, hospitalizationID)
+					assert.Equal(t, uint64(5), *hospitalizationID)
+					return nil, apperrors.WrapConflict("入院に紐づく治療プランは登録時スナップショットのため変更・削除できません")
 				},
 			},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusConflict,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -1201,7 +1205,8 @@ func TestDeleteTreatmentPlanInHospitalization(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:     "deletes plan successfully",
+			// W-002: hospitalization-nested plans are create-time snapshots — service returns Conflict.
+			name:     "returns 409 when service rejects hospitalization-nested delete",
 			hospID:   "5",
 			planID:   "1",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -1214,10 +1219,13 @@ func TestDeleteTreatmentPlanInHospitalization(t *testing.T) {
 				deleteFn: func(_ context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
-					return nil
+					assert.Nil(t, medicalRecordID)
+					require.NotNil(t, hospitalizationID)
+					assert.Equal(t, uint64(5), *hospitalizationID)
+					return apperrors.WrapConflict("入院に紐づく治療プランは登録時スナップショットのため変更・削除できません")
 				},
 			},
-			wantStatus: http.StatusNoContent,
+			wantStatus: http.StatusConflict,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",

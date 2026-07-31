@@ -208,6 +208,17 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 				},
 			},
 			{
+				name: "体重<=0 のみの vital は体重なしと同じ手動経路",
+				setup: func(f *doseSaveFixture) {
+					w := 0.0
+					f.vitalRepo.listByMedicalRecordIDFn = func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+						return []model.VitalRecord{
+							{ID: 12, Weight: &w, WeightUnit: model.BodyWeightUnitKg, RecordedAt: time.Date(2026, 6, 28, 9, 0, 0, 0, time.UTC)},
+						}, nil
+					}
+				},
+			},
+			{
 				name: "当該種の dose param なし",
 				setup: func(f *doseSaveFixture) {
 					f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
@@ -268,6 +279,22 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "failed to load dose param")
 		assert.Zero(t, f.createCalls)
+	})
+
+	// #201 P0: vital 読取のシステム障害は体重未記録（手動経路）と同一視せず、保存を中止する。
+	t.Run("vital 読込エラーは fail-closed で保存中止する", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		f.vitalRepo.listByMedicalRecordIDFn = func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+			return nil, errors.New("vital lookup failed")
+		}
+		svc := f.newSvc()
+
+		got, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(2))
+		require.Error(t, err, "vital 読取エラーは dose 再検証スキップ（手動経路）にしてはならない")
+		assert.Nil(t, got)
+		assert.ErrorContains(t, err, "failed to load vitals for dose weight")
+		assert.Zero(t, f.createCalls, "失敗時は treatmentRepo.Create を呼ばない（tx rollback 相当）")
+		assert.Empty(t, f.audit.entries)
 	})
 
 	t.Run("後方互換: calculation_type=none は再検証なし・スナップショットなし", func(t *testing.T) {
@@ -408,6 +435,23 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 				}
 			})
 		}
+	})
+
+	// #201 P0: Update 経路でも vital 読取障害は手動スキップにせず fail-closed。
+	t.Run("vital 読込エラーは fail-closed で更新中止する", func(t *testing.T) {
+		f := newUpdateFixture(t)
+		f.vitalRepo.listByMedicalRecordIDFn = func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+			return nil, errors.New("vital lookup failed")
+		}
+		svc := f.newSvc()
+
+		qty := 2.0
+		got, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+		require.Error(t, err, "vital 読取エラーは dose 再検証スキップ（手動経路）にしてはならない")
+		assert.Nil(t, got)
+		assert.ErrorContains(t, err, "failed to load vitals for dose weight")
+		assert.Zero(t, f.updateCalls, "失敗時は treatmentRepo.Update を呼ばない（tx rollback 相当）")
+		assert.Empty(t, f.audit.entries)
 	})
 
 	t.Run("親行ロック後の最新 treatment と部分 PATCH を合成して上限を再評価する", func(t *testing.T) {

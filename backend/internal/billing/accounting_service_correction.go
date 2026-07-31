@@ -142,13 +142,29 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 				slog.Int64("new_billing_amount", newBillingAmount))
 		}
 
-		// M-2: 締め済み期間の売上に対する訂正は拒否しない（ルートで post-close-edit 権限を要求済み）が、
-		// silent な改変を防ぐため WarnContext + 監査ログの post_close フラグで可視化する。
-		if input.IsPostClose {
+		// M-2 / W-013 HIGH-1: write 時に締め状態を再評価。handler フラグのみに依存しない。
+		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, billing.ScheduledDate, input.IsPostClose)
+		if err != nil {
+			return err
+		}
+		if postClose {
+			input.IsPostClose = true
 			slog.WarnContext(txCtx, "credit correction on closed period",
 				slog.Uint64("clinic_id", input.ClinicID),
 				slog.Uint64("billing_id", input.BillingID),
 				slog.String("scheduled_date", billing.ScheduledDate.Format(time.DateOnly)))
+			// HIGH-2: 監査に加え append-only adjustment を同一 tx で fail-closed に残す。
+			if err := s.recordPostCloseAdjustment(
+				txCtx,
+				input.ClinicID,
+				input.BillingID,
+				billing.ScheduledDate,
+				input.Reason,
+				input.StaffID,
+				newBillingAmount-oldBillingAmount,
+			); err != nil {
+				return err
+			}
 		}
 
 		// 監査ログ（fail-closed: 失敗時は tx をロールバックし訂正ごと無効にする。BE-refactor.md R1-2・#211 パターン踏襲）

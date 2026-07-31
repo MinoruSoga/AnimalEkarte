@@ -26,26 +26,27 @@ type estimateItemResponse struct {
 }
 
 type estimateResponse struct {
-	ID              uint64                 `json:"id"`
-	ClinicID        uint64                 `json:"clinic_id"`
-	EstimateNo      string                 `json:"estimate_no"`
-	MedicalRecordID *uint64                `json:"medical_record_id,omitempty"`
-	Title           string                 `json:"title"`
-	OwnerID         *uint64                `json:"owner_id,omitempty"`
-	Owner           *ownerSummaryResponse  `json:"owner,omitempty"`
-	Status          string                 `json:"status"`
-	Subtotal        int64                  `json:"subtotal"`
-	TaxTotal        int64                  `json:"tax_total"`
-	TotalAmount     int64                  `json:"total_amount"`
-	InsuranceAmount int64                  `json:"insurance_amount"`
-	DiscountAmount  int64                  `json:"discount_amount"`
-	ValidUntil      *time.Time             `json:"valid_until,omitempty"`
-	Comment         string                 `json:"comment"`
-	Notes           string                 `json:"notes"`
-	CreatedBy       *uint64                `json:"created_by,omitempty"`
-	Items           []estimateItemResponse `json:"items,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	ID                   uint64                 `json:"id"`
+	ClinicID             uint64                 `json:"clinic_id"`
+	EstimateNo           string                 `json:"estimate_no"`
+	MedicalRecordID      *uint64                `json:"medical_record_id,omitempty"`
+	Title                string                 `json:"title"`
+	OwnerID              *uint64                `json:"owner_id,omitempty"`
+	Owner                *ownerSummaryResponse  `json:"owner,omitempty"`
+	Status               string                 `json:"status"`
+	Subtotal             int64                  `json:"subtotal"`
+	TaxTotal             int64                  `json:"tax_total"`
+	TotalAmount          int64                  `json:"total_amount"`
+	InsuranceAmount      int64                  `json:"insurance_amount"`
+	DiscountAmount       int64                  `json:"discount_amount"`
+	ValidUntil           *time.Time             `json:"valid_until,omitempty"`
+	Comment              string                 `json:"comment"`
+	Notes                string                 `json:"notes"`
+	CreatedBy            *uint64                `json:"created_by,omitempty"`
+	SupersedesEstimateID *uint64                `json:"supersedes_estimate_id,omitempty"`
+	Items                []estimateItemResponse `json:"items,omitempty"`
+	CreatedAt            time.Time              `json:"created_at"`
+	UpdatedAt            time.Time              `json:"updated_at"`
 }
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
@@ -77,25 +78,26 @@ func toEstimateResponse(e *model.Estimate) estimateResponse {
 		items = append(items, toEstimateItemResponse(&e.Items[i]))
 	}
 	return estimateResponse{
-		ID:              e.ID,
-		ClinicID:        e.ClinicID,
-		EstimateNo:      e.EstimateNo,
-		MedicalRecordID: e.MedicalRecordID,
-		Title:           e.Title,
-		OwnerID:         e.OwnerID,
-		Owner:           toOwnerSummary(e.Owner),
-		Status:          string(e.Status),
-		Subtotal:        e.Subtotal,
-		TaxTotal:        e.TaxTotal,
-		TotalAmount:     e.TotalAmount,
-		InsuranceAmount: e.InsuranceAmount,
-		DiscountAmount:  e.DiscountAmount,
-		ValidUntil:      e.ValidUntil,
-		Comment:         e.Comment,
-		Notes:           e.Notes,
-		CreatedBy:       e.CreatedBy,
-		Items:           items,
-		CreatedAt:       httpapi.LocalTime(e.CreatedAt),
-		UpdatedAt:       httpapi.LocalTime(e.UpdatedAt),
+		ID:                   e.ID,
+		ClinicID:             e.ClinicID,
+		EstimateNo:           e.EstimateNo,
+		MedicalRecordID:      e.MedicalRecordID,
+		Title:                e.Title,
+		OwnerID:              e.OwnerID,
+		Owner:                toOwnerSummary(e.Owner),
+		Status:               string(e.Status),
+		Subtotal:             e.Subtotal,
+		TaxTotal:             e.TaxTotal,
+		TotalAmount:          e.TotalAmount,
+		InsuranceAmount:      e.InsuranceAmount,
+		DiscountAmount:       e.DiscountAmount,
+		ValidUntil:           e.ValidUntil,
+		Comment:              e.Comment,
+		Notes:                e.Notes,
+		CreatedBy:            e.CreatedBy,
+		SupersedesEstimateID: e.SupersedesEstimateID,
+		Items:                items,
+		CreatedAt:            httpapi.LocalTime(e.CreatedAt),
+		UpdatedAt:            httpapi.LocalTime(e.UpdatedAt),
 	}
 }

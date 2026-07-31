@@ -136,6 +136,9 @@ type accountingService struct {
 	transactor        Transactor
 	auditTx           billingAuditTxLogger
 	payMethodRepo     PaymentMethodMasterRepository
+	// closeRepo は W-013 締め後訂正台帳（cash_register_close_adjustments）書込用。
+	// WithCashRegisterCloseRepository で注入。IsPostClose 経路では必須（欠落は fail-closed）。
+	closeRepo CashRegisterCloseRepository
 }
 
 type accountingReservationRepository interface {
@@ -143,11 +146,21 @@ type accountingReservationRepository interface {
 	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 }
 
+type accountingServiceOption func(*accountingService)
+
+// WithCashRegisterCloseRepository は締め後編集時の append-only adjustment 書込に使う close repo を配線する（W-013）。
+func WithCashRegisterCloseRepository(repo CashRegisterCloseRepository) accountingServiceOption {
+	return func(s *accountingService) {
+		s.closeRepo = repo
+	}
+}
+
 // auditTx は tx 内監査（#211/BE-refactor.md R1-2 fail-closed）の記録経路。会計は金銭データのため、
 // 論理削除監査（Cancel）・クレジット訂正監査（CorrectCreditPayment）・締め後編集監査
 // （Update / AuditActionBillingPostCloseEdit）をすべて ambient tx に参加させ、監査書込の失敗が
 // 本体の書込もロールバックするようにする（3経路とも fail-closed 化済み。旧 auditSvc 経路は撤去した）。
 // medicalRecordRepo / hospRepo / reservationRepo は AUD-002 の関連 FK clinic 所有・相互整合検証用。
+// closeRepo は W-013 の締め後 adjustment 台帳書込用（WithCashRegisterCloseRepository で注入）。
 func NewAccountingService(
 	repo AccountingRepository,
 	medicalRecordRepo billingMedicalRecordLocker,
@@ -157,8 +170,9 @@ func NewAccountingService(
 	transactor Transactor,
 	auditTx billingAuditTxLogger,
 	payMethodRepo PaymentMethodMasterRepository,
+	opts ...accountingServiceOption,
 ) AccountingService {
-	return &accountingService{
+	s := &accountingService{
 		repo:              repo,
 		medicalRecordRepo: medicalRecordRepo,
 		hospRepo:          hospRepo,
@@ -168,4 +182,8 @@ func NewAccountingService(
 		auditTx:           auditTx,
 		payMethodRepo:     payMethodRepo,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }

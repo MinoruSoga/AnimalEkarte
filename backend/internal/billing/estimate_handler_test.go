@@ -26,11 +26,12 @@ func TestEstimateHandlerCompiles(t *testing.T) {
 // ---- mock EstimateService ----
 
 type mockEstimateService struct {
-	listFn   func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
-	getFn    func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
-	createFn func(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
-	updateFn func(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
-	deleteFn func(ctx context.Context, clinicID, id uint64) error
+	listFn            func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
+	getFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	createFn          func(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
+	updateFn          func(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
+	deleteFn          func(ctx context.Context, clinicID, id uint64) error
+	createSuccessorFn func(ctx context.Context, clinicID, originalID uint64, input *CreateSuccessorInput) (*model.Estimate, error)
 }
 
 func (m *mockEstimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
@@ -51,6 +52,13 @@ func (m *mockEstimateService) Update(ctx context.Context, clinicID, id uint64, i
 
 func (m *mockEstimateService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockEstimateService) CreateSuccessor(ctx context.Context, clinicID, originalID uint64, input *CreateSuccessorInput) (*model.Estimate, error) {
+	if m.createSuccessorFn != nil {
+		return m.createSuccessorFn(ctx, clinicID, originalID, input)
+	}
+	return nil, nil
 }
 
 func newHandlerWithEstimateSvc(svc EstimateService) *EstimateHandler {

@@ -116,3 +116,22 @@ func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateIn
 	}
 	return input
 }
+
+// createEstimateSuccessorRequest は確定見積の後継ドラフト作成リクエスト（TASK-012 FINAL B）。
+// reason 必須。title/comment/notes は任意上書き。
+type createEstimateSuccessorRequest struct {
+	Reason  string  `json:"reason" binding:"required,min=1,max=500"`
+	Title   *string `json:"title" binding:"omitempty,min=1,max=255"`
+	Comment *string `json:"comment"`
+	Notes   *string `json:"notes"`
+}
+
+func (r *createEstimateSuccessorRequest) toServiceInput(actorID uint64) *CreateSuccessorInput {
+	return &CreateSuccessorInput{
+		Reason:  r.Reason,
+		Title:   r.Title,
+		Comment: r.Comment,
+		Notes:   r.Notes,
+		ActorID: actorID,
+	}
+}

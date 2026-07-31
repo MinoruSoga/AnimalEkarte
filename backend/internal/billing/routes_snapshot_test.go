@@ -100,6 +100,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/billing-items CreateBillingItem\n" +
 		"POST /api/v1/cash-register/closes CloseCashRegister\n" +
 		"POST /api/v1/estimates CreateEstimate\n" +
+		"POST /api/v1/estimates/:id/successors CreateEstimateSuccessor\n" +
 		"POST /api/v1/masters/campaigns CreateCampaign\n" +
 		"POST /api/v1/masters/insurances CreateInsurance\n" +
 		"POST /api/v1/medical-records/:id/billing-confirmation/confirm ConfirmBillingConfirmation\n" +

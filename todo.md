@@ -66,7 +66,7 @@ TASK-001-BE/FE, TASK-006/007/008, TASK-011, TASK-015/016/017, TASK-018（監査�
 - **根拠**: `HospitalizationForm.tsx` `readOnly={isEdit}`; edit save は親のみ; BE routes に PATCH/DELETE; FE write は create POST のみ（create は nested 化済み・TASK-001 done）。
 - **修正方針**: **案B 決裁済**。登録時 treatment plan は immutable snapshot。編集 UI は RO を維持し、hospitalization 配下 PATCH/DELETE も consumer inventory 後に撤去（撤去までは service reject）。care plan との用語を分離する。
 - **受け入れ条件**: 編集 UI は意図的 RO。hospitalization 配下 PATCH/DELETE は service で拒否され、consumer inventory 後に route 撤去。treatment plan / care plan の用語分離と、子明細ありの親削除 UI guard が固定される。
-- **状態**: **案B 決裁済 — unlock WONTFIX / UI follow-up 要**。治療プランは登録時 snapshot として編集時 RO。care plan との用語分離と、子明細ありの親削除を事後 Conflict に依存させない UI guard を follow-up とする。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **done（WONTFIX unlock + UI/API follow-up 実装済）**。hosp nested PATCH/DELETE は service Conflict。親削除 UI guard・treatment/care 用語分離済み。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。Wave1: `TODO-MD-PO-FOLLOWUP-WAVE1-20260731`。
 
 ### TASK-003: 入院フォーム一括割引の永続化可否（Medium・PO決裁済）
 
@@ -74,7 +74,7 @@ TASK-001-BE/FE, TASK-006/007/008, TASK-011, TASK-015/016/017, TASK-018（監査�
 - **根拠**: CostSummary `readOnly` + honesty; model に global discount なし。
 - **修正方針**: **案B 決裁済**。hospitalization に割引 SoT を追加しない。disabled 入力を削除し、read-only 概算と非保存 honesty を残す。
 - **受け入れ条件**: hospitalization の schema/request に一括割引を追加しない。常時 disabled の `%` / `円` 欄を削除し、read-only 概算・非保存 honesty・既存の行割引/会計 SoT を維持する。
-- **状態**: **案B 決裁済 — 永続化 WONTFIX / UI follow-up 要**。一括割引の第二 SoT は作らない。常時 disabled の `%` / `円` 欄を削除し、read-only 概算と honesty を残す follow-up。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **done（永続化 WONTFIX + UI follow-up 実装済）**。disabled 一括割引入力削除・RO 概算と honesty 維持。BE bulk discount フィールド追加なし。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。Wave1: `TODO-MD-PO-FOLLOWUP-WAVE1-20260731`。
 
 ### TASK-004: screens-drift 意図変更セットのコミット隔離（Medium・ops）
 
@@ -109,19 +109,19 @@ TASK-001-BE/FE, TASK-006/007/008, TASK-011, TASK-015/016/017, TASK-018（監査�
 
 - **問題**: terminal status の訂正経路が未実装で、S07 が 26§2.1 と矛盾する。
 - **修正方針**: **案B 決裁済**。`approved` / `rejected` は不可逆。原本を保持する後継 draft、atomic 採番、supersedes、理由・actor audit を同一 transaction で fail-closed に実装し、S07 を追随する。
-- **状態**: **案B 決裁済 — unlock WONTFIX / High 実装・docs follow-up 要**。terminal status は不可逆。atomic `estimate_no` 採番、locked 原本を保持する後継 draft・supersedes・audit 経路、S07 honesty を follow-up とする。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **done（unlock WONTFIX + 後継経路実装済）**。`POST /estimates/:id/successors`・atomic `estimate_no`・supersedes・fail-closed audit TX・S07/26 honesty。migration `002_estimate_successor_and_numbering.sql` は USER `make migrate`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。Wave1: `TODO-MD-PO-FOLLOWUP-WAVE1-20260731`。
 
 ### TASK-013: 締め reverse 境界の仕様確定（High・PO決裁済）
 
 - **問題**: public API は append-only だが soft-delete/同期間再 close を DB が物理的に防がず、manual に存在しない reverse 手順が残る。
 - **修正方針**: **案B 決裁済**。reverse なし。close は immutable とし、訂正は元 close に紐づく append-only adjustment へ会計差額と実現現金移動を分離記録する。DB/application hardening と manual を追随する。
-- **状態**: **案B 決裁済 — reverse WONTFIX / High hardening・docs follow-up 要**。close は append-only。soft-delete/同期間再 close を防ぐ persistence invariant と、存在しない reverse を案内する manual の修正が必要。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **done（reverse WONTFIX + hardening 実装済）**。full UNIQUE + immutability・`cash_register_close_adjustments`・post-close 再評価 + adjustment fail-closed・manual reverse 撤去。migration `003_cash_register_close_append_only.sql` は USER `make migrate`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。Wave1: `TODO-MD-PO-FOLLOWUP-WAVE1-20260731`。
 
 ### TASK-014: payment system_key の仕様・運用方針（Medium・PO決裁済）
 
 - **問題**: UI は `system_key` 非公開だが、DB immutability と system row の deactivate/delete guard が未実装。
 - **修正方針**: **案A 決裁済**。予約済み四 key は immutable・編集 UI 非公開。name のみ表示用に変更可。system row は deactivate/delete 不可として FE/BE/DB と V04 を追随する。
-- **状態**: **案A 決裁済 — 実装・docs follow-up 要**。予約済み四 key は immutable・編集 UI 非公開。name は表示用に変更可、system row は deactivate/delete 不可として guard と V04 を追随。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **done（実装・V04 追随済）**。system row の deactivate/delete は BE Conflict。name 変更可。`system_key` 編集 UI 非公開は維持。V04 方針固定。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。Wave1: `TODO-MD-PO-FOLLOWUP-WAVE1-20260731`。
 
 ### TASK-019: docs/spec/line/** deep 監査 follow-up（Medium / 任意）
 

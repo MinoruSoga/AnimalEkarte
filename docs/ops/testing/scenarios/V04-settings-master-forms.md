@@ -69,7 +69,7 @@
 | トリミングオプション (master-trimming-option) | /settings/trimming?tab=option | name | (clinic_id,name) | 併用可 combinable トグル（既定 ON）を OFF にして保存→再オープンで保持 |
 | トリミングコース種別 (master-trimming-course-type) | /settings/trimming-course-type | name | (clinic_id,name) | name+isActive のみの最小構成（空文字保存不可 — master-trimming-course-type.md） |
 | 割引キャンペーン (master-campaign) | /settings/campaigns | キャンペーン名 | —（name 一意なし） | (C3-1) 対象商品選択肢が物販マスタ実データ由来。【要実測】終了日 < 開始日の拒否（doc は開始日以降必須と規定・FE validate は name のみで実装位置未確認） |
-| 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) | 【要実測】システム既定行（現金等 system_key 保持行）の名称変更・無効化の可否（ADR-003 関連・FE に system_key 参照なし） |
+| 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) | **システム標準行ポリシー（W-014 / ADR-003）**: `system_key` 保持行（cash / credit_card / electronic_money / bank_transfer）は **名称・表示順の変更は可**。`system_key` 自体は immutable かつ編集 UI 非公開（FE に system_key 参照なし）。**無効化・削除は不可**（BE Conflict: 「システム標準の支払方法は無効化できません」「システム標準の支払方法は削除できません」）。カスタム行（system_key nil）は従来どおり無効化・未使用時削除可 |
 
 - 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。【要実測】削除済み種別の表示挙動（保持表示か空欄か）と、そのまま保存してもエラーにならないか。
 - 割引キャンペーンの権限は ResourceAccounting（会計）、支払方法は ResourcePaymentMethod — admin 以外で実行する場合は権限に注意。

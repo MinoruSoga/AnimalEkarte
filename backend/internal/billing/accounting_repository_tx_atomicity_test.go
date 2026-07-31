@@ -164,7 +164,18 @@ func TestAccountingService_Update_PostCloseMissingAuditDependencyRollsBack(t *te
 	reason := "締め後訂正"
 	updatedMemo := "監査なしでは保存しない"
 	repo := NewAccountingRepository(db)
-	svc := NewAccountingService(repo, nil, nil, nil, nil, testNewTransactor(db), nil, nil)
+	// close repo は adjustment 成功を返すモック。auditTx=nil なら監査欠落で fail-closed になることを固定する。
+	// （実テーブル cash_register_close_adjustments は migration 003 適用後に存在。本テストは audit 欠落に焦点）
+	closeRepo := &mockCashRegisterCloseRepository{
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, period string) (*model.CashRegisterClose, error) {
+			if period == "am" {
+				return &model.CashRegisterClose{ID: 1, ClinicID: clinicA, Period: "am"}, nil
+			}
+			return nil, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, testNewTransactor(db), nil, nil,
+		WithCashRegisterCloseRepository(closeRepo))
 
 	got, err := svc.Update(ctx, &UpdateAccountingInput{
 		ID:              billing.ID,

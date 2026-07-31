@@ -97,10 +97,6 @@ beforeEach(() => {
     addTreatmentPlan: vi.fn(),
     removeTreatmentPlan: vi.fn(),
     updateTreatmentPlan: vi.fn(),
-    globalDiscount: 0,
-    setGlobalDiscount: vi.fn(),
-    globalDiscountAmount: 0,
-    setGlobalDiscountAmount: vi.fn(),
     calculateTotals: () => ({
       subtotalBeforeDiscount: 0,
       discountAmount: 0,
@@ -157,5 +153,44 @@ describe("HospitalizationForm — mutation permission boundary", () => {
     fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
 
     expect(mocks.deleteHospitalization).toHaveBeenCalledWith("hospitalization-1", expect.any(Object));
+  });
+
+  it("hides delete button and shows honesty when child treatment plans exist", () => {
+    mocks.useHospitalizationForm.mockImplementation(() => ({
+      isEdit: true,
+      formData: {
+        hospitalizationType: "入院",
+        ownerRequest: "",
+        staffNotes: "",
+      },
+      handleFormDataChange: vi.fn(),
+      treatmentPlans: [{ id: "tp-1", treatmentContent: "点滴" }],
+      addTreatmentPlan: vi.fn(),
+      removeTreatmentPlan: vi.fn(),
+      updateTreatmentPlan: vi.fn(),
+      calculateTotals: () => ({
+        subtotalBeforeDiscount: 0,
+        discountAmount: 0,
+        subtotalAfterDiscount: 0,
+        consumptionTax: 0,
+        total: 0,
+      }),
+      petSelection: {
+        selectedPets: [{
+          id: "pet-1",
+          name: "ポチ",
+          ownerName: "飼主",
+          species: "犬",
+          status: "生存",
+        }],
+      },
+      formAction: vi.fn(),
+      formState: { success: false },
+    }));
+
+    renderForm();
+
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("治療プランが紐付いているため、この入院は削除できません。");
   });
 });

@@ -15,6 +15,7 @@ import (
 // (eval, nil)        : per_weight 対象で再検証成立（snapshot 永続化・逸脱 audit に使用）
 // (nil, nil)         : 非対象（medicine でない/per_weight でない/species 解決不能/体重未記録/param 無し）→ 後方互換の手動入力
 // (nil, err)         : species 不一致など fail-closed すべき安全違反、または読み出し失敗
+//                      （vital/medicine/medical_record/dose_param のシステム障害を含む。#201 P0: vital 障害は体重未記録と同一視しない）
 // BE9-2D ④b: 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、各 repo の dbOrTx が同一 tx で読む
 // （読み出しと UPDATE を同一 tx に束ねるスナップショット TOCTOU 防止 = security review MEDIUM-1 を維持）。
 func (s *treatmentService) evaluateDoseForSave(
@@ -50,8 +51,12 @@ func (s *treatmentService) evaluateDoseForSave(
 		return nil, nil
 	}
 
-	// 体重を解決（来院近傍 vital・暫定確定(2026-07-15 PO)）。未記録は fail-closed（手動）。
-	weightKg, weightSource, ok := s.resolveDoseWeight(ctx, clinicID, medicalRecordID)
+	// 体重を解決（来院近傍 vital・暫定確定(2026-07-15 PO)）。
+	// 未記録（ok=false, err=nil）は手動経路を維持。vital 読取のシステム障害（err!=nil）は fail-closed で保存中止（#201 P0）。
+	weightKg, weightSource, ok, err := s.resolveDoseWeight(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		slog.InfoContext(ctx, "dose revalidation skipped: weight unavailable", "medical_record_id", medicalRecordID)
 		return nil, nil
@@ -84,11 +89,15 @@ func (s *treatmentService) evaluateDoseForSave(
 }
 
 // resolveDoseWeight は来院カルテの vital から最新の体重(kg)を解決する（暫定確定(2026-07-15 PO)の安全側デフォルト）。
-func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool) {
+// 戻り値:
+//   - err != nil: vital 読取のシステム障害（呼び出し側は保存中止）
+//   - ok == false && err == nil: 有効な体重未記録 / 正規化不能（呼び出し側は手動経路を維持）
+//   - ok == true: 解決成功
+func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool, err error) {
 	vitals, err := s.vitalRepo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load vitals for dose weight", "error", err)
-		return 0, "", false
+		return 0, "", false, apperrors.Wrap(err, "failed to load vitals for dose weight")
 	}
 	var chosen *model.VitalRecord
 	for i := range vitals {
@@ -101,13 +110,13 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 		}
 	}
 	if chosen == nil {
-		return 0, "", false
+		return 0, "", false, nil
 	}
 	kg, ok := NormalizeWeightToKg(*chosen.Weight, chosen.WeightUnit)
 	if !ok {
-		return 0, "", false
+		return 0, "", false, nil
 	}
-	return kg, fmt.Sprintf("vital_records:%d", chosen.ID), true
+	return kg, fmt.Sprintf("vital_records:%d", chosen.ID), true, nil
 }
 
 // auditDoseDeviationTx は逸脱（過量/過少/著しい上書き）を audit_logs に fail-closed で記録する。

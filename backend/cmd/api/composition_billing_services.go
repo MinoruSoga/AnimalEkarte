@@ -30,6 +30,8 @@ func newBillingCoreServices(
 			d.Transactor,
 			auditTx,
 			r.paymentMethods,
+			// W-013: 締め後編集の append-only adjustment 台帳書込（justified DI wiring）
+			billing.WithCashRegisterCloseRepository(r.cashRegisterCloses),
 		),
 		billingItems: billing.NewBillingItemServiceWithCampaign(
 			r.billingItems,
@@ -41,6 +43,8 @@ func newBillingCoreServices(
 			r.campaigns,
 			d.Owners,
 			billing.WithBillingItemAuditTx(auditTx),
+			// W-013 HIGH-2: 明細締め後変更も adjustment 台帳へ追記
+			billing.WithBillingItemCloseRepository(r.cashRegisterCloses),
 		),
 		insurance: billing.NewInsuranceService(r.insurance),
 		cashRegister: billing.NewCashRegisterService(
@@ -78,6 +82,7 @@ func newBillingDocumentServices(
 			d.StaffAssignments,
 			auditLogger,
 			d.Transactor,
+			billing.WithEstimateAuditTx(auditTx),
 		),
 		refunds: billing.NewRefundService(
 			r.refunds,

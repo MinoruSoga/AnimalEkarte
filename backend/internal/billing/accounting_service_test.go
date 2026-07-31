@@ -1697,29 +1697,103 @@ func TestAccountingService_Update_PostCloseReasonRequired(t *testing.T) {
 	}
 }
 
+// postCloseCloseRepoForTests は締め後編集テスト用の close repo モックを返す。
+// 既定で ScheduledDate の am 区分 close を返し、CreateAdjustment を成功させる。
+func postCloseCloseRepoForTests(billingDate time.Time) *mockCashRegisterCloseRepository {
+	closeRec := &model.CashRegisterClose{
+		ID:        99,
+		ClinicID:  1,
+		CloseDate: time.Date(billingDate.Year(), billingDate.Month(), billingDate.Day(), 0, 0, 0, 0, time.UTC),
+		Period:    "am",
+	}
+	return &mockCashRegisterCloseRepository{
+		hasCloseOnDateFn: func(_ context.Context, _ uint64, date time.Time) (bool, error) {
+			return date.Format(time.DateOnly) == closeRec.CloseDate.Format(time.DateOnly), nil
+		},
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, date time.Time, period string) (*model.CashRegisterClose, error) {
+			if period == "am" && date.Format(time.DateOnly) == closeRec.CloseDate.Format(time.DateOnly) {
+				return closeRec, nil
+			}
+			return nil, nil
+		},
+	}
+}
+
+// TestAccountingService_Update_PostCloseReevaluatedInTx は handler が IsPostClose=false でも
+// write 時に HasCloseOnDate=true なら post-close 経路へ昇格し、理由欠落は fail-closed に拒否する（W-013 HIGH-1）。
+func TestAccountingService_Update_PostCloseReevaluatedInTx(t *testing.T) {
+	memo := "メモのみ"
+	staffID := uint64(3)
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: scheduled, TotalAmount: 10000}
+	closeRepo := postCloseCloseRepoForTests(scheduled)
+	repo := &mockAccountingRepository{
+		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+	}
+	audit := &mockAuditService{}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
+		WithCashRegisterCloseRepository(closeRepo))
+
+	// 理由なし・handler は非締め → write 再評価で締め済み → 拒否
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID: 7, ClinicID: 1, StaffID: &staffID, Memo: &memo, IsPostClose: false,
+	})
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input for missing reason after re-eval: %v", err)
+	assert.False(t, audit.logEntryTxCalled)
+
+	// 理由あり → 昇格して adjustment + audit
+	reason := "締め後に判明した金額誤り"
+	var captured *model.CashRegisterCloseAdjustment
+	closeRepo.createAdjustmentFn = func(_ context.Context, adj *model.CashRegisterCloseAdjustment) error {
+		captured = adj
+		return nil
+	}
+	_, err = svc.Update(context.Background(), &UpdateAccountingInput{
+		ID: 7, ClinicID: 1, StaffID: &staffID, Memo: &memo, IsPostClose: false, PostCloseReason: &reason,
+	})
+	assert.NoError(t, err)
+	assert.True(t, audit.logEntryTxCalled)
+	assert.NotNil(t, captured)
+	assert.Equal(t, reason, captured.Reason)
+}
+
 // TestAccountingService_Update_PostCloseEmitsAudit は #115 / B4 の成功経路で
 // 締め後編集監査ログ（AuditActionBillingPostCloseEdit・reason 付き）が必ず記録されることを固定する。
 // reason ガード通過後に監査が欠落しないことの回帰防止網（review follow-up）。
 // BE-refactor.md R1-2: Update の締め後編集監査を fail-closed 化（LogEntryTx・ambient tx 参加）した後の
 // 挙動保存を確認する（refund/CorrectCreditPayment と同型）。
+// W-013: 同一経路で cash_register_close_adjustments も追記される。
 func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
 	reason := "金額訂正のため"
 	memo := "訂正済み"
 	staffID := uint64(3)
-	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: time.Now()}
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: scheduled, TotalAmount: 10000}
+
+	var capturedAdj *model.CashRegisterCloseAdjustment
+	closeRepo := postCloseCloseRepoForTests(scheduled)
+	closeRepo.createAdjustmentFn = func(_ context.Context, adj *model.CashRegisterCloseAdjustment) error {
+		capturedAdj = adj
+		return nil
+	}
 
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{}
-	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
+		WithCashRegisterCloseRepository(closeRepo))
 
+	newTotal := int64(9500)
 	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:              7,
 		ClinicID:        1,
 		StaffID:         &staffID,
 		Memo:            &memo,
+		TotalAmount:     &newTotal,
 		IsPostClose:     true,
 		PostCloseReason: &reason,
 	})
@@ -1733,6 +1807,74 @@ func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
 			assert.Equal(t, reason, meta["reason"])
 		}
 	}
+	if assert.NotNil(t, capturedAdj, "post-close edit must write an append-only adjustment") {
+		assert.Equal(t, uint64(99), capturedAdj.CloseID)
+		assert.Equal(t, uint64(7), capturedAdj.BillingID)
+		assert.Equal(t, int64(-500), capturedAdj.AccountingDelta)
+		assert.Equal(t, int64(0), capturedAdj.CashMovementAmount)
+		assert.Equal(t, reason, capturedAdj.Reason)
+	}
+}
+
+// TestAccountingService_Update_PostCloseAdjustmentFailureRollsBack は W-013 の fail-closed 契約:
+// adjustment 書込失敗時は Update 全体がエラーになり、監査も本体も残さない。
+func TestAccountingService_Update_PostCloseAdjustmentFailureRollsBack(t *testing.T) {
+	reason := "金額訂正のため"
+	memo := "訂正済み"
+	staffID := uint64(3)
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: scheduled}
+
+	closeRepo := postCloseCloseRepoForTests(scheduled)
+	closeRepo.createAdjustmentFn = func(_ context.Context, _ *model.CashRegisterCloseAdjustment) error {
+		return errors.New("adjustment write failed")
+	}
+	repo := &mockAccountingRepository{
+		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+	}
+	audit := &mockAuditService{}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
+		WithCashRegisterCloseRepository(closeRepo))
+
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              7,
+		ClinicID:        1,
+		StaffID:         &staffID,
+		Memo:            &memo,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+
+	assert.Error(t, err, "adjustment failure must fail the whole update (fail-closed)")
+	assert.False(t, audit.logEntryTxCalled, "audit must not run after adjustment failure")
+}
+
+// TestAccountingService_Update_PostCloseMissingCloseRepoRollsBack は close repo 未配線時に
+// 締め後編集が fail-closed で拒否されることを固定する（W-013）。
+func TestAccountingService_Update_PostCloseMissingCloseRepoRollsBack(t *testing.T) {
+	reason := "金額訂正のため"
+	memo := "訂正済み"
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
+
+	repo := &mockAccountingRepository{
+		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+	}
+	audit := &mockAuditService{}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              7,
+		ClinicID:        1,
+		Memo:            &memo,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "cash register close repository")
+	assert.False(t, audit.logEntryTxCalled)
 }
 
 // TestAccountingService_Update_PostCloseAuditFailureRollsBack は BE-refactor.md R1-2 の
@@ -1743,14 +1885,16 @@ func TestAccountingService_Update_PostCloseAuditFailureRollsBack(t *testing.T) {
 	reason := "金額訂正のため"
 	memo := "訂正済み"
 	staffID := uint64(3)
-	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: time.Now()}
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: scheduled}
 
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
-	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
+		WithCashRegisterCloseRepository(postCloseCloseRepoForTests(scheduled)))
 
 	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:              7,

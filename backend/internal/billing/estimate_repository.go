@@ -3,6 +3,8 @@ package billing
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -29,6 +31,15 @@ type EstimateRepository interface {
 	// （唯一の呼び出し元 estimateService.Delete が clinicID を既に保持・ownership 検証済み）。
 	// estimate_items 自体は clinic_id を持たないため estimates への JOIN で述語を付与する。
 	CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error)
+	// AllocateNextEstimateNo は clinic スコープで見積番号 EST-{N} を原子的に採番する。
+	// 呼び出し元の ambient tx 内で pg_advisory_xact_lock を取り、EST-% の最大数値接尾辞+1 を返す。
+	// EST-% が無い場合は max(id)+1 をフォールバックとする（空テーブルは EST-1）。
+	// soft-deleted 行も番号占有のため Unscoped で走査する（unique index が deleted_at を見ない）。
+	AllocateNextEstimateNo(ctx context.Context, clinicID uint64) (string, error)
+}
+
+func estimateNoClinicLockKey(clinicID uint64) string {
+	return fmt.Sprintf("estimate_no:clinic:%d", clinicID)
 }
 
 type estimateRepository struct {
@@ -178,4 +189,61 @@ func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, clinicI
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}
 	return count, nil
+}
+
+// AllocateNextEstimateNo は clinic スコープで次の EST-{N} を採番する（ambient tx + advisory xact lock）。
+func (r *estimateRepository) AllocateNextEstimateNo(ctx context.Context, clinicID uint64) (string, error) {
+	db := persistence.DBOrTx(ctx, r.db)
+	if err := db.Exec(
+		"SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+		estimateNoClinicLockKey(clinicID),
+	).Error; err != nil {
+		return "", apperrors.Wrap(err, "failed to acquire estimate number lock")
+	}
+
+	// soft-deleted も unique index 上は番号を占有するため Unscoped。
+	var nos []string
+	if err := db.Unscoped().
+		Model(&model.Estimate{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("estimate_no LIKE ?", "EST-%").
+		Pluck("estimate_no", &nos).Error; err != nil {
+		return "", apperrors.FromGORM(err, "estimate", "")
+	}
+
+	var maxSuffix int64
+	foundEST := false
+	for _, no := range nos {
+		suffix := strings.TrimPrefix(no, "EST-")
+		if suffix == no {
+			continue
+		}
+		n, err := strconv.ParseInt(suffix, 10, 64)
+		if err != nil || n < 0 {
+			continue
+		}
+		foundEST = true
+		if n > maxSuffix {
+			maxSuffix = n
+		}
+	}
+
+	next := maxSuffix + 1
+	if !foundEST {
+		// EST-% が無い場合: max(id)+1 をフォールバック（空なら 1）。
+		var maxID int64
+		if err := db.Unscoped().
+			Model(&model.Estimate{}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Select("COALESCE(MAX(id), 0)").
+			Scan(&maxID).Error; err != nil {
+			return "", apperrors.FromGORM(err, "estimate", "")
+		}
+		next = maxID + 1
+		if next < 1 {
+			next = 1
+		}
+	}
+
+	return fmt.Sprintf("EST-%d", next), nil
 }

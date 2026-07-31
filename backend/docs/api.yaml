@@ -18237,6 +18237,55 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /estimates/{id}/successors:
+    post:
+      operationId: createEstimateSuccessor
+      summary: 確定見積の後継ドラフト作成（原行不変・unlock なし）
+      description: |
+        承認済み・却下済み見積の訂正経路。原見積は変更せず、新しい draft を採番して
+        supersedes_estimate_id で原見積を参照する（TASK-012 FINAL B）。
+      tags: [Estimates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: 後継作成理由（監査必須）
+                title:
+                  type: string
+                comment:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: 後継ドラフト作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 

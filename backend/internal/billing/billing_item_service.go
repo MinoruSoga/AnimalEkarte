@@ -226,6 +226,8 @@ type billingItemService struct {
 	campaignRepo       CampaignRepository   // #81 段階2b: nil の場合は自動割引なし
 	ownerRepo          billingOwnerReader   // #81 段階2b: 飼主割引取得用
 	auditTx            billingAuditTxLogger // #115 / BUG-463: 締め後編集 fail-closed 監査
+	// closeRepo は W-013 締め後明細変更の append-only adjustment 台帳用（任意 DI）。
+	closeRepo CashRegisterCloseRepository
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -243,6 +245,13 @@ type billingItemServiceOption func(*billingItemService)
 func WithBillingItemAuditTx(auditTx billingAuditTxLogger) billingItemServiceOption {
 	return func(s *billingItemService) {
 		s.auditTx = auditTx
+	}
+}
+
+// WithBillingItemCloseRepository は締め後明細変更時の cash_register_close_adjustments 追記に使う close repo を配線する（W-013）。
+func WithBillingItemCloseRepository(repo CashRegisterCloseRepository) billingItemServiceOption {
+	return func(s *billingItemService) {
+		s.closeRepo = repo
 	}
 }
 
@@ -463,10 +472,8 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
-		if input.IsPostClose {
-			if err := s.logBillingItemPostCloseEdit(txCtx, input.ClinicID, input.BillingID, &item.ID, input.StaffID, input.PostCloseReason, "create"); err != nil {
-				return err
-			}
+		if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, input.ClinicID, input.BillingID, billing, input.StaffID, input.PostCloseReason, "create", &item.ID); err != nil {
+			return err
 		}
 
 		return nil
@@ -531,11 +538,9 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
-		if input.IsPostClose {
-			itemID := id
-			if err := s.logBillingItemPostCloseEdit(txCtx, clinicID, item.BillingID, &itemID, input.StaffID, input.PostCloseReason, "update"); err != nil {
-				return err
-			}
+		itemID := id
+		if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, clinicID, item.BillingID, billing, input.StaffID, input.PostCloseReason, "update", &itemID); err != nil {
+			return err
 		}
 
 		slog.InfoContext(txCtx, "billing item updated",
@@ -595,13 +600,11 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
-		// BUG-463 residual: 締め後削除は post-close 監査を同 tx fail-closed で記録する。
+		// BUG-463 residual / W-013: 締め後削除は adjustment 台帳 + 監査を同 tx fail-closed で記録する。
 		// vaccination claim 解放監査（BUG-440）と両立し、両方発火し得る。
-		if input.IsPostClose {
-			itemID := id
-			if err := s.logBillingItemPostCloseEdit(txCtx, clinicID, billingID, &itemID, input.StaffID, input.PostCloseReason, "delete"); err != nil {
-				return err
-			}
+		itemID := id
+		if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, clinicID, billingID, billing, input.StaffID, input.PostCloseReason, "delete", &itemID); err != nil {
+			return err
 		}
 
 		// BUG-440: vaccination claim 解放時のみ immutable actor 監査（同 tx fail-closed）。
@@ -748,6 +751,41 @@ func (s *billingItemService) GetBillingForItem(ctx context.Context, clinicID, it
 		return nil, apperrors.Wrap(err, "failed to find billing")
 	}
 	return billing, nil
+}
+
+// recordBillingItemPostClose は write 時に締め状態を再評価し、adjustment 台帳 + 監査を同一 tx で残す（W-013）。
+// handler の IsPostClose フラグは候補 read に過ぎないため HasCloseOnDate で再評価する。
+func (s *billingItemService) recordBillingItemPostClose(
+	ctx context.Context,
+	handlerFlag bool,
+	clinicID, billingID uint64,
+	billing *model.Billing,
+	staffID *uint64,
+	reason *string,
+	operation string,
+	itemID *uint64,
+) error {
+	postClose := handlerFlag
+	if s.closeRepo != nil && billing != nil {
+		closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, billing.ScheduledDate)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to re-check cash register close state for billing item")
+		}
+		if closed {
+			postClose = true
+		}
+	}
+	if !postClose {
+		return nil
+	}
+	if reason == nil || strings.TrimSpace(*reason) == "" {
+		return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+	}
+	// 明細経路は total 再計算後でも delta を行単位で確定しづらいため 0 とし、reason で追跡する。
+	if err := createPostCloseAdjustment(ctx, s.closeRepo, clinicID, billingID, billing.ScheduledDate, *reason, staffID, 0); err != nil {
+		return err
+	}
+	return s.logBillingItemPostCloseEdit(ctx, clinicID, billingID, itemID, staffID, reason, operation)
 }
 
 // logBillingItemPostCloseEdit はレジ締め済み期間の明細編集監査ログを記録する（#115 / BUG-463）。

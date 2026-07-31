@@ -42,6 +42,12 @@ func buildPaymentMethodUpdate(input *UpdatePaymentMethodMasterInput) map[string]
 	return fields
 }
 
+// isSystemPaymentMethod は system_key を持つ予約済み支払方法（現金・クレジット等）かどうかを返す。
+// system_key は immutable かつ編集 UI 非公開。システム行の無効化・削除は禁止する。
+func isSystemPaymentMethod(m *model.PaymentMethodMaster) bool {
+	return m != nil && m.SystemKey != nil && *m.SystemKey != ""
+}
+
 // PaymentMethodMasterService は支払方法マスタのビジネスロジックインターフェース
 type PaymentMethodMasterService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
@@ -103,9 +109,14 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to get payment method", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get payment method")
+	}
+	// システム標準行は無効化不可（名称・表示順の更新は許可）
+	if isSystemPaymentMethod(existing) && input.IsActive != nil && !*input.IsActive {
+		return nil, apperrors.WrapConflict("システム標準の支払方法は無効化できません")
 	}
 	if err := sharedkernel.ValidateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -126,8 +137,13 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to get payment method")
+	}
+	// システム標準行は使用有無に関わらず削除不可
+	if isSystemPaymentMethod(existing) {
+		return apperrors.WrapConflict("システム標準の支払方法は削除できません")
 	}
 	count, err := s.repo.CountUsageByPaymentMethodID(ctx, clinicID, id)
 	if err != nil {
