@@ -28,7 +28,6 @@ describe("filterStaffCandidatesByCapability", () => {
         {
           id: 10,
           capable_courses: [],
-          excluded_courses: [{ id: 5 }], // must be ignored
         },
       ],
       [
@@ -36,7 +35,6 @@ describe("filterStaffCandidatesByCapability", () => {
         {
           id: 11,
           capable_courses: [{ id: 5, name: "トリミング" }],
-          excluded_courses: [],
         },
       ],
     ]);
