@@ -1722,6 +1722,66 @@ func TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates(t *testi
 	assert.Equal(t, 2, decryptCalls, "rotated ciphertext must force re-decrypt")
 }
 
+func TestCachedDecryptChannelSecret_EvictsStaleEntryBeforeDecrypt(t *testing.T) {
+	tests := []struct {
+		name                 string
+		cachedCiphertext     string
+		credentialCiphertext string
+		cachedExpiry         time.Time
+	}{
+		{
+			name:                 "expired entry",
+			cachedCiphertext:     "same-ciphertext-placeholder",
+			credentialCiphertext: "same-ciphertext-placeholder",
+			cachedExpiry:         time.Now().Add(-time.Second),
+		},
+		{
+			name:                 "ciphertext mismatch",
+			cachedCiphertext:     "old-ciphertext-placeholder",
+			credentialCiphertext: "new-ciphertext-placeholder",
+			cachedExpiry:         time.Now().Add(time.Minute),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const credentialID = uint64(81)
+			svc := &lineLinkService{
+				secretCache: map[uint64]lineChannelSecretCacheEntry{
+					credentialID: {
+						ciphertext: tt.cachedCiphertext,
+						plaintext:  "cached-plaintext-placeholder",
+						expiresAt:  tt.cachedExpiry,
+					},
+				},
+			}
+			credential := &model.ClinicIntegration{
+				ID:       credentialID,
+				ClinicID: 7,
+				Service:  model.IntegrationServiceLstep,
+				KeyName:  model.IntegrationKeyLineChannelSecret,
+				KeyValue: tt.credentialCiphertext,
+			}
+			entryPresentDuringDecrypt := false
+			previousDecrypt := lineCredentialDecrypt
+			lineCredentialDecrypt = func(_ context.Context, _ *crypto.AESGCMCipher, _ string) string {
+				_, entryPresentDuringDecrypt = svc.secretCache[credentialID]
+				return "replacement-plaintext-placeholder"
+			}
+			t.Cleanup(func() { lineCredentialDecrypt = previousDecrypt })
+
+			got := svc.cachedDecryptChannelSecret(context.Background(), credential)
+
+			assert.False(t, entryPresentDuringDecrypt, "stale plaintext must be evicted before decrypt")
+			assert.NotEmpty(t, got)
+			replacement, ok := svc.secretCache[credentialID]
+			require.True(t, ok)
+			assert.Equal(t, tt.credentialCiphertext, replacement.ciphertext)
+			assert.True(t, replacement.expiresAt.After(time.Now()))
+		})
+	}
+}
+
 // TestVerifySignatureAnyClinic_ConcurrencyLimitConstant documents the SEC-CS-F05
 // global verification semaphore capacity.
 func TestVerifySignatureAnyClinic_ConcurrencyLimitConstant(t *testing.T) {
