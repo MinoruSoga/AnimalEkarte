@@ -89,7 +89,7 @@ export const queryKeys = {
   staffs: {
     subResource: (
       staffId: string,
-      resource: "excluded-reservation-types" | "capable-reservation-types" | "clinics" | "permission-groups",
+      resource: "capable-reservation-types" | "clinics" | "permission-groups",
     ) => ["masters", "staffs", staffId, resource] as const,
     allPermissionGroupMap: (staffIds: readonly string[]) =>
       ["masters", "staffs", "all-permission-group-map", ...staffIds] as const,

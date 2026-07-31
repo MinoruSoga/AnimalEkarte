@@ -12,8 +12,6 @@ export interface ReservationStaffCapabilityLike {
   name?: string;
   /** Affirmative capability surface (preferred). */
   capable_courses?: ReadonlyArray<{ id: number; name?: string }>;
-  /** @deprecated Stage B facade only — do not use for candidate filtering. */
-  excluded_courses?: ReadonlyArray<{ id: number; name?: string }>;
 }
 
 /**

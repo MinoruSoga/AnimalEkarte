@@ -8,9 +8,6 @@ import { queryKeys } from "@/lib/query-keys";
 // Staff Capable Reservation Types API (TASK-021 Stage B SoT)
 // ─────────────────────────────────────────────────
 
-const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
-  queryKeys.staffs.subResource(staffId, "excluded-reservation-types");
-
 const STAFF_CAPABLE_ST_KEY = (staffId: string) =>
   queryKeys.staffs.subResource(staffId, "capable-reservation-types");
 
@@ -46,10 +43,6 @@ export function useUpdateStaffCapableReservationTypes() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: STAFF_CAPABLE_ST_KEY(variables.staffId),
-      });
-      // Stage B facade key until Stage A removes exclusion routes.
-      queryClient.invalidateQueries({
-        queryKey: STAFF_EXCLUDED_ST_KEY(variables.staffId),
       });
       // In-clinic reservation form candidates (reservation-staffs).
       queryClient.invalidateQueries({

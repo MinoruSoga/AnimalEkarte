@@ -312,14 +312,12 @@ describe("ReservationFormModal — 担当者候補", () => {
             name: "非対応スタッフ",
             is_active: true,
             capable_courses: [],
-            excluded_courses: [{ id: 5, name: "トリミング" }],
           },
           {
             id: 11,
             name: "対応スタッフ",
             is_active: true,
             capable_courses: [{ id: 5, name: "トリミング" }],
-            excluded_courses: [],
           },
         ])
       ),

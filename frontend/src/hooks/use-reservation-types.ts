@@ -53,11 +53,6 @@ export interface ReservationStaff {
   is_active: boolean;
   /** Affirmative capability surface (TASK-021 Stage B). */
   capable_courses: ReservationStaffCourse[];
-  /**
-   * Stage B compatibility facade derived from capabilities.
-   * Do not use for candidate filtering — use capable_courses.
-   */
-  excluded_courses: ReservationStaffCourse[];
 }
 
 // GET /v1/masters/reservation-types
@@ -83,10 +78,10 @@ const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaf
     `/v1/clinics/${clinicId}/reservation-staffs`,
   );
   // Normalize so missing capable_courses never fail-open as "all capable".
+  // Backend may still emit excluded_courses (Stage B facade); FE ignores it.
   return data.map((staff) => ({
     ...staff,
     capable_courses: staff.capable_courses ?? [],
-    excluded_courses: staff.excluded_courses ?? [],
   }));
 };
 
