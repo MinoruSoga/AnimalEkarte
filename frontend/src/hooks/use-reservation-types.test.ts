@@ -80,4 +80,36 @@ describe("useGetReservationStaffs", () => {
     ]);
     expect(result.current.data?.[0]).not.toHaveProperty("excluded_courses");
   });
+
+  it("normalizes a null capability array to empty without propagating legacy exclusions", async () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/reservation-staffs`, () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            name: "null 設定担当",
+            is_active: true,
+            capable_courses: null,
+            excluded_courses: [{ id: 41, name: "互換面" }],
+          },
+        ]),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetReservationStaffs(), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toEqual([
+      {
+        id: 10,
+        name: "null 設定担当",
+        is_active: true,
+        capable_courses: [],
+      },
+    ]);
+    expect(result.current.data?.[0]).not.toHaveProperty("excluded_courses");
+  });
 });

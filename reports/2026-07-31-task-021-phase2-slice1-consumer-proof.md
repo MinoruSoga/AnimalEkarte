@@ -17,7 +17,7 @@ TASK-021 inventory §6.1–§6.3 のうち、破壊変更を伴わない最初�
 1. `ReservationStaff.capable_courses` と `CapableCourse` を OpenAPI の正式な positive contract にした。
 2. `ExcludedCourse`、`excluded_courses`、Create/Update の `excluded_type_ids`、legacy exclusion endpoint は削除せず `deprecated: true` とした。
 3. 既知の院内予約 FE consumer は wire object を spread せず positive field だけを投影する。legacy `excluded_courses` は query cache / downstream consumer へ伝播しない。
-4. `capable_courses` 欠落・`null` は `[]` に正規化し、対応可能扱いへ fail-open しない。
+4. `capable_courses` 欠落・`null` はそれぞれ独立した fixture で `[]` への正規化を固定し、対応可能扱いへ fail-open しない。
 5. BE response は capability 0 件でも `"capable_courses":[]` を返すことをテストで固定した。
 
 本 slice は legacy route/field/model/table/seed を削除していない。外部 client の利用ゼロは access log・client registry・利用者確認を実施していないため **UNREPORTED** であり、CLEAN-GO ではない。
@@ -123,6 +123,31 @@ $ docker compose --env-file /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.
 exit 0
 Test Files  1 passed (1)
 Tests       2 passed (2)
+```
+
+```text
+$ docker compose --env-file /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.env.local -f /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/docker-compose.yml run --rm --no-deps -T --entrypoint npx -v /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-w021p2/frontend:/app frontend eslint src/hooks/use-reservation-types.ts src/hooks/use-reservation-types.test.ts
+exit 0
+<no lint findings>
+```
+
+### Wave 2 evidence repair（RED failure ではない）
+
+初回 GREEN は欠落 fixture だけで `null` も実装式から推論していた。report fidelity のため `capable_courses: null` と legacy `excluded_courses` を同時に返す独立 fixture を追加し、`[]` への正規化と legacy field 非伝播を直接固定した。既存実装の証拠補強であり、新しい RED failure ではない。
+
+```text
+$ shasum -a 256 frontend/src/hooks/use-reservation-types.test.ts
+2a2df7097ae9864727e08baf4208852d842c8f840855f1084fafd810fe0a02ed  frontend/src/hooks/use-reservation-types.test.ts
+
+$ docker compose --env-file /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.env.local -f /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/docker-compose.yml run --rm --no-deps -T --entrypoint sh -v /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-w021p2/frontend:/app frontend -c 'sha256sum src/hooks/use-reservation-types.test.ts'
+2a2df7097ae9864727e08baf4208852d842c8f840855f1084fafd810fe0a02ed  src/hooks/use-reservation-types.test.ts
+```
+
+```text
+$ docker compose --env-file /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/.env.local -f /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/docker-compose.yml run --rm --no-deps -T --entrypoint npx -v /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-w021p2/frontend:/app frontend vitest run src/hooks/use-reservation-types.test.ts
+exit 0
+Test Files  1 passed (1)
+Tests       3 passed (3)
 ```
 
 ```text
