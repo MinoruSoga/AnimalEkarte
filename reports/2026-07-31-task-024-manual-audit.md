@@ -161,8 +161,29 @@ Result: **PASS** (`git diff --check` exit 0).
 | Speculative FAQ entries added | **None** |
 | Human visual sign-off (Phase A images) | **PENDING** (unchanged; agent must not complete) |
 
+## 事後訂正 — PII 混入により 3 枚を差し戻し（2026-07-31 受領検証）
+
+replace 判定 7 枚のうち 3 枚が、フルシード投入済み DB を撮影したため実データ由来の
+個人情報を画像として含んでいた。差し替え前の画像はクリーンなデモシード由来で個人情報を
+含んでいなかったため、これは改善ではなく厳密な劣化である。該当 3 枚は撮影前の版へ戻した。
+
+| 画像 | 混入内容 | 処置 |
+|------|----------|------|
+| `05-accounting.png` | 飼主氏名 9 名、ペット名、請求金額、医院名 4 件（表示拠点 chips） | **差し戻し** |
+| `07-examinations.png` | 飼主氏名 10 名、ペット名、検査種別・実施日 | **差し戻し** |
+| `10-trimming.png` | 飼主氏名 8 名、ペット名、`30xxxx-NNN` 帯のペット ID、犬種 | **差し戻し** |
+| `02-reception` / `06-reservations` / `13-cash-register` / `14-accounting-reports` | 空リスト・集計ゼロ画面のため混入なし | 置換を維持 |
+
+差し戻しにより、本監査が指摘した文書との不一致（`05` の当日会計タブ、`07` の空欄列、
+`10` の犬種列、`14` は維持）のうち `05` / `07` / `10` の 3 件は未解消のまま残る。
+再撮影はクリーンなデモシードへ戻した環境で行うこと。フルシード環境でリスト系画面を
+撮影して commit してはならない。
+
+なお本 commit での差し戻しでは blob は git 履歴に残る。push 前の履歴処理の要否は USER 判断。
+
 ## Remains for human
 
+0. **再撮影（クリーンシード環境）**: `05-accounting` / `07-examinations` / `10-trimming` — 上記 3 件の文書不一致は未解消。
 1. **Human sign-off** of all 10 images (table above) — still **PENDING**.
 2. Optional recapture: `19-aggregation` with loaded CPM chips; `04-medical-records` if multi-clinic chrome must appear in manual.
 3. Optional: re-shoot replaced PNGs at 2× device scale for parity with older 2880×1800 assets.
