@@ -1,9 +1,19 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-07-30
+> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-07-31
 > **読者**: 先方の管理者（院長・システム担当者）
 > **目的**: 納品後に先方側で日常の運用・管理（スタッフ追加・権限変更・マスタ更新・障害時の一次対応）が自走できる状態にする。
-> **前提**: **Production（本番）は未構築**。現行で稼働しているのは Staging のみ。最終承認・本番値の確定は #253 および末尾の **USER 入力待ち** 表に依存する（#258 は本 slice だけでは close しない）。
+> **前提**: **Production（本番）は未構築**。現行で稼働しているのは Staging のみ。最終承認・本番値の確定は #253 および末尾の **USER 入力待ち（U1–U13）** 表に依存する（#258 は本 slice だけでは close しない）。
+
+### 文書構成（#258 受け入れの 3 領域）
+
+| 領域 | 本書の節 | 状態 |
+|---|---|---|
+| システム構成概要（利用サービス・契約一覧含む） | §1 | repo 由来 SSOT 同期済み。契約名義・本番プランは **USER（U1–U6, U12）** |
+| 管理者向け初期設定手順 | §2 | path / 権限 / 順序は実装と突合済み。本番 LINE/L ステップ秘密は **USER（U5–U6）** |
+| 運用手順（バックアップ・障害連絡・ログ） | §3 | STG 実績ベース。本番実測・窓口・通知先は **USER（U7–U11）** |
+
+現場スタッフ向け操作ナビは [OPERATION_MANUAL.md](OPERATION_MANUAL.md)（#256）。本番切替当日のオーケストレーションは [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md)（#257・LANE-2 所有）。
 
 ---
 
@@ -40,7 +50,7 @@ flowchart TB
 | IaC | Terraform: [`infra/cloudflare/`](../../infra/cloudflare/README.md)／Workers: `backend/wrangler*.jsonc` | [infra/README](../ops/infra/README.md) |
 
 - **STG デプロイ**: `staging` ブランチ push → GitHub Actions `backend-deploy.yml`（deploy → `/health` → migrate → smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
-- **Production デプロイ**: **未整備**（#253・[production/setup.md](../ops/infra/production/setup.md)）。
+- **Production デプロイ**: **未整備**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
 - **シークレット**: GitHub Encrypted Secrets および `wrangler secret` / `worker-secret-sync.yml` で管理。**本ドキュメントには秘密値を記載しない**。
 
 > **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはない。障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、またはスナップショットと現行 IaC からの再建で復旧する。本番稼働後の手順は [production/runbook.md](../ops/infra/production/runbook.md)（プレースホルダ）へ整備予定。
@@ -49,12 +59,12 @@ flowchart TB
 
 | サービス | 用途 | プラン | 契約・アカウント保有 |
 |---|---|---|---|
-| Cloudflare | DNS / CDN / API 実行基盤（Workers + Containers）/ R2 | Workers Paid（STG で使用中） | **USER 入力待ち**（契約名義・移管有無） |
-| PlanetScale | データベース（PostgreSQL） | STG 稼働中。本番プランは未確定 | **USER 入力待ち**（本番プラン・契約名義・移管有無） |
-| Vercel | フロントエンドホスティング + ドメイン（noah-karte.com） | **USER 入力待ち** | **USER 入力待ち**（契約名義・移管有無） |
-| GitHub | ソースコード・CI/CD（GitHub Actions） | — | **USER 入力待ち**（リポジトリ運用体制） |
-| LINE 公式アカウント | 飼主向け予約・通知 | — | 各医院で契約（本番チャネル投入は **USER 入力待ち**） |
-| Lステップ | 配信・タグ管理 | — | 各医院で契約（本番 API キー投入は **USER 入力待ち**） |
+| Cloudflare | DNS / CDN / API 実行基盤（Workers + Containers）/ R2 | Workers Paid（STG で使用中） | **USER 入力待ち（U1）**（契約名義・移管有無） |
+| PlanetScale | データベース（PostgreSQL） | STG 稼働中。本番プランは **USER 入力待ち（U2）** | **USER 入力待ち（U2）**（本番プラン・契約名義・移管有無） |
+| Vercel | フロントエンドホスティング + ドメイン（noah-karte.com） | **USER 入力待ち（U3）** | **USER 入力待ち（U3）**（契約名義・移管有無） |
+| GitHub | ソースコード・CI/CD（GitHub Actions） | — | **USER 入力待ち（U4）**（リポジトリ運用体制） |
+| LINE 公式アカウント | 飼主向け予約・通知 | — | 各医院で契約（本番チャネル投入は **USER 入力待ち（U5）**） |
+| Lステップ | 配信・タグ管理 | — | 各医院で契約（本番 API キー投入は **USER 入力待ち（U6）**） |
 
 ### 1.3 環境一覧
 
@@ -63,7 +73,7 @@ flowchart TB
 | 環境 | 状態 | フロントエンド URL | API ベース URL | 用途 |
 |---|---|---|---|---|
 | **Staging** | **稼働中**（2026-07-17 切替完了） | https://stg.noah-karte.com | https://api.stg.noah-karte.com/api | 更新の事前検証・デモ |
-| **Production** | **未構築**（#253） | https://noah-karte.com（予定） | https://api.noah-karte.com/api（予定） | 本番。構築手順は [production/setup.md](../ops/infra/production/setup.md) |
+| **Production** | **未構築**（#253 / **U12**） | https://noah-karte.com（予定） | https://api.noah-karte.com/api（予定） | 本番。構築手順は [production/setup.md](../ops/infra/production/setup.md) |
 
 | | STG | PROD（予定・未構築） |
 |---|---|---|
@@ -71,6 +81,8 @@ flowchart TB
 | DB | PlanetScale `animalekarte-stg`（フルデモ投入済み） | 未作成 |
 | R2 | `animalekarte-stg-images` | `animalekarte-prod-images` |
 | デプロイ | staging push → 自動 | 未整備 |
+
+本番 URL の疎通証跡・構築完了記録は **USER 入力待ち（U12）**。本書に偽の本番稼働証跡を書かない。
 
 ### 1.4 権限・データ境界（Permission boundaries）
 
@@ -84,6 +96,7 @@ flowchart TB
 | **最小権限** | 会計取消・締め後修正・マスタ編集・権限変更は管理者系グループに限定する | 同上・#255 役割方針 |
 | **新規医院の既定グループ** | 医院開設時に「執行」「一般」がデフォルトルール付きで自動作成される | [master-permission-group.md](../spec/screens/settings/master-permission-group.md) |
 | **監査** | 業務上重要な変更は DB の `audit_logs` に操作者・時刻付きで記録（全テーブル自動監査ではない。経路ごとに明示実装） | [specification.md §2.1](../spec/specification.md) |
+| **ログイン保護** | 同一 IP あたり 5 回 / 1 分のレート制限。**アカウントロックはない**（Q&A No.25 / #256） | [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)／[21-login.md](../spec/screens/21-login.md) |
 
 ルート定義の正本は `frontend/src/config/paths.ts`（本節および §2 で引用する path と一致）。
 
@@ -132,6 +145,7 @@ flowchart TB
   4. 権限グループ・所属医院（複数可）・LINE 予約公開設定（表示名・対応可能予約区分等）を割り当て。所属医院・対応可能区分は新規作成後にも設定可能。
 - 退職・休職時は原則 **無効化（有効/無効ステータス）** を使う（過去カルテ・会計の担当者参照を維持するため）。削除 API は存在するが、参照整合が必要な場合は無効化を優先する。
 - 権限グループ変更は API 側は即時反映。画面メニュー等は `/v1/me` のポーリングで同期される。
+- **ロック解除操作は存在しない**（ログイン保護は IP レート制限のみ。Q&A No.25 / [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)）。ログインできないスタッフには「1〜2 分待機 → パスワード再設定 → 有効/無効確認」を案内する。
 
 ### Step 5: マスタ管理（診療・会計の基礎データ）
 
@@ -145,7 +159,7 @@ flowchart TB
 - LINE 予約設定: サイドバー「LINE予約管理」— [28-line-reservation.md](../spec/screens/28-line-reservation.md)
 - Lステップ連携: [31-lstep-integration.md](../spec/screens/31-lstep-integration.md)（設定 path 例: `/settings/integrations/lstep`）
 - 設定内容: 受付枠・受付条件・予約ページ表示・Lステップ API 接続（接続テストあり）。
-- 本番用チャネル・API キー投入は各医院の契約情報受領後（**USER 入力待ち**。秘密値は本書に書かない）。
+- 本番用チャネル・API キー投入は各医院の契約情報受領後（**USER 入力待ち（U5 / U6）**。秘密値は本書に書かない。secret 管理へ投入する）。
 
 ---
 
@@ -157,10 +171,10 @@ flowchart TB
 
 | 項目 | 内容 | 根拠 / 状態 |
 |---|---|---|
-| DB 自動バックアップ | PlanetScale の自動バックアップ。STG 選定時の受容条件は **12 時間毎・PITR なし** | [migration-cloudflare.md 記録](../ops/infra/_archive/migration-cloudflare.md)（STG）。本番プランの頻度・保持・復旧テスト結果は **USER 入力待ち**（#253） |
+| DB 自動バックアップ | PlanetScale の自動バックアップ。STG 選定時の受容条件は **12 時間毎・PITR なし** | [migration-cloudflare.md 記録](../ops/infra/_archive/migration-cloudflare.md)（STG）。本番プランの頻度・保持・復旧テスト結果は **USER 入力待ち（U2 / U9）**（#253） |
 | 大規模変更前の手動スナップショット | データ移行等の前に取得。Go-live 当日の位置づけは [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 実施タイミングは運用判断 |
-| ファイル（R2） | 画像・帳票の実体は R2 | R2 側バックアップ/バージョニング方針は **USER 入力待ち** |
-| 復旧手順 | バックアップからのリストア手順と実測所要時間 | #253 の復旧テスト完了後に本節へ追記（**USER 入力待ち**） |
+| ファイル（R2） | 画像・帳票の実体は R2 | R2 側バックアップ/バージョニング方針は **USER 入力待ち（U10）** |
+| 復旧手順 | バックアップからのリストア手順と実測所要時間 | #253 の復旧テスト完了後に本節へ追記（**USER 入力待ち（U9）**） |
 
 > 日常運用で先方側にバックアップ操作は発生しない。復旧が必要な事態は §3.2 の連絡フローで開発側が対応する。
 
@@ -168,18 +182,18 @@ flowchart TB
 
 1. **現場での一次切り分け**（スタッフ）: システム内マニュアル「エラー・トラブル対応」「システム障害時の対応（BCP）」に従い、再読み込み・別ブラウザ・ネットワーク確認を実施。
 2. **管理者への報告**（各医院の管理者）: 複数端末・複数スタッフで再現する場合は障害と判断。
-3. **開発側窓口へ連絡**: 窓口の連絡手段・宛先・受付時間は **USER 入力待ち**（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §5 のサポート体制と共通）。報告時は「発生時刻・操作していた画面・エラーメッセージ・影響範囲（何人が困っているか）」を添える。
+3. **開発側窓口へ連絡**: 窓口の連絡手段・宛先・受付時間は **USER 入力待ち（U7）**（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §5 のサポート体制と共通）。報告時は「発生時刻・操作していた画面・エラーメッセージ・影響範囲（何人が困っているか）」を添える。
 4. **開発側の対応**（STG 実績ベース）:
    - `/health` 確認（workers.dev 直行と実 URL の両方 — [staging/runbook.md](../ops/infra/staging/runbook.md)）
    - デプロイ直後はローリング更新の旧イメージ残留を疑い、必要なら 15 分静置後に再確認
    - 全断 + DB 接続エラーは接続スロット枯渇を疑う（`DB_MAX_OPEN_CONNS` 等 — [architecture.md](../ops/infra/architecture.md)）
-   - 監視通知（5xx 率アラート）の本番送信先は **USER 入力待ち**（`infra/cloudflare/notifications.tf` の `notification_email`）
+   - 監視通知（5xx 率アラート）の本番送信先は **USER 入力待ち（U8）**（`infra/cloudflare/notifications.tf` の `notification_email`）
 
 ### 3.3 ログの見方
 
 | ログ | 場所 | 用途 | 保持 |
 |---|---|---|---|
-| 業務操作監査（`audit_logs`） | DB 内。カルテ確定・会計取消・権限変更等を経路ごとに記録 | 「誰が・いつ・何を」の追跡。臨床・会計の真正性 | 永続（DB 内）。保存期間ポリシーの最終合意は **USER 入力待ち** |
+| 業務操作監査（`audit_logs`） | DB 内。カルテ確定・会計取消・権限変更等を経路ごとに記録 | 「誰が・いつ・何を」の追跡。臨床・会計の真正性 | 永続（DB 内）。保存期間ポリシーの最終合意は **USER 入力待ち（U11）** |
 | 画面上の履歴断片 | カルテの追記/確定者表示、会計の取消理由表示など | 現場での個別レコード確認 | レコードに紐づく |
 | API / インフラログ | Cloudflare ダッシュボード → Workers Logs / Containers | 障害調査（エラー・レイテンシ）。**業務監査の正本ではない** | プラットフォーム準拠（開発側運用） |
 | デプロイ履歴 | GitHub Actions 実行履歴 | いつ・どのバージョンが反映されたか | GitHub 準拠 |
@@ -200,29 +214,37 @@ flowchart TB
 
 ## USER 入力待ち（委任外・repo では確定不能）
 
-本表は repo 由来の SSOT だけでは埋められない項目を集約する。**値・秘密・契約内容は発明しない。** 供給後に #258 最終承認・本ドキュメント追記を行う。
+本表は repo 由来の SSOT だけでは埋められない項目を集約する。**値・秘密・契約内容・本番証跡は発明しない。** 供給後に #258 最終承認・本ドキュメント追記を行う。
 
-| ID | 項目 | 供給者（想定） | 必要入力 | 反映先 |
-|---|---|---|---|---|
-| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 |
-| U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 |
-| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 |
-| U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 |
-| U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 |
-| U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 |
-| U7 | 障害・サポート窓口 | 先方 × 開発 | 連絡手段・宛先・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 |
-| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` |
-| U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 |
-| U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 |
-| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 |
-| U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook |
+| ID | 項目 | 供給者（想定） | 必要入力 | 反映先 | 状態 |
+|---|---|---|---|---|---|
+| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | 空欄 |
+| U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 | 空欄 |
+| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | 空欄 |
+| U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | 空欄 |
+| U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 空欄 |
+| U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 空欄 |
+| U7 | 障害・サポート窓口 | 先方 × 開発 | 連絡手段・宛先・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 空欄 |
+| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | 空欄 |
+| U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | 空欄 |
+| U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | 空欄 |
+| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 空欄 |
+| U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook | 空欄 |
+| U13 | 操作説明会の日程・形式・参加者 | 先方 × 開発 | 実施日・院ごと/合同・参加者範囲 | [OPERATION_MANUAL.md §10](OPERATION_MANUAL.md) | 空欄 |
+
+### 本 slice で完了した repo 由来作業
+
+- §1 構成・環境・境界を architecture / deploy SSOT に同期（Production 未構築を明示）
+- §2 管理者設定 path（`/settings/clinic`・`/settings/staff`・`/settings/permission-groups`・`/settings/closing-time` 等）を実装 path と整合
+- §3 運用を STG runbook ベースで記述し、本番実測を U 行に分離
+- 本文中の各空欄に U# を併記し、秘密値・偽の本番証跡を入れない方針を維持
 
 ---
 
 ## 4. 監視・通知（開発側運用・参考）
 
-- ヘルスチェック（STG 実測）: `https://api.stg.noah-karte.com/health`（HTTP 200 / 正常応答）。本番 URL `https://api.noah-karte.com/health` は **Production 未構築**のため未供用。
-- 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。送信先メールの供給・検証と apply は **USER 入力待ち**（#253）。
+- ヘルスチェック（STG 実測）: `https://api.stg.noah-karte.com/health`（HTTP 200 / 正常応答）。本番 URL `https://api.noah-karte.com/health` は **Production 未構築**のため未供用（**U12**）。
+- 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。送信先メールの供給・検証と apply は **USER 入力待ち（U8）**（#253）。
 - コスト監視: Cloudflare にはアカウント全体の支出アラート機構が無いため、使用量 API の定期確認で代替（[migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) 記録参照）。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。
 
@@ -234,7 +256,7 @@ flowchart TB
 |---|---|---|
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | 現場スタッフ向け操作マニュアル（ナビゲーション） | 現場スタッフ |
 | システム内マニュアル（`/manual`） | 全画面・全業務フローの詳細手順（検索可能） | 現場スタッフ・管理者 |
-| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 本番切替準備・障害時判断 | 開発側・先方管理者 |
+| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 本番切替準備・障害時判断（LANE-2 所有） | 開発側・先方管理者 |
 | 本書（DELIVERY_PACKAGE.md） | システム構成・管理者設定・運用手順 | 先方管理者 |
 | [docs/spec/screens/](../spec/screens/README.md) | 画面別 詳細仕様書 | 管理者・開発側 |
 | [docs/ops/deploy/README.md](../ops/deploy/README.md) | デプロイ・運用ハブ（環境一覧・障害時判断） | 開発側 |
