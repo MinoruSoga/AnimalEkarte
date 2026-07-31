@@ -107,26 +107,26 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td>
     <td>操作マニュアル・手順書の整備</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>10 画像の監査は完了し、FAQ は #254 の混乱観測が 0 件のため「追記不要」で決着。ただし置換 7 枚のうち 3 枚が実データを含み差し戻されたため、<b>clean demo 環境での再撮影</b>と 10 枚の visual sign-off が残る。どちらも USER 操作が先に要る</td>
+    <td>manual audit と FAQ no-add は着地。Privacy/Repository owner が reachable history の対応方針を決め、clean demo で差し戻し画像を再撮影して全対象の privacy review と visual/content sign-off を行う</td>
   </tr>
 
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>臨床責任者が <a href="q&amp;a.html">q&amp;a.html</a> の3行（上限値・warning帯・欠落/lookup障害時挙動）を1回で承認または修正要求する</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>technical failure は先行して通常 dose 保存を停止する。体重/species/parameter 欠落は、active/draft の構造化救急投薬記録と臨床承認が成立した同一 cutover で通常保存を停止する。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
     <td>健診パッケージ実装 — DB 適用・provisional seed 臨床確認</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>臨床責任者が provisional seed を行単位で一括承認/修正し、USER がローカル fresh 適用と対象環境の非破壊 migration 証跡を取得する</td>
+    <td>臨床責任者が provisional row を承認し、seed owner が target bundle/environment と seed-export 昇格方針を決める。DB 履歴分類まで揃う前に apply を手順化しない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
     <td><span class="status go">着手可能</span></td>
-    <td>Phase 2 と lab import R-2（pet/medical_record 相関 fail-closed）は着地済み。Phase 3〜5 の unconfirm、結果行追加/削除、duplicate 再設計、crosswalk、print surface、定性基準値のpivot表示は agent-ready。ただし auto_commit 解禁は enable/stop/failure通知/audit 設計まで BLOCKED、基準値投入は並行する臨床フォーム入力待ち</td>
+    <td>最優先は confirm 順序、confirmed conflict、parent mutation の actor/audit 原子性。その後は手動 edit/unconfirm、snapshot print、import revert を別経路にし、臨床 range と外部自動化は承認待ちとする</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
@@ -138,56 +138,56 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
     <td>臨床安全・画面仕様ギャップの PO 決裁</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>代理裁定と local source/test 更新は済み。USER が OPS-2（local fresh＋対象環境 migration/GAP-2）、OPS-3（STG/本番 SD-9監査）、OPS-4（STG実機 SD-14 E2E）を1 evidence bundle として実施する。新しい agent work・臨床値判断は残っていない</td>
+    <td>DEC-41/47 を維持する。agent は trimming の finalPetID を pet_id 省略時も死亡確認して回帰を補強し、USER は DB 履歴、権限監査、実機 LINE/LIFF、対象環境 runtime を一 evidence bundle にする</td>
   </tr>
 
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a></td>
     <td>露出済み credential のローテーションと旧値無効化</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>credential の実操作。エージェントは値に触れない</td>
+    <td>USER が対象系統を rotate/revoke し、必要 session の無効化、health、非機密 scan 結論を一 release gate に束ねる。エージェントは値に触れない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a></td>
     <td>git 履歴・公開 Issue 由来の credential 露出</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>ローテーションと Issue 本文のマスキング（外部書き込み）</td>
+    <td>公開面の masking は済み。#89 と同じ release gate で旧値失効、必要 session 無効化、履歴・clone・artifact 影響評価を非機密 evidence にする</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a></td>
     <td>旧 RDS credential 履歴の残余リスクと廃止スクリプト撤去</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>AWS 側の無効化確認</td>
+    <td>repository の旧 tunnel/deploy 撤去は済み。旧 RDS 系統が #89/#97 の失効対象に含まれることを provider 側で確認する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a></td>
     <td>廃止予定 ECS deploy 経路の撤去と rollback 手順の一本化</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>mitigation の実地確認</td>
+    <td>repository の ECS deploy 撤去と Cloudflare rollback 正本化は済み。provider 側の旧経路非稼働と現行 rollback rehearsal を確認する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/252">#252</a></td>
     <td>各院の締め時間設定値の投入</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>設定値の投入操作</td>
+    <td>standard PATCH の validation、clinic-scoped lock/CAS、actor 付き transaction-bound audit を先に補強し、USER が批准済み値との差分だけを投入・preview する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
     <td>本番環境整備 — CI/CD・監視・DB backup/restore gate</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>本番アカウント・課金・deploy 権限</td>
+    <td>USER が billing、Production Environment、required reviewer を先行し、その後に required CI、deploy、health、backup restore、rollback を実測する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td>
     <td>本番切替（Go-live）— 切替手順・切り戻し基準・直後サポート</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>#250 / #253 / #254 / #255 の後。切替実操作と担当者の確定</td>
+    <td>過去 window は再利用しない。全 prerequisite green 後に新 window、Go/No-Go authority、operator、client contact、support、rollback を USER が確定する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></td>
     <td>開発計画（正本）</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>計画 Issue。他が片付いた時点でクローズ判断</td>
+    <td>dated plan の同期を止め、個別 Issue と lightweight view の集合一致を確認後に USER が historical close を判断する</td>
   </tr>
 
   <tr>
@@ -211,20 +211,20 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/255">#255</a></td>
     <td>スタッフアカウントの一括発行と役割別権限設定</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>スタッフ一覧は 2026-07-20 に受領済み（54 名）で、Issue 題名と本文の「一覧待ち」は stale。残るのは PO 決裁 4 点（メール方針・猫専門院 mapping・休職/業務委託の扱い・role→group）と、承認された適用。一括発行の実装側は着地済み</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>identity、clinic mapping、employment status、role→group の代理裁定後は、USER が repo 外 manifest の本人性・所属・最小権限を確定し、preflight 後に authorized apply と配布を行う</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a></td>
     <td>L ステップ連携の再開 — Write API 再有効化＋cron 配線</td>
     <td><span class="status dep">依存待ち</span></td>
-    <td>先方の API 有効化待ち。client は default-off で配線済み（無効時は送信 0 件）</td>
+    <td>private scheduler と cron は配線済み。deploy OFF の error/HTTP-zero と clinic OFF の intentional skip/noop を文書で分離し、先方 enable 後に USER が live send、cron、stop/rollback を実測する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284</a></td>
     <td>line-reserve 実機フォント確認（3実機）</td>
     <td><span class="status dep">依存待ち</span></td>
-    <td>試験環境と実機の受け渡し待ち。チェックリストは用意済み</td>
+    <td>font source は配線済みで旧 refactor 台帳も退役済み。試験環境と全対象実機の受領後に cold/warm/offline、Rendered Fonts、fallback、clip を人が確認する</td>
   </tr>
 </table>
 </div>

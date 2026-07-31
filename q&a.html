@@ -535,6 +535,282 @@
   </div>
 </article>
 
+<h2 id="issue-readiness-20260801">2026-08-01 Issue readiness — 代理裁定と一行承認</h2>
+<p class="section-intro">current source と live open Issue を再実測し、委任可能な設計を DEC-48 以降で固定した。臨床値、本人性・権限実値、認証値、課金・契約、DB/production/実機/外部操作は確定せず、後段の decision-ready pack に残す。</p>
+
+<article class="task" id="dec-48" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-48</span>
+    <span class="badge category">安全設計 / #201</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">technical failure と用量データ欠落は通常 dose 保存を fail-closed にし、例外 override だけを臨床承認へ残す</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">最終契約では repository/DB/HTTP の technical failure、体重なし、species ID/名称の欠落・不正、該当 parameter なしを理由別に明示し、通常の dose 保存を全て停止する。technical failure は TASK-025 で先行できる。欠落時の停止は、active/draft でも薬剤、実投与量・単位、投与時刻、理由、authenticated actor と transaction-bound audit を clinic-scoped に残し、通常治療履歴・handoff に表示する immutable な構造化救急投薬記録が green かつ臨床承認済みになった TASK-033 の同一 cutover でのみ有効化する。current addendum は finalized record 専用の自由記述であり代替にしない。通常 gate を越える mutation override は作らず、事実記録の対象ケース・専用権限・訂正条件だけを臨床責任者の承認へ残す。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/internal/medicalrecord/treatment_dose_save.go:14-18,29-73</code> は error を伝播する一方、体重なし・species 名解決不能・parameter なしを nil absence として上限検証から外す。<code>frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.tsx:239-277</code> は取得 error も manual default へ変換し、<code>TreatmentRow.tsx:80-105,172-187</code> では各理由を識別できない。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text"><code>todo.md</code> TASK-025 は technical failure の visible error、通常保存 gate、retry、zero write regression を実装する。TASK-033 は構造化救急投薬記録と欠落時 fail-closed cutover を一体で所有し、前者だけを先行させない。本裁定は <a href="#dec-47">DEC-47 Q1</a>、既存 <a href="#decision-pack-clinical">DR-CLINICAL</a> の欠落時通常 manual fallback、下部 #201 blocker 行の同表現を最終契約として supersede するが、安全な代替記録経路が green になるまで current missing-data runtime は変更しない。DEC-47 Q2〜Q7 は変更しない。上限値、warning 帯、構造化事実記録の臨床条件は下の clinical pack に残す。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-49" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-49</span>
+    <span class="badge category">identity policy / #255</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">スタッフ account は一人一 identity とし、共有 email を使わない</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">部署共有 account は作らない。実 email がない行は、client-controlled domain と受信・配布責任が USER により確認された個人別 alias のみ許可し、確認できない行は HOLD する。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md:17-23,31-47</code> は一意 identity、repo 外 input、厳格 manifest を要求する。共有 account は audit actor と本人性を失わせる。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">manifest は一人一行を維持する。具体 address、domain、配布方法は repo 外で USER が決め、本台帳へ転記しない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-50" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-50</span>
+    <span class="badge category">clinic mapping / #255</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">猫専門院を名称推測で既存 clinic へ統合しない</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">各 roster 行には USER 承認済みの明示 clinic ID/alias mapping を必要とする。既存 clinic への包含か別 master の要否が未決の行は HOLD し、名称や住所から推測しない。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md:31-47</code> と <code>backend/internal/staff/staff_provisioning.go:701-786</code> は clinic scope と所属の完全一致を preflight する。推測 mapping は clinic isolation を破る。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">具体 clinic 名・ID は repo 外 manifest だけで扱う。不明行だけを HOLD し、他行へ黙って包含しない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-51" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-51</span>
+    <span class="badge category">employment status / #255</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">カルテを使わない人は発行対象外、休職者は inactive、委託者は期限付き最小権限とする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">カルテ操作をしない行には account を発行しない。復職可能性のある休職者は必要な場合だけ inactive で作る。委託者は業務目的・終了日・個人 identity・明示 permission group が揃う場合だけ発行し、不明行は HOLD する。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/internal/staff/staff_provisioning.go:845-853</code> は <code>is_active</code> を manifest の明示値として永続化する。最小権限と actor attribution を維持するため employment title から active 状態を推測しない。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">対象者の実 disposition と終了日は USER が repo 外 roster で確定する。agent は在籍・本人性を代行判断しない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-52" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-52</span>
+    <span class="badge category">authorization / #255</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">役職名から permission group を自動推論せず、承認済み group ID を明示する</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">role-to-group は USER 承認済みの least-privilege mapping だけを使用し、manifest に既存 <code>permission_group_ids</code> を明示する。unknown/ambiguous mapping は空のまま HOLD し、default broad group へ落とさない。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md:17-23,39-46</code> と <code>backend/internal/staff/staff_provisioning.go:776-783</code> は推論禁止と clinic 内 group 検証を要求する。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">具体 group ID/name、本人、所属は repo 外 input と preflight だけで扱う。apply と認証情報配布は USER-only。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-53" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-53</span>
+    <span class="badge category">clinical record integrity / #249</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">confirmed 検査を immutable とし、parent mutation の actor/audit と status conflict を同一 transaction で守る</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">confirm は元 status を clinic-scoped lock し、items/range 検証と置換を終えてから最後に <code>confirmed</code> へ遷移する。confirmed update/delete は HTTP 409 相当で拒否する。parent examination の create/update/confirm/delete は authenticated actor、before/after、理由/操作種別を application audit に記録し、各 mutation と同一 transaction に置く。audit dependency 不在または書込 failure は mutation も rollback する。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/internal/medicalrecord/examination_service.go:177,239-299,506,588-625</code> と <code>examination_repository.go:155-166,293-306</code> は現状の順序・status/audit gap を示す。<code>backend/internal/model/audit_log.go:92</code> に parent examination event がなく、<code>examination_handler.go:191</code> の delete は actor を伝播しない。確定済み記録を silent mutation できる契約は臨床記録保護に反する。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text"><code>todo.md</code> TASK-026 を P0 とし、TASK-027/031/032 はその後に進める。確定解除と import 取消の分離は <a href="#dec-57">DEC-57</a>。臨床 range 値と外部 import format は本裁定の対象外。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-54" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-54</span>
+    <span class="badge category">settings boundary / #252</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">standard closing settings PATCH は時刻関係を検証し、変更と audit を原子的に保存する</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">standard time fields は boundary で順序・範囲・組合せを検証する。clinic-scoped row/advisory lock または CAS で並行 partial PATCH の lost update を防ぎ、authenticated actor と before/after を含む settings update/application audit を同一 transaction に置く。audit dependency 不在または failure は設定更新も rollback する。批准済みの各院投入値は変更しない。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/internal/clinic/closing_settings_service.go:141-165</code> は read-modify-save、<code>clinic_settings_repository.go:50</code> は全設定列 upsert、service <code>:350-364</code> は special-period validation のみである。standard update に同等 validation、actor/audit/transactor、row lock/CAS がない。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text"><code>todo.md</code> TASK-028。production への値投入は USER window とし、technical fix の test green を外部 apply 完了と読み替えない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-55" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-55</span>
+    <span class="badge category">scope / #259</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">Lステップ write/cron を再実装せず、外部 enablement と STG acceptance を closure gate にする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">private scheduler route と wrangler cron を維持する。deploy gate OFF は <code>ErrWriteDisabled</code> + HTTP zero、clinic の <code>is_sync_enabled=false</code> は意図した skip/noop という別契約として記述する。先方 enablement、USER settings、STG 少数 live send、cron fire、停止/rollback evidence まで Issue は open。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/internal/infra/lstep/client.go:22-25,72-85</code> は deploy gate、<code>backend/internal/lstep/lstep_delivery_trigger_service_test.go:838-841,895-897</code> は clinic gate の契約を固定する。cron/scheduler は <code>backend/wrangler.jsonc:97-102</code>、<code>backend/worker/scheduled-jobs.ts:30-34</code>、<code>backend/cmd/api/batch_scheduler.go:49-63</code>。旧 docs は二 gate を混同している。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text"><code>todo.md</code> TASK-029 は docs drift だけを直す。契約、外部 enable、環境実値、実送信は USER/先方の一行承認 pack に残す。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-56" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-56</span>
+    <span class="badge category">plan retirement / #260</span>
+    <span class="badge status">代理決裁済み・close は USER</span>
+    <h3 class="task-title">dated three-session plan を historical artifact とし、個別 Issue と lightweight view を current tracking にする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">#260 本文の継続同期を止める。個別 GitHub Issue、<code>3-session-agent.html</code>、<code>todo.md</code>、本ファイルの正本境界を維持し、本 dossier と live/view set 一致を確認後に historical close を推奨する。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>3-session-agent.html:64-76,241-263</code> は旧 three-session 台帳を lightweight view へ退役済み。#260 本文には closed Issue、退役済み command、旧 migration 在庫、経過済み日付が残る。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">GitHub close は USER-only。close 後に view から #260 行を削除して live/view set diff を再実測する。継続する場合は客観的 campaign-exit 条件を USER が提示する。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-57" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-57</span>
+    <span class="badge category">lifecycle separation / #249</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">手動検査の確定解除と lab import job の取消を別 endpoint・別状態機械にする</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">手動 examination の確定解除は <code>confirmed -&gt; completed</code> のみとし、専用 permission、理由、authenticated actor、before/after audit を mutation と同一 transaction に置く。存在しない <code>unconfirmed</code>/<code>cancelled</code> examination status は追加しない。lab import の取消は別 endpoint とし、clinic-scoped job lock、理由、actor、application audit を必須にした <code>persisted -&gt; reverted</code> の新しい終端補償遷移として扱う。linked examination が confirmed の場合は 409 で拒否し、それ以外は job 由来 parent examination の soft delete、job state、audit を同一 transaction に置いて child result を hard delete しない。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text">現行 examination status は <code>pending / in_progress / result_entered / completed / confirmed</code> のみ（<code>backend/internal/model/examination_record.go:10-17</code>、<code>backend/migrations/001_init.sql:99</code>）。Issue #249 §11.3 も manual unconfirm と job compensation を別経路にする。現行 lab import status には取消状態が無いため（<code>backend/internal/model/lab_import.go:10-21</code>）、補償遷移は migration と状態遷移 test を伴う独立 packet にする。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text"><code>todo.md</code> TASK-027 は manual edit/unconfirm、TASK-031 は print、TASK-032 は import revert を所有する。TASK-032 の migration は migration-seed-safety review を通し、既適用 migration を編集しない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-58" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-58</span>
+    <span class="badge category">seed promotion boundary / #211</span>
+    <span class="badge status">代理決裁済み</span>
+    <h3 class="task-title">provisional checkup row は臨床承認だけで apply-ready とせず、canonical bundle 昇格経路を先に確定する</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">判断</p>
+    <p class="qa-text">provisional row は <code>003_demo</code> にしかなく、staging/production は <code>002_master</code> だけをロードする。臨床承認後も、target bundle/environment、使い捨て DB からの <code>seed-export</code>、既適用 checksum/reset 境界を migration-seed-safety review で確定するまで USER apply を手順化しない。CSV の手編集、既適用 bundle の変更、staging/production での <code>002_master -&gt; 003_demo -&gt; 004_staging</code> 一括適用を禁止する。</p>
+    <p class="section-label">根拠</p>
+    <p class="qa-text"><code>backend/migrations/seeds/003_demo/checkup_type_fields.csv</code> に provisional row があり、<code>backend/migrations/CLAUDE.md:58</code> は staging/production/空/未知 environment を <code>002_master</code> のみに制限する。同 <code>:66,74</code> は <code>seed-export</code> を唯一の生成経路とし、CSV 手編集と既適用 checksum 変更を禁じる。</p>
+    <p class="section-label">影響・適用先</p>
+    <p class="qa-text">本裁定は <a href="#dec-47">DEC-47 Q3</a> の bundle-order 文と、下部 P0 表の「code/seed/migration は全て完了・残は DB 適用と臨床確認のみ」という historical 表現を supersede する。current authority は本 DEC-58、下の #211 clinical/ops pack、dossier の #211 entry とする。臨床値の承認責任は変更しない。</p>
+  </div>
+</article>
+
+<article class="task" id="decision-pack-issue-readiness-clinical-20260801" data-status="user-input-required">
+  <div class="task-head">
+    <span class="qno">DR-CLINICAL-20260801</span>
+    <span class="badge category">#201 / #211 / #249</span>
+    <span class="badge status">臨床責任者入力待ち</span>
+    <h3 class="task-title">臨床値は出典付き一行承認へ残し、system behavior と分離する</h3>
+  </div>
+  <div class="task-body">
+    <table>
+      <tr><th>対象</th><th>推奨・出典</th><th>リスク</th><th>対案</th><th>承認一行</th></tr>
+      <tr><td>#201 絶対上限</td><td><strong>数値推奨なし。</strong> authoritative clinical source が未提示。current master は観測対象であり医学的出典ではない。</td><td>出典なしの値は過量 block または必要治療の誤拒否を起こす。</td><td>出典付き薬剤×動物種×単位の値が届くまで current master を暫定運用し、変更しない。</td><td>（未記入: 対象、値、単位、出典、承認者、発効日）</td></tr>
+      <tr><td>#201 warning 帯</td><td><strong>数値推奨なし。</strong> current source の 20% は実装観測で、臨床根拠は未提示。</td><td>過敏な warning は alarm fatigue、緩い warning は見逃しを招く。</td><td>current behavior 継続か、出典付き別値を臨床責任者が指定する。</td><td>（未記入: 継続/修正、値、単位、出典、承認者、発効日）</td></tr>
+      <tr><td>#201 構造化救急投薬記録</td><td><strong>設計推奨 B:</strong> 通常 dose mutation の override は作らず、救急・既実施投薬の事実を active/draft でも clinic-scoped に記録する dedicated event を承認する。必須 field は薬剤、実投与量・単位、投与時刻、理由、authenticated actor、audit で、通常治療履歴・handoff に表示する。出典: live Issue #201、<a href="#dec-48">DEC-48</a>、current addendum が finalized/free-text に限られる実測。</td><td>専用経路なしの欠落時拒否は救急記録を失う。通常 mutation の広い override や自由記述代用は未検証 dose と事実の検索不能を招く。</td><td>A: structured path 未承認のため current missing-data behavior を HOLD。B: 救急・既実施投薬だけの immutable structured event を承認（推奨）。C: 臨床責任者がより狭い対象ケースと訂正条件を列挙。通常 manual fallback の恒久維持と addendum 代用は選択肢にしない。</td><td>（未記入: A/B/C、対象ケース、理由、専用権限、訂正条件、必須 field 確認、出典、臨床責任者、発効日）</td></tr>
+      <tr><td>#211 provisional seed</td><td><code>003_demo</code> の各 row を一度だけ承認/修正し、別途 target bundle/environment と <code>seed-export</code> 昇格方針を指定する。staging/production は <code>002_master</code> だけをロードするため、現状の demo row をそのまま apply できない。根拠: <a href="#dec-58">DEC-58</a> と <code>backend/migrations/CLAUDE.md:58,66,74</code>。</td><td>別表補完、CSV 手編集、既適用 bundle 変更は二重正本・未承認値・checksum mismatch を招く。</td><td>未承認 row と昇格経路は HOLD し、agent が値を補わず USER apply を手順化しない。</td><td>（未記入: row ID、値/単位、出典、承認者、発効日、target bundle/environment、seed-export 昇格方針）</td></tr>
+      <tr><td>#249 reference range</td><td>項目×動物種×測定系ごとに出典付きで承認する。根拠: <a href="#dec-47">DEC-47 Q4</a>。</td><td>他測定系や一般値の流用は誤判定を生む。</td><td>未承認 range は「未判定」を維持する。</td><td>（未記入: 項目、種別、測定系、値/定性規則、単位、出典、承認者、発効日）</td></tr>
+    </table>
+    <div class="need"><strong>提出条件:</strong> 値のない行を agent が埋めない。#201 の technical failure と欠落時通常保存拒否の最終契約は <a href="#dec-48">DEC-48</a>。欠落時 runtime は、上表の構造化救急投薬記録条件が承認され TASK-033 が green になるまで変更しない。#249 の confirmed record contract は <a href="#dec-53">DEC-53</a>/<a href="#dec-57">DEC-57</a> を参照し、臨床値の承認と混ぜない。</div>
+  </div>
+</article>
+
+<article class="task" id="decision-pack-issue-256-manual-privacy" data-status="user-input-required">
+  <div class="task-head">
+    <span class="qno">DR-PRIVACY-256</span>
+    <span class="badge category">privacy / repository history / #256</span>
+    <span class="badge status">USER 判断待ち</span>
+    <h3 class="task-title">manual screenshot の履歴対応と clean-demo sign-off</h3>
+  </div>
+  <div class="task-body">
+    <p class="qa-text"><strong>推奨:</strong> Privacy/Repository owner が画像内容を公開せず履歴到達性・露出範囲・対応方針を承認し、clean-demo 再撮影、privacy review、全対象画像の visual/content sign-off を close 条件にする。</p>
+    <p class="qa-text"><strong>出典:</strong> <code>reports/2026-07-31-task-024-manual-audit.md:132-180</code> と current reachable history。<strong>リスク:</strong> 承認なしの history rewrite は clone/fork/共同作業を壊し、再撮影前の画像採用は個人情報を再露出させる。<strong>対案:</strong> 方針と clean-demo が揃うまで差し戻し済み baseline を維持し、画像・履歴を変更しない。</p>
+    <p class="qa-text"><strong>実行境界:</strong> default は no-rewrite。承認後も rewrite/force-push の実行は USER-only とし、agent は非機密の状態と restricted evidence reference の整合確認だけを行う。履歴の path/hash、画像識別子、principal/session 識別子を本ファイルへ記入しない。</p>
+    <div class="need"><strong>承認一行:</strong> （未記入: #256 の履歴対応方針、実施者、clean-demo 確認、Privacy reviewer、Documentation owner、発効日）</div>
+  </div>
+</article>
+
+<article class="task" id="decision-pack-issue-readiness-ops-20260801" data-status="user-input-required">
+  <div class="task-head">
+    <span class="qno">DR-OPS-20260801</span>
+    <span class="badge category">USER / PO / 契約 / 外部 / 実機</span>
+    <span class="badge status">一行承認・実測待ち</span>
+    <h3 class="task-title">agent が決めない残作業を Issue ごとに一行で解除する</h3>
+  </div>
+  <div class="task-body">
+    <table>
+      <tr><th>Issue</th><th>推奨・出典</th><th>リスク・対案</th><th>USER/責任者の一行</th></tr>
+      <tr><td>#89 / #97</td><td><code>BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md:24-46</code> に従い rotate/revoke、必要 session 無効化、非機密 scan 結論を一 bundle にする。</td><td>tree/mask だけでは旧値が有効なまま。対案は release HOLD。</td><td>（未記入: 非機密の対象区分、owner、window、失効・session 無効化・health・scan の各結論、履歴方針、restricted evidence reference）</td></tr>
+      <tr><td>#98</td><td>repository 撤去済みを維持し、旧 RDS 系統が #89/#97 の失効対象に含まれることを確認する。</td><td>再実装は旧経路を復活させる。対案は外部失効まで open 維持。</td><td>（未記入: provider 失効確認、責任者、証跡先、close 可否）</td></tr>
+      <tr><td>#99</td><td>旧 ECS/IAM 経路の provider 非稼働と現行 Cloudflare rollback rehearsal を確認する。</td><td>repository absence だけでは provider state 不明。対案は #253 とともに open 維持。</td><td>（未記入: inventory 結果、rehearsal、責任者、証跡先）</td></tr>
+      <tr><td>#211</td><td><a href="#dec-58">DEC-58</a> どおり臨床 row 承認、target bundle/environment、seed-export 昇格方針、DB history 分類を分離する。統合前 DB には一般的 no-reset upgrade を指示しない。</td><td>demo row の直接 apply、CSV 手編集、誤った reset は data loss または checksum failure。対案は canonical 昇格経路と環境履歴確認まで HOLD。</td><td>（未記入: clinical approval ID、target bundle/environment、seed-export 昇格方針、DB 分類、owner）</td></tr>
+      <tr><td>#212</td><td>成功 coverage artifact と exclusion 方針の批准後に failure-mode 別 task へ分割する。根拠: <a href="#dec-45">DEC-45</a>。</td><td>artifact なしの blanket epic は優先順位不明。対案は phase2 維持。</td><td>（未記入: artifact、除外、priority owner、再開/継続 HOLD）</td></tr>
+      <tr><td>#235</td><td>利用者、頻度、現行時間、失敗率、目標値を測って再開判断する。根拠: <a href="#dec-45">DEC-45</a>。</td><td>需要未測定の実装は工程増。対案は scope 除外。</td><td>（未記入: metrics、A 再開/B 除外、PO、発効日）</td></tr>
+      <tr><td>#249</td><td>range は上の clinical pack、外部 import と auto-commit は実形式、停止、通知、audit、手動 fallback の承認後。</td><td>推測 range/自動 commit は誤診療記録を固定する。対案は manual/default-off 維持。</td><td>（未記入: clinical approval ID、外部 format owner、enable/stop owner、acceptance window）</td></tr>
+      <tr><td>#250</td><td>complete/PASS producer bundle、payment graph、crosswalk を受領後に dry-run/verify する。</td><td>partial rehearsal の apply は不完全移行。対案は formal handoff まで HOLD。</td><td>（未記入: bundle ID、source owner、complete 判定、cutover authority）</td></tr>
+      <tr><td>#252</td><td><a href="#dec-54">DEC-54</a> の validation、clinic-scoped lock/CAS、actor/audit atomicity gate と分離し、批准済み値との差分だけを USER が投入・preview する。</td><td>無検証 apply や lost update は締め境界を壊す。対案は TASK-028 green まで production apply HOLD。</td><td>（未記入: 対象 clinic、差分確認、operator、window、preview、証跡先）</td></tr>
+      <tr><td>#253</td><td>billing、Production Environment、reviewer の後に required CI、deploy、health、restore/rollback を実測する。</td><td>環境・restore 未証明の release は復旧不能。対案は production 未構築を維持。</td><td>（未記入: billing、Environment、reviewer、CI、backup/restore、rollback、authority）</td></tr>
+      <tr><td>#254</td><td>既存 TASK-023 の isolated UAT に認証付き suite、業務 flow、DB/audit、real LINE/LIFF、FAIL disposition、sign-off を束ねる。</td><td>source green は human UAT の代替にならない。対案は delivery HOLD。</td><td>（未記入: QA window、operator、各観測、FAIL disposition、sign-off）</td></tr>
+      <tr><td>#255</td><td><a href="#dec-49">DEC-49</a>〜<a href="#dec-52">DEC-52</a> 後、repo 外 manifest を preflight し USER apply。</td><td>本人性・clinic・group 推測は不正 access。対案は不明行だけ HOLD。</td><td>（未記入: manifest owner、authorized actor、preflight、apply、配布、receipt）</td></tr>
+      <tr><td>#256</td><td><a href="#decision-pack-issue-256-manual-privacy">privacy pack</a> と TASK-024 を使用する。</td><td>履歴・画像の無断変更は privacy/共同作業 risk。対案は baseline 維持。</td><td>（未記入: privacy decision ID、clean-demo、reviewer、sign-off）</td></tr>
+      <tr><td>#257</td><td>全 prerequisite green 後に新 window へ再 schedule を推奨する。</td><td>過去 runbook の実行は production/rollback risk。対案は正式延期/中止と暫定責任の明文化。</td><td>（未記入: A 再 schedule/B 延期、日時、authority、operator、contact、support、rollback）</td></tr>
+      <tr><td>#258</td><td><a href="#decision-pack-delivery">既存 delivery pack</a> U1〜U12 を正本として client ownership/handover を推奨する。</td><td>agent の契約値補完は責任不明。対案は developer ownership 条件を明示契約。</td><td>（未記入: U1〜U12 完了、A/B、Contract owner、Client approver、発効日）</td></tr>
+      <tr><td>#259</td><td><a href="#dec-55">DEC-55</a> どおり deploy OFF の error/HTTP-zero と clinic OFF の intentional skip/noop を分離し、先方 enable、USER settings、STG live send、cron fire を証明する。</td><td>gate 混同や未承認送信は外部 write risk。対案は両 gate default-off 維持。</td><td>（未記入: contract owner、deploy/clinic gate、enable 確認、settings owner、STG acceptance、stop/rollback）</td></tr>
+      <tr><td>#260</td><td><a href="#dec-56">DEC-56</a> どおり historical close を推奨する。</td><td>stale master plan の継続は二重正本。対案は客観的 exit 条件付き継続。</td><td>（未記入: A close/B 継続、Delivery owner、exit 条件または close 日）</td></tr>
+      <tr><td>#261</td><td><a href="#dec-41">DEC-41</a>/<a href="#dec-47">DEC-47</a> を批准し、OPS-2/3/4 と対象環境 runtime を一 bundle にする。</td><td>static proof を STG proof と誤認すると臨床 gap を見逃す。対案は正式 override/reopen を別決裁で記録。</td><td>（未記入: 批准/override、DB 方針、audit、real LIFF、runtime、PO close 判断）</td></tr>
+      <tr><td>#284</td><td>許可済み環境と三実機受領後、cold/warm/offline の device matrix QA を一度行う。</td><td>source test は Rendered Fonts/FOIT/clip を証明しない。対案は環境受領まで open 維持。</td><td>（未記入: environment owner、device custodian、QA、結果、close/bug disposition）</td></tr>
+    </table>
+    <div class="need"><strong>提出条件:</strong> 各対象は責任者が該当行だけを一度記入し、非機密の状態、owner、restricted evidence reference だけを残す。認証値、患者情報、実 roster、接続文字列、principal/session 識別子、restricted history の path/hash を本ファイルへ書かない。default は no-rewrite で、承認後も history rewrite/force-push は USER-only。未記入行を agent が補完せず、agent は外部操作・GitHub write・DB/production/実機操作を代行しない。</div>
+  </div>
+</article>
+
+<article class="task" id="issue-readiness-current-p0-20260801" data-status="current-authority">
+  <div class="task-head">
+    <span class="qno">P0-CURRENT-20260801</span>
+    <span class="badge category">#201 / #211 authority correction</span>
+    <span class="badge status">current</span>
+    <h3 class="task-title">下部の継承 P0 表を current authority に読み替える</h3>
+  </div>
+  <div class="task-body">
+    <p class="qa-text">直後の「P0 — Open Issue ブロッカー状態表」は既存 section を append-only で保持した historical 表示である。#201/#211 の実行判断には次の current 行だけを用い、旧行の「dev 完了」「手動保存 fallback」「残は DB 適用のみ」を用いない。</p>
+    <table>
+      <tr><th>#</th><th>current P0 状態</th></tr>
+      <tr><td>#201</td><td><a href="#dec-48">DEC-48</a> が current authority。TASK-025 の technical failure slice は未完。欠落時の通常保存は最終的に fail-closed だが、TASK-033 の active/draft 構造化救急投薬記録と臨床承認が green になるまで current runtime を部分変更しない。free-text/finalized-only addendum を代替にせず、通常 dose mutation override を作らない。</td></tr>
+      <tr><td>#211</td><td><a href="#dec-58">DEC-58</a> が current authority。provisional row の canonical bundle 昇格経路、<code>seed-export</code>、target environment、checksum review は未設計で、USER apply は HOLD。code/seed/migration 完了または DB 適用だけが残るとは扱わない。</td></tr>
+    </table>
+  </div>
+</article>
+
 <h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
 <table>
