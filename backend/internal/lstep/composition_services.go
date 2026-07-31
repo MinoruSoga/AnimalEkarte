@@ -51,7 +51,7 @@ func newApplicationGraph(
 	return applicationGraph{
 		settings:        core.settings,
 		lineSend:        NewLineSendService(core.settings, deps.Owners, core.sharedFile, repos.tagCache, deps.Audit, repos.lineSendLog, repos.tagConfig),
-		lineLink:        NewLineLinkService(deps.Owners, repos.lineLinkToken, deps.ReservationSettings, deps.Transactor, deps.LineLinkAuditTx, deps.Cipher),
+		lineLink:        NewLineLinkService(deps.Owners, repos.lineLinkToken, deps.ReservationSettings, repos.settings, deps.Transactor, deps.LineLinkAuditTx, deps.Cipher),
 		lineCustomer:    NewLineCustomerService(repos.lineCustomers, deps.Owners),
 		tag:             NewLstepTagService(core.settings, deps.Owners, repos.tagCache, deps.Audit, repos.tagConfig),
 		tagCodeMapping:  NewLstepTagCodeMappingService(repos.tagCodeMapping, deps.Transactor),
