@@ -1,7 +1,3 @@
-id,estimate_id,name,category,unit_price,quantity,tax_type,tax_rate,discount_rate,discount_amount,is_insurance_applicable,consultation_id,procedure_id,medicine_id,merchandise_item_id,sort_order,created_at,updated_at,deleted_at
-1,1,避妊手術（猫）,surgery,25000,1.0,excluded,0.10,0.00,0,t,,1,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
-2,2,歯科スケーリング,surgery,15000,1.0,excluded,0.10,0.00,0,f,,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
-3,3,骨折手術・プレート固定,surgery,100000,1.0,excluded,0.10,0.00,0,t,,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
-4,3,全身麻酔（大型）,procedure,20000,1.0,excluded,0.10,0.00,0,t,,,,,2,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
-5,6,避妊手術一式,surgery,35000,1.0,excluded,0.10,0.00,0,f,,,,,0,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
-6,6,術前血液検査,test,10000,1.0,excluded,0.10,0.00,0,f,,,,,0,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
+version https://git-lfs.github.com/spec/v1
+oid sha256:b09d7cef20aa595a265739de6caeff6c13168ac958d214c752db6cfbf1109546
+size 1377702

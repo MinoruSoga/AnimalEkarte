@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUTPUT_DIR="/Users/minoru/dev/case/AnimalHospital/AnimalEkarte/codex-security-output"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+OUTPUT_DIR="$REPO_ROOT/codex-security-output"
 MODE="full"
 FULL_KEEP_FILES=0
 
@@ -20,7 +22,7 @@ for arg in "$@"; do
 Usage: export-codex-security-latest.sh [OUTPUT_DIR] [--compact|--full|--full-keep-files]
 
 Default (base behavior):
-  - OUTPUT_DIR: /Users/minoru/dev/case/AnimalHospital/AnimalEkarte/codex-security-output
+  - OUTPUT_DIR: repository-root/codex-security-output
   - MODE: full
 
 Modes:
@@ -48,7 +50,37 @@ fi
 
 CLI_OUTPUT="$(corepack pnpm exec codex-security scans list --format json)"
 
-SCAN_INFO="$(node -e 'const data = JSON.parse(process.argv[1] || "{}"); const scan = Array.isArray(data.scans) ? data.scans[0] : null; if (!scan || !scan.scanId || !scan.scanDir) { process.exit(1); } console.log(scan.scanId); console.log(scan.scanDir);' "$CLI_OUTPUT")"
+SCAN_INFO="$(node -e '
+const fs = require("fs");
+const path = require("path");
+
+const data = JSON.parse(process.argv[1] || "{}");
+const mode = process.argv[2];
+const requiredArtifacts = mode === "full"
+  ? ["report.md", "findings.json", "coverage.json", "scan-manifest.json", "exports/results.sarif"]
+  : ["report.md", "findings.json"];
+
+const scans = Array.isArray(data.scans) ? data.scans : [];
+const scan = scans
+  .filter((candidate) =>
+    candidate?.progress?.status === "complete" &&
+    candidate.completedAt &&
+    candidate.scanId &&
+    candidate.scanDir &&
+    requiredArtifacts.every((artifact) =>
+      fs.existsSync(path.join(candidate.scanDir, artifact)),
+    ),
+  )
+  .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0];
+
+if (!scan) {
+  console.error(`No completed codex-security scan with ${mode} artifacts found.`);
+  process.exit(1);
+}
+
+console.log(scan.scanId);
+console.log(scan.scanDir);
+' "$CLI_OUTPUT" "$MODE")"
 
 SCAN_ID="$(printf '%s\n' "$SCAN_INFO" | sed -n '1p')"
 SCAN_DIR="$(printf '%s\n' "$SCAN_INFO" | sed -n '2p')"

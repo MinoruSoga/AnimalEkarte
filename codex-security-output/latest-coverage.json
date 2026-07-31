@@ -1,0 +1,79 @@
+{
+  "completeness": "complete",
+  "deferred": [],
+  "documentType": "codex-security.coverage",
+  "excludePaths": [],
+  "explicitExclusions": [
+    {
+      "pattern": ".git/**",
+      "reason": "Git metadata is excluded by the standard repository inventory procedure; the reviewed worktree content is bound by the supplied snapshot digest."
+    }
+  ],
+  "includePaths": [
+    "."
+  ],
+  "inventoryStrategy": "repository",
+  "mode": "repository",
+  "scanId": "4ab7b06c-eea0-4bc4-9ec7-29172b3f81be",
+  "schemaVersion": "1.0",
+  "surfaces": [
+    {
+      "disposition": "reported",
+      "id": "backend-api-domains",
+      "label": "Go API, domains, persistence, and migrations",
+      "notes": "1,913 in-scope backend files were assigned across the backend review streams; reportable inventory and seed-data issues survived.",
+      "receiptRefs": [
+        "artifacts/02_discovery/in_scope_files.txt",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/03_coverage/reviewed_surfaces.md"
+      ],
+      "riskArea": "tenant isolation, lifecycle integrity, record and inventory writes"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "cloudflare-worker",
+      "label": "Cloudflare Worker and scheduler",
+      "notes": "24 Worker files reviewed. Typecheck passed; test runner temporary output was sandbox-blocked.",
+      "receiptRefs": [
+        "artifacts/02_discovery/in_scope_files.txt",
+        "artifacts/03_coverage/reviewed_surfaces.md"
+      ],
+      "riskArea": "JWT, scheduled operations, Worker secrets"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "frontend",
+      "label": "React, LIFF, E2E, and frontend configuration",
+      "notes": "1,707 frontend files reviewed. The unrestricted E2E target candidate was not attacker reachable.",
+      "receiptRefs": [
+        "artifacts/02_discovery/in_scope_files.txt",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/03_coverage/reviewed_surfaces.md"
+      ],
+      "riskArea": "XSS, session state, redirects, uploads"
+    },
+    {
+      "disposition": "reported",
+      "id": "ci-infrastructure",
+      "label": "CI, deployment, infrastructure, scripts, and root configuration",
+      "notes": "444 files reviewed; three CI dependency-trust issues survived.",
+      "receiptRefs": [
+        "artifacts/02_discovery/in_scope_files.txt",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/03_coverage/reviewed_surfaces.md"
+      ],
+      "riskArea": "secret-bearing supply chain and deployment integrity"
+    },
+    {
+      "disposition": "not_applicable",
+      "id": "static-assets",
+      "label": "Static binary assets",
+      "notes": "45 PNG assets were inventoried and have no executable review surface.",
+      "receiptRefs": [
+        "artifacts/02_discovery/in_scope_files.txt",
+        "artifacts/03_coverage/reviewed_surfaces.md"
+      ],
+      "riskArea": "active binary content"
+    }
+  ]
+}

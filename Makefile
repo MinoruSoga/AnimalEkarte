@@ -1,10 +1,15 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
 # $(DC) に --env-file を渡す（.env.local を変数展開の source of truth にする）
 DC = docker compose --env-file .env.local
+
+# Codex Security scan + latest artifact export
+CODEX_SECURITY_MODEL ?= gpt-5.6-terra
+CODEX_SECURITY_EFFORT ?= high
+CODEX_SECURITY_OUTPUT_DIR ?= $(CURDIR)/codex-security-output
 
 # 起動
 # --wait で db / backend / frontend の ready を待つ
@@ -88,6 +93,16 @@ shellcheck:
 # clean スクリプトと正当な行内 disable は通すことを検証する。
 shellcheck-test:
 	@bash scripts/shellcheck-scripts.test.sh
+
+# Codex Security の有料 scan が成功した場合だけ、全 artifact を export する。
+# latest-* は codex-security-output/ 直下、原本は timestamped directory に保存される。
+codex-security-scan:
+	corepack pnpm exec codex-security scan . \
+		--model "$(CODEX_SECURITY_MODEL)" \
+		--effort "$(CODEX_SECURITY_EFFORT)"
+	@bash scripts/export-codex-security-latest.sh \
+		"$(CODEX_SECURITY_OUTPUT_DIR)" \
+		--full-keep-files
 
 # マイグレーション適用（差分のみ・DBは落とさない）
 # 専用の migrate サービスは廃止し、backend イメージの entrypoint を go に差し替えて
@@ -361,6 +376,7 @@ help:
 	@echo "使用方法: make [コマンド]"
 	@echo ""
 	@echo "コマンド:"
+	@echo "  codex-security-scan Codex Security scan後、最新版をcodex-security-output/直下へexport（有料）"
 	@echo "  up            コンテナ起動"
 	@echo "  build         コンテナ起動（ビルド付き）"
 	@echo "  down          コンテナ停止"

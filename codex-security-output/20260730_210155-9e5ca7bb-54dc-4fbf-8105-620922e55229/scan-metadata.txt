@@ -1,3 +1,0 @@
-scanId: 9e5ca7bb-54dc-4fbf-8105-620922e55229
-scanDir: /Users/minoru/.codex/state/plugins/codex-security/scans/AnimalEkarte/codex-security-AnimalEkarte-u7WlVI
-exportedAt: 20260730_210155

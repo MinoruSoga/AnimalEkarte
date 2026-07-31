@@ -1,6 +1,3 @@
-id,clinic_id,owner_id,sent_by_user_id,message_type,content_summary,line_message_id,status,error_message,sent_at
-1,1,1,1,text,明日の予約リマインド：Iris(イリス)様 9:00〜,,success,,2026-07-06 14:59:40.511971+09
-2,1,2,1,text,狂犬病ワクチンのご案内（ミケちゃん）,,success,,2026-07-06 14:59:40.511971+09
-3,1,3,2,image,【画像】院内の改装工事のお知らせ,,success,,2026-07-06 14:59:40.511971+09
-4,1,4,1,text,診察完了のお知らせ,,success,,2026-07-06 14:59:40.511971+09
-5,1,5,3,text,お薬の準備ができました。ご来院をお待ちしております。,,success,,2026-07-06 14:59:40.511971+09
+version https://git-lfs.github.com/spec/v1
+oid sha256:63551ffcf7515b129782722fc24c3472bfc0e5904c5c244976af17de3994faf1
+size 649
