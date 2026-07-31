@@ -113,16 +113,39 @@ const (
 // lineWebhookVerifySem はプロセス全体の webhook 署名検証同時実行数を制限する。
 var lineWebhookVerifySem = semaphore.NewWeighted(maxConcurrentLineWebhookVerifications)
 
-// lineCredentialDecrypt は webhook 検証パスの復号関数。
-// 本番は DecryptLineCredential。テストで呼び出し回数を観測するために差し替え可能。
-var lineCredentialDecrypt = DecryptLineCredential
+// lineCredentialDecrypt は canonical webhook credential 専用の strict 復号関数。
+// テストで呼び出し回数を観測するために差し替え可能。
+var lineCredentialDecrypt = decryptCanonicalLineCredential
+
+// decryptCanonicalLineCredential は canonical credential の復号能力欠落と復号失敗を
+// fail-closed にする。
+// generic DecryptLineCredential の legacy plaintext fallback は reservation 移行用であり、
+// canonical clinic_integrations credential の署名検証には適用しない。
+func decryptCanonicalLineCredential(
+	_ context.Context,
+	cipher *crypto.AESGCMCipher,
+	value string,
+) string {
+	if value == "" {
+		return ""
+	}
+	if cipher == nil {
+		return ""
+	}
+	plaintext, err := cipher.Decrypt(value)
+	if err != nil {
+		return ""
+	}
+	return plaintext
+}
 
 // lineSignatureVerifier は webhook 検証パスの HMAC 検証関数。
 // 本番は verifyLineSignature。テストで呼び出し回数を観測するために差し替え可能。
 var lineSignatureVerifier = verifyLineSignature
 
 // NewLineLinkService は LineLinkService を初期化して返す。
-// cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
+// webhook 署名検証には lstep 連携と同一の non-nil cipher が必須であり、nil の場合は
+// canonical credential を復号せず fail-closed にする。
 func NewLineLinkService(
 	ownerRepo lineLinkOwnerRepo,
 	lineLinkTokenRepo LineLinkTokenRepository,
@@ -465,6 +488,7 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 				s.secretCacheMu.Unlock()
 				return plaintext
 			}
+			delete(s.secretCache, credential.ID)
 		}
 		s.secretCacheMu.Unlock()
 	}

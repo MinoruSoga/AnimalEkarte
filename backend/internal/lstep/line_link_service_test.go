@@ -224,18 +224,46 @@ func newTestLineLinkService(
 	settingRepo *mockLineLinkSettingRepo,
 	credentialRepos ...*mockLineChannelCredentialRepo,
 ) LineLinkService {
-	credentialRepo := &mockLineChannelCredentialRepo{}
+	plaintextCredentialRepo := &mockLineChannelCredentialRepo{}
 	if len(credentialRepos) > 0 && credentialRepos[0] != nil {
-		credentialRepo = credentialRepos[0]
+		plaintextCredentialRepo = credentialRepos[0]
+	}
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	if err != nil {
+		panic(err)
+	}
+	encryptedCredentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(
+			ctx context.Context,
+			clinicID uint64,
+			service, keyName string,
+		) (*model.ClinicIntegration, error) {
+			credential, findErr := plaintextCredentialRepo.FindCredentialByClinicServiceKey(
+				ctx,
+				clinicID,
+				service,
+				keyName,
+			)
+			if findErr != nil || credential == nil || credential.KeyValue == "" {
+				return credential, findErr
+			}
+			ciphertext, encryptErr := cipher.Encrypt(credential.KeyValue)
+			if encryptErr != nil {
+				return nil, encryptErr
+			}
+			encryptedCredential := *credential
+			encryptedCredential.KeyValue = ciphertext
+			return &encryptedCredential, nil
+		},
 	}
 	return NewLineLinkService(
 		ownerRepo,
 		tokenRepo,
 		settingRepo,
-		credentialRepo,
+		encryptedCredentialRepo,
 		immediateLineLinkTransactor{},
 		&mockLineLinkAuditTxLogger{},
-		nil,
+		cipher,
 	)
 }
 
