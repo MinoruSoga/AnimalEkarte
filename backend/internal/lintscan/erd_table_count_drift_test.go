@@ -185,8 +185,8 @@ func TestERDTableCount_MatchesSchema(t *testing.T) {
 	}
 
 	t.Logf("ERD table count: schema=%d declared=%d", schemaCount, declaredCount)
-	if schemaCount != 110 {
-		t.Errorf("distinct CREATE TABLE count = %d, want 110", schemaCount)
+	if schemaCount != 115 {
+		t.Errorf("distinct CREATE TABLE count = %d, want 115", schemaCount)
 	}
 	for _, violation := range reconcileERDTableCount(schemaCount, declaredCount) {
 		t.Error(violation)
