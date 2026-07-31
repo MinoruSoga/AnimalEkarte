@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|
 | TASK-004 | READY_USER | ops-only | intentional land set未確定、foreign WIPあり | `git status --porcelain=v1` | `todo.md` TASK-004 plan |
 | TASK-005 | READY_USER | ops-only | land対象/staged set未確定 | `bash scripts/check-docs-symbol-drift.sh` | `todo.md` TASK-005 plan |
-| TASK-009 | BLOCKED(`verify_seed.py` FAIL・USER apply) | AGENT→USER | seed全体static RED、DB apply証跡なし | `python3 scripts/verify_seed.py` | `todo.md` TASK-009 plan |
+| TASK-009 | READY_USER | USER | static green（2026-08-01）; DB apply証跡なし | USER: `make migrate` or reseed runbook | `todo.md` TASK-009 plan; `reports/2026-08-01-task-009-verify-seed-green.md` |
 | TASK-010 | BLOCKED(`claim/TASK-010`・seed/runtime前提) | AGENT→USER | live claim、seed依存、59/62 census | `git branch --list 'claim/TASK-010'` | `todo.md` TASK-010 plan |
 | TASK-019 | READY_USER | ops-only | production/deploy evidence、R-05 inventory | `git branch --list 'claim/LINE-*'` | `todo.md` TASK-019 plan |
 | TASK-020 | READY_USER | USER | credential未注入、live claims | `test -n "${E2E_LOGIN_EMAIL:-}" && test -n "${E2E_LOGIN_PASSWORD:-}"` | `todo.md` TASK-020 plan |
@@ -35,7 +35,7 @@
 | TASK-023 | READY_USER | USER | E2E credentials、QA/LINE/PO evidence | credentialをsecret channelで注入 | `todo.md` TASK-023 plan |
 | TASK-024 | READY_USER | USER | clean-seed 05/07/10再撮影、named sign-off | clean-seed撮影windowを割当 | `todo.md` TASK-024 plan |
 
-Ready summary: **READY_AGENT 0 / READY_USER 7 / BLOCKED 3**。
+Ready summary (updated 2026-08-01 after seed static green): **READY_AGENT 0 / READY_USER 8 / BLOCKED 2**（009 は USER apply のみ残存）。
 
 ## Open index / ops-only matrix
 

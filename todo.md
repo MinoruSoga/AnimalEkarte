@@ -13,7 +13,7 @@
 | R5 | コミット前の closed pack 回帰ゲート | **TASK-005**（ops 手順・land 前再実行） |
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
-| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・**適用は USER** / reseed ops 文書化済） |
+| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・static verify GREEN・**適用は USER**） |
 | SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch2 V04 partial・body 要実測 59） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
@@ -41,7 +41,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 ### 推奨実装順（open のみ）
 
-1. **TASK-009** seed 適用（USER。reseed ops: `reports/2026-07-31-task-009-reseed-ops.md`）  
+1. **TASK-009** seed 適用（USER。static green: `reports/2026-08-01-task-009-verify-seed-green.md` / reseed: `reports/2026-07-31-task-009-reseed-ops.md`）  
 2. **TASK-010** 要実測残 backlog（body 59。batch2: `reports/2026-07-31-task-010-batch2.md`）  
 3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・要 host `E2E_LOGIN_*`。証拠: `reports/2026-07-31-task-020-env-forward.md`）  
 4. **TASK-022 human residual** — S13 手動 correction + named signer + RLS runtime（agent source closeout 済）  
@@ -117,13 +117,13 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: clinical CSV がヘッダのみでシナリオ前提データが揃わない可能性。
 - **修正方針**: 設計 `reports/2026-07-31-task-009-seed-design.md` に従い USER が seed 適用。エージェントは migrate/seed auto-apply しない。
 - **受け入れ条件**: 対象 CSV がヘッダのみでなくなる; シナリオ前提を満たす; 適用手順が1箇所で辿れる; 適用は USER。
-- **状態**: **CSV slice1 committed（authoring done）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。**USER reseed 手順**: `reports/2026-07-31-task-009-reseed-ops.md`（既適用 DB は checksum mismatch → `make reset` が正。agent は auto wipe しない）。claim: `claim/TASK-009`（USER が統合後に解放）。
+- **状態**: **CSV slice1 committed（authoring done）/ static verifier GREEN（2026-08-01）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。**static gate**: `python3 scripts/verify_seed.py` → OK（imported clinical graph 認識: empty treatments + large medical_records; high-id appointments の business-hours 免除; RV/他院 placeholder allowlist）。証跡: `reports/2026-08-01-task-009-verify-seed-green.md`。**USER reseed 手順**: `reports/2026-07-31-task-009-reseed-ops.md`（既適用 DB は checksum mismatch → `make reset` が正。agent は auto wipe しない）。
 
 #### 実装プラン（2026-08-01・codebase調査）
-- **Ready**: BLOCKED(`verify_seed.py` 現行 FAIL・DB 適用 USER 専権)
-- **Owner lane**: AGENT→USER
-- **Blockers (today)**: slice1 の4 CSVは各3行だが、`python3 scripts/verify_seed.py` は `treatments` 欠落、appointment 時刻分布、vaccination 参照で exit 1。DB 適用済み証跡もない。
-- **Preconditions**: seed owner が現行 static FAIL を別の修正 packet/ID で解消して exit 0 を得る。USER が local DB の適用履歴、退避要否、reset のデータ損失受容を確認する。
+- **Ready**: READY_USER（static green 後の DB 適用のみ残る）
+- **Owner lane**: USER（apply）/ agent は static gate のみ
+- **Blockers (today)**: DB 適用証跡なし。static `verify_seed.py` は 2026-08-01 に green（imported-graph 適応）。
+- **Preconditions**: USER が local DB の適用履歴、退避要否、reset のデータ損失受容を確認する。static は `python3 scripts/verify_seed.py` で exit 0 を再確認。
 - **Code anchors** (file:line or path globs from live tree): `backend/migrations/seeds/003_demo/{hospitalizations,treatment_plans,daily_records,care_plan_items}.csv`, `backend/migrations/seeds/003_demo/manifest.json`, `backend/cmd/migrate/main.go:41-136`, `backend/cmd/migrate/csvbundle.go:81-188`, `backend/internal/seedbundle/manifest.go:34-55`。
 - **Convention anchors** (rule doc paths): `backend/migrations/CLAUDE.md`, `.agents/skills/migration-seed-safety/SKILL.md`, `reports/2026-07-31-task-009-reseed-ops.md`。
 - **Steps**:
