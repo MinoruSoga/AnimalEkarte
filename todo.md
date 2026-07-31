@@ -14,7 +14,7 @@
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
 | SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・**適用は USER** / reseed ops 文書化済） |
-| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch partial・残 backlog） |
+| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch2 V04 partial・body 要実測 59） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
 | SCEN-OPS-TREE-001 | 共有 tree concurrent WIP | **ops-only**（= R6） |
@@ -22,8 +22,8 @@
 | ARCH-R3 | land 時 foreign 定義は `git status` 実測 | **ops note** + TASK-004 |
 | POST-PULL | migrations 適用 | **ops-only** ≡ **SPEC-TOP-MIGRATE-006**（USER `make migrate`） |
 | SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done**（R-06/R-07 code fixed; R-01/R-05 要PO 等） |
-| SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（runtime attempted・credentials BLOCKED） |
-| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（inventory done・delete BLOCKED consumers remain） |
+| SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（env-forward done・runtime credentials BLOCKED） |
+| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 FE residual done・delete BLOCKED / NO CLEAN-GO） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 
 ### 対応済み（削除済み・再掲しない）
@@ -42,9 +42,9 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 ### 推奨実装順（open のみ）
 
 1. **TASK-009** seed 適用（USER。reseed ops: `reports/2026-07-31-task-009-reseed-ops.md`）  
-2. **TASK-010** 要実測残 backlog（env READY。batch: `reports/2026-07-31-task-010-runtime-batch.md`）  
-3. **TASK-020** Playwright 93 runtime 完走（要 E2E login env。証拠: `reports/2026-07-31-task-020-runtime.md`）  
-4. **TASK-021 Stage A 削除**（inventory: `reports/2026-07-31-task-021-stage-a-inventory.md` — facade consumer 撤去後 + 破壊変更承認）  
+2. **TASK-010** 要実測残 backlog（body 59。batch2: `reports/2026-07-31-task-010-batch2.md`）  
+3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・要 host `E2E_LOGIN_*`。証拠: `reports/2026-07-31-task-020-env-forward.md`）  
+4. **TASK-021 Stage A 削除**（Phase1 FE residual: `reports/2026-07-31-task-021-phase1-consumer-prep.md` — BE/OpenAPI/seed/DB consumer 撤去後 + 破壊変更承認）  
 5. **TASK-004 / TASK-005**: 次の intentional land 時  
 6. **LINE 要PO**: R-01 / R-05（brief: `reports/2026-07-31-line-residuals-R01-R07.md`）
 
@@ -78,7 +78,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: scenarios に【要実測】残存。
 - **修正方針**: browser-test レーンで実測。記録は `reports/`。
 - **受け入れ条件**: 要実測 0 または PO/BUG 振分; reports に実行記録。
-- **状態**: **env READY / batch partial**（2026-07-31 orch wave）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch で V05 から 5 件を実測クリア（要実測 ~77→~72）。証拠: `reports/2026-07-31-task-010-runtime-batch.md`。残 backlog は継続 open。claim: `claim/TASK-010`（USER 解放）。
+- **状態**: **env READY / batch2 partial**（2026-07-31 next orch wave）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch1 V05: 5 件（証拠: `reports/2026-07-31-task-010-runtime-batch.md`）。**batch2 V04**: 6 件 elevate（要実測 body **65→59** / V04 11→5）。証拠: `reports/2026-07-31-task-010-batch2.md`。残 backlog open。claim: `claim/TASK-010`（USER 解放）。
 
 ### TASK-019: docs/spec/line/** deep 監査 follow-up（Medium / 任意）
 
@@ -92,13 +92,13 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 - **問題**: inventory 84 静的更新後の full runtime 未実施。
 - **修正方針**: env 可なら `ui-design-compliance-readonly.spec.ts` workers=1。結果を reports へ。
-- **状態**: **runtime attempted / credentials BLOCKED**（2026-07-31）。scoped 93 tests: 4 passed / 3 failed / 86 did not run（`E2E_LOGIN_*` 未設定）。証拠: `reports/2026-07-31-task-020-runtime.md`。full green 未達。claim: `claim/TASK-020`（USER 解放）。
+- **状態**: **env-forward done / runtime credentials BLOCKED**（2026-07-31 next orch）。`run-e2e.sh` が host に設定時のみ `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（+ optional `E2E_AUTH_STATE_PATH`）を name-only `-e` で Playwright docker へ転送。証拠: `reports/2026-07-31-task-020-env-forward.md`。prior runtime: 4p/3f/86 DNR（`reports/2026-07-31-task-020-runtime.md`）。host が EMAIL_UNSET/PASSWORD_UNSET のため再 runtime 未実施。full green 未達。claim: `claim/TASK-020` + `claim/W-020-ENV`（USER 解放）。
 
 ### TASK-021 Stage A: exclusion 面の破壊的撤去（Medium・PO決裁済・inventory 済）
 
 - **問題**: Stage B で facade 化済み。exclusion route/payload/model/table の最終撤去が残る。
 - **修正方針**: **consumer inventory + 破壊変更の明示承認後**に Stage A（FINAL 参照）。新 endpoint は追加しない。`available-staffs` は WONTFILE。
 - **受け入れ条件**: exclusion production surface 削除; migration あり; Stage B 互換 consumer が無いこと inventory で証明。
-- **状態**: **inventory complete / delete BLOCKED（consumers remain）**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md` — production dual-write なし; live facade routes/fields/OpenAPI/seed/model 残存 → **NO CLEAN-GO**（破壊削除は consumer 撤去後 + 明示承認）。claim: `claim/TASK-021`（USER 解放）。
+- **状態**: **Phase1 FE residual SAFE-CLEANUP done / delete BLOCKED（BE consumers remain） / NO CLEAN-GO**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1: dead excluded query-key invalidate + deprecated/test `excluded_courses` 撤去（証拠: `reports/2026-07-31-task-021-phase1-consumer-prep.md`）。live facade routes/fields/OpenAPI/seed/model 残存 → 破壊削除は §6 完了 + 明示承認後。claim: `claim/TASK-021` + `claim/W-021-P1`（USER 解放）。
 
 ---
