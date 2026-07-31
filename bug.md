@@ -6,6 +6,32 @@
 
 ---
 
+# 実装優先ウェーブ / 横断クラスタ索引
+
+調査基準は `main` の `fa74ef92e`（主要コード調査は `239a8a736`、以後のproduct source差分と最終docs-only進行を再監査）。以下は実装そのものではなく、現行コードを起点にした実装・検証計画である。報告時の推定と現行ソースが一致しない項目は、原因を固定せず再現または計測を先行させる。
+
+| Wave | 目的 | 対象 |
+|---|---|---|
+| Wave 0 | 臨床安全、法的記録、会計不整合の封じ込め | BUG-002, BUG-003, BUG-004, BUG-010, BUG-015, BUG-018, BUG-021, BUG-022 |
+| Wave 1 | 認証ブロッカー、集計・請求の可用性 | BUG-008, BUG-009, BUG-011, BUG-012, BUG-013, BUG-014, BUG-024 |
+| Wave 2 | マスタ保存契約とエラー契約の是正 | BUG-023, BUG-025, BUG-026, BUG-027, BUG-028, BUG-029, BUG-030 |
+| Wave 3 | 検索・表示・Not Found・入力フィードバック | BUG-001, BUG-006, BUG-007, BUG-016, BUG-017, BUG-019, BUG-032 |
+| Wave 4 | データ品質と低リスク導線 | BUG-005, BUG-020, BUG-031 |
+
+| クラスタ | 主計画 | 兄弟計画 | 共通契約 |
+|---|---|---|---|
+| `C-LIFF-AUTH` | BUG-008 | BUG-014 | ローカルモックと実 LIFF 認証を分離し、401 を原因別に表示する |
+| `C-EXAM-LIFECYCLE` | BUG-003 | BUG-004 | 基準値導出と「初回確定」を同一の検査保存契約で守る |
+| `C-PET-DEATH` | BUG-002 | BUG-021, BUG-022 | 死亡日の検証、永続化、キャッシュ反映、再読込表示を一連で保証する |
+| `C-SILENT-VALIDATION` | BUG-017 | BUG-021 | ブロック理由をフィールド近傍に表示し、無音失敗を禁止する |
+| `C-NOT-FOUND-EMPTY` | BUG-016 | BUG-019 | 取得失敗を空の編集モデルへ変換しない |
+| `C-MASTER-FALSE-SUCCESS` | BUG-026 | BUG-029 | 成功通知は mutation 成功応答後にだけ出す |
+| `C-MASTER-DUPLICATE-MSG` | BUG-023 | BUG-027 | 一意制約を安定したエラー code/params に変換する |
+| `C-VAX` | BUG-006 | BUG-007 | 対象ペット正本とペット別履歴を同じ patient context で扱う |
+| `C-MASTER-SAVE-FIELDS` | BUG-025 | BUG-028 | 必須フィールドと既定値を FE/BE 間で明示する |
+
+共通実装規約: 書き込み責務は ADR-006 の owner package に置き、consumer からは interface 経由で呼ぶ。`clinic_id` と request 由来の owner/pet/staff FK を fail-closed で検証し、複数書き込みと監査ログは同じ `DBOrTx` 境界に含める。フロントは Feature Indexing と query key の正本を維持する。将来の検証は Docker 内の対象 package/file に限定し、migration/seed が必要な場合はコード修正・既存データ補修と分離してレビューする。migration 取り込み後の `make migrate` は人が実行し、agent は自動適用しない。
+
 ## BUG-001: 飼主・ペット一覧の検索が「姓 スペース 名」形式でヒットしない
 
 - **重大度**: 中（受付業務で頻出する検索パターンが機能しない）
@@ -17,6 +43,79 @@
 - **期待結果**: プレースホルダが「飼主名」を検索対象と明示しており、スタッフが自然に入力する「姓 スペース 名」形式のフルネーム検索はヒットするべき。
 - **実際の結果**: 姓のみ・名のみでは検索できるが、スペース区切りのフルネームでは常に0件になる。
 - **備考**: 飼主NO（例: `307867`）そのものでの検索も0件だった（`310371` など未変更の飼主でも同様に0件）。プレースホルダが「飼主No」も検索対象と謳っているが、実際には飼主NOでの検索がヒットしない可能性がある。あわせて要確認。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-OWNER-SEARCH`
+- 同一 PR にする BUG: なし
+- 先行必須: なし
+- 後続解放（シナリオ/他BUG）: S01 手順1の飼主・ペット検索と番号検索
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: `/owners` は owner repository ではなく pet 検索を使い、現行 SQL は pet 名・owner 名の各列・電話番号だけを個別 `ILIKE` する。姓と名を空白で連結した値、`owner_number`、`pet_number` は対象外。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。BUG-016/019 の Not Found 契約とは別根因。
+- 所有境界（FE / BE / データ / 環境）: FE=owners feature; BE=pet read owner; データ=clinic-scoped owner/pet 検索行; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/owners/loaders.ts` の owner 一覧 loader、`frontend/src/features/owners/components/OwnersListTable.tsx` の検索 UI。 | 現行証拠 / 変更候補 |
+| BE | BE owner: `backend/internal/pet/pet_handler.go`、`backend/internal/pet/pet_request.go`、`backend/internal/pet/repository.go` の `Search` 条件。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 既存 `GET /api/v1/pets?search=` の response/DB schema は不変。search の意味論へ空白正規化・連結氏名・owner/pet番号を追加し、index が必要なら別 migration。
+- 正しい挙動の定義（1〜3 文）: 正規化した検索語で clinic 内の表示氏名・飼主No・ペットNoを検索し、count/page と UI説明を一致させる。
+- やらないこと（Out of scope）: 曖昧な全列検索、全clinic検索、無根拠な fuzzy search。
+- 既存データ修復の要否と手順: 不要。index候補は計測後の別migrationとし、人が `make migrate`。
+
+- BE で検索語の前後空白と連続空白を正規化し、姓・名を連結した表示名、飼主 No、ペット No を clinic scope 内で検索する。複数 token は順序を保持した氏名一致を最低契約とし、曖昧な全列 AND/OR 拡張は別件にする。
+- FE の説明文と placeholder は、BE が実際に保証する対象だけを列挙する。件数・ページングはサーバ側検索後の値を使う。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given clinic 1 に `伊藤` / `宏美` と飼主 No `300290` がある、When `伊藤 宏美`、余分な空白を含む同名、または `300290` で検索する、Then 同じ飼主の pet 行が返る。
+2. 回帰: 姓のみ・電話検索、server pagination/countを維持する。
+3. 負例: 別clinic同名/同番号、空白だけ、未知番号は0件で存在情報を漏らさない。 既存境界AC: Given 別 clinic に同名・同番号がある、When clinic 1 で検索する、Then 別 clinic の行・件数・存在は返らない。
+4. 横展開確認対象: owner/pet検索、一覧placeholder、代表query plan
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/pet -run 'Test.*Search'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/owners/loaders.test.ts src/features/owners/routes/OwnersList.test.tsx src/features/owners/components/OwnersListTable.report.test.tsx`
+- 手動/E2E: S01 手順1の確認中（飼主・ペット一覧 `/owners`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 臨床/会計直接変更なし。検索結果・countをclinic_idで分離し、番号を文字列扱いする。
+- fail-closed の維持: 別clinic候補をfallbackせず0件とし、検索errorを空結果に潰さない。
+- audit / トランザクション境界: read-only。書込/audit txなし。index migrationは別承認。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 連結式への部分一致は index を外し得るため `EXPLAIN (ANALYZE, BUFFERS)` で代表検索を測る。番号検索を数値変換して失敗させず、文字列として扱う。
+- 既存データ補修は不要。検索用 index が必要なら migration を別差分にし、人手の `make migrate` 境界を守る。
+
+#### 7. 実装ステップ（順序付き）
+
+1. repository test に氏名空白・番号・clinic 分離の失敗ケースを追加する。
+2. request 正規化と repository predicate を最小変更し、handler の pagination 契約を確認する。
+3. FE 文言と loader/component test を合わせ、代表 E2E を実施する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 上記 AC、対象テスト、代表 SQL 計測が通り、検索結果・count とも clinic scope が確認され、仕様外の曖昧検索を追加していない。
 
 ---
 
@@ -33,6 +132,79 @@
 - **実際の結果**: ページを手動リロードするまで外側テーブルは古い「生存」表示のまま。
 - **備考**: サーバー側のデータは正しく更新されている（リロード後は正しい／カルテ・会計・入院のペット選択画面では正しく「選択不可」になる）。React Query 等のキャッシュ無効化漏れの可能性。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-PET-DEATH`
+- 同一 PR にする BUG: BUG-002, BUG-022（表示正本）; BUG-021 は同一クラスタの先行検証
+- 先行必須: BUG-021 の死亡日入力契約
+- 後続解放（シナリオ/他BUG）: S01 死亡登録の即時表示と BUG-022 の再読込表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE（BE lifecycle 契約を回帰）
+- 観測根拠（API・クエリ・コード参照）: mutation は pet query を invalidate するが、外側テーブルは `use-pet-form-list-state.ts` の別ローカル state を表示する。成功 callback はモーダル内 form だけを書き換える。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-022 と症状は同じ死亡表示だが、本件は mutation 後のローカル一覧 stale、022 は再取得 transform。BUG-021 は入力検証。
+- 所有境界（FE / BE / データ / 環境）: FE=owners/pet query state; BE=lstep/pet lifecycle; データ=pet death record; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/owners/components/PetCareSection.tsx`、`frontend/src/features/owners/hooks/use-pet-form-list-state.ts`、`frontend/src/hooks/use-record-pet-death.ts`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/lstep/lstep_lifecycle_handler.go`、同 service、`backend/internal/pet/repository.go` の死亡更新。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB 変更なし。既存 death mutation と既存 query-key 契約を使い、外側一覧の状態同期だけを直す。
+- 正しい挙動の定義（1〜3 文）: 204成功後、入力済み死亡日を使って外側一覧stateを不変更新し、既存canonical query keyをinvalidateする。モーダルと一覧は即時にdeceasedとなり、refetch後も一致する。
+- やらないこと（Out of scope）: 新しい clinicId 付き query key の発明、失敗時の擬似成功、死亡記録の変更。
+- 既存データ修復の要否と手順: 不要。既存死亡記録は変更しない。
+
+- death API は204でpetを返さないため、成功時は入力済み死亡日を外側一覧の既存state ownerへ不変更新し、project既定のcanonical query keyをinvalidate/refetchする。`query-keys.ts` の規約に反するclinicId入りkeyは新設しない。
+- BUG-021 の検証を通過した要求だけを BE が同一 tx で保存・監査し、BUG-022 の transform と同じ status 契約を使う。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 生存 pet が外側一覧とモーダルに表示中、When 有効な死亡日で確定する、Then リロードせず両方が「死亡」となり、再取得後も同じ。
+2. 回帰: モーダル・外側一覧・full reloadをBUG-021/022と通す。
+3. 負例: 4xx/5xxでは楽観表示を固定せず、別owner/petのstateを更新しない。 既存境界AC: Given 更新が 4xx/5xx、When mutation が失敗する、Then 一覧を楽観的に死亡へ固定せず、理由を表示する。
+4. 横展開確認対象: owners内のpet表示、患者選択、death query invalidation
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/lstep ./internal/pet -run 'Test.*Death|Test.*Deceased'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/owners/hooks/use-pet-form-list-state.test.ts`。一覧ownerまでmountする回帰testは新規追加予定。
+- 手動/E2E: S01 手順1（`/owners/:id` でペット編集モーダルから死亡登録）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 死亡状態は臨床安全対象。owner/pet/clinicを正規query stateで分離する。
+- fail-closed の維持: mutation失敗時にdeceasedへ固定せず、server正本へ戻す。
+- audit / トランザクション境界: 死亡保存とauditはBEの同一txを回帰し、FE表示修正から分離しない。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- owner/pet が違う cache key を更新しない。死亡は臨床状態なので失敗時の擬似成功、無条件 rollback、別 clinic invalidation を禁止する。
+- 既存死亡記録の一括補修はこの UI 修正に含めない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. モーダル成功後も外側一覧が古いことを component test で RED にする。
+2. query key と state owner を一本化し、不変更新 + 再取得を実装する。
+3. BUG-021/022 の cluster test と実ブラウザ往復を通す。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 即時表示、再読込、失敗 rollback、clinic/owner 分離がすべて確認され、死亡監査が成功 tx と同じ境界にある。
+
 ---
 
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
@@ -48,6 +220,81 @@
 - **実際の結果**: 判定列が **全項目・全ケースで「未判定」のまま**。値を25.0→26.0に変更して再保存しても変化なし。ステータスを「依頼中」→「結果入力済み」に進めても変化なし。
 - **備考**: 仕様上、判定はバックエンド（`computeExamResultStatus`）が保存時に導出しDBに保存する設計だが、実際には保存後も判定が更新されていない。異常値の自動検出という臨床安全上重要な機能が事実上動作していない。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-EXAM-LIFECYCLE`
+- 同一 PR にする BUG: BUG-003, BUG-004（承認済みseed/data packetは別差分。schema migration不要）
+- 先行必須: 獣医師承認済み reference range と BUG-004 の初回確定順序
+- 後続解放（シナリオ/他BUG）: S02 の H/L 判定、初回確定、再表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE / データ
+- 観測根拠（API・クエリ・コード参照）: 現行保存経路は `assessExamResult` と clinic/species scoped range resolverを使い、`exam_reference_ranges` schemaも既存である。一方、`003_demo` は表示用 `normal_value` のみで構造化range seedが確認できず、live DBのrange有無はNEEDS REVIEW。`computeExamResultStatus` は互換wrapperであり、文字列から閾値を推測するfallbackは採用しない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-004 と同じ保存 lifecycle だが、本件は reference range 不在/判定、004 は初回確定順序。
+- 所有境界（FE / BE / データ / 環境）: FE=examination display; BE=medicalrecord assessment owner; データ=clinic/species reference ranges; 環境=seed/runtime DB の range 有無を確認
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| BE | `backend/internal/medicalrecord/exam_result_assessment.go`、`examination_service.go`、`exam_reference_range_repository.go`。 | 現行証拠 / 変更候補 |
+| DB/migration | `backend/migrations/001_init.sql` の `exam_reference_ranges` table / clinic-field-species unique。 | 既存schema。新規migration不要 |
+| Data | `backend/migrations/seeds/003_demo/exam_type_fields.csv` と、欠落を確認する reference-range seed。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/examinations/components/ExamPivotTable.tsx` と API transform。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API shape と既存 DB schema は不変。既存 `exam_reference_ranges` へ承認済み data を供給する seed/data packet は実装差分と分離する。
+- 正しい挙動の定義（1〜3 文）: 同一 clinic/species/field の構造化rangeだけでlow/normal/highを導出する。range不在・非数値・矛盾rangeは既存契約どおり `status=normal` かつ派生 `is_assessed=false` とし、新enumは追加しない。
+- やらないこと（Out of scope）: 表示用 `normal_value` のparse、犬猫共通閾値の推測、agentによるmigration/seed適用。
+- 既存データ修復の要否と手順: 既存結果の自動再判定はしない。必要なら read-only対象抽出→臨床承認→監査可能な別補修packet。
+
+- 獣医師承認済みの species/clinic/field 別 lower/upper bound を構造化dataとして供給し、保存時に同一clinicのrangeだけで `low/normal/high` を導出する。境界値はnormal、非数値・range不在は `status=normal` + `is_assessed=false` として未評価表示にする。
+- seed/data packetとapplicationの変更を分離し、既存結果の再判定は承認された補修jobとしてaudit可能にする。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given WBC 6.0–17.0 と RBC 5.5–8.5 が対象 species/clinic に設定済み、When WBC=25.0、RBC=3.0、境界値=下限を保存する、Then high、low、normal が永続化・再表示される。
+2. 回帰: 境界値・range不在・既存表示をBUG-004初回確定と通す。
+3. 負例: 別clinic/species range、非数値、矛盾range、未承認dataでは推測しない。Given該当rangeなし、When保存、Then永続statusは既存enumのnormal、responseの`is_assessed=false`で未評価と示し、他tenantのrangeは使わない。
+4. 横展開確認対象: exam結果API、pivot表示、reference rangeを使う全判定
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*Exam.*Assessment|Test.*ReferenceRange' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/examinations/components/ExamPivotTable.test.tsx src/features/examinations/api/transforms.test.ts`
+- 手動/E2E: S02 手順2〜4（検査管理 `/examinations`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 基準値は臨床データ。clinic/species/field provenanceを必須にする。
+- fail-closed の維持: range不在・非数値は推測判定しない。
+- audit / トランザクション境界: 結果/status/auditはmedicalrecord ownerのtx境界。既存結果補修は別監査packet。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 閾値は臨床知識であり、表示文字列の parse や架空 seed を禁止する。species 未確定時に犬猫共通化しない。
+- 既存結果の一括再計算は不可逆な臨床記録変更になり得るため本実装の外。対象抽出、承認、dry-run、監査を別計画にする。
+
+#### 7. 実装ステップ（順序付き）
+
+1. range 有/無、境界、clinic/species 隔離を unit/integration test で固定する。
+2. 承認済み range data を別差分で用意し、service の status 永続化を確認する。
+3. BUG-004 の確定順序修正後に初回確定と再表示の E2E を行う。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 数値判定のACと隔離testが通り、range provenanceがレビュー可能で、欠落時は`is_assessed=false`として安全に未評価となる。既存schemaへ無用なmigrationを追加していない。
+
 ---
 
 ## BUG-004: 検査記録を初めて「確定」ステータスへ保存しようとすると「確定済みの検査は編集できません」と拒否され、確定できない【重大】
@@ -61,6 +308,78 @@
 - **実際の結果**: 保存直後にエラートースト「確定済みの検査は編集できません」が表示され、保存が失敗する（ページ離脱確認ダイアログが出る＝未保存のまま）。この検査はこれまで一度も確定されたことがないにもかかわらず、「既に確定済みだから編集できない」という趣旨のガードで弾かれている。再読み込み後もステータスは「結果入力済み」のままで、確定への遷移が一切できない。
 - **備考**: 複数回（別タブでの再試行含む）、他フィールドを一切変更しない単独のステータス変更でも同じエラーで再現する。確定ロック機能自体（手順6・7）を検証できないブロッカー。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-EXAM-LIFECYCLE`
+- 同一 PR にする BUG: BUG-003, BUG-004
+- 先行必須: なし（BUG-003 の E2E より先に完了）
+- 後続解放（シナリオ/他BUG）: BUG-003 の判定結果を含む初回確定 E2E
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE
+- 観測根拠（API・クエリ・コード参照）: service が親 exam を `confirmed` に更新した後、同じ保存処理で items replacement を呼び、repository の「confirmed は編集不可」guard が自分自身の初回確定を拒否する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-003 と同じ lifecycle だが、本件は confirmed guard の自己衝突。
+- 所有境界（FE / BE / データ / 環境）: FE=既存 examination consumer; BE=medicalrecord write owner; データ=exam/status/items/audit; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| BE | `backend/internal/medicalrecord/examination_service.go` の update orchestration。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/examination_repository.go` の `ReplaceItemsByExamID` と confirmed guard。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB 変更なし。medicalrecord owner 内の tx順序・status transition・409 conflict分類を修正する。
+- 正しい挙動の定義（1〜3 文）: 開始時 `result_entered` の初回 confirmed だけを許可し、items・status・auditを1 txで確定する。既にconfirmedは409で拒否する。
+- やらないこと（Out of scope）: confirmed再編集の許可、repository guardの全面撤去、部分commit。
+- 既存データ修復の要否と手順: 不要。失敗した初回確定は全rollbackされる。
+
+- tx 開始時に既存 status/version を lock して「既に confirmed」と「今回 confirmed へ遷移」を区別する。検証済み items を先に置換し、最後に親を confirmed へ遷移して監査する。
+- 既に confirmed の再編集は引き続き fail-closed。部分更新や item だけの commit を残さない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given `result_entered` の検査、When status=`confirmed` と同じ/更新済みitemsを保存する、Then 1 txで成功し再取得がconfirmedになる。
+2. 回帰: 通常のresult入力・既confirmed読取・BUG-003判定を維持する。
+3. 負例: 開始時confirmed、version競合、items/audit途中失敗は409または全rollback。 既存境界AC: Given 開始時点で confirmed、When 任意の編集を試す、Then 競合を含め拒否し DB と監査は変わらない。
+4. 横展開確認対象: examinationのstatus transitionとitem置換
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*Examination.*Confirm|Test.*ReplaceItems' -count=1`
+- FE: 該当なし（BE/data-only plan）
+- 手動/E2E: S02 手順6（検査詳細・編集画面 `/examinations/:id`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 確定検査は臨床記録。clinic/version/statusをlockして改変を防ぐ。
+- fail-closed の維持: 既confirmed・競合・途中失敗を拒否し、部分itemsを残さない。
+- audit / トランザクション境界: items→status→auditを同じDBOrTxで全commit/rollback。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- lock 順序を統一して deadlock を避け、clinic scope と optimistic version を外さない。監査失敗を成功扱いにしない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 初回確定失敗と既確定拒否を別 test にする。
+2. service の tx 内順序と repository guard の責務を修正する。
+3. BUG-003 の range 判定を含む初回確定 E2E を実施する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 初回確定だけが成功し、既確定・競合・途中失敗は全 rollback、clinic 隔離と監査原子性が確認される。
+
 ---
 
 ## BUG-005（軽微・要確認）: 検査の「担当医」選択肢にスタッフ以外の項目が混在している
@@ -69,6 +388,78 @@
 - **発見シナリオ**: S02 手順1（新規検査登録の担当医セレクタ）
 - **内容**: `/examinations/new` の「担当医」ドロップダウンの選択肢に、スタッフ氏名（林文明、ノア、倉田春香 等）に混じって「お手入れ・オゾン療法」「健診・ワクチン・狂犬病」「ドッグラン(アジリティ解放)」「クイックシャンプー」のような、明らかに施術・サービスメニュー名と思われる項目が含まれていた。
 - **備考**: マスタデータ側の混入か、コンポーネントの参照先マスタ取り違えの可能性。実害（誤って選択されるリスク）は未検証。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-EXAM-DOCTOR-OPTIONS`
+- 同一 PR にする BUG: なし
+- 先行必須: staff endpoint の role / active / clinic 実データ確認
+- 後続解放（シナリオ/他BUG）: S02 担当医選択と検査保存
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / データ（再現先行）
+- 観測根拠（API・クエリ・コード参照）: FE は汎用 `useMasterItems("staff")` の全件を担当医 selector に渡す。BE 保存側は active staff を検証するため、UI data source または seed 汚染を切り分ける。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。スタッフ以外の混入が API か seed か未確定のため他 BUG と統合しない。
+- 所有境界（FE / BE / データ / 環境）: FE=examinations selector; BE=staff read + medicalrecord validation; データ=staff role/active/clinic assignment; 環境=demo seed 実値確認
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/examinations/routes/ExaminationForm.tsx`、`ExaminationFormFields.tsx`、`frontend/src/hooks/use-master-items.ts`。 | 現行証拠 / 変更候補 |
+| BE | BE staff endpoint と `backend/internal/medicalrecord/examination_repository.go` の staff validation。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 現行 staff API の実契約を先に確認。必要なら doctor-selectable 条件を additive filter/専用endpointで明示し、DB schemaは変更しない。
+- 正しい挙動の定義（1〜3 文）: 当該 clinic の active かつ担当医として許可された staff だけを表示し、BEも保存時に再検証する。
+- やらないこと（Out of scope）: 表示名による除外、FEだけのsecurity filter、seed値の推測修正。
+- 既存データ修復の要否と手順: staffデータ汚染が証明された場合のみ read-only audit と別承認補修。
+
+- staff API の返却型・role/active 条件を確認し、担当医として選択可能な staff だけを server contract または専用 query で返す。文字列名による除外はしない。
+- request 由来 staff ID は clinic 内 active staff として BE でも fail-closed 検証する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given active doctor、非医師 staff、施術マスタ、別 clinic staff、When 担当医選択肢を開く、Then 許可された当該 clinic staff だけが表示・保存できる。
+2. 回帰: 既存active doctorの選択・保存を維持する。
+3. 負例: inactive/非医師/マスタ行/別clinic staff IDは表示・保存不可。
+4. 横展開確認対象: 担当医selectorを使う検査・カルテ・予約画面
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord ./internal/staff -run 'Test.*Staff|Test.*Doctor'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/examinations/hooks/use-examination-form.test.ts src/features/examinations/components/ExaminationFormFields.test.tsx src/features/examinations/routes/ExaminationForm.permissions.test.tsx`
+- 手動/E2E: S02 手順1（新規検査登録の担当医セレクタ）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 担当医FKは臨床/権限対象。clinic assignment、role、activeを検証する。
+- fail-closed の維持: FE非表示だけに依存せず、request由来staff IDをBEで拒否する。
+- audit / トランザクション境界: 検査保存/auditの既存txを維持。staff data補修は別承認。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 表示 filter だけで不正 staff FK を許可しない。既存検査の担当医データ修正は source 汚染が確認された場合のみ別途行う。
+
+#### 7. 実装ステップ（順序付き）
+
+1. API/seed の実値を種別・clinic・active で照合する。
+2. 選択契約 test を追加し、専用 endpoint または typed filter を実装する。
+3. BE の FK/clinic guard と既存表示を確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 混在原因が証拠付きで確定し、許可 staff のみ表示・保存され、別 clinic/非 active ID が拒否される。
 
 ---
 
@@ -86,6 +477,79 @@
 - **実際の結果**: ペットによらず常に同一の「9才5ヶ月 / メス / 避妊済」という固定値（ダミーデータと思われる）が表示される。
 - **備考**: 予防接種フォーム自体の保存データ（ワクチン選択・次回予定日等）には影響していない可能性があるが、診療中にスタッフが動物の性別・年齢を画面表示で確認する場面で誤った情報を見せてしまう。ヘッダー部分のペット基本情報取得ロジックが固定値/モックのままになっている疑い。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-VAX`
+- 同一 PR にする BUG: BUG-006, BUG-007
+- 先行必須: なし
+- 後続解放（シナリオ/他BUG）: S03 の患者ヘッダーとペット別接種履歴
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE
+- 観測根拠（API・クエリ・コード参照）: vaccination route は pet data を取得しているが `PatientInfoCard` に `petDetails` を渡さず、shared component の固定 default `9才5ヶ月 / メス / 避妊済` が表示される。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-007 と patient context を共有するが、本件は固定 fallback 表示、007 は取得/page契約。
+- 所有境界（FE / BE / データ / 環境）: FE=vaccinations + shared PatientInfoCard; BE=pet APIは既存契約; データ=pet demographics; 環境=病院 timezone
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/vaccinations/routes/VaccinationForm.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/lib/transforms/pet.ts` の pet response transform。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB 変更なし。既存 pet response を typed patient view model に変換する。
+- 正しい挙動の定義（1〜3 文）: 対象petの生年月日・性別・避妊去勢情報を表示し、欠損は推測せず不明とする。
+- やらないこと（Out of scope）: 固定fallback、petデータの書換え、shared card全用途の無関係な再設計。
+- 既存データ修復の要否と手順: 不要。
+
+- 対象 pet の生年月日・性別・去勢避妊状態を typed view model に変換して必須 props として渡す。臨床画面では fixed fallback を削除し、欠損は「不明」と明示する。
+- 年齢は表示時点の病院 timezone 基準で一つの utility から計算し、BUG-007 と同じ pet context/query key を使う。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 属性が異なる2頭、When 各 petId の新規接種画面を開く、Then 各正本の年齢・性別・去勢避妊状態が表示され、固定値にならない。
+2. 回帰: 既知/欠損属性とBUG-007 pet切替を通す。
+3. 負例: pet未取得/属性欠損時に固定値を表示せず、別pet cacheを再利用しない。 既存境界AC: Given 属性欠損、When 表示する、Then 推測せず「不明」となり別 pet の値を再利用しない。
+4. 横展開確認対象: PatientInfoCardの全consumerとpet transform
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: 該当なし（API/DB変更なし。FE境界testで検証）
+- FE: `docker compose exec -T frontend npx vitest run src/features/vaccinations/hooks/use-vaccination-form.test.ts src/features/vaccinations/routes/VaccinationForm.permissions.test.tsx src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx src/lib/transforms/pet.test.ts`
+- 手動/E2E: S03 手順1（予防接種 新規登録 `/vaccinations/new?petId=...`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 患者属性の誤表示は臨床リスク。pet/clinic正本を維持する。
+- fail-closed の維持: 欠損を固定値で補わず不明表示にする。
+- audit / トランザクション境界: read-only表示。DB/audit変更なし。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- patient context の stale cache は誤患者表示につながるため petId を query key に含める。年齢だけで臨床判断せず生年月日も source として保持する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 異なる2頭と欠損値の表示 test を RED にする。
+2. view model と必須 props を追加し fixed clinical default を除く。
+3. BUG-007 の履歴 query と pet 切替 E2E を通す。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 2頭切替・再読込・欠損ケースで正本と一致し、固定の患者属性が臨床画面に残っていない。
+
 ---
 
 ## BUG-007: 予防接種を新規登録しても、一覧・対象ペットの「過去の接種履歴」パネルのどちらにも表示されず、登録結果を画面上で確認できない
@@ -100,6 +564,79 @@
 - **期待結果**（[S03 手順6](docs/ops/testing/scenarios/S03-vaccination-next-due-autocalc.md)）: 一覧の「次回予定」列で確認でき、対象ペットの接種フォームを開けば過去の接種履歴として直近の登録が見える。
 - **実際の結果**: どちらの画面でも直近の登録が見えず、スタッフは「本当に保存されたか」を画面上で確認できない。
 - **備考**: `GET /api/v1/vaccinations?petId=1000002`（キャメルケース）で試すと **フィルタが無視されて全件が返る**のに対し、`?pet_id=1000002`（スネークケース）なら正しくフィルタされる。フロント側が誤ったパラメータ名（`petId`）でこのAPIを呼んでいるためにペット別の履歴パネルが常に空になっている可能性が高い。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-VAX`
+- 同一 PR にする BUG: BUG-006, BUG-007
+- 先行必須: BUG-006 の patient context 正本
+- 後続解放（シナリオ/他BUG）: S03 登録後履歴・一覧・再読込
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: 現行 hook は `pet_id` を送る。フォームと一覧はいずれも汎用の先頭ページを取得してから client filter しており、2029 seed の page window 外に 2026 登録が隠れる経路を確認した。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-006 と patient context を共有するが、本件は server filter/page と query invalidation。
+- 所有境界（FE / BE / データ / 環境）: FE=vaccination hooks/routes; BE=medicalrecord vaccination read owner; データ=clinic/pet vaccination rows; 環境=seed の日付分布
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/hooks/use-pet-vaccinations.ts`、`frontend/src/hooks/use-vaccinations.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/vaccinations/routes/VaccinationForm.tsx`、`VaccinationList.tsx`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/vaccination_handler.go`、`vaccination_repository.go`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 既存 snake_case `pet_id` query/API と DB schema は維持。FEのserver filter/page/sort利用とquery invalidationを是正する。
+- 正しい挙動の定義（1〜3 文）: 新規接種は対象pet履歴と全体一覧の正しい位置に即時/再取得後とも現れ、別petを混ぜない。
+- やらないこと（Out of scope）: camelCase queryの追加、全件client取得、重複再POST。
+- 既存データ修復の要否と手順: 不要。既存接種行は変更しない。
+
+- pet 履歴は初めから `pet_id` を server query に渡し、一覧は選択 filter/sort/page を全て API に渡す。取得済み1ページへの client filter を廃止する。
+- mutation 成功後は一覧と対象 pet 履歴の正規 query key を更新/invalidate し、サーバの sort 契約で直近順を保証する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given page 1 が未来 seed 20件で埋まる、When 2026年の接種を pet A に登録する、Then pet A 履歴に即時表示され、再読込後も存在する。
+2. 回帰: 新規登録・全体一覧・pagination/count・BUG-006 headerを維持する。
+3. 負例: 別pet/別clinic、page外データを混入せず、retryでduplicate作成しない。 既存境界AC: Given pet B、When 同じ画面を開く、Then pet A の履歴は混入しない。全体一覧では指定 sort/page 条件に従う。
+4. 横展開確認対象: vaccination list/history/query keys
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Vaccination.*List|Test.*PetID'`
+- FE: `docker compose exec -T frontend npx vitest run src/hooks/use-pet-vaccinations.test.ts src/features/vaccinations/hooks/use-vaccination-form.test.ts src/features/vaccinations/routes/VaccinationList.test.tsx src/features/vaccinations/components/VaccinationFormPanels.test.tsx`
+- 手動/E2E: S03 手順6・7（予防接種管理 `/vaccinations`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 接種履歴は臨床記録。clinic/pet filterとquery keyを分離する。
+- fail-closed の維持: 取得失敗を空履歴や再POSTで補わず、別pet行を表示しない。
+- audit / トランザクション境界: 接種write/auditの既存txを回帰。FE invalidateは成功後だけ。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- query key に petId/clinic/filter/page を含め、別患者のキャッシュ再利用を防ぐ。登録データ補修は不要。
+
+#### 7. 実装ステップ（順序付き）
+
+1. page-window 再現 test を追加する。
+2. server-side filter/sort と typed query key へ統一する。
+3. 登録直後、再読込、別 pet 切替の E2E を行う。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- camelCase 仮説ではなく再現した page-window 原因が解消し、pet 履歴と一覧の件数・順序・隔離が API 契約と一致する。
 
 ---
 
@@ -118,6 +655,80 @@
 - **実際の結果**: 認証バイパスが機能しておらず、`/api/liff/1/courses` がAuthorizationヘッダなしで呼ばれて401となり、画面には「ログイン情報の有効期限が切れました」という趣旨の異なるエラー文言が表示される。コース選択以降（スタッフ選択・日時選択・予約確定・病院側確認・キャンセル・トリミング分岐）が一切検証できない。
 - **備考**: S04手順3〜12はすべて本ブロッカーにより未実施（実施不能）。原因は以下のいずれか、または複合と推測: (a) フロントエンドがLIFFモック用のダミートークンを取得・付与する処理自体を呼んでいない、(b) `VITE_LIFF_MOCK`が本セッションのビルド/dev-server設定で実際には有効になっていない、(c) 認証バイパスは実装されているがエラーメッセージ文言側だけが「ログイン期限切れ」用の汎用ハンドラに誤って束ねられている。原因切り分けにはフロント側のLIFF認証初期化コード（`liff_auth`関連）とVite環境変数の実値確認が必要（本セッションではソースコード未参照のためAPI観測のみで判断）。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-LIFF-AUTH`
+- 同一 PR にする BUG: BUG-008, BUG-014
+- 先行必須: ブラウザ配信 asset / runtime env / request header の provenance 採取
+- 後続解放（シナリオ/他BUG）: S04 予約フローと BUG-014 / S12 認証検証
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: 環境 / FE / BE（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: 現行 `use-liff.ts` はFE mock=trueで`mock-token`を生成し、line-reserve APIはBearer headerを必ず構築する。BEも`LIFF_MOCK=true`かつnon-releaseならheaderなしのmock分岐を持つ。したがって報告時の`missing authorization header`は現行sourceだけでは説明不能で、default Composeのfrontend env allowlist欠落、起動時env、served asset、proxy前後を同一試行で確認する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-014 と同一観測クラスタ。ただし現行 source は header 付与済みで、報告時の『header欠落実装』は未確認。
+- 所有境界（FE / BE / データ / 環境）: FE=shared LIFF + line-reserve transport; BE=LIFF auth middleware; データ=clinic/customer scope; 環境=built asset と VITE_LIFF_MOCK / LIFF_MOCK provenance
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/shared-liff/use-liff.ts`、`frontend/line-reserve/src/App.tsx`、`frontend/line-reserve/src/api/liff-api.ts`、`frontend/src/shared-liff/handle-fetch-error.ts`。 | token生成、描画gate、Bearer送信、error変換 |
+| BE | `backend/internal/middleware/liff_auth.go`、`backend/internal/reservation/routes.go`。 | 現行証拠 / 変更候補 |
+| Env | `docker-compose.yml` のfrontend environment allowlist/backend `env_file`、`.env.example`、`Makefile`。 | 起動時flagとserved asset provenance |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 原因確定前は API/DB を変更しない。認証wire契約は `Authorization: Bearer <token>` を維持し、provenanceで落下点が証明された層だけを直す。
+- 正しい挙動の定義（1〜3 文）: 現行built clientが取得tokenをheaderへ渡し、mock/realの設定不一致は原因別にfail-closedエラーとなる。
+- やらないこと（Out of scope）: mock認証bypass、token値の記録、sourceと矛盾したheader追加の重複実装。
+- 既存データ修復の要否と手順: 不要。
+
+- まずHEAD、container再作成時刻、allowlisted booleanの`VITE_LIFF_MOCK`/`LIFF_MOCK`、browser request header、served asset hash、proxy前後を同一試行で採取する。env全体や実token値は出力しない。現行sourceでheaderが送られる場合はproduct codeを変更せず、stale asset/起動時env/configを修正する。
+- drop pointがfrontend envと確定した場合だけComposeへ`VITE_LIFF_MOCK`を明示allowlistし、`.env.local`全体をfrontendへ注入しない。BE mock lookup失敗はreal authへsilent fallthroughさせずnon-release設定errorとしてfail-closedにし、releaseの既存mock拒否とreal LINE検証を維持する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given Docker local で両側 mock=true、When `/line-reserve/1/` から courses を取得する、Then Authorization header があり 200、S04 の後続へ進める。
+2. 回帰: courses schema、real LIFF経路、BUG-014 transportを維持する。
+3. 負例: FE/BE flag不一致、mock lookup失敗、release mock、header欠落をfail-closedに分類する。 既存境界AC: Given FE/BE mock が不一致、When 起動または request、Then 明示的設定エラーとなり、real token と誤認しない。 / Given staging/production、When dummy token を送る、Then 必ず拒否され、別 clinic/owner の情報は返らない。
+4. 横展開確認対象: shared-liff、line-reserve、health-card、backend middleware
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。 追加観点: E2E: Docker local の S04 を mock、STG の S12 を実 LINE test account で別々に実施する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/middleware/... ./internal/reservation/... -run 'Test.*(Liff|LIFF|Course)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/shared-liff/use-liff.test.ts line-reserve/src/api/liff-api.test.ts line-reserve/src/App.test.tsx`
+- 手動/E2E: S04 手順1→2（LIFF予約アプリ `/line-reserve/1/`、`VITE_LIFF_MOCK=true`／バックエンド`LIFF_MOCK=true`前提）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 認証/clinic隔離を最優先。実token・env全体をartifactへ残さない。
+- fail-closed の維持: release mock/bypass、lookup失敗、flag不一致を認証成功へfallbackしない。
+- audit / トランザクション境界: read認証のためDB書込なし。mock customer dataが作られる場合はtest clinicでcleanup記録。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- mock secret/token をログ、文書、client bundle の production build に残さない。mock bypass の有効化条件を曖昧な空文字 default にしない。
+- 静的検査だけでは owner 二者間隔離を証明できないため、STG では test owner A/B と clinic A/B の否定ケースを必須にする。
+
+#### 7. 実装ステップ（順序付き）
+
+1. HEAD/container時刻、allowlisted flagの有無、served asset、request header、proxy前後を一つのprovenance packetにし、drop pointを固定する。
+2. 証明された最小層だけを修正し、既存Bearer処理を重複させず、BE mock/release fail-closed testを通す。
+3. S04 local mockと、BUG-014/S12のSTG real LINE・tenant否定を別証拠として実施する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- local mock の S04、real-auth の S12、mock production 拒否、clinic/owner isolation が証拠化され、資格情報や operational secret が成果物へ出ていない。
+
 ---
 
 ## BUG-009: 入院・ホテル管理画面のタブ切替（予約／退院済／すべて）が機能せず、常に「入院中」のデータしか表示されない【重大】
@@ -134,6 +745,78 @@
 - **期待結果**（[S05 手順1・2・2b](docs/ops/testing/scenarios/S05-hospitalization-cycle.md)）: 保存成功後は入院一覧の「入院中」タブ（または少なくとも該当ステータスのタブ）に表示され、ボード/リストいずれのビューでも正しいステータスの入院が確認できる。
 - **実際の結果**: タブ切替UIの選択状態にかかわらず、常に「入院中（active）」ステータスの入院のみがボード・リスト両ビューに表示される。チェックイン前（`reserved`）の予約は、詳細ページへの直接URLアクセス以外に画面上で確認する手段が一切ない。
 - **備考**: APIレスポンス自体は正しいため、フロント側のタブ状態とAPIクエリパラメータ（またはクライアント側フィルタ条件）が連動していない可能性が高い。予約枠の運用（当日より前にケージ予約を確保しておく、等）が実質的に画面から見えず運用に支障が出る。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-HOSPITALIZATION-TABS`
+- 同一 PR にする BUG: なし
+- 先行必須: request / response / transform / tab state の同一 trace 採取
+- 後続解放（シナリオ/他BUG）: S05 入院一覧の全タブと board/list 整合
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE（再現先行）
+- 観測根拠（API・クエリ・コード参照）: 現行 `HospitalizationList.tsx` は取得後にタブ別 status filter を持ち、BE にも status query があるため、「全タブで active 固定」という報告原因は現ソースだけでは確定しない。一方、日付だけで取得した1ページを client filter する page-window 問題は残る。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。静的 source には tab filter があるため stale asset、transform、pagination を切り分ける。
+- 所有境界（FE / BE / データ / 環境）: FE=hospitalization list/board; BE=medicalrecord hospitalization read owner; データ=status/date/clinic rows; 環境=loaded asset provenance
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/hospitalization/routes/HospitalizationList.tsx`、同 feature の `constants.ts` と `api/transforms.ts`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/hospitalization_request.go`、`hospitalization_handler.go`、`hospitalization_repository.go`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 原因確定前は API/DB を変更しない。既存 status/date/page filter 契約をFEが利用する修正を第一候補とする。
+- 正しい挙動の定義（1〜3 文）: 各tabのstatusがrequest/response/transform/viewで一致し、board/list/countが同じ集合を示す。
+- やらないこと（Out of scope）: 全件client filter、未知statusのactive化、stale assetをproduct bugとして決め打ち。
+- 既存データ修復の要否と手順: 不要。
+
+- まず Docker ブラウザで tab state、実 request URL、response status、transform 後値を一つの trace で照合する。再現時は status/date/page/sort を API query の正本へ寄せ、取得済み page への二重 filter を除く。
+- 再現しなければ current source の回帰 test と stale asset/build 診断だけを追加し、推測修正はしない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given reserved/active/discharged を同日に各1件用意、When 予約・入院中・退院済・すべてを切り替える、Then request 条件、件数、board/list の内容が各 status 契約と一致する。
+2. 回帰: 4tab、board/list、pagination、日付filterを通す。
+3. 負例: 未知status/別clinicをactiveへ混ぜず、stale asset時はcode fixを行わない。 既存境界AC: Given page size を超えるデータ、When 各タブを開く、Then page 外 status のために誤って0件にならず、別 clinic 行は返らない。
+4. 横展開確認対象: hospitalization read consumersとstatus transform
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Hospitalization.*List|Test.*Status'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/hospitalization/routes/HospitalizationList.test.tsx`
+- 手動/E2E: S05 手順1・2・2b（入院・ホテル管理 `/hospitalization`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 入退院statusは臨床運用対象。clinic/status/date filterを分離する。
+- fail-closed の維持: 未知statusやerrorをactive/空一覧へ潰さない。
+- audit / トランザクション境界: read-only。DB/audit txなし。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- board と list の filter 実装を分岐させない。status label と wire value の対応を型で固定する。テスト seed の状態変更は専用 clinic に限定する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 報告手順を trace 付きで再現し、source/asset/page-window のどれかを確定する。
+2. 失敗 test を追加し、server filter と query key を一本化する。
+3. board/list、全タブ、再読込、clinic 否定ケースを検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 原因証拠が残り、4タブ×2表示の AC と page/clinic 条件が通る。再現不能ならその事実と回帰 test の範囲を明記する。
 
 ---
 
@@ -155,6 +838,81 @@
 - **実際の結果**: 身体検査所見は常に空文字列で保存され、診断詳細・治療方針は入力内容に関わらず常に固定文字列「# 診断詳細」「# 治療方針」で上書き保存される。ユーザーが入力した臨床記録内容が一切保持されない。
 - **備考**: 固定文字列が見出しマークダウン風（`# ラベル名`）であることから、リッチテキスト/マークダウンエディタ系コンポーネントのデフォルト初期値（見出しテンプレート）がテキストエリアの実際の入力値と正しく同期されないまま送信されている可能性が高い。S06 手順2以降（確定・ロック・訂正追記等）はこの中身が保存されない状態のまま進めることになり、確定ロック機能自体の検証は継続するが、法的記録としての真正性という本シナリオの主目的は本バグにより満たされない。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-CLINICAL-PLAN-SAVE`
+- 同一 PR にする BUG: なし
+- 先行必須: 保存 payload / response / refetch の failure point 固定
+- 後続解放（シナリオ/他BUG）: S06 診察・治療プランの保存と再表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: 親 save action が template state を PATCH した後、`ClinicalPlanSection` が別 state/別 PATCH を持ち、post-save が再度保存する。refetch による再 hydrate も重なり、同じ臨床フィールドの複数 writer が last-write-wins を起こす。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。clinical-plan payload/response と post-save overwrite の同一 trace で根因を固定する。
+- 所有境界（FE / BE / データ / 環境）: FE=medical-record save action/section; BE=medicalrecord write owner; データ=clinical plan + audit; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/medical-records/hooks/use-medical-record-post-save.ts`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/clinical_plan_handler.go`、`clinical_plan_service.go`、`clinical_plan_repository.go`。 | typed PATCH、optimistic lock、clinic-scoped writeとaudit追加位置 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 既存 clinical-plan API/DB field を維持。payload/response/refetchの確認後、欠落mappingまたはpost-save overwriteだけを最小修正する。
+- 正しい挙動の定義（1〜3 文）: 入力した身体所見・診断詳細・治療方針が保存応答と再GETで一致し、固定文字列で上書きされない。
+- やらないこと（Out of scope）: clinical plan以外のカルテ再設計、失敗時の成功toast、監査外更新。
+- 既存データ修復の要否と手順: 不明。保存済み欠落値は元入力を復元できないため自動補修せず、監査可能な原資料がある場合のみ別検討。
+
+- 身体検査所見・診断詳細・治療方針の state owner を一つにし、一回の versioned PATCH で送る。child component は controlled input とし独自保存を持たない。
+- BE は clinic/pet/record、finalized/locked、version を検証し、更新と監査を同一 tx に置く。空文字での明示クリアと「未送信」を区別する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given未確定カルテに3欄の異なる値を入力、When一度保存して再読込する、Then入力値が一字も固定文言へ置換されず保持され、clinical-plan PATCHは一回だけになる（別責務のnext-visit PATCHはこの回数に含めない）。
+2. 回帰: 他カルテfield、再GET、audit、再保存を維持する。
+3. 負例: 4xx/5xx/競合では入力を固定文字列へ置換せず、成功toastを出さない。 既存境界AC: Given stale version または finalized record、When 保存する、Then 409/適切な拒否となり一部フィールドも監査も commit されない。
+4. 横展開確認対象: medical-record save action内の全section mapping
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*(ClinicalPlan|OptimisticLock|Audit)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/medical-records/hooks/use-medical-record-save-action.test.ts`。`src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.test.tsx`は新規追加予定。
+- 手動/E2E: S06 手順1（カルテ編集 `/medical-records/:id`、「診察/治療プラン」タブ）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 診療計画は臨床記録。clinic/medical-record/pet/staff FKを検証する。
+- fail-closed の維持: payload欠落・競合・保存失敗で固定値や成功表示へfallbackしない。
+- audit / トランザクション境界: clinical planとauditをmedicalrecord ownerの同一DBOrTxで更新。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 失われた既存診療記録を固定文字列から推測復元しない。補修は audit/backup を用いた個別レビュー対象。
+- retry による二重 PATCH、別 pet/clinic の record ID、確定後更新を fail-closed にする。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 二重 request と再読込欠落を component/integration test で再現する。
+2. state owner と save command を一本化し、BE の versioned tx を確認する。
+3. 失敗 rollback、再読込、navigation blocker、監査を E2E で検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 3欄の round-trip、単一 writer、競合/lock、監査原子性が通り、既存データ補修は別承認事項として切り出される。
+
 ---
 
 ## BUG-011: 2件目以降の見積書新規作成が、タイトル内容によらず常に「estimate '' already exists」(409)で拒否される【重大】【S07ブロッカー】
@@ -175,6 +933,79 @@
 
 - 予防接種新規登録フォームの「接種日」は、[S03 手順1](docs/ops/testing/scenarios/S03-vaccination-next-due-autocalc.md) の期待「実施日のデフォルトが当日である」に反し、**空欄**で開く（デフォルト値なし）。
 - 「次回の予定」で任意の日付に手動上書きしても、隣の間隔セレクタ（3週後/4週後/1年後/以外）の表示が直前に選んでいた値（例: 1年後）のまま変わらず、「以外（手動）」に切り替わらない。実害は小さいが、選択中の間隔と実際の次回予定日の表示が食い違って見える。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-ESTIMATE-NUMBER`
+- 同一 PR にする BUG: BUG-011のみ
+- 先行必須: 現行 DB constraint と採番 tx の競合再現
+- 後続解放（シナリオ/他BUG）: S07 見積書2件目以降の作成
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE / DB（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: `estimate_service.go` は create 前に `AllocateNextEstimateNo` を呼び、repository は clinic scoped advisory lock で採番する。bug 報告時の空文字経路が current HEAD で残るか、元の2件目手順で確認する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。title duplicate ではなく clinic-scoped estimate_no 採番/一意制約の競合。
+- 所有境界（FE / BE / データ / 環境）: FE=estimate create consumer; BE=billing estimate owner; データ=estimates full unique index; 環境=同時実行/既存 sequence 状態
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| BE | `backend/internal/billing/estimate_service.go` の create command。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/billing/estimate_repository.go` の `AllocateNextEstimateNo`。 | 現行証拠 / 変更候補 |
+| DB/migration | `backend/migrations/001_init.sql` の `estimate_no` NOT NULL と `idx_estimates_clinic_estimate_no`。 | `WHERE`なしのclinic-scoped full unique。論理削除番号も予約 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API変更なし。既存NOT NULLとclinic-scoped full unique index（WHEREなし）を維持する。current HEADでも空番号が生成される場合だけ、補修後に`btrim(estimate_no) <> ''` CHECKを別migrationで追加する。
+- 正しい挙動の定義（1〜3 文）: 同一clinicでestimate_noを一意に割当て、2件目と並行作成が成功/競合再試行で整合する。
+- やらないこと（Out of scope）: title重複扱い、空identifier露出、既存checksumの自動書換え。
+- 既存データ修復の要否と手順: `btrim(estimate_no)=''`、重複、最大値をclinic別read-only dry-runし、業務承認後に一意番号へ別補修する。CHECK migrationを取り込んだ場合もagentは適用せず、人が`make migrate`。
+
+- current HEAD で2件連続・並行作成を再現し、空番号が送信/保存されないことを確認する。再現しなければ追加実装をせず、回帰 test と既存空番号データ監査のみ行う。
+- 再現時は採番と create を同一 tx/advisory lock 内に閉じ、client 指定番号を信頼しない。unique collision は限定 retry 後に明示失敗する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 同一 clinic、When 異なるタイトルの見積書を逐次2件および並行作成する、Then 空でない一意な番号で全件成功する。
+2. 回帰: 1件目、2件目、並行作成、別clinic採番を通す。
+3. 負例: 採番競合・DB errorで空identifierやSQLを露出せず、重複rowをcommitしない。 既存境界AC: Given 別 clinic、When 同時作成する、Then clinic ごとの採番規約に従い、相互存在を漏らさない。
+4. 横展開確認対象: estimate create/updateと番号表示
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing/... -run '^(TestEstimateService_Create_AssignsEstimateNo|TestEstimateService_Create_TwoSequentialRequests|TestEstimateRepository_AllocateNextEstimateNo_ConcurrentClinicIsolation)$' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/estimates/routes/EstimateForm.test.tsx`
+- 手動/E2E: S07 手順1・7・9（見積書管理 `/estimates/new`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 会計整合対象。estimate_noはclinic内一意・非空、別clinic分離。
+- fail-closed の維持: 採番/insert失敗で空番号・重複・部分見積を残さない。
+- audit / トランザクション境界: 採番lock、insert、auditをbilling ownerの同一txへ置く。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- advisory lock key に clinic を含め、tx 外採番を禁止する。既存 `estimate_no=''` の補修は件数/重複候補を dry-run し、帳票識別子の業務承認後に別実行する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 元手順と並行 test を current HEAD で実施し、request/DB 番号を記録する。
+2. 必要な場合だけ tx 採番を修正し回帰 test を追加する。
+3. 空番号監査と S07 後続を行い、補修要否を別判断する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 元障害シナリオと競合 test が通り、空番号を新規生成せず、現行で再現しない場合は「既修正・回帰確認」として証拠を残す。
 
 ---
 
@@ -209,6 +1040,80 @@
 - **実際の結果**: APIが恒久的に応答せず、画面は「読み込み中...」から一切進まない。CPMチップクリック・タブ切替・飼主検索・CSV出力などS10の手順2〜11すべてが実施不能。
 - **備考**: 本バグにより S10 は手順1で完全にブロックされ、以降の手順（飼主A/BのLTV突合、CPM絞り込み、最終来院区分、CSV出力、ドリルダウン）はすべて未実施。会計側（S08・S09で確認したaccounting API群）は正常に動作しているため、`owners/aggregations` エンドポイント固有の問題と考えられる。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-OWNER-AGGREGATION`
+- 同一 PR にする BUG: なし
+- 先行必須: handler / query / lock の区間計測
+- 後続解放（シナリオ/他BUG）: S10 顧客集計ダッシュボードと後続集計確認
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / DB（計測先行）
+- 観測根拠（API・クエリ・コード参照）: FE は main analytics に加え CPM stage count を6回要求する。BE aggregation service は全対象を読み Go 側で filter/page し、LTV repository には非 bounded 集計と相関 subquery がある。どの query が支配的かは未計測。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。timeoutを外部依存と決め打ちせず query/lock を測る。
+- 所有境界（FE / BE / データ / 環境）: FE=aggregation dashboard state; BE=lstep/billing aggregation owner; データ=owner aggregation query/cache; 環境=DB lock/plan/row count
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/aggregation/api/get-cpm-stage-counts.ts` と dashboard route。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/lstep/aggregation_service.go`、`backend/internal/owner/ltv_repository.go`。 | 現行証拠 / 変更候補 |
+| DB/query | `backend/internal/owner/ltv_repository.go` のpayments集約subquery/join。 | `payments.clinic_id` predicateとcomposite joinの隔離確認 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 既存responseへ`cpm_stage_counts`を加算追加し、FEの6本fan-outを1 HTTP requestへ統合する。owners/totalは全filter、countsは`cpm_stage`以外のfilterを適用する。schema indexはEXPLAIN根拠の別migration。
+- 正しい挙動の定義（1〜3 文）: 集計はboundedに完了し、deadline/lock時はloadingを終了して再試行可能な明示errorを返す。
+- やらないこと（Out of scope）: 空結果fallback、無根拠な外部API timeout、full table scanの隠蔽。
+- 既存データ修復の要否と手順: 不要。indexが必要なら別migration、人が `make migrate`。
+
+- request ID ごとに service/repository 区間を計測し、`EXPLAIN (ANALYZE, BUFFERS)` で clinic/date/filter 別の plan と行数を採取する。
+- DB側へfilter/pagination/countを移し、dashboard responseへtyped `cpm_stage_counts`を一括追加する。payments集約は`WHERE payments.clinic_id = ?`、`GROUP BY clinic_id,billing_id`、親joinもclinic_id+billing_idで結合する。indexは計測で裏付けたpredicate/orderにだけ追加する。
+- request context cancel と server timeout を伝播し、FE は timeout/error/retry を表示する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given demo相当件数、When `/api/v1/clinics/:clinic_id/owners/aggregations` を既定条件と空期間で呼ぶ、Then1 HTTP requestでowners/total/pageと全stage countsが合意時間内に返り、page外ownerをGoへ全件搬送せずUIがloadingを離脱する。
+2. 回帰: 他集計条件・cache・dashboard retryを維持する。
+3. 負例: lock/deadline/cancelでloadingを継続せず、別clinic countを返さない。 既存境界AC: Given 別 clinic、When同じfilterを使う、Then row/count/aggregate の全てが分離される。Given client cancel、Then DB query も中断される。
+4. 横展開確認対象: owner aggregation endpointsとdashboard states
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/owner/... ./internal/lstep/... -run '^(TestFindOwnerLTV_.*|TestListOwnerAggregation_.*)$' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/aggregation/api/get-cpm-stage-counts.test.tsx src/features/aggregation/routes/AggregationDashboardPage.test.tsx`
+- 手動/E2E: S10 手順1（顧客集計ダッシュボード `/aggregation`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 集計はclinic隔離対象。count/rows/cacheの全predicateにclinic_idを含める。
+- fail-closed の維持: timeout/errorを空集計や永続loadingへ潰さない。
+- audit / トランザクション境界: read-only。cancelをDB queryへ伝播し、indexは別migration。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- index の憶測追加、全件を memory へロードする fallback、失敗を空集計に変換する処理を禁止する。EXPLAIN は個人情報値を成果物へ残さない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. latency budget と trace/EXPLAIN を取得し failure signature を固定する。
+2. repository query を bounded 化し、必要な index を別 migration として検証する。
+3. response 集約、cancel/error UI、clinic/count integration test を実装する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- p50/p95 と query plan の before/after、結果同値性、cancel、clinic isolation が証拠化され、migration は人手適用境界を明記する。
+
 ---
 
 ## BUG-013: 未請求明細取得APIが実データ存在時に500エラーを返し、トリミング×診察の統合会計が機能しない【重大】【S11ブロッカー】
@@ -224,6 +1129,83 @@
 - **期待結果**（[S11 手順5](docs/ops/testing/scenarios/S11-trimming-combined-accounting.md)）: 診察の処置明細とトリミングのコース・オプション明細が、未請求明細として1つの会計に自動で統合して取り込まれる。
 - **実際の結果**: 未請求明細取得APIが500エラーでクラッシュし、明細一覧は常に空のまま。トリミング・診察のいずれの明細も会計へ取り込まれない。
 - **備考**: 本バグにより S11 手順5以降（計算サマリ突合・精算・再表示防止確認・受付カンバン会計済み遷移）と異常系A1〜A3はすべて実施不能。トリミングコース側の価格が本clinic seedで軒並み¥0だった点（別途環境上の制約として記録）とは独立した、バックエンド側の実装不具合と考えられる。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-BILLING-UNBILLED`
+- 同一 PR にする BUG: BUG-013のみ
+- 先行必須: source 別 price / clinic / pet 整合の audit
+- 後続解放（シナリオ/他BUG）: S11 統合会計と BUG-018 の aggregate command
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE / データ / FE
+- 観測根拠（API・クエリ・コード参照）: `billing_item_service.go` はいずれか一 source の失敗で全 aggregation を500にする。vaccination candidate は price 欠損/負値を internal error とし、demo vaccine seed に price NULL があるため、正常な診療・トリミング候補まで失われ得る。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独だが BUG-018 の候補入力契約を解放する。price欠損 source と全体500を区別。
+- 所有境界（FE / BE / データ / 環境）: FE=accounting unbilled consumer; BE=billing aggregation owner; データ=source prices + clinic/pet provenance; 環境=demo seed price audit
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/accounting/api/get-unbilled-items.ts`、`use-accounting-detail-state.ts`。 | legacy array consumerと新details consumerの移行点 |
+| BE | `backend/internal/billing/routes.go`、`billing_item_handler.go` の`GetUnbilledItems`。 | legacy route維持とadditive route追加位置 |
+| BE | `backend/internal/billing/billing_item_service.go` の unbilled aggregation。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/billing/billing_item_repository.go` の vaccination candidates。 | 現行証拠 / 変更候補 |
+| Data/seed | `backend/migrations/seeds/003_demo/vaccinations.csv` と `vaccines.csv`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: additive API変更あり。既存`GET /api/v1/billing-items/unbilled`と`BackendAccountingItem[]`は維持し、新規`GET /api/v1/billing-items/unbilled-details`が`{items: BackendAccountingItem[], warnings: {source, code, count, blocking}[]}`を返す。DB schema変更なし。
+- 正しい挙動の定義（1〜3 文）: 有効sourceはitemsで可視化し、欠損price sourceは`blocking=true`のtyped warningにする。blocking warningが1件でも残る間はFE確定を無効化し、direct aggregate commandもserver側再集計で全書込を拒否してunderbillingを防ぐ。
+- やらないこと（Out of scope）: legacy endpointのbreaking envelope化、欠損価格の0円化、SQL/tenant情報のwarning露出。
+- 既存データ修復の要否と手順: seed価格は業務承認後の別差分。既存請求データは自動補修しない。
+
+- 新details routeの`warnings`は現在`source="vaccination"`、`code="vaccination_master_unbillable"`、当該clinic/petの除外`count`、`blocking=true`だけを返し、record ID・master名・価格・tenant情報を含めない。型付きdata-quality事象だけをwarning化し、SQL/timeout/接続errorは500のままfail-closedにする。
+- 既存`getUnbilledItems()`はsignatureを維持し、新規`getUnbilledItemDetails()`へ新会計consumerをatomicに移す。legacy routeのbreaking envelope化や、全consumer同時削除はしない。
+- 実際の会計書き込みでは欠損価格を0円に捏造せず fail-closed。clinic/pet/reservation 相関を各 source で検証する。
+- seed 補正は業務上正しい価格が承認された場合のみ別差分で行う。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given有効なtreatment/trimmingとprice欠損vaccinationがある、When未請求detailsを取得する、Then有効項目と`blocking=true`のvaccination warningが返り、FEはwarning解消まで会計確定を許可しない。
+2. 回帰: legacy raw-array endpointと全source成功を維持する。
+3. 負例: Givenclientがblocking warningを無視してvalid itemsだけをdirect aggregate commandへ送る、When serverが未請求sourceを再集計する、Then409/422で全書込を拒否する。全source失敗、欠損/負価格、別clinic/pet候補も0円やsilent successにしない。
+4. 横展開確認対象: accounting consumer、source repositories、BUG-018 command
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing/... ./internal/medicalrecord/... -run 'Test.*(Unbilled|VaccinationCandidate|Aggregation)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/accounting/api/get-unbilled-items.test.ts`
+- 手動/E2E: S11 手順5（会計新規作成 `/accounting/new?petId=xxx`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 会計整合対象。items/warningsをclinic/pet/sourceで分離する。
+- fail-closed の維持: 価格欠損を0円化せず、blocking warning中の部分会計を拒否し、infra errorをpartial successへ変換しない。
+- audit / トランザクション境界: readはsource別。実会計write時にcanonical価格を同一txで再検証する。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- partial-success を silent success にせず警告を必須表示する。金額欠損をゼロ扱いしない。source error の内容に内部 SQL/tenant 存在を露出しない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. source matrix の integration test で全失敗/部分失敗/全成功を固定する。
+2. legacy routeを固定するcontract test、新details routeとtyped warnings、新FE getterを実装し、新会計consumerだけを移行する。write-time再検証も追加する。
+3. BUG-018 の一括会計 command と S11 を接続して検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 有効候補は保持、無効候補は明示警告、書込は fail-closed、clinic/pet 相関が test され、seed 価格の推測補正をしていない。
 
 ---
 
@@ -245,6 +1227,78 @@
 - **実際の結果**: API呼び出しにAuthorizationヘッダが付与されず401で拒否され、常にエラー画面のみが表示される。
 - **備考**: 本バグにより S12 手順5〜9（ペットカード表示内容確認・飼主間隔離の実機証明・clinic_idなしエラー確認・データ取得失敗時のリトライ確認）はすべて実施不能。S04のBUG-008（line-reserveアプリ、`/api/liff/1/courses`）と本バグ（frontend/liffアプリ、`/api/liff/1/health-card`）は別々のフロントエンドアプリ・別APIエンドポイントで発生しているが、いずれも「LIFFモックトークンがAPIリクエストに一切伝播しない」という共通の実装欠陥に起因すると考えられ、LIFF関連機能全体（予約・ペットヘルス・アカウント連携）が本セッションの検証環境ではブラウザ経由で実質的に検証不能な状態。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-LIFF-AUTH`
+- 同一 PR にする BUG: BUG-008, BUG-014
+- 先行必須: BUG-008 の provenance gate と共通 auth contract
+- 後続解放（シナリオ/他BUG）: S12 health card、二者・二 clinic 隔離
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: 環境 / FE / BE（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: 現行health Appはtoken取得後だけpageを描画し、`liff-api.ts`はBearer headerを必ず送る。報告時401はBUG-008と同じ観測だが、同根は未確定。認証後service/repositoryにはclinic/LINE customer/pet scopeがある一方、静的確認だけでは二者間隔離の実証にならない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-008 と同一の401観測クラスタ。ただし現行 health-card client も header 付与済みで同根は未確定。
+- 所有境界（FE / BE / データ / 環境）: FE=shared LIFF + health-card transport; BE=LIFF auth/reservation health owner; データ=LINE customer→owner→pet clinic scope; 環境=built asset/runtime env provenance
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/shared-liff/use-liff.ts`、`frontend/liff/src/App.tsx`、`frontend/liff/src/api/liff-api.ts`。 | token生成、描画gate、Bearer送信 |
+| BE | `backend/internal/reservation/liff_service_health_card.go`、routes/auth middleware。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/lstep/line_customer_repository.go`、`backend/internal/medicalrecord/vaccination_repository.go`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 原因確定前は API/DB 変更なし。BUG-008のBearer/provenance契約を再利用し、health-card専用bypassを作らない。
+- 正しい挙動の定義（1〜3 文）: 認証後のLINE user→owner→petをclinic内で解決し、正当なownerのpetだけを返す。
+- やらないこと（Out of scope）: sourceと矛盾したheader追加、token/PIIのartifact化、pet ID直指定による認可。
+- 既存データ修復の要否と手順: 不要。
+
+- auth transport/error mapping は BUG-008 だけで直し、health card 側で別 bypass を作らない。認証後の LINE user→owner→pet 解決を clinic scoped service で fail-closed にする。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given localで両mock flag=trueまたはSTGでowner Aの正規LIFF token、When health cardを開く、ThenBearer認証が成立しAに紐づくpet履歴だけが返る。
+2. 回帰: BUG-008 courses/transportとhealth response schemaを維持する。
+3. 負例: 別customer/clinic、未連携、期限切れ/release mockでpet/clinic存在を漏らさない。 既存境界AC: Given owner B、別 clinic、未連携 user、期限切れ token、When A の pet を推測して要求する、Thenデータ非開示の拒否となる。
+4. 横展開確認対象: shared-liff auth、health-card、course catalog
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。 追加観点: STG S12 は実 LINE test account A/B で実施し、local mock 結果と混同しない。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/reservation/... ./internal/lstep/... ./internal/medicalrecord/... -run 'Test.*(HealthCard|LineCustomer|Vaccination)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run liff/src/api/liff-api.test.ts`
+- 手動/E2E: S12 手順5（token無しURL `/liff/1?clinic_id=1` でペットヘルスページを開く）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 認証と患者情報隔離対象。token→customer→owner→petsをclinic内で再検証する。
+- fail-closed の維持: pet ID直指定、release mock、real authへのsilent fallbackを禁止する。
+- audit / トランザクション境界: read-only。token/PIIをaudit artifactへ残さない。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- pet ID の直接指定だけで取得を許可しない。認証エラー文言で owner/clinic/pet の存在を区別しない。実 token をログ・成果物へ残さない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. BUG-008のprovenance gateでhealth-card requestも同時採取し、共通drop pointが証明されるまで別実装を始めない。
+2. owner A/B・clinic A/B の service integration test を追加する。
+3. S12 全手順と vaccination 追加後の再取得を STG で観測する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- S12 の表示・再取得・認証失敗・二者/二 clinic 否定ケースが通り、共通 auth の重複実装がない。
+
 ---
 
 # V01〜V05（個別フォーム検証、計84フォーム）
@@ -264,6 +1318,81 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: `weight: 8.5, weight_unit: "g"` として保存された（切替前は `weight: 8.5, weight_unit: "Kg"`）。数値は一切変換されず、単位ラベルのみが変わる。UI上も再読込後「8.5 g」と表示され、実際には8.5kgだった体重が8500分の1として記録される。
 - **備考**: UI操作→直接API GETの両方で2回再現性を確認。確認後、`PATCH /api/v1/medical-records/1425549/vitals/1425545` で `weight_unit: "Kg"` に戻し、後続検証への影響を排除済み。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-VITAL-WEIGHT-UNIT`
+- 同一 PR にする BUG: なし
+- 先行必須: canonical physical mass、表示精度、既存API/DBのvalue+unit契約の確認
+- 後続解放（シナリオ/他BUG）: 投薬量計算と S06/V02 のバイタル再利用
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / データ
+- 観測根拠（API・クエリ・コード参照）: edit/add row の Kg/g toggle は unit 文字列だけを変え、数値を換算せず raw value/unit を保存する。BE request に value/unit 組合せ validation がなく、dose utility は g を1000で割るため破損が投薬量へ伝播する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。表示単位切替と canonical保存単位の契約不一致。投薬計算への横展開あり。
+- 所有境界（FE / BE / データ / 環境）: FE=VitalsTab unit state; BE=medicalrecord vital validation; データ=canonical weight + historical outlier candidates; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/medical-records/components/VitalsTab/VitalsTabRows.tsx`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/vital_request.go`、`vital_service.go`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/lib/medicine-dose.ts`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB shapeと`body_weight_unit ('Kg','g')`を維持する。FE内部ではcanonical physical massを正本にし、選択unitのvalue+unit pairへ変換して保存する。BEはpairを安定した400契約で検証する。
+- 正しい挙動の定義（1〜3 文）: Kg/g切替は同じphysical massを5 Kg↔5000 gとして表示・保存し、再GETと投薬計算で実質重量が一致する。
+- やらないこと（Out of scope）: 表示labelだけの修正、既存値の無条件1000倍/1000分の1補正。
+- 既存データ修復の要否と手順: read-onlyで異常値候補を抽出し、患者・時刻・入力根拠を臨床承認後に別補修。
+
+- Kg↔g の pure conversion を一つ作り、add/edit 両 row で値と unit を原子的・不変に更新する。display 精度と保存精度を明示する。
+- BE は finite、正数、unit enum、獣医師承認済みの plausible bound を検証する。dose 計算は不正/欠損体重で提案せず fail-closed。
+- vital 更新と audit を同一 tx にし、audit の best-effort 継続を許さない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 5 kg、When gへ切替、Then 5000 g、再び kgで5 kgとなり保存・再読込・dose の実質重量が不変。
+2. 回帰: Kg/g往復、再GET、既存kg入力、投薬計算を通す。
+3. 負例: 空/負/上限外/単位不明を保存せず、既存外れ値を自動補正しない。 既存境界AC: Given 5000 g、When保存、Then同じ実質重量。Given NaN/0/負数/不正unit/承認上限外、Then保存とdose提案を拒否して理由を表示する。
+4. 横展開確認対象: vitals表示・request validation・medicine-dose
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*(Vital|Weight)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/lib/medicine-dose.test.ts`。pure conversionと`src/features/medical-records/components/VitalsTab/VitalsTabRows.test.tsx`は新規追加予定。
+- 手動/E2E: V01 §3 手順4（カルテ バイタル `/medical-records/:id` バイタル記録モーダル）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 1000倍誤保存は臨床安全。canonical unitと上限/下限をFE/BEで検証する。
+- fail-closed の維持: unit不明・範囲外を保存せず、既存値を自動変換しない。
+- audit / トランザクション境界: vital write/auditをmedicalrecord ownerの同一tx。補修は別承認。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 既存値を「1000倍/1000分の1」と一律補修しない。pet の履歴、unit、時刻、周辺値を抽出する read-only audit、獣医師レビュー、dry-run、監査付き個別補修を別 packet にする。
+- 換算の丸めで投薬量が変わらない precision を決める。別 clinic/pet vital の更新を拒否する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. pure conversion と add/edit/dose の RED test を追加する。
+2. FE 原子更新、BE boundary validation、tx audit を実装する。
+3. 既存データ候補の read-only 件数を出し、補修は別承認へ渡す。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- round-trip と dose 不変、invalid fail-closed、clinic/pet 隔離、audit 原子性が通り、既存データを未承認で変更していない。
+
 ## BUG-016: 予防接種・検査・入院の各独立フォームで、存在しないIDのURLを直叩きすると空の編集可能フォームが開いてしまう
 
 - **重大度**: 中（バックエンドは正しく404を返しており保存を試みても失敗するためデータ破損には至らないが、「存在しないIDのURL直叩きはエラー画面になるべき」という異常系要件に反する）
@@ -276,6 +1405,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: 3フォームとも編集可能な空フォームがそのまま開く。エラーの手がかりは（保存を試みた場合のみ）右下の未翻訳トースト「not found」だけで、フォームを開いた直後には一切のエラー表示がない。
 - **備考**: 対照として `/medical-records/999999999`・`/trimming/999999999` は正しく「見つかりません」エラー画面が表示されることを確認済み。よって本バグは予防接種・検査・入院の3フォームに限定される。`GET /api/v1/vaccinations/999999999` が404を返すこと（バックエンドは正しい）をネットワークログで確認済み。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-NOT-FOUND-EMPTY`
+- 同一 PR にする BUG: BUG-016, BUG-019（shared result contract; feature差分は分割可）
+- 先行必須: shared found / notFound / forbidden / error 契約
+- 後続解放（シナリオ/他BUG）: 予防接種・検査・入院・見積の直 URL 安全化
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: vaccination/examination の get API error が form hook の default model に吸収され、hospitalization は `isError` でも form render を続ける。その結果 URL に ID があるのに新規同様の編集可能画面になる。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-019 と空編集 fallback を共有。本件は vaccination/examination/hospitalization の3機能差分。
+- 所有境界（FE / BE / データ / 環境）: FE=各 edit query/hook/route; BE=各 read endpoint の404契約; データ=clinic-scoped entity IDs; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | Vaccination: `frontend/src/features/vaccinations/api/get-vaccination.ts`、`use-vaccination-form.ts`。 | 現行証拠 / 変更候補 |
+| FE | Examination: `frontend/src/features/examinations/api/get-examination.ts`、`use-examination-form.ts`。 | 現行証拠 / 変更候補 |
+| FE | Hospitalization: `frontend/src/features/hospitalization/hooks/use-hospitalization-form.ts` と form route。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB変更なし。FE read resultを `found/notFound/forbidden/error` で扱い、404をdefault edit modelへ変換しない。
+- 正しい挙動の定義（1〜3 文）: edit URLはfound時だけ編集可能、404/403/errorは非編集状態、create routeだけdefault formを使う。
+- やらないこと（Out of scope）: 他clinic IDの存在開示、全フォームの無関係なrouter再設計。
+- 既存データ修復の要否と手順: 不要。
+
+- loader/query の `loading | found | notFound | forbiddenOrHidden | error` を discriminated union にし、edit route では `found` 以外に form model を作らない。
+- 404 と tenant/authorization の内部差は server log にだけ残し、client には存在を漏らさない共通 error boundary を使う。create route の default model は別 entry point にする。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 存在しない vaccination/examination/hospitalization ID、When edit URL を開く、Then空の編集 form と保存 button は表示せず、既定 error page を表示する。
+2. 回帰: 正常editとcreate routes、BUG-019 estimateを維持する。
+3. 負例: 404/403/network errorを空formへ変換せず、他clinic存在を区別しない。 既存境界AC: Given 別 clinic の実在 ID、When同 URL を開く、Then同等の非開示応答となり、既存値も作成 default も見えない。
+4. 横展開確認対象: vaccination/examination/hospitalization/estimate edit loaders
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*NotFound|Test.*ClinicScope'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/vaccinations/hooks/use-vaccination-form.test.ts src/features/examinations/hooks/use-examination-form.test.ts src/features/hospitalization/hooks/use-hospitalization-form.test.ts src/features/hospitalization/routes/HospitalizationForm.permissions.test.tsx`
+- 手動/E2E: V01 §8 手順5（予防接種独立画面 `/vaccinations/:id`）、§7 手順4（検査入力 `/examinations/:id`）、§10 手順7（入院登録 `/hospitalization/:id/edit`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 空編集による誤保存を防ぐ。clinic-scoped IDとroute stateを分離する。
+- fail-closed の維持: 404/403/errorをeditable defaultへfallbackしない。
+- audit / トランザクション境界: read-only表示。後続writeはfound entityだけをBEで再検証。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- network error を404へ偽装して retry 導線を失わない。404/403 の差で tenant record の存在を推測させない。blank form の submit による意図しない create/update を禁止する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 3 form の不存在/別 clinic test を table 化して RED にする。
+2. query result union と共通 route boundary を実装する。
+3. create/edit の初期化分離、retry、save 非発火を確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 3フォームで空編集が消え、create は退行せず、404・network error・tenant 非開示と「保存 request 0件」が検証される。
+
 ## BUG-017: 検査入力フォームで必須項目（検査種別・担当医）が未入力のまま保存を押しても、保存はブロックされるがエラーメッセージが一切表示されない
 
 - **重大度**: 中（保存自体は正しくブロックされデータ破損はないが、職員には保存失敗の理由が一切示されない「無音失敗」に該当する）
@@ -287,6 +1489,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: それぞれ必須エラーが表示され保存されない
 - **実際の結果**: 保存は正しくブロックされる（POSTは発生しない）が、インラインエラーテキストもトーストも一切表示されない。検査種別セレクトにフォーカスリング（青枠）が付くのみで、通常のフォーカス表示と視覚的に区別しづらい。
 - **備考**: 同カルテ内の予防接種独立フォームでは同条件で明確なインラインエラーが表示されており、フォーム間で必須検証のUXが一貫していない。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-SILENT-VALIDATION`
+- 同一 PR にする BUG: BUG-017; BUG-021 は同一表示契約を別 owner で適用
+- 先行必須: 共通 field-error / ARIA 契約
+- 後続解放（シナリオ/他BUG）: 検査フォームと BUG-021 死亡記録の無音失敗解消
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE
+- 観測根拠（API・クエリ・コード参照）: `use-examination-form.ts` は検査種別/担当医 error を生成し route は focus しようとするが、`ExaminationFormFields.tsx` が error props を受け取らず描画しない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-021 と無音 validation 表示契約を共有。本件は examination fields。
+- 所有境界（FE / BE / データ / 環境）: FE=examination hook/fields + FormFieldError; BE=既存 validation は変更不要; データ=なし; 環境=browser accessibility tree
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/examinations/hooks/use-examination-form.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/examinations/routes/ExaminationForm.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/examinations/components/ExaminationFormFields.tsx` と共通 `FormFieldError`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB変更なし。FE field-errorとARIA表示契約だけを是正する。
+- 正しい挙動の定義（1〜3 文）: 必須field未入力ではrequestせず、各field近傍のerrorとfocus/ARIAを表示し、修正時に解消する。
+- やらないこと（Out of scope）: BE errorのvalidation成功化、全errorの一括消去。
+- 既存データ修復の要否と手順: 不要。
+
+- form hook の typed error map を field component へ渡し、該当入力の直後に `FormFieldError`、`aria-invalid`、`aria-describedby` を設定する。submit 後に先頭 invalid field へ focus する。
+- error は値変更時に当該 field だけ再検証し、server error と client field error を混同しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given 検査種別・担当医が空、When 保存、Then request は送られず両 field の日本語理由が表示され、先頭 field に focus する。
+2. 回帰: 有効submit、server error、BUG-021のfield-error契約を維持する。
+3. 負例: 必須未入力ではPOSTせず、修正済みfield以外のerrorを消さない。 既存境界AC: Given 値を修正、When 再入力/保存、Then該当 error が消え、他 error は必要なら残り、有効 payload だけ送信する。
+4. 横展開確認対象: FormFieldErrorと全medical form validation
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: 該当なし（API/DB変更なし。FE境界testで検証）
+- FE: `docker compose exec -T frontend npx vitest run src/features/examinations/hooks/use-examination-form.test.ts src/features/examinations/components/ExaminationFormFields.test.tsx`
+- 手動/E2E: V01 §7 手順1（検査入力 `/examinations/new?petId=xxx`）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 無音validationは臨床入力リスク。必須fieldとARIAを一致させる。
+- fail-closed の維持: invalid時はrequestしない。server errorをfield成功へ潰さない。
+- audit / トランザクション境界: invalid pathはwrite/auditなし。valid pathの既存txを回帰。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 色だけで error を示さず screen reader に関連付ける。focus loop や stale error を作らない。client validation を BE validation の代替にしない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 2 field の message/ARIA/focus test を RED にする。
+2. typed props と共通 error component を接続する。
+3. 値修正、server error、keyboard submit を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- request 0件、可視/読み上げ可能な理由、focus、修正後 clear が通り、BUG-021 でも同じ表示規約を使う。
 
 ## BUG-018: レジ締め済み期間に作成した会計の明細追加が400で失敗し、合計金額と明細が不整合な「壊れた」会計が残る
 
@@ -301,6 +1576,84 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: 会計ヘッダーの作成（`POST /api/v1/accountings`）は201で成功する一方、後続の明細追加（`POST /api/v1/billing-items`）は400エラーで失敗する。明細追加ダイアログには `post_close_reason` を入力する導線が存在しないため、ユーザーはこのエラーから回復する手段がない。結果として、合計金額が設定されているのに明細行が0件（またはヘッダーと不整合な内容）の会計レコードがDBに残る。
 - **備考**: 根本原因はコードレベルの欠陥である: (1) 明細追加ダイアログに `post_close_reason` を渡す経路が実装されていない、(2) 会計確定フロー側で「明細の合計とヘッダーのtotal_amountが一致しているか」を最終確認する仕組みがない。通常運用でも「締め後に会計を開始してしまった」ケースで再現しうる。ネットワークログ（`/api/v1/accountings` 201, `/api/v1/billing-items` 400）で直接確認済み。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-BILLING-ATOMIC`
+- 同一 PR にする BUG: BUG-018のみ
+- 先行必須: BUG-013 の未請求details契約
+- 後続解放（シナリオ/他BUG）: V02/S11 の原子的な会計確定とレジ締め後運用
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / DB
+- 観測根拠（API・クエリ・コード参照）: FE `use-accounting-completion-action.ts` は header、items、payment/reservation を複数 phase で保存し、items も逐次 request。レジ締め後理由が item request に届かず、途中まで commit された後400となる。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。BUG-013 は入力候補、こちらは aggregate write の原子性。
+- 所有境界（FE / BE / データ / 環境）: FE=accounting completion consumer; BE=billing aggregate write owner; データ=accounting/items/payments/splits/reservation/audit; 環境=register-close state
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/accounting/hooks/use-accounting-completion-action.ts`、`create-accounting-items.ts`、`create-billing-item.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/accounting/api/create-accounting.ts` と新規`complete-accounting.ts`。 | 旧多段consumerから単一commandへの移行 |
+| BE | `backend/internal/billing/routes.go`、`accounting_request.go`、`accounting_service_core.go`。 | additive route、typed input、aggregate tx owner |
+| BE | `backend/internal/billing/billing_item_service.go`。 | item/close reason/auditの既存検証をtx-aware collaborator化 |
+| DB/migration | `billings` のcompletion request key/hashとclinic-first full unique。 | retry idempotency。別migration・人手適用 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: additive API変更あり: `POST /api/v1/accountings/complete` と必須`Idempotency-Key` UUIDを追加し、既存accountings/billing-items endpointはFE移行中維持する。`billings.completion_request_id/hash`と`UNIQUE(clinic_id, completion_request_id)`は別migrationで追加し、agentは適用せず人が`make migrate`。
+- 正しい挙動の定義（1〜3 文）: serverがcanonical価格を再読込し、header/items/total/payments/splits/reservation/auditを1つの`DBOrTx`で全commitまたは全rollbackする。
+- やらないこと（Out of scope）: FE compensation delete、client total信頼、既存endpointの同時破壊。
+- 既存データ修復の要否と手順: 既存不整合はread-only audit→業務承認→別補修tx。自動削除/再計算しない。
+
+- FE の多段書込を、billing header、全items、server再計算 total、payments/splits、reservation completion、`post_close_reason` を含む一つの aggregate command に置換する。
+- BE billing owner が一つの `DBOrTx` で clinic/pet/owner/reservation、close境界、金額整合性を lock/再検証し、監査を含め全成功または全 rollback にする。FE compensation delete は使わない。
+- command bodyは`medical_record_id`/`hospitalization_id`、`owner_id`、`pet_id`、`scheduled_date`、memo/insurance、`items[]`、`payment_splits[]`、`post_close_reason`を受ける。`clinic_id`/actorは認証contextから取得し、source-linked itemのname/price/tax、billing ID/status/completed_at/subtotal/tax/totalはserverがtx内で再解決・生成する。
+- 初回成功は201＋既存AccountingResponse、同一key・同一normalized digestのretryは同じ会計を200で返し、同一key・異なるdigestは409、key欠落/不正は400とする。soft-delete後もkeyを再利用させず、retryでpayment/auditを重複させない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given open period、When 複数明細会計を確定、Then header/items/total/payment/reservation/audit が一度に一致して commit される。
+2. 回帰: open periodと既存read/update、BUG-013 warningsを維持する。
+3. 負例: closed reason欠落、N番目item失敗、競合/retryは全tableとauditを不変にする。 既存境界AC: Given closed period で理由欠落/不正、または N番目 item が失敗、When確定、Then全 table と audit が変更されない。 / Given許可された post-close 理由、When確定、Then理由と actor が監査され全体が原子的に成功する。
+4. 横展開確認対象: accounting create/items/payments/splits/reservation/auditと同一/異digest idempotent retry
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing/... -run 'Test.*(CompleteAccounting|Accounting.*Atomic|PostClose|Rollback|Idempot)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/features/accounting/hooks/create-accounting-items.test.ts src/features/accounting/routes/AccountingDetail.test.tsx`。`src/features/accounting/api/complete-accounting.test.ts`は新規追加予定。
+- 手動/E2E: V02 §1 会計・精算フォーム（新規会計作成） `/accounting/new?petId=X` → 確定後の明細追加を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 会計整合・権限・clinic隔離の最高リスク。actorとpost-close権限を検証する。
+- fail-closed の維持: client total/priceを信頼せず、いずれの途中失敗でも全rollbackする。
+- audit / トランザクション境界: header/items/payments/splits/reservation/audit/idempotencyを一つのDBOrTx。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- server total を client 値で信頼しない。close override の権限、理由、actor、clinic を fail-closed 検証する。監査を tx 外へ出さない。
+- 既存不整合は自動削除/再計算せず、header-total/items/payments/splits の read-only audit、業務レビュー、補修 tx を別 packet にする。
+
+#### 7. 実装ステップ（順序付き）
+
+1. N番目失敗、closed-period、同一/異digest retry、audit失敗、close raceのintegration testをREDにし、idempotency migrationを別レビューする。
+2. migration取込後は人が`make migrate`を実行し、additive route/request/responseとbilling ownerの単一transactionを実装する。
+3. FEを単一mutationへatomicに切替え、legacy routeを残したままBUG-013 warnings、retry、V02/S11を検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- success/全 rollback、server total、close override、監査、clinic/pet相関、idempotent retry が通り、既存不整合補修を別承認にしている。
+
 ## BUG-019: 存在しない見積書IDで編集画面を開くとエラー画面ではなく空白のフォームが表示される
 
 - **重大度**: 中（クラッシュや無限ローディングではないが、ユーザーが「新規作成中」と誤認しうる）
@@ -311,6 +1664,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: 「見積書が見つかりません」等の明示的なエラー表示、または一覧画面へのリダイレクトが行われる
 - **実際の結果**: エラー画面は表示されず、空白（未入力）の見積書編集フォームがそのまま表示される。新規作成フォームと見た目上区別がつかない。
 - **備考**: コンソール・ネットワークログ上で明示的な500エラーは出ていない（404が握りつぶされてUI側でフォールバックされている挙動とみられる）。BUG-002/016と同系統（存在しないID直叩き時のエラー画面欠如）だがフォームが異なるため別項目として記載。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-NOT-FOUND-EMPTY`
+- 同一 PR にする BUG: BUG-016, BUG-019
+- 先行必須: BUG-016 の shared result contract
+- 後続解放（シナリオ/他BUG）: 存在しない見積 ID の安全な Not Found 表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: `get-estimate.ts` の取得失敗後も route は undefined を form hook へ渡し、hook は `!!estimate` で new/edit を判定するため、URL は edit のまま new-like blank model になる。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-016 と空編集 fallback を共有。本件は estimate edit-mode 判定。
+- 所有境界（FE / BE / データ / 環境）: FE=estimates query/hook/route; BE=billing estimate read contract; データ=clinic-scoped estimate ID; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/estimates/api/get-estimate.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/estimates/routes/EstimateForm.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/estimates/hooks/use-estimate-form.ts`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB変更なし。estimate editはroute paramとfound状態で判定し、404をdefault modelへ変換しない。
+- 正しい挙動の定義（1〜3 文）: new routeだけ空の作成form、存在するIDだけedit form、404/403/errorは非編集状態にする。
+- やらないこと（Out of scope）: 他clinic estimate存在開示、estimate API全体の再設計。
+- 既存データ修復の要否と手順: 不要。
+
+- BUG-016 の discriminated loader result と error boundary を再利用し、route param の有無で mode を確定する。edit mode の undefined data を new default に変換しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given存在しない/別clinicの estimate ID、When edit URL を開く、Then非開示 error page、save request 0件、空 form なし。
+2. 回帰: 正常editとnew route、BUG-016 shared resultを維持する。
+3. 負例: 404/403/network errorをcreate modeへ落とさず、別clinic存在を漏らさない。 既存境界AC: Given network error、When retry、Then復旧可能で404と同一扱いに固定されない。Given `/estimates/new`、Then従来の新規 form が開く。
+4. 横展開確認対象: estimate routes/hooksと共通Not Found UI
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing -run 'Test.*Estimate.*NotFound|Test.*ClinicScope'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/estimates/routes/EstimateForm.test.tsx src/features/estimates/hooks/use-estimate-form.test.ts`
+- 手動/E2E: V02 §6 見積書フォーム（異常系） `/estimates/:id`（存在しないID）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 空見積の誤保存を防ぎ、clinic-scoped IDの存在を漏らさない。
+- fail-closed の維持: 404/403/errorをcreate modeへfallbackしない。
+- audit / トランザクション境界: read-only表示。後続writeはfound estimateだけをbilling txで扱う。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 404/403 の差で tenant 存在を漏らさない。new/edit mode を fetched object の truthiness に委ねない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. not found/別 clinic/network/new の route test を追加する。
+2. BUG-016 共通 result/boundary を estimates に適用する。
+3. save 非発火と direct URL/retry を確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 空編集が消え、new route は維持され、tenant 非開示と network retry が検証される。
 
 ## BUG-020: 電話番号フォーマットの検証エラーメッセージが、正しい値に修正した後も表示され続ける
 
@@ -325,6 +1750,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: 値を正しい形式に修正した後も、直前のフォーマットエラーメッセージが画面上に残り続ける。
 - **備考**: ハードブロッカーではないためUI上の表示不整合（バリデーション状態の再計算漏れ）として低重大度で報告。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-PHONE-ERROR-LIFECYCLE`
+- 同一 PR にする BUG: なし
+- 先行必須: なし
+- 後続解放（シナリオ/他BUG）: 予約内新規飼主フォームの再検証
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE
+- 観測根拠（API・クエリ・コード参照）: `ReservationFormModal.tsx` は submit 時に phone error を設定するが、`NewOwnerInlineForm` の change callback が当該 error を clear/revalidate しない。既存 test は error 表示までしか扱わない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。field error lifecycle の stale state。
+- 所有境界（FE / BE / データ / 環境）: FE=shared reservation modal/new owner form; BE=owner APIは回帰のみ; データ=なし; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/components/shared/ReservationFormModal/ReservationFormModal.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/components/shared/ReservationFormModal/NewOwnerInlineForm.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/components/shared/ReservationFormModal/ReservationFormModal.test.tsx`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB変更なし。phone fieldのvalidate/clear lifecycleだけを修正する。
+- 正しい挙動の定義（1〜3 文）: 有効値へ直すとphone errorだけが消え、他field errorは保持し、正当なsubmitは1回行われる。
+- やらないこと（Out of scope）: 電話番号仕様の変更、全errorの無条件clear。
+- 既存データ修復の要否と手順: 不要。
+
+- 電話番号 value/error を一つの form state で管理し、change/blur/submit が同じ pure validator を使う。変更時にその field だけ再検証し、無関係な server error は消さない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given不正電話で submit して error 表示中、When有効形式へ修正する、Then電話 error が消え、再 submit が可能。
+2. 回帰: 他field errorと正常owner作成を維持する。
+3. 負例: 無効phoneでsubmitせず、有効phone修正で無関係なerrorを消さない。 既存境界AC: Given別 field error、When電話だけ修正、Then別 error は保持される。
+4. 横展開確認対象: 予約modal内の新規/既存owner入力
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: 該当なし（API/DB変更なし。FE境界testで検証）
+- FE: `docker compose exec -T frontend npx vitest run src/components/shared/ReservationFormModal/ReservationFormModal.test.tsx src/components/shared/ReservationFormModal/NewOwnerInlineForm.test.tsx`
+- 手動/E2E: V02 §7 予約登録モーダル（新規飼主タブ） 電話番号入力欄を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 臨床/会計直接変更なし。個人連絡先validationをfield単位で扱う。
+- fail-closed の維持: invalid時はrequestせず、他field errorをsilent clearしない。
+- audit / トランザクション境界: invalid pathはwrite/auditなし。正常owner作成txは既存契約。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 入力途中の値を過剰に拒否せず submit/blur 時期を明示する。電話番号をログへ出さない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. invalid→valid の stale-error test を追加する。
+2. validator と field state owner を統一する。
+3. keyboard/blur/server-error coexistence を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- invalid→valid、別 error 保持、submit の3ケースが通り、error state の二重 owner がない。
+
 ## BUG-021: 死亡記録ダイアログの必須・未来日バリデーションでエラーメッセージが一切表示されない
 
 - **重大度**: 中
@@ -338,6 +1835,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: どちらのケースもAPIコール（`PATCH /api/v1/clinics/1/pets/{id}/death`）は発火せず保存はブロックされる（データ整合性は保たれている）が、画面上にエラーメッセージが一切表示されない。「死亡を記録する」ボタンは `<form>` に属さない `button[type="submit"]` のため、ネイティブHTML5バリデーションすら発火しない。ユーザーからは、ボタンを押しても何も起きていないように見える。
 - **備考**: pets/1015656（V03テストペット改, owner 310374）で検証。2回ずつ再現性を確認済み。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-PET-DEATH + C-SILENT-VALIDATION`
+- 同一 PR にする BUG: BUG-021（BUG-002/022 と回帰結合）
+- 先行必須: 共通 field-error 契約
+- 後続解放（シナリオ/他BUG）: BUG-002 の即時表示と BUG-022 の永続表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: submit button の `form` 属性は現行に存在する。ただし native `required`/date constraint が React action より先に submit を止めるため custom error state が描画されない。既存 test は action を直接呼び、この経路を通らない。BE は必須だけで未来日を拒否しない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-017 と無音 validation、BUG-002/022 と死亡 lifecycle を共有するが、本件は死亡日入力境界。
+- 所有境界（FE / BE / データ / 環境）: FE=PetDeceasedDialog; BE=lstep/pet death validation owner; データ=death date/optional reason/audit; 環境=現行server canonical JST
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedDialog.tsx` と同 test。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/lstep/lstep_lifecycle_handler.go` および death service/request validation。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB schema変更なし。死亡日は必須・未来日不可、理由は任意という既存契約をFE/BEで一致させる。
+- 正しい挙動の定義（1〜3 文）: 無効な死亡日はrequestせずfield errorを表示し、有効日は同一txで状態・死亡記録・auditを保存する。
+- やらないこと（Out of scope）: 理由の必須化、timezone推測、失敗時のdeceased表示固定。
+- 既存データ修復の要否と手順: 不要。
+
+- browser native validation と app validation の owner を明示し、form action が常に typed field errors を生成できる構成に統一する。`noValidate` を使う場合も semantic input/ARIA を維持する。
+- BEは現行server canonical JSTで死亡日を必須・実在日・未来日禁止として検証する。理由は任意を維持し、clinic/pet/既死亡を既存の原子的status predicateとtxで拒否する。per-clinic timezoneや新しいpet lockを根拠なく導入しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given死亡日が空（理由は任意）、When実際のbuttonを押す、Then request 0件で「死亡日を入力してください」が表示・読み上げされる。
+2. 回帰: 有効死亡日・任意理由・BUG-002/022表示を維持する。
+3. 負例: 空/未来日/invalid timezoneはrequestせず、BE失敗時にdeceased表示を固定しない。 既存境界AC: Given未来日、When保存、Then FE/BE とも拒否する。Given今日以前、When保存、Then BUG-002/022 の状態反映へ進む。
+4. 横展開確認対象: 死亡入力を使うdialog/API/lifecycle
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/lstep/... -run 'Test.*(Death.*Date|Deceased)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/components/shared/PetDeceasedRecordButton/PetDeceasedDialog.test.tsx`
+- 手動/E2E: V03 §4 ペット死亡登録ダイアログ（pet-deceased-dialog）チェック1・チェック2を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 死亡日は臨床/法的記録。clinic/pet/timezoneを検証し、理由は任意を維持。
+- fail-closed の維持: 無効日を保存せず、失敗時にdeceased表示へfallbackしない。
+- audit / トランザクション境界: pet status/death record/auditを同一DBOrTx。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- client clock だけを信頼せず BE timezone を正本にする。未来日拒否と死亡記録の監査を別 tx にしない。既死亡 record を上書きしない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. real click で native block を再現する component test を作る。
+2. error owner/ARIA と BE date validation を実装する。
+3. BUG-002 の即時反映、BUG-022 の再取得を同じ E2E で通す。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 空/未来/有効日の FE・BE matrix、request 0件、ARIA、tx監査、死亡表示の往復が通る。
+
 ## BUG-022: 死亡記録後、フルリロード後もペット編集モーダル・一覧の生死ステータスが「生存」のまま表示される（DBはdeceasedで正しい）
 
 - **重大度**: 高
@@ -350,6 +1919,81 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: `GET /api/v1/pets/1015656` および `GET /api/v1/owners/310374` のレスポンスは正しく `status: "deceased"` を返す（バックエンドの永続化は正常）。しかしフルリロード後の一覧表示・再オープンしたペット編集モーダル内の生死ステータスラジオボタンは、いずれも「生存」が選択された状態のまま表示される。フロントエンドが死亡ステータスの読み取り・表示に失敗している。
 - **備考**: 既知バグBUG-002（「ペット死亡ステータスが一覧に反映されない・要リロード」）と類似領域だが、BUG-002は「リロードすれば直る」ことが前提の記述である一方、本件は**フルページリロード後も直らず**、かつ一覧表示だけでなく**ペット編集モーダル自体の生死ラジオボタンも誤表示する**点でBUG-002より重大、または別事象の可能性がある。重複か否かの切り分けはコードレビューでの確認を推奨する。クリーンアップ: `DELETE /api/v1/clinics/1/pets/1015656/death` により生存状態へ復元済み（API経由で確認済み）。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-PET-DEATH`
+- 同一 PR にする BUG: current buildで同一原因を再現できた場合のみBUG-002, BUG-022。非再現または別原因なら分離
+- 先行必須: response→transform→view-modelとserved assetのprovenance採取
+- 後続解放（シナリオ/他BUG）: S01 死亡登録の再読込後表示と関連患者選択
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: 現行 `frontend/src/lib/transforms/pet.ts` は `deceased` を「死亡」へ写像し loader も transform を使うため、フルリロード後も生存という報告原因は current source だけでは説明できない。古い bundle/API payload/query key を観測する。一方、未知 status を生存へ fallback する経路は fail-open リスク。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-002は即時local-state staleで確認済み。本件は現行mappingが既にdeceased対応のためNEEDS REVIEWであり、再現・同一failure pointの証明前は重複扱いしない。
+- 所有境界（FE / BE / データ / 環境）: FE=pet/owner transforms + owners loader/form; BE=pet/owner staff response; データ=既に正しいdeceased; 環境=served asset/cache provenance
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/lib/transforms/pet.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/lib/transforms/owner.ts`、`frontend/src/features/owners/components/pet-form-data.ts`。 | owner responseとform defaultの変換 |
+| FE | `frontend/src/features/owners/loaders.ts` と owner/pet query cache。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/owners/hooks/use-owner-form.ts` の status default。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/pet/pet_response.go`、`backend/internal/owner/http_response.go`。 | staff向けstatus/date DTO。death reasonは意図的に除外 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: status/date修正はAPI/DB変更なし。`deceased_reason`は現行pet/owner DTOからPII最小化のため意図的に除外されており、理由再表示が必須ならstaff-only curated APIのproduct/security決定を別承認する。
+- 正しい挙動の定義（1〜3 文）: full reloadとmodal/listの全consumerが`status=deceased`と`deceased_at`を死亡表示へ変換する。death reasonは現契約では表示対象外としてUNREPORTEDを残し、無断で汎用DTOへ追加しない。
+- やらないこと（Out of scope）: DB状態の上書き、未知statusの生存扱い、別pet cache流用。
+- 既存データ修復の要否と手順: 不要。
+
+- 元 pet ID で network response→transform→form/table view model を trace し、source/asset/cache の failure point を確定する。再現しなければ current mapping の regression test と build provenance の確認だけを行う。
+- 未知/欠損 status は「生存」に推測せず「不明」または安全な非選択状態とし、clinical action で fail-closed にする。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given DB/APIが`status=deceased`と`deceased_at`を返す、When full reloadしてモーダルと一覧を開く、Then両方「死亡」と日付を示し、臨床/会計/予約の対象選択は不可となる。
+2. 回帰: 生存pet、死亡pet、modal/list/full reloadを維持する。
+3. 負例: unknown/null/別pet statusを生存defaultへ黙って変換しない。 既存境界AC: Given未知 status、When表示/会計・予約選択、Then「生存」扱いせず明示的な不明/拒否になる。別 pet/clinic cache は混入しない。
+4. 横展開確認対象: pet transformの全consumer
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/pet/... ./internal/owner/... -run 'Test.*(Deceased|ClinicScope|Response)' -count=1`
+- FE: `docker compose exec -T frontend npx vitest run src/lib/transforms/pet.test.ts src/features/owners/loaders.test.ts src/features/owners/hooks/use-owner-form.test.ts src/features/owners/components/OwnerPetsSection.test.tsx`
+- 手動/E2E: V03 §4 pet-deceased-dialog チェック3（C2永続化確認: 記録→一覧→再読込→再オープン）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 死亡statusは臨床安全対象。clinic/pet responseを正しくtransformする。
+- fail-closed の維持: unknown/nullを生存へ黙ってdefaultせず、別pet値を使わない。
+- audit / トランザクション境界: read-only表示。既存death write/auditはBUG-002/021で回帰。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- stale asset を source 修正と誤認しない。未知 status の fail-open は臨床/予約制約を破るため禁止する。既存 DB status を自動補修しない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. response/asset hash/query key を含む元手順を再現する。
+2. 確定した層だけを修正し、unknown fail-closed test を追加する。
+3. BUG-002/021 と full reload を一つの pet-death E2E にする。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- full reloadとimmediate updateの両方が死亡status/date表示、unknownはfail-closed、原因がsource/asset/cacheの証拠で説明される。death reasonはstaff-only curated API決定がない限り残余UNREPORTEDとして明記する。
+
 ## BUG-023: 権限グループ名の重複エラーが未整形の生バックエンドメッセージのまま表示され、グループ名部分が空文字になる
 
 - **重大度**: 中
@@ -361,6 +2005,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: 409は適切にハンドリングされ、ユーザーに理解可能な日本語エラーメッセージが表示される
 - **実際の結果**: トーストに `permission_group '' already exists` という未翻訳の生バックエンドエラー文字列がそのまま表示される。テンプレート変数（重複したグループ名）も空文字列になっており、本来入っているべき "執行" の部分が欠落している。500/白画面のクラッシュは回避されているが、日本語話者の医院スタッフには意味の分からない英語の技術的エラーメッセージが露出している。
 - **備考**: `handleApiError` 経由のエラー整形処理に、このエンドポイント固有のメッセージローカライズ・変数埋め込みが未実装と思われる。2回再現性確認済み。BUG-027（動物種類の同種メッセージ）と共通の実装パターンの可能性が高い。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-DUPLICATE-MSG`
+- 同一 PR にする BUG: BUG-023, BUG-027
+- 先行必須: 安定した conflict code / params 契約
+- 後続解放（シナリオ/他BUG）: 権限グループ・動物種ほか duplicate 表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE / FE
+- 観測根拠（API・クエリ・コード参照）: repository の DB error が `apperrors`/HTTP response を通って生文字列になり、FE `handle-api-error.ts` がそのまま toast へ渡す。対象名を構造化 params として保持していない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-027 と unique violation→生文言を共有。本件 resource は permission group。
+- 所有境界（FE / BE / データ / 環境）: FE=API error adapter/settings UI; BE=auth repository + apperrors/httpapi; データ=clinic-scoped unique conflict; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| BE | `backend/internal/auth/permission_group_repository.go`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/apperrors/errors.go`、`backend/internal/httpapi/response.go`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/lib/handle-api-error.ts` と permission group settings UI。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: additive API error契約変更あり: conflictへ安定した `code` と安全な `params` を付与。DB schema変更なし。
+- 正しい挙動の定義（1〜3 文）: 重複permission group名を対象名付き日本語で示し、unknown DB errorは内部情報なしのfallbackにする。
+- やらないこと（Out of scope）: constraint/table名やSQLの露出、FEだけの文字列parse。
+- 既存データ修復の要否と手順: 不要。
+
+- owner service で unique violation を domain error `permission_group_name_conflict` と安全な params（入力名）へ変換する。HTTP は stable code と field を返し、内部 constraint/table/SQL を返さない。
+- FE は code を日本語 field/toast 文言へ mapping し、未知 code は一般エラーへ落とす。生 backend message を表示しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given同一 clinic に同名 group、When作成/改名、Then保存されず「権限グループ名『X』は既に使用されています」と表示し、空名・table名・SQLは出ない。
+2. 回帰: 正常作成、unknown error fallback、BUG-027を維持する。
+3. 負例: 別clinic規則どおりの同名、空params、未知DB errorで内部名を露出しない。 既存境界AC: Given別 clinic に同名、When許可された作成、Then tenant 規約どおり扱われ、他 clinic の存在を理由に拒否/開示しない。
+4. 横展開確認対象: 全master conflict adapterとhttp error envelope
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/auth ./internal/httpapi -run 'Test.*PermissionGroup.*Duplicate|Test.*ErrorResponse'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/routes/PermissionGroupSettings.test.tsx src/features/master/components/PermissionGroupSidePanel.test.tsx`。`src/lib/handle-api-error.test.ts`は新規追加予定。
+- 手動/E2E: V03 §6 permission-group-side-panel チェック3を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 権限/clinic隔離対象。safe code/paramsだけを公開する。
+- fail-closed の維持: DB/constraint/table名をraw表示せず、unknown errorをsuccessにしない。
+- audit / トランザクション境界: permission group create/auditの既存txを維持。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- constraint 名の文字列一致だけに依存せず Postgres code/known constraint を限定 mapping する。入力名は UI text として escape し、tenant existence は漏らさない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. repository/service/HTTP の error contract test を追加する。
+2. stable code/params と FE localization を実装する。
+3. BUG-027 を同じ adapter で検証し、未知 DB error の非漏洩を確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- 2 master の重複が適切な対象名で表示され、生 DB message/空名がなく、clinic 分離と unknown-error fallback が通る。
 
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
@@ -376,6 +2093,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: `PATCH` は200で成功し「更新しました」のトーストも表示されるが、直後の `GET` では該当ルールの値が変更前のまま（`updated_at` タイムスタンプのみ更新される＝サーバ側で何らかの処理は実行されているが値自体が反映されていない）。この現象は通常フィールドでも自己剥奪ガード対象フィールドでも同様に再現するため、チェック4（BUG-140自己剥奪ガードの動作確認）は本バグによりブロックされ、「ガードが正しく機能して拒否している」のか「単にこの保存バグにより変更自体が反映されていないだけ」なのかを区別できず、**未確定**として報告する。
 - **備考**: 3回のトグル+保存+API確認で再現性を確認済み、いずれも同じ結果。ページ再読込・パネル再オープン後も変更前の値が表示されることも確認済み。管理者が特定スタッフの操作権限を剥奪したつもりが実際は剥奪されていない、という重大な業務影響が起こり得る。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-PERMISSION-MATRIX`
+- 同一 PR にする BUG: なし
+- 先行必須: payload / response / DB readback / cache の同一 trace 採取
+- 後続解放（シナリオ/他BUG）: V03 権限マトリクスと自己剥奪 guard
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / DB（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: 現行 FE は rules builder と PATCH body を持ち、BE request/service は rules を受け repository tx で置換する。報告の「200だがDB未反映」は source だけでは再現原因を確定できない。自己権限剥奪 guard と stale response/cache も区別する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。現行 source は rules payload/update を持つため request/DB/readback/cache の落下点を確定する。
+- 所有境界（FE / BE / データ / 環境）: FE=permission settings model/API/cache; BE=auth handler/service/repository; データ=group rules + audit + clinic scope; 環境=loaded asset/runtime trace
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | FE `frontend/src/features/master/routes/permission-group-settings-model.ts` と `frontend/src/features/master/api/permission-groups.ts`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/auth/http_permission.go`、`permission_group_service.go`、`permission_group_repository.go`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 再現で落下点が確定するまでAPI/DB変更なし。成功はpersist/readback後だけとし、必要なowner層だけを直す。
+- 正しい挙動の定義（1〜3 文）: matrix変更が同一clinicのDB/再GETへ一致し、自己剥奪や別clinic rule IDは原子的に拒否される。
+- やらないこと（Out of scope）: UIだけの成功表示修正、権限guard無効化、他tenant rule付与。
+- 既存データ修復の要否と手順: 不明。DB不反映なら不要、部分反映が見つかった場合のみread-only audit→別補修。
+
+- click時 form state→PATCH body→response→GET→permission-group/rules tables を同一 ID/clinic で追跡し、drop point を確定する。成功通知は再取得した version/rules が request と一致した後に出す。
+- service は group と全 rules を一 tx で lock/replace/audit し、自己剥奪 guard は明示 code で全 rollback する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given非自己剥奪の1権限変更、When保存、ThenPATCH body、response、再GET、DB rules が一致し再ログイン後も反映される。
+2. 回帰: 正常rule更新、再GET、self-deprivation guardを維持する。
+3. 負例: 別clinic rule ID、権限なしactor、途中失敗は200/success toastや部分commitにしない。 既存境界AC: Given自己剥奪/別clinic rule ID/途中失敗、When保存、Then明示拒否か全 rollback で、虚偽成功を出さない。
+4. 横展開確認対象: permission matrixのcreate/update/delete/readback
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/auth -run 'Test.*PermissionGroup.*Rule|Test.*Self.*Permission'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/routes/PermissionGroupSettings.test.tsx`
+- 手動/E2E: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 権限・clinic隔離の重大変更。actor、group、rule IDsを同一clinicで検証する。
+- fail-closed の維持: 自己剥奪/別clinic/途中失敗を200やpartial rulesへfallbackしない。
+- audit / トランザクション境界: rules一式とauditをauth ownerの同一DBOrTxでlock/update/readback。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 権限変更は current session を含むため専用 test actor/group を使い、管理者をロックアウトしない。rule replace と audit を tx 外に分けない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. read-only trace で報告を再現し failure layer を固定する。
+2. その層の RED test を追加し、必要最小の save/tx/cache 修正を行う。
+3. 再ログイン、自己剥奪、別 clinic、途中失敗を検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- body→DB→再GET→認可結果が一致し、虚偽成功なし、自己剥奪/tenant/rollback test が通る。再現不能なら current contract の証拠と回帰範囲を記録する。
+
 ## BUG-025: 主訴種別・問診テンプレートなど一部マスタで新規作成時に is_active=false（無効）で保存される
 
 - **重大度**: 高（新規作成したマスタが画面上「有効」に見えるトグル状態のまま保存すると、実際には無効状態でDBに保存され、他画面のドロップダウン等に一切現れず、ユーザーが気づかないまま機能しない）
@@ -389,6 +2178,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: ステータストグルが「有効」を表示したまま保存した場合、保存後のレコードも `is_active: true` になる（動物種類・診断カテゴリ・ケージ・物販・保険・入院プランでは同一パターンで正しく `is_active: true` で保存されることを確認済み）
 - **実際の結果**: 主訴種別・問診テンプレートの新規作成では、UIのトグル表示に反して `is_active: false` でDBに保存される
 - **備考**: `GET /api/v1/masters/chief-complaint-types` のレスポンスで再現性を2回確認済み（id:19, id:20 いずれも false）。本バグは一部マスタ（少なくとも主訴種別・問診テンプレートの2フォーム）に限定される可能性が高く、他フォームでも横展開で発生していないか要確認。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-SAVE-FIELDS`
+- 同一 PR にする BUG: BUG-025, BUG-028（共通 builder 規約; domain差分は分離可）
+- 先行必須: create payload の field-presence 契約
+- 後続解放（シナリオ/他BUG）: 主訴・問診テンプレートと処置マスタ保存
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: 主訴/問診 side panel の初期 model は active=true だが create payload builder が `is_active` を落とす。BE/ORM の zero value/default 契約に依存して false 保存となる経路がある。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-028 と create field omission を共有。本件は is_active presence、028 は anesthesia。
+- 所有境界（FE / BE / データ / 環境）: FE=master form models/builders; BE=domain create validators; データ=existing inactive rows; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/master/components/chief-complaint-side-panel-model.ts` と `frontend/src/features/master/routes/chief-complaint-settings-model.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/master/components/interview-template-side-panel-model.ts` と `frontend/src/features/master/routes/interview-template-settings-model.ts`。 | 現行証拠 / 変更候補 |
+| BE | 対応する BE request/service/repository の create contract。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API payload意味論の明示あり: create builderが`is_active`のpresenceとbooleanを送る。DB schema変更なし。
+- 正しい挙動の定義（1〜3 文）: 明示falseはinactiveのままround-tripし、true/defaultとの区別をFE/BEで保持する。
+- やらないこと（Out of scope）: 既存inactive行の自動有効化、全master builderの無関係な変更。
+- 既存データ修復の要否と手順: 既存inactive行は意図を推測できないため自動補修しない。
+
+- create/update payload 型に `is_active` を必須 boolean として含め、UI default を request まで保持する。BE は field presence と値を明示的に扱い、未指定を暗黙 false にしない。
+- 既存 inactive rows は意図的無効化とバグ生成を区別できないため一括 active 化しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given新規 panel の既定 active、When主訴/問診を保存、Then request/response/再GET/DB が `is_active=true`。
+2. 回帰: 明示true/updateとBUG-028 field builderを維持する。
+3. 負例: 明示falseをdefault trueへ変換せず、既存inactive行を自動変更しない。 既存境界AC: Given明示的 inactive、When保存、Then false が round-trip し、別 clinic の同名/状態へ影響しない。
+4. 横展開確認対象: chief complaint/interview templateほかmaster create builders
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*ChiefComplaint.*Create|Test.*InterviewTemplate.*Create'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/components/MasterCRUDPage.test.tsx`。`src/features/master/routes/ChiefComplaintSettings.test.tsx`と`InterviewTemplateSettings.test.tsx`は新規追加予定。
+- 手動/E2E: V04 §1 主訴種別 `/settings/interview/chief-complaint`、問診・定型文テンプレート `/settings/inquiry-templates`を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: master有効状態は診療選択肢へ波及。clinic/presence/booleanを検証する。
+- fail-closed の維持: 明示falseをdefault trueへfallbackしない。
+- audit / トランザクション境界: create/update/auditを各domain ownerの既存txで維持。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- omitted/false を同一視しない。既存 inactive の補修は作成時刻・audit・利用有無を抽出して業務承認する別作業。
+
+#### 7. 実装ステップ（順序付き）
+
+1. payload builder の true/false round-trip test を追加する。
+2. FE 必須 field と BE presence-aware request を実装する。
+3. 既存候補を read-only 監査し、BUG-028 の必須 field 契約へ横展開する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- true/false 双方の create/update/再GET、clinic 分離が通り、既存 inactive を未承認で変更していない。
 
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
@@ -405,6 +2267,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: 保存は実際には行われず（FE側で送信をブロック）にもかかわらず、保存成功時と同じ「登録しました」の成功トーストが表示される。エラー表示が一切ない。
 - **備考**: `POST` が送信されていないことをネットワークログで確認、また保存後にAPI照会で新規レコードが存在しないことを確認。100（境界内）は正しく受理・保存されることを確認済み。BUG-029（支払方法マスタ）と表示パターンが完全に一致しており、同一の共通保存処理（SidePanel/useMasterSave）に起因する可能性が高い。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-FALSE-SUCCESS`
+- 同一 PR にする BUG: BUG-026, BUG-029
+- 先行必須: click / request / mutation / toast lifecycle の再現 trace
+- 後続解放（シナリオ/他BUG）: 保険・支払方法と共通 master save
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: 現行 `use-master-save.ts` は mutation success callback 後だけ toast するように見え、validation false で成功通知する直接経路は確認できない。native form/action、前回 toast の残留、呼出側 return 契約を実操作で区別する。保険は FE/BE 双方の補償率境界も不足がないか確認する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-029 と false-success 報告を共有。ただし現行 hook は mutation成功後だけ toast するため実 trace 必須。
+- 所有境界（FE / BE / データ / 環境）: FE=useMasterSave + insurance form; BE=billing insurance validation; データ=coverage_rate; 環境=click/request/toast timeline
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/master/hooks/use-master-save.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/master/routes/InsuranceSettings.tsx`、`frontend/src/features/master/components/InsuranceSidePanel.tsx`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/billing/insurance_request.go` と insurance service。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 原因確定前はAPI/DB変更なし。再現時のみFE save resultをdiscriminated union化し、0–100 validationをFE/BEで一致させる。
+- 正しい挙動の定義（1〜3 文）: validation失敗・mutation失敗では成功toastを出さず入力を保持し、成功応答時だけ1回表示する。
+- やらないこと（Out of scope）: 報告だけを根拠に現行hookを改変、BE validation弱体化。
+- 既存データ修復の要否と手順: 不要。
+
+- save pipeline を `validation_failed | mutation_succeeded | mutation_failed` の discriminated result にし、toast/close/cache update は `mutation_succeeded` だけで行う。
+- 補償率は FE/BE とも0〜100の同じ境界で検証し、API未発火の client error と API error を別表示する。再現不能なら共通 hook を書き換えず回帰 test のみ追加する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given補償率101、When保存、Then POST/PATCH 0件、field error 表示、成功 toast 0件、panel は入力保持。
+2. 回帰: 0/100と正常保存、BUG-029共通saveを維持する。
+3. 負例: 101/NaN/server failure/request0ではsuccess toastを出さない。 既存境界AC: Given0/100、When保存、Then API成功後だけ toast/close/cache update。Given server失敗、Then成功通知なし。
+4. 横展開確認対象: useMasterSave全consumerとtoast lifecycle
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing -run 'Test.*Insurance.*Validation'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/hooks/use-master-save.test.ts`。`src/features/master/routes/InsuranceSettings.test.tsx`は新規追加予定。
+- 手動/E2E: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 会計マスタvalidation。clinic scopeとcoverage_rate境界を維持する。
+- fail-closed の維持: validation/mutation失敗をsuccess toastへ変換しない。
+- audit / トランザクション境界: 成功mutationのBE tx/audit後だけFE成功通知。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- stale toast を新しい操作の結果と誤認しないよう test ID/時系列を確認する。共通 hook の変更は全 master の close/cache 挙動を回帰させ得るため consumer matrix を限定実行する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 実 button click で network/toast/panel state を再現する。
+2. result 型と保険境界 test を追加し、必要な経路だけ修正する。
+3. BUG-029 と代表成功/server失敗 master を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- false-success の原経路が除去または再現不能と証明され、invalid/valid/server-fail の toast・request matrix が通る。
+
 ## BUG-027: 動物種類マスタで一意制約違反時のエラートーストに実際の名称が表示されず空文字になる
 
 - **重大度**: 低（機能的には重複登録が正しく拒否されており「無音失敗・白画面」にはならないが、エラーメッセージの品質が低く、内部テーブル名を露出した上に該当の名称が空欄になっている）
@@ -417,6 +2352,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: ユーザーフレンドリーな日本語エラーメッセージで、入力した名称が正しく表示される
 - **実際の結果**: `animal_species '' already exists` という内部的な英語メッセージがそのまま表示され、名称部分が空文字になっている
 - **備考**: 保存自体は正しくブロックされている（一覧に重複行は増えない）ため機能的な重大バグではないが、UXとして低品質。BUG-023（権限グループの同種メッセージ）と共通の実装パターンの可能性が高い。他の一意制約マスタでも同様のメッセージ形式が使われている可能性が高い（未全数確認）。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-DUPLICATE-MSG`
+- 同一 PR にする BUG: BUG-023, BUG-027
+- 先行必須: BUG-023 の conflict code / params 契約
+- 後続解放（シナリオ/他BUG）: 動物種と他マスタの duplicate 表示
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: BE / FE
+- 観測根拠（API・クエリ・コード参照）: animal species repository の unique error も共通 `apperrors`→raw HTTP→FE raw toast 経路を通り、入力名 params が失われる。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-023 と同一 error adapter 契約。本件 resource は global animal species。
+- 所有境界（FE / BE / データ / 環境）: FE=master UI/error adapter; BE=pet repository + apperrors/httpapi; データ=global unique conflict; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| BE | `backend/internal/pet/animal_species_repository.go` と service。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/apperrors/errors.go`、`backend/internal/httpapi/response.go`。 | 現行証拠 / 変更候補 |
+| FE | animal-species settings UI と `frontend/src/lib/handle-api-error.ts`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: additive API error契約はBUG-023を共用し、animal species用code/paramsを定義。DB schema変更なし。
+- 正しい挙動の定義（1〜3 文）: global scopeの重複名を安全な日本語で示し、unknown errorは内部情報を隠す。
+- やらないこと（Out of scope）: global/clinic scopeの変更、FE文字列parse。
+- 既存データ修復の要否と手順: 不要。
+
+- BUG-023 の stable code/params/localization adapter を再利用し、code を `animal_species_name_conflict` に限定する。global master か clinic master かという現行 scope 契約を test で明示する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given同一 scope に名称X、When重複作成、Then「動物種類『X』は既に使用されています」と表示し、空名/constraint/table は出ない。
+2. 回帰: 正常作成、global scope、BUG-023を維持する。
+3. 負例: unknown DB error、空paramsでtable/constraint名を露出しない。 既存境界AC: Given未知 DB error、When失敗、Then安全な一般文言となり内部情報を出さない。
+4. 横展開確認対象: animal speciesと全duplicate master messages
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/pet ./internal/httpapi -run 'Test.*AnimalSpecies.*Duplicate|Test.*ErrorResponse'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/routes/AnimalSpeciesSettings.test.tsx`。`src/lib/handle-api-error.test.ts`はBUG-023と共通で新規追加予定。
+- 手動/E2E: V04 §1 動物種類 `/settings/animal-species`（C3-2 一意制約違反チェック）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: global権限境界とerror安全。safe code/params以外を公開しない。
+- fail-closed の維持: unknown DB errorをraw表示/successにしない。
+- audit / トランザクション境界: animal species createの既存tx/auditを維持。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- global/clinic scope を勝手に変更しない。入力名は escape し、DB error はログにも必要最小限の context だけを残す。
+
+#### 7. 実装ステップ（順序付き）
+
+1. BUG-023 の共通 error adapter test に animal species case を追加する。
+2. domain mapping と日本語文言を実装する。
+3. empty-name/raw-message/unknown-error を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- BUG-023/027 の共通基盤と各 domain code が通り、対象名欠落・内部情報露出がない。
 
 ## BUG-028: 診療項目マスタ「処置」タブで新規登録が常に失敗する（内部フィールド名 anesthesia が必須なのにSidePanelに入力欄がない）
 
@@ -432,6 +2439,79 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: `anesthesia`（麻酔）というSidePanelに存在しないフィールドがバックエンドで必須とされており、新規登録が常に失敗する。加えて負値単価での保存試行時は何のフィードバックも出ない（無音失敗）。
 - **備考**: APIレベルでの直接検証によりFE/BE双方の原因を特定済み。作成してしまった検証用レコード（id:1005198, id:10013, および正常テスト用レコード）はいずれもAPI経由で `is_active:false` に無効化済み。既存の4,623件の処置データは編集（PATCH）では影響を受けない可能性があるため、既存データの編集保存も別途要確認（未実施）。
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-SAVE-FIELDS`
+- 同一 PR にする BUG: BUG-025, BUG-028
+- 先行必須: 麻酔区分の業務正本と BUG-025 の明示 field 規約
+- 後続解放（シナリオ/他BUG）: 処置マスタ create/update round-trip
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE
+- 観測根拠（API・クエリ・コード参照）: `TreatmentItemSidePanel.tsx` に anesthesia 入力がなく、create builder も送信しない一方、BE `procedure_request.go` は必須。負単価時の feedback も別 validation delta として扱う。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-025 と field omission を共有。本件は臨床的 anesthesia enum と price。
+- 所有境界（FE / BE / データ / 環境）: FE=treatment item panel/builder; BE=medicalrecord procedure owner; データ=anesthesia/price/category/clinic FK; 環境=業務正本確認
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/master/components/TreatmentItemSidePanel.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/master/routes/treatment-plan-master-model.ts`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/medicalrecord/procedure_request.go` と procedure service。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 既存BE request契約を維持し、FEが承認済みanesthesia enumとpriceを明示送信する。DB schema変更なし。
+- 正しい挙動の定義（1〜3 文）: 有効な麻酔区分/価格がcreate/update/reGETで一致し、欠落・負値はfield errorになる。
+- やらないこと（Out of scope）: 暗黙`none`補完、既存処置4,623件の一括変更。
+- 既存データ修復の要否と手順: 既存行は自動補修しない。enum/defaultの業務承認を先行する。
+
+- 業務上の anesthesia enum/既定値を確認し、SidePanel に日本語ラベルの typed control を追加して create/update payload に必須送信する。根拠なく `none` を暗黙補完しない。
+- 単価は FE/BE で非負・上限を同じ契約で検証し、field error を表示する。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given有効な麻酔区分と単価、When処置を新規作成、Then201、再GET/DBで全 field が一致し active 状態も保持される。
+2. 回帰: 正常update、price境界、BUG-025 buildersを維持する。
+3. 負例: anesthesia欠落/未知enum/負価格/別clinic category FKは保存・success toast不可。 既存境界AC: Given麻酔未選択または負単価、When保存、Then API前またはBEで明示的な日本語 field error、成功 toast なし。
+4. 横展開確認対象: procedure create/updateとtreatment master fields
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Procedure.*Create|Test.*Anesthesia'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/routes/TreatmentPlanMaster.test.tsx src/features/master/components/TreatmentPlanSidePanelHost.test.tsx`
+- 手動/E2E: V04 §2 診療項目マスタ 処置タブ `/settings/treatment-items?tab=procedure`を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 麻酔区分は臨床安全、価格は会計整合。clinic/category FKと権限を検証する。
+- fail-closed の維持: 未知enum・負価格・別clinic FKをdefault/成功へfallbackしない。
+- audit / トランザクション境界: procedure create/update/auditをmedicalrecord ownerの同一tx。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- anesthesia は臨床意味を持つため、既存値や暗黙 default を推測しない。既存4,623件の一括変更は範囲外。別 clinic の parent/category FK を拒否する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. enum/既定値の業務正本を確認し、missing/negative test を追加する。
+2. panel/model/request validation を同じ typed contract にする。
+3. create/update/再GET、parent FK、成功/失敗 toast を検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- UIから正当な処置を作成でき、必須/単価/clinic FK が fail-closed、内部 field 名の生表示と無音失敗がない。
+
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
@@ -445,6 +2525,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: 名称が重複している場合は保存されず、エラーメッセージが表示される（成功トーストは出ない）
 - **実際の結果**: 保存が実際には行われていない（APIコール自体が発生しない）にもかかわらず、正常保存時と同一の「登録しました」成功トーストが表示され、エラー表示が一切ない。
 - **備考**: BUG-026（保険マスタ・範囲外値）と表示パターンが完全に一致しており、同一の共通保存処理（SidePanel/useMasterSave）に起因する可能性が高い。時間の都合上、他マスタでの横展開確認は未実施。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `C-MASTER-FALSE-SUCCESS`
+- 同一 PR にする BUG: BUG-026, BUG-029
+- 先行必須: BUG-026 の再現 trace と discriminated save result
+- 後続解放（シナリオ/他BUG）: 支払方法の重複/競合と共通 toast 契約
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE（REPRODUCE-FIRST）
+- 観測根拠（API・クエリ・コード参照）: payment method の client validation が重複を検出して request 0件にする経路はあるが、現行共通 hook は mutation success 後だけ toast する。実 button click と toast lifecycle で BUG-026 と同じ failure signature か確認する。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: BUG-026 と false-success 報告を共有。ただし現行 source の request0+success経路は未確認。
+- 所有境界（FE / BE / データ / 環境）: FE=payment settings/API/useMasterSave; BE=billing duplicate guard; データ=payment method scope; 環境=request/toast timeline
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/master/routes/PaymentMethodSettings.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/master/api/payment-method-master.ts`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/master/hooks/use-master-save.ts`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 原因確定前はAPI/DB変更なし。再現時のみBUG-026のsave resultを共用し、duplicate precheckをvalidation_failedとして扱う。
+- 正しい挙動の定義（1〜3 文）: 重複/競合では成功toastなし、正常作成は1 request・1 toastになる。
+- やらないこと（Out of scope）: client precheckを一意性保証にすること、scope意味論変更。
+- 既存データ修復の要否と手順: 不要。
+
+- BUG-026 の discriminated save result を再利用し、duplicate precheck は `validation_failed` として field error を返す。最終一意性は BE/DB が判断し、競合時も成功通知しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given名称Xが存在、When同名を保存、Then POST 0件または409、成功 toast 0件、重複 error 表示、panel入力保持。
+2. 回帰: 正常作成、競合、BUG-026共通saveを維持する。
+3. 負例: client precheck漏れ/DB race/request0でfalse successを出さない。 既存境界AC: Given競合する2 request、When同時作成、Then一方だけ成功し、他方は適切な重複 error。別 clinic/global scope は現契約どおり。
+4. 横展開確認対象: payment methodとuseMasterSave全consumer
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/billing -run 'Test.*PaymentMethod.*Duplicate'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/master/hooks/use-master-save.test.ts`。`src/features/master/routes/PaymentMethodSettings.test.tsx`は新規追加予定。
+- 手動/E2E: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 会計マスタの一意性/clinic scopeを維持する。
+- fail-closed の維持: client precheck漏れやDB競合をfalse successにしない。
+- audit / トランザクション境界: 成功mutationのBE tx/audit後だけFE成功通知。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- client precheck を一意性保証にしない。前回 toast の残留を操作成功と数えない。scope の意味を変更しない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. network event と toast lifecycle を含む再現 test を作る。
+2. BUG-026 の共通 result と duplicate error を接続する。
+3. client precheck/DB競合/正常作成を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- request/toast/error/count の matrix が通り、DB競合でも虚偽成功がなく、BUG-026 と重複実装していない。
 
 ## BUG-030: LINE予約設定の最短予約受付日数を0に変更して保存すると、200成功・updated_at更新にもかかわらず値が永続化されない
 
@@ -460,6 +2612,80 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **実際の結果**: GETで返る値は旧値（2）のまま。保存UI上はエラー表示なく成功したように見えるが、実際には0が反映されていない。`-1`を入力した場合もFE側で`0`にクランプされた上で同じ現象が再現し、2回とも同一の非永続化を確認した。
 - **備考**: PUTは200を返し`updated_at`も変わるため、サーバ側で`0`/未指定を区別できないzero-value省略（Goの`omitempty`的挙動）が疑われる。エンドポイント: `PUT /api/v1/clinics/1/line-reservation-settings`
 
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-LINE-SETTINGS-ZERO`
+- 同一 PR にする BUG: なし
+- 先行必須: zero / omitted の repository 再現 test
+- 後続解放（シナリオ/他BUG）: LINE予約設定の 0→再GET round-trip
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / DB
+- 観測根拠（API・クエリ・コード参照）: FE は `booking_window_min_days: 0` を送信し BE request/service も値を代入する。repository の create+upsert と model の GORM `default:2` が zero を「未指定」と扱い、旧値/default を残す経路が根因で、`omitempty` 仮説ではない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。omitempty ではなく GORM default/upsert の zero 値扱いが候補。
+- 所有境界（FE / BE / データ / 環境）: FE=line settings form; BE=reservation request/service/repository; データ=model default + clinic setting/audit; 環境=なし
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/reservation/line_reservation_setting_request.go`、service、repository。 | 現行証拠 / 変更候補 |
+| DB/migration | `backend/internal/model/line_reservation_setting.go` の default tag。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: JSON/API意味論を明示: omittedと明示0を区別し、0を保存/readbackする。DB schema/default変更が必要な場合のみ別migration。
+- 正しい挙動の定義（1〜3 文）: 2→0→2とomittedが意図どおりround-tripし、responseは実永続値から作る。
+- やらないこと（Out of scope）: 全zero fieldの一括意味変更、既存値の意図推測補修。
+- 既存データ修復の要否と手順: 不要。schema変更時は別migration、人が `make migrate`。
+
+- request presence と値0を区別し、upsert の update columns/map または明示 `Select` で zero を必ず書く。create 時の default と update 時の zero を同一の ORM shortcut に委ねない。
+- write後に同 tx/同 clinic で再読込し、response を実永続値から返す。更新と監査を同一 tx にする。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given既存2、When0をPUT、Then response/再GET/DBが0で updated_at/監査も同じ変更を示す。
+2. 回帰: 2→0→2、omitted、再GETを維持する。
+3. 負例: 別clinic設定を変えず、0を未指定/defaultに変換しない。 既存境界AC: Given0から2、WhenPUT、Then2へ戻る。Given field未指定の内部 update、Then意図しない0上書きはしない。別 clinic は不変。
+4. 横展開確認対象: GORM zero-value updateを使う全reservation settings
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/reservation -run 'Test.*LineReservationSetting.*Zero|Test.*BookingWindow'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/line-reservation/components/LineReservationSettingsForm.test.tsx`
+- 手動/E2E: V05-8 稼働・受付ルール設定（`/line-reservation/settings`）#2を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 予約設定のclinic隔離/権限を維持し、0の意味を保存する。
+- fail-closed の維持: 0をdefault/omittedへfallbackせず、別clinicを更新しない。
+- audit / トランザクション境界: setting upsert/readback/auditをreservation ownerの同一DBOrTx。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 全 field の zero semantics を一括変更しない。既存設定2が「0保存失敗」で残ったかは audit なしに判別できないため自動補修しない。
+- schema/default変更が必要なら別 migration とし、agent は適用せず人手の `make migrate` を案内する。
+
+#### 7. 実装ステップ（順序付き）
+
+1. 2→0→2 と omitted の repository integration test を追加する。
+2. presence-aware request/upsert/readback/tx audit を実装する。
+3. FE round-trip と別 clinic 否定ケースを確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- zero/nonzero/omitted の全契約、再GET、監査、clinic 分離が通り、既存値を推測補修していない。
+
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
@@ -473,6 +2699,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: ログイン済みの `/login` 直アクセスは即リダイレクト（`LoginForm.tsx` の認証済みNavigate）＝ダッシュボード等へ自動遷移するはず
 - **実際の結果**: リダイレクトされず、ログインフォームがそのまま表示される。認証済みチェック用のリクエストも発火していない。
 - **備考**: `LoginForm.tsx` 側の認証済み判定ロジックが `/login` 到達時に働いていない可能性が高い。
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-LOGIN-SESSION-RESTORE`
+- 同一 PR にする BUG: なし
+- 先行必須: login route の session state trace
+- 後続解放（シナリオ/他BUG）: 有効/無効 session の直リンク導線
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE
+- 観測根拠（API・クエリ・コード参照）: `LoginForm.tsx` の redirect は in-memory user だけを見るが、public login route では auth restore を無効化し、user が null のため `/me` も発火しない。既存 session を hydrate する入口がない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。public login route の session hydrate 不在。
+- 所有境界（FE / BE / データ / 環境）: FE=auth provider/login route; BE=/me は既存契約; データ=session only; 環境=cookie/session state
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/auth/components/LoginForm.tsx`。 | 現行証拠 / 変更候補 |
+| FE | `frontend/src/features/auth/hooks/use-auth.tsx` と public route configuration。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: API/DB変更なし。login route限定のsession hydrate stateを追加し、安全な内部redirectだけを許可する。
+- 正しい挙動の定義（1〜3 文）: valid sessionは`/me`一回後redirect、invalidはform、network errorはretry可能でloopしない。
+- やらないこと（Out of scope）: open redirect、public route全体の無制限restore、credential logging。
+- 既存データ修復の要否と手順: 不要。
+
+- `/login` 到達時だけ lightweight session hydrate を一度行い、authenticated→安全な既定画面、unauthenticated→login form、pending→非操作 loading を明示する。
+- redirect target は検証済み内部 path だけを許可し、public route 全体で無制限に restore を有効化しない。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given有効 session、When `/login` を直開き、Then `/me` 1回後に既定画面へ replace redirect し login form を操作可能状態で見せない。
+2. 回帰: 通常login/logout/browser backを維持する。
+3. 負例: invalid/expired/network errorでloop/open redirect/session存在漏洩を起こさない。 既存境界AC: Given無効/期限切れ session、When直開き、Then form を表示し redirect loop しない。Given network error、Then再試行可能な errorとなる。
+4. 横展開確認対象: auth providerとpublic/protected route transitions
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: 該当なし（API/DB変更なし。FE境界testで検証）
+- FE: `docker compose exec -T frontend npx vitest run src/features/auth/components/LoginForm.test.tsx src/features/auth/hooks/use-auth-initial-session.test.tsx`
+- 手動/E2E: V05-1 ログイン #3を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: 認証/権限対象。credentialとsession存在を漏らさずsafe redirectのみ許可。
+- fail-closed の維持: network/invalid sessionをauthenticatedへfallbackせずloopしない。
+- audit / トランザクション境界: session readのみ。DB/audit変更なし。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- open redirect、session existence leak、無限 `/me` loop を防ぐ。token/cookie を client log に出さない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. valid/invalid/network session の direct-route test を作る。
+2. login-route限定 hydrate state machine と safe redirect を実装する。
+3. logout直後、browser back、通常 login を回帰確認する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- valid/invalid/error/logout の route test が通り、request loop/open redirect/credential露出がない。
 
 ## BUG-032: 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い）
 
@@ -488,6 +2786,78 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **期待結果**: プレビュー結果一覧が表示される、または妥当な時間内にエラー/空データが返る
 - **実際の結果**: エンドポイントが応答せず無期限にハングし、UIは「検索中...」のまま固まって復帰しない（ローディング状態からの復帰導線もない）
 - **備考**: V05-12テスト時にダミーのLステップ資格情報（APIキー等）を保存済みの状態であり、バックエンドが検診対象者抽出時に外部Lステップ APIへ同期的に疎通しようとしてタイムアウトなく待ち続けている可能性が高い。実運用の有効な資格情報であれば発生しない可能性はあるが、「外部API疎通不可時にタイムアウトなくハングする」設計自体が問題であり、無効な資格情報時のフェイルセーフとして起票する価値があると判断した。エンドポイント: `GET /api/v1/clinics/1/lstep/checkup-sync/preview`
+
+### 実装計画
+
+#### 0. クラスタ / 依存
+
+- クラスタID: `S-CHECKUP-PREVIEW-LATENCY`
+- 同一 PR にする BUG: なし
+- 先行必須: query plan / lock wait / context deadline の計測
+- 後続解放（シナリオ/他BUG）: V05-18 preview と bounded retry
+
+#### 1. 切り分けステータス
+
+- 主因レイヤ: FE / BE / DB（計測先行）
+- 観測根拠（API・クエリ・コード参照）: preview service は設定/cacheとローカルDB repositoryを読む経路で、外部 Lステップ HTTP 呼出しは確認できない。repository の unbounded raw SQL が候補だが、実 query plan/lock wait は未計測。FE には timeout/recovery がない。（具体パスは §2）
+- 重複判定（例: 002 vs 022）: 単独。報告時の外部Lステップ仮説は現行 source で反証され、local query/lock候補。
+- 所有境界（FE / BE / データ / 環境）: FE=preview API/page; BE=lstep handler/service/repository; データ=query/index/cache key + clinic filters; 環境=DB plan/lock/latency
+
+#### 2. 疑わしい箇所（コードマップ）
+
+| 層 | パス / シンボル | 役割 |
+|---|---|---|
+| FE | `frontend/src/features/lstep/api/get-checkup-sync-preview.ts`、`frontend/src/features/lstep/routes/CheckupSyncPage.tsx`。 | 現行証拠 / 変更候補 |
+| BE | `backend/internal/lstep/checkup_sync_handler.go`、`checkup_sync_service_preview.go`、`checkup_sync_repository.go`。 | 現行証拠 / 変更候補 |
+
+#### 3. 修正方針
+
+- 契約変更の有無（API・DB）: 計測後に必要なら既存preview APIへbounded filter/page/deadline/errorを後方互換追加。indexは別migration。
+- 正しい挙動の定義（1〜3 文）: previewは時間予算内のbounded結果を返し、cancel/timeoutでqueryとloadingを終了してretry可能にする。
+- やらないこと（Out of scope）: 空結果fallback、外部Lステップ原因の決め打ち、PII入り計測artifact。
+- 既存データ修復の要否と手順: 不要。index時はEXPLAIN根拠と別migration、人が `make migrate`。
+
+- request trace と `pg_stat_activity`/lock wait、`EXPLAIN (ANALYZE, BUFFERS)` で handler→service→repository の停止点を確定する。clinic/checkup_type/date/tag filter と上限/page を SQL に入れ、必要な index は計測根拠付きにする。
+- context deadline/cancel を DB まで伝播し、server は安全な timeout code、FE は AbortController、error、retry、条件変更の復帰導線を持つ。
+
+#### 4. 受け入れ基準（AC）
+
+1. Given demo相当データ、When annual preview、Then合意した時間予算内に bounded result/count が返り loading が終了する。
+2. 回帰: 他checkup type/filter/cache、正常previewを維持する。
+3. 負例: lock/deadline/cancel/別clinicでempty successやPII artifactを作らない。 既存境界AC: Given DB遅延/lock、When deadline超過または user cancel、Then query が中断し UI が error/retry へ戻る。 / Given別 clinic/tag、When同条件、Then対象/count/cache が混入しない。
+4. 横展開確認対象: checkup preview queries/cache/UI loading states
+
+#### 5. テスト計画
+
+- ユニット: 対象service/repositoryまたはhook/componentの旧失敗をREDにし、境界値・負例を最小testで固定する。
+- 結合（scoped）: `docker compose exec -T backend go test -p 1 ./internal/lstep -run 'Test.*CheckupSync.*Preview|Test.*Cancel|Test.*Clinic'`
+- FE: `docker compose exec -T frontend npx vitest run src/features/lstep/routes/CheckupSyncPage.test.tsx src/features/lstep/components/CheckupSyncPreviewTable.test.tsx`。`src/features/lstep/api/get-checkup-sync-preview.test.ts`は新規追加予定。
+- 手動/E2E: V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中を専用test clinic / test dataで再実施し、PASS / FAIL / BLOCKED / UNREPORTEDを記録する。
+- 禁止: full-repo suites、compose lifecycle、DB reset、migration適用をagentの自動gateにしない。
+
+#### 6. リスクと安全
+
+- 臨床安全 / 会計整合 / clinic 隔離 / 権限: clinic隔離と患者PII保護。filter/cache key/queryにclinicを含める。
+- fail-closed の維持: timeoutを空successへfallbackせず、cancelをDBまで伝播する。
+- audit / トランザクション境界: read-only。indexは別migration、計測artifactにPIIを残さない。
+- ロールバック手順: product codeは各§2 owner/featureの最小差分をpath-scopedに戻す。data/migrationは旧code互換を確認し、別承認・人手手順なしに逆操作しない。
+
+- 根拠なく外部 API timeout を追加しない。unbounded query を空結果 fallback で隠さない。preview cache key に clinic と全 filter を含め、対象者の個人情報を計測 artifact に残さない。
+
+#### 7. 実装ステップ（順序付き）
+
+1. endpoint区間計測、lock wait、query plan、行数を採取して failure signature を固定する。
+2. bounded repository query/cancel と必要な index を TDD で実装する。
+3. FE timeout/retry と clinic/cache isolation、V05-18 後続を検証する。
+
+#### 8. 完了定義（DoD）
+
+- [ ] §4 の AC が全通過
+- [ ] 関連クラスタと横展開対象の回帰が通過
+- [ ] 作成した test data の cleanup、または cleanup 不要を記録
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+
+- latency before/after、bounded result、cancel/timeout、UI recovery、clinic/cache isolation が証拠化され、外部 API 仮説を事実として扱っていない。
 
 ---
 
