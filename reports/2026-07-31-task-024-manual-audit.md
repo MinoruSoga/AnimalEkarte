@@ -1,12 +1,12 @@
-# TASK-024 Phase A — Manual screenshot audit (10 screens)
+# TASK-024 — Manual screenshot audit + FAQ gate
 
 | Field | Value |
 |-------|--------|
 | Date | 2026-07-31 |
 | Branch | `task-024-impl-20260731` |
 | Claim | `claim/TASK-024` (held; not released) |
-| Scope | Phase A only — 10 screen PNGs + this report |
-| Out of scope | FAQ (`10-troubleshooting.md`), Wave 2, TASK-022/023 paths |
+| Phase A | 10 screen PNGs + judgment table (below) |
+| Phase B | FAQ gate from TASK-023 confusions — **追記不要** (see §Phase B) |
 | Live app | frontend `http://127.0.0.1:3003`, backend `http://127.0.0.1:8080` (shared compose) |
 | Capture viewport | 1440×900 CSS px (within 1280–1920 width) |
 | Auth | Shared session already authenticated (Playwright). No credentials invented or read from reports. |
@@ -68,7 +68,7 @@
 | Screen MD still references same path `images/<file>.png` | Pass (all 10) |
 | Manual article routing still expects these screen slugs | Pass (articles present; e2e references `05-accounting` path pattern) |
 | Orphan `_screenshot-*` created in owned images dir | **None** (phase A) |
-| FAQ / `10-troubleshooting.md` edited | **No** (Wave 2) |
+| FAQ / `10-troubleshooting.md` edited | **No** — Phase B 追記不要 (see §Phase B) |
 
 ## Image dimensions after phase A
 
@@ -129,10 +129,42 @@ git diff --check -- reports/2026-07-31-task-024-manual-audit.md \
 
 Result: **PASS** (`git diff --check` exit 0).
 
-## Remains for phase B / human
+## Phase B — FAQ (`10-troubleshooting.md`) gate
 
-1. **Human sign-off** of all 10 images (table above).
+### Input (authoritative)
+
+| Field | Value |
+|-------|--------|
+| Source report | `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md` |
+| Ledger task (source) | TASK-023 / #254 |
+| Section | §5 TASK-024 向け — confusion / staff-pain manifest |
+| `confusion_count` | **0** |
+| `confusions` | `[]` (empty) |
+| Agent note in source | Authenticated UI not exercised (`E2E_LOGIN_*` missing); do not invent FAQ from residual 【要実測】 lists |
+
+### Decision: **追記不要**
+
+| Mapping | Result |
+|---------|--------|
+| TASK-023 observed staff confusions | **0** |
+| Speculative FAQ entries from residual / backlog | **禁止**（source report notes + phase B required behavior） |
+| Action on `frontend/src/features/manual/content/workflows/10-troubleshooting.md` | **変更なし**（追記しない） |
+| 1:1 rationale | zero confusions from TASK-023 → no FAQ append |
+
+> **追記不要**: TASK-023 レポート（`docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md`）の `confusion_count: 0` / `confusions: []` を正本とし、観測ゼロのため FAQ にエントリを追加しない。E2E 未実行・human UAT 未了による未観測を、推測で埋めてはならない。
+
+### Integrity after Phase B
+
+| Check | Result |
+|-------|--------|
+| `10-troubleshooting.md` content modified | **No** |
+| Speculative FAQ entries added | **None** |
+| Human visual sign-off (Phase A images) | **PENDING** (unchanged; agent must not complete) |
+
+## Remains for human
+
+1. **Human sign-off** of all 10 images (table above) — still **PENDING**.
 2. Optional recapture: `19-aggregation` with loaded CPM chips; `04-medical-records` if multi-clinic chrome must appear in manual.
-3. Wave 2: FAQ / `10-troubleshooting.md` after TASK-023 (not this phase).
-4. Optional: re-shoot replaced PNGs at 2× device scale for parity with older 2880×1800 assets.
-5. Run e2e once login env is available in the operator shell.
+3. Optional: re-shoot replaced PNGs at 2× device scale for parity with older 2880×1800 assets.
+4. Run e2e / human UAT once login env is available; if new confusions are observed later, open a follow-up FAQ update from that evidence (not invent from residual lists).
+5. USER releases `claim/TASK-024` only after main integration or explicit abandon (`git branch -D claim/TASK-024`).
