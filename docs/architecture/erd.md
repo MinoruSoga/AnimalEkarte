@@ -1,19 +1,19 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全115テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
+> **目的**: 全116テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=115 -->
+<!-- ERD:TABLE_COUNT=116 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.33 | **最新更新**: 2026-07-31 | **状態**: Production Ready (115 Tables Verified)
+> **バージョン**: v31.33 | **最新更新**: 2026-07-31 | **状態**: Production Ready (116 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 115 テーブル)
+## 1. データモデルの全体像 (全 116 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 115 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 116 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -104,7 +104,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-07-31 統合第5回で旧 append-only `002`–`006` を `001_init.sql` セクション10へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **115**＝統合前 001 の 110 + セクション10 旧004 identity links 4 + 旧006 upload quota 1。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-31 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-07-31 統合第5回で旧 append-only `002`–`006` を `001_init.sql` セクション10へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **116**（001=115 + `003_cash_register_close_append_only` の `cash_register_close_adjustments` 1）＝統合前 001 の 110 + セクション10 旧004 identity links 4 + 旧006 upload quota 1。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-31 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -131,14 +131,14 @@ erDiagram
 >
 > **2026-07-31 夕 追記**: `005_line_webhook_bot_user_id.sql`（カラムのみ・新規テーブルなし）および `006_medical_record_image_upload_quota.sql`（`medical_record_image_upload_quota` 1 テーブル。SEC-CS-F08-R1 画像 upload quota lease）が追加された。当時は append-only 独立ファイルとして管理し、物理テーブル総数は 110 + 4 + 1 = **115**。
 >
-> **2026-07-31 統合第5回**: 上記 incremental `002`–`006` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション10へ統合し独立ファイルを削除した。物理テーブル総数 **115** は不変。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。
+> **2026-07-31 統合第5回**: 上記 incremental `002`–`006` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション10へ統合し独立ファイルを削除した。物理テーブル総数は 2026-07 時点 **115** 後、`003_cash_register_close_append_only` で **116**。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 115（セクション10統合後。統合直前の 001 単体は 110） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1 を含む |
+| `001_init.sql` の `CREATE TABLE` 数 | 115（セクション10統合後。統合直前の 001 単体は 110。直下他 migration と合算で 116） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1 を含む |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 115 | 在庫は `ls backend/migrations/*.sql`。合算は旧 110 + §10 旧004=4 + 旧006=1。ERD の全体数と一致 |
-| ERD ドメイン表の物理テーブル数 | 115 | migrations と一致（横断・identity links 4 + clinical `medical_record_image_upload_quota` を含む） |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 116 | 在庫は `ls backend/migrations/*.sql`。001=115 + `003_cash_register_close_append_only` の adjustments 1。ERD の全体数と一致 |
+| ERD ドメイン表の物理テーブル数 | 116 | migrations と一致（+ `cash_register_close_adjustments`） |
 | ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
@@ -173,10 +173,10 @@ erDiagram
 
 現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-31 統合第5回時点。在庫の正は `ls backend/migrations/*.sql`）。
 
-- `001_init.sql`（fresh用統合スキーマ・**115**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文を番号順追記）
+- `001_init.sql`（fresh用統合スキーマ・**115**テーブル + 直下 incremental で合算 **116**。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文を番号順追記）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
-物理テーブル総数 = **115**（ゲート 3a は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算を正とする。直下 DDL 本数は固定せず `ls` で確認）。
+物理テーブル総数 = **116**（ゲート 3a は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算を正とする。直下 DDL 本数は固定せず `ls` で確認。001=115 + close adjustments 1）。
 
 2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
 
