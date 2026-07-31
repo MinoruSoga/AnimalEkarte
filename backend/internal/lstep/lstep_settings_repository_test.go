@@ -185,6 +185,31 @@ func TestLstepSettingsRepository_FindCredentialByClinicServiceKey(t *testing.T) 
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
+func TestLstepSettingsRepository_FindCredentialByClinicServiceKey_ForeignOnlyMatchIsNotFound(t *testing.T) {
+	db := setupLstepSettingsTestDB(t)
+	repo := NewLstepSettingsRepository(db)
+	ctx := context.Background()
+
+	const clinicA, clinicB = uint64(81), uint64(82)
+	require.NoError(t, db.Create(&model.ClinicIntegration{
+		ClinicID: clinicB,
+		Service:  model.IntegrationServiceLstep,
+		KeyName:  model.IntegrationKeyLineChannelSecret,
+		KeyValue: "foreign-only-placeholder",
+	}).Error)
+
+	got, err := repo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicA,
+		model.IntegrationServiceLstep,
+		model.IntegrationKeyLineChannelSecret,
+	)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, got)
+}
+
 func TestLstepSettingsRepository_DeleteByClinicAndService(t *testing.T) {
 	db := setupLstepSettingsTestDB(t)
 	repo := NewLstepSettingsRepository(db)

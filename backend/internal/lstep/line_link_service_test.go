@@ -1568,20 +1568,29 @@ func TestLineLinkService_HandleWebhook_RejectsInvalidEventTimestamp(t *testing.T
 
 // --- verifySignatureAnyClinic additional branch tests ---
 
-func TestVerifySignatureAnyClinic_FindByLineBotUserIDError(t *testing.T) {
-	svc := &lineLinkService{
-		lineSettingRepo: &mockLineLinkSettingRepo{
-			findByLineBotUserIDFn: func(_ context.Context, _ string) (*model.LineReservationSetting, error) {
-				return nil, errors.New("db error")
-			},
+func TestVerifySignatureAnyClinic_FindWebhookRouteError(t *testing.T) {
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, _ string) (uint64, bool, error) {
+			return 0, false, errors.New("db error")
 		},
 	}
+	credentialRepo := &mockLineChannelCredentialRepo{}
+	svc := &lineLinkService{
+		lineSettingRepo:    routeRepo,
+		lineCredentialRepo: credentialRepo,
+	}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
 
 	body := []byte(`{"destination":"bot-A","events":[]}`)
 	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "sig")
 
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, routeRepo.findWebhookRouteCalls)
+	assert.Equal(t, 0, credentialRepo.findCalls)
+	assert.Equal(t, 0, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls)
 }
 
 func TestVerifySignatureAnyClinic_EmptySecretRejected(t *testing.T) {

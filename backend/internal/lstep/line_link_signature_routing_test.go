@@ -42,16 +42,27 @@ func installDecryptCounter(t *testing.T) *int {
 	return &decryptCalls
 }
 
-// nClinicSettingRepos builds N clinics with distinct canonical credentials; "bot-A" always maps to clinic 7
-// (clinic 7 is included even when n < 7 so fixed-routing scenarios stay valid).
-func nClinicSettingRepos(n int) (*mockLineLinkSettingRepo, *mockLineChannelCredentialRepo) {
+// nClinicSettingRepos builds N clinics with distinct encrypted canonical credentials;
+// "bot-A" always maps to clinic 7 (clinic 7 is included even when n < 7 so
+// fixed-routing scenarios stay valid).
+func nClinicSettingRepos(
+	t *testing.T,
+	n int,
+) (*mockLineLinkSettingRepo, *mockLineChannelCredentialRepo, *crypto.AESGCMCipher) {
+	t.Helper()
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	require.NoError(t, err)
 	if n < 1 {
 		n = 1
 	}
 	byBot := make(map[string]uint64, n+1)
+	credentialByClinic := make(map[uint64]string, n+1)
 	all := make([]model.LineReservationSetting, 0, n+1)
 	add := func(clinicID uint64, botID string) {
+		credential, encryptErr := cipher.Encrypt(fmt.Sprintf("secret-%d", clinicID))
+		require.NoError(t, encryptErr)
 		byBot[botID] = clinicID
+		credentialByClinic[clinicID] = credential
 		all = append(all, model.LineReservationSetting{ID: clinicID, ClinicID: clinicID, LineBotUserID: botID})
 	}
 	for i := 1; i <= n; i++ {
@@ -83,16 +94,16 @@ func nClinicSettingRepos(n int) (*mockLineLinkSettingRepo, *mockLineChannelCrede
 				ClinicID: clinicID,
 				Service:  service,
 				KeyName:  keyName,
-				KeyValue: fmt.Sprintf("secret-%d", clinicID),
+				KeyValue: credentialByClinic[clinicID],
 			}, nil
 		},
 	}
-	return routeRepo, credentialRepo
+	return routeRepo, credentialRepo, cipher
 }
 
 func TestVerifySignatureAnyClinic_InvalidSignature_FixedWork_N20(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(20)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 20)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -110,8 +121,8 @@ func TestVerifySignatureAnyClinic_InvalidSignature_FixedWork_N20(t *testing.T) {
 
 func TestVerifySignatureAnyClinic_InvalidSignature_HMACIndependentOfClinicCount(t *testing.T) {
 	run := func(n int) int {
-		repo, credentialRepo := nClinicSettingRepos(n)
-		svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+		repo, credentialRepo, cipher := nClinicSettingRepos(t, n)
+		svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 		hmacCalls := installHMACCounter(t)
 		body := []byte(`{"destination":"bot-A","events":[]}`)
 		_, ok := svc.verifySignatureAnyClinic(context.Background(), body, "invalid-signature")
@@ -129,8 +140,8 @@ func TestVerifySignatureAnyClinic_InvalidSignature_HMACIndependentOfClinicCount(
 }
 
 func TestVerifySignatureAnyClinic_UnknownDestination_ZeroCrypto(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(10)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 10)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -147,8 +158,8 @@ func TestVerifySignatureAnyClinic_UnknownDestination_ZeroCrypto(t *testing.T) {
 }
 
 func TestVerifySignatureAnyClinic_ValidDestination_OneHMAC_ReturnsClinic(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(20)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 20)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -239,6 +250,24 @@ func TestVerifySignatureAnyClinic_MissingCanonicalCredential_FailsClosed(t *test
 	assert.Equal(t, 0, *hmacCalls)
 }
 
+func TestVerifySignatureAnyClinic_NilCipherFailsBeforeHMAC(t *testing.T) {
+	routeRepo, credentialRepo, _ := nClinicSettingRepos(t, 8)
+	svc := &lineLinkService{
+		lineSettingRepo:    routeRepo,
+		lineCredentialRepo: credentialRepo,
+	}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
+
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "signature-placeholder")
+
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls, "unavailable canonical decrypt capability must fail before HMAC")
+}
+
 func TestVerifySignatureAnyClinic_MalformedCanonicalCiphertext_FailsBeforeHMAC(t *testing.T) {
 	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
 	require.NoError(t, err)
@@ -276,8 +305,8 @@ func TestVerifySignatureAnyClinic_MalformedCanonicalCiphertext_FailsBeforeHMAC(t
 }
 
 func TestVerifySignatureAnyClinic_MissingDestination_NoFindAll(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(8)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -295,8 +324,8 @@ func TestVerifySignatureAnyClinic_MissingDestination_NoFindAll(t *testing.T) {
 }
 
 func TestVerifySignatureAnyClinic_EmptyDestination_NoFindAll(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(8)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -313,8 +342,8 @@ func TestVerifySignatureAnyClinic_EmptyDestination_NoFindAll(t *testing.T) {
 }
 
 func TestVerifySignatureAnyClinic_OversizedDestination_NoFindAll(t *testing.T) {
-	repo, credentialRepo := nClinicSettingRepos(8)
-	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
+	repo, credentialRepo, cipher := nClinicSettingRepos(t, 8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo, cipher: cipher}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
