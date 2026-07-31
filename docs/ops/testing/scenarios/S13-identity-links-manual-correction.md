@@ -1,7 +1,7 @@
 # S13: 同一飼主・ペット連携 — 手動訂正（link → history → unlink → relink）
 
-> **目的**: 2 医院にまたがる同一飼主・ペットを、権限のあるスタッフが手動で link し、連携治療履歴を確認し、誤リンクを unlink してから正しい組み合わせで relink できることを納品前に証明する。  
-> **所要目安**: 20分 / **深度**: 中  
+> **目的**: 2 医院にまたがる同一飼主・ペットを、権限のあるスタッフが手動で link し、連携治療履歴を確認し、誤リンクを unlink してから正しい組み合わせで relink できることを納品前に証明する。
+> **所要目安**: 20分 / **深度**: 中
 > **仕様正本**: [screens/40-identity-links.md](../../../spec/screens/40-identity-links.md)。実装参照: `backend/internal/identitylink/`・`frontend/src/features/identity-links/`。
 
 ## 前提条件
