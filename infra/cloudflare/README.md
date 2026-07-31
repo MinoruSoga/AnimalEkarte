@@ -21,7 +21,7 @@
 
 | ツール | 用途 | インストール |
 |---|---|---|
-| `terraform` | Cloudflare リソース管理(zone/DNS/R2/Hyperdrive) | Terraform CLI v1.5+ |
+| `terraform` | Cloudflare リソース管理(zone/DNS/R2/notifications) | Terraform CLI v1.5+ |
 | `wrangler` | Workers/Containers/Secrets/Cron | ルート `package.json` devDependency(`pnpm install` で導入。バージョンは固定管理) |
 | `pscale` | PlanetScale DB 作成・接続・dump/restore | `brew install planetscale/tap/pscale` |
 | `cf-terraforming` | 既存ゾーンの逆生成(取り込み用途) | `brew install cloudflare/cloudflare/cf-terraforming` |
@@ -62,13 +62,27 @@ terraform apply tfplan   # 承認後、承認者自身または明示承認を�
 ```
 infra/cloudflare/
 ├── providers.tf      # cloudflare provider(~> 5.21)
-├── variables.tf      # account_id / zone_name / environment / r2_bucket_name / pscale_stg_db_* / notification_email
-├── backend.tf        # 当面 local backend。R2 backend 切替は TODO コメント参照
+├── variables.tf      # account_id / zone_name / environment / r2_bucket_name / notification_email
+├── backend.tf        # backend block なし(Terraform 既定の local state)。R2 backend 切替は TODO コメント参照
 ├── zone.tf           # P1-1: cloudflare_zone + cloudflare_dns_record(棚卸し済み)
 ├── r2.tf             # P2-1: cloudflare_r2_bucket(apply 済み: animalekarte-stg-images)
-├── hyperdrive.tf     # P3-4: cloudflare_hyperdrive_config(apply 済み)
+├── hyperdrive.tf     # SEC-CS2-F03: resource 削除済み(tombstone + USER ops のみ)
 └── notifications.tf  # P6-3: cloudflare_notification_policy(http_alert_edge_error。apply 未実施 — TF_VAR_notification_email 未供給かつ送信先メール事前検証(要確認)のため genuine BLOCKED)
 ```
+
+### Hyperdrive 削除 (SEC-CS2-F03) — USER-only 運用
+
+Runtime(Container Go API)は PlanetScale へ `DB_*` secrets で直結する。Hyperdrive は
+Container 非対応のため未使用であり、origin に DB 資格情報を載せる Terraform 定義を削除した。
+`backend/wrangler.jsonc` の `hyperdrive` バインディングも除去済み。
+
+**エージェントは以下を実行しない。** 既存リソース/旧 state が残っている場合の片付けは人間のみ:
+
+1. このディレクトリで `terraform plan` を確認し、state に `cloudflare_hyperdrive_config.stg_planetscale` が残っていれば destroy 差分が出る。
+2. 明示承認後のみ `terraform apply`（または Cloudflare ダッシュボード / `wrangler hyperdrive delete` で当該 config を削除）。
+3. Hyperdrive origin パスワードを一度でも載せた local `terraform.tfstate` はコミットせず、破棄時は慎重に処分する（`cat`/ログ貼付禁止）。
+4. Hyperdrive 専用に使った PlanetScale パスワードがあれば `pscale role reset-default` 等でローテーションする。
+5. App 本体の `DB_*` Worker secrets とは別経路。誤って本番アプリ用パスワードを巻き込まないこと。
 
 ### P6-3 通知ポリシー apply の前提（`notifications.tf`）
 

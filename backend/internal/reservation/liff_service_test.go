@@ -584,7 +584,66 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		assert.False(t, updateCalled)
 	})
 
-	t.Run("自動オーナー紐付け後に予約へ owner_id / pet_id を反映する", func(t *testing.T) {
+	t.Run("SEC-CS2-F02: 未紐付け顧客は氏名+電話一致でも owner-link しない", func(t *testing.T) {
+		var (
+			updateOwnerCalls  int
+			ownerLookupCalls  int
+			reservationUpdate int
+		)
+		svc := newLiffSvcWithDeps(
+			&mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return liffDefaultSetting(), nil
+				},
+			},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffReservationRepository{
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					reservationUpdate++
+					return &model.Reservation{ID: 77}, nil
+				},
+			},
+			&mockLiffCustomerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					// 未紐付けのまま
+					return &model.LineCustomer{ID: 1}, nil
+				},
+				updateOwnerLinkFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					updateOwnerCalls++
+					return nil
+				},
+			},
+			&mockLiffOwnerRepository{
+				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
+					ownerLookupCalls++
+					return &model.Owner{ID: 200}, nil
+				},
+			},
+			&mockLiffValidators{
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+					return &model.Reservation{ID: 77, ClinicID: input.ClinicID}, nil
+				},
+			},
+			&mockLiffNotifier{},
+		)
+
+		input := baseInput()
+		// 攻撃者が被害者の氏名+電話番号を入力しても owner 自動紐付けは発生しない
+		input.CustomerFields = json.RawMessage(`{"owner_name":"田中太郎","phone":"090-1234-5678","pets":[{"name":"ポチ"}]}`)
+		got, err := svc.CreateReservation(ctx, 3, 1, input)
+		require.NoError(t, err)
+		assert.Equal(t, 0, updateOwnerCalls, "UpdateOwnerLink は呼ばれてはならない")
+		assert.Equal(t, 0, ownerLookupCalls, "FindByNameAndPhone は呼ばれてはならない")
+		assert.Equal(t, 0, reservationUpdate, "未紐付けでは予約への owner/pet 反映もしない")
+		assert.Nil(t, got.OwnerID)
+		assert.Nil(t, got.PetID)
+	})
+
+	t.Run("既に紐付け済み顧客は予約へ owner_id / pet_id を反映する", func(t *testing.T) {
+		var updateOwnerCalls int
 		svc := newLiffSvcWithDeps(
 			&mockLiffSettingRepository{
 				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
@@ -605,40 +664,29 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffCustomerRepository{
-				findByIDFn: func() func(context.Context, uint64, uint64) (*model.LineCustomer, error) {
-					calls := 0
-					return func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-						calls++
-						if calls == 1 {
-							return &model.LineCustomer{ID: 1}, nil
-						}
-						return &model.LineCustomer{
-							ID:      1,
-							OwnerID: ptrUint64(200),
-							Owner: &model.Owner{
-								ID: 200,
-								Pets: []model.Pet{
-									{ID: 300, Name: "ポチ"},
-									{ID: 301, Name: "タマ"},
-								},
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					// トークン/スタッフ経路で既に紐付け済み
+					return &model.LineCustomer{
+						ID:      1,
+						OwnerID: ptrUint64(200),
+						Owner: &model.Owner{
+							ID: 200,
+							Pets: []model.Pet{
+								{ID: 300, Name: "ポチ"},
+								{ID: 301, Name: "タマ"},
 							},
-						}, nil
-					}
-				}(),
-				updateOwnerLinkFn: func(_ context.Context, clinicID, id uint64, ownerID *uint64) error {
-					assert.Equal(t, uint64(3), clinicID)
-					assert.Equal(t, uint64(1), id)
-					require.NotNil(t, ownerID)
-					assert.Equal(t, uint64(200), *ownerID)
+						},
+					}, nil
+				},
+				updateOwnerLinkFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					updateOwnerCalls++
 					return nil
 				},
 			},
 			&mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, clinicID uint64, name, phone string) (*model.Owner, error) {
-					assert.Equal(t, uint64(3), clinicID)
-					assert.Equal(t, "田中太郎", name)
-					assert.Equal(t, "090-1234-5678", phone)
-					return &model.Owner{ID: 200}, nil
+				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
+					t.Fatal("既に紐付け済みなら FindByNameAndPhone は不要")
+					return nil, nil
 				},
 			},
 			&mockLiffValidators{
@@ -653,6 +701,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		input.CustomerFields = json.RawMessage(`{"owner_name":"田中太郎","phone":"090-1234-5678","pets":[{"name":"ポチ"}]}`)
 		got, err := svc.CreateReservation(ctx, 3, 1, input)
 		require.NoError(t, err)
+		assert.Equal(t, 0, updateOwnerCalls, "既紐付け顧客でも UpdateOwnerLink は呼ばない")
 		require.NotNil(t, got.OwnerID)
 		require.NotNil(t, got.PetID)
 		assert.Equal(t, uint64(200), *got.OwnerID)

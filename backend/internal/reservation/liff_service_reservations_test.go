@@ -309,192 +309,94 @@ func TestResolveReservationPetID(t *testing.T) {
 }
 
 // ================================================================
-// tryAutoLinkOwner: 直接単体テスト
+// SEC-CS2-F02: name+phone 自動オーナー紐付けの回帰テスト
+// CreateReservation は攻撃者が入力した氏名+電話番号で
+// line_customers.owner_id を書き込んではならない。
 // ================================================================
 
 func TestLiffService_tryAutoLinkOwner(t *testing.T) {
-	t.Run("ownerRepo が nil なら no-op", func(t *testing.T) {
-		svc := &liffService{ownerRepo: nil}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"a","phone":"b"}`))
-	})
-
-	t.Run("customerRepo.FindByID がエラー -> スキップ", func(t *testing.T) {
-		called := false
-		svc := &liffService{
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					called = true
-					return nil, nil
-				},
-			},
-			customerRepo: &mockLiffCustomerRepository{
+	t.Run("一致する氏名+電話番号でも owner-link 書き込みはゼロ", func(t *testing.T) {
+		var (
+			ownerLookupCalls  int
+			updateOwnerCalls  int
+			reservationUpdate int
+		)
+		svc := newReservationTestSvc(func(s *liffService) {
+			s.customerRepo = &mockLiffCustomerRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return nil, errors.New("db error")
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"a","phone":"b"}`))
-		assert.False(t, called)
-	})
-
-	t.Run("customer が nil -> スキップ", func(t *testing.T) {
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return nil, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"a","phone":"b"}`))
-	})
-
-	t.Run("既に owner_id 紐付け済み -> スキップ", func(t *testing.T) {
-		called := false
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1, OwnerID: ptrUint64(5)}, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					called = true
-					return nil, nil
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"a","phone":"b"}`))
-		assert.False(t, called)
-	})
-
-	t.Run("customerFields が空 -> スキップ", func(t *testing.T) {
-		called := false
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					// 未紐付け顧客
 					return &model.LineCustomer{ID: 1}, nil
 				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
+				updateOwnerLinkFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					updateOwnerCalls++
+					return nil
+				},
+			}
+			s.ownerRepo = &mockLiffOwnerRepository{
 				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					called = true
-					return nil, nil
+					ownerLookupCalls++
+					return &model.Owner{ID: 200}, nil
 				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, nil)
-		assert.False(t, called)
+			}
+			s.reservationRepo = &mockLiffReservationRepository{
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					reservationUpdate++
+					return &model.Reservation{ID: 77}, nil
+				},
+			}
+			s.validators = &mockLiffValidators{
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+					return &model.Reservation{ID: 77, ClinicID: input.ClinicID}, nil
+				},
+			}
+		})
+
+		input := reservationBaseInput()
+		// 攻撃者が被害者の氏名+電話番号を customer_fields に載せて予約するシナリオ
+		input.CustomerFields = []byte(`{"owner_name":"田中太郎","phone":"090-0000-0000","pets":[{"name":"ポチ"}]}`)
+
+		got, err := svc.CreateReservation(context.Background(), 3, 1, input)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+
+		assert.Equal(t, 0, ownerLookupCalls, "FindByNameAndPhone は呼ばれてはならない")
+		assert.Equal(t, 0, updateOwnerCalls, "UpdateOwnerLink は呼ばれてはならない")
+		assert.Equal(t, 0, reservationUpdate, "未紐付け顧客では予約への owner/pet 反映も行わない")
+		assert.Nil(t, got.OwnerID)
+		assert.Nil(t, got.PetID)
 	})
 
-	t.Run("customerFields が不正JSON -> スキップ", func(t *testing.T) {
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1}, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{invalid`))
-	})
-
-	t.Run("customer_name フォールバック使用でも phone 空 -> スキップ", func(t *testing.T) {
-		called := false
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1}, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					called = true
-					return nil, nil
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"customer_name":"田中太郎"}`))
-		assert.False(t, called, "電話番号がなければ検索しない")
-	})
-
-	t.Run("owner_name が customer_name より優先される", func(t *testing.T) {
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1}, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, name, phone string) (*model.Owner, error) {
-					assert.Equal(t, "田中太郎", name)
-					assert.Equal(t, "090-0000-0000", phone)
-					return nil, nil // 0件 or 複数件 -> 紐付けなし
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"田中太郎","customer_name":"別名","phone":"090-0000-0000"}`))
-	})
-
-	t.Run("FindByNameAndPhone エラー -> best-effortでスキップ", func(t *testing.T) {
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1}, nil
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					return nil, errors.New("db error")
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"田中太郎","phone":"090-0000-0000"}`))
-	})
-
-	t.Run("UpdateOwnerLink エラー -> best-effortでパニックしない", func(t *testing.T) {
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
+	t.Run("customer_name フォールバックでも owner-link 書き込みはゼロ", func(t *testing.T) {
+		var updateOwnerCalls int
+		svc := newReservationTestSvc(func(s *liffService) {
+			s.customerRepo = &mockLiffCustomerRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
 					return &model.LineCustomer{ID: 1}, nil
 				},
 				updateOwnerLinkFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
-					return errors.New("db error")
-				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
-				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-					return &model.Owner{ID: 200}, nil
-				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"田中太郎","phone":"090-0000-0000"}`))
-	})
-
-	t.Run("成功時: owner_id が紐付けられる", func(t *testing.T) {
-		var linkedOwnerID *uint64
-		svc := &liffService{
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1}, nil
-				},
-				updateOwnerLinkFn: func(_ context.Context, clinicID, id uint64, ownerID *uint64) error {
-					assert.Equal(t, uint64(3), clinicID)
-					assert.Equal(t, uint64(1), id)
-					linkedOwnerID = ownerID
+					updateOwnerCalls++
 					return nil
 				},
-			},
-			ownerRepo: &mockLiffOwnerRepository{
+			}
+			s.ownerRepo = &mockLiffOwnerRepository{
 				findByNameAndPhoneFn: func(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
+					t.Fatal("FindByNameAndPhone は呼ばれてはならない")
 					return &model.Owner{ID: 200}, nil
 				},
-			},
-		}
-		svc.tryAutoLinkOwner(context.Background(), 3, 1, []byte(`{"owner_name":"田中太郎","phone":"090-0000-0000"}`))
-		if assert.NotNil(t, linkedOwnerID) {
-			assert.Equal(t, uint64(200), *linkedOwnerID)
-		}
+			}
+			s.validators = &mockLiffValidators{
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+					return &model.Reservation{ID: 78, ClinicID: input.ClinicID}, nil
+				},
+			}
+		})
+
+		input := reservationBaseInput()
+		input.CustomerFields = []byte(`{"customer_name":"田中太郎","phone":"090-0000-0000"}`)
+
+		_, err := svc.CreateReservation(context.Background(), 3, 1, input)
+		require.NoError(t, err)
+		assert.Equal(t, 0, updateOwnerCalls)
 	})
 }
 

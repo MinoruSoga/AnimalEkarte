@@ -243,17 +243,47 @@ func TestWrite_404_UserNotFound(t *testing.T) {
 	})
 	client := newTestClient(server.URL)
 
-	err := client.AddTag(context.Background(), "Umissing", "t")
+	const missingID = "Umissing"
+
+	err := client.AddTag(context.Background(), missingID, "t")
 	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.NotContains(t, err.Error(), missingID, "404 error must not embed lineUserID")
 	assertNoSecretLeak(t, err)
 	assert.Equal(t, int32(1), hits.Load())
 
-	err = client.RemoveTag(context.Background(), "Umissing", "t")
+	err = client.RemoveTag(context.Background(), missingID, "t")
 	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.NotContains(t, err.Error(), missingID, "404 error must not embed lineUserID")
 	assertNoSecretLeak(t, err)
 
-	err = client.SetProperty(context.Background(), "Umissing", "k", "v")
+	err = client.SetProperty(context.Background(), missingID, "k", "v")
 	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.NotContains(t, err.Error(), missingID, "404 error must not embed lineUserID")
+	assertNoSecretLeak(t, err)
+}
+
+func TestGetUser_404(t *testing.T) {
+	server, hits, _ := newWriteTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"secret":"` + testAPIKey + `"}`))
+	})
+	client := newTestClient(server.URL)
+
+	const missingID = "U404"
+	info, err := client.GetUser(context.Background(), missingID)
+	assert.Nil(t, info)
+	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.True(t, IsUserNotFound(err))
+	assert.NotContains(t, err.Error(), missingID, "404 error must not embed lineUserID")
+	assertNoSecretLeak(t, err)
+	assert.Equal(t, int32(1), hits.Load())
+
+	// GetUserTags 404 も同様に redaction
+	tags, err := client.GetUserTags(context.Background(), missingID)
+	assert.Nil(t, tags)
+	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.True(t, IsUserNotFound(err))
+	assert.NotContains(t, err.Error(), missingID, "404 error must not embed lineUserID")
 	assertNoSecretLeak(t, err)
 }
 

@@ -22,29 +22,8 @@ variable "r2_bucket_name" {
   default     = "animalekarte-stg-images"
 }
 
-# P3-4: Hyperdrive 接続先(PlanetScale Postgres animalekarte-stg / main ブランチ)。
-# 値は tfvars に書かず環境変数(TF_VAR_pscale_stg_db_host 等)または `pscale role` で
-# 都度発行したクレデンシャルを都度供給する運用とする(state に残るため rotation 運用が必要)。
-variable "pscale_stg_db_host" {
-  description = "PlanetScale Postgres(animalekarte-stg/main) の接続ホスト(pscale role reset-default 等で取得)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "pscale_stg_db_user" {
-  description = "PlanetScale Postgres の接続ユーザー"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "pscale_stg_db_password" {
-  description = "PlanetScale Postgres の接続パスワード"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# SEC-CS2-F03: pscale_stg_db_* variables removed with Hyperdrive. App DB credentials
+# are Worker secrets (DB_HOST/DB_USER/DB_PASSWORD), not Terraform inputs.
 
 # P6-3: 通知ポリシーの送信先。既存のリポジトリ内に汎用の運用アラート受信メールアドレスの
 # 前例が無い(SMTP_FROM=noreply@noah-karte.com は送信専用アドレスであり受信先ではないため転用不可)。

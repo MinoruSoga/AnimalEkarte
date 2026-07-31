@@ -92,8 +92,15 @@ make reset   # resets and re-applies all migrations + seeds
 
 ### Auth
 
-All specs use `admin@noavet.jp` / `password` (demo seed, clinic 1, `is_system_admin=true`).
-Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed.
+Credentials are **env-injected only** (SEC-CS2-F01). There is no in-repository password fallback.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `E2E_LOGIN_EMAIL` | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed) |
+| `E2E_LOGIN_PASSWORD` | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets) |
+| `E2E_AUTH_STATE_PATH` | no | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
+
+Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed once the env vars are set.
 
 ## Running Tests
 
@@ -133,12 +140,17 @@ pnpm test:e2e:ui
 ## Authentication
 
 All specs (except those that test unauthenticated redirect) log in automatically via
-`helpers/auth.ts:loginAsDemoAdmin`. The helper navigates to `/login`, fills the demo credentials,
-waits for the login API to succeed, then stores the authenticated storage state in `/tmp`.
+`helpers/auth.ts:loginAsDemoAdmin`. The helper reads `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`
+(required; throws if unset), navigates to `/login`, waits for the login API to succeed, then
+stores the authenticated storage state in `/tmp` (or `E2E_AUTH_STATE_PATH`).
 Later specs restore that state instead of repeating UI login, avoiding the backend login
 rate limit during full-suite runs.
 
-- Email: `admin@noavet.jp` / Password: `password`
+```bash
+export E2E_LOGIN_EMAIL='…'      # local demo admin email
+export E2E_LOGIN_PASSWORD='…'   # never commit
+./scripts/run-e2e.sh
+```
 
 `master-crud.spec.ts` shares a `BrowserContext` across all tests via `beforeAll` (same pattern
 used in `owners-search.spec.ts`, `accounting-smoke.spec.ts`, and `reservations-smoke.spec.ts`).

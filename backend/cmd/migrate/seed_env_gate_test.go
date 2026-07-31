@@ -24,10 +24,27 @@ func TestSeedBundlesForEnv_ProductionPlanExcludesDemo(t *testing.T) {
 	}
 }
 
-func TestSeedBundlesForEnv_NonProductionIncludesDemo(t *testing.T) {
+// SEC-CS2-F01: staging must not receive privileged demo credentials via migrate.
+func TestSeedBundlesForEnv_StagingIsMasterOnly(t *testing.T) {
 	t.Parallel()
 
-	for _, env := range []string{"development", "local", "test", "staging"} {
+	for _, env := range []string{"staging", "STAGING", " staging "} {
+		got := seedBundlesForEnv(env)
+		if !slices.Equal(got, []string{"002_master"}) {
+			t.Fatalf("env %q plan = %v, want master only", env, got)
+		}
+		for _, banned := range []string{"003_demo", "004_staging"} {
+			if slices.Contains(got, banned) {
+				t.Fatalf("staging plan must not include %s: %v", banned, got)
+			}
+		}
+	}
+}
+
+func TestSeedBundlesForEnv_LocalDevAndTestIncludesDemo(t *testing.T) {
+	t.Parallel()
+
+	for _, env := range []string{"development", "local", "test", "dev"} {
 		got := seedBundlesForEnv(env)
 		want := []string{"002_master", "003_demo", "004_staging"}
 		if !slices.Equal(got, want) {
@@ -55,6 +72,12 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 		t.Fatalf("APP_ENV=production plan = %v, want master only", got)
 	}
 
+	t.Setenv("APP_ENV", "staging")
+	got = seedBundlesForCurrentEnv()
+	if !slices.Equal(got, []string{"002_master"}) {
+		t.Fatalf("APP_ENV=staging plan = %v, want master only", got)
+	}
+
 	t.Setenv("APP_ENV", "development")
 	got = seedBundlesForCurrentEnv()
 	want := []string{"002_master", "003_demo", "004_staging"}
@@ -74,9 +97,10 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 
 // TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly asserts that
 // the demo seed still contains active system-admin accounts. That is intentional
-// for non-production environments; the production path must not load this bundle
-// (see TestSeedBundlesForEnv_ProductionPlanExcludesDemo). This test does not
-// read or assert any credential material.
+// for local development/test only; production and staging paths must not load
+// this bundle (see TestSeedBundlesForEnv_ProductionPlanExcludesDemo and
+// TestSeedBundlesForEnv_StagingIsMasterOnly). This test does not read or
+// assert any credential material.
 func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T) {
 	t.Parallel()
 
@@ -92,9 +116,11 @@ func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T
 		t.Fatal("003_demo accounts.csv is expected to contain at least one active system admin (is_active=t, is_system_admin=t); demo-only intentional")
 	}
 
-	// Production plan must still exclude the demo bundle that carries those accounts.
-	if slices.Contains(seedBundlesForEnv("production"), "003_demo") {
-		t.Fatal("production seed plan must not load 003_demo despite demo CSV containing system admins")
+	// Production and staging plans must still exclude the demo bundle that carries those accounts.
+	for _, env := range []string{"production", "staging"} {
+		if slices.Contains(seedBundlesForEnv(env), "003_demo") {
+			t.Fatalf("%s seed plan must not load 003_demo despite demo CSV containing system admins", env)
+		}
 	}
 }
 

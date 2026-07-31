@@ -32,7 +32,11 @@ func TestBundleOrderForEnv_ProductionExcludesDemoAndStaging(t *testing.T) {
 	}
 }
 
-func TestBundleOrderForEnv_NonProductionIncludesFullOrder(t *testing.T) {
+// Local development/test only. Staging is intentionally master-only under
+// SEC-CS2-F01 (see seed_env_gate_test.go TestSeedBundlesForEnv_StagingIsMasterOnly).
+// Baseline historically listed staging in a "non-production full order" case;
+// that assertion is incompatible with F1 production code and is not restored.
+func TestBundleOrderForEnv_LocalDevAndTestIncludesFullOrder(t *testing.T) {
 	t.Parallel()
 
 	want := []string{"002_master", "003_demo", "004_staging"}
@@ -42,8 +46,6 @@ func TestBundleOrderForEnv_NonProductionIncludesFullOrder(t *testing.T) {
 		"local",
 		"dev",
 		"test",
-		"staging",
-		" STAGING ",
 	} {
 		env := env
 		t.Run("env="+env, func(t *testing.T) {

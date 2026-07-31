@@ -7,11 +7,7 @@
 // 適用前に必ず以下の PLACEHOLDER をすべて実値へ置換すること（詳細手順は
 // docs/ops/infra/production/setup.md 参照）。
 //
-//   1. hyperdrive[0].id
-//      → infra/cloudflare/production/ を `terraform apply` した後の
-//        `terraform output hyperdrive_config_id`（または `wrangler hyperdrive list`）の値。
-//        本ファイルには <PLACEHOLDER-HYPERDRIVE-ID> のまま置いてある。
-//   2. vars.TRUSTED_PROXY_CIDR
+//   1. vars.TRUSTED_PROXY_CIDR
 //      → STG は試行9で /health に一時追加した診断フィールドで Worker→Container 内部
 //        プロキシの実ソースIPを実測して確定した値（10.1.0.0/32）。production の値は
 //        「同一 Cloudflare アカウント・同一 Containers 構成だから恐らく同じ」という推測に
@@ -21,15 +17,19 @@
 //        誤りの効果は非対称: 広すぎる値は X-Forwarded-For 偽装によるレート制限バイパス
 //        （H2 相当の実害）、狭すぎる値は可用性の問題（正当なリクエストが単一バケット扱いに
 //        なるだけ）に留まる。実測前に安易に広げないこと。
-//   3. vars.S3_PUBLIC_BASE_URL
+//   2. vars.S3_PUBLIC_BASE_URL
 //      → R2 の公開ドメインを production 用に作成後、運用担当者が投入する
 //        （STG と同じ運用。空文字のままだと医療画像の公開 URLは API ホストへ暫定
 //        フォールバックし、起動時に警告ログが出る）。
-//   4. secrets.required に列挙された各シークレット
+//   3. secrets.required に列挙された各シークレット
 //      → 値は本ファイルに書かない。`wrangler secret put <NAME> -c wrangler.production.jsonc`
 //        で個別投入する。JWT_SECRET / INTEGRATION_ENCRYPTION_KEY / MIGRATE_RUN_SECRET は
 //        STG の値を絶対に使い回さないこと（STG 側の漏洩が production を即座に侵害する
 //        経路になるため、新規に生成する）。
+//
+// 未使用の Workers DB プール binding は SEC-CS2-F03 で削除。Container は PlanetScale へ
+// DB_* 直結 (https://github.com/cloudflare/containers/issues/97)。対応 Terraform resource
+// も除去済み。
 //
 // S3_ENDPOINT のアカウントID（776ddc3e975e8fe5773d5300522e2404）は STG と同一 Cloudflare
 // アカウントを production でも使う前提（docs/ops/infra/_archive/migration-cloudflare.md「すべて Cloudflare」＝課金・
@@ -141,18 +141,6 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["AnimalEkarteApiContainer"],
-    },
-  ],
-
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      // <PLACEHOLDER-HYPERDRIVE-ID>
-      // infra/cloudflare/production/ apply 後の `terraform output hyperdrive_config_id` を投入する。
-      // STG同様、Container は Hyperdrive 非対応(Container は素の Linux プロセスであり
-      // Workers runtime 固有バインディングを利用できない: https://github.com/cloudflare/containers/issues/97)
-      // ため Phase 4 相当の構成では未使用のまま予約する。Container 内 Go API は PlanetScale へ直結する。
-      "id": "<PLACEHOLDER-HYPERDRIVE-ID>",
     },
   ],
 
