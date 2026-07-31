@@ -28,6 +28,7 @@ type mockReservationRepository struct {
 	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
@@ -133,6 +134,13 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
 	}
 	return 0, nil
+}
+
+func (m *mockReservationRepository) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.findPetByIDInClinicFn != nil {
+		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
+	}
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
 func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
@@ -1366,4 +1374,116 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+// #261 P0: 死亡ペットへの予約 write は fail-closed（create / update pet 付け替え）。
+func TestReservationService_Create_RejectsDeceasedPet(t *testing.T) {
+	now := time.Now()
+	deceasedAt := now.Add(-24 * time.Hour)
+	petID := uint64(5)
+	ownerID := uint64(2)
+	createCalled := false
+	repo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         now,
+		EndTime:           now.Add(time.Hour),
+		ReservationTypeID: 1,
+		OwnerID:           &ownerID,
+		PetID:             &petID,
+		Status:            model.ReservationStatusConfirmed,
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+	assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
+	assert.Nil(t, result)
+	assert.False(t, createCalled, "repo.Create must not be called for deceased pet")
+}
+
+func TestReservationService_Create_AllowsLivingPet(t *testing.T) {
+	now := time.Now()
+	petID := uint64(5)
+	ownerID := uint64(2)
+	createCalled := false
+	repo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, OwnerID: ownerID, Status: model.PetStatusAlive}, nil
+		},
+		createFn: func(_ context.Context, r *model.Reservation) error {
+			createCalled = true
+			r.ID = 42
+			return nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         now,
+		EndTime:           now.Add(time.Hour),
+		ReservationTypeID: 1,
+		OwnerID:           &ownerID,
+		PetID:             &petID,
+		Status:            model.ReservationStatusInConsultation,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, createCalled)
+}
+
+func TestReservationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	newPetID := uint64(9)
+	ownerID := uint64(2)
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, PetID: ptrUint64(5),
+				Status: model.ReservationStatusConfirmed,
+			}, nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, PetID: ptrUint64(5),
+				Status: model.ReservationStatusConfirmed,
+			}, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
+			return ownerID, nil
+		},
+		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{PetID: &newPetID})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+	assert.Nil(t, result)
+	assert.False(t, updateCalled, "repo.update must not run when replacement pet is deceased")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,50 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type stubPetByIDFinder struct {
+	pet *model.Pet
+	err error
+}
+
+func (s *stubPetByIDFinder) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
+	return s.pet, s.err
+}
+
+func TestValidatePetNotDeceased(t *testing.T) {
+	deceasedAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	msg := "死亡したペットは予約できません"
+
+	t.Run("living pet passes", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
+			pet: &model.Pet{ID: 5, Status: model.PetStatusAlive},
+		}, 1, 5, msg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("deceased pet is invalid input", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
+			pet: &model.Pet{ID: 5, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
+		}, 1, 5, msg)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), msg)
+	})
+
+	t.Run("nil pet is not found", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{pet: nil}, 1, 5, msg)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("find error is wrapped", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
+			err: errors.New("db down"),
+		}, 1, 5, msg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to verify pet status")
+	})
+}
 
 type stubLocker struct {
 	rec *model.MedicalRecord

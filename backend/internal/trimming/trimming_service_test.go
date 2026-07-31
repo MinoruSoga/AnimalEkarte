@@ -26,6 +26,7 @@ type mockTrimmingReservationRepository struct {
 	countConflictsFn     func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	countByTypeFn        func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	findPetOwnerFn       func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	findPetByIDFn        func(petID uint64) (*model.Pet, error)
 	createFn             func(ctx context.Context, appt *model.Reservation) error
 	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn             func(ctx context.Context, clinicID, id uint64) error
@@ -147,6 +148,13 @@ func (m *mockTrimmingReservationRepository) FindPetOwnerInClinic(ctx context.Con
 		return m.findPetOwnerFn(ctx, clinicID, petID)
 	}
 	return 0, nil
+}
+
+func (m *mockTrimmingReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	if m.findPetByIDFn != nil {
+		return m.findPetByIDFn(petID)
+	}
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
 // コンパイル時インターフェース適合チェック

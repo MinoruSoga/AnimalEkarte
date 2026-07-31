@@ -137,6 +137,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}
+		if err := ValidateReservationPetNotDeceased(ctx, s.resRepo, clinicID, input.PetID); err != nil {
+			return err
+		}
 		if input.LineCustomerID != nil {
 			if err := s.resRepo.AssertLineCustomerInClinic(ctx, clinicID, *input.LineCustomerID); err != nil {
 				return apperrors.Wrap(err, "failed to verify line customer ownership")

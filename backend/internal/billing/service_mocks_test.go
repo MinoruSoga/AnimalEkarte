@@ -149,6 +149,11 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 	return 0, nil
 }
 
+func (m *mockReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+
 func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 	if m.completeForAccountingFn != nil {
 		return m.completeForAccountingFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)

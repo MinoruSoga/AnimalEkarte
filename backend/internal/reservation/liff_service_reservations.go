@@ -151,11 +151,16 @@ func (s *liffService) tryAttachReservationOwnerPet(
 // ---- 内部ヘルパー ----
 
 func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte) *uint64 {
-	if customer == nil || customer.Owner == nil || len(customer.Owner.Pets) == 0 {
+	if customer == nil || customer.Owner == nil {
 		return nil
 	}
-	if len(customer.Owner.Pets) == 1 {
-		id := customer.Owner.Pets[0].ID
+	// #261 P0: 死亡ペットは予約へ pet_id を付けない（health card 表示除外と揃える fail-closed）。
+	living := livingPets(customer.Owner.Pets)
+	if len(living) == 0 {
+		return nil
+	}
+	if len(living) == 1 {
+		id := living[0].ID
 		return &id
 	}
 
@@ -172,11 +177,22 @@ func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte
 	if wantName == "" {
 		return nil
 	}
-	for i := range customer.Owner.Pets {
-		if strings.TrimSpace(customer.Owner.Pets[i].Name) == wantName {
-			id := customer.Owner.Pets[i].ID
+	for i := range living {
+		if strings.TrimSpace(living[i].Name) == wantName {
+			id := living[i].ID
 			return &id
 		}
 	}
 	return nil
+}
+
+// livingPets は deceased_at が nil のペットだけを返す（#261 P0）。
+func livingPets(pets []model.Pet) []model.Pet {
+	out := make([]model.Pet, 0, len(pets))
+	for i := range pets {
+		if pets[i].DeceasedAt == nil {
+			out = append(out, pets[i])
+		}
+	}
+	return out
 }

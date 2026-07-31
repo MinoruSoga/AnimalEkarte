@@ -165,6 +165,31 @@ func ValidateReservationOwnerPetLinksWithRepo(ctx context.Context, repo sharedke
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, repo, clinicID, ownerID, petID)
 }
 
+// reservationDeceasedPetMessage は予約系 write が死亡ペットを拒否するときの安定メッセージ。
+const reservationDeceasedPetMessage = "死亡したペットは予約できません"
+
+// petByIDInClinicFinder は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
+type petByIDInClinicFinder interface {
+	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+}
+
+type petByIDAdapter struct {
+	repo petByIDInClinicFinder
+}
+
+func (a petByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
+}
+
+// ValidateReservationPetNotDeceased は petID が非 nil のとき死亡ペットへの予約 write を拒否する（#261 P0）。
+// nil pet（未紐付け・クリア）は従来どおり許可する。
+func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinicFinder, clinicID uint64, petID *uint64) error {
+	if petID == nil {
+		return nil
+	}
+	return sharedkernel.ValidatePetNotDeceased(ctx, petByIDAdapter{repo: repo}, clinicID, *petID, reservationDeceasedPetMessage)
+}
+
 func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 	if err != nil {
@@ -251,6 +276,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return err
 		}
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, reservation.ClinicID, reservation.OwnerID, reservation.PetID); err != nil {
+			return err
+		}
+		if err := ValidateReservationPetNotDeceased(ctx, s.repo, reservation.ClinicID, reservation.PetID); err != nil {
 			return err
 		}
 		if enforceBookingConstraints {
@@ -417,6 +445,12 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 			return err
 		}
+		// #261 P0: 死亡拒否は pet 付け替え/新規紐付け時のみ（既存死亡ペット予約の時刻変更等は許可）。
+		if input.PetID != nil && *input.PetID != 0 {
+			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+				return err
+			}
+		}
 
 		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
 		resolvedReservationTypeID := current.ReservationTypeID
@@ -561,6 +595,12 @@ func (s *reservationService) applyReservationUpdate(
 			finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
 			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
+			}
+			// #261 P0: pet 付け替え/新規紐付け時のみ死亡拒否（既存関連のままの更新は許可）。
+			if input.PetID != nil && *input.PetID != 0 {
+				if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+					return err
+				}
 			}
 			u, err := s.repo.update(ctx, clinicID, id, fields)
 			if err != nil {
