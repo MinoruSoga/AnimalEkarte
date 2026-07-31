@@ -45,7 +45,7 @@ Ready summary (updated 2026-08-01 after seed static green): **READY_AGENT 0 / RE
 | R5 | READY_USER | ops-only | staged set確定後 | `bash scripts/check-docs-symbol-drift.sh` | TASK-005 |
 | R6 | READY_USER | ops-only | shared treeの複数editor | `git worktree list` | separate worktree / one shared-tree writer |
 | R7 | READY_USER | ops-only | empty-diff誤宣言 | `git diff --name-only` | actual diff必須 |
-| SCEN-SEED-001 | BLOCKED | AGENT→USER | static seed FAIL・USER apply | `python3 scripts/verify_seed.py` | TASK-009 |
+| SCEN-SEED-001 | READY_USER | USER | static green; USER apply only | reseed runbook / `make migrate` | TASK-009 |
 | SCEN-BROWSER-001 | BLOCKED | AGENT→USER | `claim/TASK-010`・runtime prerequisites | `git branch --list 'claim/TASK-010'` | TASK-010 |
 | SCEN-OPS-CLAIM-001 | READY_USER | ops-only | integration/abandon evidence | `git branch --list 'claim/*'` | USER only release。agent delete禁止 |
 | SCEN-OPS-COMMIT-001 | READY_USER | ops-only | mixed history説明時 | `git status --porcelain=v1` | memoのみ。rewrite/force-push禁止 |
